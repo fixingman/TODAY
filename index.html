@@ -34,7 +34,8 @@
     --text: #e8e8ec;
     --muted: #6b6b78;
     --danger: #ff5f5f;
-    --trello: #579dff;
+    --highlight: #579dff;
+    --highlight-ui: #c8f060;
     --done-line: rgba(232,232,236,0.25);
   }
 
@@ -196,7 +197,7 @@
     flex-shrink: 0;
   }
 
-  .section-dot.trello { background: var(--trello); }
+  .section-dot.trello { background: var(--highlight); }
   .section-dot.manual { background: var(--accent); }
 
   .section-count {
@@ -432,7 +433,7 @@
     font-family: 'Syne', sans-serif;
     font-weight: 700;
     font-size: 13px;
-    color: var(--trello);
+    color: var(--highlight);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     margin-bottom: 16px;
@@ -491,7 +492,7 @@
     display: block;
   }
 
-  .config-input:focus { border-color: var(--trello); }
+  .config-input:focus { border-color: var(--highlight-ui); }
   .config-input::placeholder { color: var(--muted); }
 
   .config-hint {
@@ -502,7 +503,7 @@
     overflow-wrap: break-word;
   }
 
-  .config-hint a { color: var(--trello); text-decoration: none; }
+  .config-hint a { color: var(--highlight-ui); text-decoration: none; }
   .config-hint a:hover { text-decoration: underline; }
 
   .config-actions {
@@ -512,8 +513,8 @@
     flex-wrap: wrap;
   }
 
-  .btn-trello {
-    background: var(--trello);
+  .btn-primary {
+    background: var(--highlight-ui);
     border: none;
     border-radius: 7px;
     color: #0e0e10;
@@ -526,7 +527,7 @@
     transition: opacity 0.15s;
   }
 
-  .btn-trello:hover { opacity: 0.85; }
+  .btn-primary:hover { opacity: 0.85; }
 
   .btn-ghost {
     background: none;
@@ -575,7 +576,7 @@
     width: 4px;
     height: 4px;
     border-radius: 50%;
-    background: var(--trello);
+    background: var(--highlight);
     animation: blink 1.2s infinite;
   }
 
@@ -650,17 +651,40 @@
           Cards from this list + cards due today will both be shown.<br><br>
           <strong style="color:var(--text)">Setup:</strong><br>
           1. Get your API key at <a href="https://trello.com/power-ups/admin" target="_blank">trello.com/power-ups/admin</a><br>
-          2. Generate a token: <code style="font-size:10px;color:var(--trello)">https://trello.com/1/authorize?expiration=never&scope=read&response_type=token&key=YOUR_KEY</code><br>
+          2. Generate a token: <code style="font-size:10px;color:var(--highlight-ui)">https://trello.com/1/authorize?expiration=never&scope=read&response_type=token&key=YOUR_KEY</code><br>
           (replace YOUR_KEY then open in browser)<br><br>
           <strong style="color:var(--text)">Hosting note:</strong> Trello's API requires this file to be served over HTTP, not opened as a local file. Use <a href="https://netlify.com/drop" target="_blank">Netlify Drop</a> or a local server.
         </div>
       </div>
     </div>
     <div class="config-actions">
-      <button class="btn-trello" onclick="saveAndLoad()">Connect & Load</button>
+      <button class="btn-primary" onclick="saveAndLoad()">Connect & Load</button>
       <button class="btn-ghost" onclick="clearTrello()">Clear Trello Data</button>
     </div>
     <div class="status-msg" id="statusMsg"></div>
+
+    <!-- Dropbox backup section -->
+    <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:20px">
+      <div class="config-title" style="margin-bottom:12px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;margin-right:6px"><path d="M12 12v9"/><path d="M8 16l4-4 4 4"/><path d="M20 17a5 5 0 0 0-4.8-6.3A7 7 0 1 0 4 17"/></svg>Dropbox Backup</div>
+      <div class="config-hint" style="margin-bottom:14px;margin-top:0">
+        Backup tasks &amp; settings to Dropbox. Survives cache clears, syncs across devices.<br>
+        Saved to <code style="color:var(--highlight-ui)">/today-backup.json</code> in your Dropbox.<br><br>
+        <strong style="color:var(--text)">Setup:</strong> Create a free app at <a href="https://www.dropbox.com/developers/apps" target="_blank" style="color:var(--highlight-ui)">dropbox.com/developers</a> → Scoped access → Full Dropbox. Add <code style="color:var(--highlight-ui)">https://today-here.netlify.app/</code> as a redirect URI, then paste your App Key below.
+      </div>
+      <div class="config-grid">
+        <div class="config-field full">
+          <div class="config-label">Dropbox App Key</div>
+          <input class="config-input" id="dropboxAppKey" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" placeholder="your-app-key" />
+        </div>
+      </div>
+      <div class="config-actions">
+        <button class="btn-primary" onclick="dropboxAuth()">Connect Dropbox</button>
+        <button class="btn-ghost" onclick="dropboxBackup()" id="btnBackup" style="display:none">↑ Backup</button>
+        <button class="btn-ghost" onclick="dropboxRestore()" id="btnRestore" style="display:none">↓ Restore</button>
+      </div>
+      <div class="status-msg" id="dropboxMsg"></div>
+      <div id="dropboxStatus" style="font-size:11px;color:var(--muted);margin-top:6px;min-height:14px"></div>
+    </div>
   </div>
 
   <!-- Info panel -->
@@ -733,6 +757,8 @@ let doneIds     = new Set((() => { try { return JSON.parse(localStorage.getItem(
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 function init() {
+  dropboxHandleRedirect(); // handle OAuth token in URL hash
+
   const now = new Date();
   document.getElementById('dateTag').textContent =
     now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }).toUpperCase();
@@ -788,7 +814,7 @@ function syncActiveButtons() {
   const configOpen = document.getElementById('configPanel').classList.contains('open');
   const infoOpen   = document.getElementById('infoPanel').classList.contains('open');
   document.getElementById('trelloBtn').classList.toggle('active', configOpen);
-  document.getElementById('infoBtn').classList.toggle('active', infoOpen);
+  document.getElementById('infoBtn').classList.toggle('active',   infoOpen);
 }
 
 function toggleConfig() {
@@ -1023,7 +1049,7 @@ function taskHTML(task, type, delay) {
     : '';
 
   const link = task.url
-    ? `<a href="${esc(task.url)}" target="_blank" rel="noopener" style="color:var(--trello);font-size:11px;text-decoration:none;margin-left:4px" title="Open in Trello">↗</a>`
+    ? `<a href="${esc(task.url)}" target="_blank" rel="noopener" style="color:var(--highlight-ui);font-size:11px;text-decoration:none;margin-left:4px" title="Open in Trello">↗</a>`
     : '';
 
   const deleteBtn = type === 'manual'
@@ -1348,6 +1374,192 @@ function updateFavicon(pct, isEmpty) {
     celebStart();
   };
 })();
+
+// ─── Dropbox ──────────────────────────────────────────────────────────────────
+const DROPBOX_FILE = '/today-backup.json';
+
+function getDropboxAppKey() {
+  const saved = localStorage.getItem('dropbox_app_key') || '';
+  const input = document.getElementById('dropboxAppKey');
+  return (input && input.value.trim()) || saved;
+}
+
+function dropboxSetStatus(msg, color) {
+  const el = document.getElementById('dropboxStatus');
+  if (el) { el.textContent = msg; el.style.color = color || 'var(--muted)'; }
+}
+
+function dropboxShowMsg(msg, type) {
+  const el = document.getElementById('dropboxMsg');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'status-msg ' + type;
+}
+
+function dropboxUpdateUI() {
+  const token = localStorage.getItem('dropbox_token');
+  const btnB  = document.getElementById('btnBackup');
+  const btnR  = document.getElementById('btnRestore');
+  if (token) {
+    if (btnB) btnB.style.display = '';
+    if (btnR) btnR.style.display = '';
+    dropboxSetStatus('Connected ✓', 'var(--accent)');
+  } else {
+    if (btnB) btnB.style.display = 'none';
+    if (btnR) btnR.style.display = 'none';
+    dropboxSetStatus('Not connected', 'var(--muted)');
+  }
+  // Restore saved app key into input
+  const saved = localStorage.getItem('dropbox_app_key');
+  const input = document.getElementById('dropboxAppKey');
+  if (saved && input && !input.value) input.value = saved;
+}
+
+function dropboxAuth() {
+  const appKey = (getDropboxAppKey() || '').trim();
+  if (!appKey) { dropboxShowMsg('Enter your App Key first.', 'error'); return; }
+  localStorage.setItem('dropbox_app_key', appKey);
+
+  // Open auth in a popup so the main app never unloads
+  const redirectUri = encodeURIComponent('https://today-here.netlify.app/');
+  const authUrl = 'https://www.dropbox.com/oauth2/authorize?client_id=' + appKey
+    + '&response_type=token&redirect_uri=' + redirectUri;
+  const popup = window.open(authUrl, 'dropbox_auth', 'width=600,height=700,left=200,top=100');
+
+  // Poll for the token appearing in the popup URL
+  const poll = setInterval(function() {
+    try {
+      if (!popup || popup.closed) { clearInterval(poll); return; }
+      const hash = popup.location.hash || '';
+      if (hash.includes('access_token')) {
+        clearInterval(poll);
+        const params = new URLSearchParams(hash.replace('#', ''));
+        const token  = params.get('access_token');
+        const err    = params.get('error_description') || params.get('error');
+        popup.close();
+        if (err)   { dropboxShowMsg('Dropbox error: ' + err, 'error'); return; }
+        if (!token){ dropboxShowMsg('No token received — check your App Key and redirect URI.', 'error'); return; }
+        localStorage.setItem('dropbox_token', token);
+        openDropboxPanel();
+        dropboxUpdateUI();
+        dropboxShowMsg('Dropbox connected! You can now backup and restore.', 'success');
+      } else if (hash.includes('error')) {
+        clearInterval(poll);
+        const params = new URLSearchParams(hash.replace('#', ''));
+        const err = params.get('error_description') || params.get('error') || 'Unknown error';
+        popup.close();
+        dropboxShowMsg('Dropbox error: ' + err, 'error');
+      }
+    } catch(e) {
+      // Cross-origin — popup still on dropbox.com, keep polling
+    }
+  }, 500);
+}
+
+function dropboxHandleRedirect() {
+  // No longer needed — auth is handled via popup
+  // Keep as no-op for safety
+}
+
+function openDropboxPanel() {
+  document.getElementById('configPanel').classList.add('open');
+  document.getElementById('infoPanel').classList.remove('open');
+  syncActiveButtons();
+  dropboxUpdateUI();
+}
+
+async function dropboxBackup() {
+  const token = localStorage.getItem('dropbox_token');
+  if (!token) { dropboxShowMsg('Not connected. Click Connect Dropbox first.', 'error'); return; }
+
+  const data = {
+    version:      '1.0',
+    exported_at:  new Date().toISOString(),
+    manual_tasks: JSON.parse(localStorage.getItem('today_manual') || '[]'),
+    done_ids:     JSON.parse(localStorage.getItem('today_done')   || '[]'),
+    trello_config: JSON.parse(localStorage.getItem('trello_config') || '{}'),
+    stat_alltime_done: localStorage.getItem('stat_alltime_done') || '0',
+    stat_streak:       localStorage.getItem('stat_streak')       || '1',
+    stat_last_visit:   localStorage.getItem('stat_last_visit')   || '',
+  };
+
+  dropboxShowMsg('Saving backup…', 'success');
+
+  try {
+    const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization':    `Bearer ${token}`,
+        'Content-Type':     'application/octet-stream',
+        'Dropbox-API-Arg':  JSON.stringify({
+          path: DROPBOX_FILE,
+          mode: 'overwrite',
+          autorename: false,
+          mute: true,
+        }),
+      },
+      body: JSON.stringify(data, null, 2),
+    });
+
+    if (res.status === 401) {
+      localStorage.removeItem('dropbox_token');
+      dropboxUpdateUI();
+      dropboxShowMsg('Session expired — please reconnect Dropbox.', 'error');
+      return;
+    }
+    if (!res.ok) throw new Error(`Dropbox error ${res.status}`);
+
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    dropboxShowMsg(`Backup saved at ${now} ✓`, 'success');
+  } catch(e) {
+    dropboxShowMsg('Backup failed: ' + (e.message || 'unknown error'), 'error');
+  }
+}
+
+async function dropboxRestore() {
+  const token = localStorage.getItem('dropbox_token');
+  if (!token) { dropboxShowMsg('Not connected. Click Connect Dropbox first.', 'error'); return; }
+
+  dropboxShowMsg('Fetching backup…', 'success');
+
+  try {
+    const res = await fetch('https://content.dropboxapi.com/2/files/download', {
+      method: 'POST',
+      headers: {
+        'Authorization':   `Bearer ${token}`,
+        'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_FILE }),
+      },
+    });
+
+    if (res.status === 401) {
+      localStorage.removeItem('dropbox_token');
+      dropboxUpdateUI();
+      dropboxShowMsg('Session expired — please reconnect Dropbox.', 'error');
+      return;
+    }
+    if (res.status === 409) {
+      dropboxShowMsg('No backup found. Make a backup first.', 'error');
+      return;
+    }
+    if (!res.ok) throw new Error(`Dropbox error ${res.status}`);
+
+    const data = await res.json();
+
+    // Restore everything
+    if (data.manual_tasks)      localStorage.setItem('today_manual',        JSON.stringify(data.manual_tasks));
+    if (data.done_ids)          localStorage.setItem('today_done',          JSON.stringify(data.done_ids));
+    if (data.trello_config)     localStorage.setItem('trello_config',       JSON.stringify(data.trello_config));
+    if (data.stat_alltime_done) localStorage.setItem('stat_alltime_done',   data.stat_alltime_done);
+    if (data.stat_streak)       localStorage.setItem('stat_streak',         data.stat_streak);
+    if (data.stat_last_visit)   localStorage.setItem('stat_last_visit',     data.stat_last_visit);
+
+    dropboxShowMsg('Restore complete — reloading…', 'success');
+    setTimeout(() => window.location.reload(), 1200);
+
+  } catch(e) {
+    dropboxShowMsg('Restore failed: ' + (e.message || 'unknown error'), 'error');
+  }
+}
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 init();
