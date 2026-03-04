@@ -1,12 +1,1014 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TODAY App</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TODAY</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e10;
+    --surface: #17171a;
+    --surface2: #1f1f24;
+    --border: #2a2a30;
+    --accent: #c8f060;
+    --accent-dim: rgba(200,240,96,0.12);
+    --text: #e8e8ec;
+    --muted: #6b6b78;
+    --danger: #ff5f5f;
+    --trello: #579dff;
+    --trello-dim: rgba(87,157,255,0.12);
+    --done-line: rgba(232,232,236,0.25);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* Subtle noise texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 48px;
+  }
+
+  .header-left h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 52px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .header-left h1 span {
+    color: var(--accent);
+  }
+
+  .date-tag {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .btn-icon {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 16px;
+  }
+  .btn-icon:hover { color: var(--text); border-color: var(--muted); }
+
+  /* Stats bar */
+  .stats {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .progress-bar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .progress-track {
+    height: 3px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+
+  .progress-text {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-align: right;
+  }
+
+  /* Section */
+  .section {
+    margin-bottom: 32px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .section-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .section-dot.trello { background: var(--trello); }
+  .section-dot.manual { background: var(--accent); }
+
+  .section-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .section-count {
+    font-size: 10px;
+    color: var(--muted);
+    background: var(--surface2);
+    padding: 2px 7px;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+  }
+
+  /* Task item */
+  .task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .task {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: background 0.15s, border-color 0.15s, opacity 0.3s;
+    cursor: default;
+    animation: fadeIn 0.25s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeOut {
+    from { opacity: 1; transform: scaleY(1); max-height: 80px; margin-bottom: 0; }
+    to   { opacity: 0; transform: scaleY(0.8); max-height: 0;  margin-bottom: -2px; padding-top: 0; padding-bottom: 0; }
+  }
+
+  .task.removing {
+    animation: fadeOut 0.18s ease forwards;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .task:hover {
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  .task.done {
+    opacity: 0.25 !important;
+    transition: opacity 0.3s ease;
+  }
+
+  .task.done .task-text {
+    text-decoration: line-through;
+    text-decoration-color: var(--done-line);
+  }
+
+  .task-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1.5px solid var(--border);
+    flex-shrink: 0;
+    margin-top: 1px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    background: transparent;
+  }
+
+  .task-check:hover {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .task.done .task-check {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0e0e10;
+  }
+
+  .task-check svg { display: none; }
+  .task.done .task-check svg { display: block; }
+
+  .task-body { flex: 1; min-width: 0; }
+
+  .task-text {
+    color: var(--text);
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+
+  .task-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .badge.trello-badge {
+    background: var(--trello-dim);
+    color: var(--trello);
+    border: 1px solid rgba(87,157,255,0.2);
+  }
+
+  .badge.due {
+    background: rgba(255,95,95,0.1);
+    color: var(--danger);
+    border: 1px solid rgba(255,95,95,0.2);
+  }
+
+  .badge.list-name {
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .task-delete {
+    opacity: 0;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 2px;
+    line-height: 1;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .task:hover .task-delete { opacity: 1; }
+  .task-delete:hover { color: var(--danger); }
+
+  /* Empty state */
+  .empty {
+    padding: 24px 14px;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+  }
+
+  /* Add task input */
+  .add-task-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .add-task-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .add-task-input::placeholder { color: var(--muted); }
+  .add-task-input:focus { border-color: var(--accent); }
+
+  .add-task-btn {
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    color: #0e0e10;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 0 18px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    letter-spacing: 0.04em;
+  }
+
+  .add-task-btn:hover { opacity: 0.85; }
+
+  /* Trello config panel */
+  .config-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 32px;
+    display: none;
+  }
+
+  .config-panel.open { display: block; animation: fadeIn 0.2s ease; }
+
+  .config-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--trello);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  @media (max-width: 500px) { .config-grid { grid-template-columns: 1fr; } }
+
+  .config-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .config-field.full { grid-column: 1 / -1; }
+
+  .config-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .config-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .config-input:focus { border-color: var(--trello); }
+  .config-input::placeholder { color: var(--muted); }
+
+  .config-hint {
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-top: 4px;
+  }
+
+  .config-hint a { color: var(--trello); text-decoration: none; }
+  .config-hint a:hover { text-decoration: underline; }
+
+  .config-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .btn-trello {
+    background: var(--trello);
+    border: none;
+    border-radius: 7px;
+    color: #0e0e10;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    padding: 8px 16px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: opacity 0.15s;
+  }
+
+  .btn-trello:hover { opacity: 0.85; }
+
+  .btn-ghost {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+
+  /* Status msg */
+  .status-msg {
+    font-size: 11px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-top: 10px;
+    display: none;
+  }
+
+  .status-msg.error {
+    display: block;
+    background: rgba(255,95,95,0.1);
+    border: 1px solid rgba(255,95,95,0.25);
+    color: var(--danger);
+  }
+
+  .status-msg.success {
+    display: block;
+    background: var(--accent-dim);
+    border: 1px solid rgba(200,240,96,0.25);
+    color: var(--accent);
+  }
+
+  .loading-dots {
+    display: inline-flex;
+    gap: 3px;
+    align-items: center;
+  }
+
+  .loading-dots span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--trello);
+    animation: blink 1.2s infinite;
+  }
+
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes blink {
+    0%, 80%, 100% { opacity: 0.2; }
+    40% { opacity: 1; }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
 </head>
 <body>
-    <h1>Welcome to the TODAY App!</h1>
-    <p>This is the complete index.html file for the TODAY app.</p>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1>TO<span>DAY</span></h1>
+      <div class="date-tag" id="dateTag"></div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-icon" id="trelloBtn" title="Configure Trello" onclick="toggleConfig()">⚡</button>
+      <button class="btn-icon" id="refreshBtn" title="Refresh Trello" onclick="loadTrello()">↻</button>
+    </div>
+  </div>
+
+  <!-- Trello config panel -->
+  <div class="config-panel" id="configPanel">
+    <div class="config-title">⚡ Trello Connection</div>
+    <div class="config-grid">
+      <div class="config-field">
+        <div class="config-label">API Key</div>
+        <input class="config-input" id="apiKey" type="text" placeholder="your-api-key" />
+      </div>
+      <div class="config-field">
+        <div class="config-label">API Token</div>
+        <input class="config-input" id="apiToken" type="password" placeholder="your-token" />
+      </div>
+      <div class="config-field full">
+        <div class="config-label">Board ID or URL</div>
+        <input class="config-input" id="boardId" type="text" placeholder="https://trello.com/b/xxxxxxxx/board-name or just the ID" />
+      </div>
+      <div class="config-field full">
+        <div class="config-label">"Today" list name (optional)</div>
+        <input class="config-input" id="todayList" type="text" placeholder='e.g. "Today" or "Doing"' />
+        <div class="config-hint">
+          Cards from this list + cards due today will both be shown.<br><br>
+          <strong style="color:var(--text)">Setup:</strong><br>
+          1. Get your API key at <a href="https://trello.com/power-ups/admin" target="_blank">trello.com/power-ups/admin</a><br>
+          2. Generate a token: <code style="font-size:10px;color:var(--trello)">https://trello.com/1/authorize?expiration=never&scope=read&response_type=token&key=YOUR_KEY</code><br>
+          (replace YOUR_KEY then open in browser)<br><br>
+          <strong style="color:var(--text)">Hosting note:</strong> Trello's API requires this file to be served over HTTP, not opened as a local file. Use <a href="https://netlify.com/drop" target="_blank">Netlify Drop</a> or a local server.
+        </div>
+      </div>
+    </div>
+    <div class="config-actions">
+      <button class="btn-trello" onclick="saveAndLoad()">Connect & Load</button>
+      <button class="btn-ghost" onclick="clearTrello()">Clear Trello Data</button>
+    </div>
+    <div class="status-msg" id="statusMsg"></div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-val" id="statTotal">0</div>
+      <div class="stat-label">Total</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="statDone">0</div>
+      <div class="stat-label">Done</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="statLeft">0</div>
+      <div class="stat-label">Left</div>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-text" id="progressText">0%</div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trello section -->
+  <div class="section" id="trelloSection">
+    <div class="section-header">
+      <div class="section-dot trello"></div>
+      <div class="section-label">From Trello</div>
+      <div class="section-count" id="trelloCount">0</div>
+    </div>
+    <div class="task-list" id="trelloList"></div>
+    <div class="empty" id="trelloEmpty">No Trello tasks — click ⚡ to connect</div>
+  </div>
+
+  <!-- Manual section -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-dot manual"></div>
+      <div class="section-label">Added by you</div>
+      <div class="section-count" id="manualCount">0</div>
+    </div>
+    <div class="task-list" id="manualList"></div>
+    <div class="empty" id="manualEmpty" style="display:none">Nothing added yet</div>
+    <div class="add-task-row">
+      <input class="add-task-input" id="newTask" type="text" placeholder="Add a task for today…" onkeydown="handleAddKey(event)" />
+      <button class="add-task-btn" onclick="addManual()">Add</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let trelloTasks = [];
+let manualTasks = (() => { try { return JSON.parse(localStorage.getItem('today_manual') || '[]'); } catch(e) { return []; } })();
+let doneIds     = new Set((() => { try { return JSON.parse(localStorage.getItem('today_done') || '[]'); } catch(e) { return []; } })());
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+function init() {
+  const now = new Date();
+  document.getElementById('dateTag').textContent =
+    now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' }).toUpperCase();
+
+  const saved = getSavedConfig();
+  if (saved.apiKey)    document.getElementById('apiKey').value    = saved.apiKey;
+  if (saved.apiToken)  document.getElementById('apiToken').value  = saved.apiToken;
+  if (saved.boardId)   document.getElementById('boardId').value   = saved.boardId;
+  if (saved.todayList) document.getElementById('todayList').value = saved.todayList;
+
+  renderManual();
+  renderTrello();
+  updateStats();
+
+  if (saved.apiKey && saved.apiToken && saved.boardId) {
+    loadTrello();
+  }
+
+  // Clear stale done IDs that no longer match any manual task
+  // (Trello tasks are checked after load, so we only prune manual ones here)
+  const manualIds = new Set(manualTasks.map(t => t.id));
+  let changed = false;
+  for (const id of [...doneIds]) {
+    if (id.startsWith('manual_') && !manualIds.has(id)) {
+      doneIds.delete(id);
+      changed = true;
+    }
+  }
+  if (changed) localStorage.setItem('today_done', JSON.stringify([...doneIds]));
+}
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+function toggleConfig() {
+  document.getElementById('configPanel').classList.toggle('open');
+}
+
+function getSavedConfig() {
+  try {
+    return JSON.parse(localStorage.getItem('trello_config') || '{}');
+  } catch(e) {
+    return {};
+  }
+}
+
+function saveAndLoad() {
+  const rawBoard = document.getElementById('boardId').value.trim();
+  const config = {
+    apiKey:    document.getElementById('apiKey').value.trim(),
+    apiToken:  document.getElementById('apiToken').value.trim(),
+    boardId:   parseBoardId(rawBoard),
+    todayList: document.getElementById('todayList').value.trim(),
+  };
+  if (!config.apiKey || !config.apiToken || !config.boardId) {
+    showStatus('API Key, Token, and Board ID are all required.', 'error');
+    return;
+  }
+  // Show parsed board ID back in input so user can verify
+  document.getElementById('boardId').value = config.boardId;
+  localStorage.setItem('trello_config', JSON.stringify(config));
+  loadTrello();
+}
+
+function clearTrello() {
+  localStorage.removeItem('trello_config');
+  trelloTasks = [];
+  document.getElementById('apiKey').value    = '';
+  document.getElementById('apiToken').value  = '';
+  document.getElementById('boardId').value   = '';
+  document.getElementById('todayList').value = '';
+  // Open panel before calling showStatus so the element is visible
+  document.getElementById('configPanel').classList.add('open');
+  renderTrello();
+  updateStats();
+  showStatus('Trello data cleared.', 'success');
+}
+
+function parseBoardId(val) {
+  const m = val.match(/trello\.com\/b\/([^\/]+)/);
+  return m ? m[1] : val;
+}
+
+// ─── Trello API ───────────────────────────────────────────────────────────────
+async function loadTrello() {
+  const config = getSavedConfig();
+  if (!config.apiKey || !config.apiToken || !config.boardId) return;
+
+  // Show loading state
+  const emptyEl = document.getElementById('trelloEmpty');
+  const listEl  = document.getElementById('trelloList');
+  emptyEl.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span> Loading from Trello…';
+  emptyEl.style.display = 'block';
+  listEl.innerHTML = '';
+
+  try {
+    const today    = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+
+    // Fetch lists and cards in parallel
+    const [listsRes, cardsRes] = await Promise.all([
+      fetch(`https://api.trello.com/1/boards/${config.boardId}/lists?key=${config.apiKey}&token=${config.apiToken}`),
+      fetch(`https://api.trello.com/1/boards/${config.boardId}/cards?key=${config.apiKey}&token=${config.apiToken}&fields=name,due,idList,url,labels`)
+    ]);
+
+    if (!listsRes.ok) throw new Error(`Trello ${listsRes.status}: ${listsRes.statusText}`);
+    if (!cardsRes.ok) throw new Error(`Trello ${cardsRes.status}: ${cardsRes.statusText}`);
+
+    const lists = await listsRes.json();
+    const cards = await cardsRes.json();
+
+    // Find "today" list by name (case-insensitive)
+    const todayListName = (config.todayList || '').toLowerCase().trim();
+    const todayListId   = todayListName
+      ? ((lists.find(l => l.name.toLowerCase() === todayListName) || {}).id || null)
+      : null;
+
+    // Build list id → name map
+    const listMap = {};
+    lists.forEach(l => { listMap[l.id] = l.name; });
+
+    // Filter: in today list OR due today
+    const filtered = cards.filter(c => {
+      if (todayListId && c.idList === todayListId) return true;
+      if (c.due) {
+        const d = new Date(c.due); d.setHours(0,0,0,0);
+        if (d >= today && d < tomorrow) return true;
+      }
+      return false;
+    });
+
+    const isEmpty = text => !text || /^[\s\-–—_\.]+$/.test(text.trim());
+
+    trelloTasks = filtered
+      .filter(c => !isEmpty(c.name))
+      .map(c => ({
+        id:       'trello_' + c.id,
+        text:     c.name,
+        due:      c.due || null,
+        listName: listMap[c.idList] || '',
+        url:      c.url || '',
+      }));
+
+    renderTrello();
+    updateStats();
+
+    const label = config.todayList ? `"${config.todayList}"` : 'your today list';
+    const msg   = trelloTasks.length === 0
+      ? `Connected! No cards found due today or in ${label}.`
+      : `Loaded ${trelloTasks.length} card${trelloTasks.length !== 1 ? 's' : ''} from Trello.`;
+
+    // Only show status in panel if it's already open
+    if (document.getElementById('configPanel').classList.contains('open')) {
+      showStatus(msg, 'success');
+      setTimeout(() => document.getElementById('configPanel').classList.remove('open'), 1800);
+    }
+
+  } catch(e) {
+    let msg = (e && e.message) ? e.message : 'Failed to connect to Trello.';
+
+    if (!msg || msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('Load failed') || msg.includes('CORS')) {
+      msg = 'Network error — check your API Key and Token are correct. Make sure the token has read access.';
+    } else if (msg.includes('401')) {
+      msg = 'Unauthorised (401) — your token may be expired. Re-generate at trello.com/power-ups/admin.';
+    } else if (msg.includes('404')) {
+      msg = 'Board not found (404) — double-check your Board ID or URL.';
+    }
+
+    // Always open config panel so the error is visible
+    document.getElementById('configPanel').classList.add('open');
+    showStatus(msg, 'error');
+
+    const emptyEl2 = document.getElementById('trelloEmpty');
+    if (emptyEl2) {
+      emptyEl2.textContent = '⚠ Failed to load — check credentials above.';
+      emptyEl2.style.display = 'block';
+    }
+  }
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function renderTrello() {
+  const list  = document.getElementById('trelloList');
+  const empty = document.getElementById('trelloEmpty');
+  if (!list || !empty) return;
+
+  document.getElementById('trelloCount').textContent = trelloTasks.length;
+
+  if (trelloTasks.length === 0) {
+    list.innerHTML = '';
+    empty.textContent    = 'No Trello tasks — click ⚡ to connect';
+    empty.style.display  = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  list.innerHTML = trelloTasks.map((t, i) => taskHTML(t, 'trello', i * 30)).join('');
+}
+
+function renderManual() {
+  const list  = document.getElementById('manualList');
+  const empty = document.getElementById('manualEmpty');
+  if (!list || !empty) return;
+
+  // Full render — only called on init/page load
+  list.innerHTML = manualTasks.map((t, i) => taskHTML(t, 'manual', i * 30)).join('');
+  document.getElementById('manualCount').textContent = manualTasks.length;
+  empty.style.display = manualTasks.length === 0 ? 'block' : 'none';
+}
+
+function taskHTML(task, type, delay) {
+  const done   = doneIds.has(task.id);
+  const tid    = task.id; // original id - safe alphanumeric, stored in data-taskid
+  const dueStr = task.due
+    ? new Date(task.due).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })
+    : '';
+
+  const badges = type === 'trello' && dueStr
+    ? `<span class="badge due">due ${esc(dueStr)}</span>`
+    : '';
+
+  const link = task.url
+    ? `<a href="${esc(task.url)}" target="_blank" rel="noopener" style="color:var(--trello);font-size:11px;text-decoration:none;margin-left:4px" title="Open in Trello">↗</a>`
+    : '';
+
+  const deleteBtn = type === 'manual'
+    ? `<button class="task-delete" data-taskid="${tid}" title="Remove">×</button>`
+    : '';
+
+  return `
+    <div class="task${done ? ' done' : ''}" data-taskid="${tid}" style="animation-delay:${delay}ms">
+      <div class="task-check" data-taskid="${tid}">
+        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+          <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="task-body">
+        <div class="task-text">${esc(task.text)}${link}</div>
+        ${badges ? `<div class="task-meta">${badges}</div>` : ''}
+      </div>
+      ${deleteBtn}
+    </div>`;
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Event delegation ────────────────────────────────────────────────────────
+document.addEventListener('click', function(e) {
+  // Check box
+  const checkEl = e.target.closest('.task-check');
+  if (checkEl) {
+    const id = checkEl.dataset.taskid;
+    if (id) toggleDone(id);
+    return;
+  }
+  // Delete button
+  const delEl = e.target.closest('.task-delete');
+  if (delEl) {
+    const id = delEl.dataset.taskid;
+    if (id) deleteManual(id);
+    return;
+  }
+});
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+function toggleDone(taskId) {
+  if (doneIds.has(taskId)) doneIds.delete(taskId);
+  else doneIds.add(taskId);
+
+  localStorage.setItem('today_done', JSON.stringify([...doneIds]));
+
+  const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
+  if (el) el.classList.toggle('done', doneIds.has(taskId));
+  updateStats();
+}
+
+function addManual() {
+  const input = document.getElementById('newTask');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  const task = { id: 'manual_' + Date.now(), text };
+  manualTasks.push(task);
+  localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+  input.value = '';
+  input.focus();
+
+  // Insert new element directly — no full re-render
+  const list  = document.getElementById('manualList');
+  const empty = document.getElementById('manualEmpty');
+  const div   = document.createElement('div');
+  div.innerHTML = taskHTML(task, 'manual', 0);
+  const el = div.firstElementChild;
+  list.appendChild(el);
+  if (empty) empty.style.display = 'none';
+
+  document.getElementById('manualCount').textContent = manualTasks.length;
+  updateStats();
+}
+
+function handleAddKey(e) {
+  if (e.key === 'Enter') addManual();
+}
+
+function deleteManual(taskId) {
+  const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
+  if (!el) return;
+
+  el.classList.add('removing');
+  setTimeout(() => {
+    el.remove();
+    manualTasks = manualTasks.filter(t => t.id !== taskId);
+    doneIds.delete(taskId);
+    localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+    localStorage.setItem('today_done',   JSON.stringify([...doneIds]));
+    // Show empty state if no tasks left
+    const empty = document.getElementById('manualEmpty');
+    if (empty) empty.style.display = manualTasks.length === 0 ? 'block' : 'none';
+    document.getElementById('manualCount').textContent = manualTasks.length;
+    updateStats();
+  }, 180);
+}
+
+function updateStats() {
+  const all   = [...trelloTasks, ...manualTasks];
+  const total = all.length;
+  const done  = all.filter(t => doneIds.has(t.id)).length;
+  const left  = total - done;
+  const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  const s = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  s('statTotal', total);
+  s('statDone',  done);
+  s('statLeft',  left);
+  s('progressText', pct + '%');
+  const fill = document.getElementById('progressFill');
+  if (fill) fill.style.width = pct + '%';
+
+  // Update tab title
+  if (left === 0 && total > 0) document.title = '✓ TODAY';
+  else document.title = `(${left})TODAY`;
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  if (!el) return;
+  el.textContent = msg;
+  el.className   = 'status-msg ' + type;
+}
+
+// ─── Start ────────────────────────────────────────────────────────────────────
+init();
+</script>
 </body>
 </html>
