@@ -182,12 +182,6 @@
   .section-dot.trello { background: var(--trello); }
   .section-dot.manual { background: var(--accent); }
 
-  .section-line {
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-
   .section-count {
     font-size: 10px;
     color: var(--muted);
@@ -300,22 +294,10 @@
     font-family: 'DM Mono', monospace;
   }
 
-  .badge.trello-badge {
-    background: var(--trello-dim);
-    color: var(--trello);
-    border: 1px solid rgba(87,157,255,0.2);
-  }
-
   .badge.due {
     background: rgba(255,95,95,0.1);
     color: var(--danger);
     border: 1px solid rgba(255,95,95,0.2);
-  }
-
-  .badge.list-name {
-    background: var(--surface2);
-    color: var(--muted);
-    border: 1px solid var(--border);
   }
 
   .task-delete {
@@ -655,8 +637,6 @@
     </div>
   </div>
 
-
-
   <!-- Trello section -->
   <div class="section" id="trelloSection">
     <div class="section-header">
@@ -742,7 +722,6 @@ function syncActiveButtons() {
 
 function toggleConfig() {
   const configPanel = document.getElementById('configPanel');
-  const isOpening = !configPanel.classList.contains('open');
   configPanel.classList.toggle('open');
   document.getElementById('infoPanel').classList.remove('open');
   syncActiveButtons();
@@ -760,15 +739,12 @@ function toggleInfo() {
 function renderInfoStats() {
   // Pull lifetime stats from localStorage
   const allTimeCompleted = parseInt(localStorage.getItem('stat_alltime_done') || '0');
-  const allTimeAdded     = parseInt(localStorage.getItem('stat_alltime_added') || '0');
-  const daysUsed         = parseInt(localStorage.getItem('stat_days_used') || '1');
 
   const all    = [...trelloTasks, ...manualTasks];
   const total  = all.length;
   const done   = all.filter(t => doneIds.has(t.id)).length;
   const pct    = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const streakStart = localStorage.getItem('stat_streak_start');
   const lastVisit   = localStorage.getItem('stat_last_visit');
   const today       = new Date().toDateString();
   let streak = parseInt(localStorage.getItem('stat_streak') || '1');
@@ -1115,7 +1091,6 @@ function updateStats() {
   const s = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   s('statTotal', total);
   s('statDone',  done);
-  s('statLeft',  left);
   const fill = document.getElementById('progressFill');
   if (fill) fill.style.width = pct + '%';
 
