@@ -79,7 +79,7 @@
     font-family: 'Syne', sans-serif;
     font-size: clamp(36px, 10vw, 52px);
     font-weight: 800;
-    letter-spacing: -2px;
+    letter-spacing: clamp(-1px, -0.04em, -2px);
     line-height: 1;
     color: var(--text);
   }
@@ -327,6 +327,11 @@
   .task:hover .task-delete { opacity: 1; }
   .task-delete:hover { color: var(--danger); }
 
+  @media (hover: none) {
+    .task-delete { opacity: 0.35; }
+    .task-delete:active { color: var(--danger); opacity: 1; }
+  }
+
   /* Empty state */
   .empty {
     padding: 24px 14px;
@@ -383,6 +388,9 @@
     padding: 20px;
     margin-bottom: 33px;
     display: none;
+    overflow: hidden;
+    min-width: 0;
+    width: 100%;
   }
 
   .config-panel.open { display: block; animation: fadeIn 0.2s ease; }
@@ -425,6 +433,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
+    min-width: 0;
   }
 
   @media (max-width: 600px) {
@@ -439,6 +448,8 @@
     display: flex;
     flex-direction: column;
     gap: 5px;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .config-field.full { grid-column: 1 / -1; }
@@ -472,6 +483,7 @@
     color: var(--muted);
     line-height: 1.5;
     margin-top: 8px;
+    overflow-wrap: break-word;
   }
 
   .config-hint a { color: var(--trello); text-decoration: none; }
@@ -481,6 +493,7 @@
     display: flex;
     gap: 8px;
     margin-top: 16px;
+    flex-wrap: wrap;
   }
 
   .btn-trello {
@@ -604,19 +617,19 @@
     <div class="config-grid">
       <div class="config-field">
         <div class="config-label">API Key</div>
-        <input class="config-input" id="apiKey" type="text" placeholder="your-api-key" />
+        <input class="config-input" id="apiKey" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" placeholder="your-api-key" />
       </div>
       <div class="config-field">
         <div class="config-label">API Token</div>
-        <input class="config-input" id="apiToken" type="password" placeholder="your-token" />
+        <input class="config-input" id="apiToken" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="password" placeholder="your-token" />
       </div>
       <div class="config-field full">
         <div class="config-label">Board ID or URL</div>
-        <input class="config-input" id="boardId" type="text" placeholder="Board URL or ID" />
+        <input class="config-input" id="boardId" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" placeholder="Board URL or ID" />
       </div>
       <div class="config-field full">
         <div class="config-label">"Today" list name (optional)</div>
-        <input class="config-input" id="todayList" type="text" placeholder='e.g. "Today" or "Doing"' />
+        <input class="config-input" id="todayList" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" placeholder='e.g. "Today" or "Doing"' />
         <div class="config-hint">
           Cards from this list + cards due today will both be shown.<br><br>
           <strong style="color:var(--text)">Setup:</strong><br>
@@ -715,12 +728,13 @@ function init() {
   if (saved.todayList) document.getElementById('todayList').value = saved.todayList;
 
   renderManual();
-  renderTrello();
   updateStats();
 
   if (saved.apiKey && saved.apiToken && saved.boardId) {
     setTrelloIcon(true); // optimistically show connected, reverts on error
-    loadTrello();
+    loadTrello();        // renderTrello() called inside loadTrello on success/fail
+  } else {
+    renderTrello();      // show empty state only when no config saved
   }
 
   // Clear stale done IDs that no longer match any manual task
@@ -734,6 +748,16 @@ function init() {
     }
   }
   if (changed) localStorage.setItem('today_done', JSON.stringify([...doneIds]));
+
+  // Track daily visit streak
+  const todayStr  = new Date().toDateString();
+  const lastVisit = localStorage.getItem('stat_last_visit');
+  if (lastVisit && lastVisit !== todayStr) {
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
+    localStorage.setItem('stat_streak', lastVisit === yesterday.toDateString() ? streak + 1 : 1);
+  }
+  localStorage.setItem('stat_last_visit', todayStr);
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -776,23 +800,9 @@ function renderInfoStats() {
   const done   = all.filter(t => doneIds.has(t.id)).length;
   const pct    = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const lastVisit   = localStorage.getItem('stat_last_visit');
-  const today       = new Date().toDateString();
-  let streak = parseInt(localStorage.getItem('stat_streak') || '1');
-
-  if (lastVisit && lastVisit !== today) {
-    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-    if (lastVisit === yesterday.toDateString()) {
-      streak += 1;
-    } else {
-      streak = 1;
-    }
-    localStorage.setItem('stat_streak', streak);
-  }
-  localStorage.setItem('stat_last_visit', today);
-
-  const trelloCount  = trelloTasks.length;
-  const manualCount  = manualTasks.length;
+  const streak      = parseInt(localStorage.getItem('stat_streak') || '1');
+  const trelloCount = trelloTasks.length;
+  const manualCount = manualTasks.length;
 
   const stats = [
     { val: `${done}/${total}`, label: 'Done today' },
@@ -910,11 +920,10 @@ async function loadTrello() {
     trelloTasks = filtered
       .filter(c => !isEmpty(c.name))
       .map(c => ({
-        id:       'trello_' + c.id,
-        text:     c.name,
-        due:      c.due || null,
-        listName: listMap[c.idList] || '',
-        url:      c.url || '',
+        id:   'trello_' + c.id,
+        text: c.name,
+        due:  c.due || null,
+        url:  c.url || '',
       }));
 
     renderTrello();
@@ -1152,7 +1161,7 @@ function drawFavicon(pct, isEmpty) {
   const c   = document.createElement('canvas');
   c.width   = s; c.height = s;
   const ctx = c.getContext('2d');
-  const ACCENT = '#c8f060', BG = '#0e0e10', MUTED = '#2a2a30';
+  const ACCENT = '#c8f060', BG = '#0e0e10', TRACK = '#2a2a30';
   const cx = s / 2, cy = s / 2;
 
   // Background
@@ -1163,7 +1172,7 @@ function drawFavicon(pct, isEmpty) {
   const ringR = s * 0.38, lw = s * 0.10;
   ctx.beginPath();
   ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-  ctx.strokeStyle = isEmpty ? '#1a1a1a' : MUTED;
+  ctx.strokeStyle = isEmpty ? '#1a1a1a' : TRACK;
   ctx.lineWidth = lw;
   ctx.stroke();
 
