@@ -493,6 +493,8 @@
   }
 
   .config-input:focus { border-color: var(--highlight-ui); }
+  select.config-input { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6b78' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+  select.config-input option { background: var(--surface); color: var(--text); }
   .config-input::placeholder { color: var(--muted); }
 
   .config-hint {
@@ -631,42 +633,49 @@
   <!-- Trello config panel -->
   <div class="config-panel" id="configPanel">
     <div class="config-title">⚡ Trello Connection</div>
-    <div class="config-grid">
-      <div class="config-field">
-        <div class="config-label">API Key</div>
-        <input class="config-input" id="apiKey" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" placeholder="your-api-key" />
+
+    <!-- Step 1: Connect -->
+    <div id="trelloStep1">
+      <div class="config-hint" style="margin-bottom:12px">
+        Connect your Trello account to pull today's cards automatically.
       </div>
-      <div class="config-field">
-        <div class="config-label">API Token</div>
-        <input class="config-input" id="apiToken" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="password" placeholder="your-token" />
+      <div class="config-actions">
+        <button class="btn-primary" onclick="trelloAuth()">Connect Trello</button>
       </div>
-      <div class="config-field full">
-        <div class="config-label">Board ID or URL</div>
-        <input class="config-input" id="boardId" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" placeholder="Board URL or ID" />
-      </div>
-      <div class="config-field full">
-        <div class="config-label">"Today" list name (optional)</div>
-        <input class="config-input" id="todayList" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" placeholder='e.g. "Today" or "Doing"' />
-        <div class="config-hint">
-          Cards from this list + cards due today will both be shown.<br><br>
-          <strong style="color:var(--text)">Setup:</strong><br>
-          1. Get your API key at <a href="https://trello.com/power-ups/admin" target="_blank">trello.com/power-ups/admin</a><br>
-          2. Generate a token: <code style="font-size:10px;color:var(--highlight-ui)">https://trello.com/1/authorize?expiration=never&scope=read&response_type=token&key=YOUR_KEY</code><br>
-          (replace YOUR_KEY then open in browser)
+    </div>
+
+    <!-- Step 2: Pick board -->
+    <div id="trelloStep2" style="display:none">
+      <div class="config-grid">
+        <div class="config-field full">
+          <div class="config-label">Board</div>
+          <select class="config-input" id="boardSelect" onchange="onBoardChange()">
+            <option value="">— select a board —</option>
+          </select>
+        </div>
+        <div class="config-field full" id="listFieldWrap" style="display:none">
+          <div class="config-label">"Today" list (optional)</div>
+          <select class="config-input" id="listSelect">
+            <option value="">— cards due today only —</option>
+          </select>
         </div>
       </div>
+      <div class="config-hint" style="margin-top:10px">
+        Cards from the selected list + cards due today will both be shown.
+      </div>
+      <div class="config-actions">
+        <button class="btn-primary" onclick="saveAndLoad()">Load Tasks</button>
+        <button class="btn-ghost" onclick="clearTrello()">Disconnect</button>
+      </div>
     </div>
-    <div class="config-actions">
-      <button class="btn-primary" onclick="saveAndLoad()">Connect & Load</button>
-      <button class="btn-ghost" onclick="clearTrello()">Clear Trello Data</button>
-    </div>
+
     <div class="status-msg" id="statusMsg"></div>
 
     <!-- Dropbox backup section -->
     <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:20px">
       <div class="config-title" style="margin-bottom:12px">⌁ Dropbox Backup</div>
       <div class="config-hint" style="margin-bottom:12px;margin-top:0">
-        Backup tasks &amp; settings to Dropbox — survives cache clears, syncs across devices.
+        Backup tasks &amp; settings to Dropbox — survives cache clears, syncs across devices. Your data goes directly to your own Dropbox; we never see it.
         <span id="dropboxSetupHint" style="display:none"><br><br><strong style="color:var(--text)">Setup:</strong> Create a free app at <a href="https://www.dropbox.com/developers/apps" target="_blank" style="color:var(--highlight-ui)">dropbox.com/developers</a> → Scoped access → App Folder. Add <code style="color:var(--highlight-ui)">https://today-here.netlify.app/</code> as a redirect URI, then paste your App Key below.</span>
       </div>
       <div class="config-grid" id="dropboxKeyRow" style="display:none">
@@ -762,19 +771,20 @@ function init() {
     now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }).toUpperCase();
 
   const saved = getSavedConfig();
-  if (saved.apiKey)    document.getElementById('apiKey').value    = saved.apiKey;
-  if (saved.apiToken)  document.getElementById('apiToken').value  = saved.apiToken;
-  if (saved.boardId)   document.getElementById('boardId').value   = saved.boardId;
-  if (saved.todayList) document.getElementById('todayList').value = saved.todayList;
+  const trelloToken = localStorage.getItem('trello_token');
 
   renderManual();
   updateStats();
 
-  if (saved.apiKey && saved.apiToken && saved.boardId) {
-    setTrelloIcon(true); // optimistically show connected, reverts on error
-    loadTrello();        // renderTrello() called inside loadTrello on success/fail
+  if (saved.boardId && trelloToken) {
+    setTrelloIcon(true);
+    // Restore step 2 UI with saved selections
+    document.getElementById('trelloStep1').style.display = 'none';
+    document.getElementById('trelloStep2').style.display = '';
+    loadTrelloBoards();  // repopulates dropdowns + triggers loadTrello
+    loadTrello();        // also load immediately from saved config
   } else {
-    renderTrello();      // show empty state only when no config saved
+    renderTrello();
   }
 
   // Clear stale done IDs that no longer match any manual task
@@ -861,56 +871,126 @@ function renderInfoStats() {
 }
 
 function getSavedConfig() {
+  try { return JSON.parse(localStorage.getItem('trello_config') || '{}'); }
+  catch(e) { return {}; }
+}
+
+function trelloAuth() {
+  // Trello returns the token to the return_url in the hash
+  const returnUrl = encodeURIComponent('https://today-here.netlify.app/');
+  const authUrl = 'https://trello.com/1/authorize'
+    + '?expiration=never'
+    + '&scope=read'
+    + '&response_type=token'
+    + '&key=' + TRELLO_API_KEY
+    + '&return_url=' + returnUrl
+    + '&name=TODAY%20App'
+    + '&callback_method=fragment';
+  const popup = window.open(authUrl, 'trello_auth', 'width=600,height=700,left=200,top=100');
+
+  const poll = setInterval(function() {
+    try {
+      if (!popup || popup.closed) { clearInterval(poll); return; }
+      // Trello redirects back to return_url with #token=xxx in the hash
+      const href = popup.location.href || '';
+      if (href.includes('today-here.netlify.app')) {
+        const hash = popup.location.hash || '';
+        const tokenMatch = hash.match(/token=([^&]+)/);
+        clearInterval(poll);
+        popup.close();
+        if (tokenMatch) {
+          const token = tokenMatch[1];
+          localStorage.setItem('trello_token', token);
+          setTrelloIcon(true);
+          showStatus('Connected! Loading your boards…', 'success');
+          loadTrelloBoards();
+        } else {
+          showStatus('Trello authorisation cancelled.', 'error');
+        }
+      }
+    } catch(e) {
+      // cross-origin — still on trello.com, keep polling
+    }
+  }, 500);
+}
+
+async function loadTrelloBoards() {
+  const token = localStorage.getItem('trello_token');
+  if (!token) return;
   try {
-    return JSON.parse(localStorage.getItem('trello_config') || '{}');
+    const res = await fetch(`https://api.trello.com/1/members/me/boards?key=${TRELLO_API_KEY}&token=${token}&fields=name,id&filter=open`);
+    if (!res.ok) throw new Error(res.status);
+    const boards = await res.json();
+    const sel = document.getElementById('boardSelect');
+    sel.innerHTML = '<option value="">— select a board —</option>'
+      + boards.map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('');
+    document.getElementById('trelloStep1').style.display = 'none';
+    document.getElementById('trelloStep2').style.display = '';
+    // Restore saved board/list selection
+    const cfg = getSavedConfig();
+    if (cfg.boardId) {
+      sel.value = cfg.boardId;
+      await loadTrelloLists(cfg.boardId, cfg.todayList);
+    }
   } catch(e) {
-    return {};
+    showStatus('Failed to load boards: ' + e.message, 'error');
+  }
+}
+
+async function onBoardChange() {
+  const boardId = document.getElementById('boardSelect').value;
+  document.getElementById('listSelect').innerHTML = '<option value="">— cards due today only —</option>';
+  document.getElementById('listFieldWrap').style.display = boardId ? '' : 'none';
+  if (boardId) await loadTrelloLists(boardId, '');
+}
+
+async function loadTrelloLists(boardId, selectedList) {
+  const token = localStorage.getItem('trello_token');
+  if (!token || !boardId) return;
+  try {
+    const res = await fetch(`https://api.trello.com/1/boards/${boardId}/lists?key=${TRELLO_API_KEY}&token=${token}&fields=name,id&filter=open`);
+    if (!res.ok) throw new Error(res.status);
+    const lists = await res.json();
+    const sel = document.getElementById('listSelect');
+    sel.innerHTML = '<option value="">— cards due today only —</option>'
+      + lists.map(l => `<option value="${esc(l.name)}"${l.name === selectedList ? ' selected' : ''}>${esc(l.name)}</option>`).join('');
+    document.getElementById('listFieldWrap').style.display = '';
+  } catch(e) {
+    showStatus('Failed to load lists: ' + e.message, 'error');
   }
 }
 
 function saveAndLoad() {
-  const rawBoard = document.getElementById('boardId').value.trim();
-  const config = {
-    apiKey:    document.getElementById('apiKey').value.trim(),
-    apiToken:  document.getElementById('apiToken').value.trim(),
-    boardId:   parseBoardId(rawBoard),
-    todayList: document.getElementById('todayList').value.trim(),
-  };
-  if (!config.apiKey || !config.apiToken || !config.boardId) {
-    showStatus('API Key, Token, and Board ID are all required.', 'error');
+  const token   = localStorage.getItem('trello_token');
+  const boardId = document.getElementById('boardSelect').value;
+  const todayList = document.getElementById('listSelect').value;
+  if (!token || !boardId) {
+    showStatus('Please connect Trello and select a board.', 'error');
     return;
   }
-  // Show parsed board ID back in input so user can verify
-  document.getElementById('boardId').value = config.boardId;
+  const config = { apiKey: TRELLO_API_KEY, apiToken: token, boardId, todayList };
   localStorage.setItem('trello_config', JSON.stringify(config));
   loadTrello();
 }
 
 function clearTrello() {
   localStorage.removeItem('trello_config');
+  localStorage.removeItem('trello_token');
   trelloTasks = [];
-  document.getElementById('apiKey').value    = '';
-  document.getElementById('apiToken').value  = '';
-  document.getElementById('boardId').value   = '';
-  document.getElementById('todayList').value = '';
   setTrelloIcon(false);
-  // Open panel before calling showStatus so the element is visible
+  document.getElementById('trelloStep1').style.display = '';
+  document.getElementById('trelloStep2').style.display = 'none';
   document.getElementById('configPanel').classList.add('open');
   syncActiveButtons();
   renderTrello();
   updateStats();
-  showStatus('Trello data cleared.', 'success');
-}
-
-function parseBoardId(val) {
-  const m = val.match(/trello\.com\/b\/([^\/]+)/);
-  return m ? m[1] : val;
+  showStatus('Trello disconnected.', 'success');
 }
 
 // ─── Trello API ───────────────────────────────────────────────────────────────
 async function loadTrello() {
   const config = getSavedConfig();
-  if (!config.apiKey || !config.apiToken || !config.boardId) return;
+  if (!config.apiToken || !config.boardId) return;
 
   // Show loading state
   const emptyEl = document.getElementById('trelloEmpty');
@@ -1377,6 +1457,7 @@ function updateFavicon(pct, isEmpty) {
 })();
 
 // ─── Dropbox ──────────────────────────────────────────────────────────────────
+const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 const DROPBOX_FILE    = '/today-backup.json';
 let dropboxSaveTimer = null;
@@ -1493,7 +1574,7 @@ async function dropboxBackup(silent) {
     stat_last_visit:   localStorage.getItem('stat_last_visit')   || '',
   };
 
-  dropboxShowMsg('Saving backup…', 'success');
+  if (!silent) dropboxShowMsg('Saving backup…', 'success');
 
   try {
     const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
@@ -1514,7 +1595,7 @@ async function dropboxBackup(silent) {
     if (res.status === 401) {
       localStorage.removeItem('dropbox_token');
       dropboxUpdateUI();
-      dropboxShowMsg('Session expired — please reconnect Dropbox.', 'error');
+      if (!silent) dropboxShowMsg('Session expired — please reconnect Dropbox.', 'error');
       return;
     }
     if (!res.ok) throw new Error(`Dropbox error ${res.status}`);
@@ -1524,7 +1605,8 @@ async function dropboxBackup(silent) {
       dropboxShowMsg(`Backup saved at ${now} ✓`, 'success');
     }
   } catch(e) {
-    dropboxShowMsg('Backup failed: ' + (e.message || 'unknown error'), 'error');
+    if (!silent) dropboxShowMsg('Backup failed: ' + (e.message || 'unknown error'), 'error');
+    else console.warn('Auto-backup failed:', e.message);
   }
 }
 
