@@ -32,6 +32,10 @@
     line-height: 1.6;
   }
 
+  html {
+    overflow-y: scroll;
+  }
+
   /* Subtle noise texture */
   body::before {
     content: '';
@@ -401,6 +405,30 @@
 
   .config-panel.open { display: block; animation: fadeIn 0.2s ease; }
 
+  .info-stat {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .info-stat-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .info-stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
   .config-title {
     font-family: 'Syne', sans-serif;
     font-weight: 700;
@@ -557,6 +585,7 @@
     </div>
     <div class="header-actions">
       <button class="btn-icon" id="trelloBtn" title="Configure Trello" onclick="toggleConfig()">⚡</button>
+      <button class="btn-icon" id="infoBtn" title="About" onclick="toggleInfo()">ℹ</button>
       <button class="btn-icon" id="refreshBtn" title="Refresh Trello" onclick="loadTrello()">↻</button>
     </div>
   </div>
@@ -595,6 +624,38 @@
       <button class="btn-ghost" onclick="clearTrello()">Clear Trello Data</button>
     </div>
     <div class="status-msg" id="statusMsg"></div>
+  </div>
+
+  <!-- Info panel -->
+  <div class="config-panel" id="infoPanel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="config-title" style="margin-bottom:0">ℹ About TODAY</div>
+      <div style="font-size:10px;color:var(--muted);letter-spacing:0.1em">v1.0.0</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px" id="infoStats"></div>
+
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
+      <div class="config-label" style="margin-bottom:10px">Changelog</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.8">
+        <div><span style="color:var(--accent)">v1.0.0</span> — Initial release</div>
+        <div style="margin-left:12px;font-size:10px">· Trello integration (due today + list filter)</div>
+        <div style="margin-left:12px;font-size:10px">· Manual task entry with persistence</div>
+        <div style="margin-left:12px;font-size:10px">· Progress tracking &amp; live tab title</div>
+        <div style="margin-left:12px;font-size:10px">· Smooth add/remove animations</div>
+        <div style="margin-left:12px;font-size:10px">· Done state persists across sessions</div>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px">
+      <div class="config-label" style="margin-bottom:8px">README</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.7">
+        A focused daily task view that pulls from Trello and manual entries.<br>
+        Cards due today or in your named "Today" list are surfaced automatically.<br>
+        Checking off a task dims it — it stays on your list until tomorrow.<br><br>
+        <span style="color:var(--text)">Hosted on Netlify · Built with vanilla JS</span>
+      </div>
+    </div>
   </div>
 
   <!-- Stats -->
@@ -670,6 +731,7 @@ function init() {
   updateStats();
 
   if (saved.apiKey && saved.apiToken && saved.boardId) {
+    setTrelloIcon(true); // optimistically show connected, reverts on error
     loadTrello();
   }
 
@@ -687,8 +749,70 @@ function init() {
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
+function setTrelloIcon(connected) {
+  const btn = document.getElementById('trelloBtn');
+  if (!btn) return;
+  btn.textContent = connected ? '✦' : '⚡';
+  btn.title = connected ? 'Trello connected' : 'Configure Trello';
+}
+
 function toggleConfig() {
   document.getElementById('configPanel').classList.toggle('open');
+  document.getElementById('infoPanel').classList.remove('open');
+}
+
+function toggleInfo() {
+  const panel = document.getElementById('infoPanel');
+  const isOpening = !panel.classList.contains('open');
+  panel.classList.toggle('open');
+  document.getElementById('configPanel').classList.remove('open');
+  if (isOpening) renderInfoStats();
+}
+
+function renderInfoStats() {
+  // Pull lifetime stats from localStorage
+  const allTimeCompleted = parseInt(localStorage.getItem('stat_alltime_done') || '0');
+  const allTimeAdded     = parseInt(localStorage.getItem('stat_alltime_added') || '0');
+  const daysUsed         = parseInt(localStorage.getItem('stat_days_used') || '1');
+
+  const all    = [...trelloTasks, ...manualTasks];
+  const total  = all.length;
+  const done   = all.filter(t => doneIds.has(t.id)).length;
+  const pct    = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  const streakStart = localStorage.getItem('stat_streak_start');
+  const lastVisit   = localStorage.getItem('stat_last_visit');
+  const today       = new Date().toDateString();
+  let streak = parseInt(localStorage.getItem('stat_streak') || '1');
+
+  if (lastVisit && lastVisit !== today) {
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    if (lastVisit === yesterday.toDateString()) {
+      streak += 1;
+    } else {
+      streak = 1;
+    }
+    localStorage.setItem('stat_streak', streak);
+  }
+  localStorage.setItem('stat_last_visit', today);
+
+  const trelloCount  = trelloTasks.length;
+  const manualCount  = manualTasks.length;
+
+  const stats = [
+    { val: `${done}/${total}`, label: 'Done today' },
+    { val: pct + '%',          label: 'Completion' },
+    { val: trelloCount,        label: 'From Trello' },
+    { val: manualCount,        label: 'Added by you' },
+    { val: streak + ' day' + (streak !== 1 ? 's' : ''), label: 'Current streak' },
+    { val: allTimeCompleted,   label: 'All-time completed' },
+  ];
+
+  document.getElementById('infoStats').innerHTML = stats.map(s => `
+    <div class="info-stat">
+      <div class="info-stat-val">${s.val}</div>
+      <div class="info-stat-label">${s.label}</div>
+    </div>`).join('');
 }
 
 function getSavedConfig() {
@@ -724,6 +848,7 @@ function clearTrello() {
   document.getElementById('apiToken').value  = '';
   document.getElementById('boardId').value   = '';
   document.getElementById('todayList').value = '';
+  setTrelloIcon(false);
   // Open panel before calling showStatus so the element is visible
   document.getElementById('configPanel').classList.add('open');
   renderTrello();
@@ -804,6 +929,8 @@ async function loadTrello() {
       ? `Connected! No cards found due today or in ${label}.`
       : `Loaded ${trelloTasks.length} card${trelloTasks.length !== 1 ? 's' : ''} from Trello.`;
 
+    setTrelloIcon(true);
+
     // Only show status in panel if it's already open
     if (document.getElementById('configPanel').classList.contains('open')) {
       showStatus(msg, 'success');
@@ -820,6 +947,8 @@ async function loadTrello() {
     } else if (msg.includes('404')) {
       msg = 'Board not found (404) — double-check your Board ID or URL.';
     }
+
+    setTrelloIcon(false);
 
     // Always open config panel so the error is visible
     document.getElementById('configPanel').classList.add('open');
@@ -926,6 +1055,12 @@ function toggleDone(taskId) {
   else doneIds.add(taskId);
 
   localStorage.setItem('today_done', JSON.stringify([...doneIds]));
+
+  // Track all-time completed count
+  if (doneIds.has(taskId)) {
+    const prev = parseInt(localStorage.getItem('stat_alltime_done') || '0');
+    localStorage.setItem('stat_alltime_done', prev + 1);
+  }
 
   const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
   if (el) el.classList.toggle('done', doneIds.has(taskId));
