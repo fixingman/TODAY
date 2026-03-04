@@ -655,7 +655,7 @@
         </div>
         <div class="config-field full" id="listFieldWrap" style="display:none">
           <div class="config-label">"Today" list (optional)</div>
-          <select class="config-input" id="listSelect">
+          <select class="config-input" id="listSelect" onchange="setLoadBtnPrimary()">
             <option value="">— cards due today only —</option>
           </select>
         </div>
@@ -664,7 +664,7 @@
         Cards from the selected list + cards due today will both be shown.
       </div>
       <div class="config-actions">
-        <button class="btn-primary" onclick="saveAndLoad()">Load Tasks</button>
+        <button class="btn-primary" id="loadTasksBtn" onclick="saveAndLoad()">Load Tasks</button>
         <button class="btn-ghost" onclick="clearTrello()">Disconnect</button>
       </div>
     </div>
@@ -685,11 +685,12 @@
         </div>
       </div>
       <div class="config-actions">
-        <button class="btn-primary" onclick="dropboxAuth()">Connect Dropbox</button>
+        <button class="btn-primary" id="dropboxConnectBtn" onclick="dropboxAuth()">Connect Dropbox</button>
         <button class="btn-ghost" onclick="dropboxBackup()" id="btnBackup" style="display:none">↑ Backup</button>
         <button class="btn-ghost" onclick="dropboxRestore()" id="btnRestore" style="display:none">↓ Restore</button>
       </div>
       <div class="status-msg" id="dropboxMsg"></div>
+      <div id="dropboxLastSync" style="font-size:10px;color:var(--muted);margin-top:8px;letter-spacing:0.06em;min-height:14px"></div>
     </div>
   </div>
 
@@ -774,7 +775,7 @@ function init() {
   const trelloToken = localStorage.getItem('trello_token');
 
   renderManual();
-  updateStats();
+  updateStats(true); // true = skip auto-save on init
 
   if (saved.boardId && trelloToken) {
     setTrelloIcon(true);
@@ -941,7 +942,18 @@ async function onBoardChange() {
   const boardId = document.getElementById('boardSelect').value;
   document.getElementById('listSelect').innerHTML = '<option value="">— cards due today only —</option>';
   document.getElementById('listFieldWrap').style.display = boardId ? '' : 'none';
+  setLoadBtnPrimary();
   if (boardId) await loadTrelloLists(boardId, '');
+}
+
+function setLoadBtnPrimary() {
+  const btn = document.getElementById('loadTasksBtn');
+  if (btn) { btn.className = 'btn-primary'; btn.textContent = 'Load Tasks'; }
+}
+
+function setLoadBtnSecondary() {
+  const btn = document.getElementById('loadTasksBtn');
+  if (btn) { btn.className = 'btn-ghost'; btn.textContent = 'Reload Tasks'; }
 }
 
 async function loadTrelloLists(boardId, selectedList) {
@@ -1055,6 +1067,7 @@ async function loadTrello() {
       : `Loaded ${trelloTasks.length} card${trelloTasks.length !== 1 ? 's' : ''} from Trello.`;
 
     setTrelloIcon(true);
+    setLoadBtnSecondary();
 
     // Only show status in panel if it's already open
     if (document.getElementById('configPanel').classList.contains('open')) {
@@ -1248,7 +1261,7 @@ function deleteManual(taskId) {
   }, 180);
 }
 
-function updateStats() {
+function updateStats(skipAutoSave) {
   const all   = [...trelloTasks, ...manualTasks];
   const total = all.length;
   const done  = all.filter(t => doneIds.has(t.id)).length;
@@ -1267,8 +1280,8 @@ function updateStats() {
   if (left === 0 && total > 0) document.title = '✓ TODAY';
   else document.title = `(${left})TODAY`;
 
-  // Auto-backup to Dropbox (debounced 2s)
-  dropboxAutoSave();
+  // Auto-backup to Dropbox (debounced 2s) — skip on initial page load
+  if (!skipAutoSave) dropboxAutoSave();
 }
 
 function showStatus(msg, type) {
@@ -1492,15 +1505,30 @@ function dropboxUpdateUI() {
   if (keyRow) keyRow.style.display = DROPBOX_APP_KEY ? 'none' : '';
   if (hint)   hint.style.display   = DROPBOX_APP_KEY ? 'none' : 'inline';
 
-  const token = localStorage.getItem('dropbox_token');
-  const btnB  = document.getElementById('btnBackup');
-  const btnR  = document.getElementById('btnRestore');
+  const token       = localStorage.getItem('dropbox_token');
+  const btnB        = document.getElementById('btnBackup');
+  const btnR        = document.getElementById('btnRestore');
+  const connectBtn  = document.getElementById('dropboxConnectBtn');
   if (token) {
     if (btnB) btnB.style.display = '';
     if (btnR) btnR.style.display = '';
+    if (connectBtn) {
+      connectBtn.className   = 'btn-ghost';
+      connectBtn.textContent = '✓ Connected';
+      connectBtn.onclick     = null;
+      connectBtn.style.cursor = 'default';
+      connectBtn.style.opacity = '0.6';
+    }
   } else {
     if (btnB) btnB.style.display = 'none';
     if (btnR) btnR.style.display = 'none';
+    if (connectBtn) {
+      connectBtn.className   = 'btn-primary';
+      connectBtn.textContent = 'Connect Dropbox';
+      connectBtn.onclick     = dropboxAuth;
+      connectBtn.style.cursor = 'pointer';
+      connectBtn.style.opacity = '1';
+    }
   }
   // Restore saved app key into input
   const saved = localStorage.getItem('dropbox_app_key');
@@ -1600,10 +1628,13 @@ async function dropboxBackup(silent) {
     }
     if (!res.ok) throw new Error(`Dropbox error ${res.status}`);
 
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     if (!silent) {
-      const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       dropboxShowMsg(`Backup saved at ${now} ✓`, 'success');
     }
+    // Always update last-sync indicator
+    const syncEl = document.getElementById('dropboxLastSync');
+    if (syncEl) syncEl.textContent = 'Last synced ' + now;
   } catch(e) {
     if (!silent) dropboxShowMsg('Backup failed: ' + (e.message || 'unknown error'), 'error');
     else console.warn('Auto-backup failed:', e.message);
