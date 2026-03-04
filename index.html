@@ -1,10 +1,26 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TODAY App</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Welcome to the TODAY App!</h1>
-    <p>Current Date and Time: 2026-03-04 02:41:45 UTC</p>
+    <header>
+        <h1>Welcome to the TODAY App</h1>
+    </header>
+    <main>
+        <div id="app">
+            <h2>Your daily tasks</h2>
+            <ul id="taskList"></ul>
+            <input type="text" id="newTask" placeholder="Add a new task...">
+            <button id="addTask">Add Task</button>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2026 TODAY App</p>
+    </footer>
+    <script src="script.js"></script>
 </body>
 </html>
