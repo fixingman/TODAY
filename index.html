@@ -690,7 +690,7 @@
         <button class="btn-ghost" onclick="dropboxRestore()" id="btnRestore" style="display:none">↓ Restore</button>
       </div>
       <div class="status-msg" id="dropboxMsg"></div>
-      <div id="dropboxLastSync" style="font-size:10px;color:var(--muted);margin-top:8px;letter-spacing:0.06em;min-height:14px"></div>
+      <div id="dropboxStatusLine" style="font-size:10px;color:var(--muted);margin-top:8px;letter-spacing:0.06em;min-height:14px"></div>
     </div>
   </div>
 
@@ -828,9 +828,16 @@ function syncActiveButtons() {
 
 function toggleConfig() {
   const configPanel = document.getElementById('configPanel');
+  const isClosing = configPanel.classList.contains('open');
   configPanel.classList.toggle('open');
   document.getElementById('infoPanel').classList.remove('open');
   syncActiveButtons();
+  if (isClosing) {
+    const s = document.getElementById('statusMsg');
+    const d = document.getElementById('dropboxMsg');
+    if (s) { s.textContent = ''; s.className = 'status-msg'; }
+    if (d) { d.textContent = ''; d.className = 'status-msg'; }
+  }
 }
 
 function toggleInfo() {
@@ -1491,6 +1498,19 @@ function getDropboxAppKey() {
   return (input && input.value.trim()) || saved;
 }
 
+function dropboxUpdateStatusLine() {
+  const el        = document.getElementById('dropboxStatusLine');
+  if (!el) return;
+  const token     = localStorage.getItem('dropbox_token');
+  const lastSync  = el.dataset.lastSync || '';
+  if (token) {
+    el.innerHTML = '<span style="color:var(--accent)">✓ Connected</span>'
+      + (lastSync ? ' &nbsp;·&nbsp; Last synced ' + lastSync : '');
+  } else {
+    el.textContent = '';
+  }
+}
+
 function dropboxShowMsg(msg, type) {
   const el = document.getElementById('dropboxMsg');
   if (!el) return;
@@ -1513,22 +1533,19 @@ function dropboxUpdateUI() {
     if (btnB) btnB.style.display = '';
     if (btnR) btnR.style.display = '';
     if (connectBtn) {
-      connectBtn.className   = 'btn-ghost';
-      connectBtn.textContent = '✓ Connected';
-      connectBtn.onclick     = null;
-      connectBtn.style.cursor = 'default';
-      connectBtn.style.opacity = '0.6';
+      connectBtn.style.display = 'none';
     }
+    dropboxUpdateStatusLine();
   } else {
     if (btnB) btnB.style.display = 'none';
     if (btnR) btnR.style.display = 'none';
     if (connectBtn) {
-      connectBtn.className   = 'btn-primary';
-      connectBtn.textContent = 'Connect Dropbox';
-      connectBtn.onclick     = dropboxAuth;
-      connectBtn.style.cursor = 'pointer';
-      connectBtn.style.opacity = '1';
+      connectBtn.className     = 'btn-primary';
+      connectBtn.textContent   = 'Connect Dropbox';
+      connectBtn.onclick       = dropboxAuth;
+      connectBtn.style.display = '';
     }
+    dropboxUpdateStatusLine();
   }
   // Restore saved app key into input
   const saved = localStorage.getItem('dropbox_app_key');
@@ -1633,8 +1650,8 @@ async function dropboxBackup(silent) {
       dropboxShowMsg(`Backup saved at ${now} ✓`, 'success');
     }
     // Always update last-sync indicator
-    const syncEl = document.getElementById('dropboxLastSync');
-    if (syncEl) syncEl.textContent = 'Last synced ' + now;
+    const syncEl = document.getElementById('dropboxStatusLine');
+    if (syncEl) { syncEl.dataset.lastSync = now; dropboxUpdateStatusLine(); }
   } catch(e) {
     if (!silent) dropboxShowMsg('Backup failed: ' + (e.message || 'unknown error'), 'error');
     else console.warn('Auto-backup failed:', e.message);
