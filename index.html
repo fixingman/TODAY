@@ -20,7 +20,6 @@
     --muted: #6b6b78;
     --danger: #ff5f5f;
     --trello: #579dff;
-    --trello-dim: rgba(87,157,255,0.12);
     --done-line: rgba(232,232,236,0.25);
   }
 
@@ -542,6 +541,15 @@
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Celebration canvas */
+  #celebCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 999;
+  }
 </style>
 </head>
 <body>
@@ -664,6 +672,8 @@
   </div>
 
 </div>
+
+<canvas id="celebCanvas"></canvas>
 
 <script>
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -920,11 +930,8 @@ async function loadTrello() {
     syncActiveButtons();
     showStatus(msg, 'error');
 
-    const emptyEl2 = document.getElementById('trelloEmpty');
-    if (emptyEl2) {
-      emptyEl2.textContent = '⚠ Failed to load — check credentials above.';
-      emptyEl2.style.display = 'block';
-    }
+    emptyEl.textContent = '⚠ Failed to load — check credentials above.';
+    emptyEl.style.display = 'block';
   }
 }
 
@@ -1029,7 +1036,17 @@ function toggleDone(taskId) {
   }
 
   const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
-  if (el) el.classList.toggle('done', doneIds.has(taskId));
+  if (el) {
+    el.classList.toggle('done', doneIds.has(taskId));
+    // Fire celebration on check only
+    if (doneIds.has(taskId) && typeof fireEmberDrift === 'function') {
+      const check = el.querySelector('.task-check');
+      if (check) {
+        const r = check.getBoundingClientRect();
+        fireEmberDrift(r.left + r.width/2, r.top + r.height/2);
+      }
+    }
+  }
   updateStats();
 }
 
@@ -1094,7 +1111,7 @@ function updateStats() {
   const fill = document.getElementById('progressFill');
   if (fill) fill.style.width = pct + '%';
 
-  updateFavicon();
+  updateFavicon(total > 0 ? done / total : 0, total === 0);
 
   // Update tab title
   if (left === 0 && total > 0) document.title = '✓ TODAY';
@@ -1168,16 +1185,123 @@ function drawFavicon(pct, isEmpty) {
   return c.toDataURL('image/png');
 }
 
-function updateFavicon() {
-  const all    = [...trelloTasks, ...manualTasks];
-  const total  = all.length;
-  const done   = all.filter(t => doneIds.has(t.id)).length;
-  const isEmpty = total === 0;
-  const pct    = total > 0 ? done / total : 0;
+function updateFavicon(pct, isEmpty) {
   const dataURL = drawFavicon(pct, isEmpty);
   const link = document.getElementById('favicon');
   if (link) link.href = dataURL;
 }
+
+// ─── Celebration — Ember drift (M) ───────────────────────────────────────────
+(function() {
+  const celebCanvas = document.getElementById('celebCanvas');
+  const celebCtx    = celebCanvas.getContext('2d');
+  let celebParticles = [];
+  let celebFrame     = null;
+  const CHARS = '01∆◊×+−░▒·~⌁⊕⊗'.split('');
+
+  function resizeCeleb() {
+    celebCanvas.width  = window.innerWidth;
+    celebCanvas.height = window.innerHeight;
+  }
+  resizeCeleb();
+  window.addEventListener('resize', resizeCeleb);
+
+  function celebAnimate() {
+    celebCtx.clearRect(0, 0, celebCanvas.width, celebCanvas.height);
+    celebParticles = celebParticles.filter(p => p.life > 0);
+    celebParticles.forEach(p => { p.update(); p.draw(celebCtx); });
+    if (celebParticles.length > 0) celebFrame = requestAnimationFrame(celebAnimate);
+    else celebFrame = null;
+  }
+  function celebStart() { if (!celebFrame) celebFrame = requestAnimationFrame(celebAnimate); }
+
+  function spawnFragment(fx, fy, fvx, fvy, char, size, depth) {
+    const trail = [];
+    celebParticles.push({
+      x: fx, y: fy,
+      vx: fvx + (Math.random()-0.5)*1.5,
+      vy: fvy + (Math.random()-0.5)*1.5,
+      char, size, depth,
+      color: depth === 0 ? '#c8f060' : (Math.random() > 0.5 ? '#c8f060bb' : '#6b6b78'),
+      rot: (Math.random()-0.5)*0.4, charAngle: 0,
+      life: 0.8 + Math.random()*0.5, maxLife: 1.3,
+      trail, trailTimer: 0, fragmented: false,
+      update() {
+        this.x += this.vx; this.y += this.vy;
+        this.vx *= 0.95; this.vy = this.vy * 0.95 + 0.03;
+        this.charAngle += this.rot;
+        this.life -= 0.022;
+        this.trailTimer++;
+        if (this.trailTimer % 2 === 0) {
+          this.trail.push({ x: this.x, y: this.y });
+          if (this.trail.length > 8) this.trail.shift();
+        }
+        if (!this.fragmented && depth < 2 && this.life < this.maxLife * 0.5) {
+          this.fragmented = true;
+          const frags = 2 + Math.floor(Math.random()*2);
+          for (let f = 0; f < frags; f++) {
+            spawnFragment(
+              this.x, this.y,
+              this.vx * 0.6 + (Math.random()-0.5)*2,
+              this.vy * 0.6 + (Math.random()-0.5)*2,
+              CHARS[Math.floor(Math.random()*CHARS.length)],
+              this.size * 0.6, depth + 1
+            );
+          }
+        }
+      },
+      draw(ctx) {
+        const alpha = Math.max(0, this.life / this.maxLife);
+        // Heat glow trail
+        this.trail.forEach((tp, ti) => {
+          const ta = (ti / this.trail.length) * alpha * 0.4;
+          const tr = (ti / this.trail.length) * this.size * 0.8;
+          const g  = ctx.createRadialGradient(tp.x, tp.y, 0, tp.x, tp.y, tr);
+          g.addColorStop(0, '#c8f060' + Math.round(ta*120).toString(16).padStart(2,'0'));
+          g.addColorStop(1, 'transparent');
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.arc(tp.x, tp.y, tr, 0, Math.PI*2); ctx.fill();
+        });
+        // Char
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(this.x, this.y); ctx.rotate(this.charAngle);
+        ctx.fillStyle = this.color;
+        ctx.font = `bold ${this.size}px 'DM Mono', monospace`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(this.char, 0, 0);
+        ctx.restore(); ctx.globalAlpha = 1;
+      }
+    });
+  }
+
+  window.fireEmberDrift = function(cx, cy) {
+    const count = 14;
+    // Central flash
+    celebParticles.push({
+      x: cx, y: cy, r: 2, life: 1, maxLife: 1,
+      update() { this.r += 3; this.life -= 0.08; },
+      draw(ctx) {
+        const g = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.r);
+        g.addColorStop(0, '#c8f060' + Math.round(Math.max(0,this.life)*180).toString(16).padStart(2,'0'));
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
+      }
+    });
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI*2 + (Math.random()-0.5)*0.3;
+      const speed = 2.5 + Math.random()*4;
+      spawnFragment(
+        cx, cy,
+        Math.cos(angle)*speed, Math.sin(angle)*speed,
+        CHARS[Math.floor(Math.random()*CHARS.length)],
+        11 + Math.random()*6, 0
+      );
+    }
+    celebStart();
+  };
+})();
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 init();
