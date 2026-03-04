@@ -652,8 +652,7 @@
           <strong style="color:var(--text)">Setup:</strong><br>
           1. Get your API key at <a href="https://trello.com/power-ups/admin" target="_blank">trello.com/power-ups/admin</a><br>
           2. Generate a token: <code style="font-size:10px;color:var(--highlight-ui)">https://trello.com/1/authorize?expiration=never&scope=read&response_type=token&key=YOUR_KEY</code><br>
-          (replace YOUR_KEY then open in browser)<br><br>
-          <strong style="color:var(--text)">Hosting note:</strong> Trello's API requires this file to be served over HTTP, not opened as a local file. Use <a href="https://netlify.com/drop" target="_blank">Netlify Drop</a> or a local server.
+          (replace YOUR_KEY then open in browser)
         </div>
       </div>
     </div>
@@ -665,13 +664,12 @@
 
     <!-- Dropbox backup section -->
     <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:20px">
-      <div class="config-title" style="margin-bottom:12px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;margin-right:6px"><path d="M12 12v9"/><path d="M8 16l4-4 4 4"/><path d="M20 17a5 5 0 0 0-4.8-6.3A7 7 0 1 0 4 17"/></svg>Dropbox Backup</div>
-      <div class="config-hint" style="margin-bottom:14px;margin-top:0">
-        Backup tasks &amp; settings to Dropbox. Survives cache clears, syncs across devices.<br>
-        Saved to <code style="color:var(--highlight-ui)">/today-backup.json</code> in your Dropbox.<br><br>
-        <strong style="color:var(--text)">Setup:</strong> Create a free app at <a href="https://www.dropbox.com/developers/apps" target="_blank" style="color:var(--highlight-ui)">dropbox.com/developers</a> → Scoped access → Full Dropbox. Add <code style="color:var(--highlight-ui)">https://today-here.netlify.app/</code> as a redirect URI, then paste your App Key below.
+      <div class="config-title" style="margin-bottom:12px">⌁ Dropbox Backup</div>
+      <div class="config-hint" style="margin-bottom:12px;margin-top:0">
+        Backup tasks &amp; settings to Dropbox — survives cache clears, syncs across devices.
+        <span id="dropboxSetupHint" style="display:none"><br><br><strong style="color:var(--text)">Setup:</strong> Create a free app at <a href="https://www.dropbox.com/developers/apps" target="_blank" style="color:var(--highlight-ui)">dropbox.com/developers</a> → Scoped access → App Folder. Add <code style="color:var(--highlight-ui)">https://today-here.netlify.app/</code> as a redirect URI, then paste your App Key below.</span>
       </div>
-      <div class="config-grid">
+      <div class="config-grid" id="dropboxKeyRow" style="display:none">
         <div class="config-field full">
           <div class="config-label">Dropbox App Key</div>
           <input class="config-input" id="dropboxAppKey" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" placeholder="your-app-key" />
@@ -683,7 +681,6 @@
         <button class="btn-ghost" onclick="dropboxRestore()" id="btnRestore" style="display:none">↓ Restore</button>
       </div>
       <div class="status-msg" id="dropboxMsg"></div>
-      <div id="dropboxStatus" style="font-size:11px;color:var(--muted);margin-top:6px;min-height:14px"></div>
     </div>
   </div>
 
@@ -758,6 +755,7 @@ let doneIds     = new Set((() => { try { return JSON.parse(localStorage.getItem(
 // ─── Init ─────────────────────────────────────────────────────────────────────
 function init() {
   dropboxHandleRedirect(); // handle OAuth token in URL hash
+  dropboxUpdateUI();       // hide key input/hint if app key is embedded
 
   const now = new Date();
   document.getElementById('dateTag').textContent =
@@ -1188,6 +1186,9 @@ function updateStats() {
   // Update tab title
   if (left === 0 && total > 0) document.title = '✓ TODAY';
   else document.title = `(${left})TODAY`;
+
+  // Auto-backup to Dropbox (debounced 2s)
+  dropboxAutoSave();
 }
 
 function showStatus(msg, type) {
@@ -1376,17 +1377,24 @@ function updateFavicon(pct, isEmpty) {
 })();
 
 // ─── Dropbox ──────────────────────────────────────────────────────────────────
-const DROPBOX_FILE = '/today-backup.json';
+const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
+const DROPBOX_FILE    = '/today-backup.json';
+let dropboxSaveTimer = null;
+
+function dropboxAutoSave() {
+  if (!localStorage.getItem('dropbox_token')) return; // only if connected
+  clearTimeout(dropboxSaveTimer);
+  dropboxSaveTimer = setTimeout(async function() {
+    await dropboxBackup(true); // silent=true — no status message
+  }, 2000);
+}
 
 function getDropboxAppKey() {
+  // Prefer embedded key — users never need to enter one
+  if (DROPBOX_APP_KEY) return DROPBOX_APP_KEY;
   const saved = localStorage.getItem('dropbox_app_key') || '';
   const input = document.getElementById('dropboxAppKey');
   return (input && input.value.trim()) || saved;
-}
-
-function dropboxSetStatus(msg, color) {
-  const el = document.getElementById('dropboxStatus');
-  if (el) { el.textContent = msg; el.style.color = color || 'var(--muted)'; }
 }
 
 function dropboxShowMsg(msg, type) {
@@ -1397,17 +1405,21 @@ function dropboxShowMsg(msg, type) {
 }
 
 function dropboxUpdateUI() {
+  // Hide app key input if key is embedded
+  const keyRow  = document.getElementById('dropboxKeyRow');
+  const hint    = document.getElementById('dropboxSetupHint');
+  if (keyRow) keyRow.style.display = DROPBOX_APP_KEY ? 'none' : '';
+  if (hint)   hint.style.display   = DROPBOX_APP_KEY ? 'none' : 'inline';
+
   const token = localStorage.getItem('dropbox_token');
   const btnB  = document.getElementById('btnBackup');
   const btnR  = document.getElementById('btnRestore');
   if (token) {
     if (btnB) btnB.style.display = '';
     if (btnR) btnR.style.display = '';
-    dropboxSetStatus('Connected ✓', 'var(--accent)');
   } else {
     if (btnB) btnB.style.display = 'none';
     if (btnR) btnR.style.display = 'none';
-    dropboxSetStatus('Not connected', 'var(--muted)');
   }
   // Restore saved app key into input
   const saved = localStorage.getItem('dropbox_app_key');
@@ -1418,8 +1430,6 @@ function dropboxUpdateUI() {
 function dropboxAuth() {
   const appKey = (getDropboxAppKey() || '').trim();
   if (!appKey) { dropboxShowMsg('Enter your App Key first.', 'error'); return; }
-  localStorage.setItem('dropbox_app_key', appKey);
-
   // Open auth in a popup so the main app never unloads
   const redirectUri = encodeURIComponent('https://today-here.netlify.app/');
   const authUrl = 'https://www.dropbox.com/oauth2/authorize?client_id=' + appKey
@@ -1468,9 +1478,9 @@ function openDropboxPanel() {
   dropboxUpdateUI();
 }
 
-async function dropboxBackup() {
+async function dropboxBackup(silent) {
   const token = localStorage.getItem('dropbox_token');
-  if (!token) { dropboxShowMsg('Not connected. Click Connect Dropbox first.', 'error'); return; }
+  if (!token) { if (!silent) dropboxShowMsg('Not connected. Click Connect Dropbox first.', 'error'); return; }
 
   const data = {
     version:      '1.0',
@@ -1509,8 +1519,10 @@ async function dropboxBackup() {
     }
     if (!res.ok) throw new Error(`Dropbox error ${res.status}`);
 
-    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    dropboxShowMsg(`Backup saved at ${now} ✓`, 'success');
+    if (!silent) {
+      const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      dropboxShowMsg(`Backup saved at ${now} ✓`, 'success');
+    }
   } catch(e) {
     dropboxShowMsg('Backup failed: ' + (e.message || 'unknown error'), 'error');
   }
