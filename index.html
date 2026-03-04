@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TODAY</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link id="favicon" rel="icon" type="image/png">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -59,9 +60,9 @@
   /* Header */
   .header {
     display: flex;
-    align-items: flex-end;
+    align-items: flex-start;
     justify-content: space-between;
-    margin-bottom: 48px;
+    margin-bottom: 14px;
   }
 
   .header-left h1 {
@@ -82,13 +83,13 @@
     color: var(--muted);
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    margin-top: 8px;
   }
 
   .header-actions {
     display: flex;
     gap: 8px;
     align-items: center;
+    margin-top: 8px;
   }
 
   .btn-icon {
@@ -112,66 +113,48 @@
     background: var(--accent-dim);
   }
 
-  /* Stats bar */
-  .stats {
-    display: flex;
-    gap: 24px;
+  /* Subheader */
+  .subheader {
     margin-bottom: 32px;
   }
 
-  .stat {
+  .subheader-top {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 8px;
   }
 
-  .stat-val {
+  .subheader-count {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  .subheader-count span {
     font-family: 'Syne', sans-serif;
-    font-size: 24px;
     font-weight: 700;
     color: var(--text);
+    font-size: 13px;
   }
 
-  .stat-label {
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .progress-bar {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    gap: 6px;
-  }
-
-  .progress-track {
-    height: 3px;
+  .subheader-track {
+    height: 2px;
     background: var(--surface2);
-    border-radius: 2px;
+    border-radius: 1px;
     overflow: hidden;
   }
 
-  .progress-fill {
+  .subheader-fill {
     height: 100%;
     background: var(--accent);
-    border-radius: 2px;
+    border-radius: 1px;
     transition: width 0.4s ease;
-  }
-
-  .progress-text {
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    text-align: right;
   }
 
   /* Section */
   .section {
-    margin-bottom: 32px;
+    margin-bottom: 33px;
   }
 
   .section-header {
@@ -305,7 +288,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 4px;
+    margin-top: 8px;
     flex-wrap: wrap;
   }
 
@@ -404,7 +387,7 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 20px;
-    margin-bottom: 32px;
+    margin-bottom: 33px;
     display: none;
   }
 
@@ -486,7 +469,7 @@
     font-size: 10px;
     color: var(--muted);
     line-height: 1.5;
-    margin-top: 4px;
+    margin-top: 8px;
   }
 
   .config-hint a { color: var(--trello); text-decoration: none; }
@@ -586,12 +569,21 @@
   <div class="header">
     <div class="header-left">
       <h1>TO<span>DAY</span></h1>
-      <div class="date-tag" id="dateTag"></div>
     </div>
     <div class="header-actions">
       <button class="btn-icon" id="trelloBtn" title="Configure Trello" onclick="toggleConfig()">⚡</button>
       <button class="btn-icon" id="infoBtn" title="About" onclick="toggleInfo()">ℹ</button>
       <button class="btn-icon" id="refreshBtn" title="Refresh Trello" onclick="loadTrello()">↻</button>
+    </div>
+  </div>
+  <!-- Subheader: date + progress bar -->
+  <div class="subheader">
+    <div class="subheader-top">
+      <div class="date-tag" id="dateTag"></div>
+      <div class="subheader-count"><span id="statDone">0</span> of <span id="statTotal">0</span> done</div>
+    </div>
+    <div class="subheader-track">
+      <div class="subheader-fill" id="progressFill" style="width:0%"></div>
     </div>
   </div>
 
@@ -663,27 +655,7 @@
     </div>
   </div>
 
-  <!-- Stats -->
-  <div class="stats">
-    <div class="stat">
-      <div class="stat-val" id="statTotal">0</div>
-      <div class="stat-label">Total</div>
-    </div>
-    <div class="stat">
-      <div class="stat-val" id="statDone">0</div>
-      <div class="stat-label">Done</div>
-    </div>
-    <div class="stat">
-      <div class="stat-val" id="statLeft">0</div>
-      <div class="stat-label">Left</div>
-    </div>
-    <div class="progress-bar">
-      <div class="progress-text" id="progressText">0%</div>
-      <div class="progress-track">
-        <div class="progress-fill" id="progressFill" style="width:0%"></div>
-      </div>
-    </div>
-  </div>
+
 
   <!-- Trello section -->
   <div class="section" id="trelloSection">
@@ -723,7 +695,7 @@ let doneIds     = new Set((() => { try { return JSON.parse(localStorage.getItem(
 function init() {
   const now = new Date();
   document.getElementById('dateTag').textContent =
-    now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' }).toUpperCase();
+    now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }).toUpperCase();
 
   const saved = getSavedConfig();
   if (saved.apiKey)    document.getElementById('apiKey').value    = saved.apiKey;
@@ -1144,9 +1116,10 @@ function updateStats() {
   s('statTotal', total);
   s('statDone',  done);
   s('statLeft',  left);
-  s('progressText', pct + '%');
   const fill = document.getElementById('progressFill');
   if (fill) fill.style.width = pct + '%';
+
+  updateFavicon();
 
   // Update tab title
   if (left === 0 && total > 0) document.title = '✓ TODAY';
@@ -1158,6 +1131,77 @@ function showStatus(msg, type) {
   if (!el) return;
   el.textContent = msg;
   el.className   = 'status-msg ' + type;
+}
+
+// ─── Favicon ─────────────────────────────────────────────────────────────────
+function drawFavicon(pct, isEmpty) {
+  const s   = 64;
+  const c   = document.createElement('canvas');
+  c.width   = s; c.height = s;
+  const ctx = c.getContext('2d');
+  const ACCENT = '#c8f060', BG = '#0e0e10', MUTED = '#2a2a30';
+  const cx = s / 2, cy = s / 2;
+
+  // Background
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, s, s);
+
+  // Ring track
+  const ringR = s * 0.38, lw = s * 0.10;
+  ctx.beginPath();
+  ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+  ctx.strokeStyle = isEmpty ? '#1a1a1a' : MUTED;
+  ctx.lineWidth = lw;
+  ctx.stroke();
+
+  // Ring fill
+  if (!isEmpty && pct > 0) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, ringR, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(pct, 1));
+    ctx.strokeStyle = pct >= 1 ? ACCENT : ACCENT + 'cc';
+    ctx.lineWidth = lw;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+
+  // Star inside
+  function starPath() {
+    const r = s * 0.18, innerR = r * 0.42, points = 4;
+    ctx.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+      const angle  = (i * Math.PI) / points - Math.PI / 2;
+      const radius = i % 2 === 0 ? r : innerR;
+      const x = cx + Math.cos(angle) * radius;
+      const y = cy + Math.sin(angle) * radius;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+  }
+
+  starPath();
+  if (isEmpty) {
+    ctx.fillStyle = '#1a1a1a';
+  } else if (pct >= 1) {
+    ctx.fillStyle = ACCENT;
+  } else if (pct > 0) {
+    ctx.fillStyle = '#444';
+  } else {
+    ctx.fillStyle = '#2a2a2a';
+  }
+  ctx.fill();
+
+  return c.toDataURL('image/png');
+}
+
+function updateFavicon() {
+  const all    = [...trelloTasks, ...manualTasks];
+  const total  = all.length;
+  const done   = all.filter(t => doneIds.has(t.id)).length;
+  const isEmpty = total === 0;
+  const pct    = total > 0 ? done / total : 0;
+  const dataURL = drawFavicon(pct, isEmpty);
+  const link = document.getElementById('favicon');
+  if (link) link.href = dataURL;
 }
 
 // ─── Start ────────────────────────────────────────────────────────────────────
