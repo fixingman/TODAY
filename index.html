@@ -2,18 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TODAY</title>
 <meta name="description" content="Your focused daily task list.">
 <meta property="og:title" content="TODAY">
 <meta property="og:description" content="Your focused daily task list.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://rococo-profiterole-a2647f.netlify.app">
-<meta property="og:image" content="https://rococo-profiterole-a2647f.netlify.app/today-og.png">
+<meta property="og:url" content="https://today-here.netlify.app">
+<meta property="og:image" content="https://today-here.netlify.app/today-og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="TODAY">
 <meta name="twitter:description" content="Your focused daily task list.">
-<meta name="twitter:image" content="https://rococo-profiterole-a2647f.netlify.app/today-og.png">
+<meta name="twitter:image" content="https://today-here.netlify.app/today-og.png">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <link id="favicon" rel="icon" type="image/png">
 <style>
@@ -44,6 +44,7 @@
 
   html {
     overflow-y: scroll;
+    overflow-x: hidden;
   }
 
   /* Subtle noise texture */
@@ -356,7 +357,7 @@
     padding: 10px 14px;
     color: var(--text);
     font-family: 'DM Mono', monospace;
-    font-size: 13px;
+    font-size: 16px;
     outline: none;
     transition: border-color 0.15s;
   }
@@ -376,6 +377,8 @@
     cursor: pointer;
     transition: opacity 0.15s;
     letter-spacing: 0.04em;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 
   .add-task-btn:hover { opacity: 0.85; }
@@ -391,6 +394,7 @@
     overflow: hidden;
     min-width: 0;
     width: 100%;
+    box-sizing: border-box;
   }
 
   .config-panel.open { display: block; animation: fadeIn 0.2s ease; }
@@ -434,6 +438,8 @@
     grid-template-columns: 1fr 1fr;
     gap: 12px;
     min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   @media (max-width: 600px) {
@@ -449,7 +455,9 @@
     flex-direction: column;
     gap: 5px;
     min-width: 0;
+    max-width: 100%;
     overflow: hidden;
+    box-sizing: border-box;
   }
 
   .config-field.full { grid-column: 1 / -1; }
@@ -468,11 +476,14 @@
     padding: 8px 12px;
     color: var(--text);
     font-family: 'DM Mono', monospace;
-    font-size: 12px;
+    font-size: 16px;
     outline: none;
     transition: border-color 0.15s;
     width: 100%;
+    max-width: 100%;
     min-width: 0;
+    box-sizing: border-box;
+    display: block;
   }
 
   .config-input:focus { border-color: var(--trello); }
