@@ -106,6 +106,11 @@
     font-size: 16px;
   }
   .btn-icon:hover { color: var(--text); border-color: var(--muted); }
+  .btn-icon.active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
 
   /* Stats bar */
   .stats {
@@ -756,9 +761,19 @@ function setTrelloIcon(connected) {
   btn.title = connected ? 'Trello connected' : 'Configure Trello';
 }
 
+function syncActiveButtons() {
+  const configOpen = document.getElementById('configPanel').classList.contains('open');
+  const infoOpen   = document.getElementById('infoPanel').classList.contains('open');
+  document.getElementById('trelloBtn').classList.toggle('active', configOpen);
+  document.getElementById('infoBtn').classList.toggle('active', infoOpen);
+}
+
 function toggleConfig() {
-  document.getElementById('configPanel').classList.toggle('open');
+  const configPanel = document.getElementById('configPanel');
+  const isOpening = !configPanel.classList.contains('open');
+  configPanel.classList.toggle('open');
   document.getElementById('infoPanel').classList.remove('open');
+  syncActiveButtons();
 }
 
 function toggleInfo() {
@@ -766,6 +781,7 @@ function toggleInfo() {
   const isOpening = !panel.classList.contains('open');
   panel.classList.toggle('open');
   document.getElementById('configPanel').classList.remove('open');
+  syncActiveButtons();
   if (isOpening) renderInfoStats();
 }
 
@@ -851,6 +867,7 @@ function clearTrello() {
   setTrelloIcon(false);
   // Open panel before calling showStatus so the element is visible
   document.getElementById('configPanel').classList.add('open');
+  syncActiveButtons();
   renderTrello();
   updateStats();
   showStatus('Trello data cleared.', 'success');
@@ -934,7 +951,7 @@ async function loadTrello() {
     // Only show status in panel if it's already open
     if (document.getElementById('configPanel').classList.contains('open')) {
       showStatus(msg, 'success');
-      setTimeout(() => document.getElementById('configPanel').classList.remove('open'), 1800);
+      setTimeout(() => { document.getElementById('configPanel').classList.remove('open'); syncActiveButtons(); }, 1800);
     }
 
   } catch(e) {
@@ -952,6 +969,7 @@ async function loadTrello() {
 
     // Always open config panel so the error is visible
     document.getElementById('configPanel').classList.add('open');
+    syncActiveButtons();
     showStatus(msg, 'error');
 
     const emptyEl2 = document.getElementById('trelloEmpty');
