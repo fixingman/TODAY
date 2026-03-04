@@ -333,6 +333,25 @@
 
   .task:hover .task-delete { opacity: 1; }
   .task-delete:hover { color: var(--danger); }
+  .clear-input-btn:hover { color: var(--danger) !important; }
+  .clear-input-btn:active { color: var(--danger) !important; }
+  .btn-coffee {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--highlight);
+    color: #0e0e10;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    letter-spacing: 0.04em;
+    transition: opacity 0.15s, transform 0.15s;
+  }
+  .btn-coffee:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn-coffee:active { opacity: 1; transform: translateY(0); }
 
   @media (hover: none) {
     .task-delete { opacity: 0.35; }
@@ -614,9 +633,9 @@
       <h1>TO<span>DAY</span></h1>
     </div>
     <div class="header-actions">
-      <button class="btn-icon" id="trelloBtn" title="Configure Trello" onclick="toggleConfig()">⚡</button>
-      <button class="btn-icon" id="infoBtn" title="About" onclick="toggleInfo()">ℹ</button>
-      <button class="btn-icon" id="refreshBtn" title="Refresh Trello" onclick="loadTrello()">↻</button>
+      <button class="btn-icon" id="trelloBtn" title="Configure" onclick="toggleConfig()">⚡&#xFE0E;</button>
+      <button class="btn-icon" id="infoBtn" title="About" onclick="toggleInfo()">ℹ&#xFE0E;</button>
+      <button class="btn-icon" id="refreshBtn" title="Refresh Trello" onclick="loadTrello()">↻&#xFE0E;</button>
     </div>
   </div>
   <!-- Subheader: date + progress bar -->
@@ -631,8 +650,8 @@
   </div>
 
   <!-- Trello config panel -->
-  <div class="config-panel" id="configPanel">
-    <div class="config-title">⚡ Trello Connection</div>
+  <div class="config-panel" id="configPanel" style="margin-bottom:16px">
+    <div class="config-title">⚡&#xFE0E; Trello Connection</div>
 
     <!-- Step 1: Connect -->
     <div id="trelloStep1">
@@ -672,9 +691,9 @@
     <div class="status-msg" id="statusMsg"></div>
 
     <!-- Dropbox backup section -->
-    <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:20px">
-      <div class="config-title" style="margin-bottom:12px">⌁ Dropbox Backup</div>
-      <div class="config-hint" style="margin-bottom:12px;margin-top:0">
+    <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:20px;margin-bottom:-4px">
+      <div class="config-title" style="margin-bottom:12px">⚡&#xFE0E; Dropbox Backup</div>
+      <div class="config-hint" style="margin-bottom:8px;margin-top:0">
         Backup tasks &amp; settings to Dropbox — survives cache clears, syncs across devices. Your data goes directly to your own Dropbox; we never see it.
         <span id="dropboxSetupHint" style="display:none"><br><br><strong style="color:var(--text)">Setup:</strong> Create a free app at <a href="https://www.dropbox.com/developers/apps" target="_blank" style="color:var(--highlight-ui)">dropbox.com/developers</a> → Scoped access → App Folder. Add <code style="color:var(--highlight-ui)">https://today-here.netlify.app/</code> as a redirect URI, then paste your App Key below.</span>
       </div>
@@ -689,8 +708,8 @@
         <button class="btn-ghost" onclick="dropboxBackup()" id="btnBackup" style="display:none">↑ Backup</button>
         <button class="btn-ghost" onclick="dropboxRestore()" id="btnRestore" style="display:none">↓ Restore</button>
       </div>
+      <div id="dropboxStatusLine" style="font-size:10px;color:var(--muted);margin-top:10px;letter-spacing:0.06em"></div>
       <div class="status-msg" id="dropboxMsg"></div>
-      <div id="dropboxStatusLine" style="font-size:10px;color:var(--muted);margin-top:8px;letter-spacing:0.06em;min-height:14px"></div>
     </div>
   </div>
 
@@ -721,7 +740,7 @@
         A focused daily task view that pulls from Trello and manual entries.<br>
         Cards due today or in your named "Today" list are surfaced automatically.<br>
         Checking off a task dims it — it stays on your list until tomorrow.<br><br>
-        <span style="color:var(--text)">Hosted on Netlify · Built with vanilla JS</span>
+        <a href="https://buymeacoffee.com/today.here" target="_blank" rel="noopener" class="btn-coffee">☕ Buy me a coffee</a>
       </div>
     </div>
   </div>
@@ -747,7 +766,10 @@
     <div class="task-list" id="manualList"></div>
     <div class="empty" id="manualEmpty" style="display:none">Nothing added yet</div>
     <div class="add-task-row">
-      <input class="add-task-input" id="newTask" type="text" placeholder="Add a task for today…" onkeydown="handleAddKey(event)" />
+      <div style="position:relative;flex:1;min-width:0;">
+        <input class="add-task-input" id="newTask" type="text" placeholder="Add a task for today…" onkeydown="handleAddKey(event)" oninput="toggleClearBtn()" style="width:100%;padding-right:36px;" />
+        <button id="clearTaskBtn" onclick="clearTaskInput()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:0;line-height:1;" class="clear-input-btn">×</button>
+      </div>
       <button class="add-task-btn" onclick="addManual()">Add</button>
     </div>
   </div>
@@ -764,7 +786,6 @@ let doneIds     = new Set((() => { try { return JSON.parse(localStorage.getItem(
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 function init() {
-  dropboxHandleRedirect(); // handle OAuth token in URL hash
   dropboxUpdateUI();       // hide key input/hint if app key is embedded
 
   const now = new Date();
@@ -815,7 +836,7 @@ function init() {
 function setTrelloIcon(connected) {
   const btn = document.getElementById('trelloBtn');
   if (!btn) return;
-  btn.textContent = connected ? '✦' : '⚡';
+  btn.textContent = connected ? '✦︎' : '⚡︎';
   btn.title = connected ? 'Trello connected' : 'Configure Trello';
 }
 
@@ -900,8 +921,7 @@ function trelloAuth() {
     try {
       if (!popup || popup.closed) { clearInterval(poll); return; }
       // Trello redirects back to return_url with #token=xxx in the hash
-      const href = popup.location.href || '';
-      if (href.includes('today-here.netlify.app')) {
+      if ((popup.location.href || '').includes('today-here.netlify.app')) {
         const hash = popup.location.hash || '';
         const tokenMatch = hash.match(/token=([^&]+)/);
         clearInterval(poll);
@@ -1002,7 +1022,7 @@ function clearTrello() {
   document.getElementById('configPanel').classList.add('open');
   syncActiveButtons();
   renderTrello();
-  updateStats();
+  updateStats(true);
   showStatus('Trello disconnected.', 'success');
 }
 
@@ -1039,10 +1059,6 @@ async function loadTrello() {
     const todayListId   = todayListName
       ? ((lists.find(l => l.name.toLowerCase() === todayListName) || {}).id || null)
       : null;
-
-    // Build list id → name map
-    const listMap = {};
-    lists.forEach(l => { listMap[l.id] = l.name; });
 
     // Filter: in today list OR due today
     const filtered = cards.filter(c => {
@@ -1231,6 +1247,7 @@ function addManual() {
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));
   input.value = '';
   input.focus();
+  toggleClearBtn();
 
   // Insert new element directly — no full re-render
   const list  = document.getElementById('manualList');
@@ -1247,6 +1264,19 @@ function addManual() {
 
 function handleAddKey(e) {
   if (e.key === 'Enter') addManual();
+}
+
+function toggleClearBtn() {
+  const input = document.getElementById('newTask');
+  const btn   = document.getElementById('clearTaskBtn');
+  if (btn) btn.style.display = input.value.length > 0 ? 'block' : 'none';
+}
+
+function clearTaskInput() {
+  const input = document.getElementById('newTask');
+  input.value = '';
+  input.focus();
+  toggleClearBtn();
 }
 
 function deleteManual(taskId) {
@@ -1592,11 +1622,6 @@ function dropboxAuth() {
   }, 500);
 }
 
-function dropboxHandleRedirect() {
-  // No longer needed — auth is handled via popup
-  // Keep as no-op for safety
-}
-
 function openDropboxPanel() {
   document.getElementById('configPanel').classList.add('open');
   document.getElementById('infoPanel').classList.remove('open');
@@ -1687,16 +1712,22 @@ async function dropboxRestore() {
 
     const data = await res.json();
 
-    // Restore everything
-    if (data.manual_tasks)      localStorage.setItem('today_manual',        JSON.stringify(data.manual_tasks));
-    if (data.done_ids)          localStorage.setItem('today_done',          JSON.stringify(data.done_ids));
-    if (data.trello_config)     localStorage.setItem('trello_config',       JSON.stringify(data.trello_config));
-    if (data.stat_alltime_done) localStorage.setItem('stat_alltime_done',   data.stat_alltime_done);
-    if (data.stat_streak)       localStorage.setItem('stat_streak',         data.stat_streak);
-    if (data.stat_last_visit)   localStorage.setItem('stat_last_visit',     data.stat_last_visit);
+    // Restore everything — use Array.isArray check so empty arrays aren't skipped
+    localStorage.setItem('today_manual',  JSON.stringify(Array.isArray(data.manual_tasks) ? data.manual_tasks : []));
+    localStorage.setItem('today_done',    JSON.stringify(Array.isArray(data.done_ids)     ? data.done_ids     : []));
+    if (data.trello_config)     localStorage.setItem('trello_config',     JSON.stringify(data.trello_config));
+    if (data.stat_alltime_done) localStorage.setItem('stat_alltime_done', data.stat_alltime_done);
+    if (data.stat_streak)       localStorage.setItem('stat_streak',       data.stat_streak);
+    if (data.stat_last_visit)   localStorage.setItem('stat_last_visit',   data.stat_last_visit);
 
-    dropboxShowMsg('Restore complete — reloading…', 'success');
-    setTimeout(() => window.location.reload(), 1200);
+    // Re-render in place instead of reload — ensures in-memory state matches localStorage
+    manualTasks = Array.isArray(data.manual_tasks) ? data.manual_tasks : [];
+    doneIds     = new Set(Array.isArray(data.done_ids) ? data.done_ids : []);
+    renderManual();
+    renderTrello();
+    updateStats(true);
+
+    dropboxShowMsg('Restore complete ✓', 'success');
 
   } catch(e) {
     dropboxShowMsg('Restore failed: ' + (e.message || 'unknown error'), 'error');
