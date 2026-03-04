@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TODAY</title>
+<meta name="description" content="Your focused daily task list.">
+<meta property="og:title" content="TODAY">
+<meta property="og:description" content="Your focused daily task list.">
+<meta property="og:type" content="website">
+<meta property="og:image" id="og-image-meta" content="">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="TODAY">
+<meta name="twitter:description" content="Your focused daily task list.">
+<meta name="twitter:image" id="twitter-image-meta" content="">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <link id="favicon" rel="icon" type="image/png">
 <style>
@@ -551,6 +560,65 @@
     z-index: 999;
   }
 </style>
+<script>
+// ─── OG Image Generator (runs once, uses Syne font after load) ────────────────
+document.fonts.ready.then(function() {
+  setTimeout(function() {
+    try {
+      var W = 1200, H = 630;
+      var c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      var ctx = c.getContext('2d');
+      var BG = '#0e0e10', BORDER = '#2a2a30', ACCENT = '#c8f060', TEXT = '#e8e8ec', MUTED = '#6b6b78';
+
+      // Background
+      ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H);
+
+      // Faint grid
+      ctx.strokeStyle = BORDER; ctx.lineWidth = 1; ctx.globalAlpha = 0.3;
+      for (var x = 0; x <= W; x += 120) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+      for (var y = 0; y <= H; y += 120) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+      ctx.globalAlpha = 1;
+
+      // Star — top right
+      function star(cx, cy, r, color) {
+        var inner = r * 0.38, pts = 4;
+        ctx.beginPath();
+        for (var i = 0; i < pts * 2; i++) {
+          var angle = (i * Math.PI / pts) - Math.PI / 4;
+          var rad = i % 2 === 0 ? r : inner;
+          ctx.lineTo(cx + Math.cos(angle)*rad, cy + Math.sin(angle)*rad);
+        }
+        ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+      }
+      star(W-148, 118, 58, 'rgba(34,48,14,1)');
+      star(W-148, 118, 40, 'rgba(76,104,28,1)');
+      star(W-148, 118, 26, ACCENT);
+
+      // Wordmark
+      ctx.font = "800 196px 'Syne', sans-serif";
+      ctx.textBaseline = 'alphabetic';
+      var toW = ctx.measureText('TO').width;
+      ctx.fillStyle = TEXT;  ctx.fillText('TO',  108, 368);
+      ctx.fillStyle = ACCENT; ctx.fillText('DAY', 108 + toW, 368);
+
+      // Tagline
+      ctx.font = "400 24px 'DM Mono', monospace";
+      ctx.fillStyle = MUTED;
+      ctx.fillText('YOUR DAY. ONE LIST.', 112, 432);
+      var tagW = ctx.measureText('YOUR DAY. ONE LIST.').width;
+      star(112 + tagW + 22, 422, 8, ACCENT);
+
+      // Inject into meta tags
+      var dataURL = c.toDataURL('image/png');
+      var ogMeta = document.getElementById('og-image-meta');
+      var twMeta = document.getElementById('twitter-image-meta');
+      if (ogMeta) ogMeta.setAttribute('content', dataURL);
+      if (twMeta) twMeta.setAttribute('content', dataURL);
+    } catch(e) {}
+  }, 150);
+});
+</script>
 </head>
 <body>
 <div class="app">
