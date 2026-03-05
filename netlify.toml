@@ -4,3 +4,11 @@
 
 [build.processing]
   skip_processing = false
+
+# Production — master only
+[context.production]
+  command = ""
+
+# dev branch — never build
+[context.dev]
+  ignore = "exit 0"
