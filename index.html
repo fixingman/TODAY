@@ -869,8 +869,28 @@ function init() {
   const saved = getSavedConfig();
   const trelloToken = localStorage.getItem('trello_token');
 
+  // New-day cleanup — must run before renderManual so UI starts clean
+  const todayStr  = new Date().toDateString();
+  const lastVisit = localStorage.getItem('stat_last_visit');
+  if (lastVisit && lastVisit !== todayStr) {
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
+    localStorage.setItem('stat_streak', lastVisit === yesterday.toDateString() ? streak + 1 : 1);
+
+    // Remove manual tasks that were marked done
+    manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
+    localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+
+    // Clear only manual done IDs, leave Trello ones intact
+    for (const id of [...doneIds]) {
+      if (id.startsWith('manual_')) doneIds.delete(id);
+    }
+    localStorage.setItem('today_done', JSON.stringify([...doneIds]));
+  }
+  localStorage.setItem('stat_last_visit', todayStr);
+
   renderManual();
-  updateStats(true); // true = skip auto-save on init
+  updateStats(true);
 
   if (saved.boardId && trelloToken) {
     setTrelloIcon(true);
@@ -884,36 +904,6 @@ function init() {
   }
 
   // Clear stale done IDs that no longer match any manual task
-  // (Trello tasks are checked after load, so we only prune manual ones here)
-  const manualIds = new Set(manualTasks.map(t => t.id));
-  let changed = false;
-  for (const id of [...doneIds]) {
-    if (id.startsWith('manual_') && !manualIds.has(id)) {
-      doneIds.delete(id);
-      changed = true;
-    }
-  }
-  if (changed) localStorage.setItem('today_done', JSON.stringify([...doneIds]));
-
-  // Track daily visit streak + clear completed manual tasks on new day
-  const todayStr  = new Date().toDateString();
-  const lastVisit = localStorage.getItem('stat_last_visit');
-  if (lastVisit && lastVisit !== todayStr) {
-    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-    const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
-    localStorage.setItem('stat_streak', lastVisit === yesterday.toDateString() ? streak + 1 : 1);
-
-    // New day — remove manual tasks that were marked done
-    manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
-    localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-
-    // Clear only manual done IDs, leave Trello ones intact
-    for (const id of [...doneIds]) {
-      if (id.startsWith('manual_')) doneIds.delete(id);
-    }
-    localStorage.setItem('today_done', JSON.stringify([...doneIds]));
-  }
-  localStorage.setItem('stat_last_visit', todayStr);
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
