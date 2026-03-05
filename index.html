@@ -1224,31 +1224,46 @@ function renderTrello() {
 
   empty.style.display = 'none';
 
-  // Compare incoming order against current DOM order
-  const currentIds  = [...list.querySelectorAll('[data-taskid]')].map(el => el.dataset.taskid);
-  const incomingIds = trelloTasks.map(t => t.id);
-  const structureChanged = currentIds.length !== incomingIds.length
-    || incomingIds.some((id, i) => id !== currentIds[i]);
+  // Diff render — avoid full innerHTML wipe to prevent flash on sync updates
+  const incoming = new Map(trelloTasks.map(t => [t.id, t]));
+  const existing = new Map();
+  for (const el of list.querySelectorAll('[data-taskid]')) {
+    existing.set(el.dataset.taskid, el);
+  }
 
-  if (structureChanged) {
-    // Task list changed (added, removed, or reordered) — full rebuild
-    // taskHTML reads doneIds directly so done states are preserved automatically
-    list.innerHTML = trelloTasks.map(t => taskHTML(t, 'trello', 0)).join('');
-  } else {
-    // Same tasks, same order — only patch text and done state, never touch structure
-    trelloTasks.forEach(t => {
-      const el = list.querySelector(`.task[data-taskid="${CSS.escape(t.id)}"]`);
-      if (!el) return;
+  // Remove tasks no longer in the list
+  for (const [id, el] of existing) {
+    if (!incoming.has(id)) el.remove();
+  }
 
-      const textEl  = el.querySelector('.task-text');
+  // Add or update each task in order
+  trelloTasks.forEach((t, i) => {
+    const existingEl = existing.get(t.id);
+    const isDone     = doneIds.has(t.id);
+
+    if (!existingEl) {
+      // New task — insert at correct position
+      const tmp = document.createElement('div');
+      tmp.innerHTML = taskHTML(t, 'trello', i * 30).trim();
+      const newEl = tmp.firstChild;
+      const refEl = list.children[i] || null;
+      list.insertBefore(newEl, refEl);
+    } else {
+      // Existing task — only patch what may have changed
+      const textEl = existingEl.querySelector('.task-text');
       const newText = esc(t.text) + (t.url
         ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" style="color:var(--highlight-ui);font-size:11px;text-decoration:none;margin-left:4px" title="Open in Trello">↗</a>`
         : '');
       if (textEl && textEl.innerHTML !== newText) textEl.innerHTML = newText;
 
-      el.classList.toggle('done', doneIds.has(t.id));
-    });
-  }
+      // Sync done state
+      existingEl.classList.toggle('done', isDone);
+
+      // Ensure order matches
+      const refEl = list.children[i] || null;
+      if (refEl !== existingEl) list.insertBefore(existingEl, refEl);
+    }
+  });
 }
 
 function renderManual() {
