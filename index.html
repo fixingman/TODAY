@@ -485,6 +485,13 @@
 
   .config-panel.open { display: block; animation: fadeIn 0.2s ease; }
 
+  #infoStats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
   .info-stat {
     background: var(--surface2);
     border: 1px solid var(--border);
@@ -794,7 +801,7 @@
       <div style="font-size:10px;color:var(--muted);letter-spacing:0.1em">v1.0.0</div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:20px" id="infoStats"></div>
+    <div id="infoStats"></div>
 
     <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
       <div class="config-label" style="margin-bottom:10px">Changelog</div>
@@ -1217,46 +1224,31 @@ function renderTrello() {
 
   empty.style.display = 'none';
 
-  // Diff render — avoid full innerHTML wipe to prevent flash on sync updates
-  const incoming = new Map(trelloTasks.map(t => [t.id, t]));
-  const existing = new Map();
-  for (const el of list.querySelectorAll('[data-taskid]')) {
-    existing.set(el.dataset.taskid, el);
-  }
+  // Compare incoming order against current DOM order
+  const currentIds  = [...list.querySelectorAll('[data-taskid]')].map(el => el.dataset.taskid);
+  const incomingIds = trelloTasks.map(t => t.id);
+  const structureChanged = currentIds.length !== incomingIds.length
+    || incomingIds.some((id, i) => id !== currentIds[i]);
 
-  // Remove tasks no longer in the list
-  for (const [id, el] of existing) {
-    if (!incoming.has(id)) el.remove();
-  }
+  if (structureChanged) {
+    // Task list changed (added, removed, or reordered) — full rebuild
+    // taskHTML reads doneIds directly so done states are preserved automatically
+    list.innerHTML = trelloTasks.map(t => taskHTML(t, 'trello', 0)).join('');
+  } else {
+    // Same tasks, same order — only patch text and done state, never touch structure
+    trelloTasks.forEach(t => {
+      const el = list.querySelector(`.task[data-taskid="${CSS.escape(t.id)}"]`);
+      if (!el) return;
 
-  // Add or update each task in order
-  trelloTasks.forEach((t, i) => {
-    const existingEl = existing.get(t.id);
-    const isDone     = doneIds.has(t.id);
-
-    if (!existingEl) {
-      // New task — insert at correct position
-      const tmp = document.createElement('div');
-      tmp.innerHTML = taskHTML(t, 'trello', i * 30).trim();
-      const newEl = tmp.firstElementChild; // firstElementChild avoids text node whitespace
-      const refEl = list.children[i] || null;
-      list.insertBefore(newEl, refEl);
-    } else {
-      // Existing task — only patch what may have changed
-      const textEl = existingEl.querySelector('.task-text');
+      const textEl  = el.querySelector('.task-text');
       const newText = esc(t.text) + (t.url
         ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" style="color:var(--highlight-ui);font-size:11px;text-decoration:none;margin-left:4px" title="Open in Trello">↗</a>`
         : '');
       if (textEl && textEl.innerHTML !== newText) textEl.innerHTML = newText;
 
-      // Sync done state
-      existingEl.classList.toggle('done', isDone);
-
-      // Ensure order matches
-      const refEl = list.children[i] || null;
-      if (refEl !== existingEl) list.insertBefore(existingEl, refEl);
-    }
-  });
+      el.classList.toggle('done', doneIds.has(t.id));
+    });
+  }
 }
 
 function renderManual() {
@@ -1805,6 +1797,12 @@ async function dropboxBackup(silent) {
     const localOnly    = localManual.filter(t => !remoteIds.has(t.id));
     const mergedManual = [...remoteManual, ...localOnly];
 
+    // Detect if merge actually changed local state (before writing)
+    const localManualJson = localStorage.getItem('today_manual') || '[]';
+    const localDoneJson   = localStorage.getItem('today_done')   || '[]';
+    const mergeChangedState = JSON.stringify(mergedManual) !== localManualJson
+                           || JSON.stringify(mergedDone)   !== localDoneJson;
+
     // Update local state to the merged result before saving
     manualTasks = mergedManual;
     doneIds     = new Set(mergedDone);
@@ -1898,7 +1896,7 @@ async function dropboxRestore(fromSync) {
       return;
     }
     if (res.status === 409) {
-      dropboxShowMsg('No backup found. Make a backup first.', 'error');
+      if (!fromSync) dropboxShowMsg('No backup found. Make a backup first.', 'error');
       return;
     }
     if (!res.ok) throw new Error(`Dropbox error ${res.status}`);
