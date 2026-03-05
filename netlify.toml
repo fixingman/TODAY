@@ -9,6 +9,6 @@
 [context.production]
   command = ""
 
-# dev branch — never build
+# dev branch — builds and deploys to https://dev--today-here.netlify.app/
 [context.dev]
-  ignore = "exit 0"
+  command = ""
