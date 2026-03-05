@@ -1,8 +1,6 @@
 [build]
   publish = "."
+  ignore = "git diff --quiet HEAD^ HEAD -- index.html netlify.toml"
 
 [build.processing]
   skip_processing = false
-
-[build]
-  ignore = "git diff --quiet HEAD^ HEAD -- index.html netlify.toml"
