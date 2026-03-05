@@ -1212,7 +1212,47 @@ function renderTrello() {
   }
 
   empty.style.display = 'none';
-  list.innerHTML = trelloTasks.map((t, i) => taskHTML(t, 'trello', i * 30)).join('');
+
+  // Diff render — avoid full innerHTML wipe to prevent flash on sync updates
+  const incoming = new Map(trelloTasks.map(t => [t.id, t]));
+  const existing = new Map();
+  for (const el of list.querySelectorAll('[data-taskid]')) {
+    existing.set(el.dataset.taskid, el);
+  }
+
+  // Remove tasks no longer in the list
+  for (const [id, el] of existing) {
+    if (!incoming.has(id)) el.remove();
+  }
+
+  // Add or update each task in order
+  trelloTasks.forEach((t, i) => {
+    const existingEl = existing.get(t.id);
+    const isDone     = doneIds.has(t.id);
+
+    if (!existingEl) {
+      // New task — insert at correct position
+      const tmp = document.createElement('div');
+      tmp.innerHTML = taskHTML(t, 'trello', i * 30).trim();
+      const newEl = tmp.firstChild;
+      const refEl = list.children[i] || null;
+      list.insertBefore(newEl, refEl);
+    } else {
+      // Existing task — only patch what may have changed
+      const textEl = existingEl.querySelector('.task-text');
+      const newText = esc(t.text) + (t.url
+        ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" style="color:var(--highlight-ui);font-size:11px;text-decoration:none;margin-left:4px" title="Open in Trello">↗</a>`
+        : '');
+      if (textEl && textEl.innerHTML !== newText) textEl.innerHTML = newText;
+
+      // Sync done state
+      existingEl.classList.toggle('done', isDone);
+
+      // Ensure order matches
+      const refEl = list.children[i] || null;
+      if (refEl !== existingEl) list.insertBefore(existingEl, refEl);
+    }
+  });
 }
 
 function renderManual() {
