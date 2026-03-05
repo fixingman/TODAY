@@ -788,12 +788,12 @@
           <input class="config-input" id="dropboxAppKey" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" placeholder="your-app-key" />
         </div>
       </div>
+      <div id="dropboxStatusLine" style="font-size:10px;color:var(--muted);margin-bottom:10px;letter-spacing:0.06em"></div>
       <div class="config-actions">
         <button class="btn-primary" id="dropboxConnectBtn" onclick="dropboxAuth()">Connect Dropbox</button>
         <button class="btn-ghost" onclick="dropboxBackup()" id="btnBackup" style="display:none">↑ Backup</button>
         <button class="btn-ghost" onclick="dropboxRestore()" id="btnRestore" style="display:none">↓ Restore</button>
       </div>
-      <div id="dropboxStatusLine" style="font-size:10px;color:var(--muted);margin-top:10px;letter-spacing:0.06em"></div>
       <div class="status-msg" id="dropboxMsg"></div>
     </div>
   </div>
@@ -906,13 +906,23 @@ function init() {
   }
   if (changed) localStorage.setItem('today_done', JSON.stringify([...doneIds]));
 
-  // Track daily visit streak
+  // Track daily visit streak + clear completed manual tasks on new day
   const todayStr  = new Date().toDateString();
   const lastVisit = localStorage.getItem('stat_last_visit');
   if (lastVisit && lastVisit !== todayStr) {
     const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
     const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
     localStorage.setItem('stat_streak', lastVisit === yesterday.toDateString() ? streak + 1 : 1);
+
+    // New day — remove manual tasks that were marked done
+    manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
+    localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+
+    // Clear only manual done IDs, leave Trello ones intact
+    for (const id of [...doneIds]) {
+      if (id.startsWith('manual_')) doneIds.delete(id);
+    }
+    localStorage.setItem('today_done', JSON.stringify([...doneIds]));
   }
   localStorage.setItem('stat_last_visit', todayStr);
 }
@@ -1843,20 +1853,20 @@ async function dropboxRestore() {
 
   function spawnFrag(x,y,vx,vy,ch,sz,depth){
     spp.push({
-      x,y,vx:vx+(Math.random()-.5)*1.4,vy:vy+(Math.random()-.5)*1.4,
+      x,y,vx:vx+(Math.random()-.5)*0.7,vy:vy+(Math.random()-.5)*0.7,
       ch,sz,depth,
       col:depth===0?'#c8f060':Math.random()>.5?'#c8f060bb':'#6b6b78',
-      rot:(Math.random()-.5)*.4,ang:0,
-      life:.8+Math.random()*.5,maxLife:1.3,
+      rot:(Math.random()-.5)*.15,ang:0,
+      life:1.1+Math.random()*.6,maxLife:1.7,
       trail:[],tt:0,split:false,
       update(){
         this.x+=this.vx;this.y+=this.vy;
-        this.vx*=.95;this.vy=this.vy*.95+.025;
-        this.ang+=this.rot;this.life-=.018;this.tt++;
+        this.vx*=.97;this.vy=this.vy*.97+.012;
+        this.ang+=this.rot;this.life-=.011;this.tt++;
         if(this.tt%2===0){this.trail.push({x:this.x,y:this.y});if(this.trail.length>8)this.trail.shift();}
         if(!this.split&&this.depth<2&&this.life<this.maxLife*.5){
           this.split=true;
-          for(let f=0;f<2+Math.floor(Math.random()*2);f++)
+          for(let f=0;f<1+Math.floor(Math.random()*2);f++)
             spawnFrag(this.x,this.y,this.vx*.6+(Math.random()-.5)*2,this.vy*.6+(Math.random()-.5)*2,
               CHARS[Math.floor(Math.random()*CHARS.length)],this.sz*.6,this.depth+1);
         }
@@ -1879,9 +1889,9 @@ async function dropboxRestore() {
     });
   }
 
-  function sBurst(x,y,n=24,spd=5.5){
+  function sBurst(x,y,n=16,spd=3.8){
     spp.push({x,y,r:2,life:1,maxLife:1,
-      update(){this.r+=3;this.life-=.07;},
+      update(){this.r+=2;this.life-=.05;},
       draw(c){
         const g=c.createRadialGradient(x,y,0,x,y,this.r);
         g.addColorStop(0,'#c8f060'+Math.round(Math.max(0,this.life)*180).toString(16).padStart(2,'0'));
@@ -1892,7 +1902,7 @@ async function dropboxRestore() {
     for(let i=0;i<n;i++){
       const ang=(i/n)*Math.PI*2+(Math.random()-.5)*.3;
       const s=1.5+Math.random()*spd;
-      spawnFrag(x,y,Math.cos(ang)*s,Math.sin(ang)*s,CHARS[Math.floor(Math.random()*CHARS.length)],9+Math.random()*6,0);
+      spawnFrag(x,y,Math.cos(ang)*s,Math.sin(ang)*s,CHARS[Math.floor(Math.random()*CHARS.length)],6+Math.random()*4,0);
     }
     if(!srf) sLoop();
   }
@@ -1925,6 +1935,14 @@ async function dropboxRestore() {
   const barFill = document.getElementById('splash-bar-fill');
 
   function showSplashBar(){
+    // Fade logo and date out as bar begins
+    const logo = document.getElementById('splash-logo');
+    const dateWrap = document.getElementById('splash-date-wrap');
+    [logo, dateWrap].forEach(el => {
+      el.style.transition = 'opacity 600ms cubic-bezier(0.4,0,0.2,1)';
+      el.style.opacity = '0';
+    });
+
     barWrap.style.width  = dateTxt.offsetWidth+4+'px';
     barWrap.style.opacity= '1';
     const steps=[{to:55,ms:420},{to:80,ms:320},{to:100,ms:280}];
