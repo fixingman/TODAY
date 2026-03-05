@@ -1490,12 +1490,21 @@ function updateFavicon(pct, isEmpty) {
   resizeCeleb();
   window.addEventListener('resize', resizeCeleb);
 
+  let celebFrameCount = 0;
+  const CELEB_MAX_FRAMES = 300; // 5s at 60fps — hard stop
   function celebAnimate() {
     celebCtx.clearRect(0, 0, celebCanvas.width, celebCanvas.height);
     celebParticles = celebParticles.filter(p => p.life > 0);
     celebParticles.forEach(p => { p.update(); p.draw(celebCtx); });
-    if (celebParticles.length > 0) celebFrame = requestAnimationFrame(celebAnimate);
-    else celebFrame = null;
+    celebFrameCount++;
+    if (celebParticles.length > 0 && celebFrameCount < CELEB_MAX_FRAMES) {
+      celebFrame = requestAnimationFrame(celebAnimate);
+    } else {
+      cancelAnimationFrame(celebFrame);
+      celebFrame = null;
+      celebFrameCount = 0;
+      celebCtx.clearRect(0, 0, celebCanvas.width, celebCanvas.height);
+    }
   }
   function celebStart() { if (!celebFrame) celebFrame = requestAnimationFrame(celebAnimate); }
 
@@ -1815,6 +1824,103 @@ async function dropboxRestore() {
   }
 }
 
+// ─── Live sync ───────────────────────────────────────────────────────────────
+// Visibility-based polling: re-syncs when tab regains focus or every 30s while
+// active. Background tabs are completely silent — no network, no battery drain.
+(function() {
+  const INTERVAL_MS    = 30000; // 30s tick while tab is visible
+  let   ticker         = null;
+  let   lastDropboxRev = null;  // Dropbox file rev — avoid redundant restores
+  let   lastTrelloDate = null;  // Trello board dateLastActivity — avoid redundant fetches
+
+  // ── Trello: cheap activity check first, full fetch only if board changed ──
+  async function syncTrello() {
+    const cfg = getSavedConfig();
+    if (!cfg.apiKey || !cfg.apiToken || !cfg.boardId) return;
+    try {
+      const res = await fetch(
+        `https://api.trello.com/1/boards/${cfg.boardId}?fields=dateLastActivity&key=${cfg.apiKey}&token=${cfg.apiToken}`
+      );
+      if (!res.ok) return;
+      const board = await res.json();
+      const date  = board.dateLastActivity;
+      if (!date || date === lastTrelloDate) return; // nothing changed
+      lastTrelloDate = date;
+      loadTrello(); // full fetch only when board actually changed
+    } catch(e) { /* silent */ }
+  }
+
+  // ── Dropbox: cheap metadata check first, only restore if rev changed ──────
+  async function syncDropbox() {
+    const token = localStorage.getItem('dropbox_token');
+    if (!token) return;
+    try {
+      const res = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
+        method:  'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: DROPBOX_FILE }),
+      });
+      if (!res.ok) return;
+      const meta = await res.json();
+      const rev  = meta.rev;
+      if (!rev || rev === lastDropboxRev) return; // nothing changed
+      lastDropboxRev = rev;
+      await dropboxRestore(); // full restore only when file actually changed
+    } catch(e) { /* silent */ }
+  }
+
+  function syncAll() {
+    syncTrello();
+    syncDropbox();
+  }
+
+  // ── Ticker: runs only while tab is visible ────────────────────────────────
+  function startTicker() {
+    if (ticker) return;
+    ticker = setInterval(syncAll, INTERVAL_MS);
+  }
+  function stopTicker() {
+    clearInterval(ticker);
+    ticker = null;
+  }
+
+  // ── Visibility change: debounced sync on focus, pause ticker when hidden ──
+  let wakeTimer = null;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      clearTimeout(wakeTimer);
+      wakeTimer = setTimeout(() => { syncAll(); startTicker(); }, 2000);
+    } else {
+      clearTimeout(wakeTimer);
+      stopTicker();
+    }
+  });
+
+  // Start ticker on load — seed both baselines so first tick has something to compare
+  window.addEventListener('load', () => {
+    startTicker();
+
+    // Seed Trello baseline
+    const cfg = getSavedConfig();
+    if (cfg.apiKey && cfg.apiToken && cfg.boardId) {
+      fetch(`https://api.trello.com/1/boards/${cfg.boardId}?fields=dateLastActivity&key=${cfg.apiKey}&token=${cfg.apiToken}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(b => { if (b) lastTrelloDate = b.dateLastActivity; })
+        .catch(() => {});
+    }
+
+    // Seed Dropbox baseline
+    const token = localStorage.getItem('dropbox_token');
+    if (token) {
+      fetch('https://api.dropboxapi.com/2/files/get_metadata', {
+        method:  'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: DROPBOX_FILE }),
+      }).then(r => r.ok ? r.json() : null).then(m => { if (m) lastDropboxRev = m.rev; }).catch(() => {});
+    }
+  });
+})();
+
 // ─── Start ────────────────────────────────────────────────────────────────────
 // ─── Splash screen ────────────────────────────────────────────────────────────
 (function() {
@@ -1886,11 +1992,21 @@ async function dropboxRestore() {
     if(!srf) sLoop();
   }
 
+  let sFrameCount = 0;
+  const SPLASH_MAX_FRAMES = 240; // 4s at 60fps — hard stop
   function sLoop(){
     sctx.clearRect(0,0,splashCanvas.width,splashCanvas.height);
     spp=spp.filter(p=>p.life>0);
     spp.forEach(p=>{p.update();p.draw(sctx);});
-    srf=spp.length>0?requestAnimationFrame(sLoop):null;
+    sFrameCount++;
+    if(spp.length>0 && sFrameCount<SPLASH_MAX_FRAMES){
+      srf=requestAnimationFrame(sLoop);
+    } else {
+      cancelAnimationFrame(srf);
+      srf=null;
+      sFrameCount=0;
+      sctx.clearRect(0,0,splashCanvas.width,splashCanvas.height);
+    }
   }
 
   // Typewriter
