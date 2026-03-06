@@ -1822,7 +1822,7 @@ function dropboxAutoSave() {
   const token = localStorage.getItem('dropbox_token');
   if (!token) return;
   clearTimeout(dropboxSaveTimer);
-  dropboxSaveTimer = setTimeout(() => dropboxBackup(true), 2000);
+  dropboxSaveTimer = setTimeout(() => dropboxBackup(true), 800);
 }
 
 // ── Backup ────────────────────────────────────────────────────────────────────
@@ -1927,21 +1927,21 @@ async function dropboxRestore(fromSync) {
       const remoteDone  = Array.isArray(data.done_ids)     ? data.done_ids     : [];
 
       // For tasks: remote is structural authority (handles adds and deletes from other device)
-      // but keep local-only tasks not yet synced (added on this device since last backup)
-      const remoteIds  = new Set(remoteTasks.map(t => t.id));
-      const localOnly  = manualTasks.filter(t => !remoteIds.has(t.id));
+      // Remote is authoritative for task list — same as done state.
+      // The debounce means by the time the other device's sync tick fires,
+      // the delete/add has already been written to Dropbox.
+      const remoteIds = new Set(remoteTasks.map(t => t.id));
+      const localIds  = new Set(manualTasks.map(t => t.id));
 
-      // Fade out tasks deleted on other device
-      const mergedIds = new Set([...remoteTasks.map(t => t.id), ...localOnly.map(t => t.id)]);
+      // Fade out tasks that were deleted on the other device
       manualTasks.forEach(t => {
-        if (!mergedIds.has(t.id)) {
+        if (!remoteIds.has(t.id)) {
           const el = document.querySelector(`.task[data-taskid="${CSS.escape(t.id)}"]`);
           if (el) { el.classList.add('removing'); setTimeout(() => el.remove(), 180); }
         }
       });
 
-      // Add new tasks from other device
-      const localIds = new Set(manualTasks.map(t => t.id));
+      // Slide in tasks that were added on the other device
       const brandNew = remoteTasks.filter(t => !localIds.has(t.id));
       if (brandNew.length > 0) {
         const listEl = document.getElementById('manualList');
@@ -1954,7 +1954,7 @@ async function dropboxRestore(fromSync) {
         if (empty) empty.style.display = 'none';
       }
 
-      manualTasks = [...remoteTasks, ...localOnly];
+      manualTasks = remoteTasks;
       localStorage.setItem('today_manual', JSON.stringify(manualTasks));
 
       // Done state: remote is authoritative (supports both check AND uncheck across devices)
@@ -1967,7 +1967,9 @@ async function dropboxRestore(fromSync) {
       });
 
       document.getElementById('manualCount').textContent = manualTasks.length;
-      updateStats(true);
+      const emptyEl = document.getElementById('manualEmpty');
+      if (emptyEl) emptyEl.style.display = manualTasks.length === 0 ? 'block' : 'none';
+      updateStats();
 
       const label = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       const syncEl = document.getElementById('dropboxStatusLine');
@@ -1998,7 +2000,7 @@ async function dropboxRestore(fromSync) {
 // Visibility-based polling: re-syncs when tab regains focus or every 30s while
 // active. Background tabs are completely silent — no network, no battery drain.
 (function() {
-  const INTERVAL_MS    = 15000; // 15s tick
+  const INTERVAL_MS    = 7000;  // 7s tick
   let   ticker         = null;
   let   lastDropboxRev = null;
   let   lastTrelloDate = null;
