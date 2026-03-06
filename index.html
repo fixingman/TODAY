@@ -1680,7 +1680,9 @@ function updateFavicon(pct, isEmpty) {
 // ─── Dropbox ──────────────────────────────────────────────────────────────────
 const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
-const DROPBOX_FILE    = '/today-backup.json';
+const DROPBOX_FILE    = window.location.hostname === 'today-here.netlify.app'
+  ? '/today-backup.json'
+  : '/today-backup-' + window.location.hostname.split('--')[0] + '.json';
 let dropboxSaveTimer = null;
 
 function dropboxAutoSave() {
