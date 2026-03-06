@@ -873,6 +873,10 @@
 <canvas id="celebCanvas"></canvas>
 
 <script>
+// ─── Constants ───────────────────────────────────────────────────────────────
+const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
+const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
+
 // ─── Version ─────────────────────────────────────────────────────────────────
 const APP_VERSION = '1.5.0';
 const CHANGELOG = {
@@ -1703,7 +1707,7 @@ function updateFavicon(pct, isEmpty) {
 })();
 
 // ─── Dropbox ──────────────────────────────────────────────────────────────────
-const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
+
 
 // One file per environment — dev and prod never share data
 const _env         = window.location.hostname === 'today-here.netlify.app' ? '' : '-' + window.location.hostname.split('--')[0];
