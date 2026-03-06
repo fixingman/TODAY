@@ -15,6 +15,8 @@
 <meta name="twitter:description" content="Your focused daily task list.">
 <meta name="twitter:image" content="https://today-here.netlify.app/today-og.png">
 <style>
+  /* Google Fonts fallback — used locally when font files aren't served */
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap');
   @font-face { font-family:'Syne';    src:url('/fonts/syne/syne-v24-latin_latin-ext-regular.woff2') format('woff2');      font-weight:400; font-display:swap; }
   @font-face { font-family:'Syne';    src:url('/fonts/syne/syne-v24-latin_latin-ext-700.woff2')     format('woff2');      font-weight:700; font-display:swap; }
   @font-face { font-family:'Syne';    src:url('/fonts/syne/syne-v24-latin_latin-ext-800.woff2')     format('woff2');      font-weight:800; font-display:swap; }
@@ -320,7 +322,14 @@
     animation: trelloFadeIn 220ms ease both;
   }
 
-  .task.removing {
+  #manualEmpty.fading-in {
+    animation: emptyFadeIn 0.2s ease forwards;
+  }
+
+  @keyframes emptyFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
     animation: fadeOut 0.18s ease forwards;
     overflow: hidden;
     pointer-events: none;
@@ -447,6 +456,8 @@
     font-size: 12px;
     letter-spacing: 0.06em;
   }
+
+
 
   /* Add task input */
   .add-task-row {
@@ -885,8 +896,9 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.5.1';
 const CHANGELOG = {
+  '1.5.1': 'Self-hosted fonts with Google Fonts fallback, smooth empty-state transition on last task removal',
   '1.5.0': 'Two-file Dropbox sync revert, Remote-authoritative done state, Uncheck propagation fix, Dev/prod environment isolation, Trello reorder fade animation',
   '1.4.0': 'Live sync ticker, Midnight cleanup push, Baseline seeding before ticker',
   '1.3.0': 'Structure-aware diff render, No-flash background sync, Checkbox detach fix',
@@ -1482,6 +1494,8 @@ function deleteManual(taskId) {
   const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
   if (!el) return;
 
+  const isLast = manualTasks.length === 1;
+
   el.classList.add('removing');
   setTimeout(() => {
     el.remove();
@@ -1490,9 +1504,20 @@ function deleteManual(taskId) {
     localStorage.setItem('today_manual', JSON.stringify(manualTasks));
     localStorage.setItem('today_done',   JSON.stringify([...doneIds]));
     dropboxAutoSave();
-    // Show empty state if no tasks left
     const empty = document.getElementById('manualEmpty');
-    if (empty) empty.style.display = manualTasks.length === 0 ? 'block' : 'none';
+    if (empty) {
+      if (isLast) {
+        empty.style.opacity = '0';
+        empty.style.display = 'block';
+        requestAnimationFrame(() => {
+          empty.classList.add('fading-in');
+          empty.style.opacity = '';
+          empty.addEventListener('animationend', () => empty.classList.remove('fading-in'), { once: true });
+        });
+      } else {
+        empty.style.display = 'none';
+      }
+    }
     document.getElementById('manualCount').textContent = manualTasks.length;
     updateStats();
   }, 180);
