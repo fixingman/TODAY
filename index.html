@@ -299,6 +299,20 @@
     to   { opacity: 0; transform: scaleY(0.8); max-height: 0;  margin-bottom: -2px; padding-top: 0; padding-bottom: 0; }
   }
 
+  @keyframes trelloFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .trello-reorder-out {
+    opacity: 0 !important;
+    transition: opacity 180ms ease !important;
+  }
+
+  .trello-reorder-in .task {
+    animation: trelloFadeIn 220ms ease both;
+  }
+
   .task.removing {
     animation: fadeOut 0.18s ease forwards;
     overflow: hidden;
@@ -1266,28 +1280,31 @@ function renderTrello() {
 
   empty.style.display = 'none';
 
-  // Compare incoming order against current DOM order
+  // Compare incoming order/content against current DOM
   const currentIds  = [...list.querySelectorAll('[data-taskid]')].map(el => el.dataset.taskid);
   const incomingIds = trelloTasks.map(t => t.id);
   const structureChanged = currentIds.length !== incomingIds.length
     || incomingIds.some((id, i) => id !== currentIds[i]);
 
   if (structureChanged) {
-    // Task list changed (added, removed, or reordered) — full rebuild
-    // taskHTML reads doneIds directly so done states are preserved automatically
-    list.innerHTML = trelloTasks.map(t => taskHTML(t, 'trello', 0)).join('');
+    // Structure changed (reorder, add, remove) — fade out → rebuild → fade in
+    list.classList.add('trello-reorder-out');
+    setTimeout(() => {
+      list.innerHTML = trelloTasks.map(t => taskHTML(t, 'trello', 0)).join('');
+      list.classList.remove('trello-reorder-out');
+      list.classList.add('trello-reorder-in');
+      setTimeout(() => list.classList.remove('trello-reorder-in'), 250);
+    }, 180);
   } else {
-    // Same tasks, same order — only patch text and done state, never touch structure
+    // Same tasks, same order — patch text and done state only, zero visual change
     trelloTasks.forEach(t => {
       const el = list.querySelector(`.task[data-taskid="${CSS.escape(t.id)}"]`);
       if (!el) return;
-
       const textEl  = el.querySelector('.task-text');
       const newText = esc(t.text) + (t.url
         ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" style="color:var(--highlight-ui);font-size:11px;text-decoration:none;margin-left:4px" title="Open in Trello">↗</a>`
         : '');
       if (textEl && textEl.innerHTML !== newText) textEl.innerHTML = newText;
-
       el.classList.toggle('done', doneIds.has(t.id));
     });
   }
@@ -1373,6 +1390,7 @@ function toggleDone(taskId) {
   else doneIds.add(taskId);
 
   localStorage.setItem('today_done', JSON.stringify([...doneIds]));
+  dropboxAutoSaveDone(); // write only the done file
 
   // Track all-time completed count
   if (doneIds.has(taskId)) {
@@ -1407,6 +1425,7 @@ function addManual() {
   const task = { id: 'manual_' + Date.now(), text };
   manualTasks.push(task);
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+  dropboxAutoSaveTasks(); // write only the tasks file
   input.value = '';
   input.focus();
   toggleClearBtn();
@@ -1452,6 +1471,7 @@ function deleteManual(taskId) {
     doneIds.delete(taskId);
     localStorage.setItem('today_manual', JSON.stringify(manualTasks));
     localStorage.setItem('today_done',   JSON.stringify([...doneIds]));
+    dropboxAutoSaveTasks(); // write only the tasks file
     // Show empty state if no tasks left
     const empty = document.getElementById('manualEmpty');
     if (empty) empty.style.display = manualTasks.length === 0 ? 'block' : 'none';
@@ -1479,8 +1499,8 @@ function updateStats(skipAutoSave) {
   if (left === 0 && total > 0) document.title = '✓ TODAY';
   else document.title = `(${left})TODAY`;
 
-  // Auto-backup to Dropbox (debounced 2s) — skip on initial page load
-  if (!skipAutoSave) dropboxAutoSave();
+  // Dropbox saves are triggered directly from user actions (toggleDone, addManual, deleteManual)
+  // not from updateStats — avoids spurious writes on every render
 }
 
 function showStatus(msg, type) {
@@ -1678,23 +1698,9 @@ function updateFavicon(pct, isEmpty) {
 })();
 
 // ─── Dropbox ──────────────────────────────────────────────────────────────────
-const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
-const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
-const DROPBOX_FILE    = window.location.hostname === 'today-here.netlify.app'
-  ? '/today-backup.json'
-  : '/today-backup-' + window.location.hostname.split('--')[0] + '.json';
-let dropboxSaveTimer = null;
 
-function dropboxAutoSave() {
-  if (!localStorage.getItem('dropbox_token')) return; // only if connected
-  clearTimeout(dropboxSaveTimer);
-  dropboxSaveTimer = setTimeout(async function() {
-    await dropboxBackup(true); // silent=true — no status message
-  }, 2000);
-}
-
+// ── UI helpers ────────────────────────────────────────────────────────────────
 function getDropboxAppKey() {
-  // Prefer embedded key — users never need to enter one
   if (DROPBOX_APP_KEY) return DROPBOX_APP_KEY;
   const saved = localStorage.getItem('dropbox_app_key') || '';
   const input = document.getElementById('dropboxAppKey');
@@ -1702,10 +1708,10 @@ function getDropboxAppKey() {
 }
 
 function dropboxUpdateStatusLine() {
-  const el        = document.getElementById('dropboxStatusLine');
+  const el       = document.getElementById('dropboxStatusLine');
   if (!el) return;
-  const token     = localStorage.getItem('dropbox_token');
-  const lastSync  = el.dataset.lastSync || '';
+  const token    = localStorage.getItem('dropbox_token');
+  const lastSync = el.dataset.lastSync || '';
   if (token) {
     el.innerHTML = '<span style="color:var(--accent)">✓ Connected</span>'
       + (lastSync ? ' &nbsp;·&nbsp; Last synced ' + lastSync : '');
@@ -1722,35 +1728,31 @@ function dropboxShowMsg(msg, type) {
 }
 
 function dropboxUpdateUI() {
-  // Hide app key input if key is embedded
-  const keyRow  = document.getElementById('dropboxKeyRow');
-  const hint    = document.getElementById('dropboxSetupHint');
+  const keyRow = document.getElementById('dropboxKeyRow');
+  const hint   = document.getElementById('dropboxSetupHint');
   if (keyRow) keyRow.style.display = DROPBOX_APP_KEY ? 'none' : '';
   if (hint)   hint.style.display   = DROPBOX_APP_KEY ? 'none' : 'inline';
 
-  const token       = localStorage.getItem('dropbox_token');
-  const btnB        = document.getElementById('btnBackup');
-  const btnR        = document.getElementById('btnRestore');
-  const connectBtn  = document.getElementById('dropboxConnectBtn');
+  const token      = localStorage.getItem('dropbox_token');
+  const btnB       = document.getElementById('btnBackup');
+  const btnR       = document.getElementById('btnRestore');
+  const connectBtn = document.getElementById('dropboxConnectBtn');
   if (token) {
     if (btnB) btnB.style.display = '';
     if (btnR) btnR.style.display = '';
-    if (connectBtn) {
-      connectBtn.style.display = 'none';
-    }
+    if (connectBtn) connectBtn.style.display = 'none';
     dropboxUpdateStatusLine();
   } else {
     if (btnB) btnB.style.display = 'none';
     if (btnR) btnR.style.display = 'none';
     if (connectBtn) {
-      connectBtn.className     = 'btn-primary';
-      connectBtn.textContent   = 'Connect Dropbox';
-      connectBtn.onclick       = dropboxAuth;
+      connectBtn.className   = 'btn-primary';
+      connectBtn.textContent = 'Connect Dropbox';
+      connectBtn.onclick     = dropboxAuth;
       connectBtn.style.display = '';
     }
     dropboxUpdateStatusLine();
   }
-  // Restore saved app key into input
   const saved = localStorage.getItem('dropbox_app_key');
   const input = document.getElementById('dropboxAppKey');
   if (saved && input && !input.value) input.value = saved;
@@ -1759,15 +1761,11 @@ function dropboxUpdateUI() {
 function dropboxAuth() {
   const appKey = (getDropboxAppKey() || '').trim();
   if (!appKey) { dropboxShowMsg('Enter your App Key first.', 'error'); return; }
-  // Open auth in a popup so the main app never unloads
   const redirectUri = encodeURIComponent(window.location.origin + '/');
-  // token_access_type=legacy gives a non-expiring token — required for
-  // client-only apps with no backend to handle the code exchange flow.
   const authUrl = 'https://www.dropbox.com/oauth2/authorize?client_id=' + appKey
     + '&response_type=token&token_access_type=legacy&redirect_uri=' + redirectUri;
   const popup = window.open(authUrl, 'dropbox_auth', 'width=600,height=700,left=200,top=100');
 
-  // Poll for the token appearing in the popup URL
   const poll = setInterval(function() {
     try {
       if (!popup || popup.closed) { clearInterval(poll); return; }
@@ -1778,8 +1776,8 @@ function dropboxAuth() {
         const token  = params.get('access_token');
         const err    = params.get('error_description') || params.get('error');
         popup.close();
-        if (err)   { dropboxShowMsg('Dropbox error: ' + err, 'error'); return; }
-        if (!token){ dropboxShowMsg('No token received — check your App Key and redirect URI.', 'error'); return; }
+        if (err)    { dropboxShowMsg('Dropbox error: ' + err, 'error'); return; }
+        if (!token) { dropboxShowMsg('No token received — check your App Key and redirect URI.', 'error'); return; }
         localStorage.setItem('dropbox_token', token);
         openDropboxPanel();
         dropboxUpdateUI();
@@ -1791,9 +1789,7 @@ function dropboxAuth() {
         popup.close();
         dropboxShowMsg('Dropbox error: ' + err, 'error');
       }
-    } catch(e) {
-      // Cross-origin — popup still on dropbox.com, keep polling
-    }
+    } catch(e) { /* cross-origin — still on dropbox.com, keep polling */ }
   }, 500);
 }
 
@@ -1804,191 +1800,253 @@ function openDropboxPanel() {
   dropboxUpdateUI();
 }
 
-async function dropboxBackup(silent) {
+const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
+const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
+
+// Environment-isolated file paths — dev and prod never share data
+const _env           = window.location.hostname === 'today-here.netlify.app' ? '' : '-' + window.location.hostname.split('--')[0];
+const DROPBOX_TASKS  = `/today-tasks${_env}.json`;   // manual task list
+const DROPBOX_DONE   = `/today-done${_env}.json`;    // done IDs only
+
+let dropboxDoneTimer  = null;  // debounce for done state writes
+let dropboxTasksTimer = null;  // debounce for task list writes
+
+// ── Dropbox helpers ──────────────────────────────────────────────────────────
+async function dbxUpload(path, data, token) {
+  const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
+    method: 'POST',
+    headers: {
+      'Authorization':   `Bearer ${token}`,
+      'Content-Type':    'application/octet-stream',
+      'Dropbox-API-Arg': JSON.stringify({ path, mode: 'overwrite', autorename: false, mute: true }),
+    },
+    body: JSON.stringify(data),
+  });
+  if (res.status === 401) throw Object.assign(new Error('401'), { status: 401 });
+  if (!res.ok) throw new Error(`Dropbox ${res.status}`);
+  return res;
+}
+
+async function dbxDownload(path, token) {
+  const res = await fetch('https://content.dropboxapi.com/2/files/download', {
+    method: 'POST',
+    headers: {
+      'Authorization':   `Bearer ${token}`,
+      'Dropbox-API-Arg': JSON.stringify({ path }),
+    },
+  });
+  if (res.status === 401) throw Object.assign(new Error('401'), { status: 401 });
+  if (res.status === 409) return null; // file not found — first run
+  if (!res.ok) throw new Error(`Dropbox ${res.status}`);
+  return res.json();
+}
+
+async function dbxRev(path, token) {
+  const res = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
+    method:  'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path }),
+  });
+  if (!res.ok) return null;
+  const m = await res.json();
+  return m.rev || null;
+}
+
+// ── Auto-save triggers (called after user actions) ────────────────────────────
+function dropboxAutoSaveDone() {
+  // Debounce done state write — fires 1.5s after last toggle
   const token = localStorage.getItem('dropbox_token');
-  if (!token) { if (!silent) dropboxShowMsg('Not connected. Click Connect Dropbox first.', 'error'); return; }
+  if (!token) return;
+  clearTimeout(dropboxDoneTimer);
+  dropboxDoneTimer = setTimeout(() => saveDone(token, true), 1500);
+}
 
-  if (!silent) dropboxShowMsg('Saving backup…', 'success');
+function dropboxAutoSaveTasks() {
+  // Debounce task list write — fires 2s after last add/delete
+  const token = localStorage.getItem('dropbox_token');
+  if (!token) return;
+  clearTimeout(dropboxTasksTimer);
+  dropboxTasksTimer = setTimeout(() => saveTasks(token, true), 2000);
+}
 
+// ── Writers ───────────────────────────────────────────────────────────────────
+async function saveDone(token, silent) {
   try {
-    // Merge-on-write: read remote first, merge, then write
-    // Prevents race condition when both devices save at the same time
-    let remoteDoneIds = [];
-    let remoteManual  = [];
-    try {
-      const fetchRes = await fetch('https://content.dropboxapi.com/2/files/download', {
-        method: 'POST',
-        headers: {
-          'Authorization':   `Bearer ${token}`,
-          'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_FILE }),
-        },
-      });
-      if (fetchRes.ok) {
-        const remote = await fetchRes.json();
-        remoteDoneIds = Array.isArray(remote.done_ids)     ? remote.done_ids     : [];
-        remoteManual  = Array.isArray(remote.manual_tasks) ? remote.manual_tasks : [];
-      }
-    } catch(e) { /* no remote file yet — first backup */ }
+    const done = [...doneIds];
+    await dbxUpload(DROPBOX_DONE, { done_ids: done, saved_at: new Date().toISOString() }, token);
+    if (window._dbxSetRevDone) {
+      const rev = await dbxRev(DROPBOX_DONE, token);
+      if (rev) window._dbxSetRevDone(rev);
+    }
+    updateSyncLabel();
+  } catch(e) {
+    if (e.status === 401 && !silent) handleDropbox401();
+    else if (!silent) console.warn('Done save failed:', e.message);
+  }
+}
 
-    // Merge: union of done states, union of task lists (remote is structural authority)
-    const localDone    = new Set(JSON.parse(localStorage.getItem('today_done') || '[]'));
-    const mergedDone   = [...new Set([...localDone, ...remoteDoneIds])];
-
-    // For manual tasks: start from remote list (respects deletes from other device)
-    // then add any local tasks that remote doesn't have yet (new tasks added on this device)
-    const localManual  = JSON.parse(localStorage.getItem('today_manual') || '[]');
-    const remoteIds    = new Set(remoteManual.map(t => t.id));
-    const localOnly    = localManual.filter(t => !remoteIds.has(t.id));
-    const mergedManual = [...remoteManual, ...localOnly];
-
-    // Detect if merge actually changed local state (before writing)
-    const localManualJson = localStorage.getItem('today_manual') || '[]';
-    const localDoneJson   = localStorage.getItem('today_done')   || '[]';
-    const mergeChangedState = JSON.stringify(mergedManual) !== localManualJson
-                           || JSON.stringify(mergedDone)   !== localDoneJson;
-
-    // Update local state to the merged result before saving
-    manualTasks = mergedManual;
-    doneIds     = new Set(mergedDone);
-    localStorage.setItem('today_manual', JSON.stringify(mergedManual));
-    localStorage.setItem('today_done',   JSON.stringify(mergedDone));
-
-    const data = {
-      version:      '1.0',
-      exported_at:  new Date().toISOString(),
-      manual_tasks: mergedManual,
-      done_ids:     mergedDone,
+async function saveTasks(token, silent) {
+  try {
+    const tasks = manualTasks;
+    await dbxUpload(DROPBOX_TASKS, {
+      manual_tasks: tasks,
       trello_config:     JSON.parse(localStorage.getItem('trello_config') || '{}'),
       stat_alltime_done: localStorage.getItem('stat_alltime_done') || '0',
       stat_streak:       localStorage.getItem('stat_streak')       || '1',
       stat_last_visit:   localStorage.getItem('stat_last_visit')   || '',
-    };
-
-    const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
-      method: 'POST',
-      headers: {
-        'Authorization':    `Bearer ${token}`,
-        'Content-Type':     'application/octet-stream',
-        'Dropbox-API-Arg':  JSON.stringify({
-          path: DROPBOX_FILE,
-          mode: 'overwrite',
-          autorename: false,
-          mute: true,
-        }),
-      },
-      body: JSON.stringify(data, null, 2),
-    });
-
-    if (res.status === 401) {
-      if (silent) return; // background sync — don't wipe token on transient 401
-      localStorage.removeItem('dropbox_token');
-      dropboxUpdateUI();
-      dropboxShowMsg('Session expired — please reconnect Dropbox.', 'error');
-      return;
+      saved_at: new Date().toISOString(),
+    }, token);
+    if (window._dbxSetRevTasks) {
+      const rev = await dbxRev(DROPBOX_TASKS, token);
+      if (rev) window._dbxSetRevTasks(rev);
     }
-    if (!res.ok) throw new Error(`Dropbox error ${res.status}`);
-
-    // Update rev baseline so next sync tick doesn't re-trigger a restore
-    try {
-      const meta = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
-        method:  'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: DROPBOX_FILE }),
-      });
-      if (meta.ok) {
-        const m = await meta.json();
-        if (m && m.rev && window._dropboxSetRev) window._dropboxSetRev(m.rev);
-      }
-    } catch(e) { /* non-critical */ }
-
-    // Re-render to reflect any merged changes
-    renderManual();
-    renderTrello();
-    updateStats(true);
-
-    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    if (!silent) dropboxShowMsg(`Backup saved at ${now} ✓`, 'success');
-    const syncEl = document.getElementById('dropboxStatusLine');
-    if (syncEl) { syncEl.dataset.lastSync = now; dropboxUpdateStatusLine(); }
-
+    updateSyncLabel();
   } catch(e) {
-    if (!silent) dropboxShowMsg('Backup failed: ' + (e.message || 'unknown error'), 'error');
-    else console.warn('Auto-backup failed:', e.message);
+    if (e.status === 401 && !silent) handleDropbox401();
+    else if (!silent) console.warn('Tasks save failed:', e.message);
+  }
+}
+
+function updateSyncLabel() {
+  const now    = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const syncEl = document.getElementById('dropboxStatusLine');
+  if (syncEl) { syncEl.dataset.lastSync = now; dropboxUpdateStatusLine(); }
+}
+
+function handleDropbox401() {
+  localStorage.removeItem('dropbox_token');
+  dropboxUpdateUI();
+  dropboxShowMsg('Session expired — please reconnect Dropbox.', 'error');
+}
+
+// ── Manual backup/restore (explicit user actions) ─────────────────────────────
+async function dropboxBackup(silent) {
+  const token = localStorage.getItem('dropbox_token');
+  if (!token) { if (!silent) dropboxShowMsg('Not connected.', 'error'); return; }
+  if (!silent) dropboxShowMsg('Saving backup…', 'success');
+  try {
+    await Promise.all([saveDone(token, silent), saveTasks(token, silent)]);
+    if (!silent) dropboxShowMsg('Backup saved ✓', 'success');
+  } catch(e) {
+    if (!silent) dropboxShowMsg('Backup failed: ' + (e.message || 'unknown'), 'error');
   }
 }
 
 async function dropboxRestore(fromSync) {
   const token = localStorage.getItem('dropbox_token');
-  if (!token) { if (!fromSync) dropboxShowMsg('Not connected. Click Connect Dropbox first.', 'error'); return; }
-
+  if (!token) { if (!fromSync) dropboxShowMsg('Not connected.', 'error'); return; }
   if (!fromSync) dropboxShowMsg('Fetching backup…', 'success');
 
   try {
-    const res = await fetch('https://content.dropboxapi.com/2/files/download', {
-      method: 'POST',
-      headers: {
-        'Authorization':   `Bearer ${token}`,
-        'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_FILE }),
-      },
-    });
+    const [doneData, tasksData] = await Promise.all([
+      dbxDownload(DROPBOX_DONE,  token),
+      dbxDownload(DROPBOX_TASKS, token),
+    ]);
 
-    if (res.status === 401) {
-      if (fromSync) return; // background sync — don't wipe token on transient 401
-      localStorage.removeItem('dropbox_token');
-      dropboxUpdateUI();
-      dropboxShowMsg('Session expired — please reconnect Dropbox.', 'error');
-      return;
+    let changed = false;
+
+    // ── Done IDs ─────────────────────────────────────────────────────────────
+    if (doneData && Array.isArray(doneData.done_ids)) {
+      const remoteDone = doneData.done_ids;
+      if (fromSync) {
+        // Merge — union of local + remote, never lose a check
+        const before = doneIds.size;
+        remoteDone.forEach(id => doneIds.add(id));
+        if (doneIds.size !== before) {
+          localStorage.setItem('today_done', JSON.stringify([...doneIds]));
+          changed = true;
+        }
+      } else {
+        doneIds = new Set(remoteDone);
+        localStorage.setItem('today_done', JSON.stringify(remoteDone));
+        changed = true;
+      }
     }
-    if (res.status === 409) {
-      if (!fromSync) dropboxShowMsg('No backup found. Make a backup first.', 'error');
-      return;
+
+    // ── Manual tasks ──────────────────────────────────────────────────────────
+    if (tasksData && Array.isArray(tasksData.manual_tasks)) {
+      const remoteTasks = tasksData.manual_tasks;
+      if (fromSync) {
+        // Remote is structural authority — respects deletes from other device
+        // Keep local-only tasks (added on this device since last sync)
+        const remoteIds  = new Set(remoteTasks.map(t => t.id));
+        const localOnly  = manualTasks.filter(t => !remoteIds.has(t.id));
+
+        // Silently remove tasks that were deleted remotely
+        const removedIds = new Set(
+          manualTasks.filter(t => !remoteIds.has(t.id) && !localOnly.find(l => l.id === t.id)).map(t => t.id)
+        );
+
+        // Actually: localOnly ARE the local-only tasks — they are NOT removed remotely.
+        // Tasks removed remotely = in current local list but NOT in remote AND NOT local-only
+        // Since localOnly = local tasks not in remote, they stay. Everything else defers to remote.
+        const merged = [...remoteTasks, ...localOnly];
+        const mergedJson = JSON.stringify(merged);
+        if (mergedJson !== JSON.stringify(manualTasks)) {
+          // Find tasks that disappeared (deleted on other device) and fade them out
+          const mergedIds = new Set(merged.map(t => t.id));
+          manualTasks.forEach(t => {
+            if (!mergedIds.has(t.id)) {
+              const el = document.querySelector(`.task[data-taskid="${CSS.escape(t.id)}"]`);
+              if (el) {
+                el.classList.add('removing');
+                setTimeout(() => el.remove(), 180);
+              }
+            }
+          });
+          // Add new tasks that appeared from other device
+          const localIds = new Set(manualTasks.map(t => t.id));
+          const brandNew = remoteTasks.filter(t => !localIds.has(t.id));
+          if (brandNew.length > 0) {
+            const listEl = document.getElementById('manualList');
+            brandNew.forEach(t => {
+              const tmp = document.createElement('div');
+              tmp.innerHTML = taskHTML(t, 'manual', 0);
+              listEl.appendChild(tmp.firstElementChild);
+            });
+          }
+          manualTasks = merged;
+          localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+          changed = true;
+        }
+        // Restore other stats
+        if (tasksData.trello_config)     localStorage.setItem('trello_config',     JSON.stringify(tasksData.trello_config));
+      } else {
+        // Manual restore — full overwrite
+        manualTasks = remoteTasks;
+        localStorage.setItem('today_manual', JSON.stringify(remoteTasks));
+        if (tasksData.trello_config)     localStorage.setItem('trello_config',     JSON.stringify(tasksData.trello_config));
+        if (tasksData.stat_alltime_done) localStorage.setItem('stat_alltime_done', tasksData.stat_alltime_done);
+        if (tasksData.stat_streak)       localStorage.setItem('stat_streak',       tasksData.stat_streak);
+        if (tasksData.stat_last_visit)   localStorage.setItem('stat_last_visit',   tasksData.stat_last_visit);
+        changed = true;
+      }
     }
-    if (!res.ok) throw new Error(`Dropbox error ${res.status}`);
 
-    const data = await res.json();
-
-    if (fromSync) {
-      // Background sync strategy:
-      // - Task list: remote is structural authority (respects deletions from other device)
-      //   but we keep any local-only tasks added on this device since last sync
-      // - Done IDs: union (never lose a check from either device)
-      const remoteTasks  = Array.isArray(data.manual_tasks) ? data.manual_tasks : [];
-      const remoteIds    = new Set(remoteTasks.map(t => t.id));
-      const localOnly    = manualTasks.filter(t => !remoteIds.has(t.id));
-      manualTasks        = [...remoteTasks, ...localOnly];
-      localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-
-      const remoteDone = Array.isArray(data.done_ids) ? data.done_ids : [];
-      remoteDone.forEach(id => doneIds.add(id));
-      localStorage.setItem('today_done', JSON.stringify([...doneIds]));
-
-      // Push merged state back so offline changes (checks, new tasks) reach Dropbox
-      // Use a short delay to avoid immediate re-trigger of syncDropbox
-      setTimeout(() => dropboxBackup(true), 3000);
-
-    } else {
-      // Manual restore — full overwrite as expected
-      const incomingManual = Array.isArray(data.manual_tasks) ? data.manual_tasks : [];
-      localStorage.setItem('today_manual', JSON.stringify(incomingManual));
-      manualTasks = incomingManual;
-
-      const incomingDone = Array.isArray(data.done_ids) ? data.done_ids : [];
-      localStorage.setItem('today_done', JSON.stringify(incomingDone));
-      doneIds = new Set(incomingDone);
-      if (data.trello_config)     localStorage.setItem('trello_config',     JSON.stringify(data.trello_config));
-      if (data.stat_alltime_done) localStorage.setItem('stat_alltime_done', data.stat_alltime_done);
-      if (data.stat_streak)       localStorage.setItem('stat_streak',       data.stat_streak);
-      if (data.stat_last_visit)   localStorage.setItem('stat_last_visit',   data.stat_last_visit);
+    if (changed) {
+      if (fromSync) {
+        // Only update done states visually — no full re-render
+        [...document.querySelectorAll('.task[data-taskid]')].forEach(el => {
+          el.classList.toggle('done', doneIds.has(el.dataset.taskid));
+        });
+        // Update counts/progress silently
+        const empty = document.getElementById('manualEmpty');
+        if (empty) empty.style.display = manualTasks.length === 0 ? 'block' : 'none';
+        document.getElementById('manualCount').textContent = manualTasks.length;
+        updateStats(true);
+      } else {
+        renderManual();
+        renderTrello();
+        updateStats(true);
+        dropboxShowMsg('Restore complete ✓', 'success');
+      }
+    } else if (!fromSync) {
       dropboxShowMsg('Restore complete ✓', 'success');
     }
 
-    // Re-render in place
-    renderManual();
-    renderTrello();
-    updateStats(true);
-
   } catch(e) {
-    dropboxShowMsg('Restore failed: ' + (e.message || 'unknown error'), 'error');
+    if (e.status === 401) { handleDropbox401(); return; }
+    if (!fromSync) dropboxShowMsg('Restore failed: ' + (e.message || 'unknown'), 'error');
   }
 }
 
@@ -1996,10 +2054,11 @@ async function dropboxRestore(fromSync) {
 // Visibility-based polling: re-syncs when tab regains focus or every 30s while
 // active. Background tabs are completely silent — no network, no battery drain.
 (function() {
-  const INTERVAL_MS    = 30000; // 30s tick while tab is visible
-  let   ticker         = null;
-  let   lastDropboxRev = null;  // Dropbox file rev — avoid redundant restores
-  let   lastTrelloDate = null;  // Trello board dateLastActivity — avoid redundant fetches
+  const INTERVAL_MS     = 10000; // 10s tick — fast enough for near-real-time done sync
+  let   ticker          = null;
+  let   lastRevDone     = null;  // rev of today-done.json
+  let   lastRevTasks    = null;  // rev of today-tasks.json
+  let   lastTrelloDate  = null;  // Trello board dateLastActivity
 
   // ── Trello: cheap activity check first, full fetch only if board changed ──
   async function syncTrello() {
@@ -2018,28 +2077,31 @@ async function dropboxRestore(fromSync) {
     } catch(e) { /* silent */ }
   }
 
-  // ── Dropbox: cheap metadata check first, only restore if rev changed ──────
+  // ── Dropbox: check both files independently, restore only what changed ──────
   async function syncDropbox() {
     const token = localStorage.getItem('dropbox_token');
     if (!token) return;
     try {
-      const res = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
-        method:  'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: DROPBOX_FILE }),
-      });
-      if (!res.ok) return;
-      const meta = await res.json();
-      const rev  = meta.rev;
-      if (!rev || rev === lastDropboxRev) return; // nothing changed
-      lastDropboxRev = rev;
-      await dropboxRestore(true); // fromSync=true — merges, never overwrites doneIds
+      // Check done file — changes on every toggle, poll every tick
+      const revDone = await dbxRev(DROPBOX_DONE, token);
+      if (revDone && revDone !== lastRevDone) {
+        lastRevDone = revDone;
+        await dropboxRestore(true); // merge done IDs only
+      }
+
+      // Check tasks file — changes less often, still check every tick
+      const revTasks = await dbxRev(DROPBOX_TASKS, token);
+      if (revTasks && revTasks !== lastRevTasks) {
+        lastRevTasks = revTasks;
+        await dropboxRestore(true); // merge tasks
+      }
     } catch(e) { /* silent */ }
   }
 
-  // Expose rev setter so dropboxBackup can update baseline after a write
+  // Expose rev setters so writers can update baselines after their own writes
   // (prevents the next tick from seeing its own write as a new remote change)
-  window._dropboxSetRev = function(rev) { lastDropboxRev = rev; };
+  window._dbxSetRevDone  = function(rev) { lastRevDone  = rev; };
+  window._dbxSetRevTasks = function(rev) { lastRevTasks = rev; };
 
   // Midnight cleanup — if date changed while app stayed open, re-run init logic
   function checkNewDay() {
@@ -2101,15 +2163,15 @@ async function dropboxRestore(fromSync) {
         if (r && r.ok) { const b = await r.json(); if (b) lastTrelloDate = b.dateLastActivity; }
       }
 
-      // Seed Dropbox baseline
+      // Seed Dropbox baselines — both files independently
       const token = localStorage.getItem('dropbox_token');
       if (token) {
-        const r = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
-          method:  'POST',
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: DROPBOX_FILE }),
-        }).catch(()=>null);
-        if (r && r.ok) { const m = await r.json(); if (m) lastDropboxRev = m.rev; }
+        const [rd, rt] = await Promise.all([
+          dbxRev(DROPBOX_DONE,  token).catch(() => null),
+          dbxRev(DROPBOX_TASKS, token).catch(() => null),
+        ]);
+        if (rd) lastRevDone  = rd;
+        if (rt) lastRevTasks = rt;
       }
     } catch(e) { /* silent */ }
 
