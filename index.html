@@ -487,9 +487,15 @@
 
   #infoStats {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
     margin-bottom: 20px;
+  }
+
+  @media (min-width: 480px) {
+    #infoStats {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
 
   .info-stat {
@@ -798,21 +804,14 @@
   <div class="config-panel" id="infoPanel">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div class="config-title" style="margin-bottom:0">ℹ About TODAY</div>
-      <div style="font-size:10px;color:var(--muted);letter-spacing:0.1em">v1.0.0</div>
+      <div style="font-size:10px;color:var(--muted);letter-spacing:0.1em" id="appVersion"></div>
     </div>
 
     <div id="infoStats"></div>
 
     <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
-      <div class="config-label" style="margin-bottom:10px">Changelog</div>
-      <div style="font-size:11px;color:var(--muted);line-height:1.8">
-        <div><span style="color:var(--accent)">v1.0.0</span> — Initial release</div>
-        <div style="margin-left:12px;font-size:10px">· Trello integration (due today + list filter)</div>
-        <div style="margin-left:12px;font-size:10px">· Manual task entry with persistence</div>
-        <div style="margin-left:12px;font-size:10px">· Progress tracking &amp; live tab title</div>
-        <div style="margin-left:12px;font-size:10px">· Smooth add/remove animations</div>
-        <div style="margin-left:12px;font-size:10px">· Done state persists across sessions</div>
-      </div>
+      <div class="config-label" style="margin-bottom:12px">Changelog</div>
+      <div id="changelogPanel"></div>
     </div>
 
     <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px">
@@ -860,6 +859,16 @@
 <canvas id="celebCanvas"></canvas>
 
 <script>
+// ─── Version ─────────────────────────────────────────────────────────────────
+const APP_VERSION = '1.4.0';
+const CHANGELOG = {
+  '1.4.0': 'Merge-on-write Dropbox sync, Cross-device deletion propagation, Offline recovery push-back, Race condition fix, Midnight new-day cleanup',
+  '1.3.0': 'Structure-aware diff render, No-flash background sync, Checkbox detach fix',
+  '1.2.0': 'Dropbox integration, Non-expiring token, Done state preservation across devices',
+  '1.1.0': 'Live sync ticker, Visibility-aware polling, Cheap metadata checks before fetch',
+  '1.0.0': 'Initial release — Trello + manual tasks, progress tracking, animations',
+};
+
 // ─── State ───────────────────────────────────────────────────────────────────
 let trelloTasks = [];
 let manualTasks = (() => { try { return JSON.parse(localStorage.getItem('today_manual') || '[]'); } catch(e) { return []; } })();
@@ -973,6 +982,39 @@ function renderInfoStats() {
     { val: allTimeCompleted,   label: 'All-time completed' },
   ];
 
+  document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
+
+  // Changelog — current version expanded, last 2 as quiet one-liners, rest hidden
+  const HISTORY_SHOWN = 2;
+  const clPanel  = document.getElementById('changelogPanel');
+  const versions = Object.keys(CHANGELOG);
+  const shown    = versions.slice(0, 1 + HISTORY_SHOWN);
+  const hidden   = versions.length - shown.length;
+
+  clPanel.innerHTML = shown.map((v, i) => {
+    if (i === 0) {
+      const bullets = CHANGELOG[v].split(', ').map(b =>
+        `<div style="display:flex;gap:6px;margin-bottom:3px">
+          <span style="color:var(--accent);flex-shrink:0">·</span>
+          <span>${b}</span>
+        </div>`
+      ).join('');
+      return `<div style="margin-bottom:14px">
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+          <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:var(--accent)">v${v}</span>
+          <span style="font-size:10px;color:var(--surface2);background:var(--accent);padding:1px 6px;border-radius:3px;letter-spacing:0.06em">CURRENT</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.7;padding-left:4px">${bullets}</div>
+      </div>`;
+    } else {
+      return `<div style="display:flex;gap:8px;align-items:baseline;padding:3px 0;font-size:11px">
+        <span style="font-family:'Syne',sans-serif;font-weight:700;color:var(--accent);flex-shrink:0">v${v}</span>
+        <span style="color:var(--muted)">${CHANGELOG[v].split(',')[0]}</span>
+      </div>`;
+    }
+  }).join('')
+;
+
   document.getElementById('infoStats').innerHTML = stats.map(s => `
     <div class="info-stat">
       <div class="info-stat-val">${s.val}</div>
@@ -987,7 +1029,7 @@ function getSavedConfig() {
 
 function trelloAuth() {
   // Trello returns the token to the return_url in the hash
-  const returnUrl = encodeURIComponent('https://today-here.netlify.app/');
+  const returnUrl = encodeURIComponent(window.location.origin + '/');
   const authUrl = 'https://trello.com/1/authorize'
     + '?expiration=never'
     + '&scope=read'
@@ -1002,7 +1044,7 @@ function trelloAuth() {
     try {
       if (!popup || popup.closed) { clearInterval(poll); return; }
       // Trello redirects back to return_url with #token=xxx in the hash
-      if ((popup.location.href || '').includes('today-here.netlify.app')) {
+      if ((popup.location.href || '').includes(window.location.host)) {
         const hash = popup.location.hash || '';
         const tokenMatch = hash.match(/token=([^&]+)/);
         clearInterval(poll);
@@ -1224,46 +1266,31 @@ function renderTrello() {
 
   empty.style.display = 'none';
 
-  // Diff render — avoid full innerHTML wipe to prevent flash on sync updates
-  const incoming = new Map(trelloTasks.map(t => [t.id, t]));
-  const existing = new Map();
-  for (const el of list.querySelectorAll('[data-taskid]')) {
-    existing.set(el.dataset.taskid, el);
-  }
+  // Compare incoming order against current DOM order
+  const currentIds  = [...list.querySelectorAll('[data-taskid]')].map(el => el.dataset.taskid);
+  const incomingIds = trelloTasks.map(t => t.id);
+  const structureChanged = currentIds.length !== incomingIds.length
+    || incomingIds.some((id, i) => id !== currentIds[i]);
 
-  // Remove tasks no longer in the list
-  for (const [id, el] of existing) {
-    if (!incoming.has(id)) el.remove();
-  }
+  if (structureChanged) {
+    // Task list changed (added, removed, or reordered) — full rebuild
+    // taskHTML reads doneIds directly so done states are preserved automatically
+    list.innerHTML = trelloTasks.map(t => taskHTML(t, 'trello', 0)).join('');
+  } else {
+    // Same tasks, same order — only patch text and done state, never touch structure
+    trelloTasks.forEach(t => {
+      const el = list.querySelector(`.task[data-taskid="${CSS.escape(t.id)}"]`);
+      if (!el) return;
 
-  // Add or update each task in order
-  trelloTasks.forEach((t, i) => {
-    const existingEl = existing.get(t.id);
-    const isDone     = doneIds.has(t.id);
-
-    if (!existingEl) {
-      // New task — insert at correct position
-      const tmp = document.createElement('div');
-      tmp.innerHTML = taskHTML(t, 'trello', i * 30).trim();
-      const newEl = tmp.firstChild;
-      const refEl = list.children[i] || null;
-      list.insertBefore(newEl, refEl);
-    } else {
-      // Existing task — only patch what may have changed
-      const textEl = existingEl.querySelector('.task-text');
+      const textEl  = el.querySelector('.task-text');
       const newText = esc(t.text) + (t.url
         ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" style="color:var(--highlight-ui);font-size:11px;text-decoration:none;margin-left:4px" title="Open in Trello">↗</a>`
         : '');
       if (textEl && textEl.innerHTML !== newText) textEl.innerHTML = newText;
 
-      // Sync done state
-      existingEl.classList.toggle('done', isDone);
-
-      // Ensure order matches
-      const refEl = list.children[i] || null;
-      if (refEl !== existingEl) list.insertBefore(existingEl, refEl);
-    }
-  });
+      el.classList.toggle('done', doneIds.has(t.id));
+    });
+  }
 }
 
 function renderManual() {
@@ -1731,7 +1758,7 @@ function dropboxAuth() {
   const appKey = (getDropboxAppKey() || '').trim();
   if (!appKey) { dropboxShowMsg('Enter your App Key first.', 'error'); return; }
   // Open auth in a popup so the main app never unloads
-  const redirectUri = encodeURIComponent('https://today-here.netlify.app/');
+  const redirectUri = encodeURIComponent(window.location.origin + '/');
   // token_access_type=legacy gives a non-expiring token — required for
   // client-only apps with no backend to handle the code exchange flow.
   const authUrl = 'https://www.dropbox.com/oauth2/authorize?client_id=' + appKey
