@@ -796,7 +796,7 @@
       <div class="config-title" style="margin-bottom:12px">⚡&#xFE0E; Dropbox Backup</div>
       <div class="config-hint" style="margin-bottom:8px;margin-top:0">
         Backup tasks &amp; settings to Dropbox — survives cache clears, syncs across devices. Your data goes directly to your own Dropbox; we never see it.
-        <span id="dropboxSetupHint" style="display:none"><br><br><strong style="color:var(--text)">Setup:</strong> Create a free app at <a href="https://www.dropbox.com/developers/apps" target="_blank" style="color:var(--highlight-ui)">dropbox.com/developers</a> → Scoped access → App Folder. Add <code style="color:var(--highlight-ui)">https://today-here.netlify.app/</code> as a redirect URI, then paste your App Key below.</span>
+        <span id="dropboxSetupHint" style="display:none"><br><br><strong style="color:var(--text)">Setup:</strong> Create a free app at <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noopener" style="color:var(--highlight-ui)">dropbox.com/developers</a> → Scoped access → App Folder. Add <code style="color:var(--highlight-ui)">https://today-here.netlify.app/</code> as a redirect URI, then paste your App Key below.</span>
       </div>
       <div class="config-grid" id="dropboxKeyRow" style="display:none">
         <div class="config-field full">
@@ -1778,7 +1778,7 @@ function dropboxUpdateUI() {
 function dropboxAuth() {
   const appKey = (getDropboxAppKey() || '').trim();
   if (!appKey) { dropboxShowMsg('Enter your App Key first.', 'error'); return; }
-  const redirectUri = encodeURIComponent(window.location.origin + '/');
+  const redirectUri = encodeURIComponent('https://today-here.netlify.app/');
   const authUrl = 'https://www.dropbox.com/oauth2/authorize?client_id=' + appKey
     + '&response_type=token&token_access_type=legacy&redirect_uri=' + redirectUri;
   const popup = window.open(authUrl, 'dropbox_auth', 'width=600,height=700,left=200,top=100');
