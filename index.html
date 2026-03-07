@@ -2095,7 +2095,11 @@ async function _dropboxExchangeCode(code) {
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ code, code_verifier: verifier, redirect_uri: redirectUri }),
     });
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) {
+      dropboxShowMsg('Connection failed: ' + (text || res.status), 'error'); return;
+    }
     if (!res.ok) { dropboxShowMsg('Connection failed: ' + (data.error || res.status), 'error'); return; }
 
     localStorage.setItem('dropbox_token',         data.access_token);
