@@ -1,5 +1,6 @@
 [build]
   publish = "."
+  functions = "netlify/functions"
   ignore = "git diff --quiet HEAD^ HEAD -- index.html netlify.toml"
 
 [build.processing]
@@ -9,6 +10,6 @@
 [context.production]
   command = ""
 
-# dev staging environment
+# dev branch — builds and deploys to https://dev--today-here.netlify.app/
 [context.dev]
   command = ""
