@@ -523,20 +523,47 @@
   .task:hover .task-delete { opacity: 1; }
   .task-delete:hover { color: var(--danger); }
   .clear-input-btn:hover, .clear-input-btn:active { color: var(--danger); }
+  /* ── Component: Dev Hours Tracker ──────────────────────────────────────── */
+  .readme-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    margin-top: var(--space-2);
+  }
+  .dev-hours {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--color-surface2);
+    border: 1px solid var(--color-border);
+    color: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    padding: 7px 12px;
+    border-radius: var(--radius-lg);
+    letter-spacing: 0.04em;
+    cursor: default;
+    user-select: none;
+  }
+  .dev-hours-val {
+    color: var(--color-accent);
+    font-weight: 500;
+  }
   .btn-coffee {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     background: var(--highlight);
     color: var(--color-bg);
-    font-family: 'Syne', sans-serif;
+    font-family: var(--font-display);
     font-weight: 700;
     font-size: var(--text-sm);
     padding: 7px 14px;
     border-radius: var(--radius-lg);
     text-decoration: none;
     letter-spacing: 0.04em;
-    transition: opacity var(--dur-fast), transform 0.15s;
+    transition: opacity var(--dur-fast), transform var(--dur-fast);
   }
   .btn-coffee:hover { opacity: 0.85; transform: translateY(-1px); }
   .btn-coffee:active { opacity: 1; transform: translateY(0); }
@@ -962,7 +989,14 @@
         A focused daily task view that pulls from Trello and manual entries.<br>
         Cards due today or in your named "Today" list are surfaced automatically.<br>
         Checking off a task dims it — it stays on your list until tomorrow.<br><br>
-        <a href="https://buymeacoffee.com/today.here" target="_blank" rel="noopener" class="btn-coffee">☕ Buy me a coffee</a>
+        <div class="readme-actions">
+          <a href="https://buymeacoffee.com/today.here" target="_blank" rel="noopener" class="btn-coffee">☕ Buy me a coffee</a>
+          <div class="dev-hours" title="Hours spent building this with Claude">
+            <span>⏱</span>
+            <span>built in</span>
+            <span class="dev-hours-val">22.4h</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
