@@ -228,10 +228,12 @@
 
   .app {
     position: relative;
-    z-index: 1;
+    z-index: var(--z-base);
     max-width: 680px;
     margin: 0 auto;
     padding: 48px 24px 80px;
+    padding-top: calc(48px + env(safe-area-inset-top));
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
     min-height: 100vh;
     overflow-x: hidden;
   }
@@ -397,8 +399,8 @@
   }
 
   @keyframes fadeOut {
-    from { opacity: 1; transform: scaleY(1); max-height: 80px; margin-bottom: 0; }
-    to   { opacity: 0; transform: scaleY(0.8); max-height: 0;  margin-bottom: -2px; padding-top: 0; padding-bottom: 0; }
+    from { opacity: 1; transform: scaleY(1);    }
+    to   { opacity: 0; transform: scaleY(0.85); }
   }
 
   @keyframes taskSlideIn {
@@ -423,6 +425,8 @@
     animation: fadeOut var(--dur-base) var(--ease-std) forwards;
     overflow: hidden;
     pointer-events: none;
+    transform-origin: top center;
+    will-change: transform, opacity;
   }
 
   .task:hover {
@@ -433,6 +437,7 @@
   .task.done {
     opacity: 0.25 !important;
     transition: opacity var(--dur-slow) var(--ease-std);
+    will-change: opacity;
   }
 
   .task.done .task-text {
@@ -708,7 +713,7 @@
 
   @media (max-width: 600px) {
     .config-grid { grid-template-columns: 1fr; }
-    .app { padding: 32px 16px 60px; }
+    .app { padding: 32px 16px 60px; padding-top: calc(16px + env(safe-area-inset-top)); padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
     .header { margin-bottom: 10px; }
     .subheader { margin-bottom: 24px; }
     .btn-icon { width: 32px; height: 32px; font-size: var(--text-md); }
@@ -986,15 +991,15 @@
     <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px">
       <div class="config-label" style="margin-bottom:8px">README</div>
       <div style="font-size:11px;color:var(--muted);line-height:1.7">
-        A focused daily task view that pulls from Trello and manual entries.<br>
-        Cards due today or in your named "Today" list are surfaced automatically.<br>
-        Checking off a task dims it — it stays on your list until tomorrow.<br><br>
+        Only today shows<br>
+        Done rests, quietly proud<br>
+        Morning clears the slate<br><br>
         <div class="readme-actions">
           <a href="https://buymeacoffee.com/today.here" target="_blank" rel="noopener" class="btn-coffee">☕ Buy me a coffee</a>
           <div class="dev-hours" title="Hours spent building this with Claude">
             <span>⏱</span>
             <span>built in</span>
-            <span class="dev-hours-val">22.4h</span>
+            <span class="dev-hours-val">23.9h</span>
           </div>
         </div>
       </div>
@@ -1040,10 +1045,11 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.2';
+const APP_VERSION   = '1.6.3';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.3': 'Design system tokens, iOS safe-area fix, GPU-only task animations, haiku README, dev hours tracker',
   '1.6.2': 'Battery optimisation: splash DOM removal, offline guards, sync cache, PWA viewport fixes',
   '1.6.1': 'Performance audit: favicon change detection, deduped constants, removed dead args, CSS cleanup',
   '1.6.0': 'Dropbox PKCE OAuth flow, permanent refresh token, auto token refresh, no more session expiry',
@@ -1966,7 +1972,7 @@ function dropboxUpdateStatusLine() {
     el.innerHTML = '<span style="color:var(--accent)">✓ Connected</span>'
       + (lastSync ? ' &nbsp;·&nbsp; Last synced ' + lastSync : '');
   } else if (expired) {
-    el.innerHTML = '<span style="color:var(--danger)">⚠ Session expired — reconnect</span>';
+    el.innerHTML = '<span style="color:var(--danger);cursor:pointer;text-decoration:underline;text-underline-offset:3px" onclick="dropboxAuth()">⚠ Session expired — tap to reconnect</span>';
   } else {
     el.textContent = '';
   }
@@ -2030,7 +2036,7 @@ async function dropboxAuth() {
 
   const verifier    = _generateVerifier();
   const challenge   = await _generateChallenge(verifier);
-  const redirectUri = 'https://today-here.netlify.app/';
+  const redirectUri = window.location.origin + '/';
   const state       = Math.random().toString(36).slice(2);
 
   sessionStorage.setItem('dbx_verifier',     verifier);
@@ -2089,7 +2095,11 @@ async function _dropboxExchangeCode(code) {
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ code, code_verifier: verifier, redirect_uri: redirectUri }),
     });
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) {
+      dropboxShowMsg('Connection failed: ' + (text || res.status), 'error'); return;
+    }
     if (!res.ok) { dropboxShowMsg('Connection failed: ' + (data.error || res.status), 'error'); return; }
 
     localStorage.setItem('dropbox_token',         data.access_token);
@@ -2188,7 +2198,7 @@ async function dropboxBackup(silent) {
       localStorage.removeItem('dropbox_token');
       localStorage.removeItem('dropbox_token_expired');
       dropboxUpdateUI();
-      dropboxShowMsg('Session expired — please reconnect Dropbox.', 'error');
+      dropboxShowMsg('Session expired — tap the status line above to reconnect.', 'error'); dropboxUpdateUI();
       return;
     }
     if (!res.ok) throw new Error(`Dropbox ${res.status}`);
@@ -2241,7 +2251,7 @@ async function dropboxRestore(fromSync) {
         localStorage.removeItem('dropbox_token');
         localStorage.removeItem('dropbox_token_expired');
         dropboxUpdateUI();
-        dropboxShowMsg('Session expired — please reconnect Dropbox.', 'error');
+        dropboxShowMsg('Session expired — tap the status line above to reconnect.', 'error'); dropboxUpdateUI();
       }
       return;
     }
