@@ -1972,7 +1972,7 @@ function dropboxUpdateStatusLine() {
     el.innerHTML = '<span style="color:var(--accent)">✓ Connected</span>'
       + (lastSync ? ' &nbsp;·&nbsp; Last synced ' + lastSync : '');
   } else if (expired) {
-    el.innerHTML = '<span style="color:var(--danger)">⚠ Session expired — reconnect</span>';
+    el.innerHTML = '<span style="color:var(--danger);cursor:pointer;text-decoration:underline;text-underline-offset:3px" onclick="dropboxAuth()">⚠ Session expired — tap to reconnect</span>';
   } else {
     el.textContent = '';
   }
@@ -2036,7 +2036,7 @@ async function dropboxAuth() {
 
   const verifier    = _generateVerifier();
   const challenge   = await _generateChallenge(verifier);
-  const redirectUri = 'https://today-here.netlify.app/';
+  const redirectUri = window.location.origin + '/';
   const state       = Math.random().toString(36).slice(2);
 
   sessionStorage.setItem('dbx_verifier',     verifier);
@@ -2194,7 +2194,7 @@ async function dropboxBackup(silent) {
       localStorage.removeItem('dropbox_token');
       localStorage.removeItem('dropbox_token_expired');
       dropboxUpdateUI();
-      dropboxShowMsg('Session expired — please reconnect Dropbox.', 'error');
+      dropboxShowMsg('Session expired — tap the status line above to reconnect.', 'error'); dropboxUpdateUI();
       return;
     }
     if (!res.ok) throw new Error(`Dropbox ${res.status}`);
@@ -2247,7 +2247,7 @@ async function dropboxRestore(fromSync) {
         localStorage.removeItem('dropbox_token');
         localStorage.removeItem('dropbox_token_expired');
         dropboxUpdateUI();
-        dropboxShowMsg('Session expired — please reconnect Dropbox.', 'error');
+        dropboxShowMsg('Session expired — tap the status line above to reconnect.', 'error'); dropboxUpdateUI();
       }
       return;
     }
