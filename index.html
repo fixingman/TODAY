@@ -228,10 +228,12 @@
 
   .app {
     position: relative;
-    z-index: 1;
+    z-index: var(--z-base);
     max-width: 680px;
     margin: 0 auto;
     padding: 48px 24px 80px;
+    padding-top: calc(48px + env(safe-area-inset-top));
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
     min-height: 100vh;
     overflow-x: hidden;
   }
@@ -708,7 +710,7 @@
 
   @media (max-width: 600px) {
     .config-grid { grid-template-columns: 1fr; }
-    .app { padding: 32px 16px 60px; }
+    .app { padding: 32px 16px 60px; padding-top: calc(32px + env(safe-area-inset-top)); padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
     .header { margin-bottom: 10px; }
     .subheader { margin-bottom: 24px; }
     .btn-icon { width: 32px; height: 32px; font-size: var(--text-md); }
@@ -986,9 +988,9 @@
     <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px">
       <div class="config-label" style="margin-bottom:8px">README</div>
       <div style="font-size:11px;color:var(--muted);line-height:1.7">
-        A focused daily task view that pulls from Trello and manual entries.<br>
-        Cards due today or in your named "Today" list are surfaced automatically.<br>
-        Checking off a task dims it — it stays on your list until tomorrow.<br><br>
+        Only today shows<br>
+        Done rests, quietly proud<br>
+        Morning clears the slate<br><br>
         <div class="readme-actions">
           <a href="https://buymeacoffee.com/today.here" target="_blank" rel="noopener" class="btn-coffee">☕ Buy me a coffee</a>
           <div class="dev-hours" title="Hours spent building this with Claude">
