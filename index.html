@@ -896,9 +896,10 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION = '1.5.1';
+const APP_VERSION = '1.6.0';
 const CHANGELOG = {
-  '1.5.1': 'Self-hosted fonts with Google Fonts fallback, smooth empty-state transition on last task removal',
+  '1.6.0': 'Dropbox PKCE OAuth flow, permanent refresh token, auto token refresh, no more session expiry',
+  '1.5.2': 'Dropbox expired token detection, accurate connected/expired UI state, local changes preserved on reconnect',
   '1.5.0': 'Two-file Dropbox sync revert, Remote-authoritative done state, Uncheck propagation fix, Dev/prod environment isolation, Trello reorder fade animation',
   '1.4.0': 'Live sync ticker, Midnight cleanup push, Baseline seeding before ticker',
   '1.3.0': 'Structure-aware diff render, No-flash background sync, Checkbox detach fix',
@@ -1762,10 +1763,13 @@ function dropboxUpdateStatusLine() {
   const el       = document.getElementById('dropboxStatusLine');
   if (!el) return;
   const token    = localStorage.getItem('dropbox_token');
+  const expired  = localStorage.getItem('dropbox_token_expired') === '1';
   const lastSync = el.dataset.lastSync || '';
-  if (token) {
+  if (token && !expired) {
     el.innerHTML = '<span style="color:var(--accent)">✓ Connected</span>'
       + (lastSync ? ' &nbsp;·&nbsp; Last synced ' + lastSync : '');
+  } else if (expired) {
+    el.innerHTML = '<span style="color:var(--danger)">⚠ Session expired — reconnect</span>';
   } else {
     el.textContent = '';
   }
@@ -1785,10 +1789,12 @@ function dropboxUpdateUI() {
   if (hint)   hint.style.display   = DROPBOX_APP_KEY ? 'none' : 'inline';
 
   const token      = localStorage.getItem('dropbox_token');
+  const expired    = localStorage.getItem('dropbox_token_expired') === '1';
   const btnB       = document.getElementById('btnBackup');
   const btnR       = document.getElementById('btnRestore');
   const connectBtn = document.getElementById('dropboxConnectBtn');
-  if (token) {
+
+  if (token && !expired) {
     if (btnB) btnB.style.display = '';
     if (btnR) btnR.style.display = '';
     if (connectBtn) connectBtn.style.display = 'none';
@@ -1797,9 +1803,9 @@ function dropboxUpdateUI() {
     if (btnB) btnB.style.display = 'none';
     if (btnR) btnR.style.display = 'none';
     if (connectBtn) {
-      connectBtn.className     = 'btn-primary';
-      connectBtn.textContent   = 'Connect Dropbox';
-      connectBtn.onclick       = dropboxAuth;
+      connectBtn.className   = 'btn-primary';
+      connectBtn.textContent = expired ? 'Reconnect Dropbox' : 'Connect Dropbox';
+      connectBtn.onclick     = dropboxAuth;
       connectBtn.style.display = '';
     }
     dropboxUpdateStatusLine();
@@ -1809,39 +1815,124 @@ function dropboxUpdateUI() {
   if (saved && input && !input.value) input.value = saved;
 }
 
-function dropboxAuth() {
+// ── PKCE helpers ──────────────────────────────────────────────────────────────
+function _generateVerifier() {
+  const arr = new Uint8Array(48);
+  crypto.getRandomValues(arr);
+  return btoa(String.fromCharCode(...arr)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+async function _generateChallenge(verifier) {
+  const data   = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function dropboxAuth() {
   const appKey = (getDropboxAppKey() || '').trim();
   if (!appKey) { dropboxShowMsg('Enter your App Key first.', 'error'); return; }
-  const redirectUri = encodeURIComponent('https://today-here.netlify.app/');
-  const authUrl = 'https://www.dropbox.com/oauth2/authorize?client_id=' + appKey
-    + '&response_type=token&token_access_type=legacy&redirect_uri=' + redirectUri;
+
+  const verifier    = _generateVerifier();
+  const challenge   = await _generateChallenge(verifier);
+  const redirectUri = 'https://today-here.netlify.app/';
+  const state       = Math.random().toString(36).slice(2);
+
+  sessionStorage.setItem('dbx_verifier',     verifier);
+  sessionStorage.setItem('dbx_redirect_uri', redirectUri);
+  sessionStorage.setItem('dbx_state',        state);
+
+  const authUrl = 'https://www.dropbox.com/oauth2/authorize'
+    + '?client_id='            + encodeURIComponent(appKey)
+    + '&response_type=code'
+    + '&token_access_type=offline'
+    + '&code_challenge='       + encodeURIComponent(challenge)
+    + '&code_challenge_method=S256'
+    + '&redirect_uri='         + encodeURIComponent(redirectUri)
+    + '&state='                + encodeURIComponent(state);
+
   const popup = window.open(authUrl, 'dropbox_auth', 'width=600,height=700,left=200,top=100');
 
-  const poll = setInterval(function() {
+  const poll = setInterval(async function() {
     try {
       if (!popup || popup.closed) { clearInterval(poll); return; }
-      const hash = popup.location.hash || '';
-      if (hash.includes('access_token')) {
+      const search = popup.location.search || '';
+      if (search.includes('code=')) {
         clearInterval(poll);
-        const params = new URLSearchParams(hash.replace('#', ''));
-        const token  = params.get('access_token');
-        const err    = params.get('error_description') || params.get('error');
+        const params      = new URLSearchParams(search);
+        const code        = params.get('code');
+        const returnState = params.get('state');
+        const err         = params.get('error_description') || params.get('error');
         popup.close();
-        if (err)    { dropboxShowMsg('Dropbox error: ' + err, 'error'); return; }
-        if (!token) { dropboxShowMsg('No token received — check your App Key and redirect URI.', 'error'); return; }
-        localStorage.setItem('dropbox_token', token);
-        openDropboxPanel();
-        dropboxUpdateUI();
-        dropboxShowMsg('Dropbox connected! You can now backup and restore.', 'success');
-      } else if (hash.includes('error')) {
+        if (err)   { dropboxShowMsg('Dropbox error: ' + err, 'error'); return; }
+        if (!code) { dropboxShowMsg('No code received — check App Key and redirect URI.', 'error'); return; }
+        if (returnState !== sessionStorage.getItem('dbx_state')) {
+          dropboxShowMsg('State mismatch — possible CSRF. Try again.', 'error'); return;
+        }
+        await _dropboxExchangeCode(code);
+      } else if (search.includes('error=')) {
         clearInterval(poll);
-        const params = new URLSearchParams(hash.replace('#', ''));
-        const err = params.get('error_description') || params.get('error') || 'Unknown error';
         popup.close();
-        dropboxShowMsg('Dropbox error: ' + err, 'error');
+        const params = new URLSearchParams(search);
+        dropboxShowMsg('Dropbox error: ' + (params.get('error_description') || params.get('error') || 'Unknown'), 'error');
       }
     } catch(e) { /* cross-origin — still on dropbox.com, keep polling */ }
   }, 500);
+}
+
+async function _dropboxExchangeCode(code) {
+  const verifier    = sessionStorage.getItem('dbx_verifier');
+  const redirectUri = sessionStorage.getItem('dbx_redirect_uri');
+  sessionStorage.removeItem('dbx_verifier');
+  sessionStorage.removeItem('dbx_redirect_uri');
+  sessionStorage.removeItem('dbx_state');
+
+  dropboxShowMsg('Connecting…', 'success');
+  try {
+    const res  = await fetch('/.netlify/functions/dropbox-token', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ code, code_verifier: verifier, redirect_uri: redirectUri }),
+    });
+    const data = await res.json();
+    if (!res.ok) { dropboxShowMsg('Connection failed: ' + (data.error || res.status), 'error'); return; }
+
+    localStorage.setItem('dropbox_token',         data.access_token);
+    localStorage.setItem('dropbox_refresh_token', data.refresh_token);
+    localStorage.setItem('dropbox_token_expiry',  String(Date.now() + (data.expires_in - 60) * 1000));
+    localStorage.removeItem('dropbox_token_expired');
+    lastLocalSavedAt = new Date().toISOString();
+    openDropboxPanel();
+    dropboxUpdateUI();
+    dropboxShowMsg('Dropbox connected!', 'success');
+    dropboxAutoSave();
+  } catch(e) {
+    dropboxShowMsg('Connection failed: ' + (e.message || 'unknown'), 'error');
+  }
+}
+
+// Silently refreshes access token if expired — called before every API request
+async function _dropboxEnsureToken() {
+  const expiry       = parseInt(localStorage.getItem('dropbox_token_expiry') || '0');
+  const refreshToken = localStorage.getItem('dropbox_refresh_token');
+  if (!refreshToken) return; // legacy token — no refresh possible
+  if (Date.now() < expiry)  return; // still valid
+
+  try {
+    const res  = await fetch('/.netlify/functions/dropbox-refresh', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ refresh_token: refreshToken }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      localStorage.setItem('dropbox_token_expired', '1');
+      dropboxUpdateUI();
+      return;
+    }
+    localStorage.setItem('dropbox_token',        data.access_token);
+    localStorage.setItem('dropbox_token_expiry', String(Date.now() + (data.expires_in - 60) * 1000));
+    localStorage.removeItem('dropbox_token_expired');
+    dropboxUpdateUI();
+  } catch(e) { /* silent — will retry next tick */ }
 }
 
 function openDropboxPanel() {
@@ -1861,6 +1952,7 @@ function dropboxAutoSave() {
 
 // ── Backup ────────────────────────────────────────────────────────────────────
 async function dropboxBackup(silent) {
+  await _dropboxEnsureToken();
   const token = localStorage.getItem('dropbox_token');
   if (!token) { if (!silent) dropboxShowMsg('Not connected. Click Connect Dropbox first.', 'error'); return; }
   if (!silent) dropboxShowMsg('Saving backup…', 'success');
@@ -1890,8 +1982,14 @@ async function dropboxBackup(silent) {
     });
 
     if (res.status === 401) {
-      if (silent) return; // transient — don't wipe token on background save
+      if (silent) {
+        // Mark token as expired so UI reflects reality
+        localStorage.setItem('dropbox_token_expired', '1');
+        dropboxUpdateUI();
+        return;
+      }
       localStorage.removeItem('dropbox_token');
+      localStorage.removeItem('dropbox_token_expired');
       dropboxUpdateUI();
       dropboxShowMsg('Session expired — please reconnect Dropbox.', 'error');
       return;
@@ -1900,6 +1998,7 @@ async function dropboxBackup(silent) {
 
     // Record when we last wrote so background sync can reject older remote files
     lastLocalSavedAt = now;
+    localStorage.removeItem('dropbox_token_expired');
     if (window._dbxSetRev) {
       // Update rev baseline so next sync tick doesn't re-trigger on our own write
       try {
@@ -1924,6 +2023,7 @@ async function dropboxBackup(silent) {
 
 // ── Restore ───────────────────────────────────────────────────────────────────
 async function dropboxRestore(fromSync) {
+  await _dropboxEnsureToken();
   const token = localStorage.getItem('dropbox_token');
   if (!token) { if (!fromSync) dropboxShowMsg('Not connected. Click Connect Dropbox first.', 'error'); return; }
   if (!fromSync) dropboxShowMsg('Fetching backup…', 'success');
@@ -1938,10 +2038,14 @@ async function dropboxRestore(fromSync) {
     });
 
     if (res.status === 401) {
-      if (fromSync) return; // transient — don't wipe token on background sync
-      localStorage.removeItem('dropbox_token');
+      localStorage.setItem('dropbox_token_expired', '1');
       dropboxUpdateUI();
-      dropboxShowMsg('Session expired — please reconnect Dropbox.', 'error');
+      if (!fromSync) {
+        localStorage.removeItem('dropbox_token');
+        localStorage.removeItem('dropbox_token_expired');
+        dropboxUpdateUI();
+        dropboxShowMsg('Session expired — please reconnect Dropbox.', 'error');
+      }
       return;
     }
     if (res.status === 409) {
