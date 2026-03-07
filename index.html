@@ -399,8 +399,8 @@
   }
 
   @keyframes fadeOut {
-    from { opacity: 1; transform: scaleY(1); max-height: 80px; margin-bottom: 0; }
-    to   { opacity: 0; transform: scaleY(0.8); max-height: 0;  margin-bottom: -2px; padding-top: 0; padding-bottom: 0; }
+    from { opacity: 1; transform: scaleY(1);    }
+    to   { opacity: 0; transform: scaleY(0.85); }
   }
 
   @keyframes taskSlideIn {
@@ -425,6 +425,8 @@
     animation: fadeOut var(--dur-base) var(--ease-std) forwards;
     overflow: hidden;
     pointer-events: none;
+    transform-origin: top center;
+    will-change: transform, opacity;
   }
 
   .task:hover {
@@ -435,6 +437,7 @@
   .task.done {
     opacity: 0.25 !important;
     transition: opacity var(--dur-slow) var(--ease-std);
+    will-change: opacity;
   }
 
   .task.done .task-text {
