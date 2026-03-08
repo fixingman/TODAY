@@ -1091,7 +1091,7 @@
           <div class="dev-hours" title="Hours spent building this with Claude">
             <span>⏱</span>
             <span>built in</span>
-            <span class="dev-hours-val">25.9h</span>
+            <span class="dev-hours-val">26.4h</span>
           </div>
         </div>
       </div>
@@ -1137,10 +1137,11 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.4';
+const APP_VERSION   = '1.6.5';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.5': 'Fix iOS Safari popup block on Dropbox auth, session expired UI cleanup',
   '1.6.4': 'Dropbox reconnect UX, Netlify functions deploy, redirect URI fix, spacing polish',
   '1.6.3': 'Design system tokens, iOS safe-area fix, GPU-only task animations, haiku README, dev hours tracker',
   '1.6.2': 'Battery optimisation: splash DOM removal, offline guards, sync cache, PWA viewport fixes',
@@ -2065,7 +2066,7 @@ function dropboxUpdateStatusLine() {
     el.innerHTML = '<span style="color:var(--accent)">✓ Connected</span>'
       + (lastSync ? ' &nbsp;·&nbsp; Last synced ' + lastSync : '');
   } else if (expired) {
-    el.innerHTML = '<span style="color:var(--danger)">⚠ Session expired</span>';
+    el.textContent = '';
   } else {
     el.textContent = '';
   }
@@ -2104,6 +2105,7 @@ function dropboxUpdateUI() {
       connectBtn.onclick     = dropboxAuth;
       connectBtn.style.display = '';
     }
+    if (expired) dropboxShowMsg('⚠ Session expired — please reconnect.', 'error');
     dropboxUpdateStatusLine();
   }
   const saved = localStorage.getItem('dropbox_app_key');
@@ -2127,6 +2129,9 @@ async function dropboxAuth() {
   const appKey = (getDropboxAppKey() || '').trim();
   if (!appKey) { dropboxShowMsg('Enter your App Key first.', 'error'); return; }
 
+  // Open popup synchronously first — iOS Safari blocks window.open after any await
+  const popup = window.open('about:blank', 'dropbox_auth', 'width=600,height=700,left=200,top=100');
+
   const verifier    = _generateVerifier();
   const challenge   = await _generateChallenge(verifier);
   const redirectUri = window.location.origin + '/';
@@ -2145,7 +2150,9 @@ async function dropboxAuth() {
     + '&redirect_uri='         + encodeURIComponent(redirectUri)
     + '&state='                + encodeURIComponent(state);
 
-  const popup = window.open(authUrl, 'dropbox_auth', 'width=600,height=700,left=200,top=100');
+  // Now redirect the already-open popup to the auth URL
+  if (popup) { popup.location.href = authUrl; }
+  else { dropboxShowMsg('Popup blocked — please allow popups for this site.', 'error'); return; }
 
   const poll = setInterval(async function() {
     try {
