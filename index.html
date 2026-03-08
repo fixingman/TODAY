@@ -659,7 +659,7 @@
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
-    margin-bottom: 20px;
+    margin-bottom: var(--space-3);
   }
 
   @media (min-width: 480px) {
@@ -732,6 +732,7 @@
   .config-field.full { grid-column: 1 / -1; }
 
   .config-label {
+    margin-bottom: var(--space-2);
     font-size: var(--text-xs);
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -779,6 +780,10 @@
   }
 
   /* ── Component: Buttons ────────────────────────────────────────────── */
+  .btn-icon-lg {
+    font-size: var(--text-lg);
+    font-weight: 200;
+  }
   .btn-primary {
     background: var(--highlight-ui);
     border: none;
@@ -833,6 +838,93 @@
     color: var(--accent);
   }
 
+  /* ── Component: Panel Utilities ─────────────────────────────────────── */
+  .panel-section {
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-5);
+    margin-top: var(--space-5);
+  }
+  .panel-section-lg {
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-5);
+    margin-top: var(--space-5);
+  }
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-3);
+  }
+  .panel-version {
+    font-size: var(--text-xs);
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+  .panel-status-line {
+    font-size: var(--text-xs);
+    color: var(--muted);
+    margin-bottom: var(--space-2);
+    letter-spacing: 0.06em;
+  }
+  .version-badge {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-bg);
+    background: var(--accent);
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-sm);
+    letter-spacing: 0.06em;
+  }
+  .changelog-entry {
+    margin-bottom: var(--space-2);
+  }
+  .changelog-entry-header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+  .changelog-version {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: var(--text-sm2);
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  .changelog-line {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: 3px;
+  }
+  .changelog-dot {
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  .changelog-text {
+    font-size: var(--text-sm);
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .changelog-old {
+    display: flex;
+    gap: var(--space-2);
+    align-items: baseline;
+    padding: 2px 0;
+    font-size: var(--text-sm);
+  }
+  .trello-link {
+    color: var(--highlight-ui);
+    font-size: var(--text-sm);
+    text-decoration: none;
+    margin-left: var(--space-1);
+  }
+  .panel-haiku {
+    font-size: var(--text-sm);
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  /* ── Component: Loading Dots ────────────────────────────────────────── */
   .loading-dots {
     display: inline-flex;
     gap: 3px;
@@ -896,7 +988,7 @@
     <div class="header-actions">
       <button class="btn-icon" id="trelloBtn" title="Configure" onclick="toggleConfig()">⚡&#xFE0E;</button>
       <button class="btn-icon" id="infoBtn" title="About" onclick="toggleInfo()">ℹ&#xFE0E;</button>
-      <button class="btn-icon" id="refreshBtn" title="Refresh Trello" onclick="loadTrello()" style="font-size:16px; font-weight:200;">↻</button>
+      <button class="btn-icon btn-icon-lg" id="refreshBtn" title="Refresh Trello" onclick="loadTrello()">↻</button>
     </div>
   </div>
   <!-- Subheader: date + progress bar -->
@@ -911,12 +1003,12 @@
   </div>
 
   <!-- Trello config panel -->
-  <div class="config-panel" id="configPanel" style="margin-bottom:16px">
+  <div class="config-panel" id="configPanel">
     <div class="config-title">⚡&#xFE0E; Trello Connection</div>
 
     <!-- Step 1: Connect -->
     <div id="trelloStep1">
-      <div class="config-hint" style="margin-bottom:12px">
+      <div class="config-hint">
         Connect your Trello account to pull today's cards automatically.
       </div>
       <div class="config-actions">
@@ -940,7 +1032,7 @@
           </select>
         </div>
       </div>
-      <div class="config-hint" style="margin-top:10px">
+      <div class="config-hint">
         Cards from the selected list + cards due today will both be shown.
       </div>
       <div class="config-actions">
@@ -952,10 +1044,10 @@
     <div class="status-msg" id="statusMsg"></div>
 
     <!-- Dropbox backup section -->
-    <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:20px;margin-bottom:-4px">
-      <div class="config-title" style="margin-bottom:12px">⚡&#xFE0E; Dropbox Backup</div>
-      <div class="config-hint" style="margin-bottom:8px;margin-top:0">
-        Backup tasks &amp; settings to Dropbox — survives cache clears, syncs across devices. Your data goes directly to your own Dropbox; we never see it.
+    <div class="panel-section-lg">
+      <div class="config-title">⚡&#xFE0E; Dropbox Backup</div>
+      <div class="config-hint">
+        Backup tasks &amp; settings to Dropbox — Your data goes directly to your own Dropbox; we never see it.
         <span id="dropboxSetupHint" style="display:none"><br><br><strong style="color:var(--text)">Setup:</strong> Create a free app at <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noopener" style="color:var(--highlight-ui)">dropbox.com/developers</a> → Scoped access → App Folder. Add <code style="color:var(--highlight-ui)">https://today-here.netlify.app/</code> as a redirect URI, then paste your App Key below.</span>
       </div>
       <div class="config-grid" id="dropboxKeyRow" style="display:none">
@@ -964,7 +1056,7 @@
           <input class="config-input" id="dropboxAppKey" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" placeholder="your-app-key" />
         </div>
       </div>
-      <div id="dropboxStatusLine" style="font-size:10px;color:var(--muted);margin-bottom:10px;letter-spacing:0.06em"></div>
+      <div id="dropboxStatusLine" class="panel-status-line"></div>
       <div class="config-actions">
         <button class="btn-primary" id="dropboxConnectBtn" onclick="dropboxAuth()">Connect Dropbox</button>
         <button class="btn-ghost" onclick="dropboxBackup()" id="btnBackup" style="display:none">↑ Backup</button>
@@ -976,21 +1068,21 @@
 
   <!-- Info panel -->
   <div class="config-panel" id="infoPanel">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div class="config-title" style="margin-bottom:0">ℹ About TODAY</div>
-      <div style="font-size:10px;color:var(--muted);letter-spacing:0.1em" id="appVersion"></div>
+    <div class="panel-header">
+      <div class="config-title">ℹ About TODAY</div>
+      <div class="panel-version" id="appVersion"></div>
     </div>
 
     <div id="infoStats"></div>
 
-    <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
-      <div class="config-label" style="margin-bottom:12px">Changelog</div>
+    <div class="panel-section">
+      <div class="config-label">Changelog</div>
       <div id="changelogPanel"></div>
     </div>
 
-    <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px">
-      <div class="config-label" style="margin-bottom:8px">README</div>
-      <div style="font-size:11px;color:var(--muted);line-height:1.7">
+    <div class="panel-section">
+      <div class="config-label">README</div>
+      <div class="panel-haiku">
         Only today shows<br>
         Done rests, quietly proud<br>
         Morning clears the slate<br><br>
@@ -999,7 +1091,7 @@
           <div class="dev-hours" title="Hours spent building this with Claude">
             <span>⏱</span>
             <span>built in</span>
-            <span class="dev-hours-val">23.9h</span>
+            <span class="dev-hours-val">26.4h</span>
           </div>
         </div>
       </div>
@@ -1045,10 +1137,12 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.3';
+const APP_VERSION   = '1.6.5';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.5': 'Fix iOS Safari popup block on Dropbox auth, session expired UI cleanup',
+  '1.6.4': 'Dropbox reconnect UX, Netlify functions deploy, redirect URI fix, spacing polish',
   '1.6.3': 'Design system tokens, iOS safe-area fix, GPU-only task animations, haiku README, dev hours tracker',
   '1.6.2': 'Battery optimisation: splash DOM removal, offline guards, sync cache, PWA viewport fixes',
   '1.6.1': 'Performance audit: favicon change detection, deduped constants, removed dead args, CSS cleanup',
@@ -1178,7 +1272,7 @@ function renderInfoStats() {
     { val: trelloCount,        label: 'From Trello' },
     { val: manualCount,        label: 'Added by you' },
     { val: streak + ' day' + (streak !== 1 ? 's' : ''), label: 'Current streak' },
-    { val: allTimeCompleted,   label: 'All-time completed' },
+    { val: allTimeCompleted,   label: 'Completed' },
   ];
 
   document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
@@ -1192,22 +1286,22 @@ function renderInfoStats() {
   clPanel.innerHTML = shown.map((v, i) => {
     if (i === 0) {
       const bullets = CHANGELOG[v].split(', ').map(b =>
-        `<div style="display:flex;gap:6px;margin-bottom:3px">
-          <span style="color:var(--accent);flex-shrink:0">·</span>
+        `<div class="changelog-line">
+          <span class="changelog-dot">·</span>
           <span>${b}</span>
         </div>`
       ).join('');
-      return `<div style="margin-bottom:14px">
-        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
-          <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:var(--accent)">v${v}</span>
-          <span style="font-size:10px;color:var(--surface2);background:var(--accent);padding:1px 6px;border-radius:3px;letter-spacing:0.06em">CURRENT</span>
+      return `<div class="changelog-entry">
+        <div class="changelog-entry-header">
+          <span class="changelog-version">v${v}</span>
+          <span class="version-badge">CURRENT</span>
         </div>
-        <div style="font-size:11px;color:var(--muted);line-height:1.7;padding-left:4px">${bullets}</div>
+        <div class="changelog-text">${bullets}</div>
       </div>`;
     } else {
-      return `<div style="display:flex;gap:8px;align-items:baseline;padding:3px 0;font-size:11px">
-        <span style="font-family:'Syne',sans-serif;font-weight:700;color:var(--accent);flex-shrink:0">v${v}</span>
-        <span style="color:var(--muted)">${CHANGELOG[v].split(',')[0]}</span>
+      return `<div class="changelog-old">
+        <span class="changelog-version">${v}</span>
+        <span class="changelog-text">${CHANGELOG[v].split(',')[0]}</span>
       </div>`;
     }
   }).join('')
@@ -1495,7 +1589,7 @@ function renderTrello() {
     const task    = trelloTasks[index];
     const safeUrl = task.url && /^https?:\/\//i.test(task.url) ? task.url : '';
     const newText = esc(task.text) + (safeUrl
-      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" style="color:var(--highlight-ui);font-size:11px;text-decoration:none;margin-left:4px" title="Open in Trello">↗</a>`
+      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="trello-link" title="Open in Trello">↗</a>`
       : '');
 
     let el = list.querySelector(`.task[data-taskid="${CSS.escape(id)}"]`);
@@ -1569,7 +1663,7 @@ function taskHTML(task, type, delay) {
 
   const safeUrl = task.url && /^https?:\/\//i.test(task.url) ? task.url : '';
   const link = safeUrl
-    ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" style="color:var(--highlight-ui);font-size:11px;text-decoration:none;margin-left:4px" title="Open in Trello">↗</a>`
+    ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="trello-link" title="Open in Trello">↗</a>`
     : '';
 
   const deleteBtn = type === 'manual'
@@ -1972,7 +2066,7 @@ function dropboxUpdateStatusLine() {
     el.innerHTML = '<span style="color:var(--accent)">✓ Connected</span>'
       + (lastSync ? ' &nbsp;·&nbsp; Last synced ' + lastSync : '');
   } else if (expired) {
-    el.innerHTML = '<span style="color:var(--danger);cursor:pointer;text-decoration:underline;text-underline-offset:3px" onclick="dropboxAuth()">⚠ Session expired — tap to reconnect</span>';
+    el.textContent = '';
   } else {
     el.textContent = '';
   }
@@ -2011,6 +2105,7 @@ function dropboxUpdateUI() {
       connectBtn.onclick     = dropboxAuth;
       connectBtn.style.display = '';
     }
+    if (expired) dropboxShowMsg('⚠ Session expired — please reconnect.', 'error');
     dropboxUpdateStatusLine();
   }
   const saved = localStorage.getItem('dropbox_app_key');
@@ -2034,6 +2129,9 @@ async function dropboxAuth() {
   const appKey = (getDropboxAppKey() || '').trim();
   if (!appKey) { dropboxShowMsg('Enter your App Key first.', 'error'); return; }
 
+  // Open popup synchronously first — iOS Safari blocks window.open after any await
+  const popup = window.open('about:blank', 'dropbox_auth', 'width=600,height=700,left=200,top=100');
+
   const verifier    = _generateVerifier();
   const challenge   = await _generateChallenge(verifier);
   const redirectUri = window.location.origin + '/';
@@ -2052,7 +2150,9 @@ async function dropboxAuth() {
     + '&redirect_uri='         + encodeURIComponent(redirectUri)
     + '&state='                + encodeURIComponent(state);
 
-  const popup = window.open(authUrl, 'dropbox_auth', 'width=600,height=700,left=200,top=100');
+  // Now redirect the already-open popup to the auth URL
+  if (popup) { popup.location.href = authUrl; }
+  else { dropboxShowMsg('Popup blocked — please allow popups for this site.', 'error'); return; }
 
   const poll = setInterval(async function() {
     try {
@@ -2198,7 +2298,7 @@ async function dropboxBackup(silent) {
       localStorage.removeItem('dropbox_token');
       localStorage.removeItem('dropbox_token_expired');
       dropboxUpdateUI();
-      dropboxShowMsg('Session expired — tap the status line above to reconnect.', 'error'); dropboxUpdateUI();
+      dropboxShowMsg('Session expired — please reconnect.', 'error'); dropboxUpdateUI();
       return;
     }
     if (!res.ok) throw new Error(`Dropbox ${res.status}`);
@@ -2251,7 +2351,7 @@ async function dropboxRestore(fromSync) {
         localStorage.removeItem('dropbox_token');
         localStorage.removeItem('dropbox_token_expired');
         dropboxUpdateUI();
-        dropboxShowMsg('Session expired — tap the status line above to reconnect.', 'error'); dropboxUpdateUI();
+        dropboxShowMsg('Session expired — please reconnect.', 'error'); dropboxUpdateUI();
       }
       return;
     }
