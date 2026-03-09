@@ -1169,10 +1169,12 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.11';
+const APP_VERSION   = '1.6.12';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.12': 'Union merge sync: concurrent edits from both devices preserved. deleted_ids, checked_ids, unchecked_ids tracked with timestamps. Most-recent-operation wins on check/uncheck conflicts. Backup schema v3.0.',
+  '1.6.11': 'Favicon redesign: ✦ glyph always full accent, ring fills with progress, y-offset corrected. Scrollbar hidden. Uncheck is neutral — no celebration. Spacing tightened.',
   '1.6.10': 'Self-hosted fonts: privacy-safe, SW-cacheable, works offline',
   '1.6.9': 'Fix null crash in onSplashDone',
   '1.6.8': 'Design system: all spacing tokenised, no more hardcoded px outside :root',
@@ -1231,6 +1233,10 @@ function init() {
 
     // Clear Trello cache — yesterday's tasks are not today's
     localStorage.removeItem('today_trello_cache');
+    // Clear operation logs — yesterday's deletes, checks, unchecks are irrelevant today
+    localStorage.removeItem('today_deleted_ids');
+    localStorage.removeItem('today_unchecked_ids');
+    localStorage.removeItem('today_checked_ids');
 
     // Push clean state to Dropbox immediately so the sync ticker
     // doesn't pull yesterday's completed tasks back from the stale file
@@ -1774,8 +1780,15 @@ document.addEventListener('click', function(e) {
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 function toggleDone(taskId) {
-  if (doneIds.has(taskId)) doneIds.delete(taskId);
-  else doneIds.add(taskId);
+  if (doneIds.has(taskId)) {
+    doneIds.delete(taskId);
+    _addUncheckedId(taskId);  // explicit uncheck — track with timestamp
+    _removeCheckedId(taskId); // clear any prior check timestamp
+  } else {
+    doneIds.add(taskId);
+    _addCheckedId(taskId);    // explicit check — track with timestamp
+    _removeUncheckedId(taskId); // clear any prior uncheck timestamp
+  }
 
   localStorage.setItem('today_done', JSON.stringify([...doneIds]));
   _setLastLocalChange();
@@ -1861,6 +1874,7 @@ function clearTaskInput() {
 }
 
 function deleteManual(taskId) {
+  _addDeletedId(taskId); // track deletion with timestamp for union merge
   const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
   if (!el) return;
 
@@ -2109,6 +2123,36 @@ let dropboxSaveTimer  = null;
 const _getLastLocalChange  = () => localStorage.getItem('last_local_change') || null;
 const _setLastLocalChange  = ()  => localStorage.setItem('last_local_change', new Date().toISOString());
 
+// ── Deleted IDs: {id, at} — explicit delete tracking for union merge ──────────
+const _getDeletedIds = () => { try { return JSON.parse(localStorage.getItem('today_deleted_ids') || '[]'); } catch(e) { return []; } };
+const _addDeletedId  = (id) => {
+  const existing = _getDeletedIds().filter(d => d.id !== id);
+  existing.push({ id, at: new Date().toISOString() });
+  localStorage.setItem('today_deleted_ids', JSON.stringify(existing));
+};
+
+// ── Unchecked IDs: {id, at} — explicit uncheck tracking ───────────────────────
+const _getUncheckedIds = () => { try { return JSON.parse(localStorage.getItem('today_unchecked_ids') || '[]'); } catch(e) { return []; } };
+const _addUncheckedId  = (id) => {
+  const existing = _getUncheckedIds().filter(u => u.id !== id);
+  existing.push({ id, at: new Date().toISOString() });
+  localStorage.setItem('today_unchecked_ids', JSON.stringify(existing));
+};
+const _removeUncheckedId = (id) => {
+  localStorage.setItem('today_unchecked_ids', JSON.stringify(_getUncheckedIds().filter(u => u.id !== id)));
+};
+
+// ── Checked IDs: {id, at} — check timestamps so uncheck can be compared ───────
+const _getCheckedIds = () => { try { return JSON.parse(localStorage.getItem('today_checked_ids') || '[]'); } catch(e) { return []; } };
+const _addCheckedId  = (id) => {
+  const existing = _getCheckedIds().filter(c => c.id !== id);
+  existing.push({ id, at: new Date().toISOString() });
+  localStorage.setItem('today_checked_ids', JSON.stringify(existing));
+};
+const _removeCheckedId = (id) => {
+  localStorage.setItem('today_checked_ids', JSON.stringify(_getCheckedIds().filter(c => c.id !== id)));
+};
+
 // ── UI helpers ────────────────────────────────────────────────────────────────
 function getDropboxAppKey() {
   if (DROPBOX_APP_KEY) return DROPBOX_APP_KEY;
@@ -2328,10 +2372,13 @@ async function dropboxBackup(silent) {
   const now = new Date().toISOString();
   const safeJSON = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); } catch(e) { return fallback; } };
   const data = {
-    version:      '2.0',
+    version:      '3.0',
     saved_at:     now,
     manual_tasks:      safeJSON('today_manual', []),
     done_ids:          safeJSON('today_done',   []),
+    deleted_ids:       _getDeletedIds(),   // [{id, at}] — explicit deletes for union merge
+    unchecked_ids:     _getUncheckedIds(), // [{id, at}] — explicit unchecks with timestamps
+    checked_ids:       _getCheckedIds(),   // [{id, at}] — explicit checks with timestamps
     trello_config:     safeJSON('trello_config', {}),
     stat_alltime_done: localStorage.getItem('stat_alltime_done') || '0',
     stat_streak:       localStorage.getItem('stat_streak')       || '1',
@@ -2390,6 +2437,114 @@ async function dropboxBackup(silent) {
   }
 }
 
+// ── Core merge logic — operates on a remote data object, no timestamp guard ───
+// Called by dropboxRestore(fromSync=true) AND by the offline-reconnect path.
+// Returns true if any state changed (so caller knows whether to push back to Dropbox).
+function mergeRemoteData(data) {
+  const remoteTasks     = Array.isArray(data.manual_tasks)  ? data.manual_tasks  : [];
+  const remoteDone      = Array.isArray(data.done_ids)      ? data.done_ids      : [];
+  const remoteDeleted   = Array.isArray(data.deleted_ids)   ? data.deleted_ids   : [];
+  const remoteUnchecked = Array.isArray(data.unchecked_ids) ? data.unchecked_ids : [];
+  const remoteChecked   = Array.isArray(data.checked_ids)   ? data.checked_ids   : [];
+
+  const remoteDeletedMap   = new Map(remoteDeleted.map(d   => [d.id, d.at]));
+  const remoteUncheckedMap = new Map(remoteUnchecked.map(u => [u.id, u.at]));
+  const remoteCheckedMap   = new Map(remoteChecked.map(c   => [c.id, c.at]));
+
+  const localDeleted      = _getDeletedIds();
+  const localUnchecked    = _getUncheckedIds();
+  const localChecked      = _getCheckedIds();
+  const localDeletedMap   = new Map(localDeleted.map(d   => [d.id, d.at]));
+  const localUncheckedMap = new Map(localUnchecked.map(u => [u.id, u.at]));
+  const localCheckedMap   = new Map(localChecked.map(c   => [c.id, c.at]));
+
+  // Union of all operation logs from both devices
+  const mergedDeletedMap   = new Map([...localDeletedMap,   ...remoteDeletedMap]);
+  const mergedUncheckedMap = new Map([...localUncheckedMap, ...remoteUncheckedMap]);
+  // For checked: remote wins on conflict — preserves check timestamps from other device
+  const mergedCheckedMap   = new Map([...localCheckedMap,   ...remoteCheckedMap]);
+
+  // ── Task list: union minus deleted ───────────────────────────────────────
+  const localIds    = new Set(manualTasks.map(t => t.id));
+  const allTasksMap = new Map();
+  manualTasks.forEach(t => allTasksMap.set(t.id, t));
+  remoteTasks.forEach(t => allTasksMap.set(t.id, t)); // remote text wins on conflict
+
+  const mergedTasks = [...allTasksMap.values()].filter(t => {
+    const deletedAt = mergedDeletedMap.get(t.id);
+    if (!deletedAt) return true;
+    const taskCreatedAt = t.id.startsWith('manual_')
+      ? new Date(parseInt(t.id.replace('manual_', ''))).toISOString()
+      : null;
+    return taskCreatedAt && taskCreatedAt > deletedAt;
+  });
+
+  // ── Done state: most-recent-operation wins per task ID ───────────────────
+  const allEverTouched = new Set([
+    ...doneIds, ...remoteDone,
+    ...mergedUncheckedMap.keys(), ...mergedCheckedMap.keys(),
+  ]);
+
+  const mergedDoneIds = new Set();
+  allEverTouched.forEach(id => {
+    const checkedAt   = mergedCheckedMap.get(id)   || null;
+    const uncheckedAt = mergedUncheckedMap.get(id) || null;
+
+    if (!checkedAt && !uncheckedAt) {
+      // No timestamp history — union fallback
+      if (doneIds.has(id) || remoteDone.includes(id)) mergedDoneIds.add(id);
+    } else if (checkedAt && !uncheckedAt) {
+      mergedDoneIds.add(id);
+    } else if (!checkedAt && uncheckedAt) {
+      // Unchecked, no recorded check — leave unchecked
+    } else {
+      // Both exist — most recent wins
+      if (checkedAt > uncheckedAt) mergedDoneIds.add(id);
+    }
+  });
+
+  // ── Persist merged operation logs ────────────────────────────────────────
+  localStorage.setItem('today_deleted_ids',   JSON.stringify([...mergedDeletedMap.entries()].map(([id,at]) => ({id,at}))));
+  localStorage.setItem('today_unchecked_ids', JSON.stringify([...mergedUncheckedMap.entries()].map(([id,at]) => ({id,at}))));
+  localStorage.setItem('today_checked_ids',   JSON.stringify([...mergedCheckedMap.entries()].map(([id,at]) => ({id,at}))));
+
+  // ── DOM updates ──────────────────────────────────────────────────────────
+  const mergedTaskIds = new Set(mergedTasks.map(t => t.id));
+
+  manualTasks.forEach(t => {
+    if (!mergedTaskIds.has(t.id)) {
+      const el = document.querySelector(`.task[data-taskid="${CSS.escape(t.id)}"]`);
+      if (el) { el.classList.add('removing'); setTimeout(() => el.remove(), 180); }
+    }
+  });
+
+  const brandNew = mergedTasks.filter(t => !localIds.has(t.id));
+  if (brandNew.length > 0) {
+    const listEl = document.getElementById('manualList');
+    const empty  = document.getElementById('manualEmpty');
+    brandNew.forEach(t => {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = taskHTML(t, 'manual', 0);
+      listEl.appendChild(tmp.firstElementChild);
+    });
+    if (empty) empty.style.display = 'none';
+  }
+
+  manualTasks = mergedTasks;
+  localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+
+  doneIds = mergedDoneIds;
+  localStorage.setItem('today_done', JSON.stringify([...doneIds]));
+
+  document.querySelectorAll('.task[data-taskid]').forEach(el => {
+    el.classList.toggle('done', doneIds.has(el.dataset.taskid));
+  });
+  document.getElementById('manualCount').textContent = manualTasks.length;
+  const emptyEl = document.getElementById('manualEmpty');
+  if (emptyEl) emptyEl.style.display = manualTasks.length === 0 ? 'block' : 'none';
+  updateStats();
+}
+
 // ── Restore ───────────────────────────────────────────────────────────────────
 async function dropboxRestore(fromSync) {
   await _dropboxEnsureToken();
@@ -2426,61 +2581,17 @@ async function dropboxRestore(fromSync) {
     const data = await res.json();
 
     if (fromSync) {
-      // Background sync — only apply if remote is newer than our last write
-      // This prevents a stale remote file from overwriting fresh local changes
-      // Compare against persistent last_local_change — covers offline mutations that
-      // happened after the last successful Dropbox backup
-      const _llc = _getLastLocalChange();
-      if (_llc && data.saved_at && data.saved_at <= _llc) return;
+      // No timestamp guard here — mergeRemoteData() handles conflicts correctly
+      // regardless of file age. The old guard (reject if remote older than local)
+      // was correct under last-write-wins but breaks union merge: it would cause
+      // device B to never see tasks device A added before B's last edit.
+      // Rev change in syncDropbox() already ensures we only run when something changed.
 
-      // Apply remote state — it's newer, trust it fully for both tasks and done states
-      const remoteTasks = Array.isArray(data.manual_tasks) ? data.manual_tasks : [];
-      const remoteDone  = Array.isArray(data.done_ids)     ? data.done_ids     : [];
+      // Union merge via shared mergeRemoteData() — handles tasks, deletes, check/uncheck
+      mergeRemoteData(data);
 
-      // For tasks: remote is structural authority (handles adds and deletes from other device)
-      // Remote is authoritative for task list — same as done state.
-      // The debounce means by the time the other device's sync tick fires,
-      // the delete/add has already been written to Dropbox.
-      const remoteIds = new Set(remoteTasks.map(t => t.id));
-      const localIds  = new Set(manualTasks.map(t => t.id));
-
-      // Fade out tasks that were deleted on the other device
-      manualTasks.forEach(t => {
-        if (!remoteIds.has(t.id)) {
-          const el = document.querySelector(`.task[data-taskid="${CSS.escape(t.id)}"]`);
-          if (el) { el.classList.add('removing'); setTimeout(() => el.remove(), 180); }
-        }
-      });
-
-      // Slide in tasks that were added on the other device
-      const brandNew = remoteTasks.filter(t => !localIds.has(t.id));
-      if (brandNew.length > 0) {
-        const listEl = document.getElementById('manualList');
-        const empty  = document.getElementById('manualEmpty');
-        brandNew.forEach(t => {
-          const tmp = document.createElement('div');
-          tmp.innerHTML = taskHTML(t, 'manual', 0);
-          listEl.appendChild(tmp.firstElementChild);
-        });
-        if (empty) empty.style.display = 'none';
-      }
-
-      manualTasks = remoteTasks;
-      localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-
-      // Done state: remote is authoritative (supports both check AND uncheck across devices)
-      doneIds = new Set(remoteDone);
-      localStorage.setItem('today_done', JSON.stringify(remoteDone));
-
-      // Update done visuals silently — only toggle CSS class, no DOM rebuild
-      document.querySelectorAll('.task[data-taskid]').forEach(el => {
-        el.classList.toggle('done', doneIds.has(el.dataset.taskid));
-      });
-
-      document.getElementById('manualCount').textContent = manualTasks.length;
-      const emptyEl = document.getElementById('manualEmpty');
-      if (emptyEl) emptyEl.style.display = manualTasks.length === 0 ? 'block' : 'none';
-      updateStats();
+      // Push merged state back so both devices converge on the same file
+      dropboxAutoSave();
 
       const label = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       const syncEl = document.getElementById('dropboxStatusLine');
@@ -2490,8 +2601,11 @@ async function dropboxRestore(fromSync) {
       // Manual restore — full overwrite, exactly what the user expects
       manualTasks = Array.isArray(data.manual_tasks) ? data.manual_tasks : [];
       doneIds     = new Set(Array.isArray(data.done_ids) ? data.done_ids : []);
-      localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-      localStorage.setItem('today_done',   JSON.stringify([...doneIds]));
+      localStorage.setItem('today_manual',        JSON.stringify(manualTasks));
+      localStorage.setItem('today_done',          JSON.stringify([...doneIds]));
+      localStorage.setItem('today_deleted_ids',   JSON.stringify(Array.isArray(data.deleted_ids)   ? data.deleted_ids   : []));
+      localStorage.setItem('today_unchecked_ids', JSON.stringify(Array.isArray(data.unchecked_ids) ? data.unchecked_ids : []));
+      localStorage.setItem('today_checked_ids',   JSON.stringify(Array.isArray(data.checked_ids)   ? data.checked_ids   : []));
       if (data.trello_config)     localStorage.setItem('trello_config',     JSON.stringify(data.trello_config));
       if (data.stat_alltime_done) localStorage.setItem('stat_alltime_done', data.stat_alltime_done);
       if (data.stat_streak)       localStorage.setItem('stat_streak',       data.stat_streak);
@@ -2624,8 +2738,23 @@ async function dropboxRestore(fromSync) {
     const lastChange  = _getLastLocalChange();
     const lastBackup  = localStorage.getItem('last_successful_backup');
 
-    // If local mutations happened after the last successful backup, push first
+    // If local mutations happened after the last successful backup:
+    // pull remote first, merge with local offline edits, then push merged result.
+    // This preserves check/uncheck timestamps from the other device.
     if (token && lastChange && (!lastBackup || lastChange > lastBackup)) {
+      try {
+        const r = await fetch('https://content.dropboxapi.com/2/files/download', {
+          method: 'POST',
+          headers: {
+            'Authorization':   `Bearer ${token}`,
+            'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_FILE }),
+          },
+        });
+        if (r.ok) {
+          const remoteData = await r.json();
+          mergeRemoteData(remoteData);
+        }
+      } catch(e) { /* push local as-is if fetch fails */ }
       await dropboxBackup(true);
     }
 
@@ -2655,12 +2784,39 @@ async function dropboxRestore(fromSync) {
       }
       const token = localStorage.getItem('dropbox_token');
       if (token) {
-        const r = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
-          method:  'POST',
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: DROPBOX_FILE }),
-        }).catch(() => null);
-        if (r && r.ok) { const m = await r.json(); if (m) lastDropboxRev = m.rev; }
+        // On startup: check if there are unsynced offline changes first.
+        // If last_local_change > last_successful_backup → push local changes before pulling.
+        // If no unsynced changes → safe to pull latest from Dropbox directly.
+        const _llc     = localStorage.getItem('last_local_change');
+        const _lsb     = localStorage.getItem('last_successful_backup');
+        const hasUnsyncedChanges = _llc && (!_lsb || _llc > _lsb);
+        if (hasUnsyncedChanges) {
+          // Pull remote, merge with local offline edits, then push merged result.
+          // This preserves check/uncheck timestamps from the other device so the
+          // most-recent-operation rule can work correctly — a blind push would
+          // overwrite the other device's checked_ids before we ever see them.
+          try {
+            const r = await fetch('https://content.dropboxapi.com/2/files/download', {
+              method: 'POST',
+              headers: {
+                'Authorization':   `Bearer ${token}`,
+                'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_FILE }),
+              },
+            });
+            if (r.ok) {
+              const remoteData = await r.json();
+              mergeRemoteData(remoteData); // merge into local state
+            }
+          } catch(e) { /* offline or missing file — push local as-is */ }
+          await dropboxBackup(true); // push merged (or local-only) state
+        } else {
+          // No offline edits — pull latest from Dropbox cleanly
+          const saved = localStorage.getItem('last_local_change');
+          localStorage.removeItem('last_local_change');
+          await dropboxRestore(true);
+          if (saved) localStorage.setItem('last_local_change', saved);
+        }
+        // Rev is seeded by _dbxSetRev inside dropboxRestore / dropboxBackup
       }
     } catch(e) { /* silent */ }
 
