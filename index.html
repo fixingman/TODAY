@@ -371,7 +371,7 @@
 
   /* Section */
   .section {
-    margin-bottom: var(--space-8);
+    margin-bottom: var(--space-5);
   }
 
   .section-header {
@@ -574,7 +574,7 @@
   .dev-hours {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-1);
     background: var(--color-surface2);
     border: 1px solid var(--color-border);
     color: var(--color-muted);
@@ -593,7 +593,7 @@
   .btn-coffee {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-1);
     background: var(--highlight);
     color: var(--color-bg);
     font-family: var(--font-display);
@@ -615,7 +615,7 @@
 
   /* Empty state */
   .empty {
-    padding: 24px 14px;
+    padding: var(--space-3) var(--space-4);
     color: var(--muted);
     font-size: var(--text-sm2);
     letter-spacing: 0.06em;
@@ -757,7 +757,7 @@
   .config-field {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: var(--space-1);
     min-width: 0;
     max-width: 100%;
     overflow: hidden;
@@ -980,9 +980,10 @@
 
   /* Scrollbar */
   /* ── Utilities: Scrollbar ───────────────────────────────────────────── */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: var(--radius-sm); }
+  /* Hide scrollbar visually — scroll still works */
+  ::-webkit-scrollbar { width: 0; background: transparent; }
+  * { scrollbar-width: none; }        /* Firefox */
+  * { -ms-overflow-style: none; }     /* IE / Edge legacy */
 
   /* Celebration canvas */
   /* ── Component: Celebration Canvas ─────────────────────────────────── */
@@ -1168,7 +1169,7 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.10';
+const APP_VERSION   = '1.6.11';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
@@ -1792,12 +1793,22 @@ function toggleDone(taskId) {
     // Haptic feedback on check (Android only — iOS silently ignores this)
     if (doneIds.has(taskId) && navigator.vibrate) navigator.vibrate(40);
 
-    // Fire celebration on check only
-    if (doneIds.has(taskId) && typeof fireEmberDrift === 'function') {
+    // Fire celebration on check only — not on uncheck
+    const isNowDone = doneIds.has(taskId);
+    if (isNowDone && typeof fireEmberDrift === 'function') {
       const check = el.querySelector('.task-check');
       if (check) {
         const r = check.getBoundingClientRect();
         fireEmberDrift(r.left + r.width/2, r.top + r.height/2);
+      }
+    }
+    // Uncheck: brief neutral pulse on the checkbox instead
+    if (!isNowDone) {
+      const check = el.querySelector('.task-check');
+      if (check) {
+        check.style.transition = 'opacity 80ms ease';
+        check.style.opacity = '0.4';
+        setTimeout(() => { check.style.opacity = ''; check.style.transition = ''; }, 160);
       }
     }
   }
