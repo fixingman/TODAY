@@ -245,7 +245,10 @@ Operation logs are cleared daily because they are day-scoped. Yesterday's delete
 3. **After every merge, push the result** — this is what makes devices converge.
 4. **The ticker is cheap** — rev check only; merge runs only when something changed.
 5. **Background tabs are silent** — ticker stops on hide, resumes on show.
-6. **Completed tasks do not carry over** — removed on new day.
+6. **New-day cleanup must run after Dropbox restore on startup** — `applyNewDayCleanup()` is called in the `load` event after the Dropbox pull completes. Running it before the restore caused done tasks to reappear because the pull overwrote the cleaned localStorage state.
+7. **`applyNewDayCleanup()` is the single source of truth for new-day logic** — both the startup `load` event and the ticker's `checkNewDay()` call it. Never duplicate this logic.
+8. **`_todayStr` is cached once at module load** — the ticker's `checkNewDay()` compares `stat_last_visit` against this in-memory value. `applyNewDayCleanup()` is never called on same-day ticks, making the 7s ticker zero-cost for date checking on normal usage days.
+9. **`stat_last_visit` is local device state** — it is not written to the backup file and not restored from it. Restoring it would reset the date check and cause cleanup to re-run, deleting today's surviving tasks.
 7. **Trello is read-only** — the app never writes to Trello.
 8. **Operation logs are day-scoped** — cleared on new day; no accumulation over time.
 9. **Backup file schema changes require a version bump** — currently v3.0.

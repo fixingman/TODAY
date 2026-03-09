@@ -2,10 +2,10 @@
 
 | Version | Key change |
 |---|---|
-| 1.6.12 | Union merge sync: operation logs with timestamps, concurrent multi-device edits preserved, backup schema v3.0 |
-| 1.6.11 | Favicon ✦ redesign, scrollbar hidden, uncheck neutral, spacing tightened |
-| 1.6.10 | Self-hosted fonts (offline-capable), null crash fix in splash |
-| 1.6.9 | Fix null crash in onSplashDone |
+| 1.6.13 | Fix new-day cleanup: done tasks now cleared correctly. Runs after Dropbox restore. _todayStr cached in memory — zero cost on same-day ticks |
+| 1.6.12 | Union merge sync: deleted_ids, checked_ids, unchecked_ids with timestamps. Concurrent multi-device edits preserved. Backup schema v3.0 |
+| 1.6.11 | Favicon ✦ redesign: ring fills with progress, y-offset corrected. Scrollbar hidden. Uncheck neutral — no celebration |
+| 1.6.10 | Self-hosted fonts: SW-cacheable, works offline. Null crash fix in splash |
 | 1.6.8 | All spacing tokenised, no hardcoded px outside :root |
 | 1.6.7 | Housekeeping: circular tokens, ghost vars, dead sync writes, SW accent |
 | 1.6.6 | Offline SW cache, persistent mutation tracking, backup-first reconnect |

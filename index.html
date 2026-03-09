@@ -1169,10 +1169,11 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.12';
+const APP_VERSION   = '1.6.13';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.13': 'Fix: completed manual tasks now correctly removed on new day. applyNewDayCleanup() runs after Dropbox restore, not before.',
   '1.6.12': 'Union merge sync: concurrent edits from both devices preserved. deleted_ids, checked_ids, unchecked_ids tracked with timestamps. Most-recent-operation wins on check/uncheck conflicts. Backup schema v3.0.',
   '1.6.11': 'Favicon redesign: ✦ glyph always full accent, ring fills with progress, y-offset corrected. Scrollbar hidden. Uncheck is neutral — no celebration. Spacing tightened.',
   '1.6.10': 'Self-hosted fonts: privacy-safe, SW-cacheable, works offline',
@@ -1201,6 +1202,44 @@ let trelloConnected = false; // cached — avoids localStorage reads in render h
 let manualTasks = (() => { try { return JSON.parse(localStorage.getItem('today_manual') || '[]'); } catch(e) { return []; } })();
 let doneIds     = new Set((() => { try { return JSON.parse(localStorage.getItem('today_done') || '[]'); } catch(e) { return []; } })());
 
+// ─── New-day cleanup ─────────────────────────────────────────────────────────
+// _todayStr is set once at module load and cached in memory.
+// The ticker's checkNewDay() compares against it — zero localStorage cost on same-day ticks.
+// applyNewDayCleanup() is only called when the date has actually changed.
+const _todayStr = new Date().toDateString();
+
+function applyNewDayCleanup() {
+  // Guard: only run if last visit was a different day
+  const lastVisit = localStorage.getItem('stat_last_visit');
+  if (!lastVisit || lastVisit === _todayStr) return;
+
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+  const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
+  localStorage.setItem('stat_streak', lastVisit === yesterday.toDateString() ? streak + 1 : 1);
+
+  // Remove manual tasks that were marked done — completed tasks don't carry over
+  manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
+  localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+
+  // Clear only manual done IDs — Trello done IDs are preserved
+  for (const id of [...doneIds]) {
+    if (id.startsWith('manual_')) doneIds.delete(id);
+  }
+  localStorage.setItem('today_done', JSON.stringify([...doneIds]));
+
+  // Clear stale caches and operation logs — yesterday's ops are irrelevant today
+  localStorage.removeItem('today_trello_cache');
+  localStorage.removeItem('today_deleted_ids');
+  localStorage.removeItem('today_unchecked_ids');
+  localStorage.removeItem('today_checked_ids');
+
+  localStorage.setItem('stat_last_visit', _todayStr);
+
+  // Push clean state so sync ticker doesn't restore yesterday's tasks from Dropbox
+  const tok = localStorage.getItem('dropbox_token');
+  if (tok) dropboxBackup(true);
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 function init() {
   dropboxUpdateUI();       // hide key input/hint if app key is embedded
@@ -1213,37 +1252,8 @@ function init() {
   const trelloToken = localStorage.getItem('trello_token');
   trelloConnected = !!trelloToken;
 
-  // New-day cleanup — must run before renderManual so UI starts clean
-  const todayStr  = new Date().toDateString();
-  const lastVisit = localStorage.getItem('stat_last_visit');
-  if (lastVisit && lastVisit !== todayStr) {
-    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-    const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
-    localStorage.setItem('stat_streak', lastVisit === yesterday.toDateString() ? streak + 1 : 1);
-
-    // Remove manual tasks that were marked done
-    manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
-    localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-
-    // Clear only manual done IDs, leave Trello ones intact
-    for (const id of [...doneIds]) {
-      if (id.startsWith('manual_')) doneIds.delete(id);
-    }
-    localStorage.setItem('today_done', JSON.stringify([...doneIds]));
-
-    // Clear Trello cache — yesterday's tasks are not today's
-    localStorage.removeItem('today_trello_cache');
-    // Clear operation logs — yesterday's deletes, checks, unchecks are irrelevant today
-    localStorage.removeItem('today_deleted_ids');
-    localStorage.removeItem('today_unchecked_ids');
-    localStorage.removeItem('today_checked_ids');
-
-    // Push clean state to Dropbox immediately so the sync ticker
-    // doesn't pull yesterday's completed tasks back from the stale file
-    const _cleanToken = localStorage.getItem('dropbox_token');
-    if (_cleanToken) dropboxBackup(true);
-  }
-  localStorage.setItem('stat_last_visit', todayStr);
+  // New-day cleanup runs after Dropbox restore (see load event in sync module)
+  // so the clean state is applied to the freshest data, not overwritten by the pull.
 
   renderManual();
   updateStats();
@@ -1257,7 +1267,6 @@ function init() {
     // Seed from cache immediately so the UI isn't blank while API loads
     // Cache is validated by date AND boardId — stale date or board change = ignored
     const _trelloCache = (() => { try { return JSON.parse(localStorage.getItem('today_trello_cache') || 'null'); } catch(e) { return null; } })();
-    const _todayStr = new Date().toDateString();
     if (_trelloCache && _trelloCache.date === _todayStr && _trelloCache.boardId === saved.boardId && Array.isArray(_trelloCache.tasks)) {
       trelloTasks = _trelloCache.tasks;
       renderTrello();
@@ -2382,7 +2391,7 @@ async function dropboxBackup(silent) {
     trello_config:     safeJSON('trello_config', {}),
     stat_alltime_done: localStorage.getItem('stat_alltime_done') || '0',
     stat_streak:       localStorage.getItem('stat_streak')       || '1',
-    stat_last_visit:   localStorage.getItem('stat_last_visit')   || '',
+    // stat_last_visit intentionally excluded — it's local device state, meaningless on another device
   };
 
   try {
@@ -2609,7 +2618,8 @@ async function dropboxRestore(fromSync) {
       if (data.trello_config)     localStorage.setItem('trello_config',     JSON.stringify(data.trello_config));
       if (data.stat_alltime_done) localStorage.setItem('stat_alltime_done', data.stat_alltime_done);
       if (data.stat_streak)       localStorage.setItem('stat_streak',       data.stat_streak);
-      if (data.stat_last_visit)   localStorage.setItem('stat_last_visit',   data.stat_last_visit);
+      // stat_last_visit intentionally NOT restored — it's local device state.
+      // Restoring it would cause applyNewDayCleanup() to re-run and delete today's tasks.
       renderManual();
       renderTrello();
       updateStats();
@@ -2672,29 +2682,14 @@ async function dropboxRestore(fromSync) {
 
   // Midnight cleanup
   function checkNewDay() {
-    const todayStr  = new Date().toDateString();
-    const lastVisit = localStorage.getItem('stat_last_visit');
-    if (lastVisit && lastVisit !== todayStr) {
-      const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-      const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
-      localStorage.setItem('stat_streak', lastVisit === yesterday.toDateString() ? streak + 1 : 1);
-      manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
-      localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-      for (const id of [...doneIds]) { if (id.startsWith('manual_')) doneIds.delete(id); }
-      localStorage.setItem('today_done', JSON.stringify([...doneIds]));
-      localStorage.setItem('stat_last_visit', todayStr);
-
-      // Clear stale Trello cache — yesterday's tasks are not today's
-      localStorage.removeItem('today_trello_cache');
-
-      // Push clean state so sync doesn't restore yesterday's completed tasks
-      const tok = localStorage.getItem('dropbox_token');
-      if (tok) dropboxBackup(true);
-
-      renderManual();
-      loadTrello();
-      updateStats();
-    }
+    // _todayStr is cached at module load — no localStorage read needed here.
+    // applyNewDayCleanup() has its own guard; this outer check avoids calling
+    // it at all on same-day ticks, which is the common case (every 7s all day).
+    if (localStorage.getItem('stat_last_visit') === _todayStr) return;
+    applyNewDayCleanup();
+    renderManual();
+    loadTrello();
+    updateStats();
   }
 
   // Cached values read once per sync cycle — avoids repeated localStorage access
@@ -2819,6 +2814,13 @@ async function dropboxRestore(fromSync) {
         // Rev is seeded by _dbxSetRev inside dropboxRestore / dropboxBackup
       }
     } catch(e) { /* silent */ }
+
+    // New-day cleanup runs here — AFTER Dropbox restore — so we always clean
+    // the freshest data. Running it in init() before the restore caused done
+    // tasks to reappear because the Dropbox pull overwrote the cleaned state.
+    applyNewDayCleanup();
+    renderManual();
+    updateStats();
 
     // Only start ticker after baselines are seeded
     startTicker();
