@@ -1930,56 +1930,37 @@ function drawFavicon(pct, isEmpty) {
   const c   = document.createElement('canvas');
   c.width   = s; c.height = s;
   const ctx = c.getContext('2d');
-  const ACCENT = '#c8f060', BG = '#0e0e10', TRACK = '#2a2a30'; // canvas: can't use CSS vars
+  const ACCENT = '#c8f060', BG = '#0e0e10', TRACK = '#2a2a30';
   const cx = s / 2, cy = s / 2;
 
   // Background
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, s, s);
 
-  // Ring track
+  // Ring track — always visible
   const ringR = s * 0.38, lw = s * 0.10;
   ctx.beginPath();
   ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-  ctx.strokeStyle = isEmpty ? '#1a1a1a' : TRACK;
+  ctx.strokeStyle = TRACK;
   ctx.lineWidth = lw;
   ctx.stroke();
 
-  // Ring fill
+  // Ring fill — progress arc
   if (!isEmpty && pct > 0) {
     ctx.beginPath();
     ctx.arc(cx, cy, ringR, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(pct, 1));
-    ctx.strokeStyle = pct >= 1 ? ACCENT : ACCENT + 'cc';
+    ctx.strokeStyle = ACCENT;
     ctx.lineWidth = lw;
     ctx.lineCap = 'round';
     ctx.stroke();
   }
 
-  // Star inside
-  function starPath() {
-    const r = s * 0.18, innerR = r * 0.42, points = 4;
-    ctx.beginPath();
-    for (let i = 0; i < points * 2; i++) {
-      const angle  = (i * Math.PI) / points - Math.PI / 2;
-      const radius = i % 2 === 0 ? r : innerR;
-      const x = cx + Math.cos(angle) * radius;
-      const y = cy + Math.sin(angle) * radius;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-  }
-
-  starPath();
-  if (isEmpty) {
-    ctx.fillStyle = '#1a1a1a';
-  } else if (pct >= 1) {
-    ctx.fillStyle = ACCENT;
-  } else if (pct > 0) {
-    ctx.fillStyle = '#444';
-  } else {
-    ctx.fillStyle = '#2a2a2a';
-  }
-  ctx.fill();
+  // Star ✦ — always 100% accent, precisely centered
+  ctx.fillStyle    = ACCENT;
+  ctx.font         = `${s * 0.32}px serif`;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('✦', cx, cy + 2);
 
   return c.toDataURL('image/png');
 }
