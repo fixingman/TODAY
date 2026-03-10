@@ -1,10 +1,10 @@
 # TODAY — Design Document
-> Living reference for decisions, rules, UX thinking, and visual system.  
-> Update this document whenever a meaningful decision is made.
+> Single source of truth for design decisions, visual system, and interaction rules.  
+> Update this file whenever a meaningful decision is made — before or alongside the code change.
 
 ---
 
-## 1. Product Philosophy
+## 1. Philosophy
 
 **One screen. One day. One list.**
 
@@ -16,50 +16,55 @@ TODAY is a single-day task manager. It shows only what matters right now — tod
 - **Offline-first.** The app must work without internet after the first load.
 
 ### Core UX Principles
-1. The fastest path to adding a task must always be one tap / one keystroke.
+
+1. The fastest path to adding a task must always be one tap / one keystroke. On desktop, `Shift+;` focuses the add input from anywhere (no input currently focused).
 2. Completing a task should feel satisfying — not administrative. Unchecking is neutral — no celebration.
-3. The empty state is a reward, not a failure.
+3. The empty state is a reward, not a failure. Two distinct states: **"Nothing added yet"** (truly empty) vs **"✦ All done for today"** (all tasks completed — the reward moment). Never conflate them.
 4. Every animation must serve meaning, not decoration.
 5. Never show a loading state for local data.
 6. Chrome is distraction. Hide the scrollbar — scroll works, the bar never shows.
 
----
-
-## 2. User Research Notes
+### User Context
 
 - User opens the app first thing in the morning, often on mobile.
 - Primary use: brain-dump of the day's intentions, then progressive completion.
-- Trello integration is used to pull in work tasks — user doesn't want to re-enter them.
-- Dropbox sync is used to share state across devices (desktop → mobile).
-- User works in a dark environment; high-contrast accent on dark background is intentional.
+- Trello integration pulls in work tasks — user doesn't want to re-enter them.
+- Dropbox sync shares state across devices (desktop → mobile).
+- User works in a dark environment — high-contrast accent on dark background is intentional.
 - Local file access (`file:///`) is used during development — absolute font/asset paths won't resolve locally.
 
 ---
 
-## 3. Design Tokens
+## 2. Design Tokens
 
 All visual values **must** reference a token. Never hardcode a colour, spacing, radius, or duration outside `:root`.
 
-### Colors
+### Colour
+
 | Token | Value | Usage |
 |---|---|---|
 | `--color-bg` | `#0e0e10` | Page background |
 | `--color-surface` | `#17171a` | Card / hover surface |
-| `--color-surface2` | `#1f1f24` | Elevated surface (panels) |
+| `--color-surface2` | `#1f1f24` | Elevated surface — panels, config |
 | `--color-border` | `#2a2a30` | Default border |
 | `--color-text` | `#e8e8ec` | Primary text |
-| `--color-muted` | `#6b6b78` | Secondary / placeholder |
-| `--color-accent` | `#c8f060` | Primary accent (lime green) |
+| `--color-muted` | `#6b6b78` | Secondary text, placeholders, labels |
+| `--color-accent` | `#c8f060` | Primary accent — lime green |
 | `--color-accent-dim` | `rgba(200,240,96,0.12)` | Ghost accent background |
 | `--color-accent-glow` | `rgba(200,240,96,0.28)` | Accent glow border |
-| `--color-danger` | `#ff5f5f` | Error / delete |
+| `--color-danger` | `#ff5f5f` | Error, delete |
 | `--color-danger-dim` | `rgba(255,95,95,0.10)` | Danger background tint |
 | `--color-danger-border` | `rgba(255,95,95,0.20)` | Danger border |
-| `--color-highlight` | `#579dff` | Info / Trello link |
+| `--color-highlight` | `#579dff` | Info, Trello links |
 | `--color-done-line` | `rgba(107,107,120,0.55)` | Strikethrough on done tasks |
 | `--color-noise-overlay` | `rgba(255,255,255,0.03)` | Texture layer |
 
-### Spacing (4px base grid)
+**Backward-compat aliases** (`--bg`, `--surface`, `--accent`, etc.) are defined in `:root` and must never be removed — they are used in inline styles and JS. `--highlight-ui` aliases to `--color-accent` and is used for interactive UI elements (primary buttons, input focus, config links) — distinct from `--highlight` which is for external/info content.
+
+### Spacing
+
+4px base grid. Off-grid exceptions listed below.
+
 | Token | Value |
 |---|---|
 | `--space-1` | 4px |
@@ -74,13 +79,14 @@ All visual values **must** reference a token. Never hardcode a colour, spacing, 
 | `--space-20` | 80px |
 
 **Intentionally off-grid (do not tokenise):**
-- `2px` — `.task-list` gap (hairline rhythm)
-- `1px` — `.task-check` margin-top (optical alignment)
+- `2px` — `.task-list` gap (hairline rhythm between rows)
+- `1px` — `.task-check` margin-top (optical vertical alignment)
 - `3px` — changelog dots, loading animation
 - `10px 14px` — input padding (ergonomic, not grid-derived)
 - Mobile breakpoint overrides
 
 ### Border Radius
+
 | Token | Value | Usage |
 |---|---|---|
 | `--radius-sm` | 4px | Badge, tag |
@@ -90,117 +96,241 @@ All visual values **must** reference a token. Never hardcode a colour, spacing, 
 | `--radius-full` | 99px | Pill |
 
 ### Typography
-| Token | Value |
-|---|---|
-| `--font-display` | `'Syne', sans-serif` |
-| `--font-mono` | `'DM Mono', monospace` |
-| `--text-xs` | 10px |
-| `--text-sm` | 11px |
-| `--text-sm2` | 12px — small labels, config hints |
-| `--text-base` | 13px |
-| `--text-task` | 13.5px — task row text, between sm and base |
-| `--text-md` | 14px — body default |
-| `--text-lg` | 16px |
-| `--text-xl` | 22px |
 
-**Font rules:**
-- `Syne` is used for all display text: logo, headings, section labels, date.
-- `DM Mono` is used for everything else: tasks, inputs, meta, UI controls.
-- Body default (`html, body`) is `DM Mono` at `--text-md`.
-- Fonts are self-hosted under `/fonts/` on Netlify and pre-cached by the service worker. They do **not** fall back to Google Fonts — the app must not ping Google on load.
+Two fonts only. No exceptions.
+
+| Token | Value | Usage |
+|---|---|---|
+| `--font-display` | `'Syne', sans-serif` | Logo, headings, date, section labels |
+| `--font-mono` | `'DM Mono', monospace` | Everything else |
+
+| Token | Value | Usage |
+|---|---|---|
+| `--text-xs` | 10px | Tiny labels, kbd hints |
+| `--text-sm` | 11px | Small labels, session count |
+| `--text-sm2` | 12px | Config hints, secondary meta |
+| `--text-base` | 13px | Base size, timer display |
+| `--text-task` | 13.5px | Task row text — between sm and base |
+| `--text-md` | 14px | Body default (`html, body`) |
+| `--text-lg` | 16px | Buttons, prominent controls |
+| `--text-xl` | 22px | Section headings |
+
+Fonts are self-hosted under `/fonts/` and pre-cached by the service worker. The app must never ping Google Fonts on load.
 
 ### Motion
-| Token | Value |
-|---|---|
-| `--dur-fast` | 0.15s |
-| `--dur-base` | 0.18s |
-| `--dur-slow` | 0.30s |
-| `--ease-out` | `cubic-bezier(0.16, 1, 0.3, 1)` |
-| `--ease-std` | `ease` |
 
-**Animation rules:**
-- Task completion: opacity fade + strikethrough only. No translateY.
-- Task removal (`.task.removing`): opacity + scaleY only. GPU-only. `will-change: opacity, transform`.
-- Empty state: opacity fade only — no translateY (caused jumpiness on manual delete).
-- **translateY is banned for task-level micro-interactions** — causes visible jumps mid-list.
-- **Exception:** the splash exit stagger uses `translateY(-8px → 0)` on the whole app reveal. This is intentional — it's a one-time cinematic entrance, not a mid-list interaction.
-- Splash burst fires from the star position at `onSplashDone`. Star is null-guarded.
-- No animation should block interaction or feel like a wait.
+| Token | Value | Usage |
+|---|---|---|
+| `--dur-fast` | 0.15s | Enter snaps, hover changes, timer open |
+| `--dur-base` | 0.18s | General UI transitions |
+| `--dur-mid` | 0.20s | Focus mode exit, timer element fades |
+| `--dur-slow` | 0.30s | Recede/reveal, opacity fades |
+| `--ease-out` | `cubic-bezier(0.16, 1, 0.3, 1)` | Overshoot-free deceleration |
+| `--ease-std` | `ease` | Generic |
 
 ### Z-index
+
 | Token | Value |
 |---|---|
 | `--z-base` | 1 |
 | `--z-splash` | 500 |
 | `--z-overlay` | 999 |
 
+### Opacity
+
+| Token | Value | Usage |
+|---|---|---|
+| `--opacity-subtle` | 0.28 | Checkbox progress fill, timer time (paused) |
+| `--opacity-dim` | 0.35 | Done state, secondary badges, mobile delete button |
+| `--opacity-label` | 0.40 | Subtle hints, kbd hint, noise overlay |
+| `--opacity-mid` | 0.50 | Session count in active focus |
+| `--opacity-soft` | 0.60 | Session count on hover |
+| `--opacity-muted` | 0.65 | Paused label |
+| `--opacity-strong` | 0.80 | Timer time (running) |
+| `--opacity-hover` | 0.85 | Button hover states |
+
+Note: `style.opacity` in JS cannot use CSS custom properties — use the raw value with a comment referencing the token (e.g. `check.style.opacity = '0.4'; // --opacity-label`).
+
 ---
 
-## 4. Layout & Component Rules
+## 3. Visual Language
 
-### App structure
+### Colour usage
+
+- Accent (`--color-accent`) signals the one actionable thing: add, primary CTA, active state. Not used for structural chrome like section dots.
+- Muted (`--color-muted`) is for all secondary information: labels, counts, hints, timestamps.
+- Danger (`--color-danger`) only appears on destructive hover states — never as a resting colour. **Exception:** `.badge.due` uses `--danger` at rest because a due-date badge is genuinely time-critical information, not a UI state. This is an intentional exception, not a violation.
+- Highlight (`--color-highlight`) is for external links and info-level UI elements — Trello card links, config panel titles, external CTAs (e.g. buy-me-coffee). Not for primary actions or task-level UI.
+- Done tasks use `--color-done-line` for strikethrough and reduced opacity — they recede, not disappear.
+
+### Layout
+
 - Single-column, centred, max-width constrained.
-- iOS safe-area: `.app` uses `calc(48px + env(safe-area-inset-top))` for top padding.
-- `viewport-fit=cover` is set in the meta viewport tag.
+- iOS safe-area: `.app` uses `calc(48px + env(safe-area-inset-top))` for top padding. `viewport-fit=cover` in meta.
+- Section rhythm: `.section` and `.config-panel` use `--space-8` (32px) margin-bottom.
+- Config panel internal padding: `--space-5` (20px).
 
 ### Task row
-- Gap: `--space-3` (12px)
-- Padding: `--space-3` top/bottom, `--space-4` left/right (16px)
-- Tap target for checkbox: `.task-check::after` with `inset: -13px` expanding hit area to 44px minimum.
+
+- Flex row, `align-items: flex-start` (supports multi-line text).
+- Gap: `--space-3`. Padding: `--space-3` vertical, `--space-4` horizontal.
+- Checkbox tap target: `.task-check::after` with `inset: -13px` — expands to 44px minimum (mobile).
+- Delete button: `align-self: center` so it stays vertically centred regardless of text height.
+- On hover: surface background, delete button fades in.
+- Done state: strikethrough, opacity reduced, delete hidden.
+
+### Section header
+
+- Both sections: count → label. No dot, no pill — the number leads, the label follows.
+- Count uses `--color-muted`, no background, no border. Plain text, same weight as the label.
+- Pomodoro session count (`N 🍅`) matches this weight: `--color-muted`, full opacity on hover, `0.35` on done tasks.
 
 ### Empty state
-- Padding: `var(--space-6) var(--space-4)` (24px / 16px)
-- The empty state is reached by completing or deleting all tasks. It is a positive moment.
 
-### Section rhythm
-- `.section` margin-bottom: `--space-8` (32px)
-- `.config-panel` margin-bottom: `--space-8` (32px)
-
-### Config panel
-- Uses `.panel-section` for internal grouping (`.panel-section-lg` was removed as a duplicate).
-- Padding: `--space-5` (20px)
+- Padding: `var(--space-6) var(--space-4)`.
+- Positive framing — reaching the empty state is a reward, not a void.
 
 ---
 
-## 5. Integrations
+## 4. Motion & Animation
+
+### Core rules
+
+- **Prefer opacity over movement.** If a state change can be communicated through opacity alone, do not add transform. Movement implies spatial meaning — only use it when there is spatial meaning.
+- **Snappy in, gentle out.** Enter transitions use `--dur-fast`. Exit/collapse use `--dur-mid`. Responsive on click, graceful on release.
+- No animation should block interaction or feel like a wait.
+- `will-change` only on elements that actually animate — don't pre-apply broadly.
+
+### What moves, and how
+
+| Element | Property | Duration | Notes |
+|---|---|---|---|
+| Task hover | `background` | `--dur-fast` | Surface tint only |
+| Task completion | `opacity` + strikethrough | `--dur-fast` | No translateY |
+| Task removal | `opacity` + `scaleY` | `--dur-slow` | GPU-only |
+| Empty state | `opacity` | `--dur-slow` | No translateY — caused jumpiness |
+| Focus recede | `opacity` | `--dur-mid` | 0 → 0.07, nothing moves |
+| Focus exit | `opacity`, `background`, `border-color` | `--dur-mid` | Reverses recede |
+| Timer bar open | `max-height` + `opacity` | `--dur-fast` | Expands downward only |
+| Splash entrance | `translateY` + `opacity` | staggered | One-time cinematic reveal |
+
+### Hard bans
+
+- **`translateY` is banned for task-level micro-interactions** — causes visible jumps mid-list.
+- **`translateX` is banned on task rows** — causes horizontal drift in/out of focus mode.
+- **`font-size` and `scale()` on `.task-text` are banned** — cause sibling reflow.
+- Exception: splash uses `translateY(-8px → 0)` on the whole app reveal. Intentional one-time entrance.
+
+---
+
+## 5. Focus Mode (Pomodoro)
+
+Desktop only. Mobile never enters focus mode — `@media (hover: hover)` guards all CSS, `matchMedia` guard in JS.
+
+### Interaction model
+
+| Action | Result |
+|---|---|
+| Click task | Start 25min session, open timer UI |
+| Click outside | Dismiss UI, pause timer |
+| Click same task | Re-open UI, auto-resume |
+| Click different task | Start fresh session, clear previous state |
+| `space` | Pause / resume (blocked if input is focused) |
+| `esc` | Full stop + reset |
+| Tab away / hidden | Wall-clock correction on return |
+| Check task during focus | Log partial session, exit focus, mark done |
+
+### State model
+
+Each task has its own `{ rem, running, paused, wallStart }` in the `taskStates` memory map.
+
+| State | `running` | `paused` | On re-open |
+|---|---|---|---|
+| Active | `true` | `false` | Already ticking |
+| Dismissed | `false` | `false` | Auto-resumes |
+| Explicitly paused | `false` | `true` | Shows paused label, waits for input |
+| Complete | `false` | `false`, `rem: 0` | Shows 00:00 |
+
+- State survives UI dismiss.
+- Cleared on `esc` or task switch.
+- **Not persisted to localStorage** — resets on page reload. A fresh day is a fresh start.
+- `focusSessions` (completed count) **is** persisted to `manualTasks` in localStorage.
+
+### Animation contract
+
+- **Enter:** focused task snaps in (`background` + `border-color`) at `--dur-fast`. Feels immediate.
+- **Recede:** other tasks fade to `opacity: 0.07` at `--dur-mid`. Nothing translates.
+- **Timer bar:** slides open downward via `max-height: 0 → 36px` at `--dur-fast`. One `rAF` delay — task snaps first, bar follows. Never shifts tasks above.
+- **Exit:** recede reverses at `--dur-mid`. DOM cleanup after transition completes.
+- No CTAs inside focused state. Controls are keyboard and click only.
+
+### Session count
+
+- Inline after task text: `N 🍅`. DOM order: text → Trello link → session count.
+- `opacity: 0` default → `opacity: 1` on hover → `opacity: 0.35` on done tasks.
+- Color: `var(--muted)` — same visual weight as section counts.
+- Desktop only — never rendered on mobile.
+
+### Completion chime
+
+Synthesised via Web Audio API. No audio files. Fails silently.
+
+| Property | Value | Rationale |
+|---|---|---|
+| Waveform | Sine | Purest, least harsh |
+| Start frequency | 432 Hz | Just below concert A — warm, not alarming |
+| End frequency | 320 Hz | Soft downward drift — feels like settling |
+| Peak gain | 0.18 | Quiet but noticeable |
+| Attack | 40ms | Fast but not a click |
+| Decay | ~1.2s | Deliberate, not intrusive |
+| Total duration | ~1.3s | Gone before the user reacts negatively |
+
+Sounds like an acknowledgement, not an alert. Never plays on load or task interaction — only on session complete. No loops, no repeats. Future sounds should follow the same sine/decay pattern, differentiated by pitch and duration only.
+
+---
+
+## 6. Integrations
 
 ### Trello
-- Read-only. Scope: `read`.
-- Pulls cards from a selected board/list into the task list.
+
+- Read-only. OAuth scope: `read`.
+- Pulls cards from a selected board + list into the task list.
 - Cache key: `today_trello_cache` — cleared on `checkNewDay()` before `loadTrello()`.
 - Card links use `--color-highlight` (#579dff).
-- Auth uses standard OAuth redirect (not PKCE).
+- Auth: standard OAuth redirect (not PKCE).
 
 ### Dropbox
+
 - Read/write. Used for cross-device sync.
 - PKCE OAuth flow via Netlify functions (`dropbox-token.js`, `dropbox-refresh.js`).
 - File: `/today-backup.json` on production, `/today-backup-{hostname}.json` on preview deploys.
-- `_dropboxEnsureToken()` is called before every backup/restore.
-- `last_local_change` and `last_successful_backup` timestamps are persisted to detect drift.
-- On reconnect (`online` event): backup-first strategy — push local changes before pulling remote.
-- Expired token detection shows accurate UI state; local changes are preserved on reconnect.
+- `_dropboxEnsureToken()` called before every backup/restore.
+- `last_local_change` and `last_successful_backup` timestamps detect drift.
+- On reconnect: backup-first — push local changes before pulling remote.
+- Expired token detection shows accurate UI state; local changes are preserved.
 
 ### Netlify
+
 - `publish = "."` — repo root is the publish directory.
 - Functions in `netlify/functions/`.
 - `DROPBOX_APP_KEY` and `DROPBOX_CLIENT_SECRET` set as Netlify env vars.
-- Netlify injects a RUM analytics script (`/.netlify/scripts/rum`) — this is Netlify's own tracking, not app code. Ad blockers will block it; this is harmless.
+- Netlify injects a RUM analytics script (`/.netlify/scripts/rum`) — Netlify's own tracking. Ad blockers block it harmlessly.
 
 ---
 
-## 6. Offline & Service Worker
+## 7. Offline & Service Worker
 
-- SW file: `sw.js`, cache version: `today-v{version}`.
+- SW file: `sw.js`. Cache version: `today-v{version}` — must match `APP_VERSION` on every deploy.
 - Strategy: **network-first** for all requests.
 - **Pre-cached at install:** `/` (app shell) + all 6 font files.
-- Fonts are same-origin (self-hosted) so the SW can cache them. Google Fonts (cross-origin) cannot be SW-cached — this is the primary reason fonts are self-hosted.
-- `BYPASS_ORIGINS`: Trello, Dropbox, Google APIs — these always go to network, never SW cache.
+- Fonts are self-hosted so the SW can cache them. Cross-origin fonts cannot be SW-cached — this is the primary reason fonts are self-hosted.
+- `BYPASS_ORIGINS`: Trello, Dropbox, Google APIs — always network, never SW cache.
 - Sync loop stops on `visibilitychange hidden`, resumes 2s after visible.
-- `navigator.onLine` guards on all sync fetches.
+- All sync functions guard with `navigator.onLine`.
 
 ---
 
-## 7. Security & Privacy
+## 8. Security & Privacy
 
 - All user content rendered via `esc()` before `innerHTML` — no XSS surface.
 - Trello token scope: `read` only.
@@ -208,23 +338,25 @@ All visual values **must** reference a token. Never hardcode a colour, spacing, 
 - All `window.open` calls are synchronous (iOS Safari popup block fix).
 - `sessionStorage` PKCE keys cleaned up immediately after use.
 - No Google Fonts requests on load — zero external pings to Google.
-- No ads. No analytics in app code. Netlify RUM is injected server-side and easily blocked.
+- No ads. No analytics in app code. Netlify RUM is server-injected and easily blocked.
 
 ---
 
-## 8. Development Rules
+## 9. Development Rules
 
-1. **All margins and paddings must use design tokens.** Never hardcode `px` values outside `:root` unless they are intentionally off-grid (see spacing section above).
-2. **Version and dev hours are always bumped together** on every meaningful change.
-3. **Test on the deployed Netlify URL**, not from a local `file:///` path. Absolute asset paths (`/fonts/`, `/`) do not resolve locally.
-4. **Never remove the backward-compat token aliases** (`--bg`, `--surface`, etc.) — they are used in inline styles and JS.
-5. **Circular CSS token references are bugs.** A token must never reference itself.
-6. **Duplicate CSS classes are bugs.** One class, one definition.
-7. **SW cache version must match app version** on every deploy.
+1. **All margins and paddings must use design tokens.** Never hardcode `px` outside `:root` unless explicitly off-grid (see Spacing above).
+2. **Bump `APP_VERSION` and `DEV_HOURS` together** on every meaningful change.
+3. **Update this file** whenever a design decision, animation rule, interaction model, or token changes.
+4. **Update `Changelog.md`** on every version bump — immediately after updating `index.html`. Never defer it. Format: single table row, terse, no bullet lists, no implementation detail.
+5. **Test on the deployed Netlify URL**, not `file:///`. Absolute paths (`/fonts/`, `/`) do not resolve locally.
+6. **Never remove backward-compat token aliases** (`--bg`, `--surface`, etc.) — used in inline styles and JS.
+7. **Circular CSS token references are bugs.** A token must never reference itself.
+8. **Duplicate CSS classes are bugs.** One class, one definition.
+9. **SW cache version must match `APP_VERSION`** on every deploy.
 
 ---
 
-## 9. Haiku
+## 10. Haiku
 
 > Only today shows  
 > Done rests, quietly proud  
