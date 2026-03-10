@@ -2362,6 +2362,8 @@ function updateFavicon(pct, isEmpty) {
   let celebParticles = [];
   let celebFrame     = null;
   const CHARS = '01∆◊×+−░▒·~⌁⊕⊗'.split('');
+  const CELEB_MAX_PARTICLES = 60; // hard cap — back-to-back checks won't stack up
+  const isMobileDevice = window.matchMedia('(hover: none)').matches;
 
   function resizeCeleb() {
     celebCanvas.width  = window.innerWidth;
@@ -2389,6 +2391,7 @@ function updateFavicon(pct, isEmpty) {
   function celebStart() { if (!celebFrame) celebFrame = requestAnimationFrame(celebAnimate); }
 
   function spawnFragment(fx, fy, fvx, fvy, char, size, depth) {
+    if (celebParticles.length >= CELEB_MAX_PARTICLES) return; // hard cap
     const trail = [];
     celebParticles.push({
       x: fx, y: fy,
@@ -2409,7 +2412,7 @@ function updateFavicon(pct, isEmpty) {
           this.trail.push({ x: this.x, y: this.y });
           if (this.trail.length > 8) this.trail.shift();
         }
-        if (!this.fragmented && depth < 2 && this.life < this.maxLife * 0.5) {
+        if (!isMobileDevice && !this.fragmented && depth < 2 && this.life < this.maxLife * 0.5) {
           this.fragmented = true;
           const frags = 2 + Math.floor(Math.random()*2);
           for (let f = 0; f < frags; f++) {
@@ -2425,16 +2428,18 @@ function updateFavicon(pct, isEmpty) {
       },
       draw(ctx) {
         const alpha = Math.max(0, this.life / this.maxLife);
-        // Heat glow trail
-        this.trail.forEach((tp, ti) => {
-          const ta = (ti / this.trail.length) * alpha * 0.4;
-          const tr = (ti / this.trail.length) * this.size * 0.8;
-          const g  = ctx.createRadialGradient(tp.x, tp.y, 0, tp.x, tp.y, tr);
-          g.addColorStop(0, '#c8f060' + Math.round(ta*120).toString(16).padStart(2,'0'));
-          g.addColorStop(1, 'transparent');
-          ctx.fillStyle = g;
-          ctx.beginPath(); ctx.arc(tp.x, tp.y, tr, 0, Math.PI*2); ctx.fill();
-        });
+        // Heat glow trail — skipped on mobile (too GPU intensive)
+        if (!isMobileDevice) {
+          this.trail.forEach((tp, ti) => {
+            const ta = (ti / this.trail.length) * alpha * 0.4;
+            const tr = (ti / this.trail.length) * this.size * 0.8;
+            const g  = ctx.createRadialGradient(tp.x, tp.y, 0, tp.x, tp.y, tr);
+            g.addColorStop(0, '#c8f060' + Math.round(ta*120).toString(16).padStart(2,'0'));
+            g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g;
+            ctx.beginPath(); ctx.arc(tp.x, tp.y, tr, 0, Math.PI*2); ctx.fill();
+          });
+        }
         // Char
         ctx.save();
         ctx.globalAlpha = alpha;
