@@ -1334,11 +1334,12 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.18';
+const APP_VERSION   = '1.6.19';
 const DEV_HOURS     = '41h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.19': 'Trello tasks now track pomodoro session counts via today_trello_focus | Resets on new day',
   '1.6.18': 'Focus mode: chime plays from background tab | Click completed timer resets and starts new session | Start sound on new session',
   '1.6.17': 'Trello popup-blocked error shown | Performance, bug & safety audit documented',
   '1.6.16': 'Font-family tokens applied everywhere | --opacity-dim corrected to 0.25 | Opacity scale tokenised | Shift+; focuses add input | All-done empty state: ✦ All done for today | Section headers: count leads, no dot, no pill',
@@ -1400,6 +1401,7 @@ function applyNewDayCleanup() {
 
   // Clear stale caches and operation logs — yesterday's ops are irrelevant today
   localStorage.removeItem('today_trello_cache');
+  localStorage.removeItem('today_trello_focus');
   localStorage.removeItem('today_deleted_ids');
   localStorage.removeItem('today_unchecked_ids');
   localStorage.removeItem('today_checked_ids');
@@ -1922,7 +1924,9 @@ function taskHTML(task, type, delay) {
     ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="trello-link" title="Open in Trello">↗</a>`
     : '';
 
-  const sessions = parseInt(task.focusSessions) || 0;
+  const sessions = type === 'trello'
+    ? (_getTrelloFocus()[task.id] || 0)
+    : (parseInt(task.focusSessions) || 0);
   const sessionBadge = sessions > 0
     ? `<span class="session-count has-sessions">${sessions} 🍅</span>`
     : `<span class="session-count"></span>`;
@@ -2365,6 +2369,9 @@ const _getLastLocalChange  = () => localStorage.getItem('last_local_change') || 
 const _setLastLocalChange  = ()  => localStorage.setItem('last_local_change', new Date().toISOString());
 
 // ── Deleted IDs: {id, at} — explicit delete tracking for union merge ──────────
+const _getTrelloFocus = () => { try { return JSON.parse(localStorage.getItem('today_trello_focus') || '{}'); } catch(e) { return {}; } };
+const _setTrelloFocus = (map) => { localStorage.setItem('today_trello_focus', JSON.stringify(map)); };
+
 const _getDeletedIds = () => { try { return JSON.parse(localStorage.getItem('today_deleted_ids') || '[]'); } catch(e) { return []; } };
 const _addDeletedId  = (id) => {
   const existing = _getDeletedIds().filter(d => d.id !== id);
@@ -3295,17 +3302,24 @@ if ('serviceWorker' in navigator) {
 
     // Log partial session if any time was spent
     if (sessionStarted) {
-      const idx = manualTasks.findIndex(t => t.id === taskId);
-      if (idx !== -1) {
-        manualTasks[idx].focusSessions = (parseInt(manualTasks[idx].focusSessions) || 0) + 1;
+      const taskDom2 = document.querySelector('.task[data-taskid="' + taskId + '"]');
+      const badge2   = taskDom2 ? taskDom2.querySelector('.session-count') : null;
+      const manualIdx2 = manualTasks.findIndex(t => t.id === taskId);
+      if (manualIdx2 !== -1) {
+        manualTasks[manualIdx2].focusSessions = (parseInt(manualTasks[manualIdx2].focusSessions) || 0) + 1;
         localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-        const taskDom = document.querySelector('.task[data-taskid="' + taskId + '"]');
-        if (taskDom) {
-          const badge = taskDom.querySelector('.session-count');
-          if (badge) {
-            badge.textContent = manualTasks[idx].focusSessions + ' 🍅';
-            badge.classList.add('has-sessions');
-          }
+        if (badge2) {
+          badge2.textContent = manualTasks[manualIdx2].focusSessions + ' 🍅';
+          badge2.classList.add('has-sessions');
+        }
+      } else {
+        // Trello task
+        const focusMap2 = _getTrelloFocus();
+        focusMap2[taskId] = (focusMap2[taskId] || 0) + 1;
+        _setTrelloFocus(focusMap2);
+        if (badge2) {
+          badge2.textContent = focusMap2[taskId] + ' 🍅';
+          badge2.classList.add('has-sessions');
         }
       }
     }
@@ -3571,19 +3585,26 @@ if ('serviceWorker' in navigator) {
 
     playChime();
 
-    // Persist completed session to manualTasks
-    const idx = manualTasks.findIndex(t => t.id === taskId);
-    if (idx !== -1) {
-      manualTasks[idx].focusSessions = (parseInt(manualTasks[idx].focusSessions) || 0) + 1;
+    // Persist completed session — manual tasks in localStorage, Trello tasks in today_trello_focus
+    const taskDom = document.querySelector('.task[data-taskid="' + taskId + '"]');
+    const badge   = taskDom ? taskDom.querySelector('.session-count') : null;
+
+    const manualIdx = manualTasks.findIndex(t => t.id === taskId);
+    if (manualIdx !== -1) {
+      manualTasks[manualIdx].focusSessions = (parseInt(manualTasks[manualIdx].focusSessions) || 0) + 1;
       localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-      // Update badge in DOM if task is in the list
-      const taskDom = document.querySelector('.task[data-taskid="' + taskId + '"]');
-      if (taskDom) {
-        const badge = taskDom.querySelector('.session-count');
-        if (badge) {
-          badge.textContent = manualTasks[idx].focusSessions + ' 🍅';
-          badge.classList.add('has-sessions');
-        }
+      if (badge) {
+        badge.textContent = manualTasks[manualIdx].focusSessions + ' 🍅';
+        badge.classList.add('has-sessions');
+      }
+    } else {
+      // Trello task — store in today_trello_focus
+      const focusMap = _getTrelloFocus();
+      focusMap[taskId] = (focusMap[taskId] || 0) + 1;
+      _setTrelloFocus(focusMap);
+      if (badge) {
+        badge.textContent = focusMap[taskId] + ' 🍅';
+        badge.classList.add('has-sessions');
       }
     }
 
