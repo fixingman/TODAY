@@ -13,16 +13,17 @@ All state lives in `localStorage`. There is no server-side database.
 
 | Key | Type | Description |
 |---|---|---|
-| `today_manual` | JSON array | Manual tasks |
-| `today_done` | JSON array | IDs of completed tasks (manual + Trello) |
-| `today_deleted_ids` | JSON array | `{id, at}` — explicit task deletions with timestamps |
-| `today_unchecked_ids` | JSON array | `{id, at}` — explicit unchecks with timestamps |
+| `today_manual` | JSON array | Manual tasks added by the user |
+| `today_done` | JSON array | IDs of completed tasks (both manual and Trello) |
+| `today_deleted_ids` | JSON array | `{id, at}` — explicit deletes with timestamps, for union merge |
 | `today_checked_ids` | JSON array | `{id, at}` — explicit checks with timestamps |
+| `today_unchecked_ids` | JSON array | `{id, at}` — explicit unchecks with timestamps |
 | `today_trello_cache` | JSON | Cached Trello cards from last fetch |
 | `trello_config` | JSON | Trello API key, token, board ID, list ID |
 | `trello_token` | string | Trello OAuth token |
 | `dropbox_token` | string | Dropbox access token |
 | `dropbox_refresh_token` | string | Dropbox refresh token (PKCE) |
+| `dropbox_token_expiry` | string | Epoch ms — when access token expires |
 | `dropbox_token_expired` | string | Flag set when 401 detected |
 | `last_local_change` | ISO string | Timestamp of last local mutation |
 | `last_successful_backup` | ISO string | Timestamp of last successful Dropbox write |
@@ -38,6 +39,9 @@ All state lives in `localStorage`. There is no server-side database.
 
 ## 2. Multi-Device Sync — Design Principles
 
+### The core problem
+TODAY has no server-side database. Dropbox holds a **single JSON file** shared between all devices. When two devices edit concurrently or one device edits offline, a naive last-write-wins strategy will silently discard changes.
+
 ### Devices and edit types
 Both mobile and desktop are first-class devices. Either can at any time:
 - Add a manual task
@@ -45,134 +49,114 @@ Both mobile and desktop are first-class devices. Either can at any time:
 - Check a task (manual or Trello)
 - Uncheck a task (manual or Trello)
 
-One device may also be offline while editing, then reconnect.
+Additionally, one device may have been offline while editing, then reconnect.
 
-### Core approach: operation-level union merge (v3.0)
-Rather than last-write-wins on the whole file, every edit type is tracked as an **operation with a timestamp**. On merge, each operation type is resolved independently:
+### Merge strategy — by operation type
 
-| Operation | Merge rule |
-|---|---|
-| Task add | Union — tasks from both devices survive |
-| Task delete | Delete wins — tracked in `deleted_ids` with timestamp |
-| Check | Union — if either device checked, it's checked |
-| Uncheck | Most-recent-operation wins — compared against `checked_ids` timestamp |
+#### Manual task list (adds and deletes)
+**Union merge with explicit delete tracking** — implemented in v3.0:
+- All devices union their `manual_tasks` lists — tasks added on any device survive
+- Deletions tracked explicitly in `deleted_ids` as `{id, at}`. A task is removed if its ID appears in `deleted_ids`
+- Delete wins over presence — if device A deletes while device B is offline, task is removed when B syncs
 
-### Conflict resolution — all scenarios
+#### Done state (check / uncheck)
+- Check and uncheck both tracked explicitly with timestamps in `checked_ids` / `unchecked_ids`
+- Most recent timestamp wins — if device A checks at T1 and device B unchecks at T2 > T1, the task is unchecked
+
+#### Trello done state
+- Same as manual done state — check/uncheck synced via `done_ids`.
+- Trello task list is always authoritative from Trello's API — never merged locally.
+
+### Conflict resolution rules
 
 | Scenario | Resolution |
 |---|---|
 | Both devices add different tasks offline | Union — both tasks appear |
-| Device A deletes a task, Device B still has it | Delete wins — removed everywhere |
-| Device A checks, Device B unchecks | Most recent timestamp wins |
-| Device A adds a task, Device B is offline | Appears on B when it comes online |
-| Both devices edit offline, both come online | Each pulls, merges, pushes — converges |
-
-### Backup file schema (v3.0)
-```json
-{
-  "version": "3.0",
-  "saved_at": "<ISO timestamp>",
-  "manual_tasks": [...],
-  "done_ids": [...],
-  "deleted_ids": [{ "id": "manual_123", "at": "<ISO>" }],
-  "unchecked_ids": [{ "id": "manual_123", "at": "<ISO>" }],
-  "checked_ids": [{ "id": "manual_123", "at": "<ISO>" }],
-  "trello_config": {...},
-  "stat_alltime_done": "42",
-  "stat_streak": "3",
-  "stat_last_visit": "Mon Mar 09 2026"
-}
-```
-
-Operation logs (`deleted_ids`, `unchecked_ids`, `checked_ids`) are **day-scoped** — cleared on new day. They only need to exist long enough for both devices to sync within the same day, which the 7s ticker makes trivially likely.
+| Both devices add the same task | Deduplicate by ID — impossible since IDs are `Date.now()` per device |
+| Device A deletes a task, Device B still has it | Delete wins — task removed everywhere |
+| Device A checks a task, Device B unchecks it | Most recent timestamp wins |
+| Device A adds a task, Device B is offline | Task appears on B when it comes online |
+| Device A deletes a task while Device B is offline editing it | Delete wins — task removed when B syncs |
+| Both devices edit while offline, then both come online | Push local first, then pull and merge |
 
 ---
 
-## 3. Sync Flows
+## 3. Sync Flow — Current Implementation
 
 ### Startup
 ```
-1. Has Dropbox token?
-   NO  → render local state, start ticker
-   YES →
-     last_local_change > last_successful_backup?
-     YES → offline edits exist
-           → pull remote → mergeRemoteData() → push merged result
-     NO  → no offline edits
-           → clear last_local_change temporarily
-           → dropboxRestore(fromSync=true) — pull + merge
-           → restore last_local_change
-     → seed lastDropboxRev
-     → start ticker
+1. Check: last_local_change > last_successful_backup?
+   YES → unsynced offline changes exist
+         → dropboxBackup(silent) — preserve offline edits
+         → ticker starts
+   NO  → no offline changes
+         → dropboxRestore(fromSync=true) — pull latest from Dropbox
+         → seed lastDropboxRev from response
+         → ticker starts
 ```
 
 ### Live ticker (every 7s)
 ```
 syncAll() →
-  checkNewDay()     — midnight cleanup
-  syncTrello()      — cheap dateLastActivity check → full fetch only if changed
-  syncDropbox()     — cheap rev check → mergeRemoteData() only if rev changed
+  checkNewDay()     // midnight cleanup if date changed
+  syncTrello()      // cheap board activity check, full fetch only if changed
+  syncDropbox()     // cheap rev check, restore only if Dropbox file changed
 ```
 
-The ticker never downloads the full file unless the rev changed. This keeps background sync extremely cheap — one small metadata request every 7s.
+**syncDropbox:** fetches metadata only → compares rev → only restores if rev changed → prevents re-restoring our own writes.
 
 ### Reconnect (online event)
 ```
 1. last_local_change > last_successful_backup?
-   YES → pull remote → mergeRemoteData() → push merged result
-   NO  → skip (ticker will catch up)
+   YES → dropboxBackup(silent) — push offline edits first
+   NO  → skip backup
 2. Reload Trello if configured
 3. Resume ticker after 2s delay
 ```
 
 ### dropboxRestore — two modes
 
-| Mode | Trigger | Merge behaviour | UI |
+| Mode | Trigger | Merge behaviour | UI messages |
 |---|---|---|---|
-| `fromSync=true` | Ticker, startup, reconnect | `mergeRemoteData()` — union merge, no overwrite | Silent |
-| `fromSync=false` | Manual Restore button | Full overwrite — user explicitly requested it | Shows progress |
+| `fromSync=true` | Ticker, startup, online event | Union merge via `mergeRemoteData()` — then pushes merged state back | Silent |
+| `fromSync=false` | Manual Restore button | Full overwrite — tasks, done, config, stats | Shows progress |
 
-### mergeRemoteData() — the core merge function
-Called by both the ticker path and the startup/reconnect path. Shared logic, single place to maintain.
-
-```
-1. Build Maps from remote and local: deletedMap, uncheckedMap, checkedMap
-2. Merge maps: union of both sides (remote wins on timestamp ties)
-3. Task list: union of local + remote, filtered through mergedDeletedMap
-4. Done state: per-task, compare checkedAt vs uncheckedAt — most recent wins
-5. Persist: today_manual, today_done, operation log keys
-6. DOM: fade out removed tasks, slide in new tasks, toggle done classes
-7. Push merged result back via dropboxAutoSave()
-```
-
-Step 7 (push after merge) is what makes both devices **converge** — after any merge, the merged result is written back so the other device will see it on its next tick.
+### Rev baseline (`lastDropboxRev`)
+In-memory only. Set on startup. Updated by `_dbxSetRev()` after every backup. Prevents re-restoring our own writes.
 
 ---
 
-## 4. Backup Provider Abstraction — Planned
+## 4. Backup Provider Abstraction — Future
 
-Currently Dropbox is the only provider. The sync logic is written to be provider-agnostic — all provider-specific code is in `dropboxBackup`, `dropboxRestore`, and `_dropboxEnsureToken`. The merge logic (`mergeRemoteData`) is already fully provider-independent.
+Currently Dropbox is the only backup provider. The architecture should be prepared for user-selectable providers (Google Drive, iCloud, etc.).
 
-### Planned interface
+### Planned abstraction layer
+Define a `StorageProvider` interface that any provider must implement:
+
 ```js
 StorageProvider {
   read()           → Promise<backup_object | null>
   write(data)      → Promise<void>
-  getRevision()    → Promise<string>   // cheap metadata check for ticker
+  getRevision()    → Promise<string>   // cheap metadata check for sync ticker
   isConnected()    → boolean
   connect()        → Promise<void>
   disconnect()     → void
 }
 ```
 
-Switching providers = new implementation behind this interface. Merge logic untouched.
+All sync logic (`syncDropbox`, `dropboxRestore`, `dropboxBackup`, startup flow) would call through this interface instead of Dropbox directly. Switching providers = swapping the implementation, not rewriting sync logic.
 
 ### Provider candidates
-| Provider | Auth | Rev equivalent |
+| Provider | Auth | Notes |
 |---|---|---|
-| Dropbox | PKCE OAuth (implemented) | `rev` |
-| Google Drive | OAuth2, `drive.appdata` scope | `etag` |
-| iCloud | CloudKit JS | `changeTag` |
+| Dropbox | PKCE OAuth | Currently implemented |
+| Google Drive | OAuth2, `drive.appdata` scope | Hidden app folder, user can't accidentally delete |
+| iCloud | CloudKit JS | Apple devices only, no Android |
+
+### Migration considerations
+- Backup file schema is provider-agnostic JSON — same format works for all providers
+- Auth flows differ per provider — each needs its own Netlify function(s)
+- Rev/etag equivalent exists in all three (Dropbox `rev`, Drive `etag`, CloudKit `changeTag`)
 
 ---
 
@@ -183,7 +167,8 @@ Switching providers = new implementation behind this interface. Merge logic unto
 - Pulls cards from a selected board + list.
 - Cached in `today_trello_cache` — cleared on `checkNewDay()`.
 - Sync: board `dateLastActivity` checked every 7s — full card fetch only if changed.
-- Done state synced via `done_ids` same as manual tasks.
+- Card links styled with `--color-highlight` (#579dff).
+- Button shows `⚡` when disconnected, `✦` when connected.
 
 ---
 
@@ -193,26 +178,23 @@ Runs on every ticker tick and on startup. Triggers if `stat_last_visit` ≠ toda
 
 ```
 1. Update streak counter
-2. Remove manual tasks marked done (completed tasks don't carry over)
-3. Clear manual done IDs (Trello done IDs preserved)
+2. Remove manual tasks that were marked done
+3. Clear done IDs for manual tasks (Trello done IDs preserved)
 4. Clear today_trello_cache
-5. Clear operation logs: today_deleted_ids, today_unchecked_ids, today_checked_ids
-6. Push clean state to Dropbox
-7. Update stat_last_visit to today
+5. Push clean state to Dropbox immediately
+6. Update stat_last_visit to today
 ```
-
-Operation logs are cleared daily because they are day-scoped. Yesterday's delete/check/uncheck operations are irrelevant once the day rolls over.
 
 ---
 
 ## 7. Offline Behaviour
 
 - **Service worker** (`sw.js`): network-first, cache version `today-v{version}`
-- **Pre-cached at install:** `/` + all 6 self-hosted font files
-- **BYPASS_ORIGINS:** Trello API, Dropbox API — always network, never SW cache
+- **Pre-cached at install:** `/` + all 6 font files
+- **BYPASS_ORIGINS:** Trello API, Dropbox API, Google APIs — always network
 - All sync functions guard with `if (!navigator.onLine) return`
 - Ticker stops on `visibilitychange hidden`, resumes 2s after visible
-- Offline mutations tracked via `last_local_change` — on reconnect, pull → merge → push
+- Offline mutations tracked via `last_local_change` — pushed on next online/startup
 
 ---
 
@@ -227,32 +209,20 @@ Operation logs are cleared daily because they are day-scoped. Yesterday's delete
 
 ---
 
-## 9. Release Checklist
-> Every version bump requires ALL of the following. No exceptions.
+## 9. Key Product Rules
 
-- [ ] `APP_VERSION` constant updated in `index.html`
-- [ ] `CHANGELOG` object updated in `index.html` (shown in the app's info panel)
-- [ ] `Changelog.md` updated with full description
-- [ ] `Architecture.md` updated if any sync, data model, or product logic changed
-- [ ] Dev hours updated in `index.html`
-
----
-
-## 10. Key Product Rules
-
-1. **Operation logs are the source of truth for conflict resolution** — not file timestamps.
-2. **mergeRemoteData() is the single merge path** — ticker, startup, and reconnect all use it.
-3. **After every merge, push the result** — this is what makes devices converge.
-4. **The ticker is cheap** — rev check only; merge runs only when something changed.
-5. **Background tabs are silent** — ticker stops on hide, resumes on show.
-6. **New-day cleanup must run after Dropbox restore on startup** — `applyNewDayCleanup()` is called in the `load` event after the Dropbox pull completes. Running it before the restore caused done tasks to reappear because the pull overwrote the cleaned localStorage state.
-7. **`applyNewDayCleanup()` is the single source of truth for new-day logic** — both the startup `load` event and the ticker's `checkNewDay()` call it. Never duplicate this logic.
-8. **`_todayStr` is cached once at module load** — the ticker's `checkNewDay()` compares `stat_last_visit` against this in-memory value. `applyNewDayCleanup()` is never called on same-day ticks, making the 7s ticker zero-cost for date checking on normal usage days.
-9. **`stat_last_visit` is local device state** — it is not written to the backup file and not restored from it. Restoring it would reset the date check and cause cleanup to re-run, deleting today's surviving tasks.
-7. **Trello is read-only** — the app never writes to Trello.
-8. **Operation logs are day-scoped** — cleared on new day; no accumulation over time.
-9. **Backup file schema changes require a version bump** — currently v3.0.
-10. **Sync logic must stay provider-agnostic** — mergeRemoteData() has no Dropbox dependency.
+1. **Never overwrite unsynced local changes** — always check `last_local_change` vs `last_successful_backup`.
+2. **The ticker is cheap** — metadata/rev checks only; full fetches only when something changed.
+3. **Background tabs are silent** — ticker stops on hide, resumes on show.
+4. **New day is client-side** — based on `stat_last_visit` vs current date string.
+5. **Completed tasks do not carry over** — removed on new day cleanup.
+6. **Trello is read-only** — the app never writes to Trello.
+7. **Sync logic must be provider-agnostic** — prepare for Google Drive / iCloud as alternatives.
+8. **Backup file schema changes require a version bump** — current version is `3.0`.
+9. **`@font-face` declarations must use raw font name strings** — CSS variables are not resolved inside `@font-face`. Tokens are used everywhere else.
+10. **TODAY is focus-first, not organiser-first** — one day, one list. The constraint is the feature. Complexity that serves organisation (labels, priorities, projects) is out of scope.
+11. **Read-only pull is always the safe first step for integrations** — writeback adds product complexity and failure surface. Define "done" semantics per integration before building writeback.
+12. **Checking off in TODAY means "done for today", not "done in the source system"** — this tension must be resolved explicitly before writeback is built for any integration.
 
 ---
 
@@ -263,6 +233,7 @@ Operation logs are cleared daily because they are day-scoped. Yesterday's delete
 ├── index.html
 ├── sw.js
 ├── netlify.toml
+├── README.md
 ├── netlify/functions/
 │   ├── dropbox-token.js
 │   └── dropbox-refresh.js

@@ -104,6 +104,8 @@ Two fonts only. No exceptions.
 | `--font-display` | `'Syne', sans-serif` | Logo, headings, date, section labels |
 | `--font-mono` | `'DM Mono', monospace` | Everything else |
 
+**Important:** `@font-face { font-family: ... }` declarations must use the raw string (`'DM Mono'`, `'Syne'`) — CSS custom properties are not resolved inside `@font-face`. The tokens reference these same strings and are used everywhere else.
+
 | Token | Value | Usage |
 |---|---|---|
 | `--text-xs` | 10px | Tiny labels, kbd hints |
