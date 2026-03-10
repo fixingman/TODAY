@@ -123,9 +123,39 @@ All visual values **must** reference a token. Never hardcode a colour, spacing, 
 - Task removal (`.task.removing`): opacity + scaleY only. GPU-only. `will-change: opacity, transform`.
 - Empty state: opacity fade only — no translateY (caused jumpiness on manual delete).
 - **translateY is banned for task-level micro-interactions** — causes visible jumps mid-list.
+- **translateX is also banned on task rows** — causes horizontal drift when entering/leaving focus mode.
 - **Exception:** the splash exit stagger uses `translateY(-8px → 0)` on the whole app reveal. This is intentional — it's a one-time cinematic entrance, not a mid-list interaction.
 - Splash burst fires from the star position at `onSplashDone`. Star is null-guarded.
 - No animation should block interaction or feel like a wait.
+- **Snappy in, gentle out:** enter transitions use fast durations (~120ms). Exit/collapse transitions are slightly slower (~220ms). The UI feels responsive without abruptness on close.
+- **Prefer opacity over movement.** If a state change can be communicated through opacity alone, do not add transform. Movement implies spatial meaning — only use it when there is spatial meaning.
+
+**Focus mode animation rules (Pomodoro) — desktop only:**
+- **Desktop only.** `@media (hover: hover)` wraps all focus CSS. JS bails via `matchMedia('(hover: hover)')` on touch devices. Mobile never enters focus mode.
+- Receding tasks: opacity-only (`0.07`), `160ms ease`. Nothing translates. Nothing moves.
+- Focused task: `background` tint + `border-color` snap in via `var(--dur-fast)` (~120ms). No size, no translate.
+- **Enter is a snap, exit is an ease.** Asymmetry makes UI feel responsive on click, graceful on release.
+- Timer block expands **downward only** via `max-height: 0 → 36px` at `130ms`. One `rAF` delay — task snaps first, bar slides in second. Never causes tasks above to shift.
+- Text scale is banned — causes sibling reflow. Focused task signals through its container only.
+- Session count (`N 🍅`): inline after task text. DOM order: text → trello link → session count. Desktop hover only.
+- **No CTAs inside focused state.** `space` pauses (input-guarded), `esc` resets, clicking outside dismisses UI.
+
+**Focus mode interaction model:**
+- Click task → start session, open UI immediately.
+- Click outside → **dismiss UI only**. Timer keeps running in background. App fully interactive.
+- Click same task again → re-open UI and resume.
+- Click different task → start fresh. Previous task state cleared.
+- `space` → pause/resume (blocked if an input is focused).
+- `esc` → full stop + reset.
+- Tab away → wall-clock correction on return; timer continues accurately.
+
+**Per-task state (memory model):**
+- `taskStates` map in JS memory: `{ rem, running, wallStart }` per task ID.
+- Survives UI dismiss — timer keeps ticking when you click elsewhere.
+- Cleared on `esc` or task switch.
+- NOT persisted to localStorage — resets on page reload intentionally.
+- `focusSessions` (completed sessions) IS persisted to `manualTasks` in localStorage, shown as `N 🍅` inline on hover. Desktop only — no mobile render.
+
 
 ### Z-index
 | Token | Value |
@@ -224,7 +254,34 @@ All visual values **must** reference a token. Never hardcode a colour, spacing, 
 
 ---
 
-## 9. Haiku
+## 9. Audio Design
+
+TODAY uses synthesised audio only — no audio files, no external dependencies. All sounds are generated via the Web Audio API and fail silently if unavailable.
+
+### Completion chime (focus mode)
+Plays when a 25-minute Pomodoro session completes.
+
+| Property | Value | Rationale |
+|---|---|---|
+| Waveform | Sine | Purest, least harsh |
+| Start frequency | 432 Hz | Just below concert A — warm, not alarming |
+| End frequency | 320 Hz | Soft downward drift — feels like a breath settling |
+| Peak gain | 0.18 | Quiet — noticeable but not startling |
+| Attack | 40ms | Fast but not a click |
+| Decay | ~1.2s | Long enough to feel deliberate, short enough not to intrude |
+| Total duration | ~1.3s | Gone before the user can react negatively |
+
+**Design intent:** the sound should feel like an acknowledgement, not an alert. A single soft tone that rises and falls. The pitch drop at the end signals completion, not urgency.
+
+**Rules:**
+- Never autoplay on page load or task interaction — only on session complete.
+- Always wrap in try/catch — AudioContext may be blocked by browser policy.
+- No loops. No repeats. One chime, then silence.
+- Future sounds (e.g. session start, halfway marker) should follow the same sine/decay pattern, differentiated by pitch and duration only.
+
+---
+
+## 10. Haiku
 
 > Only today shows  
 > Done rests, quietly proud  

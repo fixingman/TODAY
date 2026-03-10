@@ -1,5 +1,15 @@
 # TODAY — Changelog
 
+## v1.6.14
+- Focus mode (Pomodoro) — click any incomplete task to start a 25min session
+- Timer bar expands downward below the focused task, fills left→right
+- Receding tasks fade to opacity only — nothing moves or shifts
+- Click outside, press `esc` to collapse; `space` to pause
+- Session count persisted per task as `N 🍅`, inline after task text
+- Trello link and session count co-exist cleanly on same row
+- Done tasks are not focusable
+- Design.md updated with full focus mode animation rules
+
 | Version | Key change |
 |---|---|
 | 1.6.13 | Fix new-day cleanup: done tasks now cleared correctly. Runs after Dropbox restore. _todayStr cached in memory — zero cost on same-day ticks |
