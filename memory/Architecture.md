@@ -19,6 +19,7 @@ All state lives in `localStorage`. There is no server-side database.
 | `today_checked_ids` | JSON array | `{id, at}` — explicit checks with timestamps |
 | `today_unchecked_ids` | JSON array | `{id, at}` — explicit unchecks with timestamps |
 | `today_trello_cache` | JSON | Cached Trello cards from last fetch |
+| `today_trello_focus` | JSON object | `{cardId: sessionCount}` — pomodoro counts for Trello tasks. Reset on new day. |
 | `trello_config` | JSON | Trello API key, token, board ID, list ID |
 | `trello_token` | string | Trello OAuth token |
 | `dropbox_token` | string | Dropbox access token |
