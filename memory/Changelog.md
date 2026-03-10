@@ -1,22 +1,16 @@
 # TODAY — Changelog
 
-## v1.6.14
-- Focus mode (Pomodoro) — click any incomplete task to start a 25min session
-- Timer bar expands downward below the focused task, fills left→right
-- Receding tasks fade to opacity only — nothing moves or shifts
-- Click outside, press `esc` to collapse; `space` to pause
-- Session count persisted per task as `N 🍅`, inline after task text
-- Trello link and session count co-exist cleanly on same row
-- Done tasks are not focusable
-- Design.md updated with full focus mode animation rules
-
 | Version | Key change |
 |---|---|
-| 1.6.13 | Fix new-day cleanup: done tasks now cleared correctly. Runs after Dropbox restore. _todayStr cached in memory — zero cost on same-day ticks |
-| 1.6.12 | Union merge sync: deleted_ids, checked_ids, unchecked_ids with timestamps. Concurrent multi-device edits preserved. Backup schema v3.0 |
-| 1.6.11 | Favicon ✦ redesign: ring fills with progress, y-offset corrected. Scrollbar hidden. Uncheck neutral — no celebration |
+| 1.6.17 | Trello popup-blocked error shown. Performance, bug & safety audit documented. |
+| 1.6.16 | Font-family tokens applied everywhere. `--opacity-dim` corrected to 0.25. Opacity scale tokenised. `Shift+;` focuses add input. All-done empty state: ✦ All done for today. Section headers: count leads, no dot, no pill. Design.md restructured. |
+| 1.6.15 | Focus mode: dismiss pauses, click resumes. `paused` flag added. Checkbox during focus logs partial session. `--dur-mid` token. Delete button vertically centred. |
+| 1.6.14 | Focus mode (Pomodoro) — 25min sessions, timer bar, recede animation, chime, session count `N 🍅` |
+| 1.6.13 | Fix new-day cleanup: done tasks now cleared correctly. Runs after Dropbox restore. `_todayStr` cached in memory |
+| 1.6.12 | Union merge sync: `deleted_ids`, `checked_ids`, `unchecked_ids` with timestamps. Backup schema v3.0 |
+| 1.6.11 | Favicon ✦ redesign: ring fills with progress. Scrollbar hidden. Uncheck neutral |
 | 1.6.10 | Self-hosted fonts: SW-cacheable, works offline. Null crash fix in splash |
-| 1.6.8 | All spacing tokenised, no hardcoded px outside :root |
+| 1.6.8 | All spacing tokenised, no hardcoded px outside `:root` |
 | 1.6.7 | Housekeeping: circular tokens, ghost vars, dead sync writes, SW accent |
 | 1.6.6 | Offline SW cache, persistent mutation tracking, backup-first reconnect |
 | 1.6.5 | iOS Safari popup fix, session expired UX cleanup |

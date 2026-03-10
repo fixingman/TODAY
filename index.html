@@ -17,42 +17,42 @@
 <style>
   /* ── Self-hosted fonts — privacy-safe, SW-cacheable, works offline ── */
   @font-face {
-    font-family: 'DM Mono';
+    font-family: var(--font-mono);
     font-weight: 300;
     font-style: normal;
     font-display: block;
     src: url('/fonts/DM%20Mono/dm-mono-v16-latin-300.woff2') format('woff2');
   }
   @font-face {
-    font-family: 'DM Mono';
+    font-family: var(--font-mono);
     font-weight: 400;
     font-style: normal;
     font-display: block;
     src: url('/fonts/DM%20Mono/dm-mono-v16-latin-regular.woff2') format('woff2');
   }
   @font-face {
-    font-family: 'DM Mono';
+    font-family: var(--font-mono);
     font-weight: 500;
     font-style: normal;
     font-display: block;
     src: url('/fonts/DM%20Mono/dm-mono-v16-latin-500.woff2') format('woff2');
   }
   @font-face {
-    font-family: 'Syne';
+    font-family: var(--font-display);
     font-weight: 400;
     font-style: normal;
     font-display: block;
     src: url('/fonts/syne/syne-v24-latin_latin-ext-regular.woff2') format('woff2');
   }
   @font-face {
-    font-family: 'Syne';
+    font-family: var(--font-display);
     font-weight: 700;
     font-style: normal;
     font-display: block;
     src: url('/fonts/syne/syne-v24-latin_latin-ext-700.woff2') format('woff2');
   }
   @font-face {
-    font-family: 'Syne';
+    font-family: var(--font-display);
     font-weight: 800;
     font-style: normal;
     font-display: block;
@@ -63,9 +63,9 @@
      FOCUS MODE (Pomodoro) — desktop only (@media hover:hover)
      Animation contract:
        Enter: 120ms snap — background + border snap in immediately.
-       Recede: 160ms ease — other tasks fade to 0.07 opacity, nothing moves.
-       Exit:  200ms ease — recede reverses, focused border fades.
-       Timer: slides open downward via max-height 130ms — two distinct beats.
+       Recede: var(--dur-mid) ease — other tasks fade to 0.07 opacity, nothing moves.
+       Exit:  var(--dur-mid) ease — recede reverses, focused border fades.
+       Timer: slides open downward via max-height var(--dur-fast) — two distinct beats.
      See Design.md § Motion > Focus mode animation rules.
   ══════════════════════════════════════════════════════════════════ */
 
@@ -77,7 +77,7 @@
       transition:
         background var(--dur-fast),
         border-color var(--dur-fast),
-        opacity 160ms ease;
+        opacity var(--dur-mid) ease;
     }
 
     /* Focused task snaps in via background+border, no opacity change */
@@ -114,7 +114,7 @@
       position: absolute;
       inset: 0;
       background: var(--accent);
-      opacity: 0.28;
+      opacity: var(--opacity-subtle);
       transform: scaleX(var(--progress, 0));
       transform-origin: left;
       transition: transform 1s linear;
@@ -122,7 +122,7 @@
     }
 
     /* Session count visible in focus mode */
-    .focusing .task.focused .session-count.has-sessions { opacity: 0.5; }
+    .focusing .task.focused .session-count.has-sessions { opacity: var(--opacity-mid); }
 
     /* Delete hidden during focus */
     .focusing .task.focused .task-delete { opacity: 0 !important; pointer-events: none; }
@@ -135,7 +135,7 @@
       border: 1px solid rgba(200,240,96,0.12);
       border-top: none;
       border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-      transition: max-height 130ms ease, opacity 130ms ease;
+      transition: max-height var(--dur-fast) ease, opacity var(--dur-fast) ease;
     }
     .focus-timer.open {
       max-height: 36px;
@@ -163,30 +163,30 @@
       transform: translateY(-50%);
       font-family: var(--font-display);
       font-weight: 700;
-      font-size: 13px;
+      font-size: var(--text-base);
       letter-spacing: -0.01em;
       color: var(--accent);
       font-variant-numeric: tabular-nums;
-      opacity: 0.8;
-      transition: opacity 200ms ease;
+      opacity: var(--opacity-strong);
+      transition: opacity var(--dur-mid) ease;
       pointer-events: none;
     }
-    .focus-timer-time.paused { opacity: 0.28; }
+    .focus-timer-time.paused { opacity: var(--opacity-subtle); }
 
     .focus-timer-paused {
       position: absolute;
       left: var(--space-4);
       top: 50%;
       transform: translateY(-50%);
-      font-size: 9px;
+      font-size: var(--text-xs);
       letter-spacing: 0.12em;
       text-transform: uppercase;
       color: var(--muted);
       opacity: 0;
-      transition: opacity 200ms ease;
+      transition: opacity var(--dur-mid) ease;
       pointer-events: none;
     }
-    .focus-timer-paused.show { opacity: 0.65; }
+    .focus-timer-paused.show { opacity: var(--opacity-muted); }
 
     .focus-kbd-hint {
       position: fixed;
@@ -199,10 +199,10 @@
       white-space: nowrap;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 200ms ease;
+      transition: opacity var(--dur-mid) ease;
       z-index: var(--z-overlay);
     }
-    .focus-kbd-hint.show { opacity: 0.4; }
+    .focus-kbd-hint.show { opacity: var(--opacity-label); }
     .focus-kbd-hint kbd {
       display: inline-block;
       border: 1px solid var(--border);
@@ -318,6 +318,7 @@
     /* ── Motion ──────────────────────────────────────────────── */
     --dur-fast:   0.15s;
     --dur-base:   0.18s;
+    --dur-mid:    0.20s;  /* focus mode exit, mid-weight transitions */
     --dur-slow:   0.30s;
     --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
     --ease-std:   ease;
@@ -327,13 +328,23 @@
     --z-splash:  500;
     --z-overlay: 999;
 
+    /* ── Opacity scale ───────────────────────────────────────── */
+    --opacity-dim:      0.25;  /* done state, secondary badges     */
+    --opacity-mid:      0.50;  /* focused session count            */
+    --opacity-soft:     0.60;  /* session count on hover           */
+    --opacity-muted:    0.65;  /* paused label, kbd hint base      */
+    --opacity-label:    0.40;  /* subtle hints, kbd hint show      */
+    --opacity-subtle:   0.28;  /* checkbox fill, timer time paused */
+    --opacity-hover:    0.85;  /* button hover states              */
+    --opacity-strong:   0.80;  /* timer time default               */
+
   }
 
   html, body {
     height: 100%;
     background: var(--bg);
     color: var(--text);
-    font-family: 'DM Mono', monospace;
+    font-family: var(--font-mono);
     font-size: var(--text-md);
     line-height: 1.6;
   }
@@ -350,7 +361,7 @@
 
   #splash-logo {
     position: relative;
-    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-family: var(--font-display); font-weight: 800;
     letter-spacing: -0.03em; line-height: 1;
     display: flex; white-space: nowrap;
     font-size: clamp(48px, 9vw, 96px);
@@ -376,7 +387,7 @@
 
   #splash-date {
     margin-top: 0.5em;
-    font-family: 'DM Mono', monospace; font-weight: 300;
+    font-family: var(--font-mono); font-weight: 300;
     font-size: clamp(9px, 1.4vw, 13px); letter-spacing: 0.2em;
     color: var(--muted); white-space: nowrap;
   }
@@ -414,7 +425,7 @@
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
     pointer-events: none;
     z-index: 0;
-    opacity: 0.4;
+    opacity: var(--opacity-label);
   }
 
   .app {
@@ -438,7 +449,7 @@
   }
 
   .header-left h1 {
-    font-family: 'Syne', sans-serif;
+    font-family: var(--font-display);
     font-size: clamp(36px, 10vw, 52px);
     font-weight: 800;
     letter-spacing: clamp(-1px, -0.04em, -2px);
@@ -505,7 +516,7 @@
   }
 
   .subheader-count span {
-    font-family: 'Syne', sans-serif;
+    font-family: var(--font-display);
     font-weight: 700;
     color: var(--text);
     font-size: var(--text-base);
@@ -544,24 +555,9 @@
     color: var(--muted);
   }
 
-  .section-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--muted);
-    flex-shrink: 0;
-  }
-
-  .section-dot.trello { background: var(--highlight); }
-  .section-dot.manual { background: var(--accent); }
-
   .section-count {
     font-size: var(--text-xs);
     color: var(--muted);
-    background: var(--surface2);
-    padding: 2px 7px;
-    border-radius: var(--radius-full);
-    border: 1px solid var(--border);
   }
 
   /* Task item */
@@ -626,7 +622,7 @@
   }
 
   .task.done {
-    opacity: 0.25 !important;
+    opacity: var(--opacity-dim) !important;
     transition: opacity var(--dur-slow) var(--ease-std);
     will-change: opacity;
   }
@@ -694,7 +690,7 @@
     letter-spacing: 0.06em;
     padding: 2px 7px;
     border-radius: var(--radius-sm);
-    font-family: 'DM Mono', monospace;
+    font-family: var(--font-mono);
   }
 
   .badge.due {
@@ -714,6 +710,7 @@
     line-height: 1;
     transition: all var(--dur-fast);
     flex-shrink: 0;
+    align-self: center;
   }
 
   .task:hover .task-delete { opacity: 1; }
@@ -760,11 +757,11 @@
     letter-spacing: 0.04em;
     transition: opacity var(--dur-fast), transform var(--dur-fast);
   }
-  .btn-coffee:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn-coffee:hover { opacity: var(--opacity-hover); transform: translateY(-1px); }
   .btn-coffee:active { opacity: 1; transform: translateY(0); }
 
   @media (hover: none) {
-    .task-delete { opacity: 0.35; }
+    .task-delete { opacity: var(--opacity-dim); }
     .task-delete:active { color: var(--danger); opacity: 1; }
   }
 
@@ -801,7 +798,7 @@
     border-radius: var(--radius-lg);
     padding: 10px 14px;
     color: var(--text);
-    font-family: 'DM Mono', monospace;
+    font-family: var(--font-mono);
     font-size: var(--text-lg);
     outline: none;
     transition: border-color var(--dur-fast);
@@ -815,7 +812,7 @@
     border: none;
     border-radius: var(--radius-lg);
     color: var(--color-bg);
-    font-family: 'Syne', sans-serif;
+    font-family: var(--font-display);
     font-weight: 700;
     font-size: var(--text-base);
     padding: 0 18px;
@@ -826,7 +823,7 @@
     white-space: nowrap;
   }
 
-  .add-task-btn:hover { opacity: 0.85; }
+  .add-task-btn:hover { opacity: var(--opacity-hover); }
 
   /* Trello config panel */
   /* ── Component: Config Panel ───────────────────────────────────────── */
@@ -869,7 +866,7 @@
   }
 
   .info-stat-val {
-    font-family: 'Syne', sans-serif;
+    font-family: var(--font-display);
     font-size: var(--text-xl);
     font-weight: 700;
     color: var(--accent);
@@ -883,7 +880,7 @@
   }
 
   .config-title {
-    font-family: 'Syne', sans-serif;
+    font-family: var(--font-display);
     font-weight: 700;
     font-size: var(--text-base);
     color: var(--highlight);
@@ -935,7 +932,7 @@
     border-radius: var(--radius-md);
     padding: 8px 12px;
     color: var(--text);
-    font-family: 'DM Mono', monospace;
+    font-family: var(--font-mono);
     font-size: var(--text-lg);
     outline: none;
     transition: border-color var(--dur-fast);
@@ -979,7 +976,7 @@
     border: none;
     border-radius: var(--radius-lg);
     color: var(--color-bg);
-    font-family: 'Syne', sans-serif;
+    font-family: var(--font-display);
     font-weight: 700;
     font-size: var(--text-sm2);
     padding: 8px 16px;
@@ -988,14 +985,14 @@
     transition: opacity var(--dur-fast);
   }
 
-  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:hover { opacity: var(--opacity-hover); }
 
   .btn-ghost {
     background: none;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     color: var(--muted);
-    font-family: 'DM Mono', monospace;
+    font-family: var(--font-mono);
     font-size: var(--text-sm2);
     padding: 8px 14px;
     cursor: pointer;
@@ -1109,7 +1106,7 @@
   /* ── Focus mode: session count inline after task text ────────────── */
   .session-count {
     display: inline;
-    font-size: 11px;
+    font-size: var(--text-sm);
     color: var(--muted);
     opacity: 0;
     margin-left: var(--space-3);
@@ -1117,8 +1114,8 @@
     pointer-events: none;
     white-space: nowrap;
   }
-  .task:hover .session-count.has-sessions { opacity: 0.45; }
-  .task.done  .session-count.has-sessions { opacity: 0.35; }
+  .task:hover .session-count.has-sessions { opacity: var(--opacity-soft); }  /* 0.60 */
+  .task.done  .session-count.has-sessions { opacity: var(--opacity-dim); }
 
   .panel-haiku {
     font-size: var(--text-sm);
@@ -1302,9 +1299,8 @@
   <!-- Trello section -->
   <div class="section" id="trelloSection">
     <div class="section-header">
-      <div class="section-dot trello"></div>
-      <div class="section-label">From Trello</div>
       <div class="section-count" id="trelloCount">0</div>
+      <div class="section-label">From Trello</div>
     </div>
     <div class="task-list" id="trelloList"></div>
     <div class="empty" id="trelloEmpty">No Trello tasks — click ⚡ to connect</div>
@@ -1313,9 +1309,8 @@
   <!-- Manual section -->
   <div class="section">
     <div class="section-header">
-      <div class="section-dot manual"></div>
-      <div class="section-label">Added by you</div>
       <div class="section-count" id="manualCount">0</div>
+      <div class="section-label">Added by you</div>
     </div>
     <div class="task-list" id="manualList"></div>
     <div class="empty" id="manualEmpty" style="display:none">Nothing added yet</div>
@@ -1338,11 +1333,14 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.14';
-const DEV_HOURS     = '36h';
+const APP_VERSION   = '1.6.17';
+const DEV_HOURS     = '40h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.17': 'Trello popup-blocked error shown | Performance, bug & safety audit documented',
+  '1.6.16': 'Font-family tokens applied everywhere | --opacity-dim corrected to 0.25 | Opacity scale tokenised | Shift+; focuses add input | All-done empty state: ✦ All done for today | Section headers: count leads, no dot, no pill',
+  '1.6.15': 'Delete button vertically centred | Pomodoro count matches section-count colour | Design token audit: --dur-mid added, hardcoded px/ms replaced with tokens | Focus mode: dismiss pauses timer, resume on re-click | Checkbox during focus logs partial session and exits cleanly',
   '1.6.14': 'Focus mode (Pomodoro) | Click any task to start a 25min session | Timer bar expands downward, fills left to right | Click outside or press esc to collapse | Space to pause | Session count persisted per task as N 🍅 | Done tasks are not focusable',
   '1.6.13': 'Completed tasks now correctly cleared on new day | applyNewDayCleanup() runs after Dropbox restore | _todayStr cached in memory — zero cost on same-day ticker ticks',
   '1.6.12': 'Union merge sync: concurrent edits preserved | deleted_ids, checked_ids, unchecked_ids with timestamps | Most-recent-operation wins on conflicts | Backup schema v3.0',
@@ -1570,6 +1568,10 @@ function trelloAuth() {
     + '&name=TODAY%20App'
     + '&callback_method=fragment';
   const popup = window.open(authUrl, 'trello_auth', 'width=600,height=700,left=200,top=100');
+  if (!popup || popup.closed) {
+    showStatus('Popup blocked — please allow popups for this site and try again.', 'error');
+    return;
+  }
 
   const poll = setInterval(function() {
     try {
@@ -1901,7 +1903,7 @@ function renderManual() {
   // Full render — only called on init/page load
   list.innerHTML = manualTasks.map((t, i) => taskHTML(t, 'manual', i * 30)).join('');
   document.getElementById('manualCount').textContent = manualTasks.length;
-  empty.style.display = manualTasks.length === 0 ? 'block' : 'none';
+  updateManualEmptyState();
 }
 
 function taskHTML(task, type, delay) {
@@ -2011,12 +2013,13 @@ function toggleDone(taskId) {
       const check = el.querySelector('.task-check');
       if (check) {
         check.style.transition = 'opacity 80ms ease';
-        check.style.opacity = '0.4';
+        check.style.opacity = '0.4'; // --opacity-label
         setTimeout(() => { check.style.opacity = ''; check.style.transition = ''; }, 160);
       }
     }
   }
   updateStats();
+  updateManualEmptyState(true);
 }
 
 function addManual() {
@@ -2047,8 +2050,56 @@ function addManual() {
   updateStats();
 }
 
+function updateManualEmptyState(animate) {
+  const empty = document.getElementById('manualEmpty');
+  if (!empty) return;
+
+  const total = manualTasks.length;
+  if (total === 0) {
+    empty.textContent = 'Nothing added yet';
+    empty.style.display = 'block';
+    return;
+  }
+
+  const doneCount = manualTasks.filter(t => doneIds.has(t.id)).length;
+  const allDone   = doneCount === total;
+
+  if (allDone) {
+    empty.textContent = '✦ All done for today';
+    if (animate) {
+      empty.style.opacity = '0';
+      empty.style.display = 'block';
+      requestAnimationFrame(() => {
+        empty.classList.add('fading-in');
+        empty.style.opacity = '';
+        empty.addEventListener('animationend', () => empty.classList.remove('fading-in'), { once: true });
+      });
+    } else {
+      empty.style.display = 'block';
+    }
+  } else {
+    empty.style.display = 'none';
+  }
+}
+
 function handleAddKey(e) {
   if (e.key === 'Enter') addManual();
+}
+
+// ── Desktop shortcut: Shift+; → focus add input ───────────────────────────
+// Mirrors the ':' key press (Shift+; on US layout). Only fires when no input
+// is already focused and hover:hover device (desktop).
+if (window.matchMedia('(hover: hover)').matches) {
+  document.addEventListener('keydown', function(e) {
+    const active = document.activeElement;
+    const inInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+    if (inInput) return;
+    if (e.shiftKey && e.key === ':') {
+      e.preventDefault();
+      const input = document.getElementById('newTask');
+      if (input) input.focus();
+    }
+  });
 }
 
 function toggleClearBtn() {
@@ -2069,8 +2120,6 @@ function deleteManual(taskId) {
   const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
   if (!el) return;
 
-  const isLast = manualTasks.length === 1;
-
   el.classList.add('removing');
   setTimeout(() => {
     el.remove();
@@ -2080,19 +2129,18 @@ function deleteManual(taskId) {
     localStorage.setItem('today_done',   JSON.stringify([...doneIds]));
     _setLastLocalChange();
     dropboxAutoSave();
+    // Animate in if showing empty state for first time
     const empty = document.getElementById('manualEmpty');
-    if (empty) {
-      if (isLast) {
-        empty.style.opacity = '0';
-        empty.style.display = 'block';
-        requestAnimationFrame(() => {
-          empty.classList.add('fading-in');
-          empty.style.opacity = '';
-          empty.addEventListener('animationend', () => empty.classList.remove('fading-in'), { once: true });
-        });
-      } else {
-        empty.style.display = 'none';
-      }
+    if (empty && manualTasks.length === 0) {
+      empty.style.opacity = '0';
+      empty.style.display = 'block';
+      requestAnimationFrame(() => {
+        empty.classList.add('fading-in');
+        empty.style.opacity = '';
+        empty.addEventListener('animationend', () => empty.classList.remove('fading-in'), { once: true });
+      });
+    } else {
+      updateManualEmptyState();
     }
     document.getElementById('manualCount').textContent = manualTasks.length;
     updateStats();
