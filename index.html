@@ -1334,11 +1334,12 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.19';
+const APP_VERSION   = '1.6.20';
 const DEV_HOURS     = '41h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.20': 'Sound design language: complete task sound, resume sound, chime revised to low organic two-osc growl. All four sounds form a family.',
   '1.6.19': 'Trello tasks now track pomodoro session counts via today_trello_focus | Resets on new day',
   '1.6.18': 'Focus mode: chime plays from background tab | Click completed timer resets and starts new session | Start sound on new session',
   '1.6.17': 'Trello popup-blocked error shown | Performance, bug & safety audit documented',
@@ -1977,6 +1978,103 @@ document.addEventListener('click', function(e) {
   }
 });
 
+// ─── Sound design language ────────────────────────────────────────────────────
+// All sine wave. Family of 4 sounds, each a gesture:
+//   start    — snappy rising chirp. Intention. 520→680 Hz, 150ms.
+//   resume   — ascending chirp, start's quieter sibling. 500→600 Hz, 120ms.
+//   complete — warm two-step fall. Satisfaction. 600→480→380 Hz, 220ms.
+//   chime    — low organic growl + wobble. Session end. Two osc, ~1.4s.
+
+function _withCtx(fn) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(function() { fn(ctx); }).catch(function() { ctx.close(); });
+    } else {
+      fn(ctx);
+    }
+  } catch(e) {}
+}
+
+// Start — snappy ascending chirp. Plays on fresh session start and reset.
+function playStartSound() {
+  _withCtx(function(ctx) {
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    const t = ctx.currentTime;
+    osc.frequency.setValueAtTime(520, t);
+    osc.frequency.exponentialRampToValueAtTime(680, t + 0.06);
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.exponentialRampToValueAtTime(0.12, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    osc.start(t); osc.stop(t + 0.15);
+    osc.onended = () => ctx.close();
+  });
+}
+
+// Resume — gentle rising nudge. Softer sibling of start.
+function playResumeSound() {
+  _withCtx(function(ctx) {
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    const t = ctx.currentTime;
+    // Same ascending shape as start (520→680) but shorter rise, lower ceiling.
+    // Clearly in the "action" family — not closure territory.
+    osc.frequency.setValueAtTime(500, t);
+    osc.frequency.exponentialRampToValueAtTime(600, t + 0.05);
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.exponentialRampToValueAtTime(0.09, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.10);
+    osc.start(t); osc.stop(t + 0.12);
+    osc.onended = () => ctx.close();
+  });
+}
+
+// Complete — warm descending two-step. Task done.
+function playCompleteSound() {
+  _withCtx(function(ctx) {
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    const t = ctx.currentTime;
+    osc.frequency.setValueAtTime(600, t);
+    osc.frequency.exponentialRampToValueAtTime(480, t + 0.09);
+    osc.frequency.exponentialRampToValueAtTime(380, t + 0.20);
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.exponentialRampToValueAtTime(0.13, t + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.07, t + 0.10);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    osc.start(t); osc.stop(t + 0.24);
+    osc.onended = () => ctx.close();
+  });
+}
+
+// Chime — low organic growl. Two detuned oscillators create a beating wobble.
+function playChime() {
+  _withCtx(function(ctx) {
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
+    const osc1 = ctx.createOscillator();
+    osc1.connect(gain); osc1.type = 'sine';
+    const osc2 = ctx.createOscillator();
+    osc2.connect(gain); osc2.type = 'sine';
+    const t = ctx.currentTime;
+    osc1.frequency.setValueAtTime(210, t);
+    osc1.frequency.exponentialRampToValueAtTime(148, t + 1.2);
+    osc2.frequency.setValueAtTime(202, t);
+    osc2.frequency.exponentialRampToValueAtTime(141, t + 1.2);
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.exponentialRampToValueAtTime(0.14, t + 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.10, t + 0.5);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 1.35);
+    osc1.start(t); osc1.stop(t + 1.4);
+    osc2.start(t); osc2.stop(t + 1.4);
+    osc1.onended = () => ctx.close();
+  });
+}
+
 // ─── Actions ──────────────────────────────────────────────────────────────────
 function toggleDone(taskId) {
   if (doneIds.has(taskId)) {
@@ -2005,8 +2103,9 @@ function toggleDone(taskId) {
     // Haptic feedback on check (Android only — iOS silently ignores this)
     if (doneIds.has(taskId) && navigator.vibrate) navigator.vibrate(40);
 
-    // Fire celebration on check only — not on uncheck
+    // Sound + celebration on check only — not on uncheck
     const isNowDone = doneIds.has(taskId);
+    if (isNowDone) playCompleteSound();
     if (isNowDone && typeof fireEmberDrift === 'function') {
       const check = el.querySelector('.task-check');
       if (check) {
@@ -3348,57 +3447,6 @@ if ('serviceWorker' in navigator) {
   }
   function clearState(taskId) { delete taskStates[taskId]; }
 
-  // ── Audio chime ───────────────────────────────────────────────────────────
-  // Sine wave 432→320 Hz, 40ms attack, 1.2s decay, gain 0.18.
-  // See Design.md § Audio.
-  function playChime() {
-    try {
-      const ctx  = new (window.AudioContext || window.webkitAudioContext)();
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
-      // Resume in case browser suspended the context (background tab policy)
-      const play = function() {
-        const t = ctx.currentTime;
-        osc.frequency.setValueAtTime(432, t);
-        osc.frequency.exponentialRampToValueAtTime(320, t + 1.0);
-        gain.gain.setValueAtTime(0.001, t);
-        gain.gain.exponentialRampToValueAtTime(0.18,  t + 0.04);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
-        osc.start(t);
-        osc.stop(t + 1.3);
-        osc.onended = () => ctx.close();
-      };
-      if (ctx.state === 'suspended') {
-        ctx.resume().then(play).catch(function() { ctx.close(); });
-      } else {
-        play();
-      }
-    } catch(e) {}
-  }
-
-  function playStartSound() {
-    try {
-      const ctx  = new (window.AudioContext || window.webkitAudioContext)();
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
-      const t = ctx.currentTime;
-      osc.frequency.setValueAtTime(520, t);
-      osc.frequency.exponentialRampToValueAtTime(680, t + 0.06);
-      gain.gain.setValueAtTime(0.001, t);
-      gain.gain.exponentialRampToValueAtTime(0.12, t + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-      osc.start(t);
-      osc.stop(t + 0.15);
-      osc.onended = () => ctx.close();
-    } catch(e) {}
-  }
-
   // ── DOM: kbd hint + timer block ───────────────────────────────────────────
   const kbdHint = document.createElement('div');
   kbdHint.className = 'focus-kbd-hint';
@@ -3539,6 +3587,7 @@ if ('serviceWorker' in navigator) {
     st.paused    = false;
     st.wallStart = Date.now();
     setPaused(false);
+    playResumeSound();
     tickFor(uiTaskId);
   }
 
@@ -3695,6 +3744,7 @@ if ('serviceWorker' in navigator) {
         st.paused    = false;
         st.wallStart = Date.now();
         setPaused(false);
+        playResumeSound();
         tickFor(taskId);
       }
       // If st.paused=true: show paused label, wait for click/space

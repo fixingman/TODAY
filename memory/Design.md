@@ -273,21 +273,23 @@ Each task has its own `{ rem, running, paused, wallStart }` in the `taskStates` 
 - Color: `var(--muted)` — same visual weight as section counts.
 - Desktop only — never rendered on mobile.
 
-### Completion chime
+### Sound design language
 
-Synthesised via Web Audio API. No audio files. Fails silently.
+Synthesised via Web Audio API. No audio files. Fails silently. All sine wave — purest, least harsh. Four sounds form a family: each is a short gesture, differentiated by pitch, direction, and duration. Never plays on load. No loops, no repeats.
 
-| Property | Value | Rationale |
-|---|---|---|
-| Waveform | Sine | Purest, least harsh |
-| Start frequency | 432 Hz | Just below concert A — warm, not alarming |
-| End frequency | 320 Hz | Soft downward drift — feels like settling |
-| Peak gain | 0.18 | Quiet but noticeable |
-| Attack | 40ms | Fast but not a click |
-| Decay | ~1.2s | Deliberate, not intrusive |
-| Total duration | ~1.3s | Gone before the user reacts negatively |
+| Sound | Trigger | Character | Frequency | Duration |
+|---|---|---|---|---|
+| **Start** | New session begins, reset from 00:00 | Snappy ascending chirp — intention | 520→680 Hz | ~150ms |
+| **Resume** | Timer resumed after pause | Ascending chirp — start's quieter sibling. Same action family, smaller gesture | 500→600 Hz | ~120ms |
+| **Complete task** | Task checked off | Warm descending two-step — satisfaction | 600→480→380 Hz | ~240ms |
+| **Session end (chime)** | 25min timer reaches 00:00 | Low organic growl with beating wobble — earned rest | Two osc: 210→148 Hz + 202→141 Hz, ~8 Hz detune creates rumble | ~1.4s |
 
-Sounds like an acknowledgement, not an alert. Never plays on load or task interaction — only on session complete. No loops, no repeats. Future sounds should follow the same sine/decay pattern, differentiated by pitch and duration only.
+**Design rules:**
+- Start and resume are ascending — they signal forward motion. Resume is quieter and shorter than start — it's a continuation, not a beginning.
+- Complete is descending — it closes a loop. Two-step shape (fast drop, slower drift) makes it feel deliberate, not accidental.
+- Session chime is the only two-oscillator sound. The ~8 Hz frequency gap between the two creates amplitude beating — an organic wobble that makes it feel alive rather than electronic. Lower register keeps it warm, not alarming.
+- All gains are quiet (peak 0.08–0.14). Present without demanding attention.
+- New sounds should follow the same sine/gesture pattern — differentiated by pitch direction, step count, and duration. Avoid harsh waveforms (square, sawtooth).
 
 ---
 
