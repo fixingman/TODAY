@@ -1338,11 +1338,12 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.21';
+const APP_VERSION   = '1.6.22';
 const DEV_HOURS     = '41h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.22': 'Chime redesigned — same sine family as start/resume/complete. Three ascending notes then a settling fade.',
   '1.6.21': 'Persistent shared AudioContext — primed on first user gesture so chime plays in background tabs',
   '1.6.20': 'Sound design language: complete task sound, resume sound, chime revised to low organic two-osc growl. All four sounds form a family.',
   '1.6.19': 'Trello tasks now track pomodoro session counts via today_trello_focus | Resets on new day',
@@ -2074,26 +2075,25 @@ function playCompleteSound() {
   });
 }
 
-// Chime — low organic growl. Two detuned oscillators create a beating wobble.
+// Chime — same sine family as start/resume/complete. Three notes ascending
+// then one settling back — done, done, done, rest. Belongs to the same sound package.
 function playChime() {
   _withCtx(function(ctx) {
-    const gain = ctx.createGain();
-    gain.connect(ctx.destination);
-    const osc1 = ctx.createOscillator();
-    osc1.connect(gain); osc1.type = 'sine';
-    const osc2 = ctx.createOscillator();
-    osc2.connect(gain); osc2.type = 'sine';
+    function note(freq, startT, vol, dur) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq, startT);
+      g.gain.setValueAtTime(0.001, startT);
+      g.gain.exponentialRampToValueAtTime(vol, startT + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, startT + dur);
+      o.start(startT); o.stop(startT + dur + 0.05);
+    }
     const t = ctx.currentTime;
-    osc1.frequency.setValueAtTime(210, t);
-    osc1.frequency.exponentialRampToValueAtTime(148, t + 1.2);
-    osc2.frequency.setValueAtTime(202, t);
-    osc2.frequency.exponentialRampToValueAtTime(141, t + 1.2);
-    gain.gain.setValueAtTime(0.001, t);
-    gain.gain.exponentialRampToValueAtTime(0.14, t + 0.06);
-    gain.gain.exponentialRampToValueAtTime(0.10, t + 0.5);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 1.35);
-    osc1.start(t); osc1.stop(t + 1.4);
-    osc2.start(t); osc2.stop(t + 1.4);
+    note(520, t,        0.10, 0.18); // same as start — familiar
+    note(600, t + 0.14, 0.09, 0.18); // step up
+    note(680, t + 0.28, 0.09, 0.22); // peak — same ceiling as start
+    note(520, t + 0.50, 0.07, 0.55); // settle back down, long fade — done
   });
 }
 
