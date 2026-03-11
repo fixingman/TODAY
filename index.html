@@ -1516,15 +1516,11 @@ let manualTasks = (() => { try { return JSON.parse(localStorage.getItem('today_m
 let doneIds     = new Set((() => { try { return JSON.parse(localStorage.getItem('today_done') || '[]'); } catch(e) { return []; } })());
 
 // ─── New-day cleanup ─────────────────────────────────────────────────────────
-// _todayStr is set once at module load and cached in memory.
-// The ticker's checkNewDay() compares against it — zero localStorage cost on same-day ticks.
-// applyNewDayCleanup() is only called when the date has actually changed.
-const _todayStr = new Date().toDateString();
-
 function applyNewDayCleanup() {
+  const today = new Date().toDateString();
   // Guard: only run if last visit was a different day
   const lastVisit = localStorage.getItem('stat_last_visit');
-  if (!lastVisit || lastVisit === _todayStr) return;
+  if (!lastVisit || lastVisit === today) return;
 
   const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
   const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
@@ -1547,7 +1543,11 @@ function applyNewDayCleanup() {
   localStorage.removeItem('today_unchecked_ids');
   localStorage.removeItem('today_checked_ids');
 
-  localStorage.setItem('stat_last_visit', _todayStr);
+  // Habits: completions are append-only ISO date strings — no data is deleted.
+  // Re-render so the new day's dot appears and yesterday's checks show as history.
+  renderHabits();
+
+  localStorage.setItem('stat_last_visit', today);
 
   // Push clean state so sync ticker doesn't restore yesterday's tasks from Dropbox
   const tok = localStorage.getItem('dropbox_token');
@@ -1581,7 +1581,7 @@ function init() {
     // Seed from cache immediately so the UI isn't blank while API loads
     // Cache is validated by date AND boardId — stale date or board change = ignored
     const _trelloCache = (() => { try { return JSON.parse(localStorage.getItem('today_trello_cache') || 'null'); } catch(e) { return null; } })();
-    if (_trelloCache && _trelloCache.date === _todayStr && _trelloCache.boardId === saved.boardId && Array.isArray(_trelloCache.tasks)) {
+    if (_trelloCache && _trelloCache.date === new Date().toDateString() && _trelloCache.boardId === saved.boardId && Array.isArray(_trelloCache.tasks)) {
       trelloTasks = _trelloCache.tasks;
       renderTrello();
       updateStats();
@@ -2038,10 +2038,13 @@ function _getDueStr(task) {
   if (!task.due) return '';
   const d   = new Date(task.due);
   const now = new Date();
-  const isOverdue = d < now && d.toDateString() !== now.toDateString();
-  return isOverdue
-    ? d.toLocaleDateString('en-US', { month:'short', day:'numeric' })
-    : d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+  // Future date (after today) — hide the badge entirely
+  if (d.toDateString() !== now.toDateString() && d > now) return '';
+  // Overdue (past, not today) — show the date
+  if (d < now && d.toDateString() !== now.toDateString())
+    return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  // Due today — show the time
+  return d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
 }
 
 function renderManual() {
@@ -3217,6 +3220,7 @@ async function dropboxBackup(silent) {
 // Called by dropboxRestore(fromSync=true) AND by the offline-reconnect path.
 // Returns true if any state changed (so caller knows whether to push back to Dropbox).
 function mergeRemoteData(data) {
+  let _changed = false;
   const remoteTasks     = Array.isArray(data.manual_tasks)  ? data.manual_tasks  : [];
   const remoteDone      = Array.isArray(data.done_ids)      ? data.done_ids      : [];
   const remoteDeleted   = Array.isArray(data.deleted_ids)   ? data.deleted_ids   : [];
@@ -3334,19 +3338,31 @@ function mergeRemoteData(data) {
     if (empty) empty.style.display = 'none';
   }
 
+  const prevTaskIds = new Set(manualTasks.map(t => t.id));
+  const nextTaskIds = new Set(mergedTasks.map(t => t.id));
+  if (prevTaskIds.size !== nextTaskIds.size || [...nextTaskIds].some(id => !prevTaskIds.has(id))) _changed = true;
+
+  const prevDone = JSON.stringify([...doneIds].sort());
+  const nextDone = JSON.stringify([...mergedDoneIds].sort());
+  if (prevDone !== nextDone) _changed = true;
+
   manualTasks = mergedTasks;
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));
 
   doneIds = mergedDoneIds;
   localStorage.setItem('today_done', JSON.stringify([...doneIds]));
 
-  document.querySelectorAll('.task[data-taskid]').forEach(el => {
-    el.classList.toggle('done', doneIds.has(el.dataset.taskid));
-  });
-  document.getElementById('manualCount').textContent = manualTasks.length;
-  const emptyEl = document.getElementById('manualEmpty');
-  if (emptyEl) emptyEl.style.display = manualTasks.length === 0 ? 'block' : 'none';
+  // Full re-render if tasks were added or removed — surgical patch is not enough
+  if (_changed) {
+    renderManual();
+  } else {
+    // Only done state changed — patch in place, no DOM rebuild needed
+    document.querySelectorAll('.task[data-taskid]').forEach(el => {
+      el.classList.toggle('done', doneIds.has(el.dataset.taskid));
+    });
+  }
   updateStats();
+  return _changed;
 }
 
 // ── Restore ───────────────────────────────────────────────────────────────────
@@ -3392,10 +3408,10 @@ async function dropboxRestore(fromSync) {
       // Rev change in syncDropbox() already ensures we only run when something changed.
 
       // Union merge via shared mergeRemoteData() — handles tasks, deletes, check/uncheck
-      mergeRemoteData(data);
-
-      // Push merged state back so both devices converge on the same file
-      dropboxAutoSave();
+      // Only push back if the merge actually changed local state — avoids rev churn
+      // where every device rewrites the file every 7s even when nothing changed.
+      const changed = mergeRemoteData(data);
+      if (changed) dropboxAutoSave();
 
       const label = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       const syncEl = document.getElementById('dropboxStatusLine');
@@ -3491,10 +3507,10 @@ async function dropboxRestore(fromSync) {
 
   // Midnight cleanup
   function checkNewDay() {
-    // _todayStr is cached at module load — no localStorage read needed here.
-    // applyNewDayCleanup() has its own guard; this outer check avoids calling
-    // it at all on same-day ticks, which is the common case (every 7s all day).
-    if (localStorage.getItem('stat_last_visit') === _todayStr) return;
+    // Compute today fresh each tick — a cached value set at module load would be
+    // stale if the app stays open past midnight without a reload.
+    const today = new Date().toDateString();
+    if (localStorage.getItem('stat_last_visit') === today) return;
     applyNewDayCleanup();
     renderManual();
     loadTrello();
@@ -3556,10 +3572,12 @@ async function dropboxRestore(fromSync) {
         });
         if (r.ok) {
           const remoteData = await r.json();
-          mergeRemoteData(remoteData);
+          mergeRemoteData(remoteData); // renderManual called inside if tasks changed
         }
       } catch(e) { /* push local as-is if fetch fails */ }
       await dropboxBackup(true);
+      renderManual(); // always re-render after reconnect merge — DOM may be stale
+      updateStats();
     }
 
     // Refresh Trello so cached tasks get replaced with fresh data
@@ -3609,10 +3627,11 @@ async function dropboxRestore(fromSync) {
             });
             if (r.ok) {
               const remoteData = await r.json();
-              mergeRemoteData(remoteData); // merge into local state
+              mergeRemoteData(remoteData); // merge into local state, renderManual called inside if tasks changed
             }
           } catch(e) { /* offline or missing file — push local as-is */ }
-          await dropboxBackup(true); // push merged (or local-only) state
+          await dropboxBackup(true); // always push on startup unsynced path — local changes need uploading
+          renderManual(); // ensure DOM reflects merged state regardless
         } else {
           // No offline edits — pull latest from Dropbox cleanly
           const saved = localStorage.getItem('last_local_change');
