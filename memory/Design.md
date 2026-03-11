@@ -357,6 +357,9 @@ Synthesised via Web Audio API. No audio files. Fails silently. All sine wave —
 7. **Circular CSS token references are bugs.** A token must never reference itself.
 8. **Duplicate CSS classes are bugs.** One class, one definition.
 9. **SW cache version must match `APP_VERSION`** on every deploy.
+10. **Sweep for dead code on every housekeeping pass** — but reason carefully before removing anything. A function that appears unreferenced in JS may still be called via an inline `onclick` in HTML, a dynamic string, or a Dropbox/Trello callback. A CSS class that appears unused may be added by JS at runtime. The test is: *could this be reached at runtime by any code path, including dynamic ones?* If genuinely unreachable, remove it and note it in the changelog. If uncertain, leave it and add a comment explaining why.
+11. **Check for critical bugs before shipping** — on every housekeeping pass, manually review: (a) any function that writes to `localStorage` without a try/catch — quota failures are silent; (b) any merge or restore path that could silently overwrite local data; (c) any place a missing DOM element could cause a null-reference crash mid-session; (d) any async operation whose error is swallowed entirely with no fallback. These are the four most common silent failure modes in this codebase.
+12. **Security and privacy sweep on every housekeeping pass** — verify: (a) all user-supplied content still goes through `esc()` before touching `innerHTML` — new features are the most common way XSS surfaces are introduced; (b) no new external origin has been added to fetch calls, script tags, or `new URL()` constructions without being added to `BYPASS_ORIGINS` in `sw.js`; (c) no token, key, or credential appears in a URL query string — all must be in headers; (d) `sessionStorage` PKCE keys are still cleaned up after OAuth exchange. Report any finding as a comment in the relevant code and as a row in the audit table in `Performance-audit.md`.
 
 ---
 
