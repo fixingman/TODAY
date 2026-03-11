@@ -1173,24 +1173,21 @@
 
   .habit {
     display: grid;
-    grid-template-columns: 18px 1fr auto 48px;
+    grid-template-columns: 18px 1fr auto 32px;
     align-items: center;
     gap: var(--space-3);
-    padding: var(--space-2) var(--space-4);
-    min-height: 48px;
+    padding: var(--space-3) var(--space-4);
     border-radius: var(--radius-lg);
     border: 1px solid transparent;
-    transition: background var(--dur-fast);
-    animation: fadeIn var(--dur-slow) var(--ease-std);
+    transition: background var(--dur-fast), border-color var(--dur-fast);
   }
-  .habit:hover { background: var(--color-surface2); }
+  .habit-new { animation: fadeIn var(--dur-slow) var(--ease-std); }
+  .habit:hover { background: var(--color-surface2); border-color: var(--color-border); }
 
-  .habit.editing {
-    grid-template-columns: 1fr auto;
-    gap: var(--space-2);
-    background: var(--color-surface2);
-    border-color: var(--color-border);
-  }
+  /* Edit mode: no global box — rows reveal individually on hover */
+  .habit.editing { background: transparent; border-color: transparent; }
+  .habit.editing:hover { background: var(--color-surface2); border-color: var(--color-border); }
+  .habit.editing .habit-check { visibility: hidden; }
 
   .habit-check {
     width: 18px; height: 18px; flex-shrink: 0;
@@ -1213,7 +1210,7 @@
 
   .habit-week { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
   .week-dot {
-    width: 6px; height: 6px; border-radius: 50%;
+    width: 5px; height: 5px; border-radius: 50%;
     background: var(--color-border); flex-shrink: 0;
     transition: background var(--dur-fast);
   }
@@ -1222,24 +1219,32 @@
   .week-dot.filled.is-today { outline-color: var(--accent); }
 
   .habit-streak {
-    width: 48px; height: 48px; flex-shrink: 0;
+    width: 32px; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    margin-right: -8px;
+    position: relative;
+  }
+  .habit-streak::after {
+    content: ''; position: absolute; inset: -16px 0;
   }
   .streak-label { font-size: var(--text-xs); color: var(--muted); letter-spacing: 0.04em; white-space: nowrap; }
   .streak-label.hot { color: var(--accent); }
 
   .habit-edit-input {
-    flex: 1; min-width: 0; background: transparent; border: none;
+    display: block; flex: 1; min-width: 0; width: 100%;
+    background: transparent; border: none;
     color: var(--text); font-family: var(--font-mono); font-size: var(--text-task);
-    outline: none; padding: 0; line-height: 1.4;
+    outline: none; padding: 0; margin: 0; line-height: 1.4;
+    height: calc(var(--text-task) * 1.4);
+    box-sizing: content-box;
   }
   .habit-edit-input::placeholder { color: var(--muted); }
   .habit-edit-delete {
     background: none; border: none; color: var(--muted);
-    font-size: var(--text-lg); cursor: pointer; padding: 4px 6px;
+    font-size: var(--text-lg); cursor: pointer; padding: 0;
     border-radius: var(--radius-md); line-height: 1;
     transition: color var(--dur-fast);
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 100%; flex-shrink: 0;
   }
   .habit-edit-delete:hover { color: var(--danger); }
 
@@ -1298,7 +1303,7 @@
       <h1>TO<span>DAY</span></h1>
     </div>
     <div class="header-actions">
-      <button class="btn-icon" id="habitsBtn" title="Habits" onclick="toggleHabits()">%&#xFE0E;</button>
+      <button class="btn-icon" id="habitsBtn" title="Habits" onclick="toggleHabits()">◎&#xFE0E;</button>
       <button class="btn-icon" id="trelloBtn" title="Connections" onclick="toggleConfig()">✦&#xFE0E;</button>
       <button class="btn-icon" id="infoBtn" title="About" onclick="toggleInfo()">ℹ&#xFE0E;</button>
     </div>
@@ -1316,7 +1321,7 @@
 
   <!-- Habits panel -->
   <div class="config-panel" id="habitsPanel">
-    <div class="config-title">% Habits</div>
+    <div class="config-title">◎ Habits</div>
     <div class="habit-list" id="habitList"></div>
     <div class="habit-empty" id="habitEmpty">No habits yet.</div>
     <div class="habit-add-row" id="habitAddRow">
@@ -1462,11 +1467,13 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.25';
-const DEV_HOURS     = '43h';
+const APP_VERSION   = '1.6.27';
+const DEV_HOURS     = '47h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.27': 'Housekeeping: SW cache version synced to 1.6.27 | Removed empty duplicate .habit-name rule | Habit check now fires ember burst + uncheck pulse matching tasks | No layout shift entering edit mode — padding constant across modes | Edit mode hover-only row reveal | Button order: New habit before Edit | Surgical toggleHabitDone — no list re-render on check',
+  '1.6.26': 'Habits synced via Dropbox: union merge for habit list and completions | deleted_habit_ids for propagating deletes | backup schema v4.0',
   '1.6.25': 'Habits panel: week dots, streak counter, edit mode, add new habit. today_habits + today_habit_completions storage keys.',
   '1.6.24': 'Fix: syncDropbox now refreshes expired token before metadata check — ticker no longer silently fails after hours away.',
   '1.6.23': 'Top bar restructured: Habits button added (stub), refresh removed, Trello refresh moved to config panel.',
@@ -2116,11 +2123,12 @@ document.addEventListener('click', function(e) {
 });
 
 // ─── Sound design language ────────────────────────────────────────────────────
-// All sine wave. Family of 4 sounds, each a gesture:
-//   start    — snappy rising chirp. Intention. 520→680 Hz, 150ms.
-//   resume   — ascending chirp, start's quieter sibling. 500→600 Hz, 120ms.
-//   complete — warm two-step fall. Satisfaction. 600→480→380 Hz, 220ms.
-//   chime    — low organic growl + wobble. Session end. Two osc, ~1.4s.
+// All sine wave. Family of 5 sounds, each a gesture:
+//   start      — snappy rising chirp. Intention. 520→680 Hz, 150ms.
+//   resume     — ascending chirp, start's quieter sibling. 500→600 Hz, 120ms.
+//   complete   — warm two-step fall. Task done. 600→480→380 Hz, 240ms.
+//   habitDone  — heavier three-step fall. Habit done. 520→400→300 Hz, 320ms.
+//   chime      — low organic growl + wobble. Session end. Two osc, ~1.4s.
 
 // Persistent AudioContext — created once on first user gesture, kept alive.
 // A context created during a user interaction survives background tabs.
@@ -2206,6 +2214,27 @@ function playCompleteSound() {
   });
 }
 
+// Habit done — heavier sibling of complete. Same descending gesture, more body:
+// starts lower (520 Hz vs 600), three steps instead of two (520→400→300 Hz),
+// slightly longer tail (320ms vs 240ms), marginally fuller gain (0.16 vs 0.13).
+// The extra step and lower floor give it more gravity — a habit earns it.
+function playHabitDoneSound() {
+  _withCtx(function(ctx) {
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    const t = ctx.currentTime;
+    osc.frequency.setValueAtTime(520, t);
+    osc.frequency.exponentialRampToValueAtTime(400, t + 0.10);
+    osc.frequency.exponentialRampToValueAtTime(300, t + 0.26);
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.exponentialRampToValueAtTime(0.16, t + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.08, t + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.30);
+    osc.start(t); osc.stop(t + 0.32);
+  });
+}
+
 // Chime — same sine family as start/resume/complete. Three notes ascending
 // then one settling back — done, done, done, rest. Belongs to the same sound package.
 function playChime() {
@@ -2238,9 +2267,13 @@ function _saveHabits() {
   localStorage.setItem('today_habit_completions', JSON.stringify(habitCompletions));
 }
 
-function _getWeekDates() {
+function _habitTodayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function _getHabitDates() {
   const days = [];
-  for (let i = 6; i >= 0; i--) {
+  for (let i = 20; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
     days.push(d.toISOString().slice(0, 10));
   }
@@ -2258,39 +2291,35 @@ function _getStreak(id) {
 }
 
 function renderHabits() {
-  const list  = document.getElementById('habitList');
-  const empty = document.getElementById('habitEmpty');
-  if (!list) return;
-  const week = _getWeekDates();
+  const list    = document.getElementById('habitList');
+  const empty   = document.getElementById('habitEmpty');
   const editBtn = document.getElementById('habitEditBtn');
-  if (editBtn) editBtn.style.display = habitsList.length > 0 ? '' : 'none';
+  if (!list) return;
+  const week = _getHabitDates();
   empty.classList.toggle('show', habitsList.length === 0);
+  if (editBtn) editBtn.style.display = habitsList.length > 0 ? '' : 'none';
   list.innerHTML = '';
   const CHK = `<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#0e0e10" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   habitsList.forEach(h => {
     const ds     = new Set(habitCompletions[h.id] || []);
-    const isDone = ds.has(_todayStr);
+    const isDone = ds.has(_habitTodayISO());
     const streak = _getStreak(h.id);
-    const dots   = week.map(d => `<span class="week-dot${ds.has(d) ? ' filled' : ''}${d === _todayStr ? ' is-today' : ''}"></span>`).join('');
+    const dots = week.map((d, i) => {
+      const opacity = i >= 14 ? 1 : (0.12 + (i / 14) * 0.70);
+      const style   = `opacity:${opacity.toFixed(2)}`;
+      return `<span class="week-dot${ds.has(d) ? ' filled' : ''}${d === _habitTodayISO() ? ' is-today' : ''}" style="${style}"></span>`;
+    }).join('');
     const streakTxt = streak > 0 ? `${streak}d` : '—';
     const el = document.createElement('div');
-
-    if (habitEditMode) {
-      el.className = 'habit editing';
-      el.innerHTML = `
-        <input class="habit-edit-input" value="${esc(h.name)}" maxlength="100"
-          onkeydown="handleHabitEditKey(event)" placeholder="Habit name…">
-        <button class="habit-edit-delete" onclick="deleteHabit('${h.id}')">×</button>`;
-    } else {
-      el.className = `habit${isDone ? ' done-today' : ''}`;
-      el.innerHTML = `
-        <div class="habit-check" onclick="toggleHabitDone('${h.id}')">${CHK}</div>
-        <div class="habit-body"><div class="habit-name">${esc(h.name)}</div></div>
-        <div class="habit-week">${dots}</div>
-        <div class="habit-streak" title="${streak} day streak">
-          <span class="streak-label${streak >= 7 ? ' hot' : ''}">${streakTxt}</span>
-        </div>`;
-    }
+    el.className = `habit${isDone ? ' done-today' : ''}`;
+    el.dataset.habitId = h.id;
+    el.innerHTML = `
+      <div class="habit-check" onclick="toggleHabitDone('${h.id}')">${CHK}</div>
+      <div class="habit-body"><div class="habit-name">${esc(h.name)}</div></div>
+      <div class="habit-week">${dots}</div>
+      <div class="habit-streak" title="${streak} day streak">
+        <span class="streak-label${streak >= 7 ? ' hot' : ''}">${streakTxt}</span>
+      </div>`;
     list.appendChild(el);
   });
 }
@@ -2308,31 +2337,73 @@ function toggleHabits() {
   }
 }
 
-function _saveAllHabitEdits() {
-  document.querySelectorAll('#habitList .habit-edit-input').forEach(input => {
-    const id   = input.closest('.habit').querySelector('.habit-edit-delete').getAttribute('onclick').match(/'([^']+)'/)[1];
-    const name = input.value.trim();
-    const h    = habitsList.find(h => h.id === id);
-    if (h && name) h.name = name;
-  });
-  _saveHabits();
-}
-
 function toggleHabitEditMode() {
-  if (habitEditMode) _saveAllHabitEdits(); // closing — save first
+  if (habitEditMode) {
+    // Exiting edit — save values and swap inputs back to text
+    document.querySelectorAll('#habitList .habit[data-habit-id]').forEach(row => {
+      const id    = row.dataset.habitId;
+      const input = row.querySelector('.habit-edit-input');
+      const del   = row.querySelector('.habit-edit-delete');
+      if (!input || !del) return;
+      const h    = habitsList.find(h => h.id === id);
+      const name = input.value.trim();
+      if (h && name) h.name = name;
+      // Swap input → name div
+      const nameDiv = document.createElement('div');
+      nameDiv.className   = 'habit-name';
+      nameDiv.textContent = h ? h.name : name;
+      input.replaceWith(nameDiv);
+      // Swap delete → streak div
+      const streak    = _getStreak(id);
+      const streakDiv = document.createElement('div');
+      streakDiv.className = 'habit-streak';
+      streakDiv.title     = streak + ' day streak';
+      streakDiv.innerHTML = `<span class="streak-label${streak >= 7 ? ' hot' : ''}">${streak > 0 ? streak + 'd' : '—'}</span>`;
+      del.replaceWith(streakDiv);
+      row.classList.remove('editing');
+    });
+    _saveHabits();
+  } else {
+    // Entering edit — swap text to inputs in place
+    document.querySelectorAll('#habitList .habit[data-habit-id]').forEach(row => {
+      const id      = row.dataset.habitId;
+      const h       = habitsList.find(h => h.id === id);
+      if (!h) return;
+      const nameDiv   = row.querySelector('.habit-name');
+      const streakDiv = row.querySelector('.habit-streak');
+      if (!nameDiv || !streakDiv) return;
+      // Set class first — so visibility:hidden on checkbox applies before any repaint
+      row.classList.add('editing');
+      // Swap name div → input
+      const input       = document.createElement('input');
+      input.className   = 'habit-edit-input';
+      input.value       = h.name;
+      input.maxLength   = 100;
+      input.dataset.id  = id;
+      input.placeholder = 'Habit name…';
+      input.addEventListener('keydown', handleHabitEditKey);
+      nameDiv.replaceWith(input);
+      // Swap streak div → delete button
+      const del       = document.createElement('button');
+      del.className   = 'habit-edit-delete';
+      del.textContent = '×';
+      del.title       = 'Delete';
+      del.addEventListener('click', () => deleteHabit(id));
+      streakDiv.replaceWith(del);
+    });
+    // Close new-habit input if open
+    document.getElementById('habitAddRow').classList.remove('open');
+    document.getElementById('habitNewBtn').classList.remove('active');
+  }
   habitEditMode = !habitEditMode;
   const btn = document.getElementById('habitEditBtn');
   btn.textContent = habitEditMode ? 'Done' : 'Edit';
   btn.classList.toggle('active', habitEditMode);
-  if (habitEditMode) {
-    document.getElementById('habitAddRow').classList.remove('open');
-    document.getElementById('habitNewBtn').classList.remove('active');
-  }
-  renderHabits();
 }
 
 function handleHabitEditKey(e) {
   if (e.key === 'Escape') toggleHabitEditMode();
+  if (e.key === 'Enter')  e.target.blur();
 }
 
 function toggleHabitInput() {
@@ -2342,9 +2413,8 @@ function toggleHabitInput() {
   row.classList.toggle('open', !isOpen);
   btn.classList.toggle('active', !isOpen);
   if (!isOpen) {
-    habitEditMode = false;
-    document.getElementById('habitEditBtn').classList.remove('active');
-    renderHabits();
+    // Close edit mode if open — exit cleanly without re-rendering
+    if (habitEditMode) toggleHabitEditMode();
     setTimeout(() => document.getElementById('habitInput').focus(), 30);
   }
 }
@@ -2358,8 +2428,12 @@ function addHabit() {
   const input = document.getElementById('habitInput');
   const name  = input.value.trim();
   if (!name) return;
-  habitsList.push({ id: 'habit_' + Date.now(), name, created_at: _todayStr });
+  const newId = 'habit_' + Date.now();
+  habitsList.push({ id: newId, name, created_at: _habitTodayISO() });
   _saveHabits(); renderHabits();
+  // Animate only the newly added row — not every row on every renderHabits call
+  const newRow = document.querySelector('.habit[data-habit-id="' + newId + '"]');
+  if (newRow) newRow.classList.add('habit-new');
   input.value = '';
   document.getElementById('habitAddRow').classList.remove('open');
   document.getElementById('habitNewBtn').classList.remove('active');
@@ -2367,15 +2441,57 @@ function addHabit() {
 
 function toggleHabitDone(id) {
   if (!habitCompletions[id]) habitCompletions[id] = [];
-  const i = habitCompletions[id].indexOf(_todayStr);
-  if (i === -1) habitCompletions[id].push(_todayStr);
-  else habitCompletions[id].splice(i, 1);
-  _saveHabits(); renderHabits();
+  const today   = _habitTodayISO();
+  const i       = habitCompletions[id].indexOf(today);
+  const isNowDone = i === -1;
+  if (isNowDone) { habitCompletions[id].push(today); playHabitDoneSound(); }
+  else           { habitCompletions[id].splice(i, 1); }
+  _saveHabits();
+
+  // Surgical DOM — never rebuild the list, just patch the affected row
+  const el = document.querySelector('.habit[data-habit-id="' + id + '"]');
+  if (!el) return;
+
+  el.classList.toggle('done-today', isNowDone);
+
+  // Update dot fill for today
+  el.querySelectorAll('.week-dot.is-today').forEach(dot => {
+    dot.classList.toggle('filled', isNowDone);
+  });
+
+  // Update streak label
+  const streak   = _getStreak(id);
+  const streakEl = el.querySelector('.streak-label');
+  if (streakEl) {
+    streakEl.textContent = streak > 0 ? streak + 'd' : '—';
+    streakEl.className   = 'streak-label' + (streak >= 7 ? ' hot' : '');
+  }
+
+  const check = el.querySelector('.habit-check');
+  if (isNowDone) {
+    // Haptic + ember burst, matching task check
+    if (navigator.vibrate) navigator.vibrate(40);
+    if (check && typeof fireEmberDrift === 'function') {
+      const r = check.getBoundingClientRect();
+      fireEmberDrift(r.left + r.width / 2, r.top + r.height / 2);
+    }
+  } else {
+    // Uncheck: brief neutral pulse on the checkbox
+    if (check) {
+      check.style.transition = 'opacity 80ms ease';
+      check.style.opacity = '0.4';
+      setTimeout(() => { check.style.opacity = ''; check.style.transition = ''; }, 160);
+    }
+  }
 }
 
 function deleteHabit(id) {
   habitsList = habitsList.filter(h => h.id !== id);
   delete habitCompletions[id];
+  // Track deletion so other devices remove it on next sync
+  const deleted = new Set(JSON.parse(localStorage.getItem('today_deleted_habit_ids') || '[]'));
+  deleted.add(id);
+  localStorage.setItem('today_deleted_habit_ids', JSON.stringify([...deleted]));
   _saveHabits(); renderHabits();
 }
 
@@ -3028,16 +3144,20 @@ async function dropboxBackup(silent) {
   const now = new Date().toISOString();
   const safeJSON = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); } catch(e) { return fallback; } };
   const data = {
-    version:      '3.0',
+    version:      '4.0',
     saved_at:     now,
     manual_tasks:      safeJSON('today_manual', []),
     done_ids:          safeJSON('today_done',   []),
-    deleted_ids:       _getDeletedIds(),   // [{id, at}] — explicit deletes for union merge
-    unchecked_ids:     _getUncheckedIds(), // [{id, at}] — explicit unchecks with timestamps
-    checked_ids:       _getCheckedIds(),   // [{id, at}] — explicit checks with timestamps
+    deleted_ids:       _getDeletedIds(),
+    unchecked_ids:     _getUncheckedIds(),
+    checked_ids:       _getCheckedIds(),
     trello_config:     safeJSON('trello_config', {}),
     stat_alltime_done: localStorage.getItem('stat_alltime_done') || '0',
     stat_streak:       localStorage.getItem('stat_streak')       || '1',
+    // Habits — persisted cross-device
+    habits:               safeJSON('today_habits',            []),
+    habit_completions:    safeJSON('today_habit_completions', {}),
+    deleted_habit_ids:    safeJSON('today_deleted_habit_ids', []),
     // stat_last_visit intentionally excluded — it's local device state, meaningless on another device
   };
 
@@ -3159,6 +3279,34 @@ function mergeRemoteData(data) {
     }
   });
 
+  // ── Habits: union merge ──────────────────────────────────────────────────
+  const remoteHabits      = Array.isArray(data.habits)            ? data.habits            : [];
+  const remoteHabitComps  = (data.habit_completions && typeof data.habit_completions === 'object') ? data.habit_completions : {};
+  const remoteDeletedHabitIds = new Set(Array.isArray(data.deleted_habit_ids) ? data.deleted_habit_ids : []);
+  const localDeletedHabitIds  = new Set(JSON.parse(localStorage.getItem('today_deleted_habit_ids') || '[]'));
+  const mergedDeletedHabitIds = new Set([...localDeletedHabitIds, ...remoteDeletedHabitIds]);
+
+  // Union of local + remote habits, minus any deleted
+  const habitMap = new Map();
+  habitsList.forEach(h => habitMap.set(h.id, h));
+  remoteHabits.forEach(h => { if (!habitMap.has(h.id)) habitMap.set(h.id, h); });
+  habitsList = [...habitMap.values()].filter(h => !mergedDeletedHabitIds.has(h.id));
+
+  // Union of completions — for each habit, merge date arrays (dedup)
+  const allHabitIds = new Set([...Object.keys(habitCompletions), ...Object.keys(remoteHabitComps)]);
+  allHabitIds.forEach(id => {
+    const local  = new Set(habitCompletions[id]  || []);
+    const remote = new Set(remoteHabitComps[id]  || []);
+    habitCompletions[id] = [...new Set([...local, ...remote])];
+  });
+
+  localStorage.setItem('today_habits',            JSON.stringify(habitsList));
+  localStorage.setItem('today_habit_completions', JSON.stringify(habitCompletions));
+  localStorage.setItem('today_deleted_habit_ids', JSON.stringify([...mergedDeletedHabitIds]));
+
+  const habitsPanel = document.getElementById('habitsPanel');
+  if (habitsPanel && habitsPanel.classList.contains('open')) renderHabits();
+
   // ── Persist merged operation logs ────────────────────────────────────────
   localStorage.setItem('today_deleted_ids',   JSON.stringify([...mergedDeletedMap.entries()].map(([id,at]) => ({id,at}))));
   localStorage.setItem('today_unchecked_ids', JSON.stringify([...mergedUncheckedMap.entries()].map(([id,at]) => ({id,at}))));
@@ -3265,6 +3413,16 @@ async function dropboxRestore(fromSync) {
       if (data.trello_config)     localStorage.setItem('trello_config',     JSON.stringify(data.trello_config));
       if (data.stat_alltime_done) localStorage.setItem('stat_alltime_done', data.stat_alltime_done);
       if (data.stat_streak)       localStorage.setItem('stat_streak',       data.stat_streak);
+      // Habits
+      if (Array.isArray(data.habits)) {
+        habitsList       = data.habits;
+        habitCompletions = (data.habit_completions && typeof data.habit_completions === 'object') ? data.habit_completions : {};
+        localStorage.setItem('today_habits',            JSON.stringify(habitsList));
+        localStorage.setItem('today_habit_completions', JSON.stringify(habitCompletions));
+        localStorage.setItem('today_deleted_habit_ids', JSON.stringify(Array.isArray(data.deleted_habit_ids) ? data.deleted_habit_ids : []));
+        const habitsPanel = document.getElementById('habitsPanel');
+        if (habitsPanel && habitsPanel.classList.contains('open')) renderHabits();
+      }
       // stat_last_visit intentionally NOT restored — it's local device state.
       // Restoring it would cause applyNewDayCleanup() to re-run and delete today's tasks.
       renderManual();
