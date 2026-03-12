@@ -1469,11 +1469,12 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.29';
-const DEV_HOURS     = '54h';
+const APP_VERSION   = '1.6.30';
+const DEV_HOURS     = '55h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.30': 'Done state restored on load — _applyDoneStyles helper called from renderManual and renderTrello so opacity and check visuals survive page refresh',
   '1.6.29': 'Mobile habits: 7-dot strip, tighter panel + row padding, gap tokens | Edit mode persists after habit delete | Streak column fixed-width alignment | Dots-to-streak gap tightened via row/col gap tokens | Empty .task.done rule removed',
   '1.6.28': 'Edit mode: surgical DOM patch, no flash or layout shift | Checkbox hidden in edit mode | Midnight cleanup: fresh date every tick, _todayStr removed | Habits reset correctly on new day | Future due dates hidden | Mobile done state: inline styles bypass Safari paint deferral | Sync re-render: mergeRemoteData + reconnect + startup all call renderManual | Splash loads app in parallel via two-flag gate | Trello manual refresh removed | task-new animation restored safely via animationend | taskHTML delay param removed',
   '1.6.27': 'Housekeeping: SW cache version synced to 1.6.27 | Removed empty duplicate .habit-name rule | Habit check now fires ember burst + uncheck pulse matching tasks | No layout shift entering edit mode — padding constant across modes | Edit mode hover-only row reveal | Button order: New habit before Edit | Surgical toggleHabitDone — no list re-render on check',
@@ -2018,6 +2019,7 @@ function renderTrello() {
       }
 
       el.classList.toggle('done', doneIds.has(id));
+      _applyDoneStyles(el, doneIds.has(id));
 
       // Move to correct position — skip removing elements when counting index
       const stableChildren = [...list.children].filter(c => !c.classList.contains('removing'));
@@ -2029,6 +2031,7 @@ function renderTrello() {
       const tmp = document.createElement('div');
       tmp.innerHTML = taskHTML(task, 'trello');
       el = tmp.firstElementChild;
+      _applyDoneStyles(el, doneIds.has(id));
       el.classList.add('task-slide-in');
       el.addEventListener('animationend', () => el.classList.remove('task-slide-in'), { once: true });
       const stableChildren = [...list.children].filter(c => !c.classList.contains('removing'));
@@ -2058,6 +2061,7 @@ function renderManual() {
 
   // Full render — only called on init/page load
   list.innerHTML = manualTasks.map(t => taskHTML(t, 'manual')).join('');
+  list.querySelectorAll('.task.done').forEach(el => _applyDoneStyles(el, true));
   document.getElementById('manualCount').textContent = manualTasks.length;
   updateManualEmptyState();
 }
@@ -2509,6 +2513,22 @@ function deleteHabit(id) {
 }
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
+function _applyDoneStyles(el, isDone) {
+  el.style.opacity = isDone ? '0.25' : '';
+  const textEl = el.querySelector('.task-text');
+  if (textEl) {
+    textEl.style.textDecoration = isDone ? 'line-through' : '';
+    textEl.style.textDecorationColor = isDone ? 'rgba(107,107,120,0.55)' : '';
+  }
+  const checkEl = el.querySelector('.task-check');
+  if (checkEl) {
+    checkEl.style.background  = isDone ? 'var(--accent)' : '';
+    checkEl.style.borderColor = isDone ? 'var(--accent)' : '';
+  }
+  const svgEl = el.querySelector('.task-check svg');
+  if (svgEl) svgEl.style.display = isDone ? 'block' : 'none';
+}
+
 function toggleDone(taskId) {
   if (doneIds.has(taskId)) {
     doneIds.delete(taskId);
@@ -2534,20 +2554,7 @@ function toggleDone(taskId) {
   if (el) {
     const isNowDone = doneIds.has(taskId);
     el.classList.toggle('done', isNowDone);
-    // Apply visuals directly — do not rely solely on CSS cascade (mobile Safari can miss class-triggered repaints)
-    el.style.opacity = isNowDone ? '0.25' : '';
-    const textEl = el.querySelector('.task-text');
-    if (textEl) {
-      textEl.style.textDecoration = isNowDone ? 'line-through' : '';
-      textEl.style.textDecorationColor = isNowDone ? 'rgba(107,107,120,0.55)' : '';
-    }
-    const checkEl2 = el.querySelector('.task-check');
-    if (checkEl2) {
-      checkEl2.style.background = isNowDone ? 'var(--accent)' : '';
-      checkEl2.style.borderColor = isNowDone ? 'var(--accent)' : '';
-    }
-    const svgEl = el.querySelector('.task-check svg');
-    if (svgEl) svgEl.style.display = isNowDone ? 'block' : 'none';
+    _applyDoneStyles(el, isNowDone);
 
     // Haptic feedback on check (Android only — iOS silently ignores this)
     if (isNowDone && navigator.vibrate) navigator.vibrate(40);
