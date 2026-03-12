@@ -65,7 +65,7 @@ PKCE OAuth flow. Access tokens expire — refresh handled via `dropbox-refresh` 
 - Single JSON file (`/today-backup.json`) per user in their Dropbox
 - Cheap metadata-only rev check every 7s — full download only if rev changed
 - Union merge on restore — both devices' changes survive concurrent offline edits
-- Backup schema v3.0: `manual_tasks`, `done_ids`, `deleted_ids`, `checked_ids`, `unchecked_ids`
+- Backup schema v4.0: `manual_tasks`, `done_ids`, `deleted_ids`, `checked_ids`, `unchecked_ids`, `habits`, `habit_completions`, `deleted_habit_ids`
 - Preview deploys use `/today-backup-{hostname}.json` to avoid polluting production data
 
 **Known gotcha:** Dropbox PKCE requires the app key client-side — that's by design for PKCE. The app secret must never be client-side; it lives only in Netlify env vars.
@@ -225,3 +225,82 @@ Findings from implementation — things not obvious from docs.
 | Union merge requires explicit delete tracking | Absence of a task is ambiguous — could mean "never added" or "deleted". Without `deleted_ids`, deletes are lost on merge. Same applies to unchecks via `unchecked_ids`. |
 | `stat_last_visit` must never be restored from Dropbox | Restoring it would trigger `checkNewDay()` on the restoring device, wiping today's tasks. It is local device state only — excluded from backup/restore. |
 | Trello OAuth token arrives in URL hash | `#token=xxx` — not a query param. Must read from `window.location.hash`, not `window.location.search`. |
+| `new Date()` must never be cached at module load | If `new Date().toDateString()` is captured once at startup, it goes stale if the app is left open past midnight. `checkNewDay()` and `applyNewDayCleanup()` must call `new Date()` fresh on every invocation — never read from a module-level constant. |
+| CSS animations override `!important` on opacity | A `animation: fadeIn` rule with `fill-mode: forwards` on `.task` will hold `opacity:1` as the fill value, silently defeating `.task.done { opacity: 0.25 !important }`. Never apply animations on the base element rule. Apply via a class removed on `animationend`, using `fill-mode: backwards`. |
+| Done-state visuals must be applied on render, not only on toggle | `toggleDone()` applies inline styles (opacity, strikethrough, checkbox colour) directly on the element. But `renderManual()` and `renderTrello()` build HTML fresh — without calling the same style assignments, done tasks render at full opacity on every page load. Extract visual application into a shared helper (`_applyDoneStyles`) and call it from all render paths. |
+| Splash must not gate on async work | If the splash dismisses only after async startup (Dropbox restore, Trello fetch), the app appears frozen during the wait. `init()` must run before the splash IIFE — rendering from localStorage synchronously. The splash is cosmetic; the two-flag gate (`_splashAnimDone` + `_appLoadDone`) ensures it dismisses only when both animation and async work are done, with no visible freeze. |
+
+
+---
+
+## 4. Habits — Research & Decision Log
+*Researched and decided: Mar 2026*
+
+### Why habits fit TODAY despite the "one day" philosophy
+
+TODAY's thesis is no accumulation, no carry-forward, clean slate. Habits are the opposite — they are explicitly multi-day and persistent. The tension was unresolved in the MVP.
+
+**Resolution:** habits and tasks answer different questions. Tasks: what do I do today? Habits: who am I trying to become? They share the same morning context but operate on different time horizons. The panel separation (habits above tasks, in their own collapsible panel) enforces this distinction visually and conceptually.
+
+### The streak anxiety problem
+
+Initial implementation used a consecutive streak counter (`Nd`). Research confirmed this creates exactly the anxiety TODAY is designed to remove:
+
+- Streaks create a single point of failure — one missed day resets everything
+- As streaks grow, the fear of losing them replaces the intrinsic motivation for the habit itself
+- Users report "racing through" habits just to preserve a number — the number becomes the goal, not the habit
+- Studies show 80% consistency produces nearly identical long-term habit formation to 100% — but streaks punish anything below 100%
+
+**Decision (v1.6.31):** removed streak counter entirely. No consecutive counter exists in the codebase.
+
+### Habit strength % — the chosen approach
+
+Replaced with **exponential smoothing score (0–100%)**, the same algorithm used by Loop Habit Tracker.
+
+**Formula:**
+```
+score_today = score_yesterday × α + (1 if done, 0 if not) × (1 - α)
+α = 0.9
+```
+
+**Why α = 0.9:**
+- Strong memory of past behaviour — a long consistent run builds real weight
+- Recent days matter more than old ones, but old days still count
+- A few missed days cause a modest drop, not a reset
+- Recovery after a gap is fast — a week back in the habit restores most of the score
+
+**Observed behaviour at α = 0.9 over 90-day window:**
+
+| Scenario | Score |
+|---|---|
+| Perfect 7 days (new habit) | ~52% |
+| Perfect 30 days | ~96% |
+| 30 perfect, missed last 3 | ~70% |
+| 30 perfect, missed last week | ~46% |
+| 5/7 days for 4 weeks | ~74% |
+| Every other day, 40 days | ~52% |
+
+**Hot threshold:** ≥ 70% — accent colour applied. Reachable with 5/7 consistency over a month. Not trivially earned, not impossibly high.
+
+### Alternatives considered
+
+| Option | Rejected because |
+|---|---|
+| Consecutive streak (original) | Single point of failure, anxiety-inducing |
+| Weekly rate (X/7) | Loses long-term signal, resets too frequently |
+| Dots only, no number | Considered — kept strength % as it adds precision the dots don't give |
+| Year-in-pixels view | Interesting but doesn't fit TODAY's spatial constraints |
+
+### What habit strength does NOT measure
+
+- It does not know *why* you missed a day
+- It does not distinguish a planned rest day from a forgotten day
+- It does not account for habit frequency (daily vs 3x/week) — all habits are currently daily
+
+### Open question: non-daily habits
+
+The current model assumes every habit is a daily habit. A user might want "exercise 3x/week" rather than "exercise every day." The strength algorithm would need a `frequency` parameter to handle this correctly — a 3x/week habit at 100% would only have 3 completions in 7 days, which currently scores ~52%.
+
+**Status:** not yet designed. Worth solving before habits are shared with other users.
+
+---
