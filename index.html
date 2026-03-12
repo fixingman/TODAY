@@ -578,8 +578,9 @@
     border: 1px solid transparent;
     transition: background var(--dur-fast), border-color var(--dur-fast), opacity var(--dur-slow);
     cursor: default;
-    animation: fadeIn var(--dur-slow) var(--ease-std);
   }
+  /* Animation only on new tasks — base .task must not animate or its fill blocks .done opacity */
+  .task-new { animation: fadeIn var(--dur-slow) var(--ease-std); }
 
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(6px); }
@@ -2118,16 +2119,7 @@ document.addEventListener('click', function(e) {
     }
     return;
   }
-  // Mobile: tap anywhere on the task row toggles done (no hover affordance on touch)
-  const isMobile = window.matchMedia('(hover: none)').matches;
-  if (isMobile) {
-    const taskEl = e.target.closest('.task');
-    if (taskEl && !e.target.closest('.task-delete') && !e.target.closest('a')) {
-      const id = taskEl.dataset.taskid;
-      if (id) toggleDone(id);
-      return;
-    }
-  }
+
   // Delete button
   const delEl = e.target.closest('.task-delete');
   if (delEl) {
@@ -2583,6 +2575,7 @@ function addManual() {
   const div   = document.createElement('div');
   div.innerHTML = taskHTML(task, 'manual', 0);
   const el = div.firstElementChild;
+  el.classList.add('task-new'); // animate only this new row, not all tasks
   list.appendChild(el);
   if (empty) empty.style.display = 'none';
 
