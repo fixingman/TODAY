@@ -303,3 +303,33 @@ Local device state only. **Never backed up, never restored from Dropbox.** Resto
     ├── Performance-audit.md
     └── Changelog.md
 ```
+
+---
+
+## 12. Release Checklist
+
+### When to bump
+- **Every logical unit of work gets its own bump** — a bug fix, a layout fix, a behaviour change, a new feature. Each is a version.
+- **Never batch unrelated fixes into one bump** just because they happened in the same session.
+- **Never end a work block without asking:** has everything since the last bump been versioned? If not, bump before moving on.
+- "It's just CSS" or "it's a small fix" are not reasons to skip a bump. If it changes what the user sees or experiences, it gets a version.
+
+### What to update on every bump
+- [ ] `APP_VERSION` constant in `index.html`
+- [ ] `DEV_HOURS` constant in `index.html`
+- [ ] `CHANGELOG` object in `index.html` — one entry, `|` separated, no implementation detail
+- [ ] `CACHE_VERSION` in `sw.js` — must match `APP_VERSION` exactly
+- [ ] `Changelog.md` — one table row, terse
+- [ ] `Architecture.md` — if sync, data model, or product logic changed
+- [ ] `Design.md` — if animation, audio, interaction, or token rules changed
+
+---
+
+## 13. Housekeeping Rules
+
+After every bug fix or function rework:
+
+1. **Check for empty rules** — if a CSS rule block has no declarations (only comments or nothing), delete it. Empty rules are noise and can mask future bugs.
+2. **Check for dead functions** — if a fix extracted logic into a helper, or replaced a function's role, check whether the old function is still called anywhere. If not, delete it.
+3. **Check for orphaned CSS classes** — if a fix removed a DOM element or changed a class name, check whether the old CSS selector is still referenced in HTML or JS. If not, delete it.
+4. **Check for stale comments** — if a comment describes behaviour that was just changed, update or remove it. Stale comments are worse than no comments.
