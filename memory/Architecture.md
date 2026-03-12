@@ -58,8 +58,23 @@ today_deleted_habit_ids = ['id1', 'id2', ...]
 - Streak is computed on-the-fly via `_getStreak(id)` — never stored.
 - `_habitTodayISO()` returns `new Date().toISOString().slice(0,10)` — always fresh, never cached.
 
-### 21-day strip
-`_getHabitDates()` returns the last 21 ISO dates. Dot opacity fades linearly: `i >= 14` → 1.0 (last 7 days fully opaque); `i < 14` → `0.12 + (i/14) * 0.70`.
+### 21-day dot strip
+`_getHabitDates()` returns the last 21 ISO dates. Dot opacity fades linearly: `i >= 14` → 1.0 (last 7 days fully opaque); `i < 14` → `0.12 + (i/14) * 0.70`. On mobile (≤480px), only the last 7 dots are shown via CSS — older dots hidden, column width fixed at 65px.
+
+### Habit strength algorithm
+Streak counters are not used. Habit strength (0–100%) is computed via **exponential smoothing** over the last 90 days:
+
+```js
+score = score * α + (done ? 1 : 0) * (1 - α)   // α = 0.9
+```
+
+- Walks the full 90-day window from oldest to newest on every call
+- Uses `habitCompletions[id]` — the append-only date array already stored
+- Missing days reduce the score gradually — they do not reset it
+- `hot` class (accent colour) applied at ≥ 70%
+- Implemented in `_getHabitStrength(id)` — replaces the former `_getStreak(id)`
+
+See Research.md §4 for the full decision log and scenario data.
 
 ### Edit mode
 Edit mode is toggled globally. It patches the DOM surgically — swapping the name `<div>` ↔ `<input>` and streak `<div>` ↔ delete `<button>` in place, without rebuilding any rows. No `renderHabits()` call on mode toggle — no flash, no layout shift.
@@ -269,7 +284,7 @@ Local device state only. **Never backed up, never restored from Dropbox.** Resto
 4. **New day detection must use a fresh date** — never cache `new Date()` at module load. The app may stay open past midnight.
 5. **New day cleanup runs after Dropbox restore** — ensures the freshest data is cleaned, not overwritten by a subsequent pull.
 6. **Completed tasks do not carry over** — removed on new day cleanup.
-7. **Habit completions are append-only** — never deleted. The history is what makes the strip work.
+7. **Habit completions are append-only** — never deleted. The history is what `_getHabitStrength()` walks to compute the score. Deleting completions would silently corrupt strength scores.
 8. **`stat_last_visit` is local device state** — never backed up, never restored.
 9. **Trello is read-only** — the app never writes to Trello.
 10. **Backup file schema changes require a version bump** — current version is `4.0`.

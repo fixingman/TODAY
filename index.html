@@ -1469,11 +1469,12 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.30';
-const DEV_HOURS     = '55h';
+const APP_VERSION   = '1.6.31';
+const DEV_HOURS     = '56h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.31': 'Habit strength % replaces streak counter — exponential smoothing (α=0.9) over 90 days | Missing days no longer zero progress | Hot threshold 70% | _getStreak removed',
   '1.6.30': 'Done state restored on load — _applyDoneStyles helper called from renderManual and renderTrello so opacity and check visuals survive page refresh',
   '1.6.29': 'Mobile habits: 7-dot strip, tighter panel + row padding, gap tokens | Edit mode persists after habit delete | Streak column fixed-width alignment | Dots-to-streak gap tightened via row/col gap tokens | Empty .task.done rule removed',
   '1.6.28': 'Edit mode: surgical DOM patch, no flash or layout shift | Checkbox hidden in edit mode | Midnight cleanup: fresh date every tick, _todayStr removed | Habits reset correctly on new day | Future due dates hidden | Mobile done state: inline styles bypass Safari paint deferral | Sync re-render: mergeRemoteData + reconnect + startup all call renderManual | Splash loads app in parallel via two-flag gate | Trello manual refresh removed | task-new animation restored safely via animationend | taskHTML delay param removed',
@@ -2292,14 +2293,21 @@ function _getHabitDates() {
   return days;
 }
 
-function _getStreak(id) {
-  const s = new Set(habitCompletions[id] || []);
-  let n = 0, d = new Date();
-  while (true) {
+function _getHabitStrength(id) {
+  // Exponential smoothing: score = score * α + done * (1-α)
+  // α=0.9 — recent days matter most, but full history counts.
+  // A few missed days won't zero the score. 90 perfect days → ~100%.
+  const completions = new Set(habitCompletions[id] || []);
+  const alpha = 0.9;
+  let score = 0;
+  const today = new Date();
+  for (let i = 89; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
     const ds = d.toISOString().slice(0, 10);
-    if (s.has(ds)) { n++; d.setDate(d.getDate() - 1); } else break;
+    score = score * alpha + (completions.has(ds) ? 1 : 0) * (1 - alpha);
   }
-  return n;
+  return Math.round(score * 100);
 }
 
 function renderHabits() {
@@ -2315,13 +2323,13 @@ function renderHabits() {
   habitsList.forEach(h => {
     const ds     = new Set(habitCompletions[h.id] || []);
     const isDone = ds.has(_habitTodayISO());
-    const streak = _getStreak(h.id);
+    const strength = _getHabitStrength(h.id);
     const dots = week.map((d, i) => {
       const opacity = i >= 14 ? 1 : (0.12 + (i / 14) * 0.70);
       const style   = `opacity:${opacity.toFixed(2)}`;
       return `<span class="week-dot${ds.has(d) ? ' filled' : ''}${d === _habitTodayISO() ? ' is-today' : ''}" style="${style}"></span>`;
     }).join('');
-    const streakTxt = streak > 0 ? `${streak}d` : '—';
+    const strengthTxt = strength > 0 ? `${strength}%` : '—';
     const el = document.createElement('div');
     el.className = `habit${isDone ? ' done-today' : ''}`;
     el.dataset.habitId = h.id;
@@ -2329,8 +2337,8 @@ function renderHabits() {
       <div class="habit-check" onclick="toggleHabitDone('${h.id}')">${CHK}</div>
       <div class="habit-body"><div class="habit-name">${esc(h.name)}</div></div>
       <div class="habit-week">${dots}</div>
-      <div class="habit-streak" title="${streak} day streak">
-        <span class="streak-label${streak >= 7 ? ' hot' : ''}">${streakTxt}</span>
+      <div class="habit-streak" title="${strength}% habit strength">
+        <span class="streak-label${strength >= 70 ? ' hot' : ''}">${strengthTxt}</span>
       </div>`;
     list.appendChild(el);
   });
@@ -2366,11 +2374,11 @@ function toggleHabitEditMode() {
       nameDiv.textContent = h ? h.name : name;
       input.replaceWith(nameDiv);
       // Swap delete → streak div
-      const streak    = _getStreak(id);
+      const strength  = _getHabitStrength(id);
       const streakDiv = document.createElement('div');
       streakDiv.className = 'habit-streak';
-      streakDiv.title     = streak + ' day streak';
-      streakDiv.innerHTML = `<span class="streak-label${streak >= 7 ? ' hot' : ''}">${streak > 0 ? streak + 'd' : '—'}</span>`;
+      streakDiv.title     = strength + '% habit strength';
+      streakDiv.innerHTML = `<span class="streak-label${strength >= 70 ? ' hot' : ''}">${strength > 0 ? strength + '%' : '—'}</span>`;
       del.replaceWith(streakDiv);
       row.classList.remove('editing');
     });
@@ -2474,12 +2482,12 @@ function toggleHabitDone(id) {
     dot.classList.toggle('filled', isNowDone);
   });
 
-  // Update streak label
-  const streak   = _getStreak(id);
+  // Update strength label
+  const strength = _getHabitStrength(id);
   const streakEl = el.querySelector('.streak-label');
   if (streakEl) {
-    streakEl.textContent = streak > 0 ? streak + 'd' : '—';
-    streakEl.className   = 'streak-label' + (streak >= 7 ? ' hot' : '');
+    streakEl.textContent = strength > 0 ? strength + '%' : '—';
+    streakEl.className   = 'streak-label' + (strength >= 70 ? ' hot' : '');
   }
 
   const check = el.querySelector('.habit-check');

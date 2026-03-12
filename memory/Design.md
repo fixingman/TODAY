@@ -293,7 +293,67 @@ Synthesised via Web Audio API. No audio files. Fails silently. All sine wave —
 
 ---
 
-## 6. Integrations
+## 6. Habits
+
+### Philosophy — why habits fit despite the "one day" tension
+
+TODAY's core thesis is one screen, one day, no accumulation. Habits are explicitly not that — they persist across days, they have history, they are by definition multi-day. This tension is real and was unresolved in the initial MVP.
+
+The resolution: **habits are a different layer of intention, not a different kind of task.** Tasks are what you do today. Habits are who you are trying to become. They live in the same app because both inform how you approach the morning — but they are intentionally separated into their own panel, not mixed into the task list. The daily reset still applies to tasks. Habits carry their own continuity.
+
+The key design constraint: **habits must not introduce the anxiety that tasks are designed to remove.** This rules out streak counters, which create a single point of failure and shift focus from the habit itself to the number. See Product-research.md §6 for the full decision log.
+
+### Habit strength — not streak
+
+The metric shown per habit is **habit strength (0–100%)**, computed via exponential smoothing over the last 90 days. Not a consecutive streak counter.
+
+- A few missed days reduce the score slightly — they do not reset it to zero
+- Consistency over time builds toward ~90–100% — achievable but not trivially so
+- The score recovers quickly when you return after a gap
+- `hot` accent colour applies at ≥ 70% — a genuinely earned threshold, not just 7 consecutive days
+
+This framing is consistent with TODAY's philosophy: each morning is its own moment. Today's check contributes to something real without being the only thing that matters.
+
+### Interaction model
+
+| Action | Result |
+|---|---|
+| Tap habit checkbox | Toggle done for today — strength updates immediately |
+| Tap habit name (edit mode) | Name becomes editable input |
+| Edit mode → delete | Habit removed, edit mode stays active |
+| Edit mode → Done | Names saved, inputs swap back to text |
+| New habit | Input row opens, habit appended on Enter |
+
+### Visual treatment
+
+- Row layout: 4-column grid — checkbox | name | dot strip | strength %
+- Dot strip: 21 days on desktop, 7 days on mobile (older dots hidden via CSS)
+- Dot opacity fades with age: last 7 days fully opaque, older dots fade to ~12%
+- Today's dot has an outline ring — distinguishes it from history
+- Strength % uses `--color-muted` at rest, `--color-accent` (hot) at ≥ 70%
+- Done-today row: checkbox filled with accent, name at full opacity (habits are positive — no strikethrough, no recede)
+- Edit mode: checkbox hidden (visibility: hidden, not display: none — holds column width)
+
+### What habits do NOT do
+
+- No strikethrough on completion — checking a habit is positive reinforcement, not closing something out
+- No celebration particle burst (unlike tasks) — habit completion is quiet and accumulative, not a one-time moment
+- No carry-over to task list — habits are never mixed with today's tasks
+- No priority, label, or due date — habits are binary, daily, and timeless
+
+### Sound
+
+Habit check has its own sound — distinct from the task complete sound:
+
+| Sound | Trigger | Character | Frequency | Duration |
+|---|---|---|---|---|
+| **Habit done** | Habit checked | Warm descending three-step — quieter and slower than task complete | 520→400→300 Hz | ~320ms |
+
+Slower and lower than the task complete sound — deliberate, grounded. A habit check is not a one-time win, it's a quiet confirmation of continuity.
+
+---
+
+## 7. Integrations
 
 ### Trello
 
@@ -322,7 +382,7 @@ Synthesised via Web Audio API. No audio files. Fails silently. All sine wave —
 
 ---
 
-## 7. Offline & Service Worker
+## 8. Offline & Service Worker
 
 - SW file: `sw.js`. Cache version: `today-v{version}` — must match `APP_VERSION` on every deploy.
 - Strategy: **network-first** for all requests.
@@ -334,7 +394,7 @@ Synthesised via Web Audio API. No audio files. Fails silently. All sine wave —
 
 ---
 
-## 8. Security & Privacy
+## 9. Security & Privacy
 
 - All user content rendered via `esc()` before `innerHTML` — no XSS surface.
 - Trello token scope: `read` only.
@@ -346,7 +406,7 @@ Synthesised via Web Audio API. No audio files. Fails silently. All sine wave —
 
 ---
 
-## 9. Development Rules
+## 10. Development Rules
 
 1. **All margins and paddings must use design tokens.** Never hardcode `px` outside `:root` unless explicitly off-grid (see Spacing above).
 2. **Bump `APP_VERSION` and `DEV_HOURS` together** on every meaningful change.
@@ -363,7 +423,7 @@ Synthesised via Web Audio API. No audio files. Fails silently. All sine wave —
 
 ---
 
-## 10. Haiku
+## 11. Haiku
 
 > Only today shows  
 > Done rests, quietly proud  
