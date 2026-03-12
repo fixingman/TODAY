@@ -579,8 +579,6 @@
     transition: background var(--dur-fast), border-color var(--dur-fast);
     cursor: default;
   }
-  /* Animation only on new tasks — base .task must not animate or its fill blocks .done opacity */
-  .task-new { animation: fadeIn var(--dur-slow) var(--ease-std); }
 
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(6px); }
@@ -622,6 +620,8 @@
     background: var(--surface);
     border-color: var(--border);
   }
+  /* Applied only on insertion, removed on animationend — fill-mode:backwards prevents opacity:1 fill */
+  .task-new { animation: fadeIn var(--dur-slow) var(--ease-std) backwards; }
 
   .task.done {
     /* opacity applied via inline style in toggleDone — no CSS transition, no will-change */
@@ -1208,6 +1208,10 @@
   }
 
   .habit-week { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  /* Mobile: show only last 7 dots — 21 dots crush the name column on narrow screens */
+  @media (max-width: 480px) {
+    .week-dot:not(:nth-last-child(-n+7)) { display: none; }
+  }
   .week-dot {
     width: 5px; height: 5px; border-radius: 50%;
     background: var(--color-border); flex-shrink: 0;
@@ -1369,7 +1373,6 @@
       </div>
       <div class="config-actions">
         <button class="btn-primary" id="loadTasksBtn" onclick="saveAndLoad()">Load Tasks</button>
-        <button class="btn-ghost" onclick="loadTrello()">↻ Refresh</button>
         <button class="btn-ghost" onclick="clearTrello()">Disconnect</button>
       </div>
     </div>
@@ -1466,11 +1469,12 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.27';
-const DEV_HOURS     = '47h';
+const APP_VERSION   = '1.6.28';
+const DEV_HOURS     = '52h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.28': 'Edit mode: surgical DOM patch, no flash or layout shift | Checkbox hidden in edit mode | Midnight cleanup: fresh date every tick, _todayStr removed | Habits reset correctly on new day | Future due dates hidden | Mobile done state: inline styles bypass Safari paint deferral | Sync re-render: mergeRemoteData + reconnect + startup all call renderManual | Splash loads app in parallel via two-flag gate | Trello manual refresh removed | task-new animation restored safely via animationend | taskHTML delay param removed',
   '1.6.27': 'Housekeeping: SW cache version synced to 1.6.27 | Removed empty duplicate .habit-name rule | Habit check now fires ember burst + uncheck pulse matching tasks | No layout shift entering edit mode — padding constant across modes | Edit mode hover-only row reveal | Button order: New habit before Edit | Surgical toggleHabitDone — no list re-render on check',
   '1.6.26': 'Habits synced via Dropbox: union merge for habit list and completions | deleted_habit_ids for propagating deletes | backup schema v4.0',
   '1.6.25': 'Habits panel: week dots, streak counter, edit mode, add new habit. today_habits + today_habit_completions storage keys.',
@@ -2022,7 +2026,7 @@ function renderTrello() {
     } else {
       // New task — build and slide in
       const tmp = document.createElement('div');
-      tmp.innerHTML = taskHTML(task, 'trello', 0);
+      tmp.innerHTML = taskHTML(task, 'trello');
       el = tmp.firstElementChild;
       el.classList.add('task-slide-in');
       el.addEventListener('animationend', () => el.classList.remove('task-slide-in'), { once: true });
@@ -2052,12 +2056,12 @@ function renderManual() {
   if (!list || !empty) return;
 
   // Full render — only called on init/page load
-  list.innerHTML = manualTasks.map((t, i) => taskHTML(t, 'manual', i * 30)).join('');
+  list.innerHTML = manualTasks.map(t => taskHTML(t, 'manual')).join('');
   document.getElementById('manualCount').textContent = manualTasks.length;
   updateManualEmptyState();
 }
 
-function taskHTML(task, type, delay) {
+function taskHTML(task, type) {
   const done   = doneIds.has(task.id);
   const tid    = task.id; // original id - safe alphanumeric, stored in data-taskid
   const dueStr = _getDueStr(task);
@@ -2083,7 +2087,7 @@ function taskHTML(task, type, delay) {
     : '';
 
   return `
-    <div class="task${done ? ' done' : ''}" data-taskid="${tid}" style="animation-delay:${delay}ms">
+    <div class="task${done ? ' done' : ''}" data-taskid="${tid}">
       <div class="task-check" data-taskid="${tid}">
         <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
           <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -2584,9 +2588,10 @@ function addManual() {
   const list  = document.getElementById('manualList');
   const empty = document.getElementById('manualEmpty');
   const div   = document.createElement('div');
-  div.innerHTML = taskHTML(task, 'manual', 0);
+  div.innerHTML = taskHTML(task, 'manual');
   const el = div.firstElementChild;
-  el.classList.add('task-new'); // animate only this new row, not all tasks
+  el.classList.add('task-new');
+  el.addEventListener('animationend', () => el.classList.remove('task-new'), { once: true });
   list.appendChild(el);
   if (empty) empty.style.display = 'none';
 
@@ -3348,7 +3353,7 @@ function mergeRemoteData(data) {
     const empty  = document.getElementById('manualEmpty');
     brandNew.forEach(t => {
       const tmp = document.createElement('div');
-      tmp.innerHTML = taskHTML(t, 'manual', 0);
+      tmp.innerHTML = taskHTML(t, 'manual');
       listEl.appendChild(tmp.firstElementChild);
     });
     if (empty) empty.style.display = 'none';
@@ -3668,10 +3673,25 @@ async function dropboxRestore(fromSync) {
 
     // Only start ticker after baselines are seeded
     startTicker();
+
+    // Signal gate — app data is ready, splash can dismiss if animation also done
+    window._onAppLoadDone && window._onAppLoadDone();
   });
 })();
 
 // ─── Start ────────────────────────────────────────────────────────────────────
+// Run init immediately — renders from localStorage while splash plays in parallel
+init();
+
+// Two-flag gate: splash dismisses only when both animation AND init/load are done
+let _splashAnimDone = false;
+let _appLoadDone    = false;
+function _tryDismissSplash() {
+  if (_splashAnimDone && _appLoadDone) window._doSplashDismiss && window._doSplashDismiss();
+}
+window._onSplashAnimDone = function() { _splashAnimDone = true; _tryDismissSplash(); };
+window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplash(); };
+
 // ─── Splash screen ────────────────────────────────────────────────────────────
 (function() {
   const CHARS = '01∆◊×+−░▒·~⌁⊕⊗'.split('');
@@ -3771,12 +3791,12 @@ async function dropboxRestore(fromSync) {
       setTimeout(typeChar,38+Math.random()*28);
     } else {
       cursor.className='blink';
-      setTimeout(()=>{cursor.className='off';onSplashDone();},800);
+      setTimeout(()=>{cursor.className='off';window._onSplashAnimDone();},800);
     }
   }
 
   // Transition
-  function onSplashDone(){
+  window._doSplashDismiss = function(){
     // Fade logo and date out
     const logo     = document.getElementById('splash-logo');
     const dateWrap = document.getElementById('splash-date-wrap');
@@ -3829,7 +3849,7 @@ async function dropboxRestore(fromSync) {
       }, FADE_OUT + 30);
 
     }, 180);
-  }
+  };
 
   // Wait for fonts to be truly ready before animating — prevents swap flash
   const startSplash = () => {
@@ -3851,8 +3871,6 @@ async function dropboxRestore(fromSync) {
   }
 })();
 
-
-init();
 
 // ─── Service Worker registration ──────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
