@@ -2524,12 +2524,27 @@ function toggleDone(taskId) {
 
   const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
   if (el) {
-    el.classList.toggle('done', doneIds.has(taskId));
+    const isNowDone = doneIds.has(taskId);
+    el.classList.toggle('done', isNowDone);
+    // Apply visuals directly — do not rely solely on CSS cascade (mobile Safari can miss class-triggered repaints)
+    el.style.opacity = isNowDone ? '0.25' : '';
+    const textEl = el.querySelector('.task-text');
+    if (textEl) {
+      textEl.style.textDecoration = isNowDone ? 'line-through' : '';
+      textEl.style.textDecorationColor = isNowDone ? 'rgba(107,107,120,0.55)' : '';
+    }
+    const checkEl2 = el.querySelector('.task-check');
+    if (checkEl2) {
+      checkEl2.style.background = isNowDone ? 'var(--accent)' : '';
+      checkEl2.style.borderColor = isNowDone ? 'var(--accent)' : '';
+    }
+    const svgEl = el.querySelector('.task-check svg');
+    if (svgEl) svgEl.style.display = isNowDone ? 'block' : 'none';
+
     // Haptic feedback on check (Android only — iOS silently ignores this)
-    if (doneIds.has(taskId) && navigator.vibrate) navigator.vibrate(40);
+    if (isNowDone && navigator.vibrate) navigator.vibrate(40);
 
     // Sound + celebration on check only — not on uncheck
-    const isNowDone = doneIds.has(taskId);
     if (isNowDone) playCompleteSound();
     if (isNowDone && typeof fireEmberDrift === 'function') {
       const check = el.querySelector('.task-check');
@@ -2538,12 +2553,12 @@ function toggleDone(taskId) {
         fireEmberDrift(r.left + r.width/2, r.top + r.height/2);
       }
     }
-    // Uncheck: brief neutral pulse on the checkbox instead
+    // Uncheck: brief neutral pulse on the checkbox
     if (!isNowDone) {
       const check = el.querySelector('.task-check');
       if (check) {
         check.style.transition = 'opacity 80ms ease';
-        check.style.opacity = '0.4'; // --opacity-label
+        check.style.opacity = '0.4';
         setTimeout(() => { check.style.opacity = ''; check.style.transition = ''; }, 160);
       }
     }
