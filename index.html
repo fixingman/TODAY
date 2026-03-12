@@ -2116,6 +2116,16 @@ document.addEventListener('click', function(e) {
     }
     return;
   }
+  // Mobile: tap anywhere on the task row toggles done (no hover affordance on touch)
+  const isMobile = window.matchMedia('(hover: none)').matches;
+  if (isMobile) {
+    const taskEl = e.target.closest('.task');
+    if (taskEl && !e.target.closest('.task-delete') && !e.target.closest('a')) {
+      const id = taskEl.dataset.taskid;
+      if (id) toggleDone(id);
+      return;
+    }
+  }
   // Delete button
   const delEl = e.target.closest('.task-delete');
   if (delEl) {
