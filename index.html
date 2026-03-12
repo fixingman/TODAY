@@ -576,7 +576,7 @@
     padding: var(--space-3) var(--space-4);
     border-radius: var(--radius-lg);
     border: 1px solid transparent;
-    transition: background var(--dur-fast), border-color var(--dur-fast), opacity var(--dur-slow);
+    transition: background var(--dur-fast), border-color var(--dur-fast);
     cursor: default;
   }
   /* Animation only on new tasks — base .task must not animate or its fill blocks .done opacity */
@@ -624,9 +624,7 @@
   }
 
   .task.done {
-    opacity: var(--opacity-dim) !important;
-    transition: opacity var(--dur-slow) var(--ease-std);
-    will-change: opacity;
+    /* opacity applied via inline style in toggleDone — no CSS transition, no will-change */
   }
 
   .task.done .task-text {
@@ -1327,7 +1325,7 @@
     <div class="habit-empty" id="habitEmpty">No habits yet.</div>
     <div class="habit-add-row" id="habitAddRow">
       <input class="habit-input" id="habitInput" type="text" maxlength="100"
-        placeholder="Habit name…" onkeydown="handleHabitKey(event)">
+        placeholder="Name the habit…" onkeydown="handleHabitKey(event)">
       <button class="habit-add-btn" onclick="addHabit()">Add</button>
     </div>
     <div class="config-actions">
@@ -2385,7 +2383,7 @@ function toggleHabitEditMode() {
       input.value       = h.name;
       input.maxLength   = 100;
       input.dataset.id  = id;
-      input.placeholder = 'Habit name…';
+      input.placeholder = 'Name the habit…';
       input.addEventListener('keydown', handleHabitEditKey);
       nameDiv.replaceWith(input);
       // Swap streak div → delete button
