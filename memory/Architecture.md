@@ -294,6 +294,8 @@ Local device state only. **Never backed up, never restored from Dropbox.** Resto
 14. **`init()` runs before the splash IIFE** — local data renders immediately. The splash is cosmetic, not a loading gate.
 15. **Sync logic must be provider-agnostic** — prepared for Google Drive / iCloud as future alternatives.
 16. **TODAY is focus-first, not organiser-first** — one day, one list. Labels, priorities, and projects are out of scope.
+17. **Task and habit order is user-controlled** — `manualTasks` and `habitsList` arrays are sorted by the user via drag-to-reorder and persisted in that order to localStorage and Dropbox. Never re-sort these arrays alphabetically or by date — the user's manual order is the source of truth. Trello card order is also locally overridable but resets on the next full board fetch.
+18. **Gestures must not replace visible controls** — swipe-to-complete was removed because the checkbox is the correct affordance for completion. Gesture alternatives are only appropriate when the primary control is genuinely hard to reach. See Design.md §7 for the full decision record.
 
 ---
 

@@ -52,6 +52,7 @@ Direct browser CORS, no proxy needed. Read-only, `scope=read`. OAuth redirect fl
 - Board `dateLastActivity` checked every 7s — full fetch only if changed
 - Cards cached in `today_trello_cache`, cleared on new day
 - Done state synced via `done_ids` — not written back to Trello
+- Overdue cards (due before today) persist in the list until explicitly checked off — they are not cleared on new day
 
 **Known gotcha:** `window.open()` must be called synchronously — not inside an `await`. iOS Safari blocks popups opened after async operations. Affects all OAuth flows that open a popup.
 
@@ -276,6 +277,11 @@ Findings from implementation — things not obvious from docs.
 | CSS animations override `!important` on opacity | A `animation: fadeIn` rule with `fill-mode: forwards` on `.task` will hold `opacity:1` as the fill value, silently defeating `.task.done { opacity: 0.25 !important }`. Never apply animations on the base element rule. Apply via a class removed on `animationend`, using `fill-mode: backwards`. |
 | Done-state visuals must be applied on render, not only on toggle | `toggleDone()` applies inline styles (opacity, strikethrough, checkbox colour) directly on the element. But `renderManual()` and `renderTrello()` build HTML fresh — without calling the same style assignments, done tasks render at full opacity on every page load. Extract visual application into a shared helper (`_applyDoneStyles`) and call it from all render paths. |
 | Splash must not gate on async work | If the splash dismisses only after async startup (Dropbox restore, Trello fetch), the app appears frozen during the wait. `init()` must run before the splash IIFE — rendering from localStorage synchronously. The splash is cosmetic; the two-flag gate (`_splashAnimDone` + `_appLoadDone`) ensures it dismisses only when both animation and async work are done, with no visible freeze. |
+| HTML5 drag API does not fire on touch | `dragstart`, `dragover`, `drop` are mouse-only events. Touch devices need a completely separate engine: `touchstart` (long-press timer) → `touchmove` (move ghost clone) → `touchend` (commit). The two engines coexist but must not interfere — long-press fires after 380ms, so any touch movement before that cancels the press timer cleanly. |
+| `e.target.closest()` throws on text nodes and SVG children | During drag and touch events, `e.target` can be a text node (`nodeType === 3`) or an SVG child element — neither has `.closest()`. Always guard with `if (!(e.target instanceof Element)) return` before any `.closest()` call in event handlers. |
+| Setting `draggable=true` on mousedown breaks text selection | If `draggable` is set immediately on mousedown, the browser treats all subsequent mouse movements as drag attempts — text selection becomes impossible. Fix: stage the row on mousedown, only set `draggable=true` after the pointer moves 4px. This gives the browser room to distinguish a click/select from a drag intent. |
+| `touchstart` passive:true prevents `preventDefault` in `touchmove` | If `touchstart` is registered as passive, calling `e.preventDefault()` in `touchmove` is silently ignored on iOS — the browser has already committed to scroll. Register `touchmove` as `{ passive: false }` and lock scroll prevention only after horizontal intent is confirmed (≥10px horizontal movement exceeding vertical). |
+| `e.target.closest('a')` blocks drag on rows containing links | `closest('a')` walks up the DOM and returns true for any click anywhere inside a row that contains a link — including clicks on the row body far from the link. Use `e.target.tagName === 'A'` to block drag only when the link element itself is the click target. |
 
 
 ---
