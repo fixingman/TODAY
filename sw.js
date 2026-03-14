@@ -1,7 +1,7 @@
 // TODAY — Service Worker
 // Strategy: network-first for app shell, strict exclusions for all API calls
 // Version bump this string to force cache invalidation on deploy
-const CACHE_VERSION  = 'today-v1.6.39';
+const CACHE_VERSION  = 'today-v1.6.43';
 const CACHE_APP_SHELL = [
   '/',
   '/manifest.json',

@@ -760,19 +760,45 @@
   .btn-coffee:active { opacity: 1; transform: translateY(0); }
 
   /* ── Drag-to-reorder — row-level cue, no extra element ── */
-  /* Grab cursor appears on hover; a left accent line confirms drag readiness  */
-  #manualList .task:not(.done):hover { cursor: grab; }
-  #manualList .task:not(.done):hover::before {
+  /* Grab cursor + subtle left accent line on hover for all draggable rows */
+  #manualList .task:not(.done):hover,
+  #trelloList .task:hover,
+  #habitList .habit:hover  { cursor: grab; }
+
+  #manualList .task:not(.done)::before,
+  #trelloList .task::before,
+  #habitList .habit::before {
     content: '';
     position: absolute; left: 0; top: 20%; bottom: 20%;
     width: 2px; border-radius: 1px;
     background: var(--color-border);
     opacity: 0; transition: opacity var(--dur-fast);
   }
-  #manualList .task:not(.done):hover::before { opacity: 1; }
-  .task { position: relative; } /* needed for ::before positioning */
-  .task.dragging { opacity: 0.35; cursor: grabbing; }
-  .task.drag-over { border-color: var(--accent); background: var(--color-accent-dim); }
+  #manualList .task:not(.done):hover::before,
+  #trelloList .task:hover::before,
+  #habitList .habit:hover::before { opacity: 1; }
+
+  .task { position: relative; }
+  .habit { position: relative; }
+  .task.dragging,
+  .habit.dragging  { opacity: 0.35; cursor: grabbing; }
+  .task.drag-over,
+  .habit.drag-over { border-color: var(--accent); background: var(--color-accent-dim); }
+
+  /* Touch drag — floating clone follows finger */
+  .touch-drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: var(--z-overlay);
+    opacity: 0.85;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface2);
+    border: 1px solid var(--color-border);
+    transform: scale(1.03);
+    transition: none;
+    left: 0; top: 0;
+  }
 
   /* ── Swipe-to-complete (mobile only) ─────────────── */
   /* Hidden on all devices by default — only revealed by JS on touch swipe */
@@ -1507,11 +1533,15 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.39';
-const DEV_HOURS     = '60h';
+const APP_VERSION   = '1.6.43';
+const DEV_HOURS     = '63h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.43': 'Sound volume +60% across all sounds — start 0.12→0.20, resume 0.09→0.15, complete 0.13→0.22, habit 0.16→0.26, chime notes 0.07–0.10→0.12–0.17',
+  '1.6.42': 'Mobile drag-to-reorder — long-press 380ms activates floating ghost clone, touchmove repositions live with drag-over highlight, touchend commits order | Works for all three lists | Coexists with swipe-to-complete',
+  '1.6.41': 'Fix text selection — drag only activates after 4px mouse movement | Fix swipe — intent lock at 10px before preventDefault, display:flex on active | Fix Trello drag — block on link tag only, not on rows containing links',
+  '1.6.40': 'Drag-to-reorder extended to all three lists — manual tasks (saves to Dropbox), Trello cards (saves to local cache), habits (saves to Dropbox) | _rowConfig unified engine | Edit mode and done tasks excluded',
   '1.6.39': 'Fix drag/swipe TypeError — instanceof Element guard on all 7 event handlers prevents closest() call on text nodes and SVG elements',
   '1.6.38': 'Drag-to-reorder: remove ⠿ handle element — whole row becomes grab target with cursor:grab on hover and a subtle left accent line, no space lost',
   '1.6.37': 'Fix swipe track visible on desktop — task-swipe-track now display:none globally, only flex inside @media (hover:none)',
@@ -2240,7 +2270,7 @@ function playStartSound() {
     osc.frequency.setValueAtTime(520, t);
     osc.frequency.exponentialRampToValueAtTime(680, t + 0.06);
     gain.gain.setValueAtTime(0.001, t);
-    gain.gain.exponentialRampToValueAtTime(0.12, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.20, t + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
     osc.start(t); osc.stop(t + 0.15);
   });
@@ -2258,7 +2288,7 @@ function playResumeSound() {
     osc.frequency.setValueAtTime(500, t);
     osc.frequency.exponentialRampToValueAtTime(600, t + 0.05);
     gain.gain.setValueAtTime(0.001, t);
-    gain.gain.exponentialRampToValueAtTime(0.09, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.15, t + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.10);
     osc.start(t); osc.stop(t + 0.12);
   });
@@ -2275,8 +2305,8 @@ function playCompleteSound() {
     osc.frequency.exponentialRampToValueAtTime(480, t + 0.09);
     osc.frequency.exponentialRampToValueAtTime(380, t + 0.20);
     gain.gain.setValueAtTime(0.001, t);
-    gain.gain.exponentialRampToValueAtTime(0.13, t + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.07, t + 0.10);
+    gain.gain.exponentialRampToValueAtTime(0.22, t + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.12, t + 0.10);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
     osc.start(t); osc.stop(t + 0.24);
   });
@@ -2296,8 +2326,8 @@ function playHabitDoneSound() {
     osc.frequency.exponentialRampToValueAtTime(400, t + 0.10);
     osc.frequency.exponentialRampToValueAtTime(300, t + 0.26);
     gain.gain.setValueAtTime(0.001, t);
-    gain.gain.exponentialRampToValueAtTime(0.16, t + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.08, t + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.26, t + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.13, t + 0.12);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.30);
     osc.start(t); osc.stop(t + 0.32);
   });
@@ -2318,10 +2348,10 @@ function playChime() {
       o.start(startT); o.stop(startT + dur + 0.05);
     }
     const t = ctx.currentTime;
-    note(520, t,        0.10, 0.18); // same as start — familiar
-    note(600, t + 0.14, 0.09, 0.18); // step up
-    note(680, t + 0.28, 0.09, 0.22); // peak — same ceiling as start
-    note(520, t + 0.50, 0.07, 0.55); // settle back down, long fade — done
+    note(520, t,        0.17, 0.18); // same as start — familiar
+    note(600, t + 0.14, 0.15, 0.18); // step up
+    note(680, t + 0.28, 0.15, 0.22); // peak — same ceiling as start
+    note(520, t + 0.50, 0.12, 0.55); // settle back down, long fade — done
   });
 }
 
@@ -2753,127 +2783,342 @@ function _clearAllDone() {
   updateStats();
 }
 
-// ── Drag-to-reorder (manual tasks, desktop) ───────────────────────────────────
+// ── Drag-to-reorder — manual tasks, trello tasks, habits ─────────────────────
 (function() {
-  let dragSrc = null;
+  let dragSrc    = null;
+  let dragListId = null; // which list the drag started in
+
+  // Identify which draggable list a row belongs to, and return its config
+  function _rowConfig(el) {
+    if (!el) return null;
+    const row = el.closest('#manualList .task[data-taskid]');
+    if (row) return { row, listId: 'manualList', attr: 'taskid' };
+    const trow = el.closest('#trelloList .task[data-taskid]');
+    if (trow) return { row: trow, listId: 'trelloList', attr: 'taskid' };
+    const hrow = el.closest('#habitList .habit[data-habit-id]');
+    if (hrow) return { row: hrow, listId: 'habitList', attr: 'habitId' };
+    return null;
+  }
+
+  let _pendingDragRow = null, _pendingDragX = 0, _pendingDragY = 0;
 
   document.addEventListener('mousedown', function(e) {
     if (!(e.target instanceof Element)) return;
-    // Only activate drag from the manual list, not on interactive elements
-    const row = e.target.closest('#manualList .task[data-taskid]:not(.done)');
-    if (!row) return;
+    _pendingDragRow = null;
+    const cfg = _rowConfig(e.target);
+    if (!cfg) return;
+    // Don't activate on interactive elements
     if (e.target.closest('.task-check') || e.target.closest('.task-delete') ||
-        e.target.closest('a') || e.target.closest('button')) return;
-    row.setAttribute('draggable', 'true');
-    const cleanup = () => { row.removeAttribute('draggable'); document.removeEventListener('mouseup', cleanup); };
+        e.target.closest('.habit-check') || e.target.closest('.habit-edit-delete') ||
+        e.target.closest('.habit-edit-input') ||
+        e.target.tagName === 'A' || e.target.closest('button')) return;
+    // Don't drag done manual tasks
+    if (cfg.listId === 'manualList' && cfg.row.classList.contains('done')) return;
+    // Don't drag habits in edit mode
+    if (cfg.listId === 'habitList' && cfg.row.classList.contains('editing')) return;
+    // Stage row — draggable only set after movement to allow text selection
+    _pendingDragRow = cfg.row;
+    _pendingDragX   = e.clientX;
+    _pendingDragY   = e.clientY;
+    const cleanup = () => { _pendingDragRow = null; document.removeEventListener('mouseup', cleanup); };
     document.addEventListener('mouseup', cleanup);
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!_pendingDragRow) return;
+    const dx = Math.abs(e.clientX - _pendingDragX);
+    const dy = Math.abs(e.clientY - _pendingDragY);
+    if (dx > 4 || dy > 4) {
+      _pendingDragRow.setAttribute('draggable', 'true');
+      _pendingDragRow = null; // handed off to dragstart
+    }
   });
 
   document.addEventListener('dragstart', function(e) {
     if (!(e.target instanceof Element)) return;
-    const row = e.target.closest('.task[data-taskid]');
-    if (!row || !row.getAttribute('draggable')) return;
-    dragSrc = row;
-    row.classList.add('dragging');
+    const cfg = _rowConfig(e.target);
+    if (!cfg || !cfg.row.getAttribute('draggable')) return;
+    dragSrc    = cfg.row;
+    dragListId = cfg.listId;
+    cfg.row.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', row.dataset.taskid);
+    e.dataTransfer.setData('text/plain', cfg.listId + ':' + cfg.row.dataset[cfg.attr]);
   });
 
   document.addEventListener('dragend', function(e) {
     if (!(e.target instanceof Element)) return;
-    const row = e.target.closest('.task[data-taskid]');
-    if (!row) return;
-    row.classList.remove('dragging');
-    row.removeAttribute('draggable');
-    document.querySelectorAll('.task.drag-over').forEach(el => el.classList.remove('drag-over'));
-    dragSrc = null;
+    const cfg = _rowConfig(e.target);
+    if (cfg) { cfg.row.classList.remove('dragging'); cfg.row.removeAttribute('draggable'); }
+    document.querySelectorAll('.task.drag-over, .habit.drag-over').forEach(el => el.classList.remove('drag-over'));
+    dragSrc = null; dragListId = null;
   });
 
   document.addEventListener('dragover', function(e) {
     if (!(e.target instanceof Element)) return;
-    const row = e.target.closest('#manualList .task[data-taskid]');
-    if (!row || row === dragSrc) return;
+    const cfg = _rowConfig(e.target);
+    if (!cfg || cfg.row === dragSrc || cfg.listId !== dragListId) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    document.querySelectorAll('.task.drag-over').forEach(el => el.classList.remove('drag-over'));
-    row.classList.add('drag-over');
+    document.querySelectorAll('.task.drag-over, .habit.drag-over').forEach(el => el.classList.remove('drag-over'));
+    cfg.row.classList.add('drag-over');
   });
 
   document.addEventListener('dragleave', function(e) {
     if (!(e.target instanceof Element)) return;
-    const row = e.target.closest('.task[data-taskid]');
-    if (row) row.classList.remove('drag-over');
+    const cfg = _rowConfig(e.target);
+    if (cfg) cfg.row.classList.remove('drag-over');
   });
 
   document.addEventListener('drop', function(e) {
     if (!(e.target instanceof Element)) return;
-    const target = e.target.closest('#manualList .task[data-taskid]');
-    if (!target || !dragSrc || target === dragSrc) return;
+    const cfg = _rowConfig(e.target);
+    if (!cfg || !dragSrc || cfg.row === dragSrc || cfg.listId !== dragListId) return;
     e.preventDefault();
-    target.classList.remove('drag-over');
+    cfg.row.classList.remove('drag-over');
 
-    const list   = document.getElementById('manualList');
-    const rows   = [...list.querySelectorAll('.task[data-taskid]')];
+    const list   = document.getElementById(cfg.listId);
+    const sel    = cfg.listId === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]';
+    const rows   = [...list.querySelectorAll(sel)];
     const srcIdx = rows.indexOf(dragSrc);
-    const tgtIdx = rows.indexOf(target);
+    const tgtIdx = rows.indexOf(cfg.row);
     if (srcIdx === -1 || tgtIdx === -1) return;
 
     // Move DOM
-    if (srcIdx < tgtIdx) list.insertBefore(dragSrc, target.nextSibling);
-    else                  list.insertBefore(dragSrc, target);
+    if (srcIdx < tgtIdx) list.insertBefore(dragSrc, cfg.row.nextSibling);
+    else                  list.insertBefore(dragSrc, cfg.row);
 
-    // Sync manualTasks array to new DOM order
-    const newOrder = [...list.querySelectorAll('.task[data-taskid]')].map(el => el.dataset.taskid);
-    manualTasks.sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
-    localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-    _setLastLocalChange();
-    dropboxAutoSave();
+    // Persist new order
+    const newOrder = [...list.querySelectorAll(sel)];
+
+    if (cfg.listId === 'manualList') {
+      const ids = newOrder.map(el => el.dataset.taskid);
+      manualTasks.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+      localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+      _setLastLocalChange();
+      dropboxAutoSave();
+
+    } else if (cfg.listId === 'trelloList') {
+      // Trello order is local-only — persisted in cache so it survives page reload
+      // but will be reset if Trello board activity changes (next full fetch)
+      const ids = newOrder.map(el => el.dataset.taskid);
+      trelloTasks.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+      try {
+        const cached = JSON.parse(localStorage.getItem('today_trello_cache') || 'null');
+        if (cached) { cached.tasks = trelloTasks; localStorage.setItem('today_trello_cache', JSON.stringify(cached)); }
+      } catch(e) {}
+
+    } else if (cfg.listId === 'habitList') {
+      const ids = newOrder.map(el => el.dataset.habitId);
+      habitsList.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+      _saveHabits();
+      dropboxAutoSave();
+    }
   });
+})();
+
+// ── Touch drag-to-reorder (mobile long-press) ────────────────────────────────
+(function() {
+  const LONG_PRESS_MS = 380;
+  let pressTimer = null, touchSrc = null, touchListId = null;
+  let ghost = null, ghostOffX = 0, ghostOffY = 0;
+  let lastOver = null;
+
+  function _rowCfgTouch(el) {
+    if (!el) return null;
+    const row = el.closest('#manualList .task[data-taskid]');
+    if (row) return { row, listId: 'manualList', sel: '.task[data-taskid]' };
+    const trow = el.closest('#trelloList .task[data-taskid]');
+    if (trow) return { row: trow, listId: 'trelloList', sel: '.task[data-taskid]' };
+    const hrow = el.closest('#habitList .habit[data-habit-id]');
+    if (hrow) return { row: hrow, listId: 'habitList', sel: '.habit[data-habit-id]' };
+    return null;
+  }
+
+  function _cancelPress() {
+    clearTimeout(pressTimer); pressTimer = null;
+  }
+
+  function _startGhost(row, touchX, touchY) {
+    const rect = row.getBoundingClientRect();
+    ghost = row.cloneNode(true);
+    ghost.className = 'touch-drag-ghost';
+    // Match source row width exactly
+    ghost.style.width  = rect.width + 'px';
+    ghost.style.padding = getComputedStyle(row).padding;
+    ghostOffX = touchX - rect.left;
+    ghostOffY = touchY - rect.top;
+    ghost.style.left = (touchX - ghostOffX) + 'px';
+    ghost.style.top  = (touchY - ghostOffY) + 'px';
+    document.body.appendChild(ghost);
+    row.classList.add('dragging');
+  }
+
+  function _moveGhost(touchX, touchY) {
+    if (!ghost) return;
+    ghost.style.left = (touchX - ghostOffX) + 'px';
+    ghost.style.top  = (touchY - ghostOffY) + 'px';
+  }
+
+  function _findRowAt(x, y, listId, sel) {
+    // Temporarily hide ghost so elementFromPoint hits the real rows
+    if (ghost) ghost.style.display = 'none';
+    const el = document.elementFromPoint(x, y);
+    if (ghost) ghost.style.display = '';
+    if (!el) return null;
+    const list = document.getElementById(listId);
+    if (!list) return null;
+    const row = el.closest(listId === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]');
+    if (!row || !list.contains(row) || row === touchSrc) return null;
+    return row;
+  }
+
+  function _saveOrder(listId) {
+    const sel  = listId === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]';
+    const list = document.getElementById(listId);
+    const newOrder = [...list.querySelectorAll(sel)];
+    if (listId === 'manualList') {
+      const ids = newOrder.map(el => el.dataset.taskid);
+      manualTasks.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+      localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+      _setLastLocalChange(); dropboxAutoSave();
+    } else if (listId === 'trelloList') {
+      const ids = newOrder.map(el => el.dataset.taskid);
+      trelloTasks.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+      try {
+        const cached = JSON.parse(localStorage.getItem('today_trello_cache') || 'null');
+        if (cached) { cached.tasks = trelloTasks; localStorage.setItem('today_trello_cache', JSON.stringify(cached)); }
+      } catch(ex) {}
+    } else if (listId === 'habitList') {
+      const ids = newOrder.map(el => el.dataset.habitId);
+      habitsList.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+      _saveHabits(); dropboxAutoSave();
+    }
+  }
+
+  function _cleanup() {
+    _cancelPress();
+    if (ghost) { ghost.remove(); ghost = null; }
+    if (touchSrc) { touchSrc.classList.remove('dragging'); }
+    if (lastOver) { lastOver.classList.remove('drag-over'); lastOver = null; }
+    touchSrc = null; touchListId = null;
+  }
+
+  document.addEventListener('touchstart', function(e) {
+    if (!(e.target instanceof Element)) return;
+    // Don't intercept swipe-eligible rows (handled by swipe IIFE)
+    // Only start long-press detection
+    const cfg = _rowCfgTouch(e.target);
+    if (!cfg) return;
+    if (e.target.closest('.task-check') || e.target.closest('.task-delete') ||
+        e.target.closest('.habit-check') || e.target.closest('.habit-edit-delete') ||
+        e.target.closest('.habit-edit-input') ||
+        e.target.tagName === 'A' || e.target.closest('button')) return;
+    if (cfg.listId === 'habitList' && cfg.row.classList.contains('editing')) return;
+
+    const t = e.touches[0];
+    pressTimer = setTimeout(() => {
+      // Trigger haptic if available
+      if (navigator.vibrate) navigator.vibrate(30);
+      touchSrc    = cfg.row;
+      touchListId = cfg.listId;
+      _startGhost(cfg.row, t.clientX, t.clientY);
+    }, LONG_PRESS_MS);
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function(e) {
+    if (!touchSrc) {
+      _cancelPress(); // any movement cancels pending long-press
+      return;
+    }
+    e.preventDefault();
+    const t  = e.touches[0];
+    _moveGhost(t.clientX, t.clientY);
+
+    const over = _findRowAt(t.clientX, t.clientY, touchListId,
+      touchListId === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]');
+    if (over !== lastOver) {
+      if (lastOver) lastOver.classList.remove('drag-over');
+      if (over)     over.classList.add('drag-over');
+      lastOver = over;
+    }
+    if (over) {
+      const list = document.getElementById(touchListId);
+      const sel  = touchListId === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]';
+      const rows = [...list.querySelectorAll(sel)];
+      const si   = rows.indexOf(touchSrc);
+      const ti   = rows.indexOf(over);
+      if (si !== -1 && ti !== -1) {
+        if (si < ti) list.insertBefore(touchSrc, over.nextSibling);
+        else         list.insertBefore(touchSrc, over);
+      }
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', function(e) {
+    _cancelPress();
+    if (!touchSrc) return;
+    _saveOrder(touchListId);
+    _cleanup();
+  }, { passive: true });
+
+  document.addEventListener('touchcancel', function() {
+    _cancelPress();
+    if (touchSrc) _cleanup();
+  }, { passive: true });
 })();
 
 // ── Swipe-to-complete (mobile) ────────────────────────────────────────────────
 (function() {
-  const THRESHOLD = 72; // px swipe distance to trigger completion
-  let startX = 0, startY = 0, swipeEl = null, track = null, icon = null, active = false;
+  const THRESHOLD  = 72;   // px to trigger completion
+  const INTENT_MIN = 10;   // px horizontal before locking intent
+  let startX = 0, startY = 0, swipeEl = null, track = null, icon = null;
+  let intent = null; // null | 'h' | 'v'
+
+  function _reset() { swipeEl = null; track = null; icon = null; intent = null; }
 
   document.addEventListener('touchstart', function(e) {
     if (!(e.target instanceof Element)) return;
+    _reset();
     const row = e.target.closest('#manualList .task[data-taskid]:not(.done)');
     if (!row) return;
-    // Don't intercept taps on the checkbox or delete button
     if (e.target.closest('.task-check') || e.target.closest('.task-delete')) return;
     startX  = e.touches[0].clientX;
     startY  = e.touches[0].clientY;
     swipeEl = row;
     track   = row.querySelector('.task-swipe-track');
     icon    = row.querySelector('.task-swipe-icon');
-    active  = false;
   }, { passive: true });
 
   document.addEventListener('touchmove', function(e) {
     if (!swipeEl) return;
     const dx = e.touches[0].clientX - startX;
     const dy = e.touches[0].clientY - startY;
-    // Only activate on clear horizontal intent — cancel on vertical scroll
-    if (!active && Math.abs(dy) > Math.abs(dx)) { swipeEl = null; return; }
-    if (dx < 8) return; // only right swipe
-    active = true;
-    e.preventDefault();
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+
+    // Lock intent direction once enough movement
+    if (!intent) {
+      if (adx < INTENT_MIN && ady < INTENT_MIN) return;
+      intent = adx >= ady ? 'h' : 'v';
+    }
+    if (intent === 'v') { _reset(); return; } // vertical scroll — abandon
+    if (dx <= 0) return;                       // left swipe — ignore
+
+    e.preventDefault(); // block scroll only after horizontal intent confirmed
     const pct = Math.min(dx / THRESHOLD, 1);
-    if (track) track.style.opacity = pct * 0.9;
-    if (icon)  { icon.style.opacity = pct; icon.style.transform = `translateX(${pct * 4}px)`; }
+    if (track) { track.style.display = 'flex'; track.style.opacity = String(pct * 0.9); }
+    if (icon)  { icon.style.opacity = String(pct); icon.style.transform = `translateX(${pct * 4}px)`; }
   }, { passive: false });
 
   document.addEventListener('touchend', function(e) {
-    if (!swipeEl || !active) { swipeEl = null; track = null; icon = null; return; }
+    if (!swipeEl || intent !== 'h') { _reset(); return; }
     const dx = e.changedTouches[0].clientX - startX;
-    if (track) { track.style.opacity = '0'; }
+    if (track) { track.style.opacity = '0'; setTimeout(() => { if (track) track.style.display = ''; }, 200); }
     if (icon)  { icon.style.opacity = '0'; icon.style.transform = 'translateX(-4px)'; }
     if (dx >= THRESHOLD) {
       const id = swipeEl.dataset.taskid;
       if (id && !doneIds.has(id)) toggleDone(id);
     }
-    swipeEl = null; track = null; icon = null; active = false;
+    _reset();
   }, { passive: true });
 })();
 
