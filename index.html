@@ -1470,11 +1470,12 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.34';
-const DEV_HOURS     = '57h';
+const APP_VERSION   = '1.6.35';
+const DEV_HOURS     = '58h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.35': 'Fix Trello refresh loop — applyNewDayCleanup now sets stat_last_visit on first open (null guard was preventing it, causing checkNewDay to fire loadTrello every 7s) | Fix manual restore — sets stat_last_visit + seeds lastDropboxRev to prevent sync overwrite on next tick',
   '1.6.34': 'PWA installable — manifest.json, icon-192.png, icon-512.png. Add to Dock on macOS via Safari File menu or Chrome address bar install prompt.',
   '1.6.33': 'Offline cold start: blinking ✦ fallback page in SW — replaces white screen with calm branded wait state',
   '1.6.32': 'Trello overdue cards persist until checked off — filter changed from due-today-only to due-on-or-before-today AND not in doneIds',
@@ -1530,7 +1531,12 @@ function applyNewDayCleanup() {
   const today = new Date().toDateString();
   // Guard: only run if last visit was a different day
   const lastVisit = localStorage.getItem('stat_last_visit');
-  if (!lastVisit || lastVisit === today) return;
+  if (lastVisit === today) return;
+  if (!lastVisit) {
+    // First ever open — no cleanup needed, just record today so checkNewDay() stops firing
+    localStorage.setItem('stat_last_visit', today);
+    return;
+  }
 
   const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
   const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
@@ -3490,6 +3496,21 @@ async function dropboxRestore(fromSync) {
       renderManual();
       renderTrello();
       updateStats();
+      // Prevent checkNewDay() from running new-day cleanup on the next tick
+      // and filtering done tasks out of the state we just restored.
+      localStorage.setItem('stat_last_visit', new Date().toDateString());
+      // Seed rev baseline so syncDropbox doesn't immediately re-merge on top of this restore
+      if (window._dbxSetRev) {
+        try {
+          const _token = localStorage.getItem('dropbox_token');
+          const _m = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${_token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: DROPBOX_FILE }),
+          });
+          if (_m.ok) { const _md = await _m.json(); if (_md && _md.rev) window._dbxSetRev(_md.rev); }
+        } catch(e) {}
+      }
       dropboxShowMsg('Restore complete ✓', 'success');
     }
 
