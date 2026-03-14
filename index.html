@@ -759,9 +759,46 @@
   .btn-coffee:hover { opacity: var(--opacity-hover); transform: translateY(-1px); }
   .btn-coffee:active { opacity: 1; transform: translateY(0); }
 
+  /* ── Drag-to-reorder — row-level cue, no extra element ── */
+  /* Grab cursor appears on hover; a left accent line confirms drag readiness  */
+  #manualList .task:not(.done):hover { cursor: grab; }
+  #manualList .task:not(.done):hover::before {
+    content: '';
+    position: absolute; left: 0; top: 20%; bottom: 20%;
+    width: 2px; border-radius: 1px;
+    background: var(--color-border);
+    opacity: 0; transition: opacity var(--dur-fast);
+  }
+  #manualList .task:not(.done):hover::before { opacity: 1; }
+  .task { position: relative; } /* needed for ::before positioning */
+  .task.dragging { opacity: 0.35; cursor: grabbing; }
+  .task.drag-over { border-color: var(--accent); background: var(--color-accent-dim); }
+
+  /* ── Swipe-to-complete (mobile only) ─────────────── */
+  /* Hidden on all devices by default — only revealed by JS on touch swipe */
+  .task-swipe-track { display: none; }
   @media (hover: none) {
+    .task-swipe-track { display: flex; }
     .task-delete { opacity: var(--opacity-dim); }
     .task-delete:active { color: var(--danger); opacity: 1; }
+
+    .task { overflow: hidden; position: relative; }
+    .task-swipe-track {
+      position: absolute; inset: 0;
+      display: flex; align-items: center;
+      background: var(--color-accent-dim);
+      padding-left: var(--space-4);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--dur-fast);
+    }
+    .task-swipe-icon {
+      color: var(--accent);
+      font-size: 13px;
+      opacity: 0;
+      transform: translateX(-4px);
+      transition: opacity var(--dur-base), transform var(--dur-base);
+    }
   }
 
   /* Empty state */
@@ -1470,11 +1507,15 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.35';
-const DEV_HOURS     = '58h';
+const APP_VERSION   = '1.6.39';
+const DEV_HOURS     = '60h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.39': 'Fix drag/swipe TypeError — instanceof Element guard on all 7 event handlers prevents closest() call on text nodes and SVG elements',
+  '1.6.38': 'Drag-to-reorder: remove ⠿ handle element — whole row becomes grab target with cursor:grab on hover and a subtle left accent line, no space lost',
+  '1.6.37': 'Fix swipe track visible on desktop — task-swipe-track now display:none globally, only flex inside @media (hover:none)',
+  '1.6.36': 'Drag-to-reorder manual tasks — handle appears on hover, syncs to Dropbox | Swipe-right-to-complete on mobile — 72px threshold, horizontal intent detection | Shift+D clears all done manual tasks',
   '1.6.35': 'Fix Trello refresh loop — applyNewDayCleanup now sets stat_last_visit on first open (null guard was preventing it, causing checkNewDay to fire loadTrello every 7s) | Fix manual restore — sets stat_last_visit + seeds lastDropboxRev to prevent sync overwrite on next tick',
   '1.6.34': 'PWA installable — manifest.json, icon-192.png, icon-512.png. Add to Dock on macOS via Safari File menu or Chrome address bar install prompt.',
   '1.6.33': 'Offline cold start: blinking ✦ fallback page in SW — replaces white screen with calm branded wait state',
@@ -2101,9 +2142,13 @@ function taskHTML(task, type) {
   const deleteBtn = type === 'manual'
     ? `<button class="task-delete" data-taskid="${tid}" title="Remove">×</button>`
     : '';
+  const swipeTrack = type === 'manual'
+    ? `<div class="task-swipe-track"><span class="task-swipe-icon">✓</span></div>`
+    : '';
 
   return `
     <div class="task${done ? ' done' : ''}" data-taskid="${tid}">
+      ${swipeTrack}
       <div class="task-check" data-taskid="${tid}">
         <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
           <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -2674,13 +2719,163 @@ if (window.matchMedia('(hover: hover)').matches) {
     const active = document.activeElement;
     const inInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
     if (inInput) return;
+    // Shift+; → focus add input
     if (e.shiftKey && e.key === ':') {
       e.preventDefault();
       const input = document.getElementById('newTask');
       if (input) input.focus();
     }
+    // Shift+D → clear all done manual tasks
+    if (e.shiftKey && e.key === 'D') {
+      e.preventDefault();
+      _clearAllDone();
+    }
   });
 }
+
+// ── Clear all done manual tasks ───────────────────────────────────────────────
+function _clearAllDone() {
+  const done = manualTasks.filter(t => doneIds.has(t.id));
+  if (done.length === 0) return;
+  done.forEach(t => {
+    _addDeletedId(t.id);
+    const el = document.querySelector('.task[data-taskid="' + CSS.escape(t.id) + '"]');
+    if (el) { el.classList.add('removing'); setTimeout(() => el.remove(), 180); }
+  });
+  manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
+  done.forEach(t => doneIds.delete(t.id));
+  localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+  localStorage.setItem('today_done',   JSON.stringify([...doneIds]));
+  _setLastLocalChange();
+  dropboxAutoSave();
+  document.getElementById('manualCount').textContent = manualTasks.length;
+  updateManualEmptyState(true);
+  updateStats();
+}
+
+// ── Drag-to-reorder (manual tasks, desktop) ───────────────────────────────────
+(function() {
+  let dragSrc = null;
+
+  document.addEventListener('mousedown', function(e) {
+    if (!(e.target instanceof Element)) return;
+    // Only activate drag from the manual list, not on interactive elements
+    const row = e.target.closest('#manualList .task[data-taskid]:not(.done)');
+    if (!row) return;
+    if (e.target.closest('.task-check') || e.target.closest('.task-delete') ||
+        e.target.closest('a') || e.target.closest('button')) return;
+    row.setAttribute('draggable', 'true');
+    const cleanup = () => { row.removeAttribute('draggable'); document.removeEventListener('mouseup', cleanup); };
+    document.addEventListener('mouseup', cleanup);
+  });
+
+  document.addEventListener('dragstart', function(e) {
+    if (!(e.target instanceof Element)) return;
+    const row = e.target.closest('.task[data-taskid]');
+    if (!row || !row.getAttribute('draggable')) return;
+    dragSrc = row;
+    row.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', row.dataset.taskid);
+  });
+
+  document.addEventListener('dragend', function(e) {
+    if (!(e.target instanceof Element)) return;
+    const row = e.target.closest('.task[data-taskid]');
+    if (!row) return;
+    row.classList.remove('dragging');
+    row.removeAttribute('draggable');
+    document.querySelectorAll('.task.drag-over').forEach(el => el.classList.remove('drag-over'));
+    dragSrc = null;
+  });
+
+  document.addEventListener('dragover', function(e) {
+    if (!(e.target instanceof Element)) return;
+    const row = e.target.closest('#manualList .task[data-taskid]');
+    if (!row || row === dragSrc) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    document.querySelectorAll('.task.drag-over').forEach(el => el.classList.remove('drag-over'));
+    row.classList.add('drag-over');
+  });
+
+  document.addEventListener('dragleave', function(e) {
+    if (!(e.target instanceof Element)) return;
+    const row = e.target.closest('.task[data-taskid]');
+    if (row) row.classList.remove('drag-over');
+  });
+
+  document.addEventListener('drop', function(e) {
+    if (!(e.target instanceof Element)) return;
+    const target = e.target.closest('#manualList .task[data-taskid]');
+    if (!target || !dragSrc || target === dragSrc) return;
+    e.preventDefault();
+    target.classList.remove('drag-over');
+
+    const list   = document.getElementById('manualList');
+    const rows   = [...list.querySelectorAll('.task[data-taskid]')];
+    const srcIdx = rows.indexOf(dragSrc);
+    const tgtIdx = rows.indexOf(target);
+    if (srcIdx === -1 || tgtIdx === -1) return;
+
+    // Move DOM
+    if (srcIdx < tgtIdx) list.insertBefore(dragSrc, target.nextSibling);
+    else                  list.insertBefore(dragSrc, target);
+
+    // Sync manualTasks array to new DOM order
+    const newOrder = [...list.querySelectorAll('.task[data-taskid]')].map(el => el.dataset.taskid);
+    manualTasks.sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+    localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+    _setLastLocalChange();
+    dropboxAutoSave();
+  });
+})();
+
+// ── Swipe-to-complete (mobile) ────────────────────────────────────────────────
+(function() {
+  const THRESHOLD = 72; // px swipe distance to trigger completion
+  let startX = 0, startY = 0, swipeEl = null, track = null, icon = null, active = false;
+
+  document.addEventListener('touchstart', function(e) {
+    if (!(e.target instanceof Element)) return;
+    const row = e.target.closest('#manualList .task[data-taskid]:not(.done)');
+    if (!row) return;
+    // Don't intercept taps on the checkbox or delete button
+    if (e.target.closest('.task-check') || e.target.closest('.task-delete')) return;
+    startX  = e.touches[0].clientX;
+    startY  = e.touches[0].clientY;
+    swipeEl = row;
+    track   = row.querySelector('.task-swipe-track');
+    icon    = row.querySelector('.task-swipe-icon');
+    active  = false;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function(e) {
+    if (!swipeEl) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    // Only activate on clear horizontal intent — cancel on vertical scroll
+    if (!active && Math.abs(dy) > Math.abs(dx)) { swipeEl = null; return; }
+    if (dx < 8) return; // only right swipe
+    active = true;
+    e.preventDefault();
+    const pct = Math.min(dx / THRESHOLD, 1);
+    if (track) track.style.opacity = pct * 0.9;
+    if (icon)  { icon.style.opacity = pct; icon.style.transform = `translateX(${pct * 4}px)`; }
+  }, { passive: false });
+
+  document.addEventListener('touchend', function(e) {
+    if (!swipeEl || !active) { swipeEl = null; track = null; icon = null; return; }
+    const dx = e.changedTouches[0].clientX - startX;
+    if (track) { track.style.opacity = '0'; }
+    if (icon)  { icon.style.opacity = '0'; icon.style.transform = 'translateX(-4px)'; }
+    if (dx >= THRESHOLD) {
+      const id = swipeEl.dataset.taskid;
+      if (id && !doneIds.has(id)) toggleDone(id);
+    }
+    swipeEl = null; track = null; icon = null; active = false;
+  }, { passive: true });
+})();
 
 function toggleClearBtn() {
   const input = document.getElementById('newTask');
