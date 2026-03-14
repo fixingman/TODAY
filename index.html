@@ -1469,11 +1469,13 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.31';
-const DEV_HOURS     = '56h';
+const APP_VERSION   = '1.6.33';
+const DEV_HOURS     = '57h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.33': 'Offline cold start: blinking ✦ fallback page in SW — replaces white screen with calm branded wait state',
+  '1.6.32': 'Trello overdue cards persist until checked off — filter changed from due-today-only to due-on-or-before-today AND not in doneIds',
   '1.6.31': 'Habit strength % replaces streak counter — exponential smoothing (α=0.9) over 90 days | Missing days no longer zero progress | Hot threshold 70% | _getStreak removed',
   '1.6.30': 'Done state restored on load — _applyDoneStyles helper called from renderManual and renderTrello so opacity and check visuals survive page refresh',
   '1.6.29': 'Mobile habits: 7-dot strip, tighter panel + row padding, gap tokens | Edit mode persists after habit delete | Streak column fixed-width alignment | Dots-to-streak gap tightened via row/col gap tokens | Empty .task.done rule removed',
@@ -1878,12 +1880,12 @@ async function loadTrello(fromSync) {
       ? ((lists.find(l => l.name.toLowerCase() === todayListName) || {}).id || null)
       : null;
 
-    // Filter: in today list OR due today
+    // Filter: in today list OR due today OR overdue and not yet checked off
     const filtered = cards.filter(c => {
       if (todayListId && c.idList === todayListId) return true;
       if (c.due) {
         const d = new Date(c.due); d.setHours(0,0,0,0);
-        if (d >= today && d < tomorrow) return true;
+        if (d < tomorrow && !doneIds.has('trello_' + c.id)) return true;
       }
       return false;
     });

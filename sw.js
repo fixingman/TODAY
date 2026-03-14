@@ -1,7 +1,7 @@
 // TODAY — Service Worker
 // Strategy: network-first for app shell, strict exclusions for all API calls
 // Version bump this string to force cache invalidation on deploy
-const CACHE_VERSION  = 'today-v1.6.31';
+const CACHE_VERSION  = 'today-v1.6.33';
 const CACHE_APP_SHELL = [
   '/',
   '/fonts/DM%20Mono/dm-mono-v16-latin-300.woff2',
@@ -36,41 +36,24 @@ const OFFLINE_HTML = `<!DOCTYPE html>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      height: 100%; background: #0e0e10; color: #e8e8e8;
-      font-family: 'DM Mono', 'Courier New', monospace;
+      height: 100%; background: #0e0e10;
       display: flex; align-items: center; justify-content: center;
-      text-align: center;
     }
-    .wrap { padding: 40px 32px; }
-    .logo {
-      font-family: 'Syne', system-ui, sans-serif;
-      font-weight: 800; font-size: 32px; letter-spacing: 0.12em;
-      color: #e8e8e8; margin-bottom: 48px;
-    }
-    .logo span { color: #c8f060; }
     .star {
-      width: 36px; height: 36px; margin: 0 auto 48px;
-      opacity: 0.25;
+      font-size: 18px;
+      color: #c8f060;
+      opacity: 0.18;
+      animation: pulse 2.8s ease-in-out infinite;
+      user-select: none;
     }
-    .haiku {
-      font-size: 13px; color: #666; line-height: 2;
-      letter-spacing: 0.04em;
+    @keyframes pulse {
+      0%, 100% { opacity: 0.12; }
+      50%       { opacity: 0.35; }
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="logo">TO<span>DAY</span></div>
-    <svg class="star" viewBox="0 0 40 40" fill="none">
-      <path d="M20 2 L22.4 17.6 L38 20 L22.4 22.4 L20 38 L17.6 22.4 L2 20 L17.6 17.6 Z"
-            fill="#c8f060" opacity=".95"/>
-    </svg>
-    <div class="haiku">
-      Signal lost in fog<br>
-      One visit clears the passage<br>
-      Tasks wait, patient still
-    </div>
-  </div>
+  <span class="star">✦</span>
 </body>
 </html>`;
 

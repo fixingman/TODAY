@@ -32,6 +32,7 @@ Complexity ratings are relative to Trello (baseline = 1×).
 | Trello | 1× | ✅ Implemented | Baseline |
 | Todoist | ~1.5× | Not built | Highest priority next |
 | Microsoft To Do | ~2× | Not built | Best Microsoft 365 path |
+| Microsoft Planner | ~2.5× | Not built | Work/school accounts only — build To Do first |
 | Google Drive (backup) | ~2× | Not built | Best Dropbox alternative |
 | TickTick | ~2× | Not built | Watch — API maturing |
 | iCloud / CloudKit JS | ~2.5× | Not built | Apple-only, viable for right audience |
@@ -152,6 +153,52 @@ CORS support unclear from official docs — likely needs a Netlify proxy. No sin
 API is newer and less mature than Todoist. Popular unofficial libraries suggest the official API has historically been limited.
 
 **Recommendation:** Todoist covers the same audience more cleanly. Revisit if TickTick-specific demand arises.
+
+---
+
+### Microsoft Planner
+*Researched: Mar 2026*
+*Verdict: Feasible but complex — ~2.5× Trello. Significant constraints to understand before building.*
+
+**What it is:** Team task management built into Microsoft 365. Tasks live inside Plans, Plans live inside Microsoft 365 Groups (Teams, SharePoint, etc.). Deeply integrated into the Microsoft collaboration ecosystem but not a personal task tool.
+
+**Auth:** OAuth 2.0 via Microsoft Graph. Requires Azure AD app registration — same setup as Microsoft To Do. However, unlike To Do, **personal Microsoft accounts are not supported**. The user must have a work or school Microsoft 365 account.
+
+**CORS:** Native for read operations via `graph.microsoft.com` — no Netlify proxy needed.
+
+**The data model problem — no "today" endpoint:**
+Planner has a 3-level hierarchy: Group → Plan → Task. There is no flat endpoint for "all tasks assigned to me due today." The closest is `GET /me/planner/tasks` which returns all tasks assigned to the user across all plans — with no server-side due-date filter. Filtering to today must happen client-side after downloading everything. For users with many tasks across many plans this is a meaningful payload.
+
+Compare to Todoist: `GET /rest/v2/tasks?filter=today` — one call, server-filtered, done.
+
+**Minimum calls to get today's tasks:**
+1. `GET /me/memberOf` — fetch user's groups
+2. `GET /groups/{id}/planner/plans` — fetch plans per group (once per group)
+3. `GET /planner/plans/{id}/tasks` — fetch tasks per plan (once per plan)
+4. Filter client-side by `dueDateTime` and `assignments` containing current user
+
+**Premium plans are a dead end:**
+Planner Premium (the upgraded version with sprints, goals, and task history) does not work with the Graph API at all. Premium plan data is stored in Dataverse with an undocumented schema. If the user is on Planner Premium, the API cannot see their tasks.
+
+**Writeback:** `PATCH /planner/tasks/{id}` with `percentComplete: 100`. Planner uses 0–100 progress, not binary done/not-done. Requires an `If-Match` header with the task's current etag — every write needs a prior read to get the etag.
+
+**Data model fields:** `title`, `dueDateTime`, `percentComplete`, `assignments` (object keyed by user ID), `planId`, `bucketId`
+
+**Key unresolved product question:** What does "done" mean in TODAY for a Planner task? Setting `percentComplete: 100` closes the task in Planner permanently. This may not be what the user intends when checking off a task for the day. Needs explicit product decision before any writeback is built.
+
+**vs Microsoft To Do:**
+
+| Dimension | Microsoft To Do | Microsoft Planner |
+|---|---|---|
+| Personal accounts | ✅ Yes | ❌ No — work/school only |
+| "Today" endpoint | ✅ OData filter | ❌ Client-side filter only |
+| Data model | Flat task list | Group → Plan → Task hierarchy |
+| Premium tier API | N/A | ❌ Completely incompatible |
+| Auth complexity | Same | Same |
+
+**Recommendation:** If your brother uses a personal Microsoft account, Planner is not accessible via API. If he has a work Microsoft 365 account and uses Basic Planner (not Premium), it's feasible — but Microsoft To Do is simpler to build, works for more users, and captures the same Microsoft 365 audience. Build To Do first. Revisit Planner if there's specific team-task demand.
+
+**Complexity rating:** ~2.5× Trello
 
 ---
 
