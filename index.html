@@ -1217,20 +1217,21 @@
   }
 
   /* On hover: widen to fit two then three stars via sequential keyframe */
-  /* Hover: ✦ → ✦✦ → ✦✦✦ in 180ms */
+  /* Hover: ✦ → ✦✦✦ in 180ms — Feedback motion type */
   .add-ai-btn {
     position: relative;
-    overflow: visible;
+    overflow: hidden;
   }
   .add-ai-btn:hover {
     opacity: 1;
+    width: 72px; /* room for ✦✦✦ */
   }
   .add-ai-btn:active {
     opacity: 0.7;
     transform: scale(0.96);
   }
   
-  /* Expanding stars on hover */
+  /* Expanding stars on hover — fade in at staggered delays */
   .add-ai-btn::before,
   .add-ai-btn::after {
     content: '✦';
@@ -1243,12 +1244,10 @@
     pointer-events: none;
   }
   .add-ai-btn::before {
-    right: 100%;
-    margin-right: 1px;
+    left: 8px;
   }
   .add-ai-btn::after {
-    left: 100%;
-    margin-left: 1px;
+    right: 8px;
   }
   .add-ai-btn:hover::before {
     opacity: 1;
@@ -2371,11 +2370,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.8.0';
-const DEV_HOURS     = '104h';
+const APP_VERSION   = '2.8.1';
+const DEV_HOURS     = '105h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.8.1': 'AI gets a name: lu, kit, em, jo, pip, sol, rue, or finn — randomly picked on first use, kept forever, synced across devices via Dropbox. Fix ✦ button hover animation (now widens with staggered stars).',
   '2.8.0': 'Memory system: AI learns your patterns (peak hours, streaks, focus time). Unified tonality across all copy — warm, grounded, no corporate speak. Static text audit: "Your tasks", "A clean slate", "Clear". Dropbox sync includes memory.',
   '2.7.0': 'AI personality overhaul: warm, grounded tone. Speaks like a thoughtful friend, not a productivity coach. Notices patterns without preaching. No corporate speak, no emoji, no exclamation marks.',
   '2.6.9': 'Stats reordered: Focus → Flow → Streak. ✦ button hover animation restored (✦→✦✦✦). AI chat slides up from bottom with smooth spring transition. Input transforms to chat mode when AI open.',
@@ -2544,9 +2544,17 @@ let doneIds     = new Set((() => { try { return JSON.parse(localStorage.getItem(
 // ─── Memory System ────────────────────────────────────────────────────────────
 // The AI's persistent memory — patterns, wins, preferences learned over time.
 // Stored locally, synced via Dropbox with other app data.
+const AI_NAMES = ['lu', 'kit', 'em', 'jo', 'pip', 'sol', 'rue', 'finn'];
+
+function _pickAIName() {
+  return AI_NAMES[Math.floor(Math.random() * AI_NAMES.length)];
+}
+
 let appMemory = (() => {
   try {
     return JSON.parse(localStorage.getItem('today_memory') || 'null') || {
+      // AI identity — picked once, kept forever
+      aiName: _pickAIName(),
       // Patterns observed over time
       patterns: {
         completionsByHour: {},    // { "9": 12, "14": 8, ... } — tasks completed per hour
@@ -2568,6 +2576,7 @@ let appMemory = (() => {
     };
   } catch(e) { return null; }
 })() || {
+  aiName: _pickAIName(),
   patterns: { completionsByHour: {}, taskKeywords: {}, focusMinutesTotal: 0, bestStreak: 0 },
   moments: [],
   preferences: { peakHour: null, dragKeywords: [] },
@@ -2575,6 +2584,12 @@ let appMemory = (() => {
   totalTasksCompleted: 0,
   totalDaysActive: 0,
 };
+
+// Ensure aiName exists for users with existing memory
+if (!appMemory.aiName) {
+  appMemory.aiName = _pickAIName();
+  localStorage.setItem('today_memory', JSON.stringify(appMemory));
+}
 
 function _saveMemory() {
   localStorage.setItem('today_memory', JSON.stringify(appMemory));
@@ -5301,6 +5316,10 @@ async function dropboxRestore(fromSync) {
       // Restore memory (merge with local — union of moments, max of counters)
       if (data.memory && typeof data.memory === 'object') {
         const remote = data.memory;
+        // AI name: remote wins (first device to set it becomes canonical across all devices)
+        if (remote.aiName) {
+          appMemory.aiName = remote.aiName;
+        }
         // Merge completionsByHour (sum)
         for (const [h, count] of Object.entries(remote.patterns?.completionsByHour || {})) {
           appMemory.patterns.completionsByHour[h] = Math.max(appMemory.patterns.completionsByHour[h] || 0, count);
@@ -6125,10 +6144,13 @@ function _aiSystemPrompt(ctx) {
   const habitList = pendingHabits.map(h => `"${h.name}" [${h.id}]`).join(', ');
   const doneList = ctx.tasks.done.map(t => `"${t.text}"`).join(', ');
   
-  // Get memory context
+  // Get memory context and AI name
   const memoryContext = _memoryForAI();
+  const aiName = appMemory.aiName || 'lu';
 
-  return `You are a gentle, supportive presence inside TODAY — a minimal daily focus app.
+  return `You are ${aiName} — a gentle, supportive presence inside TODAY, a minimal daily focus app.
+
+Your name is ${aiName}. You don't announce it unless asked, but it's who you are.
 
 Your personality:
 - Warm but not effusive. Calm, grounded.
