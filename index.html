@@ -1518,11 +1518,12 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.45';
+const APP_VERSION   = '1.6.46';
 const DEV_HOURS     = '66h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.46': 'Fix drag first-grab miss — draggable=true set on mousedown immediately instead of waiting for 4px mousemove | text selection protected via userSelect:none while held, restored on mouseup/dragend',
   '1.6.45': 'Focus mode extended to habits — click habit row starts Pomodoro session | habit rows recede/focus with same CSS contract as tasks | session count 🍅 badge on habit name | _logSession unified helper for all three row types | focusSessions persisted to habitsList',
   '1.6.44': 'Auto-update: SW polls for updates every 60min | new SW activates on next app focus (not mid-session) | controllerchange triggers reload | SKIP_WAITING via postMessage',
   '1.6.43': 'Sound volume +60% across all sounds — start 0.12→0.20, resume 0.09→0.15, complete 0.13→0.22, habit 0.16→0.26, chime notes 0.07–0.10→0.12–0.17',
@@ -2789,11 +2790,8 @@ function _clearAllDone() {
     return null;
   }
 
-  let _pendingDragRow = null, _pendingDragX = 0, _pendingDragY = 0;
-
   document.addEventListener('mousedown', function(e) {
     if (!(e.target instanceof Element)) return;
-    _pendingDragRow = null;
     const cfg = _rowConfig(e.target);
     if (!cfg) return;
     // Don't activate on interactive elements
@@ -2805,22 +2803,20 @@ function _clearAllDone() {
     if (cfg.listId === 'manualList' && cfg.row.classList.contains('done')) return;
     // Don't drag habits in edit mode
     if (cfg.listId === 'habitList' && cfg.row.classList.contains('editing')) return;
-    // Stage row — draggable only set after movement to allow text selection
-    _pendingDragRow = cfg.row;
-    _pendingDragX   = e.clientX;
-    _pendingDragY   = e.clientY;
-    const cleanup = () => { _pendingDragRow = null; document.removeEventListener('mouseup', cleanup); };
-    document.addEventListener('mouseup', cleanup);
-  });
 
-  document.addEventListener('mousemove', function(e) {
-    if (!_pendingDragRow) return;
-    const dx = Math.abs(e.clientX - _pendingDragX);
-    const dy = Math.abs(e.clientY - _pendingDragY);
-    if (dx > 4 || dy > 4) {
-      _pendingDragRow.setAttribute('draggable', 'true');
-      _pendingDragRow = null; // handed off to dragstart
-    }
+    // Set draggable immediately so dragstart fires on the first gesture.
+    // Suppress text selection while mousedown is held — restored on mouseup.
+    cfg.row.setAttribute('draggable', 'true');
+    cfg.row.style.userSelect = 'none';
+    const cleanup = () => {
+      // If dragstart didn't fire (it was a click), remove draggable cleanly
+      setTimeout(() => {
+        cfg.row.removeAttribute('draggable');
+        cfg.row.style.userSelect = '';
+      }, 0);
+      document.removeEventListener('mouseup', cleanup);
+    };
+    document.addEventListener('mouseup', cleanup);
   });
 
   document.addEventListener('dragstart', function(e) {
@@ -2837,7 +2833,11 @@ function _clearAllDone() {
   document.addEventListener('dragend', function(e) {
     if (!(e.target instanceof Element)) return;
     const cfg = _rowConfig(e.target);
-    if (cfg) { cfg.row.classList.remove('dragging'); cfg.row.removeAttribute('draggable'); }
+    if (cfg) {
+      cfg.row.classList.remove('dragging');
+      cfg.row.removeAttribute('draggable');
+      cfg.row.style.userSelect = ''; // restore text selection after drag
+    }
     document.querySelectorAll('.task.drag-over, .habit.drag-over').forEach(el => el.classList.remove('drag-over'));
     dragSrc = null; dragListId = null;
   });
