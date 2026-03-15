@@ -1953,11 +1953,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.9.8';
+const APP_VERSION   = '1.9.9';
 const DEV_HOURS     = '78h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.9.9': 'Fix Gemini 404 — model string updated from deprecated gemini-2.5-flash-preview-05-20 to stable gemini-2.5-flash',
   '1.9.8': 'Fix copy in focus mode — clipboard API rejects with "Document not focused" during focus mode. Fallback to textarea+execCommand which is synchronous and document-focus-independent.',
   '1.9.7': 'Fix copy button in focus mode — focus mode click handler was intercepting .task-copy clicks before event delegation. Added .task-copy exclusion.',
   '1.9.6': '✦ button hover animation: expands ✦→✦✦→✦✦✦ in 180ms via starExpand width + staggered starFade2/3 on ::before/::after pseudo-elements',
