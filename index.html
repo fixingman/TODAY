@@ -89,8 +89,8 @@
     /* Focused task/habit snaps in via background+border, no opacity change */
     .focusing .task.focused,
     .focusing .habit.focused {
-      background: rgba(200,240,96,0.04);
-      border-color: rgba(200,240,96,0.12);
+      background: var(--accent-focus-bg);
+      border-color: var(--accent-focus-border);
       border-radius: var(--radius-lg) var(--radius-lg) 0 0;
       opacity: 1 !important;
       pointer-events: all !important;
@@ -99,25 +99,25 @@
     /* Recede — opacity only, nothing moves, pointer-events off */
     .focusing .task:not(.focused),
     .focusing .habit:not(.focused) {
-      opacity: 0.07 !important;
+      opacity: var(--opacity-recede) !important;
       pointer-events: none;
     }
-    .focusing .task.done:not(.focused) { opacity: 0.035 !important; }
-    .focusing .empty { opacity: 0.035 !important; }
+    .focusing .task.done:not(.focused) { opacity: var(--opacity-recede-done) !important; }
+    .focusing .empty { opacity: var(--opacity-recede-done) !important; }
     .focusing .section-header,
-    .focusing .app-date { opacity: 0.08 !important; }
+    .focusing .app-date { opacity: var(--opacity-recede-chrome) !important; }
     /* Habits panel header recedes too */
-    .focusing .config-panel:not(:has(.habit.focused)) { opacity: 0.08 !important; }
+    .focusing .config-panel:not(:has(.habit.focused)) { opacity: var(--opacity-recede-chrome) !important; }
 
     /* Checkbox — accent border in focus */
     .focusing .task.focused .task-check,
     .focusing .habit.focused .habit-check {
-      border-color: rgba(200,240,96,0.55);
+      border-color: var(--accent-check);
     }
     .focusing .task.focused .task-check:hover,
     .focusing .habit.focused .habit-check:hover {
-      border-color: rgba(200,240,96,0.9);
-      box-shadow: 0 0 0 3px rgba(200,240,96,0.1);
+      border-color: var(--accent-check-hover);
+      box-shadow: 0 0 0 3px var(--accent-check-glow);
     }
 
     /* Checkbox progress fill — grows with timer */
@@ -163,7 +163,7 @@
       line-height: 1.6;
     }
     .focusing .task.focused .task-copy {
-      opacity: 0.45;
+      opacity: var(--opacity-copy);
       pointer-events: all;
     }
     .focusing .task.focused .task-copy:hover {
@@ -183,7 +183,7 @@
       max-height: 0;
       will-change: max-height, opacity;
       opacity: 0;
-      border: 1px solid rgba(200,240,96,0.12);
+      border: 1px solid var(--accent-focus-border);
       border-top: none;
       border-radius: 0 0 var(--radius-lg) var(--radius-lg);
       transition: max-height var(--dur-fast) ease, opacity var(--dur-fast) ease;
@@ -196,7 +196,7 @@
       height: 34px;
       position: relative;
       overflow: hidden;
-      background: rgba(200,240,96,0.022);
+      background: var(--accent-timer-bg);
     }
     .focus-timer-fill {
       position: absolute;
@@ -205,10 +205,10 @@
       transform: scaleX(0);
       transform-origin: left;
       will-change: transform;
-      background: rgba(200,240,96,0.08);
-      transition: transform 1s linear;
+      background: var(--accent-timer-fill);
+      transition: transform 1s linear; /* intentional — Pomodoro countdown, not a UI transition */
     }
-    .focus-timer-fill.paused { background: rgba(200,240,96,0.03); }
+    .focus-timer-fill.paused { background: var(--accent-timer-paused); }
 
     .focus-timer-time {
       position: absolute;
@@ -312,6 +312,15 @@
     --color-accent:      #c8f060;   /* primary accent              */
     --color-accent-dim:  rgba(200,240,96,0.12); /* ghost accent bg */
     --color-accent-glow: rgba(200,240,96,0.28); /* accent glow border */
+    /* Focus mode accent variants — all derived from --color-accent */
+    --color-accent-focus-bg:     rgba(200,240,96,0.04);  /* focused row background    */
+    --color-accent-focus-border: rgba(200,240,96,0.12);  /* focused row border        */
+    --color-accent-check:        rgba(200,240,96,0.55);  /* focused checkbox border   */
+    --color-accent-check-hover:  rgba(200,240,96,0.90);  /* focused checkbox hover    */
+    --color-accent-check-glow:   rgba(200,240,96,0.10);  /* focused checkbox glow     */
+    --color-accent-timer-bg:     rgba(200,240,96,0.022); /* timer bar background      */
+    --color-accent-timer-fill:   rgba(200,240,96,0.08);  /* timer progress fill       */
+    --color-accent-timer-paused: rgba(200,240,96,0.03);  /* timer fill when paused    */
 
     /* ── Color: Semantic ─────────────────────────────────────── */
     --color-danger:      #ff5f5f;   /* error / delete              */
@@ -322,6 +331,7 @@
     /* ── Color: Utility ──────────────────────────────────────── */
     --color-done-line:   rgba(107,107,120,0.55); /* strikethrough  */
     --color-noise-overlay: rgba(255,255,255,0.03);/* texture layer */
+    --color-bg-glass:    rgba(14,14,16,0.92);    /* sticky header frosted bg */
 
     /* ── Backward-compat aliases (used in inline styles & JS) ── */
     --bg:           var(--color-bg);
@@ -336,6 +346,16 @@
     --highlight:    var(--color-highlight);
     --highlight-ui: var(--color-accent);
     --done-line:    var(--color-done-line);
+    --bg-glass:     var(--color-bg-glass);
+    /* Focus mode accent aliases */
+    --accent-focus-bg:     var(--color-accent-focus-bg);
+    --accent-focus-border: var(--color-accent-focus-border);
+    --accent-check:        var(--color-accent-check);
+    --accent-check-hover:  var(--color-accent-check-hover);
+    --accent-check-glow:   var(--color-accent-check-glow);
+    --accent-timer-bg:     var(--color-accent-timer-bg);
+    --accent-timer-fill:   var(--color-accent-timer-fill);
+    --accent-timer-paused: var(--color-accent-timer-paused);
 
     /* ── Spacing scale (4px base) ────────────────────────────── */
     --space-1:  4px;
@@ -366,8 +386,9 @@
     --text-md:    14px;   /* body default                        */
     --text-lg:    16px;
     --text-xl:    22px;
-    --text-sm2:   12px;   /* small labels, config hints          */
-    --text-task:  13.5px; /* task row text — between sm and base */
+    --text-xs2:   12px;   /* small labels, config hints (12px)   */
+    --text-sm2:   12px;   /* alias kept for compatibility         */
+    --text-task:  13.5px; /* task row text — between base and md  */
 
     /* ── Motion ──────────────────────────────────────────────── */
     --dur-fast:   0.15s;
@@ -383,14 +404,20 @@
     --z-overlay: 999;
 
     /* ── Opacity scale ───────────────────────────────────────── */
-    --opacity-dim:      0.25;  /* done state, secondary badges     */
-    --opacity-mid:      0.50;  /* focused session count            */
-    --opacity-soft:     0.60;  /* session count on hover           */
-    --opacity-muted:    0.65;  /* paused label, kbd hint base      */
-    --opacity-label:    0.40;  /* subtle hints, kbd hint show      */
-    --opacity-subtle:   0.28;  /* checkbox fill, timer time paused */
-    --opacity-hover:    0.85;  /* button hover states              */
-    --opacity-strong:   0.80;  /* timer time default               */
+    --opacity-dim:          0.25;  /* done state, secondary badges     */
+    --opacity-mid:          0.50;  /* focused session count            */
+    --opacity-soft:         0.60;  /* session count on hover           */
+    --opacity-muted:        0.65;  /* paused label, kbd hint base      */
+    --opacity-label:        0.40;  /* subtle hints, kbd hint show      */
+    --opacity-subtle:       0.28;  /* checkbox fill, timer time paused */
+    --opacity-hover:        0.85;  /* button hover states              */
+    --opacity-strong:       0.80;  /* timer time default               */
+    /* Focus mode recede opacities */
+    --opacity-recede:       0.07;  /* non-focused tasks during focus   */
+    --opacity-recede-done:  0.035; /* done tasks receded in focus      */
+    --opacity-recede-chrome:0.08;  /* headers/date receded in focus    */
+    /* Copy button */
+    --opacity-copy:         0.45;  /* copy button at rest in focus     */
 
   }
 
@@ -469,6 +496,10 @@
 
 
   /* ── Layout ────────────────────────────────────────────────────────── */
+  html, body {
+    height: 100%;
+    overscroll-behavior: none; /* prevent pull-to-refresh / rubber-band scroll on iOS */
+  }
   html {
     overflow-y: scroll;
     overflow-x: hidden;
@@ -490,31 +521,25 @@
     z-index: var(--z-base);
     max-width: 680px;
     margin: 0 auto;
-    padding: 0 24px 80px;
+    padding: var(--space-12) var(--space-6) var(--space-20);
+    padding-top: calc(var(--space-12) + env(safe-area-inset-top));
     padding-bottom: calc(80px + env(safe-area-inset-bottom));
     min-height: 100vh;
     overflow-x: hidden;
   }
 
   /* ── Component: Header ─────────────────────────────────────────────── */
-  /* Sticky header lives outside .app — no overflow ancestor to break sticky */
+  /* Sticky header — mobile only. Desktop scrolls normally. */
   .sticky-header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    position: static; /* desktop default — no sticky */
     width: 100%;
-    background: rgba(14,14,16,0.92);
-    -webkit-backdrop-filter: blur(16px) saturate(1.4);
-    backdrop-filter: blur(16px) saturate(1.4);
-    box-shadow: 0 1px 0 rgba(255,255,255,0.05);
+    background: transparent;
   }
 
-  /* Inner wrapper mirrors .app centering */
   .sticky-header-inner {
     max-width: 680px;
     margin: 0 auto;
-    padding: var(--space-5) 24px var(--space-3);
-    padding-top: calc(var(--space-5) + env(safe-area-inset-top));
+    padding: 0; /* desktop: no extra padding, .app handles it */
   }
 
   .header {
@@ -1028,11 +1053,55 @@
 
   @media (max-width: 600px) {
     .config-grid { grid-template-columns: 1fr; }
-    .app { padding: 32px 16px 60px; padding-top: calc(16px + env(safe-area-inset-top)); padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
-    .sticky-header-inner { padding-left: 16px; padding-right: 16px; padding-top: calc(var(--space-4) + env(safe-area-inset-top)); }
-    .header { margin-bottom: 10px; }
-    .subheader { margin-bottom: 24px; }
+
+    /* App: no top padding — sticky header handles it. Bottom pad for sticky add bar. */
+    .app {
+      padding: 0 16px 0;
+      padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    }
+
+    /* Sticky header active on mobile */
+    .sticky-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--bg-glass);
+      -webkit-backdrop-filter: blur(16px) saturate(1.4);
+      backdrop-filter: blur(16px) saturate(1.4);
+      /* Hairline separator — visible once content scrolls under */
+      box-shadow: 0 1px 0 rgba(255,255,255,0.05);
+    }
+
+    .sticky-header-inner {
+      padding-left: var(--space-4);
+      padding-right: var(--space-4);
+      /* Top: safe area + breathing room. Bottom: tight — bar ends at progress bar. */
+      padding-top: calc(var(--space-4) + env(safe-area-inset-top));
+      padding-bottom: var(--space-3);
+    }
+
+    /* Subheader: progress bar is the visual cut-off — no extra gap below */
+    .subheader { margin-bottom: 0; }
+    .subheader-track { margin-bottom: 0; }
+
+    .header { margin-bottom: var(--space-3); }
     .btn-icon { width: 32px; height: 32px; font-size: var(--text-md); }
+
+    /* Sticky add-task bar — fixed to bottom of viewport */
+    .add-task-row {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      margin: 0;
+      padding: var(--space-3) 16px;
+      padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+      background: rgba(14,14,16,0.95);
+      -webkit-backdrop-filter: blur(16px) saturate(1.4);
+      backdrop-filter: blur(16px) saturate(1.4);
+      box-shadow: 0 -1px 0 rgba(255,255,255,0.05);
+    }
   }
 
   .config-field {
@@ -1602,11 +1671,13 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.7.2';
+const APP_VERSION   = '1.7.3';
 const DEV_HOURS     = '72h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.7.3': 'Sticky header mobile-only (position:static on desktop) | Progress bar fix (scaleX 0-1, was 0-100) | Sticky add-task bar bottom-fixed on mobile | Viewport lock (overscroll-behavior:none) | No black strip under progress bar (subheader margin removed)',
+  '1.7.3': 'Token audit: 9 hardcoded rgba(accent) → 8 new --accent-focus-* + --accent-timer-* tokens | 5 raw focus opacities → --opacity-recede/recede-done/recede-chrome | 0.45 copy button → --opacity-copy | rgba(14,14,16) → --bg-glass | 24px/16px spacing → --space tokens | --text-xs2 alias added | 1s linear timer documented',
   '1.7.2': 'Fix sticky header — moved outside .app (overflow:hidden was breaking sticky) | width:100% replaces 100vw hack | Fix iOS haptics — switch .click() trick removed (Safari requires real touch, not JS events) | navigator.vibrate() now works on iOS Safari',
   '1.7.1': 'Fix sticky header — full viewport width via 100vw + calc(-50vw+50%) breakout | sticky-header-inner re-applies max-width:680px centering | was constrained to .app column width',
   '1.7.0': 'Habits system: 21-day dot strip, habit strength % (exponential smoothing), Dropbox sync, union merge | Focus mode on habits | Drag-to-reorder all three lists (desktop + mobile long-press) | PWA installable: Add to Dock on macOS, home screen on iOS | Auto-update: SW background download, activates on next focus | Offline cold start: blinking ✦ fallback | Rendering: GPU compositing, font smoothing, touch-action, overscroll | Copy button on focused tasks | Shift+D clear all done',
@@ -3275,7 +3346,7 @@ function updateStats() {
   const total = all.length;
   const done  = all.filter(t => doneIds.has(t.id)).length;
   const left  = total - done;
-  const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+  const pct   = total > 0 ? done / total : 0;
 
   const s = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   s('statTotal', total);
