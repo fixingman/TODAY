@@ -560,14 +560,13 @@
     background: var(--bg-glass);
     -webkit-backdrop-filter: blur(16px) saturate(1.4);
     backdrop-filter: blur(16px) saturate(1.4);
-    box-shadow: 0 1px 0 rgba(255,255,255,0.05);
   }
 
   .sticky-header-inner {
     max-width: 680px;
     margin: 0 auto;
     /* Desktop: match .app's 24px horizontal padding + space-5 top */
-    padding: var(--space-5) var(--space-6) var(--space-3);
+    padding: var(--space-5) var(--space-6) 0;
   }
 
   .header {
@@ -628,7 +627,7 @@
 
   /* Subheader */
   .subheader {
-    margin-bottom: var(--space-1);
+    margin-bottom: 0;
   }
 
   .subheader-top {
@@ -1025,7 +1024,6 @@
     background: var(--bg-glass);
     -webkit-backdrop-filter: blur(16px) saturate(1.4);
     backdrop-filter: blur(16px) saturate(1.4);
-    box-shadow: 0 -1px 0 rgba(255,255,255,0.05);
   }
   /* Inner wrapper keeps content aligned with .app column */
   .add-task-row > * {
@@ -1924,23 +1922,26 @@
       </div>
 
       <!-- Key input -->
-      <div class="config-grid">
+      <div class="config-grid" id="aiKeyInputWrap">
         <div class="config-field full">
-          <div class="config-label" id="aiKeyLabel">Google AI Studio Key
+          <div class="config-label" id="aiKeyLabel" style="display:flex;justify-content:space-between;align-items:baseline">
+            <span>Google AI Studio Key</span>
             <a id="aiKeyLink" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener"
-              style="float:right;font-size:var(--text-xs);color:var(--highlight-ui);text-decoration:none;letter-spacing:0.04em">
+              style="font-size:var(--text-xs);color:var(--highlight-ui);text-decoration:none;letter-spacing:0.04em">
               Get free key →
             </a>
           </div>
           <input class="config-input" id="aiApiKey" autocomplete="off" autocorrect="off"
             autocapitalize="off" spellcheck="false" type="password"
-            placeholder="Paste key here…"
+            placeholder="Paste your key…"
+            oninput="_aiUpdateConnectBtn()"
             onkeydown="if(event.key==='Enter')saveAIKey()" />
         </div>
       </div>
       <div id="aiStatusLine" class="panel-status-line"></div>
-      <div class="config-actions">
-        <button class="btn-primary" id="aiSaveBtn" onclick="saveAIKey()">Connect</button>
+      <div class="config-actions" id="aiActions">
+        <button class="btn-primary" id="aiSaveBtn" onclick="saveAIKey()" disabled>Connect</button>
+        <span id="aiConnectedStatus" style="display:none;color:var(--accent);font-size:var(--text-sm)">✓ Connected</span>
         <button class="btn-ghost" id="aiClearBtn" onclick="clearAIKey()" style="display:none">Forget</button>
       </div>
       <div class="status-msg" id="aiMsg"></div>
@@ -2031,11 +2032,15 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.2.5';
-const DEV_HOURS     = '86h';
+const APP_VERSION   = '2.2.9';
+const DEV_HOURS     = '87h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.2.9': 'AI error handling: detect HTML in error messages, human-friendly messages ("Can\'t reach AI", "That key didn\'t work")',
+  '2.2.8': 'AI config UX: Connect disabled until input, status inline next to Forget, no lingering banner, cleaner label layout',
+  '2.2.7': 'Remove divider stroke from bottom add-task bar',
+  '2.2.6': 'Header polish: removed divider stroke + spacing below progress bar — cleaner, more premium',
   '2.2.5': 'Copy revision — human tonality across the app: "Get tasks", "Forget", "Save", "Bring back", "One moment…", "Nothing due today", "Can\'t reach Trello"',
   '2.2.4': 'Focus mode tonality: "space breathe" / "esc rest" — human language for humans, not robots. Tonality guidelines added to Design.md §2.',
   '2.2.3': 'Focus mode: Esc now just closes UI (timer keeps running in background) — no longer resets. Hint updated to "esc close".',
@@ -5197,14 +5202,17 @@ async function _aiLoad() {
     }
   } catch(e) {
     const errText = e.message || '';
+    // Detect HTML in error (function not deployed)
+    const isHtml   = errText.includes('<!DOCTYPE') || errText.includes('<html');
     // Distinguish key problems from network/other problems
     const isKeyErr = errText.includes('API key') || errText.includes('not valid') ||
                      errText.includes('API_KEY') || errText.includes('401') || errText.includes('403');
     const isQuota  = errText.includes('quota') || errText.includes('429') || errText.includes('QUOTA');
-    const msg = isKeyErr ? 'Invalid API key — re-enter it in Connections.'
-              : isQuota  ? 'API quota exceeded — check your usage limits.'
-              : errText  ? 'Error: ' + errText.slice(0, 80)
-              : 'Could not reach AI — check your connection.';
+    const msg = isHtml   ? 'Function not deployed — redeploy the site'
+              : isKeyErr ? 'Invalid API key — check Connections'
+              : isQuota  ? 'API quota exceeded — try again later'
+              : errText  ? 'Can\'t reach AI — ' + errText.slice(0, 60)
+              : 'Can\'t reach AI — check your connection';
     _aiSetMsg(msg);
     _aiSetChips([
       { label: 'Open Connections', type: 'open_panel', payload: { panel: 'connections' }, primary: true },
@@ -5252,7 +5260,9 @@ async function _aiAskFromPanel() {
     const result = await _aiCall([{ role: 'user', content: text }]);
     if (result) _aiRenderResult(result);
   } catch(e) {
-    _aiSetMsg('Error — ' + (e.message || 'unknown'));
+    const errText = e.message || 'unknown';
+    const isHtml = errText.includes('<!DOCTYPE') || errText.includes('<html');
+    _aiSetMsg(isHtml ? 'Function not deployed' : 'Can\'t reach AI — ' + errText.slice(0, 50));
   }
 }
 
@@ -5482,7 +5492,7 @@ function setAIProvider(p) {
   _aiRenderConfig();
   // Focus input if showing input field
   const input = document.getElementById('aiApiKey');
-  const inputWrap = document.querySelector('#aiConfigSection .config-grid');
+  const inputWrap = document.getElementById('aiKeyInputWrap');
   if (input && inputWrap && inputWrap.style.display !== 'none') {
     input.focus();
   }
@@ -5504,38 +5514,40 @@ function _aiRenderConfig() {
   document.getElementById('aiProviderGemini')?.classList.toggle('active', isViewingGemini);
   document.getElementById('aiProviderClaude')?.classList.toggle('active', !isViewingGemini);
 
-  const labelEl    = document.getElementById('aiKeyLabel');
-  const inputWrap  = document.querySelector('#aiConfigSection .config-grid');
-  const input      = document.getElementById('aiApiKey');
-  const statusLine = document.getElementById('aiStatusLine');
-  const saveBtn    = document.getElementById('aiSaveBtn');
-  const clearBtn   = document.getElementById('aiClearBtn');
+  const labelEl      = document.getElementById('aiKeyLabel');
+  const inputWrap    = document.getElementById('aiKeyInputWrap');
+  const input        = document.getElementById('aiApiKey');
+  const statusLine   = document.getElementById('aiStatusLine');
+  const saveBtn      = document.getElementById('aiSaveBtn');
+  const clearBtn     = document.getElementById('aiClearBtn');
+  const connStatus   = document.getElementById('aiConnectedStatus');
 
   // Update label + link for the provider being viewed
   if (labelEl) {
     const href = isViewingGemini ? 'https://aistudio.google.com/apikey' : 'https://console.anthropic.com/keys';
-    const linkText = isViewingGemini ? 'Get free key →' : 'Get API key →';
-    labelEl.innerHTML = (isViewingGemini ? 'Google AI Studio Key' : 'Anthropic API Key') +
-      `<a href="${href}" target="_blank" rel="noopener"
-        style="float:right;font-size:var(--text-xs);color:var(--highlight-ui);text-decoration:none">
+    const linkText = isViewingGemini ? 'Get free key →' : 'Get key →';
+    const labelText = isViewingGemini ? 'Google AI Studio Key' : 'Anthropic API Key';
+    labelEl.innerHTML = `<span>${labelText}</span>
+      <a href="${href}" target="_blank" rel="noopener"
+        style="font-size:var(--text-xs);color:var(--highlight-ui);text-decoration:none;letter-spacing:0.04em">
         ${linkText}</a>`;
   }
 
   if (isConnectedToViewing) {
-    // ── Connected state: hide input, show status + disconnect ──
+    // ── Connected state: hide input, show status next to Forget ──
     if (inputWrap) inputWrap.style.display = 'none';
-    if (statusLine) {
-      statusLine.textContent = `✓ ${isViewingGemini ? 'Gemini 2.5 Flash' : 'Claude Haiku'} connected`;
-      statusLine.style.color = 'var(--accent)';
-      statusLine.style.display = '';
+    if (statusLine) statusLine.style.display = 'none';
+    if (saveBtn) saveBtn.style.display = 'none';
+    if (connStatus) {
+      connStatus.textContent = `✓ ${isViewingGemini ? 'Gemini 2.5 Flash' : 'Claude Haiku'}`;
+      connStatus.style.display = '';
     }
-    if (saveBtn)  saveBtn.style.display  = 'none';
     if (clearBtn) clearBtn.style.display = '';
   } else {
     // ── Disconnected or switching provider: show input + connect ──
     if (inputWrap) inputWrap.style.display = '';
     if (input && !input.matches(':focus')) {
-      input.placeholder = isViewingGemini ? 'AIzaSy…' : 'sk-ant-…';
+      input.placeholder = isViewingGemini ? 'Paste your key…' : 'Paste your key…';
       input.value = '';
     }
     if (statusLine) {
@@ -5543,8 +5555,25 @@ function _aiRenderConfig() {
       statusLine.style.color = 'var(--muted)';
       statusLine.style.display = '';
     }
-    if (saveBtn)  saveBtn.style.display  = '';
+    if (saveBtn) {
+      saveBtn.style.display = '';
+      saveBtn.disabled = !input?.value?.trim();
+    }
+    if (connStatus) connStatus.style.display = 'none';
     if (clearBtn) clearBtn.style.display = 'none';
+  }
+  
+  // Clear any lingering success message
+  const msgEl = document.getElementById('aiMsg');
+  if (msgEl) msgEl.textContent = '';
+}
+
+// Enable/disable Connect button based on input
+function _aiUpdateConnectBtn() {
+  const input = document.getElementById('aiApiKey');
+  const saveBtn = document.getElementById('aiSaveBtn');
+  if (saveBtn) {
+    saveBtn.disabled = !input?.value?.trim();
   }
 }
 
@@ -5593,10 +5622,12 @@ async function saveAIKey() {
       // Validation failed — remove the key we optimistically saved
       localStorage.removeItem('today_ai_key');
       const err = await res.text();
-      const msg = (err.includes('API key') || err.includes('not valid') || err.includes('API_KEY'))
-        ? 'Invalid key — double-check and try again'
-        : err.includes('quota') ? 'Quota exceeded'
-        : 'Error: ' + err.slice(0, 80);
+      const isHtml = err.includes('<!DOCTYPE') || err.includes('<html');
+      const msg = isHtml ? 'Function not deployed — redeploy site'
+        : (err.includes('API key') || err.includes('not valid') || err.includes('API_KEY'))
+        ? 'That key didn\'t work — try again'
+        : err.includes('quota') ? 'Quota exceeded — try later'
+        : 'Can\'t connect — ' + err.slice(0, 50);
       _msg(msg, 'var(--danger)');
       input?.select(); input?.focus();
       return;
@@ -5604,13 +5635,12 @@ async function saveAIKey() {
 
     if (input) input.value = '';
     _aiViewingProvider = null; // reset — now viewing the connected provider
-    _msg('Connected ✓  Tap ✦ to start', 'var(--accent)');
     _aiRenderConfig();
 
   } catch(e) {
     // Network error — remove optimistic save
     localStorage.removeItem('today_ai_key');
-    _msg('Network error — check connection', 'var(--danger)');
+    _msg('Can\'t reach the server — check your connection', 'var(--danger)');
   } finally {
     if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Connect'; }
   }
@@ -5619,8 +5649,6 @@ async function saveAIKey() {
 function clearAIKey() {
   localStorage.removeItem('today_ai_key');
   _aiViewingProvider = null; // reset to show current provider state
-  const el = document.getElementById('aiMsg');
-  if (el) { el.className = 'status-msg error'; el.textContent = 'Off'; el.style.color = 'var(--muted)'; }
   _aiRenderConfig();
 }
 
