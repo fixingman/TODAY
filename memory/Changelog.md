@@ -2,6 +2,11 @@
 
 | Version | Key change |
 |---|---|
+| 1.8.4 | Fix fake key validation — real API test call before saving, surfaces actual error message |
+| 1.8.3 | Fix AI button persistent active state — was driven by key presence, now panel-open only |
+| 1.8.2 | AI UX: active = panel open only, chip actions close immediately not linger |
+| 1.8.1 | AI UX rethink — inline panel (no modal overlay), suggestion chips, task list stays visible |
+| **1.8.0** | **AI Assistant — Gemini 2.5 Flash (free default) + Claude Haiku (private). Provider selector, Netlify proxy, structured actions.** |
 | 1.7.3 | Progress bar fix | Sticky header mobile-only | Sticky add bar bottom | Viewport lock | No black strip |
 | 1.7.3 | Token audit — all hardcoded colours, opacities, and spacing replaced with design tokens |
 | 1.7.2 | Fix sticky header (outside .app, no overflow conflict) | Fix iOS haptics (drop switch trick, use vibrate directly) |

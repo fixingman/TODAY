@@ -450,6 +450,20 @@ When focus mode activates, the `grab` cursor from drag-to-reorder persisted on t
 
 ---
 
+### AI Assistant (v1.8.0)
+
+**Entry point:** `✦✦` button in the header. Toggles an inline panel — same open/close pattern as Habits and Connections. The task list remains visible while the panel is open.
+
+**Interaction model:** The assistant reads the user's full state (tasks, habits, time of day, progress) and returns one sentence + 2–4 action chips. Chips execute immediately on tap — no confirmation dialogs. Terminal actions (check, delete, focus, dismiss) close the panel. Additive actions (add task) show brief feedback then reload suggestions.
+
+**What it is not:** a chat interface. No conversation history, no freeform back-and-forth by default. The input field accepts natural language but the response is always chips — the user taps, things happen.
+
+**Active state rule:** `aiBtn` is active (accent) only when the panel is open — identical to all other header buttons. It does not stay lit when a key is configured.
+
+**Provider selector:** Gemini 2.5 Flash (default, free) or Claude Haiku. Selector lives in Connections panel, not in the AI panel itself. Keeps the AI panel focused on the task.
+
+**Key validation:** `saveAIKey()` makes a real test call before accepting the key. Shows "Testing…" while validating, surfaces the API's actual error message on failure.
+
 ## 8. Integrations
 
 ### Trello
