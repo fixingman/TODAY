@@ -1,7 +1,7 @@
 // TODAY — Service Worker
 // Strategy: network-first for app shell, strict exclusions for all API calls
 // Version bump this string to force cache invalidation on deploy
-const CACHE_VERSION  = 'today-v1.6.43';
+const CACHE_VERSION  = 'today-v1.6.44';
 const CACHE_APP_SHELL = [
   '/',
   '/manifest.json',
@@ -61,6 +61,11 @@ const OFFLINE_HTML = `<!DOCTYPE html>
 </html>`;
 
 // ── Install: pre-cache app shell + offline fallback ───────────────────────────
+// ── Update message — client requests immediate takeover ──────────────────────
+self.addEventListener('message', event => {
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_VERSION).then(cache => {
@@ -72,8 +77,8 @@ self.addEventListener('install', event => {
       return cache.addAll(CACHE_APP_SHELL).catch(() => { /* offline at install time — ok */ });
     })
   );
-  // Take control immediately — don't wait for existing tabs to close
-  self.skipWaiting();
+  // skipWaiting is triggered by the client via postMessage('SKIP_WAITING')
+  // — see auto-update listener in index.html. This prevents jarring mid-session takeovers.
 });
 
 // ── Activate: purge old cache versions ───────────────────────────────────────

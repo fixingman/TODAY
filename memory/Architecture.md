@@ -337,8 +337,27 @@ Local device state only. **Never backed up, never restored from Dropbox.** Resto
 - [ ] `CHANGELOG` object in `index.html` — one entry, `|` separated, no implementation detail
 - [ ] `CACHE_VERSION` in `sw.js` — must match `APP_VERSION` exactly
 - [ ] `Changelog.md` — one table row, terse
-- [ ] `Architecture.md` — if sync, data model, or product logic changed
-- [ ] `Design.md` — if animation, audio, interaction, or token rules changed
+
+### Doc freshness — which change triggers which file
+
+| Change type | Update |
+|---|---|
+| New localStorage key, backup schema change, sync flow change, new data model | `Architecture.md` §1 Data model or §4 Sync flow |
+| New product rule, merge strategy change, new-day logic change | `Architecture.md` §5 or §10 Key Product Rules |
+| New UI component, token added/changed, animation rule, sound design | `Design.md` relevant section |
+| Interaction pattern added, changed, or deliberately removed | `Design.md` §7 Interaction Decisions |
+| Bug fix that reveals a non-obvious browser constraint or gotcha | `Research.md` §3 Technical Gotchas |
+| New integration researched or complexity rating updated | `Research.md` §2 Integrations |
+| Product decision made with explicit reasoning (e.g. feature removed, scope defined) | `Research.md` relevant section or new section |
+| Habit algorithm, strength formula, or scoring change | `Research.md` §4 Habits |
+
+**The test:** after every change, ask — *if someone read only the memory files, would they understand why this exists and how it works?* If the answer is no, the docs are stale.
+
+**What "stale" looks like in practice:**
+- A function exists in code that no memory file explains
+- A decision was made that no memory file records the reasoning for
+- A gotcha was hit that no memory file warned about
+- A product rule exists in Architecture.md that the code no longer follows
 
 ---
 
@@ -350,3 +369,4 @@ After every bug fix or function rework:
 2. **Check for dead functions** — if a fix extracted logic into a helper, or replaced a function's role, check whether the old function is still called anywhere. If not, delete it.
 3. **Check for orphaned CSS classes** — if a fix removed a DOM element or changed a class name, check whether the old CSS selector is still referenced in HTML or JS. If not, delete it.
 4. **Check for stale comments** — if a comment describes behaviour that was just changed, update or remove it. Stale comments are worse than no comments.
+5. **Check doc freshness** — use the trigger table in §12 to determine whether the change warrants a memory file update. A fix that hits a new browser gotcha goes in Research.md. A removed feature goes in Design.md §7. A new product rule goes in Architecture.md. Do this before closing the work item, not at the end of a session.
