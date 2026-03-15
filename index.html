@@ -148,27 +148,21 @@
       pointer-events: none;
     }
 
-    /* Breathe overlay — full screen pulse on space */
+    /* Breathe overlay — persistent blur state on pause */
     #breatheOverlay {
       position: fixed;
       inset: 0;
       z-index: 100;
       pointer-events: none;
       opacity: 0;
-      background: rgba(20, 22, 18, 0.92);
-      backdrop-filter: blur(40px);
-      -webkit-backdrop-filter: blur(40px);
-      transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      background: rgba(22, 26, 20, 0.88);
+      backdrop-filter: blur(60px);
+      -webkit-backdrop-filter: blur(60px);
+      transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1), background 1.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
     #breatheOverlay.active {
       opacity: 1;
-      animation: breathePulse 1.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    }
-    @keyframes breathePulse {
-      0%   { opacity: 0; background: rgba(20, 22, 18, 0.85); }
-      30%  { opacity: 1; background: rgba(30, 35, 28, 0.95); }
-      50%  { opacity: 1; background: rgba(40, 48, 36, 0.92); }
-      100% { opacity: 0; background: rgba(20, 22, 18, 0.85); }
+      background: rgba(28, 34, 24, 0.92);
     }
 
     /* Session count visible in focus mode */
@@ -2306,11 +2300,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.6.5';
+const APP_VERSION   = '2.6.6';
 const DEV_HOURS     = '101h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.6.6': 'Breathe overlay: now persistent state (stays while paused) with slow 1.2s fade. 60px blur, soothing green tint. Clears on resume/esc.',
   '2.6.5': 'Stale tasks: manual tasks inactive >3 days fade to 35% opacity. Starting a pomodoro resets lastActive and removes stale state.',
   '2.6.4': 'Focus mode: breathe overlay on space — full-screen blur pulse with lighter background (1.4s animation). Visual pause/resume feedback.',
   '2.6.3': 'Focus mode: heavy blur (8-10px) + stronger noise displacement — letters become smooth diffuse texture.',
@@ -6476,6 +6471,7 @@ function _aiDismissProactive() {
     clearTimeout(tickHandle);
     timerEl.classList.remove('open');
     kbdHint.classList.remove('show');
+    _updateBreatheOverlay(false); // Clear breathe overlay
 
     const closingTask   = uiTaskEl;
     const closingTaskId = uiTaskId;
@@ -6542,6 +6538,7 @@ function _aiDismissProactive() {
     st.paused    = true;   // explicit user pause — survives UI dismiss
     st.wallStart = null;
     setPaused(true);
+    _updateBreatheOverlay(true);
   }
 
   // ── Resume the active task ────────────────────────────────────────────────
@@ -6553,21 +6550,19 @@ function _aiDismissProactive() {
     st.paused    = false;
     st.wallStart = Date.now();
     setPaused(false);
+    _updateBreatheOverlay(false);
     playResumeSound();
     tickFor(uiTaskId);
   }
 
   function toggle() {
     if (!uiTaskId) return;
-    // Trigger breathe overlay animation
-    const overlay = document.getElementById('breatheOverlay');
-    if (overlay) {
-      overlay.classList.remove('active');
-      void overlay.offsetWidth; // force reflow
-      overlay.classList.add('active');
-      setTimeout(() => overlay.classList.remove('active'), 1500);
-    }
     getState(uiTaskId).running ? pause() : resume();
+  }
+  
+  function _updateBreatheOverlay(paused) {
+    const overlay = document.getElementById('breatheOverlay');
+    if (overlay) overlay.classList.toggle('active', paused);
   }
 
   // ── Tick for a specific taskId ────────────────────────────────────────────
