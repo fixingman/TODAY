@@ -931,7 +931,10 @@
   .add-task-row {
     display: flex;
     gap: var(--space-2);
-    margin-top: var(--space-3);
+    /* Desktop: flows in normal document, outside .app — mirrors .app centering */
+    max-width: 680px;
+    margin: var(--space-3) auto var(--space-8);
+    padding: 0 var(--space-6);
   }
 
   .clear-input-btn {
@@ -1057,8 +1060,8 @@
     /* App: no top padding — sticky header handles it. Bottom pad clears the sticky add bar. */
     .app {
       padding: 0 var(--space-4) 0;
-      /* 60px = bar height (~44px input) + 8px top pad + 8px breathing room */
-      padding-bottom: calc(60px + env(safe-area-inset-bottom));
+      /* space-20 (80px) = bar height + padding above bar so last task isn't hidden */
+      padding-bottom: calc(var(--space-20) + env(safe-area-inset-bottom));
     }
 
     /* Sticky header active on mobile */
@@ -1096,10 +1099,10 @@
       right: 0;
       z-index: 10;
       margin: 0;
-      /* Tight top — bar sits close to the bottom edge, not floating */
-      padding: var(--space-2) var(--space-4) 0;
-      /* Bottom pad = safe area only — bar is flush with the home indicator area */
-      padding-bottom: env(safe-area-inset-bottom);
+      /* space-3 (12px) top and sides — matches panel padding, feels connected */
+      padding: var(--space-3) var(--space-4) var(--space-3);
+      /* Safe area adds natural clearance below on notched phones */
+      padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
       background: var(--bg-glass);
       -webkit-backdrop-filter: blur(16px) saturate(1.4);
       backdrop-filter: blur(16px) saturate(1.4);
@@ -1844,15 +1847,17 @@
     </div>
     <div class="task-list" id="manualList"></div>
     <div class="empty" id="manualEmpty" style="display:none">Nothing added yet</div>
-    <div class="add-task-row">
-      <div style="position:relative;flex:1;min-width:0;">
-        <input class="add-task-input" id="newTask" maxlength="500" type="text" placeholder="Add a task for today…" onkeydown="handleAddKey(event)" oninput="toggleClearBtn()" />
-        <button id="clearTaskBtn" onclick="clearTaskInput()" class="clear-input-btn" style="display:none">×</button>
-      </div>
-      <button class="add-task-btn" onclick="addManual()">Add</button>
-    </div>
   </div>
 
+</div>
+
+<!-- Add task bar: outside .app so transforms on .section don't break position:fixed -->
+<div class="add-task-row" id="addTaskBar">
+  <div style="position:relative;flex:1;min-width:0;">
+    <input class="add-task-input" id="newTask" maxlength="500" type="text" placeholder="Add a task for today…" onkeydown="handleAddKey(event)" oninput="toggleClearBtn()" />
+    <button id="clearTaskBtn" onclick="clearTaskInput()" class="clear-input-btn" style="display:none">×</button>
+  </div>
+  <button class="add-task-btn" onclick="addManual()">Add</button>
 </div>
 
 <canvas id="celebCanvas"></canvas>
@@ -1871,11 +1876,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.8.5';
+const APP_VERSION   = '1.8.7';
 const DEV_HOURS     = '76h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.8.7': 'Add-task bar margins: space-3 top, space-4 sides, space-2+safe-area bottom — all tokens, no hardcoded px',
+  '1.8.7': 'Add-task bar: symmetric space-3 padding all sides, safe-area-inset-bottom on bottom. All values token-based. App bottom padding uses --space-20 token.',
+  '1.8.6': 'Fix add-task bar position:fixed broken by ancestor transform — moved outside .app entirely (same fix as sticky header). Desktop: max-width 680px centered to match .app.',
   '1.8.5': 'Mobile bottom bar: padding-top reduced to space-2, padding-bottom = safe-area only (no extra gap). App bottom padding 80→60px. Bar now flush with home indicator area.',
   '1.8.4': 'Fix fake AI key validation — saveAIKey now makes a real test call before saving | shows Testing… spinner | rejects invalid keys with error message | ai-assist.js accepts client apiKey as fallback when env var not set',
   '1.8.3': 'Fix AI button persistent active state — _aiRenderConfig was setting aiBtn.active based on key presence, overriding syncActiveButtons. Removed. aiBtn.active now controlled only by syncActiveButtons (panel open = active).',
