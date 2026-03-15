@@ -2372,11 +2372,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.8.1';
-const DEV_HOURS     = '105h';
+const APP_VERSION   = '2.8.2';
+const DEV_HOURS     = '106h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.8.2': 'Task order syncs across devices (remote order wins, local-only tasks append). AI panel styling: larger text (14px), sleeker card with layered shadow, bigger chips. Focus complete shows "again?" not "restart". SW update: polls every 30min + on focus, more robust activation.',
   '2.8.1': 'AI gets a name: lu, kit, em, jo, pip, sol, rue, or finn — randomly picked on first use, kept forever, synced across devices via Dropbox. Fix ✦ button hover animation (now widens with staggered stars).',
   '2.8.0': 'Memory system: AI learns your patterns (peak hours, streaks, focus time). Unified tonality across all copy — warm, grounded, no corporate speak. Static text audit: "Your tasks", "A clean slate", "Clear". Dropbox sync includes memory.',
   '2.7.0': 'AI personality overhaul: warm, grounded tone. Speaks like a thoughtful friend, not a productivity coach. Notices patterns without preaching. No corporate speak, no emoji, no exclamation marks.',
@@ -5124,13 +5125,20 @@ function mergeRemoteData(data) {
   // For checked: remote wins on conflict — preserves check timestamps from other device
   const mergedCheckedMap   = new Map([...localCheckedMap,   ...remoteCheckedMap]);
 
-  // ── Task list: union minus deleted ───────────────────────────────────────
-  const localIds    = new Set(manualTasks.map(t => t.id));
-  const allTasksMap = new Map();
-  manualTasks.forEach(t => allTasksMap.set(t.id, t));
-  remoteTasks.forEach(t => allTasksMap.set(t.id, t)); // remote text wins on conflict
-
-  const mergedTasks = [...allTasksMap.values()].filter(t => {
+  // ── Task list: remote order wins, local-only tasks appended at end ────────
+  const remoteIds = new Set(remoteTasks.map(t => t.id));
+  const localOnly = manualTasks.filter(t => !remoteIds.has(t.id));
+  
+  // Build task map for latest data (remote text/fields win on conflict)
+  const taskDataMap = new Map();
+  manualTasks.forEach(t => taskDataMap.set(t.id, t));
+  remoteTasks.forEach(t => taskDataMap.set(t.id, { ...taskDataMap.get(t.id), ...t }));
+  
+  // Preserve remote order, then append local-only tasks
+  const orderedTasks = [...remoteTasks.map(t => taskDataMap.get(t.id)), ...localOnly];
+  
+  // Filter out deleted tasks
+  const mergedTasks = orderedTasks.filter(t => {
     const deletedAt = mergedDeletedMap.get(t.id);
     if (!deletedAt) return true;
     const taskCreatedAt = t.id.startsWith('manual_')
