@@ -1976,11 +1976,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.0.7';
+const APP_VERSION   = '2.0.8';
 const DEV_HOURS     = '78h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.0.8': 'Fix ByteString error — strip non-ASCII chars (smart quotes, zero-width spaces) from API key on both client save and server before using in HTTP headers.',
   '2.0.7': 'Guard against HTML error responses — function returns friendly message if Gemini/Anthropic return HTML. Client _aiCall detects HTML body and shows "function not deployed" instead of raw HTML in error.',
   '2.0.6': 'AI error clarity: _aiLoad catch now shows specific error (invalid key / quota exceeded / network) instead of generic message. _aiLoadedOnce reset on error to allow retry without reload.',
   '2.0.5': 'Fix AI key lost on SW reload — save key to localStorage BEFORE async validation test, remove on failure. Prevents SW controllerchange reload wiping the in-flight key.',
@@ -5410,7 +5411,9 @@ async function saveAIKey() {
   const input   = document.getElementById('aiApiKey');
   const saveBtn = document.getElementById('aiSaveBtn');
   const msgEl   = document.getElementById('aiMsg');
-  const key     = (input?.value || '').trim();
+  // Strip non-printable / non-ASCII characters — pasting from some apps
+  // includes smart quotes or zero-width spaces that break HTTP headers
+  const key     = (input?.value || '').replace(/[^\x20-\x7E]/g, '').trim();
 
   // Keep panel open throughout
   document.getElementById('configPanel')?.classList.add('open');
