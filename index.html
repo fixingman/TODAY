@@ -804,6 +804,8 @@
     line-height: 1.5;
     word-break: break-word;
     overflow-wrap: break-word;
+    /* Right padding clears the copy button in focus mode */
+    padding-right: var(--space-8);
   }
 
   .task-meta {
@@ -1974,11 +1976,18 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.0.1';
+const APP_VERSION   = '2.0.8';
 const DEV_HOURS     = '78h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.0.8': 'Fix ByteString error — strip non-ASCII chars (smart quotes, zero-width spaces) from API key on both client save and server before using in HTTP headers.',
+  '2.0.7': 'Guard against HTML error responses — function returns friendly message if Gemini/Anthropic return HTML. Client _aiCall detects HTML body and shows "function not deployed" instead of raw HTML in error.',
+  '2.0.6': 'AI error clarity: _aiLoad catch now shows specific error (invalid key / quota exceeded / network) instead of generic message. _aiLoadedOnce reset on error to allow retry without reload.',
+  '2.0.5': 'Fix AI key lost on SW reload — save key to localStorage BEFORE async validation test, remove on failure. Prevents SW controllerchange reload wiping the in-flight key.',
+  '2.0.4': 'Re-add .task-copy exclusion to focus mode click handler (dropped in merge). Full audit pass — all features verified.',
+  '2.0.3': 'Fix AI key error never showing — .status-msg is display:none until error/success class added. _msg() now sets className correctly so validation errors are always visible.',
+  '2.0.2': 'Fix task text overlapping copy button in focus mode — padding-right: space-8 on .task-text',
   '2.0.1': 'Focus mode complete state: fill turns accent + pulses, time label shows "restart". One click on card restarts session and logs new pomodoro. Esc still fully resets.',
   '2.0.0': 'Scroll reset on reload (scrollRestoration=manual + scrollTo(0,0)) — no more mid-page reloads. Focus exit scrolls task back into view.',
   '1.9.9': 'Fix Gemini 404 — model string updated from deprecated gemini-2.5-flash-preview-05-20 to stable gemini-2.5-flash',
@@ -5115,11 +5124,21 @@ async function _aiLoad() {
       _showNlRow(); // reveal natural language input after chips load
     }
   } catch(e) {
-    _aiSetMsg('Could not connect — check your key in Connections.');
+    const errText = e.message || '';
+    // Distinguish key problems from network/other problems
+    const isKeyErr = errText.includes('API key') || errText.includes('not valid') ||
+                     errText.includes('API_KEY') || errText.includes('401') || errText.includes('403');
+    const isQuota  = errText.includes('quota') || errText.includes('429') || errText.includes('QUOTA');
+    const msg = isKeyErr ? 'Invalid API key — re-enter it in Connections.'
+              : isQuota  ? 'API quota exceeded — check your usage limits.'
+              : errText  ? 'Error: ' + errText.slice(0, 80)
+              : 'Could not reach AI — check your connection.';
+    _aiSetMsg(msg);
     _aiSetChips([
       { label: 'Open Connections', type: 'open_panel', payload: { panel: 'connections' }, primary: true },
       { label: 'Dismiss', type: 'dismiss', payload: {} },
     ]);
+    _aiLoadedOnce = false; // allow retry after fixing key
   }
 }
 
@@ -5209,9 +5228,12 @@ async function _aiCall(messages) {
   });
 
   if (!res.ok) {
-    const err = await res.text();
+    const ct  = res.headers.get('content-type') || '';
+    const err = ct.includes('html') ? `HTTP ${res.status} — function not deployed?` : await res.text();
     throw new Error(err || `HTTP ${res.status}`);
   }
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('html')) throw new Error('Unexpected HTML response — function may not be deployed');
   return res.json();
 }
 
@@ -5389,22 +5411,31 @@ async function saveAIKey() {
   const input   = document.getElementById('aiApiKey');
   const saveBtn = document.getElementById('aiSaveBtn');
   const msgEl   = document.getElementById('aiMsg');
-  const key     = (input?.value || '').trim();
+  // Strip non-printable / non-ASCII characters — pasting from some apps
+  // includes smart quotes or zero-width spaces that break HTTP headers
+  const key     = (input?.value || '').replace(/[^\x20-\x7E]/g, '').trim();
 
   // Keep panel open throughout
   document.getElementById('configPanel')?.classList.add('open');
 
   function _msg(text, colour) {
     if (!msgEl) return;
+    // .status-msg is display:none until error/success class is added
+    const isError   = colour.includes('danger');
+    const isSuccess = colour.includes('accent');
+    msgEl.className   = 'status-msg' + (isError ? ' error' : isSuccess ? ' success' : ' error');
     msgEl.textContent = text;
     msgEl.style.color = colour;
-    msgEl.style.opacity = '1';
   }
 
   if (!key) { _msg('Paste your API key first', 'var(--danger)'); input?.focus(); return; }
 
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Testing…'; }
   _msg('Connecting…', 'var(--muted)');
+
+  // Save key BEFORE the async test — if page reloads mid-validation
+  // (e.g. SW update) the key survives. Delete it on failure.
+  localStorage.setItem('today_ai_key', key);
 
   try {
     const res = await fetch('/.netlify/functions/ai-assist', {
@@ -5418,6 +5449,8 @@ async function saveAIKey() {
     });
 
     if (!res.ok) {
+      // Validation failed — remove the key we optimistically saved
+      localStorage.removeItem('today_ai_key');
       const err = await res.text();
       const msg = (err.includes('API key') || err.includes('not valid') || err.includes('API_KEY'))
         ? 'Invalid key — double-check and try again'
@@ -5428,12 +5461,13 @@ async function saveAIKey() {
       return;
     }
 
-    localStorage.setItem('today_ai_key', key);
     if (input) input.value = '';
     _msg('Connected ✓  Tap ✦ to start', 'var(--accent)');
     _aiRenderConfig();
 
   } catch(e) {
+    // Network error — remove optimistic save
+    localStorage.removeItem('today_ai_key');
     _msg('Network error — check connection', 'var(--danger)');
   } finally {
     if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Connect'; }
@@ -5443,7 +5477,7 @@ async function saveAIKey() {
 function clearAIKey() {
   localStorage.removeItem('today_ai_key');
   const el = document.getElementById('aiMsg');
-  if (el) { el.textContent = 'Disconnected'; el.style.color = 'var(--muted)'; }
+  if (el) { el.className = 'status-msg error'; el.textContent = 'Disconnected'; el.style.color = 'var(--muted)'; }
   _aiRenderConfig();
 }
 
@@ -5790,6 +5824,7 @@ document.addEventListener('keydown', e => {
   document.addEventListener('click', function(e) {
     if (e.target.closest('.task-delete')) return;
     if (e.target.closest('.task-check'))  return;
+    if (e.target.closest('.task-copy'))   return;
     if (e.target.closest('.task-copy'))   return;  // copy button — handled by event delegation
     if (e.target.closest('.habit-check')) return;
     if (e.target.closest('.trello-link')) return;

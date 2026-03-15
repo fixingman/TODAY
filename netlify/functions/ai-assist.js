@@ -19,10 +19,16 @@ exports.handler = async function(event) {
   try { body = JSON.parse(event.body); }
   catch(e) { return { statusCode: 400, body: 'Invalid JSON' }; }
 
-  const { provider = 'gemini', messages, systemPrompt, apiKey: clientKey } = body;
+  const { provider = 'gemini', messages, systemPrompt, apiKey: rawClientKey } = body;
   if (!messages || !Array.isArray(messages)) {
     return { statusCode: 400, body: 'Missing messages array' };
   }
+
+  // Strip any non-ASCII characters (smart quotes, zero-width spaces, emoji)
+  // that would cause "Cannot convert argument to ByteString" in fetch headers
+  const clientKey = rawClientKey
+    ? rawClientKey.replace(/[^ -~]/g, '').trim()
+    : rawClientKey;
 
   try {
     let responseText;
@@ -51,6 +57,11 @@ exports.handler = async function(event) {
       );
 
       if (!res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('html')) {
+          // Gemini returned an HTML error page — model name wrong or quota HTML page
+          return { statusCode: 404, body: 'Gemini model not found — try reconnecting your key in Connections' };
+        }
         const err = await res.json().catch(() => ({}));
         const msg = err?.error?.message || `HTTP ${res.status}`;
         return { statusCode: res.status, body: msg };
@@ -81,6 +92,10 @@ exports.handler = async function(event) {
       });
 
       if (!res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('html')) {
+          return { statusCode: 503, body: 'Anthropic returned unexpected HTML — check your API key and credits' };
+        }
         const err = await res.json().catch(() => ({}));
         const msg = err?.error?.message || `HTTP ${res.status}`;
         return { statusCode: res.status, body: msg };
