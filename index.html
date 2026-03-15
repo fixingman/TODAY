@@ -1875,11 +1875,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.8.8';
+const APP_VERSION   = '1.8.9';
 const DEV_HOURS     = '76h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.8.9': 'Fix AI key validation UX — panel stays open during async test call so error is visible | error messages persistent (no auto-clear) | friendly error copy for invalid key / quota / permission | input selected on failure for easy retry',
   '1.8.8': 'AI integration overhaul: removed duplicate panel input + stale overlay CSS/JS | toggleAI routes unconfigured users to Connections (not empty panel) | _aiRenderConfig no longer fills input with bullets, shows free-tier hint, dynamic get-key link | saveAIKey friendly error messages, auto-clear, Testing… state | Enter submits key',
   '1.8.7': 'Add-task bar margins: space-3 top, space-4 sides, space-2+safe-area bottom — all tokens, no hardcoded px',
   '1.8.7': 'Add-task bar: symmetric space-3 padding all sides, safe-area-inset-bottom on bottom. All values token-based. App bottom padding uses --space-20 token.',
@@ -5232,23 +5233,29 @@ async function saveAIKey() {
   const msgEl   = document.getElementById('aiMsg');
   const key     = (input?.value || '').trim();
 
+  // Keep the Connections panel open throughout — result must be visible
+  const configPanel = document.getElementById('configPanel');
+  if (configPanel && !configPanel.classList.contains('open')) {
+    configPanel.classList.add('open');
+    syncActiveButtons();
+  }
+
   function _showMsg(text, colour, autoClear) {
     if (!msgEl) return;
     msgEl.textContent = text;
     msgEl.style.color  = colour;
     msgEl.style.opacity = '1';
-    if (autoClear) setTimeout(() => { msgEl.style.opacity = '0'; }, 3000);
+    if (autoClear) setTimeout(() => { msgEl.style.opacity = '0'; }, 4000);
   }
 
   if (!key) {
-    _showMsg('Paste your API key first', 'var(--danger)', true);
+    _showMsg('Paste your API key first', 'var(--danger)', false);
     input?.focus();
     return;
   }
 
-  if (saveBtn)  saveBtn.disabled = true;
-  if (saveBtn)  saveBtn.textContent = 'Testing…';
-  _showMsg('Verifying with ' + (_aiGetProvider() === 'gemini' ? 'Google…' : 'Anthropic…'), 'var(--muted)', false);
+  if (saveBtn)  { saveBtn.disabled = true; saveBtn.textContent = 'Testing…'; }
+  _showMsg('Connecting…', 'var(--muted)', false);
 
   try {
     const res = await fetch('/.netlify/functions/ai-assist', {
@@ -5264,24 +5271,26 @@ async function saveAIKey() {
 
     if (!res.ok) {
       const err = await res.text();
-      const friendly = err.includes('API key') || err.includes('API_KEY')
-        ? 'Invalid API key — double-check and try again'
-        : err.includes('quota') || err.includes('QUOTA')
-        ? 'Quota exceeded — check your API usage limits'
-        : 'Could not connect — ' + (err.slice(0, 80) || `HTTP ${res.status}`);
-      _showMsg(friendly, 'var(--danger)', true);
-      if (input) input.select();
+      const friendly = (err.includes('API key') || err.includes('API_KEY') || err.includes('not valid'))
+        ? 'Invalid API key — double-check it and try again'
+        : (err.includes('quota') || err.includes('QUOTA') || err.includes('429'))
+        ? 'Quota exceeded — check your usage limits'
+        : (err.includes('PERMISSION') || err.includes('403'))
+        ? 'Permission denied — make sure the key has API access enabled'
+        : 'Error: ' + (err.slice(0, 100) || 'HTTP ' + res.status);
+      _showMsg(friendly, 'var(--danger)', false);
+      if (input) { input.select(); input.focus(); }
       return;
     }
 
     // Valid — save and update UI
     localStorage.setItem('today_ai_key', key);
     if (input) input.value = '';
-    _showMsg('Connected ✓ — tap ✦ to start', 'var(--accent)', true);
+    _showMsg('Connected ✓  Tap ✦ next to Add to start', 'var(--accent)', false);
     _aiRenderConfig();
 
   } catch(e) {
-    _showMsg('Network error — check your connection', 'var(--danger)', true);
+    _showMsg('Network error — check your connection', 'var(--danger)', false);
   } finally {
     if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Connect'; }
   }
