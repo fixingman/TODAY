@@ -23,6 +23,8 @@ All state lives in `localStorage`. There is no server-side database.
 | `today_habits` | JSON array | `{id, name, created_at, focusSessions?}` — habit definitions. `focusSessions` added when habit is used in focus mode |
 | `today_habit_completions` | JSON object | `{habitId: ['YYYY-MM-DD', ...]}` — append-only completion history |
 | `today_deleted_habit_ids` | JSON array | IDs of deleted habits — for union merge across devices |
+| `today_ai_key` | string | AI API key (Gemini or Anthropic) — stored locally, sent only through Netlify proxy |
+| `today_ai_provider` | string | AI provider: `'gemini'` (default) or `'anthropic'` |
 | `trello_config` | JSON | Trello API key, token, board ID, list ID |
 | `trello_token` | string | Trello OAuth token |
 | `dropbox_token` | string | Dropbox access token |
@@ -50,6 +52,12 @@ All visual values are tokenised in `:root` in `index.html`. Short-name aliases (
 - `--accent-focus-bg/border`, `--accent-check`, `--accent-check-hover/glow`, `--accent-timer-bg/fill/paused` — 8 alpha variants of the accent colour used exclusively in focus mode. Centralised so an accent colour change propagates to all focus states automatically.
 - `--opacity-recede`, `--opacity-recede-done`, `--opacity-recede-chrome` — focus mode recede opacities (0.07, 0.035, 0.08).
 - `--opacity-copy` (0.45) — copy button at-rest opacity during focus mode.
+
+**Notable tokens added in v2.3.x (token audit):**
+- `--z-header` (10) — sticky header and add-task bar z-index.
+- `--accent-hover` (`rgba(200,240,96,0.18)`) — accent background on hover states.
+- `--shadow-float` — floating element shadow (drag ghost).
+- `--shadow-divider` — subtle top divider (mobile add-task bar).
 
 **Rule:** no hardcoded hex, rgba, opacity, px-spacing, or z-index values outside `:root`. Every visual constant must have a token. See `Design.md` §11 Development Rules for enforcement.
 
@@ -391,6 +399,34 @@ On first load, `AI_BUILD_PROVIDER` seeds `localStorage`. Public forks set this t
 - `replace_with_subtasks` — delete original task, add 2-3 subtasks
 - `update_task` — modify the task text in place (clarify)
 - `dismiss` — close suggestion row
+
+### AI Proactive Suggestions (v2.3+)
+
+**Purpose:** Offer contextual actions without user opening the AI panel. Pure client-side — no API call.
+
+**Trigger conditions:**
+- AI is configured (has API key)
+- ≥3 manual tasks are done
+- Proactive suggestion not already showing
+- AI panel not open
+- User hasn't dismissed this session
+
+**Messages:**
+| Context | Message | Button |
+|---|---|---|
+| Some pending, ≥3 done | "Nice — tidy up?" | Tidy |
+| All done | "✦ All done" | Start fresh |
+
+**Behavior:**
+- Appears as inline row below section header
+- Auto-dismisses after 12s (`_aiProactiveTimeout`)
+- If user clicks ✕, sets `_aiProactiveDismissedThisSession = true` — won't show again until reload
+- Clicking action executes `_clearAllDone()` and dismisses
+
+**State:**
+- `_aiProactiveEl` — current suggestion element (null if none)
+- `_aiProactiveTimeout` — auto-dismiss timer handle
+- `_aiProactiveDismissedThisSession` — flag to prevent repeat after dismiss
 
 ---
 

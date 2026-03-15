@@ -1,6 +1,6 @@
 # TODAY — Performance, Bug & Safety Audit
-> v1.6.16 · March 2026  
-> Full audit of runtime performance, rendering strategy, security posture, privacy, and correctness. Supersedes the previous audit.
+> v2.3.4 · March 2026  
+> Full audit of runtime performance, rendering strategy, security posture, privacy, and correctness.
 
 ---
 
@@ -8,16 +8,16 @@
 
 | Metric | Value | Notes |
 |---|---|---|
-| Total file size | 163 KB | Single HTML file — no build step |
-| CSS | 6 KB | Inline `<style>` |
-| JS | 90 KB | Inline `<script>` |
-| HTML + SVG + inline data | 67 KB | Includes SVG favicon, noise data URI |
+| Total file size | 305 KB | Single HTML file — no build step |
+| CSS | 60 KB | Inline `<style>` — includes all animations, focus mode, AI panel |
+| JS | 198 KB | Inline `<script>` — includes AI assist, particle systems, drag-to-reorder |
+| HTML + SVG + inline data | 47 KB | Includes SVG favicon, noise data URI |
 | External scripts | 0 | No CDN, no analytics SDK |
 | External fonts loaded on first visit | 6 files | Self-hosted, pre-cached by SW after first load |
 | External fonts on repeat visits | 0 | All served from SW cache |
 | Google Fonts requests | 0 | Fonts are self-hosted — zero external pings |
 
-**Assessment:** The JS payload (90 KB) is the main weight. No minification or tree-shaking — acceptable for a single-file project with no build step. First load fetches 6 font files. All subsequent loads are fully offline-capable. No third-party scripts execute on load.
+**Assessment:** File size has grown from 163KB (v1.6) to 305KB (v2.3) due to AI assistant, proactive suggestions, enhanced animations, and particle systems. No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
 
 ---
 
@@ -43,25 +43,40 @@
 | Favicon | Key-gated canvas redraw | `Math.round(pct * 20)` quantises to 5% steps — 21 possible states max, redraws only on state change |
 
 ### Memory
-- No `setInterval` active. Ticker uses a single `setInterval` reference (`ticker`), cleared on hide.
+- Ticker uses a single `setInterval` reference (`ticker`), cleared on hide.
 - Focus mode: `taskStates` map holds one entry per active task — cleared on `esc` / task switch. Never accumulates.
-- Celebration particles: canvas-based, cleared when `celebParticles` empties. RAF loop exits when idle.
-- AudioContext: created fresh per chime, closed via `osc.onended`. No lingering contexts.
+- Celebration particles: two canvas systems (celeb + splash), RAF loops exit when idle.
+- AudioContext: single shared context, reused across sounds. Oscillators closed via `osc.onended`.
+- AI state: `_aiCurrentSuggestion` holds one reference, cleared on dismiss. `_aiProactiveEl` same.
 - Event delegation used for task interactions (click on list containers, not per-task listeners). Adding or removing tasks does not change listener count.
+- Drag ghost: single element created on drag start, removed on drag end. Never accumulates.
 
-### setTimeout inventory (15 total)
+### setTimeout inventory (27 total — up from 15 in v1.6)
 | Duration | Purpose | Notes |
 |---|---|---|
-| 180ms | Task remove animation | Matches `--dur-base` animation |
-| 200ms (×3) | Focus mode DOM cleanup, misc UI | Matches `--dur-mid` |
+| 0ms | Defer heavy sync on load | Yields to event loop after paint (v2.2.16 fix) |
+| 0ms | AI config render | Deferred to avoid layout thrash |
+| 30ms | Habit input focus | Brief delay for panel animation |
+| 38ms | Splash typewriter | Typing rhythm |
+| 80–100ms | Panel transitions | Close → open sequencing |
 | 160ms | Checkbox uncheck pulse | Matches animation duration |
-| 800ms (×3) | Status message auto-hide | Intentional user-facing delay |
-| 1000ms (×2) | Dropbox status clear | Intentional |
-| 2000ms (×2) | Ticker resume after show/online | Prevents race on reconnect |
-| 500ms | Trello auth poll interval | Tight loop while popup open only |
-| 38ms | Focus mode rAF delay | One-frame delay for task-snap-first sequence |
+| 180ms | Task remove animation | Matches `--dur-base` animation |
+| 200ms | Focus mode DOM cleanup | Matches `--dur-mid` |
+| 500ms | Splash font timeout | Fallback if fonts slow |
+| 600ms | AI reload after action | Brief pause before refresh |
+| 800ms | Status message auto-hide | Intentional user-facing delay |
+| 1000ms | Dropbox status clear, focus tick | Intentional |
+| 1800ms | Config panel auto-close after Trello connect | UX flow |
+| 2000ms (×2) | Ticker resume after show/online, AI analyze debounce | Prevents race on reconnect |
+| 12000ms | Proactive suggestion auto-dismiss | 12s timeout |
 
-No runaway timers. All are single-fire except the 500ms Trello auth poll (which runs only while the OAuth popup is open, then clears itself).
+**New since v1.6:** AI debounce (2s), proactive dismiss (12s), deferred sync (0ms), panel transitions.
+
+No runaway timers. All are single-fire except:
+- `setInterval` for ticker (7s, cleared on hide)
+- `setInterval` for Trello auth poll (500ms, only while popup open)
+- `setInterval` for SW update check (60min)
+- `setInterval` for focus mode tick (1s, only while focusing)
 
 ---
 
@@ -152,11 +167,14 @@ No runaway timers. All are single-fire except the 500ms Trello auth poll (which 
 | `localStorage` disabled (private mode) | App loads but data not persisted | Graceful degradation — not currently tested |
 | No internet on first load (SW not yet cached) | App fails to load — expected | First load requires network |
 | No internet after first load (SW cached) | App loads, works fully, sync skipped | Offline-first verified |
-| Trello board with 0 cards | "No Trello tasks for today." shown | Empty list path |
-| Trello auth popup blocked by browser | Popup never opens — currently no error shown | **UX gap** — silent failure |
+| Trello board with 0 cards | "Nothing due today" shown | Empty list path |
+| Trello auth popup blocked by browser | ✅ Fixed v1.6.17 | Error message shown |
 | Dropbox PKCE state mismatch | "State mismatch — possible CSRF" error shown | Security path verified |
 | Very long task text (500 chars) | Wraps via `overflow-wrap: break-word` | CSS handles it |
 | Shift+; with input already focused | Shortcut does nothing (guard in place) | Verified in code |
+| AI API key invalid | ✅ "Invalid API key" shown, Connect button re-enabled | Verified |
+| AI API quota exceeded | ✅ "API quota exceeded" shown | Verified |
+| AI panel open during task add | Post-add analysis skipped (no double-suggestion) | Intentional |
 
 ---
 
@@ -166,11 +184,13 @@ No runaway timers. All are single-fire except the 500ms Trello auth poll (which 
 |---|---|---|
 | No CSP header | Low | Personal tool, inline scripts/styles make strict CSP complex |
 | `localStorage` quota failures are silent | Medium | If storage is full, saves fail without user feedback |
-| Trello popup blocked | ✅ Fixed v1.6.17 | Error message shown using `showStatus()` consistent with design system |
-| `dropboxRestore` catch coverage | ✅ Verified | `_dropboxEnsureToken` catches internally and never throws. Both callers have their own try/catch. `fromSync=true` errors intentionally silent — sync must not surface errors mid-session. |
-| `stat_alltime_done` increments on every check, not just first | Low | Re-checking a previously unchecked task increments the all-time counter again |
+| Trello popup blocked | ✅ Fixed v1.6.17 | Error message shown using `showStatus()` |
+| `dropboxRestore` catch coverage | ✅ Verified | All error paths handled |
+| `stat_alltime_done` increments on every check, not just first | Low | Re-checking increments counter again |
 | Focus mode not available on touch devices | By design | Documented in Design.md |
-| Backup file version not validated on restore | Low | If a v2.0 backup is restored to v3.0 app, missing fields default to `[]` — safe but silent |
+| Backup file version not validated on restore | Low | Missing fields default to `[]` — safe |
+| AI post-add suggestion dismissed on any add | By design | Only one suggestion at a time |
+| Proactive suggestion once per session | By design | After dismiss, won't show again until reload |
 
 ---
 
@@ -178,12 +198,26 @@ No runaway timers. All are single-fire except the 500ms Trello auth poll (which 
 
 | Area | Score | Notes |
 |---|---|---|
-| Load performance | ✅ Good | No external JS, fonts cached after first visit |
-| Runtime performance | ✅ Good | Cheap ticker, incremental DOM, key-gated favicon |
+| Load performance | ✅ Good | No external JS, fonts cached after first visit. 305KB acceptable for single-file. |
+| Runtime performance | ✅ Good | Deferred sync (v2.2.16), cheap ticker, incremental DOM, key-gated favicon |
 | XSS protection | ✅ Good | `esc()` on all user content, URL protocol check |
 | CSRF protection | ✅ Good | PKCE state verified, sessionStorage keys cleaned up |
-| Privacy | ✅ Good | No app analytics, data stays local or in user's Dropbox |
-| Error handling | ⚠️ Fair | `localStorage` quota silent; popup-block fixed in v1.6.17 |
+| Privacy | ✅ Good | No app analytics, data stays local or in user's Dropbox. AI keys stored locally only. |
+| Error handling | ✅ Good | AI errors surfaced with human messages, popup-block fixed, quota still silent |
 | Offline support | ✅ Good | SW cache, union merge, backup-on-reconnect |
-| Token hygiene | ✅ Good | App key public by design (PKCE), no secret client-side |
-| CSP | ❌ Missing | No Content Security Policy |
+| Token hygiene | ✅ Good | App keys public by design (PKCE), AI keys stored locally, sent through own proxy |
+| Animation performance | ✅ Good | CSS animations, GPU compositing, no JS-driven scroll animations |
+| CSP | ❌ Missing | No Content Security Policy — inline scripts/styles make it complex |
+
+---
+
+## 8. New in v2.x
+
+| Feature | Performance impact | Notes |
+|---|---|---|
+| AI Assistant | +1 API call per panel open, +1 per post-add analysis | Debounced 2s, skipped if panel open |
+| Proactive suggestions | Zero API calls | Pure client-side logic |
+| Breathing animations | Minimal | CSS-only, `ease-in-out`, no JS |
+| Fade gradients | Minimal | Static `linear-gradient` pseudo-elements |
+| Drag-to-reorder | Event delegation | Single listener per list, not per-row |
+| Particle systems | RAF-based | Exits when idle, mobile-reduced |
