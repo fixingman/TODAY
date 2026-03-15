@@ -1575,11 +1575,13 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
 const APP_VERSION   = '1.7.0';
-const DEV_HOURS     = '68h';
+const DEV_HOURS     = '70h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
   '1.7.0': 'Habits system: 21-day dot strip, habit strength % (exponential smoothing), Dropbox sync, union merge | Focus mode on habits | Drag-to-reorder all three lists (desktop + mobile long-press) | PWA installable: Add to Dock on macOS, home screen on iOS | Auto-update: SW background download, activates on next focus | Offline cold start: blinking ✦ fallback | Rendering: GPU compositing, font smoothing, touch-action, overscroll | Copy button on focused tasks | Shift+D clear all done',
+  '1.6.52': 'Haptics overhaul: _haptic() helper with iOS switch trick (<input type=checkbox switch>) + Android vibrate patterns | success on task/habit check + pomodoro complete | warning on delete | heavy on long-press drag | selection tick on drag snap | silent no-op on desktop',
+  '1.6.51': 'Checking a habit in focus mode now closes focus UI with same transition as tasks — toggleHabitDone calls _focusOnCheck | _focusOnCheck updated to match habitId as well as taskid',
   '1.6.50': 'Focus mode: grab cursor overridden to default on focused task | Copy button appears top-right of focused task in focus mode — strips badge/link, copies clean text, shows copied feedback | Present on manual + Trello tasks, not habits',
   '1.6.49': 'Fix OG/Twitter meta image URLs to /assets/today-og.png | today-og.png added to SW pre-cache | Architecture.md assets list corrected to actual repo contents',
   '1.6.48': 'Housekeeping: all images moved to assets/ folder | manifest.json + sw.js paths updated to /assets/icon-*.png | root directory clean',
@@ -2288,7 +2290,7 @@ document.addEventListener('click', function(e) {
   const delEl = e.target.closest('.task-delete');
   if (delEl) {
     const id = delEl.dataset.taskid;
-    if (id) deleteManual(id);
+    if (id) { _haptic('warning'); deleteManual(id); }
     return;
   }
 });
@@ -2314,6 +2316,68 @@ function _getAudioCtx() {
     return _sharedAudioCtx;
   } catch(e) { return null; }
 }
+
+// ─── Haptic feedback ─────────────────────────────────────────────────────────
+// Unified haptic helper. Works on:
+//   Android Chrome  — navigator.vibrate() with differentiated patterns
+//   iOS Safari 17.4+ — <input type=checkbox switch> trick (system haptic tap)
+//   Desktop / unsupported — silent no-op, zero cost
+//
+// Presets and their Android vibration patterns (iOS always fires one system tap):
+//   success   — [40, 60, 80]   double rising pulse — task/habit check, session end
+//   warning   — [30, 40, 30]   sharp double        — delete
+//   heavy     — [65]           single firm press   — long-press drag activate
+//   selection — [12]           tiny tick           — drag row snaps to new slot
+//   medium    — [40]           standard tap        — fallback
+//
+// Rules (from web-haptics design guide):
+//   - Supplement visuals, never replace them. UI works fully without haptics.
+//   - Fire at the exact instant the visual change occurs.
+//   - Don't overuse — reserve for meaningful moments.
+(function() {
+  const PATTERNS = {
+    success:   [40, 60, 80],
+    warning:   [30, 40, 30],
+    heavy:     [65],
+    selection: [12],
+    medium:    [40],
+  };
+
+  // iOS: one hidden switch input, reused for every haptic call
+  let _iosSwitch = null;
+  function _iosHaptic() {
+    if (!_iosSwitch) {
+      _iosSwitch = document.createElement('input');
+      _iosSwitch.type = 'checkbox';
+      _iosSwitch.setAttribute('switch', '');
+      _iosSwitch.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:-9999px;';
+      document.body.appendChild(_iosSwitch);
+    }
+    // Toggle fires the system haptic — restore state so it toggles again next call
+    _iosSwitch.click();
+    // Immediately restore so next call also toggles (checked→unchecked→checked…)
+    // The haptic fires on the state change, not on a specific state
+    setTimeout(() => { if (_iosSwitch) _iosSwitch.click(); }, 50);
+  }
+
+  // Detect iOS Safari (not Android, not desktop Chrome on Mac)
+  // iOS Safari does not have navigator.vibrate but has the switch trick
+  const _isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const _hasVibrate = typeof navigator.vibrate === 'function';
+
+  window._haptic = function(preset) {
+    preset = preset || 'medium';
+    if (_hasVibrate && !_isIOS) {
+      // Android Chrome + other Vibration API browsers
+      navigator.vibrate(PATTERNS[preset] || PATTERNS.medium);
+    } else if (_isIOS) {
+      // iOS Safari — one system tap regardless of preset
+      _iosHaptic();
+    }
+    // Desktop / unsupported: silent no-op
+  };
+})();
 
 // Call this on any user gesture to warm up the context while the tab is active.
 function _primeAudio() {
@@ -2633,6 +2697,10 @@ function toggleHabitDone(id) {
   else           { habitCompletions[id].splice(i, 1); }
   _saveHabits();
 
+  // If this habit is currently in focus mode, close the UI cleanly — same
+  // transition as checking a task during focus (log session, collapse timer).
+  if (isNowDone && window._focusOnCheck) window._focusOnCheck(id);
+
   // Surgical DOM — never rebuild the list, just patch the affected row
   const el = document.querySelector('.habit[data-habit-id="' + id + '"]');
   if (!el) return;
@@ -2655,7 +2723,7 @@ function toggleHabitDone(id) {
   const check = el.querySelector('.habit-check');
   if (isNowDone) {
     // Haptic + ember burst, matching task check
-    if (navigator.vibrate) navigator.vibrate(40);
+    _haptic('success');
     if (check && typeof fireEmberDrift === 'function') {
       const r = check.getBoundingClientRect();
       fireEmberDrift(r.left + r.width / 2, r.top + r.height / 2);
@@ -2726,8 +2794,8 @@ function toggleDone(taskId) {
     el.classList.toggle('done', isNowDone);
     _applyDoneStyles(el, isNowDone);
 
-    // Haptic feedback on check (Android only — iOS silently ignores this)
-    if (isNowDone && navigator.vibrate) navigator.vibrate(40);
+    // Haptic feedback on check — success pattern on both Android and iOS
+    if (isNowDone) _haptic('success');
 
     // Sound + celebration on check only — not on uncheck
     if (isNowDone) playCompleteSound();
@@ -2959,9 +3027,10 @@ function _clearAllDone() {
     const tgtIdx = rows.indexOf(cfg.row);
     if (srcIdx === -1 || tgtIdx === -1) return;
 
-    // Move DOM
+    // Move DOM — selection tick as row snaps to new slot
     if (srcIdx < tgtIdx) list.insertBefore(dragSrc, cfg.row.nextSibling);
     else                  list.insertBefore(dragSrc, cfg.row);
+    _haptic('selection');
 
     // Persist new order
     const newOrder = [...list.querySelectorAll(sel)];
@@ -3094,8 +3163,8 @@ function _clearAllDone() {
 
     const t = e.touches[0];
     pressTimer = setTimeout(() => {
-      // Trigger haptic if available
-      if (navigator.vibrate) navigator.vibrate(30);
+      // Trigger haptic — heavy press feel on long-press activation
+      _haptic('heavy');
       touchSrc    = cfg.row;
       touchListId = cfg.listId;
       _startGhost(cfg.row, t.clientX, t.clientY);
@@ -3134,6 +3203,7 @@ function _clearAllDone() {
   document.addEventListener('touchend', function(e) {
     _cancelPress();
     if (!touchSrc) return;
+    _haptic('selection');   // confirm drop
     _saveOrder(touchListId);
     _cleanup();
   }, { passive: true });
@@ -4472,8 +4542,12 @@ if ('serviceWorker' in navigator) {
     // Log partial session if any time was spent
     if (sessionStarted) _logSession(taskId);
 
-    // Collapse focus UI cleanly, then let toggleDone proceed
-    if (uiTaskEl && uiTaskEl.dataset.taskid === taskId) {
+    // Collapse focus UI cleanly — handle both task (taskid) and habit (habitId)
+    const isUiEl = uiTaskEl && (
+      uiTaskEl.dataset.taskid  === taskId ||
+      uiTaskEl.dataset.habitId === taskId
+    );
+    if (isUiEl) {
       closeUI(true);
     } else {
       clearState(taskId);
@@ -4686,6 +4760,7 @@ if ('serviceWorker' in navigator) {
     }
 
     playChime();
+    _haptic('success');
     _logSession(taskId);
 
     // Stay at 00:00 — no auto-restart, no auto-collapse
