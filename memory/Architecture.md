@@ -20,7 +20,7 @@ All state lives in `localStorage`. There is no server-side database.
 | `today_unchecked_ids` | JSON array | `{id, at}` — explicit unchecks with timestamps |
 | `today_trello_cache` | JSON | Cached Trello cards from last fetch |
 | `today_trello_focus` | JSON object | `{cardId: sessionCount}` — Pomodoro counts for Trello tasks. Reset on new day. |
-| `today_habits` | JSON array | `{id, name, created_at}` — habit definitions |
+| `today_habits` | JSON array | `{id, name, created_at, focusSessions?}` — habit definitions. `focusSessions` added when habit is used in focus mode |
 | `today_habit_completions` | JSON object | `{habitId: ['YYYY-MM-DD', ...]}` — append-only completion history |
 | `today_deleted_habit_ids` | JSON array | IDs of deleted habits — for union merge across devices |
 | `trello_config` | JSON | Trello API key, token, board ID, list ID |
@@ -78,6 +78,9 @@ See Research.md §4 for the full decision log and scenario data.
 
 ### Edit mode
 Edit mode is toggled globally. It patches the DOM surgically — swapping the name `<div>` ↔ `<input>` and streak `<div>` ↔ delete `<button>` in place, without rebuilding any rows. No `renderHabits()` call on mode toggle — no flash, no layout shift.
+
+### Focus mode
+Habit rows support focus mode (desktop only) — clicking a habit row starts a 25-minute Pomodoro session, identical to task rows. Session counts are stored in `h.focusSessions` on the habit object and persisted via `_saveHabits()`. The unified `_logSession(id)` helper handles all three row types (manual task → Trello → habit) by checking each in order.
 
 ### Sync
 Habits are included in the Dropbox backup (schema v4.0). Merge strategy:
@@ -254,7 +257,40 @@ Local device state only. **Never backed up, never restored from Dropbox.** Resto
 
 ---
 
-## 8. Offline Behaviour
+## 8. PWA & Auto-Update
+
+### PWA installation
+TODAY is a fully installable Progressive Web App. Requirements are met:
+- Served over HTTPS (Netlify)
+- `manifest.json` with `display: standalone`, name, icons
+- Service worker with offline fallback
+
+**Install paths:**
+- macOS Safari: File → Add to Dock (Safari 17+ / macOS Sonoma+)
+- Chrome/Brave/Edge: install icon (⊕) in address bar
+- iOS: Share → Add to Home Screen
+
+**Icons:** `/assets/icon-192.png`, `/assets/icon-512.png`, `/assets/apple-touch-icon.png` (also embedded as base64 in `index.html` for `<link rel="apple-touch-icon">`)
+
+### Auto-update flow
+New deploys reach users without any manual action:
+
+```
+1. Netlify deploys new index.html + sw.js
+2. On next page load or 60-minute poll: SW detects new version
+3. New SW downloads in background (installing state)
+4. User switches away (visibilitychange → hidden) → nothing happens
+5. User switches back (visibilitychange → visible) → postMessage('SKIP_WAITING')
+6. New SW activates → controllerchange → window.location.reload()
+7. User sees new version — feels instant, happens at a natural break point
+```
+
+**Design decision:** activation happens on next focus, not immediately. Activating mid-session would interrupt a Pomodoro timer, a Dropbox sync, or a drag operation.
+
+### Offline fallback
+When the SW is installed but the network fails on a navigation request, a branded offline screen is served — a single `✦` pulsing at 12–35% opacity on `#0e0e10`. Baked into `sw.js` as an inline HTML string (no external file dependency). The fallback is unavailable on the very first visit before SW installs — that is a browser constraint.
+
+## 9. Offline Behaviour
 
 - **Service worker** (`sw.js`): network-first, cache version `today-v{version}`
 - **Pre-cached at install:** `/` + all 6 font files
@@ -265,7 +301,7 @@ Local device state only. **Never backed up, never restored from Dropbox.** Resto
 
 ---
 
-## 9. Netlify Functions
+## 10. Netlify Functions
 
 | Function | Purpose |
 |---|---|
@@ -276,7 +312,7 @@ Local device state only. **Never backed up, never restored from Dropbox.** Resto
 
 ---
 
-## 10. Key Product Rules
+## 11. Key Product Rules
 
 1. **Never overwrite unsynced local changes** — always check `last_local_change` vs `last_successful_backup`.
 2. **The ticker is cheap** — metadata/rev checks only; full fetches only when something changed.
@@ -299,14 +335,20 @@ Local device state only. **Never backed up, never restored from Dropbox.** Resto
 
 ---
 
-## 11. File Structure
+## 12. File Structure
 
 ```
 /
 ├── index.html
 ├── sw.js
+├── manifest.json
 ├── netlify.toml
 ├── README.md
+├── assets/
+│   ├── icon-192.png         ← PWA icon (manifest + SW cache)
+│   ├── icon-512.png         ← PWA icon large
+│   ├── apple-touch-icon.png ← iOS home screen (also embedded as base64 in index.html)
+│   └── today-og.png         ← Open Graph / Twitter social preview image
 ├── netlify/functions/
 │   ├── dropbox-token.js
 │   └── dropbox-refresh.js
@@ -323,7 +365,17 @@ Local device state only. **Never backed up, never restored from Dropbox.** Resto
 
 ---
 
-## 12. Release Checklist
+## 13. Release Checklist
+
+### Version semantics
+
+| Segment | When to use | Example |
+|---|---|---|
+| **Patch** `x.x.N` | Bug fix, CSS tweak, housekeeping, copy change — anything the user doesn't intentionally notice | `1.6.48 → 1.6.49` |
+| **Minor** `x.N.0` | New user-facing feature, new integration, meaningful UX addition — something the user would notice and value | `1.6.x → 1.7.0` |
+| **Major** `N.0.0` | Breaking data model change, complete redesign, fundamental product shift — changes what TODAY fundamentally is | `1.x.x → 2.0.0` |
+
+**1.7.0 trigger:** next meaningful user-facing feature. Do not force it on housekeeping.
 
 ### When to bump
 - **Every logical unit of work gets its own bump** — a bug fix, a layout fix, a behaviour change, a new feature. Each is a version.
@@ -361,7 +413,7 @@ Local device state only. **Never backed up, never restored from Dropbox.** Resto
 
 ---
 
-## 13. Housekeeping Rules
+## 14. Housekeeping Rules
 
 After every bug fix or function rework:
 

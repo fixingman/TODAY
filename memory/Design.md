@@ -233,14 +233,15 @@ Desktop only. Mobile never enters focus mode — `@media (hover: hover)` guards 
 
 | Action | Result |
 |---|---|
-| Click task | Start 25min session, open timer UI |
+| Click task or habit row | Start 25min session, open timer UI |
 | Click outside | Dismiss UI, pause timer |
-| Click same task | Re-open UI, auto-resume |
-| Click different task | Start fresh session, clear previous state |
+| Click same task/habit | Re-open UI, auto-resume |
+| Click different task/habit | Start fresh session, clear previous state |
 | `space` | Pause / resume (blocked if input is focused) |
 | `esc` | Full stop + reset |
 | Tab away / hidden | Wall-clock correction on return |
 | Check task during focus | Log partial session, exit focus, mark done |
+| Copy button (focused task) | Copy clean task text to clipboard |
 
 ### State model
 
@@ -269,9 +270,11 @@ Each task has its own `{ rem, running, paused, wallStart }` in the `taskStates` 
 ### Session count
 
 - Inline after task text: `N 🍅`. DOM order: text → Trello link → session count.
+- Also rendered inline in habit name for habits used in focus mode.
 - `opacity: 0` default → `opacity: 1` on hover → `opacity: 0.35` on done tasks.
 - Color: `var(--muted)` — same visual weight as section counts.
 - Desktop only — never rendered on mobile.
+- Persisted to `manualTasks[i].focusSessions`, `trello_focus` map, or `habitsList[i].focusSessions` depending on row type. All three paths go through `_logSession(id)`.
 
 ### Sound design language
 
@@ -392,6 +395,26 @@ All three lists — manual tasks, Trello cards, habits — support drag-to-reord
 
 **If reconsidered:** only add swipe back if the checkbox becomes genuinely hard to reach (e.g. a layout change moves it further from thumb reach). Do not add it as a shortcut for its own sake.
 
+### Copy button in focus mode
+
+**Status: Implemented (v1.6.50)**
+
+A small `copy` label appears in the top-right corner of the focused task row — only visible during focus mode on the focused task. Opacity `0.45` at rest, full on hover, accent green on success.
+
+**Why a button and not text selection:** during focus mode, the grab cursor is overridden to `default` (fixed in v1.6.50), but text selection on task names is still imprecise — task text is short, surrounded by interactive elements, and the user is in a flow state. A single-tap copy removes friction without requiring precision.
+
+**What it copies:** clean task text only — session count badge and Trello link arrow are stripped before writing to clipboard. `navigator.clipboard.writeText()` with silent failure.
+
+**Scope:** manual tasks and Trello cards only. Habits are excluded — habit names are short self-reminders, not content worth copying.
+
+**Feedback:** button label changes to `copied` in accent colour for 1.8 seconds, then resets. No toast, no animation — minimal noise during a focus session.
+
+### Drag cursor in focus mode
+
+**Status: Fixed (v1.6.50)**
+
+When focus mode activates, the `grab` cursor from drag-to-reorder persisted on the focused task row. Fixed by overriding `.focusing .task.focused` and `.focusing .task.focused:hover` to `cursor: default`. Non-focused tasks are `pointer-events: none` during focus, so they're unreachable — only the focused task needed the explicit override.
+
 ---
 
 ## 8. Integrations
@@ -450,8 +473,11 @@ All three lists — manual tasks, Trello cards, habits — support drag-to-reord
 ## 11. Development Rules
 
 1. **All margins and paddings must use design tokens.** Never hardcode `px` outside `:root` unless explicitly off-grid (see Spacing above).
-2. **Bump `APP_VERSION` and `DEV_HOURS` together** on every meaningful change.
-3. **Update this file** whenever a design decision, animation rule, interaction model, or token changes.
+2. **GPU compositing for animations.** Animate only `opacity` and `transform` — never `width`, `height`, `top`, `left`, `background`, or `border` in transitions that fire frequently. Moving elements use `transform: translate()` not `left/top`. See §4 Motion for the full animation contract.
+3. **`-webkit-font-smoothing: antialiased` is set globally.** Do not override it on individual components — consistent antialiasing is intentional.
+4. **`touch-action: pan-y` on scrollable lists.** All `.task-list` and `.habit-list` containers carry this — do not remove it. It eliminates 300ms touch delay and improves scroll responsiveness on mobile.
+5. **Bump `APP_VERSION` and `DEV_HOURS` together** on every meaningful change.
+6. **Update this file** whenever a design decision, animation rule, interaction model, or token changes.
 4. **Update `Changelog.md`** on every version bump — immediately after updating `index.html`. Never defer it. Format: single table row, terse, no bullet lists, no implementation detail.
 5. **Test on the deployed Netlify URL**, not `file:///`. Absolute paths (`/fonts/`, `/`) do not resolve locally.
 6. **Never remove backward-compat token aliases** (`--bg`, `--surface`, etc.) — used in inline styles and JS.

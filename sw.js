@@ -1,12 +1,13 @@
 // TODAY — Service Worker
 // Strategy: network-first for app shell, strict exclusions for all API calls
 // Version bump this string to force cache invalidation on deploy
-const CACHE_VERSION  = 'today-v1.6.45';
+const CACHE_VERSION  = 'today-v1.7.0';
 const CACHE_APP_SHELL = [
   '/',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
+  '/assets/icon-192.png',
+  '/assets/icon-512.png',
+  '/assets/today-og.png',
   '/fonts/DM%20Mono/dm-mono-v16-latin-300.woff2',
   '/fonts/DM%20Mono/dm-mono-v16-latin-regular.woff2',
   '/fonts/DM%20Mono/dm-mono-v16-latin-500.woff2',
