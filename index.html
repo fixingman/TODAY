@@ -264,10 +264,9 @@
     .focus-timer-paused.show { opacity: var(--opacity-muted); }
 
     .focus-kbd-hint {
-      position: fixed;
-      bottom: var(--space-6);
-      left: 50%;
-      transform: translateX(-50%);
+      display: none; /* hidden by default */
+      margin: var(--space-2) 0 var(--space-4);
+      text-align: center;
       font-size: var(--text-xs);
       color: var(--muted);
       letter-spacing: 0.04em;
@@ -275,9 +274,11 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity var(--dur-mid) ease;
-      z-index: var(--z-overlay);
     }
-    .focus-kbd-hint.show { opacity: var(--opacity-label); }
+    .focus-kbd-hint.show { 
+      display: block;
+      opacity: var(--opacity-label); 
+    }
     .focus-kbd-hint kbd {
       display: inline-block;
       border: 1px solid var(--border);
@@ -2030,11 +2031,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.2.1';
-const DEV_HOURS     = '83h';
+const APP_VERSION   = '2.2.4';
+const DEV_HOURS     = '85h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.2.4': 'Focus mode tonality: "space breathe" / "esc rest" — human language for humans, not robots. Tonality guidelines added to Design.md §2.',
+  '2.2.3': 'Focus mode: Esc now just closes UI (timer keeps running in background) — no longer resets. Hint updated to "esc close".',
+  '2.2.2': 'Focus mode: kbd hint (space/esc) now appears below timer bar, not fixed at bottom — avoids overlap with add-task bar',
   '2.2.1': 'Focus mode: click blinking timer bar to restart pomodoro (cursor:pointer on complete state)',
   '2.2.0': 'AI Post-Add Enhancement — after adding a task, AI analyzes in background and offers to break down complex tasks into 2-3 subtasks. Non-blocking, auto-dismisses after 10s.',
   '2.1.3': 'AI config: explicit hasKey check (key && key.length > 0) to prevent false "connected" state',
@@ -5468,51 +5472,79 @@ function _aiExecute(action) {
 }
 
 // ── Config panel ──────────────────────────────────────────────────────────────
+// Track which provider tab user is viewing (for switching)
+let _aiViewingProvider = null;
+
 function setAIProvider(p) {
+  _aiViewingProvider = p;
   localStorage.setItem('today_ai_provider', p);
   _aiRenderConfig();
+  // Focus input if showing input field
+  const input = document.getElementById('aiApiKey');
+  const inputWrap = document.querySelector('#aiConfigSection .config-grid');
+  if (input && inputWrap && inputWrap.style.display !== 'none') {
+    input.focus();
+  }
 }
 
 function _aiRenderConfig() {
   const provider = _aiGetProvider();
   const key      = _aiGetKey();
-  const hasKey   = key && key.length > 0; // explicit check
+  const hasKey   = key && key.length > 0;
   const isGemini = provider === 'gemini';
 
-  document.getElementById('aiProviderGemini')?.classList.toggle('active', isGemini);
-  document.getElementById('aiProviderClaude')?.classList.toggle('active', !isGemini);
+  // Track which provider user is viewing (may differ from stored provider when switching)
+  const viewingProvider = _aiViewingProvider || provider;
+  const isViewingGemini = viewingProvider === 'gemini';
+  
+  // Connected to the provider we're viewing?
+  const isConnectedToViewing = hasKey && (provider === viewingProvider);
 
-  const labelEl = document.getElementById('aiKeyLabel');
+  document.getElementById('aiProviderGemini')?.classList.toggle('active', isViewingGemini);
+  document.getElementById('aiProviderClaude')?.classList.toggle('active', !isViewingGemini);
+
+  const labelEl    = document.getElementById('aiKeyLabel');
+  const inputWrap  = document.querySelector('#aiConfigSection .config-grid');
+  const input      = document.getElementById('aiApiKey');
+  const statusLine = document.getElementById('aiStatusLine');
+  const saveBtn    = document.getElementById('aiSaveBtn');
+  const clearBtn   = document.getElementById('aiClearBtn');
+
+  // Update label + link for the provider being viewed
   if (labelEl) {
-    const href = isGemini ? 'https://aistudio.google.com/apikey' : 'https://console.anthropic.com/keys';
-    const linkText = isGemini ? 'Get free key →' : 'Get API key →';
-    labelEl.innerHTML = (isGemini ? 'Google AI Studio Key' : 'Anthropic API Key') +
+    const href = isViewingGemini ? 'https://aistudio.google.com/apikey' : 'https://console.anthropic.com/keys';
+    const linkText = isViewingGemini ? 'Get free key →' : 'Get API key →';
+    labelEl.innerHTML = (isViewingGemini ? 'Google AI Studio Key' : 'Anthropic API Key') +
       `<a href="${href}" target="_blank" rel="noopener"
         style="float:right;font-size:var(--text-xs);color:var(--highlight-ui);text-decoration:none">
         ${linkText}</a>`;
   }
 
-  const input = document.getElementById('aiApiKey');
-  if (input && !input.matches(':focus')) {
-    input.placeholder = isGemini ? 'AIzaSy…' : 'sk-ant-…';
-    if (!hasKey) input.value = '';
-  }
-
-  const statusLine = document.getElementById('aiStatusLine');
-  if (statusLine) {
-    if (hasKey) {
-      statusLine.textContent = `✓ ${isGemini ? 'Gemini 2.5 Flash' : 'Claude Haiku'} connected`;
+  if (isConnectedToViewing) {
+    // ── Connected state: hide input, show status + disconnect ──
+    if (inputWrap) inputWrap.style.display = 'none';
+    if (statusLine) {
+      statusLine.textContent = `✓ ${isViewingGemini ? 'Gemini 2.5 Flash' : 'Claude Haiku'} connected`;
       statusLine.style.color = 'var(--accent)';
-    } else {
-      statusLine.textContent = isGemini ? 'Free tier — no credit card needed' : 'Paid API';
-      statusLine.style.color = 'var(--muted)';
+      statusLine.style.display = '';
     }
+    if (saveBtn)  saveBtn.style.display  = 'none';
+    if (clearBtn) clearBtn.style.display = '';
+  } else {
+    // ── Disconnected or switching provider: show input + connect ──
+    if (inputWrap) inputWrap.style.display = '';
+    if (input && !input.matches(':focus')) {
+      input.placeholder = isViewingGemini ? 'AIzaSy…' : 'sk-ant-…';
+      input.value = '';
+    }
+    if (statusLine) {
+      statusLine.textContent = isViewingGemini ? 'Free tier — no credit card needed' : 'Paid API';
+      statusLine.style.color = 'var(--muted)';
+      statusLine.style.display = '';
+    }
+    if (saveBtn)  saveBtn.style.display  = '';
+    if (clearBtn) clearBtn.style.display = 'none';
   }
-
-  const saveBtn  = document.getElementById('aiSaveBtn');
-  const clearBtn = document.getElementById('aiClearBtn');
-  if (saveBtn)  saveBtn.style.display  = hasKey ? 'none' : '';
-  if (clearBtn) clearBtn.style.display = hasKey ? ''     : 'none';
 }
 
 async function saveAIKey() {
@@ -5570,6 +5602,7 @@ async function saveAIKey() {
     }
 
     if (input) input.value = '';
+    _aiViewingProvider = null; // reset — now viewing the connected provider
     _msg('Connected ✓  Tap ✦ to start', 'var(--accent)');
     _aiRenderConfig();
 
@@ -5584,6 +5617,7 @@ async function saveAIKey() {
 
 function clearAIKey() {
   localStorage.removeItem('today_ai_key');
+  _aiViewingProvider = null; // reset to show current provider state
   const el = document.getElementById('aiMsg');
   if (el) { el.className = 'status-msg error'; el.textContent = 'Disconnected'; el.style.color = 'var(--muted)'; }
   _aiRenderConfig();
@@ -5783,8 +5817,8 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
 //   Click outside       → dismiss UI only; timer keeps running
 //   Click same task     → re-open UI; resume if paused
 //   Click other task    → start fresh session on that task
-//   space               → pause / resume (input-field guarded)
-//   esc                 → full stop + reset
+//   space               → breathe (pause / resume)
+//   esc                 → rest (close UI, timer keeps running in background)
 //   Tab away / hidden   → wall-clock correction on return
 //   Session complete    → chime, stays at 00:00
 //
@@ -5843,7 +5877,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
 
   // ── Per-task pause state (in-memory, session-scoped) ─────────────────────
   // Stores { rem, running } keyed by taskId.
-  // Survives UI dismiss. Cleared when a new task starts or esc resets.
+  // Survives UI dismiss. Cleared when a new task starts.
   // NOT persisted to localStorage — resets on page reload intentionally.
   const taskStates = {};
 
@@ -5856,7 +5890,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
   // ── DOM: kbd hint + timer block ───────────────────────────────────────────
   const kbdHint = document.createElement('div');
   kbdHint.className = 'focus-kbd-hint';
-  kbdHint.innerHTML = '<kbd>space</kbd> pause &nbsp;&nbsp; <kbd>esc</kbd> reset';
+  kbdHint.innerHTML = '<kbd>space</kbd> breathe &nbsp;&nbsp; <kbd>esc</kbd> rest';
   document.body.appendChild(kbdHint);
 
   const timerEl = document.createElement('div');
@@ -5934,6 +5968,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
     appEl.classList.add('focusing');
     taskEl.classList.add('focused');
     taskEl.after(timerEl);
+    timerEl.after(kbdHint); // kbd hint follows timer bar
 
     syncDisplay(taskId, taskEl);
 
@@ -6226,7 +6261,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
     const active  = document.activeElement;
     const inInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
     if (e.code === 'Space' && !inInput) { e.preventDefault(); toggle(); }
-    if (e.code === 'Escape') { closeUI(true); }
+    if (e.code === 'Escape') { closeUI(false); }
   });
 })();
 

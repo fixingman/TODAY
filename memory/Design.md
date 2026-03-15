@@ -35,7 +35,63 @@ TODAY is a single-day task manager. It shows only what matters right now — tod
 
 ---
 
-## 2. Design Tokens
+## 2. Tonality
+
+TODAY speaks like a calm, present friend — not a system, not a manager, not a coach.
+
+### Voice Principles
+
+1. **Human, not technical.** Describe what the person is doing, not what the UI is doing.
+   - ✗ "Close panel" → ✓ "rest"
+   - ✗ "Pause timer" → ✓ "breathe"
+   - ✗ "Session completed" → ✓ "restart"
+
+2. **Present tense, active voice.** Speak to now, not about later.
+   - ✗ "Tasks will be cleared" → ✓ "All done for today"
+   - ✗ "No tasks have been added" → ✓ "Nothing added yet"
+
+3. **Calm, not urgent.** The app is a tool for focus, not a source of pressure.
+   - No exclamation marks in system text
+   - No gamification language ("streak broken!", "keep going!")
+   - Gentle acknowledgment over celebration
+
+4. **Brief, not minimal.** Use enough words to be warm, not so many to be noisy.
+   - Labels: 1-3 words
+   - Status messages: 1 short sentence
+   - Empty states: human, not robotic
+
+5. **For humans, not robots.** Acknowledge that minds and bodies need rest.
+   - "breathe" instead of "pause" — it's okay to stop
+   - "rest" instead of "close" — stepping away is valid
+   - The tool serves the person, not the other way around
+
+### Vocabulary
+
+| Instead of | Use |
+|------------|-----|
+| Close | rest |
+| Pause | breathe |
+| Resume | (no label — just tap again) |
+| Reset | restart |
+| Completed | done |
+| No tasks | Nothing added yet |
+| All tasks done | All done for today |
+| Delete | (swipe or icon — no label) |
+| Cancel | (just close — no label) |
+| Submit | (action-specific: "Connect", "Save") |
+
+### Focus Mode Language
+
+The Pomodoro timer uses zen-adjacent language:
+- **breathe** — pause the timer, take a moment
+- **rest** — step away from focus mode entirely
+- **restart** — begin a fresh session
+
+This frames productivity as sustainable, not extractive.
+
+---
+
+## 3. Design Tokens
 
 All visual values **must** reference a token. Never hardcode a colour, spacing, radius, or duration outside `:root`.
 
@@ -174,7 +230,7 @@ Note: `style.opacity` in JS cannot use CSS custom properties — use the raw val
 
 ---
 
-## 3. Visual Language
+## 4. Visual Language
 
 ### Colour usage
 
@@ -213,7 +269,7 @@ Note: `style.opacity` in JS cannot use CSS custom properties — use the raw val
 
 ---
 
-## 4. Motion & Animation
+## 5. Motion & Animation
 
 ### Core rules
 
@@ -244,7 +300,7 @@ Note: `style.opacity` in JS cannot use CSS custom properties — use the raw val
 
 ---
 
-## 5. Focus Mode (Pomodoro)
+## 6. Focus Mode (Pomodoro)
 
 Desktop only. Mobile never enters focus mode — `@media (hover: hover)` guards all CSS, `matchMedia` guard in JS.
 
@@ -315,7 +371,7 @@ Synthesised via Web Audio API. No audio files. Fails silently. All sine wave —
 
 ---
 
-## 6. Habits
+## 7. Habits
 
 ### Philosophy — why habits fit despite the "one day" tension
 
@@ -378,7 +434,7 @@ Slower and lower than the task complete sound — deliberate, grounded. A habit 
 
 ---
 
-## 7. Interaction Decisions
+## 8. Interaction Decisions
 
 A record of gestures and interaction patterns that were considered, built, and either kept or removed — and why. This section exists so the same decisions don't get revisited without context.
 
@@ -464,7 +520,7 @@ When focus mode activates, the `grab` cursor from drag-to-reorder persisted on t
 
 **Key validation:** `saveAIKey()` makes a real test call before accepting the key. Shows "Testing…" while validating, surfaces the API's actual error message on failure.
 
-## 8. Integrations
+## 9. Integrations
 
 ### Trello
 
@@ -524,7 +580,7 @@ AI assists *after* task entry, never blocking the input flow:
 
 ---
 
-## 9. Offline & Service Worker
+## 10. Offline & Service Worker
 
 - SW file: `sw.js`. Cache version: `today-v{version}` — must match `APP_VERSION` on every deploy.
 - Strategy: **network-first** for all requests.
@@ -536,7 +592,7 @@ AI assists *after* task entry, never blocking the input flow:
 
 ---
 
-## 10. Security & Privacy
+## 11. Security & Privacy
 
 - All user content rendered via `esc()` before `innerHTML` — no XSS surface.
 - Trello token scope: `read` only.
@@ -548,7 +604,7 @@ AI assists *after* task entry, never blocking the input flow:
 
 ---
 
-## 11. Development Rules
+## 12. Development Rules
 
 1. **All margins and paddings must use design tokens.** Never hardcode `px` outside `:root` unless explicitly off-grid (see Spacing above). This includes colours inside `@media` blocks and focus mode CSS — all `rgba()` accent variants have named tokens (`--accent-focus-bg`, `--accent-check`, `--accent-timer-fill`, etc.).
 2. **GPU compositing for animations.** Animate only `opacity` and `transform` — never `width`, `height`, `top`, `left`, `background`, or `border` in transitions that fire frequently. Moving elements use `transform: translate()` not `left/top`. See §4 Motion for the full animation contract.
@@ -568,7 +624,7 @@ AI assists *after* task entry, never blocking the input flow:
 
 ---
 
-## 12. Haptics
+## 13. Haptics
 
 TODAY uses `_haptic(preset)` for tactile feedback on mobile. Design rules (from web-haptics design guide):
 
@@ -589,7 +645,7 @@ TODAY uses `_haptic(preset)` for tactile feedback on mobile. Design rules (from 
 
 **Not haptic:** adding a task, opening panels, toggling habits panel, typing.
 
-## 13. Haiku
+## 14. Haiku
 
 > Only today shows  
 > Done rests, quietly proud  
