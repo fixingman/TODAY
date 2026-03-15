@@ -75,15 +75,16 @@
   @media (hover: hover) {
 
     /* All receding elements — transition defined here so exit is smooth */
-    .task, .empty, .section-header, .app-date, h1 {
+    .task, .habit, .empty, .section-header, .app-date, h1 {
       transition:
         background var(--dur-fast),
         border-color var(--dur-fast),
         opacity var(--dur-mid) ease;
     }
 
-    /* Focused task snaps in via background+border, no opacity change */
-    .focusing .task.focused {
+    /* Focused task/habit snaps in via background+border, no opacity change */
+    .focusing .task.focused,
+    .focusing .habit.focused {
       background: rgba(200,240,96,0.04);
       border-color: rgba(200,240,96,0.12);
       border-radius: var(--radius-lg) var(--radius-lg) 0 0;
@@ -92,7 +93,8 @@
     }
 
     /* Recede — opacity only, nothing moves, pointer-events off */
-    .focusing .task:not(.focused) {
+    .focusing .task:not(.focused),
+    .focusing .habit:not(.focused) {
       opacity: 0.07 !important;
       pointer-events: none;
     }
@@ -100,18 +102,23 @@
     .focusing .empty { opacity: 0.035 !important; }
     .focusing .section-header,
     .focusing .app-date { opacity: 0.08 !important; }
+    /* Habits panel header recedes too */
+    .focusing .config-panel:not(:has(.habit.focused)) { opacity: 0.08 !important; }
 
     /* Checkbox — accent border in focus */
-    .focusing .task.focused .task-check {
+    .focusing .task.focused .task-check,
+    .focusing .habit.focused .habit-check {
       border-color: rgba(200,240,96,0.55);
     }
-    .focusing .task.focused .task-check:hover {
+    .focusing .task.focused .task-check:hover,
+    .focusing .habit.focused .habit-check:hover {
       border-color: rgba(200,240,96,0.9);
       box-shadow: 0 0 0 3px rgba(200,240,96,0.1);
     }
 
     /* Checkbox progress fill — grows with timer */
-    .focusing .task.focused .task-check::before {
+    .focusing .task.focused .task-check::before,
+    .focusing .habit.focused .habit-check::before {
       content: '';
       position: absolute;
       inset: 0;
@@ -1511,11 +1518,12 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.44';
-const DEV_HOURS     = '64h';
+const APP_VERSION   = '1.6.45';
+const DEV_HOURS     = '66h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.45': 'Focus mode extended to habits — click habit row starts Pomodoro session | habit rows recede/focus with same CSS contract as tasks | session count 🍅 badge on habit name | _logSession unified helper for all three row types | focusSessions persisted to habitsList',
   '1.6.44': 'Auto-update: SW polls for updates every 60min | new SW activates on next app focus (not mid-session) | controllerchange triggers reload | SKIP_WAITING via postMessage',
   '1.6.43': 'Sound volume +60% across all sounds — start 0.12→0.20, resume 0.09→0.15, complete 0.13→0.22, habit 0.16→0.26, chime notes 0.07–0.10→0.12–0.17',
   '1.6.43': 'Swipe-to-complete removed — swipe IIFE, swipe track HTML, and swipe CSS all removed',
@@ -2392,12 +2400,16 @@ function renderHabits() {
       return `<span class="week-dot${ds.has(d) ? ' filled' : ''}${d === _habitTodayISO() ? ' is-today' : ''}" style="${style}"></span>`;
     }).join('');
     const strengthTxt = strength > 0 ? `${strength}%` : '—';
+    const sessions    = parseInt(h.focusSessions) || 0;
+    const sessionBadge = sessions > 0
+      ? `<span class="session-count has-sessions">${sessions} 🍅</span>`
+      : `<span class="session-count"></span>`;
     const el = document.createElement('div');
     el.className = `habit${isDone ? ' done-today' : ''}`;
     el.dataset.habitId = h.id;
     el.innerHTML = `
       <div class="habit-check" onclick="toggleHabitDone('${h.id}')">${CHK}</div>
-      <div class="habit-body"><div class="habit-name">${esc(h.name)}</div></div>
+      <div class="habit-body"><div class="habit-name">${esc(h.name)}${sessionBadge}</div></div>
       <div class="habit-week">${dots}</div>
       <div class="habit-streak" title="${strength}% habit strength">
         <span class="streak-label${strength >= 70 ? ' hot' : ''}">${strengthTxt}</span>
@@ -4370,28 +4382,7 @@ if ('serviceWorker' in navigator) {
     st.wallStart = null;
 
     // Log partial session if any time was spent
-    if (sessionStarted) {
-      const taskDom2 = document.querySelector('.task[data-taskid="' + taskId + '"]');
-      const badge2   = taskDom2 ? taskDom2.querySelector('.session-count') : null;
-      const manualIdx2 = manualTasks.findIndex(t => t.id === taskId);
-      if (manualIdx2 !== -1) {
-        manualTasks[manualIdx2].focusSessions = (parseInt(manualTasks[manualIdx2].focusSessions) || 0) + 1;
-        localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-        if (badge2) {
-          badge2.textContent = manualTasks[manualIdx2].focusSessions + ' 🍅';
-          badge2.classList.add('has-sessions');
-        }
-      } else {
-        // Trello task
-        const focusMap2 = _getTrelloFocus();
-        focusMap2[taskId] = (focusMap2[taskId] || 0) + 1;
-        _setTrelloFocus(focusMap2);
-        if (badge2) {
-          badge2.textContent = focusMap2[taskId] + ' 🍅';
-          badge2.classList.add('has-sessions');
-        }
-      }
-    }
+    if (sessionStarted) _logSession(taskId);
 
     // Collapse focus UI cleanly, then let toggleDone proceed
     if (uiTaskEl && uiTaskEl.dataset.taskid === taskId) {
@@ -4517,7 +4508,7 @@ if ('serviceWorker' in navigator) {
 
   // ── Start fresh session on a task ─────────────────────────────────────────
   function start(taskEl) {
-    const taskId = taskEl.dataset.taskid;
+    const taskId = taskEl.dataset.taskid || taskEl.dataset.habitId;
 
     // Warm up the shared AudioContext on this user gesture so it stays
     // alive and can play sounds even when the tab loses focus later.
@@ -4607,32 +4598,42 @@ if ('serviceWorker' in navigator) {
     }
 
     playChime();
+    _logSession(taskId);
 
-    // Persist completed session — manual tasks in localStorage, Trello tasks in today_trello_focus
-    const taskDom = document.querySelector('.task[data-taskid="' + taskId + '"]');
-    const badge   = taskDom ? taskDom.querySelector('.session-count') : null;
+    // Stay at 00:00 — no auto-restart, no auto-collapse
+    // State cleared only when user clicks again or presses esc
+  }
 
+  // ── Persist a session for habit or task ───────────────────────────────────
+  function _logSession(taskId) {
+    // Habit
+    const habitIdx = habitsList.findIndex(h => h.id === taskId);
+    if (habitIdx !== -1) {
+      habitsList[habitIdx].focusSessions = (parseInt(habitsList[habitIdx].focusSessions) || 0) + 1;
+      _saveHabits();
+      // Update badge if visible
+      const habitDom = document.querySelector('.habit[data-habit-id="' + CSS.escape(taskId) + '"]');
+      const badge = habitDom ? habitDom.querySelector('.session-count') : null;
+      if (badge) { badge.textContent = habitsList[habitIdx].focusSessions + ' 🍅'; badge.classList.add('has-sessions'); }
+      return;
+    }
+    // Manual task
     const manualIdx = manualTasks.findIndex(t => t.id === taskId);
     if (manualIdx !== -1) {
       manualTasks[manualIdx].focusSessions = (parseInt(manualTasks[manualIdx].focusSessions) || 0) + 1;
       localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-      if (badge) {
-        badge.textContent = manualTasks[manualIdx].focusSessions + ' 🍅';
-        badge.classList.add('has-sessions');
-      }
-    } else {
-      // Trello task — store in today_trello_focus
-      const focusMap = _getTrelloFocus();
-      focusMap[taskId] = (focusMap[taskId] || 0) + 1;
-      _setTrelloFocus(focusMap);
-      if (badge) {
-        badge.textContent = focusMap[taskId] + ' 🍅';
-        badge.classList.add('has-sessions');
-      }
+      const taskDom = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
+      const badge = taskDom ? taskDom.querySelector('.session-count') : null;
+      if (badge) { badge.textContent = manualTasks[manualIdx].focusSessions + ' 🍅'; badge.classList.add('has-sessions'); }
+      return;
     }
-
-    // Stay at 00:00 — no auto-restart, no auto-collapse
-    // State cleared only when user clicks again or presses esc
+    // Trello task
+    const focusMap = _getTrelloFocus();
+    focusMap[taskId] = (focusMap[taskId] || 0) + 1;
+    _setTrelloFocus(focusMap);
+    const taskDom = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
+    const badge = taskDom ? taskDom.querySelector('.session-count') : null;
+    if (badge) { badge.textContent = focusMap[taskId] + ' 🍅'; badge.classList.add('has-sessions'); }
   }
 
   // ── Tab visibility correction ─────────────────────────────────────────────
@@ -4661,19 +4662,31 @@ if ('serviceWorker' in navigator) {
   document.addEventListener('click', function(e) {
     if (e.target.closest('.task-delete')) return;
     if (e.target.closest('.task-check'))  return;
+    if (e.target.closest('.habit-check')) return;
     if (e.target.closest('.trello-link')) return;
     if (e.target.closest('.focus-timer')) return;
+    if (e.target.closest('.habit-edit-input')) return;
+    if (e.target.closest('.habit-edit-delete')) return;
+    if (e.target.closest('#habitAddRow')) return;
+    if (e.target.closest('#habitEditBtn')) return;
+    if (e.target.closest('#habitNewBtn')) return;
 
-    const task = e.target.closest('.task');
+    // Recognise both task rows and habit rows
+    const task    = e.target.closest('.task');
+    const habitEl = !task ? e.target.closest('.habit[data-habit-id]') : null;
+    const focusEl = task || habitEl;
+    const focusId = task ? task.dataset.taskid
+                  : habitEl ? habitEl.dataset.habitId
+                  : null;
 
-    if (!task) {
-      // Outside all tasks — dismiss UI and pause timer
+    if (!focusEl) {
+      // Outside all tasks/habits — dismiss UI and pause timer
       if (uiTaskEl) {
         const st = getState(uiTaskId);
         if (st.running) {
           clearTimeout(tickHandle);
           st.running   = false;
-          st.paused    = false; // not a user-space-pause, just a dismiss-pause
+          st.paused    = false;
           st.wallStart = null;
         }
         closeUI(false);
@@ -4681,11 +4694,11 @@ if ('serviceWorker' in navigator) {
       return;
     }
 
-    if (task.classList.contains('done')) return;
+    if (task && task.classList.contains('done')) return;
 
-    const taskId = task.dataset.taskid;
+    const taskId = focusId;
 
-    if (task === uiTaskEl) {
+    if (focusEl === uiTaskEl) {
       // Clicked the currently visible task
       const st = getState(taskId);
       if (st.rem <= 0) {
@@ -4705,13 +4718,13 @@ if ('serviceWorker' in navigator) {
       return;
     }
 
-    // Clicked a task that has an in-progress session (UI was dismissed)
+    // Clicked a task/habit that has an in-progress session (UI was dismissed)
     if (taskStates[taskId] && taskStates[taskId].rem < TOTAL) {
       const st = getState(taskId);
       // Stop any background tick for this task — openUI + tickFor will restart it
       clearTimeout(tickHandle);
       st.running = false; // temporarily so tickFor doesn't double-fire
-      openUI(task, taskId);
+      openUI(focusEl, taskId);
       if (!st.paused && st.rem > 0) {
         // Was running (or should be) — auto-resume
         st.running   = true;
@@ -4725,8 +4738,8 @@ if ('serviceWorker' in navigator) {
       return;
     }
 
-    // Fresh start on a new task
-    start(task);
+    // Fresh start on a new task/habit
+    start(focusEl);
   }, false);
 
   // ── Keyboard — guarded against accidental input-field triggers ────────────
