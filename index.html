@@ -1921,30 +1921,35 @@
         </button>
       </div>
 
-      <!-- Key input -->
-      <div class="config-grid" id="aiKeyInputWrap">
-        <div class="config-field full">
-          <div class="config-label" id="aiKeyLabel" style="display:flex;justify-content:space-between;align-items:baseline">
-            <span>Google AI Studio Key</span>
-            <a id="aiKeyLink" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener"
-              style="font-size:var(--text-xs);color:var(--highlight-ui);text-decoration:none;letter-spacing:0.04em">
-              Get free key →
-            </a>
-          </div>
+      <!-- Key input row: input + connect button inline -->
+      <div id="aiKeyInputWrap" style="margin-top:var(--space-4)">
+        <div style="display:flex;gap:var(--space-2);align-items:stretch">
           <input class="config-input" id="aiApiKey" autocomplete="off" autocorrect="off"
             autocapitalize="off" spellcheck="false" type="password"
             placeholder="Paste your key…"
+            style="flex:1"
             oninput="_aiUpdateConnectBtn()"
             onkeydown="if(event.key==='Enter')saveAIKey()" />
+          <button class="btn-primary" id="aiSaveBtn" onclick="saveAIKey()" disabled style="flex-shrink:0">Connect</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:var(--space-2)">
+          <span id="aiStatusLine" style="font-size:var(--text-xs);color:var(--muted)">Free tier — no credit card needed</span>
+          <a id="aiKeyLink" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener"
+            style="font-size:var(--text-xs);color:var(--highlight-ui);text-decoration:none;letter-spacing:0.04em">
+            Get free key →
+          </a>
         </div>
       </div>
-      <div id="aiStatusLine" class="panel-status-line"></div>
-      <div class="config-actions" id="aiActions">
-        <button class="btn-primary" id="aiSaveBtn" onclick="saveAIKey()" disabled>Connect</button>
-        <span id="aiConnectedStatus" style="display:none;color:var(--accent);font-size:var(--text-sm)">✓ Connected</span>
-        <button class="btn-ghost" id="aiClearBtn" onclick="clearAIKey()" style="display:none">Forget</button>
+
+      <!-- Connected state -->
+      <div id="aiConnectedWrap" style="display:none;margin-top:var(--space-4)">
+        <div style="display:flex;gap:var(--space-3);align-items:center">
+          <button class="btn-ghost" id="aiClearBtn" onclick="clearAIKey()">Forget</button>
+          <span id="aiConnectedStatus" style="color:var(--accent);font-size:var(--text-sm)">Connected</span>
+        </div>
       </div>
-      <div class="status-msg" id="aiMsg"></div>
+
+      <div class="status-msg" id="aiMsg" style="margin-top:var(--space-3)"></div>
     </div>
   </div>
 
@@ -2032,11 +2037,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.2.9';
-const DEV_HOURS     = '87h';
+const APP_VERSION   = '2.2.12';
+const DEV_HOURS     = '88h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.2.12': 'AI config layout redesign: input + Connect inline, status + link below, cleaner spacing',
+  '2.2.11': 'AI config: hide empty error banner when switching tabs or reopening panel',
+  '2.2.10': 'AI config: Forget button first, then "Connected" status (no checkmark, no provider name)',
   '2.2.9': 'AI error handling: detect HTML in error messages, human-friendly messages ("Can\'t reach AI", "That key didn\'t work")',
   '2.2.8': 'AI config UX: Connect disabled until input, status inline next to Forget, no lingering banner, cleaner label layout',
   '2.2.7': 'Remove divider stroke from bottom add-task bar',
@@ -5502,7 +5510,6 @@ function _aiRenderConfig() {
   const provider = _aiGetProvider();
   const key      = _aiGetKey();
   const hasKey   = key && key.length > 0;
-  const isGemini = provider === 'gemini';
 
   // Track which provider user is viewing (may differ from stored provider when switching)
   const viewingProvider = _aiViewingProvider || provider;
@@ -5514,58 +5521,45 @@ function _aiRenderConfig() {
   document.getElementById('aiProviderGemini')?.classList.toggle('active', isViewingGemini);
   document.getElementById('aiProviderClaude')?.classList.toggle('active', !isViewingGemini);
 
-  const labelEl      = document.getElementById('aiKeyLabel');
-  const inputWrap    = document.getElementById('aiKeyInputWrap');
-  const input        = document.getElementById('aiApiKey');
-  const statusLine   = document.getElementById('aiStatusLine');
-  const saveBtn      = document.getElementById('aiSaveBtn');
-  const clearBtn     = document.getElementById('aiClearBtn');
-  const connStatus   = document.getElementById('aiConnectedStatus');
+  const inputWrap     = document.getElementById('aiKeyInputWrap');
+  const connectedWrap = document.getElementById('aiConnectedWrap');
+  const input         = document.getElementById('aiApiKey');
+  const statusLine    = document.getElementById('aiStatusLine');
+  const saveBtn       = document.getElementById('aiSaveBtn');
+  const keyLink       = document.getElementById('aiKeyLink');
 
-  // Update label + link for the provider being viewed
-  if (labelEl) {
-    const href = isViewingGemini ? 'https://aistudio.google.com/apikey' : 'https://console.anthropic.com/keys';
-    const linkText = isViewingGemini ? 'Get free key →' : 'Get key →';
-    const labelText = isViewingGemini ? 'Google AI Studio Key' : 'Anthropic API Key';
-    labelEl.innerHTML = `<span>${labelText}</span>
-      <a href="${href}" target="_blank" rel="noopener"
-        style="font-size:var(--text-xs);color:var(--highlight-ui);text-decoration:none;letter-spacing:0.04em">
-        ${linkText}</a>`;
+  // Update link for the provider being viewed
+  if (keyLink) {
+    keyLink.href = isViewingGemini ? 'https://aistudio.google.com/apikey' : 'https://console.anthropic.com/keys';
+    keyLink.textContent = isViewingGemini ? 'Get free key →' : 'Get key →';
   }
 
   if (isConnectedToViewing) {
-    // ── Connected state: hide input, show status next to Forget ──
+    // ── Connected state: hide input row, show connected row ──
     if (inputWrap) inputWrap.style.display = 'none';
-    if (statusLine) statusLine.style.display = 'none';
-    if (saveBtn) saveBtn.style.display = 'none';
-    if (connStatus) {
-      connStatus.textContent = `✓ ${isViewingGemini ? 'Gemini 2.5 Flash' : 'Claude Haiku'}`;
-      connStatus.style.display = '';
-    }
-    if (clearBtn) clearBtn.style.display = '';
+    if (connectedWrap) connectedWrap.style.display = '';
   } else {
-    // ── Disconnected or switching provider: show input + connect ──
+    // ── Disconnected or switching provider: show input row ──
     if (inputWrap) inputWrap.style.display = '';
+    if (connectedWrap) connectedWrap.style.display = 'none';
     if (input && !input.matches(':focus')) {
-      input.placeholder = isViewingGemini ? 'Paste your key…' : 'Paste your key…';
+      input.placeholder = 'Paste your key…';
       input.value = '';
     }
     if (statusLine) {
       statusLine.textContent = isViewingGemini ? 'Free tier — no credit card needed' : 'Paid API';
-      statusLine.style.color = 'var(--muted)';
-      statusLine.style.display = '';
     }
     if (saveBtn) {
-      saveBtn.style.display = '';
       saveBtn.disabled = !input?.value?.trim();
     }
-    if (connStatus) connStatus.style.display = 'none';
-    if (clearBtn) clearBtn.style.display = 'none';
   }
   
-  // Clear any lingering success message
+  // Clear any lingering error/success message
   const msgEl = document.getElementById('aiMsg');
-  if (msgEl) msgEl.textContent = '';
+  if (msgEl) {
+    msgEl.textContent = '';
+    msgEl.style.display = 'none';
+  }
 }
 
 // Enable/disable Connect button based on input
@@ -5596,6 +5590,7 @@ async function saveAIKey() {
     msgEl.className   = 'status-msg' + (isError ? ' error' : isSuccess ? ' success' : ' error');
     msgEl.textContent = text;
     msgEl.style.color = colour;
+    msgEl.style.display = text ? '' : 'none';
   }
 
   if (!key) { _msg('Paste your API key first', 'var(--danger)'); input?.focus(); return; }
