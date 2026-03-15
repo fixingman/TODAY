@@ -148,6 +148,29 @@
       pointer-events: none;
     }
 
+    /* Breathe overlay — full screen pulse on space */
+    #breatheOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      pointer-events: none;
+      opacity: 0;
+      background: rgba(20, 22, 18, 0.92);
+      backdrop-filter: blur(40px);
+      -webkit-backdrop-filter: blur(40px);
+      transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #breatheOverlay.active {
+      opacity: 1;
+      animation: breathePulse 1.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    @keyframes breathePulse {
+      0%   { opacity: 0; background: rgba(20, 22, 18, 0.85); }
+      30%  { opacity: 1; background: rgba(30, 35, 28, 0.95); }
+      50%  { opacity: 1; background: rgba(40, 48, 36, 0.92); }
+      100% { opacity: 0; background: rgba(20, 22, 18, 0.85); }
+    }
+
     /* Session count visible in focus mode */
     .focusing .task.focused .session-count.has-sessions { opacity: var(--opacity-mid); }
 
@@ -894,6 +917,15 @@
 
   .task-check svg { display: none; }
   .task.done .task-check svg { display: block; }
+
+  /* Stale tasks — inactive for >3 days */
+  .task.stale {
+    opacity: 0.35;
+    transition: opacity var(--dur-base);
+  }
+  .task.stale:hover {
+    opacity: 0.6;
+  }
 
   .task-body { flex: 1; min-width: 0; }
 
@@ -2058,6 +2090,8 @@
     </filter>
   </defs>
 </svg>
+<!-- Breathe overlay for focus mode pause animation -->
+<div id="breatheOverlay"></div>
 <div id="splash">
   <div id="splash-logo">
     <span class="l">T</span><span class="l">O</span>
@@ -2272,11 +2306,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.6.3';
-const DEV_HOURS     = '100h';
+const APP_VERSION   = '2.6.5';
+const DEV_HOURS     = '101h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.6.5': 'Stale tasks: manual tasks inactive >3 days fade to 35% opacity. Starting a pomodoro resets lastActive and removes stale state.',
+  '2.6.4': 'Focus mode: breathe overlay on space — full-screen blur pulse with lighter background (1.4s animation). Visual pause/resume feedback.',
   '2.6.3': 'Focus mode: heavy blur (8-10px) + stronger noise displacement — letters become smooth diffuse texture.',
   '2.6.2': 'Focus mode: increase blur (3-4px) to fully obscure receded task details.',
   '2.6.1': 'Focus mode: add noise displacement filter + subtle blur to receded elements for depth effect. SVG feTurbulence creates organic grain.',
@@ -3156,6 +3192,14 @@ function taskHTML(task, type) {
   const tid    = task.id; // original id - safe alphanumeric, stored in data-taskid
   const dueStr = _getDueStr(task);
 
+  // Check if manual task is stale (>3 days since last activity)
+  let isStale = false;
+  if (type === 'manual' && !done) {
+    const lastActive = task.lastActive || _getCreatedFromId(task.id);
+    const daysSince = (Date.now() - lastActive) / (1000 * 60 * 60 * 24);
+    isStale = daysSince > 3;
+  }
+
   const badges = type === 'trello' && dueStr
     ? `<span class="badge due">due ${esc(dueStr)}</span>`
     : '';
@@ -3178,9 +3222,10 @@ function taskHTML(task, type) {
   // Copy button — visible only in focus mode via CSS, present on all task types
   const copyBtn = `<button class="task-copy" data-taskid="${tid}" title="Copy task text">copy</button>`;
 
+  const staleClass = isStale ? ' stale' : '';
 
   return `
-    <div class="task${done ? ' done' : ''}" data-taskid="${tid}">
+    <div class="task${done ? ' done' : ''}${staleClass}" data-taskid="${tid}">
       <div class="task-check" data-taskid="${tid}">
         <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
           <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -3193,6 +3238,13 @@ function taskHTML(task, type) {
       ${deleteBtn}
       ${copyBtn}
     </div>`;
+}
+
+// Extract creation timestamp from manual task ID (format: manual_1234567890123)
+function _getCreatedFromId(id) {
+  if (!id || !id.startsWith('manual_')) return Date.now();
+  const ts = parseInt(id.replace('manual_', ''));
+  return isNaN(ts) ? Date.now() : ts;
 }
 
 function esc(s) {
@@ -6507,6 +6559,14 @@ function _aiDismissProactive() {
 
   function toggle() {
     if (!uiTaskId) return;
+    // Trigger breathe overlay animation
+    const overlay = document.getElementById('breatheOverlay');
+    if (overlay) {
+      overlay.classList.remove('active');
+      void overlay.offsetWidth; // force reflow
+      overlay.classList.add('active');
+      setTimeout(() => overlay.classList.remove('active'), 1500);
+    }
     getState(uiTaskId).running ? pause() : resume();
   }
 
@@ -6573,8 +6633,10 @@ function _aiDismissProactive() {
     const manualIdx = manualTasks.findIndex(t => t.id === taskId);
     if (manualIdx !== -1) {
       manualTasks[manualIdx].focusSessions = (parseInt(manualTasks[manualIdx].focusSessions) || 0) + 1;
+      manualTasks[manualIdx].lastActive = Date.now(); // Reset stale timer
       localStorage.setItem('today_manual', JSON.stringify(manualTasks));
       const taskDom = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
+      if (taskDom) taskDom.classList.remove('stale'); // Remove stale styling immediately
       const badge = taskDom ? taskDom.querySelector('.session-count') : null;
       if (badge) { badge.textContent = manualTasks[manualIdx].focusSessions + ' 🍅'; badge.classList.add('has-sessions'); }
       return;
