@@ -2,6 +2,15 @@
 
 | Version | Key change |
 |---|---|
+| **2.2.4** | **Tonality** — Focus mode hints now say "breathe" / "rest". Tonality guidelines added to Design.md §2. Human language for humans, not robots. |
+| 2.2.3 | Focus mode: Esc closes UI without resetting timer (keeps running in background) |
+| 2.2.2 | Focus mode: kbd hint appears below timer bar, not fixed at bottom (avoids overlap with add-task bar) |
+| 2.2.1 | Focus mode: click blinking timer bar to restart pomodoro (cursor:pointer on complete state) |
+| **2.2.0** | **AI Post-Add Enhancement** — after adding a task, AI analyzes in background and offers to break down complex tasks into 2-3 subtasks. Non-blocking, auto-dismisses after 10s. |
+| 2.1.3 | AI config: explicit hasKey check to prevent false "connected" state |
+| 2.1.2 | Fix `_todayStr is not defined` — use `_habitTodayISO()` instead |
+| 2.1.1 | Fix unnecessary scroll on short lists — `overflow-y: auto`, removed `min-height: 100vh` |
+| 2.1.0 | AI function overhaul — all responses JSON, CORS headers, proper error handling for HTML responses |
 | **2.0.9** | AI system prompt improvements — prioritize overdue tasks, suggest focus sessions, stricter output rules (≤15 words, 2-3 chips), prevent done-item suggestions |
 | 2.0.8 | Fix ByteString error — strip non-ASCII chars from API key on client + server |
 | 2.0.7 | Guard against HTML error responses — friendly message if Gemini/Anthropic return HTML |
