@@ -1976,11 +1976,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.0.8';
-const DEV_HOURS     = '78h';
+const APP_VERSION   = '2.1.0';
+const DEV_HOURS     = '80h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.1.0': 'AI function overhaul — all responses now JSON (never raw text/HTML), CORS headers added, comprehensive error handling with clear messages, client parses JSON errors correctly.',
+  '2.0.9': 'AI system prompt improvements — prioritize overdue tasks with ⚠️, suggest focus sessions when idle, stricter output rules (≤15 words, 2-3 chips), prevent suggesting actions on done items. Intro message prioritizes overdue items.',
   '2.0.8': 'Fix ByteString error — strip non-ASCII chars (smart quotes, zero-width spaces) from API key on both client save and server before using in HTTP headers.',
   '2.0.7': 'Guard against HTML error responses — function returns friendly message if Gemini/Anthropic return HTML. Client _aiCall detects HTML body and shows "function not deployed" instead of raw HTML in error.',
   '2.0.6': 'AI error clarity: _aiLoad catch now shows specific error (invalid key / quota exceeded / network) instead of generic message. _aiLoadedOnce reset on error to allow retry without reload.',
@@ -5144,16 +5146,27 @@ async function _aiLoad() {
 
 // Build a terse state summary to send as the user message
 function _aiIntroMessage(ctx) {
-  const parts = [];
+  const overdue = ctx.tasks.overdueCount;
   const totalPending = ctx.tasks.pending.length + ctx.tasks.trello.length;
-  if (totalPending)           parts.push(`${totalPending} task${totalPending > 1 ? 's' : ''} pending`);
-  if (ctx.tasks.overdueCount) parts.push(`${ctx.tasks.overdueCount} overdue`);
-  if (ctx.tasks.done.length)  parts.push(`${ctx.tasks.done.length} done`);
   const habitsDue = ctx.habits.filter(h => !h.doneToday).length;
-  if (habitsDue)              parts.push(`${habitsDue} habit${habitsDue > 1 ? 's' : ''} remaining`);
-
-  if (!parts.length) return `Good ${ctx.timeOfDay}. Nothing on the list yet. What should I add?`;
-  return `Good ${ctx.timeOfDay}. ${parts.join(', ')}. What should I focus on?`;
+  
+  // Prioritize overdue items in the message
+  if (overdue > 0) {
+    return `Good ${ctx.timeOfDay}. ${overdue} overdue task${overdue > 1 ? 's' : ''} need${overdue === 1 ? 's' : ''} attention. What's most urgent?`;
+  }
+  
+  if (totalPending === 0 && habitsDue === 0) {
+    if (ctx.tasks.done.length > 0) {
+      return `Good ${ctx.timeOfDay}. All done! ${ctx.tasks.done.length} task${ctx.tasks.done.length > 1 ? 's' : ''} completed. Clear them or add more?`;
+    }
+    return `Good ${ctx.timeOfDay}. Nothing on the list yet. What should I add?`;
+  }
+  
+  const parts = [];
+  if (totalPending) parts.push(`${totalPending} task${totalPending > 1 ? 's' : ''}`);
+  if (habitsDue)    parts.push(`${habitsDue} habit${habitsDue > 1 ? 's' : ''}`);
+  
+  return `Good ${ctx.timeOfDay}. ${parts.join(' and ')} pending. What should I focus on?`;
 }
 
 // ── Natural language from panel input ────────────────────────────────────────
@@ -5227,14 +5240,30 @@ async function _aiCall(messages) {
     }),
   });
 
-  if (!res.ok) {
-    const ct  = res.headers.get('content-type') || '';
-    const err = ct.includes('html') ? `HTTP ${res.status} — function not deployed?` : await res.text();
-    throw new Error(err || `HTTP ${res.status}`);
+  // Always try to parse as JSON first
+  let data;
+  try {
+    const text = await res.text();
+    // Check if it's HTML (function not deployed or Netlify error)
+    if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
+      throw new Error('Function not deployed — redeploy the site');
+    }
+    data = JSON.parse(text);
+  } catch(e) {
+    if (e.message.includes('Function not deployed')) throw e;
+    throw new Error('Invalid response from server');
   }
-  const ct = res.headers.get('content-type') || '';
-  if (ct.includes('html')) throw new Error('Unexpected HTML response — function may not be deployed');
-  return res.json();
+
+  // Check for error in JSON response
+  if (data.error) {
+    throw new Error(data.error);
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+
+  return data;
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -5265,43 +5294,56 @@ function _aiContext() {
 
 // ── System prompt ─────────────────────────────────────────────────────────────
 function _aiSystemPrompt(ctx) {
-  const tasks = [
-    ...ctx.tasks.pending.map(t => `"${t.text}" [id:${t.id}]`),
-    ...ctx.tasks.trello.map(t  => `"${t.text}"${t.overdue?' OVERDUE':''} [id:${t.id}]`),
+  // Separate overdue from regular pending tasks for priority
+  const overdueTasks = ctx.tasks.trello.filter(t => t.overdue);
+  const regularTasks = [
+    ...ctx.tasks.pending,
+    ...ctx.tasks.trello.filter(t => !t.overdue),
   ];
-  const habits = ctx.habits.map(h => `"${h.name}" ${h.doneToday?'done':'pending'} [id:${h.id}]`);
+  
+  const taskList = [
+    ...overdueTasks.map(t => `⚠️ "${t.text}" OVERDUE [id:${t.id}]`),
+    ...regularTasks.map(t => `"${t.text}" [id:${t.id}]`),
+  ];
+  const pendingHabits = ctx.habits.filter(h => !h.doneToday);
+  const doneHabits = ctx.habits.filter(h => h.doneToday);
 
-  return `You are the AI inside TODAY, a minimal daily task manager.
+  return `You are the AI inside TODAY, a minimal daily task manager. Be concise.
 
 Current state — ${ctx.timeOfDay}, ${ctx.date}:
-Tasks (${tasks.length}): ${tasks.join(' | ') || 'none'}
-Done today: ${ctx.tasks.done.length}
-Habits: ${habits.join(' | ') || 'none'}
+${overdueTasks.length ? `⚠️ OVERDUE (${overdueTasks.length}): ${overdueTasks.map(t => `"${t.text}" [id:${t.id}]`).join(' | ')}` : ''}
+Pending tasks (${regularTasks.length}): ${regularTasks.map(t => `"${t.text}" [id:${t.id}]`).join(' | ') || 'none'}
+Done today: ${ctx.tasks.done.length} tasks${doneHabits.length ? `, ${doneHabits.length} habits` : ''}
+Pending habits: ${pendingHabits.map(h => `"${h.name}" [id:${h.id}]`).join(' | ') || 'none'}
 Progress: ${ctx.progress}%
 
-Reply ONLY with a JSON object — no markdown, no code fences, just raw JSON:
+Reply ONLY with raw JSON (no markdown, no code fences):
 {
-  "message": "one short direct sentence about their actual situation",
-  "actions": [
-    { "label": "chip text (max 4 words)", "type": "TYPE", "payload": {} }
-  ]
+  "message": "max 15 words — direct, specific",
+  "actions": [{ "label": "2-4 words", "type": "TYPE", "payload": {} }]
 }
 
 Action types:
-  add_task    { "text": "task text" }      — add a specific task
-  check_task  { "id": "task-id" }          — mark a task done
-  check_habit { "id": "habit-id" }         — mark a habit done
-  delete_done {}                            — clear all done tasks
-  start_focus { "id": "task-id" }          — start Pomodoro on a task
-  dismiss     {}                            — close (always last)
+  add_task    { "text": "task text" }
+  check_task  { "id": "task-id" }
+  check_habit { "id": "habit-id" }
+  delete_done {}
+  start_focus { "id": "task-id" }
+  open_panel  { "panel": "habits" }
+  dismiss     {}
 
-Rules:
-  - message: direct and specific. "3 tasks left, meditate pending" not "You have tasks."
-  - actions: 2-4 chips max. Make them immediately useful.
-  - If user typed a task name → add_task it.
-  - If user says they're overwhelmed → suggest delete_done + 1 specific task to focus on.
-  - Always end with a dismiss chip.
-  - No suggestions for vague things — only actions on real items in their list.`;
+Priority rules:
+  1. OVERDUE tasks are urgent — suggest start_focus on the most overdue first
+  2. If tasks exist but no focus session active → suggest start_focus on one
+  3. Never suggest check_task/check_habit for items already done
+  4. If user types a task name → add_task it
+  5. Overwhelmed? → delete_done + start_focus on one specific task
+
+Output rules:
+  - message: ≤15 words, specific to their situation
+  - actions: exactly 2-3 chips, always end with dismiss
+  - Labels: 2-4 words max (e.g. "Focus: emails" not "Start a focus session on emails")
+  - Only suggest actions on real items in their list`;
 }
 
 // ── Execute action ────────────────────────────────────────────────────────────

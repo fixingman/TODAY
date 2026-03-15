@@ -2,6 +2,18 @@
 
 | Version | Key change |
 |---|---|
+| **2.0.9** | AI system prompt improvements — prioritize overdue tasks, suggest focus sessions, stricter output rules (≤15 words, 2-3 chips), prevent done-item suggestions |
+| 2.0.8 | Fix ByteString error — strip non-ASCII chars from API key on client + server |
+| 2.0.7 | Guard against HTML error responses — friendly message if Gemini/Anthropic return HTML |
+| 2.0.6 | AI error clarity — specific messages (invalid key / quota / network), allow retry without reload |
+| 2.0.5 | Fix AI key lost on SW reload — save before async validation, remove on failure |
+| 2.0.4 | Re-add .task-copy exclusion to focus click handler |
+| 2.0.3 | Fix AI key error visibility — .status-msg className handling |
+| 2.0.2 | Fix task text overlapping copy button — padding-right in focus mode |
+| 2.0.1 | Focus mode complete state — accent fill + pulse, "restart" label, one-click restart |
+| **2.0.0** | Scroll reset on reload (scrollRestoration=manual), focus exit scrolls task into view |
+| 1.9.9 | Fix Gemini 404 — model string updated to stable gemini-2.5-flash |
+| 1.9.0 | Fix first-click freeze — AudioContext pre-warmed on first pointerdown/touchstart |
 | 1.8.4 | Fix fake key validation — real API test call before saving, surfaces actual error message |
 | 1.8.3 | Fix AI button persistent active state — was driven by key presence, now panel-open only |
 | 1.8.2 | AI UX: active = panel open only, chip actions close immediately not linger |
