@@ -2019,17 +2019,18 @@
   .ai-panel-body {
     max-width: 680px;
     margin: 0 auto;
-    padding: var(--space-4);
+    padding: var(--space-5);
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 80px); /* Space for input bar */
-    background: var(--bg);
-    border-top: 1px solid var(--border);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom: none;
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     max-height: 45vh;
     overflow-y: auto;
     transform: translateY(100%);
     opacity: 0;
     transition: transform 0.35s var(--ease-spring), opacity 0.25s ease-out;
-    box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.12), 0 -2px 8px rgba(0,0,0,0.08);
   }
   #aiPanel.open .ai-panel-body {
     transform: translateY(0);
@@ -2038,11 +2039,11 @@
 
   /* Suggestion message */
   .ai-suggestion-msg {
-    font-size: var(--text-sm);
+    font-size: var(--text-md);
     color: var(--text);
-    line-height: 1.6;
-    margin-bottom: var(--space-3);
-    min-height: 20px;
+    line-height: 1.7;
+    margin-bottom: var(--space-4);
+    min-height: 24px;
   }
   .ai-suggestion-msg.thinking {
     color: var(--muted);
@@ -2057,24 +2058,25 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-4);
   }
   .ai-chip {
-    padding: var(--space-1) var(--space-3);
+    padding: var(--space-2) var(--space-4);
     border: 1px solid var(--border);
     border-radius: var(--radius-full);
     background: var(--surface2);
-    color: var(--muted);
+    color: var(--text);
     font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    letter-spacing: 0.04em;
+    font-size: var(--text-sm2);
+    letter-spacing: 0.02em;
     cursor: pointer;
-    transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+    transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), transform var(--dur-fast);
     white-space: nowrap;
   }
   .ai-chip:hover { color: var(--text); border-color: var(--muted); background: var(--border); }
+  .ai-chip:active { transform: scale(0.97); }
   .ai-chip.primary {
-    border-color: var(--accent-focus-border);
+    border-color: var(--accent);
     color: var(--accent);
     background: var(--accent-dim);
   }
@@ -5786,28 +5788,27 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then(reg => {
-        // Poll for updates every 60 minutes while app is open
-        setInterval(() => reg.update(), 60 * 60 * 1000);
+        // Poll for updates every 30 minutes while app is open
+        setInterval(() => reg.update(), 30 * 60 * 1000);
+        
+        // Also check for updates when app regains focus
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update();
+        });
 
         // When a new SW is waiting (downloaded in background), activate it
-        // on next visibility — user gets new version next time they switch
-        // back to the app, not mid-session
+        function _activateWaiting(sw) {
+          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+            // New version ready, old one is controlling — safe to take over
+            sw.postMessage('SKIP_WAITING');
+          }
+        }
+
         function _onNewSW(sw) {
-          sw.addEventListener('statechange', () => {
-            if (sw.state === 'installed') {
-              // New version ready — activate on next focus
-              const _activate = () => {
-                if (document.visibilityState === 'hidden') return;
-                document.removeEventListener('visibilitychange', _activate);
-                sw.postMessage('SKIP_WAITING');
-              };
-              document.addEventListener('visibilitychange', _activate);
-            }
-            if (sw.state === 'activated') {
-              // SW took over — reload to serve the new version
-              window.location.reload();
-            }
-          });
+          // Check immediately in case it's already installed
+          _activateWaiting(sw);
+          // Also listen for state changes
+          sw.addEventListener('statechange', () => _activateWaiting(sw));
         }
 
         if (reg.waiting) _onNewSW(reg.waiting);
@@ -5815,8 +5816,11 @@ if ('serviceWorker' in navigator) {
           if (reg.installing) _onNewSW(reg.installing);
         });
 
-        // Ensure controller changes (e.g. first install) also reload cleanly
+        // Reload when new SW takes control — this is the actual update moment
+        let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (refreshing) return;
+          refreshing = true;
           window.location.reload();
         });
       })
@@ -6941,14 +6945,14 @@ function _aiDismissProactive() {
     st.paused    = false;
     st.wallStart = null;
 
-    // Update DOM if visible — fill turns accent, time shows "restart"
+    // Update DOM if visible — fill turns accent, time shows "again?"
     if (taskId === uiTaskId && uiTaskEl) {
       setProgress(1, uiTaskEl);
       setPaused(false);
       fillEl.classList.add('complete');
       timeEl.classList.add('complete');
       timerEl.classList.add('complete'); // cursor: pointer
-      timeEl.textContent = 'restart';
+      timeEl.textContent = 'again?';
     }
 
     // Track focus minutes today (25 min per pomodoro)
