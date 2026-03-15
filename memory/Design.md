@@ -310,6 +310,15 @@ No transforms on enter/exit. Elements appear in place. Motion should feel like d
 | `starFade2/3` | 180ms | ✦ button stars | Staggered opacity in |
 | `splashLetterRise` | 0.5s | Splash text | translateY + opacity |
 
+**Reduced motion support (v2.3.5):**
+
+For users who prefer reduced motion (`prefers-reduced-motion: reduce`), all decorative animations are disabled:
+- Breathing animations (`timerCompletePulse`, `gentleBreath`, `starBreath`)
+- Loading dot blinks
+- All transition durations reduced to 0.01ms
+
+Essential state indicators remain visible (timer complete state, loading dots at 0.6 opacity).
+
 ### Z-index
 
 | Token | Value | Usage |
