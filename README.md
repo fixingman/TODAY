@@ -13,6 +13,7 @@ Nothing carries over. Nothing accumulates. The morning is a clean slate.
 - Add tasks for today, check them off as you go
 - Drag to reorder tasks, Trello cards, and habits — desktop and mobile
 - Track daily habits with a 21-day history strip and habit strength score
+- AI assistant (optional) — suggests how to break down complex tasks, powered by Gemini (free) or Claude
 - Pull in cards from a Trello board so you don't re-enter work tasks
 - Focus mode (desktop) — click any task or habit to start a 25-minute Pomodoro session
 - Sync tasks and habits across devices via your own Dropbox
@@ -85,6 +86,18 @@ Trello pulls in cards from a board and list of your choice. Read-only.
 1. Get your Trello API key at [trello.com/power-ups/admin](https://trello.com/power-ups/admin)
 2. Open `index.html` and replace the `TRELLO_API_KEY` constant near the top of the `<script>` block with your own key
 3. In the app, open **✦ Connections** in the top bar and follow the Trello connect flow
+
+### 4. Enable AI Assistant (optional)
+
+The AI assistant can suggest how to break down complex tasks. Powered by Gemini 2.5 Flash (free) or Claude Haiku.
+
+1. Get an API key:
+   - **Gemini (free):** [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+   - **Claude:** [console.anthropic.com/keys](https://console.anthropic.com/keys) (paid)
+2. In the app, open **✦ Connections** → AI Assistant
+3. Select your provider, paste your key, and click Connect
+
+Your key is stored locally in your browser and sent only through your own Netlify function (`/.netlify/functions/ai-assist`) — never to any third party.
 
 ---
 
