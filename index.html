@@ -1054,10 +1054,11 @@
   @media (max-width: 600px) {
     .config-grid { grid-template-columns: 1fr; }
 
-    /* App: no top padding — sticky header handles it. Bottom pad for sticky add bar. */
+    /* App: no top padding — sticky header handles it. Bottom pad clears the sticky add bar. */
     .app {
-      padding: 0 16px 0;
-      padding-bottom: calc(80px + env(safe-area-inset-bottom));
+      padding: 0 var(--space-4) 0;
+      /* 60px = bar height (~44px input) + 8px top pad + 8px breathing room */
+      padding-bottom: calc(60px + env(safe-area-inset-bottom));
     }
 
     /* Sticky header active on mobile */
@@ -1095,9 +1096,11 @@
       right: 0;
       z-index: 10;
       margin: 0;
-      padding: var(--space-3) 16px;
-      padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
-      background: rgba(14,14,16,0.95);
+      /* Tight top — bar sits close to the bottom edge, not floating */
+      padding: var(--space-2) var(--space-4) 0;
+      /* Bottom pad = safe area only — bar is flush with the home indicator area */
+      padding-bottom: env(safe-area-inset-bottom);
+      background: var(--bg-glass);
       -webkit-backdrop-filter: blur(16px) saturate(1.4);
       backdrop-filter: blur(16px) saturate(1.4);
       box-shadow: 0 -1px 0 rgba(255,255,255,0.05);
@@ -1868,11 +1871,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.8.4';
+const APP_VERSION   = '1.8.5';
 const DEV_HOURS     = '76h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.8.5': 'Mobile bottom bar: padding-top reduced to space-2, padding-bottom = safe-area only (no extra gap). App bottom padding 80→60px. Bar now flush with home indicator area.',
   '1.8.4': 'Fix fake AI key validation — saveAIKey now makes a real test call before saving | shows Testing… spinner | rejects invalid keys with error message | ai-assist.js accepts client apiKey as fallback when env var not set',
   '1.8.3': 'Fix AI button persistent active state — _aiRenderConfig was setting aiBtn.active based on key presence, overriding syncActiveButtons. Removed. aiBtn.active now controlled only by syncActiveButtons (panel open = active).',
   '1.8.2': 'UX consistency: AI button active=panel open only (not configured state) — matches all other header buttons | chip actions close panel immediately instead of showing Done/Got it limbo | add_task reloads suggestions after brief feedback',
