@@ -42,6 +42,19 @@ All state lives in `localStorage`. There is no server-side database.
 
 ---
 
+### CSS design tokens
+All visual values are tokenised in `:root` in `index.html`. Short-name aliases (`--bg`, `--accent`, etc.) map to semantic `--color-*` primitives. Full token set documented in `Design.md` §2.
+
+**Notable tokens added in v1.7.x (token audit):**
+- `--bg-glass` (`rgba(14,14,16,0.92)`) — frosted background for sticky header. CSS cannot apply alpha to a `var()` colour directly, so this is its own token.
+- `--accent-focus-bg/border`, `--accent-check`, `--accent-check-hover/glow`, `--accent-timer-bg/fill/paused` — 8 alpha variants of the accent colour used exclusively in focus mode. Centralised so an accent colour change propagates to all focus states automatically.
+- `--opacity-recede`, `--opacity-recede-done`, `--opacity-recede-chrome` — focus mode recede opacities (0.07, 0.035, 0.08).
+- `--opacity-copy` (0.45) — copy button at-rest opacity during focus mode.
+
+**Rule:** no hardcoded hex, rgba, opacity, px-spacing, or z-index values outside `:root`. Every visual constant must have a token. See `Design.md` §11 Development Rules for enforcement.
+
+---
+
 ## 2. Habits
 
 ### Data model
@@ -331,8 +344,27 @@ The header (TODAY logo + CTAs + date + progress bar) uses `position: sticky; top
 |---|---|
 | `dropbox-token.js` | Exchanges PKCE auth code for access + refresh tokens |
 | `dropbox-refresh.js` | Refreshes expired access token using refresh token |
+| `ai-assist.js` | Provider-agnostic AI proxy — Gemini 2.5 Flash or Claude Haiku |
 
-**Environment variables:** `DROPBOX_APP_KEY`, `DROPBOX_CLIENT_SECRET`
+**Environment variables:**
+- `DROPBOX_APP_KEY`, `DROPBOX_CLIENT_SECRET` — Dropbox OAuth
+- `GEMINI_API_KEY` — Google AI Studio key (free tier). Falls back to client-supplied key if not set.
+- `ANTHROPIC_API_KEY` — Claude API key (private deployments only). Falls back to client-supplied key if not set.
+
+### AI Assistant architecture
+- Client builds context (tasks, habits, time of day) → POST to `/.netlify/functions/ai-assist`
+- Function resolves key: env var first, then `apiKey` field from request body (user-supplied)
+- Returns `{ message, actions[] }` — structured JSON, never raw prose
+- Actions: `add_task`, `check_task`, `check_habit`, `delete_done`, `start_focus`, `open_panel`, `dismiss`
+- Provider selected at runtime in Connections panel, stored in `localStorage('today_ai_provider')`
+- API key validated with a real test call before saving — not accepted unless the API responds 200
+
+### AI build constants
+```js
+const AI_BUILD_PROVIDER   = 'claude';   // maintainer's deploy default
+const AI_DEFAULT_PROVIDER = 'gemini';   // open-source fork default (always Gemini)
+```
+On first load, `AI_BUILD_PROVIDER` seeds `localStorage`. Public forks set this to `'gemini'`.
 
 ---
 

@@ -208,7 +208,16 @@
       background: var(--accent-timer-fill);
       transition: transform 1s linear; /* intentional — Pomodoro countdown, not a UI transition */
     }
-    .focus-timer-fill.paused { background: var(--accent-timer-paused); }
+    .focus-timer-fill.paused    { background: var(--accent-timer-paused); }
+    /* Completed — fill turns accent (main CTA colour), pulses gently */
+    .focus-timer-fill.complete  {
+      background: var(--accent);
+      animation: timerCompletePulse 1.8s ease-in-out infinite;
+    }
+    @keyframes timerCompletePulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.65; }
+    }
 
     .focus-timer-time {
       position: absolute;
@@ -225,7 +234,15 @@
       transition: opacity var(--dur-mid) ease;
       pointer-events: none;
     }
-    .focus-timer-time.paused { opacity: var(--opacity-subtle); }
+    .focus-timer-time.paused    { opacity: var(--opacity-subtle); }
+    /* Completed — swap time text for restart label */
+    .focus-timer-time.complete  {
+      color: var(--accent);
+      opacity: 1;
+      letter-spacing: 0.08em;
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+    }
 
     .focus-timer-paused {
       position: absolute;
@@ -521,25 +538,32 @@
     z-index: var(--z-base);
     max-width: 680px;
     margin: 0 auto;
-    padding: var(--space-12) var(--space-6) var(--space-20);
-    padding-top: calc(var(--space-12) + env(safe-area-inset-top));
-    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    /* No top padding — sticky header sits directly above */
+    padding: 0 var(--space-6) 0;
+    padding-bottom: 72px;
     min-height: 100vh;
     overflow-x: hidden;
   }
 
   /* ── Component: Header ─────────────────────────────────────────────── */
   /* Sticky header — mobile only. Desktop scrolls normally. */
+  /* Sticky header — active on all viewports */
   .sticky-header {
-    position: static; /* desktop default — no sticky */
+    position: sticky;
+    top: 0;
+    z-index: 10;
     width: 100%;
-    background: transparent;
+    background: var(--bg-glass);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.05);
   }
 
   .sticky-header-inner {
     max-width: 680px;
     margin: 0 auto;
-    padding: 0; /* desktop: no extra padding, .app handles it */
+    /* Desktop: match .app's 24px horizontal padding + space-5 top */
+    padding: var(--space-5) var(--space-6) var(--space-3);
   }
 
   .header {
@@ -600,7 +624,7 @@
 
   /* Subheader */
   .subheader {
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-1);
   }
 
   .subheader-top {
@@ -931,7 +955,29 @@
   .add-task-row {
     display: flex;
     gap: var(--space-2);
-    margin-top: var(--space-3);
+    align-items: center;
+    /* Desktop: fixed at bottom, full width with inner max-width centering */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    margin: 0;
+    padding: var(--space-2) 0;
+    padding-bottom: var(--space-3); /* safe breathing room above window chrome */
+    background: var(--bg-glass);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow: 0 -1px 0 rgba(255,255,255,0.05);
+  }
+  /* Inner wrapper keeps content aligned with .app column */
+  .add-task-row > * {
+    /* items align naturally inside flex — centering via padding below */
+  }
+  /* Constrain contents to match .app max-width */
+  #addTaskBar {
+    padding-left: max(var(--space-6), calc((100vw - 680px) / 2 + var(--space-6)));
+    padding-right: max(var(--space-6), calc((100vw - 680px) / 2 + var(--space-6)));
   }
 
   .clear-input-btn {
@@ -949,34 +995,91 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 10px 44px 10px 14px;
+    /* Vertical padding drives height — button matches this exactly */
+    padding: 11px 40px 11px 14px;
     color: var(--text);
     font-family: var(--font-mono);
-    font-size: var(--text-lg);
+    font-size: var(--text-md);
     outline: none;
     transition: border-color var(--dur-fast);
+    /* Same height as button (11+1+line-height≈20+1+11 = 44px) */
+    height: 44px;
+    box-sizing: border-box;
   }
 
   .add-task-input::placeholder { color: var(--muted); }
   .add-task-input:focus { border-color: var(--accent); }
 
-  .add-task-btn {
+  /* ✦ submit button — same height as input, accent fill */
+  .add-ai-btn {
     background: var(--accent);
     border: none;
     border-radius: var(--radius-lg);
     color: var(--color-bg);
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: var(--text-base);
-    padding: 0 18px;
+    font-size: var(--text-md);
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    transition: opacity var(--dur-fast);
-    letter-spacing: 0.04em;
     flex-shrink: 0;
+    transition: width var(--dur-fast) var(--ease-out), opacity var(--dur-fast), background var(--dur-fast);
+    line-height: 1;
+    box-sizing: border-box;
+    overflow: hidden;
     white-space: nowrap;
+    /* Stars live in data-stars attribute, swapped via CSS content trick */
   }
 
-  .add-task-btn:hover { opacity: var(--opacity-hover); }
+  /* On hover: widen to fit two then three stars via sequential keyframe */
+  /* Hover: ✦ → ✦✦ → ✦✦✦ in 180ms */
+  @keyframes starExpand {
+    0%   { width: 44px; }
+    50%  { width: 62px; }
+    100% { width: 78px; }
+  }
+  @keyframes starFade2 {
+    0%, 25%   { opacity: 0; transform: translateX(-3px); }
+    55%, 100% { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes starFade3 {
+    0%, 55%   { opacity: 0; transform: translateX(-3px); }
+    85%, 100% { opacity: 1; transform: translateX(0); }
+  }
+
+  .add-ai-btn:hover {
+    animation: starExpand 180ms var(--ease-out) forwards;
+  }
+  /* Second star fades in first */
+  .add-ai-btn::before {
+    content: '✦';
+    opacity: 0;
+    display: inline-block;
+    margin-left: 2px;
+    font-size: 12px;
+  }
+  .add-ai-btn:hover::before {
+    animation: starFade2 180ms var(--ease-out) forwards;
+  }
+  /* Third star fades in after */
+  .add-ai-btn::after {
+    content: '✦';
+    opacity: 0;
+    display: inline-block;
+    margin-left: 2px;
+    font-size: 12px;
+  }
+  .add-ai-btn:hover::after {
+    animation: starFade3 180ms var(--ease-out) forwards;
+  }
+
+  /* AI active state — panel open */
+  .add-ai-btn.active {
+    background: var(--surface2);
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
 
   /* Trello config panel */
   /* ── Component: Config Panel ───────────────────────────────────────── */
@@ -1054,28 +1157,17 @@
   @media (max-width: 600px) {
     .config-grid { grid-template-columns: 1fr; }
 
-    /* App: no top padding — sticky header handles it. Bottom pad for sticky add bar. */
+    /* App: no top padding — sticky header handles it. Bottom pad clears the sticky add bar. */
     .app {
-      padding: 0 16px 0;
-      padding-bottom: calc(80px + env(safe-area-inset-bottom));
+      padding: 0 var(--space-4) 0;
+      /* space-20 (80px) = bar height + padding above bar so last task isn't hidden */
+      padding-bottom: calc(var(--space-20) + env(safe-area-inset-bottom));
     }
 
-    /* Sticky header active on mobile */
-    .sticky-header {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: var(--bg-glass);
-      -webkit-backdrop-filter: blur(16px) saturate(1.4);
-      backdrop-filter: blur(16px) saturate(1.4);
-      /* Hairline separator — visible once content scrolls under */
-      box-shadow: 0 1px 0 rgba(255,255,255,0.05);
-    }
-
+    /* Mobile: override padding for narrower viewport + safe area */
     .sticky-header-inner {
       padding-left: var(--space-4);
       padding-right: var(--space-4);
-      /* Top: safe area + breathing room. Bottom: tight — bar ends at progress bar. */
       padding-top: calc(var(--space-4) + env(safe-area-inset-top));
       padding-bottom: var(--space-3);
     }
@@ -1095,9 +1187,11 @@
       right: 0;
       z-index: 10;
       margin: 0;
-      padding: var(--space-3) 16px;
+      /* space-3 (12px) top and sides — matches panel padding, feels connected */
+      padding: var(--space-3) var(--space-4) var(--space-3);
+      /* Safe area adds natural clearance below on notched phones */
       padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
-      background: rgba(14,14,16,0.95);
+      background: var(--bg-glass);
       -webkit-backdrop-filter: blur(16px) saturate(1.4);
       backdrop-filter: blur(16px) saturate(1.4);
       box-shadow: 0 -1px 0 rgba(255,255,255,0.05);
@@ -1578,41 +1672,38 @@
   }
   .ai-chip.primary:hover { background: rgba(200,240,96,0.18); }
 
-  /* Input row */
-  .ai-input-row {
+
+
+  /* Natural language input row — shown after first chip interaction or typing */
+  .ai-nl-row {
     display: flex;
     gap: var(--space-2);
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border);
   }
-  .ai-input {
+  .ai-nl-input {
     flex: 1;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    background: none;
+    border: none;
     color: var(--text);
     font-family: var(--font-mono);
     font-size: var(--text-sm);
-    padding: 6px var(--space-3);
+    padding: 0;
     outline: none;
-    transition: border-color var(--dur-fast);
     -webkit-font-smoothing: antialiased;
   }
-  .ai-input:focus { border-color: var(--muted); }
-  .ai-input::placeholder { color: var(--muted); opacity: 0.5; }
-  .ai-send-btn {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+  .ai-nl-input::placeholder { color: var(--muted); opacity: 0.5; }
+  .ai-nl-btn {
+    background: none;
+    border: none;
     color: var(--muted);
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    letter-spacing: 0.06em;
-    padding: 6px var(--space-3);
+    font-size: var(--text-base);
     cursor: pointer;
-    transition: color var(--dur-fast), border-color var(--dur-fast);
-    white-space: nowrap;
+    padding: 0 var(--space-1);
+    transition: color var(--dur-fast);
   }
-  .ai-send-btn:hover { color: var(--text); border-color: var(--muted); }
-  .ai-send-btn:disabled { opacity: 0.3; cursor: default; }
+  .ai-nl-btn:hover { color: var(--accent); }
 
   .ai-not-configured {
     font-size: var(--text-sm);
@@ -1645,8 +1736,7 @@
       </div>
       <div class="header-actions">
         <button class="btn-icon" id="habitsBtn" title="Habits" onclick="toggleHabits()">◎&#xFE0E;</button>
-        <button class="btn-icon" id="aiBtn" title="AI Assistant" onclick="toggleAI()">✦✦</button>
-        <button class="btn-icon" id="trelloBtn" title="Connections" onclick="toggleConfig()">✦&#xFE0E;</button>
+        <button class="btn-icon" id="trelloBtn" title="Connections" onclick="toggleConfig()">✧</button>
         <button class="btn-icon" id="infoBtn" title="About" onclick="toggleInfo()">ℹ&#xFE0E;</button>
       </div>
     </div>
@@ -1663,16 +1753,17 @@
   </div>
 </div>
 
-<!-- AI panel — inline, above task list, same pattern as habits/connections -->
+<!-- AI panel: reads your day, presents concrete action chips -->
 <div class="config-panel" id="aiPanel" style="max-width:680px;margin:0 auto;padding:0 var(--space-6);">
   <div class="ai-panel-body">
     <div class="ai-suggestion-msg" id="aiSuggestionMsg"></div>
     <div class="ai-chips" id="aiChips"></div>
-    <div class="ai-input-row">
-      <input class="ai-input" id="aiChatInput" type="text"
-        placeholder="Type a task or ask anything…"
-        onkeydown="if(event.key==='Enter')sendAIMessage()" />
-      <button class="ai-send-btn" id="aiSendBtn" onclick="sendAIMessage()">→</button>
+    <!-- Natural language input — for stuck mode / explicit requests -->
+    <div class="ai-nl-row" id="aiNlRow" style="display:none">
+      <input class="ai-nl-input" id="aiNlInput" type="text"
+        placeholder="Tell me what's on your mind…"
+        onkeydown="if(event.key==='Enter')_aiAskFromPanel()" />
+      <button class="ai-nl-btn" onclick="_aiAskFromPanel()">→</button>
     </div>
   </div>
 </div>
@@ -1778,15 +1869,21 @@
       <!-- Key input -->
       <div class="config-grid">
         <div class="config-field full">
-          <div class="config-label" id="aiKeyLabel">Google AI Studio Key</div>
+          <div class="config-label" id="aiKeyLabel">Google AI Studio Key
+            <a id="aiKeyLink" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener"
+              style="float:right;font-size:var(--text-xs);color:var(--highlight-ui);text-decoration:none;letter-spacing:0.04em">
+              Get free key →
+            </a>
+          </div>
           <input class="config-input" id="aiApiKey" autocomplete="off" autocorrect="off"
             autocapitalize="off" spellcheck="false" type="password"
-            placeholder="paste key here" />
+            placeholder="Paste key here…"
+            onkeydown="if(event.key==='Enter')saveAIKey()" />
         </div>
       </div>
       <div id="aiStatusLine" class="panel-status-line"></div>
       <div class="config-actions">
-        <button class="btn-primary" id="aiSaveBtn" onclick="saveAIKey()">Save Key</button>
+        <button class="btn-primary" id="aiSaveBtn" onclick="saveAIKey()">Connect</button>
         <button class="btn-ghost" id="aiClearBtn" onclick="clearAIKey()" style="display:none">Disconnect</button>
       </div>
       <div class="status-msg" id="aiMsg"></div>
@@ -1841,20 +1938,29 @@
     </div>
     <div class="task-list" id="manualList"></div>
     <div class="empty" id="manualEmpty" style="display:none">Nothing added yet</div>
-    <div class="add-task-row">
-      <div style="position:relative;flex:1;min-width:0;">
-        <input class="add-task-input" id="newTask" maxlength="500" type="text" placeholder="Add a task for today…" onkeydown="handleAddKey(event)" oninput="toggleClearBtn()" />
-        <button id="clearTaskBtn" onclick="clearTaskInput()" class="clear-input-btn" style="display:none">×</button>
-      </div>
-      <button class="add-task-btn" onclick="addManual()">Add</button>
-    </div>
   </div>
 
+</div>
+
+<!-- Add task bar: outside .app so transforms on .section don't break position:fixed -->
+<div class="add-task-row" id="addTaskBar">
+  <div style="position:relative;flex:1;min-width:0;">
+    <input class="add-task-input" id="newTask" maxlength="500" type="text"
+      placeholder="Add a task, or tap ✦ to ask…"
+      onkeydown="handleBarKey(event)" oninput="toggleClearBtn()" />
+    <button id="clearTaskBtn" onclick="clearTaskInput()" class="clear-input-btn" style="display:none">×</button>
+  </div>
+  <!-- Single ✦: Enter = add task, tap = AI (or add task if AI not configured) -->
+  <button class="add-ai-btn" id="addAiBtn" onclick="handleBarSubmit()" title="✦✦">✦✦</button>
 </div>
 
 <canvas id="celebCanvas"></canvas>
 
 <script>
+// Always start at top — browser's auto scroll-restoration causes mid-page reloads
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+window.scrollTo(0, 0);
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
@@ -1868,11 +1974,34 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.8.4';
-const DEV_HOURS     = '76h';
+const APP_VERSION   = '2.0.1';
+const DEV_HOURS     = '78h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.0.1': 'Focus mode complete state: fill turns accent + pulses, time label shows "restart". One click on card restarts session and logs new pomodoro. Esc still fully resets.',
+  '2.0.0': 'Scroll reset on reload (scrollRestoration=manual + scrollTo(0,0)) — no more mid-page reloads. Focus exit scrolls task back into view.',
+  '1.9.9': 'Fix Gemini 404 — model string updated from deprecated gemini-2.5-flash-preview-05-20 to stable gemini-2.5-flash',
+  '1.9.8': 'Fix copy in focus mode — clipboard API rejects with "Document not focused" during focus mode. Fallback to textarea+execCommand which is synchronous and document-focus-independent.',
+  '1.9.7': 'Fix copy button in focus mode — focus mode click handler was intercepting .task-copy clicks before event delegation. Added .task-copy exclusion.',
+  '1.9.6': '✦ button hover animation: expands ✦→✦✦→✦✦✦ in 180ms via starExpand width + staggered starFade2/3 on ::before/::after pseudo-elements',
+  '1.9.5': 'Try ✦✦ on submit button',
+  '1.9.5': 'Update Connections header button from ✦ to ✧ to differentiate from the ✦ AI submit button',
+  '1.9.4': 'Fix input/button alignment — explicit height:44px + box-sizing on both | font-size text-md (was text-lg) | align-items:center on flex row | active state uses box-shadow inset instead of outline',
+  '1.9.3': 'Merged input bar: removed Add button, single ✦ button replaces both. Enter=add task, ✦=AI (or add task/open Connections if not configured). No mode state, no toggle.',
+  '1.9.2': 'Desktop: remove .app top padding (content flush under progress bar) | add space-3 bottom padding to fixed add-task bar',
+  '1.9.1': 'Desktop add-task bar now fixed at bottom like mobile — backdrop blur, hairline top border, content centered within max-width 680px column via padding calc',
+  '1.9.0': 'Fix first-click freeze — AudioContext pre-warmed on first pointerdown/touchstart (before task list visible) instead of cold-creating on first task tap | iOS haptics: confirmed not possible on iOS Safari any version (caniuse) — silent no-op, documented',
+  '1.8.10': 'Fix first-click freeze — AudioContext pre-warmed on first pointerdown (fires during splash, before task list visible) | Fix iOS haptics — switch trick (.click() synchronously in user gesture stack) replaces non-functional navigator.vibrate()',
+  '1.9.0': 'Sticky header now active on desktop too — backdrop blur, hairline separator, bg-glass. Mobile override keeps safe-area padding. Minor bump: new UX feature.',
+  '1.9.0': 'Reduce desktop progress bar bottom margin (space-3 → space-1) matching mobile tightness',
+  '1.8.9': 'Fix AI key validation UX — panel stays open during async test call so error is visible | error messages persistent (no auto-clear) | friendly error copy for invalid key / quota / permission | input selected on failure for easy retry',
+  '1.8.8': 'AI integration overhaul: removed duplicate panel input + stale overlay CSS/JS | toggleAI routes unconfigured users to Connections (not empty panel) | _aiRenderConfig no longer fills input with bullets, shows free-tier hint, dynamic get-key link | saveAIKey friendly error messages, auto-clear, Testing… state | Enter submits key',
+  '1.8.7': 'Add-task bar margins: space-3 top, space-4 sides, space-2+safe-area bottom — all tokens, no hardcoded px',
+  '1.8.7': 'Add-task bar: symmetric space-3 padding all sides, safe-area-inset-bottom on bottom. All values token-based. App bottom padding uses --space-20 token.',
+  '1.8.7': 'AI entry point moved from header ✦✦ button to ✦ toggle next to Add button. Input field switches modes: task (default) or AI. AI mode: accent border, placeholder changes, Enter sends to AI. Esc returns to task mode. Add button becomes → in AI mode.',
+  '1.8.6': 'Fix add-task bar position:fixed broken by ancestor transform — moved outside .app entirely (same fix as sticky header). Desktop: max-width 680px centered to match .app.',
+  '1.8.5': 'Mobile bottom bar: padding-top reduced to space-2, padding-bottom = safe-area only (no extra gap). App bottom padding 80→60px. Bar now flush with home indicator area.',
   '1.8.4': 'Fix fake AI key validation — saveAIKey now makes a real test call before saving | shows Testing… spinner | rejects invalid keys with error message | ai-assist.js accepts client apiKey as fallback when env var not set',
   '1.8.3': 'Fix AI button persistent active state — _aiRenderConfig was setting aiBtn.active based on key presence, overriding syncActiveButtons. Removed. aiBtn.active now controlled only by syncActiveButtons (panel open = active).',
   '1.8.2': 'UX consistency: AI button active=panel open only (not configured state) — matches all other header buttons | chip actions close panel immediately instead of showing Done/Got it limbo | add_task reloads suggestions after brief feedback',
@@ -2056,9 +2185,9 @@ function syncActiveButtons() {
   document.getElementById('habitsBtn').classList.toggle('active', habitsOpen);
   document.getElementById('trelloBtn').classList.toggle('active', configOpen);
   document.getElementById('infoBtn').classList.toggle('active',   infoOpen);
-  // AI button: active only when panel is open — same rule as all other header buttons
-  const aiBtn = document.getElementById('aiBtn');
-  if (aiBtn) aiBtn.classList.toggle('active', _aiPanelOpen);
+  // addAiBtn in the input bar: active when in AI mode
+  const addAiBtn = document.getElementById('addAiBtn');
+  if (addAiBtn) addAiBtn.classList.toggle('active', _aiPanelOpen);
 }
 
 function toggleConfig() {
@@ -2570,18 +2699,48 @@ document.addEventListener('click', function(e) {
     const taskEl = copyEl.closest('.task[data-taskid]');
     if (taskEl) {
       const textEl = taskEl.querySelector('.task-text');
-      // Get clean text — strip the session count badge and link arrow
+      // Get clean text — strip session count badge and link arrow
       const clone = textEl.cloneNode(true);
       clone.querySelectorAll('.session-count, .trello-link').forEach(el => el.remove());
       const text = clone.textContent.trim();
-      navigator.clipboard.writeText(text).then(() => {
+
+      function _showCopied() {
         copyEl.textContent = 'copied';
         copyEl.classList.add('copied');
         setTimeout(() => {
           copyEl.textContent = 'copy';
           copyEl.classList.remove('copied');
         }, 1800);
-      }).catch(() => {});
+      }
+
+      // Try modern clipboard API first; fall back to execCommand if document
+      // loses focus during focus mode (clipboard API rejects when doc unfocused)
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(_showCopied).catch(() => {
+          // Fallback: use a temporary textarea + execCommand (synchronous, no focus req)
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+            document.body.appendChild(ta);
+            ta.focus(); ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            _showCopied();
+          } catch(e2) {}
+        });
+      } else {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+          document.body.appendChild(ta);
+          ta.focus(); ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          _showCopied();
+        } catch(e2) {}
+      }
     }
     return;
   }
@@ -2655,15 +2814,38 @@ function _getAudioCtx() {
     medium:    [40],
   };
 
-  // navigator.vibrate() works on both Android and iOS Safari (confirmed March 2026).
-  // The <input switch> programmatic click trick does NOT work — Safari only fires
-  // haptics on real user touch events, not JS-dispatched clicks.
-  // Simple: call vibrate if available, silent no-op on desktop.
-  const _hasVibrate = typeof navigator.vibrate === 'function';
+  // iOS: Use <input type=checkbox switch> trick — WebKit fires a system haptic when
+  // the switch toggles. MUST be called synchronously within a user gesture handler.
+  // _haptic() is always called synchronously from click/touch handlers so this works.
+  // The element must be "visible" to the browser (not display:none) — opacity:0 is fine.
+  //
+  // Android: navigator.vibrate() with differentiated patterns.
+  // Desktop: silent no-op.
+  const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const _hasVibrate = !_isIOS && typeof navigator.vibrate === 'function';
+
+  let _sw = null; // shared switch element for iOS haptics
+  function _iosHaptic() {
+    if (!_sw) {
+      _sw = document.createElement('input');
+      _sw.type = 'checkbox';
+      _sw.setAttribute('switch', '');
+      // Must not be display:none/visibility:hidden — needs to exist in the render tree
+      _sw.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;' +
+        'opacity:0;pointer-events:none;margin:0;padding:0;border:none;outline:none;' +
+        '-webkit-appearance:none;appearance:none;';
+      document.body.appendChild(_sw);
+    }
+    _sw.click(); // toggle fires system haptic — works because we're in user gesture stack
+  }
 
   window._haptic = function(preset) {
-    if (!_hasVibrate) return;
-    navigator.vibrate(PATTERNS[preset] || PATTERNS.medium);
+    if (_isIOS) {
+      _iosHaptic();
+    } else if (_hasVibrate) {
+      navigator.vibrate(PATTERNS[preset] || PATTERNS.medium);
+    }
   };
 })();
 
@@ -2672,6 +2854,21 @@ function _primeAudio() {
   const ctx = _getAudioCtx();
   if (ctx && ctx.state === 'suspended') ctx.resume().catch(function(){});
 }
+
+// Pre-warm AudioContext on the very first user interaction with the page —
+// before the task list is visible. This avoids a 200-600ms main-thread block
+// on mobile when the user first taps a task (cold AudioContext creation).
+// We use pointerdown on the splash screen since that's the first touch.
+(function _preWarmAudio() {
+  function _warm() {
+    _getAudioCtx(); // creates context
+    _primeAudio();  // calls resume() — hardware init happens now, not on first task tap
+    document.removeEventListener('pointerdown', _warm);
+    document.removeEventListener('touchstart', _warm);
+  }
+  document.addEventListener('pointerdown', _warm, { once: true, passive: true });
+  document.addEventListener('touchstart', _warm, { once: true, passive: true });
+})();
 
 function _withCtx(fn) {
   try {
@@ -3170,8 +3367,42 @@ function updateManualEmptyState(animate) {
   }
 }
 
-function handleAddKey(e) {
+// ── Bar submit logic ─────────────────────────────────────────────────────────
+// One input, one ✦ button.
+// Enter → always add task (fast, zero friction).
+// ✦ tap → AI if configured (with or without text); task if not configured.
+function handleBarKey(e) {
+  if (e.key === 'Escape' && _aiPanelOpen) { closeAI(); return; }
   if (e.key === 'Enter') addManual();
+}
+
+function handleBarSubmit() {
+  const input = document.getElementById('newTask');
+  const text  = (input?.value || '').trim();
+
+  if (_aiIsConfigured()) {
+    if (text) {
+      // Text present → send to AI immediately, clear field
+      input.value = '';
+      toggleClearBtn();
+      if (!_aiPanelOpen) toggleAI();
+      _aiSendFromInput(text);
+    } else {
+      // Empty → open/close AI panel to browse suggestions
+      toggleAI();
+    }
+  } else {
+    // Not configured: add as task if text, else nudge to Connections
+    if (text) {
+      addManual();
+    } else {
+      toggleConfig();
+      setTimeout(() => {
+        document.getElementById('aiConfigSection')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 350);
+    }
+  }
 }
 
 // ── Desktop shortcut: Shift+; → focus add input ───────────────────────────
@@ -4551,6 +4782,8 @@ async function dropboxRestore(fromSync) {
 // Run init immediately — renders from localStorage while splash plays in parallel
 init();
 
+
+
 // Two-flag gate: splash dismisses only when both animation AND init/load are done
 let _splashAnimDone = false;
 let _appLoadDone    = false;
@@ -4788,17 +5021,19 @@ if ('serviceWorker' in navigator) {
 // ══════════════════════════════════════════════════════════════════════════
 // AI ASSISTANT
 //
-// UX: Inline panel (same open/close pattern as habits and connections).
-// Shows a contextual 1-sentence suggestion + 2-4 action chips.
-// Has a text input for custom requests.
-// Does NOT cover the task list — user can see their day while interacting.
+// Entry point: ✦ button next to Add. Tap to open/close.
+// On open: reads full app state → one API call → renders message + action chips.
+// Chips execute immediately. No mode switching. No chat.
 //
-// Provider: Gemini 2.5 Flash (default, free) or Claude Haiku (private).
-// Key stored in localStorage. Proxied through /.netlify/functions/ai-assist.
+// Natural language: small input at bottom of panel for stuck/action mode.
+// The main add-task input always adds tasks — no mode routing.
+//
+// Provider: Gemini 2.5 Flash (default/free) or Claude Haiku (private).
+// Key: stored in localStorage, proxied through /.netlify/functions/ai-assist.
 // ══════════════════════════════════════════════════════════════════════════
 
-// ── State ─────────────────────────────────────────────────────────────────────
 let _aiPanelOpen = false;
+let _aiLoadedOnce = false; // prevent re-fetching if panel is toggled quickly
 
 function _aiGetProvider() { return localStorage.getItem('today_ai_provider') || AI_DEFAULT_PROVIDER; }
 function _aiGetKey()      { return localStorage.getItem('today_ai_key') || ''; }
@@ -4811,120 +5046,135 @@ function _aiIsConfigured(){ return !!_aiGetKey(); }
   }
 })();
 
-// ── Panel open / close (config-panel pattern) ─────────────────────────────────
+// ── Open / close ──────────────────────────────────────────────────────────────
 function toggleAI() {
+  _aiPanelOpen ? closeAI() : openAI();
+}
+
+function openAI() {
   const panel = document.getElementById('aiPanel');
   if (!panel) return;
-  _aiPanelOpen = !_aiPanelOpen;
-  panel.classList.toggle('open', _aiPanelOpen);
 
-  if (_aiPanelOpen) {
-    // Close other panels
-    document.getElementById('configPanel')?.classList.remove('open');
-    document.getElementById('habitsPanel')?.classList.remove('open');
-    document.getElementById('infoPanel')?.classList.remove('open');
-    syncActiveButtons();
-    _haptic('medium');
-    if (_aiIsConfigured()) {
-      _aiLoad();
-    } else {
-      _aiShowNotConfigured();
-    }
-    setTimeout(() => document.getElementById('aiChatInput')?.focus(), 200);
+  // Close other panels
+  ['configPanel','habitsPanel','infoPanel'].forEach(id =>
+    document.getElementById(id)?.classList.remove('open'));
+
+  _aiPanelOpen = true;
+  panel.classList.add('open');
+  document.getElementById('addAiBtn')?.classList.add('active');
+  syncActiveButtons();
+  _haptic('medium');
+
+  if (!_aiIsConfigured()) {
+    _aiShowSetup();
   } else {
-    syncActiveButtons();
+    _aiLoadedOnce = false;
+    _aiLoad();
   }
 }
 
 function closeAI() {
   _aiPanelOpen = false;
   document.getElementById('aiPanel')?.classList.remove('open');
+  document.getElementById('addAiBtn')?.classList.remove('active');
   syncActiveButtons();
 }
 
-// ── Not configured state ──────────────────────────────────────────────────────
-function _aiShowNotConfigured() {
+// ── Setup state — not yet configured ─────────────────────────────────────────
+function _aiShowSetup() {
   const provider = _aiGetProvider();
-  const name     = provider === 'gemini' ? 'Google AI Studio' : 'Anthropic Console';
-  const url      = provider === 'gemini' ? 'https://aistudio.google.com/apikey' : 'https://console.anthropic.com/keys';
-
-  _aiSetMsg(`<span class="ai-not-configured">Add your <a href="${url}" target="_blank" rel="noopener">${name}</a> API key in <a href="#" onclick="closeAI();setTimeout(toggleConfig,100);return false">Connections</a> to activate.</span>`);
-  _aiSetChips([{ label: 'Open Connections →', type: 'open_panel', payload: { panel: 'connections' }, primary: true }]);
+  const isGemini = provider === 'gemini';
+  _aiSetMsg(
+    `<span class="ai-not-configured">` +
+    `Add a <a href="${isGemini ? 'https://aistudio.google.com/apikey' : 'https://console.anthropic.com/keys'}" ` +
+    `target="_blank" rel="noopener">${isGemini ? 'free Gemini' : 'Claude'} API key</a> ` +
+    `in <a href="#" onclick="closeAI();setTimeout(toggleConfig,80);return false">Connections ✦</a> to activate.</span>`
+  );
+  _aiSetChips([
+    { label: 'Open Connections', type: 'open_panel', payload: { panel: 'connections' }, primary: true },
+    { label: 'Dismiss', type: 'dismiss', payload: {} },
+  ]);
+  _hideNlRow();
 }
 
-// ── Load initial suggestions ───────────────────────────────────────────────────
+// ── Load: read state → call AI → render chips ─────────────────────────────────
 async function _aiLoad() {
-  const ctx = _aiContext();
-  const pendingCount = ctx.tasks.pending.length + ctx.tasks.trello.length;
-  const habitsDue    = ctx.habits.filter(h => !h.doneToday).length;
+  if (_aiLoadedOnce) return;
+  _aiLoadedOnce = true;
 
-  // Build a terse greeting the model replies to
-  const parts = [];
-  if (pendingCount > 0)         parts.push(`${pendingCount} task${pendingCount>1?'s':''} pending`);
-  if (ctx.tasks.overdueCount)   parts.push(`${ctx.tasks.overdueCount} overdue`);
-  if (habitsDue > 0)            parts.push(`${habitsDue} habit${habitsDue>1?'s':''} to do`);
-  if (ctx.tasks.done.length > 0) parts.push(`${ctx.tasks.done.length} done`);
-  const greeting = parts.length
-    ? `Good ${ctx.timeOfDay}. ${parts.join(', ')}. What should I focus on?`
-    : `Good ${ctx.timeOfDay}. Nothing on the list yet. What's the plan today?`;
-
-  _aiSetMsg('…', true);
+  _aiSetThinking();
   _aiSetChips([]);
+  _hideNlRow();
+
   try {
-    const result = await _aiCall([{ role: 'user', content: greeting }]);
-    if (result) _aiRenderResult(result);
+    const ctx = _aiContext();
+    const intro = _aiIntroMessage(ctx);
+    const result = await _aiCall([{ role: 'user', content: intro }]);
+    if (result) {
+      _aiRenderResult(result);
+      _showNlRow(); // reveal natural language input after chips load
+    }
   } catch(e) {
-    _aiSetMsg('Could not connect — check your API key in Connections.');
+    _aiSetMsg('Could not connect — check your key in Connections.');
+    _aiSetChips([
+      { label: 'Open Connections', type: 'open_panel', payload: { panel: 'connections' }, primary: true },
+      { label: 'Dismiss', type: 'dismiss', payload: {} },
+    ]);
   }
 }
 
-// ── Send user message ─────────────────────────────────────────────────────────
-async function sendAIMessage() {
-  const input = document.getElementById('aiChatInput');
-  const sendBtn = document.getElementById('aiSendBtn');
+// Build a terse state summary to send as the user message
+function _aiIntroMessage(ctx) {
+  const parts = [];
+  const totalPending = ctx.tasks.pending.length + ctx.tasks.trello.length;
+  if (totalPending)           parts.push(`${totalPending} task${totalPending > 1 ? 's' : ''} pending`);
+  if (ctx.tasks.overdueCount) parts.push(`${ctx.tasks.overdueCount} overdue`);
+  if (ctx.tasks.done.length)  parts.push(`${ctx.tasks.done.length} done`);
+  const habitsDue = ctx.habits.filter(h => !h.doneToday).length;
+  if (habitsDue)              parts.push(`${habitsDue} habit${habitsDue > 1 ? 's' : ''} remaining`);
+
+  if (!parts.length) return `Good ${ctx.timeOfDay}. Nothing on the list yet. What should I add?`;
+  return `Good ${ctx.timeOfDay}. ${parts.join(', ')}. What should I focus on?`;
+}
+
+// ── Natural language from panel input ────────────────────────────────────────
+async function _aiAskFromPanel() {
+  const input = document.getElementById('aiNlInput');
   const text  = input?.value.trim();
   if (!text) return;
-  if (!_aiIsConfigured()) { _aiShowNotConfigured(); return; }
-
   input.value = '';
-  sendBtn.disabled = true;
-  _aiSetMsg('…', true);
+  _aiLoadedOnce = true; // prevent auto-reload
+  _aiSetThinking();
   _aiSetChips([]);
-
   try {
     const result = await _aiCall([{ role: 'user', content: text }]);
     if (result) _aiRenderResult(result);
   } catch(e) {
-    _aiSetMsg('Error: ' + (e.message || 'unknown'));
-  } finally {
-    sendBtn.disabled = false;
-    input.focus();
+    _aiSetMsg('Error — ' + (e.message || 'unknown'));
   }
 }
 
-// ── Render result ─────────────────────────────────────────────────────────────
+// ── Render ────────────────────────────────────────────────────────────────────
 function _aiRenderResult(result) {
   _aiSetMsg(result.message || '');
   _aiSetChips(result.actions || []);
 }
 
-function _aiSetMsg(html, thinking = false) {
+function _aiSetThinking() {
   const el = document.getElementById('aiSuggestionMsg');
-  if (!el) return;
-  if (thinking) {
-    el.textContent = 'Thinking';
-    el.className = 'ai-suggestion-msg thinking';
-  } else {
-    el.innerHTML = html;
-    el.className = 'ai-suggestion-msg';
-  }
+  if (el) { el.innerHTML = ''; el.className = 'ai-suggestion-msg thinking'; }
+}
+
+function _aiSetMsg(html) {
+  const el = document.getElementById('aiSuggestionMsg');
+  if (el) { el.innerHTML = html; el.className = 'ai-suggestion-msg'; }
 }
 
 function _aiSetChips(actions) {
   const el = document.getElementById('aiChips');
   if (!el) return;
   el.innerHTML = '';
-  actions.forEach((action, i) => {
+  (actions || []).forEach((action, i) => {
     const btn = document.createElement('button');
     btn.className = 'ai-chip' + (action.primary || i === 0 ? ' primary' : '');
     btn.textContent = action.label || action.type;
@@ -4933,46 +5183,54 @@ function _aiSetChips(actions) {
   });
 }
 
+function _showNlRow() {
+  const el = document.getElementById('aiNlRow');
+  if (el) el.style.display = '';
+}
+function _hideNlRow() {
+  const el = document.getElementById('aiNlRow');
+  if (el) el.style.display = 'none';
+}
+
 // ── API call ──────────────────────────────────────────────────────────────────
 async function _aiCall(messages) {
-  const provider = _aiGetProvider();
-  const key      = _aiGetKey();
-  if (!key) { _aiShowNotConfigured(); return null; }
+  const key = _aiGetKey();
+  if (!key) { _aiShowSetup(); return null; }
 
   const res = await fetch('/.netlify/functions/ai-assist', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      provider,
+      provider: _aiGetProvider(),
       apiKey: key,
       messages,
       systemPrompt: _aiSystemPrompt(_aiContext()),
     }),
   });
 
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err || `HTTP ${res.status}`);
+  }
   return res.json();
 }
 
-// ── Context builder ───────────────────────────────────────────────────────────
+// ── Context ───────────────────────────────────────────────────────────────────
 function _aiContext() {
-  const now = new Date();
-  const hour = now.getHours();
+  const hour     = new Date().getHours();
   const todayStr = _todayStr();
-
-  const pending = manualTasks.filter(t => !doneIds.has(t.id));
-  const done    = manualTasks.filter(t =>  doneIds.has(t.id));
-  const trello  = (window.trelloTasks || []).filter(t => !doneIds.has('trello_' + t.id));
-  const overdueCount = trello.filter(t => t.due && t.due.slice(0,10) < todayStr).length;
+  const pending  = manualTasks.filter(t => !doneIds.has(t.id));
+  const done     = manualTasks.filter(t =>  doneIds.has(t.id));
+  const trello   = (window.trelloTasks || []).filter(t => !doneIds.has('trello_' + t.id));
 
   return {
     timeOfDay: hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening',
     date: todayStr,
     tasks: {
-      pending: pending.map(t => ({ id: t.id, text: t.text })),
-      done:    done.map(t => ({ id: t.id, text: t.text })),
-      trello:  trello.map(t => ({ id: 'trello_' + t.id, text: t.name, overdue: t.due && t.due.slice(0,10) < todayStr })),
-      overdueCount,
+      pending:      pending.map(t => ({ id: t.id, text: t.text })),
+      done:         done.map(t => ({ id: t.id, text: t.text })),
+      trello:       trello.map(t => ({ id: 'trello_' + t.id, text: t.name, overdue: t.due && t.due.slice(0,10) < todayStr })),
+      overdueCount: trello.filter(t => t.due && t.due.slice(0,10) < todayStr).length,
     },
     habits: habitsList.map(h => ({
       id: h.id, name: h.name,
@@ -4987,41 +5245,41 @@ function _aiContext() {
 function _aiSystemPrompt(ctx) {
   const tasks = [
     ...ctx.tasks.pending.map(t => `"${t.text}" [id:${t.id}]`),
-    ...ctx.tasks.trello.map(t  => `"${t.text}"${t.overdue?' [OVERDUE]':''} [id:${t.id}]`),
+    ...ctx.tasks.trello.map(t  => `"${t.text}"${t.overdue?' OVERDUE':''} [id:${t.id}]`),
   ];
-  const habits = ctx.habits.map(h => `"${h.name}" ${h.doneToday?'✓':'○'} [id:${h.id}]`);
+  const habits = ctx.habits.map(h => `"${h.name}" ${h.doneToday?'done':'pending'} [id:${h.id}]`);
 
-  return `You are the AI assistant in TODAY, a minimal daily task manager.
+  return `You are the AI inside TODAY, a minimal daily task manager.
 
-State right now:
-- ${ctx.timeOfDay}, ${ctx.date}
-- Tasks pending: ${tasks.join(' | ') || 'none'}
-- Tasks done: ${ctx.tasks.done.length}
-- Habits: ${habits.join(' | ') || 'none'}
-- Progress: ${ctx.progress}%
+Current state — ${ctx.timeOfDay}, ${ctx.date}:
+Tasks (${tasks.length}): ${tasks.join(' | ') || 'none'}
+Done today: ${ctx.tasks.done.length}
+Habits: ${habits.join(' | ') || 'none'}
+Progress: ${ctx.progress}%
 
-Respond ONLY with valid JSON (no markdown, no code fences):
+Reply ONLY with a JSON object — no markdown, no code fences, just raw JSON:
 {
-  "message": "1 sentence — direct, warm, specific to their situation",
+  "message": "one short direct sentence about their actual situation",
   "actions": [
-    { "label": "short label", "type": "action_type", "payload": {} }
+    { "label": "chip text (max 4 words)", "type": "TYPE", "payload": {} }
   ]
 }
 
-Available action types and when to use them:
-- add_task     payload: { text }       — suggest adding something missing
-- check_task   payload: { id }         — suggest completing a specific pending task
-- delete_done  payload: {}             — suggest clearing done tasks when ≥2 exist
-- check_habit  payload: { id }         — suggest marking a specific habit done
-- start_focus  payload: { id }         — suggest focusing on a specific task (desktop)
-- dismiss      payload: {}             — "Got it" / close — ALWAYS include as last action
+Action types:
+  add_task    { "text": "task text" }      — add a specific task
+  check_task  { "id": "task-id" }          — mark a task done
+  check_habit { "id": "habit-id" }         — mark a habit done
+  delete_done {}                            — clear all done tasks
+  start_focus { "id": "task-id" }          — start Pomodoro on a task
+  dismiss     {}                            — close (always last)
 
 Rules:
-- message: 1 sentence only. Be specific ("You have 2 overdue Trello cards" not "You have tasks").
-- actions: 2-4 total. Make them immediately useful. No vague suggestions.
-- Always end with dismiss.
-- If the user types a task (imperative sentence), add_task it directly.
-- If user says "done" or "clear", offer delete_done.`;
+  - message: direct and specific. "3 tasks left, meditate pending" not "You have tasks."
+  - actions: 2-4 chips max. Make them immediately useful.
+  - If user typed a task name → add_task it.
+  - If user says they're overwhelmed → suggest delete_done + 1 specific task to focus on.
+  - Always end with a dismiss chip.
+  - No suggestions for vague things — only actions on real items in their list.`;
 }
 
 // ── Execute action ────────────────────────────────────────────────────────────
@@ -5030,26 +5288,21 @@ function _aiExecute(action) {
   switch (action.type) {
     case 'add_task': {
       const text = action.payload?.text;
-      if (!text) break;
+      if (!text) { closeAI(); return; }
       const id = 'manual_' + Date.now();
       manualTasks.push({ id, text });
       localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-      renderManual(); syncDropbox();
-      // Reload suggestions with updated state after a beat
-      _aiSetChips([]);
-      _aiSetMsg('Added ✓ — anything else?');
-      setTimeout(_aiLoad, 800);
+      renderManual();
+      syncDropbox();
+      // Reload suggestions with updated context after brief pause
+      _aiLoadedOnce = false;
+      _aiSetThinking();
+      setTimeout(_aiLoad, 600);
       return;
     }
     case 'check_task': {
       const id = action.payload?.id;
       if (id) toggleDone(id);
-      // Close — task is done, no need to linger
-      closeAI();
-      return;
-    }
-    case 'delete_done': {
-      if (typeof _clearAllDone === 'function') _clearAllDone();
       closeAI();
       return;
     }
@@ -5059,32 +5312,33 @@ function _aiExecute(action) {
       closeAI();
       return;
     }
+    case 'delete_done': {
+      if (typeof _clearAllDone === 'function') _clearAllDone();
+      closeAI();
+      return;
+    }
     case 'start_focus': {
       const id = action.payload?.id;
       closeAI();
       if (id) setTimeout(() => {
-        const el = document.querySelector('.task[data-taskid="' + CSS.escape(id) + '"]');
+        const el = document.querySelector(`.task[data-taskid="${CSS.escape(id)}"]`);
         if (el) el.click();
-      }, 200);
+      }, 150);
       return;
     }
     case 'open_panel': {
       closeAI();
       const p = action.payload?.panel;
-      setTimeout(() => {
-        if (p === 'habits') toggleHabits();
-        else toggleConfig();
-      }, 150);
+      setTimeout(() => { p === 'habits' ? toggleHabits() : toggleConfig(); }, 100);
       return;
     }
-    case 'dismiss':
-    default:
+    default: // dismiss
       closeAI();
       return;
   }
 }
 
-// ── Config panel UI ───────────────────────────────────────────────────────────
+// ── Config panel ──────────────────────────────────────────────────────────────
 function setAIProvider(p) {
   localStorage.setItem('today_ai_provider', p);
   _aiRenderConfig();
@@ -5093,77 +5347,96 @@ function setAIProvider(p) {
 function _aiRenderConfig() {
   const provider = _aiGetProvider();
   const key      = _aiGetKey();
+  const isGemini = provider === 'gemini';
 
-  document.getElementById('aiProviderGemini')?.classList.toggle('active', provider === 'gemini');
-  document.getElementById('aiProviderClaude')?.classList.toggle('active', provider === 'claude');
+  document.getElementById('aiProviderGemini')?.classList.toggle('active', isGemini);
+  document.getElementById('aiProviderClaude')?.classList.toggle('active', !isGemini);
 
-  const label = document.getElementById('aiKeyLabel');
-  if (label) label.textContent = provider === 'gemini' ? 'Google AI Studio Key' : 'Anthropic API Key';
+  const labelEl = document.getElementById('aiKeyLabel');
+  if (labelEl) {
+    const href = isGemini ? 'https://aistudio.google.com/apikey' : 'https://console.anthropic.com/keys';
+    const linkText = isGemini ? 'Get free key →' : 'Get API key →';
+    labelEl.innerHTML = (isGemini ? 'Google AI Studio Key' : 'Anthropic API Key') +
+      `<a href="${href}" target="_blank" rel="noopener"
+        style="float:right;font-size:var(--text-xs);color:var(--highlight-ui);text-decoration:none">
+        ${linkText}</a>`;
+  }
 
   const input = document.getElementById('aiApiKey');
-  if (input) {
-    input.placeholder = provider === 'gemini' ? 'AIza…' : 'sk-ant-…';
-    input.value = key ? '••••••••••••••••' : '';
+  if (input && !input.matches(':focus')) {
+    input.placeholder = isGemini ? 'AIzaSy…' : 'sk-ant-…';
+    if (!key) input.value = '';
   }
 
   const statusLine = document.getElementById('aiStatusLine');
   if (statusLine) {
-    statusLine.textContent = key
-      ? `✓ ${provider === 'gemini' ? 'Gemini 2.5 Flash' : 'Claude Haiku'} connected`
-      : '';
-    statusLine.style.color = 'var(--accent)';
+    if (key) {
+      statusLine.textContent = `✓ ${isGemini ? 'Gemini 2.5 Flash' : 'Claude Haiku'} connected`;
+      statusLine.style.color = 'var(--accent)';
+    } else {
+      statusLine.textContent = isGemini ? 'Free tier — no credit card needed' : 'Paid API';
+      statusLine.style.color = 'var(--muted)';
+    }
   }
 
-  document.getElementById('aiSaveBtn')?.style && (document.getElementById('aiSaveBtn').style.display  = key ? 'none' : '');
-  document.getElementById('aiClearBtn')?.style && (document.getElementById('aiClearBtn').style.display = key ? ''     : 'none');
-
-  // aiBtn active state is managed by syncActiveButtons only (panel open = active)
+  const saveBtn  = document.getElementById('aiSaveBtn');
+  const clearBtn = document.getElementById('aiClearBtn');
+  if (saveBtn)  saveBtn.style.display  = key ? 'none' : '';
+  if (clearBtn) clearBtn.style.display = key ? ''     : 'none';
 }
 
 async function saveAIKey() {
-  const input    = document.getElementById('aiApiKey');
-  const saveBtn  = document.getElementById('aiSaveBtn');
-  const msgEl    = document.getElementById('aiMsg');
-  const key      = (input?.value || '').trim();
+  const input   = document.getElementById('aiApiKey');
+  const saveBtn = document.getElementById('aiSaveBtn');
+  const msgEl   = document.getElementById('aiMsg');
+  const key     = (input?.value || '').trim();
 
-  if (!key || key.includes('•')) {
-    if (msgEl) { msgEl.textContent = 'Paste your API key first'; msgEl.style.color = 'var(--danger)'; }
-    return;
+  // Keep panel open throughout
+  document.getElementById('configPanel')?.classList.add('open');
+
+  function _msg(text, colour) {
+    if (!msgEl) return;
+    msgEl.textContent = text;
+    msgEl.style.color = colour;
+    msgEl.style.opacity = '1';
   }
 
-  // Show testing state
-  if (saveBtn)  saveBtn.disabled = true;
-  if (msgEl)    { msgEl.textContent = 'Testing key…'; msgEl.style.color = 'var(--muted)'; }
+  if (!key) { _msg('Paste your API key first', 'var(--danger)'); input?.focus(); return; }
 
-  // Real API test — minimal call to verify the key actually works
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Testing…'; }
+  _msg('Connecting…', 'var(--muted)');
+
   try {
-    const provider = _aiGetProvider();
     const res = await fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        provider,
-        apiKey: key,
-        messages: [{ role: 'user', content: 'reply with the single word: ok' }],
-        systemPrompt: 'You are a test. Reply with only the word: ok',
+        provider: _aiGetProvider(), apiKey: key,
+        messages: [{ role: 'user', content: 'ping' }],
+        systemPrompt: 'Reply with only the word: pong',
       }),
     });
 
     if (!res.ok) {
       const err = await res.text();
-      if (msgEl) { msgEl.textContent = 'Invalid key — ' + (err || `HTTP ${res.status}`); msgEl.style.color = 'var(--danger)'; }
+      const msg = (err.includes('API key') || err.includes('not valid') || err.includes('API_KEY'))
+        ? 'Invalid key — double-check and try again'
+        : err.includes('quota') ? 'Quota exceeded'
+        : 'Error: ' + err.slice(0, 80);
+      _msg(msg, 'var(--danger)');
+      input?.select(); input?.focus();
       return;
     }
 
-    // Key is valid — save it
     localStorage.setItem('today_ai_key', key);
-    if (msgEl) { msgEl.textContent = 'Connected ✓'; msgEl.style.color = 'var(--accent)'; }
+    if (input) input.value = '';
+    _msg('Connected ✓  Tap ✦ to start', 'var(--accent)');
     _aiRenderConfig();
 
   } catch(e) {
-    if (msgEl) { msgEl.textContent = 'Connection failed — check network'; msgEl.style.color = 'var(--danger)'; }
+    _msg('Network error — check connection', 'var(--danger)');
   } finally {
-    if (saveBtn) saveBtn.disabled = false;
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Connect'; }
   }
 }
 
@@ -5174,8 +5447,8 @@ function clearAIKey() {
   _aiRenderConfig();
 }
 
-// Esc closes AI panel
-document.addEventListener('keydown', function(e) {
+// Esc closes panel
+document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && _aiPanelOpen) closeAI();
 });
 
@@ -5236,6 +5509,9 @@ document.addEventListener('keydown', function(e) {
     } else {
       clearState(taskId);
       appEl.classList.remove('focusing');
+      // Scroll focused task back into view after exiting focus mode
+      const el = appEl.querySelector('.task[data-taskid="' + taskId + '"]');
+      if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
 
     // Return false — let toggleDone run normally to mark task done
@@ -5335,13 +5611,17 @@ document.addEventListener('keydown', function(e) {
       if (closingTask) {
         closingTask.classList.remove('focused');
         if (doResetState) closingTask.style.removeProperty('--progress');
+        // Scroll task back into view after focus mode closes
+        closingTask.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }
       document.body.appendChild(timerEl);
 
       if (doResetState && closingTaskId) {
         clearState(closingTaskId);
         fillEl.style.transform = 'scaleX(0)';
+        fillEl.classList.remove('complete');
         timeEl.textContent = fmt(TOTAL);
+        timeEl.classList.remove('complete');
         setPaused(false);
       }
     }, 200);
@@ -5436,19 +5716,20 @@ document.addEventListener('keydown', function(e) {
     st.paused    = false;
     st.wallStart = null;
 
-    // Update DOM if visible
+    // Update DOM if visible — fill turns accent, time shows "restart"
     if (taskId === uiTaskId && uiTaskEl) {
       setProgress(1, uiTaskEl);
-      timeEl.textContent = fmt(0);
       setPaused(false);
+      fillEl.classList.add('complete');
+      timeEl.classList.add('complete');
+      timeEl.textContent = 'restart';
     }
 
     playChime();
     _haptic('success');
     _logSession(taskId);
 
-    // Stay at 00:00 — no auto-restart, no auto-collapse
-    // State cleared only when user clicks again or presses esc
+    // Stays in complete state — next click on the card restarts the session
   }
 
   // ── Persist a session for habit or task ───────────────────────────────────
@@ -5509,6 +5790,7 @@ document.addEventListener('keydown', function(e) {
   document.addEventListener('click', function(e) {
     if (e.target.closest('.task-delete')) return;
     if (e.target.closest('.task-check'))  return;
+    if (e.target.closest('.task-copy'))   return;  // copy button — handled by event delegation
     if (e.target.closest('.habit-check')) return;
     if (e.target.closest('.trello-link')) return;
     if (e.target.closest('.focus-timer')) return;
@@ -5549,7 +5831,9 @@ document.addEventListener('keydown', function(e) {
       // Clicked the currently visible task
       const st = getState(taskId);
       if (st.rem <= 0) {
-        // Timer completed — reset and start a new session
+        // Timer complete — one click restarts the session and logs the new one
+        fillEl.classList.remove('complete');
+        timeEl.classList.remove('complete');
         st.rem       = TOTAL;
         st.running   = true;
         st.paused    = false;
