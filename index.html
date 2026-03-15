@@ -1474,53 +1474,70 @@
   }
   
   .connection-card {
-    background: var(--surface2);
-    border-radius: var(--radius-md);
-    padding: var(--space-3);
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    transition: border-color var(--dur-fast);
+    display: flex;
+    flex-direction: column;
+  }
+  .connection-card:hover {
+    border-color: var(--muted);
+  }
+  .connection-card-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: var(--space-2);
   }
   .connection-card-title {
+    font-family: var(--font-mono);
     font-size: var(--text-sm);
-    font-weight: 600;
+    font-weight: 500;
     color: var(--text);
-    margin-bottom: var(--space-1);
+    letter-spacing: 0.04em;
   }
   .connection-card-hint {
     font-size: var(--text-xs);
     color: var(--muted);
-    margin-bottom: var(--space-3);
-    line-height: 1.4;
+    margin-bottom: var(--space-4);
+    line-height: 1.5;
+    flex: 1;
   }
-  .connection-card .btn-primary,
-  .connection-card .btn-ghost {
-    width: 100%;
-    font-size: var(--text-xs);
-    padding: 6px 12px;
+  .connection-card .btn-primary {
+    align-self: flex-start;
   }
   
-  /* Connected row — compact inline status */
+  /* Connected row — elegant inline status */
   .connection-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--space-3) 0;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    margin-bottom: var(--space-2);
+    transition: border-color var(--dur-fast);
   }
-  .connection-row:first-child {
-    padding-top: 0;
+  .connection-row:last-child {
+    margin-bottom: 0;
   }
-  .connection-row + .connection-row {
-    border-top: 1px solid var(--border);
+  .connection-row:hover {
+    border-color: var(--muted);
   }
   .connection-row-info {
     display: flex;
-    align-items: center;
-    gap: var(--space-2);
+    align-items: baseline;
+    gap: var(--space-3);
     min-width: 0;
     flex: 1;
   }
   .connection-row-title {
+    font-family: var(--font-mono);
     font-size: var(--text-sm);
     font-weight: 500;
     color: var(--text);
+    letter-spacing: 0.04em;
     white-space: nowrap;
   }
   .connection-row-status {
@@ -1536,55 +1553,74 @@
     flex-shrink: 0;
   }
   .connection-row-actions .btn-sm {
+    font-family: var(--font-mono);
     font-size: var(--text-xs);
-    padding: 4px 10px;
+    padding: 6px 12px;
     border-radius: var(--radius-md);
     background: none;
     border: 1px solid var(--border);
     color: var(--muted);
     cursor: pointer;
-    transition: opacity var(--dur-fast);
+    letter-spacing: 0.04em;
+    transition: border-color var(--dur-fast), color var(--dur-fast);
   }
   .connection-row-actions .btn-sm:hover {
-    opacity: var(--opacity-hover);
+    border-color: var(--muted);
+    color: var(--text);
   }
   .connection-row-actions .btn-sm.primary {
-    background: var(--highlight-ui);
-    border-color: var(--highlight-ui);
-    color: var(--color-bg);
+    background: var(--accent-dim);
+    border-color: var(--accent-focus-border);
+    color: var(--accent);
+  }
+  .connection-row-actions .btn-sm.primary:hover {
+    background: var(--accent-hover);
   }
   
-  /* Expanded config inside connection card */
+  /* Expanded config — board selection state */
   .connection-expanded {
-    background: var(--surface2);
-    border-radius: var(--radius-md);
-    padding: var(--space-3);
-    margin-bottom: var(--space-3);
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    margin-bottom: var(--space-2);
   }
   .connection-expanded-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: baseline;
     margin-bottom: var(--space-3);
   }
   .connection-expanded-title {
+    font-family: var(--font-mono);
     font-size: var(--text-sm);
-    font-weight: 600;
+    font-weight: 500;
     color: var(--text);
+    letter-spacing: 0.04em;
   }
   .connection-expanded-status {
     font-size: var(--text-xs);
     color: var(--accent);
+    letter-spacing: 0.04em;
   }
   .connection-expanded select {
     width: 100%;
+    font-family: var(--font-mono);
     font-size: var(--text-sm);
-    padding: 6px 10px;
+    padding: var(--space-2) var(--space-3);
     margin-bottom: var(--space-2);
-    background: var(--surface);
+    background: var(--bg);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     color: var(--text);
+    cursor: pointer;
+    transition: border-color var(--dur-fast);
+  }
+  .connection-expanded select:hover {
+    border-color: var(--muted);
+  }
+  .connection-expanded select:focus {
+    border-color: var(--highlight-ui);
+    outline: none;
   }
   .connection-expanded-actions {
     display: flex;
@@ -1593,21 +1629,30 @@
   }
   .connection-expanded-actions .btn-sm {
     flex: 1;
+    font-family: var(--font-mono);
     font-size: var(--text-xs);
-    padding: 6px 12px;
+    padding: 8px 14px;
     border-radius: var(--radius-md);
     cursor: pointer;
-    transition: opacity var(--dur-fast);
+    letter-spacing: 0.04em;
+    transition: border-color var(--dur-fast), color var(--dur-fast), background var(--dur-fast);
   }
   .connection-expanded-actions .btn-sm.primary {
-    background: var(--highlight-ui);
-    border: none;
-    color: var(--color-bg);
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-focus-border);
+    color: var(--accent);
+  }
+  .connection-expanded-actions .btn-sm.primary:hover {
+    background: var(--accent-hover);
   }
   .connection-expanded-actions .btn-sm.ghost {
     background: none;
     border: 1px solid var(--border);
     color: var(--muted);
+  }
+  .connection-expanded-actions .btn-sm.ghost:hover {
+    border-color: var(--muted);
+    color: var(--text);
   }
 
   /* .panel-section-lg removed — identical to .panel-section */
@@ -2107,7 +2152,7 @@
 
     <!-- AI Assistant section -->
     <div class="panel-section" id="aiConfigSection">
-      <div class="config-title">✦✦ AI Assistant</div>
+      <div class="config-title">✦ AI Assistant</div>
       <div class="config-hint">
         Pick a provider and paste your API key. Your key is stored locally and sent only to your own Netlify function — never to a third party.
       </div>
@@ -2215,7 +2260,7 @@
     <button id="clearTaskBtn" onclick="clearTaskInput()" class="clear-input-btn" style="display:none">×</button>
   </div>
   <!-- Single ✦: Enter = add task, tap = AI (or add task if AI not configured) -->
-  <button class="add-ai-btn" id="addAiBtn" onclick="handleBarSubmit()" title="✦✦">✦✦</button>
+  <button class="add-ai-btn" id="addAiBtn" onclick="handleBarSubmit()" title="✦">✦</button>
 </div>
 
 <canvas id="celebCanvas"></canvas>
@@ -2238,11 +2283,17 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.5.1';
-const DEV_HOURS     = '96h';
+const APP_VERSION   = '2.5.7';
+const DEV_HOURS     = '98h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.5.7': 'AI button: single star ✦ instead of ✦✦ (cleaner, less busy).',
+  '2.5.6': 'Fix: remove stale setLoadBtnSecondary() call.',
+  '2.5.5': 'Connection cards: left-align Connect buttons, flex column for bottom alignment.',
+  '2.5.4': 'Connections panel: elegant bordered cards with --font-mono, subtle hover states, accent-dim primary buttons. Matches AI provider button pattern.',
+  '2.5.3': 'Connections panel: remove ⚡ icons, remove card backgrounds (cleaner, less misleading).',
+  '2.5.2': 'Fix connections panel typography: use --font-display for titles, proper spacing/padding, standard btn-primary sizing. Matches design system.',
   '2.5.1': 'About panel: stats now always 3 columns (centered, compact) — no more uneven 2+1 on mobile.',
   '2.5.0': 'Connections panel redesign: Trello + Dropbox side-by-side when disconnected, compact status rows when connected. Cleaner, less scrolling.',
   '2.4.2': 'Fix: restore dev hours display next to coffee button.',
@@ -2610,13 +2661,17 @@ function renderConnections() {
     container.innerHTML = `
       <div class="connections-grid">
         <div class="connection-card">
-          <div class="connection-card-title">⚡ Trello</div>
-          <div class="connection-card-hint">Pull today's cards</div>
+          <div class="connection-card-header">
+            <span class="connection-card-title">Trello</span>
+          </div>
+          <div class="connection-card-hint">Pull today's cards automatically</div>
           <button class="btn-primary" onclick="trelloAuth()">Connect</button>
         </div>
         <div class="connection-card">
-          <div class="connection-card-title">⚡ Dropbox</div>
-          <div class="connection-card-hint">Backup & sync</div>
+          <div class="connection-card-header">
+            <span class="connection-card-title">Dropbox</span>
+          </div>
+          <div class="connection-card-hint">Sync tasks across devices</div>
           <button class="btn-primary" onclick="dropboxAuth()">Connect</button>
         </div>
       </div>`;
@@ -2634,7 +2689,7 @@ function renderConnections() {
     html += `
       <div class="connection-row">
         <div class="connection-row-info">
-          <span class="connection-row-title">⚡ Trello</span>
+          <span class="connection-row-title">Trello</span>
           <span class="connection-row-status">${esc(boardName)} → ${esc(listName)}</span>
         </div>
         <div class="connection-row-actions">
@@ -2647,7 +2702,7 @@ function renderConnections() {
     html += `
       <div class="connection-expanded" id="trelloExpanded">
         <div class="connection-expanded-header">
-          <span class="connection-expanded-title">⚡ Trello</span>
+          <span class="connection-expanded-title">Trello</span>
           <span class="connection-expanded-status">● Connected</span>
         </div>
         <select id="boardSelect" onchange="onBoardChange()">
@@ -2668,7 +2723,7 @@ function renderConnections() {
     html += `
       <div class="connection-row">
         <div class="connection-row-info">
-          <span class="connection-row-title">⚡ Trello</span>
+          <span class="connection-row-title">Trello</span>
           <span class="connection-row-status">Pull today's cards</span>
         </div>
         <div class="connection-row-actions">
@@ -2683,7 +2738,7 @@ function renderConnections() {
     html += `
       <div class="connection-row">
         <div class="connection-row-info">
-          <span class="connection-row-title">⚡ Dropbox</span>
+          <span class="connection-row-title">Dropbox</span>
           <span class="connection-row-status">${backupStatus ? 'Saved ' + backupStatus : 'Connected'}</span>
         </div>
         <div class="connection-row-actions">
@@ -2697,7 +2752,7 @@ function renderConnections() {
     html += `
       <div class="connection-row">
         <div class="connection-row-info">
-          <span class="connection-row-title">⚡ Dropbox</span>
+          <span class="connection-row-title">Dropbox</span>
           <span class="connection-row-status" style="color:var(--danger)">Session expired</span>
         </div>
         <div class="connection-row-actions">
@@ -2709,7 +2764,7 @@ function renderConnections() {
     html += `
       <div class="connection-row">
         <div class="connection-row-info">
-          <span class="connection-row-title">⚡ Dropbox</span>
+          <span class="connection-row-title">Dropbox</span>
           <span class="connection-row-status">Backup & sync</span>
         </div>
         <div class="connection-row-actions">
@@ -2954,7 +3009,6 @@ async function loadTrello(fromSync) {
       : `Loaded ${trelloTasks.length} card${trelloTasks.length !== 1 ? 's' : ''} from Trello.`;
 
     setTrelloIcon(true);
-    setLoadBtnSecondary();
 
     // Only show status in panel if it's already open
     if (document.getElementById('configPanel').classList.contains('open')) {
