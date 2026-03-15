@@ -75,9 +75,10 @@
   @media (hover: hover) {
 
     /* All receding elements — transition defined here so exit is smooth */
+    /* background intentionally not transitioned — paint on hover is instant at --dur-fast,
+       removing it from transition avoids repaint on every frame during hover entry */
     .task, .habit, .empty, .section-header, .app-date, h1 {
       transition:
-        background var(--dur-fast),
         border-color var(--dur-fast),
         opacity var(--dur-mid) ease;
     }
@@ -126,6 +127,7 @@
       opacity: var(--opacity-subtle);
       transform: scaleX(var(--progress, 0));
       transform-origin: left;
+      will-change: transform;
       transition: transform 1s linear;
       pointer-events: none;
     }
@@ -140,6 +142,7 @@
     .focus-timer {
       overflow: hidden;
       max-height: 0;
+      will-change: max-height, opacity;
       opacity: 0;
       border: 1px solid rgba(200,240,96,0.12);
       border-top: none;
@@ -159,9 +162,12 @@
     .focus-timer-fill {
       position: absolute;
       top: 0; left: 0; bottom: 0;
-      width: 0%;
+      width: 100%;
+      transform: scaleX(0);
+      transform-origin: left;
+      will-change: transform;
       background: rgba(200,240,96,0.08);
-      transition: width 1s linear;
+      transition: transform 1s linear;
     }
     .focus-timer-fill.paused { background: rgba(200,240,96,0.03); }
 
@@ -356,6 +362,9 @@
     font-family: var(--font-mono);
     font-size: var(--text-md);
     line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   /* ── Component: Splash ────────────────────────────────────────────── */
   /* ── Splash screen ── */
@@ -496,7 +505,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all var(--dur-fast);
+    transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
     font-size: var(--text-lg);
   }
   .btn-icon:hover { color: var(--text); border-color: var(--muted); }
@@ -540,9 +549,13 @@
 
   .subheader-fill {
     height: 100%;
+    width: 100%;
     background: var(--accent);
     border-radius: 1px;
-    transition: width 0.4s var(--ease-std);
+    transform: scaleX(0);
+    transform-origin: left;
+    will-change: transform;
+    transition: transform 0.4s var(--ease-std);
   }
 
   /* Section */
@@ -575,6 +588,9 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    contain: layout style;
   }
 
   .task {
@@ -647,7 +663,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all var(--dur-fast);
+    transition: background var(--dur-fast), border-color var(--dur-fast);
     background: transparent;
     position: relative;
   }
@@ -714,7 +730,7 @@
     font-size: var(--text-lg);
     padding: 0 2px;
     line-height: 1;
-    transition: all var(--dur-fast);
+    transition: opacity var(--dur-fast), color var(--dur-fast);
     flex-shrink: 0;
     align-self: center;
   }
@@ -802,9 +818,10 @@
     border-radius: var(--radius-lg);
     background: var(--color-surface2);
     border: 1px solid var(--color-border);
-    transform: scale(1.03);
+    transform: scale(1.03);  /* overridden by JS translate — scale preserved via matrix */
     transition: none;
     left: 0; top: 0;
+    will-change: transform;  /* promote to own GPU layer immediately */
   }
 
   @media (hover: none) {
@@ -1045,7 +1062,7 @@
     font-size: var(--text-sm2);
     padding: 8px 14px;
     cursor: pointer;
-    transition: all var(--dur-fast);
+    transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
   }
 
   .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
@@ -1213,7 +1230,7 @@
   }
 
   /* ── Component: Habits Panel ───────────────────────────────────────── */
-  .habit-list { display: flex; flex-direction: column; gap: 2px; }
+  .habit-list { display: flex; flex-direction: column; gap: 2px; touch-action: pan-y; overscroll-behavior: contain; }
 
   .habit {
     display: grid;
@@ -1237,7 +1254,7 @@
     width: 18px; height: 18px; flex-shrink: 0;
     border-radius: var(--radius-md); border: 1.5px solid var(--border);
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: all var(--dur-fast);
+    cursor: pointer; transition: background var(--dur-fast), border-color var(--dur-fast);
     background: transparent; position: relative;
   }
   .habit-check::after { content: ''; position: absolute; inset: -16px -16px -16px -8px; }
@@ -1367,7 +1384,7 @@
       <div class="subheader-count"><span id="statDone">0</span> of <span id="statTotal">0</span> done</div>
     </div>
     <div class="subheader-track">
-      <div class="subheader-fill" id="progressFill" style="width:0%"></div>
+      <div class="subheader-fill" id="progressFill" style="transform:scaleX(0)"></div>
     </div>
   </div>
 
@@ -1518,11 +1535,14 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.46';
-const DEV_HOURS     = '66h';
+const APP_VERSION   = '1.6.48';
+const DEV_HOURS     = '67h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.48': 'Housekeeping: all images moved to assets/ folder | manifest.json + sw.js paths updated to /assets/icon-*.png | root directory clean',
+  '1.6.47': 'Rendering optimisations: 5× transition:all → specific properties | width transitions → transform:scaleX (GPU-composited, no layout reflow) | will-change:transform on 3 animated elements | contain:layout style on task lists',
+  '1.6.47': 'Rendering optimisations: -webkit-font-smoothing antialiased | touch-action:pan-y + overscroll-behavior:contain on task/habit lists | background removed from task hover transition | focus timer will-change | touch drag ghost moved to transform:translate (GPU composited, zero layout cost)',
   '1.6.46': 'Fix drag first-grab miss — draggable=true set on mousedown immediately instead of waiting for 4px mousemove | text selection protected via userSelect:none while held, restored on mouseup/dragend',
   '1.6.45': 'Focus mode extended to habits — click habit row starts Pomodoro session | habit rows recede/focus with same CSS contract as tasks | session count 🍅 badge on habit name | _logSession unified helper for all three row types | focusSessions persisted to habitsList',
   '1.6.44': 'Auto-update: SW polls for updates every 60min | new SW activates on next app focus (not mid-session) | controllerchange triggers reload | SKIP_WAITING via postMessage',
@@ -2936,16 +2956,17 @@ function _clearAllDone() {
     ghost.style.padding = getComputedStyle(row).padding;
     ghostOffX = touchX - rect.left;
     ghostOffY = touchY - rect.top;
-    ghost.style.left = (touchX - ghostOffX) + 'px';
-    ghost.style.top  = (touchY - ghostOffY) + 'px';
+    // Use transform instead of left/top — GPU composited, zero layout cost
+    ghost.style.left = '0px';
+    ghost.style.top  = '0px';
+    ghost.style.transform = `translate(${touchX - ghostOffX}px, ${touchY - ghostOffY}px) scale(1.03)`;
     document.body.appendChild(ghost);
     row.classList.add('dragging');
   }
 
   function _moveGhost(touchX, touchY) {
     if (!ghost) return;
-    ghost.style.left = (touchX - ghostOffX) + 'px';
-    ghost.style.top  = (touchY - ghostOffY) + 'px';
+    ghost.style.transform = `translate(${touchX - ghostOffX}px, ${touchY - ghostOffY}px) scale(1.03)`;
   }
 
   function _findRowAt(x, y, listId, sel) {
@@ -3114,7 +3135,7 @@ function updateStats() {
   s('statTotal', total);
   s('statDone',  done);
   const fill = document.getElementById('progressFill');
-  if (fill) fill.style.width = pct + '%';
+  if (fill) fill.style.transform = 'scaleX(' + pct + ')';
 
   updateFavicon(total > 0 ? done / total : 0, total === 0);
 
@@ -4438,7 +4459,7 @@ if ('serviceWorker' in navigator) {
   }
 
   function setProgress(p, taskEl) {
-    fillEl.style.width = (p * 100) + '%';
+    fillEl.style.transform = 'scaleX(' + p + ')';
     if (taskEl) taskEl.style.setProperty('--progress', p);
   }
 
@@ -4494,7 +4515,7 @@ if ('serviceWorker' in navigator) {
 
       if (doResetState && closingTaskId) {
         clearState(closingTaskId);
-        fillEl.style.width = '0%';
+        fillEl.style.transform = 'scaleX(0)';
         timeEl.textContent = fmt(TOTAL);
         setPaused(false);
       }
