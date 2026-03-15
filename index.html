@@ -2371,11 +2371,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.6.9';
+const APP_VERSION   = '2.7.0';
 const DEV_HOURS     = '102h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.7.0': 'AI personality overhaul: warm, grounded tone. Speaks like a thoughtful friend, not a productivity coach. Notices patterns without preaching. No corporate speak, no emoji, no exclamation marks.',
   '2.6.9': 'Stats reordered: Focus → Flow → Streak. ✦ button hover animation restored (✦→✦✦✦). AI chat slides up from bottom with smooth spring transition. Input transforms to chat mode when AI open.',
   '2.6.8': 'Stats: replaced Completed with Focus (minutes today). Resets at midnight. Tracked per pomodoro completion (25m each).',
   '2.6.7': 'Fix: remove misleading hover effect on connection cards (non-interactive containers).',
@@ -5910,49 +5911,75 @@ function _aiSystemPrompt(ctx) {
     ...ctx.tasks.trello.filter(t => !t.overdue),
   ];
   
-  const taskList = [
-    ...overdueTasks.map(t => `⚠️ "${t.text}" OVERDUE [id:${t.id}]`),
-    ...regularTasks.map(t => `"${t.text}" [id:${t.id}]`),
-  ];
   const pendingHabits = ctx.habits.filter(h => !h.doneToday);
   const doneHabits = ctx.habits.filter(h => h.doneToday);
+  const totalPending = regularTasks.length + overdueTasks.length;
+  const totalDone = ctx.tasks.done.length + doneHabits.length;
 
-  return `You are the AI inside TODAY, a minimal daily task manager. Be concise.
+  // Build a natural state summary
+  let stateSummary = '';
+  if (totalPending === 0 && totalDone > 0) {
+    stateSummary = `All done. ${totalDone} things completed today.`;
+  } else if (totalPending === 0) {
+    stateSummary = 'Empty slate — nothing on the list yet.';
+  } else {
+    stateSummary = `${totalPending} things waiting. ${totalDone > 0 ? `${totalDone} already done today.` : 'Fresh start.'}`;
+  }
+  
+  if (overdueTasks.length) {
+    stateSummary += ` ${overdueTasks.length} overdue.`;
+  }
 
-Current state — ${ctx.timeOfDay}, ${ctx.date}:
-${overdueTasks.length ? `⚠️ OVERDUE (${overdueTasks.length}): ${overdueTasks.map(t => `"${t.text}" [id:${t.id}]`).join(' | ')}` : ''}
-Pending tasks (${regularTasks.length}): ${regularTasks.map(t => `"${t.text}" [id:${t.id}]`).join(' | ') || 'none'}
-Done today: ${ctx.tasks.done.length} tasks${doneHabits.length ? `, ${doneHabits.length} habits` : ''}
-Pending habits: ${pendingHabits.map(h => `"${h.name}" [id:${h.id}]`).join(' | ') || 'none'}
-Progress: ${ctx.progress}%
+  // Build task lists with IDs for action payloads
+  const overdueList = overdueTasks.map(t => `"${t.text}" [${t.id}]`).join(', ');
+  const pendingList = regularTasks.map(t => `"${t.text}" [${t.id}]`).join(', ');
+  const habitList = pendingHabits.map(h => `"${h.name}" [${h.id}]`).join(', ');
+  const doneList = ctx.tasks.done.map(t => `"${t.text}"`).join(', ');
+
+  return `You are a gentle, supportive presence inside TODAY — a minimal daily focus app.
+
+Your personality:
+- Warm but not effusive. Calm, grounded.
+- You notice patterns without being preachy about them.
+- You celebrate small wins genuinely, not performatively.
+- You're honest when things pile up, but never judgmental.
+- You speak like a thoughtful friend, not a productivity coach.
+- Short sentences. Natural rhythm. No corporate speak.
+
+Right now — ${ctx.timeOfDay}:
+${stateSummary}
+${overdueTasks.length ? `Overdue: ${overdueList}` : ''}
+${regularTasks.length ? `Pending: ${pendingList}` : ''}
+${pendingHabits.length ? `Habits waiting: ${habitList}` : ''}
+${ctx.tasks.done.length ? `Done today: ${doneList}` : ''}
 
 Reply ONLY with raw JSON (no markdown, no code fences):
 {
-  "message": "max 15 words — direct, specific",
+  "message": "your message — warm, specific, ≤20 words",
   "actions": [{ "label": "2-4 words", "type": "TYPE", "payload": {} }]
 }
 
-Action types:
-  add_task    { "text": "task text" }
-  check_task  { "id": "task-id" }
-  check_habit { "id": "habit-id" }
-  delete_done {}
-  start_focus { "id": "task-id" }
-  open_panel  { "panel": "habits" }
-  dismiss     {}
+Message guidelines:
+- Be specific to THEIR tasks, not generic advice
+- If they've done a lot: acknowledge it genuinely
+- If overdue: gentle nudge, not alarm
+- If empty: light, not pushy
+- If overwhelmed: empathetic, one clear next step
+- Never use: "Let's", "Why not", "How about", exclamation marks, or emoji
 
-Priority rules:
-  1. OVERDUE tasks are urgent — suggest start_focus on the most overdue first
-  2. If tasks exist but no focus session active → suggest start_focus on one
-  3. Never suggest check_task/check_habit for items already done
-  4. If user types a task name → add_task it
-  5. Overwhelmed? → delete_done + start_focus on one specific task
+Action types (use exact IDs from brackets above):
+  start_focus { "id": "exact-id-from-list" }  — begin 25-min pomodoro
+  check_task  { "id": "exact-id-from-list" }  — mark task done
+  check_habit { "id": "exact-id-from-list" }  — mark habit done
+  add_task    { "text": "task text" }         — add new task
+  delete_done {}                               — clear completed
+  open_panel  { "panel": "habits" }           — show habits
+  dismiss     {}                               — close this
 
-Output rules:
-  - message: ≤15 words, specific to their situation
-  - actions: exactly 2-3 chips, always end with dismiss
-  - Labels: 2-4 words max (e.g. "Focus: emails" not "Start a focus session on emails")
-  - Only suggest actions on real items in their list`;
+Rules:
+- 2-3 actions max, always end with dismiss
+- Labels: 2-4 words max
+- Use real IDs from the lists above — never invent IDs`;
 }
 
 // ── Execute action ────────────────────────────────────────────────────────────
