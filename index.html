@@ -10,11 +10,11 @@
 <meta property="og:description" content="Your focused daily task list.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://today-here.netlify.app">
-<meta property="og:image" content="https://today-here.netlify.app/today-og.png">
+<meta property="og:image" content="https://today-here.netlify.app/assets/today-og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="TODAY">
 <meta name="twitter:description" content="Your focused daily task list.">
-<meta name="twitter:image" content="https://today-here.netlify.app/today-og.png">
+<meta name="twitter:image" content="https://today-here.netlify.app/assets/today-og.png">
 <style>
   /* ── Self-hosted fonts — privacy-safe, SW-cacheable, works offline ── */
   /* @font-face must use raw string names — CSS variables are not resolved here */
@@ -1535,11 +1535,12 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.48';
+const APP_VERSION   = '1.6.49';
 const DEV_HOURS     = '67h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.6.49': 'Fix OG/Twitter meta image URLs to /assets/today-og.png | today-og.png added to SW pre-cache | Architecture.md assets list corrected to actual repo contents',
   '1.6.48': 'Housekeeping: all images moved to assets/ folder | manifest.json + sw.js paths updated to /assets/icon-*.png | root directory clean',
   '1.6.47': 'Rendering optimisations: 5× transition:all → specific properties | width transitions → transform:scaleX (GPU-composited, no layout reflow) | will-change:transform on 3 animated elements | contain:layout style on task lists',
   '1.6.47': 'Rendering optimisations: -webkit-font-smoothing antialiased | touch-action:pan-y + overscroll-behavior:contain on task/habit lists | background removed from task hover transition | focus timer will-change | touch drag ghost moved to transform:translate (GPU composited, zero layout cost)',
