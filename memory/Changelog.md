@@ -2,6 +2,10 @@
 
 | Version | Key change |
 |---|---|
+| 2.3.3 | Motion refinement: breathing animations on proactive CTA button (`gentleBreath`) and "All done" star (`starBreath`). Motion Philosophy documented in Design.md. |
+| **2.3.2** | **Token audit** — `--z-header`, `--accent-hover`, `--shadow-float`, `--shadow-divider` added. All hardcoded rgba/z-index replaced with tokens. `#trelloSection` padding-top for header clearance. |
+| 2.3.1 | Proactive suggestion copy: "Nice — tidy up?" / "✦ All done" with "Tidy" / "Start fresh" buttons |
+| **2.3.0** | **AI proactive suggestions** — after checking off ≥3 tasks, offers to clear done tasks. No API call, pure client-side. Auto-dismisses 12s, once per session. |
 | **2.2.16** | **First interaction freeze fix** — defer heavy sync work with setTimeout(0) to yield to event loop after paint. App now responds instantly. |
 | 2.2.15 | Fix intermittent null style error in splash animation — add guards for logo/dateWrap/splash/mainApp |
 | 2.2.14 | Mobile drag fix: disable text selection on manual tasks (pointer:coarse) for smoother drag gestures |

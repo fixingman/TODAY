@@ -333,6 +333,7 @@
     /* ── Color: Accent (lime green) ──────────────────────────── */
     --color-accent:      #c8f060;   /* primary accent              */
     --color-accent-dim:  rgba(200,240,96,0.12); /* ghost accent bg */
+    --color-accent-hover: rgba(200,240,96,0.18); /* accent bg on hover */
     --color-accent-glow: rgba(200,240,96,0.28); /* accent glow border */
     /* Focus mode accent variants — all derived from --color-accent */
     --color-accent-focus-bg:     rgba(200,240,96,0.04);  /* focused row background    */
@@ -354,6 +355,8 @@
     --color-done-line:   rgba(107,107,120,0.55); /* strikethrough  */
     --color-noise-overlay: rgba(255,255,255,0.03);/* texture layer */
     --color-bg-glass:    rgba(14,14,16,0.92);    /* sticky header frosted bg */
+    --shadow-float:      0 8px 24px rgba(0,0,0,0.4); /* floating element shadow */
+    --shadow-divider:    0 -1px 0 rgba(255,255,255,0.05); /* subtle top divider */
 
     /* ── Backward-compat aliases (used in inline styles & JS) ── */
     --bg:           var(--color-bg);
@@ -362,6 +365,7 @@
     --border:       var(--color-border);
     --accent:       var(--color-accent);
     --accent-dim:   var(--color-accent-dim);
+    --accent-hover: var(--color-accent-hover);
     --text:         var(--color-text);
     --muted:        var(--color-muted);
     --danger:       var(--color-danger);
@@ -422,6 +426,7 @@
 
     /* ── Z-index scale ───────────────────────────────────────── */
     --z-base:    1;
+    --z-header:  10;
     --z-splash:  500;
     --z-overlay: 999;
 
@@ -555,11 +560,23 @@
   .sticky-header {
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: var(--z-header);
     width: 100%;
     background: var(--bg-glass);
     -webkit-backdrop-filter: blur(16px) saturate(1.4);
     backdrop-filter: blur(16px) saturate(1.4);
+  }
+  
+  /* Fade gradient below header — content softens before clipping */
+  .sticky-header::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 0;
+    right: 0;
+    height: 10px;
+    background: linear-gradient(to bottom, var(--bg), transparent);
+    pointer-events: none;
   }
 
   .sticky-header-inner {
@@ -671,6 +688,11 @@
   /* Section */
   .section {
     margin-bottom: var(--space-5);
+  }
+  
+  /* First section needs breathing room from sticky header */
+  #trelloSection {
+    padding-top: var(--space-4);
   }
 
   .section-header {
@@ -803,7 +825,7 @@
     transition: background var(--dur-fast);
   }
   .task-suggestion-chip:hover {
-    background: rgba(200,240,96,0.15);
+    background: var(--accent-hover);
   }
   .task-suggestion-chip.dismiss {
     background: transparent;
@@ -862,10 +884,16 @@
     background: var(--accent);
     color: var(--bg);
     border-color: var(--accent);
+    animation: gentleBreath 2.4s ease-in-out infinite;
+  }
+  @keyframes gentleBreath {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.75; }
   }
   .ai-proactive-chip.primary:hover {
     background: var(--highlight-ui);
     border-color: var(--highlight-ui);
+    animation: none;
   }
   .ai-proactive-chip.dismiss {
     border: none;
@@ -1045,7 +1073,7 @@
     pointer-events: none;
     z-index: var(--z-overlay);
     opacity: 0.85;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    box-shadow: var(--shadow-float);
     border-radius: var(--radius-lg);
     background: var(--color-surface2);
     border: 1px solid var(--color-border);
@@ -1067,6 +1095,17 @@
     font-size: var(--text-sm2);
     letter-spacing: 0.06em;
   }
+  
+  /* Breathing star on "All done" — gentle reward pulse */
+  .done-star {
+    display: inline-block;
+    color: var(--accent);
+    animation: starBreath 2.4s ease-in-out infinite;
+  }
+  @keyframes starBreath {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.6; transform: scale(0.92); }
+  }
 
 
 
@@ -1081,13 +1120,25 @@
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 10;
+    z-index: var(--z-header);
     margin: 0;
     padding: var(--space-2) 0;
     padding-bottom: var(--space-3); /* safe breathing room above window chrome */
     background: var(--bg-glass);
     -webkit-backdrop-filter: blur(16px) saturate(1.4);
     backdrop-filter: blur(16px) saturate(1.4);
+  }
+  
+  /* Fade gradient above footer — content softens before clipping */
+  .add-task-row::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 0;
+    right: 0;
+    height: 10px;
+    background: linear-gradient(to top, var(--bg), transparent);
+    pointer-events: none;
   }
   /* Inner wrapper keeps content aligned with .app column */
   .add-task-row > * {
@@ -1304,7 +1355,7 @@
       bottom: 0;
       left: 0;
       right: 0;
-      z-index: 10;
+      z-index: var(--z-header);
       margin: 0;
       /* space-3 (12px) top and sides — matches panel padding, feels connected */
       padding: var(--space-3) var(--space-4) var(--space-3);
@@ -1313,7 +1364,7 @@
       background: var(--bg-glass);
       -webkit-backdrop-filter: blur(16px) saturate(1.4);
       backdrop-filter: blur(16px) saturate(1.4);
-      box-shadow: 0 -1px 0 rgba(255,255,255,0.05);
+      box-shadow: var(--shadow-divider);
     }
   }
 
@@ -1789,7 +1840,7 @@
     color: var(--accent);
     background: var(--accent-dim);
   }
-  .ai-chip.primary:hover { background: rgba(200,240,96,0.18); }
+  .ai-chip.primary:hover { background: var(--accent-hover); }
 
 
 
@@ -2101,11 +2152,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.3.1';
-const DEV_HOURS     = '89h';
+const APP_VERSION   = '2.3.4';
+const DEV_HOURS     = '91h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.3.4': 'Fade gradients on sticky header (::after) and add-task bar (::before) — content softens before clipping under chrome. 10px height.',
+  '2.3.3': 'Motion refinement: breathing animations on proactive CTA button and "All done" star. Motion Philosophy documented in Design.md.',
+  '2.3.2': 'Token audit: --z-header, --accent-hover, --shadow-float, --shadow-divider added. All hardcoded rgba/z-index replaced. Trello section padding-top for header clearance.',
   '2.3.1': 'Proactive suggestion copy: "Nice — tidy up?" / "✦ All done" with "Tidy" / "Start fresh" buttons',
   '2.3.0': 'AI proactive suggestions — after checking off ≥3 tasks, suggests clearing done tasks. Auto-dismisses, once per session.',
   '2.2.16': 'First interaction freeze fix: defer heavy sync work with setTimeout(0) to yield to event loop after paint',
@@ -3399,7 +3453,7 @@ function _applyDoneStyles(el, isDone) {
   const textEl = el.querySelector('.task-text');
   if (textEl) {
     textEl.style.textDecoration = isDone ? 'line-through' : '';
-    textEl.style.textDecorationColor = isDone ? 'rgba(107,107,120,0.55)' : '';
+    textEl.style.textDecorationColor = isDone ? 'var(--done-line)' : '';
   }
   const checkEl = el.querySelector('.task-check');
   if (checkEl) {
@@ -3517,7 +3571,7 @@ function updateManualEmptyState(animate) {
   const allDone   = doneCount === total;
 
   if (allDone) {
-    empty.textContent = '✦ All done for today';
+    empty.innerHTML = '<span class="done-star">✦</span> All done for today';
     if (animate) {
       empty.style.opacity = '0';
       empty.style.display = 'block';

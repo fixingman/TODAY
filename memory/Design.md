@@ -118,6 +118,7 @@ All visual values **must** reference a token. Never hardcode a colour, spacing, 
 | `--color-muted` | `#6b6b78` | Secondary text, placeholders, labels |
 | `--color-accent` | `#c8f060` | Primary accent — lime green |
 | `--color-accent-dim` | `rgba(200,240,96,0.12)` | Ghost accent background |
+| `--color-accent-hover` | `rgba(200,240,96,0.18)` | Accent background on hover |
 | `--color-accent-glow` | `rgba(200,240,96,0.28)` | Accent glow border |
 | `--color-danger` | `#ff5f5f` | Error, delete |
 | `--color-danger-dim` | `rgba(255,95,95,0.10)` | Danger background tint |
@@ -216,13 +217,78 @@ Fonts are self-hosted under `/fonts/` and pre-cached by the service worker. The 
 | `--ease-out` | `cubic-bezier(0.16, 1, 0.3, 1)` | Overshoot-free deceleration |
 | `--ease-std` | `ease` | Generic |
 
+### Motion Philosophy
+
+Motion in TODAY communicates state, not decoration. It's calm, functional, and deliberate.
+
+**The Breath Pattern**
+
+The signature motion is the **breath** — a slow, gentle pulse that says "I'm alive, I'm waiting for you." This pattern appears in the focus mode restart button:
+
+```css
+@keyframes timerCompletePulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.65; }
+}
+animation: timerCompletePulse 1.8s ease-in-out infinite;
+```
+
+**Why this works:**
+- **1.8s duration** — slower than a heartbeat, calmer than urgency. Matches natural breathing rhythm.
+- **ease-in-out** — symmetrical acceleration feels organic, not mechanical.
+- **Opacity 1 → 0.65** — subtle range. The element never disappears, just softens. Invites without demanding.
+- **Infinite** — patient. It will wait as long as you need.
+
+**When to use the breath pattern:**
+- Completion states that invite re-engagement (restart, refresh, try again)
+- Waiting states that need acknowledgment (connecting, syncing)
+- Gentle CTAs that shouldn't pressure
+
+**When NOT to use:**
+- Error states (use static colour, not motion)
+- Primary actions (buttons should respond to user, not animate on their own)
+- Anything time-critical (urgency contradicts the app's calm philosophy)
+
+**The Blink Pattern**
+
+For loading indicators, a faster rhythm signals activity:
+
+```css
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0.2; }
+  40%           { opacity: 1; }
+}
+animation: blink 1.2s infinite;
+```
+
+- **1.2s duration** — faster than breath, implies work happening
+- **Sharp peak at 40%** — asymmetrical timing feels more alive than a sine wave
+- **Low baseline (0.2)** — dots recede between beats, reducing visual noise
+
+**The Fade Pattern**
+
+State transitions use simple opacity fades:
+- **Enter:** 0 → 1 over `--dur-fast` (0.15s)
+- **Exit:** 1 → 0 over `--dur-fast` (0.15s)
+- **Recede (focus mode):** 1 → 0.07 over `--dur-slow` (0.30s)
+
+No transforms on enter/exit. Elements appear in place. Motion should feel like dimming lights, not flying objects.
+
 ### Z-index
 
-| Token | Value |
-|---|---|
-| `--z-base` | 1 |
-| `--z-splash` | 500 |
-| `--z-overlay` | 999 |
+| Token | Value | Usage |
+|---|---|---|
+| `--z-base` | 1 | Default stacking |
+| `--z-header` | 10 | Sticky header, add-task bar |
+| `--z-splash` | 500 | Splash screen |
+| `--z-overlay` | 999 | Panels, modals, drag ghost |
+
+### Shadows
+
+| Token | Value | Usage |
+|---|---|---|
+| `--shadow-float` | `0 8px 24px rgba(0,0,0,0.4)` | Floating elements (drag ghost) |
+| `--shadow-divider` | `0 -1px 0 rgba(255,255,255,0.05)` | Subtle top divider (mobile bar) |
 
 ### Opacity
 
