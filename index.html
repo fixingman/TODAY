@@ -1877,8 +1877,8 @@
         Cards from the selected list + cards due today will both be shown.
       </div>
       <div class="config-actions">
-        <button class="btn-primary" id="loadTasksBtn" onclick="saveAndLoad()">Load Tasks</button>
-        <button class="btn-ghost" onclick="clearTrello()">Disconnect</button>
+        <button class="btn-primary" id="loadTasksBtn" onclick="saveAndLoad()">Get tasks</button>
+        <button class="btn-ghost" onclick="clearTrello()">Forget</button>
       </div>
     </div>
 
@@ -1900,8 +1900,8 @@
       <div id="dropboxStatusLine" class="panel-status-line"></div>
       <div class="config-actions">
         <button class="btn-primary" id="dropboxConnectBtn" onclick="dropboxAuth()">Connect Dropbox</button>
-        <button class="btn-ghost" onclick="dropboxBackup()" id="btnBackup" style="display:none">↑ Backup</button>
-        <button class="btn-ghost" onclick="dropboxRestore()" id="btnRestore" style="display:none">↓ Restore</button>
+        <button class="btn-ghost" onclick="dropboxBackup()" id="btnBackup" style="display:none">Save</button>
+        <button class="btn-ghost" onclick="dropboxRestore()" id="btnRestore" style="display:none">Bring back</button>
       </div>
       <div class="status-msg" id="dropboxMsg"></div>
     </div>
@@ -1941,7 +1941,7 @@
       <div id="aiStatusLine" class="panel-status-line"></div>
       <div class="config-actions">
         <button class="btn-primary" id="aiSaveBtn" onclick="saveAIKey()">Connect</button>
-        <button class="btn-ghost" id="aiClearBtn" onclick="clearAIKey()" style="display:none">Disconnect</button>
+        <button class="btn-ghost" id="aiClearBtn" onclick="clearAIKey()" style="display:none">Forget</button>
       </div>
       <div class="status-msg" id="aiMsg"></div>
     </div>
@@ -1984,7 +1984,7 @@
       <div class="section-label">From Trello</div>
     </div>
     <div class="task-list" id="trelloList"></div>
-    <div class="empty" id="trelloEmpty">No Trello tasks — click ⚡ to connect</div>
+    <div class="empty" id="trelloEmpty">No Trello yet — tap ⚡ to connect</div>
   </div>
 
   <!-- Manual section -->
@@ -2031,11 +2031,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.2.4';
-const DEV_HOURS     = '85h';
+const APP_VERSION   = '2.2.5';
+const DEV_HOURS     = '86h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.2.5': 'Copy revision — human tonality across the app: "Get tasks", "Forget", "Save", "Bring back", "One moment…", "Nothing due today", "Can\'t reach Trello"',
   '2.2.4': 'Focus mode tonality: "space breathe" / "esc rest" — human language for humans, not robots. Tonality guidelines added to Design.md §2.',
   '2.2.3': 'Focus mode: Esc now just closes UI (timer keeps running in background) — no longer resets. Hint updated to "esc close".',
   '2.2.2': 'Focus mode: kbd hint (space/esc) now appears below timer bar, not fixed at bottom — avoids overlap with add-task bar',
@@ -2423,7 +2424,7 @@ async function loadTrelloBoards() {
       await loadTrelloLists(cfg.boardId, cfg.todayList);
     }
   } catch(e) {
-    showStatus('Failed to load boards: ' + e.message, 'error');
+    showStatus('Can\'t reach Trello — ' + e.message, 'error');
   }
 }
 
@@ -2437,12 +2438,12 @@ async function onBoardChange() {
 
 function setLoadBtnPrimary() {
   const btn = document.getElementById('loadTasksBtn');
-  if (btn) { btn.className = 'btn-primary'; btn.textContent = 'Load Tasks'; }
+  if (btn) { btn.className = 'btn-primary'; btn.textContent = 'Get tasks'; }
 }
 
 function setLoadBtnSecondary() {
   const btn = document.getElementById('loadTasksBtn');
-  if (btn) { btn.className = 'btn-ghost'; btn.textContent = 'Reload Tasks'; }
+  if (btn) { btn.className = 'btn-ghost'; btn.textContent = 'Refresh'; }
 }
 
 async function loadTrelloLists(boardId, selectedList) {
@@ -2457,7 +2458,7 @@ async function loadTrelloLists(boardId, selectedList) {
       + lists.map(l => `<option value="${esc(l.name)}"${l.name === selectedList ? ' selected' : ''}>${esc(l.name)}</option>`).join('');
     document.getElementById('listFieldWrap').style.display = '';
   } catch(e) {
-    showStatus('Failed to load lists: ' + e.message, 'error');
+    showStatus('Can\'t reach Trello — ' + e.message, 'error');
   }
 }
 
@@ -2500,7 +2501,7 @@ async function loadTrello(fromSync) {
 
   // Only wipe list on manual load — background sync keeps existing DOM for diff render
   if (!fromSync) {
-    emptyEl.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span> Loading from Trello…';
+    emptyEl.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span> Getting your cards…';
     emptyEl.style.display = 'block';
     listEl.innerHTML = '';
   }
@@ -2595,7 +2596,7 @@ async function loadTrello(fromSync) {
       document.getElementById('configPanel').classList.add('open');
       syncActiveButtons();
       showStatus(msg, 'error');
-      emptyEl.textContent = '⚠ Failed to load — check credentials above.';
+      emptyEl.textContent = 'Can\'t reach Trello — check above';
       emptyEl.style.display = 'block';
     }
   }
@@ -2616,12 +2617,12 @@ function renderTrello() {
       existing.forEach(el => el.classList.add('removing'));
       setTimeout(() => {
         list.innerHTML = '';
-        empty.textContent   = trelloConnected ? 'No Trello tasks for today.' : 'No Trello tasks — click ⚡ to connect';
+        empty.textContent   = trelloConnected ? 'Nothing due today' : 'No Trello yet — tap ⚡ to connect';
         empty.style.display = 'block';
       }, 200);
     } else {
       list.innerHTML = '';
-      empty.textContent   = trelloConnected ? 'No Trello tasks for today.' : 'No Trello tasks — click ⚡ to connect';
+      empty.textContent   = trelloConnected ? 'Nothing due today' : 'No Trello yet — tap ⚡ to connect';
       empty.style.display = 'block';
     }
     return;
@@ -5570,7 +5571,7 @@ async function saveAIKey() {
 
   if (!key) { _msg('Paste your API key first', 'var(--danger)'); input?.focus(); return; }
 
-  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Testing…'; }
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'One moment…'; }
   _msg('Connecting…', 'var(--muted)');
 
   // Save key BEFORE the async test — if page reloads mid-validation
@@ -5619,7 +5620,7 @@ function clearAIKey() {
   localStorage.removeItem('today_ai_key');
   _aiViewingProvider = null; // reset to show current provider state
   const el = document.getElementById('aiMsg');
-  if (el) { el.className = 'status-msg error'; el.textContent = 'Disconnected'; el.style.color = 'var(--muted)'; }
+  if (el) { el.className = 'status-msg error'; el.textContent = 'Off'; el.style.color = 'var(--muted)'; }
   _aiRenderConfig();
 }
 

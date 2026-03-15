@@ -79,6 +79,14 @@ TODAY speaks like a calm, present friend — not a system, not a manager, not a 
 | Delete | (swipe or icon — no label) |
 | Cancel | (just close — no label) |
 | Submit | (action-specific: "Connect", "Save") |
+| Disconnect | Forget |
+| Load / Reload | Get / Refresh |
+| Backup | Save |
+| Restore | Bring back |
+| Loading… | Getting your… |
+| Testing… | One moment… |
+| Failed to | Can't reach |
+| No [X] tasks for today | Nothing due today |
 
 ### Focus Mode Language
 
