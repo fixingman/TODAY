@@ -840,66 +840,6 @@
   }
 
   /* AI Proactive suggestions (appear after checking tasks) */
-  .ai-proactive {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    margin: var(--space-2) 0;
-    background: var(--color-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    font-size: var(--text-sm);
-    color: var(--muted);
-    animation: slideDown var(--dur-base) var(--ease-std);
-  }
-  .ai-proactive.removing {
-    animation: fadeOut var(--dur-fast) var(--ease-std) forwards;
-  }
-  .ai-proactive-msg {
-    flex: 1;
-    min-width: 0;
-  }
-  .ai-proactive-chips {
-    display: flex;
-    gap: var(--space-2);
-    flex-shrink: 0;
-  }
-  .ai-proactive-chip {
-    padding: var(--space-2) var(--space-3);
-    border-radius: var(--radius-full);
-    background: transparent;
-    color: var(--muted);
-    font-size: var(--text-xs);
-    font-weight: 500;
-    border: 1px solid var(--border);
-    cursor: pointer;
-    transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
-  }
-  .ai-proactive-chip:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .ai-proactive-chip.primary {
-    background: var(--accent);
-    color: var(--bg);
-    border-color: var(--accent);
-    animation: gentleBreath 2.4s ease-in-out infinite;
-  }
-  @keyframes gentleBreath {
-    0%, 100% { opacity: 1; }
-    50%      { opacity: 0.75; }
-  }
-  .ai-proactive-chip.primary:hover {
-    background: var(--highlight-ui);
-    border-color: var(--highlight-ui);
-    animation: none;
-  }
-  .ai-proactive-chip.dismiss {
-    border: none;
-    padding: var(--space-2);
-  }
-
   .task.done .task-text {
     text-decoration: line-through;
     text-decoration-color: var(--done-line);
@@ -1197,9 +1137,34 @@
     transition: width var(--dur-fast) var(--ease-out), opacity var(--dur-fast), background var(--dur-fast);
     line-height: 1;
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: visible;
     white-space: nowrap;
-    /* Stars live in data-stars attribute, swapped via CSS content trick */
+    position: relative;
+  }
+
+  /* AI suggestion badge */
+  .add-ai-btn .ai-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    background: var(--danger);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 500;
+    padding: 0 4px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    animation: badgePop var(--dur-base) var(--ease-out);
+  }
+  @keyframes badgePop {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
   }
 
   /* On hover: widen to fit two then three stars via sequential keyframe */
@@ -1224,6 +1189,9 @@
     background: var(--surface2);
     color: var(--accent);
     box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .add-ai-btn.active .ai-badge {
+    display: none;
   }
 
   /* Trello config panel */
@@ -2049,7 +2017,6 @@
   @media (prefers-reduced-motion: reduce) {
     /* Disable breathing/pulse animations */
     .focus-timer-fill.complete,
-    .ai-proactive-chip.primary,
     .done-star,
     .loading-dots span,
     .ai-suggestion-msg.thinking::after {
@@ -2283,11 +2250,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.5.7';
-const DEV_HOURS     = '98h';
+const APP_VERSION   = '2.6.0';
+const DEV_HOURS     = '99h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.6.0': 'AI proactive redesign: badge on ✦ button instead of popup. Pull model — user taps when ready. Calmer, less intrusive.',
   '2.5.7': 'AI button: single star ✦ instead of ✦✦ (cleaner, less busy).',
   '2.5.6': 'Fix: remove stale setLoadBtnSecondary() call.',
   '2.5.5': 'Connection cards: left-align Connect buttons, flex column for bottom alignment.',
@@ -5530,6 +5498,7 @@ function openAI() {
     document.getElementById(id)?.classList.remove('open'));
 
   _aiPanelOpen = true;
+  _aiClearBadge(); // Clear proactive badge when panel opens
   panel.classList.add('open');
   document.getElementById('addAiBtn')?.classList.add('active');
   syncActiveButtons();
@@ -6214,9 +6183,8 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
 // Shows contextual suggestions without user opening the AI panel
 // ══════════════════════════════════════════════════════════════════════════
 
-let _aiProactiveEl = null;
-let _aiProactiveTimeout = null;
-let _aiProactiveDismissedThisSession = false; // don't repeat after user dismisses
+let _aiProactiveBadgeShown = false;
+let _aiProactiveDismissedThisSession = false;
 
 function _aiProactiveSuggestion() {
   // Don't show if AI not configured
@@ -6228,78 +6196,35 @@ function _aiProactiveSuggestion() {
   // Don't show if AI panel is open
   if (_aiPanelOpen) return;
   
-  // Don't show if already showing
-  if (_aiProactiveEl) return;
+  // Don't show if badge already showing
+  if (_aiProactiveBadgeShown) return;
   
   // Count done manual tasks
   const doneManualCount = manualTasks.filter(t => doneIds.has(t.id)).length;
-  const pendingCount = manualTasks.filter(t => !doneIds.has(t.id)).length;
   
   // Trigger: ≥3 done tasks
   if (doneManualCount < 3) return;
   
-  // Build suggestion based on context
-  let message, action, actionLabel;
+  // Show badge on ✦ button
+  const btn = document.getElementById('addAiBtn');
+  if (!btn || btn.querySelector('.ai-badge')) return;
   
-  if (pendingCount === 0 && doneManualCount > 0) {
-    // All done!
-    message = '✦ All done';
-    action = () => { if (typeof _clearAllDone === 'function') _clearAllDone(); };
-    actionLabel = 'Start fresh';
-  } else {
-    // Mix of done and pending
-    message = 'Nice — tidy up?';
-    action = () => { if (typeof _clearAllDone === 'function') _clearAllDone(); };
-    actionLabel = 'Tidy';
-  }
-  
-  // Create suggestion element
-  const row = document.createElement('div');
-  row.className = 'ai-proactive';
-  row.innerHTML = `
-    <span class="ai-proactive-msg">${message}</span>
-    <div class="ai-proactive-chips">
-      <button class="ai-proactive-chip primary">${actionLabel}</button>
-      <button class="ai-proactive-chip dismiss">✕</button>
-    </div>
-  `;
-  
-  // Wire up buttons
-  row.querySelector('.primary').onclick = () => {
-    action();
-    _aiDismissProactive();
-  };
-  row.querySelector('.dismiss').onclick = () => {
-    _aiProactiveDismissedThisSession = true;
-    _aiDismissProactive();
-  };
-  
-  // Insert at top of manual list section
-  const manualSection = document.getElementById('manualList')?.parentElement;
-  if (!manualSection) return;
-  
-  const insertBefore = manualSection.querySelector('.section-header');
-  if (insertBefore) {
-    insertBefore.after(row);
-  } else {
-    manualSection.prepend(row);
-  }
-  
-  _aiProactiveEl = row;
-  
-  // Auto-dismiss after 12 seconds
-  _aiProactiveTimeout = setTimeout(() => _aiDismissProactive(), 12000);
+  const badge = document.createElement('span');
+  badge.className = 'ai-badge';
+  badge.textContent = '1';
+  btn.appendChild(badge);
+  _aiProactiveBadgeShown = true;
+}
+
+function _aiClearBadge() {
+  const badge = document.querySelector('.add-ai-btn .ai-badge');
+  if (badge) badge.remove();
+  _aiProactiveBadgeShown = false;
 }
 
 function _aiDismissProactive() {
-  clearTimeout(_aiProactiveTimeout);
-  if (!_aiProactiveEl) return;
-  
-  _aiProactiveEl.classList.add('removing');
-  _aiProactiveEl.addEventListener('animationend', () => {
-    _aiProactiveEl?.remove();
-    _aiProactiveEl = null;
-  }, { once: true });
+  _aiProactiveDismissedThisSession = true;
+  _aiClearBadge();
 }
 
 // ══════════════════════════════════════════════════════════════════════════
