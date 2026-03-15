@@ -1480,6 +1480,146 @@
     transition: opacity var(--dur-fast); letter-spacing: 0.04em; white-space: nowrap;
   }
   .habit-add-btn:hover { opacity: var(--opacity-hover); }
+
+  /* ── AI Assistant ─────────────────────────────────────────────────────── */
+  /* Provider selector in Connections panel */
+  .ai-provider-row {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    margin-top: var(--space-3);
+  }
+  .ai-provider-btn {
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: none;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+    text-align: center;
+  }
+  .ai-provider-btn:hover { color: var(--text); border-color: var(--muted); }
+  .ai-provider-btn.active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .ai-provider-badge {
+    display: inline-block;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent-focus-border);
+    border-radius: var(--radius-sm);
+    padding: 1px 4px;
+    margin-left: var(--space-1);
+    vertical-align: middle;
+    opacity: 0.75;
+  }
+
+  /* AI panel — same pattern as habits/connections */
+  #aiPanel {
+    margin-bottom: var(--space-3);
+  }
+  .ai-panel-body {
+    padding: var(--space-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+
+  /* Suggestion message */
+  .ai-suggestion-msg {
+    font-size: var(--text-sm);
+    color: var(--text);
+    line-height: 1.6;
+    margin-bottom: var(--space-3);
+    min-height: 20px;
+  }
+  .ai-suggestion-msg.thinking {
+    color: var(--muted);
+  }
+  .ai-suggestion-msg.thinking::after {
+    content: '…';
+    animation: blink 1.2s infinite;
+  }
+
+  /* Action chips — horizontal scroll on mobile */
+  .ai-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .ai-chip {
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    background: var(--surface2);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+    white-space: nowrap;
+  }
+  .ai-chip:hover { color: var(--text); border-color: var(--muted); background: var(--border); }
+  .ai-chip.primary {
+    border-color: var(--accent-focus-border);
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .ai-chip.primary:hover { background: rgba(200,240,96,0.18); }
+
+  /* Input row */
+  .ai-input-row {
+    display: flex;
+    gap: var(--space-2);
+  }
+  .ai-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    padding: 6px var(--space-3);
+    outline: none;
+    transition: border-color var(--dur-fast);
+    -webkit-font-smoothing: antialiased;
+  }
+  .ai-input:focus { border-color: var(--muted); }
+  .ai-input::placeholder { color: var(--muted); opacity: 0.5; }
+  .ai-send-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.06em;
+    padding: 6px var(--space-3);
+    cursor: pointer;
+    transition: color var(--dur-fast), border-color var(--dur-fast);
+    white-space: nowrap;
+  }
+  .ai-send-btn:hover { color: var(--text); border-color: var(--muted); }
+  .ai-send-btn:disabled { opacity: 0.3; cursor: default; }
+
+  .ai-not-configured {
+    font-size: var(--text-sm);
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .ai-not-configured a { color: var(--highlight-ui); text-decoration: none; }
 </style>
 </head>
 <body>
@@ -1505,6 +1645,7 @@
       </div>
       <div class="header-actions">
         <button class="btn-icon" id="habitsBtn" title="Habits" onclick="toggleHabits()">◎&#xFE0E;</button>
+        <button class="btn-icon" id="aiBtn" title="AI Assistant" onclick="toggleAI()">✦✦</button>
         <button class="btn-icon" id="trelloBtn" title="Connections" onclick="toggleConfig()">✦&#xFE0E;</button>
         <button class="btn-icon" id="infoBtn" title="About" onclick="toggleInfo()">ℹ&#xFE0E;</button>
       </div>
@@ -1518,6 +1659,20 @@
       <div class="subheader-track">
         <div class="subheader-fill" id="progressFill" style="transform:scaleX(0)"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- AI panel — inline, above task list, same pattern as habits/connections -->
+<div class="config-panel" id="aiPanel" style="max-width:680px;margin:0 auto;padding:0 var(--space-6);">
+  <div class="ai-panel-body">
+    <div class="ai-suggestion-msg" id="aiSuggestionMsg"></div>
+    <div class="ai-chips" id="aiChips"></div>
+    <div class="ai-input-row">
+      <input class="ai-input" id="aiChatInput" type="text"
+        placeholder="Type a task or ask anything…"
+        onkeydown="if(event.key==='Enter')sendAIMessage()" />
+      <button class="ai-send-btn" id="aiSendBtn" onclick="sendAIMessage()">→</button>
     </div>
   </div>
 </div>
@@ -1602,6 +1757,40 @@
       </div>
       <div class="status-msg" id="dropboxMsg"></div>
     </div>
+
+    <!-- AI Assistant section -->
+    <div class="panel-section" id="aiConfigSection">
+      <div class="config-title">✦✦ AI Assistant</div>
+      <div class="config-hint">
+        Pick a provider and paste your API key. Your key is stored locally and sent only to your own Netlify function — never to a third party.
+      </div>
+
+      <!-- Provider selector -->
+      <div class="ai-provider-row" style="margin-top:var(--space-3)">
+        <button class="ai-provider-btn" id="aiProviderGemini" onclick="setAIProvider('gemini')">
+          Gemini 2.5 Flash <span class="ai-provider-badge">free</span>
+        </button>
+        <button class="ai-provider-btn" id="aiProviderClaude" onclick="setAIProvider('claude')">
+          Claude Haiku
+        </button>
+      </div>
+
+      <!-- Key input -->
+      <div class="config-grid">
+        <div class="config-field full">
+          <div class="config-label" id="aiKeyLabel">Google AI Studio Key</div>
+          <input class="config-input" id="aiApiKey" autocomplete="off" autocorrect="off"
+            autocapitalize="off" spellcheck="false" type="password"
+            placeholder="paste key here" />
+        </div>
+      </div>
+      <div id="aiStatusLine" class="panel-status-line"></div>
+      <div class="config-actions">
+        <button class="btn-primary" id="aiSaveBtn" onclick="saveAIKey()">Save Key</button>
+        <button class="btn-ghost" id="aiClearBtn" onclick="clearAIKey()" style="display:none">Disconnect</button>
+      </div>
+      <div class="status-msg" id="aiMsg"></div>
+    </div>
   </div>
 
   <!-- Info panel -->
@@ -1670,12 +1859,25 @@
 const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
+// ─── AI Assistant ─────────────────────────────────────────────────────────────
+// AI_BUILD_PROVIDER: set to 'claude' on the maintainer's deployment,
+//   'gemini' for any open-source fork. This is the INSTALL default only —
+//   users can change their provider in the Connections panel at runtime.
+// AI_DEFAULT_PROVIDER: what first-time users see. Always 'gemini' (free, no account wall).
+const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
+const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
+
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.7.3';
-const DEV_HOURS     = '72h';
+const APP_VERSION   = '1.8.4';
+const DEV_HOURS     = '76h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.8.4': 'Fix fake AI key validation — saveAIKey now makes a real test call before saving | shows Testing… spinner | rejects invalid keys with error message | ai-assist.js accepts client apiKey as fallback when env var not set',
+  '1.8.3': 'Fix AI button persistent active state — _aiRenderConfig was setting aiBtn.active based on key presence, overriding syncActiveButtons. Removed. aiBtn.active now controlled only by syncActiveButtons (panel open = active).',
+  '1.8.2': 'UX consistency: AI button active=panel open only (not configured state) — matches all other header buttons | chip actions close panel immediately instead of showing Done/Got it limbo | add_task reloads suggestions after brief feedback',
+  '1.8.1': 'AI UX rethink — removed modal overlay/scrim entirely | inline panel pattern (same as habits/connections) | suggestion message + action chips | task list visible while interacting | Esc closes | no-config state points to Connections',
+  '1.8.0': 'AI Assistant — Gemini 2.5 Flash (default, free) + Claude Haiku (private). Provider selector in Connections panel. Netlify function proxy (ai-assist.js). Structured action responses: add_task, check_task, check_habit, start_focus, delete_done. Overlay UI with tap-to-execute. AI_BUILD_PROVIDER sets install default per deployment.',
   '1.7.3': 'Sticky header mobile-only (position:static on desktop) | Progress bar fix (scaleX 0-1, was 0-100) | Sticky add-task bar bottom-fixed on mobile | Viewport lock (overscroll-behavior:none) | No black strip under progress bar (subheader margin removed)',
   '1.7.3': 'Token audit: 9 hardcoded rgba(accent) → 8 new --accent-focus-* + --accent-timer-* tokens | 5 raw focus opacities → --opacity-recede/recede-done/recede-chrome | 0.45 copy button → --opacity-copy | rgba(14,14,16) → --bg-glass | 24px/16px spacing → --space tokens | --text-xs2 alias added | 1s linear timer documented',
   '1.7.2': 'Fix sticky header — moved outside .app (overflow:hidden was breaking sticky) | width:100% replaces 100vw hack | Fix iOS haptics — switch .click() trick removed (Safari requires real touch, not JS events) | navigator.vibrate() now works on iOS Safari',
@@ -1854,9 +2056,14 @@ function syncActiveButtons() {
   document.getElementById('habitsBtn').classList.toggle('active', habitsOpen);
   document.getElementById('trelloBtn').classList.toggle('active', configOpen);
   document.getElementById('infoBtn').classList.toggle('active',   infoOpen);
+  // AI button: active only when panel is open — same rule as all other header buttons
+  const aiBtn = document.getElementById('aiBtn');
+  if (aiBtn) aiBtn.classList.toggle('active', _aiPanelOpen);
 }
 
 function toggleConfig() {
+  // Refresh AI config UI whenever connections panel is opened
+  setTimeout(_aiRenderConfig, 0);
   const configPanel = document.getElementById('configPanel');
   const isClosing = configPanel.classList.contains('open');
   configPanel.classList.toggle('open');
@@ -1904,6 +2111,7 @@ function renderInfoStats() {
   ];
 
   document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
+  _aiRenderConfig();  // init AI button and config state
   const devHoursEl = document.querySelector('.dev-hours-val');
   if (devHoursEl) devHoursEl.innerHTML = '⏱ built in <span style="color:var(--color-accent);font-weight:500">' + DEV_HOURS + '</span>';
 
@@ -4576,6 +4784,400 @@ if ('serviceWorker' in navigator) {
       .catch(() => { /* SW unavailable — silent */ });
   });
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// AI ASSISTANT
+//
+// UX: Inline panel (same open/close pattern as habits and connections).
+// Shows a contextual 1-sentence suggestion + 2-4 action chips.
+// Has a text input for custom requests.
+// Does NOT cover the task list — user can see their day while interacting.
+//
+// Provider: Gemini 2.5 Flash (default, free) or Claude Haiku (private).
+// Key stored in localStorage. Proxied through /.netlify/functions/ai-assist.
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let _aiPanelOpen = false;
+
+function _aiGetProvider() { return localStorage.getItem('today_ai_provider') || AI_DEFAULT_PROVIDER; }
+function _aiGetKey()      { return localStorage.getItem('today_ai_key') || ''; }
+function _aiIsConfigured(){ return !!_aiGetKey(); }
+
+// Seed provider from build constant on first visit
+(function _aiInit() {
+  if (!localStorage.getItem('today_ai_provider')) {
+    localStorage.setItem('today_ai_provider', AI_BUILD_PROVIDER);
+  }
+})();
+
+// ── Panel open / close (config-panel pattern) ─────────────────────────────────
+function toggleAI() {
+  const panel = document.getElementById('aiPanel');
+  if (!panel) return;
+  _aiPanelOpen = !_aiPanelOpen;
+  panel.classList.toggle('open', _aiPanelOpen);
+
+  if (_aiPanelOpen) {
+    // Close other panels
+    document.getElementById('configPanel')?.classList.remove('open');
+    document.getElementById('habitsPanel')?.classList.remove('open');
+    document.getElementById('infoPanel')?.classList.remove('open');
+    syncActiveButtons();
+    _haptic('medium');
+    if (_aiIsConfigured()) {
+      _aiLoad();
+    } else {
+      _aiShowNotConfigured();
+    }
+    setTimeout(() => document.getElementById('aiChatInput')?.focus(), 200);
+  } else {
+    syncActiveButtons();
+  }
+}
+
+function closeAI() {
+  _aiPanelOpen = false;
+  document.getElementById('aiPanel')?.classList.remove('open');
+  syncActiveButtons();
+}
+
+// ── Not configured state ──────────────────────────────────────────────────────
+function _aiShowNotConfigured() {
+  const provider = _aiGetProvider();
+  const name     = provider === 'gemini' ? 'Google AI Studio' : 'Anthropic Console';
+  const url      = provider === 'gemini' ? 'https://aistudio.google.com/apikey' : 'https://console.anthropic.com/keys';
+
+  _aiSetMsg(`<span class="ai-not-configured">Add your <a href="${url}" target="_blank" rel="noopener">${name}</a> API key in <a href="#" onclick="closeAI();setTimeout(toggleConfig,100);return false">Connections</a> to activate.</span>`);
+  _aiSetChips([{ label: 'Open Connections →', type: 'open_panel', payload: { panel: 'connections' }, primary: true }]);
+}
+
+// ── Load initial suggestions ───────────────────────────────────────────────────
+async function _aiLoad() {
+  const ctx = _aiContext();
+  const pendingCount = ctx.tasks.pending.length + ctx.tasks.trello.length;
+  const habitsDue    = ctx.habits.filter(h => !h.doneToday).length;
+
+  // Build a terse greeting the model replies to
+  const parts = [];
+  if (pendingCount > 0)         parts.push(`${pendingCount} task${pendingCount>1?'s':''} pending`);
+  if (ctx.tasks.overdueCount)   parts.push(`${ctx.tasks.overdueCount} overdue`);
+  if (habitsDue > 0)            parts.push(`${habitsDue} habit${habitsDue>1?'s':''} to do`);
+  if (ctx.tasks.done.length > 0) parts.push(`${ctx.tasks.done.length} done`);
+  const greeting = parts.length
+    ? `Good ${ctx.timeOfDay}. ${parts.join(', ')}. What should I focus on?`
+    : `Good ${ctx.timeOfDay}. Nothing on the list yet. What's the plan today?`;
+
+  _aiSetMsg('…', true);
+  _aiSetChips([]);
+  try {
+    const result = await _aiCall([{ role: 'user', content: greeting }]);
+    if (result) _aiRenderResult(result);
+  } catch(e) {
+    _aiSetMsg('Could not connect — check your API key in Connections.');
+  }
+}
+
+// ── Send user message ─────────────────────────────────────────────────────────
+async function sendAIMessage() {
+  const input = document.getElementById('aiChatInput');
+  const sendBtn = document.getElementById('aiSendBtn');
+  const text  = input?.value.trim();
+  if (!text) return;
+  if (!_aiIsConfigured()) { _aiShowNotConfigured(); return; }
+
+  input.value = '';
+  sendBtn.disabled = true;
+  _aiSetMsg('…', true);
+  _aiSetChips([]);
+
+  try {
+    const result = await _aiCall([{ role: 'user', content: text }]);
+    if (result) _aiRenderResult(result);
+  } catch(e) {
+    _aiSetMsg('Error: ' + (e.message || 'unknown'));
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+// ── Render result ─────────────────────────────────────────────────────────────
+function _aiRenderResult(result) {
+  _aiSetMsg(result.message || '');
+  _aiSetChips(result.actions || []);
+}
+
+function _aiSetMsg(html, thinking = false) {
+  const el = document.getElementById('aiSuggestionMsg');
+  if (!el) return;
+  if (thinking) {
+    el.textContent = 'Thinking';
+    el.className = 'ai-suggestion-msg thinking';
+  } else {
+    el.innerHTML = html;
+    el.className = 'ai-suggestion-msg';
+  }
+}
+
+function _aiSetChips(actions) {
+  const el = document.getElementById('aiChips');
+  if (!el) return;
+  el.innerHTML = '';
+  actions.forEach((action, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'ai-chip' + (action.primary || i === 0 ? ' primary' : '');
+    btn.textContent = action.label || action.type;
+    btn.onclick = () => _aiExecute(action);
+    el.appendChild(btn);
+  });
+}
+
+// ── API call ──────────────────────────────────────────────────────────────────
+async function _aiCall(messages) {
+  const provider = _aiGetProvider();
+  const key      = _aiGetKey();
+  if (!key) { _aiShowNotConfigured(); return null; }
+
+  const res = await fetch('/.netlify/functions/ai-assist', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      provider,
+      apiKey: key,
+      messages,
+      systemPrompt: _aiSystemPrompt(_aiContext()),
+    }),
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+// ── Context builder ───────────────────────────────────────────────────────────
+function _aiContext() {
+  const now = new Date();
+  const hour = now.getHours();
+  const todayStr = _todayStr();
+
+  const pending = manualTasks.filter(t => !doneIds.has(t.id));
+  const done    = manualTasks.filter(t =>  doneIds.has(t.id));
+  const trello  = (window.trelloTasks || []).filter(t => !doneIds.has('trello_' + t.id));
+  const overdueCount = trello.filter(t => t.due && t.due.slice(0,10) < todayStr).length;
+
+  return {
+    timeOfDay: hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening',
+    date: todayStr,
+    tasks: {
+      pending: pending.map(t => ({ id: t.id, text: t.text })),
+      done:    done.map(t => ({ id: t.id, text: t.text })),
+      trello:  trello.map(t => ({ id: 'trello_' + t.id, text: t.name, overdue: t.due && t.due.slice(0,10) < todayStr })),
+      overdueCount,
+    },
+    habits: habitsList.map(h => ({
+      id: h.id, name: h.name,
+      doneToday: (habitCompletions[h.id] || []).includes(_habitTodayISO()),
+      strength: _getHabitStrength(h.id),
+    })),
+    progress: manualTasks.length ? Math.round(done.length / manualTasks.length * 100) : 0,
+  };
+}
+
+// ── System prompt ─────────────────────────────────────────────────────────────
+function _aiSystemPrompt(ctx) {
+  const tasks = [
+    ...ctx.tasks.pending.map(t => `"${t.text}" [id:${t.id}]`),
+    ...ctx.tasks.trello.map(t  => `"${t.text}"${t.overdue?' [OVERDUE]':''} [id:${t.id}]`),
+  ];
+  const habits = ctx.habits.map(h => `"${h.name}" ${h.doneToday?'✓':'○'} [id:${h.id}]`);
+
+  return `You are the AI assistant in TODAY, a minimal daily task manager.
+
+State right now:
+- ${ctx.timeOfDay}, ${ctx.date}
+- Tasks pending: ${tasks.join(' | ') || 'none'}
+- Tasks done: ${ctx.tasks.done.length}
+- Habits: ${habits.join(' | ') || 'none'}
+- Progress: ${ctx.progress}%
+
+Respond ONLY with valid JSON (no markdown, no code fences):
+{
+  "message": "1 sentence — direct, warm, specific to their situation",
+  "actions": [
+    { "label": "short label", "type": "action_type", "payload": {} }
+  ]
+}
+
+Available action types and when to use them:
+- add_task     payload: { text }       — suggest adding something missing
+- check_task   payload: { id }         — suggest completing a specific pending task
+- delete_done  payload: {}             — suggest clearing done tasks when ≥2 exist
+- check_habit  payload: { id }         — suggest marking a specific habit done
+- start_focus  payload: { id }         — suggest focusing on a specific task (desktop)
+- dismiss      payload: {}             — "Got it" / close — ALWAYS include as last action
+
+Rules:
+- message: 1 sentence only. Be specific ("You have 2 overdue Trello cards" not "You have tasks").
+- actions: 2-4 total. Make them immediately useful. No vague suggestions.
+- Always end with dismiss.
+- If the user types a task (imperative sentence), add_task it directly.
+- If user says "done" or "clear", offer delete_done.`;
+}
+
+// ── Execute action ────────────────────────────────────────────────────────────
+function _aiExecute(action) {
+  _haptic('success');
+  switch (action.type) {
+    case 'add_task': {
+      const text = action.payload?.text;
+      if (!text) break;
+      const id = 'manual_' + Date.now();
+      manualTasks.push({ id, text });
+      localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+      renderManual(); syncDropbox();
+      // Reload suggestions with updated state after a beat
+      _aiSetChips([]);
+      _aiSetMsg('Added ✓ — anything else?');
+      setTimeout(_aiLoad, 800);
+      return;
+    }
+    case 'check_task': {
+      const id = action.payload?.id;
+      if (id) toggleDone(id);
+      // Close — task is done, no need to linger
+      closeAI();
+      return;
+    }
+    case 'delete_done': {
+      if (typeof _clearAllDone === 'function') _clearAllDone();
+      closeAI();
+      return;
+    }
+    case 'check_habit': {
+      const id = action.payload?.id;
+      if (id) toggleHabitDone(id);
+      closeAI();
+      return;
+    }
+    case 'start_focus': {
+      const id = action.payload?.id;
+      closeAI();
+      if (id) setTimeout(() => {
+        const el = document.querySelector('.task[data-taskid="' + CSS.escape(id) + '"]');
+        if (el) el.click();
+      }, 200);
+      return;
+    }
+    case 'open_panel': {
+      closeAI();
+      const p = action.payload?.panel;
+      setTimeout(() => {
+        if (p === 'habits') toggleHabits();
+        else toggleConfig();
+      }, 150);
+      return;
+    }
+    case 'dismiss':
+    default:
+      closeAI();
+      return;
+  }
+}
+
+// ── Config panel UI ───────────────────────────────────────────────────────────
+function setAIProvider(p) {
+  localStorage.setItem('today_ai_provider', p);
+  _aiRenderConfig();
+}
+
+function _aiRenderConfig() {
+  const provider = _aiGetProvider();
+  const key      = _aiGetKey();
+
+  document.getElementById('aiProviderGemini')?.classList.toggle('active', provider === 'gemini');
+  document.getElementById('aiProviderClaude')?.classList.toggle('active', provider === 'claude');
+
+  const label = document.getElementById('aiKeyLabel');
+  if (label) label.textContent = provider === 'gemini' ? 'Google AI Studio Key' : 'Anthropic API Key';
+
+  const input = document.getElementById('aiApiKey');
+  if (input) {
+    input.placeholder = provider === 'gemini' ? 'AIza…' : 'sk-ant-…';
+    input.value = key ? '••••••••••••••••' : '';
+  }
+
+  const statusLine = document.getElementById('aiStatusLine');
+  if (statusLine) {
+    statusLine.textContent = key
+      ? `✓ ${provider === 'gemini' ? 'Gemini 2.5 Flash' : 'Claude Haiku'} connected`
+      : '';
+    statusLine.style.color = 'var(--accent)';
+  }
+
+  document.getElementById('aiSaveBtn')?.style && (document.getElementById('aiSaveBtn').style.display  = key ? 'none' : '');
+  document.getElementById('aiClearBtn')?.style && (document.getElementById('aiClearBtn').style.display = key ? ''     : 'none');
+
+  // aiBtn active state is managed by syncActiveButtons only (panel open = active)
+}
+
+async function saveAIKey() {
+  const input    = document.getElementById('aiApiKey');
+  const saveBtn  = document.getElementById('aiSaveBtn');
+  const msgEl    = document.getElementById('aiMsg');
+  const key      = (input?.value || '').trim();
+
+  if (!key || key.includes('•')) {
+    if (msgEl) { msgEl.textContent = 'Paste your API key first'; msgEl.style.color = 'var(--danger)'; }
+    return;
+  }
+
+  // Show testing state
+  if (saveBtn)  saveBtn.disabled = true;
+  if (msgEl)    { msgEl.textContent = 'Testing key…'; msgEl.style.color = 'var(--muted)'; }
+
+  // Real API test — minimal call to verify the key actually works
+  try {
+    const provider = _aiGetProvider();
+    const res = await fetch('/.netlify/functions/ai-assist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider,
+        apiKey: key,
+        messages: [{ role: 'user', content: 'reply with the single word: ok' }],
+        systemPrompt: 'You are a test. Reply with only the word: ok',
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      if (msgEl) { msgEl.textContent = 'Invalid key — ' + (err || `HTTP ${res.status}`); msgEl.style.color = 'var(--danger)'; }
+      return;
+    }
+
+    // Key is valid — save it
+    localStorage.setItem('today_ai_key', key);
+    if (msgEl) { msgEl.textContent = 'Connected ✓'; msgEl.style.color = 'var(--accent)'; }
+    _aiRenderConfig();
+
+  } catch(e) {
+    if (msgEl) { msgEl.textContent = 'Connection failed — check network'; msgEl.style.color = 'var(--danger)'; }
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
+function clearAIKey() {
+  localStorage.removeItem('today_ai_key');
+  const el = document.getElementById('aiMsg');
+  if (el) { el.textContent = 'Disconnected'; el.style.color = 'var(--muted)'; }
+  _aiRenderConfig();
+}
+
+// Esc closes AI panel
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && _aiPanelOpen) closeAI();
+});
 
 // ══════════════════════════════════════════════════════════════════════════
 // FOCUS MODE (Pomodoro) — desktop only

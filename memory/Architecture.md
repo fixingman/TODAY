@@ -290,10 +290,34 @@ New deploys reach users without any manual action:
 ### Offline fallback
 When the SW is installed but the network fails on a navigation request, a branded offline screen is served — a single `✦` pulsing at 12–35% opacity on `#0e0e10`. Baked into `sw.js` as an inline HTML string (no external file dependency). The fallback is unavailable on the very first visit before SW installs — that is a browser constraint.
 
+### Sticky header
+The header (TODAY logo + CTAs + date + progress bar) uses `position: sticky; top: 0` on mobile only. On desktop it is `position: static`.
+
+**Critical:** the sticky element must live **outside** any ancestor with `overflow` set (other than `visible`). `.app` has `overflow-x: hidden` — placing the sticky header inside `.app` silently breaks sticky. The `.sticky-header` div is a sibling of `.app` in the DOM, not a child.
+
+**Mobile only:** sticky is activated inside `@media (max-width: 480px)` with `position: sticky`. Desktop keeps `position: static` (default). This avoids the sticky bar taking up viewport space on desktop where scrolling is less common.
+
+### Haptics system
+`_haptic(preset)` is a unified haptic helper. Routing:
+- **Android Chrome / Firefox:** `navigator.vibrate(pattern)` — differentiated patterns per preset
+- **iOS Safari (17.4+):** `navigator.vibrate()` also works — confirmed March 2026. Direct call, no tricks needed.
+- **Desktop:** silent no-op — `typeof navigator.vibrate !== 'function'`
+
+**Presets and patterns:**
+| Preset | Pattern (ms) | Used for |
+|---|---|---|
+| `success` | `[40, 60, 80]` | Task/habit check done, Pomodoro complete |
+| `warning` | `[30, 40, 30]` | Task delete |
+| `heavy` | `[65]` | Long-press drag activation |
+| `selection` | `[12]` | Drag row snaps to new slot |
+| `medium` | `[40]` | General fallback |
+
+**What was tried and abandoned:** `<input type=checkbox switch>` programmatic `.click()` trick — Safari only fires system haptics on real hardware touch events, not JS-dispatched synthetic events. Removed in v1.7.2.
+
 ## 9. Offline Behaviour
 
 - **Service worker** (`sw.js`): network-first, cache version `today-v{version}`
-- **Pre-cached at install:** `/` + all 6 font files
+- **Pre-cached at install:** `/`, `manifest.json`, all 6 font files, `/assets/icon-192.png`, `/assets/icon-512.png`, `/assets/today-og.png`
 - **BYPASS_ORIGINS:** Trello API, Dropbox API, Google APIs — always network
 - All sync functions guard with `if (!navigator.onLine) return`
 - Ticker stops on `visibilitychange hidden`, resumes 2s after visible
