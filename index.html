@@ -71,6 +71,9 @@
      See Design.md § Motion > Focus mode animation rules.
   ══════════════════════════════════════════════════════════════════ */
 
+  /* Copy button hidden globally — only shown inside @media (hover: hover) below */
+  .task-copy { display: none; }
+
   /* Desktop-only: focus mode never activates on touch devices */
   @media (hover: hover) {
 
@@ -86,8 +89,8 @@
     /* Focused task/habit snaps in via background+border, no opacity change */
     .focusing .task.focused,
     .focusing .habit.focused {
-      background: rgba(200,240,96,0.04);
-      border-color: rgba(200,240,96,0.12);
+      background: var(--accent-focus-bg);
+      border-color: var(--accent-focus-border);
       border-radius: var(--radius-lg) var(--radius-lg) 0 0;
       opacity: 1 !important;
       pointer-events: all !important;
@@ -96,25 +99,25 @@
     /* Recede — opacity only, nothing moves, pointer-events off */
     .focusing .task:not(.focused),
     .focusing .habit:not(.focused) {
-      opacity: 0.07 !important;
+      opacity: var(--opacity-recede) !important;
       pointer-events: none;
     }
-    .focusing .task.done:not(.focused) { opacity: 0.035 !important; }
-    .focusing .empty { opacity: 0.035 !important; }
+    .focusing .task.done:not(.focused) { opacity: var(--opacity-recede-done) !important; }
+    .focusing .empty { opacity: var(--opacity-recede-done) !important; }
     .focusing .section-header,
-    .focusing .app-date { opacity: 0.08 !important; }
+    .focusing .app-date { opacity: var(--opacity-recede-chrome) !important; }
     /* Habits panel header recedes too */
-    .focusing .config-panel:not(:has(.habit.focused)) { opacity: 0.08 !important; }
+    .focusing .config-panel:not(:has(.habit.focused)) { opacity: var(--opacity-recede-chrome) !important; }
 
     /* Checkbox — accent border in focus */
     .focusing .task.focused .task-check,
     .focusing .habit.focused .habit-check {
-      border-color: rgba(200,240,96,0.55);
+      border-color: var(--accent-check);
     }
     .focusing .task.focused .task-check:hover,
     .focusing .habit.focused .habit-check:hover {
-      border-color: rgba(200,240,96,0.9);
-      box-shadow: 0 0 0 3px rgba(200,240,96,0.1);
+      border-color: var(--accent-check-hover);
+      box-shadow: 0 0 0 3px var(--accent-check-glow);
     }
 
     /* Checkbox progress fill — grows with timer */
@@ -138,8 +141,9 @@
     /* Delete hidden during focus */
     .focusing .task.focused .task-delete { opacity: 0 !important; pointer-events: none; }
 
-    /* Copy button — appears in top-right corner of focused task only */
+    /* Copy button — desktop/focus mode only. display:none overridden here. */
     .task-copy {
+      display: block;
       position: absolute;
       top: var(--space-2);
       right: var(--space-2);
@@ -159,7 +163,7 @@
       line-height: 1.6;
     }
     .focusing .task.focused .task-copy {
-      opacity: 0.45;
+      opacity: var(--opacity-copy);
       pointer-events: all;
     }
     .focusing .task.focused .task-copy:hover {
@@ -179,7 +183,7 @@
       max-height: 0;
       will-change: max-height, opacity;
       opacity: 0;
-      border: 1px solid rgba(200,240,96,0.12);
+      border: 1px solid var(--accent-focus-border);
       border-top: none;
       border-radius: 0 0 var(--radius-lg) var(--radius-lg);
       transition: max-height var(--dur-fast) ease, opacity var(--dur-fast) ease;
@@ -192,7 +196,7 @@
       height: 34px;
       position: relative;
       overflow: hidden;
-      background: rgba(200,240,96,0.022);
+      background: var(--accent-timer-bg);
     }
     .focus-timer-fill {
       position: absolute;
@@ -201,10 +205,10 @@
       transform: scaleX(0);
       transform-origin: left;
       will-change: transform;
-      background: rgba(200,240,96,0.08);
-      transition: transform 1s linear;
+      background: var(--accent-timer-fill);
+      transition: transform 1s linear; /* intentional — Pomodoro countdown, not a UI transition */
     }
-    .focus-timer-fill.paused { background: rgba(200,240,96,0.03); }
+    .focus-timer-fill.paused { background: var(--accent-timer-paused); }
 
     .focus-timer-time {
       position: absolute;
@@ -308,6 +312,15 @@
     --color-accent:      #c8f060;   /* primary accent              */
     --color-accent-dim:  rgba(200,240,96,0.12); /* ghost accent bg */
     --color-accent-glow: rgba(200,240,96,0.28); /* accent glow border */
+    /* Focus mode accent variants — all derived from --color-accent */
+    --color-accent-focus-bg:     rgba(200,240,96,0.04);  /* focused row background    */
+    --color-accent-focus-border: rgba(200,240,96,0.12);  /* focused row border        */
+    --color-accent-check:        rgba(200,240,96,0.55);  /* focused checkbox border   */
+    --color-accent-check-hover:  rgba(200,240,96,0.90);  /* focused checkbox hover    */
+    --color-accent-check-glow:   rgba(200,240,96,0.10);  /* focused checkbox glow     */
+    --color-accent-timer-bg:     rgba(200,240,96,0.022); /* timer bar background      */
+    --color-accent-timer-fill:   rgba(200,240,96,0.08);  /* timer progress fill       */
+    --color-accent-timer-paused: rgba(200,240,96,0.03);  /* timer fill when paused    */
 
     /* ── Color: Semantic ─────────────────────────────────────── */
     --color-danger:      #ff5f5f;   /* error / delete              */
@@ -318,6 +331,7 @@
     /* ── Color: Utility ──────────────────────────────────────── */
     --color-done-line:   rgba(107,107,120,0.55); /* strikethrough  */
     --color-noise-overlay: rgba(255,255,255,0.03);/* texture layer */
+    --color-bg-glass:    rgba(14,14,16,0.92);    /* sticky header frosted bg */
 
     /* ── Backward-compat aliases (used in inline styles & JS) ── */
     --bg:           var(--color-bg);
@@ -332,6 +346,16 @@
     --highlight:    var(--color-highlight);
     --highlight-ui: var(--color-accent);
     --done-line:    var(--color-done-line);
+    --bg-glass:     var(--color-bg-glass);
+    /* Focus mode accent aliases */
+    --accent-focus-bg:     var(--color-accent-focus-bg);
+    --accent-focus-border: var(--color-accent-focus-border);
+    --accent-check:        var(--color-accent-check);
+    --accent-check-hover:  var(--color-accent-check-hover);
+    --accent-check-glow:   var(--color-accent-check-glow);
+    --accent-timer-bg:     var(--color-accent-timer-bg);
+    --accent-timer-fill:   var(--color-accent-timer-fill);
+    --accent-timer-paused: var(--color-accent-timer-paused);
 
     /* ── Spacing scale (4px base) ────────────────────────────── */
     --space-1:  4px;
@@ -362,8 +386,9 @@
     --text-md:    14px;   /* body default                        */
     --text-lg:    16px;
     --text-xl:    22px;
-    --text-sm2:   12px;   /* small labels, config hints          */
-    --text-task:  13.5px; /* task row text — between sm and base */
+    --text-xs2:   12px;   /* small labels, config hints (12px)   */
+    --text-sm2:   12px;   /* alias kept for compatibility         */
+    --text-task:  13.5px; /* task row text — between base and md  */
 
     /* ── Motion ──────────────────────────────────────────────── */
     --dur-fast:   0.15s;
@@ -379,14 +404,20 @@
     --z-overlay: 999;
 
     /* ── Opacity scale ───────────────────────────────────────── */
-    --opacity-dim:      0.25;  /* done state, secondary badges     */
-    --opacity-mid:      0.50;  /* focused session count            */
-    --opacity-soft:     0.60;  /* session count on hover           */
-    --opacity-muted:    0.65;  /* paused label, kbd hint base      */
-    --opacity-label:    0.40;  /* subtle hints, kbd hint show      */
-    --opacity-subtle:   0.28;  /* checkbox fill, timer time paused */
-    --opacity-hover:    0.85;  /* button hover states              */
-    --opacity-strong:   0.80;  /* timer time default               */
+    --opacity-dim:          0.25;  /* done state, secondary badges     */
+    --opacity-mid:          0.50;  /* focused session count            */
+    --opacity-soft:         0.60;  /* session count on hover           */
+    --opacity-muted:        0.65;  /* paused label, kbd hint base      */
+    --opacity-label:        0.40;  /* subtle hints, kbd hint show      */
+    --opacity-subtle:       0.28;  /* checkbox fill, timer time paused */
+    --opacity-hover:        0.85;  /* button hover states              */
+    --opacity-strong:       0.80;  /* timer time default               */
+    /* Focus mode recede opacities */
+    --opacity-recede:       0.07;  /* non-focused tasks during focus   */
+    --opacity-recede-done:  0.035; /* done tasks receded in focus      */
+    --opacity-recede-chrome:0.08;  /* headers/date receded in focus    */
+    /* Copy button */
+    --opacity-copy:         0.45;  /* copy button at rest in focus     */
 
   }
 
@@ -465,6 +496,10 @@
 
 
   /* ── Layout ────────────────────────────────────────────────────────── */
+  html, body {
+    height: 100%;
+    overscroll-behavior: none; /* prevent pull-to-refresh / rubber-band scroll on iOS */
+  }
   html {
     overflow-y: scroll;
     overflow-x: hidden;
@@ -486,14 +521,27 @@
     z-index: var(--z-base);
     max-width: 680px;
     margin: 0 auto;
-    padding: 48px 24px 80px;
-    padding-top: calc(48px + env(safe-area-inset-top));
+    padding: var(--space-12) var(--space-6) var(--space-20);
+    padding-top: calc(var(--space-12) + env(safe-area-inset-top));
     padding-bottom: calc(80px + env(safe-area-inset-bottom));
     min-height: 100vh;
     overflow-x: hidden;
   }
 
   /* ── Component: Header ─────────────────────────────────────────────── */
+  /* Sticky header — mobile only. Desktop scrolls normally. */
+  .sticky-header {
+    position: static; /* desktop default — no sticky */
+    width: 100%;
+    background: transparent;
+  }
+
+  .sticky-header-inner {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0; /* desktop: no extra padding, .app handles it */
+  }
+
   .header {
     display: flex;
     align-items: flex-start;
@@ -552,7 +600,7 @@
 
   /* Subheader */
   .subheader {
-    margin-bottom: var(--space-8);
+    margin-bottom: var(--space-3);
   }
 
   .subheader-top {
@@ -1005,10 +1053,55 @@
 
   @media (max-width: 600px) {
     .config-grid { grid-template-columns: 1fr; }
-    .app { padding: 32px 16px 60px; padding-top: calc(16px + env(safe-area-inset-top)); padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
-    .header { margin-bottom: 10px; }
-    .subheader { margin-bottom: 24px; }
+
+    /* App: no top padding — sticky header handles it. Bottom pad for sticky add bar. */
+    .app {
+      padding: 0 16px 0;
+      padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    }
+
+    /* Sticky header active on mobile */
+    .sticky-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--bg-glass);
+      -webkit-backdrop-filter: blur(16px) saturate(1.4);
+      backdrop-filter: blur(16px) saturate(1.4);
+      /* Hairline separator — visible once content scrolls under */
+      box-shadow: 0 1px 0 rgba(255,255,255,0.05);
+    }
+
+    .sticky-header-inner {
+      padding-left: var(--space-4);
+      padding-right: var(--space-4);
+      /* Top: safe area + breathing room. Bottom: tight — bar ends at progress bar. */
+      padding-top: calc(var(--space-4) + env(safe-area-inset-top));
+      padding-bottom: var(--space-3);
+    }
+
+    /* Subheader: progress bar is the visual cut-off — no extra gap below */
+    .subheader { margin-bottom: 0; }
+    .subheader-track { margin-bottom: 0; }
+
+    .header { margin-bottom: var(--space-3); }
     .btn-icon { width: 32px; height: 32px; font-size: var(--text-md); }
+
+    /* Sticky add-task bar — fixed to bottom of viewport */
+    .add-task-row {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      margin: 0;
+      padding: var(--space-3) 16px;
+      padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+      background: rgba(14,14,16,0.95);
+      -webkit-backdrop-filter: blur(16px) saturate(1.4);
+      backdrop-filter: blur(16px) saturate(1.4);
+      box-shadow: 0 -1px 0 rgba(255,255,255,0.05);
+    }
   }
 
   .config-field {
@@ -1387,6 +1480,146 @@
     transition: opacity var(--dur-fast); letter-spacing: 0.04em; white-space: nowrap;
   }
   .habit-add-btn:hover { opacity: var(--opacity-hover); }
+
+  /* ── AI Assistant ─────────────────────────────────────────────────────── */
+  /* Provider selector in Connections panel */
+  .ai-provider-row {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    margin-top: var(--space-3);
+  }
+  .ai-provider-btn {
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: none;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+    text-align: center;
+  }
+  .ai-provider-btn:hover { color: var(--text); border-color: var(--muted); }
+  .ai-provider-btn.active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .ai-provider-badge {
+    display: inline-block;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent-focus-border);
+    border-radius: var(--radius-sm);
+    padding: 1px 4px;
+    margin-left: var(--space-1);
+    vertical-align: middle;
+    opacity: 0.75;
+  }
+
+  /* AI panel — same pattern as habits/connections */
+  #aiPanel {
+    margin-bottom: var(--space-3);
+  }
+  .ai-panel-body {
+    padding: var(--space-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+
+  /* Suggestion message */
+  .ai-suggestion-msg {
+    font-size: var(--text-sm);
+    color: var(--text);
+    line-height: 1.6;
+    margin-bottom: var(--space-3);
+    min-height: 20px;
+  }
+  .ai-suggestion-msg.thinking {
+    color: var(--muted);
+  }
+  .ai-suggestion-msg.thinking::after {
+    content: '…';
+    animation: blink 1.2s infinite;
+  }
+
+  /* Action chips — horizontal scroll on mobile */
+  .ai-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .ai-chip {
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    background: var(--surface2);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+    white-space: nowrap;
+  }
+  .ai-chip:hover { color: var(--text); border-color: var(--muted); background: var(--border); }
+  .ai-chip.primary {
+    border-color: var(--accent-focus-border);
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .ai-chip.primary:hover { background: rgba(200,240,96,0.18); }
+
+  /* Input row */
+  .ai-input-row {
+    display: flex;
+    gap: var(--space-2);
+  }
+  .ai-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    padding: 6px var(--space-3);
+    outline: none;
+    transition: border-color var(--dur-fast);
+    -webkit-font-smoothing: antialiased;
+  }
+  .ai-input:focus { border-color: var(--muted); }
+  .ai-input::placeholder { color: var(--muted); opacity: 0.5; }
+  .ai-send-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.06em;
+    padding: 6px var(--space-3);
+    cursor: pointer;
+    transition: color var(--dur-fast), border-color var(--dur-fast);
+    white-space: nowrap;
+  }
+  .ai-send-btn:hover { color: var(--text); border-color: var(--muted); }
+  .ai-send-btn:disabled { opacity: 0.3; cursor: default; }
+
+  .ai-not-configured {
+    font-size: var(--text-sm);
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .ai-not-configured a { color: var(--highlight-ui); text-decoration: none; }
 </style>
 </head>
 <body>
@@ -1403,29 +1636,48 @@
   </div>
   <div id="splash-date-wrap"><span id="splash-date"></span><span id="splash-cursor"></span></div>
 </div>
-<div class="app" id="main-app" style="opacity:0">
+<!-- Sticky header: outside .app so overflow:hidden on .app doesn't break sticky -->
+<div class="sticky-header" id="sticky-header" style="opacity:0">
+  <div class="sticky-header-inner">
+    <div class="header">
+      <div class="header-left">
+        <h1>TO<span>DAY</span></h1>
+      </div>
+      <div class="header-actions">
+        <button class="btn-icon" id="habitsBtn" title="Habits" onclick="toggleHabits()">◎&#xFE0E;</button>
+        <button class="btn-icon" id="aiBtn" title="AI Assistant" onclick="toggleAI()">✦✦</button>
+        <button class="btn-icon" id="trelloBtn" title="Connections" onclick="toggleConfig()">✦&#xFE0E;</button>
+        <button class="btn-icon" id="infoBtn" title="About" onclick="toggleInfo()">ℹ&#xFE0E;</button>
+      </div>
+    </div>
+    <!-- Subheader: date + progress bar -->
+    <div class="subheader">
+      <div class="subheader-top">
+        <div class="date-tag" id="dateTag"></div>
+        <div class="subheader-count"><span id="statDone">0</span> of <span id="statTotal">0</span> done</div>
+      </div>
+      <div class="subheader-track">
+        <div class="subheader-fill" id="progressFill" style="transform:scaleX(0)"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
-  <!-- Header -->
-  <div class="header">
-    <div class="header-left">
-      <h1>TO<span>DAY</span></h1>
-    </div>
-    <div class="header-actions">
-      <button class="btn-icon" id="habitsBtn" title="Habits" onclick="toggleHabits()">◎&#xFE0E;</button>
-      <button class="btn-icon" id="trelloBtn" title="Connections" onclick="toggleConfig()">✦&#xFE0E;</button>
-      <button class="btn-icon" id="infoBtn" title="About" onclick="toggleInfo()">ℹ&#xFE0E;</button>
-    </div>
-  </div>
-  <!-- Subheader: date + progress bar -->
-  <div class="subheader">
-    <div class="subheader-top">
-      <div class="date-tag" id="dateTag"></div>
-      <div class="subheader-count"><span id="statDone">0</span> of <span id="statTotal">0</span> done</div>
-    </div>
-    <div class="subheader-track">
-      <div class="subheader-fill" id="progressFill" style="transform:scaleX(0)"></div>
+<!-- AI panel — inline, above task list, same pattern as habits/connections -->
+<div class="config-panel" id="aiPanel" style="max-width:680px;margin:0 auto;padding:0 var(--space-6);">
+  <div class="ai-panel-body">
+    <div class="ai-suggestion-msg" id="aiSuggestionMsg"></div>
+    <div class="ai-chips" id="aiChips"></div>
+    <div class="ai-input-row">
+      <input class="ai-input" id="aiChatInput" type="text"
+        placeholder="Type a task or ask anything…"
+        onkeydown="if(event.key==='Enter')sendAIMessage()" />
+      <button class="ai-send-btn" id="aiSendBtn" onclick="sendAIMessage()">→</button>
     </div>
   </div>
+</div>
+
+<div class="app" id="main-app" style="opacity:0">
 
   <!-- Habits panel -->
   <div class="config-panel" id="habitsPanel">
@@ -1505,6 +1757,40 @@
       </div>
       <div class="status-msg" id="dropboxMsg"></div>
     </div>
+
+    <!-- AI Assistant section -->
+    <div class="panel-section" id="aiConfigSection">
+      <div class="config-title">✦✦ AI Assistant</div>
+      <div class="config-hint">
+        Pick a provider and paste your API key. Your key is stored locally and sent only to your own Netlify function — never to a third party.
+      </div>
+
+      <!-- Provider selector -->
+      <div class="ai-provider-row" style="margin-top:var(--space-3)">
+        <button class="ai-provider-btn" id="aiProviderGemini" onclick="setAIProvider('gemini')">
+          Gemini 2.5 Flash <span class="ai-provider-badge">free</span>
+        </button>
+        <button class="ai-provider-btn" id="aiProviderClaude" onclick="setAIProvider('claude')">
+          Claude Haiku
+        </button>
+      </div>
+
+      <!-- Key input -->
+      <div class="config-grid">
+        <div class="config-field full">
+          <div class="config-label" id="aiKeyLabel">Google AI Studio Key</div>
+          <input class="config-input" id="aiApiKey" autocomplete="off" autocorrect="off"
+            autocapitalize="off" spellcheck="false" type="password"
+            placeholder="paste key here" />
+        </div>
+      </div>
+      <div id="aiStatusLine" class="panel-status-line"></div>
+      <div class="config-actions">
+        <button class="btn-primary" id="aiSaveBtn" onclick="saveAIKey()">Save Key</button>
+        <button class="btn-ghost" id="aiClearBtn" onclick="clearAIKey()" style="display:none">Disconnect</button>
+      </div>
+      <div class="status-msg" id="aiMsg"></div>
+    </div>
   </div>
 
   <!-- Info panel -->
@@ -1573,13 +1859,35 @@
 const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
+// ─── AI Assistant ─────────────────────────────────────────────────────────────
+// AI_BUILD_PROVIDER: set to 'claude' on the maintainer's deployment,
+//   'gemini' for any open-source fork. This is the INSTALL default only —
+//   users can change their provider in the Connections panel at runtime.
+// AI_DEFAULT_PROVIDER: what first-time users see. Always 'gemini' (free, no account wall).
+const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
+const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
+
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.7.0';
-const DEV_HOURS     = '68h';
+const APP_VERSION   = '1.8.4';
+const DEV_HOURS     = '76h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.8.4': 'Fix fake AI key validation — saveAIKey now makes a real test call before saving | shows Testing… spinner | rejects invalid keys with error message | ai-assist.js accepts client apiKey as fallback when env var not set',
+  '1.8.3': 'Fix AI button persistent active state — _aiRenderConfig was setting aiBtn.active based on key presence, overriding syncActiveButtons. Removed. aiBtn.active now controlled only by syncActiveButtons (panel open = active).',
+  '1.8.2': 'UX consistency: AI button active=panel open only (not configured state) — matches all other header buttons | chip actions close panel immediately instead of showing Done/Got it limbo | add_task reloads suggestions after brief feedback',
+  '1.8.1': 'AI UX rethink — removed modal overlay/scrim entirely | inline panel pattern (same as habits/connections) | suggestion message + action chips | task list visible while interacting | Esc closes | no-config state points to Connections',
+  '1.8.0': 'AI Assistant — Gemini 2.5 Flash (default, free) + Claude Haiku (private). Provider selector in Connections panel. Netlify function proxy (ai-assist.js). Structured action responses: add_task, check_task, check_habit, start_focus, delete_done. Overlay UI with tap-to-execute. AI_BUILD_PROVIDER sets install default per deployment.',
+  '1.7.3': 'Sticky header mobile-only (position:static on desktop) | Progress bar fix (scaleX 0-1, was 0-100) | Sticky add-task bar bottom-fixed on mobile | Viewport lock (overscroll-behavior:none) | No black strip under progress bar (subheader margin removed)',
+  '1.7.3': 'Token audit: 9 hardcoded rgba(accent) → 8 new --accent-focus-* + --accent-timer-* tokens | 5 raw focus opacities → --opacity-recede/recede-done/recede-chrome | 0.45 copy button → --opacity-copy | rgba(14,14,16) → --bg-glass | 24px/16px spacing → --space tokens | --text-xs2 alias added | 1s linear timer documented',
+  '1.7.2': 'Fix sticky header — moved outside .app (overflow:hidden was breaking sticky) | width:100% replaces 100vw hack | Fix iOS haptics — switch .click() trick removed (Safari requires real touch, not JS events) | navigator.vibrate() now works on iOS Safari',
+  '1.7.1': 'Fix sticky header — full viewport width via 100vw + calc(-50vw+50%) breakout | sticky-header-inner re-applies max-width:680px centering | was constrained to .app column width',
   '1.7.0': 'Habits system: 21-day dot strip, habit strength % (exponential smoothing), Dropbox sync, union merge | Focus mode on habits | Drag-to-reorder all three lists (desktop + mobile long-press) | PWA installable: Add to Dock on macOS, home screen on iOS | Auto-update: SW background download, activates on next focus | Offline cold start: blinking ✦ fallback | Rendering: GPU compositing, font smoothing, touch-action, overscroll | Copy button on focused tasks | Shift+D clear all done',
+  '1.7.0': 'Version bump — 1.6.x undercounted three minor-version features (habits, drag-to-reorder, focus on habits + haptics). 1.7.0 draws the line. Versioning rules now enforced at end of every work block per Architecture.md §13.',
+  '1.6.54': 'Fix iOS haptics — switch element must be in viewport (was top:-9999px), use state tracking instead of double-click | Sticky header: TODAY + CTAs + date + progress bar stay fixed on scroll with backdrop blur',
+  '1.6.53': 'Fix copy button visible on mobile — .task-copy display:none globally, display:block only inside @media (hover:hover) so it never renders on touch devices',
+  '1.6.52': 'Haptics overhaul: _haptic() helper with iOS switch trick (<input type=checkbox switch>) + Android vibrate patterns | success on task/habit check + pomodoro complete | warning on delete | heavy on long-press drag | selection tick on drag snap | silent no-op on desktop',
+  '1.6.51': 'Checking a habit in focus mode now closes focus UI with same transition as tasks — toggleHabitDone calls _focusOnCheck | _focusOnCheck updated to match habitId as well as taskid',
   '1.6.50': 'Focus mode: grab cursor overridden to default on focused task | Copy button appears top-right of focused task in focus mode — strips badge/link, copies clean text, shows copied feedback | Present on manual + Trello tasks, not habits',
   '1.6.49': 'Fix OG/Twitter meta image URLs to /assets/today-og.png | today-og.png added to SW pre-cache | Architecture.md assets list corrected to actual repo contents',
   '1.6.48': 'Housekeeping: all images moved to assets/ folder | manifest.json + sw.js paths updated to /assets/icon-*.png | root directory clean',
@@ -1748,9 +2056,14 @@ function syncActiveButtons() {
   document.getElementById('habitsBtn').classList.toggle('active', habitsOpen);
   document.getElementById('trelloBtn').classList.toggle('active', configOpen);
   document.getElementById('infoBtn').classList.toggle('active',   infoOpen);
+  // AI button: active only when panel is open — same rule as all other header buttons
+  const aiBtn = document.getElementById('aiBtn');
+  if (aiBtn) aiBtn.classList.toggle('active', _aiPanelOpen);
 }
 
 function toggleConfig() {
+  // Refresh AI config UI whenever connections panel is opened
+  setTimeout(_aiRenderConfig, 0);
   const configPanel = document.getElementById('configPanel');
   const isClosing = configPanel.classList.contains('open');
   configPanel.classList.toggle('open');
@@ -1798,6 +2111,7 @@ function renderInfoStats() {
   ];
 
   document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
+  _aiRenderConfig();  // init AI button and config state
   const devHoursEl = document.querySelector('.dev-hours-val');
   if (devHoursEl) devHoursEl.innerHTML = '⏱ built in <span style="color:var(--color-accent);font-weight:500">' + DEV_HOURS + '</span>';
 
@@ -2288,7 +2602,7 @@ document.addEventListener('click', function(e) {
   const delEl = e.target.closest('.task-delete');
   if (delEl) {
     const id = delEl.dataset.taskid;
-    if (id) deleteManual(id);
+    if (id) { _haptic('warning'); deleteManual(id); }
     return;
   }
 });
@@ -2314,6 +2628,44 @@ function _getAudioCtx() {
     return _sharedAudioCtx;
   } catch(e) { return null; }
 }
+
+// ─── Haptic feedback ─────────────────────────────────────────────────────────
+// Unified haptic helper. Works on:
+//   Android Chrome  — navigator.vibrate() with differentiated patterns
+//   iOS Safari 17.4+ — <input type=checkbox switch> trick (system haptic tap)
+//   Desktop / unsupported — silent no-op, zero cost
+//
+// Presets and their Android vibration patterns (iOS always fires one system tap):
+//   success   — [40, 60, 80]   double rising pulse — task/habit check, session end
+//   warning   — [30, 40, 30]   sharp double        — delete
+//   heavy     — [65]           single firm press   — long-press drag activate
+//   selection — [12]           tiny tick           — drag row snaps to new slot
+//   medium    — [40]           standard tap        — fallback
+//
+// Rules (from web-haptics design guide):
+//   - Supplement visuals, never replace them. UI works fully without haptics.
+//   - Fire at the exact instant the visual change occurs.
+//   - Don't overuse — reserve for meaningful moments.
+(function() {
+  const PATTERNS = {
+    success:   [40, 60, 80],
+    warning:   [30, 40, 30],
+    heavy:     [65],
+    selection: [12],
+    medium:    [40],
+  };
+
+  // navigator.vibrate() works on both Android and iOS Safari (confirmed March 2026).
+  // The <input switch> programmatic click trick does NOT work — Safari only fires
+  // haptics on real user touch events, not JS-dispatched clicks.
+  // Simple: call vibrate if available, silent no-op on desktop.
+  const _hasVibrate = typeof navigator.vibrate === 'function';
+
+  window._haptic = function(preset) {
+    if (!_hasVibrate) return;
+    navigator.vibrate(PATTERNS[preset] || PATTERNS.medium);
+  };
+})();
 
 // Call this on any user gesture to warm up the context while the tab is active.
 function _primeAudio() {
@@ -2633,6 +2985,10 @@ function toggleHabitDone(id) {
   else           { habitCompletions[id].splice(i, 1); }
   _saveHabits();
 
+  // If this habit is currently in focus mode, close the UI cleanly — same
+  // transition as checking a task during focus (log session, collapse timer).
+  if (isNowDone && window._focusOnCheck) window._focusOnCheck(id);
+
   // Surgical DOM — never rebuild the list, just patch the affected row
   const el = document.querySelector('.habit[data-habit-id="' + id + '"]');
   if (!el) return;
@@ -2655,7 +3011,7 @@ function toggleHabitDone(id) {
   const check = el.querySelector('.habit-check');
   if (isNowDone) {
     // Haptic + ember burst, matching task check
-    if (navigator.vibrate) navigator.vibrate(40);
+    _haptic('success');
     if (check && typeof fireEmberDrift === 'function') {
       const r = check.getBoundingClientRect();
       fireEmberDrift(r.left + r.width / 2, r.top + r.height / 2);
@@ -2726,8 +3082,8 @@ function toggleDone(taskId) {
     el.classList.toggle('done', isNowDone);
     _applyDoneStyles(el, isNowDone);
 
-    // Haptic feedback on check (Android only — iOS silently ignores this)
-    if (isNowDone && navigator.vibrate) navigator.vibrate(40);
+    // Haptic feedback on check — success pattern on both Android and iOS
+    if (isNowDone) _haptic('success');
 
     // Sound + celebration on check only — not on uncheck
     if (isNowDone) playCompleteSound();
@@ -2959,9 +3315,10 @@ function _clearAllDone() {
     const tgtIdx = rows.indexOf(cfg.row);
     if (srcIdx === -1 || tgtIdx === -1) return;
 
-    // Move DOM
+    // Move DOM — selection tick as row snaps to new slot
     if (srcIdx < tgtIdx) list.insertBefore(dragSrc, cfg.row.nextSibling);
     else                  list.insertBefore(dragSrc, cfg.row);
+    _haptic('selection');
 
     // Persist new order
     const newOrder = [...list.querySelectorAll(sel)];
@@ -3094,8 +3451,8 @@ function _clearAllDone() {
 
     const t = e.touches[0];
     pressTimer = setTimeout(() => {
-      // Trigger haptic if available
-      if (navigator.vibrate) navigator.vibrate(30);
+      // Trigger haptic — heavy press feel on long-press activation
+      _haptic('heavy');
       touchSrc    = cfg.row;
       touchListId = cfg.listId;
       _startGhost(cfg.row, t.clientX, t.clientY);
@@ -3134,6 +3491,7 @@ function _clearAllDone() {
   document.addEventListener('touchend', function(e) {
     _cancelPress();
     if (!touchSrc) return;
+    _haptic('selection');   // confirm drop
     _saveOrder(touchListId);
     _cleanup();
   }, { passive: true });
@@ -3196,7 +3554,7 @@ function updateStats() {
   const total = all.length;
   const done  = all.filter(t => doneIds.has(t.id)).length;
   const left  = total - done;
-  const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+  const pct   = total > 0 ? done / total : 0;
 
   const s = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   s('statTotal', total);
@@ -4337,7 +4695,9 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
         splash.remove();
         splashCanvas.remove();
 
-        // Step 2: reveal children top-to-bottom with stagger
+        // Step 2: reveal sticky header + children top-to-bottom with stagger
+        const stickyHdr = document.getElementById('sticky-header');
+        if (stickyHdr) { stickyHdr.style.transition = 'opacity 300ms ease'; stickyHdr.style.opacity = '1'; }
         mainApp.style.opacity = '1';
         const children = Array.from(mainApp.children);
         children.forEach((el, i) => {
@@ -4426,6 +4786,400 @@ if ('serviceWorker' in navigator) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+// AI ASSISTANT
+//
+// UX: Inline panel (same open/close pattern as habits and connections).
+// Shows a contextual 1-sentence suggestion + 2-4 action chips.
+// Has a text input for custom requests.
+// Does NOT cover the task list — user can see their day while interacting.
+//
+// Provider: Gemini 2.5 Flash (default, free) or Claude Haiku (private).
+// Key stored in localStorage. Proxied through /.netlify/functions/ai-assist.
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let _aiPanelOpen = false;
+
+function _aiGetProvider() { return localStorage.getItem('today_ai_provider') || AI_DEFAULT_PROVIDER; }
+function _aiGetKey()      { return localStorage.getItem('today_ai_key') || ''; }
+function _aiIsConfigured(){ return !!_aiGetKey(); }
+
+// Seed provider from build constant on first visit
+(function _aiInit() {
+  if (!localStorage.getItem('today_ai_provider')) {
+    localStorage.setItem('today_ai_provider', AI_BUILD_PROVIDER);
+  }
+})();
+
+// ── Panel open / close (config-panel pattern) ─────────────────────────────────
+function toggleAI() {
+  const panel = document.getElementById('aiPanel');
+  if (!panel) return;
+  _aiPanelOpen = !_aiPanelOpen;
+  panel.classList.toggle('open', _aiPanelOpen);
+
+  if (_aiPanelOpen) {
+    // Close other panels
+    document.getElementById('configPanel')?.classList.remove('open');
+    document.getElementById('habitsPanel')?.classList.remove('open');
+    document.getElementById('infoPanel')?.classList.remove('open');
+    syncActiveButtons();
+    _haptic('medium');
+    if (_aiIsConfigured()) {
+      _aiLoad();
+    } else {
+      _aiShowNotConfigured();
+    }
+    setTimeout(() => document.getElementById('aiChatInput')?.focus(), 200);
+  } else {
+    syncActiveButtons();
+  }
+}
+
+function closeAI() {
+  _aiPanelOpen = false;
+  document.getElementById('aiPanel')?.classList.remove('open');
+  syncActiveButtons();
+}
+
+// ── Not configured state ──────────────────────────────────────────────────────
+function _aiShowNotConfigured() {
+  const provider = _aiGetProvider();
+  const name     = provider === 'gemini' ? 'Google AI Studio' : 'Anthropic Console';
+  const url      = provider === 'gemini' ? 'https://aistudio.google.com/apikey' : 'https://console.anthropic.com/keys';
+
+  _aiSetMsg(`<span class="ai-not-configured">Add your <a href="${url}" target="_blank" rel="noopener">${name}</a> API key in <a href="#" onclick="closeAI();setTimeout(toggleConfig,100);return false">Connections</a> to activate.</span>`);
+  _aiSetChips([{ label: 'Open Connections →', type: 'open_panel', payload: { panel: 'connections' }, primary: true }]);
+}
+
+// ── Load initial suggestions ───────────────────────────────────────────────────
+async function _aiLoad() {
+  const ctx = _aiContext();
+  const pendingCount = ctx.tasks.pending.length + ctx.tasks.trello.length;
+  const habitsDue    = ctx.habits.filter(h => !h.doneToday).length;
+
+  // Build a terse greeting the model replies to
+  const parts = [];
+  if (pendingCount > 0)         parts.push(`${pendingCount} task${pendingCount>1?'s':''} pending`);
+  if (ctx.tasks.overdueCount)   parts.push(`${ctx.tasks.overdueCount} overdue`);
+  if (habitsDue > 0)            parts.push(`${habitsDue} habit${habitsDue>1?'s':''} to do`);
+  if (ctx.tasks.done.length > 0) parts.push(`${ctx.tasks.done.length} done`);
+  const greeting = parts.length
+    ? `Good ${ctx.timeOfDay}. ${parts.join(', ')}. What should I focus on?`
+    : `Good ${ctx.timeOfDay}. Nothing on the list yet. What's the plan today?`;
+
+  _aiSetMsg('…', true);
+  _aiSetChips([]);
+  try {
+    const result = await _aiCall([{ role: 'user', content: greeting }]);
+    if (result) _aiRenderResult(result);
+  } catch(e) {
+    _aiSetMsg('Could not connect — check your API key in Connections.');
+  }
+}
+
+// ── Send user message ─────────────────────────────────────────────────────────
+async function sendAIMessage() {
+  const input = document.getElementById('aiChatInput');
+  const sendBtn = document.getElementById('aiSendBtn');
+  const text  = input?.value.trim();
+  if (!text) return;
+  if (!_aiIsConfigured()) { _aiShowNotConfigured(); return; }
+
+  input.value = '';
+  sendBtn.disabled = true;
+  _aiSetMsg('…', true);
+  _aiSetChips([]);
+
+  try {
+    const result = await _aiCall([{ role: 'user', content: text }]);
+    if (result) _aiRenderResult(result);
+  } catch(e) {
+    _aiSetMsg('Error: ' + (e.message || 'unknown'));
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+// ── Render result ─────────────────────────────────────────────────────────────
+function _aiRenderResult(result) {
+  _aiSetMsg(result.message || '');
+  _aiSetChips(result.actions || []);
+}
+
+function _aiSetMsg(html, thinking = false) {
+  const el = document.getElementById('aiSuggestionMsg');
+  if (!el) return;
+  if (thinking) {
+    el.textContent = 'Thinking';
+    el.className = 'ai-suggestion-msg thinking';
+  } else {
+    el.innerHTML = html;
+    el.className = 'ai-suggestion-msg';
+  }
+}
+
+function _aiSetChips(actions) {
+  const el = document.getElementById('aiChips');
+  if (!el) return;
+  el.innerHTML = '';
+  actions.forEach((action, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'ai-chip' + (action.primary || i === 0 ? ' primary' : '');
+    btn.textContent = action.label || action.type;
+    btn.onclick = () => _aiExecute(action);
+    el.appendChild(btn);
+  });
+}
+
+// ── API call ──────────────────────────────────────────────────────────────────
+async function _aiCall(messages) {
+  const provider = _aiGetProvider();
+  const key      = _aiGetKey();
+  if (!key) { _aiShowNotConfigured(); return null; }
+
+  const res = await fetch('/.netlify/functions/ai-assist', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      provider,
+      apiKey: key,
+      messages,
+      systemPrompt: _aiSystemPrompt(_aiContext()),
+    }),
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+// ── Context builder ───────────────────────────────────────────────────────────
+function _aiContext() {
+  const now = new Date();
+  const hour = now.getHours();
+  const todayStr = _todayStr();
+
+  const pending = manualTasks.filter(t => !doneIds.has(t.id));
+  const done    = manualTasks.filter(t =>  doneIds.has(t.id));
+  const trello  = (window.trelloTasks || []).filter(t => !doneIds.has('trello_' + t.id));
+  const overdueCount = trello.filter(t => t.due && t.due.slice(0,10) < todayStr).length;
+
+  return {
+    timeOfDay: hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening',
+    date: todayStr,
+    tasks: {
+      pending: pending.map(t => ({ id: t.id, text: t.text })),
+      done:    done.map(t => ({ id: t.id, text: t.text })),
+      trello:  trello.map(t => ({ id: 'trello_' + t.id, text: t.name, overdue: t.due && t.due.slice(0,10) < todayStr })),
+      overdueCount,
+    },
+    habits: habitsList.map(h => ({
+      id: h.id, name: h.name,
+      doneToday: (habitCompletions[h.id] || []).includes(_habitTodayISO()),
+      strength: _getHabitStrength(h.id),
+    })),
+    progress: manualTasks.length ? Math.round(done.length / manualTasks.length * 100) : 0,
+  };
+}
+
+// ── System prompt ─────────────────────────────────────────────────────────────
+function _aiSystemPrompt(ctx) {
+  const tasks = [
+    ...ctx.tasks.pending.map(t => `"${t.text}" [id:${t.id}]`),
+    ...ctx.tasks.trello.map(t  => `"${t.text}"${t.overdue?' [OVERDUE]':''} [id:${t.id}]`),
+  ];
+  const habits = ctx.habits.map(h => `"${h.name}" ${h.doneToday?'✓':'○'} [id:${h.id}]`);
+
+  return `You are the AI assistant in TODAY, a minimal daily task manager.
+
+State right now:
+- ${ctx.timeOfDay}, ${ctx.date}
+- Tasks pending: ${tasks.join(' | ') || 'none'}
+- Tasks done: ${ctx.tasks.done.length}
+- Habits: ${habits.join(' | ') || 'none'}
+- Progress: ${ctx.progress}%
+
+Respond ONLY with valid JSON (no markdown, no code fences):
+{
+  "message": "1 sentence — direct, warm, specific to their situation",
+  "actions": [
+    { "label": "short label", "type": "action_type", "payload": {} }
+  ]
+}
+
+Available action types and when to use them:
+- add_task     payload: { text }       — suggest adding something missing
+- check_task   payload: { id }         — suggest completing a specific pending task
+- delete_done  payload: {}             — suggest clearing done tasks when ≥2 exist
+- check_habit  payload: { id }         — suggest marking a specific habit done
+- start_focus  payload: { id }         — suggest focusing on a specific task (desktop)
+- dismiss      payload: {}             — "Got it" / close — ALWAYS include as last action
+
+Rules:
+- message: 1 sentence only. Be specific ("You have 2 overdue Trello cards" not "You have tasks").
+- actions: 2-4 total. Make them immediately useful. No vague suggestions.
+- Always end with dismiss.
+- If the user types a task (imperative sentence), add_task it directly.
+- If user says "done" or "clear", offer delete_done.`;
+}
+
+// ── Execute action ────────────────────────────────────────────────────────────
+function _aiExecute(action) {
+  _haptic('success');
+  switch (action.type) {
+    case 'add_task': {
+      const text = action.payload?.text;
+      if (!text) break;
+      const id = 'manual_' + Date.now();
+      manualTasks.push({ id, text });
+      localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+      renderManual(); syncDropbox();
+      // Reload suggestions with updated state after a beat
+      _aiSetChips([]);
+      _aiSetMsg('Added ✓ — anything else?');
+      setTimeout(_aiLoad, 800);
+      return;
+    }
+    case 'check_task': {
+      const id = action.payload?.id;
+      if (id) toggleDone(id);
+      // Close — task is done, no need to linger
+      closeAI();
+      return;
+    }
+    case 'delete_done': {
+      if (typeof _clearAllDone === 'function') _clearAllDone();
+      closeAI();
+      return;
+    }
+    case 'check_habit': {
+      const id = action.payload?.id;
+      if (id) toggleHabitDone(id);
+      closeAI();
+      return;
+    }
+    case 'start_focus': {
+      const id = action.payload?.id;
+      closeAI();
+      if (id) setTimeout(() => {
+        const el = document.querySelector('.task[data-taskid="' + CSS.escape(id) + '"]');
+        if (el) el.click();
+      }, 200);
+      return;
+    }
+    case 'open_panel': {
+      closeAI();
+      const p = action.payload?.panel;
+      setTimeout(() => {
+        if (p === 'habits') toggleHabits();
+        else toggleConfig();
+      }, 150);
+      return;
+    }
+    case 'dismiss':
+    default:
+      closeAI();
+      return;
+  }
+}
+
+// ── Config panel UI ───────────────────────────────────────────────────────────
+function setAIProvider(p) {
+  localStorage.setItem('today_ai_provider', p);
+  _aiRenderConfig();
+}
+
+function _aiRenderConfig() {
+  const provider = _aiGetProvider();
+  const key      = _aiGetKey();
+
+  document.getElementById('aiProviderGemini')?.classList.toggle('active', provider === 'gemini');
+  document.getElementById('aiProviderClaude')?.classList.toggle('active', provider === 'claude');
+
+  const label = document.getElementById('aiKeyLabel');
+  if (label) label.textContent = provider === 'gemini' ? 'Google AI Studio Key' : 'Anthropic API Key';
+
+  const input = document.getElementById('aiApiKey');
+  if (input) {
+    input.placeholder = provider === 'gemini' ? 'AIza…' : 'sk-ant-…';
+    input.value = key ? '••••••••••••••••' : '';
+  }
+
+  const statusLine = document.getElementById('aiStatusLine');
+  if (statusLine) {
+    statusLine.textContent = key
+      ? `✓ ${provider === 'gemini' ? 'Gemini 2.5 Flash' : 'Claude Haiku'} connected`
+      : '';
+    statusLine.style.color = 'var(--accent)';
+  }
+
+  document.getElementById('aiSaveBtn')?.style && (document.getElementById('aiSaveBtn').style.display  = key ? 'none' : '');
+  document.getElementById('aiClearBtn')?.style && (document.getElementById('aiClearBtn').style.display = key ? ''     : 'none');
+
+  // aiBtn active state is managed by syncActiveButtons only (panel open = active)
+}
+
+async function saveAIKey() {
+  const input    = document.getElementById('aiApiKey');
+  const saveBtn  = document.getElementById('aiSaveBtn');
+  const msgEl    = document.getElementById('aiMsg');
+  const key      = (input?.value || '').trim();
+
+  if (!key || key.includes('•')) {
+    if (msgEl) { msgEl.textContent = 'Paste your API key first'; msgEl.style.color = 'var(--danger)'; }
+    return;
+  }
+
+  // Show testing state
+  if (saveBtn)  saveBtn.disabled = true;
+  if (msgEl)    { msgEl.textContent = 'Testing key…'; msgEl.style.color = 'var(--muted)'; }
+
+  // Real API test — minimal call to verify the key actually works
+  try {
+    const provider = _aiGetProvider();
+    const res = await fetch('/.netlify/functions/ai-assist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider,
+        apiKey: key,
+        messages: [{ role: 'user', content: 'reply with the single word: ok' }],
+        systemPrompt: 'You are a test. Reply with only the word: ok',
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      if (msgEl) { msgEl.textContent = 'Invalid key — ' + (err || `HTTP ${res.status}`); msgEl.style.color = 'var(--danger)'; }
+      return;
+    }
+
+    // Key is valid — save it
+    localStorage.setItem('today_ai_key', key);
+    if (msgEl) { msgEl.textContent = 'Connected ✓'; msgEl.style.color = 'var(--accent)'; }
+    _aiRenderConfig();
+
+  } catch(e) {
+    if (msgEl) { msgEl.textContent = 'Connection failed — check network'; msgEl.style.color = 'var(--danger)'; }
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
+function clearAIKey() {
+  localStorage.removeItem('today_ai_key');
+  const el = document.getElementById('aiMsg');
+  if (el) { el.textContent = 'Disconnected'; el.style.color = 'var(--muted)'; }
+  _aiRenderConfig();
+}
+
+// Esc closes AI panel
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && _aiPanelOpen) closeAI();
+});
+
+// ══════════════════════════════════════════════════════════════════════════
 // FOCUS MODE (Pomodoro) — desktop only
 //
 // Interaction model:
@@ -4472,8 +5226,12 @@ if ('serviceWorker' in navigator) {
     // Log partial session if any time was spent
     if (sessionStarted) _logSession(taskId);
 
-    // Collapse focus UI cleanly, then let toggleDone proceed
-    if (uiTaskEl && uiTaskEl.dataset.taskid === taskId) {
+    // Collapse focus UI cleanly — handle both task (taskid) and habit (habitId)
+    const isUiEl = uiTaskEl && (
+      uiTaskEl.dataset.taskid  === taskId ||
+      uiTaskEl.dataset.habitId === taskId
+    );
+    if (isUiEl) {
       closeUI(true);
     } else {
       clearState(taskId);
@@ -4686,6 +5444,7 @@ if ('serviceWorker' in navigator) {
     }
 
     playChime();
+    _haptic('success');
     _logSession(taskId);
 
     // Stay at 00:00 — no auto-restart, no auto-collapse

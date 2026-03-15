@@ -2,7 +2,16 @@
 
 | Version | Key change |
 |---|---|
+| 1.7.3 | Progress bar fix | Sticky header mobile-only | Sticky add bar bottom | Viewport lock | No black strip |
+| 1.7.3 | Token audit — all hardcoded colours, opacities, and spacing replaced with design tokens |
+| 1.7.2 | Fix sticky header (outside .app, no overflow conflict) | Fix iOS haptics (drop switch trick, use vibrate directly) |
+| 1.7.1 | Fix sticky header — full viewport width, was constrained to 680px app column |
 | **1.7.0** | **Habits system** — 21-day strip, habit strength %, Dropbox sync, focus mode on habits | **Drag-to-reorder** — all three lists, desktop + mobile long-press | **PWA** — installable on macOS + iOS, offline fallback, auto-update | Rendering optimisations — GPU compositing, font smoothing, touch-action | Copy button on focused tasks | Shift+D shortcut |
+| **1.7.0** | **Version bump — habits, drag-to-reorder, focus on habits, haptics, sticky header. Three missed minors corrected. Versioning rules enforced going forward.** |
+| 1.6.54 | Fix iOS haptics (in-viewport switch + state tracking) | Sticky header with backdrop blur |
+| 1.6.53 | Fix copy button visible on mobile — hidden globally, shown only on hover-capable devices |
+| 1.6.52 | Haptics overhaul — iOS switch trick + differentiated Android patterns across 5 interaction types |
+| 1.6.51 | Habit check in focus mode closes UI with same transition as tasks |
 | 1.6.50 | Focus mode: cursor fixed to default | Copy button on focused tasks |
 | 1.6.49 | Fix OG image paths to /assets/ | today-og.png added to SW cache |
 | 1.6.48 | Housekeeping: images moved to assets/ folder, manifest + SW paths updated |

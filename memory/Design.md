@@ -104,6 +104,25 @@ Two fonts only. No exceptions.
 | `--font-display` | `'Syne', sans-serif` | Logo, headings, date, section labels |
 | `--font-mono` | `'DM Mono', monospace` | Everything else |
 
+**Token audit (v1.7.3) — new tokens added:**
+
+| Token | Value | Purpose |
+|---|---|---|
+| `--accent-focus-bg` | rgba(200,240,96,0.04) | Focused row background |
+| `--accent-focus-border` | rgba(200,240,96,0.12) | Focused row + timer border |
+| `--accent-check` | rgba(200,240,96,0.55) | Focused checkbox border |
+| `--accent-check-hover` | rgba(200,240,96,0.90) | Focused checkbox hover |
+| `--accent-check-glow` | rgba(200,240,96,0.10) | Focused checkbox glow |
+| `--accent-timer-bg` | rgba(200,240,96,0.022) | Timer bar background |
+| `--accent-timer-fill` | rgba(200,240,96,0.08) | Timer progress fill |
+| `--accent-timer-paused` | rgba(200,240,96,0.03) | Timer fill when paused |
+| `--opacity-recede` | 0.07 | Non-focused tasks during focus mode |
+| `--opacity-recede-done` | 0.035 | Done tasks receded in focus mode |
+| `--opacity-recede-chrome` | 0.08 | Headers/date receded in focus mode |
+| `--opacity-copy` | 0.45 | Copy button at rest in focus mode |
+| `--bg-glass` | rgba(14,14,16,0.92) | Sticky header frosted background |
+| `--text-xs2` | 12px | Clean alias for 12px step (was `--text-sm2` only) |
+
 **Important:** `@font-face { font-family: ... }` declarations must use the raw string (`'DM Mono'`, `'Syne'`) — CSS custom properties are not resolved inside `@font-face`. The tokens reference these same strings and are used everywhere else.
 
 | Token | Value | Usage |
@@ -409,6 +428,20 @@ A small `copy` label appears in the top-right corner of the focused task row —
 
 **Feedback:** button label changes to `copied` in accent colour for 1.8 seconds, then resets. No toast, no animation — minimal noise during a focus session.
 
+### Sticky header (mobile)
+
+**Status: Implemented (v1.7.x)**
+
+On mobile (≤480px), the header — TODAY logo, action buttons (habits, connections, info), date tag, and progress bar — is `position: sticky; top: 0`. On desktop it is static.
+
+**Why mobile only:** on desktop the full content fits comfortably without scrolling in most cases, and a sticky bar consumes valuable vertical space. On mobile the list scrolls significantly and losing the date + progress context is disorienting.
+
+**Visual treatment:** `background: var(--bg-glass)` (rgba(14,14,16,0.92)) with `backdrop-filter: blur(16px) saturate(1.4)` — frosted glass effect lets scrolled content bleed through slightly, same as iOS native apps. A 1px hairline separator at `rgba(255,255,255,0.05)` appears via `box-shadow` once content scrolls under.
+
+**Safe area:** `padding-top` on `.sticky-header-inner` includes `env(safe-area-inset-top)` — sits correctly below notch/Dynamic Island on all iPhone models.
+
+**DOM placement:** `.sticky-header` is a sibling of `.app`, not a child. This is mandatory — `overflow-x: hidden` on `.app` would break `position: sticky` if it were inside. See Research.md §3 for the gotcha.
+
 ### Drag cursor in focus mode
 
 **Status: Fixed (v1.6.50)**
@@ -472,7 +505,7 @@ When focus mode activates, the `grab` cursor from drag-to-reorder persisted on t
 
 ## 11. Development Rules
 
-1. **All margins and paddings must use design tokens.** Never hardcode `px` outside `:root` unless explicitly off-grid (see Spacing above).
+1. **All margins and paddings must use design tokens.** Never hardcode `px` outside `:root` unless explicitly off-grid (see Spacing above). This includes colours inside `@media` blocks and focus mode CSS — all `rgba()` accent variants have named tokens (`--accent-focus-bg`, `--accent-check`, `--accent-timer-fill`, etc.).
 2. **GPU compositing for animations.** Animate only `opacity` and `transform` — never `width`, `height`, `top`, `left`, `background`, or `border` in transitions that fire frequently. Moving elements use `transform: translate()` not `left/top`. See §4 Motion for the full animation contract.
 3. **`-webkit-font-smoothing: antialiased` is set globally.** Do not override it on individual components — consistent antialiasing is intentional.
 4. **`touch-action: pan-y` on scrollable lists.** All `.task-list` and `.habit-list` containers carry this — do not remove it. It eliminates 300ms touch delay and improves scroll responsiveness on mobile.
@@ -490,7 +523,28 @@ When focus mode activates, the `grab` cursor from drag-to-reorder persisted on t
 
 ---
 
-## 12. Haiku
+## 12. Haptics
+
+TODAY uses `_haptic(preset)` for tactile feedback on mobile. Design rules (from web-haptics design guide):
+
+- **Supplement, never replace** — UI works fully without haptics. Haptics enhance, they don't communicate.
+- **Fire at the exact instant the visual change occurs** — synchronised with the animation, not before or after.
+- **Don't overuse** — reserved for meaningful moments only. Every tap vibrating makes nothing feel special.
+- **Match intensity to significance** — light interaction = light/selection, standard action = medium/success, major/destructive = heavy/warning.
+
+**Moments and presets:**
+| Moment | Preset | Reasoning |
+|---|---|---|
+| Task check done | `success` | Primary positive action |
+| Habit check done | `success` | Same |
+| Pomodoro session complete | `success` | Pairs with chime |
+| Task delete | `warning` | Destructive — slightly unsettling by design |
+| Long-press drag activates | `heavy` | Physical confirmation drag mode engaged |
+| Drag row snaps to slot | `selection` | Tiny tick — barely perceptible, just enough |
+
+**Not haptic:** adding a task, opening panels, toggling habits panel, typing.
+
+## 13. Haiku
 
 > Only today shows  
 > Done rests, quietly proud  
