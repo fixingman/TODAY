@@ -1875,11 +1875,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.8.9';
-const DEV_HOURS     = '76h';
+const APP_VERSION   = '1.9.0';
+const DEV_HOURS     = '78h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.9.0': 'Fix first-click freeze — AudioContext pre-warmed on first pointerdown/touchstart (before task list visible) instead of cold-creating on first task tap | iOS haptics: confirmed not possible on iOS Safari any version (caniuse) — silent no-op, documented',
+  '1.8.10': 'Fix first-click freeze — AudioContext pre-warmed on first pointerdown (fires during splash, before task list visible) | Fix iOS haptics — switch trick (.click() synchronously in user gesture stack) replaces non-functional navigator.vibrate()',
   '1.8.9': 'Fix AI key validation UX — panel stays open during async test call so error is visible | error messages persistent (no auto-clear) | friendly error copy for invalid key / quota / permission | input selected on failure for easy retry',
   '1.8.8': 'AI integration overhaul: removed duplicate panel input + stale overlay CSS/JS | toggleAI routes unconfigured users to Connections (not empty panel) | _aiRenderConfig no longer fills input with bullets, shows free-tier hint, dynamic get-key link | saveAIKey friendly error messages, auto-clear, Testing… state | Enter submits key',
   '1.8.7': 'Add-task bar margins: space-3 top, space-4 sides, space-2+safe-area bottom — all tokens, no hardcoded px',
@@ -2669,15 +2671,38 @@ function _getAudioCtx() {
     medium:    [40],
   };
 
-  // navigator.vibrate() works on both Android and iOS Safari (confirmed March 2026).
-  // The <input switch> programmatic click trick does NOT work — Safari only fires
-  // haptics on real user touch events, not JS-dispatched clicks.
-  // Simple: call vibrate if available, silent no-op on desktop.
-  const _hasVibrate = typeof navigator.vibrate === 'function';
+  // iOS: Use <input type=checkbox switch> trick — WebKit fires a system haptic when
+  // the switch toggles. MUST be called synchronously within a user gesture handler.
+  // _haptic() is always called synchronously from click/touch handlers so this works.
+  // The element must be "visible" to the browser (not display:none) — opacity:0 is fine.
+  //
+  // Android: navigator.vibrate() with differentiated patterns.
+  // Desktop: silent no-op.
+  const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const _hasVibrate = !_isIOS && typeof navigator.vibrate === 'function';
+
+  let _sw = null; // shared switch element for iOS haptics
+  function _iosHaptic() {
+    if (!_sw) {
+      _sw = document.createElement('input');
+      _sw.type = 'checkbox';
+      _sw.setAttribute('switch', '');
+      // Must not be display:none/visibility:hidden — needs to exist in the render tree
+      _sw.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;' +
+        'opacity:0;pointer-events:none;margin:0;padding:0;border:none;outline:none;' +
+        '-webkit-appearance:none;appearance:none;';
+      document.body.appendChild(_sw);
+    }
+    _sw.click(); // toggle fires system haptic — works because we're in user gesture stack
+  }
 
   window._haptic = function(preset) {
-    if (!_hasVibrate) return;
-    navigator.vibrate(PATTERNS[preset] || PATTERNS.medium);
+    if (_isIOS) {
+      _iosHaptic();
+    } else if (_hasVibrate) {
+      navigator.vibrate(PATTERNS[preset] || PATTERNS.medium);
+    }
   };
 })();
 
@@ -2686,6 +2711,21 @@ function _primeAudio() {
   const ctx = _getAudioCtx();
   if (ctx && ctx.state === 'suspended') ctx.resume().catch(function(){});
 }
+
+// Pre-warm AudioContext on the very first user interaction with the page —
+// before the task list is visible. This avoids a 200-600ms main-thread block
+// on mobile when the user first taps a task (cold AudioContext creation).
+// We use pointerdown on the splash screen since that's the first touch.
+(function _preWarmAudio() {
+  function _warm() {
+    _getAudioCtx(); // creates context
+    _primeAudio();  // calls resume() — hardware init happens now, not on first task tap
+    document.removeEventListener('pointerdown', _warm);
+    document.removeEventListener('touchstart', _warm);
+  }
+  document.addEventListener('pointerdown', _warm, { once: true, passive: true });
+  document.addEventListener('touchstart', _warm, { once: true, passive: true });
+})();
 
 function _withCtx(fn) {
   try {
@@ -4565,6 +4605,8 @@ async function dropboxRestore(fromSync) {
 // ─── Start ────────────────────────────────────────────────────────────────────
 // Run init immediately — renders from localStorage while splash plays in parallel
 init();
+
+
 
 // Two-flag gate: splash dismisses only when both animation AND init/load are done
 let _splashAnimDone = false;
