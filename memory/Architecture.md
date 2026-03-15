@@ -375,7 +375,7 @@ When the SW is installed but the network fails on a navigation request, a brande
 | **Minor** `x.N.0` | New user-facing feature, new integration, meaningful UX addition — something the user would notice and value | `1.6.x → 1.7.0` |
 | **Major** `N.0.0` | Breaking data model change, complete redesign, fundamental product shift — changes what TODAY fundamentally is | `1.x.x → 2.0.0` |
 
-**1.7.0 trigger:** next meaningful user-facing feature. Do not force it on housekeeping.
+**Enforcement:** at the end of every work block, before closing — check: does what just shipped qualify as a minor? If yes, bump before moving on. Do not defer. The 1.6.x era (1.6.25–1.6.54) violated this rule three times — habits, drag-to-reorder, and focus-on-habits all warranted minor bumps and were patched instead. 1.7.0 corrects that.
 
 ### When to bump
 - **Every logical unit of work gets its own bump** — a bug fix, a layout fix, a behaviour change, a new feature. Each is a version.

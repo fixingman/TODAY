@@ -71,6 +71,9 @@
      See Design.md § Motion > Focus mode animation rules.
   ══════════════════════════════════════════════════════════════════ */
 
+  /* Copy button hidden globally — only shown inside @media (hover: hover) below */
+  .task-copy { display: none; }
+
   /* Desktop-only: focus mode never activates on touch devices */
   @media (hover: hover) {
 
@@ -138,8 +141,9 @@
     /* Delete hidden during focus */
     .focusing .task.focused .task-delete { opacity: 0 !important; pointer-events: none; }
 
-    /* Copy button — appears in top-right corner of focused task only */
+    /* Copy button — desktop/focus mode only. display:none overridden here. */
     .task-copy {
+      display: block;
       position: absolute;
       top: var(--space-2);
       right: var(--space-2);
@@ -494,6 +498,25 @@
   }
 
   /* ── Component: Header ─────────────────────────────────────────────── */
+  .sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    /* Bleed to full width by negating the app's 24px horizontal padding */
+    background: rgba(14,14,16,0.92);
+    margin-left: -24px;
+    margin-right: -24px;
+    padding-left: 24px;
+    padding-right: 24px;
+    padding-top: var(--space-5);
+    padding-bottom: var(--space-3);
+    /* Blur so scrolled content bleeds through slightly — premium feel */
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+    /* Separator line only visible when content is scrolled underneath */
+    box-shadow: 0 1px 0 rgba(255,255,255,0.05);
+  }
+
   .header {
     display: flex;
     align-items: flex-start;
@@ -552,7 +575,7 @@
 
   /* Subheader */
   .subheader {
-    margin-bottom: var(--space-8);
+    margin-bottom: var(--space-3);
   }
 
   .subheader-top {
@@ -1006,6 +1029,7 @@
   @media (max-width: 600px) {
     .config-grid { grid-template-columns: 1fr; }
     .app { padding: 32px 16px 60px; padding-top: calc(16px + env(safe-area-inset-top)); padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
+    .sticky-header { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; padding-top: calc(var(--space-4) + env(safe-area-inset-top)); }
     .header { margin-bottom: 10px; }
     .subheader { margin-bottom: 24px; }
     .btn-icon { width: 32px; height: 32px; font-size: var(--text-md); }
@@ -1405,25 +1429,27 @@
 </div>
 <div class="app" id="main-app" style="opacity:0">
 
-  <!-- Header -->
-  <div class="header">
-    <div class="header-left">
-      <h1>TO<span>DAY</span></h1>
+  <!-- Sticky header: TODAY logo + CTAs + date + progress bar -->
+  <div class="sticky-header">
+    <div class="header">
+      <div class="header-left">
+        <h1>TO<span>DAY</span></h1>
+      </div>
+      <div class="header-actions">
+        <button class="btn-icon" id="habitsBtn" title="Habits" onclick="toggleHabits()">◎&#xFE0E;</button>
+        <button class="btn-icon" id="trelloBtn" title="Connections" onclick="toggleConfig()">✦&#xFE0E;</button>
+        <button class="btn-icon" id="infoBtn" title="About" onclick="toggleInfo()">ℹ&#xFE0E;</button>
+      </div>
     </div>
-    <div class="header-actions">
-      <button class="btn-icon" id="habitsBtn" title="Habits" onclick="toggleHabits()">◎&#xFE0E;</button>
-      <button class="btn-icon" id="trelloBtn" title="Connections" onclick="toggleConfig()">✦&#xFE0E;</button>
-      <button class="btn-icon" id="infoBtn" title="About" onclick="toggleInfo()">ℹ&#xFE0E;</button>
-    </div>
-  </div>
-  <!-- Subheader: date + progress bar -->
-  <div class="subheader">
-    <div class="subheader-top">
-      <div class="date-tag" id="dateTag"></div>
-      <div class="subheader-count"><span id="statDone">0</span> of <span id="statTotal">0</span> done</div>
-    </div>
-    <div class="subheader-track">
-      <div class="subheader-fill" id="progressFill" style="transform:scaleX(0)"></div>
+    <!-- Subheader: date + progress bar -->
+    <div class="subheader">
+      <div class="subheader-top">
+        <div class="date-tag" id="dateTag"></div>
+        <div class="subheader-count"><span id="statDone">0</span> of <span id="statTotal">0</span> done</div>
+      </div>
+      <div class="subheader-track">
+        <div class="subheader-fill" id="progressFill" style="transform:scaleX(0)"></div>
+      </div>
     </div>
   </div>
 
@@ -1575,11 +1601,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
 const APP_VERSION   = '1.7.0';
-const DEV_HOURS     = '70h';
+const DEV_HOURS     = '72h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
   '1.7.0': 'Habits system: 21-day dot strip, habit strength % (exponential smoothing), Dropbox sync, union merge | Focus mode on habits | Drag-to-reorder all three lists (desktop + mobile long-press) | PWA installable: Add to Dock on macOS, home screen on iOS | Auto-update: SW background download, activates on next focus | Offline cold start: blinking ✦ fallback | Rendering: GPU compositing, font smoothing, touch-action, overscroll | Copy button on focused tasks | Shift+D clear all done',
+  '1.7.0': 'Version bump — 1.6.x undercounted three minor-version features (habits, drag-to-reorder, focus on habits + haptics). 1.7.0 draws the line. Versioning rules now enforced at end of every work block per Architecture.md §13.',
+  '1.6.54': 'Fix iOS haptics — switch element must be in viewport (was top:-9999px), use state tracking instead of double-click | Sticky header: TODAY + CTAs + date + progress bar stay fixed on scroll with backdrop blur',
+  '1.6.53': 'Fix copy button visible on mobile — .task-copy display:none globally, display:block only inside @media (hover:hover) so it never renders on touch devices',
   '1.6.52': 'Haptics overhaul: _haptic() helper with iOS switch trick (<input type=checkbox switch>) + Android vibrate patterns | success on task/habit check + pomodoro complete | warning on delete | heavy on long-press drag | selection tick on drag snap | silent no-op on desktop',
   '1.6.51': 'Checking a habit in focus mode now closes focus UI with same transition as tasks — toggleHabitDone calls _focusOnCheck | _focusOnCheck updated to match habitId as well as taskid',
   '1.6.50': 'Focus mode: grab cursor overridden to default on focused task | Copy button appears top-right of focused task in focus mode — strips badge/link, copies clean text, shows copied feedback | Present on manual + Trello tasks, not habits',
@@ -2343,21 +2372,39 @@ function _getAudioCtx() {
     medium:    [40],
   };
 
-  // iOS: one hidden switch input, reused for every haptic call
+  // iOS: one hidden switch input, reused for every haptic call.
+  // Must be in the visual viewport — Safari won't fire haptics for off-screen elements.
+  // We track checked state manually and toggle it, one click per haptic call.
   let _iosSwitch = null;
+  let _iosSwitchState = false;
   function _iosHaptic() {
     if (!_iosSwitch) {
       _iosSwitch = document.createElement('input');
       _iosSwitch.type = 'checkbox';
       _iosSwitch.setAttribute('switch', '');
-      _iosSwitch.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:-9999px;';
+      // In viewport but invisible — opacity:0 and no size, but NOT off-screen
+      _iosSwitch.style.cssText = [
+        'position:fixed',
+        'top:0',
+        'left:0',
+        'width:0',
+        'height:0',
+        'opacity:0',
+        'pointer-events:none',
+        'border:none',
+        'outline:none',
+        'appearance:none',
+        '-webkit-appearance:none',
+      ].join(';');
       document.body.appendChild(_iosSwitch);
     }
-    // Toggle fires the system haptic — restore state so it toggles again next call
+    // Toggle state: each call flips checked once → Safari fires system haptic
+    _iosSwitchState = !_iosSwitchState;
+    _iosSwitch.checked = _iosSwitchState;
+    // Dispatch a change event — setting .checked programmatically doesn't fire it
+    _iosSwitch.dispatchEvent(new Event('change', { bubbles: true }));
+    // Also try a click() as fallback — some Safari versions need the click event
     _iosSwitch.click();
-    // Immediately restore so next call also toggles (checked→unchecked→checked…)
-    // The haptic fires on the state change, not on a specific state
-    setTimeout(() => { if (_iosSwitch) _iosSwitch.click(); }, 50);
   }
 
   // Detect iOS Safari (not Android, not desktop Chrome on Mac)
