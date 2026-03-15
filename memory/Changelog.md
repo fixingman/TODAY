@@ -2,6 +2,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.3.6** | **Animation simplification** — `taskSlideIn` → pure fade (no transform), ✦ button → subtle opacity pulse (removed width expansion), splash → faster/tighter timing. Removed shadow-divider from mobile bar. |
 | 2.3.5 | Accessibility: `prefers-reduced-motion` support — disables breathing animations, reduces transitions for users who prefer reduced motion. |
 | 2.3.4 | Fade gradients on sticky header and add-task bar — content softens before clipping under chrome. |
 | 2.3.3 | Motion refinement: breathing animations on proactive CTA button (`gentleBreath`) and "All done" star (`starBreath`). Motion Philosophy documented in Design.md. |

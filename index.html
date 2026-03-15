@@ -479,15 +479,15 @@
   }
   #splash-logo .l {
     display: inline-block;
-    opacity: 0; transform: translateY(0.2em);
-    animation: splashLetterRise .5s cubic-bezier(0.16,1,0.3,1) forwards;
+    opacity: 0; transform: translateY(0.12em);
+    animation: splashLetterRise .4s var(--ease-out) forwards;
   }
   #splash-logo .l.a { color: var(--accent); }
-  #splash-logo .l:nth-child(1){animation-delay:.08s}
-  #splash-logo .l:nth-child(2){animation-delay:.14s}
-  #splash-logo .l:nth-child(3){animation-delay:.20s}
-  #splash-logo .l:nth-child(4){animation-delay:.26s}
-  #splash-logo .l:nth-child(5){animation-delay:.32s}
+  #splash-logo .l:nth-child(1){animation-delay:.06s}
+  #splash-logo .l:nth-child(2){animation-delay:.10s}
+  #splash-logo .l:nth-child(3){animation-delay:.14s}
+  #splash-logo .l:nth-child(4){animation-delay:.18s}
+  #splash-logo .l:nth-child(5){animation-delay:.22s}
 
   #splash-star {
     position: absolute; right: -0.28em; top: -0.2em;
@@ -511,12 +511,11 @@
   #splash-cursor.off   { opacity: 0; animation: none; }
 
 
-  @keyframes splashLetterRise  { to { opacity:1; transform:translateY(0); } }
-  @keyframes splashCursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+  @keyframes splashLetterRise  { to { opacity: 1; transform: translateY(0); } }
+  @keyframes splashCursorBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
   @keyframes splashStarBreath  {
-    0%,100%{ transform:scale(1) rotate(0deg); }
-    40%    { transform:scale(1.12) rotate(6deg); }
-    70%    { transform:scale(.94) rotate(-4deg); }
+    0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    50%      { transform: scale(1.08) rotate(3deg); opacity: 0.8; }
   }
 
 
@@ -755,13 +754,14 @@
     to   { opacity: 0; transform: scaleY(0.85); }
   }
 
+  /* Task entry uses pure fade — no transform, elements appear in place */
   @keyframes taskSlideIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
 
   .task-slide-in {
-    animation: taskSlideIn 220ms ease both;
+    animation: taskSlideIn var(--dur-base) var(--ease-std) both;
   }
 
   #manualEmpty.fading-in {
@@ -1204,44 +1204,19 @@
 
   /* On hover: widen to fit two then three stars via sequential keyframe */
   /* Hover: ✦ → ✦✦ → ✦✦✦ in 180ms */
-  @keyframes starExpand {
-    0%   { width: 44px; }
-    50%  { width: 62px; }
-    100% { width: 78px; }
-  }
-  @keyframes starFade2 {
-    0%, 25%   { opacity: 0; transform: translateX(-3px); }
-    55%, 100% { opacity: 1; transform: translateX(0); }
-  }
-  @keyframes starFade3 {
-    0%, 55%   { opacity: 0; transform: translateX(-3px); }
-    85%, 100% { opacity: 1; transform: translateX(0); }
-  }
-
+  /* ✦ button hover — subtle breath pulse, no expansion */
   .add-ai-btn:hover {
-    animation: starExpand 180ms var(--ease-out) forwards;
+    opacity: 0.85;
   }
-  /* Second star fades in first */
-  .add-ai-btn::before {
-    content: '✦';
-    opacity: 0;
-    display: inline-block;
-    margin-left: 2px;
-    font-size: 12px;
+  .add-ai-btn:active {
+    opacity: 0.7;
+    transform: scale(0.96);
   }
-  .add-ai-btn:hover::before {
-    animation: starFade2 180ms var(--ease-out) forwards;
-  }
-  /* Third star fades in after */
+  
+  /* Remove the expanding stars — keep it minimal */
+  .add-ai-btn::before,
   .add-ai-btn::after {
-    content: '✦';
-    opacity: 0;
-    display: inline-block;
-    margin-left: 2px;
-    font-size: 12px;
-  }
-  .add-ai-btn:hover::after {
-    animation: starFade3 180ms var(--ease-out) forwards;
+    display: none;
   }
 
   /* AI active state — panel open */
@@ -1364,7 +1339,6 @@
       background: var(--bg-glass);
       -webkit-backdrop-filter: blur(16px) saturate(1.4);
       backdrop-filter: blur(16px) saturate(1.4);
-      box-shadow: var(--shadow-divider);
     }
   }
 
@@ -2175,11 +2149,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.3.5';
-const DEV_HOURS     = '92h';
+const APP_VERSION   = '2.3.6';
+const DEV_HOURS     = '93h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.3.6': 'Animation simplification: taskSlideIn → pure fade, ✦ button → subtle opacity pulse (no width expansion), splash letters → faster/tighter timing. Removed shadow-divider from mobile bar.',
   '2.3.5': 'Accessibility: prefers-reduced-motion support — disables breathing animations, reduces all transition durations for users who prefer reduced motion.',
   '2.3.4': 'Fade gradients on sticky header (::after) and add-task bar (::before) — content softens before clipping under chrome. 10px height.',
   '2.3.3': 'Motion refinement: breathing animations on proactive CTA button and "All done" star. Motion Philosophy documented in Design.md.',

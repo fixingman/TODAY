@@ -305,10 +305,13 @@ No transforms on enter/exit. Elements appear in place. Motion should feel like d
 
 | Animation | Duration | Element | Notes |
 |-----------|----------|---------|-------|
-| `taskSlideIn` | 220ms | Task entry | translateY(-4px) + opacity |
-| `starExpand` | 180ms | ✦ button hover | Width 44px → 78px |
-| `starFade2/3` | 180ms | ✦ button stars | Staggered opacity in |
-| `splashLetterRise` | 0.5s | Splash text | translateY + opacity |
+| `taskSlideIn` | `--dur-base` | Task entry | Pure fade, no transform (v2.3.6) |
+| `splashLetterRise` | 0.4s | Splash text | Subtle rise + fade, staggered 40ms |
+
+**Removed/simplified in v2.3.6:**
+- `starExpand` / `starFade2` / `starFade3` — replaced with simple opacity hover on ✦ button
+- `taskSlideIn` transform — removed translateY, now pure fade
+- `shadow-divider` on mobile bar — removed for cleaner look
 
 **Reduced motion support (v2.3.5):**
 
