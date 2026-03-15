@@ -279,7 +279,7 @@ Synthesised via Web Audio API. No audio files. Fails silently. All sine wave —
 
 | Sound | Trigger | Character | Frequency | Duration |
 |---|---|---|---|---|
-| **Start** | New session begins, reset from 00:00 | Snappy ascending chirp — intention | 520→680 Hz | ~150ms |
+| **Start** | New session begins, reset from 00:00 | Snappy ascending chirp — intention | 520→680 Hz | ~150ms | 0.20 peak |
 | **Resume** | Timer resumed after pause | Ascending chirp — start's quieter sibling. Same action family, smaller gesture | 500→600 Hz | ~120ms |
 | **Complete task** | Task checked off | Warm descending two-step — satisfaction | 600→480→380 Hz | ~240ms |
 | **Session end (chime)** | 25min timer reaches 00:00 | Low organic growl with beating wobble — earned rest | Two osc: 210→148 Hz + 202→141 Hz, ~8 Hz detune creates rumble | ~1.4s |
@@ -288,7 +288,7 @@ Synthesised via Web Audio API. No audio files. Fails silently. All sine wave —
 - Start and resume are ascending — they signal forward motion. Resume is quieter and shorter than start — it's a continuation, not a beginning.
 - Complete is descending — it closes a loop. Two-step shape (fast drop, slower drift) makes it feel deliberate, not accidental.
 - Session chime is the only two-oscillator sound. The ~8 Hz frequency gap between the two creates amplitude beating — an organic wobble that makes it feel alive rather than electronic. Lower register keeps it warm, not alarming.
-- All gains are quiet (peak 0.08–0.14). Present without demanding attention.
+- All gains are present but not harsh (peak 0.12–0.26). Audible alongside background music without demanding attention.
 - New sounds should follow the same sine/gesture pattern — differentiated by pitch direction, step count, and duration. Avoid harsh waveforms (square, sawtooth).
 
 ---
@@ -323,6 +323,8 @@ This framing is consistent with TODAY's philosophy: each morning is its own mome
 | Edit mode → delete | Habit removed, edit mode stays active |
 | Edit mode → Done | Names saved, inputs swap back to text |
 | New habit | Input row opens, habit appended on Enter |
+| Long-press row (mobile) | Initiates drag-to-reorder after 380ms |
+| Drag row (desktop) | Grab cursor on hover, drag after 4px movement |
 
 ### Visual treatment
 
@@ -340,6 +342,7 @@ This framing is consistent with TODAY's philosophy: each morning is its own mome
 - No celebration particle burst (unlike tasks) — habit completion is quiet and accumulative, not a one-time moment
 - No carry-over to task list — habits are never mixed with today's tasks
 - No priority, label, or due date — habits are binary, daily, and timeless
+- No swipe-to-complete — see §7 Interaction Decisions
 
 ### Sound
 
@@ -353,7 +356,45 @@ Slower and lower than the task complete sound — deliberate, grounded. A habit 
 
 ---
 
-## 7. Integrations
+## 7. Interaction Decisions
+
+A record of gestures and interaction patterns that were considered, built, and either kept or removed — and why. This section exists so the same decisions don't get revisited without context.
+
+### Drag-to-reorder
+
+**Status: Implemented (v1.6.36+)**
+
+All three lists — manual tasks, Trello cards, habits — support drag-to-reorder.
+
+**Desktop:** hover over any row reveals a `grab` cursor and a subtle 2px left accent line. Draggable is only set after 4px of mouse movement, which preserves normal text selection on click.
+
+**Mobile:** long-press (380ms) activates a floating ghost clone of the row. Haptic feedback fires on activation. The ghost follows the finger; rows shift live as you drag. Releasing commits the new order.
+
+**Persistence per list:**
+- Manual tasks → `manualTasks` array reordered, saved to localStorage + Dropbox
+- Trello cards → `trelloTasks` array reordered, written to local cache. Resets when Trello board activity changes — Trello is the source of truth for content, but the user controls daily ordering
+- Habits → `habitsList` reordered, saved via `_saveHabits()` + Dropbox
+
+**What is excluded from drag:**
+- Done manual tasks — order only matters for what's still actionable
+- Habits in edit mode — inputs would conflict with drag gesture
+- Interactive elements: checkbox, delete button, links, any `<button>`
+
+### Swipe-to-complete
+
+**Status: Removed (v1.6.43)**
+
+**What was built:** right-swipe gesture on manual task rows to mark done. 72px threshold, horizontal intent detection at 10px, a green accent track revealed during the swipe.
+
+**Why removed:** after testing, the tap-to-check interaction is preferred. The checkbox is the right affordance for completion — it's explicit, reversible, and familiar. Swipe-to-complete added gesture complexity without meaningful gain over a clearly visible checkbox. The checkbox already has an expanded tap target (`::after` pseudo-element, `-16px` inset) making it easy to hit on mobile.
+
+**Design principle behind the decision:** TODAY values calm and clarity over gesture cleverness. A gesture that replaces a visible control removes discoverability. The checkbox communicates its purpose; a swipe does not.
+
+**If reconsidered:** only add swipe back if the checkbox becomes genuinely hard to reach (e.g. a layout change moves it further from thumb reach). Do not add it as a shortcut for its own sake.
+
+---
+
+## 8. Integrations
 
 ### Trello
 
@@ -382,7 +423,7 @@ Slower and lower than the task complete sound — deliberate, grounded. A habit 
 
 ---
 
-## 8. Offline & Service Worker
+## 9. Offline & Service Worker
 
 - SW file: `sw.js`. Cache version: `today-v{version}` — must match `APP_VERSION` on every deploy.
 - Strategy: **network-first** for all requests.
@@ -394,7 +435,7 @@ Slower and lower than the task complete sound — deliberate, grounded. A habit 
 
 ---
 
-## 9. Security & Privacy
+## 10. Security & Privacy
 
 - All user content rendered via `esc()` before `innerHTML` — no XSS surface.
 - Trello token scope: `read` only.
@@ -406,7 +447,7 @@ Slower and lower than the task complete sound — deliberate, grounded. A habit 
 
 ---
 
-## 10. Development Rules
+## 11. Development Rules
 
 1. **All margins and paddings must use design tokens.** Never hardcode `px` outside `:root` unless explicitly off-grid (see Spacing above).
 2. **Bump `APP_VERSION` and `DEV_HOURS` together** on every meaningful change.
@@ -423,7 +464,7 @@ Slower and lower than the task complete sound — deliberate, grounded. A habit 
 
 ---
 
-## 11. Haiku
+## 12. Haiku
 
 > Only today shows  
 > Done rests, quietly proud  
