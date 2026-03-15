@@ -753,6 +753,57 @@
   /* Applied only on insertion, removed on animationend — fill-mode:backwards prevents opacity:1 fill */
   .task-new { animation: fadeIn var(--dur-slow) var(--ease-std) backwards; }
 
+  /* AI suggestion row — appears below a task when AI has feedback */
+  .task-suggestion {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    margin: 0 0 var(--space-2) 26px; /* align with task text, past checkbox */
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    font-size: var(--text-xs);
+    color: var(--muted);
+    animation: slideDown var(--dur-fast) var(--ease-std);
+  }
+  .task-suggestion.removing {
+    animation: fadeOut var(--dur-fast) var(--ease-std) forwards;
+  }
+  .task-suggestion-msg {
+    flex: 1;
+    min-width: 0;
+  }
+  .task-suggestion-chips {
+    display: flex;
+    gap: var(--space-2);
+    flex-shrink: 0;
+  }
+  .task-suggestion-chip {
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background var(--dur-fast);
+  }
+  .task-suggestion-chip:hover {
+    background: rgba(200,240,96,0.15);
+  }
+  .task-suggestion-chip.dismiss {
+    background: transparent;
+    color: var(--muted);
+  }
+  .task-suggestion-chip.dismiss:hover {
+    color: var(--color-text);
+  }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
   .task.done .task-text {
     text-decoration: line-through;
     text-decoration-color: var(--done-line);
@@ -1975,11 +2026,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.1.3';
-const DEV_HOURS     = '81h';
+const APP_VERSION   = '2.2.0';
+const DEV_HOURS     = '83h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.2.0': 'AI Post-Add Enhancement — after adding a task, AI analyzes in background and offers to break down complex tasks into 2-3 subtasks. Non-blocking, auto-dismisses after 10s.',
   '2.1.3': 'AI config: explicit hasKey check (key && key.length > 0) to prevent false "connected" state',
   '2.1.2': 'Fix _todayStr not defined — _aiContext now uses _habitTodayISO() which exists',
   '2.1.1': 'Fix unnecessary scroll on short lists — overflow-y:auto (was scroll), removed min-height:100vh from .app',
@@ -3333,6 +3385,9 @@ function addManual() {
   input.focus();
   toggleClearBtn();
 
+  // Dismiss any existing AI suggestion
+  _aiDismissSuggestion();
+
   // Insert new element directly — no full re-render
   const list  = document.getElementById('manualList');
   const empty = document.getElementById('manualEmpty');
@@ -3346,6 +3401,9 @@ function addManual() {
 
   document.getElementById('manualCount').textContent = manualTasks.length;
   updateStats();
+
+  // AI post-add analysis (async, non-blocking)
+  _aiAnalyzeTask(task.id, task.text);
 }
 
 function updateManualEmptyState(animate) {
@@ -5530,6 +5588,187 @@ function clearAIKey() {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && _aiPanelOpen) closeAI();
 });
+
+// ══════════════════════════════════════════════════════════════════════════
+// AI POST-ADD ENHANCEMENT
+// Analyzes newly added tasks and offers suggestions (break down, clarify, etc.)
+// Non-blocking: task adds instantly, AI runs in background
+// ══════════════════════════════════════════════════════════════════════════
+
+let _aiAnalyzeTimeout = null;
+let _aiCurrentSuggestion = null; // { taskId, element }
+
+function _aiAnalyzeTask(taskId, taskText) {
+  // Don't analyze if AI not configured
+  if (!_aiIsConfigured()) return;
+  
+  // Don't analyze if AI panel is open (user is explicitly using AI)
+  if (_aiPanelOpen) return;
+  
+  // Don't analyze very short tasks
+  if (taskText.length < 10) return;
+  
+  // Debounce — wait 2s after last task add
+  clearTimeout(_aiAnalyzeTimeout);
+  _aiAnalyzeTimeout = setTimeout(() => _aiDoAnalyze(taskId, taskText), 2000);
+}
+
+async function _aiDoAnalyze(taskId, taskText) {
+  // Dismiss any existing suggestion first
+  _aiDismissSuggestion();
+  
+  // Build minimal context
+  const existingTasks = manualTasks
+    .filter(t => t.id !== taskId && !doneIds.has(t.id))
+    .map(t => t.text)
+    .slice(0, 5); // limit context
+  
+  const prompt = `Task just added: "${taskText}"
+Existing tasks: ${existingTasks.length ? existingTasks.map(t => `"${t}"`).join(', ') : 'none'}
+
+Analyze briefly. Reply ONLY with raw JSON:
+{
+  "suggest": true/false,
+  "type": "break_down" | "clarify" | "none",
+  "message": "short reason (max 10 words)",
+  "subtasks": ["task 1", "task 2", "task 3"] // only if type=break_down
+}
+
+Rules:
+- suggest:true ONLY if task has multiple distinct steps or is vague
+- break_down: task contains "and", multiple verbs, or >8 words with distinct parts
+- clarify: task is <4 words and vague (e.g. "do thing", "work stuff")
+- Most tasks are fine as-is — suggest:false is the default
+- subtasks: 2-3 concrete actionable items, not rewording of original`;
+
+  try {
+    const res = await fetch('/.netlify/functions/ai-assist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: _aiGetProvider(),
+        apiKey: _aiGetKey(),
+        messages: [{ role: 'user', content: prompt }],
+        systemPrompt: 'You analyze tasks for a todo app. Be concise. Most tasks need no changes.',
+      }),
+    });
+    
+    if (!res.ok) return; // fail silently
+    
+    const data = await res.json();
+    if (data.error || !data.suggest) return;
+    
+    // Task might have been deleted while we were analyzing
+    const taskEl = document.querySelector(`.task[data-task-id="${taskId}"]`);
+    if (!taskEl) return;
+    
+    _aiShowSuggestion(taskId, taskEl, data);
+    
+  } catch(e) {
+    // Fail silently — this is enhancement, not critical
+  }
+}
+
+function _aiShowSuggestion(taskId, taskEl, data) {
+  const row = document.createElement('div');
+  row.className = 'task-suggestion';
+  row.dataset.forTask = taskId;
+  
+  const msg = document.createElement('span');
+  msg.className = 'task-suggestion-msg';
+  msg.textContent = data.message || 'AI suggestion';
+  
+  const chips = document.createElement('div');
+  chips.className = 'task-suggestion-chips';
+  
+  if (data.type === 'break_down' && data.subtasks?.length) {
+    const breakBtn = document.createElement('button');
+    breakBtn.className = 'task-suggestion-chip';
+    breakBtn.textContent = `Split into ${data.subtasks.length}`;
+    breakBtn.onclick = () => _aiApplyBreakdown(taskId, data.subtasks);
+    chips.appendChild(breakBtn);
+  }
+  
+  const dismissBtn = document.createElement('button');
+  dismissBtn.className = 'task-suggestion-chip dismiss';
+  dismissBtn.textContent = '✕';
+  dismissBtn.onclick = () => _aiDismissSuggestion();
+  chips.appendChild(dismissBtn);
+  
+  row.appendChild(msg);
+  row.appendChild(chips);
+  
+  // Insert after the task
+  taskEl.insertAdjacentElement('afterend', row);
+  
+  _aiCurrentSuggestion = { taskId, element: row };
+  
+  // Auto-dismiss after 10s
+  setTimeout(() => {
+    if (_aiCurrentSuggestion?.taskId === taskId) {
+      _aiDismissSuggestion();
+    }
+  }, 10000);
+}
+
+function _aiDismissSuggestion() {
+  if (!_aiCurrentSuggestion) return;
+  
+  const el = _aiCurrentSuggestion.element;
+  if (el && el.parentNode) {
+    el.classList.add('removing');
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  }
+  _aiCurrentSuggestion = null;
+}
+
+function _aiApplyBreakdown(originalTaskId, subtasks) {
+  // Find and remove original task
+  const idx = manualTasks.findIndex(t => t.id === originalTaskId);
+  if (idx === -1) return;
+  
+  // Remove from DOM
+  const oldEl = document.querySelector(`.task[data-task-id="${originalTaskId}"]`);
+  if (oldEl) {
+    oldEl.classList.add('removing');
+    oldEl.addEventListener('animationend', () => oldEl.remove(), { once: true });
+  }
+  
+  // Remove from data
+  manualTasks.splice(idx, 1);
+  
+  // Track deletion for sync
+  const deleted = JSON.parse(localStorage.getItem('today_deleted_ids') || '[]');
+  deleted.push({ id: originalTaskId, at: new Date().toISOString() });
+  localStorage.setItem('today_deleted_ids', JSON.stringify(deleted));
+  
+  // Add subtasks
+  const list = document.getElementById('manualList');
+  subtasks.forEach((text, i) => {
+    const task = { id: 'manual_' + (Date.now() + i), text };
+    manualTasks.push(task);
+    
+    // Add to DOM
+    if (list) {
+      const div = document.createElement('div');
+      div.innerHTML = taskHTML(task, 'manual');
+      const el = div.firstElementChild;
+      el.classList.add('task-new');
+      el.addEventListener('animationend', () => el.classList.remove('task-new'), { once: true });
+      list.appendChild(el);
+    }
+  });
+  
+  // Save
+  localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+  _setLastLocalChange();
+  dropboxAutoSave();
+  
+  // Update UI
+  document.getElementById('manualCount').textContent = manualTasks.length;
+  _aiDismissSuggestion();
+  _haptic('success');
+}
 
 // ══════════════════════════════════════════════════════════════════════════
 // FOCUS MODE (Pomodoro) — desktop only

@@ -491,6 +491,37 @@ When focus mode activates, the `grab` cursor from drag-to-reorder persisted on t
 - `DROPBOX_APP_KEY` and `DROPBOX_CLIENT_SECRET` set as Netlify env vars.
 - Netlify injects a RUM analytics script (`/.netlify/scripts/rum`) — Netlify's own tracking. Ad blockers block it harmlessly.
 
+### AI Assistant
+
+- Provider: Gemini 2.5 Flash (default, free) or Claude Haiku (private).
+- Key stored in `localStorage('today_ai_key')`, proxied via `/.netlify/functions/ai-assist`.
+- Panel opens via ✦ button in add-task bar.
+- Structured responses: AI returns JSON with `message` + `actions[]` array.
+- Action chips execute immediately on tap (add_task, check_task, start_focus, etc.).
+
+#### Post-Add Enhancement (v2.2+)
+
+AI assists *after* task entry, never blocking the input flow:
+
+1. User adds task via Enter → task appears instantly
+2. AI analyzes in background (async, debounced 2s)
+3. If useful, suggestion row appears below task:
+   - Subtle, dismissible, auto-expires after 10s
+   - Chips: [Break into 3 tasks] [Add details] [Dismiss]
+4. User can ignore or engage
+
+**Design rules:**
+- Never delay task entry for AI
+- Never auto-modify tasks without explicit tap
+- Suggestions are ephemeral — don't persist across sessions
+- Show suggestions sparingly — only when genuinely useful
+
+**Visual treatment:**
+- `.task-suggestion` row: muted background, smaller text
+- Positioned directly below the triggering task
+- Slides in with `var(--dur-fast)`, fades out on dismiss
+- Uses existing chip styling from AI panel
+
 ---
 
 ## 9. Offline & Service Worker

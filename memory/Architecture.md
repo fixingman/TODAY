@@ -366,6 +366,32 @@ const AI_DEFAULT_PROVIDER = 'gemini';   // open-source fork default (always Gemi
 ```
 On first load, `AI_BUILD_PROVIDER` seeds `localStorage`. Public forks set this to `'gemini'`.
 
+### AI Post-Add Enhancement (v2.2+)
+
+**Flow:**
+1. `addManualTask()` completes → calls `_aiAnalyzeTask(taskId)` (async, non-blocking)
+2. `_aiAnalyzeTask()` debounces 2s (don't fire on rapid entry) → calls AI with minimal prompt
+3. AI returns `{ suggest: true, type: 'break_down'|'clarify'|'duplicate', message, actions[] }` or `{ suggest: false }`
+4. If `suggest: true`, inject `.task-suggestion` row below the task
+5. Row auto-dismisses after 10s inactivity or on next task add
+6. Chip tap → `_aiExecute()` (same as panel chips)
+
+**Prompt strategy:**
+- Minimal context: just the new task text + list of existing task names
+- No habits, no Trello, no time-of-day — keep tokens low
+- Ask: "Is this task complex enough to break down? Vague? Duplicate?"
+
+**Rate limiting:**
+- Debounce: 2s after last keystroke/Enter before calling AI
+- Skip if task text < 3 chars
+- Skip if AI panel is already open (user is explicitly using AI)
+- Max 1 pending analysis at a time
+
+**Actions available:**
+- `replace_with_subtasks` — delete original task, add 2-3 subtasks
+- `update_task` — modify the task text in place (clarify)
+- `dismiss` — close suggestion row
+
 ---
 
 ## 11. Key Product Rules

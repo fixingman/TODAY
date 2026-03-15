@@ -375,3 +375,76 @@ The current model assumes every habit is a daily habit. A user might want "exerc
 **Status:** not yet designed. Worth solving before habits are shared with other users.
 
 ---
+
+## 7. AI Post-Add Enhancement
+
+*Researched: Mar 15, 2026*
+
+### Problem statement
+
+The AI assistant (v1.8.0+) requires explicit invocation via the ✦ button. Users must consciously decide to ask for help. This creates two issues:
+
+1. **Missed opportunities** — user adds "prepare quarterly report" and AI could suggest breaking it down, but doesn't because user didn't ask
+2. **UX friction** — the ✦ flow (type → tap ✦ → wait → read suggestions → tap chip) is heavier than the simple Enter flow
+
+### Design options evaluated
+
+| Option | Description | Pros | Cons |
+|---|---|---|---|
+| **A: Intent Detection** | AI guesses if input is a task or a question | Magical when right | Frustrating when wrong, adds latency |
+| **B: Explicit Split** | Enter = task, ✦ = AI (current) | Simple mental model | Never get AI help unless you ask |
+| **C: Smart Defaults** | Enter adds task, but complex tasks show "Break down?" chip | Best of both | Intercepts the flow, even briefly |
+| **D: Post-Add Enhancement** | Enter adds instantly, AI analyzes async and offers suggestions below the task | Zero friction on happy path | Suggestions appear after, not before |
+
+### Decision: Option D
+
+**Rationale:**
+- TODAY's core value is frictionless morning brain dump — Option D preserves this completely
+- Task always lands instantly (no delay, no interception)
+- AI works in background, user can ignore or engage
+- Consistent with TODAY's philosophy: each action is self-contained, no blocking dependencies
+
+### Behavior specification
+
+1. **User types task, presses Enter** → task appears immediately in list (no change)
+2. **Background: AI analyzes the new task** (async, non-blocking)
+3. **If AI has suggestions**, a subtle suggestion row appears *below* the task:
+   - "This looks like a big task — break it down?" + chips: [Break into 3 tasks] [Dismiss]
+   - "This might be vague — clarify?" + chips: [Add details] [Dismiss]
+   - "Similar to 'X' — combine?" + chips: [Merge] [Keep separate]
+4. **User can ignore** — suggestion auto-dismisses after ~10 seconds of inactivity, or on next task add
+5. **User can engage** — tap chip, AI executes action (e.g., replaces task with 2-3 subtasks)
+
+### Trigger heuristics (what makes AI offer help)
+
+| Signal | Suggestion |
+|---|---|
+| Task text > 8 words or contains "and" | "Break this down?" |
+| Task text < 3 words and vague ("do thing") | "Add more detail?" |
+| Task similar to existing task (fuzzy match) | "Duplicate?" |
+| Task mentions time but no due date | "Set a reminder?" (future) |
+
+### What AI should NOT do
+
+- Never block task entry
+- Never auto-modify tasks without explicit user action
+- Never show suggestions for every task — only when genuinely useful
+- Never persist suggestions across sessions — ephemeral only
+
+### Technical approach
+
+1. After `renderManual()` adds a task, call `_aiAnalyzeTask(taskId)` async
+2. Function calls AI with minimal context (just the new task + existing tasks)
+3. AI returns `{ suggest: true/false, type: 'break_down'|'clarify'|'duplicate', message: '...', actions: [...] }`
+4. If `suggest: true`, inject a `.task-suggestion` row below the task with chips
+5. Chips execute via existing `_aiExecute()` infrastructure
+6. Auto-dismiss via `setTimeout` or on next task add
+
+### Open questions
+
+- Should suggestions also appear for Trello cards? (Probably not — those come from external system)
+- Should there be a setting to disable AI suggestions entirely? (Probably yes — some users want pure manual)
+- Rate limiting: don't call AI on rapid-fire task entry (debounce 2s)
+
+---
+
