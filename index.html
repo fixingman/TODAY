@@ -2202,7 +2202,7 @@
   <div class="config-panel" id="habitsPanel">
     <div class="config-title">◎ Habits</div>
     <div class="habit-list" id="habitList"></div>
-    <div class="habit-empty" id="habitEmpty">No habits yet.</div>
+    <div class="habit-empty" id="habitEmpty">No habits yet</div>
     <div class="habit-add-row" id="habitAddRow">
       <input class="habit-input" id="habitInput" type="text" maxlength="100"
         placeholder="Name the habit…" onkeydown="handleHabitKey(event)">
@@ -2309,17 +2309,17 @@
       <div class="section-label">From Trello</div>
     </div>
     <div class="task-list" id="trelloList"></div>
-    <div class="empty" id="trelloEmpty">No Trello yet — tap ⚡ to connect</div>
+    <div class="empty" id="trelloEmpty">Trello's not connected yet</div>
   </div>
 
   <!-- Manual section -->
   <div class="section">
     <div class="section-header">
       <div class="section-count" id="manualCount">0</div>
-      <div class="section-label">Added by you</div>
+      <div class="section-label">Your tasks</div>
     </div>
     <div class="task-list" id="manualList"></div>
-    <div class="empty" id="manualEmpty" style="display:none">Nothing added yet</div>
+    <div class="empty" id="manualEmpty" style="display:none">A clean slate</div>
   </div>
 
 </div>
@@ -2328,7 +2328,7 @@
 <div class="add-task-row" id="addTaskBar">
   <div style="position:relative;flex:1;min-width:0;">
     <input class="add-task-input" id="newTask" maxlength="500" type="text"
-      placeholder="Add a task, or tap ✦ to ask…"
+      placeholder="What's on your mind?"
       onkeydown="handleBarKey(event)" oninput="toggleClearBtn()" />
     <button id="clearTaskBtn" onclick="clearTaskInput()" class="clear-input-btn" style="display:none">×</button>
   </div>
@@ -2371,11 +2371,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.7.0';
-const DEV_HOURS     = '102h';
+const APP_VERSION   = '2.8.0';
+const DEV_HOURS     = '104h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.8.0': 'Memory system: AI learns your patterns (peak hours, streaks, focus time). Unified tonality across all copy — warm, grounded, no corporate speak. Static text audit: "Your tasks", "A clean slate", "Clear". Dropbox sync includes memory.',
   '2.7.0': 'AI personality overhaul: warm, grounded tone. Speaks like a thoughtful friend, not a productivity coach. Notices patterns without preaching. No corporate speak, no emoji, no exclamation marks.',
   '2.6.9': 'Stats reordered: Focus → Flow → Streak. ✦ button hover animation restored (✦→✦✦✦). AI chat slides up from bottom with smooth spring transition. Input transforms to chat mode when AI open.',
   '2.6.8': 'Stats: replaced Completed with Focus (minutes today). Resets at midnight. Tracked per pomodoro completion (25m each).',
@@ -2540,6 +2541,151 @@ let trelloConnected = false; // cached — avoids localStorage reads in render h
 let manualTasks = (() => { try { return JSON.parse(localStorage.getItem('today_manual') || '[]'); } catch(e) { return []; } })();
 let doneIds     = new Set((() => { try { return JSON.parse(localStorage.getItem('today_done') || '[]'); } catch(e) { return []; } })());
 
+// ─── Memory System ────────────────────────────────────────────────────────────
+// The AI's persistent memory — patterns, wins, preferences learned over time.
+// Stored locally, synced via Dropbox with other app data.
+let appMemory = (() => {
+  try {
+    return JSON.parse(localStorage.getItem('today_memory') || 'null') || {
+      // Patterns observed over time
+      patterns: {
+        completionsByHour: {},    // { "9": 12, "14": 8, ... } — tasks completed per hour
+        taskKeywords: {},         // { "email": { added: 5, avgDaysToComplete: 2.3 }, ... }
+        focusMinutesTotal: 0,     // lifetime focus minutes
+        bestStreak: 0,            // highest streak achieved
+      },
+      // Moments worth remembering
+      moments: [],                // [{ type: 'streak_milestone', value: 7, date: '2024-03-10' }, ...]
+      // Inferred preferences
+      preferences: {
+        peakHour: null,           // hour with most completions
+        dragKeywords: [],         // keywords that tend to linger
+      },
+      // Meta
+      firstSeen: new Date().toISOString().slice(0, 10),
+      totalTasksCompleted: 0,
+      totalDaysActive: 0,
+    };
+  } catch(e) { return null; }
+})() || {
+  patterns: { completionsByHour: {}, taskKeywords: {}, focusMinutesTotal: 0, bestStreak: 0 },
+  moments: [],
+  preferences: { peakHour: null, dragKeywords: [] },
+  firstSeen: new Date().toISOString().slice(0, 10),
+  totalTasksCompleted: 0,
+  totalDaysActive: 0,
+};
+
+function _saveMemory() {
+  localStorage.setItem('today_memory', JSON.stringify(appMemory));
+}
+
+// Update memory when a task is completed
+function _memoryOnTaskComplete(taskText) {
+  const hour = new Date().getHours();
+  
+  // Track completions by hour
+  appMemory.patterns.completionsByHour[hour] = (appMemory.patterns.completionsByHour[hour] || 0) + 1;
+  
+  // Find peak hour
+  let maxCount = 0, peakHour = null;
+  for (const [h, count] of Object.entries(appMemory.patterns.completionsByHour)) {
+    if (count > maxCount) { maxCount = count; peakHour = parseInt(h); }
+  }
+  appMemory.preferences.peakHour = peakHour;
+  
+  // Track keywords (simple word extraction)
+  const words = (taskText || '').toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  for (const word of words) {
+    if (!appMemory.patterns.taskKeywords[word]) {
+      appMemory.patterns.taskKeywords[word] = { completed: 0 };
+    }
+    appMemory.patterns.taskKeywords[word].completed++;
+  }
+  
+  appMemory.totalTasksCompleted++;
+  _saveMemory();
+}
+
+// Update memory when focus session completes
+function _memoryOnFocusComplete(minutes) {
+  appMemory.patterns.focusMinutesTotal += minutes;
+  _saveMemory();
+}
+
+// Update memory on streak change
+function _memoryOnStreakUpdate(streak) {
+  if (streak > appMemory.patterns.bestStreak) {
+    appMemory.patterns.bestStreak = streak;
+    // Record milestone moments
+    if (streak === 7 || streak === 14 || streak === 21 || streak === 30 || streak % 50 === 0) {
+      appMemory.moments.push({
+        type: 'streak_milestone',
+        value: streak,
+        date: new Date().toISOString().slice(0, 10)
+      });
+      // Keep only last 20 moments
+      if (appMemory.moments.length > 20) appMemory.moments = appMemory.moments.slice(-20);
+    }
+    _saveMemory();
+  }
+}
+
+// Update memory on big clear (many tasks done in one day)
+function _memoryOnDaySummary(tasksCompleted) {
+  appMemory.totalDaysActive++;
+  if (tasksCompleted >= 5) {
+    appMemory.moments.push({
+      type: 'big_clear',
+      count: tasksCompleted,
+      date: new Date().toISOString().slice(0, 10)
+    });
+    if (appMemory.moments.length > 20) appMemory.moments = appMemory.moments.slice(-20);
+    _saveMemory();
+  }
+}
+
+// Get memory summary for AI context
+function _memoryForAI() {
+  const m = appMemory;
+  const lines = [];
+  
+  // Peak productivity hour
+  if (m.preferences.peakHour !== null) {
+    const h = m.preferences.peakHour;
+    const period = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+    lines.push(`You tend to get most done in the ${period} (around ${h > 12 ? h - 12 : h}${h >= 12 ? 'pm' : 'am'}).`);
+  }
+  
+  // Best streak
+  if (m.patterns.bestStreak > 3) {
+    lines.push(`Your best streak was ${m.patterns.bestStreak} days.`);
+  }
+  
+  // Total focus time
+  if (m.patterns.focusMinutesTotal > 60) {
+    const hours = Math.round(m.patterns.focusMinutesTotal / 60);
+    lines.push(`You've focused for ${hours}+ hours total.`);
+  }
+  
+  // Recent moments
+  const recentMoments = m.moments.slice(-3);
+  for (const moment of recentMoments) {
+    if (moment.type === 'streak_milestone') {
+      lines.push(`You hit a ${moment.value}-day streak on ${moment.date}.`);
+    } else if (moment.type === 'big_clear') {
+      lines.push(`You cleared ${moment.count} things on ${moment.date}.`);
+    }
+  }
+  
+  // Days active
+  if (m.totalDaysActive > 7) {
+    lines.push(`You've used TODAY for ${m.totalDaysActive} days.`);
+  }
+  
+  return lines.length > 0 ? lines.join(' ') : '';
+}
+
 // ─── New-day cleanup ─────────────────────────────────────────────────────────
 function applyNewDayCleanup() {
   const today = new Date().toDateString();
@@ -2554,7 +2700,11 @@ function applyNewDayCleanup() {
 
   const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
   const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
-  localStorage.setItem('stat_streak', lastVisit === yesterday.toDateString() ? streak + 1 : 1);
+  const newStreak = lastVisit === yesterday.toDateString() ? streak + 1 : 1;
+  localStorage.setItem('stat_streak', newStreak);
+  
+  // Update memory with streak
+  _memoryOnStreakUpdate(newStreak);
 
   // ── Flow rate calculation (exponential smoothing) ──
   // rate_new = rate_old × 0.85 + today_rate × 0.15
@@ -2564,6 +2714,10 @@ function applyNewDayCleanup() {
   const oldRate    = parseFloat(localStorage.getItem('stat_flow_rate') || '50');
   const newRate    = Math.round(oldRate * 0.85 + todayRate * 0.15);
   localStorage.setItem('stat_flow_rate', newRate);
+  
+  // Update memory with day summary
+  _memoryOnDaySummary(doneToday);
+  
   // Reset daily counters
   localStorage.setItem('stat_tasks_added_today', '0');
   localStorage.setItem('stat_tasks_done_today', '0');
@@ -2969,7 +3123,7 @@ async function loadTrelloBoards() {
       await loadTrelloLists(cfg.boardId, cfg.todayList);
     }
   } catch(e) {
-    showStatus('Can\'t reach Trello — ' + e.message, 'error');
+    showStatus('Couldn\'t reach Trello — will try again', 'error');
   }
 }
 
@@ -2999,7 +3153,7 @@ async function loadTrelloLists(boardId, selectedList) {
       + lists.map(l => `<option value="${esc(l.name)}"${l.name === selectedList ? ' selected' : ''}>${esc(l.name)}</option>`).join('');
     if (wrap) wrap.style.display = '';
   } catch(e) {
-    showStatus('Can\'t reach Trello — ' + e.message, 'error');
+    showStatus('Couldn\'t reach Trello — will try again', 'error');
   }
 }
 
@@ -3137,7 +3291,7 @@ async function loadTrello(fromSync) {
       document.getElementById('configPanel').classList.add('open');
       syncActiveButtons();
       showStatus(msg, 'error');
-      emptyEl.textContent = 'Can\'t reach Trello — check above';
+      emptyEl.textContent = 'Couldn\'t reach Trello — check above';
       emptyEl.style.display = 'block';
     }
   }
@@ -3158,12 +3312,12 @@ function renderTrello() {
       existing.forEach(el => el.classList.add('removing'));
       setTimeout(() => {
         list.innerHTML = '';
-        empty.textContent   = trelloConnected ? 'Nothing due today' : 'No Trello yet — tap ⚡ to connect';
+        empty.textContent   = trelloConnected ? 'Nothing due today' : 'Trello\'s not connected yet';
         empty.style.display = 'block';
       }, 200);
     } else {
       list.innerHTML = '';
-      empty.textContent   = trelloConnected ? 'Nothing due today' : 'No Trello yet — tap ⚡ to connect';
+      empty.textContent   = trelloConnected ? 'Nothing due today' : 'Trello\'s not connected yet';
       empty.style.display = 'block';
     }
     return;
@@ -3903,6 +4057,12 @@ function toggleDone(taskId) {
   if (doneIds.has(taskId)) {
     const doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
     localStorage.setItem('stat_tasks_done_today', doneToday + 1);
+    
+    // Update memory with task completion
+    const task = manualTasks.find(t => t.id === taskId) || 
+                 (trelloTasks || []).find(t => 'trello_' + t.id === taskId);
+    const taskText = task?.text || task?.name || '';
+    _memoryOnTaskComplete(taskText);
   }
 
   const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
@@ -3995,7 +4155,7 @@ function updateManualEmptyState(animate) {
   const allDone   = doneCount === total;
 
   if (allDone) {
-    empty.innerHTML = '<span class="done-star">✦</span> All done for today';
+    empty.innerHTML = '<span class="done-star">✦</span> Clear';
     if (animate) {
       empty.style.opacity = '0';
       empty.style.display = 'block';
@@ -4864,6 +5024,8 @@ async function dropboxBackup(silent) {
     habits:               safeJSON('today_habits',            []),
     habit_completions:    safeJSON('today_habit_completions', {}),
     deleted_habit_ids:    safeJSON('today_deleted_habit_ids', []),
+    // Memory — AI's learned patterns and moments
+    memory:               safeJSON('today_memory', null),
     // stat_last_visit intentionally excluded — it's local device state, meaningless on another device
   };
 
@@ -5135,6 +5297,33 @@ async function dropboxRestore(fromSync) {
         localStorage.setItem('today_deleted_habit_ids', JSON.stringify(Array.isArray(data.deleted_habit_ids) ? data.deleted_habit_ids : []));
         const habitsPanel = document.getElementById('habitsPanel');
         if (habitsPanel && habitsPanel.classList.contains('open')) renderHabits();
+      }
+      // Restore memory (merge with local — union of moments, max of counters)
+      if (data.memory && typeof data.memory === 'object') {
+        const remote = data.memory;
+        // Merge completionsByHour (sum)
+        for (const [h, count] of Object.entries(remote.patterns?.completionsByHour || {})) {
+          appMemory.patterns.completionsByHour[h] = Math.max(appMemory.patterns.completionsByHour[h] || 0, count);
+        }
+        // Merge taskKeywords
+        for (const [word, data] of Object.entries(remote.patterns?.taskKeywords || {})) {
+          if (!appMemory.patterns.taskKeywords[word]) appMemory.patterns.taskKeywords[word] = { completed: 0 };
+          appMemory.patterns.taskKeywords[word].completed = Math.max(appMemory.patterns.taskKeywords[word].completed, data.completed || 0);
+        }
+        // Max of counters
+        appMemory.patterns.focusMinutesTotal = Math.max(appMemory.patterns.focusMinutesTotal, remote.patterns?.focusMinutesTotal || 0);
+        appMemory.patterns.bestStreak = Math.max(appMemory.patterns.bestStreak, remote.patterns?.bestStreak || 0);
+        appMemory.totalTasksCompleted = Math.max(appMemory.totalTasksCompleted, remote.totalTasksCompleted || 0);
+        appMemory.totalDaysActive = Math.max(appMemory.totalDaysActive, remote.totalDaysActive || 0);
+        // Union of moments (dedupe by type+date)
+        const existingKeys = new Set(appMemory.moments.map(m => m.type + m.date));
+        for (const moment of (remote.moments || [])) {
+          if (!existingKeys.has(moment.type + moment.date)) {
+            appMemory.moments.push(moment);
+          }
+        }
+        appMemory.moments = appMemory.moments.slice(-20);
+        _saveMemory();
       }
       // stat_last_visit intentionally NOT restored — it's local device state.
       // Restoring it would cause applyNewDayCleanup() to re-run and delete today's tasks.
@@ -5935,6 +6124,9 @@ function _aiSystemPrompt(ctx) {
   const pendingList = regularTasks.map(t => `"${t.text}" [${t.id}]`).join(', ');
   const habitList = pendingHabits.map(h => `"${h.name}" [${h.id}]`).join(', ');
   const doneList = ctx.tasks.done.map(t => `"${t.text}"`).join(', ');
+  
+  // Get memory context
+  const memoryContext = _memoryForAI();
 
   return `You are a gentle, supportive presence inside TODAY — a minimal daily focus app.
 
@@ -5946,6 +6138,7 @@ Your personality:
 - You speak like a thoughtful friend, not a productivity coach.
 - Short sentences. Natural rhythm. No corporate speak.
 
+${memoryContext ? `What you remember about this person:\n${memoryContext}\n` : ''}
 Right now — ${ctx.timeOfDay}:
 ${stateSummary}
 ${overdueTasks.length ? `Overdue: ${overdueList}` : ''}
@@ -5961,6 +6154,7 @@ Reply ONLY with raw JSON (no markdown, no code fences):
 
 Message guidelines:
 - Be specific to THEIR tasks, not generic advice
+- Reference their patterns if relevant (peak hours, past wins)
 - If they've done a lot: acknowledge it genuinely
 - If overdue: gentle nudge, not alarm
 - If empty: light, not pushy
@@ -6738,6 +6932,9 @@ function _aiDismissProactive() {
     // Track focus minutes today (25 min per pomodoro)
     const prevMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
     localStorage.setItem('stat_focus_mins_today', prevMins + 25);
+    
+    // Update memory with focus session
+    _memoryOnFocusComplete(25);
 
     playChime();
     _haptic('success');
