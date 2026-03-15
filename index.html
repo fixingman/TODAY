@@ -490,31 +490,31 @@
     z-index: var(--z-base);
     max-width: 680px;
     margin: 0 auto;
-    padding: 48px 24px 80px;
-    padding-top: calc(48px + env(safe-area-inset-top));
+    padding: 0 24px 80px;
     padding-bottom: calc(80px + env(safe-area-inset-bottom));
     min-height: 100vh;
     overflow-x: hidden;
   }
 
   /* ── Component: Header ─────────────────────────────────────────────── */
+  /* Sticky header lives outside .app — no overflow ancestor to break sticky */
   .sticky-header {
     position: sticky;
     top: 0;
     z-index: 10;
-    /* Bleed to full width by negating the app's 24px horizontal padding */
+    width: 100%;
     background: rgba(14,14,16,0.92);
-    margin-left: -24px;
-    margin-right: -24px;
-    padding-left: 24px;
-    padding-right: 24px;
-    padding-top: var(--space-5);
-    padding-bottom: var(--space-3);
-    /* Blur so scrolled content bleeds through slightly — premium feel */
     -webkit-backdrop-filter: blur(16px) saturate(1.4);
     backdrop-filter: blur(16px) saturate(1.4);
-    /* Separator line only visible when content is scrolled underneath */
     box-shadow: 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  /* Inner wrapper mirrors .app centering */
+  .sticky-header-inner {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: var(--space-5) 24px var(--space-3);
+    padding-top: calc(var(--space-5) + env(safe-area-inset-top));
   }
 
   .header {
@@ -1029,7 +1029,7 @@
   @media (max-width: 600px) {
     .config-grid { grid-template-columns: 1fr; }
     .app { padding: 32px 16px 60px; padding-top: calc(16px + env(safe-area-inset-top)); padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
-    .sticky-header { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; padding-top: calc(var(--space-4) + env(safe-area-inset-top)); }
+    .sticky-header-inner { padding-left: 16px; padding-right: 16px; padding-top: calc(var(--space-4) + env(safe-area-inset-top)); }
     .header { margin-bottom: 10px; }
     .subheader { margin-bottom: 24px; }
     .btn-icon { width: 32px; height: 32px; font-size: var(--text-md); }
@@ -1427,10 +1427,9 @@
   </div>
   <div id="splash-date-wrap"><span id="splash-date"></span><span id="splash-cursor"></span></div>
 </div>
-<div class="app" id="main-app" style="opacity:0">
-
-  <!-- Sticky header: TODAY logo + CTAs + date + progress bar -->
-  <div class="sticky-header">
+<!-- Sticky header: outside .app so overflow:hidden on .app doesn't break sticky -->
+<div class="sticky-header" id="sticky-header" style="opacity:0">
+  <div class="sticky-header-inner">
     <div class="header">
       <div class="header-left">
         <h1>TO<span>DAY</span></h1>
@@ -1452,6 +1451,9 @@
       </div>
     </div>
   </div>
+</div>
+
+<div class="app" id="main-app" style="opacity:0">
 
   <!-- Habits panel -->
   <div class="config-panel" id="habitsPanel">
@@ -1600,11 +1602,13 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.7.0';
+const APP_VERSION   = '1.7.2';
 const DEV_HOURS     = '72h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.7.2': 'Fix sticky header — moved outside .app (overflow:hidden was breaking sticky) | width:100% replaces 100vw hack | Fix iOS haptics — switch .click() trick removed (Safari requires real touch, not JS events) | navigator.vibrate() now works on iOS Safari',
+  '1.7.1': 'Fix sticky header — full viewport width via 100vw + calc(-50vw+50%) breakout | sticky-header-inner re-applies max-width:680px centering | was constrained to .app column width',
   '1.7.0': 'Habits system: 21-day dot strip, habit strength % (exponential smoothing), Dropbox sync, union merge | Focus mode on habits | Drag-to-reorder all three lists (desktop + mobile long-press) | PWA installable: Add to Dock on macOS, home screen on iOS | Auto-update: SW background download, activates on next focus | Offline cold start: blinking ✦ fallback | Rendering: GPU compositing, font smoothing, touch-action, overscroll | Copy button on focused tasks | Shift+D clear all done',
   '1.7.0': 'Version bump — 1.6.x undercounted three minor-version features (habits, drag-to-reorder, focus on habits + haptics). 1.7.0 draws the line. Versioning rules now enforced at end of every work block per Architecture.md §13.',
   '1.6.54': 'Fix iOS haptics — switch element must be in viewport (was top:-9999px), use state tracking instead of double-click | Sticky header: TODAY + CTAs + date + progress bar stay fixed on scroll with backdrop blur',
@@ -2372,57 +2376,15 @@ function _getAudioCtx() {
     medium:    [40],
   };
 
-  // iOS: one hidden switch input, reused for every haptic call.
-  // Must be in the visual viewport — Safari won't fire haptics for off-screen elements.
-  // We track checked state manually and toggle it, one click per haptic call.
-  let _iosSwitch = null;
-  let _iosSwitchState = false;
-  function _iosHaptic() {
-    if (!_iosSwitch) {
-      _iosSwitch = document.createElement('input');
-      _iosSwitch.type = 'checkbox';
-      _iosSwitch.setAttribute('switch', '');
-      // In viewport but invisible — opacity:0 and no size, but NOT off-screen
-      _iosSwitch.style.cssText = [
-        'position:fixed',
-        'top:0',
-        'left:0',
-        'width:0',
-        'height:0',
-        'opacity:0',
-        'pointer-events:none',
-        'border:none',
-        'outline:none',
-        'appearance:none',
-        '-webkit-appearance:none',
-      ].join(';');
-      document.body.appendChild(_iosSwitch);
-    }
-    // Toggle state: each call flips checked once → Safari fires system haptic
-    _iosSwitchState = !_iosSwitchState;
-    _iosSwitch.checked = _iosSwitchState;
-    // Dispatch a change event — setting .checked programmatically doesn't fire it
-    _iosSwitch.dispatchEvent(new Event('change', { bubbles: true }));
-    // Also try a click() as fallback — some Safari versions need the click event
-    _iosSwitch.click();
-  }
-
-  // Detect iOS Safari (not Android, not desktop Chrome on Mac)
-  // iOS Safari does not have navigator.vibrate but has the switch trick
-  const _isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  // navigator.vibrate() works on both Android and iOS Safari (confirmed March 2026).
+  // The <input switch> programmatic click trick does NOT work — Safari only fires
+  // haptics on real user touch events, not JS-dispatched clicks.
+  // Simple: call vibrate if available, silent no-op on desktop.
   const _hasVibrate = typeof navigator.vibrate === 'function';
 
   window._haptic = function(preset) {
-    preset = preset || 'medium';
-    if (_hasVibrate && !_isIOS) {
-      // Android Chrome + other Vibration API browsers
-      navigator.vibrate(PATTERNS[preset] || PATTERNS.medium);
-    } else if (_isIOS) {
-      // iOS Safari — one system tap regardless of preset
-      _iosHaptic();
-    }
-    // Desktop / unsupported: silent no-op
+    if (!_hasVibrate) return;
+    navigator.vibrate(PATTERNS[preset] || PATTERNS.medium);
   };
 })();
 
@@ -4454,7 +4416,9 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
         splash.remove();
         splashCanvas.remove();
 
-        // Step 2: reveal children top-to-bottom with stagger
+        // Step 2: reveal sticky header + children top-to-bottom with stagger
+        const stickyHdr = document.getElementById('sticky-header');
+        if (stickyHdr) { stickyHdr.style.transition = 'opacity 300ms ease'; stickyHdr.style.opacity = '1'; }
         mainApp.style.opacity = '1';
         const children = Array.from(mainApp.children);
         children.forEach((el, i) => {
