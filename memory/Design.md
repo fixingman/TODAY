@@ -87,6 +87,9 @@ TODAY speaks like a calm, present friend — not a system, not a manager, not a 
 | Testing… | One moment… |
 | Failed to | Can't reach |
 | No [X] tasks for today | Nothing due today |
+| Clear done tasks | Tidy |
+| Start over | Start fresh |
+| Good job / Well done | Nice |
 
 ### Focus Mode Language
 

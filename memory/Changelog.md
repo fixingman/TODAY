@@ -2,6 +2,18 @@
 
 | Version | Key change |
 |---|---|
+| **2.2.16** | **First interaction freeze fix** — defer heavy sync work with setTimeout(0) to yield to event loop after paint. App now responds instantly. |
+| 2.2.15 | Fix intermittent null style error in splash animation — add guards for logo/dateWrap/splash/mainApp |
+| 2.2.14 | Mobile drag fix: disable text selection on manual tasks (pointer:coarse) for smoother drag gestures |
+| 2.2.13 | Replace deprecated apple-mobile-web-app-capable with mobile-web-app-capable |
+| 2.2.12 | AI config layout redesign: input + Connect inline, status + link below, cleaner spacing |
+| 2.2.11 | AI config: hide empty error banner when switching tabs or reopening panel |
+| 2.2.10 | AI config: Forget button first, then "Connected" status (no checkmark, no provider name) |
+| 2.2.9 | AI error handling: detect HTML responses, show human-friendly errors |
+| 2.2.8 | AI config UX: Connect button disabled until input, label layout fixed, connected state inline |
+| 2.2.7 | Bottom bar stroke removed (cleaner visual) |
+| 2.2.6 | Header polish: remove shadow and bottom padding, progress bar flush at bottom |
+| 2.2.5 | Copy revision: tonality applied throughout — "Get tasks", "Forget", "Save", "Bring back", "One moment…" |
 | **2.2.4** | **Tonality** — Focus mode hints now say "breathe" / "rest". Tonality guidelines added to Design.md §2. Human language for humans, not robots. |
 | 2.2.3 | Focus mode: Esc closes UI without resetting timer (keeps running in background) |
 | 2.2.2 | Focus mode: kbd hint appears below timer bar, not fixed at bottom (avoids overlap with add-task bar) |
