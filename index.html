@@ -138,6 +138,41 @@
     /* Delete hidden during focus */
     .focusing .task.focused .task-delete { opacity: 0 !important; pointer-events: none; }
 
+    /* Copy button — appears in top-right corner of focused task only */
+    .task-copy {
+      position: absolute;
+      top: var(--space-2);
+      right: var(--space-2);
+      opacity: 0;
+      background: none;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      color: var(--muted);
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      letter-spacing: 0.06em;
+      padding: 2px var(--space-2);
+      cursor: pointer;
+      pointer-events: none;
+      transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+      white-space: nowrap;
+      line-height: 1.6;
+    }
+    .focusing .task.focused .task-copy {
+      opacity: 0.45;
+      pointer-events: all;
+    }
+    .focusing .task.focused .task-copy:hover {
+      opacity: 1;
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .focusing .task.focused .task-copy.copied {
+      color: var(--accent);
+      border-color: var(--accent);
+      opacity: 1;
+    }
+
     /* Timer bar — slides open downward only */
     .focus-timer {
       overflow: hidden;
@@ -787,6 +822,10 @@
   #manualList .task:not(.done):hover,
   #trelloList .task:hover,
   #habitList .habit:hover  { cursor: grab; }
+
+  /* In focus mode: focused task gets default cursor (drag disabled, text selectable) */
+  .focusing .task.focused,
+  .focusing .task.focused:hover { cursor: default; }
 
   #manualList .task:not(.done)::before,
   #trelloList .task::before,
@@ -1535,11 +1574,13 @@ const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.6.49';
-const DEV_HOURS     = '67h';
+const APP_VERSION   = '1.7.0';
+const DEV_HOURS     = '68h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.7.0': 'Habits system: 21-day dot strip, habit strength % (exponential smoothing), Dropbox sync, union merge | Focus mode on habits | Drag-to-reorder all three lists (desktop + mobile long-press) | PWA installable: Add to Dock on macOS, home screen on iOS | Auto-update: SW background download, activates on next focus | Offline cold start: blinking ✦ fallback | Rendering: GPU compositing, font smoothing, touch-action, overscroll | Copy button on focused tasks | Shift+D clear all done',
+  '1.6.50': 'Focus mode: grab cursor overridden to default on focused task | Copy button appears top-right of focused task in focus mode — strips badge/link, copies clean text, shows copied feedback | Present on manual + Trello tasks, not habits',
   '1.6.49': 'Fix OG/Twitter meta image URLs to /assets/today-og.png | today-og.png added to SW pre-cache | Architecture.md assets list corrected to actual repo contents',
   '1.6.48': 'Housekeeping: all images moved to assets/ folder | manifest.json + sw.js paths updated to /assets/icon-*.png | root directory clean',
   '1.6.47': 'Rendering optimisations: 5× transition:all → specific properties | width transitions → transform:scaleX (GPU-composited, no layout reflow) | will-change:transform on 3 animated elements | contain:layout style on task lists',
@@ -2182,6 +2223,8 @@ function taskHTML(task, type) {
   const deleteBtn = type === 'manual'
     ? `<button class="task-delete" data-taskid="${tid}" title="Remove">×</button>`
     : '';
+  // Copy button — visible only in focus mode via CSS, present on all task types
+  const copyBtn = `<button class="task-copy" data-taskid="${tid}" title="Copy task text">copy</button>`;
 
 
   return `
@@ -2196,6 +2239,7 @@ function taskHTML(task, type) {
         ${badges ? `<div class="task-meta">${badges}</div>` : ''}
       </div>
       ${deleteBtn}
+      ${copyBtn}
     </div>`;
 }
 
@@ -2206,6 +2250,28 @@ function esc(s) {
 
 // ─── Event delegation ────────────────────────────────────────────────────────
 document.addEventListener('click', function(e) {
+  // Copy button — copies task text to clipboard, shows brief 'copied' feedback
+  const copyEl = e.target.closest('.task-copy');
+  if (copyEl) {
+    const taskEl = copyEl.closest('.task[data-taskid]');
+    if (taskEl) {
+      const textEl = taskEl.querySelector('.task-text');
+      // Get clean text — strip the session count badge and link arrow
+      const clone = textEl.cloneNode(true);
+      clone.querySelectorAll('.session-count, .trello-link').forEach(el => el.remove());
+      const text = clone.textContent.trim();
+      navigator.clipboard.writeText(text).then(() => {
+        copyEl.textContent = 'copied';
+        copyEl.classList.add('copied');
+        setTimeout(() => {
+          copyEl.textContent = 'copy';
+          copyEl.classList.remove('copied');
+        }, 1800);
+      }).catch(() => {});
+    }
+    return;
+  }
+
   // Check box
   const checkEl = e.target.closest('.task-check');
   if (checkEl) {

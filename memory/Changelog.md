@@ -2,6 +2,31 @@
 
 | Version | Key change |
 |---|---|
+| **1.7.0** | **Habits system** — 21-day strip, habit strength %, Dropbox sync, focus mode on habits | **Drag-to-reorder** — all three lists, desktop + mobile long-press | **PWA** — installable on macOS + iOS, offline fallback, auto-update | Rendering optimisations — GPU compositing, font smoothing, touch-action | Copy button on focused tasks | Shift+D shortcut |
+| 1.6.50 | Focus mode: cursor fixed to default | Copy button on focused tasks |
+| 1.6.49 | Fix OG image paths to /assets/ | today-og.png added to SW cache |
+| 1.6.48 | Housekeeping: images moved to assets/ folder, manifest + SW paths updated |
+| 1.6.47 | Rendering: transition:all removed, width→scaleX, will-change, contain:layout |
+| 1.6.47 | Rendering optimisations — font smoothing, touch-action, overscroll, GPU compositing for drag ghost |
+| 1.6.46 | Fix drag first-grab miss — draggable set on mousedown, not after 4px movement |
+| 1.6.45 | Focus mode extended to habits — click row starts Pomodoro, session count badge, full recede/focus CSS |
+| 1.6.44 | Auto-update — SW polls every 60min, activates on next app focus, reloads seamlessly |
+| 1.6.43 | Sound volume +60% — all gains raised, character unchanged |
+| 1.6.43 | Swipe-to-complete removed |
+| 1.6.42 | Mobile drag-to-reorder — long-press + touch ghost for all three lists |
+| 1.6.41 | Fix text selection on drag | Fix swipe intent detection on iOS | Fix Trello card drag blocked by link element |
+| 1.6.40 | Drag-to-reorder all three lists — manual tasks, Trello cards, habits |
+| 1.6.39 | Fix drag TypeError — instanceof Element guard on all drag and swipe handlers |
+| 1.6.38 | Drag handle removed — row itself is the drag target, grab cursor + left accent line on hover |
+| 1.6.37 | Fix swipe track ✓ visible on desktop |
+| 1.6.36 | Drag-to-reorder manual tasks | Swipe-right-to-complete on mobile | Shift+D clears all done tasks |
+| 1.6.35 | Fix Trello refresh loop (stat_last_visit never set on first open) | Fix manual restore wiped by next-tick new-day cleanup |
+| 1.6.34 | PWA manifest — installable via Safari Add to Dock or Chrome install prompt, no developer account needed |
+| 1.6.33 | Offline cold start fallback — blinking ✦ replaces white screen |
+| 1.6.32 | Trello overdue cards persist until checked off |
+| 1.6.31 | Habit strength % replaces streak — exponential smoothing over 90 days, missing days don't zero progress |
+| 1.6.30 | Done state visuals restored on load — _applyDoneStyles called from renderManual + renderTrello |
+| 1.6.29 | Mobile habits: 7-dot strip, tighter padding, gap tokens | Edit mode persists after delete | Streak column alignment fixed | Empty .task.done rule removed |
 | 1.6.28 | Edit mode surgical DOM patch | Midnight cleanup fresh date fix | Habits new-day reset | Future due dates hidden | Mobile done state inline styles | Sync renderManual guarantee | Splash parallel load two-flag gate | Trello refresh button removed |
 | 1.6.27 | Housekeeping: SW cache synced, duplicate CSS removed, ember burst on habit check, no layout shift in edit mode, hover-only row reveal, surgical toggleHabitDone. |
 | 1.6.26 | Habits Dropbox sync: union merge, deleted_habit_ids, backup schema v4.0. |
