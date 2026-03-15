@@ -2149,11 +2149,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.3.6';
-const DEV_HOURS     = '93h';
+const APP_VERSION   = '2.4.2';
+const DEV_HOURS     = '94h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.4.2': 'Fix: restore dev hours display next to coffee button.',
+  '2.4.1': 'Fix: restore changelog rendering in About panel (accidentally removed in 2.4.0).',
+  '2.4.0': 'Dashboard simplified to 3 metrics: Completed, Streak, Flow. Flow rate uses exponential smoothing (rate × 0.85 + today × 0.15) — rewards consistency, recent days matter more.',
   '2.3.6': 'Animation simplification: taskSlideIn → pure fade, ✦ button → subtle opacity pulse (no width expansion), splash letters → faster/tighter timing. Removed shadow-divider from mobile bar.',
   '2.3.5': 'Accessibility: prefers-reduced-motion support — disables breathing animations, reduces all transition durations for users who prefer reduced motion.',
   '2.3.4': 'Fade gradients on sticky header (::after) and add-task bar (::before) — content softens before clipping under chrome. 10px height.',
@@ -2312,6 +2315,18 @@ function applyNewDayCleanup() {
   const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
   localStorage.setItem('stat_streak', lastVisit === yesterday.toDateString() ? streak + 1 : 1);
 
+  // ── Flow rate calculation (exponential smoothing) ──
+  // rate_new = rate_old × 0.85 + today_rate × 0.15
+  const addedToday = parseInt(localStorage.getItem('stat_tasks_added_today') || '0');
+  const doneToday  = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
+  const todayRate  = addedToday > 0 ? (doneToday / addedToday) * 100 : 100; // 100% if nothing added
+  const oldRate    = parseFloat(localStorage.getItem('stat_flow_rate') || '50');
+  const newRate    = Math.round(oldRate * 0.85 + todayRate * 0.15);
+  localStorage.setItem('stat_flow_rate', newRate);
+  // Reset daily counters
+  localStorage.setItem('stat_tasks_added_today', '0');
+  localStorage.setItem('stat_tasks_done_today', '0');
+
   // Remove manual tasks that were marked done — completed tasks don't carry over
   manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));
@@ -2429,37 +2444,28 @@ function toggleInfo() {
 }
 
 function renderInfoStats() {
-  // Pull lifetime stats from localStorage
+  // Pull stats from localStorage
   const allTimeCompleted = parseInt(localStorage.getItem('stat_alltime_done') || '0');
-
-  const all    = [...trelloTasks, ...manualTasks];
-  const total  = all.length;
-  const done   = all.filter(t => doneIds.has(t.id)).length;
-  const pct    = total > 0 ? Math.round((done / total) * 100) : 0;
-
-  const streak      = parseInt(localStorage.getItem('stat_streak') || '1');
-  const trelloCount = trelloTasks.length;
-  const manualCount = manualTasks.length;
+  const streak = parseInt(localStorage.getItem('stat_streak') || '1');
+  const flowRate = parseInt(localStorage.getItem('stat_flow_rate') || '50');
 
   const stats = [
-    { val: `${done}/${total}`, label: 'Done today' },
-    { val: pct + '%',          label: 'Completion' },
-    { val: trelloCount,        label: 'From Trello' },
-    { val: manualCount,        label: 'Added by you' },
-    { val: streak + ' day' + (streak !== 1 ? 's' : ''), label: 'Current streak' },
-    { val: allTimeCompleted,   label: 'Completed' },
+    { val: allTimeCompleted, label: 'Completed' },
+    { val: streak + 'd', label: 'Streak' },
+    { val: flowRate + '%', label: 'Flow' },
   ];
 
   document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
   _aiRenderConfig();  // init AI button and config state
-  const devHoursEl = document.querySelector('.dev-hours-val');
-  if (devHoursEl) devHoursEl.innerHTML = '⏱ built in <span style="color:var(--color-accent);font-weight:500">' + DEV_HOURS + '</span>';
 
-  // Changelog — current version expanded, last 2 as quiet one-liners, rest hidden
+  // Dev hours display
+  const devHoursEl = document.querySelector('.dev-hours-val');
+  if (devHoursEl) devHoursEl.innerHTML = '⏱ built in <span style="color:var(--accent);font-weight:500">' + DEV_HOURS + '</span>';
+
+  // Changelog — current version expanded, rest as quiet one-liners
   const clPanel  = document.getElementById('changelogPanel');
   const versions = Object.keys(CHANGELOG);
   const shown    = versions.slice(0, 1 + HISTORY_SHOWN);
-  const hidden   = versions.length - shown.length;
 
   clPanel.innerHTML = shown.map((v, i) => {
     if (i === 0) {
@@ -2482,8 +2488,7 @@ function renderInfoStats() {
         <span class="changelog-text">${CHANGELOG[v].split(',')[0]}</span>
       </div>`;
     }
-  }).join('')
-;
+  }).join('');
 
   document.getElementById('infoStats').innerHTML = stats.map(s => `
     <div class="info-stat">
@@ -3478,10 +3483,12 @@ function toggleDone(taskId) {
   _setLastLocalChange();
   dropboxAutoSave();
 
-  // Track all-time completed count
+  // Track all-time completed count + daily done for flow rate
   if (doneIds.has(taskId)) {
     const prev = parseInt(localStorage.getItem('stat_alltime_done') || '0');
     localStorage.setItem('stat_alltime_done', prev + 1);
+    const doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
+    localStorage.setItem('stat_tasks_done_today', doneToday + 1);
   }
 
   const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
@@ -3533,6 +3540,10 @@ function addManual() {
   input.value = '';
   input.focus();
   toggleClearBtn();
+
+  // Track for flow rate
+  const added = parseInt(localStorage.getItem('stat_tasks_added_today') || '0');
+  localStorage.setItem('stat_tasks_added_today', added + 1);
 
   // Dismiss any existing AI suggestion
   _aiDismissSuggestion();
