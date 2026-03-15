@@ -521,25 +521,32 @@
     z-index: var(--z-base);
     max-width: 680px;
     margin: 0 auto;
-    padding: var(--space-12) var(--space-6) var(--space-20);
-    padding-top: calc(var(--space-12) + env(safe-area-inset-top));
-    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    /* No top padding — sticky header sits directly above */
+    padding: 0 var(--space-6) 0;
+    padding-bottom: 72px;
     min-height: 100vh;
     overflow-x: hidden;
   }
 
   /* ── Component: Header ─────────────────────────────────────────────── */
   /* Sticky header — mobile only. Desktop scrolls normally. */
+  /* Sticky header — active on all viewports */
   .sticky-header {
-    position: static; /* desktop default — no sticky */
+    position: sticky;
+    top: 0;
+    z-index: 10;
     width: 100%;
-    background: transparent;
+    background: var(--bg-glass);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.05);
   }
 
   .sticky-header-inner {
     max-width: 680px;
     margin: 0 auto;
-    padding: 0; /* desktop: no extra padding, .app handles it */
+    /* Desktop: match .app's 24px horizontal padding + space-5 top */
+    padding: var(--space-5) var(--space-6) var(--space-3);
   }
 
   .header {
@@ -600,7 +607,7 @@
 
   /* Subheader */
   .subheader {
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-1);
   }
 
   .subheader-top {
@@ -931,10 +938,28 @@
   .add-task-row {
     display: flex;
     gap: var(--space-2);
-    /* Desktop: flows in normal document, outside .app — mirrors .app centering */
-    max-width: 680px;
-    margin: var(--space-3) auto var(--space-8);
-    padding: 0 var(--space-6);
+    /* Desktop: fixed at bottom, full width with inner max-width centering */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    margin: 0;
+    padding: var(--space-2) 0;
+    padding-bottom: var(--space-3); /* safe breathing room above window chrome */
+    background: var(--bg-glass);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow: 0 -1px 0 rgba(255,255,255,0.05);
+  }
+  /* Inner wrapper keeps content aligned with .app column */
+  .add-task-row > * {
+    /* items align naturally inside flex — centering via padding below */
+  }
+  /* Constrain contents to match .app max-width */
+  #addTaskBar {
+    padding-left: max(var(--space-6), calc((100vw - 680px) / 2 + var(--space-6)));
+    padding-right: max(var(--space-6), calc((100vw - 680px) / 2 + var(--space-6)));
   }
 
   .clear-input-btn {
@@ -1094,22 +1119,10 @@
       padding-bottom: calc(var(--space-20) + env(safe-area-inset-bottom));
     }
 
-    /* Sticky header active on mobile */
-    .sticky-header {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: var(--bg-glass);
-      -webkit-backdrop-filter: blur(16px) saturate(1.4);
-      backdrop-filter: blur(16px) saturate(1.4);
-      /* Hairline separator — visible once content scrolls under */
-      box-shadow: 0 1px 0 rgba(255,255,255,0.05);
-    }
-
+    /* Mobile: override padding for narrower viewport + safe area */
     .sticky-header-inner {
       padding-left: var(--space-4);
       padding-right: var(--space-4);
-      /* Top: safe area + breathing room. Bottom: tight — bar ends at progress bar. */
       padding-top: calc(var(--space-4) + env(safe-area-inset-top));
       padding-bottom: var(--space-3);
     }
@@ -1875,13 +1888,17 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.9.0';
+const APP_VERSION   = '1.9.2';
 const DEV_HOURS     = '78h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.9.2': 'Desktop: remove .app top padding (content flush under progress bar) | add space-3 bottom padding to fixed add-task bar',
+  '1.9.1': 'Desktop add-task bar now fixed at bottom like mobile — backdrop blur, hairline top border, content centered within max-width 680px column via padding calc',
   '1.9.0': 'Fix first-click freeze — AudioContext pre-warmed on first pointerdown/touchstart (before task list visible) instead of cold-creating on first task tap | iOS haptics: confirmed not possible on iOS Safari any version (caniuse) — silent no-op, documented',
   '1.8.10': 'Fix first-click freeze — AudioContext pre-warmed on first pointerdown (fires during splash, before task list visible) | Fix iOS haptics — switch trick (.click() synchronously in user gesture stack) replaces non-functional navigator.vibrate()',
+  '1.9.0': 'Sticky header now active on desktop too — backdrop blur, hairline separator, bg-glass. Mobile override keeps safe-area padding. Minor bump: new UX feature.',
+  '1.9.0': 'Reduce desktop progress bar bottom margin (space-3 → space-1) matching mobile tightness',
   '1.8.9': 'Fix AI key validation UX — panel stays open during async test call so error is visible | error messages persistent (no auto-clear) | friendly error copy for invalid key / quota / permission | input selected on failure for easy retry',
   '1.8.8': 'AI integration overhaul: removed duplicate panel input + stale overlay CSS/JS | toggleAI routes unconfigured users to Connections (not empty panel) | _aiRenderConfig no longer fills input with bullets, shows free-tier hint, dynamic get-key link | saveAIKey friendly error messages, auto-clear, Testing… state | Enter submits key',
   '1.8.7': 'Add-task bar margins: space-3 top, space-4 sides, space-2+safe-area bottom — all tokens, no hardcoded px',
