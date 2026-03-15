@@ -479,15 +479,15 @@
   }
   #splash-logo .l {
     display: inline-block;
-    opacity: 0; transform: translateY(0.2em);
-    animation: splashLetterRise .5s cubic-bezier(0.16,1,0.3,1) forwards;
+    opacity: 0; transform: translateY(0.12em);
+    animation: splashLetterRise .4s var(--ease-out) forwards;
   }
   #splash-logo .l.a { color: var(--accent); }
-  #splash-logo .l:nth-child(1){animation-delay:.08s}
-  #splash-logo .l:nth-child(2){animation-delay:.14s}
-  #splash-logo .l:nth-child(3){animation-delay:.20s}
-  #splash-logo .l:nth-child(4){animation-delay:.26s}
-  #splash-logo .l:nth-child(5){animation-delay:.32s}
+  #splash-logo .l:nth-child(1){animation-delay:.06s}
+  #splash-logo .l:nth-child(2){animation-delay:.10s}
+  #splash-logo .l:nth-child(3){animation-delay:.14s}
+  #splash-logo .l:nth-child(4){animation-delay:.18s}
+  #splash-logo .l:nth-child(5){animation-delay:.22s}
 
   #splash-star {
     position: absolute; right: -0.28em; top: -0.2em;
@@ -511,12 +511,11 @@
   #splash-cursor.off   { opacity: 0; animation: none; }
 
 
-  @keyframes splashLetterRise  { to { opacity:1; transform:translateY(0); } }
-  @keyframes splashCursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+  @keyframes splashLetterRise  { to { opacity: 1; transform: translateY(0); } }
+  @keyframes splashCursorBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
   @keyframes splashStarBreath  {
-    0%,100%{ transform:scale(1) rotate(0deg); }
-    40%    { transform:scale(1.12) rotate(6deg); }
-    70%    { transform:scale(.94) rotate(-4deg); }
+    0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    50%      { transform: scale(1.08) rotate(3deg); opacity: 0.8; }
   }
 
 
@@ -755,13 +754,14 @@
     to   { opacity: 0; transform: scaleY(0.85); }
   }
 
+  /* Task entry uses pure fade — no transform, elements appear in place */
   @keyframes taskSlideIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
 
   .task-slide-in {
-    animation: taskSlideIn 220ms ease both;
+    animation: taskSlideIn var(--dur-base) var(--ease-std) both;
   }
 
   #manualEmpty.fading-in {
@@ -840,66 +840,6 @@
   }
 
   /* AI Proactive suggestions (appear after checking tasks) */
-  .ai-proactive {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    margin: var(--space-2) 0;
-    background: var(--color-surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    font-size: var(--text-sm);
-    color: var(--muted);
-    animation: slideDown var(--dur-base) var(--ease-std);
-  }
-  .ai-proactive.removing {
-    animation: fadeOut var(--dur-fast) var(--ease-std) forwards;
-  }
-  .ai-proactive-msg {
-    flex: 1;
-    min-width: 0;
-  }
-  .ai-proactive-chips {
-    display: flex;
-    gap: var(--space-2);
-    flex-shrink: 0;
-  }
-  .ai-proactive-chip {
-    padding: var(--space-2) var(--space-3);
-    border-radius: var(--radius-full);
-    background: transparent;
-    color: var(--muted);
-    font-size: var(--text-xs);
-    font-weight: 500;
-    border: 1px solid var(--border);
-    cursor: pointer;
-    transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
-  }
-  .ai-proactive-chip:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .ai-proactive-chip.primary {
-    background: var(--accent);
-    color: var(--bg);
-    border-color: var(--accent);
-    animation: gentleBreath 2.4s ease-in-out infinite;
-  }
-  @keyframes gentleBreath {
-    0%, 100% { opacity: 1; }
-    50%      { opacity: 0.75; }
-  }
-  .ai-proactive-chip.primary:hover {
-    background: var(--highlight-ui);
-    border-color: var(--highlight-ui);
-    animation: none;
-  }
-  .ai-proactive-chip.dismiss {
-    border: none;
-    padding: var(--space-2);
-  }
-
   .task.done .task-text {
     text-decoration: line-through;
     text-decoration-color: var(--done-line);
@@ -1197,51 +1137,51 @@
     transition: width var(--dur-fast) var(--ease-out), opacity var(--dur-fast), background var(--dur-fast);
     line-height: 1;
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: visible;
     white-space: nowrap;
-    /* Stars live in data-stars attribute, swapped via CSS content trick */
+    position: relative;
+  }
+
+  /* AI suggestion badge */
+  .add-ai-btn .ai-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    background: var(--danger);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 500;
+    padding: 0 4px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    animation: badgePop var(--dur-base) var(--ease-out);
+  }
+  @keyframes badgePop {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
   }
 
   /* On hover: widen to fit two then three stars via sequential keyframe */
   /* Hover: ✦ → ✦✦ → ✦✦✦ in 180ms */
-  @keyframes starExpand {
-    0%   { width: 44px; }
-    50%  { width: 62px; }
-    100% { width: 78px; }
-  }
-  @keyframes starFade2 {
-    0%, 25%   { opacity: 0; transform: translateX(-3px); }
-    55%, 100% { opacity: 1; transform: translateX(0); }
-  }
-  @keyframes starFade3 {
-    0%, 55%   { opacity: 0; transform: translateX(-3px); }
-    85%, 100% { opacity: 1; transform: translateX(0); }
-  }
-
+  /* ✦ button hover — subtle breath pulse, no expansion */
   .add-ai-btn:hover {
-    animation: starExpand 180ms var(--ease-out) forwards;
+    opacity: 0.85;
   }
-  /* Second star fades in first */
-  .add-ai-btn::before {
-    content: '✦';
-    opacity: 0;
-    display: inline-block;
-    margin-left: 2px;
-    font-size: 12px;
+  .add-ai-btn:active {
+    opacity: 0.7;
+    transform: scale(0.96);
   }
-  .add-ai-btn:hover::before {
-    animation: starFade2 180ms var(--ease-out) forwards;
-  }
-  /* Third star fades in after */
+  
+  /* Remove the expanding stars — keep it minimal */
+  .add-ai-btn::before,
   .add-ai-btn::after {
-    content: '✦';
-    opacity: 0;
-    display: inline-block;
-    margin-left: 2px;
-    font-size: 12px;
-  }
-  .add-ai-btn:hover::after {
-    animation: starFade3 180ms var(--ease-out) forwards;
+    display: none;
   }
 
   /* AI active state — panel open */
@@ -1249,6 +1189,9 @@
     background: var(--surface2);
     color: var(--accent);
     box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .add-ai-btn.active .ai-badge {
+    display: none;
   }
 
   /* Trello config panel */
@@ -1270,38 +1213,33 @@
 
   #infoStats {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--space-3);
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-2);
     margin-bottom: var(--space-3);
-  }
-
-  @media (min-width: 480px) {
-    #infoStats {
-      grid-template-columns: repeat(3, 1fr);
-    }
   }
 
   .info-stat {
     background: var(--surface2);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
+    text-align: center;
   }
 
   .info-stat-val {
     font-family: var(--font-display);
-    font-size: var(--text-xl);
+    font-size: var(--text-lg);
     font-weight: 700;
     color: var(--accent);
   }
 
   .info-stat-label {
-    font-size: var(--text-xs);
+    font-size: 10px;
     color: var(--muted);
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
   }
 
@@ -1364,7 +1302,6 @@
       background: var(--bg-glass);
       -webkit-backdrop-filter: blur(16px) saturate(1.4);
       backdrop-filter: blur(16px) saturate(1.4);
-      box-shadow: var(--shadow-divider);
     }
   }
 
@@ -1493,6 +1430,199 @@
     padding-top: var(--space-5);
     margin-top: var(--space-5);
   }
+  
+  /* ── Connections Grid (Trello + Dropbox side by side) ─────────────── */
+  .connections-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+  .connections-grid.stacked {
+    grid-template-columns: 1fr;
+  }
+  
+  .connection-card {
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    transition: border-color var(--dur-fast);
+    display: flex;
+    flex-direction: column;
+  }
+  .connection-card:hover {
+    border-color: var(--muted);
+  }
+  .connection-card-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: var(--space-2);
+  }
+  .connection-card-title {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: 0.04em;
+  }
+  .connection-card-hint {
+    font-size: var(--text-xs);
+    color: var(--muted);
+    margin-bottom: var(--space-4);
+    line-height: 1.5;
+    flex: 1;
+  }
+  .connection-card .btn-primary {
+    align-self: flex-start;
+  }
+  
+  /* Connected row — elegant inline status */
+  .connection-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    margin-bottom: var(--space-2);
+    transition: border-color var(--dur-fast);
+  }
+  .connection-row:last-child {
+    margin-bottom: 0;
+  }
+  .connection-row:hover {
+    border-color: var(--muted);
+  }
+  .connection-row-info {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    min-width: 0;
+    flex: 1;
+  }
+  .connection-row-title {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .connection-row-status {
+    font-size: var(--text-xs);
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .connection-row-actions {
+    display: flex;
+    gap: var(--space-2);
+    flex-shrink: 0;
+  }
+  .connection-row-actions .btn-sm {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: border-color var(--dur-fast), color var(--dur-fast);
+  }
+  .connection-row-actions .btn-sm:hover {
+    border-color: var(--muted);
+    color: var(--text);
+  }
+  .connection-row-actions .btn-sm.primary {
+    background: var(--accent-dim);
+    border-color: var(--accent-focus-border);
+    color: var(--accent);
+  }
+  .connection-row-actions .btn-sm.primary:hover {
+    background: var(--accent-hover);
+  }
+  
+  /* Expanded config — board selection state */
+  .connection-expanded {
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    margin-bottom: var(--space-2);
+  }
+  .connection-expanded-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: var(--space-3);
+  }
+  .connection-expanded-title {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: 0.04em;
+  }
+  .connection-expanded-status {
+    font-size: var(--text-xs);
+    color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+  .connection-expanded select {
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-2);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color var(--dur-fast);
+  }
+  .connection-expanded select:hover {
+    border-color: var(--muted);
+  }
+  .connection-expanded select:focus {
+    border-color: var(--highlight-ui);
+    outline: none;
+  }
+  .connection-expanded-actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+  }
+  .connection-expanded-actions .btn-sm {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    padding: 8px 14px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: border-color var(--dur-fast), color var(--dur-fast), background var(--dur-fast);
+  }
+  .connection-expanded-actions .btn-sm.primary {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-focus-border);
+    color: var(--accent);
+  }
+  .connection-expanded-actions .btn-sm.primary:hover {
+    background: var(--accent-hover);
+  }
+  .connection-expanded-actions .btn-sm.ghost {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .connection-expanded-actions .btn-sm.ghost:hover {
+    border-color: var(--muted);
+    color: var(--text);
+  }
+
   /* .panel-section-lg removed — identical to .panel-section */
   .panel-header {
     display: flex;
@@ -1881,6 +2011,28 @@
     line-height: 1.6;
   }
   .ai-not-configured a { color: var(--highlight-ui); text-decoration: none; }
+
+  /* ── Accessibility: Reduced Motion ─────────────────────────────────── */
+  /* Respect user preference for reduced motion — skip decorative animations */
+  @media (prefers-reduced-motion: reduce) {
+    /* Disable breathing/pulse animations */
+    .focus-timer-fill.complete,
+    .done-star,
+    .loading-dots span,
+    .ai-suggestion-msg.thinking::after {
+      animation: none !important;
+    }
+    
+    /* Reduce transition durations */
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+    
+    /* Keep essential state indicators visible */
+    .focus-timer-fill.complete { opacity: 1; }
+    .loading-dots span { opacity: 0.6; }
+  }
 </style>
 </head>
 <body>
@@ -1958,70 +2110,16 @@
 
   <!-- Trello config panel -->
   <div class="config-panel" id="configPanel">
-    <div class="config-title">⚡&#xFE0E; Trello Connection</div>
+    <div class="config-title">⚡&#xFE0E; Connections</div>
 
-    <!-- Step 1: Connect -->
-    <div id="trelloStep1">
-      <div class="config-hint">
-        Connect your Trello account to pull today's cards automatically.
-      </div>
-      <div class="config-actions">
-        <button class="btn-primary" onclick="trelloAuth()">Connect Trello</button>
-      </div>
-    </div>
-
-    <!-- Step 2: Pick board -->
-    <div id="trelloStep2" style="display:none">
-      <div class="config-grid">
-        <div class="config-field full">
-          <div class="config-label">Board</div>
-          <select class="config-input" id="boardSelect" onchange="onBoardChange()">
-            <option value="">— select a board —</option>
-          </select>
-        </div>
-        <div class="config-field full" id="listFieldWrap" style="display:none">
-          <div class="config-label">"Today" list (optional)</div>
-          <select class="config-input" id="listSelect" onchange="setLoadBtnPrimary()">
-            <option value="">— cards due today only —</option>
-          </select>
-        </div>
-      </div>
-      <div class="config-hint">
-        Cards from the selected list + cards due today will both be shown.
-      </div>
-      <div class="config-actions">
-        <button class="btn-primary" id="loadTasksBtn" onclick="saveAndLoad()">Get tasks</button>
-        <button class="btn-ghost" onclick="clearTrello()">Forget</button>
-      </div>
-    </div>
+    <!-- Connections container — JS will render the appropriate state -->
+    <div id="connectionsContainer"></div>
 
     <div class="status-msg" id="statusMsg"></div>
 
-    <!-- Dropbox backup section -->
-    <div class="panel-section">
-      <div class="config-title">⚡&#xFE0E; Dropbox Backup</div>
-      <div class="config-hint">
-        Backup tasks &amp; settings to Dropbox — Your data goes directly to your own Dropbox; we never see it.
-        <span id="dropboxSetupHint" style="display:none"><br><br><strong style="color:var(--text)">Setup:</strong> Create a free app at <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noopener" style="color:var(--highlight-ui)">dropbox.com/developers</a> → Scoped access → App Folder. Add <code style="color:var(--highlight-ui)">https://today-here.netlify.app/</code> as a redirect URI, then paste your App Key below.</span>
-      </div>
-      <div class="config-grid" id="dropboxKeyRow" style="display:none">
-        <div class="config-field full">
-          <div class="config-label">Dropbox App Key</div>
-          <input class="config-input" id="dropboxAppKey" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" placeholder="your-app-key" />
-        </div>
-      </div>
-      <div id="dropboxStatusLine" class="panel-status-line"></div>
-      <div class="config-actions">
-        <button class="btn-primary" id="dropboxConnectBtn" onclick="dropboxAuth()">Connect Dropbox</button>
-        <button class="btn-ghost" onclick="dropboxBackup()" id="btnBackup" style="display:none">Save</button>
-        <button class="btn-ghost" onclick="dropboxRestore()" id="btnRestore" style="display:none">Bring back</button>
-      </div>
-      <div class="status-msg" id="dropboxMsg"></div>
-    </div>
-
     <!-- AI Assistant section -->
     <div class="panel-section" id="aiConfigSection">
-      <div class="config-title">✦✦ AI Assistant</div>
+      <div class="config-title">✦ AI Assistant</div>
       <div class="config-hint">
         Pick a provider and paste your API key. Your key is stored locally and sent only to your own Netlify function — never to a third party.
       </div>
@@ -2129,7 +2227,7 @@
     <button id="clearTaskBtn" onclick="clearTaskInput()" class="clear-input-btn" style="display:none">×</button>
   </div>
   <!-- Single ✦: Enter = add task, tap = AI (or add task if AI not configured) -->
-  <button class="add-ai-btn" id="addAiBtn" onclick="handleBarSubmit()" title="✦✦">✦✦</button>
+  <button class="add-ai-btn" id="addAiBtn" onclick="handleBarSubmit()" title="✦">✦</button>
 </div>
 
 <canvas id="celebCanvas"></canvas>
@@ -2152,11 +2250,25 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.3.4';
-const DEV_HOURS     = '91h';
+const APP_VERSION   = '2.6.0';
+const DEV_HOURS     = '99h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.6.0': 'AI proactive redesign: badge on ✦ button instead of popup. Pull model — user taps when ready. Calmer, less intrusive.',
+  '2.5.7': 'AI button: single star ✦ instead of ✦✦ (cleaner, less busy).',
+  '2.5.6': 'Fix: remove stale setLoadBtnSecondary() call.',
+  '2.5.5': 'Connection cards: left-align Connect buttons, flex column for bottom alignment.',
+  '2.5.4': 'Connections panel: elegant bordered cards with --font-mono, subtle hover states, accent-dim primary buttons. Matches AI provider button pattern.',
+  '2.5.3': 'Connections panel: remove ⚡ icons, remove card backgrounds (cleaner, less misleading).',
+  '2.5.2': 'Fix connections panel typography: use --font-display for titles, proper spacing/padding, standard btn-primary sizing. Matches design system.',
+  '2.5.1': 'About panel: stats now always 3 columns (centered, compact) — no more uneven 2+1 on mobile.',
+  '2.5.0': 'Connections panel redesign: Trello + Dropbox side-by-side when disconnected, compact status rows when connected. Cleaner, less scrolling.',
+  '2.4.2': 'Fix: restore dev hours display next to coffee button.',
+  '2.4.1': 'Fix: restore changelog rendering in About panel (accidentally removed in 2.4.0).',
+  '2.4.0': 'Dashboard simplified to 3 metrics: Completed, Streak, Flow. Flow rate uses exponential smoothing (rate × 0.85 + today × 0.15) — rewards consistency, recent days matter more.',
+  '2.3.6': 'Animation simplification: taskSlideIn → pure fade, ✦ button → subtle opacity pulse (no width expansion), splash letters → faster/tighter timing. Removed shadow-divider from mobile bar.',
+  '2.3.5': 'Accessibility: prefers-reduced-motion support — disables breathing animations, reduces all transition durations for users who prefer reduced motion.',
   '2.3.4': 'Fade gradients on sticky header (::after) and add-task bar (::before) — content softens before clipping under chrome. 10px height.',
   '2.3.3': 'Motion refinement: breathing animations on proactive CTA button and "All done" star. Motion Philosophy documented in Design.md.',
   '2.3.2': 'Token audit: --z-header, --accent-hover, --shadow-float, --shadow-divider added. All hardcoded rgba/z-index replaced. Trello section padding-top for header clearance.',
@@ -2313,6 +2425,18 @@ function applyNewDayCleanup() {
   const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
   localStorage.setItem('stat_streak', lastVisit === yesterday.toDateString() ? streak + 1 : 1);
 
+  // ── Flow rate calculation (exponential smoothing) ──
+  // rate_new = rate_old × 0.85 + today_rate × 0.15
+  const addedToday = parseInt(localStorage.getItem('stat_tasks_added_today') || '0');
+  const doneToday  = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
+  const todayRate  = addedToday > 0 ? (doneToday / addedToday) * 100 : 100; // 100% if nothing added
+  const oldRate    = parseFloat(localStorage.getItem('stat_flow_rate') || '50');
+  const newRate    = Math.round(oldRate * 0.85 + todayRate * 0.15);
+  localStorage.setItem('stat_flow_rate', newRate);
+  // Reset daily counters
+  localStorage.setItem('stat_tasks_added_today', '0');
+  localStorage.setItem('stat_tasks_done_today', '0');
+
   // Remove manual tasks that were marked done — completed tasks don't carry over
   manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));
@@ -2343,8 +2467,6 @@ function applyNewDayCleanup() {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 function init() {
-  dropboxUpdateUI();       // hide key input/hint if app key is embedded
-
   const now = new Date();
   document.getElementById('dateTag').textContent =
     now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }).toUpperCase();
@@ -2361,9 +2483,6 @@ function init() {
 
   if (saved.boardId && trelloToken) {
     setTrelloIcon(true);
-    // Restore step 2 UI with saved selections
-    document.getElementById('trelloStep1').style.display = 'none';
-    document.getElementById('trelloStep2').style.display = '';
 
     // Seed from cache immediately so the UI isn't blank while API loads
     // Cache is validated by date AND boardId — stale date or board change = ignored
@@ -2374,8 +2493,7 @@ function init() {
       updateStats();
     }
 
-    loadTrelloBoards();  // repopulates dropdowns + triggers loadTrello
-    loadTrello();        // also load immediately from saved config
+    loadTrello();        // load immediately from saved config
   } else {
     renderTrello();
   }
@@ -2403,15 +2521,16 @@ function syncActiveButtons() {
 }
 
 function toggleConfig() {
-  // Refresh AI config UI whenever connections panel is opened
-  setTimeout(_aiRenderConfig, 0);
   const configPanel = document.getElementById('configPanel');
-  const isClosing = configPanel.classList.contains('open');
+  const isOpening = !configPanel.classList.contains('open');
   configPanel.classList.toggle('open');
   document.getElementById('infoPanel').classList.remove('open');
   document.getElementById('habitsPanel').classList.remove('open');
   syncActiveButtons();
-  if (isClosing) {
+  if (isOpening) {
+    renderConnections();
+    setTimeout(_aiRenderConfig, 0);
+  } else {
     const s = document.getElementById('statusMsg');
     const d = document.getElementById('dropboxMsg');
     if (s) { s.textContent = ''; s.className = 'status-msg'; }
@@ -2430,37 +2549,28 @@ function toggleInfo() {
 }
 
 function renderInfoStats() {
-  // Pull lifetime stats from localStorage
+  // Pull stats from localStorage
   const allTimeCompleted = parseInt(localStorage.getItem('stat_alltime_done') || '0');
-
-  const all    = [...trelloTasks, ...manualTasks];
-  const total  = all.length;
-  const done   = all.filter(t => doneIds.has(t.id)).length;
-  const pct    = total > 0 ? Math.round((done / total) * 100) : 0;
-
-  const streak      = parseInt(localStorage.getItem('stat_streak') || '1');
-  const trelloCount = trelloTasks.length;
-  const manualCount = manualTasks.length;
+  const streak = parseInt(localStorage.getItem('stat_streak') || '1');
+  const flowRate = parseInt(localStorage.getItem('stat_flow_rate') || '50');
 
   const stats = [
-    { val: `${done}/${total}`, label: 'Done today' },
-    { val: pct + '%',          label: 'Completion' },
-    { val: trelloCount,        label: 'From Trello' },
-    { val: manualCount,        label: 'Added by you' },
-    { val: streak + ' day' + (streak !== 1 ? 's' : ''), label: 'Current streak' },
-    { val: allTimeCompleted,   label: 'Completed' },
+    { val: allTimeCompleted, label: 'Completed' },
+    { val: streak + 'd', label: 'Streak' },
+    { val: flowRate + '%', label: 'Flow' },
   ];
 
   document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
   _aiRenderConfig();  // init AI button and config state
-  const devHoursEl = document.querySelector('.dev-hours-val');
-  if (devHoursEl) devHoursEl.innerHTML = '⏱ built in <span style="color:var(--color-accent);font-weight:500">' + DEV_HOURS + '</span>';
 
-  // Changelog — current version expanded, last 2 as quiet one-liners, rest hidden
+  // Dev hours display
+  const devHoursEl = document.querySelector('.dev-hours-val');
+  if (devHoursEl) devHoursEl.innerHTML = '⏱ built in <span style="color:var(--accent);font-weight:500">' + DEV_HOURS + '</span>';
+
+  // Changelog — current version expanded, rest as quiet one-liners
   const clPanel  = document.getElementById('changelogPanel');
   const versions = Object.keys(CHANGELOG);
   const shown    = versions.slice(0, 1 + HISTORY_SHOWN);
-  const hidden   = versions.length - shown.length;
 
   clPanel.innerHTML = shown.map((v, i) => {
     if (i === 0) {
@@ -2483,14 +2593,178 @@ function renderInfoStats() {
         <span class="changelog-text">${CHANGELOG[v].split(',')[0]}</span>
       </div>`;
     }
-  }).join('')
-;
+  }).join('');
 
   document.getElementById('infoStats').innerHTML = stats.map(s => `
     <div class="info-stat">
       <div class="info-stat-val">${s.val}</div>
       <div class="info-stat-label">${s.label}</div>
     </div>`).join('');
+}
+
+// ─── Connections Panel Rendering ──────────────────────────────────────────────
+// Renders Trello + Dropbox in a compact layout based on connection state
+
+function renderConnections() {
+  const container = document.getElementById('connectionsContainer');
+  if (!container) return;
+
+  const trelloToken = localStorage.getItem('trello_token');
+  const trelloConfig = getSavedConfig();
+  const trelloHasBoard = !!(trelloConfig.boardId);
+  
+  const dropboxToken = localStorage.getItem('dropbox_token');
+  const dropboxExpired = localStorage.getItem('dropbox_token_expired') === '1';
+  const dropboxConnected = dropboxToken && !dropboxExpired;
+  
+  const lastBackup = localStorage.getItem('last_successful_backup');
+  let backupStatus = '';
+  if (lastBackup) {
+    const mins = Math.round((Date.now() - new Date(lastBackup).getTime()) / 60000);
+    backupStatus = mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.round(mins/60)}h ago`;
+  }
+
+  // Both disconnected: side-by-side cards
+  if (!trelloToken && !dropboxConnected) {
+    container.innerHTML = `
+      <div class="connections-grid">
+        <div class="connection-card">
+          <div class="connection-card-header">
+            <span class="connection-card-title">Trello</span>
+          </div>
+          <div class="connection-card-hint">Pull today's cards automatically</div>
+          <button class="btn-primary" onclick="trelloAuth()">Connect</button>
+        </div>
+        <div class="connection-card">
+          <div class="connection-card-header">
+            <span class="connection-card-title">Dropbox</span>
+          </div>
+          <div class="connection-card-hint">Sync tasks across devices</div>
+          <button class="btn-primary" onclick="dropboxAuth()">Connect</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // At least one connected: stacked layout
+  let html = '';
+
+  // Trello section
+  if (trelloToken && trelloHasBoard) {
+    // Connected with board — compact row
+    const boardName = _getTrelloBoardName() || 'Board';
+    const listName = trelloConfig.todayList || 'Due today';
+    html += `
+      <div class="connection-row">
+        <div class="connection-row-info">
+          <span class="connection-row-title">Trello</span>
+          <span class="connection-row-status">${esc(boardName)} → ${esc(listName)}</span>
+        </div>
+        <div class="connection-row-actions">
+          <button class="btn-sm primary" onclick="loadTrello()">Refresh</button>
+          <button class="btn-sm" onclick="clearTrello()">Forget</button>
+        </div>
+      </div>`;
+  } else if (trelloToken) {
+    // Connected but needs board selection — expanded
+    html += `
+      <div class="connection-expanded" id="trelloExpanded">
+        <div class="connection-expanded-header">
+          <span class="connection-expanded-title">Trello</span>
+          <span class="connection-expanded-status">● Connected</span>
+        </div>
+        <select id="boardSelect" onchange="onBoardChange()">
+          <option value="">— select a board —</option>
+        </select>
+        <div id="listFieldWrap" style="display:none">
+          <select id="listSelect">
+            <option value="">— due today only —</option>
+          </select>
+        </div>
+        <div class="connection-expanded-actions">
+          <button class="btn-sm primary" id="loadTasksBtn" onclick="saveAndLoad()">Get tasks</button>
+          <button class="btn-sm ghost" onclick="clearTrello()">Forget</button>
+        </div>
+      </div>`;
+  } else {
+    // Disconnected — compact row with connect
+    html += `
+      <div class="connection-row">
+        <div class="connection-row-info">
+          <span class="connection-row-title">Trello</span>
+          <span class="connection-row-status">Pull today's cards</span>
+        </div>
+        <div class="connection-row-actions">
+          <button class="btn-sm primary" onclick="trelloAuth()">Connect</button>
+        </div>
+      </div>`;
+  }
+
+  // Dropbox section
+  if (dropboxConnected) {
+    // Connected — compact row
+    html += `
+      <div class="connection-row">
+        <div class="connection-row-info">
+          <span class="connection-row-title">Dropbox</span>
+          <span class="connection-row-status">${backupStatus ? 'Saved ' + backupStatus : 'Connected'}</span>
+        </div>
+        <div class="connection-row-actions">
+          <button class="btn-sm" onclick="dropboxBackup()">Save</button>
+          <button class="btn-sm" onclick="dropboxRestore()">Restore</button>
+          <button class="btn-sm" onclick="dropboxDisconnect()">Forget</button>
+        </div>
+      </div>`;
+  } else if (dropboxExpired) {
+    // Expired — show reconnect
+    html += `
+      <div class="connection-row">
+        <div class="connection-row-info">
+          <span class="connection-row-title">Dropbox</span>
+          <span class="connection-row-status" style="color:var(--danger)">Session expired</span>
+        </div>
+        <div class="connection-row-actions">
+          <button class="btn-sm primary" onclick="dropboxAuth()">Reconnect</button>
+        </div>
+      </div>`;
+  } else {
+    // Disconnected — compact row
+    html += `
+      <div class="connection-row">
+        <div class="connection-row-info">
+          <span class="connection-row-title">Dropbox</span>
+          <span class="connection-row-status">Backup & sync</span>
+        </div>
+        <div class="connection-row-actions">
+          <button class="btn-sm primary" onclick="dropboxAuth()">Connect</button>
+        </div>
+      </div>`;
+  }
+
+  container.innerHTML = html;
+  
+  // If Trello needs board loading, do it now
+  if (trelloToken && !trelloHasBoard) {
+    loadTrelloBoards();
+  }
+}
+
+// Helper to get board name from cache or config
+function _getTrelloBoardName() {
+  try {
+    const cache = JSON.parse(localStorage.getItem('today_trello_cache') || '{}');
+    return cache.boardName || '';
+  } catch(e) { return ''; }
+}
+
+// Dropbox disconnect helper
+function dropboxDisconnect() {
+  localStorage.removeItem('dropbox_token');
+  localStorage.removeItem('dropbox_refresh_token');
+  localStorage.removeItem('dropbox_token_expiry');
+  localStorage.removeItem('dropbox_token_expired');
+  renderConnections();
+  showStatus('Dropbox disconnected.', 'success');
 }
 
 function getSavedConfig() {
@@ -2527,10 +2801,11 @@ function trelloAuth() {
         if (tokenMatch) {
           const token = tokenMatch[1];
           localStorage.setItem('trello_token', token);
-    trelloConnected = true;
-    // _syncToken update handled by next _refreshSyncCache() tick (<7s)
+          trelloConnected = true;
+          // _syncToken update handled by next _refreshSyncCache() tick (<7s)
           setTrelloIcon(true);
           showStatus('Connected! Loading your boards…', 'success');
+          renderConnections();
           loadTrelloBoards();
         } else {
           showStatus('Trello authorisation cancelled.', 'error');
@@ -2549,11 +2824,12 @@ async function loadTrelloBoards() {
     const res = await fetch(`https://api.trello.com/1/members/me/boards?key=${TRELLO_API_KEY}&token=${token}&fields=name,id&filter=open`);
     if (!res.ok) throw new Error(res.status);
     const boards = await res.json();
+    // Render connections first to create the select element
+    renderConnections();
     const sel = document.getElementById('boardSelect');
+    if (!sel) return;
     sel.innerHTML = '<option value="">— select a board —</option>'
       + boards.map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('');
-    document.getElementById('trelloStep1').style.display = 'none';
-    document.getElementById('trelloStep2').style.display = '';
     // Restore saved board/list selection
     const cfg = getSavedConfig();
     if (cfg.boardId) {
@@ -2566,21 +2842,15 @@ async function loadTrelloBoards() {
 }
 
 async function onBoardChange() {
-  const boardId = document.getElementById('boardSelect').value;
-  document.getElementById('listSelect').innerHTML = '<option value="">— cards due today only —</option>';
-  document.getElementById('listFieldWrap').style.display = boardId ? '' : 'none';
-  setLoadBtnPrimary();
+  const boardSel = document.getElementById('boardSelect');
+  const listSel = document.getElementById('listSelect');
+  const listWrap = document.getElementById('listFieldWrap');
+  if (!boardSel || !listSel) return;
+  
+  const boardId = boardSel.value;
+  listSel.innerHTML = '<option value="">— due today only —</option>';
+  if (listWrap) listWrap.style.display = boardId ? '' : 'none';
   if (boardId) await loadTrelloLists(boardId, '');
-}
-
-function setLoadBtnPrimary() {
-  const btn = document.getElementById('loadTasksBtn');
-  if (btn) { btn.className = 'btn-primary'; btn.textContent = 'Get tasks'; }
-}
-
-function setLoadBtnSecondary() {
-  const btn = document.getElementById('loadTasksBtn');
-  if (btn) { btn.className = 'btn-ghost'; btn.textContent = 'Refresh'; }
 }
 
 async function loadTrelloLists(boardId, selectedList) {
@@ -2591,9 +2861,11 @@ async function loadTrelloLists(boardId, selectedList) {
     if (!res.ok) throw new Error(res.status);
     const lists = await res.json();
     const sel = document.getElementById('listSelect');
-    sel.innerHTML = '<option value="">— cards due today only —</option>'
+    const wrap = document.getElementById('listFieldWrap');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— due today only —</option>'
       + lists.map(l => `<option value="${esc(l.name)}"${l.name === selectedList ? ' selected' : ''}>${esc(l.name)}</option>`).join('');
-    document.getElementById('listFieldWrap').style.display = '';
+    if (wrap) wrap.style.display = '';
   } catch(e) {
     showStatus('Can\'t reach Trello — ' + e.message, 'error');
   }
@@ -2601,16 +2873,19 @@ async function loadTrelloLists(boardId, selectedList) {
 
 function saveAndLoad() {
   const token   = localStorage.getItem('trello_token');
-  const boardId = document.getElementById('boardSelect').value;
-  const todayList = document.getElementById('listSelect').value;
+  const boardSel = document.getElementById('boardSelect');
+  const listSel = document.getElementById('listSelect');
+  const boardId = boardSel ? boardSel.value : '';
+  const todayList = listSel ? listSel.value : '';
   if (!token || !boardId) {
-    showStatus('Please connect Trello and select a board.', 'error');
+    showStatus('Please select a board.', 'error');
     return;
   }
   const config = { apiKey: TRELLO_API_KEY, apiToken: token, boardId, todayList };
   localStorage.setItem('trello_config', JSON.stringify(config));
   // _syncCfg update handled by next _refreshSyncCache() tick (<7s)
   loadTrello();
+  renderConnections(); // Switch to compact connected view
 }
 
 function clearTrello() {
@@ -2618,11 +2893,9 @@ function clearTrello() {
   localStorage.removeItem('trello_token');
   localStorage.removeItem('today_trello_cache');
   trelloTasks = [];
+  trelloConnected = false;
   setTrelloIcon(false);
-  document.getElementById('trelloStep1').style.display = '';
-  document.getElementById('trelloStep2').style.display = 'none';
-  document.getElementById('configPanel').classList.add('open');
-  syncActiveButtons();
+  renderConnections();
   renderTrello();
   updateStats();
   showStatus('Trello disconnected.', 'success');
@@ -2704,7 +2977,6 @@ async function loadTrello(fromSync) {
       : `Loaded ${trelloTasks.length} card${trelloTasks.length !== 1 ? 's' : ''} from Trello.`;
 
     setTrelloIcon(true);
-    setLoadBtnSecondary();
 
     // Only show status in panel if it's already open
     if (document.getElementById('configPanel').classList.contains('open')) {
@@ -3479,10 +3751,12 @@ function toggleDone(taskId) {
   _setLastLocalChange();
   dropboxAutoSave();
 
-  // Track all-time completed count
+  // Track all-time completed count + daily done for flow rate
   if (doneIds.has(taskId)) {
     const prev = parseInt(localStorage.getItem('stat_alltime_done') || '0');
     localStorage.setItem('stat_alltime_done', prev + 1);
+    const doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
+    localStorage.setItem('stat_tasks_done_today', doneToday + 1);
   }
 
   const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
@@ -3534,6 +3808,10 @@ function addManual() {
   input.value = '';
   input.focus();
   toggleClearBtn();
+
+  // Track for flow rate
+  const added = parseInt(localStorage.getItem('stat_tasks_added_today') || '0');
+  localStorage.setItem('stat_tasks_added_today', added + 1);
 
   // Dismiss any existing AI suggestion
   _aiDismissSuggestion();
@@ -4262,61 +4540,8 @@ function getDropboxAppKey() {
   return (input && input.value.trim()) || saved;
 }
 
-function dropboxUpdateStatusLine() {
-  const el       = document.getElementById('dropboxStatusLine');
-  if (!el) return;
-  const token    = localStorage.getItem('dropbox_token');
-  const expired  = localStorage.getItem('dropbox_token_expired') === '1';
-  const lastSync = el.dataset.lastSync || '';
-  if (token && !expired) {
-    el.innerHTML = '<span style="color:var(--accent)">✓ Connected</span>'
-      + (lastSync ? ' &nbsp;·&nbsp; Last synced ' + lastSync : '');
-  } else if (expired) {
-    el.textContent = '';
-  } else {
-    el.textContent = '';
-  }
-}
-
 function dropboxShowMsg(msg, type) {
-  const el = document.getElementById('dropboxMsg');
-  if (!el) return;
-  el.textContent = msg;
-  el.className = 'status-msg ' + type;
-}
-
-function dropboxUpdateUI() {
-  const keyRow = document.getElementById('dropboxKeyRow');
-  const hint   = document.getElementById('dropboxSetupHint');
-  if (keyRow) keyRow.style.display = DROPBOX_APP_KEY ? 'none' : '';
-  if (hint)   hint.style.display   = DROPBOX_APP_KEY ? 'none' : 'inline';
-
-  const token      = localStorage.getItem('dropbox_token');
-  const expired    = localStorage.getItem('dropbox_token_expired') === '1';
-  const btnB       = document.getElementById('btnBackup');
-  const btnR       = document.getElementById('btnRestore');
-  const connectBtn = document.getElementById('dropboxConnectBtn');
-
-  if (token && !expired) {
-    if (btnB) btnB.style.display = '';
-    if (btnR) btnR.style.display = '';
-    if (connectBtn) connectBtn.style.display = 'none';
-    dropboxUpdateStatusLine();
-  } else {
-    if (btnB) btnB.style.display = 'none';
-    if (btnR) btnR.style.display = 'none';
-    if (connectBtn) {
-      connectBtn.className   = 'btn-primary';
-      connectBtn.textContent = expired ? 'Reconnect Dropbox' : 'Connect Dropbox';
-      connectBtn.onclick     = dropboxAuth;
-      connectBtn.style.display = '';
-    }
-    if (expired) dropboxShowMsg('⚠ Session expired — please reconnect.', 'error');
-    dropboxUpdateStatusLine();
-  }
-  const saved = localStorage.getItem('dropbox_app_key');
-  const input = document.getElementById('dropboxAppKey');
-  if (saved && input && !input.value) input.value = saved;
+  showStatus(msg, type);
 }
 
 // ── PKCE helpers ──────────────────────────────────────────────────────────────
@@ -4413,12 +4638,11 @@ async function _dropboxExchangeCode(code) {
     localStorage.setItem('dropbox_token_expiry',  String(Date.now() + (data.expires_in - 60) * 1000));
     localStorage.removeItem('dropbox_token_expired');
     _setLastLocalChange();
-    openDropboxPanel();
-    dropboxUpdateUI();
-    dropboxShowMsg('Dropbox connected!', 'success');
+    renderConnections();
+    showStatus('Dropbox connected!', 'success');
     dropboxAutoSave();
   } catch(e) {
-    dropboxShowMsg('Connection failed: ' + (e.message || 'unknown'), 'error');
+    showStatus('Connection failed: ' + (e.message || 'unknown'), 'error');
   }
 }
 
@@ -4446,13 +4670,6 @@ async function _dropboxEnsureToken() {
     localStorage.removeItem('dropbox_token_expired');
     dropboxUpdateUI();
   } catch(e) { /* silent — will retry next tick */ }
-}
-
-function openDropboxPanel() {
-  document.getElementById('configPanel').classList.add('open');
-  document.getElementById('infoPanel').classList.remove('open');
-  syncActiveButtons();
-  dropboxUpdateUI();
 }
 
 // ── Auto-save (debounced, called after every user action that changes state) ──
@@ -4534,8 +4751,6 @@ async function dropboxBackup(silent) {
 
     const label = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     if (!silent) dropboxShowMsg(`Backup saved at ${label} ✓`, 'success');
-    const syncEl = document.getElementById('dropboxStatusLine');
-    if (syncEl) { syncEl.dataset.lastSync = label; dropboxUpdateStatusLine(); }
 
   } catch(e) {
     if (!silent) dropboxShowMsg('Backup failed: ' + (e.message || 'unknown error'), 'error');
@@ -4738,10 +4953,6 @@ async function dropboxRestore(fromSync) {
       // where every device rewrites the file every 7s even when nothing changed.
       const changed = mergeRemoteData(data);
       if (changed) dropboxAutoSave();
-
-      const label = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      const syncEl = document.getElementById('dropboxStatusLine');
-      if (syncEl) { syncEl.dataset.lastSync = label; dropboxUpdateStatusLine(); }
 
     } else {
       // Manual restore — full overwrite, exactly what the user expects
@@ -5287,6 +5498,7 @@ function openAI() {
     document.getElementById(id)?.classList.remove('open'));
 
   _aiPanelOpen = true;
+  _aiClearBadge(); // Clear proactive badge when panel opens
   panel.classList.add('open');
   document.getElementById('addAiBtn')?.classList.add('active');
   syncActiveButtons();
@@ -5971,9 +6183,8 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
 // Shows contextual suggestions without user opening the AI panel
 // ══════════════════════════════════════════════════════════════════════════
 
-let _aiProactiveEl = null;
-let _aiProactiveTimeout = null;
-let _aiProactiveDismissedThisSession = false; // don't repeat after user dismisses
+let _aiProactiveBadgeShown = false;
+let _aiProactiveDismissedThisSession = false;
 
 function _aiProactiveSuggestion() {
   // Don't show if AI not configured
@@ -5985,78 +6196,35 @@ function _aiProactiveSuggestion() {
   // Don't show if AI panel is open
   if (_aiPanelOpen) return;
   
-  // Don't show if already showing
-  if (_aiProactiveEl) return;
+  // Don't show if badge already showing
+  if (_aiProactiveBadgeShown) return;
   
   // Count done manual tasks
   const doneManualCount = manualTasks.filter(t => doneIds.has(t.id)).length;
-  const pendingCount = manualTasks.filter(t => !doneIds.has(t.id)).length;
   
   // Trigger: ≥3 done tasks
   if (doneManualCount < 3) return;
   
-  // Build suggestion based on context
-  let message, action, actionLabel;
+  // Show badge on ✦ button
+  const btn = document.getElementById('addAiBtn');
+  if (!btn || btn.querySelector('.ai-badge')) return;
   
-  if (pendingCount === 0 && doneManualCount > 0) {
-    // All done!
-    message = '✦ All done';
-    action = () => { if (typeof _clearAllDone === 'function') _clearAllDone(); };
-    actionLabel = 'Start fresh';
-  } else {
-    // Mix of done and pending
-    message = 'Nice — tidy up?';
-    action = () => { if (typeof _clearAllDone === 'function') _clearAllDone(); };
-    actionLabel = 'Tidy';
-  }
-  
-  // Create suggestion element
-  const row = document.createElement('div');
-  row.className = 'ai-proactive';
-  row.innerHTML = `
-    <span class="ai-proactive-msg">${message}</span>
-    <div class="ai-proactive-chips">
-      <button class="ai-proactive-chip primary">${actionLabel}</button>
-      <button class="ai-proactive-chip dismiss">✕</button>
-    </div>
-  `;
-  
-  // Wire up buttons
-  row.querySelector('.primary').onclick = () => {
-    action();
-    _aiDismissProactive();
-  };
-  row.querySelector('.dismiss').onclick = () => {
-    _aiProactiveDismissedThisSession = true;
-    _aiDismissProactive();
-  };
-  
-  // Insert at top of manual list section
-  const manualSection = document.getElementById('manualList')?.parentElement;
-  if (!manualSection) return;
-  
-  const insertBefore = manualSection.querySelector('.section-header');
-  if (insertBefore) {
-    insertBefore.after(row);
-  } else {
-    manualSection.prepend(row);
-  }
-  
-  _aiProactiveEl = row;
-  
-  // Auto-dismiss after 12 seconds
-  _aiProactiveTimeout = setTimeout(() => _aiDismissProactive(), 12000);
+  const badge = document.createElement('span');
+  badge.className = 'ai-badge';
+  badge.textContent = '1';
+  btn.appendChild(badge);
+  _aiProactiveBadgeShown = true;
+}
+
+function _aiClearBadge() {
+  const badge = document.querySelector('.add-ai-btn .ai-badge');
+  if (badge) badge.remove();
+  _aiProactiveBadgeShown = false;
 }
 
 function _aiDismissProactive() {
-  clearTimeout(_aiProactiveTimeout);
-  if (!_aiProactiveEl) return;
-  
-  _aiProactiveEl.classList.add('removing');
-  _aiProactiveEl.addEventListener('animationend', () => {
-    _aiProactiveEl?.remove();
-    _aiProactiveEl = null;
-  }, { once: true });
+  _aiProactiveDismissedThisSession = true;
+  _aiClearBadge();
 }
 
 // ══════════════════════════════════════════════════════════════════════════

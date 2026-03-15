@@ -249,6 +249,15 @@ animation: timerCompletePulse 1.8s ease-in-out infinite;
 - Primary actions (buttons should respond to user, not animate on their own)
 - Anything time-critical (urgency contradicts the app's calm philosophy)
 
+**Breath animations in use:**
+
+| Animation | Duration | Range | Element |
+|-----------|----------|-------|---------|
+| `timerCompletePulse` | 1.8s | opacity 1 → 0.65 | Focus timer restart |
+| `gentleBreath` | 2.4s | opacity 1 → 0.75 | Proactive CTA button |
+| `starBreath` | 2.4s | opacity 1 → 0.6, scale 1 → 0.92 | "All done" star |
+| `splashStarBreath` | 3.2s | scale 1 → 1.12, rotate ±6° | Splash screen star |
+
 **The Blink Pattern**
 
 For loading indicators, a faster rhythm signals activity:
@@ -265,6 +274,14 @@ animation: blink 1.2s infinite;
 - **Sharp peak at 40%** — asymmetrical timing feels more alive than a sine wave
 - **Low baseline (0.2)** — dots recede between beats, reducing visual noise
 
+**Blink animations in use:**
+
+| Animation | Duration | Element |
+|-----------|----------|---------|
+| `blink` | 1.2s | Loading dots (staggered 0.18s, 0.4s delays) |
+| `blink` | 1.2s | AI thinking indicator |
+| `splashCursorBlink` | 0.5s | Splash cursor (step-end, faster) |
+
 **The Fade Pattern**
 
 State transitions use simple opacity fades:
@@ -273,6 +290,37 @@ State transitions use simple opacity fades:
 - **Recede (focus mode):** 1 → 0.07 over `--dur-slow` (0.30s)
 
 No transforms on enter/exit. Elements appear in place. Motion should feel like dimming lights, not flying objects.
+
+**Fade animations in use:**
+
+| Animation | Duration | Element |
+|-----------|----------|---------|
+| `fadeIn` | `--dur-slow` (0.30s) | New tasks, new habits |
+| `fadeIn` | `--dur-base` (0.18s) | Config panels, AI panel |
+| `fadeOut` | `--dur-fast` (0.15s) | Removing elements |
+| `emptyFadeIn` | `--dur-base` (0.18s) | Empty state appearance |
+| `slideDown` | `--dur-fast` (0.15s) | Suggestion rows |
+
+**Other motion:**
+
+| Animation | Duration | Element | Notes |
+|-----------|----------|---------|-------|
+| `taskSlideIn` | `--dur-base` | Task entry | Pure fade, no transform (v2.3.6) |
+| `splashLetterRise` | 0.4s | Splash text | Subtle rise + fade, staggered 40ms |
+
+**Removed/simplified in v2.3.6:**
+- `starExpand` / `starFade2` / `starFade3` — replaced with simple opacity hover on ✦ button
+- `taskSlideIn` transform — removed translateY, now pure fade
+- `shadow-divider` on mobile bar — removed for cleaner look
+
+**Reduced motion support (v2.3.5):**
+
+For users who prefer reduced motion (`prefers-reduced-motion: reduce`), all decorative animations are disabled:
+- Breathing animations (`timerCompletePulse`, `gentleBreath`, `starBreath`)
+- Loading dot blinks
+- All transition durations reduced to 0.01ms
+
+Essential state indicators remain visible (timer complete state, loading dots at 0.6 opacity).
 
 ### Z-index
 
