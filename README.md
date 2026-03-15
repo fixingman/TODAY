@@ -1,4 +1,4 @@
-# TODAY
+# ✦ TODAY
 
 A single-day task manager. One screen, one list, one day.
 
