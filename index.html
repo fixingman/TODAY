@@ -981,6 +981,36 @@
 
   .add-task-btn:hover { opacity: var(--opacity-hover); }
 
+  /* AI mode toggle button — sits between input and Add */
+  .add-ai-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    color: var(--muted);
+    font-size: var(--text-base);
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+    line-height: 1;
+  }
+  .add-ai-btn:hover { color: var(--text); border-color: var(--muted); }
+  .add-ai-btn.active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  /* Input in AI mode — subtle accent tint on border */
+  .add-task-input.ai-mode {
+    border-color: rgba(200,240,96,0.35);
+  }
+  .add-task-input.ai-mode::placeholder { color: var(--muted); opacity: 0.7; }
+
   /* Trello config panel */
   /* ── Component: Config Panel ───────────────────────────────────────── */
   .config-panel {
@@ -1584,41 +1614,7 @@
   }
   .ai-chip.primary:hover { background: rgba(200,240,96,0.18); }
 
-  /* Input row */
-  .ai-input-row {
-    display: flex;
-    gap: var(--space-2);
-  }
-  .ai-input {
-    flex: 1;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    padding: 6px var(--space-3);
-    outline: none;
-    transition: border-color var(--dur-fast);
-    -webkit-font-smoothing: antialiased;
-  }
-  .ai-input:focus { border-color: var(--muted); }
-  .ai-input::placeholder { color: var(--muted); opacity: 0.5; }
-  .ai-send-btn {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    color: var(--muted);
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    letter-spacing: 0.06em;
-    padding: 6px var(--space-3);
-    cursor: pointer;
-    transition: color var(--dur-fast), border-color var(--dur-fast);
-    white-space: nowrap;
-  }
-  .ai-send-btn:hover { color: var(--text); border-color: var(--muted); }
-  .ai-send-btn:disabled { opacity: 0.3; cursor: default; }
+
 
   .ai-not-configured {
     font-size: var(--text-sm);
@@ -1651,7 +1647,6 @@
       </div>
       <div class="header-actions">
         <button class="btn-icon" id="habitsBtn" title="Habits" onclick="toggleHabits()">◎&#xFE0E;</button>
-        <button class="btn-icon" id="aiBtn" title="AI Assistant" onclick="toggleAI()">✦✦</button>
         <button class="btn-icon" id="trelloBtn" title="Connections" onclick="toggleConfig()">✦&#xFE0E;</button>
         <button class="btn-icon" id="infoBtn" title="About" onclick="toggleInfo()">ℹ&#xFE0E;</button>
       </div>
@@ -1669,17 +1664,11 @@
   </div>
 </div>
 
-<!-- AI panel — inline, above task list, same pattern as habits/connections -->
+<!-- AI panel — suggestion + chips only. Input is the main add-task field in AI mode. -->
 <div class="config-panel" id="aiPanel" style="max-width:680px;margin:0 auto;padding:0 var(--space-6);">
   <div class="ai-panel-body">
     <div class="ai-suggestion-msg" id="aiSuggestionMsg"></div>
     <div class="ai-chips" id="aiChips"></div>
-    <div class="ai-input-row">
-      <input class="ai-input" id="aiChatInput" type="text"
-        placeholder="Type a task or ask anything…"
-        onkeydown="if(event.key==='Enter')sendAIMessage()" />
-      <button class="ai-send-btn" id="aiSendBtn" onclick="sendAIMessage()">→</button>
-    </div>
   </div>
 </div>
 
@@ -1784,15 +1773,21 @@
       <!-- Key input -->
       <div class="config-grid">
         <div class="config-field full">
-          <div class="config-label" id="aiKeyLabel">Google AI Studio Key</div>
+          <div class="config-label" id="aiKeyLabel">Google AI Studio Key
+            <a id="aiKeyLink" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener"
+              style="float:right;font-size:var(--text-xs);color:var(--highlight-ui);text-decoration:none;letter-spacing:0.04em">
+              Get free key →
+            </a>
+          </div>
           <input class="config-input" id="aiApiKey" autocomplete="off" autocorrect="off"
             autocapitalize="off" spellcheck="false" type="password"
-            placeholder="paste key here" />
+            placeholder="Paste key here…"
+            onkeydown="if(event.key==='Enter')saveAIKey()" />
         </div>
       </div>
       <div id="aiStatusLine" class="panel-status-line"></div>
       <div class="config-actions">
-        <button class="btn-primary" id="aiSaveBtn" onclick="saveAIKey()">Save Key</button>
+        <button class="btn-primary" id="aiSaveBtn" onclick="saveAIKey()">Connect</button>
         <button class="btn-ghost" id="aiClearBtn" onclick="clearAIKey()" style="display:none">Disconnect</button>
       </div>
       <div class="status-msg" id="aiMsg"></div>
@@ -1854,10 +1849,14 @@
 <!-- Add task bar: outside .app so transforms on .section don't break position:fixed -->
 <div class="add-task-row" id="addTaskBar">
   <div style="position:relative;flex:1;min-width:0;">
-    <input class="add-task-input" id="newTask" maxlength="500" type="text" placeholder="Add a task for today…" onkeydown="handleAddKey(event)" oninput="toggleClearBtn()" />
+    <input class="add-task-input" id="newTask" maxlength="500" type="text"
+      placeholder="Add a task for today…"
+      onkeydown="handleAddKey(event)" oninput="toggleClearBtn()" />
     <button id="clearTaskBtn" onclick="clearTaskInput()" class="clear-input-btn" style="display:none">×</button>
   </div>
-  <button class="add-task-btn" onclick="addManual()">Add</button>
+  <!-- AI mode toggle — sits between input and Add button -->
+  <button class="add-ai-btn" id="addAiBtn" onclick="toggleInputMode()" title="Ask AI">✦</button>
+  <button class="add-task-btn" id="addSubmitBtn" onclick="handleAddSubmit()">Add</button>
 </div>
 
 <canvas id="celebCanvas"></canvas>
@@ -1876,13 +1875,15 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.8.7';
+const APP_VERSION   = '1.8.8';
 const DEV_HOURS     = '76h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '1.8.8': 'AI integration overhaul: removed duplicate panel input + stale overlay CSS/JS | toggleAI routes unconfigured users to Connections (not empty panel) | _aiRenderConfig no longer fills input with bullets, shows free-tier hint, dynamic get-key link | saveAIKey friendly error messages, auto-clear, Testing… state | Enter submits key',
   '1.8.7': 'Add-task bar margins: space-3 top, space-4 sides, space-2+safe-area bottom — all tokens, no hardcoded px',
   '1.8.7': 'Add-task bar: symmetric space-3 padding all sides, safe-area-inset-bottom on bottom. All values token-based. App bottom padding uses --space-20 token.',
+  '1.8.7': 'AI entry point moved from header ✦✦ button to ✦ toggle next to Add button. Input field switches modes: task (default) or AI. AI mode: accent border, placeholder changes, Enter sends to AI. Esc returns to task mode. Add button becomes → in AI mode.',
   '1.8.6': 'Fix add-task bar position:fixed broken by ancestor transform — moved outside .app entirely (same fix as sticky header). Desktop: max-width 680px centered to match .app.',
   '1.8.5': 'Mobile bottom bar: padding-top reduced to space-2, padding-bottom = safe-area only (no extra gap). App bottom padding 80→60px. Bar now flush with home indicator area.',
   '1.8.4': 'Fix fake AI key validation — saveAIKey now makes a real test call before saving | shows Testing… spinner | rejects invalid keys with error message | ai-assist.js accepts client apiKey as fallback when env var not set',
@@ -2068,9 +2069,9 @@ function syncActiveButtons() {
   document.getElementById('habitsBtn').classList.toggle('active', habitsOpen);
   document.getElementById('trelloBtn').classList.toggle('active', configOpen);
   document.getElementById('infoBtn').classList.toggle('active',   infoOpen);
-  // AI button: active only when panel is open — same rule as all other header buttons
-  const aiBtn = document.getElementById('aiBtn');
-  if (aiBtn) aiBtn.classList.toggle('active', _aiPanelOpen);
+  // addAiBtn in the input bar: active when in AI mode
+  const addAiBtn = document.getElementById('addAiBtn');
+  if (addAiBtn) addAiBtn.classList.toggle('active', _inputMode === 'ai');
 }
 
 function toggleConfig() {
@@ -3183,7 +3184,8 @@ function updateManualEmptyState(animate) {
 }
 
 function handleAddKey(e) {
-  if (e.key === 'Enter') addManual();
+  if (e.key === 'Escape' && _inputMode === 'ai') { setInputMode('task'); return; }
+  if (e.key === 'Enter') handleAddSubmit();
 }
 
 // ── Desktop shortcut: Shift+; → focus add input ───────────────────────────
@@ -4798,6 +4800,69 @@ if ('serviceWorker' in navigator) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+// INPUT MODE — task mode (default) vs AI mode
+//
+// The add-task input field serves double duty:
+//   Task mode (default): Enter adds a task. Placeholder: "Add a task for today…"
+//   AI mode:             Enter sends to AI assistant. Placeholder: "Ask anything…"
+//
+// ✦ button next to Add toggles between modes.
+// Switching to AI mode opens the AI panel (suggestions above).
+// Switching back to task mode closes AI panel.
+// Esc in AI mode returns to task mode.
+// ══════════════════════════════════════════════════════════════════════════
+let _inputMode = 'task'; // 'task' | 'ai'
+
+function setInputMode(mode) {
+  _inputMode = mode;
+  const input     = document.getElementById('newTask');
+  const aiBtn     = document.getElementById('addAiBtn');
+  const submitBtn = document.getElementById('addSubmitBtn');
+
+  if (mode === 'ai') {
+    input.classList.add('ai-mode');
+    input.placeholder = 'Ask anything…';
+    aiBtn?.classList.add('active');
+    submitBtn.textContent = '→';
+    // Open AI panel to show suggestions
+    if (!_aiPanelOpen) toggleAI();
+    input.focus();
+  } else {
+    input.classList.remove('ai-mode');
+    input.placeholder = 'Add a task for today…';
+    aiBtn?.classList.remove('active');
+    submitBtn.textContent = 'Add';
+    // Close AI panel when returning to task mode
+    if (_aiPanelOpen) closeAI();
+  }
+}
+
+function toggleInputMode() {
+  setInputMode(_inputMode === 'ai' ? 'task' : 'ai');
+}
+
+function handleAddSubmit() {
+  if (_inputMode === 'ai') {
+    // Route to AI
+    const input = document.getElementById('newTask');
+    const text = input.value.trim();
+    if (!text) return;
+    if (!_aiIsConfigured()) {
+      // Not configured — switch to task mode and open Connections
+      setInputMode('task');
+      toggleConfig();
+      return;
+    }
+    // Send the input text as a message to AI, clear field
+    input.value = '';
+    toggleClearBtn();
+    _aiSendFromInput(text);
+  } else {
+    addManual();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 // AI ASSISTANT
 //
 // UX: Inline panel (same open/close pattern as habits and connections).
@@ -4825,24 +4890,37 @@ function _aiIsConfigured(){ return !!_aiGetKey(); }
 
 // ── Panel open / close (config-panel pattern) ─────────────────────────────────
 function toggleAI() {
+  // If not configured, don't open panel — go straight to Connections for setup
+  if (!_aiIsConfigured()) {
+    setInputMode('task'); // make sure we're in task mode
+    // Flash the ✦ button briefly then open Connections
+    const btn = document.getElementById('addAiBtn');
+    if (btn) {
+      btn.style.borderColor = 'var(--accent)';
+      btn.style.color = 'var(--accent)';
+      setTimeout(() => { btn.style.borderColor = ''; btn.style.color = ''; }, 800);
+    }
+    toggleConfig();
+    // Scroll to AI section in connections panel after a beat
+    setTimeout(() => {
+      const el = document.getElementById('aiConfigSection');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 350);
+    return;
+  }
+
   const panel = document.getElementById('aiPanel');
   if (!panel) return;
   _aiPanelOpen = !_aiPanelOpen;
   panel.classList.toggle('open', _aiPanelOpen);
 
   if (_aiPanelOpen) {
-    // Close other panels
     document.getElementById('configPanel')?.classList.remove('open');
     document.getElementById('habitsPanel')?.classList.remove('open');
     document.getElementById('infoPanel')?.classList.remove('open');
     syncActiveButtons();
     _haptic('medium');
-    if (_aiIsConfigured()) {
-      _aiLoad();
-    } else {
-      _aiShowNotConfigured();
-    }
-    setTimeout(() => document.getElementById('aiChatInput')?.focus(), 200);
+    _aiLoad();
   } else {
     syncActiveButtons();
   }
@@ -4852,6 +4930,8 @@ function closeAI() {
   _aiPanelOpen = false;
   document.getElementById('aiPanel')?.classList.remove('open');
   syncActiveButtons();
+  // Return input to task mode when panel closes
+  if (_inputMode === 'ai') setInputMode('task');
 }
 
 // ── Not configured state ──────────────────────────────────────────────────────
@@ -4891,28 +4971,24 @@ async function _aiLoad() {
 }
 
 // ── Send user message ─────────────────────────────────────────────────────────
-async function sendAIMessage() {
-  const input = document.getElementById('aiChatInput');
-  const sendBtn = document.getElementById('aiSendBtn');
-  const text  = input?.value.trim();
-  if (!text) return;
-  if (!_aiIsConfigured()) { _aiShowNotConfigured(); return; }
-
-  input.value = '';
-  sendBtn.disabled = true;
+// Called when user types in the main input field while in AI mode
+async function _aiSendFromInput(text) {
+  if (!_aiPanelOpen) {
+    // Panel not open yet — open it first, then send
+    toggleAI();
+    await new Promise(r => setTimeout(r, 100));
+  }
   _aiSetMsg('…', true);
   _aiSetChips([]);
-
   try {
     const result = await _aiCall([{ role: 'user', content: text }]);
     if (result) _aiRenderResult(result);
   } catch(e) {
     _aiSetMsg('Error: ' + (e.message || 'unknown'));
-  } finally {
-    sendBtn.disabled = false;
-    input.focus();
   }
 }
+
+
 
 // ── Render result ─────────────────────────────────────────────────────────────
 function _aiRenderResult(result) {
@@ -5105,77 +5181,109 @@ function setAIProvider(p) {
 function _aiRenderConfig() {
   const provider = _aiGetProvider();
   const key      = _aiGetKey();
+  const isGemini = provider === 'gemini';
 
-  document.getElementById('aiProviderGemini')?.classList.toggle('active', provider === 'gemini');
-  document.getElementById('aiProviderClaude')?.classList.toggle('active', provider === 'claude');
+  document.getElementById('aiProviderGemini')?.classList.toggle('active', isGemini);
+  document.getElementById('aiProviderClaude')?.classList.toggle('active', !isGemini);
 
-  const label = document.getElementById('aiKeyLabel');
-  if (label) label.textContent = provider === 'gemini' ? 'Google AI Studio Key' : 'Anthropic API Key';
-
-  const input = document.getElementById('aiApiKey');
-  if (input) {
-    input.placeholder = provider === 'gemini' ? 'AIza…' : 'sk-ant-…';
-    input.value = key ? '••••••••••••••••' : '';
+  // Update label text
+  const labelEl = document.getElementById('aiKeyLabel');
+  if (labelEl) {
+    const linkText = isGemini ? 'Get free key →' : 'Get API key →';
+    const linkHref = isGemini ? 'https://aistudio.google.com/apikey' : 'https://console.anthropic.com/keys';
+    labelEl.innerHTML = (isGemini ? 'Google AI Studio Key' : 'Anthropic API Key') +
+      `<a href="${linkHref}" target="_blank" rel="noopener"
+        style="float:right;font-size:var(--text-xs);color:var(--highlight-ui);text-decoration:none;letter-spacing:0.04em">
+        ${linkText}
+      </a>`;
   }
 
+  // Placeholder only — never fill input with masked key (blocks editing)
+  const input = document.getElementById('aiApiKey');
+  if (input && !input.matches(':focus')) {
+    input.placeholder = isGemini ? 'AIzaSy… (from AI Studio)' : 'sk-ant-… (from Console)';
+    // Clear if no key saved, leave alone if user is typing
+    if (!key) input.value = '';
+  }
+
+  // Status line
   const statusLine = document.getElementById('aiStatusLine');
   if (statusLine) {
-    statusLine.textContent = key
-      ? `✓ ${provider === 'gemini' ? 'Gemini 2.5 Flash' : 'Claude Haiku'} connected`
-      : '';
-    statusLine.style.color = 'var(--accent)';
+    if (key) {
+      statusLine.textContent = `✓ ${isGemini ? 'Gemini 2.5 Flash' : 'Claude Haiku'} connected`;
+      statusLine.style.color = 'var(--accent)';
+    } else {
+      statusLine.textContent = isGemini
+        ? 'Free tier — no credit card needed'
+        : 'Paid API — requires Anthropic account';
+      statusLine.style.color = 'var(--muted)';
+    }
   }
 
-  document.getElementById('aiSaveBtn')?.style && (document.getElementById('aiSaveBtn').style.display  = key ? 'none' : '');
-  document.getElementById('aiClearBtn')?.style && (document.getElementById('aiClearBtn').style.display = key ? ''     : 'none');
-
-  // aiBtn active state is managed by syncActiveButtons only (panel open = active)
+  const saveBtn  = document.getElementById('aiSaveBtn');
+  const clearBtn = document.getElementById('aiClearBtn');
+  if (saveBtn)  saveBtn.style.display  = key ? 'none' : '';
+  if (clearBtn) clearBtn.style.display = key ? ''     : 'none';
 }
 
 async function saveAIKey() {
-  const input    = document.getElementById('aiApiKey');
-  const saveBtn  = document.getElementById('aiSaveBtn');
-  const msgEl    = document.getElementById('aiMsg');
-  const key      = (input?.value || '').trim();
+  const input   = document.getElementById('aiApiKey');
+  const saveBtn = document.getElementById('aiSaveBtn');
+  const msgEl   = document.getElementById('aiMsg');
+  const key     = (input?.value || '').trim();
 
-  if (!key || key.includes('•')) {
-    if (msgEl) { msgEl.textContent = 'Paste your API key first'; msgEl.style.color = 'var(--danger)'; }
+  function _showMsg(text, colour, autoClear) {
+    if (!msgEl) return;
+    msgEl.textContent = text;
+    msgEl.style.color  = colour;
+    msgEl.style.opacity = '1';
+    if (autoClear) setTimeout(() => { msgEl.style.opacity = '0'; }, 3000);
+  }
+
+  if (!key) {
+    _showMsg('Paste your API key first', 'var(--danger)', true);
+    input?.focus();
     return;
   }
 
-  // Show testing state
   if (saveBtn)  saveBtn.disabled = true;
-  if (msgEl)    { msgEl.textContent = 'Testing key…'; msgEl.style.color = 'var(--muted)'; }
+  if (saveBtn)  saveBtn.textContent = 'Testing…';
+  _showMsg('Verifying with ' + (_aiGetProvider() === 'gemini' ? 'Google…' : 'Anthropic…'), 'var(--muted)', false);
 
-  // Real API test — minimal call to verify the key actually works
   try {
-    const provider = _aiGetProvider();
     const res = await fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        provider,
+        provider: _aiGetProvider(),
         apiKey: key,
-        messages: [{ role: 'user', content: 'reply with the single word: ok' }],
-        systemPrompt: 'You are a test. Reply with only the word: ok',
+        messages: [{ role: 'user', content: 'ping' }],
+        systemPrompt: 'Reply with only: pong',
       }),
     });
 
     if (!res.ok) {
       const err = await res.text();
-      if (msgEl) { msgEl.textContent = 'Invalid key — ' + (err || `HTTP ${res.status}`); msgEl.style.color = 'var(--danger)'; }
+      const friendly = err.includes('API key') || err.includes('API_KEY')
+        ? 'Invalid API key — double-check and try again'
+        : err.includes('quota') || err.includes('QUOTA')
+        ? 'Quota exceeded — check your API usage limits'
+        : 'Could not connect — ' + (err.slice(0, 80) || `HTTP ${res.status}`);
+      _showMsg(friendly, 'var(--danger)', true);
+      if (input) input.select();
       return;
     }
 
-    // Key is valid — save it
+    // Valid — save and update UI
     localStorage.setItem('today_ai_key', key);
-    if (msgEl) { msgEl.textContent = 'Connected ✓'; msgEl.style.color = 'var(--accent)'; }
+    if (input) input.value = '';
+    _showMsg('Connected ✓ — tap ✦ to start', 'var(--accent)', true);
     _aiRenderConfig();
 
   } catch(e) {
-    if (msgEl) { msgEl.textContent = 'Connection failed — check network'; msgEl.style.color = 'var(--danger)'; }
+    _showMsg('Network error — check your connection', 'var(--danger)', true);
   } finally {
-    if (saveBtn) saveBtn.disabled = false;
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Connect'; }
   }
 }
 
