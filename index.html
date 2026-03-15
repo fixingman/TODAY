@@ -1976,11 +1976,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.0.4';
+const APP_VERSION   = '2.0.6';
 const DEV_HOURS     = '78h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.0.6': 'AI error clarity: _aiLoad catch now shows specific error (invalid key / quota exceeded / network) instead of generic message. _aiLoadedOnce reset on error to allow retry without reload.',
+  '2.0.5': 'Fix AI key lost on SW reload — save key to localStorage BEFORE async validation test, remove on failure. Prevents SW controllerchange reload wiping the in-flight key.',
   '2.0.4': 'Re-add .task-copy exclusion to focus mode click handler (dropped in merge). Full audit pass — all features verified.',
   '2.0.3': 'Fix AI key error never showing — .status-msg is display:none until error/success class added. _msg() now sets className correctly so validation errors are always visible.',
   '2.0.2': 'Fix task text overlapping copy button in focus mode — padding-right: space-8 on .task-text',
@@ -5120,11 +5122,21 @@ async function _aiLoad() {
       _showNlRow(); // reveal natural language input after chips load
     }
   } catch(e) {
-    _aiSetMsg('Could not connect — check your key in Connections.');
+    const errText = e.message || '';
+    // Distinguish key problems from network/other problems
+    const isKeyErr = errText.includes('API key') || errText.includes('not valid') ||
+                     errText.includes('API_KEY') || errText.includes('401') || errText.includes('403');
+    const isQuota  = errText.includes('quota') || errText.includes('429') || errText.includes('QUOTA');
+    const msg = isKeyErr ? 'Invalid API key — re-enter it in Connections.'
+              : isQuota  ? 'API quota exceeded — check your usage limits.'
+              : errText  ? 'Error: ' + errText.slice(0, 80)
+              : 'Could not reach AI — check your connection.';
+    _aiSetMsg(msg);
     _aiSetChips([
       { label: 'Open Connections', type: 'open_panel', payload: { panel: 'connections' }, primary: true },
       { label: 'Dismiss', type: 'dismiss', payload: {} },
     ]);
+    _aiLoadedOnce = false; // allow retry after fixing key
   }
 }
 
@@ -5414,6 +5426,10 @@ async function saveAIKey() {
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Testing…'; }
   _msg('Connecting…', 'var(--muted)');
 
+  // Save key BEFORE the async test — if page reloads mid-validation
+  // (e.g. SW update) the key survives. Delete it on failure.
+  localStorage.setItem('today_ai_key', key);
+
   try {
     const res = await fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
@@ -5426,6 +5442,8 @@ async function saveAIKey() {
     });
 
     if (!res.ok) {
+      // Validation failed — remove the key we optimistically saved
+      localStorage.removeItem('today_ai_key');
       const err = await res.text();
       const msg = (err.includes('API key') || err.includes('not valid') || err.includes('API_KEY'))
         ? 'Invalid key — double-check and try again'
@@ -5436,12 +5454,13 @@ async function saveAIKey() {
       return;
     }
 
-    localStorage.setItem('today_ai_key', key);
     if (input) input.value = '';
     _msg('Connected ✓  Tap ✦ to start', 'var(--accent)');
     _aiRenderConfig();
 
   } catch(e) {
+    // Network error — remove optimistic save
+    localStorage.removeItem('today_ai_key');
     _msg('Network error — check connection', 'var(--danger)');
   } finally {
     if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Connect'; }
