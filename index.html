@@ -208,7 +208,16 @@
       background: var(--accent-timer-fill);
       transition: transform 1s linear; /* intentional — Pomodoro countdown, not a UI transition */
     }
-    .focus-timer-fill.paused { background: var(--accent-timer-paused); }
+    .focus-timer-fill.paused    { background: var(--accent-timer-paused); }
+    /* Completed — fill turns accent (main CTA colour), pulses gently */
+    .focus-timer-fill.complete  {
+      background: var(--accent);
+      animation: timerCompletePulse 1.8s ease-in-out infinite;
+    }
+    @keyframes timerCompletePulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.65; }
+    }
 
     .focus-timer-time {
       position: absolute;
@@ -225,7 +234,15 @@
       transition: opacity var(--dur-mid) ease;
       pointer-events: none;
     }
-    .focus-timer-time.paused { opacity: var(--opacity-subtle); }
+    .focus-timer-time.paused    { opacity: var(--opacity-subtle); }
+    /* Completed — swap time text for restart label */
+    .focus-timer-time.complete  {
+      color: var(--accent);
+      opacity: 1;
+      letter-spacing: 0.08em;
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+    }
 
     .focus-timer-paused {
       position: absolute;
@@ -1940,6 +1957,10 @@
 <canvas id="celebCanvas"></canvas>
 
 <script>
+// Always start at top — browser's auto scroll-restoration causes mid-page reloads
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+window.scrollTo(0, 0);
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
@@ -1953,11 +1974,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '1.9.9';
+const APP_VERSION   = '2.0.1';
 const DEV_HOURS     = '78h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.0.1': 'Focus mode complete state: fill turns accent + pulses, time label shows "restart". One click on card restarts session and logs new pomodoro. Esc still fully resets.',
+  '2.0.0': 'Scroll reset on reload (scrollRestoration=manual + scrollTo(0,0)) — no more mid-page reloads. Focus exit scrolls task back into view.',
   '1.9.9': 'Fix Gemini 404 — model string updated from deprecated gemini-2.5-flash-preview-05-20 to stable gemini-2.5-flash',
   '1.9.8': 'Fix copy in focus mode — clipboard API rejects with "Document not focused" during focus mode. Fallback to textarea+execCommand which is synchronous and document-focus-independent.',
   '1.9.7': 'Fix copy button in focus mode — focus mode click handler was intercepting .task-copy clicks before event delegation. Added .task-copy exclusion.',
@@ -5486,6 +5509,9 @@ document.addEventListener('keydown', e => {
     } else {
       clearState(taskId);
       appEl.classList.remove('focusing');
+      // Scroll focused task back into view after exiting focus mode
+      const el = appEl.querySelector('.task[data-taskid="' + taskId + '"]');
+      if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
 
     // Return false — let toggleDone run normally to mark task done
@@ -5585,13 +5611,17 @@ document.addEventListener('keydown', e => {
       if (closingTask) {
         closingTask.classList.remove('focused');
         if (doResetState) closingTask.style.removeProperty('--progress');
+        // Scroll task back into view after focus mode closes
+        closingTask.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }
       document.body.appendChild(timerEl);
 
       if (doResetState && closingTaskId) {
         clearState(closingTaskId);
         fillEl.style.transform = 'scaleX(0)';
+        fillEl.classList.remove('complete');
         timeEl.textContent = fmt(TOTAL);
+        timeEl.classList.remove('complete');
         setPaused(false);
       }
     }, 200);
@@ -5686,19 +5716,20 @@ document.addEventListener('keydown', e => {
     st.paused    = false;
     st.wallStart = null;
 
-    // Update DOM if visible
+    // Update DOM if visible — fill turns accent, time shows "restart"
     if (taskId === uiTaskId && uiTaskEl) {
       setProgress(1, uiTaskEl);
-      timeEl.textContent = fmt(0);
       setPaused(false);
+      fillEl.classList.add('complete');
+      timeEl.classList.add('complete');
+      timeEl.textContent = 'restart';
     }
 
     playChime();
     _haptic('success');
     _logSession(taskId);
 
-    // Stay at 00:00 — no auto-restart, no auto-collapse
-    // State cleared only when user clicks again or presses esc
+    // Stays in complete state — next click on the card restarts the session
   }
 
   // ── Persist a session for habit or task ───────────────────────────────────
@@ -5800,7 +5831,9 @@ document.addEventListener('keydown', e => {
       // Clicked the currently visible task
       const st = getState(taskId);
       if (st.rem <= 0) {
-        // Timer completed — reset and start a new session
+        // Timer complete — one click restarts the session and logs the new one
+        fillEl.classList.remove('complete');
+        timeEl.classList.remove('complete');
         st.rem       = TOTAL;
         st.running   = true;
         st.paused    = false;
