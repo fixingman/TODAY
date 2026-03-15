@@ -518,7 +518,7 @@
     overscroll-behavior: none; /* prevent pull-to-refresh / rubber-band scroll on iOS */
   }
   html {
-    overflow-y: scroll;
+    overflow-y: auto;
     overflow-x: hidden;
   }
 
@@ -540,8 +540,7 @@
     margin: 0 auto;
     /* No top padding — sticky header sits directly above */
     padding: 0 var(--space-6) 0;
-    padding-bottom: 72px;
-    min-height: 100vh;
+    padding-bottom: 72px; /* space for fixed bottom bar */
     overflow-x: hidden;
   }
 
@@ -1976,11 +1975,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.1.0';
-const DEV_HOURS     = '80h';
+const APP_VERSION   = '2.1.3';
+const DEV_HOURS     = '81h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.1.3': 'AI config: explicit hasKey check (key && key.length > 0) to prevent false "connected" state',
+  '2.1.2': 'Fix _todayStr not defined — _aiContext now uses _habitTodayISO() which exists',
+  '2.1.1': 'Fix unnecessary scroll on short lists — overflow-y:auto (was scroll), removed min-height:100vh from .app',
   '2.1.0': 'AI function overhaul — all responses now JSON (never raw text/HTML), CORS headers added, comprehensive error handling with clear messages, client parses JSON errors correctly.',
   '2.0.9': 'AI system prompt improvements — prioritize overdue tasks with ⚠️, suggest focus sessions when idle, stricter output rules (≤15 words, 2-3 chips), prevent suggesting actions on done items. Intro message prioritizes overdue items.',
   '2.0.8': 'Fix ByteString error — strip non-ASCII chars (smart quotes, zero-width spaces) from API key on both client save and server before using in HTTP headers.',
@@ -5269,7 +5271,7 @@ async function _aiCall(messages) {
 // ── Context ───────────────────────────────────────────────────────────────────
 function _aiContext() {
   const hour     = new Date().getHours();
-  const todayStr = _todayStr();
+  const todayStr = _habitTodayISO(); // YYYY-MM-DD format
   const pending  = manualTasks.filter(t => !doneIds.has(t.id));
   const done     = manualTasks.filter(t =>  doneIds.has(t.id));
   const trello   = (window.trelloTasks || []).filter(t => !doneIds.has('trello_' + t.id));
@@ -5411,6 +5413,7 @@ function setAIProvider(p) {
 function _aiRenderConfig() {
   const provider = _aiGetProvider();
   const key      = _aiGetKey();
+  const hasKey   = key && key.length > 0; // explicit check
   const isGemini = provider === 'gemini';
 
   document.getElementById('aiProviderGemini')?.classList.toggle('active', isGemini);
@@ -5429,12 +5432,12 @@ function _aiRenderConfig() {
   const input = document.getElementById('aiApiKey');
   if (input && !input.matches(':focus')) {
     input.placeholder = isGemini ? 'AIzaSy…' : 'sk-ant-…';
-    if (!key) input.value = '';
+    if (!hasKey) input.value = '';
   }
 
   const statusLine = document.getElementById('aiStatusLine');
   if (statusLine) {
-    if (key) {
+    if (hasKey) {
       statusLine.textContent = `✓ ${isGemini ? 'Gemini 2.5 Flash' : 'Claude Haiku'} connected`;
       statusLine.style.color = 'var(--accent)';
     } else {
@@ -5445,8 +5448,8 @@ function _aiRenderConfig() {
 
   const saveBtn  = document.getElementById('aiSaveBtn');
   const clearBtn = document.getElementById('aiClearBtn');
-  if (saveBtn)  saveBtn.style.display  = key ? 'none' : '';
-  if (clearBtn) clearBtn.style.display = key ? ''     : 'none';
+  if (saveBtn)  saveBtn.style.display  = hasKey ? 'none' : '';
+  if (clearBtn) clearBtn.style.display = hasKey ? ''     : 'none';
 }
 
 async function saveAIKey() {
