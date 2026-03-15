@@ -1158,6 +1158,16 @@
 
   .add-task-input::placeholder { color: var(--muted); }
   .add-task-input:focus { border-color: var(--accent); }
+  
+  /* When AI panel is open, input bar transforms into chat mode */
+  body.ai-chat-open .add-task-input {
+    border-color: var(--accent);
+    background: var(--surface2);
+  }
+  body.ai-chat-open .add-task-input::placeholder {
+    color: var(--accent);
+    opacity: 0.6;
+  }
 
   /* ✦ submit button — same height as input, accent fill */
   .add-ai-btn {
@@ -1208,19 +1218,45 @@
 
   /* On hover: widen to fit two then three stars via sequential keyframe */
   /* Hover: ✦ → ✦✦ → ✦✦✦ in 180ms */
-  /* ✦ button hover — subtle breath pulse, no expansion */
+  .add-ai-btn {
+    position: relative;
+    overflow: visible;
+  }
   .add-ai-btn:hover {
-    opacity: 0.85;
+    opacity: 1;
   }
   .add-ai-btn:active {
     opacity: 0.7;
     transform: scale(0.96);
   }
   
-  /* Remove the expanding stars — keep it minimal */
+  /* Expanding stars on hover */
   .add-ai-btn::before,
   .add-ai-btn::after {
-    display: none;
+    content: '✦';
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    font-size: inherit;
+    transition: opacity 90ms ease-out;
+    pointer-events: none;
+  }
+  .add-ai-btn::before {
+    right: 100%;
+    margin-right: 1px;
+  }
+  .add-ai-btn::after {
+    left: 100%;
+    margin-left: 1px;
+  }
+  .add-ai-btn:hover::before {
+    opacity: 1;
+    transition-delay: 60ms;
+  }
+  .add-ai-btn:hover::after {
+    opacity: 1;
+    transition-delay: 120ms;
   }
 
   /* AI active state — panel open */
@@ -1228,6 +1264,10 @@
     background: var(--surface2);
     color: var(--accent);
     box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .add-ai-btn.active::before,
+  .add-ai-btn.active::after {
+    display: none;
   }
   .add-ai-btn.active .ai-badge {
     display: none;
@@ -1484,12 +1524,8 @@
     padding: var(--space-4);
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
-    transition: border-color var(--dur-fast);
     display: flex;
     flex-direction: column;
-  }
-  .connection-card:hover {
-    border-color: var(--muted);
   }
   .connection-card-header {
     display: flex;
@@ -1956,15 +1992,49 @@
     opacity: 0.75;
   }
 
-  /* AI panel — same pattern as habits/connections */
+  /* AI panel — slides up from bottom, overrides .config-panel base */
   #aiPanel {
-    margin-bottom: var(--space-3);
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    z-index: 90;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    pointer-events: none;
+    overflow: visible !important;
   }
+  #aiPanel.open {
+    display: block;
+    pointer-events: auto;
+    animation: none;
+  }
+  
+  /* Chat container — slides up from bottom */
   .ai-panel-body {
+    max-width: 680px;
+    margin: 0 auto;
     padding: var(--space-4);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 80px); /* Space for input bar */
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    max-height: 45vh;
+    overflow-y: auto;
+    transform: translateY(100%);
+    opacity: 0;
+    transition: transform 0.35s var(--ease-spring), opacity 0.25s ease-out;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+  }
+  #aiPanel.open .ai-panel-body {
+    transform: translateY(0);
+    opacity: 1;
   }
 
   /* Suggestion message */
@@ -2126,20 +2196,6 @@
 </div>
 
 <!-- AI panel: reads your day, presents concrete action chips -->
-<div class="config-panel" id="aiPanel" style="max-width:680px;margin:0 auto;padding:0 var(--space-6);">
-  <div class="ai-panel-body">
-    <div class="ai-suggestion-msg" id="aiSuggestionMsg"></div>
-    <div class="ai-chips" id="aiChips"></div>
-    <!-- Natural language input — for stuck mode / explicit requests -->
-    <div class="ai-nl-row" id="aiNlRow" style="display:none">
-      <input class="ai-nl-input" id="aiNlInput" type="text"
-        placeholder="Tell me what's on your mind…"
-        onkeydown="if(event.key==='Enter')_aiAskFromPanel()" />
-      <button class="ai-nl-btn" onclick="_aiAskFromPanel()">→</button>
-    </div>
-  </div>
-</div>
-
 <div class="app" id="main-app" style="opacity:0">
 
   <!-- Habits panel -->
@@ -2280,6 +2336,21 @@
   <button class="add-ai-btn" id="addAiBtn" onclick="handleBarSubmit()" title="✦">✦</button>
 </div>
 
+<!-- AI chat panel — slides up from bottom -->
+<div class="config-panel" id="aiPanel">
+  <div class="ai-panel-body">
+    <div class="ai-suggestion-msg" id="aiSuggestionMsg"></div>
+    <div class="ai-chips" id="aiChips"></div>
+    <!-- Natural language input — for stuck mode / explicit requests -->
+    <div class="ai-nl-row" id="aiNlRow" style="display:none">
+      <input class="ai-nl-input" id="aiNlInput" type="text"
+        placeholder="Tell me what's on your mind…"
+        onkeydown="if(event.key==='Enter')_aiAskFromPanel()" />
+      <button class="ai-nl-btn" onclick="_aiAskFromPanel()">→</button>
+    </div>
+  </div>
+</div>
+
 <canvas id="celebCanvas"></canvas>
 
 <script>
@@ -2300,11 +2371,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.6.6';
-const DEV_HOURS     = '101h';
+const APP_VERSION   = '2.6.9';
+const DEV_HOURS     = '102h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.6.9': 'Stats reordered: Focus → Flow → Streak. ✦ button hover animation restored (✦→✦✦✦). AI chat slides up from bottom with smooth spring transition. Input transforms to chat mode when AI open.',
+  '2.6.8': 'Stats: replaced Completed with Focus (minutes today). Resets at midnight. Tracked per pomodoro completion (25m each).',
+  '2.6.7': 'Fix: remove misleading hover effect on connection cards (non-interactive containers).',
   '2.6.6': 'Breathe overlay: now persistent state (stays while paused) with slow 1.2s fade. 60px blur, soothing green tint. Clears on resume/esc.',
   '2.6.5': 'Stale tasks: manual tasks inactive >3 days fade to 35% opacity. Starting a pomodoro resets lastActive and removes stale state.',
   '2.6.4': 'Focus mode: breathe overlay on space — full-screen blur pulse with lighter background (1.4s animation). Visual pause/resume feedback.',
@@ -2492,6 +2566,7 @@ function applyNewDayCleanup() {
   // Reset daily counters
   localStorage.setItem('stat_tasks_added_today', '0');
   localStorage.setItem('stat_tasks_done_today', '0');
+  localStorage.setItem('stat_focus_mins_today', '0');
 
   // Remove manual tasks that were marked done — completed tasks don't carry over
   manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
@@ -2606,14 +2681,14 @@ function toggleInfo() {
 
 function renderInfoStats() {
   // Pull stats from localStorage
-  const allTimeCompleted = parseInt(localStorage.getItem('stat_alltime_done') || '0');
+  const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
   const streak = parseInt(localStorage.getItem('stat_streak') || '1');
   const flowRate = parseInt(localStorage.getItem('stat_flow_rate') || '50');
 
   const stats = [
-    { val: allTimeCompleted, label: 'Completed' },
-    { val: streak + 'd', label: 'Streak' },
+    { val: focusMinsToday + 'm', label: 'Focus' },
     { val: flowRate + '%', label: 'Flow' },
+    { val: streak + 'd', label: 'Streak' },
   ];
 
   document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
@@ -3823,10 +3898,8 @@ function toggleDone(taskId) {
   _setLastLocalChange();
   dropboxAutoSave();
 
-  // Track all-time completed count + daily done for flow rate
+  // Track daily done for flow rate
   if (doneIds.has(taskId)) {
-    const prev = parseInt(localStorage.getItem('stat_alltime_done') || '0');
-    localStorage.setItem('stat_alltime_done', prev + 1);
     const doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
     localStorage.setItem('stat_tasks_done_today', doneToday + 1);
   }
@@ -3944,7 +4017,21 @@ function updateManualEmptyState(animate) {
 // ✦ tap → AI if configured (with or without text); task if not configured.
 function handleBarKey(e) {
   if (e.key === 'Escape' && _aiPanelOpen) { closeAI(); return; }
-  if (e.key === 'Enter') addManual();
+  if (e.key === 'Enter') {
+    // If AI panel is open and configured, send to AI instead of adding task
+    if (_aiPanelOpen && _aiIsConfigured()) {
+      const input = document.getElementById('newTask');
+      const text = (input?.value || '').trim();
+      if (text) {
+        input.value = '';
+        toggleClearBtn();
+        _aiSendFromInput(text);
+      }
+      e.preventDefault();
+      return;
+    }
+    addManual();
+  }
 }
 
 function handleBarSubmit() {
@@ -4770,7 +4857,7 @@ async function dropboxBackup(silent) {
     unchecked_ids:     _getUncheckedIds(),
     checked_ids:       _getCheckedIds(),
     trello_config:     safeJSON('trello_config', {}),
-    stat_alltime_done: localStorage.getItem('stat_alltime_done') || '0',
+    stat_focus_mins_today: localStorage.getItem('stat_focus_mins_today') || '0',
     stat_streak:       localStorage.getItem('stat_streak')       || '1',
     // Habits — persisted cross-device
     habits:               safeJSON('today_habits',            []),
@@ -5035,9 +5122,9 @@ async function dropboxRestore(fromSync) {
       localStorage.setItem('today_deleted_ids',   JSON.stringify(Array.isArray(data.deleted_ids)   ? data.deleted_ids   : []));
       localStorage.setItem('today_unchecked_ids', JSON.stringify(Array.isArray(data.unchecked_ids) ? data.unchecked_ids : []));
       localStorage.setItem('today_checked_ids',   JSON.stringify(Array.isArray(data.checked_ids)   ? data.checked_ids   : []));
-      if (data.trello_config)     localStorage.setItem('trello_config',     JSON.stringify(data.trello_config));
-      if (data.stat_alltime_done) localStorage.setItem('stat_alltime_done', data.stat_alltime_done);
-      if (data.stat_streak)       localStorage.setItem('stat_streak',       data.stat_streak);
+      if (data.trello_config)         localStorage.setItem('trello_config',         JSON.stringify(data.trello_config));
+      if (data.stat_focus_mins_today) localStorage.setItem('stat_focus_mins_today', data.stat_focus_mins_today);
+      if (data.stat_streak)           localStorage.setItem('stat_streak',           data.stat_streak);
       // Habits
       if (Array.isArray(data.habits)) {
         habitsList       = data.habits;
@@ -5572,7 +5659,16 @@ function openAI() {
   _aiPanelOpen = true;
   _aiClearBadge(); // Clear proactive badge when panel opens
   panel.classList.add('open');
+  document.body.classList.add('ai-chat-open');
   document.getElementById('addAiBtn')?.classList.add('active');
+  
+  // Transform input to chat mode
+  const input = document.getElementById('newTask');
+  if (input) {
+    input._origPlaceholder = input.placeholder;
+    input.placeholder = 'Ask anything…';
+  }
+  
   syncActiveButtons();
   _haptic('medium');
 
@@ -5587,7 +5683,15 @@ function openAI() {
 function closeAI() {
   _aiPanelOpen = false;
   document.getElementById('aiPanel')?.classList.remove('open');
+  document.body.classList.remove('ai-chat-open');
   document.getElementById('addAiBtn')?.classList.remove('active');
+  
+  // Restore input placeholder
+  const input = document.getElementById('newTask');
+  if (input && input._origPlaceholder) {
+    input.placeholder = input._origPlaceholder;
+  }
+  
   syncActiveButtons();
 }
 
@@ -6603,6 +6707,10 @@ function _aiDismissProactive() {
       timerEl.classList.add('complete'); // cursor: pointer
       timeEl.textContent = 'restart';
     }
+
+    // Track focus minutes today (25 min per pomodoro)
+    const prevMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+    localStorage.setItem('stat_focus_mins_today', prevMins + 25);
 
     playChime();
     _haptic('success');
