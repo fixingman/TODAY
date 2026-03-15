@@ -192,6 +192,9 @@
       max-height: 36px;
       opacity: 1;
     }
+    .focus-timer.complete {
+      cursor: pointer;
+    }
     .focus-timer-inner {
       height: 34px;
       position: relative;
@@ -209,10 +212,11 @@
       transition: transform 1s linear; /* intentional — Pomodoro countdown, not a UI transition */
     }
     .focus-timer-fill.paused    { background: var(--accent-timer-paused); }
-    /* Completed — fill turns accent (main CTA colour), pulses gently */
+    /* Completed — fill turns accent (main CTA colour), pulses gently, clickable to restart */
     .focus-timer-fill.complete  {
       background: var(--accent);
       animation: timerCompletePulse 1.8s ease-in-out infinite;
+      cursor: pointer;
     }
     @keyframes timerCompletePulse {
       0%, 100% { opacity: 1; }
@@ -2026,11 +2030,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.2.0';
+const APP_VERSION   = '2.2.1';
 const DEV_HOURS     = '83h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.2.1': 'Focus mode: click blinking timer bar to restart pomodoro (cursor:pointer on complete state)',
   '2.2.0': 'AI Post-Add Enhancement — after adding a task, AI analyzes in background and offers to break down complex tasks into 2-3 subtasks. Non-blocking, auto-dismisses after 10s.',
   '2.1.3': 'AI config: explicit hasKey check (key && key.length > 0) to prevent false "connected" state',
   '2.1.2': 'Fix _todayStr not defined — _aiContext now uses _habitTodayISO() which exists',
@@ -5868,6 +5873,28 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
   const timeEl   = timerEl.querySelector('#focusTime');
   const pausedEl = timerEl.querySelector('#focusPaused');
 
+  // Click on timer bar to restart when complete
+  timerEl.addEventListener('click', function(e) {
+    if (!uiTaskId) return;
+    const st = getState(uiTaskId);
+    if (st.rem <= 0) {
+      // Timer complete — restart session
+      e.stopPropagation(); // don't bubble to task click handler
+      fillEl.classList.remove('complete');
+      timeEl.classList.remove('complete');
+      timerEl.classList.remove('complete');
+      st.rem       = TOTAL;
+      st.running   = true;
+      st.paused    = false;
+      st.wallStart = Date.now();
+      setPaused(false);
+      syncDisplay(uiTaskId, uiTaskEl);
+      playStartSound();
+      _logSession(uiTaskId); // log the new session
+      tickFor(uiTaskId);
+    }
+  });
+
   // Active UI state — which task is currently showing the timer bar
   let uiTaskEl = null;
   let uiTaskId = null;
@@ -6040,6 +6067,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
       setPaused(false);
       fillEl.classList.add('complete');
       timeEl.classList.add('complete');
+      timerEl.classList.add('complete'); // cursor: pointer
       timeEl.textContent = 'restart';
     }
 
@@ -6047,7 +6075,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
     _haptic('success');
     _logSession(taskId);
 
-    // Stays in complete state — next click on the card restarts the session
+    // Stays in complete state — click on timer bar restarts the session
   }
 
   // ── Persist a session for habit or task ───────────────────────────────────
