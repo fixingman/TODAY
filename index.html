@@ -1191,29 +1191,21 @@
     position: relative;
   }
 
-  /* AI suggestion badge */
+  /* AI suggestion indicator — breathing dot */
   .add-ai-btn .ai-badge {
     position: absolute;
-    top: -4px;
-    right: -4px;
-    min-width: 16px;
-    height: 16px;
-    background: var(--danger);
-    color: #fff;
-    font-family: var(--font-mono);
-    font-size: 9px;
-    font-weight: 500;
-    padding: 0 4px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
     pointer-events: none;
-    animation: badgePop var(--dur-base) var(--ease-out);
+    animation: aiBadgeBreath 2.4s ease-in-out infinite;
   }
-  @keyframes badgePop {
-    from { transform: scale(0); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
+  @keyframes aiBadgeBreath {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.5; transform: scale(0.85); }
   }
 
   /* On hover: widen to fit two then three stars via sequential keyframe */
@@ -2170,6 +2162,7 @@
     /* Disable breathing/pulse animations */
     .focus-timer-fill.complete,
     .done-star,
+    .ai-badge,
     .loading-dots span,
     .ai-suggestion-msg.thinking::after {
       animation: none !important;
@@ -2419,11 +2412,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.8.3';
-const DEV_HOURS     = '107h';
+const APP_VERSION   = '2.8.4';
+const DEV_HOURS     = '108h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.8.4': 'Focus mode: scroll locked + task centered on enter. AI notification: breathing dot instead of "1" badge. AI fix: no longer opens Connections panel unexpectedly.',
   '2.8.3': 'Multi-undo: delete multiple tasks quickly, undo them one by one (stack of 10). Toast shows count. Task text capped at 500 chars.',
   '2.8.2': 'Task order syncs across devices (remote order wins, local-only tasks append). AI panel styling: larger text (14px), sleeker card with layered shadow, bigger chips. Focus complete shows "again?" not "restart". SW update: polls every 30min + on focus, more robust activation.',
   '2.8.1': 'AI gets a name: lu, kit, em, jo, pip, sol, rue, or finn — randomly picked on first use, kept forever, synced across devices via Dropbox. Fix ✦ button hover animation (now widens with staggered stars).',
@@ -6329,7 +6323,7 @@ Action types (use exact IDs from brackets above):
   check_habit { "id": "exact-id-from-list" }  — mark habit done
   add_task    { "text": "task text" }         — add new task
   delete_done {}                               — clear completed
-  open_panel  { "panel": "habits" }           — show habits
+  open_panel  { "panel": "habits" }           — show habits panel (only valid value)
   dismiss     {}                               — close this
 
 Rules:
@@ -6385,7 +6379,10 @@ function _aiExecute(action) {
     case 'open_panel': {
       closeAI();
       const p = action.payload?.panel;
-      setTimeout(() => { p === 'habits' ? toggleHabits() : toggleConfig(); }, 100);
+      // Only allow opening habits panel from AI — not connections
+      if (p === 'habits') {
+        setTimeout(toggleHabits, 100);
+      }
       return;
     }
     default: // dismiss
@@ -6770,7 +6767,6 @@ function _aiProactiveSuggestion() {
   
   const badge = document.createElement('span');
   badge.className = 'ai-badge';
-  badge.textContent = '1';
   btn.appendChild(badge);
   _aiProactiveBadgeShown = true;
 }
@@ -6843,9 +6839,7 @@ function _aiDismissProactive() {
     } else {
       clearState(taskId);
       appEl.classList.remove('focusing');
-      // Scroll focused task back into view after exiting focus mode
-      const el = appEl.querySelector('.task[data-taskid="' + taskId + '"]');
-      if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      document.body.style.overflow = ''; // Unlock scroll
     }
 
     // Return false — let toggleDone run normally to mark task done
@@ -6942,6 +6936,12 @@ function _aiDismissProactive() {
     uiTaskEl = taskEl;
     uiTaskId = taskId;
 
+    // Lock scroll — no value scrolling during focus
+    document.body.style.overflow = 'hidden';
+    
+    // Center the task in view
+    taskEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+
     appEl.classList.add('focusing');
     taskEl.classList.add('focused');
     taskEl.after(timerEl);
@@ -6959,6 +6959,9 @@ function _aiDismissProactive() {
     timerEl.classList.remove('open');
     kbdHint.classList.remove('show');
     _updateBreatheOverlay(false); // Clear breathe overlay
+    
+    // Unlock scroll
+    document.body.style.overflow = '';
 
     const closingTask   = uiTaskEl;
     const closingTaskId = uiTaskId;
@@ -6969,8 +6972,6 @@ function _aiDismissProactive() {
       if (closingTask) {
         closingTask.classList.remove('focused');
         if (doResetState) closingTask.style.removeProperty('--progress');
-        // Scroll task back into view after focus mode closes
-        closingTask.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }
       document.body.appendChild(timerEl);
 
