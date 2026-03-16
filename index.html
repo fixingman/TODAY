@@ -1502,6 +1502,48 @@
     color: var(--accent);
   }
 
+  /* Undo toast — appears at bottom of screen */
+  #undoToast {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 70px);
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--text-sm2);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.25s var(--ease-spring), opacity 0.2s ease;
+    z-index: var(--z-modal);
+  }
+  #undoToast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #undoToast button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm2);
+    font-weight: 500;
+    cursor: pointer;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    transition: background var(--dur-fast);
+  }
+  #undoToast button:hover {
+    background: var(--accent-dim);
+  }
+
   /* ── Component: Panel Utilities ─────────────────────────────────────── */
   .panel-section {
     border-top: 1px solid var(--border);
@@ -2352,6 +2394,11 @@
   </div>
 </div>
 
+<div id="undoToast">
+  <span id="undoMsg">Task removed</span>
+  <button onclick="_undoDelete()">Undo</button>
+</div>
+
 <canvas id="celebCanvas"></canvas>
 
 <script>
@@ -2372,11 +2419,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.8.2';
-const DEV_HOURS     = '106h';
+const APP_VERSION   = '2.8.3';
+const DEV_HOURS     = '107h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.8.3': 'Undo delete: toast appears for 5 seconds after removing a task, tap Undo to restore it (including done state). Syncs correctly with Dropbox.',
   '2.8.2': 'Task order syncs across devices (remote order wins, local-only tasks append). AI panel styling: larger text (14px), sleeker card with layered shadow, bigger chips. Focus complete shows "again?" not "restart". SW update: polls every 30min + on focus, more robust activation.',
   '2.8.1': 'AI gets a name: lu, kit, em, jo, pip, sol, rue, or finn — randomly picked on first use, kept forever, synced across devices via Dropbox. Fix ✦ button hover animation (now widens with staggered stars).',
   '2.8.0': 'Memory system: AI learns your patterns (peak hours, streaks, focus time). Unified tonality across all copy — warm, grounded, no corporate speak. Static text audit: "Your tasks", "A clean slate", "Clear". Dropbox sync includes memory.',
@@ -4585,7 +4633,67 @@ function clearTaskInput() {
   toggleClearBtn();
 }
 
+// Undo state — stores last deleted task for recovery
+let _lastDeleted = null;
+let _undoTimeout = null;
+
+function _showUndoToast(taskText) {
+  const toast = document.getElementById('undoToast');
+  const msg = document.getElementById('undoMsg');
+  if (!toast || !msg) return;
+  
+  // Truncate long task names
+  const displayText = taskText.length > 25 ? taskText.slice(0, 25) + '…' : taskText;
+  msg.textContent = `"${displayText}" removed`;
+  
+  toast.classList.add('show');
+  
+  // Auto-hide after 5 seconds
+  clearTimeout(_undoTimeout);
+  _undoTimeout = setTimeout(() => {
+    toast.classList.remove('show');
+    _lastDeleted = null;
+  }, 5000);
+}
+
+function _hideUndoToast() {
+  const toast = document.getElementById('undoToast');
+  if (toast) toast.classList.remove('show');
+  clearTimeout(_undoTimeout);
+}
+
+function _undoDelete() {
+  if (!_lastDeleted) return;
+  
+  const task = _lastDeleted;
+  _lastDeleted = null;
+  _hideUndoToast();
+  
+  // Remove from deleted IDs
+  const deletedIds = _getDeletedIds().filter(d => d.id !== task.id);
+  localStorage.setItem('today_deleted_ids', JSON.stringify(deletedIds));
+  
+  // Re-add task
+  manualTasks.unshift(task); // Add at top
+  if (task.wasDone) doneIds.add(task.id);
+  
+  localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+  localStorage.setItem('today_done', JSON.stringify([...doneIds]));
+  _setLastLocalChange();
+  dropboxAutoSave();
+  
+  renderManual();
+  updateStats();
+  _haptic('success');
+}
+
 function deleteManual(taskId) {
+  // Store task for undo before removing
+  const task = manualTasks.find(t => t.id === taskId);
+  if (task) {
+    _lastDeleted = { ...task, wasDone: doneIds.has(taskId) };
+  }
+  
   _addDeletedId(taskId); // track deletion with timestamp for union merge
   const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
   if (!el) return;
@@ -4614,6 +4722,9 @@ function deleteManual(taskId) {
     }
     document.getElementById('manualCount').textContent = manualTasks.length;
     updateStats();
+    
+    // Show undo toast
+    if (task) _showUndoToast(task.text || 'Task');
   }, 180);
 }
 
@@ -5824,10 +5935,12 @@ if ('serviceWorker' in navigator) {
           if (reg.installing) _onNewSW(reg.installing);
         });
 
-        // Reload when new SW takes control — this is the actual update moment
+        // Reload when new SW takes control — but only if we HAD a previous controller
+        // (first install doesn't need reload, page is already fresh)
+        const hadController = !!navigator.serviceWorker.controller;
         let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (refreshing) return;
+          if (!hadController || refreshing) return;
           refreshing = true;
           window.location.reload();
         });
