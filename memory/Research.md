@@ -543,3 +543,45 @@ These controls auto-fade when the mouse leaves the PiP window.
 - Fonts: Syne 700 (time), DM Mono 300 (task name, buttons)
 
 ---
+
+## 9. Stats Sync & Focus Time Tracking (v2.8.6)
+
+### Stats synced via Dropbox
+
+| Stat | Key | Merge strategy |
+|---|---|---|
+| Focus minutes today | `stat_focus_mins_today` | Max wins |
+| Streak | `stat_streak` | Max wins |
+| Flow rate | `stat_flow_rate` | Max wins |
+| Tasks added today | `stat_tasks_added_today` | Max wins |
+| Tasks done today | `stat_tasks_done_today` | Max wins |
+
+**Max wins strategy:** If phone has 10min focus and laptop has 15min, merged result is 15min. Prevents double-counting while ensuring the highest value is preserved across devices.
+
+**Excluded from sync:** `stat_last_visit` — local device state only. Restoring it would trigger `checkNewDay()` cleanup incorrectly.
+
+### Focus time tracking
+
+Before v2.8.6, focus minutes only counted completed 25-minute sessions. Now tracks actual time spent:
+
+```javascript
+function _trackFocusTime(taskId) {
+  const st = taskStates[taskId];
+  if (st.tracked) return;  // Already counted
+  
+  const timeSpentMins = Math.floor((TOTAL - st.rem) / 60);
+  if (timeSpentMins <= 0) return;
+  
+  st.tracked = true;
+  localStorage.setItem('stat_focus_mins_today', prevMins + timeSpentMins);
+}
+```
+
+**Exit points that track time:**
+- `closeUI(true)` — User exits focus mode (Escape, click elsewhere)
+- `completeFor()` — Timer hits 0 (full 25 mins)
+- `_focusOnCheck()` — User checks off task during focus
+
+**`st.tracked` flag:** Prevents double-counting. Set true after recording, reset to false on new session start.
+
+---

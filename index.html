@@ -2426,7 +2426,7 @@ const DEV_HOURS     = '110h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
-  '2.8.6': 'Mobile: input bar stays above keyboard (visualViewport API). ✦ button shows single star on mobile (no hover expansion).',
+  '2.8.6': 'Mobile: input bar stays above keyboard (visualViewport API). ✦ button shows single star on mobile. Stats sync across devices (focus mins, streak, flow rate, tasks added/done).',
   '2.8.5': 'Picture-in-Picture focus widget: pop out timer to always-on-top floating window (desktop Chrome/Edge 116+, Firefox 148+). Shows task name, progress bar, time. Hover reveals Breathe/Rest controls.',
   '2.8.4': 'Focus mode: scroll locked + task centered on enter. AI notification: breathing dot instead of "1" badge. AI fix: no longer opens Connections panel unexpectedly.',
   '2.8.3': 'Multi-undo: delete multiple tasks quickly, undo them one by one (stack of 10). Toast shows count. Task text capped at 500 chars.',
@@ -5167,8 +5167,12 @@ async function dropboxBackup(silent) {
     unchecked_ids:     _getUncheckedIds(),
     checked_ids:       _getCheckedIds(),
     trello_config:     safeJSON('trello_config', {}),
-    stat_focus_mins_today: localStorage.getItem('stat_focus_mins_today') || '0',
-    stat_streak:       localStorage.getItem('stat_streak')       || '1',
+    // Stats — synced cross-device
+    stat_focus_mins_today:  localStorage.getItem('stat_focus_mins_today')  || '0',
+    stat_streak:            localStorage.getItem('stat_streak')            || '1',
+    stat_flow_rate:         localStorage.getItem('stat_flow_rate')         || '50',
+    stat_tasks_added_today: localStorage.getItem('stat_tasks_added_today') || '0',
+    stat_tasks_done_today:  localStorage.getItem('stat_tasks_done_today')  || '0',
     // Habits — persisted cross-device
     habits:               safeJSON('today_habits',            []),
     habit_completions:    safeJSON('today_habit_completions', {}),
@@ -5371,6 +5375,48 @@ function mergeRemoteData(data) {
   doneIds = mergedDoneIds;
   localStorage.setItem('today_done', JSON.stringify([...doneIds]));
 
+  // ── Stats: take max of each counter (both devices may have added focus time) ──
+  const localFocusMins  = parseInt(localStorage.getItem('stat_focus_mins_today')  || '0');
+  const localStreak     = parseInt(localStorage.getItem('stat_streak')            || '1');
+  const localFlowRate   = parseInt(localStorage.getItem('stat_flow_rate')         || '50');
+  const localAdded      = parseInt(localStorage.getItem('stat_tasks_added_today') || '0');
+  const localDone       = parseInt(localStorage.getItem('stat_tasks_done_today')  || '0');
+  
+  const remoteFocusMins = parseInt(data.stat_focus_mins_today  || '0');
+  const remoteStreak    = parseInt(data.stat_streak            || '1');
+  const remoteFlowRate  = parseInt(data.stat_flow_rate         || '50');
+  const remoteAdded     = parseInt(data.stat_tasks_added_today || '0');
+  const remoteDoneCount = parseInt(data.stat_tasks_done_today  || '0');
+  
+  // Max wins — if you focused 10min on phone and 15min on laptop, total is 15min (not 25)
+  // This prevents double-counting while ensuring the highest value is preserved
+  const mergedFocusMins = Math.max(localFocusMins, remoteFocusMins);
+  const mergedStreak    = Math.max(localStreak, remoteStreak);
+  const mergedFlowRate  = Math.max(localFlowRate, remoteFlowRate);
+  const mergedAdded     = Math.max(localAdded, remoteAdded);
+  const mergedDoneCount = Math.max(localDone, remoteDoneCount);
+  
+  if (mergedFocusMins !== localFocusMins) {
+    localStorage.setItem('stat_focus_mins_today', String(mergedFocusMins));
+    _changed = true;
+  }
+  if (mergedStreak !== localStreak) {
+    localStorage.setItem('stat_streak', String(mergedStreak));
+    _changed = true;
+  }
+  if (mergedFlowRate !== localFlowRate) {
+    localStorage.setItem('stat_flow_rate', String(mergedFlowRate));
+    _changed = true;
+  }
+  if (mergedAdded !== localAdded) {
+    localStorage.setItem('stat_tasks_added_today', String(mergedAdded));
+    _changed = true;
+  }
+  if (mergedDoneCount !== localDone) {
+    localStorage.setItem('stat_tasks_done_today', String(mergedDoneCount));
+    _changed = true;
+  }
+
   // Full re-render if tasks were added or removed — surgical patch is not enough
   if (_changed) {
     renderManual();
@@ -5442,8 +5488,12 @@ async function dropboxRestore(fromSync) {
       localStorage.setItem('today_unchecked_ids', JSON.stringify(Array.isArray(data.unchecked_ids) ? data.unchecked_ids : []));
       localStorage.setItem('today_checked_ids',   JSON.stringify(Array.isArray(data.checked_ids)   ? data.checked_ids   : []));
       if (data.trello_config)         localStorage.setItem('trello_config',         JSON.stringify(data.trello_config));
-      if (data.stat_focus_mins_today) localStorage.setItem('stat_focus_mins_today', data.stat_focus_mins_today);
-      if (data.stat_streak)           localStorage.setItem('stat_streak',           data.stat_streak);
+      // Stats
+      if (data.stat_focus_mins_today)  localStorage.setItem('stat_focus_mins_today',  data.stat_focus_mins_today);
+      if (data.stat_streak)            localStorage.setItem('stat_streak',            data.stat_streak);
+      if (data.stat_flow_rate)         localStorage.setItem('stat_flow_rate',         data.stat_flow_rate);
+      if (data.stat_tasks_added_today) localStorage.setItem('stat_tasks_added_today', data.stat_tasks_added_today);
+      if (data.stat_tasks_done_today)  localStorage.setItem('stat_tasks_done_today',  data.stat_tasks_done_today);
       // Habits
       if (Array.isArray(data.habits)) {
         habitsList       = data.habits;
@@ -6841,6 +6891,7 @@ function _aiDismissProactive() {
     if (sessionStarted) _logSession(taskId);
 
     // Collapse focus UI cleanly — handle both task (taskid) and habit (habitId)
+    // Note: closeUI(true) will call _trackFocusTime, so no need to call it here
     const isUiEl = uiTaskEl && (
       uiTaskEl.dataset.taskid  === taskId ||
       uiTaskEl.dataset.habitId === taskId
@@ -6848,6 +6899,8 @@ function _aiDismissProactive() {
     if (isUiEl) {
       closeUI(true);
     } else {
+      // Not the UI task — track time manually before clearing
+      _trackFocusTime(taskId);
       clearState(taskId);
       appEl.classList.remove('focusing');
       document.body.style.overflow = ''; // Unlock scroll
@@ -6864,7 +6917,7 @@ function _aiDismissProactive() {
   const taskStates = {};
 
   function getState(taskId) {
-    if (!taskStates[taskId]) taskStates[taskId] = { rem: TOTAL, running: false, paused: false, wallStart: null };
+    if (!taskStates[taskId]) taskStates[taskId] = { rem: TOTAL, running: false, paused: false, wallStart: null, tracked: false };
     return taskStates[taskId];
   }
   function clearState(taskId) { delete taskStates[taskId]; }
@@ -6964,6 +7017,35 @@ function _aiDismissProactive() {
     kbdHint.classList.add('show');
   }
 
+  // ── Track actual focus time spent (not just completed sessions) ────────────
+  function _trackFocusTime(taskId) {
+    if (!taskId) return;
+    const st = taskStates[taskId];
+    if (!st) return;
+    
+    // Skip if already tracked (e.g., session completed naturally)
+    if (st.tracked) return;
+    
+    // Calculate actual time spent: TOTAL - remaining time
+    const timeSpentSecs = TOTAL - st.rem;
+    if (timeSpentSecs <= 0) return;
+    
+    const timeSpentMins = Math.floor(timeSpentSecs / 60);
+    if (timeSpentMins <= 0) return;
+    
+    // Mark as tracked
+    st.tracked = true;
+    
+    // Add to today's focus minutes
+    const prevMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+    localStorage.setItem('stat_focus_mins_today', prevMins + timeSpentMins);
+    
+    // Update memory with focus time
+    _memoryOnFocusComplete(timeSpentMins);
+    
+    updateStats();
+  }
+
   // ── Close UI — preserves task state unless clearState=true ───────────────
   function closeUI(doResetState) {
     clearTimeout(tickHandle);
@@ -6979,6 +7061,11 @@ function _aiDismissProactive() {
 
     const closingTask   = uiTaskEl;
     const closingTaskId = uiTaskId;
+    
+    // Track focus time before clearing state
+    if (doResetState && closingTaskId) {
+      _trackFocusTime(closingTaskId);
+    }
 
     // Let CSS transition play (200ms) then clean up DOM classes
     setTimeout(() => {
@@ -7024,6 +7111,7 @@ function _aiDismissProactive() {
     st.running    = true;
     st.paused     = false;
     st.wallStart  = Date.now();
+    st.tracked    = false;  // Reset tracked flag for new session
     playStartSound();
 
     openUI(taskEl, taskId);
@@ -7097,6 +7185,7 @@ function _aiDismissProactive() {
     st.rem       = 0;
     st.paused    = false;
     st.wallStart = null;
+    st.tracked   = true;  // Mark as already tracked to prevent double-counting on closeUI
 
     // Update DOM if visible — fill turns accent, time shows "again?"
     if (taskId === uiTaskId && uiTaskEl) {
@@ -7108,12 +7197,14 @@ function _aiDismissProactive() {
       timeEl.textContent = 'again?';
     }
 
-    // Track focus minutes today (25 min per pomodoro)
+    // Track full 25 minutes for completed session
     const prevMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
     localStorage.setItem('stat_focus_mins_today', prevMins + 25);
     
     // Update memory with focus session
     _memoryOnFocusComplete(25);
+    
+    updateStats();
 
     playChime();
     _haptic('success');

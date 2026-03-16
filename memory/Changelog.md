@@ -2,6 +2,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.8.6** | **Mobile fixes + Stats sync** — Input bar stays above keyboard (visualViewport API). ✦ button single star on mobile. Stats sync across devices (focus mins, streak, flow rate). Focus time tracks actual minutes spent, not just completed sessions. |
 | **2.8.5** | **Picture-in-Picture focus widget** — auto-opens when leaving tab during focus mode, auto-closes on return. Shows task name + progress bar + time. Hover reveals Breathe/Rest controls. Chrome/Edge 116+, Firefox 148+ (behind flag). |
 | **2.4.0** | **Dashboard simplified** — 3 metrics only: Completed, Streak, Flow. Flow rate uses exponential smoothing (`rate × 0.85 + today × 0.15`) — rewards consistency, recent days matter more. |
 | 2.3.6 | Animation simplification — `taskSlideIn` → pure fade (no transform), ✦ button → subtle opacity pulse (removed width expansion), splash → faster/tighter timing. Removed shadow-divider from mobile bar. |
