@@ -770,8 +770,65 @@ TODAY uses `_haptic(preset)` for tactile feedback on mobile. Design rules (from 
 
 **Not haptic:** adding a task, opening panels, toggling habits panel, typing.
 
-## 14. Haiku
+## 14. Picture-in-Picture Focus Widget (v2.8.5)
+
+A floating always-on-top timer that appears when the user leaves the tab during focus mode. Uses the Document Picture-in-Picture API (Chrome/Edge 116+, Firefox 148+ behind flag).
+
+### Behavior
+
+1. User starts focus mode (click task to start timer)
+2. User switches to another tab or app
+3. PiP widget automatically appears floating on top
+4. User returns to TODAY tab → PiP auto-closes
+
+### Design
+
+**Dimensions:** 260×62px (compact horizontal bar)
+
+**Layout:**
+- Top row: Task name (left), hover-reveal controls (right)
+- Bottom row: Timer bar with progress fill + time display
+
+**Typography:**
+- Task name: DM Mono 300, 9px, `rgba(255,255,255,0.4)`
+- Time: Syne 700, 13px, `#7ac77c`
+- Buttons: DM Mono 300, 8px
+
+**Colors (matching app tokens):**
+| Element | Value | Token |
+|---------|-------|-------|
+| Background | `#0e0e10` | `--color-bg` |
+| Accent (time) | `#c8f060` | `--accent` |
+| Timer track | `rgba(200,240,96,0.022)` | `--accent-timer-bg` |
+| Timer fill | `rgba(200,240,96,0.08)` | `--accent-timer-fill` |
+| Border | `rgba(200,240,96,0.12)` | `--accent-focus-border` |
+| Muted text | `rgba(255,255,255,0.4)` | — (40% white) |
+| Button bg | `rgba(255,255,255,0.06)` | — |
+| Button border | `rgba(255,255,255,0.1)` | — |
+
+**Controls (hover-reveal):**
+- "Breathe" — toggles pause/resume, changes to "Resume" when paused
+- "Rest" — closes PiP and exits focus mode
+
+### Technical Notes
+
+- PiP window is a separate document — fonts must be re-declared via `@font-face`
+- Auto-open requires prior user gesture (starting focus mode provides this)
+- Browser chrome (close button) cannot be removed — it's a security feature
+- `disallowReturnToOpener: true` hides the "back to tab" arrow
+- Syncs with main timer via `window._pipSync(rem, total)` exposed on parent
+- Closes via `window._pipClose()` when focus mode exits
+
+### Limitations
+
+- Safari: Not supported (no Document PiP API)
+- Firefox: Requires flag `dom.documentpip.enabled`
+- Only one PiP window per tab
+- Window position/size cannot be programmatically controlled without user gesture
+
+## 15. Haiku
 
 > Only today shows  
 > Done rests, quietly proud  
 > Morning clears the slate
+

@@ -1373,6 +1373,15 @@
       -webkit-backdrop-filter: blur(16px) saturate(1.4);
       backdrop-filter: blur(16px) saturate(1.4);
     }
+    
+    /* Mobile: single star only, no hover expansion */
+    .add-ai-btn {
+      width: 44px !important;
+    }
+    .add-ai-btn::before,
+    .add-ai-btn::after {
+      display: none !important;
+    }
   }
 
   .config-field {
@@ -2412,11 +2421,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.8.4';
-const DEV_HOURS     = '108h';
+const APP_VERSION   = '2.8.6';
+const DEV_HOURS     = '110h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.8.6': 'Mobile: input bar stays above keyboard (visualViewport API). ✦ button shows single star on mobile (no hover expansion).',
+  '2.8.5': 'Picture-in-Picture focus widget: pop out timer to always-on-top floating window (desktop Chrome/Edge 116+, Firefox 148+). Shows task name, progress bar, time. Hover reveals Breathe/Rest controls.',
   '2.8.4': 'Focus mode: scroll locked + task centered on enter. AI notification: breathing dot instead of "1" badge. AI fix: no longer opens Connections panel unexpectedly.',
   '2.8.3': 'Multi-undo: delete multiple tasks quickly, undo them one by one (stack of 10). Toast shows count. Task text capped at 500 chars.',
   '2.8.2': 'Task order syncs across devices (remote order wins, local-only tasks append). AI panel styling: larger text (14px), sleeker card with layered shadow, bigger chips. Focus complete shows "again?" not "restart". SW update: polls every 30min + on focus, more robust activation.',
@@ -6960,6 +6971,9 @@ function _aiDismissProactive() {
     kbdHint.classList.remove('show');
     _updateBreatheOverlay(false); // Clear breathe overlay
     
+    // Close PiP widget if open
+    if (window._pipClose) window._pipClose();
+    
     // Unlock scroll
     document.body.style.overflow = '';
 
@@ -7063,6 +7077,8 @@ function _aiDismissProactive() {
     if (taskId === uiTaskId && uiTaskEl) {
       timeEl.textContent = fmt(st.rem);
       setProgress(1 - st.rem / TOTAL, uiTaskEl);
+      // Sync PiP widget if open
+      if (window._pipSync) window._pipSync(st.rem, TOTAL);
     }
     tickHandle = setTimeout(() => tickFor(taskId), 1000);
   }
@@ -7258,6 +7274,263 @@ function _aiDismissProactive() {
     if (e.code === 'Space' && !inInput) { e.preventDefault(); toggle(); }
     if (e.code === 'Escape') { closeUI(false); }
   });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Picture-in-Picture Focus Widget
+  // Always-on-top floating timer using Document PiP API (Chrome 116+, FF 148+)
+  // Auto-opens when leaving tab during focus, auto-closes on return
+  // ══════════════════════════════════════════════════════════════════════════
+  (function initPiP() {
+    // Feature detection — bail if not supported
+    if (!('documentPictureInPicture' in window)) return;
+
+    let pipWindow = null;
+    let pipFillEl = null;
+    let pipTimeEl = null;
+
+    // Auto-open PiP when leaving tab during focus mode
+    document.addEventListener('visibilitychange', async function() {
+      if (!uiTaskId) return; // Not in focus mode
+      
+      const st = getState(uiTaskId);
+      if (st.rem <= 0) return; // Timer complete, no need for PiP
+      
+      if (document.hidden) {
+        // Leaving tab — open PiP (requires prior user gesture from starting focus)
+        if (!pipWindow || pipWindow.closed) {
+          await openPiP();
+        }
+      } else {
+        // Returning to tab — close PiP
+        if (pipWindow && !pipWindow.closed) {
+          pipWindow.close();
+        }
+      }
+    });
+
+    async function openPiP() {
+      if (!uiTaskId) return;
+
+      try {
+        pipWindow = await documentPictureInPicture.requestWindow({
+          width: 300,
+          height: 200,
+          disallowReturnToOpener: true
+        });
+
+        const taskName = getTaskName(uiTaskId);
+        const st = getState(uiTaskId);
+        const baseUrl = window.location.origin;
+
+        // Full 300×200 design — big centered timer, full-width progress bar
+        pipWindow.document.body.innerHTML = `
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            @font-face {
+              font-family: 'Syne';
+              src: url('${baseUrl}/fonts/syne/syne-v24-latin_latin-ext-700.woff2') format('woff2');
+              font-weight: 700;
+            }
+            @font-face {
+              font-family: 'DM Mono';
+              src: url('${baseUrl}/fonts/DM%20Mono/dm-mono-v16-latin-300.woff2') format('woff2');
+              font-weight: 300;
+            }
+            html, body {
+              width: 100%;
+              height: 100%;
+              background: #0e0e10;
+              overflow: hidden;
+            }
+            .pip-widget {
+              width: 100%;
+              height: 100%;
+              display: flex;
+              flex-direction: column;
+              position: relative;
+            }
+            .pip-content {
+              flex: 1;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              align-items: center;
+              padding: 20px;
+            }
+            .pip-task {
+              font-family: 'DM Mono', 'SF Mono', Monaco, monospace;
+              font-size: 13px;
+              font-weight: 300;
+              color: rgba(255,255,255,0.5);
+              letter-spacing: 0.02em;
+              margin-bottom: 8px;
+              text-align: center;
+              max-width: 260px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .pip-time {
+              font-family: 'Syne', system-ui, sans-serif;
+              font-size: 72px;
+              font-weight: 700;
+              color: #c8f060;
+              letter-spacing: -0.03em;
+              font-variant-numeric: tabular-nums;
+              line-height: 1;
+            }
+            .pip-bar {
+              width: 100%;
+              height: 32px;
+              background: rgba(200,240,96,0.08);
+              position: relative;
+            }
+            .pip-fill {
+              position: absolute;
+              top: 0;
+              left: 0;
+              bottom: 0;
+              background: rgba(200,240,96,0.2);
+              transition: width 1s linear;
+            }
+            .pip-controls {
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 12px;
+              opacity: 0;
+              background: rgba(14,14,16,0.85);
+              transition: opacity 0.15s ease;
+            }
+            .pip-bar:hover .pip-controls {
+              opacity: 1;
+            }
+            .pip-btn {
+              background: rgba(200,240,96,0.15);
+              border: 1px solid rgba(200,240,96,0.3);
+              color: #c8f060;
+              padding: 6px 16px;
+              border-radius: 5px;
+              font-family: 'DM Mono', 'SF Mono', Monaco, monospace;
+              font-size: 11px;
+              font-weight: 300;
+              cursor: pointer;
+              letter-spacing: 0.02em;
+              transition: all 0.15s ease;
+            }
+            .pip-btn:hover {
+              background: rgba(200,240,96,0.25);
+              border-color: rgba(200,240,96,0.5);
+            }
+          </style>
+          <div class="pip-widget">
+            <div class="pip-content">
+              <div class="pip-task">${esc(taskName)}</div>
+              <div class="pip-time" id="pipTime">${fmt(st.rem)}</div>
+            </div>
+            <div class="pip-bar">
+              <div class="pip-fill" id="pipFill"></div>
+              <div class="pip-controls">
+                <button class="pip-btn" id="pipPause">Breathe</button>
+                <button class="pip-btn" id="pipClose">Rest</button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        pipFillEl = pipWindow.document.getElementById('pipFill');
+        pipTimeEl = pipWindow.document.getElementById('pipTime');
+
+        // Set initial progress
+        const progress = (1 - st.rem / TOTAL) * 100;
+        pipFillEl.style.width = progress + '%';
+
+        // Wire up controls
+        const pauseBtn = pipWindow.document.getElementById('pipPause');
+        pauseBtn.addEventListener('click', function() {
+          toggle();
+          const newSt = getState(uiTaskId);
+          this.textContent = newSt.paused ? 'Resume' : 'Breathe';
+        });
+
+        pipWindow.document.getElementById('pipClose').addEventListener('click', function() {
+          if (pipWindow) pipWindow.close();
+          closeUI(false);
+        });
+
+        // Clean up on close
+        pipWindow.addEventListener('pagehide', function() {
+          pipWindow = null;
+          pipFillEl = null;
+          pipTimeEl = null;
+        });
+
+      } catch (err) {
+        // Silent fail — user gesture may not be available
+      }
+    }
+
+    // Get task name from ID
+    function getTaskName(taskId) {
+      const manual = manualTasks.find(t => t.id === taskId);
+      if (manual) return manual.text;
+      const habit = habitsList.find(h => h.id === taskId);
+      if (habit) return habit.name;
+      const taskEl = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
+      if (taskEl) {
+        const textEl = taskEl.querySelector('.task-text');
+        if (textEl) return textEl.textContent;
+      }
+      return 'Focus';
+    }
+
+    // Expose sync function for timer tick
+    window._pipSync = function(rem, total) {
+      if (!pipWindow || pipWindow.closed) return;
+      if (!pipFillEl || !pipTimeEl) return;
+      const progress = (1 - rem / total) * 100;
+      pipFillEl.style.width = progress + '%';
+      pipTimeEl.textContent = fmt(rem);
+    };
+
+    // Expose close function
+    window._pipClose = function() {
+      if (pipWindow && !pipWindow.closed) pipWindow.close();
+    };
+  })();
+})();
+
+// ══════════════════════════════════════════════════════════════════════════
+// iOS Keyboard Handling
+// Keeps add-task bar above the virtual keyboard using visualViewport API
+// ══════════════════════════════════════════════════════════════════════════
+(function() {
+  if (!window.visualViewport) return;
+  
+  const addTaskBar = document.getElementById('addTaskBar');
+  if (!addTaskBar) return;
+  
+  function adjustForKeyboard() {
+    const viewport = window.visualViewport;
+    // Calculate how much the viewport has shrunk (keyboard height)
+    const keyboardHeight = window.innerHeight - viewport.height;
+    
+    if (keyboardHeight > 100) {
+      // Keyboard is open — position bar above it
+      addTaskBar.style.bottom = keyboardHeight + 'px';
+    } else {
+      // Keyboard closed — reset to normal
+      addTaskBar.style.bottom = '';
+    }
+  }
+  
+  window.visualViewport.addEventListener('resize', adjustForKeyboard);
+  window.visualViewport.addEventListener('scroll', adjustForKeyboard);
 })();
 
 
