@@ -2424,7 +2424,7 @@ const DEV_HOURS     = '107h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
-  '2.8.3': 'Undo delete: toast appears for 5 seconds after removing a task, tap Undo to restore it (including done state). Syncs correctly with Dropbox.',
+  '2.8.3': 'Multi-undo: delete multiple tasks quickly, undo them one by one (stack of 10). Toast shows count. Task text capped at 500 chars.',
   '2.8.2': 'Task order syncs across devices (remote order wins, local-only tasks append). AI panel styling: larger text (14px), sleeker card with layered shadow, bigger chips. Focus complete shows "again?" not "restart". SW update: polls every 30min + on focus, more robust activation.',
   '2.8.1': 'AI gets a name: lu, kit, em, jo, pip, sol, rue, or finn — randomly picked on first use, kept forever, synced across devices via Dropbox. Fix ✦ button hover animation (now widens with staggered stars).',
   '2.8.0': 'Memory system: AI learns your patterns (peak hours, streaks, focus time). Unified tonality across all copy — warm, grounded, no corporate speak. Static text audit: "Your tasks", "A clean slate", "Clear". Dropbox sync includes memory.',
@@ -4169,8 +4169,13 @@ function toggleDone(taskId) {
 function addManual() {
   const input = document.getElementById('newTask');
   if (!input) return;
-  const text = input.value.trim();
+  let text = input.value.trim();
   if (!text) return;
+  
+  // Enforce max length
+  if (text.length > MAX_TASK_LENGTH) {
+    text = text.slice(0, MAX_TASK_LENGTH);
+  }
 
   const task = { id: 'manual_' + Date.now(), text };
   manualTasks.push(task);
@@ -4633,26 +4638,28 @@ function clearTaskInput() {
   toggleClearBtn();
 }
 
-// Undo state — stores last deleted task for recovery
-let _lastDeleted = null;
+// Undo state — stores deleted tasks as a stack for recovery
+const MAX_TASK_LENGTH = 500; // reasonable limit for task text
+let _deletedStack = [];
 let _undoTimeout = null;
 
-function _showUndoToast(taskText) {
+function _showUndoToast(taskText, stackSize) {
   const toast = document.getElementById('undoToast');
   const msg = document.getElementById('undoMsg');
   if (!toast || !msg) return;
   
   // Truncate long task names
   const displayText = taskText.length > 25 ? taskText.slice(0, 25) + '…' : taskText;
-  msg.textContent = `"${displayText}" removed`;
+  const countText = stackSize > 1 ? ` (+${stackSize - 1} more)` : '';
+  msg.textContent = `"${displayText}" removed${countText}`;
   
   toast.classList.add('show');
   
-  // Auto-hide after 5 seconds
+  // Auto-hide after 5 seconds (resets on each delete)
   clearTimeout(_undoTimeout);
   _undoTimeout = setTimeout(() => {
     toast.classList.remove('show');
-    _lastDeleted = null;
+    _deletedStack = [];
   }, 5000);
 }
 
@@ -4663,11 +4670,9 @@ function _hideUndoToast() {
 }
 
 function _undoDelete() {
-  if (!_lastDeleted) return;
+  if (_deletedStack.length === 0) return;
   
-  const task = _lastDeleted;
-  _lastDeleted = null;
-  _hideUndoToast();
+  const task = _deletedStack.pop();
   
   // Remove from deleted IDs
   const deletedIds = _getDeletedIds().filter(d => d.id !== task.id);
@@ -4685,13 +4690,23 @@ function _undoDelete() {
   renderManual();
   updateStats();
   _haptic('success');
+  
+  // Update toast or hide if stack is empty
+  if (_deletedStack.length > 0) {
+    const lastTask = _deletedStack[_deletedStack.length - 1];
+    _showUndoToast(lastTask.text || 'Task', _deletedStack.length);
+  } else {
+    _hideUndoToast();
+  }
 }
 
 function deleteManual(taskId) {
   // Store task for undo before removing
   const task = manualTasks.find(t => t.id === taskId);
   if (task) {
-    _lastDeleted = { ...task, wasDone: doneIds.has(taskId) };
+    _deletedStack.push({ ...task, wasDone: doneIds.has(taskId) });
+    // Keep stack reasonable size (max 10)
+    if (_deletedStack.length > 10) _deletedStack.shift();
   }
   
   _addDeletedId(taskId); // track deletion with timestamp for union merge
@@ -4724,7 +4739,7 @@ function deleteManual(taskId) {
     updateStats();
     
     // Show undo toast
-    if (task) _showUndoToast(task.text || 'Task');
+    if (task) _showUndoToast(task.text || 'Task', _deletedStack.length);
   }, 180);
 }
 
