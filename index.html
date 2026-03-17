@@ -5264,6 +5264,7 @@ function mergeRemoteData(data) {
   const mergedCheckedMap   = new Map([...localCheckedMap,   ...remoteCheckedMap]);
 
   // ── Task list: remote order wins, local-only tasks appended at end ────────
+  const localIds = new Set(manualTasks.map(t => t.id));
   const remoteIds = new Set(remoteTasks.map(t => t.id));
   const localOnly = manualTasks.filter(t => !remoteIds.has(t.id));
   
@@ -5597,10 +5598,8 @@ async function dropboxRestore(fromSync) {
     if (!navigator.onLine) return;
     if (!_syncToken) return;
     try {
-      // Ensure token is fresh before metadata check — access tokens expire after
-      // a few hours, and this is the path that breaks silently after long absences.
       await _dropboxEnsureToken();
-      const token = localStorage.getItem('dropbox_token'); // re-read after potential refresh
+      const token = localStorage.getItem('dropbox_token');
       if (!token) return;
       const res = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
         method:  'POST',
@@ -5610,7 +5609,7 @@ async function dropboxRestore(fromSync) {
       if (!res.ok) return;
       const meta = await res.json();
       const rev  = meta.rev;
-      if (!rev || rev === lastDropboxRev) return; // nothing changed
+      if (!rev || rev === lastDropboxRev) return;
       lastDropboxRev = rev;
       await dropboxRestore(true);
     } catch(e) { /* silent */ }
@@ -5618,6 +5617,7 @@ async function dropboxRestore(fromSync) {
 
   // Expose rev setter so dropboxBackup can update baseline after its own write
   window._dbxSetRev = function(rev) { lastDropboxRev = rev; };
+  window._dbxGetRev = function() { return lastDropboxRev; }; // debug helper
 
   // Midnight cleanup
   function checkNewDay() {
@@ -5640,7 +5640,7 @@ async function dropboxRestore(fromSync) {
   }
 
   function syncAll() {
-    _refreshSyncCache(); // single localStorage read pass per tick
+    _refreshSyncCache();
     checkNewDay();
     syncTrello();
     syncDropbox();
@@ -5654,6 +5654,10 @@ async function dropboxRestore(fromSync) {
     clearInterval(ticker);
     ticker = null;
   }
+  
+  // Debug: expose ticker status and manual trigger
+  window._dbxTickerRunning = () => !!ticker;
+  window._dbxSyncNow = () => { syncAll(); console.log('Sync triggered'); };
 
   let wakeTimer = null;
   document.addEventListener('visibilitychange', () => {
