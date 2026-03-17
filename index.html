@@ -5642,6 +5642,7 @@ async function dropboxRestore(fromSync) {
 
   function syncAll() {
     _refreshSyncCache(); // single localStorage read pass per tick
+    console.log('[sync] tick — token:', !!_syncToken);
     checkNewDay();
     syncTrello();
     syncDropbox();
@@ -5649,12 +5650,17 @@ async function dropboxRestore(fromSync) {
 
   function startTicker() {
     if (ticker) return;
+    console.log('[sync] startTicker called');
     ticker = setInterval(syncAll, INTERVAL_MS);
   }
   function stopTicker() {
     clearInterval(ticker);
     ticker = null;
   }
+  
+  // Debug: expose ticker status and manual trigger
+  window._dbxTickerRunning = () => !!ticker;
+  window._dbxSyncNow = () => { syncAll(); console.log('Sync triggered'); };
 
   let wakeTimer = null;
   document.addEventListener('visibilitychange', () => {
