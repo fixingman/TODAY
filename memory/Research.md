@@ -450,3 +450,138 @@ The AI assistant (v1.8.0+) requires explicit invocation via the ✦ button. User
 
 ---
 
+## 8. Document Picture-in-Picture API
+
+*Researched: Mar 16, 2026*
+
+### Overview
+
+The Document Picture-in-Picture API creates always-on-top floating windows with arbitrary HTML content. Unlike the older `HTMLVideoElement.requestPictureInPicture()` which only works with `<video>`, this API can render any DOM content.
+
+**Use case for TODAY:** A floating focus timer widget that stays visible while working in other apps/tabs.
+
+### Browser Support
+
+| Browser | Version | Notes |
+|---------|---------|-------|
+| Chrome | 116+ | Full support |
+| Edge | 116+ | Full support (Chromium) |
+| Firefox | 148+ | Behind flag `dom.documentpip.enabled` |
+| Safari | ❌ | Not supported |
+
+### API Surface
+
+```javascript
+// Feature detection
+if ('documentPictureInPicture' in window) { ... }
+
+// Open PiP window (requires user gesture)
+const pipWindow = await documentPictureInPicture.requestWindow({
+  width: 260,
+  height: 62,
+  disallowReturnToOpener: true,  // Hides "back to tab" button
+  preferInitialWindowPlacement: true  // Use default position, not last used
+});
+
+// Access existing PiP window
+documentPictureInPicture.window  // Returns Window or null
+
+// Events
+documentPictureInPicture.addEventListener('enter', ...);
+pipWindow.addEventListener('pagehide', ...);  // PiP closed
+```
+
+### User Gesture Requirement
+
+Opening a PiP window **requires a user gesture** (click, tap, keypress). The promise rejects with `NotAllowedError` if called without one.
+
+**Exception:** Auto-PiP for media playback. When a web app meets these requirements, the Media Session API can open PiP without a direct user gesture:
+1. Register a media session action handler for `"enterpictureinpicture"`
+2. User leaves the tab (visibility change)
+3. Handler fires, allowing `requestWindow()` without gesture
+
+For TODAY: The user gesture from clicking a task to start focus mode is "consumed" and allows subsequent PiP opens on tab blur — but this is not guaranteed to work in all browsers.
+
+### Browser Chrome (Can't Remove)
+
+The browser adds its own controls to the PiP window:
+- Back arrow (return to tab) — hidden with `disallowReturnToOpener: true`
+- Close button — **cannot be removed** (browser security feature)
+- Window title bar — always present
+
+These controls auto-fade when the mouse leaves the PiP window.
+
+### Implementation Notes
+
+1. **Window fills entire space:** Set `html, body { width: 100%; height: 100%; }` and make the widget `100%` to avoid white gaps
+2. **Fonts must be re-declared:** The PiP window is a separate document — `@font-face` rules from the parent don't apply
+3. **Dark background:** Set `background: #0e0e10` on `html, body` to avoid white flash
+4. **Sync with parent:** Expose sync functions on `window._pipSync(rem, total)` for timer updates
+5. **Clean up on close:** Listen for `pagehide` event to null out references
+
+### Limitations
+
+- One PiP window per tab (opening a second closes the first)
+- PiP window closes when the opener tab navigates away or closes
+- Cannot resize/move the window programmatically without user gesture
+- No access to opener's DOM directly — must use messaging or exposed functions
+- `requestFullscreen()` disabled inside PiP windows
+
+### TODAY Implementation (v2.8.5)
+
+**Behavior:**
+- Auto-opens when user leaves tab during focus mode
+- Auto-closes when user returns to tab
+- Shows task name + progress bar + time
+- Hover reveals "Breathe" (pause/resume) and "Rest" (exit focus) buttons
+
+**Design tokens used:**
+- Background: `#0e0e10` (matches `--color-bg`)
+- Accent: `#c8f060` (matches `--accent`)
+- Timer fill: `rgba(200,240,96,0.08)` (matches `--accent-timer-fill`)
+- Timer track: `rgba(200,240,96,0.022)` (matches `--accent-timer-bg`)
+- Fonts: Syne 700 (time), DM Mono 300 (task name, buttons)
+
+---
+
+## 9. Stats Sync & Focus Time Tracking (v2.8.6)
+
+### Stats synced via Dropbox
+
+| Stat | Key | Merge strategy |
+|---|---|---|
+| Focus minutes today | `stat_focus_mins_today` | Max wins |
+| Streak | `stat_streak` | Max wins |
+| Flow rate | `stat_flow_rate` | Max wins |
+| Tasks added today | `stat_tasks_added_today` | Max wins |
+| Tasks done today | `stat_tasks_done_today` | Max wins |
+
+**Max wins strategy:** If phone has 10min focus and laptop has 15min, merged result is 15min. Prevents double-counting while ensuring the highest value is preserved across devices.
+
+**Excluded from sync:** `stat_last_visit` — local device state only. Restoring it would trigger `checkNewDay()` cleanup incorrectly.
+
+### Focus time tracking
+
+Before v2.8.6, focus minutes only counted completed 25-minute sessions. Now tracks actual time spent:
+
+```javascript
+function _trackFocusTime(taskId) {
+  const st = taskStates[taskId];
+  if (st.tracked) return;  // Already counted
+  
+  const timeSpentMins = Math.floor((TOTAL - st.rem) / 60);
+  if (timeSpentMins <= 0) return;
+  
+  st.tracked = true;
+  localStorage.setItem('stat_focus_mins_today', prevMins + timeSpentMins);
+}
+```
+
+**Exit points that track time:**
+- `closeUI(true)` — User exits focus mode (Escape, click elsewhere)
+- `completeFor()` — Timer hits 0 (full 25 mins)
+- `_focusOnCheck()` — User checks off task during focus
+
+**`st.tracked` flag:** Prevents double-counting. Set true after recording, reset to false on new session start.
+
+---
