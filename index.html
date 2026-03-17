@@ -5594,26 +5594,28 @@ async function dropboxRestore(fromSync) {
 
   // ── Dropbox: cheap rev check, only restore if file changed on another device ──
   async function syncDropbox() {
-    if (!navigator.onLine) return;
-    if (!_syncToken) return;
+    if (!navigator.onLine) { console.log('[sync] offline'); return; }
+    if (!_syncToken) { console.log('[sync] no token'); return; }
     try {
       // Ensure token is fresh before metadata check — access tokens expire after
       // a few hours, and this is the path that breaks silently after long absences.
       await _dropboxEnsureToken();
       const token = localStorage.getItem('dropbox_token'); // re-read after potential refresh
-      if (!token) return;
+      if (!token) { console.log('[sync] token gone after refresh'); return; }
       const res = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
         method:  'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: DROPBOX_FILE }),
       });
-      if (!res.ok) return;
+      if (!res.ok) { console.log('[sync] metadata failed:', res.status); return; }
       const meta = await res.json();
       const rev  = meta.rev;
+      console.log('[sync] rev check — local:', lastDropboxRev, 'remote:', rev);
       if (!rev || rev === lastDropboxRev) return; // nothing changed
+      console.log('[sync] rev changed! restoring...');
       lastDropboxRev = rev;
       await dropboxRestore(true);
-    } catch(e) { /* silent */ }
+    } catch(e) { console.log('[sync] error:', e); }
   }
 
   // Expose rev setter so dropboxBackup can update baseline after its own write
