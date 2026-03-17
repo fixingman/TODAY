@@ -2428,7 +2428,7 @@ const DEV_HOURS     = '111h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
-  '2.8.7': 'Fix: undo toast z-index. Fix: focus mode scroll — no jump if task visible, restore position on exit. Motion audit: added --ease-spring token, aligned transitions to duration tokens.',
+  '2.8.7': 'Fix: undo toast z-index. Focus mode: edge nudge only if task clipped. Motion audit: --ease-spring token, aligned transitions to duration tokens.',
   '2.8.6': 'Mobile: input bar stays above keyboard (visualViewport API). ✦ button shows single star on mobile. Stats sync across devices (focus mins, streak, flow rate, tasks added/done).',
   '2.8.5': 'Picture-in-Picture focus widget: pop out timer to always-on-top floating window (desktop Chrome/Edge 116+, Firefox 148+). Shows task name, progress bar, time. Hover reveals Breathe/Rest controls.',
   '2.8.4': 'Focus mode: scroll locked + task centered on enter. AI notification: breathing dot instead of "1" badge. AI fix: no longer opens Connections panel unexpectedly.',
@@ -6995,9 +6995,6 @@ function _aiDismissProactive() {
     pausedEl.classList.toggle('show', on);
   }
 
-  // Saved scroll position for restoring after focus mode
-  let _savedScrollY = 0;
-
   // ── Open UI on a task ─────────────────────────────────────────────────────
   function openUI(taskEl, taskId) {
     // If showing a different task's UI, close it first (no state change)
@@ -7005,29 +7002,6 @@ function _aiDismissProactive() {
 
     uiTaskEl = taskEl;
     uiTaskId = taskId;
-
-    // Save scroll position before locking
-    _savedScrollY = window.scrollY;
-    
-    // Check if task is visible before locking scroll
-    const rect = taskEl.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const isAboveViewport = rect.bottom < 0;
-    const isBelowViewport = rect.top > viewportHeight;
-    const isOffScreen = isAboveViewport || isBelowViewport;
-    
-    // Only scroll if task is completely off-screen
-    // Use 'nearest' to minimize movement — task stays where it is if already visible
-    if (isOffScreen) {
-      taskEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      // Update saved position after scroll
-      requestAnimationFrame(() => {
-        _savedScrollY = window.scrollY;
-      });
-    }
-    
-    // Lock scroll — no scrolling during focus
-    document.body.style.overflow = 'hidden';
 
     appEl.classList.add('focusing');
     taskEl.classList.add('focused');
@@ -7038,6 +7012,27 @@ function _aiDismissProactive() {
 
     requestAnimationFrame(() => timerEl.classList.add('open'));
     kbdHint.classList.add('show');
+    
+    // Check if task + timer bar need nudge BEFORE locking scroll
+    // Timer bar is ~80px, appears below task
+    const rect = taskEl.getBoundingClientRect();
+    const viewportH = window.innerHeight;
+    const timerHeight = 80;
+    const footerH = 70;
+    const headerH = 80;
+    const needsNudge = rect.top < headerH || rect.bottom + timerHeight > viewportH - footerH;
+    
+    if (needsNudge) {
+      taskEl.scrollIntoView({ block: 'center', behavior: 'instant' });
+    }
+    
+    // Lock scroll during focus mode (position:fixed preserves scroll position)
+    const scrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.dataset.scrollY = scrollY;
   }
 
   // ── Track actual focus time spent (not just completed sessions) ────────────
@@ -7079,11 +7074,13 @@ function _aiDismissProactive() {
     // Close PiP widget if open
     if (window._pipClose) window._pipClose();
     
-    // Unlock scroll
-    document.body.style.overflow = '';
-    
-    // Restore scroll position (browser may have reset it while overflow:hidden)
-    window.scrollTo(0, _savedScrollY);
+    // Unlock scroll (restore position from data attribute)
+    const scrollY = parseInt(document.body.dataset.scrollY || '0');
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    window.scrollTo(0, scrollY);
 
     const closingTask   = uiTaskEl;
     const closingTaskId = uiTaskId;
@@ -7091,13 +7088,6 @@ function _aiDismissProactive() {
     // Track focus time before clearing state
     if (doResetState && closingTaskId) {
       _trackFocusTime(closingTaskId);
-    }
-    
-    // After restoring scroll, ensure task is visible (may have scrolled partially off)
-    if (closingTask) {
-      requestAnimationFrame(() => {
-        closingTask.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      });
     }
 
     // Let CSS transition play (200ms) then clean up DOM classes
