@@ -5264,6 +5264,7 @@ function mergeRemoteData(data) {
   const mergedCheckedMap   = new Map([...localCheckedMap,   ...remoteCheckedMap]);
 
   // ── Task list: remote order wins, local-only tasks appended at end ────────
+  const localIds = new Set(manualTasks.map(t => t.id));
   const remoteIds = new Set(remoteTasks.map(t => t.id));
   const localOnly = manualTasks.filter(t => !remoteIds.has(t.id));
   
