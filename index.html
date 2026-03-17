@@ -453,10 +453,12 @@
     --dur-slow:   0.30s;
     --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
     --ease-std:   ease;
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* subtle overshoot for slide-up panels */
 
     /* ── Z-index scale ───────────────────────────────────────── */
     --z-base:    1;
     --z-header:  10;
+    --z-modal:   100;
     --z-splash:  500;
     --z-overlay: 999;
 
@@ -1232,7 +1234,7 @@
     transform: translateY(-50%);
     opacity: 0;
     font-size: inherit;
-    transition: opacity 90ms ease-out;
+    transition: opacity var(--dur-fast) ease-out;
     pointer-events: none;
   }
   .add-ai-btn::before {
@@ -1521,7 +1523,7 @@
     box-shadow: 0 4px 16px rgba(0,0,0,0.12);
     opacity: 0;
     pointer-events: none;
-    transition: transform 0.25s var(--ease-spring), opacity 0.2s ease;
+    transition: transform var(--dur-slow) var(--ease-spring), opacity var(--dur-mid) ease;
     z-index: var(--z-modal);
   }
   #undoToast.show {
@@ -2072,7 +2074,7 @@
     overflow-y: auto;
     transform: translateY(100%);
     opacity: 0;
-    transition: transform 0.35s var(--ease-spring), opacity 0.25s ease-out;
+    transition: transform var(--dur-slow) var(--ease-spring), opacity var(--dur-mid) ease-out;
     box-shadow: 0 -8px 32px rgba(0,0,0,0.12), 0 -2px 8px rgba(0,0,0,0.08);
   }
   #aiPanel.open .ai-panel-body {
@@ -2421,11 +2423,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.8.6';
-const DEV_HOURS     = '110h';
+const APP_VERSION   = '2.8.7';
+const DEV_HOURS     = '111h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.8.7': 'Fix: undo toast z-index. Fix: focus mode scroll — no jump if task visible, restore position on exit. Motion audit: added --ease-spring token, aligned transitions to duration tokens.',
   '2.8.6': 'Mobile: input bar stays above keyboard (visualViewport API). ✦ button shows single star on mobile. Stats sync across devices (focus mins, streak, flow rate, tasks added/done).',
   '2.8.5': 'Picture-in-Picture focus widget: pop out timer to always-on-top floating window (desktop Chrome/Edge 116+, Firefox 148+). Shows task name, progress bar, time. Hover reveals Breathe/Rest controls.',
   '2.8.4': 'Focus mode: scroll locked + task centered on enter. AI notification: breathing dot instead of "1" badge. AI fix: no longer opens Connections panel unexpectedly.',
@@ -6992,6 +6995,9 @@ function _aiDismissProactive() {
     pausedEl.classList.toggle('show', on);
   }
 
+  // Saved scroll position for restoring after focus mode
+  let _savedScrollY = 0;
+
   // ── Open UI on a task ─────────────────────────────────────────────────────
   function openUI(taskEl, taskId) {
     // If showing a different task's UI, close it first (no state change)
@@ -7000,11 +7006,28 @@ function _aiDismissProactive() {
     uiTaskEl = taskEl;
     uiTaskId = taskId;
 
-    // Lock scroll — no value scrolling during focus
-    document.body.style.overflow = 'hidden';
+    // Save scroll position before locking
+    _savedScrollY = window.scrollY;
     
-    // Center the task in view
-    taskEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    // Check if task is visible before locking scroll
+    const rect = taskEl.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const isAboveViewport = rect.bottom < 0;
+    const isBelowViewport = rect.top > viewportHeight;
+    const isOffScreen = isAboveViewport || isBelowViewport;
+    
+    // Only scroll if task is completely off-screen
+    // Use 'nearest' to minimize movement — task stays where it is if already visible
+    if (isOffScreen) {
+      taskEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      // Update saved position after scroll
+      requestAnimationFrame(() => {
+        _savedScrollY = window.scrollY;
+      });
+    }
+    
+    // Lock scroll — no scrolling during focus
+    document.body.style.overflow = 'hidden';
 
     appEl.classList.add('focusing');
     taskEl.classList.add('focused');
@@ -7058,6 +7081,9 @@ function _aiDismissProactive() {
     
     // Unlock scroll
     document.body.style.overflow = '';
+    
+    // Restore scroll position (browser may have reset it while overflow:hidden)
+    window.scrollTo(0, _savedScrollY);
 
     const closingTask   = uiTaskEl;
     const closingTaskId = uiTaskId;
@@ -7065,6 +7091,13 @@ function _aiDismissProactive() {
     // Track focus time before clearing state
     if (doResetState && closingTaskId) {
       _trackFocusTime(closingTaskId);
+    }
+    
+    // After restoring scroll, ensure task is visible (may have scrolled partially off)
+    if (closingTask) {
+      requestAnimationFrame(() => {
+        closingTask.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
     }
 
     // Let CSS transition play (200ms) then clean up DOM classes

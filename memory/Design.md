@@ -213,8 +213,9 @@ Fonts are self-hosted under `/fonts/` and pre-cached by the service worker. The 
 | `--dur-fast` | 0.15s | Enter snaps, hover changes, timer open |
 | `--dur-base` | 0.18s | General UI transitions |
 | `--dur-mid` | 0.20s | Focus mode exit, timer element fades |
-| `--dur-slow` | 0.30s | Recede/reveal, opacity fades |
+| `--dur-slow` | 0.30s | Recede/reveal, opacity fades, slide-up panels |
 | `--ease-out` | `cubic-bezier(0.16, 1, 0.3, 1)` | Overshoot-free deceleration |
+| `--ease-spring` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Subtle overshoot for slide-up panels (AI, undo toast) |
 | `--ease-std` | `ease` | Generic |
 
 ### Motion Philosophy
@@ -290,6 +291,18 @@ State transitions use simple opacity fades:
 - **Recede (focus mode):** 1 → 0.07 over `--dur-slow` (0.30s)
 
 No transforms on enter/exit. Elements appear in place. Motion should feel like dimming lights, not flying objects.
+
+**Focus Mode Scroll Behavior (v2.8.7)**
+
+When entering focus mode:
+- **Task visible:** No scroll. Task stays exactly where it is, world recedes around it.
+- **Task off-screen:** Scroll with `block: 'nearest'` — minimal movement to bring into view.
+
+When exiting focus mode:
+- Restore original scroll position (`_savedScrollY`)
+- Then scroll task into view if needed (`block: 'nearest'`)
+
+This ensures consistent, predictable motion. The task never jumps up AND down — it either stays put or moves minimally in one direction.
 
 **Fade animations in use:**
 
