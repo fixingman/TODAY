@@ -5618,6 +5618,7 @@ async function dropboxRestore(fromSync) {
 
   // Expose rev setter so dropboxBackup can update baseline after its own write
   window._dbxSetRev = function(rev) { lastDropboxRev = rev; };
+  window._dbxGetRev = function() { return lastDropboxRev; }; // debug helper
 
   // Midnight cleanup
   function checkNewDay() {
