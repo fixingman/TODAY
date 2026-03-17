@@ -5597,10 +5597,10 @@ async function dropboxRestore(fromSync) {
     if (!navigator.onLine) { console.log('[sync] offline'); return; }
     if (!_syncToken) { console.log('[sync] no token'); return; }
     try {
-      // Ensure token is fresh before metadata check — access tokens expire after
-      // a few hours, and this is the path that breaks silently after long absences.
+      console.log('[sync] checking token...');
       await _dropboxEnsureToken();
-      const token = localStorage.getItem('dropbox_token'); // re-read after potential refresh
+      console.log('[sync] token checked');
+      const token = localStorage.getItem('dropbox_token');
       if (!token) { console.log('[sync] token gone after refresh'); return; }
       const res = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
         method:  'POST',
@@ -5611,7 +5611,7 @@ async function dropboxRestore(fromSync) {
       const meta = await res.json();
       const rev  = meta.rev;
       console.log('[sync] rev check — local:', lastDropboxRev, 'remote:', rev);
-      if (!rev || rev === lastDropboxRev) return; // nothing changed
+      if (!rev || rev === lastDropboxRev) return;
       console.log('[sync] rev changed! restoring...');
       lastDropboxRev = rev;
       await dropboxRestore(true);
