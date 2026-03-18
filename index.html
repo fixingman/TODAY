@@ -1177,7 +1177,7 @@
     border: none;
     border-radius: var(--radius-lg);
     color: var(--color-bg);
-    font-size: var(--text-md);
+    font-size: var(--text-lg);
     width: 44px;
     height: 44px;
     display: flex;
@@ -2857,6 +2857,12 @@ function init() {
     loadTrello();        // load immediately from saved config
   } else {
     renderTrello();
+  }
+
+  // Set AI button tooltip with assistant name
+  const aiBtn = document.getElementById('addAiBtn');
+  if (aiBtn && appMemory.aiName) {
+    aiBtn.title = `Ask ${appMemory.aiName}`;
   }
 
 }
@@ -7420,10 +7426,13 @@ function _aiDismissProactive() {
           await openPiP();
         }
       } else {
-        // Returning to tab — close PiP
+        // Returning to tab — close PiP and reset reference
         if (pipWindow && !pipWindow.closed) {
           pipWindow.close();
         }
+        pipWindow = null;
+        pipFillEl = null;
+        pipTimeEl = null;
       }
     });
 
@@ -7637,14 +7646,17 @@ function _aiDismissProactive() {
   function adjustForKeyboard() {
     const viewport = window.visualViewport;
     // Calculate how much the viewport has shrunk (keyboard height)
-    const keyboardHeight = window.innerHeight - viewport.height;
+    const keyboardHeight = window.innerHeight - viewport.height - viewport.offsetTop;
     
     if (keyboardHeight > 100) {
       // Keyboard is open — position bar above it
+      // On iOS, visualViewport.offsetTop accounts for scrolled content
       addTaskBar.style.bottom = keyboardHeight + 'px';
+      addTaskBar.style.position = 'fixed';
     } else {
       // Keyboard closed — reset to normal
       addTaskBar.style.bottom = '';
+      addTaskBar.style.position = '';
     }
   }
   
