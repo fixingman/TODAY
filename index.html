@@ -2423,11 +2423,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.8.8';
-const DEV_HOURS     = '112h';
+const APP_VERSION   = '2.8.9';
+const DEV_HOURS     = '113h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.8.9': 'PiP: Open button returns to main app. iOS keyboard fix (visualViewport.offsetTop).',
   '2.8.8': 'Fix: sync was broken (missing localIds). Immediate sync on page load. PiP reopens on second tab leave. Star button larger. Tooltip shows AI name.',
   '2.8.7': 'Fix: undo toast z-index. Focus mode: edge nudge only if task clipped. Motion audit: --ease-spring token, aligned transitions to duration tokens.',
   '2.8.6': 'Mobile: input bar stays above keyboard (visualViewport API). ✦ button shows single star on mobile. Stats sync across devices (focus mins, streak, flow rate, tasks added/done).',

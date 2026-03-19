@@ -2,6 +2,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.8.9** | **PiP improvements** — Open button to return to main app from widget. iOS keyboard positioning fix (visualViewport.offsetTop). |
 | **2.8.8** | **Critical fix: sync broken** — missing `localIds` variable in `mergeRemoteData()` caused silent ReferenceError. Also: immediate sync on page load (always pull→merge→push), PiP reopens on second tab leave, star button size increased, tooltip shows AI name. |
 | **2.8.7** | **Bug fixes + Motion audit** — Undo toast clickable (z-index fix). Focus mode: edge nudge only if task clipped by header/footer. Motion tokens: added `--ease-spring`, aligned transitions to duration tokens. |
 | **2.8.6** | **Mobile fixes + Stats sync** — Input bar stays above keyboard (visualViewport API). ✦ button single star on mobile. Stats sync across devices (focus mins, streak, flow rate). Focus time tracks actual minutes spent, not just completed sessions. |
