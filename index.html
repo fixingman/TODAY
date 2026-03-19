@@ -2464,11 +2464,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.9.6';
-const DEV_HOURS     = '120h';
+const APP_VERSION   = '2.9.8';
+const DEV_HOURS     = '121h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.9.8': 'Energy rhythm: AI considers peak hour when suggesting tasks. "It\'s your peak — good moment for that deep work."',
+  '2.9.7': 'Focus time formatting: shows "Xh Ym" when >= 60 minutes, "Xm" otherwise. Cleaner stats display.',
   '2.9.6': 'Empty state invitation: AI invites warmly when list is empty. Uses patterns — "Day 5. What\'s on your mind?" vs generic "Add a task".',
   '2.9.5': 'Memory speaks: AI proactively notices patterns — streak records, peak hours, milestones. The companion observes without being asked.',
   '2.9.4': 'AI awareness: morning briefing, stale task noticing (3+ days), Sunday reflection. Companion observes your patterns.',
@@ -3106,6 +3108,16 @@ function toggleInfo() {
   if (isOpening) renderInfoStats();
 }
 
+// Format focus time: "Xh Ym" if >= 60 minutes, "Xm" otherwise
+function _formatFocusTime(mins) {
+  if (mins >= 60) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  }
+  return `${mins}m`;
+}
+
 function renderInfoStats() {
   // Pull stats from localStorage
   const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
@@ -3117,7 +3129,7 @@ function renderInfoStats() {
   const flowRate = addedToday > 0 ? Math.min(100, Math.round((doneToday / addedToday) * 100)) : (doneToday > 0 ? 100 : 0);
 
   const stats = [
-    { val: focusMinsToday + 'm', label: 'Focus' },
+    { val: _formatFocusTime(focusMinsToday), label: 'Focus' },
     { val: flowRate + '%', label: 'Flow' },
     { val: streak + 'd', label: 'Streak' },
   ];
@@ -6387,8 +6399,8 @@ function _aiIntroMessage(ctx) {
   // ── WEEKLY REFLECTION (Sunday evening) ──
   if (ctx.dayOfWeek === 0 && ctx.timeOfDay === 'evening') {
     const w = ctx.weeklyStats;
-    const focusHours = Math.round(w.focusMinsToday / 60 * 10) / 10;
-    return `Sunday evening. This week: ${w.tasksCompletedToday} tasks done today, ${focusHours > 0 ? focusHours + ' hours focused, ' : ''}streak at ${ctx.streak}. How did it feel?`;
+    const focusStr = w.focusMinsToday > 0 ? _formatFocusTime(w.focusMinsToday) + ' focused, ' : '';
+    return `Sunday evening. This week: ${w.tasksCompletedToday} tasks done today, ${focusStr}streak at ${ctx.streak}. How did it feel?`;
   }
   
   // ── STALE TASK AWARENESS (probabilistic — ~30% chance if aging tasks exist) ──
@@ -6681,6 +6693,26 @@ function _aiSystemPrompt(ctx) {
   // Proactive observation — something worth mentioning from memory
   const observation = ctx.proactiveObservation;
   
+  // Energy rhythm context
+  const hour = new Date().getHours();
+  const peakHour = appMemory.preferences.peakHour;
+  const isPeakTime = peakHour !== null && Math.abs(hour - peakHour) <= 1;
+  const isPrePeak = peakHour !== null && peakHour > hour && (peakHour - hour) <= 3;
+  const isPostPeak = peakHour !== null && hour > peakHour && (hour - peakHour) <= 2;
+  
+  let energyContext = '';
+  if (isPeakTime) {
+    energyContext = `RIGHT NOW is their peak productivity time (around ${peakHour > 12 ? peakHour - 12 : peakHour}${peakHour >= 12 ? 'pm' : 'am'}). Good moment for demanding tasks.`;
+  } else if (isPrePeak) {
+    energyContext = `They usually peak around ${peakHour > 12 ? peakHour - 12 : peakHour}${peakHour >= 12 ? 'pm' : 'am'} — still warming up. Light tasks are fine.`;
+  } else if (isPostPeak) {
+    energyContext = `Past their usual peak (${peakHour > 12 ? peakHour - 12 : peakHour}${peakHour >= 12 ? 'pm' : 'am'}). Winding down — admin or easy tasks fit this energy.`;
+  } else if (ctx.timeOfDay === 'morning') {
+    energyContext = 'Morning energy — often good for creative or demanding work, but respect their rhythm.';
+  } else if (ctx.timeOfDay === 'evening') {
+    energyContext = 'Evening — energy typically lower. Quick wins or reflection tasks fit better.';
+  }
+  
   // Context flags for AI awareness
   const contextFlags = [];
   if (ctx.isFirstOpenToday) contextFlags.push('FIRST_OPEN_TODAY');
@@ -6702,6 +6734,7 @@ Your personality:
 
 ${memoryContext ? `What you remember about this person:\n${memoryContext}\n` : ''}
 Context: ${ctx.timeOfDay}, ${ctx.isFirstOpenToday ? 'first open today' : 'returning'}, streak: ${ctx.streak} days
+${energyContext ? `Energy rhythm: ${energyContext}` : ''}
 ${stateSummary}
 ${overdueTasks.length ? `Overdue: ${overdueList}` : ''}
 ${regularTasks.length ? `Pending: ${pendingList}` : ''}
@@ -6731,6 +6764,11 @@ Message guidelines:
 - If overwhelmed: empathetic, one clear next step
 - If aging tasks: curious, not nagging — "still on your mind?" not "you should do this"
 - If proactive observation: weave it naturally, don't lead with it
+- Energy awareness: use the "Energy rhythm" context to guide task suggestions:
+  * Peak time? Suggest demanding tasks: "Good moment for that deep work"
+  * Pre-peak? Keep it light: "Warming up — start with something easy"
+  * Post-peak/evening? Quick wins: "Wind down with the quick ones"
+  * Don't lecture about energy — just let it inform which task you suggest first
 - Never use: "Let's", "Why not", "How about", exclamation marks, or emoji
 
 Action types (use exact IDs from brackets above):

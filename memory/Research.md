@@ -973,3 +973,56 @@ vs.
 The first feels like a companion welcoming you. The second feels like an empty form.
 
 ---
+
+## 15. Energy Rhythm — Time-Aware Task Suggestions
+
+*Implemented: Mar 19, 2026 (v2.9.8)*
+
+### The Problem
+
+TODAY treats all hours the same. 9am and 4pm are identical in the UI. But humans have rhythms — creative work is often easier in the morning, admin work fits better after lunch, and demanding tasks shouldn't be suggested in the evening wind-down.
+
+Most task apps ignore this entirely. Some add complex scheduling. Neither is right for TODAY's philosophy.
+
+### The Insight
+
+We already know the user's peak hour from memory. We can use this to inform — not dictate — which task to suggest first.
+
+Not: "Schedule this for 2pm"  
+But: "It's your peak time — good moment for that deep work"
+
+The AI becomes rhythm-aware without adding any UI complexity.
+
+### Energy Context
+
+The system prompt now includes an "Energy rhythm" line based on the user's peak hour:
+
+| State | Context Given to AI |
+|---|---|
+| **Peak time** | "RIGHT NOW is their peak productivity time. Good moment for demanding tasks." |
+| **Pre-peak** (1-3 hours before) | "Still warming up. Light tasks are fine." |
+| **Post-peak** (1-2 hours after) | "Past their peak. Winding down — admin or easy tasks fit this energy." |
+| **Morning** (no peak data) | "Morning energy — often good for creative or demanding work." |
+| **Evening** (no peak data) | "Evening — energy typically lower. Quick wins or reflection tasks fit better." |
+
+### Message Guidelines
+
+The AI is instructed to use this context:
+- Peak time? Suggest demanding tasks: "Good moment for that deep work"
+- Pre-peak? Keep it light: "Warming up — start with something easy"
+- Post-peak/evening? Quick wins: "Wind down with the quick ones"
+- Don't lecture about energy — just let it inform which task to suggest
+
+### What This Creates
+
+User opens TODAY at 2pm (their peak hour):
+
+> "Good afternoon. 4 things waiting. It's your productive hour — start with 'write proposal'?"
+
+vs. at 5pm (post-peak):
+
+> "Good evening. 4 things waiting. Wind down with the quick ones?"
+
+The AI knows their rhythm and adapts. No scheduling UI. No time blocks. Just awareness.
+
+---

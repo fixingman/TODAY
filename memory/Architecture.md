@@ -505,6 +505,8 @@ Different moments in the day have different emotional needs. TODAY should answer
 
 7. **✓ Empty state invitation (v2.9.6)** — When list is empty, AI invites warmly using patterns: "Day 5. What's on your mind?" vs generic "Add a task". The void becomes an invitation.
 
+8. **✓ Energy rhythm awareness (v2.9.8)** — AI considers peak hour when suggesting tasks. System prompt includes energy context: peak time (suggest demanding tasks), pre-peak (start light), post-peak/evening (quick wins). No lecture — just smarter suggestions.
+
 ### Implementation Details
 
 Context flags passed to AI:
