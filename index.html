@@ -2464,11 +2464,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.9.4';
-const DEV_HOURS     = '118h';
+const APP_VERSION   = '2.9.5';
+const DEV_HOURS     = '119h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.9.5': 'Memory speaks: AI proactively notices patterns — streak records, peak hours, milestones. The companion observes without being asked.',
   '2.9.4': 'AI awareness: morning briefing, stale task noticing (3+ days), Sunday reflection. Companion observes your patterns.',
   '2.9.3': 'Visual aging: tasks gradually fade over days (75% at day 3-4, 55% at 5-6, 35% at 7+). Acknowledgment without action.',
   '2.9.2': 'Visual tags: "work: task" renders tag as muted uppercase prefix. Pure styling — no filtering, no management.',
@@ -2806,6 +2807,153 @@ function _memoryForAI() {
   }
   
   return lines.length > 0 ? lines.join(' ') : '';
+}
+
+// Generate proactive observations — things the AI should notice and speak about
+// These are "moments worth mentioning" — the companion noticing without being asked
+function _getProactiveObservations(ctx) {
+  const m = appMemory;
+  const observations = [];
+  const currentStreak = ctx.streak || parseInt(localStorage.getItem('stat_streak') || '1');
+  const hour = new Date().getHours();
+  const peakHour = m.preferences.peakHour;
+  
+  // ── STREAK OBSERVATIONS ──
+  
+  // New personal best streak
+  if (currentStreak > m.patterns.bestStreak && currentStreak > 3) {
+    observations.push({
+      type: 'streak_record',
+      priority: 'high',
+      text: `You're on day ${currentStreak} — your longest streak yet.`
+    });
+  }
+  // Notable streak milestones (7, 14, 21, 30, etc.)
+  else if ([7, 14, 21, 30, 50, 100].includes(currentStreak)) {
+    observations.push({
+      type: 'streak_milestone',
+      priority: 'high',
+      text: `Day ${currentStreak}. That's worth noticing.`
+    });
+  }
+  // Good streak going
+  else if (currentStreak >= 5 && Math.random() < 0.2) {
+    observations.push({
+      type: 'streak_acknowledge',
+      priority: 'low',
+      text: `${currentStreak} days in a row now.`
+    });
+  }
+  
+  // ── TIME-OF-DAY OBSERVATIONS ──
+  
+  // It's their peak hour
+  if (peakHour !== null && hour === peakHour) {
+    observations.push({
+      type: 'peak_hour',
+      priority: 'medium',
+      text: `It's ${hour > 12 ? hour - 12 : hour}${hour >= 12 ? 'pm' : 'am'} — your most productive hour.`
+    });
+  }
+  // It's morning but their peak is afternoon
+  else if (peakHour !== null && peakHour >= 14 && hour < 12) {
+    observations.push({
+      type: 'pace_suggestion',
+      priority: 'low',
+      text: `You usually pick up after ${peakHour > 12 ? peakHour - 12 : peakHour}pm. Start light.`
+    });
+  }
+  
+  // ── FOCUS TIME OBSERVATIONS ──
+  
+  const focusHours = Math.round(m.patterns.focusMinutesTotal / 60);
+  // Round number milestones
+  if ([10, 25, 50, 100, 200].includes(focusHours)) {
+    observations.push({
+      type: 'focus_milestone',
+      priority: 'medium',
+      text: `${focusHours} hours of focused time. That's real.`
+    });
+  }
+  
+  // ── TASK COMPLETION OBSERVATIONS ──
+  
+  const totalCompleted = m.totalTasksCompleted || 0;
+  // Round number milestones
+  if ([50, 100, 200, 500, 1000].includes(totalCompleted)) {
+    observations.push({
+      type: 'tasks_milestone',
+      priority: 'medium',
+      text: `${totalCompleted} tasks completed since you started. Quietly adding up.`
+    });
+  }
+  
+  // ── RECENT WINS ──
+  
+  const recentMoments = m.moments.slice(-3);
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+  
+  for (const moment of recentMoments) {
+    // Big clear yesterday
+    if (moment.type === 'big_clear' && moment.date === yesterdayStr) {
+      observations.push({
+        type: 'yesterday_win',
+        priority: 'medium',
+        text: `You cleared ${moment.count} things yesterday.`
+      });
+    }
+  }
+  
+  return observations;
+}
+
+// Pick one observation to mention (probabilistic, respects cooldowns)
+function _pickObservationToMention(observations) {
+  if (!observations || observations.length === 0) return null;
+  
+  // Check cooldown — don't repeat same observation type within 24h
+  const lastObservation = localStorage.getItem('ai_last_observation');
+  const lastObservationTime = parseInt(localStorage.getItem('ai_last_observation_time') || '0');
+  const hoursSinceLastObservation = (Date.now() - lastObservationTime) / (1000 * 60 * 60);
+  
+  // Filter out recently mentioned observation types
+  let candidates = observations;
+  if (hoursSinceLastObservation < 24 && lastObservation) {
+    candidates = observations.filter(o => o.type !== lastObservation);
+  }
+  
+  if (candidates.length === 0) return null;
+  
+  // Prioritize high priority observations
+  const highPriority = candidates.filter(o => o.priority === 'high');
+  if (highPriority.length > 0) {
+    const picked = highPriority[0];
+    localStorage.setItem('ai_last_observation', picked.type);
+    localStorage.setItem('ai_last_observation_time', Date.now().toString());
+    return picked;
+  }
+  
+  // Medium priority — 50% chance
+  const mediumPriority = candidates.filter(o => o.priority === 'medium');
+  if (mediumPriority.length > 0 && Math.random() < 0.5) {
+    const picked = mediumPriority[Math.floor(Math.random() * mediumPriority.length)];
+    localStorage.setItem('ai_last_observation', picked.type);
+    localStorage.setItem('ai_last_observation_time', Date.now().toString());
+    return picked;
+  }
+  
+  // Low priority — 20% chance
+  const lowPriority = candidates.filter(o => o.priority === 'low');
+  if (lowPriority.length > 0 && Math.random() < 0.2) {
+    const picked = lowPriority[Math.floor(Math.random() * lowPriority.length)];
+    localStorage.setItem('ai_last_observation', picked.type);
+    localStorage.setItem('ai_last_observation_time', Date.now().toString());
+    return picked;
+  }
+  
+  return null;
 }
 
 // ─── New-day cleanup ─────────────────────────────────────────────────────────
@@ -6405,7 +6553,8 @@ function _aiContext() {
   const dayOfWeek = new Date().getDay();
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-  return {
+  // Build base context first (needed for proactive observations)
+  const baseCtx = {
     timeOfDay: hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening',
     date: todayStr,
     dayOfWeek,
@@ -6427,6 +6576,15 @@ function _aiContext() {
     })),
     progress: manualTasks.length ? Math.round(done.length / manualTasks.length * 100) : 0,
     weeklyStats,
+  };
+  
+  // Generate proactive observations based on memory patterns
+  const allObservations = _getProactiveObservations(baseCtx);
+  const pickedObservation = _pickObservationToMention(allObservations);
+  
+  return {
+    ...baseCtx,
+    proactiveObservation: pickedObservation,
   };
 }
 
@@ -6490,11 +6648,15 @@ function _aiSystemPrompt(ctx) {
   const memoryContext = _memoryForAI();
   const aiName = appMemory.aiName || 'lu';
   
+  // Proactive observation — something worth mentioning from memory
+  const observation = ctx.proactiveObservation;
+  
   // Context flags for AI awareness
   const contextFlags = [];
   if (ctx.isFirstOpenToday) contextFlags.push('FIRST_OPEN_TODAY');
   if (ctx.dayOfWeek === 0 && ctx.timeOfDay === 'evening') contextFlags.push('SUNDAY_EVENING');
   if (agingTasks.length > 0) contextFlags.push('HAS_AGING_TASKS');
+  if (observation) contextFlags.push('HAS_OBSERVATION');
 
   return `You are ${aiName} — a gentle, supportive presence inside TODAY, a minimal daily focus app.
 
@@ -6517,6 +6679,7 @@ ${agingTasks.length ? `Aging (3+ days): ${agingList}` : ''}
 ${pendingHabits.length ? `Habits waiting: ${habitList}` : ''}
 ${ctx.tasks.done.length ? `Done today: ${doneList}` : ''}
 
+${observation ? `PROACTIVE OBSERVATION — weave this naturally into your message:\n"${observation.text}"\nThis is something you noticed about their patterns. Mention it warmly, not as a lecture.\n` : ''}
 Special moments to notice:
 ${ctx.isFirstOpenToday && ctx.timeOfDay === 'morning' ? '- MORNING BRIEFING: Give a gentle overview of what\'s on their plate. Mention carried-over tasks, habits due, and any aging items. Brief, warm, grounding.' : ''}
 ${ctx.dayOfWeek === 0 && ctx.timeOfDay === 'evening' ? '- WEEKLY REFLECTION: Sunday evening. Offer a gentle reflection on their week — tasks done, focus time, streak. Not analytics, just acknowledgment. "How did it feel?" rather than "Great job!"' : ''}
@@ -6536,6 +6699,7 @@ Message guidelines:
 - If empty: light, not pushy
 - If overwhelmed: empathetic, one clear next step
 - If aging tasks: curious, not nagging — "still on your mind?" not "you should do this"
+- If proactive observation: weave it naturally, don't lead with it
 - Never use: "Let's", "Why not", "How about", exclamation marks, or emoji
 
 Action types (use exact IDs from brackets above):

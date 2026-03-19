@@ -501,6 +501,8 @@ Different moments in the day have different emotional needs. TODAY should answer
 
 5. **✓ Memory that speaks** — AI context includes `_memoryForAI()` output: peak hours, best streak, total focus time, recent milestones.
 
+6. **✓ Proactive observations (v2.9.5)** — AI notices patterns without being asked: streak records, peak hour awareness, milestones. Probabilistic with 24h cooldown per type.
+
 ### Implementation Details
 
 Context flags passed to AI:
@@ -509,6 +511,13 @@ Context flags passed to AI:
 - `tasks.aging` — array of tasks with `ageDays >= 3`
 - `streak` — current streak count
 - `weeklyStats` — focus minutes, tasks completed, etc.
+- `proactiveObservation` — picked observation from `_getProactiveObservations()`
+
+Proactive observation system:
+- `_getProactiveObservations(ctx)` — generates list of things worth mentioning
+- `_pickObservationToMention(observations)` — probabilistic selection with cooldown
+- Cooldown tracked via `ai_last_observation` and `ai_last_observation_time`
+- Priority levels: high (always), medium (50%), low (20%)
 
 System prompt includes "Special moments to notice" section that guides AI behavior for morning briefing, Sunday reflection, and stale awareness.
 

@@ -2,6 +2,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.9.5** | **Memory speaks** — AI proactively notices patterns from memory: streak records, peak hour awareness, focus milestones, recent wins. Probabilistic with 24h cooldown per observation type. The companion observes without being asked. |
 | **2.9.4** | **AI awareness** — Morning briefing (first open), stale task noticing (3+ days: "still relevant?"), Sunday evening reflection. AI acts as a companion that observes patterns. New `delete_task` action for "let it go". |
 | **2.9.3** | **Visual aging** — tasks gradually fade as they age (75% at day 3-4, 55% at 5-6, 35% at 7+). Acknowledgment without action. Hover restores readability. Pomodoro resets age. |
 | **2.9.2** | **Visual tags** — tasks starting with `tag: ` render the tag as muted uppercase prefix. Pure styling — no filtering, no grouping, no tag management. Pattern: 1-12 alphanumeric chars + `: `. |
