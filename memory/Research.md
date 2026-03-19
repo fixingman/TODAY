@@ -1115,7 +1115,7 @@ TODAY is not just about productivity and efficiency. There should be **delight**
 
 ### The Idea: A Little Friend
 
-After no activity for a while (no focus, task checking, habit marking, reordering), a small ASCII dinosaur appears in the corner of the screen. Like a tamagotchi that wandered into your task list.
+After no activity for a while (no focus, task checking, habit marking, reordering), a small ASCII creature appears in the corner of the screen. Like a tamagotchi that wandered into your task list.
 
 Not demanding attention. Not prompting action. Just... there. A companion who shows up when things are quiet.
 
@@ -1126,6 +1126,10 @@ Not demanding attention. Not prompting action. Just... there. A companion who sh
 - No scrolling
 - Mousemove is throttled (1s) so small movements don't reset
 
+**Creature Selection:** Random each time
+- 50% chance: Dino
+- 50% chance: Fish
+
 **Appearance:**
 - Bottom-right corner
 - DM Mono font (matches app branding)
@@ -1133,13 +1137,19 @@ Not demanding attention. Not prompting action. Just... there. A companion who sh
 - 60% opacity (visible but not demanding)
 - Fades in over 0.6s
 
-**Animation:**
+**The Dino** (400ms per frame):
 ```
-      ✦▀▄        ✦▀▄        ✦▀▄        ✦▀▄
-     ▄██▀       ▄██▀       ▄██▀       ▄██▀
-    ▀▀▀▀        ▀▀▀       ▀ ▀▀        ▀▀▀
+    ✦▀▄        ✦▀▄        ✦▀▄
+   ▄██▀       ▄██▀       ▄██▀
+  ▀▀▀▀        ▀▀▀       ▀ ▀▀
 ```
-4 frames, 400ms each — a little dino shifting its weight.
+Shifting weight, looking around.
+
+**The Fish** (120ms per frame — fast swimmer):
+```
+><(((bg✦  →  ><(((bg ✦  →  ><(((bg  ✦  →  ...
+```
+Swimming with a bubble (✦) that travels along its body. Inspired directly by cli-spinners' fish animation.
 
 **Dismissal:** Any user activity hides the companion (fade out over 0.6s).
 

@@ -2,7 +2,7 @@
 
 | Version | Key change |
 |---|---|
-| **2.10.0** | **Idle companion** — A little ASCII dino appears after 45 seconds of inactivity. Uses DM Mono, accent color glow. Inspired by cli-spinners. Delight, not productivity. |
+| **2.10.0** | **Idle companion** — A random ASCII creature (dino or fish) appears after 45 seconds of inactivity. DM Mono font, accent glow. Inspired by cli-spinners. Delight, not productivity. |
 | **2.9.9** | **All-done reward** — Finishing feels felt. Accent glow pulse, extra particle burst, double haptic, and variable warm AI messages: "8 tasks cleared. Impressive." Not gamification — just acknowledgment. |
 | **2.9.8** | **Energy rhythm awareness** — AI considers peak hour when suggesting tasks. Pre-peak: "start light". Peak time: "good moment for deep work". Post-peak: "wind down with quick ones". No lecture, just smarter suggestions. |
 | **2.9.7** | **Focus time formatting** — Shows "1h 25m" when >= 60 minutes, "45m" otherwise. Cleaner stats display. Applied to info panel and weekly reflection. |

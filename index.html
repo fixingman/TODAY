@@ -2469,7 +2469,7 @@ const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
-  '2.10.0': 'Idle companion: a little dino appears after 45s of inactivity. Delight, not productivity. cli-spinners style.',
+  '2.10.0': 'Idle companion: random creature (dino or fish) appears after 45s inactivity. cli-spinners style. Delight, not productivity.',
   '2.9.9': 'All-done reward: accent glow pulse, extra particle burst, variable warm AI messages. Finishing feels felt.',
   '2.9.8': 'Energy rhythm: AI considers peak hour when suggesting tasks. "It\'s your peak — good moment for that deep work."',
   '2.9.7': 'Focus time formatting: shows "Xh Ym" when >= 60 minutes, "Xm" otherwise. Cleaner stats display.',
@@ -5253,72 +5253,175 @@ function updateFavicon(pct, isEmpty) {
 
 // ─── Idle Companion — a little friend who appears when you're away ────────────
 // Inspired by cli-spinners (https://github.com/sindresorhus/cli-spinners)
-// A mini dinosaur that shows up after inactivity — delight, not productivity
+// A mini creature that shows up after inactivity — delight, not productivity
 (function() {
-  const IDLE_THRESHOLD = 45000; // 45 seconds of no activity
-  const IDLE_CHECK_INTERVAL = 5000; // check every 5 seconds
+  const IDLE_THRESHOLD = 10000; // 10 seconds for testing (change back to 45000 for production)
+  const IDLE_CHECK_INTERVAL = 2000; // check every 2 seconds
   
   let lastActivity = Date.now();
   let idleCompanion = null;
   let animationFrame = null;
   let frameIndex = 0;
+  let currentCreature = null;
   
-  // The companion — a little dino in DM Mono style
-  // Using cli-spinners aesthetic with TODAY's accent color
-  const DINO_FRAMES = [
-    // Frame 1: standing
-    `    ✦
-   ╱◡╲
-  ╱   ╲
- ╱  ·  ╲
-╱───────╲
-   ╱╲`,
-    // Frame 2: looking around
-    `    ✦
-   ╱◠╲
-  ╱   ╲
- ╱  ·  ╲
-╱───────╲
-  ╱  ╲`,
-    // Frame 3: blinking
-    `    ✦
-   ╱-╲
-  ╱   ╲
- ╱  ·  ╲
-╱───────╲
- ╱    ╲`,
-    // Frame 4: looking around
-    `    ✦
-   ╱◠╲
-  ╱   ╲
- ╱  ·  ╲
-╱───────╲
-  ╱  ╲`,
-  ];
+  // ── CREATURES ──────────────────────────────────────────────────────────────
   
-  // Alternative: simpler ASCII dino that walks
-  const MINI_DINO = [
-    `      ✦▀▄
-     ▄██▀
-    ▀▀▀▀`,
-    `      ✦▀▄
-     ▄██▀
-     ▀▀▀`,
-    `      ✦▀▄
-     ▄██▀
-    ▀ ▀▀`,
-    `      ✦▀▄
-     ▄██▀
-     ▀▀▀`,
-  ];
+  // Mini dino — shifting weight
+  const DINO = {
+    name: 'dino',
+    interval: 400,
+    frames: [
+      `    ✦▀▄
+   ▄██▀
+  ▀▀▀▀`,
+      `    ✦▀▄
+   ▄██▀
+   ▀▀▀`,
+      `    ✦▀▄
+   ▄██▀
+  ▀ ▀▀`,
+      `    ✦▀▄
+   ▄██▀
+   ▀▀▀`,
+    ]
+  };
   
-  // Simple runner using cli-spinners style
-  const RUNNER = [
-    ' ✦ ',
-    '✦  ',
-    ' ✦ ',
-    '  ✦',
-  ];
+  // Fish — swimming (inspired by cli-spinners)
+  const FISH = {
+    name: 'fish',
+    interval: 120,
+    frames: [
+      `✦><(((°>`,
+      ` ✦><(((°>`,
+      `  ✦><(((°>`,
+      `   ✦><(((°>`,
+      `    ✦><(((°>`,
+      `     ✦><(((°>`,
+      `    ✦><(((°>`,
+      `   ✦><(((°>`,
+      `  ✦><(((°>`,
+      ` ✦><(((°>`,
+    ]
+  };
+  
+  // Bird — hopping
+  const BIRD = {
+    name: 'bird',
+    interval: 300,
+    frames: [
+      `  ✦
+ (°>
+ /|
+ / \\`,
+      `  ✦
+ (°>
+ /|\\
+ / `,
+      `  ✦
+ (°>
+ /|
+   \\`,
+      `  ✦
+ (°>
+ /|\\
+   /`,
+    ]
+  };
+  
+  // Cat — tail swishing
+  const CAT = {
+    name: 'cat',
+    interval: 350,
+    frames: [
+      ` ✦ /\\___/\\
+  ( o.o )
+   > ^ <~`,
+      ` ✦ /\\___/\\
+  ( o.o )
+   > ^ <`,
+      ` ✦ /\\___/\\
+  ( -.- )
+   > ^ <`,
+      ` ✦ /\\___/\\
+  ( o.o )
+   > ^ <~`,
+    ]
+  };
+  
+  // Snail — slow crawl
+  const SNAIL = {
+    name: 'snail',
+    interval: 500,
+    frames: [
+      `✦  @/
+ _(__\\__`,
+      `✦   @/
+  _(__\\__`,
+      `✦    @/
+   _(__\\__`,
+      `✦   @/
+  _(__\\__`,
+    ]
+  };
+  
+  // Crab — sideways shuffle
+  const CRAB = {
+    name: 'crab',
+    interval: 250,
+    frames: [
+      `✦
+(\\/)  (\\/)
+ \\/____\\/
+  |    |`,
+      ` ✦
+(\\/)  (\\/)
+ \\/____\\/
+ |      |`,
+      `  ✦
+(\\/)  (\\/)
+ \\/____\\/
+  |    |`,
+      ` ✦
+(\\/)  (\\/)
+ \\/____\\/
+ |      |`,
+    ]
+  };
+  
+  // Star — twinkling
+  const STAR = {
+    name: 'star',
+    interval: 200,
+    frames: [
+      `    ✦
+   ╱|╲
+  ╱ | ╲
+ ───✦───
+  ╲ | ╱
+   ╲|╱`,
+      `    ✧
+   ╱|╲
+  ╱ | ╲
+ ───✧───
+  ╲ | ╱
+   ╲|╱`,
+      `    ✦
+   ╱|╲
+  ╱ | ╲
+ ───✦───
+  ╲ | ╱
+   ╲|╱`,
+      `    ·
+   ╱|╲
+  ╱ | ╲
+ ───·───
+  ╲ | ╱
+   ╲|╱`,
+    ]
+  };
+  
+  // All available creatures
+  const CREATURES = [DINO, FISH, BIRD, CAT, SNAIL, CRAB, STAR];
   
   // Track user activity
   function recordActivity() {
@@ -5326,9 +5429,18 @@ function updateFavicon(pct, isEmpty) {
     hideCompanion();
   }
   
+  // Pick a random creature
+  function pickCreature() {
+    return CREATURES[Math.floor(Math.random() * CREATURES.length)];
+  }
+  
   // Create and show the companion
   function showCompanion() {
     if (idleCompanion) return;
+    
+    // Pick a random creature each time
+    currentCreature = pickCreature();
+    frameIndex = 0;
     
     idleCompanion = document.createElement('div');
     idleCompanion.id = 'idleCompanion';
@@ -5359,12 +5471,12 @@ function updateFavicon(pct, isEmpty) {
   }
   
   function animateCompanion() {
-    if (!idleCompanion) return;
+    if (!idleCompanion || !currentCreature) return;
     
-    frameIndex = (frameIndex + 1) % MINI_DINO.length;
-    idleCompanion.textContent = MINI_DINO[frameIndex];
+    frameIndex = (frameIndex + 1) % currentCreature.frames.length;
+    idleCompanion.textContent = currentCreature.frames[frameIndex];
     
-    animationFrame = setTimeout(animateCompanion, 400);
+    animationFrame = setTimeout(animateCompanion, currentCreature.interval);
   }
   
   function hideCompanion() {
@@ -5372,6 +5484,7 @@ function updateFavicon(pct, isEmpty) {
     
     clearTimeout(animationFrame);
     animationFrame = null;
+    currentCreature = null;
     
     idleCompanion.style.opacity = '0';
     setTimeout(() => {
@@ -5387,7 +5500,10 @@ function updateFavicon(pct, isEmpty) {
     const now = Date.now();
     const idleTime = now - lastActivity;
     
+    console.log('[Idle] Checking...', Math.round(idleTime/1000) + 's idle');
+    
     if (idleTime > IDLE_THRESHOLD && !idleCompanion) {
+      console.log('[Idle] Showing companion!');
       showCompanion();
     }
   }
