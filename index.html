@@ -1369,27 +1369,24 @@
     .btn-icon { width: 32px; height: 32px; font-size: var(--text-md); }
 
     /* Sticky add-task bar — fixed to bottom of viewport */
+    /* Safari auto-scrolls to show focused input — no JS needed */
     .add-task-row {
       position: fixed;
-      bottom: 0;
+      bottom: env(safe-area-inset-bottom, 0);
       left: 0;
       right: 0;
       z-index: var(--z-header);
       margin: 0;
-      /* space-3 (12px) top and sides — matches panel padding, feels connected */
-      padding: var(--space-3) var(--space-4) var(--space-3);
-      /* Safe area adds natural clearance below on notched phones */
-      padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+      padding: var(--space-3) var(--space-4);
       background: var(--bg-glass);
       -webkit-backdrop-filter: blur(16px) saturate(1.4);
       backdrop-filter: blur(16px) saturate(1.4);
     }
     
-    /* When keyboard is open, home bar is hidden — no safe area needed */
-    /* Smooth transform to reduce jitter during scroll */
+    /* When keyboard is open, safe-area is hidden by keyboard */
     .add-task-row.keyboard-open {
+      bottom: 0;
       padding-bottom: var(--space-2);
-      transition: transform 16ms linear;
     }
     
     /* Mobile: single star only, no hover expansion */
@@ -7662,49 +7659,25 @@ function _aiDismissProactive() {
 
 // ══════════════════════════════════════════════════════════════════════════
 // Mobile Keyboard Handling
+// Safari auto-scrolls to show focused input - we just toggle class for padding
+// DO NOT fight Safari's native behavior with JavaScript positioning!
 // ══════════════════════════════════════════════════════════════════════════
 (function() {
   const bar = document.getElementById('addTaskBar');
   const input = document.getElementById('newTask');
   if (!bar || !input) return;
+  
+  // Only on touch devices
   if (!window.matchMedia('(pointer: coarse)').matches) return;
-  if (!window.visualViewport) return;
-  
-  const vv = window.visualViewport;
-  let active = false;
-  
-  function update() {
-    if (!active) return;
-    // bottom of visible area minus bar height
-    bar.style.top = (vv.offsetTop + vv.height - bar.offsetHeight) + 'px';
-  }
   
   input.addEventListener('focus', () => {
-    active = true;
+    // Just toggle class for padding - no positioning!
     bar.classList.add('keyboard-open');
-    bar.style.position = 'fixed';
-    bar.style.bottom = 'auto';
-    bar.style.left = '0';
-    bar.style.right = '0';
-    // Position after keyboard animation completes
-    setTimeout(update, 50);
-    setTimeout(update, 150);
-    setTimeout(update, 300);
-    setTimeout(update, 500);
   });
   
   input.addEventListener('blur', () => {
-    active = false;
     bar.classList.remove('keyboard-open');
-    bar.style.position = '';
-    bar.style.bottom = '';
-    bar.style.left = '';
-    bar.style.right = '';
-    bar.style.top = '';
   });
-  
-  // Only update on resize (keyboard open/close), NOT on scroll
-  vv.addEventListener('resize', update);
 })();
 
 
