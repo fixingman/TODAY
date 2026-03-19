@@ -2,6 +2,8 @@
 
 | Version | Key change |
 |---|---|
+| **2.9.4** | **AI awareness** — Morning briefing (first open), stale task noticing (3+ days: "still relevant?"), Sunday evening reflection. AI acts as a companion that observes patterns. New `delete_task` action for "let it go". |
+| **2.9.3** | **Visual aging** — tasks gradually fade as they age (75% at day 3-4, 55% at 5-6, 35% at 7+). Acknowledgment without action. Hover restores readability. Pomodoro resets age. |
 | **2.9.2** | **Visual tags** — tasks starting with `tag: ` render the tag as muted uppercase prefix. Pure styling — no filtering, no grouping, no tag management. Pattern: 1-12 alphanumeric chars + `: `. |
 | **2.9.1** | **Fix: habit sync** — edits (name changes, new habits, completions, reorder) now trigger Dropbox sync. Previously only saved to localStorage. |
 | **2.9.0** | **Flow rate simplified** — now calculated live as `done / added × 100%` for today only. Resets daily. No more exponential smoothing or accumulated values >100%. Matches clean slate philosophy. |

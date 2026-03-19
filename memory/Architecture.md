@@ -456,6 +456,78 @@ On first load, `AI_BUILD_PROVIDER` seeds `localStorage`. Public forks set this t
 16. **TODAY is focus-first, not organiser-first** — one day, one list. Labels, priorities, and projects are out of scope.
 17. **Task and habit order is user-controlled** — `manualTasks` and `habitsList` arrays are sorted by the user via drag-to-reorder and persisted in that order to localStorage and Dropbox. Never re-sort these arrays alphabetically or by date — the user's manual order is the source of truth. Trello card order is also locally overridable but resets on the next full board fetch.
 18. **Gestures must not replace visible controls** — swipe-to-complete was removed because the checkbox is the correct affordance for completion. Gesture alternatives are only appropriate when the primary control is genuinely hard to reach. See Design.md §7 for the full decision record.
+19. **The AI is a companion, not a command-line** — AI should observe and occasionally speak unprompted (e.g., noticing stale tasks, celebrating milestones), not just respond to explicit queries. The goal is a relationship, not a tool.
+20. **Time-of-day awareness matters** — Morning opens, afternoon opens, and evening opens serve different emotional needs. AI tone and observations should reflect where the user is in their day.
+
+---
+
+## 11b. Why Open TODAY? — Internal Triggers
+
+*See Research.md § 10 for full research. This section captures the product principles.*
+
+The most important product question: **What emotional state or context makes someone instinctively reach for TODAY?**
+
+### Confirmed Emotional Positioning (Mar 2026)
+
+**Primary:** "I feel scattered → I want to feel intentional"  
+**Secondary:** "I feel alone in my productivity → I want a companion"
+
+These two work together: Opening TODAY makes you feel *deliberate about your day*, and when you're there, a gentle companion *notices your patterns* without pressure.
+
+The name itself suggests this: **TODAY**. Not "someday." Not "everything." Just *today*. Present. Intentional. Contained.
+
+### The Opportunity
+
+Different moments in the day have different emotional needs. TODAY should answer each:
+
+| Moment | Emotional Need | TODAY's Answer |
+|---|---|---|
+| **Morning** | Clarity, intention | "Here's your clean slate. What matters today?" |
+| **Mid-day scattered** | Reset, grounding | "Return to your list. Find your focus." |
+| **Decision fatigue** | Direction | "Just do this one next." |
+| **Accomplished something** | Acknowledgment | "Check it off. Feel the progress." |
+| **Evening** | Closure, reflection | "Here's what you did. The day is done." |
+| **Task lingering in mind** | Relief | "Add it to TODAY so you can let it go." |
+
+### Implemented AI Awareness Features (v2.9.4)
+
+1. **✓ Morning briefing** — First open of the day triggers special AI context. AI summarizes: tasks carried over, habits due, aging items, streak. Brief and warm.
+
+2. **✓ Stale task awareness** — AI notices tasks sitting 3+ days. Probabilistic (~30% of panel opens). Asks "still relevant, or ready to let it go?" with `delete_task` action.
+
+3. **✓ Sunday reflection** — Sunday evening triggers weekly reflection mode. AI offers gentle acknowledgment of the week: tasks done, focus time, streak status.
+
+4. **✓ Visual aging** — Tasks fade over time (75% at day 3-4, 55% at 5-6, 35% at 7+). UI reflects what the brain already knows.
+
+5. **✓ Memory that speaks** — AI context includes `_memoryForAI()` output: peak hours, best streak, total focus time, recent milestones.
+
+### Implementation Details
+
+Context flags passed to AI:
+- `isFirstOpenToday` — tracks via `ai_last_open_date` in localStorage
+- `dayOfWeek` — for Sunday detection
+- `tasks.aging` — array of tasks with `ageDays >= 3`
+- `streak` — current streak count
+- `weeklyStats` — focus minutes, tasks completed, etc.
+
+System prompt includes "Special moments to notice" section that guides AI behavior for morning briefing, Sunday reflection, and stale awareness.
+
+### Not Yet Implemented
+
+1. **Mid-day reset** — Opening after being away could acknowledge the return.
+
+2. **"Pick one for me"** — When overwhelmed, user taps ✦ and AI suggests one task to start with. (Current AI already does this somewhat.)
+
+3. **Evening closure** — Optional ritual showing what happened. (Sunday reflection covers part of this.)
+
+### What TODAY Should *Not* Become
+
+- A notification machine that interrupts the user
+- A guilt engine that pressures completion
+- A complex system that requires learning
+- A passive list that waits to be remembered
+
+The goal is an app that feels like a *companion who knows you* — one you want to check in with, not one you're told to open.
 
 ---
 

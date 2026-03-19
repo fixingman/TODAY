@@ -914,13 +914,41 @@
   .task-check svg { display: none; }
   .task.done .task-check svg { display: block; }
 
-  /* Stale tasks — inactive for >3 days */
-  .task.stale {
-    opacity: 0.35;
+  /* Visual aging — tasks gradually fade as they age
+     Uses data-age-days attribute set in taskHTML
+     Day 1-2: full opacity (no attribute or 0-2)
+     Day 3-4: slightly muted
+     Day 5-6: noticeably aged
+     Day 7+: minimum (all the same) */
+  .task[data-age-days] {
     transition: opacity var(--dur-base);
   }
-  .task.stale:hover {
-    opacity: 0.6;
+  .task[data-age-days="3"],
+  .task[data-age-days="4"] {
+    opacity: 0.75;
+  }
+  .task[data-age-days="5"],
+  .task[data-age-days="6"] {
+    opacity: 0.55;
+  }
+  /* Day 7+ — all same minimum opacity */
+  .task[data-age-days="7"],
+  .task[data-age-days="8"],
+  .task[data-age-days="9"],
+  .task[data-age-days^="1"],
+  .task[data-age-days^="2"],
+  .task[data-age-days^="3"],
+  .task[data-age-days^="4"],
+  .task[data-age-days^="5"],
+  .task[data-age-days^="6"],
+  .task[data-age-days^="7"],
+  .task[data-age-days^="8"],
+  .task[data-age-days^="9"] {
+    opacity: 0.35;
+  }
+  /* Hover restores readability for aged tasks */
+  .task[data-age-days]:hover {
+    opacity: 0.85;
   }
 
   .task-body { flex: 1; min-width: 0; }
@@ -2436,11 +2464,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.9.2';
-const DEV_HOURS     = '116h';
+const APP_VERSION   = '2.9.4';
+const DEV_HOURS     = '118h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.9.4': 'AI awareness: morning briefing, stale task noticing (3+ days), Sunday reflection. Companion observes your patterns.',
+  '2.9.3': 'Visual aging: tasks gradually fade over days (75% at day 3-4, 55% at 5-6, 35% at 7+). Acknowledgment without action.',
   '2.9.2': 'Visual tags: "work: task" renders tag as muted uppercase prefix. Pure styling — no filtering, no management.',
   '2.9.1': 'Fix: habit edits now sync to Dropbox (name changes, new habits, completions, reorder).',
   '2.9.0': 'Flow rate simplified: now shows today only (done/added), resets daily. No more accumulation — matches clean slate philosophy.',
@@ -3514,12 +3544,11 @@ function taskHTML(task, type) {
   const tid    = task.id; // original id - safe alphanumeric, stored in data-taskid
   const dueStr = _getDueStr(task);
 
-  // Check if manual task is stale (>3 days since last activity)
-  let isStale = false;
+  // Calculate task age in days (for manual tasks only)
+  let ageDays = 0;
   if (type === 'manual' && !done) {
-    const lastActive = task.lastActive || _getCreatedFromId(task.id);
-    const daysSince = (Date.now() - lastActive) / (1000 * 60 * 60 * 24);
-    isStale = daysSince > 3;
+    const created = task.lastActive || _getCreatedFromId(task.id);
+    ageDays = Math.floor((Date.now() - created) / (1000 * 60 * 60 * 24));
   }
 
   // Detect tag pattern: "tag: rest of text" at start
@@ -3556,10 +3585,11 @@ function taskHTML(task, type) {
   // Copy button — visible only in focus mode via CSS, present on all task types
   const copyBtn = `<button class="task-copy" data-taskid="${tid}" title="Copy task text">copy</button>`;
 
-  const staleClass = isStale ? ' stale' : '';
+  // Age attribute for CSS-based visual aging (only for undone manual tasks)
+  const ageAttr = (type === 'manual' && !done && ageDays > 0) ? ` data-age-days="${ageDays}"` : '';
 
   return `
-    <div class="task${done ? ' done' : ''}${staleClass}" data-taskid="${tid}">
+    <div class="task${done ? ' done' : ''}"${ageAttr} data-taskid="${tid}">
       <div class="task-check" data-taskid="${tid}">
         <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
           <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -6192,12 +6222,41 @@ function _aiIntroMessage(ctx) {
   const overdue = ctx.tasks.overdueCount;
   const totalPending = ctx.tasks.pending.length + ctx.tasks.trello.length;
   const habitsDue = ctx.habits.filter(h => !h.doneToday).length;
+  const agingTasks = ctx.tasks.aging || [];
   
-  // Prioritize overdue items in the message
+  // ── MORNING BRIEFING (first open of the day) ──
+  if (ctx.isFirstOpenToday && ctx.timeOfDay === 'morning') {
+    const parts = [];
+    if (totalPending > 0) parts.push(`${totalPending} task${totalPending > 1 ? 's' : ''} waiting`);
+    if (habitsDue > 0) parts.push(`${habitsDue} habit${habitsDue > 1 ? 's' : ''} due`);
+    if (agingTasks.length > 0) parts.push(`${agingTasks.length} been here a while`);
+    
+    const summary = parts.length > 0 ? parts.join(', ') : 'clean slate';
+    return `Good morning. First look: ${summary}. ${ctx.streak > 1 ? `Day ${ctx.streak} of your streak.` : ''} What matters today?`;
+  }
+  
+  // ── WEEKLY REFLECTION (Sunday evening) ──
+  if (ctx.dayOfWeek === 0 && ctx.timeOfDay === 'evening') {
+    const w = ctx.weeklyStats;
+    const focusHours = Math.round(w.focusMinsToday / 60 * 10) / 10;
+    return `Sunday evening. This week: ${w.tasksCompletedToday} tasks done today, ${focusHours > 0 ? focusHours + ' hours focused, ' : ''}streak at ${ctx.streak}. How did it feel?`;
+  }
+  
+  // ── STALE TASK AWARENESS (probabilistic — ~30% chance if aging tasks exist) ──
+  if (agingTasks.length > 0 && Math.random() < 0.3) {
+    // Pick the oldest one
+    const oldest = agingTasks.sort((a, b) => b.ageDays - a.ageDays)[0];
+    return `I notice "${oldest.text}" has been here ${oldest.ageDays} days. Still relevant, or ready to let it go?`;
+  }
+  
+  // ── STANDARD CONTEXTUAL MESSAGES ──
+  
+  // Prioritize overdue items
   if (overdue > 0) {
     return `Good ${ctx.timeOfDay}. ${overdue} overdue task${overdue > 1 ? 's' : ''} need${overdue === 1 ? 's' : ''} attention. What's most urgent?`;
   }
   
+  // All done
   if (totalPending === 0 && habitsDue === 0) {
     if (ctx.tasks.done.length > 0) {
       return `Good ${ctx.timeOfDay}. All done! ${ctx.tasks.done.length} task${ctx.tasks.done.length > 1 ? 's' : ''} completed. Clear them or add more?`;
@@ -6205,6 +6264,7 @@ function _aiIntroMessage(ctx) {
     return `Good ${ctx.timeOfDay}. Nothing on the list yet. What should I add?`;
   }
   
+  // Normal state with tasks
   const parts = [];
   if (totalPending) parts.push(`${totalPending} task${totalPending > 1 ? 's' : ''}`);
   if (habitsDue)    parts.push(`${habitsDue} habit${habitsDue > 1 ? 's' : ''}`);
@@ -6319,11 +6379,43 @@ function _aiContext() {
   const done     = manualTasks.filter(t =>  doneIds.has(t.id));
   const trello   = (window.trelloTasks || []).filter(t => !doneIds.has('trello_' + t.id));
 
+  // Calculate age for each pending manual task
+  const pendingWithAge = pending.map(t => {
+    const created = t.lastActive || _getCreatedFromId(t.id);
+    const ageDays = Math.floor((Date.now() - created) / (1000 * 60 * 60 * 24));
+    return { id: t.id, text: t.text, ageDays };
+  });
+  
+  // Find aging tasks (3+ days old)
+  const agingTasks = pendingWithAge.filter(t => t.ageDays >= 3);
+  
+  // Weekly stats (last 7 days of activity)
+  const weeklyStats = _getWeeklyStats();
+  
+  // Is this the first AI open of the day?
+  const lastAIOpen = localStorage.getItem('ai_last_open_date');
+  const isFirstOpenToday = lastAIOpen !== todayStr;
+  // Mark this open (only save when we actually show the panel)
+  localStorage.setItem('ai_last_open_date', todayStr);
+  
+  // Current streak
+  const streak = parseInt(localStorage.getItem('stat_streak') || '1');
+  
+  // Day of week for weekly reflection (Sunday = 0)
+  const dayOfWeek = new Date().getDay();
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
   return {
     timeOfDay: hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening',
     date: todayStr,
+    dayOfWeek,
+    isWeekend,
+    isFirstOpenToday,
+    streak,
     tasks: {
-      pending:      pending.map(t => ({ id: t.id, text: t.text })),
+      pending:      pendingWithAge.map(t => ({ id: t.id, text: t.text })),
+      pendingWithAge,
+      aging:        agingTasks,
       done:         done.map(t => ({ id: t.id, text: t.text })),
       trello:       trello.map(t => ({ id: 'trello_' + t.id, text: t.name, overdue: t.due && t.due.slice(0,10) < todayStr })),
       overdueCount: trello.filter(t => t.due && t.due.slice(0,10) < todayStr).length,
@@ -6334,6 +6426,25 @@ function _aiContext() {
       strength: _getHabitStrength(h.id),
     })),
     progress: manualTasks.length ? Math.round(done.length / manualTasks.length * 100) : 0,
+    weeklyStats,
+  };
+}
+
+// Get stats for the past 7 days (for weekly reflection)
+function _getWeeklyStats() {
+  const m = appMemory;
+  const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+  const doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
+  
+  // We track totals, not daily breakdowns, so approximate weekly from totals
+  // For a proper weekly view, we'd need to store daily history — for now, use totals
+  return {
+    focusMinsToday,
+    focusMinutesTotal: m.patterns.focusMinutesTotal || 0,
+    tasksCompletedTotal: m.totalTasksCompleted || 0,
+    tasksCompletedToday: doneToday,
+    daysActive: m.totalDaysActive || 0,
+    bestStreak: m.patterns.bestStreak || 0,
   };
 }
 
@@ -6345,6 +6456,9 @@ function _aiSystemPrompt(ctx) {
     ...ctx.tasks.pending,
     ...ctx.tasks.trello.filter(t => !t.overdue),
   ];
+  
+  // Aging tasks (3+ days old)
+  const agingTasks = ctx.tasks.aging || [];
   
   const pendingHabits = ctx.habits.filter(h => !h.doneToday);
   const doneHabits = ctx.habits.filter(h => h.doneToday);
@@ -6370,10 +6484,17 @@ function _aiSystemPrompt(ctx) {
   const pendingList = regularTasks.map(t => `"${t.text}" [${t.id}]`).join(', ');
   const habitList = pendingHabits.map(h => `"${h.name}" [${h.id}]`).join(', ');
   const doneList = ctx.tasks.done.map(t => `"${t.text}"`).join(', ');
+  const agingList = agingTasks.map(t => `"${t.text}" [${t.id}] (${t.ageDays} days)`).join(', ');
   
   // Get memory context and AI name
   const memoryContext = _memoryForAI();
   const aiName = appMemory.aiName || 'lu';
+  
+  // Context flags for AI awareness
+  const contextFlags = [];
+  if (ctx.isFirstOpenToday) contextFlags.push('FIRST_OPEN_TODAY');
+  if (ctx.dayOfWeek === 0 && ctx.timeOfDay === 'evening') contextFlags.push('SUNDAY_EVENING');
+  if (agingTasks.length > 0) contextFlags.push('HAS_AGING_TASKS');
 
   return `You are ${aiName} — a gentle, supportive presence inside TODAY, a minimal daily focus app.
 
@@ -6388,12 +6509,18 @@ Your personality:
 - Short sentences. Natural rhythm. No corporate speak.
 
 ${memoryContext ? `What you remember about this person:\n${memoryContext}\n` : ''}
-Right now — ${ctx.timeOfDay}:
+Context: ${ctx.timeOfDay}, ${ctx.isFirstOpenToday ? 'first open today' : 'returning'}, streak: ${ctx.streak} days
 ${stateSummary}
 ${overdueTasks.length ? `Overdue: ${overdueList}` : ''}
 ${regularTasks.length ? `Pending: ${pendingList}` : ''}
+${agingTasks.length ? `Aging (3+ days): ${agingList}` : ''}
 ${pendingHabits.length ? `Habits waiting: ${habitList}` : ''}
 ${ctx.tasks.done.length ? `Done today: ${doneList}` : ''}
+
+Special moments to notice:
+${ctx.isFirstOpenToday && ctx.timeOfDay === 'morning' ? '- MORNING BRIEFING: Give a gentle overview of what\'s on their plate. Mention carried-over tasks, habits due, and any aging items. Brief, warm, grounding.' : ''}
+${ctx.dayOfWeek === 0 && ctx.timeOfDay === 'evening' ? '- WEEKLY REFLECTION: Sunday evening. Offer a gentle reflection on their week — tasks done, focus time, streak. Not analytics, just acknowledgment. "How did it feel?" rather than "Great job!"' : ''}
+${agingTasks.length > 0 ? '- STALE AWARENESS: You see tasks that have been sitting. Don\'t always mention them, but when you do, be curious not judgmental: "Still relevant, or ready to let it go?"' : ''}
 
 Reply ONLY with raw JSON (no markdown, no code fences):
 {
@@ -6408,6 +6535,7 @@ Message guidelines:
 - If overdue: gentle nudge, not alarm
 - If empty: light, not pushy
 - If overwhelmed: empathetic, one clear next step
+- If aging tasks: curious, not nagging — "still on your mind?" not "you should do this"
 - Never use: "Let's", "Why not", "How about", exclamation marks, or emoji
 
 Action types (use exact IDs from brackets above):
@@ -6415,6 +6543,7 @@ Action types (use exact IDs from brackets above):
   check_task  { "id": "exact-id-from-list" }  — mark task done
   check_habit { "id": "exact-id-from-list" }  — mark habit done
   add_task    { "text": "task text" }         — add new task
+  delete_task { "id": "exact-id-from-list" }  — remove a task (use for letting go of stale tasks)
   delete_done {}                               — clear completed
   open_panel  { "panel": "habits" }           — show habits panel (only valid value)
   dismiss     {}                               — close this
@@ -6422,7 +6551,8 @@ Action types (use exact IDs from brackets above):
 Rules:
 - 2-3 actions max, always end with dismiss
 - Labels: 2-4 words max
-- Use real IDs from the lists above — never invent IDs`;
+- Use real IDs from the lists above — never invent IDs
+- For aging tasks, "Let it go" action should use delete_task with the task's ID`;
 }
 
 // ── Execute action ────────────────────────────────────────────────────────────
@@ -6452,6 +6582,21 @@ function _aiExecute(action) {
     case 'check_habit': {
       const id = action.payload?.id;
       if (id) toggleHabitDone(id);
+      closeAI();
+      return;
+    }
+    case 'delete_task': {
+      // Let go of a task (used for stale task awareness)
+      const id = action.payload?.id;
+      if (id && id.startsWith('manual_')) {
+        const idx = manualTasks.findIndex(t => t.id === id);
+        if (idx !== -1) {
+          manualTasks.splice(idx, 1);
+          localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+          renderManual();
+          syncDropbox();
+        }
+      }
       closeAI();
       return;
     }
@@ -7282,10 +7427,10 @@ function _aiDismissProactive() {
     const manualIdx = manualTasks.findIndex(t => t.id === taskId);
     if (manualIdx !== -1) {
       manualTasks[manualIdx].focusSessions = (parseInt(manualTasks[manualIdx].focusSessions) || 0) + 1;
-      manualTasks[manualIdx].lastActive = Date.now(); // Reset stale timer
+      manualTasks[manualIdx].lastActive = Date.now(); // Reset age timer
       localStorage.setItem('today_manual', JSON.stringify(manualTasks));
       const taskDom = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
-      if (taskDom) taskDom.classList.remove('stale'); // Remove stale styling immediately
+      if (taskDom) taskDom.removeAttribute('data-age-days'); // Remove visual aging immediately
       const badge = taskDom ? taskDom.querySelector('.session-count') : null;
       if (badge) { badge.textContent = manualTasks[manualIdx].focusSessions + ' 🍅'; badge.classList.add('has-sessions'); }
       return;
