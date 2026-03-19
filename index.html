@@ -2428,7 +2428,7 @@ const DEV_HOURS     = '112h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
-  '2.8.8': 'Fix: sync was broken — missing localIds variable in mergeRemoteData caused silent failure.',
+  '2.8.8': 'Fix: sync was broken (missing localIds). Immediate sync on page load. PiP reopens on second tab leave. Star button larger. Tooltip shows AI name.',
   '2.8.7': 'Fix: undo toast z-index. Focus mode: edge nudge only if task clipped. Motion audit: --ease-spring token, aligned transitions to duration tokens.',
   '2.8.6': 'Mobile: input bar stays above keyboard (visualViewport API). ✦ button shows single star on mobile. Stats sync across devices (focus mins, streak, flow rate, tasks added/done).',
   '2.8.5': 'Picture-in-Picture focus widget: pop out timer to always-on-top floating window (desktop Chrome/Edge 116+, Firefox 148+). Shows task name, progress bar, time. Hover reveals Breathe/Rest controls.',
@@ -5734,40 +5734,37 @@ async function dropboxRestore(fromSync) {
         }
         const token = localStorage.getItem('dropbox_token');
         if (token) {
-          // On startup: check if there are unsynced offline changes first.
-          // If last_local_change > last_successful_backup → push local changes before pulling.
-          // If no unsynced changes → safe to pull latest from Dropbox directly.
-          const _llc     = localStorage.getItem('last_local_change');
-          const _lsb     = localStorage.getItem('last_successful_backup');
-          const hasUnsyncedChanges = _llc && (!_lsb || _llc > _lsb);
-          if (hasUnsyncedChanges) {
-            // Pull remote, merge with local offline edits, then push merged result.
-            // This preserves check/uncheck timestamps from the other device so the
-            // most-recent-operation rule can work correctly — a blind push would
-            // overwrite the other device's checked_ids before we ever see them.
-            try {
+          // Always pull remote and merge on load — ensures fresh data after refresh
+          // mergeRemoteData handles conflicts: union for tasks, most-recent-wins for done state
+          try {
+            await _dropboxEnsureToken();
+            const freshToken = localStorage.getItem('dropbox_token');
+            if (freshToken) {
               const r = await fetch('https://content.dropboxapi.com/2/files/download', {
                 method: 'POST',
                 headers: {
-                  'Authorization':   `Bearer ${token}`,
+                  'Authorization': `Bearer ${freshToken}`,
                   'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_FILE }),
                 },
               });
               if (r.ok) {
                 const remoteData = await r.json();
-                mergeRemoteData(remoteData); // merge into local state, renderManual called inside if tasks changed
+                const changed = mergeRemoteData(remoteData);
+                // Seed rev so ticker doesn't re-trigger on same data
+                const meta = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${freshToken}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ path: DROPBOX_FILE }),
+                });
+                if (meta.ok) {
+                  const m = await meta.json();
+                  if (m && m.rev && window._dbxSetRev) window._dbxSetRev(m.rev);
+                }
+                // If local had changes that weren't in remote, push merged result
+                if (changed) await dropboxBackup(true);
               }
-            } catch(e) { /* offline or missing file — push local as-is */ }
-            await dropboxBackup(true); // always push on startup unsynced path — local changes need uploading
-            renderManual(); // ensure DOM reflects merged state regardless
-          } else {
-            // No offline edits — pull latest from Dropbox cleanly
-            const saved = localStorage.getItem('last_local_change');
-            localStorage.removeItem('last_local_change');
-            await dropboxRestore(true);
-            if (saved) localStorage.setItem('last_local_change', saved);
-          }
-          // Rev is seeded by _dbxSetRev inside dropboxRestore / dropboxBackup
+            }
+          } catch(e) { /* offline or missing file — continue with local data */ }
         }
       } catch(e) { /* silent */ }
 
@@ -7564,6 +7561,7 @@ function _aiDismissProactive() {
             <div class="pip-bar">
               <div class="pip-fill" id="pipFill"></div>
               <div class="pip-controls">
+                <button class="pip-btn" id="pipOpen">Open</button>
                 <button class="pip-btn" id="pipPause">Breathe</button>
                 <button class="pip-btn" id="pipClose">Rest</button>
               </div>
@@ -7579,6 +7577,11 @@ function _aiDismissProactive() {
         pipFillEl.style.width = progress + '%';
 
         // Wire up controls
+        pipWindow.document.getElementById('pipOpen').addEventListener('click', function() {
+          window.focus();
+          if (pipWindow) pipWindow.close();
+        });
+
         const pauseBtn = pipWindow.document.getElementById('pipPause');
         pauseBtn.addEventListener('click', function() {
           toggle();
