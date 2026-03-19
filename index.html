@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <title>TODAY</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="description" content="Your focused daily task list.">
@@ -1369,6 +1369,7 @@
     .btn-icon { width: 32px; height: 32px; font-size: var(--text-md); }
 
     /* Sticky add-task bar — fixed to bottom of viewport */
+    /* With interactive-widget=resizes-content, viewport shrinks when keyboard opens */
     .add-task-row {
       position: fixed;
       bottom: 0;
@@ -7656,54 +7657,12 @@ function _aiDismissProactive() {
 
 // ══════════════════════════════════════════════════════════════════════════
 // iOS Keyboard Handling
-// Keeps add-task bar above the virtual keyboard using visualViewport API
+// With interactive-widget=resizes-content in viewport meta, the viewport
+// resizes when keyboard opens. position:fixed;bottom:0 should just work.
+// This is a minimal fallback for older browsers.
 // ══════════════════════════════════════════════════════════════════════════
 (function() {
-  if (!window.visualViewport) return;
-  
-  const addTaskBar = document.getElementById('addTaskBar');
-  const input = document.getElementById('newTask');
-  if (!addTaskBar || !input) return;
-  
-  function adjustForKeyboard() {
-    const vv = window.visualViewport;
-    
-    // Position the bar at the bottom of the visual viewport
-    // This accounts for keyboard + any accessory bars
-    const offsetFromBottom = window.innerHeight - vv.height - vv.offsetTop;
-    
-    if (offsetFromBottom > 50) {
-      // Keyboard is likely open
-      // Place bar at bottom of visible area
-      addTaskBar.style.position = 'fixed';
-      addTaskBar.style.bottom = 'auto';
-      addTaskBar.style.top = (vv.offsetTop + vv.height - addTaskBar.offsetHeight) + 'px';
-      addTaskBar.style.left = '0';
-      addTaskBar.style.right = '0';
-    } else {
-      // Keyboard closed
-      addTaskBar.style.position = '';
-      addTaskBar.style.bottom = '';
-      addTaskBar.style.top = '';
-      addTaskBar.style.left = '';
-      addTaskBar.style.right = '';
-    }
-  }
-  
-  window.visualViewport.addEventListener('resize', adjustForKeyboard);
-  window.visualViewport.addEventListener('scroll', adjustForKeyboard);
-  
-  // Adjust on focus with delays to catch keyboard animation
-  input.addEventListener('focus', () => {
-    setTimeout(adjustForKeyboard, 50);
-    setTimeout(adjustForKeyboard, 150);
-    setTimeout(adjustForKeyboard, 300);
-    setTimeout(adjustForKeyboard, 500);
-  });
-  
-  input.addEventListener('blur', () => {
-    setTimeout(adjustForKeyboard, 100);
-  });
+  // Nothing needed - CSS handles it with interactive-widget viewport meta
 })();
 
 
