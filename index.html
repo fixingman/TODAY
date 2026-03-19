@@ -1386,8 +1386,10 @@
     }
     
     /* When keyboard is open, home bar is hidden — no safe area needed */
+    /* Smooth transform to reduce jitter during scroll */
     .add-task-row.keyboard-open {
       padding-bottom: var(--space-2);
+      transition: transform 16ms linear;
     }
     
     /* Mobile: single star only, no hover expansion */
@@ -7660,73 +7662,45 @@ function _aiDismissProactive() {
 
 // ══════════════════════════════════════════════════════════════════════════
 // Mobile Keyboard Handling
-// Keeps input bar attached to keyboard during scroll using visualViewport
-// Uses transform for smooth GPU-accelerated positioning
 // ══════════════════════════════════════════════════════════════════════════
 (function() {
-  const addTaskBar = document.getElementById('addTaskBar');
+  const bar = document.getElementById('addTaskBar');
   const input = document.getElementById('newTask');
-  if (!addTaskBar || !input) return;
-  
-  // Only on mobile
+  if (!bar || !input) return;
   if (!window.matchMedia('(pointer: coarse)').matches) return;
   if (!window.visualViewport) return;
   
-  let isKeyboardOpen = false;
-  let rafId = null;
-  let lastTop = null;
+  const vv = window.visualViewport;
+  let active = false;
   
-  function positionBar() {
-    if (!isKeyboardOpen) return;
-    
-    const vv = window.visualViewport;
-    const targetTop = vv.offsetTop + vv.height - addTaskBar.offsetHeight;
-    
-    // Skip if position hasn't changed
-    if (targetTop === lastTop) return;
-    lastTop = targetTop;
-    
-    // Use transform for GPU-accelerated smooth movement
-    addTaskBar.style.transform = `translateY(${targetTop}px)`;
-  }
-  
-  function schedulePosition() {
-    if (rafId) return;
-    rafId = requestAnimationFrame(() => {
-      rafId = null;
-      positionBar();
-    });
+  function update() {
+    if (!active) return;
+    // bottom of visible area minus bar height
+    bar.style.top = (vv.offsetTop + vv.height - bar.offsetHeight) + 'px';
   }
   
   input.addEventListener('focus', () => {
-    isKeyboardOpen = true;
-    addTaskBar.classList.add('keyboard-open');
-    // Switch to transform-based positioning
-    addTaskBar.style.position = 'fixed';
-    addTaskBar.style.top = '0';
-    addTaskBar.style.bottom = 'auto';
-    addTaskBar.style.willChange = 'transform';
-    // Position after keyboard opens
-    setTimeout(schedulePosition, 50);
-    setTimeout(schedulePosition, 150);
-    setTimeout(schedulePosition, 300);
+    active = true;
+    bar.classList.add('keyboard-open');
+    bar.style.position = 'fixed';
+    bar.style.bottom = 'auto';
+    bar.style.left = '0';
+    bar.style.right = '0';
+    setTimeout(update, 100);
   });
   
   input.addEventListener('blur', () => {
-    isKeyboardOpen = false;
-    lastTop = null;
-    addTaskBar.classList.remove('keyboard-open');
-    // Reset to normal positioning
-    addTaskBar.style.position = '';
-    addTaskBar.style.top = '';
-    addTaskBar.style.bottom = '';
-    addTaskBar.style.transform = '';
-    addTaskBar.style.willChange = '';
+    active = false;
+    bar.classList.remove('keyboard-open');
+    bar.style.position = '';
+    bar.style.bottom = '';
+    bar.style.left = '';
+    bar.style.right = '';
+    bar.style.top = '';
   });
   
-  // Keep bar attached to keyboard during scroll
-  window.visualViewport.addEventListener('scroll', schedulePosition);
-  window.visualViewport.addEventListener('resize', schedulePosition);
+  vv.addEventListener('resize', update);
+  vv.addEventListener('scroll', update);
 })();
 
 
