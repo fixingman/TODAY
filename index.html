@@ -7661,6 +7661,7 @@ function _aiDismissProactive() {
 // ══════════════════════════════════════════════════════════════════════════
 // Mobile Keyboard Handling
 // Keeps input bar attached to keyboard during scroll using visualViewport
+// Uses transform for smooth GPU-accelerated positioning
 // ══════════════════════════════════════════════════════════════════════════
 (function() {
   const addTaskBar = document.getElementById('addTaskBar');
@@ -7672,38 +7673,60 @@ function _aiDismissProactive() {
   if (!window.visualViewport) return;
   
   let isKeyboardOpen = false;
+  let rafId = null;
+  let lastTop = null;
   
   function positionBar() {
     if (!isKeyboardOpen) return;
     
     const vv = window.visualViewport;
-    // Position at bottom of visual viewport (top of keyboard)
-    addTaskBar.style.top = (vv.offsetTop + vv.height - addTaskBar.offsetHeight) + 'px';
+    const targetTop = vv.offsetTop + vv.height - addTaskBar.offsetHeight;
+    
+    // Skip if position hasn't changed
+    if (targetTop === lastTop) return;
+    lastTop = targetTop;
+    
+    // Use transform for GPU-accelerated smooth movement
+    addTaskBar.style.transform = `translateY(${targetTop}px)`;
+  }
+  
+  function schedulePosition() {
+    if (rafId) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = null;
+      positionBar();
+    });
   }
   
   input.addEventListener('focus', () => {
     isKeyboardOpen = true;
     addTaskBar.classList.add('keyboard-open');
-    // Switch to top-based positioning for scroll stability
+    // Switch to transform-based positioning
     addTaskBar.style.position = 'fixed';
+    addTaskBar.style.top = '0';
     addTaskBar.style.bottom = 'auto';
+    addTaskBar.style.willChange = 'transform';
     // Position after keyboard opens
-    setTimeout(positionBar, 100);
-    setTimeout(positionBar, 300);
+    setTimeout(schedulePosition, 50);
+    setTimeout(schedulePosition, 150);
+    setTimeout(schedulePosition, 300);
   });
   
   input.addEventListener('blur', () => {
     isKeyboardOpen = false;
+    lastTop = null;
     addTaskBar.classList.remove('keyboard-open');
-    // Reset to normal bottom positioning
+    // Reset to normal positioning
     addTaskBar.style.position = '';
-    addTaskBar.style.bottom = '';
     addTaskBar.style.top = '';
+    addTaskBar.style.bottom = '';
+    addTaskBar.style.transform = '';
+    addTaskBar.style.willChange = '';
   });
   
   // Keep bar attached to keyboard during scroll
-  window.visualViewport.addEventListener('scroll', positionBar);
-  window.visualViewport.addEventListener('resize', positionBar);
+  window.visualViewport.addEventListener('scroll', schedulePosition);
+  window.visualViewport.addEventListener('resize', schedulePosition);
 })();
 
 
