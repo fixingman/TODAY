@@ -1026,3 +1026,73 @@ vs. at 5pm (post-peak):
 The AI knows their rhythm and adapts. No scheduling UI. No time blocks. Just awareness.
 
 ---
+
+## 16. The Reward Moment — Making Completion Feel Felt
+
+*Implemented: Mar 19, 2026 (v2.9.9)*
+
+### The Problem
+
+"All done for today" is nice. But compared to Duolingo's owl dance or a game's level-up animation, it's muted. TODAY explicitly avoids gamification — good. But **acknowledgment isn't gamification**.
+
+The moment when someone clears their list deserves more than text. Finishing should **feel** like finishing.
+
+### The Distinction
+
+| Gamification | Acknowledgment |
+|---|---|
+| Points, badges, streaks as pressure | Genuine recognition of effort |
+| External motivation (do it for the reward) | Internal motivation (the reward reflects what you did) |
+| Can create anxiety (streak anxiety) | Creates closure and satisfaction |
+| Manipulative | Honest |
+
+TODAY should acknowledge, not gamify. The user didn't clear their list for a celebration — but they deserve one.
+
+### The Implementation
+
+When the last task is checked:
+
+**Visual:**
+- Accent glow pulse — radial gradient from center, fades out
+- Extra particle burst — 3 additional ember drifts from completion point
+- All via existing systems, just amplified
+
+**Haptic:**
+- Double success haptic (150ms apart) — feels like "done done"
+
+**AI Messages — Variable and Warm:**
+
+Instead of static "All done! X tasks completed", the AI picks from pattern-aware messages:
+
+| Context | Example Message |
+|---|---|
+| Base | "5 things done. The list is clear." |
+| High count (5+) | "8 things handled. That's a solid day." |
+| Very high (8+) | "10 tasks cleared. Impressive." |
+| Streak (5+) | "All clear. Day 7 of your streak." |
+| Morning completion | "5 done before noon. Nice start." |
+| Evening completion | "Day's work done. 6 completed." |
+| Focus time (50min+) | "8 done, 1h 30m focused. Good day." |
+
+Variety makes it feel personal. The same message every time becomes invisible.
+
+### What This Creates
+
+User checks off the last task:
+- Screen pulses with accent glow (subtle, 1.2s)
+- Extra particles drift up from the checkbox
+- Phone gives a satisfying double buzz
+- AI panel (if opened) says: "7 tasks cleared. You showed up today. Clear them or add more?"
+
+Finishing **feels** like finishing. Not with fireworks, but with genuine acknowledgment.
+
+### What This Is NOT
+
+- Not a streak counter (no pressure to maintain)
+- Not points or XP (no accumulation anxiety)
+- Not a leaderboard (no comparison)
+- Not confetti explosion (not performative)
+
+It's simply the app saying: "You did it. I noticed."
+
+---

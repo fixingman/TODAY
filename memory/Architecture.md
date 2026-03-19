@@ -507,6 +507,8 @@ Different moments in the day have different emotional needs. TODAY should answer
 
 8. **✓ Energy rhythm awareness (v2.9.8)** — AI considers peak hour when suggesting tasks. System prompt includes energy context: peak time (suggest demanding tasks), pre-peak (start light), post-peak/evening (quick wins). No lecture — just smarter suggestions.
 
+9. **✓ All-done reward moment (v2.9.9)** — When completing the last task: accent glow pulse, extra particle burst, double haptic. AI messages vary: "8 tasks cleared. Impressive." vs static "All done!" Not gamification — acknowledgment.
+
 ### Implementation Details
 
 Context flags passed to AI:

@@ -2464,11 +2464,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.9.8';
-const DEV_HOURS     = '121h';
+const APP_VERSION   = '2.9.9';
+const DEV_HOURS     = '122h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.9.9': 'All-done reward: accent glow pulse, extra particle burst, variable warm AI messages. Finishing feels felt.',
   '2.9.8': 'Energy rhythm: AI considers peak hour when suggesting tasks. "It\'s your peak — good moment for that deep work."',
   '2.9.7': 'Focus time formatting: shows "Xh Ym" when >= 60 minutes, "Xm" otherwise. Cleaner stats display.',
   '2.9.6': 'Empty state invitation: AI invites warmly when list is empty. Uses patterns — "Day 5. What\'s on your mind?" vs generic "Add a task".',
@@ -4063,6 +4064,42 @@ function playChime() {
   });
 }
 
+// ── Accent glow flash — subtle visual reward for "all done" moment ──
+function _flashAccentGlow() {
+  const existing = document.getElementById('accentGlowOverlay');
+  if (existing) existing.remove();
+  
+  const overlay = document.createElement('div');
+  overlay.id = 'accentGlowOverlay';
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    background: radial-gradient(ellipse at center, var(--accent) 0%, transparent 70%);
+    opacity: 0;
+    animation: accentGlowPulse 1.2s ease-out forwards;
+  `;
+  document.body.appendChild(overlay);
+  
+  // Add keyframes if not already present
+  if (!document.getElementById('accentGlowStyles')) {
+    const style = document.createElement('style');
+    style.id = 'accentGlowStyles';
+    style.textContent = `
+      @keyframes accentGlowPulse {
+        0% { opacity: 0; transform: scale(0.8); }
+        15% { opacity: 0.15; transform: scale(1); }
+        100% { opacity: 0; transform: scale(1.2); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  // Clean up after animation
+  setTimeout(() => overlay.remove(), 1300);
+}
+
 // ─── Habits ───────────────────────────────────────────────────────────────────
 let habitsList        = JSON.parse(localStorage.getItem('today_habits')            || '[]');
 let habitCompletions  = JSON.parse(localStorage.getItem('today_habit_completions') || '{}');
@@ -4391,6 +4428,33 @@ function toggleDone(taskId) {
         check.style.transition = 'opacity 80ms ease';
         check.style.opacity = '0.4';
         setTimeout(() => { check.style.opacity = ''; check.style.transition = ''; }, 160);
+      }
+    }
+    
+    // ── ALL DONE celebration — the reward moment ──
+    if (isNowDone) {
+      const total = manualTasks.length;
+      const doneCount = manualTasks.filter(t => doneIds.has(t.id)).length;
+      const justCompletedAll = total > 0 && doneCount === total;
+      
+      if (justCompletedAll) {
+        // Fire celebration from multiple points
+        if (typeof fireEmberDrift === 'function') {
+          const rect = el.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          // Extra particles burst
+          for (let i = 0; i < 3; i++) {
+            setTimeout(() => fireEmberDrift(cx + (Math.random() - 0.5) * 60, cy), i * 80);
+          }
+        }
+        
+        // Accent glow pulse on the whole screen
+        _flashAccentGlow();
+        
+        // Enhanced haptic
+        _haptic('success');
+        setTimeout(() => _haptic('success'), 150);
       }
     }
   }
@@ -6417,9 +6481,54 @@ function _aiIntroMessage(ctx) {
     return `Good ${ctx.timeOfDay}. ${overdue} overdue task${overdue > 1 ? 's' : ''} need${overdue === 1 ? 's' : ''} attention. What's most urgent?`;
   }
   
-  // All done — celebrate
+  // ── ALL DONE — the reward moment ──
   if (totalPending === 0 && habitsDue === 0 && ctx.tasks.done.length > 0) {
-    return `Good ${ctx.timeOfDay}. All done! ${ctx.tasks.done.length} task${ctx.tasks.done.length > 1 ? 's' : ''} completed. Clear them or add more?`;
+    const doneCount = ctx.tasks.done.length;
+    const m = appMemory;
+    const warmMessages = [];
+    
+    // Base acknowledgments (always available)
+    warmMessages.push(`${doneCount} things done. The list is clear.`);
+    warmMessages.push(`All done. ${doneCount} off the list.`);
+    warmMessages.push(`Clear. ${doneCount} completed.`);
+    
+    // Pattern-aware celebrations
+    if (doneCount >= 5) {
+      warmMessages.push(`${doneCount} things handled. That's a solid day.`);
+      warmMessages.push(`${doneCount} done. You showed up today.`);
+    }
+    if (doneCount >= 8) {
+      warmMessages.push(`${doneCount} tasks cleared. Impressive.`);
+    }
+    
+    // Streak-aware
+    if (ctx.streak >= 5) {
+      warmMessages.push(`All clear. Day ${ctx.streak} of your streak.`);
+    }
+    if (ctx.streak >= 10) {
+      warmMessages.push(`${doneCount} done, ${ctx.streak} days strong.`);
+    }
+    
+    // Time-aware
+    if (ctx.timeOfDay === 'morning' && doneCount >= 3) {
+      warmMessages.push(`${doneCount} done before noon. Nice start.`);
+    }
+    if (ctx.timeOfDay === 'evening') {
+      warmMessages.push(`Day's work done. ${doneCount} completed.`);
+    }
+    
+    // Focus-aware
+    const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+    if (focusMinsToday >= 50) {
+      const focusStr = focusMinsToday >= 60 
+        ? Math.floor(focusMinsToday / 60) + 'h ' + (focusMinsToday % 60) + 'm'
+        : focusMinsToday + 'm';
+      warmMessages.push(`${doneCount} done, ${focusStr} focused. Good day.`);
+    }
+    
+    // Pick a random warm message
+    const message = warmMessages[Math.floor(Math.random() * warmMessages.length)];
+    return `Good ${ctx.timeOfDay}. ${message} Clear them or add more?`;
   }
   
   // ── EMPTY STATE — the companion invites ──
