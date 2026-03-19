@@ -935,6 +935,15 @@
     padding-right: var(--space-8);
   }
 
+  .task-tag {
+    color: var(--muted);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    margin-right: var(--space-2);
+  }
+
   .task-meta {
     display: flex;
     align-items: center;
@@ -1177,7 +1186,7 @@
     border: none;
     border-radius: var(--radius-lg);
     color: var(--color-bg);
-    font-size: var(--text-md);
+    font-size: var(--text-lg);
     width: 44px;
     height: 44px;
     display: flex;
@@ -1360,20 +1369,24 @@
     .btn-icon { width: 32px; height: 32px; font-size: var(--text-md); }
 
     /* Sticky add-task bar — fixed to bottom of viewport */
+    /* Safari auto-scrolls to show focused input — no JS needed */
     .add-task-row {
       position: fixed;
-      bottom: 0;
+      bottom: env(safe-area-inset-bottom, 0);
       left: 0;
       right: 0;
       z-index: var(--z-header);
       margin: 0;
-      /* space-3 (12px) top and sides — matches panel padding, feels connected */
-      padding: var(--space-3) var(--space-4) var(--space-3);
-      /* Safe area adds natural clearance below on notched phones */
-      padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+      padding: var(--space-3) var(--space-4);
       background: var(--bg-glass);
       -webkit-backdrop-filter: blur(16px) saturate(1.4);
       backdrop-filter: blur(16px) saturate(1.4);
+    }
+    
+    /* When keyboard is open, safe-area is hidden by keyboard */
+    .add-task-row.keyboard-open {
+      bottom: 0;
+      padding-bottom: var(--space-2);
     }
     
     /* Mobile: single star only, no hover expansion */
@@ -2423,11 +2436,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.8.7';
-const DEV_HOURS     = '111h';
+const APP_VERSION   = '2.9.2';
+const DEV_HOURS     = '116h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.9.2': 'Visual tags: "work: task" renders tag as muted uppercase prefix. Pure styling — no filtering, no management.',
+  '2.9.1': 'Fix: habit edits now sync to Dropbox (name changes, new habits, completions, reorder).',
+  '2.9.0': 'Flow rate simplified: now shows today only (done/added), resets daily. No more accumulation — matches clean slate philosophy.',
+  '2.8.9': 'PiP: Open button returns to main app. iOS keyboard fix (visualViewport.offsetTop).',
+  '2.8.8': 'Fix: sync was broken (missing localIds). Immediate sync on page load. PiP reopens on second tab leave. Star button larger. Tooltip shows AI name.',
   '2.8.7': 'Fix: undo toast z-index. Focus mode: edge nudge only if task clipped. Motion audit: --ease-spring token, aligned transitions to duration tokens.',
   '2.8.6': 'Mobile: input bar stays above keyboard (visualViewport API). ✦ button shows single star on mobile. Stats sync across devices (focus mins, streak, flow rate, tasks added/done).',
   '2.8.5': 'Picture-in-Picture focus widget: pop out timer to always-on-top floating window (desktop Chrome/Edge 116+, Firefox 148+). Shows task name, progress bar, time. Hover reveals Breathe/Rest controls.',
@@ -2780,16 +2798,11 @@ function applyNewDayCleanup() {
   // Update memory with streak
   _memoryOnStreakUpdate(newStreak);
 
-  // ── Flow rate calculation (exponential smoothing) ──
-  // rate_new = rate_old × 0.85 + today_rate × 0.15
-  const addedToday = parseInt(localStorage.getItem('stat_tasks_added_today') || '0');
-  const doneToday  = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
-  const todayRate  = addedToday > 0 ? (doneToday / addedToday) * 100 : 100; // 100% if nothing added
-  const oldRate    = parseFloat(localStorage.getItem('stat_flow_rate') || '50');
-  const newRate    = Math.round(oldRate * 0.85 + todayRate * 0.15);
-  localStorage.setItem('stat_flow_rate', newRate);
+  // ── Daily counters reset ──
+  // Flow rate is calculated live, no need to store
   
   // Update memory with day summary
+  const doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
   _memoryOnDaySummary(doneToday);
   
   // Reset daily counters
@@ -2858,6 +2871,12 @@ function init() {
     renderTrello();
   }
 
+  // Set AI button tooltip with assistant name
+  const aiBtn = document.getElementById('addAiBtn');
+  if (aiBtn && appMemory.aiName) {
+    aiBtn.title = `Ask ${appMemory.aiName}`;
+  }
+
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -2912,7 +2931,11 @@ function renderInfoStats() {
   // Pull stats from localStorage
   const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
   const streak = parseInt(localStorage.getItem('stat_streak') || '1');
-  const flowRate = parseInt(localStorage.getItem('stat_flow_rate') || '50');
+  
+  // Flow rate: simple today-only calculation — tasks done / tasks added
+  const addedToday = parseInt(localStorage.getItem('stat_tasks_added_today') || '0');
+  const doneToday  = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
+  const flowRate = addedToday > 0 ? Math.min(100, Math.round((doneToday / addedToday) * 100)) : (doneToday > 0 ? 100 : 0);
 
   const stats = [
     { val: focusMinsToday + 'm', label: 'Focus' },
@@ -3499,6 +3522,18 @@ function taskHTML(task, type) {
     isStale = daysSince > 3;
   }
 
+  // Detect tag pattern: "tag: rest of text" at start
+  // Tag must be 1-12 chars, lowercase/numbers only, followed by ": "
+  const tagMatch = task.text.match(/^([a-z0-9]{1,12}):\s+(.+)$/i);
+  let taskTextHTML;
+  if (tagMatch) {
+    const tag = tagMatch[1].toLowerCase();
+    const rest = tagMatch[2];
+    taskTextHTML = `<span class="task-tag">${esc(tag)}</span>${esc(rest)}`;
+  } else {
+    taskTextHTML = esc(task.text);
+  }
+
   const badges = type === 'trello' && dueStr
     ? `<span class="badge due">due ${esc(dueStr)}</span>`
     : '';
@@ -3531,7 +3566,7 @@ function taskHTML(task, type) {
         </svg>
       </div>
       <div class="task-body">
-        <div class="task-text">${esc(task.text)}${link}${sessionBadge}</div>
+        <div class="task-text">${taskTextHTML}${link}${sessionBadge}</div>
         ${badges ? `<div class="task-meta">${badges}</div>` : ''}
       </div>
       ${deleteBtn}
@@ -3845,6 +3880,7 @@ let habitEditMode     = false;
 function _saveHabits() {
   localStorage.setItem('today_habits',            JSON.stringify(habitsList));
   localStorage.setItem('today_habit_completions', JSON.stringify(habitCompletions));
+  dropboxAutoSave();
 }
 
 function _habitTodayISO() {
@@ -4554,7 +4590,7 @@ function _clearAllDone() {
     } else if (listId === 'habitList') {
       const ids = newOrder.map(el => el.dataset.habitId);
       habitsList.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-      _saveHabits(); dropboxAutoSave();
+      _saveHabits();
     }
   }
 
@@ -5170,10 +5206,9 @@ async function dropboxBackup(silent) {
     unchecked_ids:     _getUncheckedIds(),
     checked_ids:       _getCheckedIds(),
     trello_config:     safeJSON('trello_config', {}),
-    // Stats — synced cross-device
+    // Stats — synced cross-device (flow rate is calculated live, not stored)
     stat_focus_mins_today:  localStorage.getItem('stat_focus_mins_today')  || '0',
     stat_streak:            localStorage.getItem('stat_streak')            || '1',
-    stat_flow_rate:         localStorage.getItem('stat_flow_rate')         || '50',
     stat_tasks_added_today: localStorage.getItem('stat_tasks_added_today') || '0',
     stat_tasks_done_today:  localStorage.getItem('stat_tasks_done_today')  || '0',
     // Habits — persisted cross-device
@@ -5380,15 +5415,14 @@ function mergeRemoteData(data) {
   localStorage.setItem('today_done', JSON.stringify([...doneIds]));
 
   // ── Stats: take max of each counter (both devices may have added focus time) ──
+  // Flow rate is calculated live from added/done, not stored
   const localFocusMins  = parseInt(localStorage.getItem('stat_focus_mins_today')  || '0');
   const localStreak     = parseInt(localStorage.getItem('stat_streak')            || '1');
-  const localFlowRate   = parseInt(localStorage.getItem('stat_flow_rate')         || '50');
   const localAdded      = parseInt(localStorage.getItem('stat_tasks_added_today') || '0');
   const localDone       = parseInt(localStorage.getItem('stat_tasks_done_today')  || '0');
   
   const remoteFocusMins = parseInt(data.stat_focus_mins_today  || '0');
   const remoteStreak    = parseInt(data.stat_streak            || '1');
-  const remoteFlowRate  = parseInt(data.stat_flow_rate         || '50');
   const remoteAdded     = parseInt(data.stat_tasks_added_today || '0');
   const remoteDoneCount = parseInt(data.stat_tasks_done_today  || '0');
   
@@ -5396,7 +5430,6 @@ function mergeRemoteData(data) {
   // This prevents double-counting while ensuring the highest value is preserved
   const mergedFocusMins = Math.max(localFocusMins, remoteFocusMins);
   const mergedStreak    = Math.max(localStreak, remoteStreak);
-  const mergedFlowRate  = Math.max(localFlowRate, remoteFlowRate);
   const mergedAdded     = Math.max(localAdded, remoteAdded);
   const mergedDoneCount = Math.max(localDone, remoteDoneCount);
   
@@ -5406,10 +5439,6 @@ function mergeRemoteData(data) {
   }
   if (mergedStreak !== localStreak) {
     localStorage.setItem('stat_streak', String(mergedStreak));
-    _changed = true;
-  }
-  if (mergedFlowRate !== localFlowRate) {
-    localStorage.setItem('stat_flow_rate', String(mergedFlowRate));
     _changed = true;
   }
   if (mergedAdded !== localAdded) {
@@ -5492,10 +5521,9 @@ async function dropboxRestore(fromSync) {
       localStorage.setItem('today_unchecked_ids', JSON.stringify(Array.isArray(data.unchecked_ids) ? data.unchecked_ids : []));
       localStorage.setItem('today_checked_ids',   JSON.stringify(Array.isArray(data.checked_ids)   ? data.checked_ids   : []));
       if (data.trello_config)         localStorage.setItem('trello_config',         JSON.stringify(data.trello_config));
-      // Stats
+      // Stats (flow_rate is calculated live, not stored)
       if (data.stat_focus_mins_today)  localStorage.setItem('stat_focus_mins_today',  data.stat_focus_mins_today);
       if (data.stat_streak)            localStorage.setItem('stat_streak',            data.stat_streak);
-      if (data.stat_flow_rate)         localStorage.setItem('stat_flow_rate',         data.stat_flow_rate);
       if (data.stat_tasks_added_today) localStorage.setItem('stat_tasks_added_today', data.stat_tasks_added_today);
       if (data.stat_tasks_done_today)  localStorage.setItem('stat_tasks_done_today',  data.stat_tasks_done_today);
       // Habits
@@ -5657,7 +5685,7 @@ async function dropboxRestore(fromSync) {
   
   // Debug: expose ticker status and manual trigger
   window._dbxTickerRunning = () => !!ticker;
-  window._dbxSyncNow = () => { syncAll(); console.log('Sync triggered'); };
+  window._dbxSyncNow = () => syncAll();
 
   let wakeTimer = null;
   document.addEventListener('visibilitychange', () => {
@@ -5727,40 +5755,37 @@ async function dropboxRestore(fromSync) {
         }
         const token = localStorage.getItem('dropbox_token');
         if (token) {
-          // On startup: check if there are unsynced offline changes first.
-          // If last_local_change > last_successful_backup → push local changes before pulling.
-          // If no unsynced changes → safe to pull latest from Dropbox directly.
-          const _llc     = localStorage.getItem('last_local_change');
-          const _lsb     = localStorage.getItem('last_successful_backup');
-          const hasUnsyncedChanges = _llc && (!_lsb || _llc > _lsb);
-          if (hasUnsyncedChanges) {
-            // Pull remote, merge with local offline edits, then push merged result.
-            // This preserves check/uncheck timestamps from the other device so the
-            // most-recent-operation rule can work correctly — a blind push would
-            // overwrite the other device's checked_ids before we ever see them.
-            try {
+          // Always pull remote and merge on load — ensures fresh data after refresh
+          // mergeRemoteData handles conflicts: union for tasks, most-recent-wins for done state
+          try {
+            await _dropboxEnsureToken();
+            const freshToken = localStorage.getItem('dropbox_token');
+            if (freshToken) {
               const r = await fetch('https://content.dropboxapi.com/2/files/download', {
                 method: 'POST',
                 headers: {
-                  'Authorization':   `Bearer ${token}`,
+                  'Authorization': `Bearer ${freshToken}`,
                   'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_FILE }),
                 },
               });
               if (r.ok) {
                 const remoteData = await r.json();
-                mergeRemoteData(remoteData); // merge into local state, renderManual called inside if tasks changed
+                const changed = mergeRemoteData(remoteData);
+                // Seed rev so ticker doesn't re-trigger on same data
+                const meta = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${freshToken}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ path: DROPBOX_FILE }),
+                });
+                if (meta.ok) {
+                  const m = await meta.json();
+                  if (m && m.rev && window._dbxSetRev) window._dbxSetRev(m.rev);
+                }
+                // If local had changes that weren't in remote, push merged result
+                if (changed) await dropboxBackup(true);
               }
-            } catch(e) { /* offline or missing file — push local as-is */ }
-            await dropboxBackup(true); // always push on startup unsynced path — local changes need uploading
-            renderManual(); // ensure DOM reflects merged state regardless
-          } else {
-            // No offline edits — pull latest from Dropbox cleanly
-            const saved = localStorage.getItem('last_local_change');
-            localStorage.removeItem('last_local_change');
-            await dropboxRestore(true);
-            if (saved) localStorage.setItem('last_local_change', saved);
-          }
-          // Rev is seeded by _dbxSetRev inside dropboxRestore / dropboxBackup
+            }
+          } catch(e) { /* offline or missing file — continue with local data */ }
         }
       } catch(e) { /* silent */ }
 
@@ -7419,10 +7444,13 @@ function _aiDismissProactive() {
           await openPiP();
         }
       } else {
-        // Returning to tab — close PiP
+        // Returning to tab — close PiP and reset reference
         if (pipWindow && !pipWindow.closed) {
           pipWindow.close();
         }
+        pipWindow = null;
+        pipFillEl = null;
+        pipTimeEl = null;
       }
     });
 
@@ -7554,6 +7582,7 @@ function _aiDismissProactive() {
             <div class="pip-bar">
               <div class="pip-fill" id="pipFill"></div>
               <div class="pip-controls">
+                <button class="pip-btn" id="pipOpen">Open</button>
                 <button class="pip-btn" id="pipPause">Breathe</button>
                 <button class="pip-btn" id="pipClose">Rest</button>
               </div>
@@ -7569,6 +7598,11 @@ function _aiDismissProactive() {
         pipFillEl.style.width = progress + '%';
 
         // Wire up controls
+        pipWindow.document.getElementById('pipOpen').addEventListener('click', function() {
+          window.focus();
+          if (pipWindow) pipWindow.close();
+        });
+
         const pauseBtn = pipWindow.document.getElementById('pipPause');
         pauseBtn.addEventListener('click', function() {
           toggle();
@@ -7624,31 +7658,26 @@ function _aiDismissProactive() {
 })();
 
 // ══════════════════════════════════════════════════════════════════════════
-// iOS Keyboard Handling
-// Keeps add-task bar above the virtual keyboard using visualViewport API
+// Mobile Keyboard Handling
+// Safari auto-scrolls to show focused input - we just toggle class for padding
+// DO NOT fight Safari's native behavior with JavaScript positioning!
 // ══════════════════════════════════════════════════════════════════════════
 (function() {
-  if (!window.visualViewport) return;
+  const bar = document.getElementById('addTaskBar');
+  const input = document.getElementById('newTask');
+  if (!bar || !input) return;
   
-  const addTaskBar = document.getElementById('addTaskBar');
-  if (!addTaskBar) return;
+  // Only on touch devices
+  if (!window.matchMedia('(pointer: coarse)').matches) return;
   
-  function adjustForKeyboard() {
-    const viewport = window.visualViewport;
-    // Calculate how much the viewport has shrunk (keyboard height)
-    const keyboardHeight = window.innerHeight - viewport.height;
-    
-    if (keyboardHeight > 100) {
-      // Keyboard is open — position bar above it
-      addTaskBar.style.bottom = keyboardHeight + 'px';
-    } else {
-      // Keyboard closed — reset to normal
-      addTaskBar.style.bottom = '';
-    }
-  }
+  input.addEventListener('focus', () => {
+    // Just toggle class for padding - no positioning!
+    bar.classList.add('keyboard-open');
+  });
   
-  window.visualViewport.addEventListener('resize', adjustForKeyboard);
-  window.visualViewport.addEventListener('scroll', adjustForKeyboard);
+  input.addEventListener('blur', () => {
+    bar.classList.remove('keyboard-open');
+  });
 })();
 
 

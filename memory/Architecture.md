@@ -36,6 +36,9 @@ All state lives in `localStorage`. There is no server-side database.
 | `stat_alltime_done` | string | Lifetime completed task count |
 | `stat_streak` | string | Current daily streak |
 | `stat_last_visit` | string | Last date the app was opened (local device only — never synced) |
+| `stat_flow_rate` | string | Exponential smoothed completion rate (0-100) |
+| `stat_tasks_added_today` | string | Tasks added today (reset on new day) |
+| `stat_tasks_done_today` | string | Tasks completed today (reset on new day) |
 
 ### Task ID conventions
 - Manual tasks: `manual_` + `Date.now()` — e.g. `manual_1741234567890`
@@ -157,21 +160,24 @@ Both mobile and desktop are first-class devices. Either can at any time:
 
 ## 4. Sync Flow — Current Implementation
 
-### Startup sequence
+### Startup sequence (v2.8.8+)
 ```
 1. init() runs immediately — renders from localStorage (fast, synchronous)
 2. Splash animation plays in parallel
 3. load event fires:
    a. Seed Trello lastTrelloDate baseline
-   b. Check last_local_change vs last_successful_backup:
-      YES (unsynced) → pull remote → mergeRemoteData() → dropboxBackup() → renderManual()
-      NO             → dropboxRestore(fromSync=true)
-   c. applyNewDayCleanup() — always runs AFTER Dropbox restore
-   d. renderManual(), updateStats()
-   e. startTicker()
-   f. signal _onAppLoadDone()
+   b. ALWAYS pull remote from Dropbox (no conditional logic)
+   c. mergeRemoteData() — union merge handles conflicts
+   d. Seed rev via _dbxSetRev() — prevents ticker re-trigger
+   e. If merge changed anything → dropboxBackup() to push merged state
+   f. applyNewDayCleanup() — always runs AFTER Dropbox restore
+   g. renderManual(), updateStats()
+   h. startTicker()
+   i. signal _onAppLoadDone()
 4. Splash dismisses only when BOTH animation AND load are complete (two-flag gate)
 ```
+
+**Key change (v2.8.8):** Removed conditional `last_local_change` vs `last_successful_backup` check. Now every page load pulls remote first, merges, then pushes if needed. This ensures refresh always gets fresh data.
 
 The two-flag gate (`_splashAnimDone` + `_appLoadDone`) ensures the app is never frozen or unresponsive when it becomes visible — all heavy async work completes behind the splash.
 

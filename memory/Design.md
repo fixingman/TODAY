@@ -100,6 +100,28 @@ The Pomodoro timer uses zen-adjacent language:
 
 This frames productivity as sustainable, not extractive.
 
+### Visual Tags (v2.9.2)
+
+Tasks can include an optional prefix tag: `work: finish report` renders as **WORK** finish report.
+
+**Rules:**
+- Pattern: `^[a-z0-9]{1,12}: ` (1-12 alphanumeric chars, colon, space)
+- Tag renders: muted color, uppercase, smaller font (`--text-xs`)
+- Rest of text renders normally
+
+**What tags are NOT:**
+- Not filterable — no "show only work tasks"
+- Not managed — no tag list, no suggestions, no persistence
+- Not structured — just text that happens to match a pattern
+
+**Philosophy:** Tags are visual hints, not categories. The data is still plain text. This is styling, not structure. The moment we add filtering or grouping, TODAY becomes a planning tool.
+
+**Examples:**
+- `work: send proposal` → **WORK** send proposal
+- `home: water plants` → **HOME** water plants
+- `errand: pharmacy` → **ERRAND** pharmacy
+- `finish report` → finish report (no tag)
+
 ---
 
 ## 3. Design Tokens
@@ -295,14 +317,10 @@ No transforms on enter/exit. Elements appear in place. Motion should feel like d
 **Focus Mode Scroll Behavior (v2.8.7)**
 
 When entering focus mode:
-- **Task visible:** No scroll. Task stays exactly where it is, world recedes around it.
-- **Task off-screen:** Scroll with `block: 'nearest'` — minimal movement to bring into view.
+- **Task fully visible:** No scroll. Task stays exactly where it is, world recedes around it.
+- **Task at edge (clipped by header or footer):** Gentle nudge to center after focus UI appears.
 
-When exiting focus mode:
-- Restore original scroll position (`_savedScrollY`)
-- Then scroll task into view if needed (`block: 'nearest'`)
-
-This ensures consistent, predictable motion. The task never jumps up AND down — it either stays put or moves minimally in one direction.
+The nudge only triggers if the task + timer bar would be clipped. Tasks in the middle of viewport never scroll.
 
 **Fade animations in use:**
 
@@ -731,6 +749,30 @@ AI assists *after* task entry, never blocking the input flow:
 ---
 
 ## 11. Security & Privacy
+
+### Data Ownership Philosophy
+
+**You own your data. TODAY doesn't.**
+
+This is a core architectural decision, not a feature. TODAY deliberately avoids hosted databases (Firebase, Supabase, Convex, etc.) in favor of user-controlled storage:
+
+- **localStorage** — All data lives on your device first. The app works entirely offline.
+- **Dropbox sync** — Your data goes to YOUR Dropbox account. TODAY never sees it, never stores it, never has access to it. The sync uses your personal OAuth token to write directly to your App Folder.
+- **No accounts** — TODAY has no user accounts, no sign-up, no email collection. You are anonymous to us.
+- **No telemetry** — Zero analytics in app code. Netlify injects RUM (server-side), which ad-blockers catch.
+
+**Why this matters:**
+- If TODAY disappears tomorrow, your data is still in your Dropbox, in plain JSON.
+- No vendor lock-in. Export is trivial — it's already in a standard format you control.
+- No privacy policy needed for user data — we never touch it.
+- No GDPR concerns — there's nothing to delete because we never had it.
+
+**Trade-offs we accept:**
+- Sync is polling-based (7s), not real-time WebSockets. For a personal task app, this is fine.
+- No collaboration features. This is a single-player app by design.
+- User must set up Dropbox connection manually. This is intentional friction that makes ownership explicit.
+
+### Implementation Details
 
 - All user content rendered via `esc()` before `innerHTML` — no XSS surface.
 - Trello token scope: `read` only.
