@@ -1385,6 +1385,11 @@
       backdrop-filter: blur(16px) saturate(1.4);
     }
     
+    /* When keyboard is open, home bar is hidden — no safe area needed */
+    .add-task-row.keyboard-open {
+      padding-bottom: var(--space-2);
+    }
+    
     /* Mobile: single star only, no hover expansion */
     .add-ai-btn {
       width: 44px !important;
@@ -7654,31 +7659,24 @@ function _aiDismissProactive() {
 })();
 
 // ══════════════════════════════════════════════════════════════════════════
-// iOS Keyboard Handling
-// Keeps add-task bar above the virtual keyboard using visualViewport API
+// Mobile Keyboard Handling
+// Toggles .keyboard-open class to remove safe-area padding when keyboard is up
 // ══════════════════════════════════════════════════════════════════════════
 (function() {
-  if (!window.visualViewport) return;
-  
   const addTaskBar = document.getElementById('addTaskBar');
-  if (!addTaskBar) return;
+  const input = document.getElementById('newTask');
+  if (!addTaskBar || !input) return;
   
-  function adjustForKeyboard() {
-    const viewport = window.visualViewport;
-    // Calculate how much the viewport has shrunk (keyboard height)
-    const keyboardHeight = window.innerHeight - viewport.height;
-    
-    if (keyboardHeight > 100) {
-      // Keyboard is open — position bar above it
-      addTaskBar.style.bottom = keyboardHeight + 'px';
-    } else {
-      // Keyboard closed — reset to normal
-      addTaskBar.style.bottom = '';
-    }
-  }
+  // Only on mobile
+  if (!window.matchMedia('(pointer: coarse)').matches) return;
   
-  window.visualViewport.addEventListener('resize', adjustForKeyboard);
-  window.visualViewport.addEventListener('scroll', adjustForKeyboard);
+  input.addEventListener('focus', () => {
+    addTaskBar.classList.add('keyboard-open');
+  });
+  
+  input.addEventListener('blur', () => {
+    addTaskBar.classList.remove('keyboard-open');
+  });
 })();
 
 
