@@ -887,3 +887,59 @@ A floating always-on-top timer that appears when the user leaves the tab during 
 > Done rests, quietly proud  
 > Morning clears the slate
 
+---
+
+## 16. Idle Companion — Delight in Quiet Moments
+
+TODAY is not just productivity — there should be delight. After **45 seconds of inactivity**, a small ASCII creature appears in the bottom-right corner. A moment of whimsy.
+
+### Philosophy
+
+- **Not a nudge** — doesn't prompt action
+- **Not gamification** — no feeding, no streaks
+- **Not demanding** — fades in quietly at 60% opacity
+- **Pure delight** — a little friend who shows up when things are quiet
+
+### The Creatures
+
+Each idle trigger picks one randomly:
+
+| Creature | Animation | Speed | Character |
+|---|---|---|---|
+| 🦕 Dino | Shifting weight | 400ms | `✦▀▄` |
+| 🐟 Fish | Swimming | 120ms | `><(((°>` |
+| 🐦 Bird | Hopping | 300ms | `(°>` |
+| 🐱 Cat | Tail swishing | 350ms | `( o.o )` |
+| 🐌 Snail | Slow crawl | 500ms | `@/` |
+| 🦀 Crab | Sideways shuffle | 250ms | `(\/)` |
+| ⭐ Star | Twinkling | 200ms | `✦` / `✧` |
+
+### Visual Style
+
+Inspired by [cli-spinners](https://github.com/sindresorhus/cli-spinners):
+- **Font:** DM Mono (matches app branding)
+- **Color:** Accent (#c8f060) with subtle text-shadow glow
+- **Opacity:** 60% — visible but not demanding
+- **Position:** Fixed, bottom-right (100px from bottom, 20px from right)
+- **Transition:** 0.6s fade in/out
+
+### Trigger Rules
+
+**Activates after 45s of no:**
+- Clicks or taps
+- Keypresses
+- Scrolling
+- Mouse movement (throttled to 1s)
+
+**Dismisses immediately on any activity.**
+
+### Code Reference
+
+```javascript
+const IDLE_THRESHOLD = 45000;      // 45 seconds
+const IDLE_CHECK_INTERVAL = 5000;  // check every 5 seconds
+```
+
+The creature is a `position: fixed` div with `pointer-events: none` — it never interferes with the app.
+
+

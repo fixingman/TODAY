@@ -5255,8 +5255,8 @@ function updateFavicon(pct, isEmpty) {
 // Inspired by cli-spinners (https://github.com/sindresorhus/cli-spinners)
 // A mini creature that shows up after inactivity — delight, not productivity
 (function() {
-  const IDLE_THRESHOLD = 10000; // 10 seconds for testing (change back to 45000 for production)
-  const IDLE_CHECK_INTERVAL = 2000; // check every 2 seconds
+  const IDLE_THRESHOLD = 45000; // 45 seconds of no activity
+  const IDLE_CHECK_INTERVAL = 5000; // check every 5 seconds
   
   let lastActivity = Date.now();
   let idleCompanion = null;
@@ -5500,10 +5500,7 @@ function updateFavicon(pct, isEmpty) {
     const now = Date.now();
     const idleTime = now - lastActivity;
     
-    console.log('[Idle] Checking...', Math.round(idleTime/1000) + 's idle');
-    
     if (idleTime > IDLE_THRESHOLD && !idleCompanion) {
-      console.log('[Idle] Showing companion!');
       showCompanion();
     }
   }
