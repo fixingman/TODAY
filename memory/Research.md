@@ -1172,3 +1172,102 @@ TODAY already has a calm philosophy. The idle companion extends this into **play
 It's pure delight. A moment of "oh, that's nice" in an otherwise utilitarian tool.
 
 ---
+
+## 18. The "Not Today" Problem
+
+*Research: Mar 19, 2026*
+
+### The Problem
+
+The app is called **TODAY**. But what happens to tasks that don't get done today?
+
+Right now: they just linger. Tomorrow morning, yesterday's undone tasks are still there, mixed with today's fresh intentions. This creates:
+
+- **Guilt** — seeing unfinished work from yesterday
+- **Clutter** — old tasks dilute today's focus
+- **Confusion** — "is this still relevant?"
+
+The app's philosophy is **one day, one list, clean slate** — but the implementation doesn't enforce this.
+
+### Options Explored
+
+| Approach | Behavior | Pros | Cons |
+|---|---|---|---|
+| **Auto-clear at midnight** | Undone tasks vanish | True "today only" purity | Might lose important things |
+| **Defer gesture** | Swipe to "not today →" | User controls what stays | Adds UI complexity |
+| **Morning review** | Shows "from yesterday" section | Acknowledges continuity | More cognitive load |
+| **Quiet archive** | Undone fades to "someday" | No pressure, still accessible | Scope creep |
+| **AI-assisted triage** | Evening: "3 didn't happen. Keep or let go?" | Low friction, guided | Requires AI panel open |
+
+### Recommendation: "Let Go" with AI Companion
+
+Given TODAY's philosophy of **calm, acknowledgment, low friction**:
+
+**1. Evening moment (AI-initiated)**
+Around evening (after 6pm), if AI panel is opened and there are undone tasks:
+> "3 things didn't happen today. Keep them for tomorrow, or let them go?"
+
+**2. Simple actions**
+- **Keep** → task stays, marked as `keptFrom: 'YYYY-MM-DD'`
+- **Let go** → task moves to `deferred` list (not deleted, just hidden)
+
+**3. Morning return (optional)**
+If `deferred` list has items, show them dimmed at bottom:
+> "From before" section — tap to restore or dismiss all
+
+**4. No automatic behavior**
+User stays in control. The app just asks once per evening, gently.
+
+### Data Model Changes
+
+```javascript
+// New localStorage keys
+today_deferred       // [{id, text, deferredAt}, ...]
+today_kept_dates     // {taskId: 'YYYY-MM-DD', ...} — track lineage
+
+// New task property
+task.keptFrom        // ISO date string if task was kept from previous day
+```
+
+### Visual Treatment
+
+**Kept tasks** (from yesterday):
+- Subtle indicator: small `·` before text, or muted "from yesterday" label
+- Same styling otherwise — they're today's tasks now
+
+**Deferred section** (if shown):
+- Below main list, collapsed by default
+- "From before" header
+- 35% opacity (like aged tasks)
+- One-tap restore or "clear all"
+
+### AI Prompt Addition
+
+```
+EVENING TRIAGE (after 6pm, if undone tasks exist):
+If user opens AI panel in the evening with undone tasks, acknowledge them:
+"3 things didn't happen today. Want to keep them for tomorrow, or let them go?"
+
+Actions available:
+- keep_task { id } — marks task as kept, stays in list
+- defer_task { id } — moves to deferred, hidden from main list
+- defer_all {} — defers all undone tasks
+- keep_all {} — keeps all undone tasks
+```
+
+### Open Questions
+
+1. **When exactly is "evening"?** After 6pm? After 8pm? User-configurable?
+2. **How long to keep deferred items?** Forever? 7 days? Until user clears?
+3. **Should kept tasks show their origin?** "from Mar 18" or just unmarked?
+4. **What if user never opens AI panel?** Silent carry-over, or morning prompt?
+
+### Next Steps
+
+1. Decide on evening trigger time (suggest: 6pm local)
+2. Implement `defer_task` and `keep_task` AI actions
+3. Add deferred storage and morning restore UI
+4. Update AI system prompt with evening triage context
+
+---
+
