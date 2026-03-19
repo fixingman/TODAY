@@ -100,6 +100,28 @@ The Pomodoro timer uses zen-adjacent language:
 
 This frames productivity as sustainable, not extractive.
 
+### Visual Tags (v2.9.2)
+
+Tasks can include an optional prefix tag: `work: finish report` renders as **WORK** finish report.
+
+**Rules:**
+- Pattern: `^[a-z0-9]{1,12}: ` (1-12 alphanumeric chars, colon, space)
+- Tag renders: muted color, uppercase, smaller font (`--text-xs`)
+- Rest of text renders normally
+
+**What tags are NOT:**
+- Not filterable — no "show only work tasks"
+- Not managed — no tag list, no suggestions, no persistence
+- Not structured — just text that happens to match a pattern
+
+**Philosophy:** Tags are visual hints, not categories. The data is still plain text. This is styling, not structure. The moment we add filtering or grouping, TODAY becomes a planning tool.
+
+**Examples:**
+- `work: send proposal` → **WORK** send proposal
+- `home: water plants` → **HOME** water plants
+- `errand: pharmacy` → **ERRAND** pharmacy
+- `finish report` → finish report (no tag)
+
 ---
 
 ## 3. Design Tokens

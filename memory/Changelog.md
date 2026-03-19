@@ -2,6 +2,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.9.2** | **Visual tags** — tasks starting with `tag: ` render the tag as muted uppercase prefix. Pure styling — no filtering, no grouping, no tag management. Pattern: 1-12 alphanumeric chars + `: `. |
 | **2.9.1** | **Fix: habit sync** — edits (name changes, new habits, completions, reorder) now trigger Dropbox sync. Previously only saved to localStorage. |
 | **2.9.0** | **Flow rate simplified** — now calculated live as `done / added × 100%` for today only. Resets daily. No more exponential smoothing or accumulated values >100%. Matches clean slate philosophy. |
 | **2.8.9** | **PiP improvements** — Open button to return to main app from widget. iOS keyboard positioning fix (visualViewport.offsetTop). |
