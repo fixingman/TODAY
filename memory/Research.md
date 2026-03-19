@@ -1096,3 +1096,69 @@ Finishing **feels** like finishing. Not with fireworks, but with genuine acknowl
 It's simply the app saying: "You did it. I noticed."
 
 ---
+
+## 17. Idle Companion — Delight in the Quiet Moments
+
+*Implemented: Mar 19, 2026 (v2.10.0)*
+
+### The Philosophy
+
+TODAY is not just about productivity and efficiency. There should be **delight** in using it. The app should have moments of joy, whimsy, and surprise — not tied to completing tasks.
+
+### The Inspiration
+
+[cli-spinners](https://github.com/sindresorhus/cli-spinners) — a collection of ASCII spinners for terminal applications. Simple characters that animate with personality. The aesthetic is:
+- Monospace font
+- Simple ASCII/Unicode characters
+- Organic movement
+- Minimal but expressive
+
+### The Idea: A Little Friend
+
+After no activity for a while (no focus, task checking, habit marking, reordering), a small ASCII dinosaur appears in the corner of the screen. Like a tamagotchi that wandered into your task list.
+
+Not demanding attention. Not prompting action. Just... there. A companion who shows up when things are quiet.
+
+### Implementation
+
+**Trigger:** 45 seconds of inactivity
+- No clicks, touches, keypresses
+- No scrolling
+- Mousemove is throttled (1s) so small movements don't reset
+
+**Appearance:**
+- Bottom-right corner
+- DM Mono font (matches app branding)
+- Accent color (#c8f060) with subtle glow
+- 60% opacity (visible but not demanding)
+- Fades in over 0.6s
+
+**Animation:**
+```
+      ✦▀▄        ✦▀▄        ✦▀▄        ✦▀▄
+     ▄██▀       ▄██▀       ▄██▀       ▄██▀
+    ▀▀▀▀        ▀▀▀       ▀ ▀▀        ▀▀▀
+```
+4 frames, 400ms each — a little dino shifting its weight.
+
+**Dismissal:** Any user activity hides the companion (fade out over 0.6s).
+
+### Why This Matters
+
+Most task apps are *serious*. They're about getting things done, being productive, optimizing your time. That's exhausting.
+
+TODAY already has a calm philosophy. The idle companion extends this into **playfulness**. It says:
+- "It's okay to pause"
+- "The app is alive even when you're not doing things"
+- "There's room for whimsy here"
+
+### What This Is NOT
+
+- Not a notification ("You've been idle!")
+- Not a nudge ("Time to get back to work!")
+- Not gamification (no feeding the dino, no streaks)
+- Not interactive (just watching)
+
+It's pure delight. A moment of "oh, that's nice" in an otherwise utilitarian tool.
+
+---

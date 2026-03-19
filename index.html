@@ -2464,11 +2464,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.9.9';
-const DEV_HOURS     = '122h';
+const APP_VERSION   = '2.10.0';
+const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.10.0': 'Idle companion: a little dino appears after 45s of inactivity. Delight, not productivity. cli-spinners style.',
   '2.9.9': 'All-done reward: accent glow pulse, extra particle burst, variable warm AI messages. Finishing feels felt.',
   '2.9.8': 'Energy rhythm: AI considers peak hour when suggesting tasks. "It\'s your peak — good moment for that deep work."',
   '2.9.7': 'Focus time formatting: shows "Xh Ym" when >= 60 minutes, "Xm" otherwise. Cleaner stats display.',
@@ -3136,6 +3137,7 @@ function renderInfoStats() {
   ];
 
   document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
+  console.log('[TODAY] Version:', APP_VERSION);
   _aiRenderConfig();  // init AI button and config state
 
   // Dev hours display
@@ -5249,6 +5251,175 @@ function updateFavicon(pct, isEmpty) {
   };
 })();
 
+// ─── Idle Companion — a little friend who appears when you're away ────────────
+// Inspired by cli-spinners (https://github.com/sindresorhus/cli-spinners)
+// A mini dinosaur that shows up after inactivity — delight, not productivity
+(function() {
+  const IDLE_THRESHOLD = 45000; // 45 seconds of no activity
+  const IDLE_CHECK_INTERVAL = 5000; // check every 5 seconds
+  
+  let lastActivity = Date.now();
+  let idleCompanion = null;
+  let animationFrame = null;
+  let frameIndex = 0;
+  
+  // The companion — a little dino in DM Mono style
+  // Using cli-spinners aesthetic with TODAY's accent color
+  const DINO_FRAMES = [
+    // Frame 1: standing
+    `    ✦
+   ╱◡╲
+  ╱   ╲
+ ╱  ·  ╲
+╱───────╲
+   ╱╲`,
+    // Frame 2: looking around
+    `    ✦
+   ╱◠╲
+  ╱   ╲
+ ╱  ·  ╲
+╱───────╲
+  ╱  ╲`,
+    // Frame 3: blinking
+    `    ✦
+   ╱-╲
+  ╱   ╲
+ ╱  ·  ╲
+╱───────╲
+ ╱    ╲`,
+    // Frame 4: looking around
+    `    ✦
+   ╱◠╲
+  ╱   ╲
+ ╱  ·  ╲
+╱───────╲
+  ╱  ╲`,
+  ];
+  
+  // Alternative: simpler ASCII dino that walks
+  const MINI_DINO = [
+    `      ✦▀▄
+     ▄██▀
+    ▀▀▀▀`,
+    `      ✦▀▄
+     ▄██▀
+     ▀▀▀`,
+    `      ✦▀▄
+     ▄██▀
+    ▀ ▀▀`,
+    `      ✦▀▄
+     ▄██▀
+     ▀▀▀`,
+  ];
+  
+  // Simple runner using cli-spinners style
+  const RUNNER = [
+    ' ✦ ',
+    '✦  ',
+    ' ✦ ',
+    '  ✦',
+  ];
+  
+  // Track user activity
+  function recordActivity() {
+    lastActivity = Date.now();
+    hideCompanion();
+  }
+  
+  // Create and show the companion
+  function showCompanion() {
+    if (idleCompanion) return;
+    
+    idleCompanion = document.createElement('div');
+    idleCompanion.id = 'idleCompanion';
+    idleCompanion.style.cssText = `
+      position: fixed;
+      bottom: 100px;
+      right: 20px;
+      font-family: var(--font-mono, 'DM Mono', monospace);
+      font-size: 12px;
+      line-height: 1.2;
+      color: var(--accent, #c8f060);
+      opacity: 0;
+      transition: opacity 0.6s ease;
+      pointer-events: none;
+      white-space: pre;
+      z-index: 50;
+      text-shadow: 0 0 8px rgba(200,240,96,0.3);
+    `;
+    document.body.appendChild(idleCompanion);
+    
+    // Fade in
+    requestAnimationFrame(() => {
+      idleCompanion.style.opacity = '0.6';
+    });
+    
+    // Start animation
+    animateCompanion();
+  }
+  
+  function animateCompanion() {
+    if (!idleCompanion) return;
+    
+    frameIndex = (frameIndex + 1) % MINI_DINO.length;
+    idleCompanion.textContent = MINI_DINO[frameIndex];
+    
+    animationFrame = setTimeout(animateCompanion, 400);
+  }
+  
+  function hideCompanion() {
+    if (!idleCompanion) return;
+    
+    clearTimeout(animationFrame);
+    animationFrame = null;
+    
+    idleCompanion.style.opacity = '0';
+    setTimeout(() => {
+      if (idleCompanion) {
+        idleCompanion.remove();
+        idleCompanion = null;
+      }
+    }, 600);
+  }
+  
+  // Check for idle state
+  function checkIdle() {
+    const now = Date.now();
+    const idleTime = now - lastActivity;
+    
+    if (idleTime > IDLE_THRESHOLD && !idleCompanion) {
+      showCompanion();
+    }
+  }
+  
+  // Listen for activity events
+  const activityEvents = ['click', 'touchstart', 'keydown', 'scroll', 'mousemove'];
+  
+  // Throttle mousemove to avoid constant resets
+  let mouseMoveThrottle = null;
+  function handleMouseMove() {
+    if (mouseMoveThrottle) return;
+    mouseMoveThrottle = setTimeout(() => {
+      mouseMoveThrottle = null;
+    }, 1000);
+    recordActivity();
+  }
+  
+  activityEvents.forEach(event => {
+    if (event === 'mousemove') {
+      document.addEventListener(event, handleMouseMove, { passive: true });
+    } else {
+      document.addEventListener(event, recordActivity, { passive: true });
+    }
+  });
+  
+  // Start idle checker
+  setInterval(checkIdle, IDLE_CHECK_INTERVAL);
+  
+  // Initial activity timestamp
+  recordActivity();
+})();
+
 // ─── Dropbox ──────────────────────────────────────────────────────────────────
 
 
@@ -6276,19 +6447,28 @@ if ('serviceWorker' in navigator) {
         function _activateWaiting(sw) {
           if (sw.state === 'installed' && navigator.serviceWorker.controller) {
             // New version ready, old one is controlling — safe to take over
+            console.log('[SW] New version ready, activating...');
             sw.postMessage('SKIP_WAITING');
           }
         }
 
         function _onNewSW(sw) {
+          console.log('[SW] New service worker detected, state:', sw.state);
           // Check immediately in case it's already installed
           _activateWaiting(sw);
           // Also listen for state changes
-          sw.addEventListener('statechange', () => _activateWaiting(sw));
+          sw.addEventListener('statechange', () => {
+            console.log('[SW] State changed to:', sw.state);
+            _activateWaiting(sw);
+          });
         }
 
-        if (reg.waiting) _onNewSW(reg.waiting);
+        if (reg.waiting) {
+          console.log('[SW] Update already waiting');
+          _onNewSW(reg.waiting);
+        }
         reg.addEventListener('updatefound', () => {
+          console.log('[SW] Update found, installing...');
           if (reg.installing) _onNewSW(reg.installing);
         });
 
@@ -6297,12 +6477,15 @@ if ('serviceWorker' in navigator) {
         const hadController = !!navigator.serviceWorker.controller;
         let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('[SW] Controller changed, reloading...');
           if (!hadController || refreshing) return;
           refreshing = true;
           window.location.reload();
         });
+        
+        console.log('[SW] Registered, version:', CACHE_VERSION || 'unknown');
       })
-      .catch(() => { /* SW unavailable — silent */ });
+      .catch(err => { console.log('[SW] Registration failed:', err); });
   });
 }
 
