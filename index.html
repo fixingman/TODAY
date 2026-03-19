@@ -7662,50 +7662,48 @@ function _aiDismissProactive() {
   if (!window.visualViewport) return;
   
   const addTaskBar = document.getElementById('addTaskBar');
-  if (!addTaskBar) return;
-  
-  let keyboardOpen = false;
+  const input = document.getElementById('newTask');
+  if (!addTaskBar || !input) return;
   
   function adjustForKeyboard() {
-    const viewport = window.visualViewport;
-    // Calculate keyboard height from viewport shrinkage
-    // viewport.height = visible area, viewport.offsetTop = scroll offset
-    const keyboardHeight = window.innerHeight - viewport.height;
+    const vv = window.visualViewport;
     
-    if (keyboardHeight > 100) {
-      // Keyboard is open
-      keyboardOpen = true;
-      // Position from bottom of visual viewport, accounting for any scroll offset
-      const bottomOffset = window.innerHeight - viewport.height - viewport.offsetTop;
+    // Position the bar at the bottom of the visual viewport
+    // This accounts for keyboard + any accessory bars
+    const offsetFromBottom = window.innerHeight - vv.height - vv.offsetTop;
+    
+    if (offsetFromBottom > 50) {
+      // Keyboard is likely open
+      // Place bar at bottom of visible area
       addTaskBar.style.position = 'fixed';
-      addTaskBar.style.bottom = Math.max(0, bottomOffset) + 'px';
+      addTaskBar.style.bottom = 'auto';
+      addTaskBar.style.top = (vv.offsetTop + vv.height - addTaskBar.offsetHeight) + 'px';
       addTaskBar.style.left = '0';
       addTaskBar.style.right = '0';
-      // Prevent body scroll while keyboard is open
-      document.body.style.overflow = 'hidden';
-    } else if (keyboardOpen) {
-      // Keyboard just closed — reset
-      keyboardOpen = false;
+    } else {
+      // Keyboard closed
       addTaskBar.style.position = '';
       addTaskBar.style.bottom = '';
+      addTaskBar.style.top = '';
       addTaskBar.style.left = '';
       addTaskBar.style.right = '';
-      document.body.style.overflow = '';
     }
   }
   
   window.visualViewport.addEventListener('resize', adjustForKeyboard);
   window.visualViewport.addEventListener('scroll', adjustForKeyboard);
   
-  // Also adjust on focus to catch initial keyboard open
-  const input = document.getElementById('newTask');
-  if (input) {
-    input.addEventListener('focus', () => {
-      // Small delay to let keyboard fully open
-      setTimeout(adjustForKeyboard, 100);
-      setTimeout(adjustForKeyboard, 300);
-    });
-  }
+  // Adjust on focus with delays to catch keyboard animation
+  input.addEventListener('focus', () => {
+    setTimeout(adjustForKeyboard, 50);
+    setTimeout(adjustForKeyboard, 150);
+    setTimeout(adjustForKeyboard, 300);
+    setTimeout(adjustForKeyboard, 500);
+  });
+  
+  input.addEventListener('blur', () => {
+    setTimeout(adjustForKeyboard, 100);
+  });
 })();
 
 
