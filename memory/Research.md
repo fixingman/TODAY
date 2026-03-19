@@ -304,6 +304,8 @@ Findings from implementation — things not obvious from docs.
 | Mobile text selection interferes with drag | On touch devices (`pointer: coarse`), attempting to drag a task often triggers text selection instead, especially on the first gesture. Fix: apply `user-select: none` and `-webkit-touch-callout: none` on draggable elements specifically for touch devices via `@media (pointer: coarse)`. Desktop text selection remains unaffected. |
 | Focus mode scroll lock — order matters | Locking scroll during focus mode requires careful ordering: (1) Check if task is at edge BEFORE locking, (2) Nudge with `scrollIntoView({ block: 'center', behavior: 'instant' })` if needed, (3) THEN lock with `position: fixed; top: -scrollY`. Using `overflow: hidden` resets scroll position — `position: fixed` preserves it. When checking edge clipping, account for UI that appears AFTER the task (timer bar ~80px) — check `rect.bottom + timerHeight`, not just `rect.bottom`. On unlock, restore scroll position with `scrollTo(0, savedScrollY)` after clearing position styles. |
 | Silent failures in sync — always check for ReferenceErrors | `mergeRemoteData()` is wrapped in try/catch, so any ReferenceError (like using an undefined variable) fails silently. v2.8.8 bug: `localIds` was used but never defined after refactoring task ordering logic. Sync appeared to work (ticker ran, rev checked) but merge silently failed. **Debug helpers added:** `_dbxTickerRunning()`, `_dbxSyncNow()`, `_dbxGetRev()`. When sync breaks: (1) check ticker is running, (2) check revs match/differ, (3) manually call `_dbxSyncNow()` and watch for console errors. |
+| Always pull remote on page load — no conditional logic | Previous approach checked `last_local_change > last_successful_backup` to decide whether to pull or push first. This caused confusion: refreshing both devices simultaneously left both with stale localStorage data. **v2.8.8 fix:** Always pull remote, merge via `mergeRemoteData()`, seed rev, then push if merge changed anything. `mergeRemoteData()` handles all conflicts: union for tasks, most-recent-wins for done state, max for stats. Refresh now guarantees fresh data. |
+| PiP window won't reopen after closing | When returning to tab, `pipWindow.close()` is called but the variable still holds a reference to the closed window. On next tab leave, `pipWindow.closed` might not update reliably. **Fix:** Reset `pipWindow = null` (and `pipFillEl`, `pipTimeEl`) after closing so the check `!pipWindow || pipWindow.closed` correctly triggers a fresh PiP window. |
 
 
 ---
@@ -585,5 +587,442 @@ function _trackFocusTime(taskId) {
 - `_focusOnCheck()` — User checks off task during focus
 
 **`st.tracked` flag:** Prevents double-counting. Set true after recording, reset to false on new session start.
+
+---
+
+## 10. Why Open TODAY? — The Existential Product Question
+
+*Researched: Mar 19, 2026*
+
+### The Core Question
+
+Every successful app answers one question clearly: **"Why should I open this right now?"**
+
+- Instagram → boredom → endless scroll
+- Weather app → morning routine → check forecast  
+- Uber → need to go somewhere → open and book
+- TODAY → ??? → ???
+
+TODAY currently has no strong *internal trigger* — the emotional state or context that makes someone instinctively reach for the app. This is the most important product gap to address.
+
+### How Apps Create Return Triggers
+
+From behavioral psychology research (Nir Eyal's Hook Model, habit formation studies):
+
+1. **External triggers** — notifications, reminders, emails. TODAY has none.
+2. **Internal triggers** — emotions or routines that make you think of the app unconsciously.
+
+Internal triggers are more powerful and sustainable. They form when an app consistently solves an emotional need at a particular moment.
+
+**Examples of internal triggers:**
+- Feeling anxious → open notes app to write it down → relief
+- Feeling bored → open social media → stimulation
+- Feeling scattered → open calendar → orientation
+- Feeling accomplished → open fitness app → validation
+
+### TODAY's Potential Internal Triggers
+
+**Morning (6am-10am):**
+| Emotional State | What They Need | TODAY's Answer |
+|---|---|---|
+| Anxious about the day | Clarity, containment | "Write it all down, then it's held" |
+| Groggy, unfocused | Gentle direction | "Here's what matters today" |
+| Optimistic, ready | Intentional start | "Set your intentions" |
+
+**Mid-day (11am-5pm):**
+| Emotional State | What They Need | TODAY's Answer |
+|---|---|---|
+| Scattered, overwhelmed | Reset, grounding | "Return to your list, find focus" |
+| Decision fatigue | Someone to decide for me | "Just do this one next" |
+| Accomplished something | Acknowledgment | "Check it off, feel the progress" |
+| Remembered something | Quick capture | "Add it before you forget" |
+
+**Evening (6pm-10pm):**
+| Emotional State | What They Need | TODAY's Answer |
+|---|---|---|
+| Uncertain if day was productive | Reflection | "Here's what you did" |
+| Mind still racing | Closure | "Acknowledge the day is done" |
+| Guilt about unfinished tasks | Permission | "It's okay to leave it for tomorrow" |
+
+### The Missing Pieces
+
+1. **No morning ritual** — First open of the day feels the same as any other open. No "good morning" energy, no briefing, no sense of fresh start.
+
+2. **No mid-day reset** — When feeling scattered, no prompt to return. No "you've been away for 4 hours" awareness. No suggestion of what to do next.
+
+3. **No evening closure** — Tasks just vanish at midnight. No summary, no acknowledgment, no ritual of "closing the day."
+
+4. **No emotional awareness** — AI only speaks when asked. Doesn't notice patterns, doesn't offer observations, doesn't feel like a companion who knows you.
+
+5. **No "just tell me what to do"** — The hardest moment is deciding which task to start. TODAY shows the list but doesn't help you pick.
+
+### What Would Make Someone *Want* to Open TODAY?
+
+**The companion hypothesis:** If the AI felt like a friend who *notices* you — your patterns, your struggles, your wins — you might want to check in. Not for the tasks, but for the relationship.
+
+**The ritual hypothesis:** If opening TODAY is tied to a specific moment (first thing in morning, after lunch, before bed), it becomes automatic. The app becomes the ritual, not just a tool within it.
+
+**The relief hypothesis:** If TODAY is where anxiety goes to be contained — "once it's in TODAY, I don't have to hold it in my head" — opening it brings immediate relief.
+
+**The intention hypothesis:** If opening TODAY makes you feel more *intentional* about your day, you'll open it when you want to feel less reactive and more deliberate.
+
+### Time-Aware Design Implications
+
+TODAY could recognize the time of day and adjust its energy:
+
+| Time | Energy | AI Tone | Visual Weight |
+|---|---|---|---|
+| 6am-9am | Gentle awakening | Warm, brief | Light, spacious |
+| 9am-12pm | Focused momentum | Encouraging, direct | Clear, purposeful |
+| 12pm-2pm | Mid-day reset | Grounding, calming | Balanced |
+| 2pm-6pm | Afternoon push | Supportive, motivating | Active |
+| 6pm-9pm | Evening reflection | Warm, acknowledging | Soft, closing |
+| 9pm-12am | Winding down | Peaceful, minimal | Dim, restful |
+
+This doesn't mean redesigning the app for each period — it means the AI's voice and small UI cues could acknowledge where the user is in their day.
+
+### Research Sources
+
+- Nir Eyal, *Hooked* — Hook Model (Trigger → Action → Variable Reward → Investment)
+- James Clear, *Atomic Habits* — Habit formation via cue-routine-reward
+- Studies on todo app churn: ~47% abandon rate, primarily due to overwhelm and lack of return triggers
+- Behavioral psychology: Variable rewards create stronger habits than predictable ones, but predictable rituals create sustainable ones
+
+### Product Recommendations
+
+1. **Morning briefing** — On first open of the day, AI speaks first: "Morning. You've got 4 things today. Streak is 12." Brief, warm, sets the tone.
+
+2. **Time-aware AI** — AI observations change based on time: morning = planning mode, afternoon = focus mode, evening = reflection mode.
+
+3. **"Pick one for me"** — When overwhelmed, tap ✦ and AI suggests one task to start with, based on time of day and task type.
+
+4. **End-of-day summary** — Optional closure ritual. Shows what happened, acknowledges the day, offers to defer unfinished items.
+
+5. **Stale task awareness** — AI notices tasks sitting for 3+ days and gently asks "still relevant?" without pressure.
+
+---
+
+## 11. Task App Psychology — Why Most Fail
+
+*Researched: Mar 19, 2026*
+
+### The Core Problem
+
+Todo apps have the highest churn rate of any productivity category (~47% abandon within first month). The pattern:
+
+1. User feels overwhelmed by life
+2. Downloads todo app seeking control
+3. Dumps everything into the app
+4. Feels briefly better (externalized the anxiety)
+5. Opens app next day, sees giant list
+6. Feels *more* overwhelmed than before
+7. Abandons app
+
+The app became a *mirror* for anxiety, not a *solution* for it.
+
+### What Users Actually Need
+
+| What they say | What they mean | What would help |
+|---|---|---|
+| "I need to be more organized" | "I feel out of control" | Containment, not organization |
+| "I need to remember things" | "My head is full" | Brain dump, then processing |
+| "I need to get more done" | "I feel guilty about my output" | Permission + acknowledgment |
+| "I need a system" | "I want someone to tell me what to do" | Guidance, not just storage |
+
+### Why Feature-Heavy Apps Fail
+
+Todoist, TickTick, Notion — all powerful, all have significant churn. Because:
+
+1. **Setup cost** — Learning the system takes energy you don't have
+2. **Maintenance cost** — Keeping the system running becomes its own task
+3. **Guilt amplification** — More features = more ways to see what you're not doing
+4. **Decision fatigue** — More options = harder to decide what to do
+
+Quote from XDA research: "The apps I've highlighted aren't perfect, and they're not for everyone. Power users who thrive on customization will find them limiting. But for anyone tired of managing their productivity tools instead of actually being productive, they offer a different path."
+
+### The TODAY Opportunity
+
+TODAY's constraints are its advantage:
+
+| Feature other apps have | Why TODAY doesn't | Why it helps |
+|---|---|---|
+| Due dates | One day only | No guilt about overdue items |
+| Projects | Single list | No categorization paralysis |
+| Labels/tags | Plain text | No system to maintain |
+| Recurring tasks | Habits are separate | Daily tasks feel fresh |
+| Backlog | Nothing carries over | Morning is always a clean slate |
+
+The key insight: **Constraint reduces cognitive load.** Every feature TODAY *doesn't* have is a decision users don't have to make.
+
+### The Dark Side of Gamification
+
+From research on habit apps: Gamification (streaks, badges, points) creates *compliance*, not *commitment*. Studies show:
+
+- Streak anxiety increases, not decreases, over time
+- Users begin to resent the app rather than enjoy it
+- Extrinsic rewards (points) can *decrease* intrinsic motivation
+- Breaking a streak often leads to total abandonment
+
+TODAY's approach: Acknowledge without pressuring. Show the streak, but don't punish breaking it. Celebrate completion, but don't create guilt for incompletion.
+
+### What Makes Users Return (Ethically)
+
+1. **Genuine value** — The app actually helps them feel better, not just more organized
+2. **Low friction** — Opening the app takes zero mental energy
+3. **Emotional resonance** — The app feels like it *knows* them
+4. **Ritual integration** — The app fits into existing routines, not requiring new ones
+5. **Respectful closure** — The app helps them *stop* using it each day, not keep them scrolling
+
+### Sources
+
+- Journal it! blog: "Why All-in-One Productivity Apps Keep Failing"
+- XDA: "All I want is a productivity app that doesn't get in my way"
+- The Brink: "The Dark Psychology Behind Your Everyday Apps"
+- Phiture: User retention research showing habit loop mechanics
+- Studies on overjustification effect (external rewards reducing intrinsic motivation)
+
+---
+
+## 12. Task Aging — What Should Happen to Lingering Tasks?
+
+*Discussed: Mar 19, 2026*
+
+### The User Experience
+
+Tasks that have been in TODAY for several days create a subtle friction. Not guilt. Not failure. Just... the app doesn't reflect what the brain already knows: "This has been here a while."
+
+### What Doesn't Feel Right
+
+| Approach | Why it doesn't fit |
+|---|---|
+| **Archive folder** | Creates a new place to manage. Feels like giving up on the task. |
+| **Defer to tomorrow** | Feels like procrastination with extra steps. Planning mode, not presence mode. |
+| **Auto-deletion** | Hostile. User didn't say "remove this." |
+| **Guilt messaging** | Violates calm design principles. |
+
+### The Core Insight
+
+The urge isn't about *moving* tasks. It's about **acknowledgment**.
+
+The user's brain knows a task is old. The UI should reflect that knowing. Currently, a 7-day-old task looks identical to a 1-day-old task. That's the dissonance.
+
+### The Solution: Acknowledgment Without Action
+
+**1. Visual Aging**
+
+Tasks naturally fade over time. No action required. Just the UI reflecting reality.
+
+| Age | Visual Treatment |
+|---|---|
+| Day 1-2 | Full opacity (normal) |
+| Day 3-4 | Slightly muted (75% opacity) |
+| Day 5-6 | Noticeably aged (55% opacity) |
+| Day 7+ | Minimum (35% opacity) — all the same past 7 days |
+
+This is **passive acknowledgment**. The task is still there, still valid, still yours. But the app shows what you already know.
+
+**2. AI Awareness (Companion Behavior)**
+
+The AI occasionally notices aged tasks — not every time, not with pressure, just observation:
+
+> "I see 'pack luggage' has been here for 4 days. Still on your mind?"
+
+No suggested action. No guilt. Just the companion *seeing* what you see.
+
+### How This Fits the Emotional Positioning
+
+**Primary (Intentional):** Seeing aged tasks visually helps you be intentional about what you're carrying. You can consciously choose to keep it, complete it, or let it go.
+
+**Secondary (Companion):** The AI noticing aged tasks is the companion observing your patterns. It makes you feel seen, not judged.
+
+### Implementation Notes
+
+- Visual aging should be CSS-only based on a `data-age` attribute set by JS
+- Age calculation: `Math.floor((Date.now() - task.created_at) / (1000 * 60 * 60 * 24))`
+- AI awareness should be probabilistic (not every panel open) and respect a cooldown (don't mention the same task twice in one day)
+- Tasks pulled from Trello should age based on when they first appeared in TODAY, not their Trello creation date
+
+### What This Is NOT
+
+- Not a backlog system
+- Not priority management
+- Not a nudge to complete
+- Not shame
+
+It's simply the app reflecting reality, the way a friend might gently notice without judgment.
+
+---
+
+## 13. Proactive Memory Observations — The Companion That Notices
+
+*Implemented: Mar 19, 2026 (v2.9.5)*
+
+### The Problem
+
+TODAY has a rich memory system that tracks:
+- Peak productivity hours
+- Streak patterns and records
+- Total focus time
+- Task completion patterns
+- Milestone moments (big clears, streak records)
+
+But this data was **silent**. The AI only spoke when asked. The memory existed, but never surfaced.
+
+### The Insight
+
+A companion doesn't wait to be asked about everything. A good friend *notices* and sometimes says:
+
+> "You've been on a 12-day streak — your longest yet."
+
+> "It's 2pm — your most productive hour."
+
+> "50 tasks completed since you started. Quietly adding up."
+
+This makes the user feel **seen** without requiring them to seek validation.
+
+### Types of Proactive Observations
+
+| Type | Priority | Trigger | Example |
+|---|---|---|---|
+| `streak_record` | High | Current streak exceeds personal best | "Day 12 — your longest streak yet." |
+| `streak_milestone` | High | Streak hits 7, 14, 21, 30, 50, 100 | "Day 14. That's worth noticing." |
+| `streak_acknowledge` | Low | Streak ≥ 5 (20% chance) | "7 days in a row now." |
+| `peak_hour` | Medium | Current hour = peak hour | "It's 2pm — your most productive hour." |
+| `pace_suggestion` | Low | Morning, but peak hour is afternoon | "You usually pick up after 2pm. Start light." |
+| `focus_milestone` | Medium | Focus hours hit 10, 25, 50, 100, 200 | "50 hours of focused time. That's real." |
+| `tasks_milestone` | Medium | Tasks completed hit 50, 100, 200, 500, 1000 | "200 tasks completed. Quietly adding up." |
+| `yesterday_win` | Medium | Big clear happened yesterday | "You cleared 8 things yesterday." |
+
+### Probability & Cooldowns
+
+- **High priority**: Always mentioned (if no cooldown)
+- **Medium priority**: 50% chance
+- **Low priority**: 20% chance
+- **Cooldown**: 24 hours per observation *type* — won't repeat same type within a day
+
+Tracked via:
+- `ai_last_observation` — type of last observation
+- `ai_last_observation_time` — timestamp
+
+### Integration
+
+Observations are passed to the AI as `proactiveObservation` in context. The system prompt instructs the AI to weave them naturally into its message, not lead with them.
+
+### What This Creates
+
+The user opens TODAY and the AI says:
+
+> "Good afternoon. You're on day 8 — your best streak yet. 3 things waiting, 1 habit due."
+
+The companion *noticed* something meaningful. It didn't require a dashboard. It didn't gamify. It just *saw* — the way a friend would.
+
+---
+
+## 14. Empty State as Invitation — The Void That Welcomes
+
+*Implemented: Mar 19, 2026 (v2.9.6)*
+
+### The Problem
+
+When the task list is empty, the app showed: "Nothing added yet."
+
+This is a **missed opportunity**. The empty state is the moment when the user is most receptive to starting something. Instead of a passive void, it should be an **invitation**.
+
+### The Insight
+
+An empty list doesn't mean "nothing happening." It means the user is at a beginning — fresh, open, ready to choose what matters.
+
+A good companion would say:
+> "What would feel good to finish today?"
+
+Not:
+> "Add a task."
+
+### Pattern-Aware Invitations
+
+The empty state prompt now uses memory to make the invitation personal:
+
+| User Pattern | Prompt |
+|---|---|
+| Has a streak going | "Day 5. What's on your mind?" |
+| Has focus time history | "Ready for some focused work? What should we start with?" |
+| Morning, experienced user | "What's one thing you'd feel good about finishing today?" |
+| Default (new user) | "Clean slate. What's one thing you want to do?" |
+
+### Implementation
+
+In `_aiIntroMessage()`, when `totalPending === 0 && habitsDue === 0 && ctx.tasks.done.length === 0`:
+
+1. Build a list of pattern-aware prompts based on memory
+2. Pick one with slight randomness (for variety)
+3. Phrase it as an invitation, not a command
+
+System prompt also includes guidance:
+> "EMPTY STATE: The list is empty. This is an invitation moment, not a void. Invite gently: 'What would feel good to finish today?' Use their patterns if you know them."
+
+### What This Creates
+
+User opens TODAY with empty list → AI says:
+
+> "Good morning. Day 7 of your streak. What matters today?"
+
+vs.
+
+> "Nothing here yet. Add a task."
+
+The first feels like a companion welcoming you. The second feels like an empty form.
+
+---
+
+## 15. Energy Rhythm — Time-Aware Task Suggestions
+
+*Implemented: Mar 19, 2026 (v2.9.8)*
+
+### The Problem
+
+TODAY treats all hours the same. 9am and 4pm are identical in the UI. But humans have rhythms — creative work is often easier in the morning, admin work fits better after lunch, and demanding tasks shouldn't be suggested in the evening wind-down.
+
+Most task apps ignore this entirely. Some add complex scheduling. Neither is right for TODAY's philosophy.
+
+### The Insight
+
+We already know the user's peak hour from memory. We can use this to inform — not dictate — which task to suggest first.
+
+Not: "Schedule this for 2pm"  
+But: "It's your peak time — good moment for that deep work"
+
+The AI becomes rhythm-aware without adding any UI complexity.
+
+### Energy Context
+
+The system prompt now includes an "Energy rhythm" line based on the user's peak hour:
+
+| State | Context Given to AI |
+|---|---|
+| **Peak time** | "RIGHT NOW is their peak productivity time. Good moment for demanding tasks." |
+| **Pre-peak** (1-3 hours before) | "Still warming up. Light tasks are fine." |
+| **Post-peak** (1-2 hours after) | "Past their peak. Winding down — admin or easy tasks fit this energy." |
+| **Morning** (no peak data) | "Morning energy — often good for creative or demanding work." |
+| **Evening** (no peak data) | "Evening — energy typically lower. Quick wins or reflection tasks fit better." |
+
+### Message Guidelines
+
+The AI is instructed to use this context:
+- Peak time? Suggest demanding tasks: "Good moment for that deep work"
+- Pre-peak? Keep it light: "Warming up — start with something easy"
+- Post-peak/evening? Quick wins: "Wind down with the quick ones"
+- Don't lecture about energy — just let it inform which task to suggest
+
+### What This Creates
+
+User opens TODAY at 2pm (their peak hour):
+
+> "Good afternoon. 4 things waiting. It's your productive hour — start with 'write proposal'?"
+
+vs. at 5pm (post-peak):
+
+> "Good evening. 4 things waiting. Wind down with the quick ones?"
+
+The AI knows their rhythm and adapts. No scheduling UI. No time blocks. Just awareness.
 
 ---

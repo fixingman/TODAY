@@ -2,6 +2,12 @@
 
 | Version | Key change |
 |---|---|
+| **2.9.8** | **Energy rhythm awareness** — AI considers peak hour when suggesting tasks. Pre-peak: "start light". Peak time: "good moment for deep work". Post-peak: "wind down with quick ones". No lecture, just smarter suggestions. |
+| **2.9.7** | **Focus time formatting** — Shows "1h 25m" when >= 60 minutes, "45m" otherwise. Cleaner stats display. Applied to info panel and weekly reflection. |
+| **2.9.6** | **Empty state invitation** — AI invites warmly when list is empty. Pattern-aware prompts: "Day 5. What's on your mind?" vs generic "Add a task". The void becomes an invitation. |
+| **2.9.5** | **Memory speaks** — AI proactively notices patterns from memory: streak records, peak hour awareness, focus milestones, recent wins. Probabilistic with 24h cooldown per observation type. The companion observes without being asked. |
+| **2.9.4** | **AI awareness** — Morning briefing (first open), stale task noticing (3+ days: "still relevant?"), Sunday evening reflection. AI acts as a companion that observes patterns. New `delete_task` action for "let it go". |
+| **2.9.3** | **Visual aging** — tasks gradually fade as they age (75% at day 3-4, 55% at 5-6, 35% at 7+). Acknowledgment without action. Hover restores readability. Pomodoro resets age. |
 | **2.9.2** | **Visual tags** — tasks starting with `tag: ` render the tag as muted uppercase prefix. Pure styling — no filtering, no grouping, no tag management. Pattern: 1-12 alphanumeric chars + `: `. |
 | **2.9.1** | **Fix: habit sync** — edits (name changes, new habits, completions, reorder) now trigger Dropbox sync. Previously only saved to localStorage. |
 | **2.9.0** | **Flow rate simplified** — now calculated live as `done / added × 100%` for today only. Resets daily. No more exponential smoothing or accumulated values >100%. Matches clean slate philosophy. |
