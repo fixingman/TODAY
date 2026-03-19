@@ -935,6 +935,15 @@
     padding-right: var(--space-8);
   }
 
+  .task-tag {
+    color: var(--muted);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    margin-right: var(--space-2);
+  }
+
   .task-meta {
     display: flex;
     align-items: center;
@@ -2423,11 +2432,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.9.0';
-const DEV_HOURS     = '114h';
+const APP_VERSION   = '2.9.1';
+const DEV_HOURS     = '115h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.9.1': 'Fix: habit edits now sync to Dropbox (name changes, new habits, completions, reorder).',
   '2.9.0': 'Flow rate simplified: now shows today only (done/added), resets daily. No more accumulation — matches clean slate philosophy.',
   '2.8.9': 'PiP: Open button returns to main app. iOS keyboard fix (visualViewport.offsetTop).',
   '2.8.8': 'Fix: sync was broken (missing localIds). Immediate sync on page load. PiP reopens on second tab leave. Star button larger. Tooltip shows AI name.',
@@ -3507,6 +3517,18 @@ function taskHTML(task, type) {
     isStale = daysSince > 3;
   }
 
+  // Detect tag pattern: "tag: rest of text" at start
+  // Tag must be 1-12 chars, lowercase/numbers only, followed by ": "
+  const tagMatch = task.text.match(/^([a-z0-9]{1,12}):\s+(.+)$/i);
+  let taskTextHTML;
+  if (tagMatch) {
+    const tag = tagMatch[1].toLowerCase();
+    const rest = tagMatch[2];
+    taskTextHTML = `<span class="task-tag">${esc(tag)}</span>${esc(rest)}`;
+  } else {
+    taskTextHTML = esc(task.text);
+  }
+
   const badges = type === 'trello' && dueStr
     ? `<span class="badge due">due ${esc(dueStr)}</span>`
     : '';
@@ -3539,7 +3561,7 @@ function taskHTML(task, type) {
         </svg>
       </div>
       <div class="task-body">
-        <div class="task-text">${esc(task.text)}${link}${sessionBadge}</div>
+        <div class="task-text">${taskTextHTML}${link}${sessionBadge}</div>
         ${badges ? `<div class="task-meta">${badges}</div>` : ''}
       </div>
       ${deleteBtn}
@@ -3853,6 +3875,7 @@ let habitEditMode     = false;
 function _saveHabits() {
   localStorage.setItem('today_habits',            JSON.stringify(habitsList));
   localStorage.setItem('today_habit_completions', JSON.stringify(habitCompletions));
+  dropboxAutoSave();
 }
 
 function _habitTodayISO() {
@@ -4562,7 +4585,7 @@ function _clearAllDone() {
     } else if (listId === 'habitList') {
       const ids = newOrder.map(el => el.dataset.habitId);
       habitsList.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-      _saveHabits(); dropboxAutoSave();
+      _saveHabits();
     }
   }
 
