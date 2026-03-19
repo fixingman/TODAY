@@ -503,6 +503,8 @@ Different moments in the day have different emotional needs. TODAY should answer
 
 6. **✓ Proactive observations (v2.9.5)** — AI notices patterns without being asked: streak records, peak hour awareness, milestones. Probabilistic with 24h cooldown per type.
 
+7. **✓ Empty state invitation (v2.9.6)** — When list is empty, AI invites warmly using patterns: "Day 5. What's on your mind?" vs generic "Add a task". The void becomes an invitation.
+
 ### Implementation Details
 
 Context flags passed to AI:

@@ -2464,11 +2464,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.9.5';
-const DEV_HOURS     = '119h';
+const APP_VERSION   = '2.9.6';
+const DEV_HOURS     = '120h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.9.6': 'Empty state invitation: AI invites warmly when list is empty. Uses patterns — "Day 5. What\'s on your mind?" vs generic "Add a task".',
   '2.9.5': 'Memory speaks: AI proactively notices patterns — streak records, peak hours, milestones. The companion observes without being asked.',
   '2.9.4': 'AI awareness: morning briefing, stale task noticing (3+ days), Sunday reflection. Companion observes your patterns.',
   '2.9.3': 'Visual aging: tasks gradually fade over days (75% at day 3-4, 55% at 5-6, 35% at 7+). Acknowledgment without action.',
@@ -6404,12 +6405,41 @@ function _aiIntroMessage(ctx) {
     return `Good ${ctx.timeOfDay}. ${overdue} overdue task${overdue > 1 ? 's' : ''} need${overdue === 1 ? 's' : ''} attention. What's most urgent?`;
   }
   
-  // All done
-  if (totalPending === 0 && habitsDue === 0) {
-    if (ctx.tasks.done.length > 0) {
-      return `Good ${ctx.timeOfDay}. All done! ${ctx.tasks.done.length} task${ctx.tasks.done.length > 1 ? 's' : ''} completed. Clear them or add more?`;
+  // All done — celebrate
+  if (totalPending === 0 && habitsDue === 0 && ctx.tasks.done.length > 0) {
+    return `Good ${ctx.timeOfDay}. All done! ${ctx.tasks.done.length} task${ctx.tasks.done.length > 1 ? 's' : ''} completed. Clear them or add more?`;
+  }
+  
+  // ── EMPTY STATE — the companion invites ──
+  if (totalPending === 0 && habitsDue === 0 && ctx.tasks.done.length === 0) {
+    // Use memory patterns to make the invitation personal
+    const m = appMemory;
+    const prompts = [];
+    
+    // Pattern: typical morning add count
+    if (ctx.timeOfDay === 'morning' && m.totalTasksCompleted > 20) {
+      prompts.push(`What's one thing you'd feel good about finishing today?`);
+      prompts.push(`Empty slate. What matters most this ${ctx.timeOfDay}?`);
     }
-    return `Good ${ctx.timeOfDay}. Nothing on the list yet. What should I add?`;
+    
+    // Pattern: they have focus time history
+    if (m.patterns.focusMinutesTotal > 60) {
+      prompts.push(`Ready for some focused work? What should we start with?`);
+    }
+    
+    // Pattern: they have a streak going
+    if (ctx.streak > 2) {
+      prompts.push(`Day ${ctx.streak}. What's on your mind?`);
+    }
+    
+    // Default gentle prompts
+    prompts.push(`Nothing here yet. What would feel good to finish today?`);
+    prompts.push(`Clean slate. What's one thing you want to do?`);
+    prompts.push(`Empty list. What should I add?`);
+    
+    // Pick a prompt (slight randomness for variety)
+    const prompt = prompts[Math.floor(Math.random() * Math.min(prompts.length, 3))];
+    return `Good ${ctx.timeOfDay}. ${prompt}`;
   }
   
   // Normal state with tasks
@@ -6684,6 +6714,7 @@ Special moments to notice:
 ${ctx.isFirstOpenToday && ctx.timeOfDay === 'morning' ? '- MORNING BRIEFING: Give a gentle overview of what\'s on their plate. Mention carried-over tasks, habits due, and any aging items. Brief, warm, grounding.' : ''}
 ${ctx.dayOfWeek === 0 && ctx.timeOfDay === 'evening' ? '- WEEKLY REFLECTION: Sunday evening. Offer a gentle reflection on their week — tasks done, focus time, streak. Not analytics, just acknowledgment. "How did it feel?" rather than "Great job!"' : ''}
 ${agingTasks.length > 0 ? '- STALE AWARENESS: You see tasks that have been sitting. Don\'t always mention them, but when you do, be curious not judgmental: "Still relevant, or ready to let it go?"' : ''}
+${totalPending === 0 && totalDone === 0 ? '- EMPTY STATE: The list is empty. This is an invitation moment, not a void. Invite gently: "What would feel good to finish today?" Use their patterns if you know them. If they have a streak, mention it. If they usually add tasks in the morning, acknowledge that. Suggest adding one thing — keep it light, not pushy.' : ''}
 
 Reply ONLY with raw JSON (no markdown, no code fences):
 {
@@ -6696,7 +6727,7 @@ Message guidelines:
 - Reference their patterns if relevant (peak hours, past wins)
 - If they've done a lot: acknowledge it genuinely
 - If overdue: gentle nudge, not alarm
-- If empty: light, not pushy
+- If empty: invite warmly — "What would feel good to finish?" not "Add a task"
 - If overwhelmed: empathetic, one clear next step
 - If aging tasks: curious, not nagging — "still on your mind?" not "you should do this"
 - If proactive observation: weave it naturally, don't lead with it
@@ -6716,7 +6747,8 @@ Rules:
 - 2-3 actions max, always end with dismiss
 - Labels: 2-4 words max
 - Use real IDs from the lists above — never invent IDs
-- For aging tasks, "Let it go" action should use delete_task with the task's ID`;
+- For aging tasks, "Let it go" action should use delete_task with the task's ID
+- For empty state, suggest an add_task action with a gentle prompt like "Add first task"`;
 }
 
 // ── Execute action ────────────────────────────────────────────────────────────

@@ -917,3 +917,59 @@ The user opens TODAY and the AI says:
 The companion *noticed* something meaningful. It didn't require a dashboard. It didn't gamify. It just *saw* — the way a friend would.
 
 ---
+
+## 14. Empty State as Invitation — The Void That Welcomes
+
+*Implemented: Mar 19, 2026 (v2.9.6)*
+
+### The Problem
+
+When the task list is empty, the app showed: "Nothing added yet."
+
+This is a **missed opportunity**. The empty state is the moment when the user is most receptive to starting something. Instead of a passive void, it should be an **invitation**.
+
+### The Insight
+
+An empty list doesn't mean "nothing happening." It means the user is at a beginning — fresh, open, ready to choose what matters.
+
+A good companion would say:
+> "What would feel good to finish today?"
+
+Not:
+> "Add a task."
+
+### Pattern-Aware Invitations
+
+The empty state prompt now uses memory to make the invitation personal:
+
+| User Pattern | Prompt |
+|---|---|
+| Has a streak going | "Day 5. What's on your mind?" |
+| Has focus time history | "Ready for some focused work? What should we start with?" |
+| Morning, experienced user | "What's one thing you'd feel good about finishing today?" |
+| Default (new user) | "Clean slate. What's one thing you want to do?" |
+
+### Implementation
+
+In `_aiIntroMessage()`, when `totalPending === 0 && habitsDue === 0 && ctx.tasks.done.length === 0`:
+
+1. Build a list of pattern-aware prompts based on memory
+2. Pick one with slight randomness (for variety)
+3. Phrase it as an invitation, not a command
+
+System prompt also includes guidance:
+> "EMPTY STATE: The list is empty. This is an invitation moment, not a void. Invite gently: 'What would feel good to finish today?' Use their patterns if you know them."
+
+### What This Creates
+
+User opens TODAY with empty list → AI says:
+
+> "Good morning. Day 7 of your streak. What matters today?"
+
+vs.
+
+> "Nothing here yet. Add a task."
+
+The first feels like a companion welcoming you. The second feels like an empty form.
+
+---
