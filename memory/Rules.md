@@ -1,5 +1,24 @@
 # TODAY — Critical Rules
-> **Read this first.** These rules must never break. ~50 lines of essentials.
+> **Read this first.** These rules must never break. ~60 lines of essentials.
+
+---
+
+## File Guide (what to read for each task)
+
+| Task | Read First | Then |
+|------|------------|------|
+| **Any change** | `Rules.md` | — |
+| CSS/colors/fonts | `Rules.md` | `design/Tokens.md` |
+| Animation | `Rules.md` | `design/Motion.md` |
+| UI component | `Rules.md` | `design/Components.md` |
+| Voice/copy | `Rules.md` | `design/Philosophy.md` |
+| Data/localStorage | `Rules.md` | `architecture/Data.md` |
+| Sync/backup | `Rules.md` | `architecture/Sync.md` |
+| AI companion | `Rules.md` | `architecture/AI.md` |
+| Focus/timer | `Rules.md` | `architecture/Focus.md` |
+| User psychology | `Rules.md` | `research/Psychology.md` |
+| API integrations | `Rules.md` | `research/Integrations.md` |
+| New feature | `Rules.md` | `Research.md` |
 
 ---
 
