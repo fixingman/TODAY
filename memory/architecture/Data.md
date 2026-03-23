@@ -19,6 +19,15 @@
 | `today_habit_completions` | JSON object | `{habitId: ['YYYY-MM-DD', ...]}` |
 | `today_deleted_habit_ids` | JSON array | IDs of deleted habits |
 
+### Zones (v5.0)
+
+| Key | Type | Description |
+|---|---|---|
+| `today_soon` | JSON array | SOON tasks: `{id, text, zone: 'soon', zoneChangedAt}` |
+| `today_past` | JSON array | PAST tasks: `{id, text, zone: 'past', status, zoneChangedAt}` |
+
+**Zone status values:** `done`, `let_go`, `aged`
+
 ### Integrations
 
 | Key | Type | Description |

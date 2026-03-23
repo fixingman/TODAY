@@ -24,8 +24,8 @@
 - [x] **PiP fix** — delay before open (prevents Cmd+H focus steal), close+reopen on every minimize
 
 ### ⬜ TODO: Core Functionality
-- [ ] **Dropbox sync** — add `today_soon` and `today_past` to backup/restore
-- [ ] **Backup schema update** — bump to v5.0, include zones
+- [x] **Dropbox sync** — add `today_soon` and `today_past` to backup/restore ✓
+- [x] **Backup schema update** — bump to v5.0, include zones ✓
 - [ ] **Aging: TODAY → PAST** — 7+ days inactive → auto-archive (status: `aged`)
 - [ ] **Aging: SOON → PAST** — 30+ days → auto-archive (status: `aged`)
 - [ ] **Purge: PAST cleanup** — remove `let_go`/`aged` items after 30 days
@@ -46,9 +46,9 @@
 ## Pending Features
 
 ### iOS Keyboard Fix
-**From:** Session 11
-**Status:** Research done, needs testing on real iOS device
-**Details:** Pure-CSS approach to fix viewport issues when keyboard opens
+**From:** Session 11, implemented v2.11.2
+**Status:** Implemented, needs testing on real iOS device
+**Details:** visualViewport API positions input bar above keyboard. Black fill below bar when not focused.
 
 ### Todoist Integration
 **From:** Research.md §2

@@ -49,24 +49,35 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
 
 ---
 
-## Backup Schema (v4.0)
+## Backup Schema (v5.0)
 
 ```javascript
 {
-  version: '4.0',
-  manual: [{id, text, lastActive?}, ...],
+  version: '5.0',
+  saved_at: 'ISO string',
+  // Tasks
+  manual_tasks: [{id, text, lastActive?}, ...],
+  done_ids: ['id1', 'id2', ...],
+  deleted_ids: [{id, at}, ...],
+  checked_ids: [{id, at}, ...],
+  unchecked_ids: [{id, at}, ...],
+  // Zones (v5.0)
+  soon_tasks: [{id, text, zone: 'soon', zoneChangedAt}, ...],
+  past_tasks: [{id, text, zone: 'past', status, zoneChangedAt}, ...],
+  // Habits
   habits: [{id, name, created_at, focusSessions?}, ...],
-  habitCompletions: {habitId: ['YYYY-MM-DD', ...]},
-  done: ['id1', 'id2', ...],
-  deleted: [{id, at}, ...],
-  checked: [{id, at}, ...],
-  unchecked: [{id, at}, ...],
-  deletedHabits: ['id1', ...],
-  trelloFocus: {cardId: sessionCount},
-  memory: {totalTasksCompleted, patterns: {...}},
-  exportedAt: 'ISO string'
+  habit_completions: {habitId: ['YYYY-MM-DD', ...]},
+  deleted_habit_ids: ['id1', ...],
+  // Stats
+  stat_focus_mins_today: '0',
+  stat_streak: '1',
+  stat_tasks_done_today: '0',
+  // Memory
+  memory: {totalTasksCompleted, patterns: {...}, aiName, moments: [...]}
 }
 ```
+
+**Zone status values:** `done`, `let_go`, `aged`
 
 ---
 
@@ -91,11 +102,13 @@ All timestamps are **ISO strings** (`new Date().toISOString()`).
 
 | Data Type | Resolution |
 |-----------|------------|
-| Task list | Union by ID |
-| Done IDs | Union |
+| Task list | Union by ID, remote order wins |
+| Done IDs | Union with check/uncheck timestamps |
 | Deleted IDs | Union (excluded from tasks) |
-| Stats | Last-write-wins |
-| Memory | Merge patterns, sum totals |
+| SOON tasks | Union by ID, newer zoneChangedAt wins |
+| PAST tasks | Union by ID, newer zoneChangedAt wins, keep last 100 |
+| Stats | Max wins |
+| Memory | Merge patterns, max of counters, union of moments |
 
 ---
 
