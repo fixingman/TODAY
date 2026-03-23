@@ -745,6 +745,117 @@
     color: var(--muted);
   }
 
+  /* ── Zone sections (SOON / PAST) ────────────────────────────────────── */
+  .zone-section {
+    margin: var(--space-4) 0;
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-3);
+  }
+  .zone-header {
+    cursor: pointer;
+    user-select: none;
+    padding: var(--space-2) 0;
+    margin-bottom: 0;
+  }
+  .zone-header:hover {
+    opacity: 0.8;
+  }
+  .zone-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  .zone-indicator.soon {
+    background: var(--highlight);
+  }
+  .zone-indicator.past {
+    background: var(--muted);
+  }
+  .zone-chevron {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: var(--text-xs);
+    transition: transform var(--dur-fast);
+  }
+  .zone-chevron.open {
+    transform: rotate(90deg);
+  }
+  .zone-list {
+    margin-top: var(--space-2);
+  }
+  .zone-list .task {
+    opacity: 0.6;
+  }
+  .zone-list .task:hover {
+    opacity: 0.85;
+  }
+  #pastList .task.done .task-text {
+    text-decoration: line-through;
+  }
+  #pastList .task.let-go,
+  #pastList .task.aged {
+    opacity: 0.4;
+  }
+  .task .zone-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--muted);
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  /* ── Evening triage bar ─────────────────────────────────────────────── */
+  #triageBar {
+    position: fixed;
+    bottom: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface2);
+    border: 1px solid var(--accent-glow);
+    border-radius: var(--radius-xl);
+    padding: var(--space-3) var(--space-4);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    z-index: var(--z-modal);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    max-width: 90vw;
+  }
+  #triageBar.hidden {
+    display: none;
+  }
+  .triage-msg {
+    font-size: var(--text-sm2);
+    color: var(--text);
+  }
+  .triage-actions {
+    display: flex;
+    gap: var(--space-2);
+  }
+  .triage-btn {
+    font-size: var(--text-xs);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: all var(--dur-fast);
+  }
+  .triage-btn:hover {
+    background: var(--surface);
+  }
+  .triage-btn.primary {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .triage-btn.primary:hover {
+    background: var(--accent-hover);
+  }
+
   /* Task item */
   /* ── Component: Task ───────────────────────────────────────────────── */
   .task-list {
@@ -2390,6 +2501,17 @@
     </div>
   </div>
 
+  <!-- SOON section (collapsed by default) -->
+  <div class="section zone-section" id="soonSection" style="display:none">
+    <div class="section-header zone-header" onclick="toggleZone('soon')">
+      <div class="zone-indicator soon"></div>
+      <div class="section-label">Soon</div>
+      <div class="section-count" id="soonCount">0</div>
+      <div class="zone-chevron" id="soonChevron">▸</div>
+    </div>
+    <div class="task-list zone-list" id="soonList" style="display:none"></div>
+  </div>
+
   <!-- Trello section -->
   <div class="section" id="trelloSection">
     <div class="section-header">
@@ -2410,6 +2532,28 @@
     <div class="empty" id="manualEmpty" style="display:none">A clean slate</div>
   </div>
 
+  <!-- PAST section (collapsed by default) -->
+  <div class="section zone-section" id="pastSection" style="display:none">
+    <div class="section-header zone-header" onclick="toggleZone('past')">
+      <div class="zone-indicator past"></div>
+      <div class="section-label">Past</div>
+      <div class="section-count" id="pastCount">0</div>
+      <div class="zone-chevron" id="pastChevron">▸</div>
+    </div>
+    <div class="task-list zone-list" id="pastList" style="display:none"></div>
+  </div>
+
+</div>
+
+<!-- Evening triage bar (appears after 8pm with undone tasks) -->
+<div id="triageBar" class="hidden">
+  <span class="triage-msg"><span id="triageCount">0</span> didn't happen</span>
+  <div class="triage-actions">
+    <button class="triage-btn primary" onclick="triageAction('keep')">Keep</button>
+    <button class="triage-btn" onclick="triageAction('defer')">Soon</button>
+    <button class="triage-btn" onclick="triageAction('letgo')">Let go</button>
+    <button class="triage-btn" onclick="triageDismiss()" title="Dismiss">×</button>
+  </div>
 </div>
 
 <!-- Add task bar: outside .app so transforms on .section don't break position:fixed -->
@@ -2464,11 +2608,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.10.0';
+const APP_VERSION   = '2.11.0';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.11.0': 'Zones prototype: SOON (boomerang) and PAST (archive) sections. Evening triage bar after 8pm. Done tasks auto-archive to PAST at new day.',
   '2.10.0': 'Idle companion: 7 creatures (dino, fish, bird, cat, snail, crab, star) after 45s idle. Fixed Claude API key link.',
   '2.9.9': 'All-done reward: accent glow pulse, extra particle burst, variable warm AI messages. Finishing feels felt.',
   '2.9.8': 'Energy rhythm: AI considers peak hour when suggesting tasks. "It\'s your peak — good moment for that deep work."',
@@ -2653,6 +2798,196 @@ let trelloTasks = [];
 let trelloConnected = false; // cached — avoids localStorage reads in render hot path
 let manualTasks = (() => { try { return JSON.parse(localStorage.getItem('today_manual') || '[]'); } catch(e) { return []; } })();
 let doneIds     = new Set((() => { try { return JSON.parse(localStorage.getItem('today_done') || '[]'); } catch(e) { return []; } })());
+
+// ─── Zones: Soon & Past (prototype) ──────────────────────────────────────────
+let soonTasks = (() => { try { return JSON.parse(localStorage.getItem('today_soon') || '[]'); } catch(e) { return []; } })();
+let pastTasks = (() => { try { return JSON.parse(localStorage.getItem('today_past') || '[]'); } catch(e) { return []; } })();
+let triageDismissedToday = localStorage.getItem('triage_dismissed') === new Date().toDateString();
+
+function _saveSoon() { localStorage.setItem('today_soon', JSON.stringify(soonTasks)); }
+function _savePast() { localStorage.setItem('today_past', JSON.stringify(pastTasks)); }
+
+function toggleZone(zone) {
+  const list = document.getElementById(zone + 'List');
+  const chevron = document.getElementById(zone + 'Chevron');
+  const isOpen = list.style.display !== 'none';
+  list.style.display = isOpen ? 'none' : 'block';
+  chevron.classList.toggle('open', !isOpen);
+}
+
+function renderSoon() {
+  const section = document.getElementById('soonSection');
+  const list = document.getElementById('soonList');
+  const count = document.getElementById('soonCount');
+  
+  if (soonTasks.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  
+  section.style.display = 'block';
+  count.textContent = soonTasks.length;
+  
+  list.innerHTML = soonTasks.map(t => `
+    <div class="task" data-id="${t.id}">
+      <span class="task-text">${_escapeHtml(t.text)}</span>
+      <button class="zone-badge" onclick="pullFromSoon('${t.id}')" title="Pull back to today">↩</button>
+    </div>
+  `).join('');
+}
+
+function renderPast() {
+  const section = document.getElementById('pastSection');
+  const list = document.getElementById('pastList');
+  const count = document.getElementById('pastCount');
+  
+  // Only show last 20 for performance
+  const visible = pastTasks.slice(0, 20);
+  
+  if (visible.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  
+  section.style.display = 'block';
+  count.textContent = pastTasks.length;
+  
+  list.innerHTML = visible.map(t => {
+    const statusClass = t.status || '';
+    const statusBadge = t.status === 'done' ? '✓' : t.status === 'let_go' ? '○' : '◌';
+    return `
+      <div class="task ${statusClass}" data-id="${t.id}">
+        <span class="task-check-icon" style="opacity:0.5">${statusBadge}</span>
+        <span class="task-text">${_escapeHtml(t.text)}</span>
+        <span class="zone-badge">${t.status || 'past'}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function pullFromSoon(id) {
+  const task = soonTasks.find(t => t.id === id);
+  if (!task) return;
+  
+  // Remove from SOON
+  soonTasks = soonTasks.filter(t => t.id !== id);
+  _saveSoon();
+  
+  // Add to manual tasks with returnedFrom marker
+  task.zone = 'today';
+  task.returnedFrom = 'soon';
+  task.zoneChangedAt = new Date().toISOString();
+  manualTasks.unshift(task);
+  localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+  
+  renderSoon();
+  renderManual();
+  updateStats();
+  _haptic('light');
+}
+
+function moveToSoon(id) {
+  const task = manualTasks.find(t => t.id === id);
+  if (!task) return;
+  
+  // Remove from TODAY
+  manualTasks = manualTasks.filter(t => t.id !== id);
+  localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+  
+  // Add to SOON
+  task.zone = 'soon';
+  task.zoneChangedAt = new Date().toISOString();
+  delete task.returnedFrom;
+  soonTasks.unshift(task);
+  _saveSoon();
+  
+  renderManual();
+  renderSoon();
+  updateStats();
+  checkTriageBar();
+}
+
+function moveToPast(id, status = 'let_go') {
+  const task = manualTasks.find(t => t.id === id);
+  if (!task) return;
+  
+  // Remove from TODAY
+  manualTasks = manualTasks.filter(t => t.id !== id);
+  localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+  
+  // Add to PAST
+  task.zone = 'past';
+  task.status = status;
+  task.zoneChangedAt = new Date().toISOString();
+  pastTasks.unshift(task);
+  _savePast();
+  
+  renderManual();
+  renderPast();
+  updateStats();
+  checkTriageBar();
+}
+
+// Evening triage bar
+function checkTriageBar() {
+  const hour = new Date().getHours();
+  const undone = manualTasks.filter(t => !doneIds.has(t.id));
+  const bar = document.getElementById('triageBar');
+  
+  // Show after 8pm with undone tasks, unless dismissed today
+  if (hour >= 20 && undone.length > 0 && !triageDismissedToday) {
+    document.getElementById('triageCount').textContent = undone.length;
+    bar.classList.remove('hidden');
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+function triageAction(action) {
+  const undone = manualTasks.filter(t => !doneIds.has(t.id));
+  
+  if (action === 'keep') {
+    // Keep all — just dismiss the bar
+    triageDismiss();
+  } else if (action === 'defer') {
+    // Move all undone to SOON
+    undone.forEach(t => {
+      t.zone = 'soon';
+      t.zoneChangedAt = new Date().toISOString();
+      soonTasks.unshift(t);
+    });
+    manualTasks = manualTasks.filter(t => doneIds.has(t.id));
+    localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+    _saveSoon();
+    renderManual();
+    renderSoon();
+    updateStats();
+    triageDismiss();
+    _haptic('success');
+  } else if (action === 'letgo') {
+    // Move all undone to PAST
+    undone.forEach(t => {
+      t.zone = 'past';
+      t.status = 'let_go';
+      t.zoneChangedAt = new Date().toISOString();
+      pastTasks.unshift(t);
+    });
+    manualTasks = manualTasks.filter(t => doneIds.has(t.id));
+    localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+    _savePast();
+    renderManual();
+    renderPast();
+    updateStats();
+    triageDismiss();
+    _haptic('success');
+  }
+}
+
+function triageDismiss() {
+  triageDismissedToday = true;
+  localStorage.setItem('triage_dismissed', new Date().toDateString());
+  document.getElementById('triageBar').classList.add('hidden');
+}
 
 // ─── Memory System ────────────────────────────────────────────────────────────
 // The AI's persistent memory — patterns, wins, preferences learned over time.
@@ -2993,7 +3328,17 @@ function applyNewDayCleanup() {
   localStorage.setItem('stat_tasks_done_today', '0');
   localStorage.setItem('stat_focus_mins_today', '0');
 
-  // Remove manual tasks that were marked done — completed tasks don't carry over
+  // Move done manual tasks to PAST (zone model)
+  const doneTasks = manualTasks.filter(t => doneIds.has(t.id));
+  doneTasks.forEach(t => {
+    t.zone = 'past';
+    t.status = 'done';
+    t.zoneChangedAt = new Date().toISOString();
+    pastTasks.unshift(t);
+  });
+  if (doneTasks.length > 0) _savePast();
+
+  // Remove done tasks from TODAY
   manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));
 
@@ -3009,6 +3354,10 @@ function applyNewDayCleanup() {
   localStorage.removeItem('today_deleted_ids');
   localStorage.removeItem('today_unchecked_ids');
   localStorage.removeItem('today_checked_ids');
+  
+  // Reset triage dismissed flag
+  localStorage.removeItem('triage_dismissed');
+  triageDismissedToday = false;
 
   // Habits: completions are append-only ISO date strings — no data is deleted.
   // Re-render so the new day's dot appears and yesterday's checks show as history.
@@ -3035,7 +3384,10 @@ function init() {
   // so the clean state is applied to the freshest data, not overwritten by the pull.
 
   renderManual();
+  renderSoon();
+  renderPast();
   updateStats();
+  checkTriageBar();
 
   if (saved.boardId && trelloToken) {
     setTrelloIcon(true);
@@ -6544,7 +6896,10 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
 
 
 // ─── Service Worker registration + auto-update ────────────────────────────────
-if ('serviceWorker' in navigator) {
+// Only register SW on actual deployment domains, skip preview iframes and local dev
+const SW_ALLOWED_HOSTS = ['today-here.netlify.app', 'dev--today-here.netlify.app', 'localhost', '127.0.0.1'];
+const canRegisterSW = SW_ALLOWED_HOSTS.some(h => location.hostname === h || location.hostname.endsWith('.' + h));
+if ('serviceWorker' in navigator && canRegisterSW) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then(reg => {

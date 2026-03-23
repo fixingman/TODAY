@@ -1275,6 +1275,30 @@ Actions available:
 
 *Research: Mar 23, 2026*
 
+### Current Behavior (Pre-Temporal Model)
+
+Before implementing Past/Today/Soon, here's what currently happens at new day:
+
+| Task State | Current Behavior |
+|------------|------------------|
+| **Checked (done)** | Removed from list, cleared from storage |
+| **Unchecked + had focus session** | Stays in TODAY (lastActive reset) |
+| **Unchecked + had pomodoro** | Stays in TODAY (lastActive reset) |
+| **Unchecked + no focus** | Stays in TODAY (ages naturally) |
+| **Trello cards** | Re-fetched fresh daily |
+
+**Key functions:**
+- `applyNewDayCleanup()` — runs on first open of new day
+- Removes manual tasks where `doneIds.has(t.id)`
+- Clears `today_trello_focus` (pomodoro counts reset)
+- Preserves unchecked manual tasks (they carry over)
+- `lastActive` determines aging opacity (7+ days = stale)
+
+**What this means for temporal model:**
+- Done tasks already auto-clear → maps to PAST (status: done)
+- Unchecked tasks currently linger → need triage to SOON or PAST
+- Focus session resets `lastActive` → prevents aging
+
 ### The Concept
 
 Tasks exist in three temporal zones based on **attention state**, not dates:
@@ -1333,6 +1357,33 @@ today_past     // [{task}, ...] where zone: 'past'
 // Or unified approach:
 today_all_tasks // [{task}, ...] with zone property
 ```
+
+### Task State Transitions (New Model)
+
+How each task state maps to the temporal model:
+
+| Task State | End of Day Behavior | Zone | Status |
+|------------|---------------------|------|--------|
+| **Checked (done)** | Auto-archive | PAST | `done` |
+| **Unchecked + focus session today** | Triage prompt (likely keep) | — | — |
+| **Unchecked + pomodoro today** | Triage prompt (likely keep) | — | — |
+| **Unchecked + no activity** | Triage prompt | — | — |
+| **Arrived from SOON** | Treated as normal TODAY task | — | — |
+| **Aged 7+ days** | Auto-archive | PAST | `aged` |
+
+**Triage decisions (user chooses):**
+- "Keep in today" → stays in TODAY
+- "Defer to soon" → moves to SOON
+- "Let go" → moves to PAST (status: `let_go`)
+
+**AI enhancement:** When triaging, AI can notice activity:
+> "'Finish report' had 2 pomodoro sessions today — keep working on it?"
+
+**Trello cards:**
+- Still re-fetch daily (external source of truth)
+- Done state syncs back to Trello
+- Focus sessions tracked in `today_trello_focus`
+- Not subject to aging (refreshed daily)
 
 ### Zone Definitions
 
