@@ -8803,7 +8803,7 @@ function _aiDismissProactive() {
   // ══════════════════════════════════════════════════════════════════════════
   // Picture-in-Picture Focus Widget
   // Always-on-top floating timer using Document PiP API (Chrome 116+, FF 148+)
-  // Auto-opens when leaving tab during focus, stays open until focus ends
+  // Auto-opens when leaving tab during focus, auto-closes on return
   // ══════════════════════════════════════════════════════════════════════════
   (function initPiP() {
     // Feature detection — bail if not supported
@@ -8812,25 +8812,6 @@ function _aiDismissProactive() {
     let pipWindow = null;
     let pipFillEl = null;
     let pipTimeEl = null;
-    let hasUserGesture = false; // Track if we have a valid user gesture
-    let isHiding = false; // Prevent focus stealing during hide
-
-    // Detect when app is being hidden (Cmd+H) to prevent focus stealing
-    document.addEventListener('visibilitychange', function() {
-      if (document.hidden) {
-        isHiding = true;
-        setTimeout(() => { isHiding = false; }, 500); // Reset after hide settles
-      }
-    }, true); // Capture phase
-
-    // Capture user gesture when starting focus mode
-    // This allows us to open PIP later when tab is hidden
-    document.addEventListener('click', function(e) {
-      if (e.target.closest('.task-focus-btn, .habit-focus-btn, .focus-toggle-btn, [onclick*="start("]')) {
-        hasUserGesture = true;
-        // Gesture expires after ~5 seconds, but we'll try anyway
-      }
-    }, true);
 
     // Auto-open PiP when leaving tab during focus mode
     document.addEventListener('visibilitychange', async function() {
@@ -8840,47 +8821,29 @@ function _aiDismissProactive() {
       if (st.rem <= 0) return; // Timer complete, no need for PiP
       
       if (document.hidden) {
-        // Leaving tab — open PiP if not already open
+        // Leaving tab — open PiP (requires prior user gesture from starting focus)
         if (!pipWindow || pipWindow.closed) {
           await openPiP();
         }
-      }
-      // When returning: keep PIP open, don't close it
-      // User can close it manually or it closes when focus ends
-    });
-    
-    // Also try on window blur (catches minimize)
-    // But only if we're actually switching away, not just hiding
-    window.addEventListener('blur', async function() {
-      if (!uiTaskId) return;
-      const st = getState(uiTaskId);
-      if (st.rem <= 0) return;
-      
-      // Wait a bit to see if document becomes hidden
-      // Don't try to open PIP on blur alone — it might steal focus back
-      setTimeout(async () => {
-        // Only open PIP if document is actually hidden (tab switched/minimized)
-        // Not just blur (clicking another element)
-        if (document.hidden && (!pipWindow || pipWindow.closed)) {
-          try {
-            await openPiP();
-          } catch (e) {
-            // Silently fail — no user gesture available
-          }
+      } else {
+        // Returning to tab — close PiP and reset reference
+        if (pipWindow && !pipWindow.closed) {
+          pipWindow.close();
         }
-      }, 200);
+        pipWindow = null;
+        pipFillEl = null;
+        pipTimeEl = null;
+      }
     });
 
     async function openPiP() {
       if (!uiTaskId) return;
-      if (pipWindow && !pipWindow.closed) return; // Already open
-      if (isHiding) return; // Don't steal focus during Cmd+H
 
       try {
         pipWindow = await documentPictureInPicture.requestWindow({
           width: 300,
           height: 200,
-          disallowReturnToOpener: false // Allow clicking to return
+          disallowReturnToOpener: true
         });
 
         const taskName = getTaskName(uiTaskId);
@@ -9018,18 +8981,17 @@ function _aiDismissProactive() {
 
         // Wire up controls
         pipWindow.document.getElementById('pipOpen').addEventListener('click', function() {
-          // This click IS a user gesture — capture it for potential PIP reopen
-          hasUserGesture = true;
-          // Close PIP and focus main window
-          if (pipWindow && !pipWindow.closed) {
-            pipWindow.close();
-          }
+          // Close PIP first, then focus main window
+          const pw = pipWindow;
+          pipWindow = null;
+          pipFillEl = null;
+          pipTimeEl = null;
+          if (pw) pw.close();
           window.focus();
         });
 
         const pauseBtn = pipWindow.document.getElementById('pipPause');
         pauseBtn.addEventListener('click', function() {
-          hasUserGesture = true; // Capture gesture
           toggle();
           const newSt = getState(uiTaskId);
           this.textContent = newSt.paused ? 'Resume' : 'Breathe';
