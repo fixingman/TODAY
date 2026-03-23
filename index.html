@@ -2695,13 +2695,13 @@
 </div>
 
 <!-- Triage trigger bar (minimized state) -->
-<div id="triageBar" class="hidden" onclick="triageExpand()">
+<div id="triageBar" class="hidden" style="opacity:0" onclick="triageExpand()">
   <span class="triage-msg"><span id="triageCount">0</span> didn't happen</span>
   <button class="triage-btn primary">Review</button>
 </div>
 
 <!-- Add task bar: outside .app so transforms on .section don't break position:fixed -->
-<div class="add-task-row" id="addTaskBar">
+<div class="add-task-row" id="addTaskBar" style="opacity:0">
   <div style="position:relative;flex:1;min-width:0;">
     <input class="add-task-input" id="newTask" maxlength="500" type="text"
       placeholder="What's on your mind?"
@@ -2752,11 +2752,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.11.3';
+const APP_VERSION   = '2.11.4';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.11.4': 'Splash polish: addTaskBar and triageBar hidden during splash (no flash). Revealed after splash dismissal.',
   '2.11.3': 'Fix: missing _escapeHtml and _getAgeDays functions caused app freeze and triage failure.',
   '2.11.2': 'Mobile keyboard fix: input bar stays visible above keyboard (visualViewport API). Black fill below bar when not focused.',
   '2.11.1': 'Zones Dropbox sync: SOON/PAST now sync cross-device (schema v5.0). Union merge by task ID, newer zoneChangedAt wins.',
@@ -7176,6 +7177,18 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
             el.style.transform = 'translateY(0)';
           }, i * 80);
         });
+        
+        // Reveal fixed elements outside main-app
+        const addTaskBar = document.getElementById('addTaskBar');
+        const triageBar = document.getElementById('triageBar');
+        if (addTaskBar) {
+          addTaskBar.style.transition = 'opacity 300ms ease';
+          addTaskBar.style.opacity = '1';
+        }
+        if (triageBar) {
+          triageBar.style.transition = 'opacity 300ms ease';
+          triageBar.style.opacity = '1';
+        }
 
         // Re-trigger progress bar after header has appeared
         setTimeout(() => {
