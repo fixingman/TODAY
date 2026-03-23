@@ -806,7 +806,140 @@
     flex-shrink: 0;
   }
 
-  /* ── Evening triage bar ─────────────────────────────────────────────── */
+  /* ── Evening triage ──────────────────────────────────────────────────── */
+  #triageOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: var(--z-modal);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: var(--space-4);
+  }
+  #triageOverlay.hidden {
+    display: none;
+  }
+  #triagePanel {
+    background: var(--surface2);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    width: 100%;
+    max-width: 420px;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: var(--space-4);
+    animation: slideUp 0.25s var(--ease-out);
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .triage-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+  }
+  #triageTitle {
+    font-size: var(--text-md);
+    font-weight: 500;
+  }
+  .triage-header-btn {
+    font-size: var(--text-xs);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .triage-header-btn:hover {
+    background: var(--surface);
+    color: var(--text);
+  }
+  .triage-task {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3);
+    margin-bottom: var(--space-2);
+    transition: opacity var(--dur-fast);
+  }
+  .triage-task.decided {
+    opacity: 0.5;
+  }
+  .triage-task-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-2);
+  }
+  .triage-task-check {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .triage-task-text {
+    flex: 1;
+    font-size: var(--text-task);
+  }
+  .triage-task-meta {
+    font-size: var(--text-xs);
+    color: var(--muted);
+  }
+  .triage-task-meta.focus {
+    color: var(--accent);
+  }
+  .triage-task-badge {
+    font-size: var(--text-xs);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+  }
+  .triage-task-badge.kept { color: var(--accent); }
+  .triage-task-badge.soon { color: var(--highlight); }
+  .triage-task-badge.letgo { color: var(--muted); }
+  .triage-actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-left: 28px;
+  }
+  .triage-btn {
+    flex: 1;
+    font-size: var(--text-xs);
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    border: none;
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    transition: all var(--dur-fast);
+  }
+  .triage-btn:hover {
+    background: var(--border);
+  }
+  .triage-btn.keep {
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+  .triage-btn.keep:hover {
+    background: var(--accent-hover);
+  }
+  .triage-complete-msg {
+    font-size: var(--text-md);
+    text-align: center;
+    margin-bottom: var(--space-2);
+  }
+  #triageSummary {
+    font-size: var(--text-sm2);
+    color: var(--muted);
+    text-align: center;
+  }
+  #triageComplete.hidden {
+    display: none;
+  }
+  /* Trigger bar (minimized) */
   #triageBar {
     position: fixed;
     bottom: 70px;
@@ -822,6 +955,10 @@
     z-index: var(--z-modal);
     box-shadow: 0 4px 24px rgba(0,0,0,0.4);
     max-width: 90vw;
+    cursor: pointer;
+  }
+  #triageBar:hover {
+    border-color: var(--accent);
   }
   #triageBar.hidden {
     display: none;
@@ -830,30 +967,13 @@
     font-size: var(--text-sm2);
     color: var(--text);
   }
-  .triage-actions {
-    display: flex;
-    gap: var(--space-2);
-  }
-  .triage-btn {
-    font-size: var(--text-xs);
+  #triageBar .triage-btn.primary {
+    background: var(--accent-dim);
+    border: none;
+    color: var(--accent);
     padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-md);
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--text);
-    cursor: pointer;
-    transition: all var(--dur-fast);
-  }
-  .triage-btn:hover {
-    background: var(--surface);
-  }
-  .triage-btn.primary {
-    background: var(--accent-dim);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .triage-btn.primary:hover {
-    background: var(--accent-hover);
+    font-size: var(--text-xs);
   }
 
   /* Task item */
@@ -1508,24 +1628,38 @@
     .btn-icon { width: 32px; height: 32px; font-size: var(--text-md); }
 
     /* Sticky add-task bar — fixed to bottom of viewport */
-    /* Safari auto-scrolls to show focused input — no JS needed */
     .add-task-row {
       position: fixed;
-      bottom: env(safe-area-inset-bottom, 0);
+      bottom: 0;
       left: 0;
       right: 0;
       z-index: var(--z-header);
       margin: 0;
       padding: var(--space-3) var(--space-4);
-      background: var(--bg-glass);
-      -webkit-backdrop-filter: blur(16px) saturate(1.4);
-      backdrop-filter: blur(16px) saturate(1.4);
+      padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0));
+      background: var(--bg);
+      /* Solid bg, no blur needed on mobile */
     }
     
-    /* When keyboard is open, safe-area is hidden by keyboard */
+    /* Black fill below input bar — makes it look attached to bottom */
+    .add-task-row::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      height: 100px; /* Generous fill for any screen */
+      background: var(--bg);
+      pointer-events: none;
+    }
+    
+    /* When keyboard is open: position above keyboard, remove bottom fill */
     .add-task-row.keyboard-open {
-      bottom: 0;
-      padding-bottom: var(--space-2);
+      /* Position set by JS via visualViewport */
+      padding-bottom: var(--space-3);
+    }
+    .add-task-row.keyboard-open::after {
+      display: none;
     }
     
     /* Mobile: single star only, no hover expansion */
@@ -2545,19 +2679,29 @@
 
 </div>
 
-<!-- Evening triage bar (appears after 8pm with undone tasks) -->
-<div id="triageBar" class="hidden">
-  <span class="triage-msg"><span id="triageCount">0</span> didn't happen</span>
-  <div class="triage-actions">
-    <button class="triage-btn primary" onclick="triageAction('keep')">Keep</button>
-    <button class="triage-btn" onclick="triageAction('defer')">Soon</button>
-    <button class="triage-btn" onclick="triageAction('letgo')">Let go</button>
-    <button class="triage-btn" onclick="triageDismiss()" title="Dismiss">×</button>
+<!-- Evening triage panel (appears after 8pm with undone tasks) -->
+<div id="triageOverlay" class="hidden" onclick="if(event.target===this)triageMinimize()">
+  <div id="triagePanel">
+    <div class="triage-header">
+      <span id="triageTitle">3 didn't happen</span>
+      <button class="triage-header-btn" onclick="triageKeepAll()">Keep all</button>
+    </div>
+    <div id="triageList"></div>
+    <div id="triageComplete" class="hidden">
+      <div class="triage-complete-msg">All sorted</div>
+      <div id="triageSummary"></div>
+    </div>
   </div>
 </div>
 
+<!-- Triage trigger bar (minimized state) -->
+<div id="triageBar" class="hidden" style="opacity:0" onclick="triageExpand()">
+  <span class="triage-msg"><span id="triageCount">0</span> didn't happen</span>
+  <button class="triage-btn primary">Review</button>
+</div>
+
 <!-- Add task bar: outside .app so transforms on .section don't break position:fixed -->
-<div class="add-task-row" id="addTaskBar">
+<div class="add-task-row" id="addTaskBar" style="opacity:0">
   <div style="position:relative;flex:1;min-width:0;">
     <input class="add-task-input" id="newTask" maxlength="500" type="text"
       placeholder="What's on your mind?"
@@ -2608,12 +2752,18 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.11.0';
+const APP_VERSION   = '2.11.6';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
-  '2.11.0': 'Zones prototype: SOON (boomerang) and PAST (archive) sections. Evening triage bar after 8pm. Done tasks auto-archive to PAST at new day.',
+  '2.11.6': 'Housekeeping: removed orphaned stat_tasks_added_today code, updated schema docs to v5.0.',
+  '2.11.5': 'PiP: window title now shows "✦ TODAY". Improved reliability: tries opening immediately + fallback delay.',
+  '2.11.4': 'Splash polish: addTaskBar and triageBar hidden during splash (no flash). Revealed after splash dismissal.',
+  '2.11.3': 'Fix: missing _escapeHtml and _getAgeDays functions caused app freeze and triage failure.',
+  '2.11.2': 'Mobile keyboard fix: input bar stays visible above keyboard (visualViewport API). Black fill below bar when not focused.',
+  '2.11.1': 'Zones Dropbox sync: SOON/PAST now sync cross-device (schema v5.0). Union merge by task ID, newer zoneChangedAt wins.',
+  '2.11.0': 'Zones: SOON/PAST sections, per-task triage. Flow rate fixed: done/total. PiP: delay before open, reopens on minimize.',
   '2.10.0': 'Idle companion: 7 creatures (dino, fish, bird, cat, snail, crab, star) after 45s idle. Fixed Claude API key link.',
   '2.9.9': 'All-done reward: accent glow pulse, extra particle burst, variable warm AI messages. Finishing feels felt.',
   '2.9.8': 'Energy rhythm: AI considers peak hour when suggesting tasks. "It\'s your peak — good moment for that deep work."',
@@ -2830,7 +2980,7 @@ function renderSoon() {
   
   list.innerHTML = soonTasks.map(t => `
     <div class="task" data-id="${t.id}">
-      <span class="task-text">${_escapeHtml(t.text)}</span>
+      <span class="task-text">${esc(t.text)}</span>
       <button class="zone-badge" onclick="pullFromSoon('${t.id}')" title="Pull back to today">↩</button>
     </div>
   `).join('');
@@ -2858,7 +3008,7 @@ function renderPast() {
     return `
       <div class="task ${statusClass}" data-id="${t.id}">
         <span class="task-check-icon" style="opacity:0.5">${statusBadge}</span>
-        <span class="task-text">${_escapeHtml(t.text)}</span>
+        <span class="task-text">${esc(t.text)}</span>
         <span class="zone-badge">${t.status || 'past'}</span>
       </div>
     `;
@@ -2928,7 +3078,9 @@ function moveToPast(id, status = 'let_go') {
   checkTriageBar();
 }
 
-// Evening triage bar
+// Evening triage (per-task)
+let triageDecisions = {}; // {taskId: 'kept'|'soon'|'letgo'}
+
 function checkTriageBar() {
   const hour = new Date().getHours();
   const undone = manualTasks.filter(t => !doneIds.has(t.id));
@@ -2943,49 +3095,154 @@ function checkTriageBar() {
   }
 }
 
-function triageAction(action) {
+function triageExpand() {
+  triageDecisions = {};
   const undone = manualTasks.filter(t => !doneIds.has(t.id));
   
-  if (action === 'keep') {
-    // Keep all — just dismiss the bar
-    triageDismiss();
-  } else if (action === 'defer') {
-    // Move all undone to SOON
-    undone.forEach(t => {
+  document.getElementById('triageBar').classList.add('hidden');
+  document.getElementById('triageTitle').textContent = `${undone.length} didn't happen`;
+  document.getElementById('triageComplete').classList.add('hidden');
+  
+  renderTriageList();
+  document.getElementById('triageOverlay').classList.remove('hidden');
+}
+
+function renderTriageList() {
+  const undone = manualTasks.filter(t => !doneIds.has(t.id));
+  const list = document.getElementById('triageList');
+  
+  list.innerHTML = undone.map(t => {
+    const decision = triageDecisions[t.id];
+    const decided = decision ? 'decided' : '';
+    const created = t.lastActive || t.createdAt || _getCreatedFromId(t.id);
+    const age = _getAgeDays(created);
+    const ageText = age === 0 ? 'today' : age === 1 ? 'yesterday' : `${age} days`;
+    
+    // Check for focus sessions today
+    const focusCount = parseInt(localStorage.getItem('today_trello_focus') ? 
+      (JSON.parse(localStorage.getItem('today_trello_focus'))[t.id] || 0) : 0);
+    const metaClass = focusCount > 0 ? 'focus' : '';
+    const metaText = focusCount > 0 ? `${focusCount} ⏱` : ageText;
+    
+    if (decision) {
+      const badgeClass = decision;
+      const badgeText = decision === 'kept' ? 'kept' : decision === 'soon' ? '↩ soon' : 'let go';
+      return `
+        <div class="triage-task decided" data-id="${t.id}">
+          <div class="triage-task-row">
+            <div class="triage-task-check"></div>
+            <span class="triage-task-text">${esc(t.text)}</span>
+            <span class="triage-task-badge ${badgeClass}">${badgeText}</span>
+          </div>
+        </div>
+      `;
+    }
+    
+    return `
+      <div class="triage-task" data-id="${t.id}">
+        <div class="triage-task-row">
+          <div class="triage-task-check"></div>
+          <span class="triage-task-text">${esc(t.text)}</span>
+          <span class="triage-task-meta ${metaClass}">${metaText}</span>
+        </div>
+        <div class="triage-actions">
+          <button class="triage-btn keep" onclick="triageDecide('${t.id}','kept')">Keep</button>
+          <button class="triage-btn" onclick="triageDecide('${t.id}','soon')">↩ Soon</button>
+          <button class="triage-btn" onclick="triageDecide('${t.id}','letgo')">Let go</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  // Update title with remaining count
+  const remaining = undone.filter(t => !triageDecisions[t.id]).length;
+  if (remaining > 0) {
+    document.getElementById('triageTitle').textContent = `${remaining} left`;
+  }
+}
+
+function triageDecide(id, decision) {
+  triageDecisions[id] = decision;
+  _haptic('light');
+  
+  const undone = manualTasks.filter(t => !doneIds.has(t.id));
+  const remaining = undone.filter(t => !triageDecisions[t.id]).length;
+  
+  if (remaining === 0) {
+    // All decided — apply and show summary
+    triageApplyAll();
+  } else {
+    renderTriageList();
+  }
+}
+
+function triageKeepAll() {
+  const undone = manualTasks.filter(t => !doneIds.has(t.id));
+  undone.forEach(t => triageDecisions[t.id] = 'kept');
+  triageApplyAll();
+}
+
+function triageApplyAll() {
+  const undone = manualTasks.filter(t => !doneIds.has(t.id));
+  let keptCount = 0, soonCount = 0, letgoCount = 0;
+  
+  undone.forEach(t => {
+    const decision = triageDecisions[t.id];
+    if (decision === 'kept') {
+      keptCount++;
+      // Task stays in manualTasks, no action needed
+    } else if (decision === 'soon') {
+      soonCount++;
       t.zone = 'soon';
       t.zoneChangedAt = new Date().toISOString();
       soonTasks.unshift(t);
-    });
-    manualTasks = manualTasks.filter(t => doneIds.has(t.id));
-    localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-    _saveSoon();
-    renderManual();
-    renderSoon();
-    updateStats();
-    triageDismiss();
-    _haptic('success');
-  } else if (action === 'letgo') {
-    // Move all undone to PAST
-    undone.forEach(t => {
+    } else if (decision === 'letgo') {
+      letgoCount++;
       t.zone = 'past';
       t.status = 'let_go';
       t.zoneChangedAt = new Date().toISOString();
       pastTasks.unshift(t);
-    });
-    manualTasks = manualTasks.filter(t => doneIds.has(t.id));
-    localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-    _savePast();
+    }
+  });
+  
+  // Remove moved tasks from manualTasks
+  const movedIds = undone.filter(t => triageDecisions[t.id] !== 'kept').map(t => t.id);
+  manualTasks = manualTasks.filter(t => !movedIds.includes(t.id));
+  localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+  if (soonCount > 0) _saveSoon();
+  if (letgoCount > 0) _savePast();
+  
+  // Show summary
+  const parts = [];
+  if (keptCount > 0) parts.push(`${keptCount} kept`);
+  if (soonCount > 0) parts.push(`${soonCount} to soon`);
+  if (letgoCount > 0) parts.push(`${letgoCount} let go`);
+  
+  document.getElementById('triageList').innerHTML = '';
+  document.getElementById('triageSummary').textContent = parts.join(' · ');
+  document.getElementById('triageComplete').classList.remove('hidden');
+  
+  _haptic('success');
+  
+  // Auto-close after 2s
+  setTimeout(() => {
+    triageClose();
     renderManual();
+    renderSoon();
     renderPast();
     updateStats();
-    triageDismiss();
-    _haptic('success');
-  }
+  }, 2000);
 }
 
-function triageDismiss() {
+function triageMinimize() {
+  document.getElementById('triageOverlay').classList.add('hidden');
+  document.getElementById('triageBar').classList.remove('hidden');
+}
+
+function triageClose() {
   triageDismissedToday = true;
   localStorage.setItem('triage_dismissed', new Date().toDateString());
+  document.getElementById('triageOverlay').classList.add('hidden');
   document.getElementById('triageBar').classList.add('hidden');
 }
 
@@ -3317,14 +3574,12 @@ function applyNewDayCleanup() {
   _memoryOnStreakUpdate(newStreak);
 
   // ── Daily counters reset ──
-  // Flow rate is calculated live, no need to store
   
   // Update memory with day summary
   const doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
   _memoryOnDaySummary(doneToday);
   
   // Reset daily counters
-  localStorage.setItem('stat_tasks_added_today', '0');
   localStorage.setItem('stat_tasks_done_today', '0');
   localStorage.setItem('stat_focus_mins_today', '0');
 
@@ -3477,10 +3732,12 @@ function renderInfoStats() {
   const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
   const streak = parseInt(localStorage.getItem('stat_streak') || '1');
   
-  // Flow rate: simple today-only calculation — tasks done / tasks added
-  const addedToday = parseInt(localStorage.getItem('stat_tasks_added_today') || '0');
-  const doneToday  = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
-  const flowRate = addedToday > 0 ? Math.min(100, Math.round((doneToday / addedToday) * 100)) : (doneToday > 0 ? 100 : 0);
+  // Flow rate: tasks completed / total tasks available
+  // Uses current state (what you see on screen)
+  const allTasks = [...manualTasks, ...(trelloTasks || [])];
+  const totalAvailable = allTasks.length;
+  const totalDone = allTasks.filter(t => doneIds.has(t.id)).length;
+  const flowRate = totalAvailable > 0 ? Math.round((totalDone / totalAvailable) * 100) : 0;
 
   const stats = [
     { val: _formatFocusTime(focusMinsToday), label: 'Focus' },
@@ -4125,6 +4382,12 @@ function _getCreatedFromId(id) {
   if (!id || !id.startsWith('manual_')) return Date.now();
   const ts = parseInt(id.replace('manual_', ''));
   return isNaN(ts) ? Date.now() : ts;
+}
+
+// Get age in days from a timestamp
+function _getAgeDays(timestamp) {
+  if (!timestamp) return 0;
+  return Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
 }
 
 function esc(s) {
@@ -4839,10 +5102,6 @@ function addManual() {
   input.focus();
   toggleClearBtn();
 
-  // Track for flow rate
-  const added = parseInt(localStorage.getItem('stat_tasks_added_today') || '0');
-  localStorage.setItem('stat_tasks_added_today', added + 1);
-
   // Dismiss any existing AI suggestion
   _aiDismissSuggestion();
 
@@ -4953,6 +5212,9 @@ function handleBarSubmit() {
 // is already focused and hover:hover device (desktop).
 if (window.matchMedia('(hover: hover)').matches) {
   document.addEventListener('keydown', function(e) {
+    // Allow native OS shortcuts (Cmd+H to hide, Cmd+Q to quit, etc.)
+    if (e.metaKey || e.ctrlKey) return;
+    
     const active = document.activeElement;
     const inInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
     if (inInput) return;
@@ -6089,7 +6351,7 @@ async function dropboxBackup(silent) {
   const now = new Date().toISOString();
   const safeJSON = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); } catch(e) { return fallback; } };
   const data = {
-    version:      '4.0',
+    version:      '5.0',
     saved_at:     now,
     manual_tasks:      safeJSON('today_manual', []),
     done_ids:          safeJSON('today_done',   []),
@@ -6097,10 +6359,12 @@ async function dropboxBackup(silent) {
     unchecked_ids:     _getUncheckedIds(),
     checked_ids:       _getCheckedIds(),
     trello_config:     safeJSON('trello_config', {}),
+    // Zones — SOON and PAST (v5.0)
+    soon_tasks:        safeJSON('today_soon', []),
+    past_tasks:        safeJSON('today_past', []),
     // Stats — synced cross-device (flow rate is calculated live, not stored)
     stat_focus_mins_today:  localStorage.getItem('stat_focus_mins_today')  || '0',
     stat_streak:            localStorage.getItem('stat_streak')            || '1',
-    stat_tasks_added_today: localStorage.getItem('stat_tasks_added_today') || '0',
     stat_tasks_done_today:  localStorage.getItem('stat_tasks_done_today')  || '0',
     // Habits — persisted cross-device
     habits:               safeJSON('today_habits',            []),
@@ -6264,6 +6528,42 @@ function mergeRemoteData(data) {
   const habitsPanel = document.getElementById('habitsPanel');
   if (habitsPanel && habitsPanel.classList.contains('open')) renderHabits();
 
+  // ── Zones: SOON and PAST (v5.0) ───────────────────────────────────────────
+  // Union merge by task ID — most recent zoneChangedAt wins for conflicts
+  const remoteSoon = Array.isArray(data.soon_tasks) ? data.soon_tasks : [];
+  const remotePast = Array.isArray(data.past_tasks) ? data.past_tasks : [];
+  
+  // Merge SOON: union by ID, most recent zoneChangedAt wins
+  const soonMap = new Map();
+  soonTasks.forEach(t => soonMap.set(t.id, t));
+  remoteSoon.forEach(t => {
+    const existing = soonMap.get(t.id);
+    if (!existing || (t.zoneChangedAt && (!existing.zoneChangedAt || t.zoneChangedAt > existing.zoneChangedAt))) {
+      soonMap.set(t.id, t);
+    }
+  });
+  soonTasks = [...soonMap.values()];
+  localStorage.setItem('today_soon', JSON.stringify(soonTasks));
+  
+  // Merge PAST: union by ID, most recent zoneChangedAt wins, keep last 100
+  const pastMap = new Map();
+  pastTasks.forEach(t => pastMap.set(t.id, t));
+  remotePast.forEach(t => {
+    const existing = pastMap.get(t.id);
+    if (!existing || (t.zoneChangedAt && (!existing.zoneChangedAt || t.zoneChangedAt > existing.zoneChangedAt))) {
+      pastMap.set(t.id, t);
+    }
+  });
+  // Sort by zoneChangedAt descending, keep last 100
+  pastTasks = [...pastMap.values()]
+    .sort((a, b) => (b.zoneChangedAt || '').localeCompare(a.zoneChangedAt || ''))
+    .slice(0, 100);
+  localStorage.setItem('today_past', JSON.stringify(pastTasks));
+  
+  // Re-render zones if visible
+  if (typeof renderSoon === 'function') renderSoon();
+  if (typeof renderPast === 'function') renderPast();
+
   // ── Persist merged operation logs ────────────────────────────────────────
   localStorage.setItem('today_deleted_ids',   JSON.stringify([...mergedDeletedMap.entries()].map(([id,at]) => ({id,at}))));
   localStorage.setItem('today_unchecked_ids', JSON.stringify([...mergedUncheckedMap.entries()].map(([id,at]) => ({id,at}))));
@@ -6306,22 +6606,19 @@ function mergeRemoteData(data) {
   localStorage.setItem('today_done', JSON.stringify([...doneIds]));
 
   // ── Stats: take max of each counter (both devices may have added focus time) ──
-  // Flow rate is calculated live from added/done, not stored
+  // Flow rate is calculated live from visible tasks, not stored
   const localFocusMins  = parseInt(localStorage.getItem('stat_focus_mins_today')  || '0');
   const localStreak     = parseInt(localStorage.getItem('stat_streak')            || '1');
-  const localAdded      = parseInt(localStorage.getItem('stat_tasks_added_today') || '0');
   const localDone       = parseInt(localStorage.getItem('stat_tasks_done_today')  || '0');
   
   const remoteFocusMins = parseInt(data.stat_focus_mins_today  || '0');
   const remoteStreak    = parseInt(data.stat_streak            || '1');
-  const remoteAdded     = parseInt(data.stat_tasks_added_today || '0');
   const remoteDoneCount = parseInt(data.stat_tasks_done_today  || '0');
   
   // Max wins — if you focused 10min on phone and 15min on laptop, total is 15min (not 25)
   // This prevents double-counting while ensuring the highest value is preserved
   const mergedFocusMins = Math.max(localFocusMins, remoteFocusMins);
   const mergedStreak    = Math.max(localStreak, remoteStreak);
-  const mergedAdded     = Math.max(localAdded, remoteAdded);
   const mergedDoneCount = Math.max(localDone, remoteDoneCount);
   
   if (mergedFocusMins !== localFocusMins) {
@@ -6330,10 +6627,6 @@ function mergeRemoteData(data) {
   }
   if (mergedStreak !== localStreak) {
     localStorage.setItem('stat_streak', String(mergedStreak));
-    _changed = true;
-  }
-  if (mergedAdded !== localAdded) {
-    localStorage.setItem('stat_tasks_added_today', String(mergedAdded));
     _changed = true;
   }
   if (mergedDoneCount !== localDone) {
@@ -6412,10 +6705,9 @@ async function dropboxRestore(fromSync) {
       localStorage.setItem('today_unchecked_ids', JSON.stringify(Array.isArray(data.unchecked_ids) ? data.unchecked_ids : []));
       localStorage.setItem('today_checked_ids',   JSON.stringify(Array.isArray(data.checked_ids)   ? data.checked_ids   : []));
       if (data.trello_config)         localStorage.setItem('trello_config',         JSON.stringify(data.trello_config));
-      // Stats (flow_rate is calculated live, not stored)
+      // Stats (flow_rate is calculated live from visible tasks, not stored)
       if (data.stat_focus_mins_today)  localStorage.setItem('stat_focus_mins_today',  data.stat_focus_mins_today);
       if (data.stat_streak)            localStorage.setItem('stat_streak',            data.stat_streak);
-      if (data.stat_tasks_added_today) localStorage.setItem('stat_tasks_added_today', data.stat_tasks_added_today);
       if (data.stat_tasks_done_today)  localStorage.setItem('stat_tasks_done_today',  data.stat_tasks_done_today);
       // Habits
       if (Array.isArray(data.habits)) {
@@ -6426,6 +6718,17 @@ async function dropboxRestore(fromSync) {
         localStorage.setItem('today_deleted_habit_ids', JSON.stringify(Array.isArray(data.deleted_habit_ids) ? data.deleted_habit_ids : []));
         const habitsPanel = document.getElementById('habitsPanel');
         if (habitsPanel && habitsPanel.classList.contains('open')) renderHabits();
+      }
+      // Restore zones — SOON and PAST (v5.0)
+      if (Array.isArray(data.soon_tasks)) {
+        soonTasks = data.soon_tasks;
+        localStorage.setItem('today_soon', JSON.stringify(soonTasks));
+        if (typeof renderSoon === 'function') renderSoon();
+      }
+      if (Array.isArray(data.past_tasks)) {
+        pastTasks = data.past_tasks;
+        localStorage.setItem('today_past', JSON.stringify(pastTasks));
+        if (typeof renderPast === 'function') renderPast();
       }
       // Restore memory (merge with local — union of moments, max of counters)
       if (data.memory && typeof data.memory === 'object') {
@@ -6863,6 +7166,18 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
             el.style.transform = 'translateY(0)';
           }, i * 80);
         });
+        
+        // Reveal fixed elements outside main-app
+        const addTaskBar = document.getElementById('addTaskBar');
+        const triageBar = document.getElementById('triageBar');
+        if (addTaskBar) {
+          addTaskBar.style.transition = 'opacity 300ms ease';
+          addTaskBar.style.opacity = '1';
+        }
+        if (triageBar) {
+          triageBar.style.transition = 'opacity 300ms ease';
+          triageBar.style.opacity = '1';
+        }
 
         // Re-trigger progress bar after header has appeared
         setTimeout(() => {
@@ -8550,6 +8865,9 @@ function _aiDismissProactive() {
 
   // ── Keyboard — guarded against accidental input-field triggers ────────────
   document.addEventListener('keydown', function(e) {
+    // Allow native OS shortcuts (Cmd+H to hide, Cmd+Q to quit, etc.)
+    if (e.metaKey || e.ctrlKey) return;
+    
     if (!uiTaskId) return;
     const active  = document.activeElement;
     const inInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
@@ -8560,7 +8878,7 @@ function _aiDismissProactive() {
   // ══════════════════════════════════════════════════════════════════════════
   // Picture-in-Picture Focus Widget
   // Always-on-top floating timer using Document PiP API (Chrome 116+, FF 148+)
-  // Auto-opens when leaving tab during focus, auto-closes on return
+  // Auto-opens when leaving tab during focus, persists until focus ends
   // ══════════════════════════════════════════════════════════════════════════
   (function initPiP() {
     // Feature detection — bail if not supported
@@ -8569,32 +8887,47 @@ function _aiDismissProactive() {
     let pipWindow = null;
     let pipFillEl = null;
     let pipTimeEl = null;
+    let openPipTimeout = null;
 
     // Auto-open PiP when leaving tab during focus mode
-    document.addEventListener('visibilitychange', async function() {
+    // Note: Document PIP API requires a user gesture. Opening PIP on visibilitychange
+    // may fail if too much time has passed since the user clicked to start focus.
+    // We try immediately first, then with a short delay as fallback.
+    document.addEventListener('visibilitychange', function() {
       if (!uiTaskId) return; // Not in focus mode
       
       const st = getState(uiTaskId);
       if (st.rem <= 0) return; // Timer complete, no need for PiP
       
+      // Clear any pending open
+      clearTimeout(openPipTimeout);
+      
       if (document.hidden) {
-        // Leaving tab — open PiP (requires prior user gesture from starting focus)
-        if (!pipWindow || pipWindow.closed) {
-          await openPiP();
-        }
-      } else {
-        // Returning to tab — close PiP and reset reference
+        // Close existing PIP first (so we can reopen fresh and bring to front)
         if (pipWindow && !pipWindow.closed) {
           pipWindow.close();
         }
         pipWindow = null;
         pipFillEl = null;
         pipTimeEl = null;
+        
+        // Try opening immediately (might work if user gesture is still valid)
+        openPiP().catch(() => {});
+        
+        // Also try after a short delay (in case immediate failed)
+        openPipTimeout = setTimeout(async function() {
+          if (!document.hidden) return; // User came back
+          if (!uiTaskId) return; // Focus ended
+          if (pipWindow && !pipWindow.closed) return; // Already opened
+          await openPiP().catch(() => {});
+        }, 150);
       }
     });
 
     async function openPiP() {
       if (!uiTaskId) return;
+      if (!document.hidden) return; // Only open when document is hidden
+      if (pipWindow && !pipWindow.closed) return; // Already open
 
       try {
         pipWindow = await documentPictureInPicture.requestWindow({
@@ -8729,6 +9062,9 @@ function _aiDismissProactive() {
           </div>
         `;
 
+        // Set PIP window title
+        pipWindow.document.title = '✦ TODAY';
+
         pipFillEl = pipWindow.document.getElementById('pipFill');
         pipTimeEl = pipWindow.document.getElementById('pipTime');
 
@@ -8738,8 +9074,9 @@ function _aiDismissProactive() {
 
         // Wire up controls
         pipWindow.document.getElementById('pipOpen').addEventListener('click', function() {
+          // Focus main window. When user minimizes again, visibilitychange
+          // will close this PIP and open a fresh one (bringing it to front)
           window.focus();
-          if (pipWindow) pipWindow.close();
         });
 
         const pauseBtn = pipWindow.document.getElementById('pipPause');
@@ -8754,7 +9091,7 @@ function _aiDismissProactive() {
           closeUI(false);
         });
 
-        // Clean up on close
+        // Clean up references when PIP is closed (user closed it or focus ended)
         pipWindow.addEventListener('pagehide', function() {
           pipWindow = null;
           pipFillEl = null;
@@ -8798,8 +9135,7 @@ function _aiDismissProactive() {
 
 // ══════════════════════════════════════════════════════════════════════════
 // Mobile Keyboard Handling
-// Safari auto-scrolls to show focused input - we just toggle class for padding
-// DO NOT fight Safari's native behavior with JavaScript positioning!
+// Use visualViewport API to position input bar above keyboard
 // ══════════════════════════════════════════════════════════════════════════
 (function() {
   const bar = document.getElementById('addTaskBar');
@@ -8809,14 +9145,48 @@ function _aiDismissProactive() {
   // Only on touch devices
   if (!window.matchMedia('(pointer: coarse)').matches) return;
   
+  // Check for visualViewport support
+  const vv = window.visualViewport;
+  
+  function positionBar() {
+    if (!bar.classList.contains('keyboard-open')) return;
+    if (!vv) return;
+    
+    // Calculate where bottom of visual viewport is
+    // offsetTop = how far visual viewport is scrolled from layout viewport top
+    // height = visual viewport height (shrinks when keyboard opens)
+    const keyboardTop = vv.offsetTop + vv.height;
+    
+    // Position bar at bottom of visual viewport
+    bar.style.top = (keyboardTop - bar.offsetHeight) + 'px';
+    bar.style.bottom = 'auto';
+  }
+  
+  function resetBar() {
+    bar.style.top = '';
+    bar.style.bottom = '';
+  }
+  
   input.addEventListener('focus', () => {
-    // Just toggle class for padding - no positioning!
     bar.classList.add('keyboard-open');
+    // Small delay for keyboard to start opening
+    setTimeout(() => {
+      positionBar();
+      // Scroll input into view
+      input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 100);
   });
   
   input.addEventListener('blur', () => {
     bar.classList.remove('keyboard-open');
+    resetBar();
   });
+  
+  // Reposition on viewport resize (keyboard animation)
+  if (vv) {
+    vv.addEventListener('resize', positionBar);
+    vv.addEventListener('scroll', positionBar);
+  }
 })();
 
 

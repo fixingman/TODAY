@@ -9,6 +9,7 @@
 |------|------------|------|
 | **Any change** | `Rules.md` | — |
 | **End of session** | `Housekeeping.md` | — |
+| **Prototype/TODO** | `Backlog.md` | — |
 | CSS/colors/fonts | `Rules.md` | `design/Tokens.md` |
 | Animation | `Rules.md` | `design/Motion.md` |
 | UI component | `Rules.md` | `design/Components.md` |
@@ -41,7 +42,7 @@
 ## Data Rules
 
 10. `manualTasks` and `habitsList` preserve drag order — **never re-sort**
-11. Backup schema version: **4.0** (includes memory)
+11. Backup schema version: **5.0** (includes zones)
 12. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
 13. All timestamps: ISO strings
 

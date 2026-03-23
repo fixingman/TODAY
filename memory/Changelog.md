@@ -2,6 +2,10 @@
 
 | Version | Key change |
 |---|---|
+| **2.11.3** | **Critical bug fix** — Missing `_escapeHtml` (renamed to `esc`) and `_getAgeDays` functions caused app freeze at splash and triage failure. |
+| **2.11.2** | **Mobile keyboard fix** — Input bar stays visible above keyboard (visualViewport API). Black fill below bar when not focused. |
+| **2.11.1** | **Zones Dropbox sync** — SOON/PAST now sync cross-device (schema v5.0). Union merge by task ID, newer `zoneChangedAt` wins. PAST capped at 100 items. |
+| **2.11.0** | **Zones + Flow fix** — SOON/PAST sections (collapsed). Per-task evening triage after 8pm. Flow rate fixed: `done / total` visible tasks. PiP: delay before open, reopens on every minimize. |
 | **2.10.0** | **Idle companion** — After 45s of inactivity, a random ASCII creature appears (dino, fish, bird, cat, snail, crab, or star). DM Mono, accent glow. Inspired by cli-spinners. Pure delight. |
 | **2.9.9** | **All-done reward** — Finishing feels felt. Accent glow pulse, extra particle burst, double haptic, and variable warm AI messages: "8 tasks cleared. Impressive." Not gamification — just acknowledgment. |
 | **2.9.8** | **Energy rhythm awareness** — AI considers peak hour when suggesting tasks. Pre-peak: "start light". Peak time: "good moment for deep work". Post-peak: "wind down with quick ones". No lecture, just smarter suggestions. |

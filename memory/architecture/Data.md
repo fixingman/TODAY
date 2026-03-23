@@ -19,6 +19,15 @@
 | `today_habit_completions` | JSON object | `{habitId: ['YYYY-MM-DD', ...]}` |
 | `today_deleted_habit_ids` | JSON array | IDs of deleted habits |
 
+### Zones (v5.0)
+
+| Key | Type | Description |
+|---|---|---|
+| `today_soon` | JSON array | SOON tasks: `{id, text, zone: 'soon', zoneChangedAt}` |
+| `today_past` | JSON array | PAST tasks: `{id, text, zone: 'past', status, zoneChangedAt}` |
+
+**Zone status values:** `done`, `let_go`, `aged`
+
 ### Integrations
 
 | Key | Type | Description |
@@ -48,11 +57,11 @@
 | `stat_alltime_done` | string | Lifetime completed count |
 | `stat_streak` | string | Current daily streak |
 | `stat_last_visit` | string | Last date app opened |
-| `stat_flow_rate` | string | Completion rate (0-100) |
-| `stat_tasks_added_today` | string | Tasks added today |
-| `stat_tasks_done_today` | string | Tasks completed today |
+| `stat_tasks_done_today` | string | Tasks completed today (for memory/AI) |
 | `stat_focus_mins_today` | string | Focus minutes today |
 | `stat_focus_mins_alltime` | string | Lifetime focus minutes |
+
+**Note:** Flow rate is calculated live (`done / total` visible tasks), not stored. See Research.md § Stats.
 
 ### Memory (AI Companion)
 
@@ -74,11 +83,11 @@
 
 ## Backup Schema
 
-**Version: 4.0**
+**Version: 5.0**
 
 ```javascript
 {
-  version: '4.0',
+  version: '5.0',
   manual: [...],
   habits: [...],
   habitCompletions: {...},
@@ -89,6 +98,8 @@
   deletedHabits: [...],
   trelloFocus: {...},
   memory: {...},        // v4.0 addition
+  soon_tasks: [...],    // v5.0 — SOON zone
+  past_tasks: [...],    // v5.0 — PAST zone
   exportedAt: 'ISO string'
 }
 ```
