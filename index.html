@@ -8803,7 +8803,7 @@ function _aiDismissProactive() {
   // ══════════════════════════════════════════════════════════════════════════
   // Picture-in-Picture Focus Widget
   // Always-on-top floating timer using Document PiP API (Chrome 116+, FF 148+)
-  // Auto-opens when leaving tab during focus, auto-closes on return
+  // Auto-opens when leaving tab during focus, persists until focus ends
   // ══════════════════════════════════════════════════════════════════════════
   (function initPiP() {
     // Feature detection — bail if not supported
@@ -8812,32 +8812,42 @@ function _aiDismissProactive() {
     let pipWindow = null;
     let pipFillEl = null;
     let pipTimeEl = null;
+    let openPipTimeout = null;
 
     // Auto-open PiP when leaving tab during focus mode
-    document.addEventListener('visibilitychange', async function() {
+    // Use delay to avoid interfering with Cmd+H hide behavior
+    document.addEventListener('visibilitychange', function() {
       if (!uiTaskId) return; // Not in focus mode
       
       const st = getState(uiTaskId);
       if (st.rem <= 0) return; // Timer complete, no need for PiP
       
+      // Clear any pending open
+      clearTimeout(openPipTimeout);
+      
       if (document.hidden) {
-        // Leaving tab — open PiP (requires prior user gesture from starting focus)
-        if (!pipWindow || pipWindow.closed) {
-          await openPiP();
-        }
-      } else {
-        // Returning to tab — close PiP and reset reference
-        if (pipWindow && !pipWindow.closed) {
-          pipWindow.close();
-        }
-        pipWindow = null;
-        pipFillEl = null;
-        pipTimeEl = null;
+        // Leaving tab — wait before opening PiP to avoid focus steal
+        openPipTimeout = setTimeout(async function() {
+          // Double-check still hidden (Cmd+H might have been cancelled)
+          if (!document.hidden) return;
+          if (!uiTaskId) return;
+          // Only open if not already open
+          if (!pipWindow || pipWindow.closed) {
+            await openPiP();
+          }
+        }, 400); // Delay to let OS hide settle
       }
+      // When returning to tab: DON'T close PiP
+      // Keep it open so it's available for next hide
+      // It will close when focus mode ends
     });
 
     async function openPiP() {
       if (!uiTaskId) return;
+      // Don't open if already open
+      if (pipWindow && !pipWindow.closed) return;
+      // Final check - don't open if document is visible (prevents focus steal)
+      if (!document.hidden) return;
 
       try {
         pipWindow = await documentPictureInPicture.requestWindow({
@@ -8981,12 +8991,8 @@ function _aiDismissProactive() {
 
         // Wire up controls
         pipWindow.document.getElementById('pipOpen').addEventListener('click', function() {
-          // Close PIP first, then focus main window
-          const pw = pipWindow;
-          pipWindow = null;
-          pipFillEl = null;
-          pipTimeEl = null;
-          if (pw) pw.close();
+          // Just focus main window, keep PIP open for reuse
+          // PIP will persist and be available when user hides again
           window.focus();
         });
 
@@ -9002,7 +9008,7 @@ function _aiDismissProactive() {
           closeUI(false);
         });
 
-        // Clean up on close — but preserve hasUserGesture
+        // Clean up references when PIP is closed (user closed it or focus ended)
         pipWindow.addEventListener('pagehide', function() {
           pipWindow = null;
           pipFillEl = null;
