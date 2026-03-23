@@ -1,5 +1,5 @@
 # TODAY — Critical Rules
-> **Read this first.** These rules must never break. ~60 lines of essentials.
+> **Read this first.** These rules must never break. ~70 lines of essentials.
 
 ---
 
@@ -8,6 +8,7 @@
 | Task | Read First | Then |
 |------|------------|------|
 | **Any change** | `Rules.md` | — |
+| **End of session** | `Housekeeping.md` | — |
 | CSS/colors/fonts | `Rules.md` | `design/Tokens.md` |
 | Animation | `Rules.md` | `design/Motion.md` |
 | UI component | `Rules.md` | `design/Components.md` |

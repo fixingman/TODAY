@@ -1271,3 +1271,211 @@ Actions available:
 
 ---
 
+## 19. Past / Today / Soon — Temporal Model
+
+*Research: Mar 23, 2026*
+
+### The Concept
+
+Tasks exist in three temporal zones based on **attention state**, not dates:
+
+| Zone | Meaning | Analogy |
+|------|---------|---------|
+| **PAST** | Behind me | The Archive |
+| **TODAY** | Active attention | The Focus |
+| **SOON** | Ahead of me | The Boomerang |
+
+**Key insight:** What I don't see on the list now is either PAST or SOON. TODAY is the only active view.
+
+### Design Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Evening auto-move? | **No** | User must decide — respects agency |
+| Dates on SOON? | **No** | Not a planning tool |
+| SOON visibility | **Visible (collapsed)** | For testing; may hide later |
+| PAST editable? | **Read-only** | Archive, not inbox |
+| Done retention | **Forever** | Accomplishments matter |
+| Let go/aged retention | **30 days** | Clean storage |
+
+### Data Model
+
+#### Task Structure
+
+```javascript
+{
+  id: 'manual_1234567890',
+  text: 'Finish report',
+  
+  // Zone
+  zone: 'today',           // 'past' | 'today' | 'soon'
+  zoneChangedAt: 'ISO',    // when moved to current zone
+  
+  // Status (only relevant for PAST zone)
+  status: null,            // null | 'done' | 'let_go' | 'aged'
+  
+  // Aging
+  createdAt: 'ISO',
+  lastActiveAt: 'ISO',     // reset on focus session or check
+  
+  // Origin tracking
+  returnedFrom: null,      // null | 'soon' (for UI badge)
+}
+```
+
+#### localStorage Keys
+
+```javascript
+today_tasks    // [{task}, ...] where zone: 'today'
+today_soon     // [{task}, ...] where zone: 'soon'
+today_past     // [{task}, ...] where zone: 'past'
+
+// Or unified approach:
+today_all_tasks // [{task}, ...] with zone property
+```
+
+### Zone Definitions
+
+#### TODAY (The Focus)
+
+**What lives here:** Active tasks requiring attention.
+
+**Enters via:**
+- User adds new task
+- User pulls from SOON manually
+- AI resurfaces from SOON
+
+**Exits via:**
+- Check → PAST (status: `done`)
+- Evening triage "defer" → SOON
+- Evening triage "let go" → PAST (status: `let_go`)
+- Ages 7+ days → PAST (status: `aged`)
+
+#### PAST (The Archive)
+
+**What lives here:** Everything no longer active. Read-only.
+
+**Three statuses with visual distinction:**
+
+| Status | Source | Visual | Retention |
+|--------|--------|--------|-----------|
+| `done` | Checked off | ✓ checkmark, normal opacity | Forever |
+| `let_go` | Evening triage | ○ no check, dimmed | 30 days |
+| `aged` | Auto-aged out | ◌ no check, very dimmed | 30 days |
+
+**Cannot move back to TODAY** — archive is final.
+
+#### SOON (The Boomerang)
+
+**What lives here:** Deferred tasks, not forgotten.
+
+**Enters via:**
+- Evening triage "defer" from TODAY
+
+**Exits via:**
+- User pulls back to TODAY manually
+- AI resurfaces to TODAY
+- Ages 30+ days → PAST (status: `aged`)
+
+**Key constraint:** No dates. "Return on Tuesday" is planning — not TODAY's job.
+
+### Evening Triage (Offline-First)
+
+**Trigger:** After 8pm + undone tasks exist + triage not done today
+
+**Requirement:** User must make a decision. No auto-move at midnight.
+
+**AI Online:**
+Natural language, per-task suggestions:
+> "3 things didn't happen today. 'Fix the bike' has been here 5 days — still relevant?"
+
+**AI Offline (fallback):**
+Simple triage bar appears:
+```
+┌─────────────────────────────────────────────────┐
+│ 3 undone  [Keep in today] [Defer] [Let go]      │
+└─────────────────────────────────────────────────┘
+```
+
+Batch actions apply to all undone tasks.
+
+### Aging Rules
+
+| Condition | Action |
+|-----------|--------|
+| TODAY task, 7+ days old | → auto-move to PAST (status: `aged`) |
+| SOON task, 30+ days old | → auto-move to PAST (status: `aged`) |
+| PAST (let_go/aged), 30+ days old | → purge from storage |
+| PAST (done) | → keep forever |
+
+**When to check:** On app open (simplest, works offline).
+
+### Task Flows
+
+```
+TODAY ──check──→ PAST (done)
+TODAY ──defer──→ SOON ──pull back──→ TODAY
+TODAY ──let go─→ PAST (let_go)
+TODAY ──7 days─→ PAST (aged)
+SOON ──30 days─→ PAST (aged)
+PAST (aged/let_go) ──30 days──→ [purged]
+```
+
+### UI Layout
+
+```
+┌─────────────────────────────────────────────────┐
+│ SOON (3) ▸                      [collapsed]     │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│ 5 TODAY                                         │
+│ ○ Finish report                                 │
+│ ○ Email client                                  │
+│ ✓ Pack luggage (done, faded)                    │
+│                                                 │
+├─────────────────────────────────────────────────┤
+│ PAST (12) ▸                     [collapsed]     │
+└─────────────────────────────────────────────────┘
+```
+
+SOON at top (what's coming), PAST at bottom (what's behind).
+
+### Open Questions (Resolved)
+
+**What triggers aging check?**
+→ Keep existing aging logic. Currently happens on app open. No change needed.
+
+**Midnight auto-move?**
+→ **Watch this decision.** Currently saying no, but note that Trello cards already auto-refresh daily. May need consistency. For now: user decides via triage, but revisit if friction is too high.
+
+**If user ignores evening triage?**
+→ Three-layer approach:
+1. Show triage again next evening
+2. Gentle nudge in morning: "3 things still here from yesterday"
+3. Natural aging (7 days) eventually archives them
+Not indefinite — we want to clear the list, but through aging not force.
+
+**Can user restore from PAST?**
+→ Read-only for now. If we implement "pull to TODAY" action for SOON, we may extend to PAST later (for accidentally aged/snoozed items). Keep scope small initially.
+
+### Relationship to Section 18
+
+This supersedes §18 "The Not Today Problem". Key evolution:
+
+| §18 Concept | §19 Replacement |
+|-------------|-----------------|
+| `deferred` list | SOON zone |
+| `keptFrom` property | `returnedFrom` property |
+| Midnight auto-clear option | Removed (user decides) |
+| "From before" section | PAST zone |
+
+### Next Steps
+
+1. Update data model in `architecture/Data.md`
+2. Design collapsed SOON/PAST UI components
+3. Implement evening triage bar (offline-first)
+4. Add AI triage enhancements
+5. Build SOON → TODAY pull interaction
+
+---
+

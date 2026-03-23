@@ -2469,7 +2469,7 @@ const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
-  '2.10.0': 'Idle companion: random creature (dino or fish) appears after 45s inactivity. cli-spinners style. Delight, not productivity.',
+  '2.10.0': 'Idle companion: 7 creatures (dino, fish, bird, cat, snail, crab, star) after 45s idle. Fixed Claude API key link.',
   '2.9.9': 'All-done reward: accent glow pulse, extra particle burst, variable warm AI messages. Finishing feels felt.',
   '2.9.8': 'Energy rhythm: AI considers peak hour when suggesting tasks. "It\'s your peak — good moment for that deep work."',
   '2.9.7': 'Focus time formatting: shows "Xh Ym" when >= 60 minutes, "Xm" otherwise. Cleaner stats display.',
@@ -6688,7 +6688,7 @@ function _aiShowSetup() {
   const isGemini = provider === 'gemini';
   _aiSetMsg(
     `<span class="ai-not-configured">` +
-    `Add a <a href="${isGemini ? 'https://aistudio.google.com/apikey' : 'https://console.anthropic.com/keys'}" ` +
+    `Add a <a href="${isGemini ? 'https://aistudio.google.com/apikey' : 'https://platform.claude.com/login'}" ` +
     `target="_blank" rel="noopener">${isGemini ? 'free Gemini' : 'Claude'} API key</a> ` +
     `in <a href="#" onclick="closeAI();setTimeout(toggleConfig,80);return false">Connections ✦</a> to activate.</span>`
   );
@@ -7308,7 +7308,7 @@ function _aiRenderConfig() {
 
   // Update link for the provider being viewed
   if (keyLink) {
-    keyLink.href = isViewingGemini ? 'https://aistudio.google.com/apikey' : 'https://console.anthropic.com/keys';
+    keyLink.href = isViewingGemini ? 'https://aistudio.google.com/apikey' : 'https://platform.claude.com/login';
     keyLink.textContent = isViewingGemini ? 'Get free key →' : 'Get key →';
   }
 
