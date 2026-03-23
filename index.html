@@ -5190,6 +5190,9 @@ function handleBarSubmit() {
 // is already focused and hover:hover device (desktop).
 if (window.matchMedia('(hover: hover)').matches) {
   document.addEventListener('keydown', function(e) {
+    // Allow native OS shortcuts (Cmd+H to hide, Cmd+Q to quit, etc.)
+    if (e.metaKey || e.ctrlKey) return;
+    
     const active = document.activeElement;
     const inInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
     if (inInput) return;
@@ -8787,6 +8790,9 @@ function _aiDismissProactive() {
 
   // ── Keyboard — guarded against accidental input-field triggers ────────────
   document.addEventListener('keydown', function(e) {
+    // Allow native OS shortcuts (Cmd+H to hide, Cmd+Q to quit, etc.)
+    if (e.metaKey || e.ctrlKey) return;
+    
     if (!uiTaskId) return;
     const active  = document.activeElement;
     const inInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
@@ -8975,8 +8981,9 @@ function _aiDismissProactive() {
 
         // Wire up controls
         pipWindow.document.getElementById('pipOpen').addEventListener('click', function() {
+          // Focus main window — this triggers visibilitychange which closes PIP
+          // Don't manually close PIP here; let the visibility handler do it cleanly
           window.focus();
-          if (pipWindow) pipWindow.close();
         });
 
         const pauseBtn = pipWindow.document.getElementById('pipPause');
