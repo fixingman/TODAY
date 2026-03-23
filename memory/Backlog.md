@@ -45,6 +45,11 @@
 
 ## Pending Features
 
+### PWA Install Prompt (Android)
+**From:** Session 16, implemented v2.11.7
+**Status:** ✅ Complete
+**Details:** Android users see "Install App" button in About panel. Uses native `beforeinstallprompt` API. Coffee/dev-hours hidden in installed PWA. iOS left alone (no API support).
+
 ### iOS Keyboard Fix
 **From:** Session 11, implemented v2.11.2
 **Status:** Implemented, needs testing on real iOS device

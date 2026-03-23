@@ -1285,6 +1285,26 @@
   }
   .btn-coffee:hover { opacity: var(--opacity-hover); transform: translateY(-1px); }
   .btn-coffee:active { opacity: 1; transform: translateY(0); }
+  
+  .btn-install {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    background: var(--accent);
+    color: var(--bg);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: var(--text-sm);
+    padding: 7px 14px;
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: opacity var(--dur-fast), transform var(--dur-fast);
+  }
+  .btn-install:hover { opacity: var(--opacity-hover); transform: translateY(-1px); }
+  .btn-install:active { opacity: 1; transform: translateY(0); }
+  .install-icon { font-size: 1.1em; }
 
   /* ── Drag-to-reorder — row-level cue, no extra element ── */
   /* Grab cursor + subtle left accent line on hover for all draggable rows */
@@ -2626,8 +2646,11 @@
         Done rests, quietly proud<br>
         Morning clears the slate<br><br>
         <div class="readme-actions">
-          <a href="https://buymeacoffee.com/today.here" target="_blank" rel="noopener" class="btn-coffee">☕ Buy me a coffee</a>
-          <div class="dev-hours" title="Hours spent building this with Claude">
+          <button id="installBtn" class="btn-install" style="display:none" onclick="installPWA()">
+            <span class="install-icon">⬇</span> Install App
+          </button>
+          <a id="coffeeBtn" href="https://buymeacoffee.com/today.here" target="_blank" rel="noopener" class="btn-coffee">☕ Buy me a coffee</a>
+          <div id="devHours" class="dev-hours" title="Hours spent building this with Claude">
             <span class="dev-hours-val"></span>
           </div>
         </div>
@@ -2752,11 +2775,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.11.6';
+const APP_VERSION   = '2.11.7';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.11.7': 'PWA install: Android users see "Install App" button in About panel. Hidden once installed.',
   '2.11.6': 'Housekeeping: removed orphaned stat_tasks_added_today code, updated schema docs to v5.0.',
   '2.11.5': 'PiP: window title now shows "✦ TODAY". Improved reliability: tries opening immediately + fallback delay.',
   '2.11.4': 'Splash polish: addTaskBar and triageBar hidden during splash (no flash). Revealed after splash dismissal.',
@@ -9188,6 +9212,62 @@ function _aiDismissProactive() {
     vv.addEventListener('scroll', positionBar);
   }
 })();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PWA Install Prompt (Android only)
+// ═══════════════════════════════════════════════════════════════════════════
+let _deferredInstallPrompt = null;
+
+// Capture the beforeinstallprompt event (fires on Android Chrome when installable)
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+  
+  // Show install button in info panel
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'inline-flex';
+  
+  console.log('[PWA] Install prompt captured — ready to install');
+});
+
+// Handle install button click
+function installPWA() {
+  if (!_deferredInstallPrompt) {
+    console.log('[PWA] No install prompt available');
+    return;
+  }
+  
+  // Trigger native install dialog
+  _deferredInstallPrompt.prompt();
+  
+  // Wait for user choice
+  _deferredInstallPrompt.userChoice.then((result) => {
+    console.log('[PWA] User choice:', result.outcome);
+    if (result.outcome === 'accepted') {
+      // Hide install button after successful install
+      const btn = document.getElementById('installBtn');
+      if (btn) btn.style.display = 'none';
+    }
+    _deferredInstallPrompt = null;
+  });
+}
+
+// Hide install button if already running as installed PWA
+window.addEventListener('appinstalled', () => {
+  console.log('[PWA] App installed successfully');
+  _deferredInstallPrompt = null;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'none';
+});
+
+// Also hide install button if already in standalone mode (already installed)
+if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+  console.log('[PWA] Running in standalone mode — already installed');
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'none';
+  });
+}
 
 
 </script>
