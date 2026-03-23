@@ -2752,11 +2752,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.11.2';
+const APP_VERSION   = '2.11.3';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.11.3': 'Fix: missing _escapeHtml and _getAgeDays functions caused app freeze and triage failure.',
   '2.11.2': 'Mobile keyboard fix: input bar stays visible above keyboard (visualViewport API). Black fill below bar when not focused.',
   '2.11.1': 'Zones Dropbox sync: SOON/PAST now sync cross-device (schema v5.0). Union merge by task ID, newer zoneChangedAt wins.',
   '2.11.0': 'Zones: SOON/PAST sections, per-task triage. Flow rate fixed: done/total. PiP: delay before open, reopens on minimize.',
@@ -2976,7 +2977,7 @@ function renderSoon() {
   
   list.innerHTML = soonTasks.map(t => `
     <div class="task" data-id="${t.id}">
-      <span class="task-text">${_escapeHtml(t.text)}</span>
+      <span class="task-text">${esc(t.text)}</span>
       <button class="zone-badge" onclick="pullFromSoon('${t.id}')" title="Pull back to today">↩</button>
     </div>
   `).join('');
@@ -3004,7 +3005,7 @@ function renderPast() {
     return `
       <div class="task ${statusClass}" data-id="${t.id}">
         <span class="task-check-icon" style="opacity:0.5">${statusBadge}</span>
-        <span class="task-text">${_escapeHtml(t.text)}</span>
+        <span class="task-text">${esc(t.text)}</span>
         <span class="zone-badge">${t.status || 'past'}</span>
       </div>
     `;
@@ -3127,7 +3128,7 @@ function renderTriageList() {
         <div class="triage-task decided" data-id="${t.id}">
           <div class="triage-task-row">
             <div class="triage-task-check"></div>
-            <span class="triage-task-text">${_escapeHtml(t.text)}</span>
+            <span class="triage-task-text">${esc(t.text)}</span>
             <span class="triage-task-badge ${badgeClass}">${badgeText}</span>
           </div>
         </div>
@@ -3138,7 +3139,7 @@ function renderTriageList() {
       <div class="triage-task" data-id="${t.id}">
         <div class="triage-task-row">
           <div class="triage-task-check"></div>
-          <span class="triage-task-text">${_escapeHtml(t.text)}</span>
+          <span class="triage-task-text">${esc(t.text)}</span>
           <span class="triage-task-meta ${metaClass}">${metaText}</span>
         </div>
         <div class="triage-actions">
@@ -4379,6 +4380,12 @@ function _getCreatedFromId(id) {
   if (!id || !id.startsWith('manual_')) return Date.now();
   const ts = parseInt(id.replace('manual_', ''));
   return isNaN(ts) ? Date.now() : ts;
+}
+
+// Get age in days from a timestamp
+function _getAgeDays(timestamp) {
+  if (!timestamp) return 0;
+  return Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
 }
 
 function esc(s) {
