@@ -83,11 +83,11 @@
 
 ## Backup Schema
 
-**Version: 4.0**
+**Version: 5.0**
 
 ```javascript
 {
-  version: '4.0',
+  version: '5.0',
   manual: [...],
   habits: [...],
   habitCompletions: {...},
@@ -98,6 +98,8 @@
   deletedHabits: [...],
   trelloFocus: {...},
   memory: {...},        // v4.0 addition
+  soon_tasks: [...],    // v5.0 — SOON zone
+  past_tasks: [...],    // v5.0 — PAST zone
   exportedAt: 'ISO string'
 }
 ```

@@ -2752,11 +2752,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.11.5';
+const APP_VERSION   = '2.11.6';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.11.6': 'Housekeeping: removed orphaned stat_tasks_added_today code, updated schema docs to v5.0.',
   '2.11.5': 'PiP: window title now shows "✦ TODAY". Improved reliability: tries opening immediately + fallback delay.',
   '2.11.4': 'Splash polish: addTaskBar and triageBar hidden during splash (no flash). Revealed after splash dismissal.',
   '2.11.3': 'Fix: missing _escapeHtml and _getAgeDays functions caused app freeze and triage failure.',
@@ -3579,7 +3580,6 @@ function applyNewDayCleanup() {
   _memoryOnDaySummary(doneToday);
   
   // Reset daily counters
-  localStorage.setItem('stat_tasks_added_today', '0');
   localStorage.setItem('stat_tasks_done_today', '0');
   localStorage.setItem('stat_focus_mins_today', '0');
 
@@ -5102,10 +5102,6 @@ function addManual() {
   input.focus();
   toggleClearBtn();
 
-  // Track for flow rate
-  const added = parseInt(localStorage.getItem('stat_tasks_added_today') || '0');
-  localStorage.setItem('stat_tasks_added_today', added + 1);
-
   // Dismiss any existing AI suggestion
   _aiDismissSuggestion();
 
@@ -6610,22 +6606,19 @@ function mergeRemoteData(data) {
   localStorage.setItem('today_done', JSON.stringify([...doneIds]));
 
   // ── Stats: take max of each counter (both devices may have added focus time) ──
-  // Flow rate is calculated live from added/done, not stored
+  // Flow rate is calculated live from visible tasks, not stored
   const localFocusMins  = parseInt(localStorage.getItem('stat_focus_mins_today')  || '0');
   const localStreak     = parseInt(localStorage.getItem('stat_streak')            || '1');
-  const localAdded      = parseInt(localStorage.getItem('stat_tasks_added_today') || '0');
   const localDone       = parseInt(localStorage.getItem('stat_tasks_done_today')  || '0');
   
   const remoteFocusMins = parseInt(data.stat_focus_mins_today  || '0');
   const remoteStreak    = parseInt(data.stat_streak            || '1');
-  const remoteAdded     = parseInt(data.stat_tasks_added_today || '0');
   const remoteDoneCount = parseInt(data.stat_tasks_done_today  || '0');
   
   // Max wins — if you focused 10min on phone and 15min on laptop, total is 15min (not 25)
   // This prevents double-counting while ensuring the highest value is preserved
   const mergedFocusMins = Math.max(localFocusMins, remoteFocusMins);
   const mergedStreak    = Math.max(localStreak, remoteStreak);
-  const mergedAdded     = Math.max(localAdded, remoteAdded);
   const mergedDoneCount = Math.max(localDone, remoteDoneCount);
   
   if (mergedFocusMins !== localFocusMins) {
@@ -6634,10 +6627,6 @@ function mergeRemoteData(data) {
   }
   if (mergedStreak !== localStreak) {
     localStorage.setItem('stat_streak', String(mergedStreak));
-    _changed = true;
-  }
-  if (mergedAdded !== localAdded) {
-    localStorage.setItem('stat_tasks_added_today', String(mergedAdded));
     _changed = true;
   }
   if (mergedDoneCount !== localDone) {
@@ -6716,10 +6705,9 @@ async function dropboxRestore(fromSync) {
       localStorage.setItem('today_unchecked_ids', JSON.stringify(Array.isArray(data.unchecked_ids) ? data.unchecked_ids : []));
       localStorage.setItem('today_checked_ids',   JSON.stringify(Array.isArray(data.checked_ids)   ? data.checked_ids   : []));
       if (data.trello_config)         localStorage.setItem('trello_config',         JSON.stringify(data.trello_config));
-      // Stats (flow_rate is calculated live, not stored)
+      // Stats (flow_rate is calculated live from visible tasks, not stored)
       if (data.stat_focus_mins_today)  localStorage.setItem('stat_focus_mins_today',  data.stat_focus_mins_today);
       if (data.stat_streak)            localStorage.setItem('stat_streak',            data.stat_streak);
-      if (data.stat_tasks_added_today) localStorage.setItem('stat_tasks_added_today', data.stat_tasks_added_today);
       if (data.stat_tasks_done_today)  localStorage.setItem('stat_tasks_done_today',  data.stat_tasks_done_today);
       // Habits
       if (Array.isArray(data.habits)) {
