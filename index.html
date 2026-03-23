@@ -8815,7 +8815,7 @@ function _aiDismissProactive() {
     let openPipTimeout = null;
 
     // Auto-open PiP when leaving tab during focus mode
-    // Use delay to avoid interfering with Cmd+H hide behavior
+    // Always close and reopen to ensure PIP comes to front
     document.addEventListener('visibilitychange', function() {
       if (!uiTaskId) return; // Not in focus mode
       
@@ -8826,28 +8826,26 @@ function _aiDismissProactive() {
       clearTimeout(openPipTimeout);
       
       if (document.hidden) {
-        // Leaving tab — wait before opening PiP to avoid focus steal
+        // Close existing PIP first (so we can reopen fresh and bring to front)
+        if (pipWindow && !pipWindow.closed) {
+          pipWindow.close();
+        }
+        pipWindow = null;
+        pipFillEl = null;
+        pipTimeEl = null;
+        
+        // Wait for hide to settle, then open fresh PIP
         openPipTimeout = setTimeout(async function() {
-          // Double-check still hidden (Cmd+H might have been cancelled)
-          if (!document.hidden) return;
-          if (!uiTaskId) return;
-          // Only open if not already open
-          if (!pipWindow || pipWindow.closed) {
-            await openPiP();
-          }
-        }, 400); // Delay to let OS hide settle
+          if (!document.hidden) return; // User came back
+          if (!uiTaskId) return; // Focus ended
+          await openPiP();
+        }, 300);
       }
-      // When returning to tab: DON'T close PiP
-      // Keep it open so it's available for next hide
-      // It will close when focus mode ends
     });
 
     async function openPiP() {
       if (!uiTaskId) return;
-      // Don't open if already open
-      if (pipWindow && !pipWindow.closed) return;
-      // Final check - don't open if document is visible (prevents focus steal)
-      if (!document.hidden) return;
+      if (!document.hidden) return; // Only open when document is hidden
 
       try {
         pipWindow = await documentPictureInPicture.requestWindow({
@@ -8991,8 +8989,8 @@ function _aiDismissProactive() {
 
         // Wire up controls
         pipWindow.document.getElementById('pipOpen').addEventListener('click', function() {
-          // Just focus main window, keep PIP open for reuse
-          // PIP will persist and be available when user hides again
+          // Focus main window. When user minimizes again, visibilitychange
+          // will close this PIP and open a fresh one (bringing it to front)
           window.focus();
         });
 
