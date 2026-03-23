@@ -2743,7 +2743,7 @@ const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
-  '2.11.0': 'Zones prototype: SOON (boomerang) and PAST (archive) sections. Evening triage bar after 8pm. Done tasks auto-archive to PAST at new day.',
+  '2.11.0': 'Zones prototype: SOON/PAST sections, per-task evening triage. Flow rate fixed: now shows done/total (not done/added). PiP fix: delay before opening prevents Cmd+H focus steal, reopens on every minimize.',
   '2.10.0': 'Idle companion: 7 creatures (dino, fish, bird, cat, snail, crab, star) after 45s idle. Fixed Claude API key link.',
   '2.9.9': 'All-done reward: accent glow pulse, extra particle burst, variable warm AI messages. Finishing feels felt.',
   '2.9.8': 'Energy rhythm: AI considers peak hour when suggesting tasks. "It\'s your peak — good moment for that deep work."',
@@ -3554,7 +3554,6 @@ function applyNewDayCleanup() {
   _memoryOnStreakUpdate(newStreak);
 
   // ── Daily counters reset ──
-  // Flow rate is calculated live, no need to store
   
   // Update memory with day summary
   const doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
@@ -3714,10 +3713,12 @@ function renderInfoStats() {
   const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
   const streak = parseInt(localStorage.getItem('stat_streak') || '1');
   
-  // Flow rate: simple today-only calculation — tasks done / tasks added
-  const addedToday = parseInt(localStorage.getItem('stat_tasks_added_today') || '0');
-  const doneToday  = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
-  const flowRate = addedToday > 0 ? Math.min(100, Math.round((doneToday / addedToday) * 100)) : (doneToday > 0 ? 100 : 0);
+  // Flow rate: tasks completed / total tasks available
+  // Uses current state (what you see on screen)
+  const allTasks = [...manualTasks, ...(trelloTasks || [])];
+  const totalAvailable = allTasks.length;
+  const totalDone = allTasks.filter(t => doneIds.has(t.id)).length;
+  const flowRate = totalAvailable > 0 ? Math.round((totalDone / totalAvailable) * 100) : 0;
 
   const stats = [
     { val: _formatFocusTime(focusMinsToday), label: 'Focus' },

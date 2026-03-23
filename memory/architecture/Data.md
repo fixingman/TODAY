@@ -48,11 +48,11 @@
 | `stat_alltime_done` | string | Lifetime completed count |
 | `stat_streak` | string | Current daily streak |
 | `stat_last_visit` | string | Last date app opened |
-| `stat_flow_rate` | string | Completion rate (0-100) |
-| `stat_tasks_added_today` | string | Tasks added today |
-| `stat_tasks_done_today` | string | Tasks completed today |
+| `stat_tasks_done_today` | string | Tasks completed today (for memory/AI) |
 | `stat_focus_mins_today` | string | Focus minutes today |
 | `stat_focus_mins_alltime` | string | Lifetime focus minutes |
+
+**Note:** Flow rate is calculated live (`done / total` visible tasks), not stored. See Research.md § Stats.
 
 ### Memory (AI Companion)
 

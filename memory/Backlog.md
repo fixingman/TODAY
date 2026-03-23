@@ -20,6 +20,8 @@
 - [x] Visual feedback (decided tasks collapse with badge)
 - [x] "Keep all" batch action
 - [x] Auto-close after all decisions
+- [x] **Flow rate fix** — now `done / total` (was `done / added`, always hit 100%)
+- [x] **PiP fix** — delay before open (prevents Cmd+H focus steal), close+reopen on every minimize
 
 ### ⬜ TODO: Core Functionality
 - [ ] **Dropbox sync** — add `today_soon` and `today_past` to backup/restore

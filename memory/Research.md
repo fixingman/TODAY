@@ -556,13 +556,29 @@ These controls auto-fade when the mouse leaves the PiP window.
 |---|---|---|
 | Focus minutes today | `stat_focus_mins_today` | Max wins |
 | Streak | `stat_streak` | Max wins |
-| Flow rate | `stat_flow_rate` | Max wins |
-| Tasks added today | `stat_tasks_added_today` | Max wins |
-| Tasks done today | `stat_tasks_done_today` | Max wins |
+
+**Note:** Flow rate is now calculated live, not stored. See below.
 
 **Max wins strategy:** If phone has 10min focus and laptop has 15min, merged result is 15min. Prevents double-counting while ensuring the highest value is preserved across devices.
 
 **Excluded from sync:** `stat_last_visit` — local device state only. Restoring it would trigger `checkNewDay()` cleanup incorrectly.
+
+### Flow rate calculation (v2.11.0)
+
+Flow rate shows completion percentage of tasks *currently visible* on screen:
+
+```javascript
+const allTasks = [...manualTasks, ...(trelloTasks || [])];
+const totalAvailable = allTasks.length;
+const totalDone = allTasks.filter(t => doneIds.has(t.id)).length;
+const flowRate = totalAvailable > 0 ? Math.round((totalDone / totalAvailable) * 100) : 0;
+```
+
+**Why this approach:**
+- Before v2.11.0: `done / added` — always hit 100% when completing old tasks
+- Now: `done / total` — accurate reflection of what's visible
+- Includes Trello cards (which were never counted as "added")
+- Calculated live, not stored — updates immediately when tasks change
 
 ### Focus time tracking
 
