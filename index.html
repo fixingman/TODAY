@@ -1628,24 +1628,38 @@
     .btn-icon { width: 32px; height: 32px; font-size: var(--text-md); }
 
     /* Sticky add-task bar — fixed to bottom of viewport */
-    /* Safari auto-scrolls to show focused input — no JS needed */
     .add-task-row {
       position: fixed;
-      bottom: env(safe-area-inset-bottom, 0);
+      bottom: 0;
       left: 0;
       right: 0;
       z-index: var(--z-header);
       margin: 0;
       padding: var(--space-3) var(--space-4);
-      background: var(--bg-glass);
-      -webkit-backdrop-filter: blur(16px) saturate(1.4);
-      backdrop-filter: blur(16px) saturate(1.4);
+      padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0));
+      background: var(--bg);
+      /* Solid bg, no blur needed on mobile */
     }
     
-    /* When keyboard is open, safe-area is hidden by keyboard */
+    /* Black fill below input bar — makes it look attached to bottom */
+    .add-task-row::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      height: 100px; /* Generous fill for any screen */
+      background: var(--bg);
+      pointer-events: none;
+    }
+    
+    /* When keyboard is open: position above keyboard, remove bottom fill */
     .add-task-row.keyboard-open {
-      bottom: 0;
-      padding-bottom: var(--space-2);
+      /* Position set by JS via visualViewport */
+      padding-bottom: var(--space-3);
+    }
+    .add-task-row.keyboard-open::after {
+      display: none;
     }
     
     /* Mobile: single star only, no hover expansion */
@@ -2738,12 +2752,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.11.0';
+const APP_VERSION   = '2.11.2';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
-  '2.11.0': 'Zones prototype: SOON/PAST sections, per-task evening triage. Flow rate fixed: now shows done/total (not done/added). PiP fix: delay before opening prevents Cmd+H focus steal, reopens on every minimize.',
+  '2.11.2': 'Mobile keyboard fix: input bar stays visible above keyboard (visualViewport API). Black fill below bar when not focused.',
+  '2.11.1': 'Zones Dropbox sync: SOON/PAST now sync cross-device (schema v5.0). Union merge by task ID, newer zoneChangedAt wins.',
+  '2.11.0': 'Zones: SOON/PAST sections, per-task triage. Flow rate fixed: done/total. PiP: delay before open, reopens on minimize.',
   '2.10.0': 'Idle companion: 7 creatures (dino, fish, bird, cat, snail, crab, star) after 45s idle. Fixed Claude API key link.',
   '2.9.9': 'All-done reward: accent glow pulse, extra particle burst, variable warm AI messages. Finishing feels felt.',
   '2.9.8': 'Energy rhythm: AI considers peak hour when suggesting tasks. "It\'s your peak — good moment for that deep work."',
@@ -6330,7 +6346,7 @@ async function dropboxBackup(silent) {
   const now = new Date().toISOString();
   const safeJSON = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); } catch(e) { return fallback; } };
   const data = {
-    version:      '4.0',
+    version:      '5.0',
     saved_at:     now,
     manual_tasks:      safeJSON('today_manual', []),
     done_ids:          safeJSON('today_done',   []),
@@ -6338,10 +6354,12 @@ async function dropboxBackup(silent) {
     unchecked_ids:     _getUncheckedIds(),
     checked_ids:       _getCheckedIds(),
     trello_config:     safeJSON('trello_config', {}),
+    // Zones — SOON and PAST (v5.0)
+    soon_tasks:        safeJSON('today_soon', []),
+    past_tasks:        safeJSON('today_past', []),
     // Stats — synced cross-device (flow rate is calculated live, not stored)
     stat_focus_mins_today:  localStorage.getItem('stat_focus_mins_today')  || '0',
     stat_streak:            localStorage.getItem('stat_streak')            || '1',
-    stat_tasks_added_today: localStorage.getItem('stat_tasks_added_today') || '0',
     stat_tasks_done_today:  localStorage.getItem('stat_tasks_done_today')  || '0',
     // Habits — persisted cross-device
     habits:               safeJSON('today_habits',            []),
@@ -6505,6 +6523,42 @@ function mergeRemoteData(data) {
   const habitsPanel = document.getElementById('habitsPanel');
   if (habitsPanel && habitsPanel.classList.contains('open')) renderHabits();
 
+  // ── Zones: SOON and PAST (v5.0) ───────────────────────────────────────────
+  // Union merge by task ID — most recent zoneChangedAt wins for conflicts
+  const remoteSoon = Array.isArray(data.soon_tasks) ? data.soon_tasks : [];
+  const remotePast = Array.isArray(data.past_tasks) ? data.past_tasks : [];
+  
+  // Merge SOON: union by ID, most recent zoneChangedAt wins
+  const soonMap = new Map();
+  soonTasks.forEach(t => soonMap.set(t.id, t));
+  remoteSoon.forEach(t => {
+    const existing = soonMap.get(t.id);
+    if (!existing || (t.zoneChangedAt && (!existing.zoneChangedAt || t.zoneChangedAt > existing.zoneChangedAt))) {
+      soonMap.set(t.id, t);
+    }
+  });
+  soonTasks = [...soonMap.values()];
+  localStorage.setItem('today_soon', JSON.stringify(soonTasks));
+  
+  // Merge PAST: union by ID, most recent zoneChangedAt wins, keep last 100
+  const pastMap = new Map();
+  pastTasks.forEach(t => pastMap.set(t.id, t));
+  remotePast.forEach(t => {
+    const existing = pastMap.get(t.id);
+    if (!existing || (t.zoneChangedAt && (!existing.zoneChangedAt || t.zoneChangedAt > existing.zoneChangedAt))) {
+      pastMap.set(t.id, t);
+    }
+  });
+  // Sort by zoneChangedAt descending, keep last 100
+  pastTasks = [...pastMap.values()]
+    .sort((a, b) => (b.zoneChangedAt || '').localeCompare(a.zoneChangedAt || ''))
+    .slice(0, 100);
+  localStorage.setItem('today_past', JSON.stringify(pastTasks));
+  
+  // Re-render zones if visible
+  if (typeof renderSoon === 'function') renderSoon();
+  if (typeof renderPast === 'function') renderPast();
+
   // ── Persist merged operation logs ────────────────────────────────────────
   localStorage.setItem('today_deleted_ids',   JSON.stringify([...mergedDeletedMap.entries()].map(([id,at]) => ({id,at}))));
   localStorage.setItem('today_unchecked_ids', JSON.stringify([...mergedUncheckedMap.entries()].map(([id,at]) => ({id,at}))));
@@ -6667,6 +6721,17 @@ async function dropboxRestore(fromSync) {
         localStorage.setItem('today_deleted_habit_ids', JSON.stringify(Array.isArray(data.deleted_habit_ids) ? data.deleted_habit_ids : []));
         const habitsPanel = document.getElementById('habitsPanel');
         if (habitsPanel && habitsPanel.classList.contains('open')) renderHabits();
+      }
+      // Restore zones — SOON and PAST (v5.0)
+      if (Array.isArray(data.soon_tasks)) {
+        soonTasks = data.soon_tasks;
+        localStorage.setItem('today_soon', JSON.stringify(soonTasks));
+        if (typeof renderSoon === 'function') renderSoon();
+      }
+      if (Array.isArray(data.past_tasks)) {
+        pastTasks = data.past_tasks;
+        localStorage.setItem('today_past', JSON.stringify(pastTasks));
+        if (typeof renderPast === 'function') renderPast();
       }
       // Restore memory (merge with local — union of moments, max of counters)
       if (data.memory && typeof data.memory === 'object') {
@@ -9051,8 +9116,7 @@ function _aiDismissProactive() {
 
 // ══════════════════════════════════════════════════════════════════════════
 // Mobile Keyboard Handling
-// Safari auto-scrolls to show focused input - we just toggle class for padding
-// DO NOT fight Safari's native behavior with JavaScript positioning!
+// Use visualViewport API to position input bar above keyboard
 // ══════════════════════════════════════════════════════════════════════════
 (function() {
   const bar = document.getElementById('addTaskBar');
@@ -9062,14 +9126,48 @@ function _aiDismissProactive() {
   // Only on touch devices
   if (!window.matchMedia('(pointer: coarse)').matches) return;
   
+  // Check for visualViewport support
+  const vv = window.visualViewport;
+  
+  function positionBar() {
+    if (!bar.classList.contains('keyboard-open')) return;
+    if (!vv) return;
+    
+    // Calculate where bottom of visual viewport is
+    // offsetTop = how far visual viewport is scrolled from layout viewport top
+    // height = visual viewport height (shrinks when keyboard opens)
+    const keyboardTop = vv.offsetTop + vv.height;
+    
+    // Position bar at bottom of visual viewport
+    bar.style.top = (keyboardTop - bar.offsetHeight) + 'px';
+    bar.style.bottom = 'auto';
+  }
+  
+  function resetBar() {
+    bar.style.top = '';
+    bar.style.bottom = '';
+  }
+  
   input.addEventListener('focus', () => {
-    // Just toggle class for padding - no positioning!
     bar.classList.add('keyboard-open');
+    // Small delay for keyboard to start opening
+    setTimeout(() => {
+      positionBar();
+      // Scroll input into view
+      input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 100);
   });
   
   input.addEventListener('blur', () => {
     bar.classList.remove('keyboard-open');
+    resetBar();
   });
+  
+  // Reposition on viewport resize (keyboard animation)
+  if (vv) {
+    vv.addEventListener('resize', positionBar);
+    vv.addEventListener('scroll', positionBar);
+  }
 })();
 
 
