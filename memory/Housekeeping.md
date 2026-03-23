@@ -8,7 +8,8 @@
 
 Before starting work, read:
 1. `Rules.md` — Critical constraints (always)
-2. Relevant split file for the task (see Rules.md file guide)
+2. `Backlog.md` — Check for prototype TODOs (if continuing a feature)
+3. Relevant split file for the task (see Rules.md file guide)
 
 ---
 
@@ -26,6 +27,7 @@ After completing work:
 - New rule → Add to `Rules.md`
 - Data change → Update `architecture/Data.md`
 - UI change → Update `design/Components.md`
+- Prototype work → Update `Backlog.md` (check off completed, add new TODOs)
 
 ### 3. Version Bump
 - `index.html`: Update `APP_VERSION` and `DEV_HOURS`

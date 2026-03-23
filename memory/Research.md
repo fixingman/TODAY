@@ -1522,11 +1522,7 @@ This supersedes §18 "The Not Today Problem". Key evolution:
 
 ### Next Steps
 
-1. Update data model in `architecture/Data.md`
-2. Design collapsed SOON/PAST UI components
-3. Implement evening triage bar (offline-first)
-4. Add AI triage enhancements
-5. Build SOON → TODAY pull interaction
+See `Backlog.md` for full prototype status and TODO tracking.
 
 ---
 
