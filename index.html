@@ -2752,11 +2752,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.11.4';
+const APP_VERSION   = '2.11.5';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.11.5': 'PiP: window title now shows "✦ TODAY". Improved reliability: tries opening immediately + fallback delay.',
   '2.11.4': 'Splash polish: addTaskBar and triageBar hidden during splash (no flash). Revealed after splash dismissal.',
   '2.11.3': 'Fix: missing _escapeHtml and _getAgeDays functions caused app freeze and triage failure.',
   '2.11.2': 'Mobile keyboard fix: input bar stays visible above keyboard (visualViewport API). Black fill below bar when not focused.',
@@ -8901,7 +8902,9 @@ function _aiDismissProactive() {
     let openPipTimeout = null;
 
     // Auto-open PiP when leaving tab during focus mode
-    // Always close and reopen to ensure PIP comes to front
+    // Note: Document PIP API requires a user gesture. Opening PIP on visibilitychange
+    // may fail if too much time has passed since the user clicked to start focus.
+    // We try immediately first, then with a short delay as fallback.
     document.addEventListener('visibilitychange', function() {
       if (!uiTaskId) return; // Not in focus mode
       
@@ -8920,18 +8923,23 @@ function _aiDismissProactive() {
         pipFillEl = null;
         pipTimeEl = null;
         
-        // Wait for hide to settle, then open fresh PIP
+        // Try opening immediately (might work if user gesture is still valid)
+        openPiP().catch(() => {});
+        
+        // Also try after a short delay (in case immediate failed)
         openPipTimeout = setTimeout(async function() {
           if (!document.hidden) return; // User came back
           if (!uiTaskId) return; // Focus ended
-          await openPiP();
-        }, 300);
+          if (pipWindow && !pipWindow.closed) return; // Already opened
+          await openPiP().catch(() => {});
+        }, 150);
       }
     });
 
     async function openPiP() {
       if (!uiTaskId) return;
       if (!document.hidden) return; // Only open when document is hidden
+      if (pipWindow && !pipWindow.closed) return; // Already open
 
       try {
         pipWindow = await documentPictureInPicture.requestWindow({
@@ -9065,6 +9073,9 @@ function _aiDismissProactive() {
             </div>
           </div>
         `;
+
+        // Set PIP window title
+        pipWindow.document.title = '✦ TODAY';
 
         pipFillEl = pipWindow.document.getElementById('pipFill');
         pipTimeEl = pipWindow.document.getElementById('pipTime');
