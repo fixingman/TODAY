@@ -1,7 +1,7 @@
 // TODAY — Service Worker
 // Strategy: network-first for app shell, strict exclusions for all API calls
 // Version bump this string to force cache invalidation on deploy
-const CACHE_VERSION  = 'today-v2.9.9';
+const CACHE_VERSION  = 'today-v2.11.0';
 const CACHE_APP_SHELL = [
   '/',
   '/manifest.json',
@@ -64,10 +64,14 @@ const OFFLINE_HTML = `<!DOCTYPE html>
 // ── Install: pre-cache app shell + offline fallback ───────────────────────────
 // ── Update message — client requests immediate takeover ──────────────────────
 self.addEventListener('message', event => {
-  if (event.data === 'SKIP_WAITING') self.skipWaiting();
+  if (event.data === 'SKIP_WAITING') {
+    console.log('[SW] SKIP_WAITING received, taking over...');
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('install', event => {
+  console.log('[SW] Installing version:', CACHE_VERSION);
   event.waitUntil(
     caches.open(CACHE_VERSION).then(cache => {
       // Cache offline fallback immediately — always available, even cold start
@@ -84,14 +88,15 @@ self.addEventListener('install', event => {
 
 // ── Activate: purge old cache versions ───────────────────────────────────────
 self.addEventListener('activate', event => {
+  console.log('[SW] Activating version:', CACHE_VERSION);
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(key => key !== CACHE_VERSION)
-          .map(key => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
+    caches.keys().then(keys => {
+      const oldKeys = keys.filter(key => key !== CACHE_VERSION);
+      if (oldKeys.length > 0) {
+        console.log('[SW] Purging old caches:', oldKeys);
+      }
+      return Promise.all(oldKeys.map(key => caches.delete(key)));
+    }).then(() => self.clients.claim())
   );
 });
 

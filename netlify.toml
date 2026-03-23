@@ -1,10 +1,26 @@
 [build]
   publish = "."
   functions = "netlify/functions"
-  ignore = "git diff --quiet HEAD^ HEAD -- index.html netlify.toml"
+  ignore = "git diff --quiet HEAD^ HEAD -- index.html sw.js netlify.toml"
 
 [build.processing]
   skip_processing = false
+
+# Cache headers — prevent aggressive browser caching of HTML and SW
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
 
 # Production — master only
 [context.production]

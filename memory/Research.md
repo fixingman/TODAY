@@ -1096,3 +1096,437 @@ Finishing **feels** like finishing. Not with fireworks, but with genuine acknowl
 It's simply the app saying: "You did it. I noticed."
 
 ---
+
+## 17. Idle Companion — Delight in the Quiet Moments
+
+*Implemented: Mar 19, 2026 (v2.10.0)*
+
+### The Philosophy
+
+TODAY is not just about productivity and efficiency. There should be **delight** in using it. The app should have moments of joy, whimsy, and surprise — not tied to completing tasks.
+
+### The Inspiration
+
+[cli-spinners](https://github.com/sindresorhus/cli-spinners) — a collection of ASCII spinners for terminal applications. Simple characters that animate with personality. The aesthetic is:
+- Monospace font
+- Simple ASCII/Unicode characters
+- Organic movement
+- Minimal but expressive
+
+### The Idea: A Little Friend
+
+After no activity for a while (no focus, task checking, habit marking, reordering), a small ASCII creature appears in the corner of the screen. Like a tamagotchi that wandered into your task list.
+
+Not demanding attention. Not prompting action. Just... there. A companion who shows up when things are quiet.
+
+### Implementation
+
+**Trigger:** 45 seconds of inactivity
+- No clicks, touches, keypresses
+- No scrolling
+- Mousemove is throttled (1s) so small movements don't reset
+
+**Creature Selection:** Random each time
+- 50% chance: Dino
+- 50% chance: Fish
+
+**Appearance:**
+- Bottom-right corner
+- DM Mono font (matches app branding)
+- Accent color (#c8f060) with subtle glow
+- 60% opacity (visible but not demanding)
+- Fades in over 0.6s
+
+**The Dino** (400ms per frame):
+```
+    ✦▀▄        ✦▀▄        ✦▀▄
+   ▄██▀       ▄██▀       ▄██▀
+  ▀▀▀▀        ▀▀▀       ▀ ▀▀
+```
+Shifting weight, looking around.
+
+**The Fish** (120ms per frame — fast swimmer):
+```
+><(((bg✦  →  ><(((bg ✦  →  ><(((bg  ✦  →  ...
+```
+Swimming with a bubble (✦) that travels along its body. Inspired directly by cli-spinners' fish animation.
+
+**Dismissal:** Any user activity hides the companion (fade out over 0.6s).
+
+### Why This Matters
+
+Most task apps are *serious*. They're about getting things done, being productive, optimizing your time. That's exhausting.
+
+TODAY already has a calm philosophy. The idle companion extends this into **playfulness**. It says:
+- "It's okay to pause"
+- "The app is alive even when you're not doing things"
+- "There's room for whimsy here"
+
+### What This Is NOT
+
+- Not a notification ("You've been idle!")
+- Not a nudge ("Time to get back to work!")
+- Not gamification (no feeding the dino, no streaks)
+- Not interactive (just watching)
+
+It's pure delight. A moment of "oh, that's nice" in an otherwise utilitarian tool.
+
+---
+
+## 18. The "Not Today" Problem
+
+*Research: Mar 19, 2026*
+
+### The Problem
+
+The app is called **TODAY**. But what happens to tasks that don't get done today?
+
+Right now: they just linger. Tomorrow morning, yesterday's undone tasks are still there, mixed with today's fresh intentions. This creates:
+
+- **Guilt** — seeing unfinished work from yesterday
+- **Clutter** — old tasks dilute today's focus
+- **Confusion** — "is this still relevant?"
+
+The app's philosophy is **one day, one list, clean slate** — but the implementation doesn't enforce this.
+
+### Options Explored
+
+| Approach | Behavior | Pros | Cons |
+|---|---|---|---|
+| **Auto-clear at midnight** | Undone tasks vanish | True "today only" purity | Might lose important things |
+| **Defer gesture** | Swipe to "not today →" | User controls what stays | Adds UI complexity |
+| **Morning review** | Shows "from yesterday" section | Acknowledges continuity | More cognitive load |
+| **Quiet archive** | Undone fades to "someday" | No pressure, still accessible | Scope creep |
+| **AI-assisted triage** | Evening: "3 didn't happen. Keep or let go?" | Low friction, guided | Requires AI panel open |
+
+### Recommendation: "Let Go" with AI Companion
+
+Given TODAY's philosophy of **calm, acknowledgment, low friction**:
+
+**1. Evening moment (AI-initiated)**
+Around evening (after 6pm), if AI panel is opened and there are undone tasks:
+> "3 things didn't happen today. Keep them for tomorrow, or let them go?"
+
+**2. Simple actions**
+- **Keep** → task stays, marked as `keptFrom: 'YYYY-MM-DD'`
+- **Let go** → task moves to `deferred` list (not deleted, just hidden)
+
+**3. Morning return (optional)**
+If `deferred` list has items, show them dimmed at bottom:
+> "From before" section — tap to restore or dismiss all
+
+**4. No automatic behavior**
+User stays in control. The app just asks once per evening, gently.
+
+### Data Model Changes
+
+```javascript
+// New localStorage keys
+today_deferred       // [{id, text, deferredAt}, ...]
+today_kept_dates     // {taskId: 'YYYY-MM-DD', ...} — track lineage
+
+// New task property
+task.keptFrom        // ISO date string if task was kept from previous day
+```
+
+### Visual Treatment
+
+**Kept tasks** (from yesterday):
+- Subtle indicator: small `·` before text, or muted "from yesterday" label
+- Same styling otherwise — they're today's tasks now
+
+**Deferred section** (if shown):
+- Below main list, collapsed by default
+- "From before" header
+- 35% opacity (like aged tasks)
+- One-tap restore or "clear all"
+
+### AI Prompt Addition
+
+```
+EVENING TRIAGE (after 6pm, if undone tasks exist):
+If user opens AI panel in the evening with undone tasks, acknowledge them:
+"3 things didn't happen today. Want to keep them for tomorrow, or let them go?"
+
+Actions available:
+- keep_task { id } — marks task as kept, stays in list
+- defer_task { id } — moves to deferred, hidden from main list
+- defer_all {} — defers all undone tasks
+- keep_all {} — keeps all undone tasks
+```
+
+### Open Questions
+
+1. **When exactly is "evening"?** After 6pm? After 8pm? User-configurable?
+2. **How long to keep deferred items?** Forever? 7 days? Until user clears?
+3. **Should kept tasks show their origin?** "from Mar 18" or just unmarked?
+4. **What if user never opens AI panel?** Silent carry-over, or morning prompt?
+
+### Next Steps
+
+1. Decide on evening trigger time (suggest: 6pm local)
+2. Implement `defer_task` and `keep_task` AI actions
+3. Add deferred storage and morning restore UI
+4. Update AI system prompt with evening triage context
+
+---
+
+## 19. Past / Today / Soon — Temporal Model
+
+*Research: Mar 23, 2026*
+
+### Current Behavior (Pre-Temporal Model)
+
+Before implementing Past/Today/Soon, here's what currently happens at new day:
+
+| Task State | Current Behavior |
+|------------|------------------|
+| **Checked (done)** | Removed from list, cleared from storage |
+| **Unchecked + had focus session** | Stays in TODAY (lastActive reset) |
+| **Unchecked + had pomodoro** | Stays in TODAY (lastActive reset) |
+| **Unchecked + no focus** | Stays in TODAY (ages naturally) |
+| **Trello cards** | Re-fetched fresh daily |
+
+**Key functions:**
+- `applyNewDayCleanup()` — runs on first open of new day
+- Removes manual tasks where `doneIds.has(t.id)`
+- Clears `today_trello_focus` (pomodoro counts reset)
+- Preserves unchecked manual tasks (they carry over)
+- `lastActive` determines aging opacity (7+ days = stale)
+
+**What this means for temporal model:**
+- Done tasks already auto-clear → maps to PAST (status: done)
+- Unchecked tasks currently linger → need triage to SOON or PAST
+- Focus session resets `lastActive` → prevents aging
+
+### The Concept
+
+Tasks exist in three temporal zones based on **attention state**, not dates:
+
+| Zone | Meaning | Analogy |
+|------|---------|---------|
+| **PAST** | Behind me | The Archive |
+| **TODAY** | Active attention | The Focus |
+| **SOON** | Ahead of me | The Boomerang |
+
+**Key insight:** What I don't see on the list now is either PAST or SOON. TODAY is the only active view.
+
+### Design Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Evening auto-move? | **No** | User must decide — respects agency |
+| Dates on SOON? | **No** | Not a planning tool |
+| SOON visibility | **Visible (collapsed)** | For testing; may hide later |
+| PAST editable? | **Read-only** | Archive, not inbox |
+| Done retention | **Forever** | Accomplishments matter |
+| Let go/aged retention | **30 days** | Clean storage |
+
+### Data Model
+
+#### Task Structure
+
+```javascript
+{
+  id: 'manual_1234567890',
+  text: 'Finish report',
+  
+  // Zone
+  zone: 'today',           // 'past' | 'today' | 'soon'
+  zoneChangedAt: 'ISO',    // when moved to current zone
+  
+  // Status (only relevant for PAST zone)
+  status: null,            // null | 'done' | 'let_go' | 'aged'
+  
+  // Aging
+  createdAt: 'ISO',
+  lastActiveAt: 'ISO',     // reset on focus session or check
+  
+  // Origin tracking
+  returnedFrom: null,      // null | 'soon' (for UI badge)
+}
+```
+
+#### localStorage Keys
+
+```javascript
+today_tasks    // [{task}, ...] where zone: 'today'
+today_soon     // [{task}, ...] where zone: 'soon'
+today_past     // [{task}, ...] where zone: 'past'
+
+// Or unified approach:
+today_all_tasks // [{task}, ...] with zone property
+```
+
+### Task State Transitions (New Model)
+
+How each task state maps to the temporal model:
+
+| Task State | End of Day Behavior | Zone | Status |
+|------------|---------------------|------|--------|
+| **Checked (done)** | Auto-archive | PAST | `done` |
+| **Unchecked + focus session today** | Triage prompt (likely keep) | — | — |
+| **Unchecked + pomodoro today** | Triage prompt (likely keep) | — | — |
+| **Unchecked + no activity** | Triage prompt | — | — |
+| **Arrived from SOON** | Treated as normal TODAY task | — | — |
+| **Aged 7+ days** | Auto-archive | PAST | `aged` |
+
+**Triage decisions (user chooses):**
+- "Keep in today" → stays in TODAY
+- "Defer to soon" → moves to SOON
+- "Let go" → moves to PAST (status: `let_go`)
+
+**AI enhancement:** When triaging, AI can notice activity:
+> "'Finish report' had 2 pomodoro sessions today — keep working on it?"
+
+**Trello cards:**
+- Still re-fetch daily (external source of truth)
+- Done state syncs back to Trello
+- Focus sessions tracked in `today_trello_focus`
+- Not subject to aging (refreshed daily)
+
+### Zone Definitions
+
+#### TODAY (The Focus)
+
+**What lives here:** Active tasks requiring attention.
+
+**Enters via:**
+- User adds new task
+- User pulls from SOON manually
+- AI resurfaces from SOON
+
+**Exits via:**
+- Check → PAST (status: `done`)
+- Evening triage "defer" → SOON
+- Evening triage "let go" → PAST (status: `let_go`)
+- Ages 7+ days → PAST (status: `aged`)
+
+#### PAST (The Archive)
+
+**What lives here:** Everything no longer active. Read-only.
+
+**Three statuses with visual distinction:**
+
+| Status | Source | Visual | Retention |
+|--------|--------|--------|-----------|
+| `done` | Checked off | ✓ checkmark, normal opacity | Forever |
+| `let_go` | Evening triage | ○ no check, dimmed | 30 days |
+| `aged` | Auto-aged out | ◌ no check, very dimmed | 30 days |
+
+**Cannot move back to TODAY** — archive is final.
+
+#### SOON (The Boomerang)
+
+**What lives here:** Deferred tasks, not forgotten.
+
+**Enters via:**
+- Evening triage "defer" from TODAY
+
+**Exits via:**
+- User pulls back to TODAY manually
+- AI resurfaces to TODAY
+- Ages 30+ days → PAST (status: `aged`)
+
+**Key constraint:** No dates. "Return on Tuesday" is planning — not TODAY's job.
+
+### Evening Triage (Offline-First)
+
+**Trigger:** After 8pm + undone tasks exist + triage not done today
+
+**Requirement:** User must make a decision. No auto-move at midnight.
+
+**AI Online:**
+Natural language, per-task suggestions:
+> "3 things didn't happen today. 'Fix the bike' has been here 5 days — still relevant?"
+
+**AI Offline (fallback):**
+Simple triage bar appears:
+```
+┌─────────────────────────────────────────────────┐
+│ 3 undone  [Keep in today] [Defer] [Let go]      │
+└─────────────────────────────────────────────────┘
+```
+
+Batch actions apply to all undone tasks.
+
+### Aging Rules
+
+| Condition | Action |
+|-----------|--------|
+| TODAY task, 7+ days old | → auto-move to PAST (status: `aged`) |
+| SOON task, 30+ days old | → auto-move to PAST (status: `aged`) |
+| PAST (let_go/aged), 30+ days old | → purge from storage |
+| PAST (done) | → keep forever |
+
+**When to check:** On app open (simplest, works offline).
+
+### Task Flows
+
+```
+TODAY ──check──→ PAST (done)
+TODAY ──defer──→ SOON ──pull back──→ TODAY
+TODAY ──let go─→ PAST (let_go)
+TODAY ──7 days─→ PAST (aged)
+SOON ──30 days─→ PAST (aged)
+PAST (aged/let_go) ──30 days──→ [purged]
+```
+
+### UI Layout
+
+```
+┌─────────────────────────────────────────────────┐
+│ SOON (3) ▸                      [collapsed]     │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│ 5 TODAY                                         │
+│ ○ Finish report                                 │
+│ ○ Email client                                  │
+│ ✓ Pack luggage (done, faded)                    │
+│                                                 │
+├─────────────────────────────────────────────────┤
+│ PAST (12) ▸                     [collapsed]     │
+└─────────────────────────────────────────────────┘
+```
+
+SOON at top (what's coming), PAST at bottom (what's behind).
+
+### Open Questions (Resolved)
+
+**What triggers aging check?**
+→ Keep existing aging logic. Currently happens on app open. No change needed.
+
+**Midnight auto-move?**
+→ **Watch this decision.** Currently saying no, but note that Trello cards already auto-refresh daily. May need consistency. For now: user decides via triage, but revisit if friction is too high.
+
+**If user ignores evening triage?**
+→ Three-layer approach:
+1. Show triage again next evening
+2. Gentle nudge in morning: "3 things still here from yesterday"
+3. Natural aging (7 days) eventually archives them
+Not indefinite — we want to clear the list, but through aging not force.
+
+**Can user restore from PAST?**
+→ Read-only for now. If we implement "pull to TODAY" action for SOON, we may extend to PAST later (for accidentally aged/snoozed items). Keep scope small initially.
+
+### Relationship to Section 18
+
+This supersedes §18 "The Not Today Problem". Key evolution:
+
+| §18 Concept | §19 Replacement |
+|-------------|-----------------|
+| `deferred` list | SOON zone |
+| `keptFrom` property | `returnedFrom` property |
+| Midnight auto-clear option | Removed (user decides) |
+| "From before" section | PAST zone |
+
+### Next Steps
+
+1. Update data model in `architecture/Data.md`
+2. Design collapsed SOON/PAST UI components
+3. Implement evening triage bar (offline-first)
+4. Add AI triage enhancements
+5. Build SOON → TODAY pull interaction
+
+---
+
