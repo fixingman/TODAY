@@ -42,7 +42,7 @@
 ## Data Rules
 
 10. `manualTasks` and `habitsList` preserve drag order — **never re-sort**
-11. Backup schema version: **5.0** (includes zones)
+11. Backup schema version: **5.1** (includes triage history)
 12. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
 13. All timestamps: ISO strings
 

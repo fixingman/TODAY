@@ -900,6 +900,17 @@
   .triage-task-badge.kept { color: var(--accent); }
   .triage-task-badge.soon { color: var(--highlight); }
   .triage-task-badge.letgo { color: var(--muted); }
+  .triage-task-meta.trello { color: var(--highlight); }
+  .triage-task.trello { border-left: 2px solid var(--highlight); }
+  .triage-task-hint {
+    font-size: var(--text-xs);
+    color: var(--muted);
+    margin-left: 28px;
+    margin-bottom: var(--space-2);
+    font-style: italic;
+    opacity: 0;
+    animation: fadeIn var(--dur-base) var(--ease-std) forwards;
+  }
   .triage-actions {
     display: flex;
     gap: var(--space-2);
@@ -2775,11 +2786,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.11.7';
+const APP_VERSION   = '2.12.3';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.3': 'Fix: PiP timer now syncs immediately when returning to app. Was showing stale countdown until next tick.',
+  '2.12.2': 'Dropbox sync fix: tracks pending backups, retries on tab focus if backup failed silently. Backup schema v5.1.',
+  '2.12.1': 'Trello in triage: evening triage now includes Trello cards. Keep or Let go (no Soon — they live in Trello). Yellow accent distinguishes them.',
+  '2.12.0': 'AI triage hints: evening triage now shows contextual AI suggestions per task. Tracks triage history to learn patterns over time.',
+  '2.11.8': 'Fix: nav panel toggle no longer jumps to top — scroll position preserved when opening Habits/Connections/About.',
   '2.11.7': 'PWA install: Android users see "Install App" button in About panel. Hidden once installed.',
   '2.11.6': 'Housekeeping: removed orphaned stat_tasks_added_today code, updated schema docs to v5.0.',
   '2.11.5': 'PiP: window title now shows "✦ TODAY". Improved reliability: tries opening immediately + fallback delay.',
@@ -3107,12 +3123,14 @@ let triageDecisions = {}; // {taskId: 'kept'|'soon'|'letgo'}
 
 function checkTriageBar() {
   const hour = new Date().getHours();
-  const undone = manualTasks.filter(t => !doneIds.has(t.id));
+  const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
+  const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
+  const totalUndone = undoneManual.length + undoneTrello.length;
   const bar = document.getElementById('triageBar');
   
   // Show after 8pm with undone tasks, unless dismissed today
-  if (hour >= 20 && undone.length > 0 && !triageDismissedToday) {
-    document.getElementById('triageCount').textContent = undone.length;
+  if (hour >= 20 && totalUndone > 0 && !triageDismissedToday) {
+    document.getElementById('triageCount').textContent = totalUndone;
     bar.classList.remove('hidden');
   } else {
     bar.classList.add('hidden');
@@ -3121,32 +3139,156 @@ function checkTriageBar() {
 
 function triageExpand() {
   triageDecisions = {};
-  const undone = manualTasks.filter(t => !doneIds.has(t.id));
+  _triageHints = {}; // Reset AI hints
+  const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
+  const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
+  const totalUndone = undoneManual.length + undoneTrello.length;
   
   document.getElementById('triageBar').classList.add('hidden');
-  document.getElementById('triageTitle').textContent = `${undone.length} didn't happen`;
+  document.getElementById('triageTitle').textContent = `${totalUndone} didn't happen`;
   document.getElementById('triageComplete').classList.add('hidden');
   
   renderTriageList();
   document.getElementById('triageOverlay').classList.remove('hidden');
+  
+  // Fetch AI hints async (non-blocking) — manual tasks only for now
+  _fetchTriageHints(undoneManual);
+}
+
+// AI hints for triage — stored per task ID
+let _triageHints = {};
+
+async function _fetchTriageHints(tasks) {
+  // Check if AI is configured
+  const key = _aiGetKey();
+  if (!key || tasks.length === 0) return;
+  
+  // Build context for each task
+  const hour = new Date().getHours();
+  const dayOfWeek = new Date().getDay();
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  
+  const taskContexts = tasks.map(t => {
+    const created = t.lastActive || t.createdAt || _getCreatedFromId(t.id);
+    const ageDays = _getAgeDays(created);
+    const focusData = JSON.parse(localStorage.getItem('today_trello_focus') || '{}');
+    const sessions = focusData[t.id] || 0;
+    return {
+      id: t.id,
+      text: t.text,
+      ageDays,
+      sessions
+    };
+  });
+  
+  // Get past triage decisions for pattern learning
+  const history = _getTriageHistory();
+  const recentHistory = history.slice(0, 20); // Last 20 decisions
+  
+  // Summarize patterns from history
+  let historyContext = '';
+  if (recentHistory.length >= 5) {
+    const keptCount = recentHistory.filter(h => h.decision === 'kept').length;
+    const soonCount = recentHistory.filter(h => h.decision === 'soon').length;
+    const letgoCount = recentHistory.filter(h => h.decision === 'letgo').length;
+    const avgAge = Math.round(recentHistory.reduce((sum, h) => sum + (h.ageDays || 0), 0) / recentHistory.length);
+    const withSessions = recentHistory.filter(h => h.sessions > 0);
+    const sessionsKept = withSessions.filter(h => h.decision === 'kept').length;
+    
+    historyContext = `
+Past triage patterns (last ${recentHistory.length} decisions):
+- Kept: ${keptCount}, Deferred to Soon: ${soonCount}, Let go: ${letgoCount}
+- Average task age at triage: ${avgAge} days
+${withSessions.length > 0 ? `- Tasks with focus sessions: ${sessionsKept}/${withSessions.length} were kept` : ''}
+${dayOfWeek === 0 ? `- Sunday decisions tend toward: ${soonCount > keptCount ? 'deferring' : 'keeping'}` : ''}`;
+  }
+  
+  const prompt = `Evening triage: the user has ${tasks.length} undone task(s). For each, provide a SHORT contextual hint (or null if no hint needed).
+
+Current time: ${hour}:00, ${dayNames[dayOfWeek]}
+${historyContext}
+
+Tasks:
+${taskContexts.map(t => `- "${t.text}" [id: ${t.id}] — ${t.sessions > 0 ? t.sessions + ' focus sessions, ' : ''}${t.ageDays} days old`).join('\n')}
+
+Reply ONLY with raw JSON (no markdown):
+{
+  "hints": [
+    { "id": "task_id", "hint": "short hint under 10 words" },
+    { "id": "task_id", "hint": null }
+  ]
+}
+
+Hint guidelines:
+- If task has focus sessions: "Time invested. Worth finishing?"
+- If task is 5+ days old: "Day X. Still relevant?"
+- If it's late (after 10pm): "It's late. Maybe tomorrow?"
+- If Sunday evening: "New week tomorrow"
+- If task seems complex (many words): "Big one. Break it down?"
+- Use past patterns: if they usually keep tasks with sessions, nudge that way
+- If no useful context: null (no hint)
+- Never preachy, never judgmental. Curious, warm, brief.`;
+
+  try {
+    const res = await fetch('/.netlify/functions/ai-assist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: _aiGetProvider(),
+        apiKey: key,
+        messages: [{ role: 'user', content: prompt }],
+        systemPrompt: 'You are a gentle assistant helping with evening task triage. Be warm, brief, never preachy. Learn from their past patterns.'
+      }),
+    });
+    
+    if (!res.ok) return;
+    
+    const data = await res.json();
+    if (data.error) return;
+    
+    // Parse AI response
+    const content = data.content || data.message || '';
+    const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+    
+    if (parsed.hints && Array.isArray(parsed.hints)) {
+      parsed.hints.forEach(h => {
+        if (h.hint) _triageHints[h.id] = h.hint;
+      });
+      // Re-render to show hints
+      renderTriageList();
+    }
+  } catch (e) {
+    console.log('[Triage] AI hints failed:', e.message);
+    // Silent failure — hints are optional
+  }
 }
 
 function renderTriageList() {
-  const undone = manualTasks.filter(t => !doneIds.has(t.id));
+  const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
+  const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
+  const allUndone = [
+    ...undoneManual.map(t => ({ ...t, source: 'manual' })),
+    ...undoneTrello.map(t => ({ ...t, text: t.text || t.name, source: 'trello' }))
+  ];
   const list = document.getElementById('triageList');
   
-  list.innerHTML = undone.map(t => {
+  list.innerHTML = allUndone.map(t => {
     const decision = triageDecisions[t.id];
-    const decided = decision ? 'decided' : '';
-    const created = t.lastActive || t.createdAt || _getCreatedFromId(t.id);
-    const age = _getAgeDays(created);
-    const ageText = age === 0 ? 'today' : age === 1 ? 'yesterday' : `${age} days`;
+    const isTrello = t.source === 'trello';
     
-    // Check for focus sessions today
-    const focusCount = parseInt(localStorage.getItem('today_trello_focus') ? 
-      (JSON.parse(localStorage.getItem('today_trello_focus'))[t.id] || 0) : 0);
-    const metaClass = focusCount > 0 ? 'focus' : '';
-    const metaText = focusCount > 0 ? `${focusCount} ⏱` : ageText;
+    // Age calculation — Trello cards don't have lastActive, show "from Trello"
+    let metaText = 'from Trello';
+    if (!isTrello) {
+      const created = t.lastActive || t.createdAt || _getCreatedFromId(t.id);
+      const age = _getAgeDays(created);
+      metaText = age === 0 ? 'today' : age === 1 ? 'yesterday' : `${age} days`;
+    }
+    
+    // Check for focus sessions
+    const focusData = JSON.parse(localStorage.getItem('today_trello_focus') || '{}');
+    const focusCount = focusData[t.id] || 0;
+    const metaClass = focusCount > 0 ? 'focus' : (isTrello ? 'trello' : '');
+    if (focusCount > 0) metaText = `${focusCount} ⏱`;
     
     if (decision) {
       const badgeClass = decision;
@@ -3162,24 +3304,33 @@ function renderTriageList() {
       `;
     }
     
+    // Trello cards only get Keep/Let go (no Soon — they live in Trello)
+    const actions = isTrello ? `
+      <button class="triage-btn keep" onclick="triageDecide('${t.id}','kept')">Keep</button>
+      <button class="triage-btn" onclick="triageDecide('${t.id}','letgo')">Let go</button>
+    ` : `
+      <button class="triage-btn keep" onclick="triageDecide('${t.id}','kept')">Keep</button>
+      <button class="triage-btn" onclick="triageDecide('${t.id}','soon')">↩ Soon</button>
+      <button class="triage-btn" onclick="triageDecide('${t.id}','letgo')">Let go</button>
+    `;
+    
     return `
-      <div class="triage-task" data-id="${t.id}">
+      <div class="triage-task${isTrello ? ' trello' : ''}" data-id="${t.id}">
         <div class="triage-task-row">
           <div class="triage-task-check"></div>
           <span class="triage-task-text">${esc(t.text)}</span>
           <span class="triage-task-meta ${metaClass}">${metaText}</span>
         </div>
+        ${_triageHints[t.id] ? `<div class="triage-task-hint">${esc(_triageHints[t.id])}</div>` : ''}
         <div class="triage-actions">
-          <button class="triage-btn keep" onclick="triageDecide('${t.id}','kept')">Keep</button>
-          <button class="triage-btn" onclick="triageDecide('${t.id}','soon')">↩ Soon</button>
-          <button class="triage-btn" onclick="triageDecide('${t.id}','letgo')">Let go</button>
+          ${actions}
         </div>
       </div>
     `;
   }).join('');
   
   // Update title with remaining count
-  const remaining = undone.filter(t => !triageDecisions[t.id]).length;
+  const remaining = allUndone.filter(t => !triageDecisions[t.id]).length;
   if (remaining > 0) {
     document.getElementById('triageTitle').textContent = `${remaining} left`;
   }
@@ -3189,8 +3340,10 @@ function triageDecide(id, decision) {
   triageDecisions[id] = decision;
   _haptic('light');
   
-  const undone = manualTasks.filter(t => !doneIds.has(t.id));
-  const remaining = undone.filter(t => !triageDecisions[t.id]).length;
+  const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
+  const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
+  const allUndone = [...undoneManual, ...undoneTrello];
+  const remaining = allUndone.filter(t => !triageDecisions[t.id]).length;
   
   if (remaining === 0) {
     // All decided — apply and show summary
@@ -3201,20 +3354,45 @@ function triageDecide(id, decision) {
 }
 
 function triageKeepAll() {
-  const undone = manualTasks.filter(t => !doneIds.has(t.id));
-  undone.forEach(t => triageDecisions[t.id] = 'kept');
+  const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
+  const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
+  undoneManual.forEach(t => triageDecisions[t.id] = 'kept');
+  undoneTrello.forEach(t => triageDecisions[t.id] = 'kept');
   triageApplyAll();
 }
 
 function triageApplyAll() {
-  const undone = manualTasks.filter(t => !doneIds.has(t.id));
+  const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
+  const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
   let keptCount = 0, soonCount = 0, letgoCount = 0;
   
-  undone.forEach(t => {
+  // Track decisions for AI learning
+  const hour = new Date().getHours();
+  const dayOfWeek = new Date().getDay();
+  const focusData = JSON.parse(localStorage.getItem('today_trello_focus') || '{}');
+  
+  // Process manual tasks
+  undoneManual.forEach(t => {
     const decision = triageDecisions[t.id];
+    if (!decision) return;
+    
+    const created = t.lastActive || t.createdAt || _getCreatedFromId(t.id);
+    const ageDays = _getAgeDays(created);
+    const sessions = focusData[t.id] || 0;
+    
+    // Save to triage history
+    _saveTriageHistory({
+      text: t.text,
+      decision: decision,
+      sessions: sessions,
+      ageDays: ageDays,
+      dayOfWeek: dayOfWeek,
+      hour: hour,
+      ts: new Date().toISOString()
+    });
+    
     if (decision === 'kept') {
       keptCount++;
-      // Task stays in manualTasks, no action needed
     } else if (decision === 'soon') {
       soonCount++;
       t.zone = 'soon';
@@ -3229,8 +3407,39 @@ function triageApplyAll() {
     }
   });
   
-  // Remove moved tasks from manualTasks
-  const movedIds = undone.filter(t => triageDecisions[t.id] !== 'kept').map(t => t.id);
+  // Process Trello tasks (keep or letgo only — no soon)
+  undoneTrello.forEach(t => {
+    const decision = triageDecisions[t.id];
+    if (!decision) return;
+    
+    const sessions = focusData[t.id] || 0;
+    
+    // Save to triage history (source: trello)
+    _saveTriageHistory({
+      text: t.text || t.name,
+      decision: decision,
+      sessions: sessions,
+      ageDays: 0, // Trello cards don't have age tracking
+      dayOfWeek: dayOfWeek,
+      hour: hour,
+      source: 'trello',
+      ts: new Date().toISOString()
+    });
+    
+    if (decision === 'kept') {
+      keptCount++;
+      // Trello card stays visible, no action needed
+    } else if (decision === 'letgo') {
+      letgoCount++;
+      // Mark as done locally — will hide from list
+      // Note: doesn't delete from Trello, just hides locally
+      doneIds.add(t.id);
+      _persistDone();
+    }
+  });
+  
+  // Remove moved manual tasks from manualTasks
+  const movedIds = undoneManual.filter(t => triageDecisions[t.id] !== 'kept').map(t => t.id);
   manualTasks = manualTasks.filter(t => !movedIds.includes(t.id));
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));
   if (soonCount > 0) _saveSoon();
@@ -3252,10 +3461,28 @@ function triageApplyAll() {
   setTimeout(() => {
     triageClose();
     renderManual();
+    renderTrello();
     renderSoon();
     renderPast();
     updateStats();
   }, 2000);
+}
+
+// ─── Triage History ───────────────────────────────────────────────────────────
+// Track past triage decisions to help AI learn patterns
+const TRIAGE_HISTORY_MAX = 50;
+
+function _saveTriageHistory(entry) {
+  let history = JSON.parse(localStorage.getItem('today_triage_history') || '[]');
+  history.unshift(entry);
+  if (history.length > TRIAGE_HISTORY_MAX) {
+    history = history.slice(0, TRIAGE_HISTORY_MAX);
+  }
+  localStorage.setItem('today_triage_history', JSON.stringify(history));
+}
+
+function _getTriageHistory() {
+  return JSON.parse(localStorage.getItem('today_triage_history') || '[]');
 }
 
 function triageMinimize() {
@@ -3714,12 +3941,14 @@ function syncActiveButtons() {
 }
 
 function toggleConfig() {
+  const scrollY = window.scrollY; // Preserve scroll position
   const configPanel = document.getElementById('configPanel');
   const isOpening = !configPanel.classList.contains('open');
   configPanel.classList.toggle('open');
   document.getElementById('infoPanel').classList.remove('open');
   document.getElementById('habitsPanel').classList.remove('open');
   syncActiveButtons();
+  window.scrollTo(0, scrollY); // Restore scroll position
   if (isOpening) {
     renderConnections();
     setTimeout(_aiRenderConfig, 0);
@@ -3732,12 +3961,14 @@ function toggleConfig() {
 }
 
 function toggleInfo() {
+  const scrollY = window.scrollY; // Preserve scroll position
   const panel = document.getElementById('infoPanel');
   const isOpening = !panel.classList.contains('open');
   panel.classList.toggle('open');
   document.getElementById('configPanel').classList.remove('open');
   document.getElementById('habitsPanel').classList.remove('open');
   syncActiveButtons();
+  window.scrollTo(0, scrollY); // Restore scroll position
   if (isOpening) renderInfoStats();
 }
 
@@ -4821,12 +5052,14 @@ function renderHabits() {
 }
 
 function toggleHabits() {
+  const scrollY = window.scrollY; // Preserve scroll position
   const panel = document.getElementById('habitsPanel');
   const isOpening = !panel.classList.contains('open');
   panel.classList.toggle('open');
   document.getElementById('configPanel').classList.remove('open');
   document.getElementById('infoPanel').classList.remove('open');
   syncActiveButtons();
+  window.scrollTo(0, scrollY); // Restore scroll position
   if (isOpening) {
     renderHabits();
     setTimeout(() => {}, 0); // flush
@@ -6358,24 +6591,43 @@ async function _dropboxEnsureToken() {
 }
 
 // ── Auto-save (debounced, called after every user action that changes state) ──
+let _pendingBackup = false; // Track if there's an unsaved change
+
 function dropboxAutoSave() {
   const token = localStorage.getItem('dropbox_token');
   if (!token) return;
+  _pendingBackup = true;
   clearTimeout(dropboxSaveTimer);
-  dropboxSaveTimer = setTimeout(() => dropboxBackup(true), 800);
+  dropboxSaveTimer = setTimeout(async () => {
+    const success = await dropboxBackup(true);
+    if (success) _pendingBackup = false;
+  }, 800);
 }
+
+// Retry pending backup when tab becomes visible
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && _pendingBackup) {
+    const token = localStorage.getItem('dropbox_token');
+    if (token) {
+      setTimeout(async () => {
+        const success = await dropboxBackup(true);
+        if (success) _pendingBackup = false;
+      }, 1000);
+    }
+  }
+});
 
 // ── Backup ────────────────────────────────────────────────────────────────────
 async function dropboxBackup(silent) {
   await _dropboxEnsureToken();
   const token = localStorage.getItem('dropbox_token');
-  if (!token) { if (!silent) dropboxShowMsg('Not connected. Click Connect Dropbox first.', 'error'); return; }
+  if (!token) { if (!silent) dropboxShowMsg('Not connected. Click Connect Dropbox first.', 'error'); return false; }
   if (!silent) dropboxShowMsg('Saving backup…', 'success');
 
   const now = new Date().toISOString();
   const safeJSON = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); } catch(e) { return fallback; } };
   const data = {
-    version:      '5.0',
+    version:      '5.1',
     saved_at:     now,
     manual_tasks:      safeJSON('today_manual', []),
     done_ids:          safeJSON('today_done',   []),
@@ -6396,6 +6648,8 @@ async function dropboxBackup(silent) {
     deleted_habit_ids:    safeJSON('today_deleted_habit_ids', []),
     // Memory — AI's learned patterns and moments
     memory:               safeJSON('today_memory', null),
+    // Triage history — AI learns from past decisions
+    triage_history:       safeJSON('today_triage_history', []),
     // stat_last_visit intentionally excluded — it's local device state, meaningless on another device
   };
 
@@ -6415,13 +6669,13 @@ async function dropboxBackup(silent) {
         // Mark token as expired so UI reflects reality
         localStorage.setItem('dropbox_token_expired', '1');
         dropboxUpdateUI();
-        return;
+        return false;
       }
       localStorage.removeItem('dropbox_token');
       localStorage.removeItem('dropbox_token_expired');
       dropboxUpdateUI();
       dropboxShowMsg('Session expired — please reconnect.', 'error'); dropboxUpdateUI();
-      return;
+      return false;
     }
     if (!res.ok) throw new Error(`Dropbox ${res.status}`);
 
@@ -6443,9 +6697,12 @@ async function dropboxBackup(silent) {
 
     const label = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     if (!silent) dropboxShowMsg(`Backup saved at ${label} ✓`, 'success');
+    return true;
 
   } catch(e) {
+    console.log('[Dropbox] Backup failed:', e.message);
     if (!silent) dropboxShowMsg('Backup failed: ' + (e.message || 'unknown error'), 'error');
+    return false;
   }
 }
 
@@ -6658,6 +6915,19 @@ function mergeRemoteData(data) {
     _changed = true;
   }
 
+  // ── Triage history: union merge by timestamp ──
+  if (data.triage_history && Array.isArray(data.triage_history)) {
+    const localHistory = JSON.parse(localStorage.getItem('today_triage_history') || '[]');
+    const localTs = new Set(localHistory.map(h => h.ts));
+    const remoteNew = data.triage_history.filter(h => h.ts && !localTs.has(h.ts));
+    if (remoteNew.length > 0) {
+      const merged = [...localHistory, ...remoteNew]
+        .sort((a, b) => new Date(b.ts) - new Date(a.ts))
+        .slice(0, TRIAGE_HISTORY_MAX);
+      localStorage.setItem('today_triage_history', JSON.stringify(merged));
+    }
+  }
+
   // Full re-render if tasks were added or removed — surgical patch is not enough
   if (_changed) {
     renderManual();
@@ -6753,6 +7023,18 @@ async function dropboxRestore(fromSync) {
         pastTasks = data.past_tasks;
         localStorage.setItem('today_past', JSON.stringify(pastTasks));
         if (typeof renderPast === 'function') renderPast();
+      }
+      // Restore triage history
+      if (Array.isArray(data.triage_history)) {
+        const localHistory = JSON.parse(localStorage.getItem('today_triage_history') || '[]');
+        const localTs = new Set(localHistory.map(h => h.ts));
+        const remoteNew = data.triage_history.filter(h => h.ts && !localTs.has(h.ts));
+        if (remoteNew.length > 0) {
+          const merged = [...localHistory, ...remoteNew]
+            .sort((a, b) => new Date(b.ts) - new Date(a.ts))
+            .slice(0, 50);
+          localStorage.setItem('today_triage_history', JSON.stringify(merged));
+        }
       }
       // Restore memory (merge with local — union of moments, max of counters)
       if (data.memory && typeof data.memory === 'object') {
@@ -8494,6 +8776,8 @@ function _aiDismissProactive() {
     timeEl.textContent = fmt(st.rem);
     setProgress(p, taskEl);
     setPaused(st.paused);   // show paused only if user explicitly paused
+    // Also sync PiP if open
+    if (window._pipSync) window._pipSync(st.rem, TOTAL);
   }
 
   function setPaused(on) {
