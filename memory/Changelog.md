@@ -2,6 +2,16 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.11** | **Fix: _aiViewingProvider initialization** — moved declaration to state section to avoid "Cannot access before initialization" error. |
+| **2.12.10** | **Fix: _cacheElements placement** — now runs at start of init(). Removed misplaced code from renderInfoStats(). |
+| **2.12.9** | **Fix: cached element fallbacks** — prevent crash when functions called before cache populated. |
+| **2.12.8** | **Dev tools + Performance** — Error indicator (red pulsing dot) shows JS errors. Extended element caching (13→26 elements). |
+| **2.12.7** | **Morning nudge** — "3 tasks are still here from yesterday" — gentle reminder of carried-over tasks. Shows before noon, tap to dismiss. |
+| **2.12.6** | **PAST purge** — done items auto-removed after 7 days, let_go/aged items after 30 days. Keeps PAST section clean. |
+| **2.12.5** | **Performance** — cached DOM elements + global safeJSON helper. Eliminates ~50 redundant DOM lookups. |
+| **2.12.4** | **About panel cleanup** — removed duplicate version display (already shown in changelog as CURRENT). |
+| **2.12.3** | **PiP timer sync** — countdown now syncs immediately when returning to app tab (was waiting for next tick). |
+| **2.12.2** | **Dropbox sync retry** — pending backup flag + visibilitychange listener retries failed syncs on tab focus. |
 | **2.12.1** | **Trello in triage** — Evening triage now includes Trello cards with Keep/Let go options. Yellow accent distinguishes them from manual tasks. |
 | **2.12.0** | **AI triage hints** — Evening triage shows contextual AI suggestions per task (focus sessions, task age, patterns). Tracks triage history to learn from past decisions. Synced via Dropbox. |
 | **2.11.8** | **Nav scroll fix** — Panel toggle no longer jumps to top. Scroll position preserved when opening Habits/Connections/About. |

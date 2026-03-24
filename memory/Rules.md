@@ -45,18 +45,20 @@
 11. Backup schema version: **5.1** (includes triage history)
 12. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
 13. All timestamps: ISO strings
+14. **State variables must be declared before functions that use them** — `let` has temporal dead zone
 
 ## Style Rules
 
-14. No hardcoded hex/rgba outside `:root` — all tokenized
-15. No emojis in system UI text
-16. Fonts: `--font-mono: 'DM Mono'`, `--font-display: 'Syne'`
-17. Accent: `#c8f060` — all variants derived from this
+15. No hardcoded hex/rgba outside `:root` — all tokenized
+16. No emojis in system UI text
+17. Fonts: `--font-mono: 'DM Mono'`, `--font-display: 'Syne'`
+18. Accent: `#c8f060` — all variants derived from this
 
 ## Build Rules
 
-18. Source files in `/src/` — run `node build.js` to combine into `index.html`
-19. SW cache version must match app version: `today-v{VERSION}`
+19. Source files in `/src/` — run `node build.js` to combine into `index.html`
+20. SW cache version must match app version: `today-v{VERSION}`
+21. **`_cacheElements()` must run at START of `init()`** — before any rendering
 
 ## Z-Index Stack
 

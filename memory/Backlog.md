@@ -31,10 +31,10 @@
 - [ ] **Aging: TODAY → PAST** — 7+ days inactive → auto-archive (status: `aged`)
 - [ ] **Aging: SOON → PAST** — 30+ days → auto-archive (status: `aged`)
 
-### ⬜ TODO: Edge Cases
-- [ ] What if user never does triage? (currently: tasks stay, age naturally)
-- [ ] Triage with 0 undone tasks (shouldn't show, but verify)
-- [ ] PAST section performance with 100+ items (currently showing last 20)
+### ✅ Edge Cases (Verified)
+- [x] User never does triage → tasks stay, age visually (75%→55%→35% opacity)
+- [x] Triage with 0 undone tasks → bar never shows (`totalUndone > 0` guard)
+- [x] PAST with 100+ items → only 20 rendered, count shows total, daily purge
 
 ---
 
@@ -61,13 +61,13 @@
 
 ### Further Element Caching
 **Priority:** Low
-**Status:** 13 elements cached in v2.12.5
-**Notes:** Could cache more frequently-queried elements if needed
+**Status:** ✅ Extended from 13 → 26 elements (v2.12.8)
+**Notes:** Cached triage, habits, trello, status elements
 
 ### Console Error Monitoring
 **Priority:** Low
-**Status:** Not started
-**Notes:** Add visible indicator in UI if JS errors occur (dev aid)
+**Status:** ✅ Implemented (v2.12.8)
+**Notes:** Red pulsing dot appears on errors, click to view log
 
 ---
 
@@ -94,4 +94,4 @@ Decisions that may need revisiting based on real usage:
 
 ---
 
-*Last updated: Session 14*
+*Last updated: Session 18 (v2.12.11)*
