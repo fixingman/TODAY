@@ -2780,11 +2780,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.4';
+const APP_VERSION   = '2.12.5';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.5': 'Performance: cached DOM elements + global safeJSON helper. Eliminates ~50 redundant DOM lookups and consolidates 10+ inline try/catch patterns.',
   '2.12.4': 'Remove redundant version number from About panel header — already shown in changelog.',
   '2.12.3': 'Fix: PiP timer now syncs immediately when returning to app. Was showing stale countdown until next tick.',
   '2.12.2': 'Dropbox sync fix: tracks pending backups, retries on tab focus if backup failed silently. Backup schema v5.1.',
@@ -2978,15 +2979,41 @@ const CHANGELOG = {
   '1.0.0': 'Initial release — Trello + manual tasks, progress tracking, animations',
 };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Safe JSON parsing with fallback — avoids try/catch boilerplate everywhere
+function safeJSON(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
+  catch(e) { return fallback; }
+}
+
+// ─── Cached DOM Elements ──────────────────────────────────────────────────────
+// Frequently queried elements cached at load — saves ~50 DOM lookups per session
+const $ = {};
+function _cacheElements() {
+  $.newTask      = document.getElementById('newTask');
+  $.manualList   = document.getElementById('manualList');
+  $.manualCount  = document.getElementById('manualCount');
+  $.manualEmpty  = document.getElementById('manualEmpty');
+  $.configPanel  = document.getElementById('configPanel');
+  $.habitsPanel  = document.getElementById('habitsPanel');
+  $.infoPanel    = document.getElementById('infoPanel');
+  $.triageBar    = document.getElementById('triageBar');
+  $.triageOverlay = document.getElementById('triageOverlay');
+  $.addAiBtn     = document.getElementById('addAiBtn');
+  $.aiApiKey     = document.getElementById('aiApiKey');
+  $.installBtn   = document.getElementById('installBtn');
+  $.listSelect   = document.getElementById('listSelect');
+}
+
 // ─── State ───────────────────────────────────────────────────────────────────
 let trelloTasks = [];
 let trelloConnected = false; // cached — avoids localStorage reads in render hot path
-let manualTasks = (() => { try { return JSON.parse(localStorage.getItem('today_manual') || '[]'); } catch(e) { return []; } })();
-let doneIds     = new Set((() => { try { return JSON.parse(localStorage.getItem('today_done') || '[]'); } catch(e) { return []; } })());
+let manualTasks = safeJSON('today_manual', []);
+let doneIds     = new Set(safeJSON('today_done', []));
 
 // ─── Zones: Soon & Past (prototype) ──────────────────────────────────────────
-let soonTasks = (() => { try { return JSON.parse(localStorage.getItem('today_soon') || '[]'); } catch(e) { return []; } })();
-let pastTasks = (() => { try { return JSON.parse(localStorage.getItem('today_past') || '[]'); } catch(e) { return []; } })();
+let soonTasks = safeJSON('today_soon', []);
+let pastTasks = safeJSON('today_past', []);
 let triageDismissedToday = localStorage.getItem('triage_dismissed') === new Date().toDateString();
 
 function _saveSoon() { localStorage.setItem('today_soon', JSON.stringify(soonTasks)); }
@@ -3895,7 +3922,7 @@ function init() {
 
     // Seed from cache immediately so the UI isn't blank while API loads
     // Cache is validated by date AND boardId — stale date or board change = ignored
-    const _trelloCache = (() => { try { return JSON.parse(localStorage.getItem('today_trello_cache') || 'null'); } catch(e) { return null; } })();
+    const _trelloCache = safeJSON('today_trello_cache', null);
     if (_trelloCache && _trelloCache.date === new Date().toDateString() && _trelloCache.boardId === saved.boardId && Array.isArray(_trelloCache.tasks)) {
       trelloTasks = _trelloCache.tasks;
       renderTrello();
@@ -3924,24 +3951,23 @@ function setTrelloIcon(connected) {
 }
 
 function syncActiveButtons() {
-  const habitsOpen = document.getElementById('habitsPanel').classList.contains('open');
-  const configOpen = document.getElementById('configPanel').classList.contains('open');
-  const infoOpen   = document.getElementById('infoPanel').classList.contains('open');
+  const habitsOpen = $.habitsPanel.classList.contains('open');
+  const configOpen = $.configPanel.classList.contains('open');
+  const infoOpen   = $.infoPanel.classList.contains('open');
   document.getElementById('habitsBtn').classList.toggle('active', habitsOpen);
   document.getElementById('trelloBtn').classList.toggle('active', configOpen);
   document.getElementById('infoBtn').classList.toggle('active',   infoOpen);
   // addAiBtn in the input bar: active when in AI mode
-  const addAiBtn = document.getElementById('addAiBtn');
-  if (addAiBtn) addAiBtn.classList.toggle('active', _aiPanelOpen);
+  if ($.addAiBtn) $.addAiBtn.classList.toggle('active', _aiPanelOpen);
 }
 
 function toggleConfig() {
   const scrollY = window.scrollY; // Preserve scroll position
-  const configPanel = document.getElementById('configPanel');
+  const configPanel = $.configPanel;
   const isOpening = !configPanel.classList.contains('open');
   configPanel.classList.toggle('open');
-  document.getElementById('infoPanel').classList.remove('open');
-  document.getElementById('habitsPanel').classList.remove('open');
+  $.infoPanel.classList.remove('open');
+  $.habitsPanel.classList.remove('open');
   syncActiveButtons();
   window.scrollTo(0, scrollY); // Restore scroll position
   if (isOpening) {
@@ -3957,11 +3983,11 @@ function toggleConfig() {
 
 function toggleInfo() {
   const scrollY = window.scrollY; // Preserve scroll position
-  const panel = document.getElementById('infoPanel');
+  const panel = $.infoPanel;
   const isOpening = !panel.classList.contains('open');
   panel.classList.toggle('open');
-  document.getElementById('configPanel').classList.remove('open');
-  document.getElementById('habitsPanel').classList.remove('open');
+  $.configPanel.classList.remove('open');
+  $.habitsPanel.classList.remove('open');
   syncActiveButtons();
   window.scrollTo(0, scrollY); // Restore scroll position
   if (isOpening) renderInfoStats();
@@ -3996,6 +4022,7 @@ function renderInfoStats() {
   ];
 
   console.log('[TODAY] Version:', APP_VERSION);
+  _cacheElements();  // cache frequently queried DOM elements
   _aiRenderConfig();  // init AI button and config state
 
   // Dev hours display
@@ -4203,8 +4230,7 @@ function dropboxDisconnect() {
 }
 
 function getSavedConfig() {
-  try { return JSON.parse(localStorage.getItem('trello_config') || '{}'); }
-  catch(e) { return {}; }
+  return safeJSON('trello_config', {});
 }
 
 function trelloAuth() {
@@ -4414,9 +4440,9 @@ async function loadTrello(fromSync) {
     setTrelloIcon(true);
 
     // Only show status in panel if it's already open
-    if (document.getElementById('configPanel').classList.contains('open')) {
+    if ($.configPanel.classList.contains('open')) {
       showStatus(msg, 'success');
-      setTimeout(() => { document.getElementById('configPanel').classList.remove('open'); syncActiveButtons(); }, 1800);
+      setTimeout(() => { $.configPanel.classList.remove('open'); syncActiveButtons(); }, 1800);
     }
 
   } catch(e) {
@@ -4437,7 +4463,7 @@ async function loadTrello(fromSync) {
 
     // Only open config panel on manual load — don't interrupt user on background sync
     if (!fromSync) {
-      document.getElementById('configPanel').classList.add('open');
+      $.configPanel.classList.add('open');
       syncActiveButtons();
       showStatus(msg, 'error');
       emptyEl.textContent = 'Couldn\'t reach Trello — check above';
@@ -4550,14 +4576,14 @@ function _getDueStr(task) {
 }
 
 function renderManual() {
-  const list  = document.getElementById('manualList');
-  const empty = document.getElementById('manualEmpty');
+  const list  = $.manualList;
+  const empty = $.manualEmpty;
   if (!list || !empty) return;
 
   // Full render — only called on init/page load
   list.innerHTML = manualTasks.map(t => taskHTML(t, 'manual')).join('');
   list.querySelectorAll('.task.done').forEach(el => _applyDoneStyles(el, true));
-  document.getElementById('manualCount').textContent = manualTasks.length;
+  $.manualCount.textContent = manualTasks.length;
   updateManualEmptyState();
 }
 
@@ -5050,7 +5076,7 @@ function toggleHabits() {
   const panel = document.getElementById('habitsPanel');
   const isOpening = !panel.classList.contains('open');
   panel.classList.toggle('open');
-  document.getElementById('configPanel').classList.remove('open');
+  $.configPanel.classList.remove('open');
   document.getElementById('infoPanel').classList.remove('open');
   syncActiveButtons();
   window.scrollTo(0, scrollY); // Restore scroll position
@@ -5334,7 +5360,7 @@ function toggleDone(taskId) {
 }
 
 function addManual() {
-  const input = document.getElementById('newTask');
+  const input = $.newTask;
   if (!input) return;
   let text = input.value.trim();
   if (!text) return;
@@ -5357,8 +5383,8 @@ function addManual() {
   _aiDismissSuggestion();
 
   // Insert new element directly — no full re-render
-  const list  = document.getElementById('manualList');
-  const empty = document.getElementById('manualEmpty');
+  const list  = $.manualList;
+  const empty = $.manualEmpty;
   const div   = document.createElement('div');
   div.innerHTML = taskHTML(task, 'manual');
   const el = div.firstElementChild;
@@ -5367,7 +5393,7 @@ function addManual() {
   list.appendChild(el);
   if (empty) empty.style.display = 'none';
 
-  document.getElementById('manualCount').textContent = manualTasks.length;
+  $.manualCount.textContent = manualTasks.length;
   updateStats();
 
   // AI post-add analysis (async, non-blocking)
@@ -5375,7 +5401,7 @@ function addManual() {
 }
 
 function updateManualEmptyState(animate) {
-  const empty = document.getElementById('manualEmpty');
+  const empty = $.manualEmpty;
   if (!empty) return;
 
   const total = manualTasks.length;
@@ -5498,7 +5524,7 @@ function _clearAllDone() {
   localStorage.setItem('today_done',   JSON.stringify([...doneIds]));
   _setLastLocalChange();
   dropboxAutoSave();
-  document.getElementById('manualCount').textContent = manualTasks.length;
+  $.manualCount.textContent = manualTasks.length;
   updateManualEmptyState(true);
   updateStats();
 }
@@ -5889,7 +5915,7 @@ function deleteManual(taskId) {
     _setLastLocalChange();
     dropboxAutoSave();
     // Animate in if showing empty state for first time
-    const empty = document.getElementById('manualEmpty');
+    const empty = $.manualEmpty;
     if (empty && manualTasks.length === 0) {
       empty.style.opacity = '0';
       empty.style.display = 'block';
@@ -5901,7 +5927,7 @@ function deleteManual(taskId) {
     } else {
       updateManualEmptyState();
     }
-    document.getElementById('manualCount').textContent = manualTasks.length;
+    $.manualCount.textContent = manualTasks.length;
     updateStats();
     
     // Show undo toast
@@ -6412,10 +6438,10 @@ const _getLastLocalChange  = () => localStorage.getItem('last_local_change') || 
 const _setLastLocalChange  = ()  => localStorage.setItem('last_local_change', new Date().toISOString());
 
 // ── Deleted IDs: {id, at} — explicit delete tracking for union merge ──────────
-const _getTrelloFocus = () => { try { return JSON.parse(localStorage.getItem('today_trello_focus') || '{}'); } catch(e) { return {}; } };
+const _getTrelloFocus = () => safeJSON('today_trello_focus', {});
 const _setTrelloFocus = (map) => { localStorage.setItem('today_trello_focus', JSON.stringify(map)); };
 
-const _getDeletedIds = () => { try { return JSON.parse(localStorage.getItem('today_deleted_ids') || '[]'); } catch(e) { return []; } };
+const _getDeletedIds = () => safeJSON('today_deleted_ids', []);
 const _addDeletedId  = (id) => {
   const existing = _getDeletedIds().filter(d => d.id !== id);
   existing.push({ id, at: new Date().toISOString() });
@@ -6423,7 +6449,7 @@ const _addDeletedId  = (id) => {
 };
 
 // ── Unchecked IDs: {id, at} — explicit uncheck tracking ───────────────────────
-const _getUncheckedIds = () => { try { return JSON.parse(localStorage.getItem('today_unchecked_ids') || '[]'); } catch(e) { return []; } };
+const _getUncheckedIds = () => safeJSON('today_unchecked_ids', []);
 const _addUncheckedId  = (id) => {
   const existing = _getUncheckedIds().filter(u => u.id !== id);
   existing.push({ id, at: new Date().toISOString() });
@@ -6434,7 +6460,7 @@ const _removeUncheckedId = (id) => {
 };
 
 // ── Checked IDs: {id, at} — check timestamps so uncheck can be compared ───────
-const _getCheckedIds = () => { try { return JSON.parse(localStorage.getItem('today_checked_ids') || '[]'); } catch(e) { return []; } };
+const _getCheckedIds = () => safeJSON('today_checked_ids', []);
 const _addCheckedId  = (id) => {
   const existing = _getCheckedIds().filter(c => c.id !== id);
   existing.push({ id, at: new Date().toISOString() });
@@ -6619,7 +6645,6 @@ async function dropboxBackup(silent) {
   if (!silent) dropboxShowMsg('Saving backup…', 'success');
 
   const now = new Date().toISOString();
-  const safeJSON = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); } catch(e) { return fallback; } };
   const data = {
     version:      '5.1',
     saved_at:     now,
@@ -6856,8 +6881,8 @@ function mergeRemoteData(data) {
 
   const brandNew = mergedTasks.filter(t => !localIds.has(t.id));
   if (brandNew.length > 0) {
-    const listEl = document.getElementById('manualList');
-    const empty  = document.getElementById('manualEmpty');
+    const listEl = $.manualList;
+    const empty  = $.manualEmpty;
     brandNew.forEach(t => {
       const tmp = document.createElement('div');
       tmp.innerHTML = taskHTML(t, 'manual');
@@ -8328,7 +8353,7 @@ async function saveAIKey() {
   const key     = (input?.value || '').replace(/[^\x20-\x7E]/g, '').trim();
 
   // Keep panel open throughout
-  document.getElementById('configPanel')?.classList.add('open');
+  $.configPanel?.classList.add('open');
 
   function _msg(text, colour) {
     if (!msgEl) return;
@@ -8554,7 +8579,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
   localStorage.setItem('today_deleted_ids', JSON.stringify(deleted));
   
   // Add subtasks
-  const list = document.getElementById('manualList');
+  const list = $.manualList;
   subtasks.forEach((text, i) => {
     const task = { id: 'manual_' + (Date.now() + i), text };
     manualTasks.push(task);
@@ -8576,7 +8601,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
   dropboxAutoSave();
   
   // Update UI
-  document.getElementById('manualCount').textContent = manualTasks.length;
+  $.manualCount.textContent = manualTasks.length;
   _aiDismissSuggestion();
   _haptic('success');
 }
