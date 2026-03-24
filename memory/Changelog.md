@@ -2,6 +2,10 @@
 
 | Version | Key change |
 |---|---|
+| **2.11.7** | **PWA install** — Android users see "Install App" button in About panel. Coffee/dev-hours hidden in installed PWA. |
+| **2.11.6** | **Housekeeping** — Removed orphaned `stat_tasks_added_today` code, updated schema docs to v5.0. |
+| **2.11.5** | **PiP polish** — Window title shows "✦ TODAY". Improved reliability with dual-attempt open strategy. |
+| **2.11.4** | **Splash polish** — addTaskBar/triageBar hidden during splash (no flash), revealed after dismissal. |
 | **2.11.3** | **Critical bug fix** — Missing `_escapeHtml` (renamed to `esc`) and `_getAgeDays` functions caused app freeze at splash and triage failure. |
 | **2.11.2** | **Mobile keyboard fix** — Input bar stays visible above keyboard (visualViewport API). Black fill below bar when not focused. |
 | **2.11.1** | **Zones Dropbox sync** — SOON/PAST now sync cross-device (schema v5.0). Union merge by task ID, newer `zoneChangedAt` wins. PAST capped at 100 items. |
