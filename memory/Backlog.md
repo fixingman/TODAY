@@ -26,15 +26,15 @@
 ### ⬜ TODO: Core Functionality
 - [x] **Dropbox sync** — add `today_soon` and `today_past` to backup/restore ✓
 - [x] **Backup schema update** — bump to v5.0, include zones ✓
+- [x] **Purge: PAST cleanup** — done items after 7 days, let_go/aged after 30 days ✓ v2.12.6
+- [x] **Morning nudge** — "3 still here from yesterday" if tasks carried over ✓ v2.12.7
 - [ ] **Aging: TODAY → PAST** — 7+ days inactive → auto-archive (status: `aged`)
 - [ ] **Aging: SOON → PAST** — 30+ days → auto-archive (status: `aged`)
-- [ ] **Purge: PAST cleanup** — remove `let_go`/`aged` items after 30 days
-- [ ] **Morning nudge** — "3 still here from yesterday" if undone tasks carried over
 
-### ⬜ TODO: Edge Cases
-- [ ] What if user never does triage? (currently: tasks stay, age naturally)
-- [ ] Triage with 0 undone tasks (shouldn't show, but verify)
-- [ ] PAST section performance with 100+ items (currently showing last 20)
+### ✅ Edge Cases (Verified)
+- [x] User never does triage → tasks stay, age visually (75%→55%→35% opacity)
+- [x] Triage with 0 undone tasks → bar never shows (`totalUndone > 0` guard)
+- [x] PAST with 100+ items → only 20 rendered, count shows total, daily purge
 
 ---
 
@@ -44,6 +44,30 @@
 **From:** Research.md §2
 **Priority:** Highest integration priority
 **Status:** Not started
+
+---
+
+## Technical Debt
+
+### GitHub Push
+**Priority:** High
+**Status:** Many commits ahead of origin — needs push
+**Notes:** Local repo has significant changes not pushed to remote
+
+### Performance Audit Update
+**Priority:** Low
+**Status:** ✅ Updated to v2.12.7 (Session 18)
+**Notes:** Audit doc updated from v2.3.4 to v2.12.7 with current metrics
+
+### Further Element Caching
+**Priority:** Low
+**Status:** ✅ Extended from 13 → 26 elements (v2.12.8)
+**Notes:** Cached triage, habits, trello, status elements
+
+### Console Error Monitoring
+**Priority:** Low
+**Status:** ✅ Implemented (v2.12.8)
+**Notes:** Red pulsing dot appears on errors, click to view log
 
 ---
 
@@ -70,4 +94,4 @@ Decisions that may need revisiting based on real usage:
 
 ---
 
-*Last updated: Session 14*
+*Last updated: Session 18 (v2.12.11)*
