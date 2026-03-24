@@ -2786,11 +2786,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.1';
+const APP_VERSION   = '2.12.2';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.2': 'Dropbox sync fix: tracks pending backups, retries on tab focus if backup failed silently. Backup schema v5.1.',
   '2.12.1': 'Trello in triage: evening triage now includes Trello cards. Keep or Let go (no Soon — they live in Trello). Yellow accent distinguishes them.',
   '2.12.0': 'AI triage hints: evening triage now shows contextual AI suggestions per task. Tracks triage history to learn patterns over time.',
   '2.11.8': 'Fix: nav panel toggle no longer jumps to top — scroll position preserved when opening Habits/Connections/About.',
@@ -6589,24 +6590,43 @@ async function _dropboxEnsureToken() {
 }
 
 // ── Auto-save (debounced, called after every user action that changes state) ──
+let _pendingBackup = false; // Track if there's an unsaved change
+
 function dropboxAutoSave() {
   const token = localStorage.getItem('dropbox_token');
   if (!token) return;
+  _pendingBackup = true;
   clearTimeout(dropboxSaveTimer);
-  dropboxSaveTimer = setTimeout(() => dropboxBackup(true), 800);
+  dropboxSaveTimer = setTimeout(async () => {
+    const success = await dropboxBackup(true);
+    if (success) _pendingBackup = false;
+  }, 800);
 }
+
+// Retry pending backup when tab becomes visible
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && _pendingBackup) {
+    const token = localStorage.getItem('dropbox_token');
+    if (token) {
+      setTimeout(async () => {
+        const success = await dropboxBackup(true);
+        if (success) _pendingBackup = false;
+      }, 1000);
+    }
+  }
+});
 
 // ── Backup ────────────────────────────────────────────────────────────────────
 async function dropboxBackup(silent) {
   await _dropboxEnsureToken();
   const token = localStorage.getItem('dropbox_token');
-  if (!token) { if (!silent) dropboxShowMsg('Not connected. Click Connect Dropbox first.', 'error'); return; }
+  if (!token) { if (!silent) dropboxShowMsg('Not connected. Click Connect Dropbox first.', 'error'); return false; }
   if (!silent) dropboxShowMsg('Saving backup…', 'success');
 
   const now = new Date().toISOString();
   const safeJSON = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); } catch(e) { return fallback; } };
   const data = {
-    version:      '5.0',
+    version:      '5.1',
     saved_at:     now,
     manual_tasks:      safeJSON('today_manual', []),
     done_ids:          safeJSON('today_done',   []),
@@ -6648,13 +6668,13 @@ async function dropboxBackup(silent) {
         // Mark token as expired so UI reflects reality
         localStorage.setItem('dropbox_token_expired', '1');
         dropboxUpdateUI();
-        return;
+        return false;
       }
       localStorage.removeItem('dropbox_token');
       localStorage.removeItem('dropbox_token_expired');
       dropboxUpdateUI();
       dropboxShowMsg('Session expired — please reconnect.', 'error'); dropboxUpdateUI();
-      return;
+      return false;
     }
     if (!res.ok) throw new Error(`Dropbox ${res.status}`);
 
@@ -6676,9 +6696,12 @@ async function dropboxBackup(silent) {
 
     const label = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     if (!silent) dropboxShowMsg(`Backup saved at ${label} ✓`, 'success');
+    return true;
 
   } catch(e) {
+    console.log('[Dropbox] Backup failed:', e.message);
     if (!silent) dropboxShowMsg('Backup failed: ' + (e.message || 'unknown error'), 'error');
+    return false;
   }
 }
 
