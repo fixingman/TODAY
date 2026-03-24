@@ -2775,11 +2775,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.11.7';
+const APP_VERSION   = '2.11.8';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.11.8': 'Fix: nav panel toggle no longer jumps to top — scroll position preserved when opening Habits/Connections/About.',
   '2.11.7': 'PWA install: Android users see "Install App" button in About panel. Hidden once installed.',
   '2.11.6': 'Housekeeping: removed orphaned stat_tasks_added_today code, updated schema docs to v5.0.',
   '2.11.5': 'PiP: window title now shows "✦ TODAY". Improved reliability: tries opening immediately + fallback delay.',
@@ -3714,12 +3715,14 @@ function syncActiveButtons() {
 }
 
 function toggleConfig() {
+  const scrollY = window.scrollY; // Preserve scroll position
   const configPanel = document.getElementById('configPanel');
   const isOpening = !configPanel.classList.contains('open');
   configPanel.classList.toggle('open');
   document.getElementById('infoPanel').classList.remove('open');
   document.getElementById('habitsPanel').classList.remove('open');
   syncActiveButtons();
+  window.scrollTo(0, scrollY); // Restore scroll position
   if (isOpening) {
     renderConnections();
     setTimeout(_aiRenderConfig, 0);
@@ -3732,12 +3735,14 @@ function toggleConfig() {
 }
 
 function toggleInfo() {
+  const scrollY = window.scrollY; // Preserve scroll position
   const panel = document.getElementById('infoPanel');
   const isOpening = !panel.classList.contains('open');
   panel.classList.toggle('open');
   document.getElementById('configPanel').classList.remove('open');
   document.getElementById('habitsPanel').classList.remove('open');
   syncActiveButtons();
+  window.scrollTo(0, scrollY); // Restore scroll position
   if (isOpening) renderInfoStats();
 }
 
@@ -4821,12 +4826,14 @@ function renderHabits() {
 }
 
 function toggleHabits() {
+  const scrollY = window.scrollY; // Preserve scroll position
   const panel = document.getElementById('habitsPanel');
   const isOpening = !panel.classList.contains('open');
   panel.classList.toggle('open');
   document.getElementById('configPanel').classList.remove('open');
   document.getElementById('infoPanel').classList.remove('open');
   syncActiveButtons();
+  window.scrollTo(0, scrollY); // Restore scroll position
   if (isOpening) {
     renderHabits();
     setTimeout(() => {}, 0); // flush
