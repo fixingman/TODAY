@@ -27,9 +27,9 @@
 - [x] **Dropbox sync** — add `today_soon` and `today_past` to backup/restore ✓
 - [x] **Backup schema update** — bump to v5.0, include zones ✓
 - [x] **Purge: PAST cleanup** — done items after 7 days, let_go/aged after 30 days ✓ v2.12.6
+- [x] **Morning nudge** — "3 still here from yesterday" if tasks carried over ✓ v2.12.7
 - [ ] **Aging: TODAY → PAST** — 7+ days inactive → auto-archive (status: `aged`)
 - [ ] **Aging: SOON → PAST** — 30+ days → auto-archive (status: `aged`)
-- [ ] **Morning nudge** — "3 still here from yesterday" if undone tasks carried over
 
 ### ⬜ TODO: Edge Cases
 - [ ] What if user never does triage? (currently: tasks stay, age naturally)
@@ -56,8 +56,8 @@
 
 ### Performance Audit Update
 **Priority:** Low
-**Status:** Audit doc is from v2.3.4, now at v2.12.x
-**Notes:** Update memory/Performance-audit.md with current metrics
+**Status:** ✅ Updated to v2.12.7 (Session 18)
+**Notes:** Audit doc updated from v2.3.4 to v2.12.7 with current metrics
 
 ### Further Element Caching
 **Priority:** Low

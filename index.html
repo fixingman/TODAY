@@ -1376,6 +1376,29 @@
     letter-spacing: 0.06em;
   }
   
+  /* Morning nudge — gentle reminder of carried-over tasks */
+  .morning-nudge {
+    padding: var(--space-2) var(--space-4);
+    color: var(--muted);
+    font-size: var(--text-xs);
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    transition: opacity var(--dur-fast) ease;
+  }
+  .morning-nudge:hover {
+    opacity: 0.7;
+  }
+  .morning-nudge .nudge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+  
   /* Breathing star on "All done" — gentle reward pulse */
   .done-star {
     display: inline-block;
@@ -2690,6 +2713,7 @@
       <div class="section-count" id="manualCount">0</div>
       <div class="section-label">Your tasks</div>
     </div>
+    <div class="morning-nudge" id="morningNudge" style="display:none"></div>
     <div class="task-list" id="manualList"></div>
     <div class="empty" id="manualEmpty" style="display:none">A clean slate</div>
   </div>
@@ -2780,11 +2804,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.6';
+const APP_VERSION   = '2.12.7';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.7': 'Morning nudge: "3 tasks are still here from yesterday" — gentle reminder of carried-over tasks. Shows before noon, tap to dismiss.',
   '2.12.6': 'PAST purge: done items auto-removed after 7 days, let_go/aged items after 30 days. Keeps PAST section clean.',
   '2.12.5': 'Performance: cached DOM elements + global safeJSON helper. Eliminates ~50 redundant DOM lookups and consolidates 10+ inline try/catch patterns.',
   '2.12.4': 'Remove redundant version number from About panel header — already shown in changelog.',
@@ -3164,6 +3189,38 @@ function moveToPast(id, status = 'let_go') {
   renderPast();
   updateStats();
   checkTriageBar();
+}
+
+// Morning nudge — gentle reminder of carried-over tasks
+function checkMorningNudge() {
+  const nudgeEl = document.getElementById('morningNudge');
+  if (!nudgeEl) return;
+  
+  const count = parseInt(localStorage.getItem('morning_nudge_count') || '0');
+  if (count === 0) {
+    nudgeEl.style.display = 'none';
+    return;
+  }
+  
+  // Only show in morning hours (before noon)
+  const hour = new Date().getHours();
+  if (hour >= 12) {
+    nudgeEl.style.display = 'none';
+    localStorage.removeItem('morning_nudge_count'); // Clear after noon
+    return;
+  }
+  
+  // Craft the message
+  const plural = count === 1 ? '' : 's';
+  const verb = count === 1 ? 'is' : 'are';
+  nudgeEl.innerHTML = `<span class="nudge-dot"></span>${count} task${plural} ${verb} still here from yesterday`;
+  nudgeEl.style.display = 'flex';
+  
+  // Dismiss on click
+  nudgeEl.onclick = () => {
+    nudgeEl.style.display = 'none';
+    localStorage.removeItem('morning_nudge_count');
+  };
 }
 
 // Evening triage (per-task)
@@ -3913,6 +3970,14 @@ function applyNewDayCleanup() {
   localStorage.removeItem('triage_dismissed');
   triageDismissedToday = false;
 
+  // Track carried-over tasks for morning nudge (undone tasks that survived cleanup)
+  const carriedOver = manualTasks.length;
+  if (carriedOver > 0) {
+    localStorage.setItem('morning_nudge_count', carriedOver);
+  } else {
+    localStorage.removeItem('morning_nudge_count');
+  }
+
   // Habits: completions are append-only ISO date strings — no data is deleted.
   // Re-render so the new day's dot appears and yesterday's checks show as history.
   renderHabits();
@@ -3945,6 +4010,7 @@ function init() {
   renderPast();
   updateStats();
   checkTriageBar();
+  checkMorningNudge();
 
   if (saved.boardId && trelloToken) {
     setTrelloIcon(true);
