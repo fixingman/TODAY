@@ -2066,11 +2066,6 @@
     align-items: center;
     margin-bottom: var(--space-3);
   }
-  .panel-version {
-    font-size: var(--text-xs);
-    color: var(--muted);
-    letter-spacing: 0.1em;
-  }
   .panel-status-line {
     font-size: var(--text-xs);
     color: var(--muted);
@@ -2640,7 +2635,6 @@
   <div class="config-panel" id="infoPanel">
     <div class="panel-header">
       <div class="config-title">ℹ About TODAY</div>
-      <div class="panel-version" id="appVersion"></div>
     </div>
 
     <div id="infoStats"></div>
@@ -2786,11 +2780,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.3';
+const APP_VERSION   = '2.12.4';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.4': 'Remove redundant version number from About panel header — already shown in changelog.',
   '2.12.3': 'Fix: PiP timer now syncs immediately when returning to app. Was showing stale countdown until next tick.',
   '2.12.2': 'Dropbox sync fix: tracks pending backups, retries on tab focus if backup failed silently. Backup schema v5.1.',
   '2.12.1': 'Trello in triage: evening triage now includes Trello cards. Keep or Let go (no Soon — they live in Trello). Yellow accent distinguishes them.',
@@ -4000,7 +3995,6 @@ function renderInfoStats() {
     { val: streak + 'd', label: 'Streak' },
   ];
 
-  document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
   console.log('[TODAY] Version:', APP_VERSION);
   _aiRenderConfig();  // init AI button and config state
 
