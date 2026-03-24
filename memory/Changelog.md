@@ -2,6 +2,9 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.1** | **Trello in triage** — Evening triage now includes Trello cards with Keep/Let go options. Yellow accent distinguishes them from manual tasks. |
+| **2.12.0** | **AI triage hints** — Evening triage shows contextual AI suggestions per task (focus sessions, task age, patterns). Tracks triage history to learn from past decisions. Synced via Dropbox. |
+| **2.11.8** | **Nav scroll fix** — Panel toggle no longer jumps to top. Scroll position preserved when opening Habits/Connections/About. |
 | **2.11.7** | **PWA install** — Android users see "Install App" button in About panel. Coffee/dev-hours hidden in installed PWA. |
 | **2.11.6** | **Housekeeping** — Removed orphaned `stat_tasks_added_today` code, updated schema docs to v5.0. |
 | **2.11.5** | **PiP polish** — Window title shows "✦ TODAY". Improved reliability with dual-attempt open strategy. |

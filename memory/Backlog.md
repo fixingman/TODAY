@@ -31,11 +31,6 @@
 - [ ] **Purge: PAST cleanup** — remove `let_go`/`aged` items after 30 days
 - [ ] **Morning nudge** — "3 still here from yesterday" if undone tasks carried over
 
-### ⬜ TODO: Polish
-- [ ] **`returnedFrom: 'soon'` badge** — show indicator when task pulled from SOON
-- [ ] **AI triage suggestions** — context-aware hints ("this had 2 pomodoros...")
-- [ ] **Trello cards in triage?** — decide if Trello tasks should participate
-
 ### ⬜ TODO: Edge Cases
 - [ ] What if user never does triage? (currently: tasks stay, age naturally)
 - [ ] Triage with 0 undone tasks (shouldn't show, but verify)
@@ -45,25 +40,10 @@
 
 ## Pending Features
 
-### PWA Install Prompt (Android)
-**From:** Session 16, implemented v2.11.7
-**Status:** ✅ Complete
-**Details:** Android users see "Install App" button in About panel. Uses native `beforeinstallprompt` API. Coffee/dev-hours hidden in installed PWA. iOS left alone (no API support).
-
-### iOS Keyboard Fix
-**From:** Session 11, implemented v2.11.2
-**Status:** Implemented, needs testing on real iOS device
-**Details:** visualViewport API positions input bar above keyboard. Black fill below bar when not focused.
-
 ### Todoist Integration
 **From:** Research.md §2
 **Priority:** Highest integration priority
 **Status:** Not started
-
-### "Not Today" Evolution
-**From:** Research.md §18
-**Status:** Superseded by Zones (§19)
-**Note:** Original concept evolved into Past/Today/Soon model
 
 ---
 

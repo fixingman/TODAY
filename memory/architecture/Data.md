@@ -49,6 +49,20 @@
 | `ai_last_open_date` | string | YYYY-MM-DD — for morning briefing |
 | `ai_last_observation` | string | Last proactive observation type |
 | `ai_last_observation_time` | string | Timestamp of last observation |
+| `today_triage_history` | JSON array | Past triage decisions for AI learning |
+
+**Triage history entry:**
+```javascript
+{
+  text: "task text",
+  decision: "kept" | "soon" | "letgo",
+  sessions: 2,           // focus sessions on task
+  ageDays: 5,            // how old when triaged
+  dayOfWeek: 0,          // 0=Sunday, 6=Saturday
+  hour: 22,              // hour of decision
+  ts: "ISO timestamp"    // for deduplication
+}
+```
 
 ### Stats
 
@@ -83,11 +97,11 @@
 
 ## Backup Schema
 
-**Version: 5.0**
+**Version: 5.1**
 
 ```javascript
 {
-  version: '5.0',
+  version: '5.1',
   manual: [...],
   habits: [...],
   habitCompletions: {...},
@@ -97,9 +111,10 @@
   unchecked: [...],
   deletedHabits: [...],
   trelloFocus: {...},
-  memory: {...},        // v4.0 addition
-  soon_tasks: [...],    // v5.0 — SOON zone
-  past_tasks: [...],    // v5.0 — PAST zone
+  memory: {...},           // v4.0 addition
+  soon_tasks: [...],       // v5.0 — SOON zone
+  past_tasks: [...],       // v5.0 — PAST zone
+  triage_history: [...],   // v5.1 — AI triage learning
   exportedAt: 'ISO string'
 }
 ```
