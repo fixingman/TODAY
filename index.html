@@ -2780,11 +2780,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.5';
+const APP_VERSION   = '2.12.6';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.6': 'PAST purge: done items auto-removed after 7 days, let_go/aged items after 30 days. Keeps PAST section clean.',
   '2.12.5': 'Performance: cached DOM elements + global safeJSON helper. Eliminates ~50 redundant DOM lookups and consolidates 10+ inline try/catch patterns.',
   '2.12.4': 'Remove redundant version number from About panel header — already shown in changelog.',
   '2.12.3': 'Fix: PiP timer now syncs immediately when returning to app. Was showing stale countdown until next tick.',
@@ -3018,6 +3019,31 @@ let triageDismissedToday = localStorage.getItem('triage_dismissed') === new Date
 
 function _saveSoon() { localStorage.setItem('today_soon', JSON.stringify(soonTasks)); }
 function _savePast() { localStorage.setItem('today_past', JSON.stringify(pastTasks)); }
+
+// Purge old items from PAST zone
+// - done items: 7 days
+// - let_go/aged items: 30 days
+function _purgePast() {
+  const now = Date.now();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const DONE_DAYS = 7;
+  const LETGO_DAYS = 30;
+  
+  const before = pastTasks.length;
+  pastTasks = pastTasks.filter(t => {
+    if (!t.zoneChangedAt) return true; // Keep items without timestamp (legacy)
+    const age = (now - new Date(t.zoneChangedAt).getTime()) / DAY_MS;
+    if (t.status === 'done') return age < DONE_DAYS;
+    if (t.status === 'let_go' || t.status === 'aged') return age < LETGO_DAYS;
+    return true; // Keep unknown statuses
+  });
+  
+  const purged = before - pastTasks.length;
+  if (purged > 0) {
+    _savePast();
+    console.log(`[TODAY] Purged ${purged} old items from PAST`);
+  }
+}
 
 function toggleZone(zone) {
   const list = document.getElementById(zone + 'List');
@@ -3890,6 +3916,9 @@ function applyNewDayCleanup() {
   // Habits: completions are append-only ISO date strings — no data is deleted.
   // Re-render so the new day's dot appears and yesterday's checks show as history.
   renderHabits();
+
+  // Purge old items from PAST (done: 7 days, let_go/aged: 30 days)
+  _purgePast();
 
   localStorage.setItem('stat_last_visit', today);
 

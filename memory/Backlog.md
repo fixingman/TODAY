@@ -26,9 +26,9 @@
 ### ⬜ TODO: Core Functionality
 - [x] **Dropbox sync** — add `today_soon` and `today_past` to backup/restore ✓
 - [x] **Backup schema update** — bump to v5.0, include zones ✓
+- [x] **Purge: PAST cleanup** — done items after 7 days, let_go/aged after 30 days ✓ v2.12.6
 - [ ] **Aging: TODAY → PAST** — 7+ days inactive → auto-archive (status: `aged`)
 - [ ] **Aging: SOON → PAST** — 30+ days → auto-archive (status: `aged`)
-- [ ] **Purge: PAST cleanup** — remove `let_go`/`aged` items after 30 days
 - [ ] **Morning nudge** — "3 still here from yesterday" if undone tasks carried over
 
 ### ⬜ TODO: Edge Cases
@@ -44,6 +44,30 @@
 **From:** Research.md §2
 **Priority:** Highest integration priority
 **Status:** Not started
+
+---
+
+## Technical Debt
+
+### GitHub Push
+**Priority:** High
+**Status:** Many commits ahead of origin — needs push
+**Notes:** Local repo has significant changes not pushed to remote
+
+### Performance Audit Update
+**Priority:** Low
+**Status:** Audit doc is from v2.3.4, now at v2.12.x
+**Notes:** Update memory/Performance-audit.md with current metrics
+
+### Further Element Caching
+**Priority:** Low
+**Status:** 13 elements cached in v2.12.5
+**Notes:** Could cache more frequently-queried elements if needed
+
+### Console Error Monitoring
+**Priority:** Low
+**Status:** Not started
+**Notes:** Add visible indicator in UI if JS errors occur (dev aid)
 
 ---
 
