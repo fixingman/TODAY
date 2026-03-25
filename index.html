@@ -794,6 +794,7 @@
     user-select: none;
     padding: var(--space-2) 0;
     margin-bottom: 0;
+    align-items: center;
   }
   .zone-header:hover {
     opacity: 0.8;
@@ -802,6 +803,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
+    flex-shrink: 0;
   }
   .zone-indicator.soon {
     background: var(--highlight);
@@ -818,7 +820,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
+    align-self: center;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     transition: background var(--dur-fast), border-color var(--dur-fast);
   }
@@ -846,13 +849,38 @@
     opacity: 0.4;
   }
   .task .zone-badge {
-    font-size: 9px;
-    padding: 2px 6px;
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--muted);
     margin-left: auto;
     flex-shrink: 0;
+  }
+  .task .zone-badge.pull-btn {
+    opacity: 0;
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-2);
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: none;
+    transition: opacity var(--dur-fast), background var(--dur-fast), border-color var(--dur-fast);
+  }
+  .zone-list .task:hover .zone-badge.pull-btn {
+    opacity: 1;
+  }
+  .task .zone-badge.pull-btn:hover {
+    background: var(--card-hover);
+    border-color: var(--muted);
+  }
+  @media (hover: none) {
+    .task .zone-badge.pull-btn { 
+      opacity: var(--opacity-dim); 
+    }
+    .task .zone-badge.pull-btn:active { 
+      opacity: 1;
+      background: var(--card-hover);
+    }
   }
 
   /* ── Evening triage ──────────────────────────────────────────────────── */
@@ -2878,11 +2906,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.15';
+const APP_VERSION   = '2.12.16';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.16': 'UI: Pull button shows on hover (desktop) / dimmed (mobile). Fixed black screen when clicking SOON tasks.',
   '2.12.15': 'UI: SOON/PAST sections — removed border separators, cleaner +/− expand icons.',
   '2.12.14': 'Sync hardening: deleted tasks now excluded from zone merge | AI delete_task now tracks deletion for proper sync.',
   '2.12.13': 'Fix: zone-aware sync — tasks moved to SOON/PAST on one device no longer duplicate when synced. Uses zoneChangedAt timestamps for conflict resolution.',
@@ -3204,7 +3233,7 @@ function renderSoon() {
   list.innerHTML = soonTasks.map(t => `
     <div class="task" data-id="${t.id}">
       <span class="task-text">${esc(t.text)}</span>
-      <button class="zone-badge" onclick="pullFromSoon('${t.id}')" title="Pull back to today">↩</button>
+      <button class="zone-badge pull-btn" onclick="pullFromSoon('${t.id}')" title="Pull back to today">← Pull</button>
     </div>
   `).join('');
 }
@@ -9360,6 +9389,8 @@ function _aiDismissProactive() {
     if (e.target.closest('.task-check'))  return;
     if (e.target.closest('.task-copy'))   return;
     if (e.target.closest('.task-copy'))   return;  // copy button — handled by event delegation
+    if (e.target.closest('.zone-badge'))  return;  // pull button in SOON/PAST
+    if (e.target.closest('.zone-list'))   return;  // don't focus tasks in SOON/PAST zones
     if (e.target.closest('.habit-check')) return;
     if (e.target.closest('.trello-link')) return;
     if (e.target.closest('.focus-timer')) return;

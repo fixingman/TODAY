@@ -2,6 +2,8 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.16** | **Pull button UX** — shows on hover (desktop) / dimmed (mobile). Fixed black screen when clicking SOON tasks. |
+| **2.12.15** | **SOON/PAST UI polish** — removed border separators, cleaner +/− expand icons with hover state. |
 | **2.12.14** | **Sync hardening** — deleted tasks excluded from zone merge, AI delete_task now tracks deletion. |
 | **2.12.13** | **Zone-aware sync** — tasks moved to SOON/PAST on one device no longer duplicate when synced. Uses zoneChangedAt timestamps for conflict resolution. |
 | **2.12.12** | **Token audit** — breathe overlay, modal overlay, panel shadows now use CSS vars. 6 new tokens added. |
