@@ -796,8 +796,9 @@
     margin-bottom: 0;
     align-items: center;
   }
-  .zone-header:hover {
-    opacity: 0.8;
+  .zone-header:hover .zone-chevron {
+    background: var(--card-hover);
+    border-color: var(--muted);
   }
   .zone-indicator {
     width: 8px;
@@ -824,10 +825,6 @@
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     transition: background var(--dur-fast), border-color var(--dur-fast);
-  }
-  .zone-chevron:hover {
-    background: var(--card-hover);
-    border-color: var(--muted);
   }
   .zone-chevron.open {
     background: var(--card-hover);
@@ -3233,7 +3230,7 @@ function renderSoon() {
   list.innerHTML = soonTasks.map(t => `
     <div class="task" data-id="${t.id}">
       <span class="task-text">${esc(t.text)}</span>
-      <button class="zone-badge pull-btn" onclick="pullFromSoon('${t.id}')" title="Pull back to today">← Pull</button>
+      <button class="zone-badge pull-btn" onclick="pullFromSoon('${t.id}')" title="Bring back to today">←</button>
     </div>
   `).join('');
 }
