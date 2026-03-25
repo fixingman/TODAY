@@ -2903,11 +2903,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.16';
+const APP_VERSION   = '2.12.17';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.17': 'Sync fix: _addDeletedId now blocks deletion of tasks in SOON/PAST zones. Added cleanup on init.',
   '2.12.16': 'UI: Pull button shows on hover (desktop) / dimmed (mobile). Fixed black screen when clicking SOON tasks.',
   '2.12.15': 'UI: SOON/PAST sections — removed border separators, cleaner +/− expand icons.',
   '2.12.14': 'Sync hardening: deleted tasks now excluded from zone merge | AI delete_task now tracks deletion for proper sync.',
@@ -4151,6 +4152,7 @@ function init() {
   renderManual();
   renderSoon();
   renderPast();
+  _cleanupDeletedIds();  // Remove invalid deleted_ids that match zone tasks
   updateStats();
   checkTriageBar();
   checkMorningNudge();
@@ -6684,9 +6686,28 @@ const _setTrelloFocus = (map) => { localStorage.setItem('today_trello_focus', JS
 
 const _getDeletedIds = () => safeJSON('today_deleted_ids', []);
 const _addDeletedId  = (id) => {
+  // Safety: Don't mark as deleted if task exists in SOON or PAST zones
+  if (soonTasks.some(t => t.id === id) || pastTasks.some(t => t.id === id)) {
+    console.warn('[TODAY] Blocked deletion of task in zone:', id);
+    return;
+  }
   const existing = _getDeletedIds().filter(d => d.id !== id);
   existing.push({ id, at: new Date().toISOString() });
   localStorage.setItem('today_deleted_ids', JSON.stringify(existing));
+};
+
+// Clean up deleted_ids that incorrectly contain zone task IDs
+const _cleanupDeletedIds = () => {
+  const zoneIds = new Set([
+    ...soonTasks.map(t => t.id),
+    ...pastTasks.map(t => t.id)
+  ]);
+  const deleted = _getDeletedIds();
+  const cleaned = deleted.filter(d => !zoneIds.has(d.id));
+  if (cleaned.length !== deleted.length) {
+    console.log('[TODAY] Cleaned', deleted.length - cleaned.length, 'invalid deleted_ids');
+    localStorage.setItem('today_deleted_ids', JSON.stringify(cleaned));
+  }
 };
 
 // ── Unchecked IDs: {id, at} — explicit uncheck tracking ───────────────────────
