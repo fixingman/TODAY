@@ -787,9 +787,7 @@
 
   /* ── Zone sections (SOON / PAST) ────────────────────────────────────── */
   .zone-section {
-    margin: var(--space-4) 0;
-    border-top: 1px solid var(--border);
-    padding-top: var(--space-3);
+    margin: var(--space-2) 0;
   }
   .zone-header {
     cursor: pointer;
@@ -814,11 +812,22 @@
   .zone-chevron {
     margin-left: auto;
     color: var(--muted);
-    font-size: var(--text-xs);
-    transition: transform var(--dur-fast);
+    font-size: var(--text-sm);
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    transition: background var(--dur-fast), border-color var(--dur-fast);
+  }
+  .zone-chevron:hover {
+    background: var(--card-hover);
+    border-color: var(--muted);
   }
   .zone-chevron.open {
-    transform: rotate(90deg);
+    background: var(--card-hover);
   }
   .zone-list {
     margin-top: var(--space-2);
@@ -2734,7 +2743,7 @@
       <div class="zone-indicator soon"></div>
       <div class="section-label">Soon</div>
       <div class="section-count" id="soonCount">0</div>
-      <div class="zone-chevron" id="soonChevron">▸</div>
+      <div class="zone-chevron" id="soonChevron">+</div>
     </div>
     <div class="task-list zone-list" id="soonList" style="display:none"></div>
   </div>
@@ -2766,7 +2775,7 @@
       <div class="zone-indicator past"></div>
       <div class="section-label">Past</div>
       <div class="section-count" id="pastCount">0</div>
-      <div class="zone-chevron" id="pastChevron">▸</div>
+      <div class="zone-chevron" id="pastChevron">+</div>
     </div>
     <div class="task-list zone-list" id="pastList" style="display:none"></div>
   </div>
@@ -2869,11 +2878,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.14';
+const APP_VERSION   = '2.12.15';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.15': 'UI: SOON/PAST sections — removed border separators, cleaner +/− expand icons.',
   '2.12.14': 'Sync hardening: deleted tasks now excluded from zone merge | AI delete_task now tracks deletion for proper sync.',
   '2.12.13': 'Fix: zone-aware sync — tasks moved to SOON/PAST on one device no longer duplicate when synced. Uses zoneChangedAt timestamps for conflict resolution.',
   '2.12.12': 'Token audit: breathe overlay, modal overlay, panel shadows now use CSS vars. 6 new tokens added.',
@@ -3175,6 +3185,7 @@ function toggleZone(zone) {
   const isOpen = list.style.display !== 'none';
   list.style.display = isOpen ? 'none' : 'block';
   chevron.classList.toggle('open', !isOpen);
+  chevron.textContent = isOpen ? '+' : '−';
 }
 
 function renderSoon() {
