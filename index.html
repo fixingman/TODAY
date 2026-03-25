@@ -2869,11 +2869,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.12';
+const APP_VERSION   = '2.12.14';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.14': 'Sync hardening: deleted tasks now excluded from zone merge | AI delete_task now tracks deletion for proper sync.',
+  '2.12.13': 'Fix: zone-aware sync — tasks moved to SOON/PAST on one device no longer duplicate when synced. Uses zoneChangedAt timestamps for conflict resolution.',
   '2.12.12': 'Token audit: breathe overlay, modal overlay, panel shadows now use CSS vars. 6 new tokens added.',
   '2.12.11': 'Fix: moved _aiViewingProvider declaration to state section — was causing "Cannot access before initialization" error.',
   '2.12.10': 'Fix: _cacheElements now runs at start of init(). Removed misplaced code from renderInfoStats(). Changelog and dev hours render correctly.',
@@ -6955,10 +6957,33 @@ function mergeRemoteData(data) {
   // For checked: remote wins on conflict — preserves check timestamps from other device
   const mergedCheckedMap   = new Map([...localCheckedMap,   ...remoteCheckedMap]);
 
+  // ── Zones: get remote SOON/PAST for zone-aware task merging ────────────
+  const remoteSoon = Array.isArray(data.soon_tasks) ? data.soon_tasks : [];
+  const remotePast = Array.isArray(data.past_tasks) ? data.past_tasks : [];
+
   // ── Task list: remote order wins, local-only tasks appended at end ────────
   const localIds = new Set(manualTasks.map(t => t.id));
   const remoteIds = new Set(remoteTasks.map(t => t.id));
-  const localOnly = manualTasks.filter(t => !remoteIds.has(t.id));
+  
+  // Build maps of zone tasks with their timestamps for conflict resolution
+  const remoteZoneMap = new Map(); // id -> {zone, zoneChangedAt}
+  remoteSoon.forEach(t => remoteZoneMap.set(t.id, { zone: 'soon', at: t.zoneChangedAt || '' }));
+  remotePast.forEach(t => remoteZoneMap.set(t.id, { zone: 'past', at: t.zoneChangedAt || '' }));
+  
+  const localZoneMap = new Map();
+  soonTasks.forEach(t => localZoneMap.set(t.id, { zone: 'soon', at: t.zoneChangedAt || '' }));
+  pastTasks.forEach(t => localZoneMap.set(t.id, { zone: 'past', at: t.zoneChangedAt || '' }));
+  
+  // Local-only tasks — but EXCLUDE any that were moved to zones on remote MORE RECENTLY
+  const localOnly = manualTasks.filter(t => {
+    if (remoteIds.has(t.id)) return false; // exists in remote manualTasks
+    const remoteZone = remoteZoneMap.get(t.id);
+    if (!remoteZone) return true; // not in any remote zone, keep it
+    // Task is in remote zone — compare timestamps
+    // If local task's zoneChangedAt is MORE RECENT, it was pulled back to TODAY
+    const localAt = t.zoneChangedAt || '';
+    return localAt > remoteZone.at; // local pull-back is more recent
+  });
   
   // Build task map for latest data (remote text/fields win on conflict)
   const taskDataMap = new Map();
@@ -6966,7 +6991,15 @@ function mergeRemoteData(data) {
   remoteTasks.forEach(t => taskDataMap.set(t.id, { ...taskDataMap.get(t.id), ...t }));
   
   // Preserve remote order, then append local-only tasks
-  const orderedTasks = [...remoteTasks.map(t => taskDataMap.get(t.id)), ...localOnly];
+  // EXCLUDE any tasks that exist in LOCAL zones MORE RECENTLY than their manualTasks version
+  const orderedTasks = [...remoteTasks.map(t => taskDataMap.get(t.id)), ...localOnly]
+    .filter(t => {
+      const localZone = localZoneMap.get(t.id);
+      if (!localZone) return true; // not in any local zone, keep it
+      // Task is in local zone — compare timestamps
+      const taskAt = t.zoneChangedAt || '';
+      return taskAt > localZone.at; // task was returned to TODAY more recently
+    });
   
   // Filter out deleted tasks
   const mergedTasks = orderedTasks.filter(t => {
@@ -7032,13 +7065,16 @@ function mergeRemoteData(data) {
 
   // ── Zones: SOON and PAST (v5.0) ───────────────────────────────────────────
   // Union merge by task ID — most recent zoneChangedAt wins for conflicts
-  const remoteSoon = Array.isArray(data.soon_tasks) ? data.soon_tasks : [];
-  const remotePast = Array.isArray(data.past_tasks) ? data.past_tasks : [];
+  // (remoteSoon and remotePast already declared above for zone-aware task filtering)
+  // IMPORTANT: Exclude tasks that were deleted on either device
   
-  // Merge SOON: union by ID, most recent zoneChangedAt wins
+  // Merge SOON: union by ID, most recent zoneChangedAt wins, exclude deleted
   const soonMap = new Map();
-  soonTasks.forEach(t => soonMap.set(t.id, t));
+  soonTasks.forEach(t => {
+    if (!mergedDeletedMap.has(t.id)) soonMap.set(t.id, t);
+  });
   remoteSoon.forEach(t => {
+    if (mergedDeletedMap.has(t.id)) return; // Skip deleted tasks
     const existing = soonMap.get(t.id);
     if (!existing || (t.zoneChangedAt && (!existing.zoneChangedAt || t.zoneChangedAt > existing.zoneChangedAt))) {
       soonMap.set(t.id, t);
@@ -7047,10 +7083,13 @@ function mergeRemoteData(data) {
   soonTasks = [...soonMap.values()];
   localStorage.setItem('today_soon', JSON.stringify(soonTasks));
   
-  // Merge PAST: union by ID, most recent zoneChangedAt wins, keep last 100
+  // Merge PAST: union by ID, most recent zoneChangedAt wins, keep last 100, exclude deleted
   const pastMap = new Map();
-  pastTasks.forEach(t => pastMap.set(t.id, t));
+  pastTasks.forEach(t => {
+    if (!mergedDeletedMap.has(t.id)) pastMap.set(t.id, t);
+  });
   remotePast.forEach(t => {
+    if (mergedDeletedMap.has(t.id)) return; // Skip deleted tasks
     const existing = pastMap.get(t.id);
     if (!existing || (t.zoneChangedAt && (!existing.zoneChangedAt || t.zoneChangedAt > existing.zoneChangedAt))) {
       pastMap.set(t.id, t);
@@ -8427,10 +8466,12 @@ function _aiExecute(action) {
       if (id && id.startsWith('manual_')) {
         const idx = manualTasks.findIndex(t => t.id === id);
         if (idx !== -1) {
+          _addDeletedId(id); // Track deletion for sync
           manualTasks.splice(idx, 1);
           localStorage.setItem('today_manual', JSON.stringify(manualTasks));
           renderManual();
-          syncDropbox();
+          updateStats();
+          dropboxAutoSave();
         }
       }
       closeAI();
