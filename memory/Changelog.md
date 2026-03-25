@@ -2,6 +2,11 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.16** | **Pull button UX** — shows on hover (desktop) / dimmed (mobile). Fixed black screen when clicking SOON tasks. |
+| **2.12.15** | **SOON/PAST UI polish** — removed border separators, cleaner +/− expand icons with hover state. |
+| **2.12.14** | **Sync hardening** — deleted tasks excluded from zone merge, AI delete_task now tracks deletion. |
+| **2.12.13** | **Zone-aware sync** — tasks moved to SOON/PAST on one device no longer duplicate when synced. Uses zoneChangedAt timestamps for conflict resolution. |
+| **2.12.12** | **Token audit** — breathe overlay, modal overlay, panel shadows now use CSS vars. 6 new tokens added. |
 | **2.12.11** | **Fix: _aiViewingProvider initialization** — moved declaration to state section to avoid "Cannot access before initialization" error. |
 | **2.12.10** | **Fix: _cacheElements placement** — now runs at start of init(). Removed misplaced code from renderInfoStats(). |
 | **2.12.9** | **Fix: cached element fallbacks** — prevent crash when functions called before cache populated. |

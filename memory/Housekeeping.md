@@ -17,27 +17,28 @@ Before starting work, read:
 
 After completing work:
 
-### 1. Update Changelog
+### 1. Run Pre-Release Tests
+**See `Test-matrix.md` → Pre-Release Checklist (9 tests)**
+
+### 2. Update Changelog
 ```markdown
 | **X.X.X** | **Feature name** — Brief description. |
 ```
 
-### 2. Update Relevant Docs
+### 3. Update Relevant Docs
 - New feature → Add to appropriate split file
 - New rule → Add to `Rules.md`
 - Data change → Update `architecture/Data.md`
 - UI change → Update `design/Components.md`
-- Prototype work → Update `Backlog.md` (check off completed, add new TODOs)
+- Prototype work → Update `Backlog.md`
 
-### 3. Version Bump
-- `index.html`: Update `APP_VERSION` and `DEV_HOURS`
+### 4. Version Bump
+- `index.html`: Update `APP_VERSION`
 - `sw.js`: Update `CACHE_VERSION` to match
 
-### 4. Commit Format
+### 5. Commit Format
 ```
 type: brief description (vX.X.X)
-
-Details...
 ```
 Types: `feat`, `fix`, `docs`, `refactor`, `style`
 
@@ -89,28 +90,31 @@ If a file exceeds max, split it.
 
 ```
 memory/
-├── Rules.md           ← ALWAYS READ (critical constraints)
-├── Housekeeping.md    ← THIS FILE (maintenance routines)
-├── Structure.md       ← File hierarchy reference
-├── Changelog.md       ← Version history
-├── Research.md        ← Feature explorations
-├── Performance-audit.md
+├── Rules.md              ← ALWAYS READ (critical constraints)
+├── Housekeeping.md       ← THIS FILE (maintenance routines)
+├── Changelog.md          ← Version history
+├── Backlog.md            ← Pending features & tech debt
+├── Performance-audit.md  ← Metrics, security, privacy
+├── Test-matrix.md        ← 73 test cases (sync, UI, zones, etc.)
 │
 ├── design/
-│   ├── Philosophy.md  ← Voice, principles
-│   ├── Tokens.md      ← CSS variables
-│   ├── Motion.md      ← Animation
-│   └── Components.md  ← UI specs
+│   ├── Philosophy.md     ← Voice, principles
+│   ├── Tokens.md         ← CSS variables
+│   ├── Motion.md         ← Animation
+│   └── Components.md     ← UI specs
 │
 ├── architecture/
-│   ├── Data.md        ← localStorage schema
-│   ├── Sync.md        ← Dropbox, backup
-│   ├── Focus.md       ← Pomodoro
-│   └── AI.md          ← AI companion
+│   ├── Data.md           ← localStorage schema
+│   ├── Sync.md           ← Dropbox, backup, zone merge
+│   ├── Focus.md          ← Pomodoro
+│   └── AI.md             ← AI companion
 │
 └── research/
-    ├── Psychology.md  ← User behavior
-    └── Integrations.md ← API research
+    ├── Psychology.md     ← User behavior
+    ├── Integrations.md   ← API research
+    └── Temporal.md       ← Time-based features
+
+# Legacy files archived to /_archive/ (project root)
 ```
 
 ---
@@ -140,3 +144,5 @@ Check `APP_VERSION` in `index.html`
 | Focus mode | `architecture/Focus.md` |
 | User research | `research/Psychology.md` |
 | New integration | `research/Integrations.md` |
+| Test cases | `Test-matrix.md` |
+| Performance | `Performance-audit.md` |

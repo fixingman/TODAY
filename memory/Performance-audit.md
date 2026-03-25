@@ -1,6 +1,7 @@
-# TODAY — Performance, Bug & Safety Audit
-> v2.12.7 · March 2026  
-> Full audit of runtime performance, rendering strategy, security posture, privacy, and correctness.
+# TODAY — Performance & Security Audit
+> v2.12.14 · March 2026  
+> Runtime performance, security posture, and privacy review.
+> Test cases: See `Test-matrix.md`
 
 ---
 
@@ -124,53 +125,9 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-## 5. Bug Test Cases
+## 5. Test Coverage
 
-### Task management
-| Test | Expected | Status |
-|---|---|---|
-| Add task with `<script>` | Escaped text, no execution | ✅ Safe via `esc()` |
-| Add empty task | Rejected — `text.trim()` guard | ✅ |
-| Delete last task | "A clean slate" appears | ✅ |
-| Check all tasks | "✦ All done for today" | ✅ |
-| Rapid check/uncheck | No glitch, state consistent | ✅ |
-
-### Zones
-| Test | Expected | Status |
-|---|---|---|
-| Triage: Keep task | Task stays in TODAY | ✅ |
-| Triage: Soon task | Task moves to SOON section | ✅ |
-| Triage: Let go task | Task moves to PAST with status `let_go` | ✅ |
-| Pull from SOON | Task returns to TODAY | ✅ |
-| PAST purge (done, 7 days) | Auto-removed on new day | ✅ v2.12.6 |
-| PAST purge (let_go, 30 days) | Auto-removed on new day | ✅ v2.12.6 |
-| Morning nudge | Shows count of carried-over tasks | ✅ v2.12.7 |
-
-### Sync
-| Test | Expected | Status |
-|---|---|---|
-| Add tasks offline, reconnect | Tasks pushed to Dropbox | ✅ |
-| Two devices add different tasks | Union merge | ✅ |
-| Dropbox token expires | Auto-refresh via PKCE | ✅ |
-| Silent backup fails | Retries on tab focus | ✅ v2.12.2 |
-| Zones sync cross-device | SOON/PAST included in backup | ✅ v2.11.1 |
-
-### Focus mode
-| Test | Expected | Status |
-|---|---|---|
-| Click outside while focusing | Timer pauses, UI closes | ✅ |
-| Tab away, return | Correct remaining time (wall-clock) | ✅ |
-| PiP open, return to app | Both displays sync immediately | ✅ v2.12.3 |
-| Session completes | Chime plays, count increments | ✅ |
-
-### Edge cases
-| Test | Expected | Status |
-|---|---|---|
-| `localStorage` quota exceeded | Silent failure | ⚠️ Known gap |
-| `localStorage` disabled | App loads, data not persisted | ⚠️ Not tested |
-| Very long task text (500 chars) | Wraps correctly | ✅ |
-| Trello auth popup blocked | Error message shown | ✅ |
-| AI API key invalid | Error shown, button re-enabled | ✅ |
+> **All test cases moved to `Test-matrix.md`** — comprehensive test matrix with 71 cases covering sync, UI, security, zones, habits, and edge cases.
 
 ---
 
@@ -220,4 +177,4 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-*Last updated: Session 18 (v2.12.7)*
+*Last updated: Session 18 (v2.12.14) — Test cases moved to Test-matrix.md*

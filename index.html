@@ -787,15 +787,14 @@
 
   /* ── Zone sections (SOON / PAST) ────────────────────────────────────── */
   .zone-section {
-    margin: var(--space-4) 0;
-    border-top: 1px solid var(--border);
-    padding-top: var(--space-3);
+    margin: var(--space-2) 0;
   }
   .zone-header {
     cursor: pointer;
     user-select: none;
     padding: var(--space-2) 0;
     margin-bottom: 0;
+    align-items: center;
   }
   .zone-header:hover {
     opacity: 0.8;
@@ -804,6 +803,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
+    flex-shrink: 0;
   }
   .zone-indicator.soon {
     background: var(--highlight);
@@ -814,11 +814,23 @@
   .zone-chevron {
     margin-left: auto;
     color: var(--muted);
-    font-size: var(--text-xs);
-    transition: transform var(--dur-fast);
+    font-size: var(--text-sm);
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    transition: background var(--dur-fast), border-color var(--dur-fast);
+  }
+  .zone-chevron:hover {
+    background: var(--card-hover);
+    border-color: var(--muted);
   }
   .zone-chevron.open {
-    transform: rotate(90deg);
+    background: var(--card-hover);
   }
   .zone-list {
     margin-top: var(--space-2);
@@ -837,13 +849,38 @@
     opacity: 0.4;
   }
   .task .zone-badge {
-    font-size: 9px;
-    padding: 2px 6px;
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--muted);
     margin-left: auto;
     flex-shrink: 0;
+  }
+  .task .zone-badge.pull-btn {
+    opacity: 0;
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-2);
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: none;
+    transition: opacity var(--dur-fast), background var(--dur-fast), border-color var(--dur-fast);
+  }
+  .zone-list .task:hover .zone-badge.pull-btn {
+    opacity: 1;
+  }
+  .task .zone-badge.pull-btn:hover {
+    background: var(--card-hover);
+    border-color: var(--muted);
+  }
+  @media (hover: none) {
+    .task .zone-badge.pull-btn { 
+      opacity: var(--opacity-dim); 
+    }
+    .task .zone-badge.pull-btn:active { 
+      opacity: 1;
+      background: var(--card-hover);
+    }
   }
 
   /* ── Evening triage ──────────────────────────────────────────────────── */
@@ -2734,7 +2771,7 @@
       <div class="zone-indicator soon"></div>
       <div class="section-label">Soon</div>
       <div class="section-count" id="soonCount">0</div>
-      <div class="zone-chevron" id="soonChevron">▸</div>
+      <div class="zone-chevron" id="soonChevron">+</div>
     </div>
     <div class="task-list zone-list" id="soonList" style="display:none"></div>
   </div>
@@ -2766,7 +2803,7 @@
       <div class="zone-indicator past"></div>
       <div class="section-label">Past</div>
       <div class="section-count" id="pastCount">0</div>
-      <div class="zone-chevron" id="pastChevron">▸</div>
+      <div class="zone-chevron" id="pastChevron">+</div>
     </div>
     <div class="task-list zone-list" id="pastList" style="display:none"></div>
   </div>
@@ -2869,11 +2906,15 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.12';
+const APP_VERSION   = '2.12.16';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.16': 'UI: Pull button shows on hover (desktop) / dimmed (mobile). Fixed black screen when clicking SOON tasks.',
+  '2.12.15': 'UI: SOON/PAST sections — removed border separators, cleaner +/− expand icons.',
+  '2.12.14': 'Sync hardening: deleted tasks now excluded from zone merge | AI delete_task now tracks deletion for proper sync.',
+  '2.12.13': 'Fix: zone-aware sync — tasks moved to SOON/PAST on one device no longer duplicate when synced. Uses zoneChangedAt timestamps for conflict resolution.',
   '2.12.12': 'Token audit: breathe overlay, modal overlay, panel shadows now use CSS vars. 6 new tokens added.',
   '2.12.11': 'Fix: moved _aiViewingProvider declaration to state section — was causing "Cannot access before initialization" error.',
   '2.12.10': 'Fix: _cacheElements now runs at start of init(). Removed misplaced code from renderInfoStats(). Changelog and dev hours render correctly.',
@@ -3173,6 +3214,7 @@ function toggleZone(zone) {
   const isOpen = list.style.display !== 'none';
   list.style.display = isOpen ? 'none' : 'block';
   chevron.classList.toggle('open', !isOpen);
+  chevron.textContent = isOpen ? '+' : '−';
 }
 
 function renderSoon() {
@@ -3191,7 +3233,7 @@ function renderSoon() {
   list.innerHTML = soonTasks.map(t => `
     <div class="task" data-id="${t.id}">
       <span class="task-text">${esc(t.text)}</span>
-      <button class="zone-badge" onclick="pullFromSoon('${t.id}')" title="Pull back to today">↩</button>
+      <button class="zone-badge pull-btn" onclick="pullFromSoon('${t.id}')" title="Pull back to today">← Pull</button>
     </div>
   `).join('');
 }
@@ -6955,10 +6997,33 @@ function mergeRemoteData(data) {
   // For checked: remote wins on conflict — preserves check timestamps from other device
   const mergedCheckedMap   = new Map([...localCheckedMap,   ...remoteCheckedMap]);
 
+  // ── Zones: get remote SOON/PAST for zone-aware task merging ────────────
+  const remoteSoon = Array.isArray(data.soon_tasks) ? data.soon_tasks : [];
+  const remotePast = Array.isArray(data.past_tasks) ? data.past_tasks : [];
+
   // ── Task list: remote order wins, local-only tasks appended at end ────────
   const localIds = new Set(manualTasks.map(t => t.id));
   const remoteIds = new Set(remoteTasks.map(t => t.id));
-  const localOnly = manualTasks.filter(t => !remoteIds.has(t.id));
+  
+  // Build maps of zone tasks with their timestamps for conflict resolution
+  const remoteZoneMap = new Map(); // id -> {zone, zoneChangedAt}
+  remoteSoon.forEach(t => remoteZoneMap.set(t.id, { zone: 'soon', at: t.zoneChangedAt || '' }));
+  remotePast.forEach(t => remoteZoneMap.set(t.id, { zone: 'past', at: t.zoneChangedAt || '' }));
+  
+  const localZoneMap = new Map();
+  soonTasks.forEach(t => localZoneMap.set(t.id, { zone: 'soon', at: t.zoneChangedAt || '' }));
+  pastTasks.forEach(t => localZoneMap.set(t.id, { zone: 'past', at: t.zoneChangedAt || '' }));
+  
+  // Local-only tasks — but EXCLUDE any that were moved to zones on remote MORE RECENTLY
+  const localOnly = manualTasks.filter(t => {
+    if (remoteIds.has(t.id)) return false; // exists in remote manualTasks
+    const remoteZone = remoteZoneMap.get(t.id);
+    if (!remoteZone) return true; // not in any remote zone, keep it
+    // Task is in remote zone — compare timestamps
+    // If local task's zoneChangedAt is MORE RECENT, it was pulled back to TODAY
+    const localAt = t.zoneChangedAt || '';
+    return localAt > remoteZone.at; // local pull-back is more recent
+  });
   
   // Build task map for latest data (remote text/fields win on conflict)
   const taskDataMap = new Map();
@@ -6966,7 +7031,15 @@ function mergeRemoteData(data) {
   remoteTasks.forEach(t => taskDataMap.set(t.id, { ...taskDataMap.get(t.id), ...t }));
   
   // Preserve remote order, then append local-only tasks
-  const orderedTasks = [...remoteTasks.map(t => taskDataMap.get(t.id)), ...localOnly];
+  // EXCLUDE any tasks that exist in LOCAL zones MORE RECENTLY than their manualTasks version
+  const orderedTasks = [...remoteTasks.map(t => taskDataMap.get(t.id)), ...localOnly]
+    .filter(t => {
+      const localZone = localZoneMap.get(t.id);
+      if (!localZone) return true; // not in any local zone, keep it
+      // Task is in local zone — compare timestamps
+      const taskAt = t.zoneChangedAt || '';
+      return taskAt > localZone.at; // task was returned to TODAY more recently
+    });
   
   // Filter out deleted tasks
   const mergedTasks = orderedTasks.filter(t => {
@@ -7032,13 +7105,16 @@ function mergeRemoteData(data) {
 
   // ── Zones: SOON and PAST (v5.0) ───────────────────────────────────────────
   // Union merge by task ID — most recent zoneChangedAt wins for conflicts
-  const remoteSoon = Array.isArray(data.soon_tasks) ? data.soon_tasks : [];
-  const remotePast = Array.isArray(data.past_tasks) ? data.past_tasks : [];
+  // (remoteSoon and remotePast already declared above for zone-aware task filtering)
+  // IMPORTANT: Exclude tasks that were deleted on either device
   
-  // Merge SOON: union by ID, most recent zoneChangedAt wins
+  // Merge SOON: union by ID, most recent zoneChangedAt wins, exclude deleted
   const soonMap = new Map();
-  soonTasks.forEach(t => soonMap.set(t.id, t));
+  soonTasks.forEach(t => {
+    if (!mergedDeletedMap.has(t.id)) soonMap.set(t.id, t);
+  });
   remoteSoon.forEach(t => {
+    if (mergedDeletedMap.has(t.id)) return; // Skip deleted tasks
     const existing = soonMap.get(t.id);
     if (!existing || (t.zoneChangedAt && (!existing.zoneChangedAt || t.zoneChangedAt > existing.zoneChangedAt))) {
       soonMap.set(t.id, t);
@@ -7047,10 +7123,13 @@ function mergeRemoteData(data) {
   soonTasks = [...soonMap.values()];
   localStorage.setItem('today_soon', JSON.stringify(soonTasks));
   
-  // Merge PAST: union by ID, most recent zoneChangedAt wins, keep last 100
+  // Merge PAST: union by ID, most recent zoneChangedAt wins, keep last 100, exclude deleted
   const pastMap = new Map();
-  pastTasks.forEach(t => pastMap.set(t.id, t));
+  pastTasks.forEach(t => {
+    if (!mergedDeletedMap.has(t.id)) pastMap.set(t.id, t);
+  });
   remotePast.forEach(t => {
+    if (mergedDeletedMap.has(t.id)) return; // Skip deleted tasks
     const existing = pastMap.get(t.id);
     if (!existing || (t.zoneChangedAt && (!existing.zoneChangedAt || t.zoneChangedAt > existing.zoneChangedAt))) {
       pastMap.set(t.id, t);
@@ -8427,10 +8506,12 @@ function _aiExecute(action) {
       if (id && id.startsWith('manual_')) {
         const idx = manualTasks.findIndex(t => t.id === id);
         if (idx !== -1) {
+          _addDeletedId(id); // Track deletion for sync
           manualTasks.splice(idx, 1);
           localStorage.setItem('today_manual', JSON.stringify(manualTasks));
           renderManual();
-          syncDropbox();
+          updateStats();
+          dropboxAutoSave();
         }
       }
       closeAI();
@@ -9308,6 +9389,8 @@ function _aiDismissProactive() {
     if (e.target.closest('.task-check'))  return;
     if (e.target.closest('.task-copy'))   return;
     if (e.target.closest('.task-copy'))   return;  // copy button — handled by event delegation
+    if (e.target.closest('.zone-badge'))  return;  // pull button in SOON/PAST
+    if (e.target.closest('.zone-list'))   return;  // don't focus tasks in SOON/PAST zones
     if (e.target.closest('.habit-check')) return;
     if (e.target.closest('.trello-link')) return;
     if (e.target.closest('.focus-timer')) return;
