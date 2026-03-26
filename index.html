@@ -797,7 +797,7 @@
     align-items: center;
   }
   .zone-header:hover .zone-chevron {
-    background: var(--card-hover);
+    color: var(--text);
     border-color: var(--muted);
   }
   .zone-indicator {
@@ -823,11 +823,12 @@
     justify-content: center;
     align-self: center;
     border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    transition: background var(--dur-fast), border-color var(--dur-fast);
+    border: 1px solid transparent;
+    transition: color var(--dur-fast), border-color var(--dur-fast);
   }
   .zone-chevron.open {
-    background: var(--card-hover);
+    color: var(--text);
+    border-color: var(--border);
   }
   .zone-list {
     margin-top: var(--space-2);
@@ -859,16 +860,16 @@
     font-size: var(--text-xs);
     padding: var(--space-1) var(--space-2);
     cursor: pointer;
-    border: 1px solid var(--border);
+    border: 1px solid transparent;
     background: none;
-    transition: opacity var(--dur-fast), background var(--dur-fast), border-color var(--dur-fast);
+    transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
   }
   .zone-list .task:hover .zone-badge.pull-btn {
     opacity: 1;
   }
   .task .zone-badge.pull-btn:hover {
-    background: var(--card-hover);
-    border-color: var(--muted);
+    color: var(--text);
+    border-color: var(--border);
   }
   @media (hover: none) {
     .task .zone-badge.pull-btn { 
@@ -876,7 +877,8 @@
     }
     .task .zone-badge.pull-btn:active { 
       opacity: 1;
-      background: var(--card-hover);
+      color: var(--text);
+      border-color: var(--border);
     }
   }
 
@@ -2903,11 +2905,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.17';
+const APP_VERSION   = '2.12.20';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.20': 'Fix: All day-boundary logic now uses _getAppDay() — triage dismissed, manual restore. Prevents timezone/DST edge case bugs.',
+  '2.12.19': 'App day boundary: day changes at 1am instead of midnight. Triage window 8pm–1am. Habits, stats, and date header all use app day.',
+  '2.12.18': 'UI: Consistent hover pattern for zone chevron and pull button — follows focus mode copy button style (border appears on hover, no background change).',
   '2.12.17': 'Sync fix: _addDeletedId now blocks deletion of tasks in SOON/PAST zones. Added cleanup on init.',
   '2.12.16': 'UI: Pull button shows on hover (desktop) / dimmed (mobile). Fixed black screen when clicking SOON tasks.',
   '2.12.15': 'UI: SOON/PAST sections — removed border separators, cleaner +/− expand icons.',
@@ -3121,6 +3126,19 @@ function safeJSON(key, fallback) {
   catch(e) { return fallback; }
 }
 
+// App day boundary — day changes at 1am instead of midnight
+// This keeps late-night work (11pm–1am) feeling like "today"
+function _getAppDay() {
+  const now = new Date();
+  // If before 1am, treat as previous calendar day
+  if (now.getHours() < 1) {
+    const shifted = new Date(now);
+    shifted.setDate(shifted.getDate() - 1);
+    return shifted.toDateString();
+  }
+  return now.toDateString();
+}
+
 // ─── Cached DOM Elements ──────────────────────────────────────────────────────
 // Frequently queried elements cached at load — saves DOM lookups per session
 const $ = {};
@@ -3176,7 +3194,7 @@ let _aiViewingProvider = null; // Track which provider tab user is viewing
 // ─── Zones: Soon & Past (prototype) ──────────────────────────────────────────
 let soonTasks = safeJSON('today_soon', []);
 let pastTasks = safeJSON('today_past', []);
-let triageDismissedToday = localStorage.getItem('triage_dismissed') === new Date().toDateString();
+let triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
 
 function _saveSoon() { localStorage.setItem('today_soon', JSON.stringify(soonTasks)); }
 function _savePast() { localStorage.setItem('today_past', JSON.stringify(pastTasks)); }
@@ -3371,8 +3389,9 @@ function checkTriageBar() {
   const bar = $.triageBar || document.getElementById('triageBar');
   if (!bar) return;
   
-  // Show after 8pm with undone tasks, unless dismissed today
-  if (hour >= 20 && totalUndone > 0 && !triageDismissedToday) {
+  // Show 8pm–1am (hour >= 20 OR hour < 1) with undone tasks, unless dismissed today
+  const inTriageWindow = hour >= 20 || hour < 1;
+  if (inTriageWindow && totalUndone > 0 && !triageDismissedToday) {
     const countEl = $.triageCount || document.getElementById('triageCount');
     if (countEl) countEl.textContent = totalUndone;
     bar.classList.remove('hidden');
@@ -3739,7 +3758,7 @@ function triageMinimize() {
 
 function triageClose() {
   triageDismissedToday = true;
-  localStorage.setItem('triage_dismissed', new Date().toDateString());
+  localStorage.setItem('triage_dismissed', _getAppDay());
   document.getElementById('triageOverlay').classList.add('hidden');
   document.getElementById('triageBar').classList.add('hidden');
 }
@@ -4053,8 +4072,8 @@ function _pickObservationToMention(observations) {
 
 // ─── New-day cleanup ─────────────────────────────────────────────────────────
 function applyNewDayCleanup() {
-  const today = new Date().toDateString();
-  // Guard: only run if last visit was a different day
+  const today = _getAppDay();
+  // Guard: only run if last visit was a different app day
   const lastVisit = localStorage.getItem('stat_last_visit');
   if (lastVisit === today) return;
   if (!lastVisit) {
@@ -4063,7 +4082,10 @@ function applyNewDayCleanup() {
     return;
   }
 
-  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+  // Calculate yesterday using app day logic (shift by 1 day from current app day)
+  const now = new Date();
+  if (now.getHours() < 1) now.setDate(now.getDate() - 1); // align to app day
+  const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
   const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
   const newStreak = lastVisit === yesterday.toDateString() ? streak + 1 : 1;
   localStorage.setItem('stat_streak', newStreak);
@@ -4138,7 +4160,9 @@ function applyNewDayCleanup() {
 function init() {
   _cacheElements();  // cache frequently queried DOM elements FIRST
   
+  // Use app day for header — if before 1am, show yesterday's date
   const now = new Date();
+  if (now.getHours() < 1) now.setDate(now.getDate() - 1);
   document.getElementById('dateTag').textContent =
     now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }).toUpperCase();
 
@@ -5247,7 +5271,12 @@ function _saveHabits() {
 }
 
 function _habitTodayISO() {
-  return new Date().toISOString().slice(0, 10);
+  // Use app day boundary (1am) — habits checked before 1am count as previous day
+  const now = new Date();
+  if (now.getHours() < 1) {
+    now.setDate(now.getDate() - 1);
+  }
+  return now.toISOString().slice(0, 10);
 }
 
 function _getHabitDates() {
@@ -7392,7 +7421,7 @@ async function dropboxRestore(fromSync) {
       updateStats();
       // Prevent checkNewDay() from running new-day cleanup on the next tick
       // and filtering done tasks out of the state we just restored.
-      localStorage.setItem('stat_last_visit', new Date().toDateString());
+      localStorage.setItem('stat_last_visit', _getAppDay());
       // Seed rev baseline so syncDropbox doesn't immediately re-merge on top of this restore
       if (window._dbxSetRev) {
         try {
@@ -7465,11 +7494,11 @@ async function dropboxRestore(fromSync) {
   window._dbxSetRev = function(rev) { lastDropboxRev = rev; };
   window._dbxGetRev = function() { return lastDropboxRev; }; // debug helper
 
-  // Midnight cleanup
+  // Day boundary cleanup — uses app day (1am) instead of midnight
   function checkNewDay() {
-    // Compute today fresh each tick — a cached value set at module load would be
-    // stale if the app stays open past midnight without a reload.
-    const today = new Date().toDateString();
+    // Compute app day fresh each tick — a cached value set at module load would be
+    // stale if the app stays open past the 1am boundary without a reload.
+    const today = _getAppDay();
     if (localStorage.getItem('stat_last_visit') === today) return;
     applyNewDayCleanup();
     renderManual();
@@ -7725,8 +7754,10 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     }
   }
 
-  // Typewriter
-  const dateStr = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}).toUpperCase();
+  // Typewriter — use app day (1am boundary)
+  const splashNow = new Date();
+  if (splashNow.getHours() < 1) splashNow.setDate(splashNow.getDate() - 1);
+  const dateStr = splashNow.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}).toUpperCase();
   const dateTxt = document.getElementById('splash-date');
   const cursor  = document.getElementById('splash-cursor');
   let tidx = 0;
