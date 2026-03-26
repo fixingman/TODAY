@@ -7921,7 +7921,7 @@ if ('serviceWorker' in navigator && canRegisterSW) {
           window.location.reload();
         });
         
-        console.log('[SW] Registered, version:', CACHE_VERSION || 'unknown');
+        console.log('[SW] Registered, version:', APP_VERSION);
       })
       .catch(err => { console.log('[SW] Registration failed:', err); });
   });
