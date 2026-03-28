@@ -7,9 +7,10 @@
 ## Pre-Session Checklist
 
 Before starting work, read:
-1. `Rules.md` — Critical constraints (always)
-2. `Backlog.md` — Check for prototype TODOs (if continuing a feature)
-3. Relevant split file for the task (see Rules.md file guide)
+1. `Housekeeping.md` — This file (release routine, checklists)
+2. `Rules.md` — Critical constraints (always)
+3. `Backlog.md` — Check for prototype TODOs (if continuing a feature)
+4. Relevant split file for the task (see Rules.md file guide)
 
 ---
 
@@ -34,7 +35,8 @@ After completing work:
 
 ### 4. Version Bump
 - `index.html`: Update `APP_VERSION`
-- `sw.js`: Update `CACHE_VERSION` to match
+- `index.html`: Update `DEV_HOURS` (add session time to current value)
+- `sw.js`: Update `CACHE_VERSION` to match `APP_VERSION`
 
 ### 5. Commit Format
 ```
@@ -42,18 +44,23 @@ type: brief description (vX.X.X)
 ```
 Types: `feat`, `fix`, `docs`, `refactor`, `style`
 
+### 6. Reflect
+- What broke or was harder than expected?
+- Any pattern worth adding to `Rules.md`?
+- Any routine that failed? Fix it now, not later.
+
 ---
 
 ## Periodic Maintenance
 
-### Weekly: Token Optimization Check
-- Are any split files > 150 lines? Consider splitting further
-- Are legacy files still being referenced? Remove if not
-- Is `Rules.md` still < 80 lines? Keep it compact
+### Weekly: Quality Check
+- Run `bash memory/validate-files.sh` — ensure File Guide is current
+- Any file > 150 lines? Split or trim
+- Review `Backlog.md` — any stale items to close?
 
 ### Monthly: Documentation Audit
 - Remove outdated information
-- Consolidate duplicate content
+- Archive decided research (keep decision + rationale only)
 - Update version references
 
 ---
@@ -64,9 +71,8 @@ Types: `feat`, `fix`, `docs`, `refactor`, `style`
 |-----------|--------|-----|
 | Rules.md | < 60 lines | 80 lines |
 | Split docs | < 120 lines | 150 lines |
-| Research sections | < 100 lines each | — |
-
-If a file exceeds max, split it.
+| Research (decided) | < 50 lines | — |
+| Research (exploring) | < 150 lines | — |
 
 ---
 
@@ -83,66 +89,3 @@ If a file exceeds max, split it.
 - CSS tokens: `--kebab-case`
 - localStorage keys: `snake_case` with `today_` prefix
 - IDs: `type_timestamp` (e.g., `manual_1234567890`)
-
----
-
-## Memory Structure Summary
-
-```
-memory/
-├── Rules.md              ← ALWAYS READ (critical constraints)
-├── Housekeeping.md       ← THIS FILE (maintenance routines)
-├── Changelog.md          ← Version history
-├── Backlog.md            ← Pending features & tech debt
-├── Performance-audit.md  ← Metrics, security, privacy
-├── Test-matrix.md        ← 73 test cases (sync, UI, zones, etc.)
-│
-├── design/
-│   ├── Philosophy.md     ← Voice, principles
-│   ├── Tokens.md         ← CSS variables
-│   ├── Motion.md         ← Animation
-│   └── Components.md     ← UI specs
-│
-├── architecture/
-│   ├── Data.md           ← localStorage schema
-│   ├── Sync.md           ← Dropbox, backup, zone merge
-│   ├── Focus.md          ← Pomodoro
-│   └── AI.md             ← AI companion
-│
-└── research/
-    ├── Psychology.md     ← User behavior
-    ├── Integrations.md   ← API research
-    └── Temporal.md       ← Time-based features
-
-# Legacy files archived to /_archive/ (project root)
-```
-
----
-
-## Quick Reference
-
-### Current Version
-Check `APP_VERSION` in `index.html`
-
-### Token Budget
-- Rules.md: ~70 lines = ~500 tokens
-- Split file: ~100 lines = ~700 tokens
-- Full read before: ~3000 lines = ~21,000 tokens
-- Full read after: ~500 lines = ~3,500 tokens
-- **Savings: ~85%**
-
-### Key Files for Common Tasks
-
-| Task | Primary File |
-|------|--------------|
-| CSS change | `design/Tokens.md` |
-| Animation | `design/Motion.md` |
-| UI component | `design/Components.md` |
-| Data model | `architecture/Data.md` |
-| Sync logic | `architecture/Sync.md` |
-| AI feature | `architecture/AI.md` |
-| Focus mode | `architecture/Focus.md` |
-| User research | `research/Psychology.md` |
-| New integration | `research/Integrations.md` |
-| Test cases | `Test-matrix.md` |
-| Performance | `Performance-audit.md` |

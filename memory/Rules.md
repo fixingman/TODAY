@@ -8,7 +8,8 @@
 | Task | Read First | Then |
 |------|------------|------|
 | **Any change** | `Rules.md` | — |
-| **End of session** | `Housekeeping.md` | — |
+| **Start of session** | `Housekeeping.md` | Pre-Session Checklist |
+| **End of session** | `Housekeeping.md` | Post-Session Checklist |
 | **Prototype/TODO** | `Backlog.md` | — |
 | CSS/colors/fonts | `Rules.md` | `design/Tokens.md` |
 | Animation | `Rules.md` | `design/Motion.md` |
@@ -20,7 +21,11 @@
 | Focus/timer | `Rules.md` | `architecture/Focus.md` |
 | User psychology | `Rules.md` | `research/Psychology.md` |
 | API integrations | `Rules.md` | `research/Integrations.md` |
-| New feature | `Rules.md` | `Research.md` |
+| Time/day logic | `Rules.md` | `research/Temporal.md` |
+| Quick capture | `Rules.md` | `research/Quick-capture.md` |
+| Testing | `Test-matrix.md` | — |
+| Performance | `Performance-audit.md` | — |
+| Version history | `Changelog.md` | — |
 
 ---
 
@@ -30,35 +35,39 @@
 2. Sticky header: `<div class="sticky-header">` goes **before** `<div class="app">`
 3. Add-task bar: `<div id="addTaskBar">` goes **after** `</div><!-- end .app -->`
 4. `scrollRestoration = 'manual'` must be the **very first line** of `<script>`
+5. Fixed elements outside `.app` need `style="opacity:0"` — revealed after splash dismissal
 
 ## Interaction Rules
 
-5. **Enter key = always add task** (no mode switching, no routing)
-6. **✦ button = AI route** (with or without text in input)
-7. `_aiLoadedOnce` prevents re-fetch on panel toggle — reset only on error
-8. Uncheck = neutral (no celebration, no sound)
-9. Check = celebration (sound, particles, haptic)
+6. **Enter key = always add task** (no mode switching, no routing)
+7. **✦ button = AI route** (with or without text in input)
+8. `_aiLoadedOnce` prevents re-fetch on panel toggle — reset only on error
+9. Uncheck = neutral (no celebration, no sound)
+10. Check = celebration (sound, particles, haptic)
 
 ## Data Rules
 
-10. `manualTasks` and `habitsList` preserve drag order — **never re-sort**
-11. Backup schema version: **5.1** (includes triage history)
-12. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
-13. All timestamps: ISO strings
-14. **State variables must be declared before functions that use them** — `let` has temporal dead zone
+11. `manualTasks` and `habitsList` preserve drag order — **never re-sort**
+12. Backup schema version: **5.1** (includes triage history)
+13. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
+14. All timestamps: ISO strings
+15. **State variables must be declared before functions that use them** — `let` has temporal dead zone
+16. **Day boundary at 1am** — use `_getAppDay()` for triage, stats, habits, purge (not `new Date()` midnight)
+17. **Triage window: 8pm–1am** — triage bar only shows in this window
+18. **Flow rate = `done / total`** — live calc of visible tasks, not stored
 
 ## Style Rules
 
-15. No hardcoded hex/rgba outside `:root` — all tokenized
-16. No emojis in system UI text
-17. Fonts: `--font-mono: 'DM Mono'`, `--font-display: 'Syne'`
-18. Accent: `#c8f060` — all variants derived from this
+19. No hardcoded hex/rgba outside `:root` — all tokenized
+20. No emojis in system UI text
+21. Fonts: `--font-mono: 'DM Mono'`, `--font-display: 'Syne'`
+22. Accent: `#c8f060` — all variants derived from this
 
 ## Build Rules
 
-19. Source files in `/src/` — run `node build.js` to combine into `index.html`
-20. SW cache version must match app version: `today-v{VERSION}`
-21. **`_cacheElements()` must run at START of `init()`** — before any rendering
+23. Single-file app — all code in `index.html`, no build step
+24. SW cache version must match app version: `today-v{VERSION}`
+25. **`_cacheElements()` must run at START of `init()`** — before any rendering
 
 ## Z-Index Stack
 
