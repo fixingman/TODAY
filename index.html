@@ -797,7 +797,7 @@
     align-items: center;
   }
   .zone-header:hover .zone-chevron {
-    background: var(--card-hover);
+    color: var(--text);
     border-color: var(--muted);
   }
   .zone-indicator {
@@ -823,27 +823,39 @@
     justify-content: center;
     align-self: center;
     border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    transition: background var(--dur-fast), border-color var(--dur-fast);
+    border: 1px solid transparent;
+    transition: color var(--dur-fast), border-color var(--dur-fast);
   }
   .zone-chevron.open {
-    background: var(--card-hover);
+    color: var(--text);
+    border-color: var(--border);
   }
   .zone-list {
     margin-top: var(--space-2);
   }
   .zone-list .task {
-    opacity: 0.6;
+    opacity: var(--opacity-soft);
   }
   .zone-list .task:hover {
-    opacity: 0.85;
+    opacity: var(--opacity-hover);
+  }
+  /* PAST check icon — matches task-check dimensions */
+  #pastList .task-check.past-check {
+    border: none;
+    background: none;
+    cursor: default;
+  }
+  #pastList .past-icon {
+    font-size: var(--text-xs2);
+    color: var(--muted);
+    opacity: var(--opacity-soft);
   }
   #pastList .task.done .task-text {
     text-decoration: line-through;
   }
   #pastList .task.let-go,
   #pastList .task.aged {
-    opacity: 0.4;
+    opacity: var(--opacity-label);
   }
   .task .zone-badge {
     font-size: var(--text-xs);
@@ -859,16 +871,16 @@
     font-size: var(--text-xs);
     padding: var(--space-1) var(--space-2);
     cursor: pointer;
-    border: 1px solid var(--border);
+    border: 1px solid transparent;
     background: none;
-    transition: opacity var(--dur-fast), background var(--dur-fast), border-color var(--dur-fast);
+    transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
   }
   .zone-list .task:hover .zone-badge.pull-btn {
     opacity: 1;
   }
   .task .zone-badge.pull-btn:hover {
-    background: var(--card-hover);
-    border-color: var(--muted);
+    color: var(--text);
+    border-color: var(--border);
   }
   @media (hover: none) {
     .task .zone-badge.pull-btn { 
@@ -876,7 +888,8 @@
     }
     .task .zone-badge.pull-btn:active { 
       opacity: 1;
-      background: var(--card-hover);
+      color: var(--text);
+      border-color: var(--border);
     }
   }
 
@@ -2903,11 +2916,19 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.16';
+const APP_VERSION   = '2.12.24';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.24': 'UI: Fixed PAST section alignment to match YOUR TASKS. Token audit — zone list opacity now uses design tokens.',
+  '2.12.23': 'AI meta-prompt: ~5% chance asks engaged users (7+ days) for app improvement suggestions.',
+  '2.12.22': 'AI awareness: suggests breaking down 7+ day old tasks. Behavioral insights: peak hour, focus time, streak progress, task patterns.',
+  '2.12.21': 'SOON aging: tasks in SOON for 30+ days auto-archive to PAST with status "aged". Runs on new day.',
+  '2.12.20': 'Fix: All day-boundary logic now uses _getAppDay() — triage dismissed, manual restore. Prevents timezone/DST edge case bugs.',
+  '2.12.19': 'App day boundary: day changes at 1am instead of midnight. Triage window 8pm–1am. Habits, stats, and date header all use app day.',
+  '2.12.18': 'UI: Consistent hover pattern for zone chevron and pull button — follows focus mode copy button style (border appears on hover, no background change).',
+  '2.12.17': 'Sync fix: _addDeletedId now blocks deletion of tasks in SOON/PAST zones. Added cleanup on init.',
   '2.12.16': 'UI: Pull button shows on hover (desktop) / dimmed (mobile). Fixed black screen when clicking SOON tasks.',
   '2.12.15': 'UI: SOON/PAST sections — removed border separators, cleaner +/− expand icons.',
   '2.12.14': 'Sync hardening: deleted tasks now excluded from zone merge | AI delete_task now tracks deletion for proper sync.',
@@ -3120,6 +3141,19 @@ function safeJSON(key, fallback) {
   catch(e) { return fallback; }
 }
 
+// App day boundary — day changes at 1am instead of midnight
+// This keeps late-night work (11pm–1am) feeling like "today"
+function _getAppDay() {
+  const now = new Date();
+  // If before 1am, treat as previous calendar day
+  if (now.getHours() < 1) {
+    const shifted = new Date(now);
+    shifted.setDate(shifted.getDate() - 1);
+    return shifted.toDateString();
+  }
+  return now.toDateString();
+}
+
 // ─── Cached DOM Elements ──────────────────────────────────────────────────────
 // Frequently queried elements cached at load — saves DOM lookups per session
 const $ = {};
@@ -3175,10 +3209,39 @@ let _aiViewingProvider = null; // Track which provider tab user is viewing
 // ─── Zones: Soon & Past (prototype) ──────────────────────────────────────────
 let soonTasks = safeJSON('today_soon', []);
 let pastTasks = safeJSON('today_past', []);
-let triageDismissedToday = localStorage.getItem('triage_dismissed') === new Date().toDateString();
+let triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
 
 function _saveSoon() { localStorage.setItem('today_soon', JSON.stringify(soonTasks)); }
 function _savePast() { localStorage.setItem('today_past', JSON.stringify(pastTasks)); }
+
+// Age old items from SOON → PAST (30+ days)
+function _ageSoon() {
+  const now = Date.now();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const SOON_AGE_DAYS = 30;
+  
+  const aged = [];
+  soonTasks = soonTasks.filter(t => {
+    if (!t.zoneChangedAt) return true; // Keep items without timestamp (legacy)
+    const age = (now - new Date(t.zoneChangedAt).getTime()) / DAY_MS;
+    if (age >= SOON_AGE_DAYS) {
+      // Move to PAST with 'aged' status
+      t.zone = 'past';
+      t.status = 'aged';
+      t.zoneChangedAt = new Date().toISOString();
+      aged.push(t);
+      return false; // Remove from SOON
+    }
+    return true;
+  });
+  
+  if (aged.length > 0) {
+    pastTasks.unshift(...aged);
+    _saveSoon();
+    _savePast();
+    console.log(`[TODAY] Aged ${aged.length} items from SOON → PAST`);
+  }
+}
 
 // Purge old items from PAST zone
 // - done items: 7 days
@@ -3256,8 +3319,12 @@ function renderPast() {
     const statusBadge = t.status === 'done' ? '✓' : t.status === 'let_go' ? '○' : '◌';
     return `
       <div class="task ${statusClass}" data-id="${t.id}">
-        <span class="task-check-icon" style="opacity:0.5">${statusBadge}</span>
-        <span class="task-text">${esc(t.text)}</span>
+        <div class="task-check past-check">
+          <span class="past-icon">${statusBadge}</span>
+        </div>
+        <div class="task-body">
+          <div class="task-text">${esc(t.text)}</div>
+        </div>
         <span class="zone-badge">${t.status || 'past'}</span>
       </div>
     `;
@@ -3370,8 +3437,9 @@ function checkTriageBar() {
   const bar = $.triageBar || document.getElementById('triageBar');
   if (!bar) return;
   
-  // Show after 8pm with undone tasks, unless dismissed today
-  if (hour >= 20 && totalUndone > 0 && !triageDismissedToday) {
+  // Show 8pm–1am (hour >= 20 OR hour < 1) with undone tasks, unless dismissed today
+  const inTriageWindow = hour >= 20 || hour < 1;
+  if (inTriageWindow && totalUndone > 0 && !triageDismissedToday) {
     const countEl = $.triageCount || document.getElementById('triageCount');
     if (countEl) countEl.textContent = totalUndone;
     bar.classList.remove('hidden');
@@ -3738,7 +3806,7 @@ function triageMinimize() {
 
 function triageClose() {
   triageDismissedToday = true;
-  localStorage.setItem('triage_dismissed', new Date().toDateString());
+  localStorage.setItem('triage_dismissed', _getAppDay());
   document.getElementById('triageOverlay').classList.add('hidden');
   document.getElementById('triageBar').classList.add('hidden');
 }
@@ -4052,8 +4120,8 @@ function _pickObservationToMention(observations) {
 
 // ─── New-day cleanup ─────────────────────────────────────────────────────────
 function applyNewDayCleanup() {
-  const today = new Date().toDateString();
-  // Guard: only run if last visit was a different day
+  const today = _getAppDay();
+  // Guard: only run if last visit was a different app day
   const lastVisit = localStorage.getItem('stat_last_visit');
   if (lastVisit === today) return;
   if (!lastVisit) {
@@ -4062,7 +4130,10 @@ function applyNewDayCleanup() {
     return;
   }
 
-  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+  // Calculate yesterday using app day logic (shift by 1 day from current app day)
+  const now = new Date();
+  if (now.getHours() < 1) now.setDate(now.getDate() - 1); // align to app day
+  const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
   const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
   const newStreak = lastVisit === yesterday.toDateString() ? streak + 1 : 1;
   localStorage.setItem('stat_streak', newStreak);
@@ -4123,6 +4194,9 @@ function applyNewDayCleanup() {
   // Re-render so the new day's dot appears and yesterday's checks show as history.
   renderHabits();
 
+  // Age old SOON items → PAST (30+ days)
+  _ageSoon();
+  
   // Purge old items from PAST (done: 7 days, let_go/aged: 30 days)
   _purgePast();
 
@@ -4137,7 +4211,9 @@ function applyNewDayCleanup() {
 function init() {
   _cacheElements();  // cache frequently queried DOM elements FIRST
   
+  // Use app day for header — if before 1am, show yesterday's date
   const now = new Date();
+  if (now.getHours() < 1) now.setDate(now.getDate() - 1);
   document.getElementById('dateTag').textContent =
     now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }).toUpperCase();
 
@@ -4151,6 +4227,7 @@ function init() {
   renderManual();
   renderSoon();
   renderPast();
+  _cleanupDeletedIds();  // Remove invalid deleted_ids that match zone tasks
   updateStats();
   checkTriageBar();
   checkMorningNudge();
@@ -5245,7 +5322,12 @@ function _saveHabits() {
 }
 
 function _habitTodayISO() {
-  return new Date().toISOString().slice(0, 10);
+  // Use app day boundary (1am) — habits checked before 1am count as previous day
+  const now = new Date();
+  if (now.getHours() < 1) {
+    now.setDate(now.getDate() - 1);
+  }
+  return now.toISOString().slice(0, 10);
 }
 
 function _getHabitDates() {
@@ -6684,9 +6766,28 @@ const _setTrelloFocus = (map) => { localStorage.setItem('today_trello_focus', JS
 
 const _getDeletedIds = () => safeJSON('today_deleted_ids', []);
 const _addDeletedId  = (id) => {
+  // Safety: Don't mark as deleted if task exists in SOON or PAST zones
+  if (soonTasks.some(t => t.id === id) || pastTasks.some(t => t.id === id)) {
+    console.warn('[TODAY] Blocked deletion of task in zone:', id);
+    return;
+  }
   const existing = _getDeletedIds().filter(d => d.id !== id);
   existing.push({ id, at: new Date().toISOString() });
   localStorage.setItem('today_deleted_ids', JSON.stringify(existing));
+};
+
+// Clean up deleted_ids that incorrectly contain zone task IDs
+const _cleanupDeletedIds = () => {
+  const zoneIds = new Set([
+    ...soonTasks.map(t => t.id),
+    ...pastTasks.map(t => t.id)
+  ]);
+  const deleted = _getDeletedIds();
+  const cleaned = deleted.filter(d => !zoneIds.has(d.id));
+  if (cleaned.length !== deleted.length) {
+    console.log('[TODAY] Cleaned', deleted.length - cleaned.length, 'invalid deleted_ids');
+    localStorage.setItem('today_deleted_ids', JSON.stringify(cleaned));
+  }
 };
 
 // ── Unchecked IDs: {id, at} — explicit uncheck tracking ───────────────────────
@@ -7371,7 +7472,7 @@ async function dropboxRestore(fromSync) {
       updateStats();
       // Prevent checkNewDay() from running new-day cleanup on the next tick
       // and filtering done tasks out of the state we just restored.
-      localStorage.setItem('stat_last_visit', new Date().toDateString());
+      localStorage.setItem('stat_last_visit', _getAppDay());
       // Seed rev baseline so syncDropbox doesn't immediately re-merge on top of this restore
       if (window._dbxSetRev) {
         try {
@@ -7444,11 +7545,11 @@ async function dropboxRestore(fromSync) {
   window._dbxSetRev = function(rev) { lastDropboxRev = rev; };
   window._dbxGetRev = function() { return lastDropboxRev; }; // debug helper
 
-  // Midnight cleanup
+  // Day boundary cleanup — uses app day (1am) instead of midnight
   function checkNewDay() {
-    // Compute today fresh each tick — a cached value set at module load would be
-    // stale if the app stays open past midnight without a reload.
-    const today = new Date().toDateString();
+    // Compute app day fresh each tick — a cached value set at module load would be
+    // stale if the app stays open past the 1am boundary without a reload.
+    const today = _getAppDay();
     if (localStorage.getItem('stat_last_visit') === today) return;
     applyNewDayCleanup();
     renderManual();
@@ -7704,8 +7805,10 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     }
   }
 
-  // Typewriter
-  const dateStr = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}).toUpperCase();
+  // Typewriter — use app day (1am boundary)
+  const splashNow = new Date();
+  if (splashNow.getHours() < 1) splashNow.setDate(splashNow.getDate() - 1);
+  const dateStr = splashNow.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}).toUpperCase();
   const dateTxt = document.getElementById('splash-date');
   const cursor  = document.getElementById('splash-cursor');
   let tidx = 0;
@@ -7869,7 +7972,7 @@ if ('serviceWorker' in navigator && canRegisterSW) {
           window.location.reload();
         });
         
-        console.log('[SW] Registered, version:', CACHE_VERSION || 'unknown');
+        console.log('[SW] Registered, version:', APP_VERSION);
       })
       .catch(err => { console.log('[SW] Registration failed:', err); });
   });
@@ -8036,11 +8139,72 @@ function _aiIntroMessage(ctx) {
     return `Sunday evening. This week: ${w.tasksCompletedToday} tasks done today, ${focusStr}streak at ${ctx.streak}. How did it feel?`;
   }
   
-  // ── STALE TASK AWARENESS (probabilistic — ~30% chance if aging tasks exist) ──
-  if (agingTasks.length > 0 && Math.random() < 0.3) {
-    // Pick the oldest one
+  // ── STALE TASK AWARENESS + BREAKDOWN SUGGESTION (~25% chance) ──
+  if (agingTasks.length > 0 && Math.random() < 0.25) {
     const oldest = agingTasks.sort((a, b) => b.ageDays - a.ageDays)[0];
+    // Suggest breakdown for really old tasks (7+ days)
+    if (oldest.ageDays >= 7) {
+      return `"${oldest.text}" has been here ${oldest.ageDays} days. Maybe it's too big? Want me to help break it down into smaller steps?`;
+    }
     return `I notice "${oldest.text}" has been here ${oldest.ageDays} days. Still relevant, or ready to let it go?`;
+  }
+  
+  // ── BEHAVIORAL INSIGHT (~15% chance when patterns exist) ──
+  const m = appMemory;
+  if (m && Math.random() < 0.15) {
+    const insights = [];
+    
+    // Peak productivity hour insight
+    if (m.preferences.peakHour !== null) {
+      const hour = parseInt(m.preferences.peakHour);
+      const hourStr = hour === 0 ? '12am' : hour < 12 ? `${hour}am` : hour === 12 ? '12pm' : `${hour - 12}pm`;
+      const now = new Date().getHours();
+      if (Math.abs(now - hour) <= 1) {
+        insights.push(`It's around ${hourStr} — your peak productivity time based on past completions. Good time to tackle something important.`);
+      }
+    }
+    
+    // Focus time insight
+    if (m.patterns.focusMinutesTotal > 120) {
+      const hours = Math.round(m.patterns.focusMinutesTotal / 60);
+      insights.push(`You've focused for ${hours}+ hours total. That's real deep work adding up.`);
+    }
+    
+    // Streak insight
+    if (ctx.streak >= 7 && ctx.streak < m.patterns.bestStreak) {
+      insights.push(`${ctx.streak} days strong. Your best was ${m.patterns.bestStreak}. Getting close!`);
+    }
+    
+    // Days active insight
+    if (m.totalDaysActive >= 14) {
+      const weeks = Math.floor(m.totalDaysActive / 7);
+      insights.push(`We've been at this for ${weeks}+ weeks. ${m.totalTasksCompleted} tasks completed together.`);
+    }
+    
+    // Task keyword patterns
+    const keywords = Object.entries(m.patterns.taskKeywords || {})
+      .filter(([_, v]) => v.completed >= 3)
+      .sort((a, b) => b[1].completed - a[1].completed);
+    if (keywords.length > 0) {
+      const topKeyword = keywords[0][0];
+      insights.push(`I notice you often work on "${topKeyword}" tasks. It seems important to you.`);
+    }
+    
+    if (insights.length > 0) {
+      const insight = insights[Math.floor(Math.random() * insights.length)];
+      return `Good ${ctx.timeOfDay}. ${insight} What's on your mind?`;
+    }
+  }
+  
+  // ── APP IMPROVEMENT PROMPT (~5% chance for engaged users) ──
+  const m2 = appMemory;
+  if (m2 && m2.totalDaysActive >= 7 && Math.random() < 0.05) {
+    const prompts = [
+      `You've been using TODAY for ${m2.totalDaysActive} days now. Anything you wish it did differently? I can pass ideas along.`,
+      `Quick thought: is there something about TODAY that could work better for you? Always looking to improve.`,
+      `You know this app pretty well by now. Any features you'd love to see? Or something that bugs you?`,
+    ];
+    return prompts[Math.floor(Math.random() * prompts.length)];
   }
   
   // ── STANDARD CONTEXTUAL MESSAGES ──
@@ -8053,7 +8217,6 @@ function _aiIntroMessage(ctx) {
   // ── ALL DONE — the reward moment ──
   if (totalPending === 0 && habitsDue === 0 && ctx.tasks.done.length > 0) {
     const doneCount = ctx.tasks.done.length;
-    const m = appMemory;
     const warmMessages = [];
     
     // Base acknowledgments (always available)

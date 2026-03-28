@@ -169,7 +169,34 @@ Run these **before every GitHub push**:
 | Backup fails silently | v2.12.2 | Retry on focus |
 | Deleted tasks in zones | v2.12.14 | Ghost tasks in SOON/PAST |
 | AI delete not synced | v2.12.14 | No _addDeletedId call |
+| Zone tasks in deleted_ids | v2.12.17 | Sync adding zone task IDs |
 
 ---
 
-*Last updated: Session 18 (v2.12.14)*
+## Edge Cases: Time & Timezone (needs testing)
+
+| # | Scenario | Risk | Mitigation |
+|---|----------|------|------------|
+| T1 | **Timezone change (travel)** | Date string changes mid-day → unexpected cleanup | `stat_last_visit` is local-only, but date shift could trigger `applyNewDayCleanup()` |
+| T2 | **DST spring forward** (2am→3am) | Skips 1am boundary | Cleanup runs at next tick after 1am — likely OK |
+| T3 | **DST fall back** (2am→1am) | Could hit 1am twice | `stat_last_visit` should prevent double-run |
+| T4 | **Multi-timezone sync** | Device A/B have different "today" | `stat_last_visit` not synced — each device manages own day |
+| T5 | **Manual restore after travel** | Uses `toDateString()` not `_getAppDay()` | **BUG** — line 7423 should use `_getAppDay()` |
+
+### Testing Instructions
+
+**T1 — Timezone change:**
+1. Open app, add tasks, check some done
+2. Change system timezone forward/back several hours
+3. Reload app
+4. Verify: done tasks NOT cleared, streak intact
+
+**T3 — DST fall back simulation:**
+1. Open app at "1:30am" (simulated)
+2. Change clock back to 12:30am
+3. Wait for sync tick (7s)
+4. Verify: cleanup doesn't run twice
+
+---
+
+*Last updated: Session 19 (v2.12.19)*

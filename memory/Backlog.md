@@ -22,14 +22,15 @@
 - [x] Auto-close after all decisions
 - [x] **Flow rate fix** — now `done / total` (was `done / added`, always hit 100%)
 - [x] **PiP fix** — delay before open (prevents Cmd+H focus steal), close+reopen on every minimize
+- [x] **SOON aging** — 30+ days → auto-archive to PAST (status: `aged`) ✓ v2.12.21
 
 ### ⬜ TODO: Core Functionality
 - [x] **Dropbox sync** — add `today_soon` and `today_past` to backup/restore ✓
 - [x] **Backup schema update** — bump to v5.0, include zones ✓
 - [x] **Purge: PAST cleanup** — done items after 7 days, let_go/aged after 30 days ✓ v2.12.6
 - [x] **Morning nudge** — "3 still here from yesterday" if tasks carried over ✓ v2.12.7
-- [ ] **Aging: TODAY → PAST** — 7+ days inactive → auto-archive (status: `aged`)
-- [ ] **Aging: SOON → PAST** — 30+ days → auto-archive (status: `aged`)
+- [x] **Aging: SOON → PAST** — 30+ days → auto-archive (status: `aged`) ✓ v2.12.21
+- [ ] ~~**Aging: TODAY → PAST** — 7+ days inactive → auto-archive~~ **SKIPPED** — visual fading is enough, user should consciously triage
 
 ### ✅ Edge Cases (Verified)
 - [x] User never does triage → tasks stay, age visually (75%→55%→35% opacity)
@@ -39,6 +40,11 @@
 ---
 
 ## Pending Features
+
+### Quick Task Capture (Without Opening App)
+**Research:** `memory/research/Quick-capture.md`  
+**Status:** Researched — **Not implementing**  
+**Reason:** No intuitive cross-platform solution. iOS has no PWA shortcut/share target support. Siri integration requires native app.
 
 ### Todoist Integration
 **From:** Research.md §2
