@@ -839,6 +839,17 @@
   .zone-list .task:hover {
     opacity: 0.85;
   }
+  /* PAST check icon — matches task-check dimensions */
+  #pastList .task-check.past-check {
+    border: none;
+    background: none;
+    cursor: default;
+  }
+  #pastList .past-icon {
+    font-size: 12px;
+    color: var(--muted);
+    opacity: 0.6;
+  }
   #pastList .task.done .task-text {
     text-decoration: line-through;
   }
@@ -2905,11 +2916,15 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.20';
+const APP_VERSION   = '2.12.24';
 const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.24': 'UI: Fixed PAST section alignment to match YOUR TASKS — uses same task structure.',
+  '2.12.23': 'AI meta-prompt: ~5% chance asks engaged users (7+ days) for app improvement suggestions.',
+  '2.12.22': 'AI awareness: suggests breaking down 7+ day old tasks. Behavioral insights: peak hour, focus time, streak progress, task patterns.',
+  '2.12.21': 'SOON aging: tasks in SOON for 30+ days auto-archive to PAST with status "aged". Runs on new day.',
   '2.12.20': 'Fix: All day-boundary logic now uses _getAppDay() — triage dismissed, manual restore. Prevents timezone/DST edge case bugs.',
   '2.12.19': 'App day boundary: day changes at 1am instead of midnight. Triage window 8pm–1am. Habits, stats, and date header all use app day.',
   '2.12.18': 'UI: Consistent hover pattern for zone chevron and pull button — follows focus mode copy button style (border appears on hover, no background change).',
@@ -3199,6 +3214,35 @@ let triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppD
 function _saveSoon() { localStorage.setItem('today_soon', JSON.stringify(soonTasks)); }
 function _savePast() { localStorage.setItem('today_past', JSON.stringify(pastTasks)); }
 
+// Age old items from SOON → PAST (30+ days)
+function _ageSoon() {
+  const now = Date.now();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const SOON_AGE_DAYS = 30;
+  
+  const aged = [];
+  soonTasks = soonTasks.filter(t => {
+    if (!t.zoneChangedAt) return true; // Keep items without timestamp (legacy)
+    const age = (now - new Date(t.zoneChangedAt).getTime()) / DAY_MS;
+    if (age >= SOON_AGE_DAYS) {
+      // Move to PAST with 'aged' status
+      t.zone = 'past';
+      t.status = 'aged';
+      t.zoneChangedAt = new Date().toISOString();
+      aged.push(t);
+      return false; // Remove from SOON
+    }
+    return true;
+  });
+  
+  if (aged.length > 0) {
+    pastTasks.unshift(...aged);
+    _saveSoon();
+    _savePast();
+    console.log(`[TODAY] Aged ${aged.length} items from SOON → PAST`);
+  }
+}
+
 // Purge old items from PAST zone
 // - done items: 7 days
 // - let_go/aged items: 30 days
@@ -3275,8 +3319,12 @@ function renderPast() {
     const statusBadge = t.status === 'done' ? '✓' : t.status === 'let_go' ? '○' : '◌';
     return `
       <div class="task ${statusClass}" data-id="${t.id}">
-        <span class="task-check-icon" style="opacity:0.5">${statusBadge}</span>
-        <span class="task-text">${esc(t.text)}</span>
+        <div class="task-check past-check">
+          <span class="past-icon">${statusBadge}</span>
+        </div>
+        <div class="task-body">
+          <div class="task-text">${esc(t.text)}</div>
+        </div>
         <span class="zone-badge">${t.status || 'past'}</span>
       </div>
     `;
@@ -4146,6 +4194,9 @@ function applyNewDayCleanup() {
   // Re-render so the new day's dot appears and yesterday's checks show as history.
   renderHabits();
 
+  // Age old SOON items → PAST (30+ days)
+  _ageSoon();
+  
   // Purge old items from PAST (done: 7 days, let_go/aged: 30 days)
   _purgePast();
 
@@ -8088,11 +8139,72 @@ function _aiIntroMessage(ctx) {
     return `Sunday evening. This week: ${w.tasksCompletedToday} tasks done today, ${focusStr}streak at ${ctx.streak}. How did it feel?`;
   }
   
-  // ── STALE TASK AWARENESS (probabilistic — ~30% chance if aging tasks exist) ──
-  if (agingTasks.length > 0 && Math.random() < 0.3) {
-    // Pick the oldest one
+  // ── STALE TASK AWARENESS + BREAKDOWN SUGGESTION (~25% chance) ──
+  if (agingTasks.length > 0 && Math.random() < 0.25) {
     const oldest = agingTasks.sort((a, b) => b.ageDays - a.ageDays)[0];
+    // Suggest breakdown for really old tasks (7+ days)
+    if (oldest.ageDays >= 7) {
+      return `"${oldest.text}" has been here ${oldest.ageDays} days. Maybe it's too big? Want me to help break it down into smaller steps?`;
+    }
     return `I notice "${oldest.text}" has been here ${oldest.ageDays} days. Still relevant, or ready to let it go?`;
+  }
+  
+  // ── BEHAVIORAL INSIGHT (~15% chance when patterns exist) ──
+  const m = appMemory;
+  if (m && Math.random() < 0.15) {
+    const insights = [];
+    
+    // Peak productivity hour insight
+    if (m.preferences.peakHour !== null) {
+      const hour = parseInt(m.preferences.peakHour);
+      const hourStr = hour === 0 ? '12am' : hour < 12 ? `${hour}am` : hour === 12 ? '12pm' : `${hour - 12}pm`;
+      const now = new Date().getHours();
+      if (Math.abs(now - hour) <= 1) {
+        insights.push(`It's around ${hourStr} — your peak productivity time based on past completions. Good time to tackle something important.`);
+      }
+    }
+    
+    // Focus time insight
+    if (m.patterns.focusMinutesTotal > 120) {
+      const hours = Math.round(m.patterns.focusMinutesTotal / 60);
+      insights.push(`You've focused for ${hours}+ hours total. That's real deep work adding up.`);
+    }
+    
+    // Streak insight
+    if (ctx.streak >= 7 && ctx.streak < m.patterns.bestStreak) {
+      insights.push(`${ctx.streak} days strong. Your best was ${m.patterns.bestStreak}. Getting close!`);
+    }
+    
+    // Days active insight
+    if (m.totalDaysActive >= 14) {
+      const weeks = Math.floor(m.totalDaysActive / 7);
+      insights.push(`We've been at this for ${weeks}+ weeks. ${m.totalTasksCompleted} tasks completed together.`);
+    }
+    
+    // Task keyword patterns
+    const keywords = Object.entries(m.patterns.taskKeywords || {})
+      .filter(([_, v]) => v.completed >= 3)
+      .sort((a, b) => b[1].completed - a[1].completed);
+    if (keywords.length > 0) {
+      const topKeyword = keywords[0][0];
+      insights.push(`I notice you often work on "${topKeyword}" tasks. It seems important to you.`);
+    }
+    
+    if (insights.length > 0) {
+      const insight = insights[Math.floor(Math.random() * insights.length)];
+      return `Good ${ctx.timeOfDay}. ${insight} What's on your mind?`;
+    }
+  }
+  
+  // ── APP IMPROVEMENT PROMPT (~5% chance for engaged users) ──
+  const m2 = appMemory;
+  if (m2 && m2.totalDaysActive >= 7 && Math.random() < 0.05) {
+    const prompts = [
+      `You've been using TODAY for ${m2.totalDaysActive} days now. Anything you wish it did differently? I can pass ideas along.`,
+      `Quick thought: is there something about TODAY that could work better for you? Always looking to improve.`,
+      `You know this app pretty well by now. Any features you'd love to see? Or something that bugs you?`,
+    ];
+    return prompts[Math.floor(Math.random() * prompts.length)];
   }
   
   // ── STANDARD CONTEXTUAL MESSAGES ──
@@ -8105,7 +8217,6 @@ function _aiIntroMessage(ctx) {
   // ── ALL DONE — the reward moment ──
   if (totalPending === 0 && habitsDue === 0 && ctx.tasks.done.length > 0) {
     const doneCount = ctx.tasks.done.length;
-    const m = appMemory;
     const warmMessages = [];
     
     // Base acknowledgments (always available)
