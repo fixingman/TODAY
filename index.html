@@ -834,10 +834,10 @@
     margin-top: var(--space-2);
   }
   .zone-list .task {
-    opacity: 0.6;
+    opacity: var(--opacity-soft);
   }
   .zone-list .task:hover {
-    opacity: 0.85;
+    opacity: var(--opacity-hover);
   }
   /* PAST check icon — matches task-check dimensions */
   #pastList .task-check.past-check {
@@ -846,16 +846,16 @@
     cursor: default;
   }
   #pastList .past-icon {
-    font-size: 12px;
+    font-size: var(--text-xs2);
     color: var(--muted);
-    opacity: 0.6;
+    opacity: var(--opacity-soft);
   }
   #pastList .task.done .task-text {
     text-decoration: line-through;
   }
   #pastList .task.let-go,
   #pastList .task.aged {
-    opacity: 0.4;
+    opacity: var(--opacity-label);
   }
   .task .zone-badge {
     font-size: var(--text-xs);
@@ -2921,7 +2921,7 @@ const DEV_HOURS     = '123h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
-  '2.12.24': 'UI: Fixed PAST section alignment to match YOUR TASKS — uses same task structure.',
+  '2.12.24': 'UI: Fixed PAST section alignment to match YOUR TASKS. Token audit — zone list opacity now uses design tokens.',
   '2.12.23': 'AI meta-prompt: ~5% chance asks engaged users (7+ days) for app improvement suggestions.',
   '2.12.22': 'AI awareness: suggests breaking down 7+ day old tasks. Behavioral insights: peak hour, focus time, streak progress, task patterns.',
   '2.12.21': 'SOON aging: tasks in SOON for 30+ days auto-archive to PAST with status "aged". Runs on new day.',
