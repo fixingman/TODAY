@@ -68,6 +68,7 @@
 23. Single-file app — all code in `index.html`, no build step
 24. SW cache version must match app version: `today-v{VERSION}`
 25. **`_cacheElements()` must run at START of `init()`** — before any rendering
+26. **Zone renderers must match `renderTask()` features** — tags, badges, etc.
 
 ## Z-Index Stack
 
