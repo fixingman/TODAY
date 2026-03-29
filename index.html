@@ -2850,7 +2850,7 @@
     <button id="clearTaskBtn" onclick="clearTaskInput()" class="clear-input-btn" style="display:none">×</button>
   </div>
   <!-- Single ✦: Enter = add task, tap = AI (or add task if AI not configured) -->
-  <button class="add-ai-btn" id="addAiBtn" onclick="handleBarSubmit()" title="✦">✦</button>
+  <button class="add-ai-btn" id="addAiBtn" onclick="handleBarSubmit()" title="Ask anything">✦</button>
 </div>
 
 <!-- AI chat panel — slides up from bottom -->
@@ -2916,11 +2916,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.24';
-const DEV_HOURS     = '123h';
+const APP_VERSION   = '2.12.25';
+const DEV_HOURS     = '156h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.25': 'Tooltips: ✦ → "Ask anything", SOON ← → "Grab for today". Fix: SOON and PAST sections now render task tags.',
   '2.12.24': 'UI: Fixed PAST section alignment to match YOUR TASKS. Token audit — zone list opacity now uses design tokens.',
   '2.12.23': 'AI meta-prompt: ~5% chance asks engaged users (7+ days) for app improvement suggestions.',
   '2.12.22': 'AI awareness: suggests breaking down 7+ day old tasks. Behavioral insights: peak hour, focus time, streak progress, task patterns.',
@@ -3290,12 +3291,18 @@ function renderSoon() {
   section.style.display = 'block';
   count.textContent = soonTasks.length;
   
-  list.innerHTML = soonTasks.map(t => `
+  list.innerHTML = soonTasks.map(t => {
+    // Parse tag pattern: "tag: rest of text"
+    const tagMatch = t.text.match(/^([a-z0-9]{1,12}):\s+(.+)$/i);
+    const textHTML = tagMatch
+      ? `<span class="task-tag">${esc(tagMatch[1].toLowerCase())}</span>${esc(tagMatch[2])}`
+      : esc(t.text);
+    return `
     <div class="task" data-id="${t.id}">
-      <span class="task-text">${esc(t.text)}</span>
-      <button class="zone-badge pull-btn" onclick="pullFromSoon('${t.id}')" title="Bring back to today">←</button>
+      <span class="task-text">${textHTML}</span>
+      <button class="zone-badge pull-btn" onclick="pullFromSoon('${t.id}')" title="Grab for today">← grab</button>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 function renderPast() {
@@ -3317,13 +3324,18 @@ function renderPast() {
   list.innerHTML = visible.map(t => {
     const statusClass = t.status || '';
     const statusBadge = t.status === 'done' ? '✓' : t.status === 'let_go' ? '○' : '◌';
+    // Parse tag pattern: "tag: rest of text"
+    const tagMatch = t.text.match(/^([a-z0-9]{1,12}):\s+(.+)$/i);
+    const textHTML = tagMatch
+      ? `<span class="task-tag">${esc(tagMatch[1].toLowerCase())}</span>${esc(tagMatch[2])}`
+      : esc(t.text);
     return `
       <div class="task ${statusClass}" data-id="${t.id}">
         <div class="task-check past-check">
           <span class="past-icon">${statusBadge}</span>
         </div>
         <div class="task-body">
-          <div class="task-text">${esc(t.text)}</div>
+          <div class="task-text">${textHTML}</div>
         </div>
         <span class="zone-badge">${t.status || 'past'}</span>
       </div>

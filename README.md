@@ -12,8 +12,10 @@ Nothing carries over. Nothing accumulates. The morning is a clean slate.
 
 - Add tasks for today, check them off as you go
 - Drag to reorder tasks, Trello cards, and habits — desktop and mobile
+- **Zones** — SOON for deferred tasks, PAST for completed/let-go tasks
+- **Evening triage** — review aging tasks each night (8pm–1am)
 - Track daily habits with a 21-day history strip and habit strength score
-- AI assistant (optional) — suggests how to break down complex tasks, powered by Gemini (free) or Claude
+- AI assistant (optional) — task breakdown, behavioral insights, powered by Gemini (free) or Claude
 - Pull in cards from a Trello board so you don't re-enter work tasks
 - Focus mode (desktop) — click any task or habit to start a 25-minute Pomodoro session
 - Sync tasks and habits across devices via your own Dropbox
@@ -105,9 +107,7 @@ Your key is stored locally in your browser and sent only through your own Netlif
 
 Each device stores state in `localStorage`. Dropbox holds a single JSON backup file (`/today-backup.json`). On startup and every 7 seconds the app does a cheap metadata check — a full sync only happens if the file actually changed.
 
-Concurrent edits are handled with union merge: tasks and habits added on two devices offline both survive. Deletes and check/uncheck operations carry timestamps so the most recent intent wins. Backup schema version `4.0`.
-
-Full detail in `Architecture.md`.
+Concurrent edits are handled with union merge: tasks and habits added on two devices offline both survive. Deletes and check/uncheck operations carry timestamps so the most recent intent wins. Backup schema version `5.1`.
 
 ---
 
@@ -117,13 +117,12 @@ No build step. Open `index.html` in a browser — or better, deploy a preview br
 
 Fonts are in `/fonts/`. Icons and social images are in `/assets/`. The service worker is `sw.js`. Netlify functions are in `/netlify/functions/`.
 
-Memory files in the repo root (`Architecture.md`, `Design.md`, `Research.md`, `Changelog.md`) document all product decisions, data model, sync logic, and design rules. Read these before making changes.
+Documentation lives in `/memory/`. Start with `Rules.md` — it has a file guide for what to read based on your task.
 
 When making changes:
 - Bump `APP_VERSION` and `DEV_HOURS` in `index.html`
 - Update `sw.js` cache version to match `APP_VERSION`
-- Add a row to `Changelog.md`
-- Use the trigger table in `Architecture.md §13` to determine which memory files need updating
+- Add a row to `memory/Changelog.md`
 
 ---
 
