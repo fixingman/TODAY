@@ -49,11 +49,11 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
 
 ---
 
-## Backup Schema (v5.1)
+## Backup Schema (v5.2)
 
 ```javascript
 {
-  version: '5.1',
+  version: '5.2',
   saved_at: 'ISO string',
   // Tasks
   manual_tasks: [{id, text, lastActive?, zone?, zoneChangedAt?}, ...],
@@ -64,6 +64,9 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   // Zones (v5.0)
   soon_tasks: [{id, text, zone: 'soon', zoneChangedAt}, ...],
   past_tasks: [{id, text, zone: 'past', status, zoneChangedAt}, ...],
+  // Trello
+  trello_config: {apiKey, apiToken, boardId, todayList},
+  trello_order: ['trello_id1', 'trello_id2', ...],  // v5.2
   // Habits
   habits: [{id, name, created_at, focusSessions?}, ...],
   habit_completions: {habitId: ['YYYY-MM-DD', ...]},
@@ -75,7 +78,8 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   // Memory
   memory: {totalTasksCompleted, patterns: {...}, aiName, moments: [...]},
   // Triage (v5.1)
-  triage_history: [{id, decision, at}, ...]
+  triage_history: [{id, decision, at}, ...],
+  triage_dismissed: 'YYYY-MM-DD'  // synced to prevent repeat prompts
 }
 ```
 
@@ -136,11 +140,14 @@ All timestamps are **ISO strings** (`new Date().toISOString()`).
 | Data Type | Resolution |
 |-----------|------------|
 | Task list | Union by ID, remote order wins |
+| Habit list | Union by ID, remote order wins |
+| Trello order | Remote wins |
 | Done IDs | Union with check/uncheck timestamps |
 | Deleted IDs | Union (excluded from tasks) |
 | SOON tasks | Union by ID, newer zoneChangedAt wins |
 | PAST tasks | Union by ID, newer zoneChangedAt wins, keep last 100 |
 | Stats | Max wins |
+| Triage dismissed | If remote = today, apply locally |
 | Memory | Merge patterns, max of counters, union of moments |
 
 ---

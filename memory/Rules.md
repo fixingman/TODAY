@@ -11,6 +11,7 @@
 | **Start of session** | `Housekeeping.md` | Pre-Session Checklist |
 | **End of session** | `Housekeeping.md` | Post-Session Checklist |
 | **Prototype/TODO** | `Backlog.md` | — |
+| Public-facing docs | `README.md` | — |
 | CSS/colors/fonts | `Rules.md` | `design/Tokens.md` |
 | Animation | `Rules.md` | `design/Motion.md` |
 | UI component | `Rules.md` | `design/Components.md` |
@@ -48,7 +49,7 @@
 ## Data Rules
 
 11. `manualTasks` and `habitsList` preserve drag order — **never re-sort**
-12. Backup schema version: **5.1** (includes triage history)
+12. Backup schema version: **5.2** (includes trello_order)
 13. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
 14. All timestamps: ISO strings
 15. **State variables must be declared before functions that use them** — `let` has temporal dead zone
@@ -69,6 +70,7 @@
 24. SW cache version must match app version: `today-v{VERSION}`
 25. **`_cacheElements()` must run at START of `init()`** — before any rendering
 26. **Zone renderers must match `renderTask()` features** — tags, badges, etc.
+27. **Every code change requires memory review** — ask: "Does this affect documented behavior?" Update relevant memory files.
 
 ## Z-Index Stack
 

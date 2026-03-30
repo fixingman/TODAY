@@ -32,7 +32,8 @@
 
 | Key | Type | Description |
 |---|---|---|
-| `today_trello_cache` | JSON | Cached Trello cards |
+| `today_trello_cache` | JSON | Cached Trello cards (local, resets on fetch) |
+| `today_trello_order` | JSON array | Trello card order IDs (synced via Dropbox) |
 | `today_trello_focus` | JSON object | `{cardId: sessionCount}` |
 | `trello_config` | JSON | API key, token, board ID, list ID |
 | `trello_token` | string | Trello OAuth token |
@@ -75,7 +76,7 @@
 | `stat_focus_mins_today` | string | Focus minutes today |
 | `stat_focus_mins_alltime` | string | Lifetime focus minutes |
 
-**Note:** Flow rate is calculated live (`done / total` visible tasks), not stored. See Research.md § Stats.
+**Note:** Flow rate is calculated live using research-based diminishing returns formula: `100 × (1 - 0.8^done)`. First task = 20% (quick win), 5 tasks ≈ 67% (good day). Based on Endowed Progress Effect (Nunes & Dreze 2006) and Goal Gradient Hypothesis (Kivetz et al. 2006). Not stored.
 
 ### Memory (AI Companion)
 
@@ -97,11 +98,11 @@
 
 ## Backup Schema
 
-**Version: 5.1**
+**Version: 5.2**
 
 ```javascript
 {
-  version: '5.1',
+  version: '5.2',
   manual: [...],
   habits: [...],
   habitCompletions: {...},
@@ -111,10 +112,11 @@
   unchecked: [...],
   deletedHabits: [...],
   trelloFocus: {...},
-  memory: {...},           // v4.0 addition
-  soon_tasks: [...],       // v5.0 — SOON zone
-  past_tasks: [...],       // v5.0 — PAST zone
-  triage_history: [...],   // v5.1 — AI triage learning
+  trello_order: [...],         // v5.2 — Trello card order
+  memory: {...},               // v4.0 addition
+  soon_tasks: [...],           // v5.0 — SOON zone
+  past_tasks: [...],           // v5.0 — PAST zone
+  triage_history: [...],       // v5.1 — AI triage learning
   exportedAt: 'ISO string'
 }
 ```
@@ -123,4 +125,8 @@
 
 ## Order Preservation
 
-**Critical:** `manualTasks` and `habitsList` arrays preserve drag order. Never re-sort them programmatically.
+**Critical:** `manualTasks`, `habitsList`, and `trelloTasks` arrays preserve drag order. Never re-sort them programmatically.
+
+- Manual tasks: order stored in `today_manual` array
+- Habits: order stored in `today_habits` array  
+- Trello: order stored separately in `today_trello_order` (applied after each Trello fetch)

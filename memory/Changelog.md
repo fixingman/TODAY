@@ -2,6 +2,20 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.30** | **Flow rate redesign** — Research-based diminishing returns formula. 1st task = 20% (quick win), 5 tasks = 67% (good day). Based on Endowed Progress Effect (Nunes & Dreze 2006) and Goal Gradient Hypothesis (Kivetz et al. 2006). |
+| **2.12.29** | **Fix: Habit dots day boundary** — `_getHabitDates()` now uses 1am boundary to match `_habitTodayISO()`. No more misaligned dots between midnight and 1am. |
+| **2.12.28** | **Trello sync fixes** — Done Trello cards stay visible until end of day. Trello order now syncs across devices (backup schema v5.2). |
+| **2.12.27** | **Fix: Triage sync** — Triage dismissal now syncs across devices — no repeat prompts on other devices. |
+| **2.12.26** | **Fix: Habit order sync** — Habit order now syncs across devices (remote order wins, like tasks). |
+| **2.12.25** | **Tooltips + Tag fix** — ✦ button → "Ask anything", SOON ← → "Grab for today". SOON and PAST sections now render task tags. |
+| **2.12.24** | **PAST alignment fix** — PAST tasks now use same HTML structure as YOUR TASKS. Token audit — zone list opacity uses design tokens. |
+| **2.12.23** | **AI meta-prompt** — ~5% chance asks engaged users (7+ days) for app improvement suggestions. |
+| **2.12.22** | **AI awareness** — suggests breaking down 7+ day old tasks. Behavioral insights: peak hour, focus time, streak progress, task patterns. |
+| **2.12.21** | **SOON aging** — tasks in SOON for 30+ days auto-archive to PAST with status "aged". Runs on new day. |
+| **2.12.20** | **Fix: Day boundary consistency** — all day-boundary logic uses `_getAppDay()` (triage dismissed, manual restore). Prevents timezone/DST edge case bugs. |
+| **2.12.19** | **Day boundary at 1am** — triage window 8pm–1am, app day rolls over at 1am (not midnight). Habits, stats, cleanup all align. |
+| **2.12.18** | **Zone hover UX** — chevron (+/−) and pull button (←) follow focus mode copy button pattern: border on hover, no background change. |
+| **2.12.17** | **Sync fix: Zone task protection** — `_addDeletedId()` now checks if task exists in SOON/PAST before marking deleted. Cleanup on init removes invalid deleted_ids. Prevents zone tasks from being deleted by stale devices. |
 | **2.12.16** | **Pull button UX** — shows on hover (desktop) / dimmed (mobile). Fixed black screen when clicking SOON tasks. |
 | **2.12.15** | **SOON/PAST UI polish** — removed border separators, cleaner +/− expand icons with hover state. |
 | **2.12.14** | **Sync hardening** — deleted tasks excluded from zone merge, AI delete_task now tracks deletion. |
