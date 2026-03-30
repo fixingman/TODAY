@@ -2916,11 +2916,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.28';
+const APP_VERSION   = '2.12.29';
 const DEV_HOURS     = '156h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.29': 'Fix: Habit dots now use app day boundary (1am) — no more misaligned dots between midnight and 1am.',
   '2.12.28': 'Fix: Done Trello cards stay visible until end of day. Trello order now syncs across devices.',
   '2.12.27': 'Fix: Triage dismissal now syncs across devices — no repeat prompts.',
   '2.12.26': 'Fix: Habit order now syncs across devices (remote order wins, like tasks).',
@@ -5358,9 +5359,15 @@ function _habitTodayISO() {
 }
 
 function _getHabitDates() {
+  // Use app day boundary (1am) — must match _habitTodayISO()
+  const now = new Date();
+  if (now.getHours() < 1) {
+    now.setDate(now.getDate() - 1);
+  }
   const days = [];
   for (let i = 20; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
     days.push(d.toISOString().slice(0, 10));
   }
   return days;
