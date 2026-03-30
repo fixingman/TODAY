@@ -76,7 +76,7 @@
 | `stat_focus_mins_today` | string | Focus minutes today |
 | `stat_focus_mins_alltime` | string | Lifetime focus minutes |
 
-**Note:** Flow rate is calculated live (`done / total` visible tasks), not stored. See Research.md § Stats.
+**Note:** Flow rate is calculated live using research-based diminishing returns formula: `100 × (1 - 0.8^done)`. First task = 20% (quick win), 5 tasks ≈ 67% (good day). Based on Endowed Progress Effect (Nunes & Dreze 2006) and Goal Gradient Hypothesis (Kivetz et al. 2006). Not stored.
 
 ### Memory (AI Companion)
 

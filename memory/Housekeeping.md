@@ -31,12 +31,14 @@ After completing work:
 'X.X.X': 'Feature name — Brief description.',
 ```
 
-### 3. Update Relevant Docs
-- New feature → Add to appropriate split file
+### 3. Review & Update Memory Files
+**Every change should trigger a memory review.** Ask: "Does this change affect any documented behavior?"
+- New feature → Add to appropriate architecture/design file
 - New rule → Add to `Rules.md`
-- Data change → Update `architecture/Data.md`
+- Data/formula change → Update `architecture/Data.md`
 - UI change → Update `design/Components.md`
 - Prototype work → Update `Backlog.md`
+- Algorithm/metric change → Document formula & research basis
 
 ### 4. Version Bump
 - `index.html`: Update `APP_VERSION`

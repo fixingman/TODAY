@@ -2,6 +2,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.30** | **Flow rate redesign** — Research-based diminishing returns formula. 1st task = 20% (quick win), 5 tasks = 67% (good day). Based on Endowed Progress Effect (Nunes & Dreze 2006) and Goal Gradient Hypothesis (Kivetz et al. 2006). |
 | **2.12.29** | **Fix: Habit dots day boundary** — `_getHabitDates()` now uses 1am boundary to match `_habitTodayISO()`. No more misaligned dots between midnight and 1am. |
 | **2.12.28** | **Trello sync fixes** — Done Trello cards stay visible until end of day. Trello order now syncs across devices (backup schema v5.2). |
 | **2.12.27** | **Fix: Triage sync** — Triage dismissal now syncs across devices — no repeat prompts on other devices. |

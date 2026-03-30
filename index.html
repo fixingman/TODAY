@@ -2916,11 +2916,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.29';
+const APP_VERSION   = '2.12.30';
 const DEV_HOURS     = '156h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.30': 'Flow rate redesign — research-based diminishing returns formula. First task = 20% (quick win), 5 tasks = 67% (good day). Based on Endowed Progress Effect & Goal Gradient research.',
   '2.12.29': 'Fix: Habit dots now use app day boundary (1am) — no more misaligned dots between midnight and 1am.',
   '2.12.28': 'Fix: Done Trello cards stay visible until end of day. Trello order now syncs across devices.',
   '2.12.27': 'Fix: Triage dismissal now syncs across devices — no repeat prompts.',
@@ -4377,12 +4378,13 @@ function renderInfoStats() {
   const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
   const streak = parseInt(localStorage.getItem('stat_streak') || '1');
   
-  // Flow rate: tasks completed / total tasks available
-  // Uses current state (what you see on screen)
+  // Flow rate: research-based diminishing returns formula
+  // Based on: Endowed Progress Effect (Nunes & Dreze 2006), Goal Gradient Hypothesis (Kivetz et al. 2006)
+  // First task = ~20% (quick win), decelerates after (fast start, slow finish)
+  // Formula: 100 × (1 - 0.8^done) — 5 tasks ≈ 67% "good day"
   const allTasks = [...manualTasks, ...(trelloTasks || [])];
-  const totalAvailable = allTasks.length;
   const totalDone = allTasks.filter(t => doneIds.has(t.id)).length;
-  const flowRate = totalAvailable > 0 ? Math.round((totalDone / totalAvailable) * 100) : 0;
+  const flowRate = Math.round(100 * (1 - Math.pow(0.8, totalDone)));
 
   const stats = [
     { val: _formatFocusTime(focusMinsToday), label: 'Focus' },
