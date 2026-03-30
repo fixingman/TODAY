@@ -2916,11 +2916,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.30';
+const APP_VERSION   = '2.12.31';
 const DEV_HOURS     = '156h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.31': 'Triage bar now appears on tab return — no timer needed, just checks when you come back.',
   '2.12.30': 'Flow rate redesign — research-based diminishing returns formula. First task = 20% (quick win), 5 tasks = 67% (good day). Based on Endowed Progress Effect & Goal Gradient research.',
   '2.12.29': 'Fix: Habit dots now use app day boundary (1am) — no more misaligned dots between midnight and 1am.',
   '2.12.28': 'Fix: Done Trello cards stay visible until end of day. Trello order now syncs across devices.',
@@ -7008,13 +7009,19 @@ function dropboxAutoSave() {
 
 // Retry pending backup when tab becomes visible
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && _pendingBackup) {
-    const token = localStorage.getItem('dropbox_token');
-    if (token) {
-      setTimeout(async () => {
-        const success = await dropboxBackup(true);
-        if (success) _pendingBackup = false;
-      }, 1000);
+  if (document.visibilityState === 'visible') {
+    // Check triage bar on tab return (no timer needed — just check when user comes back)
+    checkTriageBar();
+    
+    // Retry pending backup
+    if (_pendingBackup) {
+      const token = localStorage.getItem('dropbox_token');
+      if (token) {
+        setTimeout(async () => {
+          const success = await dropboxBackup(true);
+          if (success) _pendingBackup = false;
+        }, 1000);
+      }
     }
   }
 });
