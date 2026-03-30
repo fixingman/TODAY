@@ -2916,11 +2916,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.25';
+const APP_VERSION   = '2.12.27';
 const DEV_HOURS     = '156h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.27': 'Fix: Triage dismissal now syncs across devices — no repeat prompts.',
+  '2.12.26': 'Fix: Habit order now syncs across devices (remote order wins, like tasks).',
   '2.12.25': 'Tooltips: ✦ → "Ask anything", SOON ← → "Grab for today". Fix: SOON and PAST sections now render task tags.',
   '2.12.24': 'UI: Fixed PAST section alignment to match YOUR TASKS. Token audit — zone list opacity now uses design tokens.',
   '2.12.23': 'AI meta-prompt: ~5% chance asks engaged users (7+ days) for app improvement suggestions.',
@@ -7023,6 +7025,8 @@ async function dropboxBackup(silent) {
     memory:               safeJSON('today_memory', null),
     // Triage history — AI learns from past decisions
     triage_history:       safeJSON('today_triage_history', []),
+    // Triage dismissed — synced so triage doesn't re-prompt on other devices
+    triage_dismissed:     localStorage.getItem('triage_dismissed') || '',
     // stat_last_visit intentionally excluded — it's local device state, meaningless on another device
   };
 
@@ -7185,18 +7189,24 @@ function mergeRemoteData(data) {
     }
   });
 
-  // ── Habits: union merge ──────────────────────────────────────────────────
+  // ── Habits: union merge with remote order preserved ─────────────────────
   const remoteHabits      = Array.isArray(data.habits)            ? data.habits            : [];
   const remoteHabitComps  = (data.habit_completions && typeof data.habit_completions === 'object') ? data.habit_completions : {};
   const remoteDeletedHabitIds = new Set(Array.isArray(data.deleted_habit_ids) ? data.deleted_habit_ids : []);
   const localDeletedHabitIds  = new Set(JSON.parse(localStorage.getItem('today_deleted_habit_ids') || '[]'));
   const mergedDeletedHabitIds = new Set([...localDeletedHabitIds, ...remoteDeletedHabitIds]);
 
-  // Union of local + remote habits, minus any deleted
+  // Build habit map — remote data wins on conflict (like tasks)
+  const remoteHabitIds = new Set(remoteHabits.map(h => h.id));
+  const localOnlyHabits = habitsList.filter(h => !remoteHabitIds.has(h.id));
+  
   const habitMap = new Map();
   habitsList.forEach(h => habitMap.set(h.id, h));
-  remoteHabits.forEach(h => { if (!habitMap.has(h.id)) habitMap.set(h.id, h); });
-  habitsList = [...habitMap.values()].filter(h => !mergedDeletedHabitIds.has(h.id));
+  remoteHabits.forEach(h => habitMap.set(h.id, { ...habitMap.get(h.id), ...h }));
+  
+  // Preserve remote order, then append local-only habits
+  habitsList = [...remoteHabits.map(h => habitMap.get(h.id)), ...localOnlyHabits]
+    .filter(h => !mergedDeletedHabitIds.has(h.id));
 
   // Union of completions — for each habit, merge date arrays (dedup)
   const allHabitIds = new Set([...Object.keys(habitCompletions), ...Object.keys(remoteHabitComps)]);
@@ -7336,6 +7346,19 @@ function mergeRemoteData(data) {
         .slice(0, TRIAGE_HISTORY_MAX);
       localStorage.setItem('today_triage_history', JSON.stringify(merged));
     }
+  }
+
+  // ── Triage dismissed: sync across devices ──
+  // If remote shows triage was dismissed today (or more recently), apply it locally
+  const remoteDismissed = data.triage_dismissed || '';
+  const localDismissed = localStorage.getItem('triage_dismissed') || '';
+  const today = _getAppDay();
+  if (remoteDismissed === today && localDismissed !== today) {
+    localStorage.setItem('triage_dismissed', remoteDismissed);
+    triageDismissedToday = true;
+    // Hide triage bar if it was showing
+    const triageBar = document.getElementById('triageBar');
+    if (triageBar) triageBar.classList.add('hidden');
   }
 
   // Full re-render if tasks were added or removed — surgical patch is not enough

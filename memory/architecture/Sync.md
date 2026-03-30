@@ -75,7 +75,8 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   // Memory
   memory: {totalTasksCompleted, patterns: {...}, aiName, moments: [...]},
   // Triage (v5.1)
-  triage_history: [{id, decision, at}, ...]
+  triage_history: [{id, decision, at}, ...],
+  triage_dismissed: 'YYYY-MM-DD'  // synced to prevent repeat prompts
 }
 ```
 
@@ -136,11 +137,13 @@ All timestamps are **ISO strings** (`new Date().toISOString()`).
 | Data Type | Resolution |
 |-----------|------------|
 | Task list | Union by ID, remote order wins |
+| Habit list | Union by ID, remote order wins |
 | Done IDs | Union with check/uncheck timestamps |
 | Deleted IDs | Union (excluded from tasks) |
 | SOON tasks | Union by ID, newer zoneChangedAt wins |
 | PAST tasks | Union by ID, newer zoneChangedAt wins, keep last 100 |
 | Stats | Max wins |
+| Triage dismissed | If remote = today, apply locally |
 | Memory | Merge patterns, max of counters, union of moments |
 
 ---
