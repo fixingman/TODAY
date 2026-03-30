@@ -2916,11 +2916,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.27';
+const APP_VERSION   = '2.12.28';
 const DEV_HOURS     = '156h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.28': 'Fix: Done Trello cards stay visible until end of day. Trello order now syncs across devices.',
   '2.12.27': 'Fix: Triage dismissal now syncs across devices — no repeat prompts.',
   '2.12.26': 'Fix: Habit order now syncs across devices (remote order wins, like tasks).',
   '2.12.25': 'Tooltips: ✦ → "Ask anything", SOON ← → "Grab for today". Fix: SOON and PAST sections now render task tags.',
@@ -4730,12 +4731,13 @@ async function loadTrello(fromSync) {
       ? ((lists.find(l => l.name.toLowerCase() === todayListName) || {}).id || null)
       : null;
 
-    // Filter: in today list OR due today OR overdue and not yet checked off
+    // Filter: in today list OR due today/overdue
+    // Note: done cards are kept in the array — done state is handled in rendering
     const filtered = cards.filter(c => {
       if (todayListId && c.idList === todayListId) return true;
       if (c.due) {
         const d = new Date(c.due); d.setHours(0,0,0,0);
-        if (d < tomorrow && !doneIds.has('trello_' + c.id)) return true;
+        if (d < tomorrow) return true;
       }
       return false;
     });
@@ -4750,6 +4752,17 @@ async function loadTrello(fromSync) {
         due:  c.due || null,
         url:  c.url || '',
       }));
+
+    // Apply synced order if available (cards not in order list go to the end)
+    const savedOrder = safeJSON('today_trello_order', []);
+    if (savedOrder.length > 0) {
+      const orderMap = new Map(savedOrder.map((id, i) => [id, i]));
+      trelloTasks.sort((a, b) => {
+        const aIdx = orderMap.has(a.id) ? orderMap.get(a.id) : Infinity;
+        const bIdx = orderMap.has(b.id) ? orderMap.get(b.id) : Infinity;
+        return aIdx - bIdx;
+      });
+    }
 
     // Persist to cache — keyed by date + boardId so stale entries are auto-rejected
     try {
@@ -5981,14 +5994,18 @@ function _clearAllDone() {
       dropboxAutoSave();
 
     } else if (cfg.listId === 'trelloList') {
-      // Trello order is local-only — persisted in cache so it survives page reload
-      // but will be reset if Trello board activity changes (next full fetch)
+      // Trello order synced via Dropbox — persisted in today_trello_order
       const ids = newOrder.map(el => el.dataset.taskid);
       trelloTasks.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+      // Save order for sync
+      localStorage.setItem('today_trello_order', JSON.stringify(ids));
+      // Also update cache for faster local reload
       try {
         const cached = JSON.parse(localStorage.getItem('today_trello_cache') || 'null');
         if (cached) { cached.tasks = trelloTasks; localStorage.setItem('today_trello_cache', JSON.stringify(cached)); }
       } catch(e) {}
+      _setLastLocalChange();
+      dropboxAutoSave();
 
     } else if (cfg.listId === 'habitList') {
       const ids = newOrder.map(el => el.dataset.habitId);
@@ -7002,7 +7019,7 @@ async function dropboxBackup(silent) {
 
   const now = new Date().toISOString();
   const data = {
-    version:      '5.1',
+    version:      '5.2',
     saved_at:     now,
     manual_tasks:      safeJSON('today_manual', []),
     done_ids:          safeJSON('today_done',   []),
@@ -7010,6 +7027,8 @@ async function dropboxBackup(silent) {
     unchecked_ids:     _getUncheckedIds(),
     checked_ids:       _getCheckedIds(),
     trello_config:     safeJSON('trello_config', {}),
+    // Trello order — synced so drag order persists across devices
+    trello_order:      safeJSON('today_trello_order', []),
     // Zones — SOON and PAST (v5.0)
     soon_tasks:        safeJSON('today_soon', []),
     past_tasks:        safeJSON('today_past', []),
@@ -7223,6 +7242,22 @@ function mergeRemoteData(data) {
   const habitsPanel = document.getElementById('habitsPanel');
   if (habitsPanel && habitsPanel.classList.contains('open')) renderHabits();
 
+  // ── Trello order: remote wins (like tasks and habits) ────────────────────
+  const remoteTrelloOrder = Array.isArray(data.trello_order) ? data.trello_order : [];
+  if (remoteTrelloOrder.length > 0) {
+    localStorage.setItem('today_trello_order', JSON.stringify(remoteTrelloOrder));
+    // Re-apply order to current trelloTasks if loaded
+    if (trelloTasks.length > 0) {
+      const orderMap = new Map(remoteTrelloOrder.map((id, i) => [id, i]));
+      trelloTasks.sort((a, b) => {
+        const aIdx = orderMap.has(a.id) ? orderMap.get(a.id) : Infinity;
+        const bIdx = orderMap.has(b.id) ? orderMap.get(b.id) : Infinity;
+        return aIdx - bIdx;
+      });
+      renderTrello();
+    }
+  }
+
   // ── Zones: SOON and PAST (v5.0) ───────────────────────────────────────────
   // Union merge by task ID — most recent zoneChangedAt wins for conflicts
   // (remoteSoon and remotePast already declared above for zone-aware task filtering)
@@ -7432,6 +7467,8 @@ async function dropboxRestore(fromSync) {
       localStorage.setItem('today_unchecked_ids', JSON.stringify(Array.isArray(data.unchecked_ids) ? data.unchecked_ids : []));
       localStorage.setItem('today_checked_ids',   JSON.stringify(Array.isArray(data.checked_ids)   ? data.checked_ids   : []));
       if (data.trello_config)         localStorage.setItem('trello_config',         JSON.stringify(data.trello_config));
+      // Trello order — remote order wins (like tasks and habits)
+      if (Array.isArray(data.trello_order)) localStorage.setItem('today_trello_order', JSON.stringify(data.trello_order));
       // Stats (flow_rate is calculated live from visible tasks, not stored)
       if (data.stat_focus_mins_today)  localStorage.setItem('stat_focus_mins_today',  data.stat_focus_mins_today);
       if (data.stat_streak)            localStorage.setItem('stat_streak',            data.stat_streak);

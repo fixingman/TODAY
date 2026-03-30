@@ -48,7 +48,7 @@
 ## Data Rules
 
 11. `manualTasks` and `habitsList` preserve drag order — **never re-sort**
-12. Backup schema version: **5.1** (includes triage history)
+12. Backup schema version: **5.2** (includes trello_order)
 13. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
 14. All timestamps: ISO strings
 15. **State variables must be declared before functions that use them** — `let` has temporal dead zone
