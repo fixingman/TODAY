@@ -53,7 +53,7 @@
 13. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
 14. All timestamps: ISO strings
 15. **State variables must be declared before functions that use them** — `let` has temporal dead zone
-16. **Day boundary at 1am** — use `_getAppDay()` for triage, stats, habits, purge (not `new Date()` midnight)
+16. **Day boundaries differ:** Tasks/triage use 1am (`_getAppDay()`), **Habits use midnight** (`_habitTodayISO()`)
 17. **Triage window: 8pm–1am** — triage bar only shows in this window
 18. **Flow rate = `done / total`** — live calc of visible tasks, not stored
 

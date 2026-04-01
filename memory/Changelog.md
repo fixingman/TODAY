@@ -2,6 +2,9 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.33** | **Habits use midnight boundary** — Simpler than 1am. Tasks/triage still use 1am app day. |
+| **2.12.32** | **Fix: Trello overdue cleanup** — Done Trello cards with past due dates disappear the next day. |
+| **2.12.31** | **Triage on tab return** — Triage bar now checks on tab visibility (no timer). Zero performance cost. |
 | **2.12.30** | **Flow rate redesign** — Research-based diminishing returns formula. 1st task = 20% (quick win), 5 tasks = 67% (good day). Based on Endowed Progress Effect (Nunes & Dreze 2006) and Goal Gradient Hypothesis (Kivetz et al. 2006). |
 | **2.12.29** | **Fix: Habit dots day boundary** — `_getHabitDates()` now uses 1am boundary to match `_habitTodayISO()`. No more misaligned dots between midnight and 1am. |
 | **2.12.28** | **Trello sync fixes** — Done Trello cards stay visible until end of day. Trello order now syncs across devices (backup schema v5.2). |

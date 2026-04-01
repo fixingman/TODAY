@@ -130,3 +130,23 @@
 - Manual tasks: order stored in `today_manual` array
 - Habits: order stored in `today_habits` array  
 - Trello: order stored separately in `today_trello_order` (applied after each Trello fetch)
+
+## Trello Card Visibility
+
+Cards appear if: **in today list** OR **due today/overdue**.
+
+Cleanup rules:
+- Due today + done → stays visible until day ends
+- Overdue + NOT done → stays visible (still needs action)
+- Overdue + done → **hidden** (completed, move on)
+
+## Day Boundaries
+
+Two different boundaries exist to match user mental models:
+
+| Feature | Boundary | Function | Rationale |
+|---------|----------|----------|-----------|
+| Tasks, triage, stats, cleanup | **1am** | `_getAppDay()` | Late-night work still feels like "today" |
+| Habits | **Midnight** | `_habitTodayISO()` | Daily practice resets with calendar day |
+
+This prevents confusion when checking habits between midnight and 1am.
