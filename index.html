@@ -2916,11 +2916,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.33';
+const APP_VERSION   = '2.12.34';
 const DEV_HOURS     = '156h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.34': 'Quieter AI connect — no "Connecting…" message, no button text change. Just disables during request.',
   '2.12.33': 'Habits use midnight boundary (simpler than 1am). Tasks/triage still use 1am app day.',
   '2.12.32': 'Fix: Done Trello cards with past due dates now disappear the next day (overdue + done = hide).',
   '2.12.31': 'Triage bar now appears on tab return — no timer needed, just checks when you come back.',
@@ -8901,8 +8902,8 @@ async function saveAIKey() {
 
   if (!key) { _msg('Paste your API key first', 'var(--danger)'); input?.focus(); return; }
 
-  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'One moment…'; }
-  _msg('Connecting…', 'var(--muted)');
+  // Simple: just disable button during request, no text change, no interim message
+  if (saveBtn) saveBtn.disabled = true;
 
   // Save key BEFORE the async test — if page reloads mid-validation
   // (e.g. SW update) the key survives. Delete it on failure.
@@ -8934,6 +8935,7 @@ async function saveAIKey() {
       return;
     }
 
+    // Success — just switch to connected state, no banner
     if (input) input.value = '';
     _aiViewingProvider = null; // reset — now viewing the connected provider
     _aiRenderConfig();
@@ -8943,7 +8945,7 @@ async function saveAIKey() {
     localStorage.removeItem('today_ai_key');
     _msg('Can\'t reach the server — check your connection', 'var(--danger)');
   } finally {
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Connect'; }
+    if (saveBtn) saveBtn.disabled = false;
   }
 }
 
