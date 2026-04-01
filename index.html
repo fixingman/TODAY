@@ -2916,11 +2916,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.31';
+const APP_VERSION   = '2.12.33';
 const DEV_HOURS     = '156h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.33': 'Habits use midnight boundary (simpler than 1am). Tasks/triage still use 1am app day.',
+  '2.12.32': 'Fix: Done Trello cards with past due dates now disappear the next day (overdue + done = hide).',
   '2.12.31': 'Triage bar now appears on tab return — no timer needed, just checks when you come back.',
   '2.12.30': 'Flow rate redesign — research-based diminishing returns formula. First task = 20% (quick win), 5 tasks = 67% (good day). Based on Endowed Progress Effect & Goal Gradient research.',
   '2.12.29': 'Fix: Habit dots now use app day boundary (1am) — no more misaligned dots between midnight and 1am.',
@@ -4736,12 +4738,21 @@ async function loadTrello(fromSync) {
       : null;
 
     // Filter: in today list OR due today/overdue
-    // Note: done cards are kept in the array — done state is handled in rendering
+    // Done cards that are overdue (checked yesterday+) are hidden the next day
     const filtered = cards.filter(c => {
+      const trelloId = 'trello_' + c.id;
+      const isDone = doneIds.has(trelloId);
+      
+      // In today list — always show (done state handled in rendering)
       if (todayListId && c.idList === todayListId) return true;
+      
+      // Has due date
       if (c.due) {
         const d = new Date(c.due); d.setHours(0,0,0,0);
-        if (d < tomorrow) return true;
+        // Due today — show (even if done, until day ends)
+        if (d.getTime() === today.getTime()) return true;
+        // Overdue — show only if NOT done (done overdue = completed yesterday, hide)
+        if (d < today && !isDone) return true;
       }
       return false;
     });
@@ -5353,20 +5364,13 @@ function _saveHabits() {
 }
 
 function _habitTodayISO() {
-  // Use app day boundary (1am) — habits checked before 1am count as previous day
-  const now = new Date();
-  if (now.getHours() < 1) {
-    now.setDate(now.getDate() - 1);
-  }
-  return now.toISOString().slice(0, 10);
+  // Habits use midnight boundary (simpler than 1am app day)
+  return new Date().toISOString().slice(0, 10);
 }
 
 function _getHabitDates() {
-  // Use app day boundary (1am) — must match _habitTodayISO()
+  // Last 21 days ending with today (midnight boundary)
   const now = new Date();
-  if (now.getHours() < 1) {
-    now.setDate(now.getDate() - 1);
-  }
   const days = [];
   for (let i = 20; i >= 0; i--) {
     const d = new Date(now);
