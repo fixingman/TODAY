@@ -150,3 +150,12 @@ Two different boundaries exist to match user mental models:
 | Habits | **Midnight** | `_habitTodayISO()` | Daily practice resets with calendar day |
 
 This prevents confusion when checking habits between midnight and 1am.
+
+## Deletion Persistence
+
+**Critical:** `deleted_ids` persists across days. Never clear it on new-day cleanup.
+
+- Delete a task → it's gone forever
+- Sync cannot resurrect deleted tasks (merge checks `deleted_ids`)
+- Entries auto-purge after 30 days to prevent bloat
+- Applies to tasks from TODAY, SOON, or anywhere

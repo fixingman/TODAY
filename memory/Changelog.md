@@ -2,6 +2,8 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.35** | **Fix: Deleted tasks stay deleted** — `deleted_ids` no longer cleared daily. Sync cannot resurrect deleted tasks. Entries auto-purge after 30 days. |
+| **2.12.34** | **Quieter AI connect** — No "Connecting…" message, no button text change. Just disables during request. |
 | **2.12.33** | **Habits use midnight boundary** — Simpler than 1am. Tasks/triage still use 1am app day. |
 | **2.12.32** | **Fix: Trello overdue cleanup** — Done Trello cards with past due dates disappear the next day. |
 | **2.12.31** | **Triage on tab return** — Triage bar now checks on tab visibility (no timer). Zero performance cost. |

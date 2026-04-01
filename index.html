@@ -2916,11 +2916,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.34';
+const APP_VERSION   = '2.12.35';
 const DEV_HOURS     = '156h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.35': 'Fix: Deleted tasks stay deleted — deleted_ids no longer cleared daily. Sync cannot resurrect deleted tasks.',
   '2.12.34': 'Quieter AI connect — no "Connecting…" message, no button text change. Just disables during request.',
   '2.12.33': 'Habits use midnight boundary (simpler than 1am). Tasks/triage still use 1am app day.',
   '2.12.32': 'Fix: Done Trello cards with past due dates now disappear the next day (overdue + done = hide).',
@@ -4192,10 +4193,10 @@ function applyNewDayCleanup() {
   }
   localStorage.setItem('today_done', JSON.stringify([...doneIds]));
 
-  // Clear stale caches and operation logs — yesterday's ops are irrelevant today
+  // Clear stale caches and operation logs — but NOT deleted_ids (deleted tasks stay deleted)
   localStorage.removeItem('today_trello_cache');
   localStorage.removeItem('today_trello_focus');
-  localStorage.removeItem('today_deleted_ids');
+  // deleted_ids persists — deleted tasks should never come back via sync
   localStorage.removeItem('today_unchecked_ids');
   localStorage.removeItem('today_checked_ids');
   
@@ -6829,9 +6830,17 @@ const _cleanupDeletedIds = () => {
     ...pastTasks.map(t => t.id)
   ]);
   const deleted = _getDeletedIds();
-  const cleaned = deleted.filter(d => !zoneIds.has(d.id));
+  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+  
+  // Remove entries that: (1) match zone tasks, OR (2) are older than 30 days
+  const cleaned = deleted.filter(d => {
+    if (zoneIds.has(d.id)) return false; // in a zone — shouldn't be in deleted
+    if (d.at && new Date(d.at).getTime() < thirtyDaysAgo) return false; // too old
+    return true;
+  });
+  
   if (cleaned.length !== deleted.length) {
-    console.log('[TODAY] Cleaned', deleted.length - cleaned.length, 'invalid deleted_ids');
+    console.log('[TODAY] Cleaned', deleted.length - cleaned.length, 'stale deleted_ids');
     localStorage.setItem('today_deleted_ids', JSON.stringify(cleaned));
   }
 };
