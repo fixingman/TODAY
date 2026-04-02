@@ -2916,11 +2916,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.40';
-const DEV_HOURS     = '156h';
+const APP_VERSION   = '2.12.41';
+const DEV_HOURS     = '158h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.41': 'Fix: Stale focus state after sleep/wake — clears .focusing class on init and bfcache restore. Prevents empty task list appearance.',
   '2.12.40': 'Fix: Triage sync race condition — reads fresh from localStorage on tab return, not stale cached variable.',
   '2.12.39': 'All done messaging — tasks and habits both show "✦ All done" (not "Clear"). Consistent, not a CTA.',
   '2.12.38': 'All habits done celebration — accent glow + extra ember burst from the completing habit row.',
@@ -4237,6 +4238,14 @@ function applyNewDayCleanup() {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 function init() {
   _cacheElements();  // cache frequently queried DOM elements FIRST
+  
+  // Clear stale focus mode state — browser may restore .focusing class from cache
+  // but JS state is reset on reload, leaving app visually stuck in focus mode
+  const mainApp = document.getElementById('main-app');
+  if (mainApp) {
+    mainApp.classList.remove('focusing');
+    mainApp.querySelectorAll('.focused').forEach(el => el.classList.remove('focused'));
+  }
   
   // Use app day for header — if before 1am, show yesterday's date
   const now = new Date();
@@ -10174,6 +10183,19 @@ if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.
     if (btn) btn.style.display = 'none';
   });
 }
+
+// Handle bfcache restoration — browser may restore page with stale .focusing class
+// but JS state is reset, leaving app visually stuck in focus mode
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) {
+    const mainApp = document.getElementById('main-app');
+    if (mainApp && mainApp.classList.contains('focusing')) {
+      mainApp.classList.remove('focusing');
+      mainApp.querySelectorAll('.focused').forEach(el => el.classList.remove('focused'));
+      console.log('[TODAY] Cleared stale focus state after bfcache restore');
+    }
+  }
+});
 
 
 </script>
