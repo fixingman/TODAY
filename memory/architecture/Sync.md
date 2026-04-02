@@ -137,6 +137,21 @@ Deleted tasks are excluded from zone merge to prevent ghost tasks:
 - When merging PAST: skip tasks in `mergedDeletedMap`
 - AI `delete_task` action now calls `_addDeletedId()` for proper sync
 
+### Zone Operations Trigger Backup (v2.12.44)
+
+**Critical:** All zone operations trigger `dropboxBackup(true)` **immediately** (no debounce):
+
+| Operation | Function | Sync |
+|-----------|----------|------|
+| Pull from SOON | `pullFromSoon()` | Immediate |
+| Move to SOON | `moveToSoon()` | Immediate |
+| Move to PAST | `moveToPast()` | Immediate |
+| Triage decisions | `triageApplyAll()` | Immediate |
+| Triage close | `triageClose()` | Immediate |
+
+**v2.12.42:** Added backup calls to zone operations.  
+**v2.12.44:** Changed from `dropboxAutoSave()` (800ms debounce) to `dropboxBackup(true)` (immediate).
+
 ---
 
 ## Timestamps
