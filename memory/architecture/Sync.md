@@ -85,6 +85,27 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
 
 **Zone status values:** `done`, `let_go`, `aged`
 
+### Triage Dismissed Sync (v2.12.40+)
+
+**Critical:** On tab return, always refresh `triageDismissedToday` from localStorage before checking triage bar. The sync may have updated localStorage while tab was hidden, but the in-memory variable would be stale.
+
+```javascript
+// On visibility change:
+triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
+checkTriageBar();
+```
+
+### Deletion Persistence (v2.12.35+)
+
+**Critical:** `deleted_ids` must persist across days. Never clear it on new-day cleanup.
+
+- Deleted tasks stay deleted forever
+- Sync cannot resurrect deleted tasks (merge checks `deleted_ids`)
+- Entries auto-purge after 30 days (via `_cleanupDeletedIds()`)
+- Applies to tasks from TODAY, SOON, or anywhere
+
+**Bug fixed:** Prior to v2.12.35, `deleted_ids` was cleared on new-day cleanup. This allowed sync to resurrect tasks deleted the previous day.
+
 ---
 
 ## Zone-Aware Sync (v2.12.13+)

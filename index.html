@@ -2916,11 +2916,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.35';
+const APP_VERSION   = '2.12.40';
 const DEV_HOURS     = '156h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.40': 'Fix: Triage sync race condition — reads fresh from localStorage on tab return, not stale cached variable.',
+  '2.12.39': 'All done messaging — tasks and habits both show "✦ All done" (not "Clear"). Consistent, not a CTA.',
+  '2.12.38': 'All habits done celebration — accent glow + extra ember burst from the completing habit row.',
+  '2.12.37': 'All habits done celebration — accent glow + ember burst from habits icon when all habits completed for the day.',
+  '2.12.36': 'Fix: Mobile input bar vibration — uses GPU-accelerated transform + requestAnimationFrame for smooth keyboard tracking.',
   '2.12.35': 'Fix: Deleted tasks stay deleted — deleted_ids no longer cleared daily. Sync cannot resurrect deleted tasks.',
   '2.12.34': 'Quieter AI connect — no "Connecting…" message, no button text change. Just disables during request.',
   '2.12.33': 'Habits use midnight boundary (simpler than 1am). Tasks/triage still use 1am app day.',
@@ -5405,7 +5410,23 @@ function renderHabits() {
   const editBtn = document.getElementById('habitEditBtn');
   if (!list) return;
   const week = _getHabitDates();
-  empty.classList.toggle('show', habitsList.length === 0);
+  const todayISO = _habitTodayISO();
+  
+  // Check if all habits are done for today
+  const allDoneToday = habitsList.length > 0 && habitsList.every(h => 
+    (habitCompletions[h.id] || []).includes(todayISO)
+  );
+  
+  if (habitsList.length === 0) {
+    empty.textContent = 'No habits yet';
+    empty.classList.add('show');
+  } else if (allDoneToday) {
+    empty.innerHTML = '<span class="done-star">✦</span> All done';
+    empty.classList.add('show');
+  } else {
+    empty.classList.remove('show');
+  }
+  
   if (editBtn) editBtn.style.display = habitsList.length > 0 ? '' : 'none';
   list.innerHTML = '';
   const CHK = `<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#0e0e10" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -5597,6 +5618,30 @@ function toggleHabitDone(id) {
       const r = check.getBoundingClientRect();
       fireEmberDrift(r.left + r.width / 2, r.top + r.height / 2);
     }
+    
+    // ── ALL HABITS DONE celebration ──
+    const todayISO = _habitTodayISO();
+    const allDone = habitsList.length > 0 && habitsList.every(h => 
+      (habitCompletions[h.id] || []).includes(todayISO)
+    );
+    
+    if (allDone) {
+      // Gentle glow
+      _flashAccentGlow();
+      
+      // Extra haptic
+      setTimeout(() => _haptic('success'), 150);
+      
+      // Extra ember bursts from the habit row that completed it
+      if (check && typeof fireEmberDrift === 'function') {
+        const r = check.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        for (let i = 0; i < 3; i++) {
+          setTimeout(() => fireEmberDrift(cx + (Math.random() - 0.5) * 40, cy), i * 60);
+        }
+      }
+    }
   } else {
     // Uncheck: brief neutral pulse on the checkbox
     if (check) {
@@ -5781,7 +5826,7 @@ function updateManualEmptyState(animate) {
   const allDone   = doneCount === total;
 
   if (allDone) {
-    empty.innerHTML = '<span class="done-star">✦</span> Clear';
+    empty.innerHTML = '<span class="done-star">✦</span> All done';
     if (animate) {
       empty.style.opacity = '0';
       empty.style.display = 'block';
@@ -7024,7 +7069,9 @@ function dropboxAutoSave() {
 // Retry pending backup when tab becomes visible
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
-    // Check triage bar on tab return (no timer needed — just check when user comes back)
+    // Check triage bar on tab return — but read fresh from localStorage
+    // (synced dismissal may have arrived while tab was hidden)
+    triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
     checkTriageBar();
     
     // Retry pending backup
@@ -10020,22 +10067,32 @@ function _aiDismissProactive() {
   
   // Check for visualViewport support
   const vv = window.visualViewport;
+  let rafId = null;
   
   function positionBar() {
     if (!bar.classList.contains('keyboard-open')) return;
     if (!vv) return;
     
-    // Calculate where bottom of visual viewport is
-    // offsetTop = how far visual viewport is scrolled from layout viewport top
-    // height = visual viewport height (shrinks when keyboard opens)
-    const keyboardTop = vv.offsetTop + vv.height;
+    // Cancel any pending frame to prevent stacking
+    if (rafId) cancelAnimationFrame(rafId);
     
-    // Position bar at bottom of visual viewport
-    bar.style.top = (keyboardTop - bar.offsetHeight) + 'px';
-    bar.style.bottom = 'auto';
+    rafId = requestAnimationFrame(() => {
+      // Calculate where bottom of visual viewport is
+      const keyboardTop = vv.offsetTop + vv.height;
+      
+      // Use transform for GPU-accelerated smooth positioning
+      const targetTop = keyboardTop - bar.offsetHeight;
+      bar.style.transform = `translateY(${targetTop}px)`;
+      bar.style.position = 'fixed';
+      bar.style.top = '0';
+      bar.style.bottom = 'auto';
+    });
   }
   
   function resetBar() {
+    if (rafId) cancelAnimationFrame(rafId);
+    bar.style.transform = '';
+    bar.style.position = '';
     bar.style.top = '';
     bar.style.bottom = '';
   }

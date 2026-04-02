@@ -33,10 +33,11 @@ After completing work:
 
 ### 3. Review & Update Memory Files
 **Every change should trigger a memory review.** Ask: "Does this change affect any documented behavior?"
-- New feature → Add to appropriate architecture/design file
+- New feature → Add to appropriate file (`Architecture.md`, `Design.md`, etc.)
 - New rule → Add to `Rules.md`
-- Data/formula change → Update `architecture/Data.md`
-- UI change → Update `design/Components.md`
+- Data/formula change → Update `Data.md`
+- Sync behavior → Update `Sync.md`
+- UI change → Update `Design.md`
 - Prototype work → Update `Backlog.md`
 - Algorithm/metric change → Document formula & research basis
 

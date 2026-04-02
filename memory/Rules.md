@@ -12,18 +12,17 @@
 | **End of session** | `Housekeeping.md` | Post-Session Checklist |
 | **Prototype/TODO** | `Backlog.md` | — |
 | Public-facing docs | `README.md` | — |
-| CSS/colors/fonts | `Rules.md` | `design/Tokens.md` |
-| Animation | `Rules.md` | `design/Motion.md` |
-| UI component | `Rules.md` | `design/Components.md` |
-| Voice/copy | `Rules.md` | `design/Philosophy.md` |
-| Data/localStorage | `Rules.md` | `architecture/Data.md` |
-| Sync/backup | `Rules.md` | `architecture/Sync.md` |
-| AI companion | `Rules.md` | `architecture/AI.md` |
-| Focus/timer | `Rules.md` | `architecture/Focus.md` |
-| User psychology | `Rules.md` | `research/Psychology.md` |
-| API integrations | `Rules.md` | `research/Integrations.md` |
-| Time/day logic | `Rules.md` | `research/Temporal.md` |
-| Quick capture | `Rules.md` | `research/Quick-capture.md` |
+| CSS/colors/fonts | `Rules.md` | `Design.md` |
+| Animation | `Rules.md` | `Design.md` |
+| UI component | `Rules.md` | `Design.md` |
+| Voice/copy | `Rules.md` | `Design.md` |
+| Data/localStorage | `Rules.md` | `Data.md` |
+| Sync/backup | `Rules.md` | `Sync.md` |
+| AI companion | `Rules.md` | `Architecture.md` |
+| Focus/timer | `Rules.md` | `Architecture.md` |
+| User psychology | `Rules.md` | `Psychology.md` |
+| Time/day logic | `Rules.md` | `Temporal.md` |
+| Quick capture | `Rules.md` | `Quick-capture.md` |
 | Testing | `Test-matrix.md` | — |
 | Performance | `Performance-audit.md` | — |
 | Version history | `Changelog.md` | — |

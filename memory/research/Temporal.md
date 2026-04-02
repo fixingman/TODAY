@@ -39,9 +39,10 @@
 ## Implementation Rules
 
 ### Day Boundary
-- Day changes at **1am**, not midnight
-- Use `_getAppDay()` for all day logic
+- Tasks/triage: Day changes at **1am**, not midnight
+- Use `_getAppDay()` for task day logic
 - Keeps late-night work feeling like "today"
+- **Exception:** Habits use midnight boundary (`_habitTodayISO()`) for simpler mental model
 
 ### Evening Triage (8pm–1am)
 - Per-task decisions: Keep / Soon / Let go
