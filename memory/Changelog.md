@@ -2,6 +2,11 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.45** | **Code cleanup** — Removed unused CSS variables (`--color-noise-overlay`, `--shadow-divider`). |
+| **2.12.44** | **Zone changes sync immediately** — `pullFromSoon`, `moveToSoon`, `moveToPast`, triage now call `dropboxBackup` directly (no 800ms debounce). |
+| **2.12.43** | **Fix: Triage overlay sync** — Triage overlay (not just bar) now hides on other device when sync receives dismissal. |
+| **2.12.42** | **Fix: Zone changes now sync** — `pullFromSoon`, `moveToSoon`, `moveToPast`, triage decisions, and `triageClose` all trigger Dropbox backup. Prevents ghost tasks reappearing. |
+| **2.12.41** | **Fix: Stale focus state after sleep/wake** — Clears `.focusing` class on init and bfcache restore. Prevents empty task list appearance. |
 | **2.12.40** | **Fix: Triage sync race condition** — Reads fresh from localStorage on tab return, not stale cached variable. |
 | **2.12.39** | **All done messaging** — Tasks and habits both show "✦ All done" (not "Clear"). Consistent, not a CTA. |
 | **2.12.38** | **All habits done celebration** — Accent glow + extra ember burst from the completing habit row (not icon). |

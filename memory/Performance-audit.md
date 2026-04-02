@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.12.14 · March 2026  
+> v2.12.45 · April 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -9,24 +9,35 @@
 
 | Metric | Value | Notes |
 |---|---|---|
-| Total file size | 407 KB | Single HTML file — no build step |
-| Lines of code | 9,673 | Up from 9,534 in v2.3.4 |
-| Functions | 215 | Up from ~180 in v2.3.4 |
+| Total file size | 432 KB | Single HTML file — no build step |
+| Lines of code | 10,233 | Up from 10,181 in v2.12.40 |
+| Functions | 217 | Stable from v2.12.40 |
+| Variables | 1,087 | const/let/var declarations |
+| Event listeners | 57 | addEventListener calls |
 | External scripts | 0 | No CDN, no analytics SDK |
 | External fonts loaded on first visit | 6 files | Self-hosted, pre-cached by SW after first load |
 | External fonts on repeat visits | 0 | All served from SW cache |
 | Google Fonts requests | 0 | Fonts are self-hosted — zero external pings |
 
-**Assessment:** File size has grown from 305KB (v2.3) to 407KB (v2.12) due to Zones system, evening triage, AI triage hints, morning nudge, PiP improvements, and Dropbox sync retry logic. No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
+**Assessment:** File size grew from 429KB (v2.12.40) to 432KB (v2.12.45) due to zone sync improvements and triage overlay sync fix. Cleaned up 2 unused CSS variables. No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
 
 ---
 
 ## 2. Runtime Performance
 
-### Optimizations (v2.12.5)
-- **Cached DOM elements:** 13 frequently-queried elements cached at startup (`$` object)
+### DOM Query Optimization
+| Metric | Count | Notes |
+|---|---|---|
+| Total DOM queries | 228 | getElementById + querySelector |
+| Cached element usage | 64 | Via `$.element` pattern |
+| localStorage accesses | 204 | Many are writes on user action |
+
+**Opportunity:** ~164 uncached DOM queries. Most are in render functions (acceptable) or one-time init. Further caching would add complexity for minimal gain.
+
+### Optimizations (v2.12.5+)
+- **Cached DOM elements:** 26 frequently-queried elements cached at startup (`$` object)
 - **Global `safeJSON()` helper:** Consolidates 10+ inline try/catch JSON parsing patterns
-- **Combined usage:** 65 optimized calls replacing ~50 redundant lookups
+- **Mobile input bar (v2.12.36):** Uses GPU-accelerated `transform: translateY()` + `requestAnimationFrame` for smooth keyboard tracking
 
 ### Ticker (every 7s)
 - `syncAll()` runs `_refreshSyncCache()` (2 localStorage reads), then `checkNewDay()`, `syncTrello()`, `syncDropbox()`.
@@ -146,7 +157,7 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 | Area | Score | Notes |
 |---|---|---|
-| Load performance | ✅ Good | 407KB single file, fonts cached, offline-capable |
+| Load performance | ✅ Good | 429KB single file, fonts cached, offline-capable |
 | Runtime performance | ✅ Good | Cached elements, cheap ticker, incremental DOM |
 | XSS protection | ✅ Good | `esc()` on all user content |
 | CSRF protection | ✅ Good | PKCE state verified |
@@ -154,12 +165,22 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 | Error handling | ✅ Good | AI errors surfaced, sync retry on failure |
 | Offline support | ✅ Good | SW cache, union merge, backup-on-reconnect |
 | Token hygiene | ✅ Good | Secrets server-side only |
-| Animation performance | ✅ Good | CSS animations, GPU compositing |
+| Animation performance | ✅ Good | CSS animations, GPU compositing, rAF batching |
 | CSP | ❌ Missing | Inline scripts/styles make it complex |
 
 ---
 
-## 8. New Since v2.3.4
+## 8. Recent Changes (v2.12.40 → v2.12.45)
+
+| Feature | Version | Performance Impact |
+|---|---|---|
+| Triage overlay sync | 2.12.43 | Zero cost — hides overlay on merge |
+| Zone ops immediate sync | 2.12.44 | Removes 800ms debounce — faster but more Dropbox calls |
+| CSS variable cleanup | 2.12.45 | -2 unused vars — minor size reduction |
+
+---
+
+## 9. Historical Changes (v2.12.14 → v2.12.40)
 
 | Feature | Version | Performance Impact |
 |---|---|---|
@@ -177,4 +198,4 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-*Last updated: Session 18 (v2.12.14) — Test cases moved to Test-matrix.md*
+*Last updated: Session 22 (v2.12.45)*
