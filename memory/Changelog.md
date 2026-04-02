@@ -2,6 +2,11 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.40** | **Fix: Triage sync race condition** — Reads fresh from localStorage on tab return, not stale cached variable. |
+| **2.12.39** | **All done messaging** — Tasks and habits both show "✦ All done" (not "Clear"). Consistent, not a CTA. |
+| **2.12.38** | **All habits done celebration** — Accent glow + extra ember burst from the completing habit row (not icon). |
+| **2.12.37** | (Initial habit celebration — replaced by 2.12.38) |
+| **2.12.36** | **Fix: Mobile input bar vibration** — Uses GPU-accelerated transform + requestAnimationFrame for smooth keyboard tracking. |
 | **2.12.35** | **Fix: Deleted tasks stay deleted** — `deleted_ids` no longer cleared daily. Sync cannot resurrect deleted tasks. Entries auto-purge after 30 days. |
 | **2.12.34** | **Quieter AI connect** — No "Connecting…" message, no button text change. Just disables during request. |
 | **2.12.33** | **Habits use midnight boundary** — Simpler than 1am. Tasks/triage still use 1am app day. |
