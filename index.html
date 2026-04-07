@@ -2919,11 +2919,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.45';
+const APP_VERSION   = '2.12.46';
 const DEV_HOURS     = '160h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.46': 'Skip splash on return visits within session — no animation when returning from background on mobile.',
   '2.12.45': 'Code cleanup: removed unused CSS variables (--color-noise-overlay, --shadow-divider).',
   '2.12.44': 'Zone changes sync immediately — pullFromSoon, moveToSoon, moveToPast, triage now call dropboxBackup directly (no 800ms debounce).',
   '2.12.43': 'Fix: Triage overlay now hides on other device when sync receives dismissal (not just the bar).',
@@ -7908,6 +7909,24 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
 
 // ─── Splash screen ────────────────────────────────────────────────────────────
 (function() {
+  // Skip splash if already shown this session (e.g. returning from background on mobile)
+  if (sessionStorage.getItem('splash_shown')) {
+    const splash = document.getElementById('splash');
+    if (splash) splash.remove();
+    const stickyHdr = document.getElementById('sticky-header');
+    if (stickyHdr) stickyHdr.style.opacity = '1';
+    const mainApp = document.getElementById('main-app');
+    if (mainApp) mainApp.style.opacity = '1';
+    const addBar = document.getElementById('addTaskBar');
+    if (addBar) addBar.style.opacity = '1';
+    const triageBar = document.getElementById('triageBar');
+    if (triageBar) triageBar.style.opacity = '1';
+    _splashAnimDone = true;
+    _appLoadDone = true;
+    return;
+  }
+  sessionStorage.setItem('splash_shown', '1');
+
   const CHARS = '01∆◊×+−░▒·~⌁⊕⊗'.split('');
 
   // Particle engine (separate canvas from celebCanvas)
