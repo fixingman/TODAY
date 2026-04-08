@@ -10,6 +10,26 @@
 **Status:** Not started
 **Goal:** Develop the design of idle companion to higher resolution and more consistency.
 
+### Keyboard Shortcuts (Desktop Only)
+**Status:** Not started
+**Notes:** Needs exploration both in UX and UI. Desktop only.
+
+### AI Improvements
+**Status:** Not started
+**Goal:** More proactive AI — morning briefings, end-of-day summaries.
+
+### Notifications
+**Status:** Not started
+**Goal:** Optional gentle nudges from AI for habits or focus sessions.
+
+### Widget/Home Screen Integration
+**Status:** Not started
+**Goal:** Mobile widget showing today's task count, progress.
+
+### Weekly Reports
+**Status:** Not started
+**Goal:** Weekly productivity reports, habit streaks over time.
+
 ### Microsoft Notes Integration
 **Status:** Not started
 
@@ -53,6 +73,7 @@ Decisions that may need revisiting based on real usage:
 | PAST read-only | Yes | Need restore for accidentally archived items? |
 | Triage trigger time | 8pm | Too early? Too late? User-configurable? |
 | Habit strength curve | Linear display | Above 70%, should progress feel harder? Diminishing returns curve like flow rate? |
+| Modularization | Single file (10K+ lines) | App is mature — might benefit from eventual modularization if it grows further |
 
 ---
 
