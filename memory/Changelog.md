@@ -2,6 +2,8 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.47** | **Hide Trello section** — When connected but no tasks, section is hidden for cleaner UI. |
+| **2.12.46** | **Skip splash on return** — Uses sessionStorage to skip splash animation when returning from background on mobile. |
 | **2.12.45** | **Code cleanup** — Removed unused CSS variables (`--color-noise-overlay`, `--shadow-divider`). |
 | **2.12.44** | **Zone changes sync immediately** — `pullFromSoon`, `moveToSoon`, `moveToPast`, triage now call `dropboxBackup` directly (no 800ms debounce). |
 | **2.12.43** | **Fix: Triage overlay sync** — Triage overlay (not just bar) now hides on other device when sync receives dismissal. |

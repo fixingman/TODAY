@@ -84,9 +84,9 @@ Decisions that may need revisiting based on real usage:
 | Decision | Current | Watch For |
 |----------|---------|-----------|
 | Midnight auto-move | No (user decides) | Too much friction? Trello cards already auto-refresh. |
-| SOON visibility | Visible (collapsed) | Should it be hidden until AI surfaces items? |
 | PAST read-only | Yes | Need restore for accidentally archived items? |
 | Triage trigger time | 8pm | Too early? Too late? User-configurable? |
+| Habit strength curve | Linear display | Above 70%, should progress feel harder? Diminishing returns curve like flow rate? |
 
 ---
 
@@ -100,4 +100,4 @@ Decisions that may need revisiting based on real usage:
 
 ---
 
-*Last updated: Session 18 (v2.12.11)*
+*Last updated: Session 22 (v2.12.46)*

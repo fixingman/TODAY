@@ -2919,11 +2919,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.46';
+const APP_VERSION   = '2.12.47';
 const DEV_HOURS     = '160h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.47': 'Hide Trello section when connected but no tasks — cleaner UI, section reappears when tasks exist.',
   '2.12.46': 'Skip splash on return visits within session — no animation when returning from background on mobile.',
   '2.12.45': 'Code cleanup: removed unused CSS variables (--color-noise-overlay, --shadow-divider).',
   '2.12.44': 'Zone changes sync immediately — pullFromSoon, moveToSoon, moveToPast, triage now call dropboxBackup directly (no 800ms debounce).',
@@ -4879,30 +4880,40 @@ async function loadTrello(fromSync) {
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 function renderTrello() {
+  const section = document.getElementById('trelloSection');
   const list  = document.getElementById('trelloList');
   const empty = document.getElementById('trelloEmpty');
-  if (!list || !empty) return;
+  if (!list || !empty || !section) return;
 
   document.getElementById('trelloCount').textContent = trelloTasks.length;
 
   if (trelloTasks.length === 0) {
+    // If connected but no tasks, hide entire section
+    if (trelloConnected) {
+      section.style.display = 'none';
+      return;
+    }
+    // Not connected — show section with "not connected" message
+    section.style.display = '';
     // Fade out any remaining tasks before clearing
     const existing = list.querySelectorAll('.task');
     if (existing.length > 0) {
       existing.forEach(el => el.classList.add('removing'));
       setTimeout(() => {
         list.innerHTML = '';
-        empty.textContent   = trelloConnected ? 'Nothing due today' : 'Trello\'s not connected yet';
+        empty.textContent = 'Trello\'s not connected yet';
         empty.style.display = 'block';
       }, 200);
     } else {
       list.innerHTML = '';
-      empty.textContent   = trelloConnected ? 'Nothing due today' : 'Trello\'s not connected yet';
+      empty.textContent = 'Trello\'s not connected yet';
       empty.style.display = 'block';
     }
     return;
   }
 
+  // Has tasks — show section
+  section.style.display = '';
   empty.style.display = 'none';
 
   const incomingIds = trelloTasks.map(t => t.id);
