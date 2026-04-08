@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.12.45 · April 2026  
+> v2.12.47 · April 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -9,9 +9,9 @@
 
 | Metric | Value | Notes |
 |---|---|---|
-| Total file size | 432 KB | Single HTML file — no build step |
-| Lines of code | 10,233 | Up from 10,181 in v2.12.40 |
-| Functions | 217 | Stable from v2.12.40 |
+| Total file size | 433 KB | Single HTML file — no build step |
+| Lines of code | 10,263 | Up from 10,233 in v2.12.45 |
+| Functions | 217 | Stable |
 | Variables | 1,087 | const/let/var declarations |
 | Event listeners | 57 | addEventListener calls |
 | External scripts | 0 | No CDN, no analytics SDK |
@@ -19,7 +19,7 @@
 | External fonts on repeat visits | 0 | All served from SW cache |
 | Google Fonts requests | 0 | Fonts are self-hosted — zero external pings |
 
-**Assessment:** File size grew from 429KB (v2.12.40) to 432KB (v2.12.45) due to zone sync improvements and triage overlay sync fix. Cleaned up 2 unused CSS variables. No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
+**Assessment:** File size grew from 432KB (v2.12.45) to 433KB (v2.12.47) due to splash skip logic and Trello section hide. No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
 
 ---
 
@@ -170,13 +170,15 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-## 8. Recent Changes (v2.12.40 → v2.12.45)
+## 8. Recent Changes (v2.12.40 → v2.12.47)
 
 | Feature | Version | Performance Impact |
 |---|---|---|
 | Triage overlay sync | 2.12.43 | Zero cost — hides overlay on merge |
 | Zone ops immediate sync | 2.12.44 | Removes 800ms debounce — faster but more Dropbox calls |
 | CSS variable cleanup | 2.12.45 | -2 unused vars — minor size reduction |
+| Skip splash on return | 2.12.46 | sessionStorage check — instant load on mobile return |
+| Hide empty Trello section | 2.12.47 | Zero cost — display toggle in renderTrello |
 
 ---
 
@@ -198,4 +200,4 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-*Last updated: Session 22 (v2.12.45)*
+*Last updated: Session 22 (v2.12.47)*
