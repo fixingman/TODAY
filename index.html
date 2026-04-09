@@ -2919,11 +2919,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.48';
+const APP_VERSION   = '2.12.49';
 const DEV_HOURS     = '160h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.49': 'Fix: PiP now closes when window is restored from minimized state.',
   '2.12.48': 'Fix: Sound delay after long focus sessions — play immediately instead of waiting for AudioContext resume promise.',
   '2.12.47': 'Hide Trello section when connected but no tasks — cleaner UI, section reappears when tasks exist.',
   '2.12.46': 'Skip splash on return visits within session — no animation when returning from background on mobile.',
@@ -9912,6 +9913,14 @@ function _aiDismissProactive() {
           if (pipWindow && !pipWindow.closed) return; // Already opened
           await openPiP().catch(() => {});
         }, 150);
+      } else {
+        // Window restored — close PiP
+        if (pipWindow && !pipWindow.closed) {
+          pipWindow.close();
+        }
+        pipWindow = null;
+        pipFillEl = null;
+        pipTimeEl = null;
       }
     });
 
