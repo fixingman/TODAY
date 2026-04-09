@@ -6,11 +6,13 @@
 
 ## Pre-Session Checklist
 
-Before starting work, read:
-1. `Housekeeping.md` — This file (release routine, checklists)
-2. `Rules.md` — Critical constraints (always)
-3. `Backlog.md` — Check for prototype TODOs (if continuing a feature)
-4. Relevant split file for the task (see Rules.md file guide)
+Before starting work, read (Tier 1):
+1. `Rules.md` — Critical constraints + File Guide
+2. `Housekeeping.md` — This file (routines, checklists)
+3. `Backlog.md` — Pending work, watch decisions
+4. `Changelog.md` — Recent changes
+
+Then read Tier 2 files relevant to the task (see `Rules.md` File Guide).
 
 ---
 
@@ -33,13 +35,19 @@ After completing work:
 
 ### 3. Review & Update Memory Files
 **Every change should trigger a memory review.** Ask: "Does this change affect any documented behavior?"
-- New feature → Add to appropriate file (`Architecture.md`, `Design.md`, etc.)
-- New rule → Add to `Rules.md`
-- Data/formula change → Update `Data.md`
-- Sync behavior → Update `Sync.md`
-- UI change → Update `Design.md`
-- Prototype work → Update `Backlog.md`
-- Algorithm/metric change → Document formula & research basis
+- New rule → `Rules.md`
+- Data/localStorage change → `architecture/Data.md`
+- Sync behavior → `architecture/Sync.md`
+- AI companion → `architecture/AI.md`
+- Focus/timer → `architecture/Focus.md`
+- UI components → `design/Components.md`
+- Animation → `design/Motion.md`
+- Design philosophy → `design/Philosophy.md`
+- Colors/tokens → `design/Tokens.md`
+- User psychology → `research/Psychology.md`
+- Time/zones → `research/Temporal.md`
+- Integrations → `research/Integrations.md`
+- Prototype work → `Backlog.md`
 
 ### 4. Version Bump
 - `index.html`: Update `APP_VERSION`

@@ -2919,11 +2919,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.47';
+const APP_VERSION   = '2.12.48';
 const DEV_HOURS     = '160h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.48': 'Fix: Sound delay after long focus sessions — play immediately instead of waiting for AudioContext resume promise.',
   '2.12.47': 'Hide Trello section when connected but no tasks — cleaner UI, section reappears when tasks exist.',
   '2.12.46': 'Skip splash on return visits within session — no animation when returning from background on mobile.',
   '2.12.45': 'Code cleanup: removed unused CSS variables (--color-noise-overlay, --shadow-divider).',
@@ -5270,11 +5271,12 @@ function _withCtx(fn) {
   try {
     const ctx = _getAudioCtx();
     if (!ctx) return;
-    if (ctx.state === 'suspended') {
-      ctx.resume().then(function() { fn(ctx); }).catch(function() {});
-    } else {
-      fn(ctx);
-    }
+    // Always resume if suspended — but don't wait for the promise.
+    // Playing immediately after resume() in a user gesture works because
+    // the browser queues the audio and plays it once resumed (same frame).
+    // Waiting for .then() caused noticeable delay after long focus sessions.
+    if (ctx.state === 'suspended') ctx.resume().catch(function(){});
+    fn(ctx);
   } catch(e) {}
 }
 

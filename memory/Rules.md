@@ -5,27 +5,57 @@
 
 ## File Guide (what to read for each task)
 
-| Task | Read First | Then |
-|------|------------|------|
-| **Any change** | `Rules.md` | — |
-| **Start of session** | `Housekeeping.md` | Pre-Session Checklist |
-| **End of session** | `Housekeeping.md` | Post-Session Checklist |
-| **Prototype/TODO** | `Backlog.md` | — |
-| Public-facing docs | `README.md` | — |
-| CSS/colors/fonts | `Rules.md` | `Design.md` |
-| Animation | `Rules.md` | `Design.md` |
-| UI component | `Rules.md` | `Design.md` |
-| Voice/copy | `Rules.md` | `Design.md` |
-| Data/localStorage | `Rules.md` | `Data.md` |
-| Sync/backup | `Rules.md` | `Sync.md` |
-| AI companion | `Rules.md` | `Architecture.md` |
-| Focus/timer | `Rules.md` | `Architecture.md` |
-| User psychology | `Rules.md` | `Psychology.md` |
-| Time/day logic | `Rules.md` | `Temporal.md` |
-| Quick capture | `Rules.md` | `Quick-capture.md` |
-| Testing | `Test-matrix.md` | — |
-| Performance | `Performance-audit.md` | — |
-| Version history | `Changelog.md` | — |
+### Tier 1 — Always read at session start
+| File | Purpose |
+|------|---------|
+| `Rules.md` | Critical constraints |
+| `Housekeeping.md` | Session routines |
+| `Backlog.md` | Pending work |
+| `Changelog.md` | Recent changes |
+
+### Tier 2 — Read when task requires
+| Task | Read |
+|------|------|
+| CSS/colors/fonts | `design/Tokens.md` |
+| Animation/motion | `design/Motion.md` |
+| UI components | `design/Components.md` |
+| Design philosophy/voice | `design/Philosophy.md` |
+| Data/localStorage | `architecture/Data.md` |
+| Sync/backup | `architecture/Sync.md` |
+| AI companion | `architecture/AI.md` |
+| Focus/timer | `architecture/Focus.md` |
+| User psychology | `research/Psychology.md` |
+| Time/day logic | `research/Temporal.md` |
+| Integrations | `research/Integrations.md` |
+| Quick capture | `research/Quick-capture.md` |
+| Testing | `Test-matrix.md` |
+| Performance | `Performance-audit.md` |
+
+### Folder Structure
+```
+memory/
+├── Rules.md
+├── Housekeeping.md
+├── Backlog.md
+├── Changelog.md
+├── Performance-audit.md
+├── Test-matrix.md
+├── architecture/
+│   ├── AI.md
+│   ├── Data.md
+│   ├── Focus.md
+│   └── Sync.md
+├── design/
+│   ├── Components.md
+│   ├── Motion.md
+│   ├── Philosophy.md
+│   └── Tokens.md
+└── research/
+    ├── Integrations.md
+    ├── Psychology.md
+    ├── Quick-capture.md
+    └── Temporal.md
+```
 
 ---
 
