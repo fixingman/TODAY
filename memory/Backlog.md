@@ -4,42 +4,34 @@
 
 ---
 
-## Active: Zones Prototype (v2.11.0)
-
-**Status:** In production code, needs completion before full release.
-
-### ✅ Implemented
-- [x] SOON section (collapsed, visible)
-- [x] PAST section (collapsed, visible)
-- [x] Per-task evening triage (Keep / ↩ Soon / Let go)
-- [x] Done tasks auto-archive to PAST at new day
-- [x] Pull from SOON back to TODAY (↩ button)
-- [x] Basic localStorage for zones (`today_soon`, `today_past`)
-- [x] Triage bar trigger (after 8pm)
-- [x] Triage panel with per-task decisions
-- [x] Visual feedback (decided tasks collapse with badge)
-- [x] "Keep all" batch action
-- [x] Auto-close after all decisions
-- [x] **Flow rate fix** — now `done / total` (was `done / added`, always hit 100%)
-- [x] **PiP fix** — delay before open (prevents Cmd+H focus steal), close+reopen on every minimize
-- [x] **SOON aging** — 30+ days → auto-archive to PAST (status: `aged`) ✓ v2.12.21
-
-### ⬜ TODO: Core Functionality
-- [x] **Dropbox sync** — add `today_soon` and `today_past` to backup/restore ✓
-- [x] **Backup schema update** — bump to v5.0, include zones ✓
-- [x] **Purge: PAST cleanup** — done items after 7 days, let_go/aged after 30 days ✓ v2.12.6
-- [x] **Morning nudge** — "3 still here from yesterday" if tasks carried over ✓ v2.12.7
-- [x] **Aging: SOON → PAST** — 30+ days → auto-archive (status: `aged`) ✓ v2.12.21
-- [ ] ~~**Aging: TODAY → PAST** — 7+ days inactive → auto-archive~~ **SKIPPED** — visual fading is enough, user should consciously triage
-
-### ✅ Edge Cases (Verified)
-- [x] User never does triage → tasks stay, age visually (75%→55%→35% opacity)
-- [x] Triage with 0 undone tasks → bar never shows (`totalUndone > 0` guard)
-- [x] PAST with 100+ items → only 20 rendered, count shows total, daily purge
-
----
-
 ## Pending Features
+
+### Idle Companion Design Refinement
+**Status:** Not started
+**Goal:** Develop the design of idle companion to higher resolution and more consistency.
+
+### Keyboard Shortcuts (Desktop Only)
+**Status:** Not started
+**Notes:** Needs exploration both in UX and UI. Desktop only.
+
+### AI Improvements
+**Status:** Not started
+**Goal:** More proactive AI — morning briefings, end-of-day summaries.
+
+### Notifications
+**Status:** Not started
+**Goal:** Optional gentle nudges from AI for habits or focus sessions.
+
+### Widget/Home Screen Integration
+**Status:** Not started
+**Goal:** Mobile widget showing today's task count, progress.
+
+### Weekly Reports
+**Status:** Not started
+**Goal:** Weekly productivity reports, habit streaks over time.
+
+### Microsoft Notes Integration
+**Status:** Not started
 
 ### Quick Task Capture (Without Opening App)
 **Research:** `memory/research/Quick-capture.md`  
@@ -54,11 +46,6 @@
 ---
 
 ## Technical Debt
-
-### GitHub Push
-**Priority:** High
-**Status:** Many commits ahead of origin — needs push
-**Notes:** Local repo has significant changes not pushed to remote
 
 ### Performance Audit Update
 **Priority:** Low
@@ -83,10 +70,27 @@ Decisions that may need revisiting based on real usage:
 
 | Decision | Current | Watch For |
 |----------|---------|-----------|
-| Midnight auto-move | No (user decides) | Too much friction? Trello cards already auto-refresh. |
-| SOON visibility | Visible (collapsed) | Should it be hidden until AI surfaces items? |
 | PAST read-only | Yes | Need restore for accidentally archived items? |
 | Triage trigger time | 8pm | Too early? Too late? User-configurable? |
+| Habit strength curve | Linear display | Above 70%, should progress feel harder? Diminishing returns curve like flow rate? |
+| Modularization | Single file (10K+ lines) | App is mature — might benefit from eventual modularization if it grows further |
+
+---
+
+## Rejected Approaches
+
+Captures what we tried or considered and why we didn't proceed — institutional knowledge.
+
+| Feature | Rejected Approach | Reason |
+|---------|------------------|--------|
+| Quick Capture | iOS Share Sheet / Shortcuts | No PWA share target support on iOS; Siri needs native app |
+| Quick Capture | Web-based share target | Android-only, inconsistent across browsers |
+| Sync | Real-time WebSocket sync | Overkill for single-user; Dropbox polling is simpler |
+| Sync | Conflict resolution UI | Too complex; union merge + timestamps handles 99% of cases |
+| Sound | Web Audio API with .then() | Caused delay after long inactivity; fixed by playing immediately |
+| PiP | Keep PiP open on return | Confusing UX; PiP should only show when app is hidden |
+| Idle creatures | Complex AI behaviors | Overthinking; simple random movement is charming enough |
+| Habits | Habit streaks with penalties | Anxiety-inducing; we acknowledge streaks without punishment |
 
 ---
 
@@ -100,4 +104,4 @@ Decisions that may need revisiting based on real usage:
 
 ---
 
-*Last updated: Session 18 (v2.12.11)*
+*Last updated: Session 23 (v2.12.49)*
