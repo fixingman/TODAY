@@ -77,6 +77,23 @@ Decisions that may need revisiting based on real usage:
 
 ---
 
+## Rejected Approaches
+
+Captures what we tried or considered and why we didn't proceed — institutional knowledge.
+
+| Feature | Rejected Approach | Reason |
+|---------|------------------|--------|
+| Quick Capture | iOS Share Sheet / Shortcuts | No PWA share target support on iOS; Siri needs native app |
+| Quick Capture | Web-based share target | Android-only, inconsistent across browsers |
+| Sync | Real-time WebSocket sync | Overkill for single-user; Dropbox polling is simpler |
+| Sync | Conflict resolution UI | Too complex; union merge + timestamps handles 99% of cases |
+| Sound | Web Audio API with .then() | Caused delay after long inactivity; fixed by playing immediately |
+| PiP | Keep PiP open on return | Confusing UX; PiP should only show when app is hidden |
+| Idle creatures | Complex AI behaviors | Overthinking; simple random movement is charming enough |
+| Habits | Habit streaks with penalties | Anxiety-inducing; we acknowledge streaks without punishment |
+
+---
+
 ## Completed Features
 
 | Feature | Version | Date |
@@ -87,4 +104,4 @@ Decisions that may need revisiting based on real usage:
 
 ---
 
-*Last updated: Session 22 (v2.12.47)*
+*Last updated: Session 23 (v2.12.49)*

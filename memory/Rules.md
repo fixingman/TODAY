@@ -3,6 +3,13 @@
 
 ---
 
+## Current Focus (update each session)
+- **Working on:** Bug fixes (sound delay, PiP close on restore)
+- **Recent:** v2.12.49 — PiP closes on window restore, sound plays immediately
+- **Watch for:** Memory file structure now uses subfolders
+
+---
+
 ## File Guide (what to read for each task)
 
 ### Tier 1 — Always read at session start
@@ -100,6 +107,18 @@ memory/
 25. **`_cacheElements()` must run at START of `init()`** — before any rendering
 26. **Zone renderers must match `renderTask()` features** — tags, badges, etc.
 27. **Every code change requires memory review** — ask: "Does this affect documented behavior?" Update relevant memory files.
+
+## Non-Delegation Zones (require extra scrutiny)
+
+These areas are error-prone — always read the relevant file and double-check logic:
+
+| Zone | Why | Reference |
+|------|-----|-----------|
+| Sync merge logic | Union merge + deleted_ids is subtle | `architecture/Sync.md` |
+| Data schema changes | Breaking changes affect backups | `architecture/Data.md` |
+| Delete operations | `deleted_ids` must persist across days | Rule 11, Data.md |
+| Day boundary logic | Tasks vs habits use different cutoffs | Rule 16 |
+| Zone operations | Must trigger `dropboxBackup(true)` | Rule 23 in Sync.md |
 
 ## Z-Index Stack
 

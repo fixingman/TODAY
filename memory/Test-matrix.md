@@ -22,6 +22,28 @@ Run these **before every GitHub push**:
 
 ---
 
+## Quick Smoke Test (30 seconds)
+
+Mental checklist after **any code change** — verify before moving on:
+
+- [ ] **Add task** — Enter key adds task, appears at top
+- [ ] **Check task** — Sound plays immediately (no delay)
+- [ ] **Sync triggers** — Status shows "synced" (if Dropbox connected)
+- [ ] **No console errors** — Red dot doesn't appear
+- [ ] **Visual intact** — No broken layout, correct colors
+
+If testing **focus mode** changes:
+- [ ] Timer counts down
+- [ ] PiP opens on tab leave, closes on return
+- [ ] Pause/resume works
+
+If testing **zone** changes:
+- [ ] Triage bar appears 8pm–1am
+- [ ] Zone moves trigger sync
+- [ ] Other device receives changes
+
+---
+
 ## Full Test Matrix
 
 ### 1. Manual Tasks (14 tests)
@@ -199,4 +221,4 @@ Run these **before every GitHub push**:
 
 ---
 
-*Last updated: Session 19 (v2.12.19)*
+*Last updated: Session 23 (v2.12.49)*
