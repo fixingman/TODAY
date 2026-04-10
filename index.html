@@ -2919,11 +2919,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.50';
+const APP_VERSION   = '2.12.51';
 const DEV_HOURS     = '160h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.51': 'Fix: Done Trello tasks no longer appear in triage. Race condition fixed — triage re-checks after sync/cleanup complete. AI context filter corrected.',
   '2.12.50': 'Fix: Triage overlay z-index raised to 999 — prevents callout bar from showing through on mobile.',
   '2.12.49': 'Fix: PiP now closes when window is restored from minimized state.',
   '2.12.48': 'Fix: Sound delay after long focus sessions — play immediately instead of waiting for AudioContext resume promise.',
@@ -3488,6 +3489,16 @@ function checkTriageBar() {
   const totalUndone = undoneManual.length + undoneTrello.length;
   const bar = $.triageBar || document.getElementById('triageBar');
   if (!bar) return;
+  
+  // If triage overlay is open, refresh the list (sync may have updated doneIds)
+  const overlay = $.triageOverlay || document.getElementById('triageOverlay');
+  if (overlay && !overlay.classList.contains('hidden')) {
+    renderTriageList();
+    const titleEl = $.triageTitle || document.getElementById('triageTitle');
+    // Re-filter for title since decisions are applied
+    const remaining = totalUndone - Object.keys(triageDecisions).length;
+    if (titleEl && remaining > 0) titleEl.textContent = `${remaining} didn't happen`;
+  }
   
   // Show 8pm–1am (hour >= 20 OR hour < 1) with undone tasks, unless dismissed today
   const inTriageWindow = hour >= 20 || hour < 1;
@@ -4840,6 +4851,7 @@ async function loadTrello(fromSync) {
 
     renderTrello();
     updateStats();
+    checkTriageBar();  // Re-check now that Trello tasks are loaded
 
     const label = config.todayList ? `"${config.todayList}"` : 'your today list';
     const msg   = trelloTasks.length === 0
@@ -7897,6 +7909,10 @@ async function dropboxRestore(fromSync) {
       applyNewDayCleanup();
       renderManual();
       updateStats();
+      
+      // Re-check triage now that sync and cleanup are done — init() ran too early
+      // when doneIds might not have been merged yet, causing done tasks to appear
+      checkTriageBar();
 
       // Only start ticker after baselines are seeded
       startTicker();
@@ -8630,7 +8646,7 @@ function _aiContext() {
   const todayStr = _habitTodayISO(); // YYYY-MM-DD format
   const pending  = manualTasks.filter(t => !doneIds.has(t.id));
   const done     = manualTasks.filter(t =>  doneIds.has(t.id));
-  const trello   = (window.trelloTasks || []).filter(t => !doneIds.has('trello_' + t.id));
+  const trello   = (window.trelloTasks || []).filter(t => !doneIds.has(t.id));
 
   // Calculate age for each pending manual task
   const pendingWithAge = pending.map(t => {
