@@ -1,12 +1,12 @@
 # TODAY — Critical Rules
-> **Read this first.** These rules must never break. ~70 lines of essentials.
+> **Read this first.** These rules must never break.
 
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fix — triage overlay z-index
-- **Recent:** v2.12.50 — Triage overlay z-index raised to 999
-- **Watch for:** Mobile overlay stacking issues
+- **Working on:** Bug fixes — SOON ghost tasks, triage race condition
+- **Recent:** v2.12.52 — Zone merge now checks pulled-back tasks
+- **Watch for:** Sync edge cases, zone task duplication
 
 ---
 
@@ -37,32 +37,6 @@
 | Quick capture | `research/Quick-capture.md` |
 | Testing | `Test-matrix.md` |
 | Performance | `Performance-audit.md` |
-
-### Folder Structure
-```
-memory/
-├── Rules.md
-├── Housekeeping.md
-├── Backlog.md
-├── Changelog.md
-├── Performance-audit.md
-├── Test-matrix.md
-├── architecture/
-│   ├── AI.md
-│   ├── Data.md
-│   ├── Focus.md
-│   └── Sync.md
-├── design/
-│   ├── Components.md
-│   ├── Motion.md
-│   ├── Philosophy.md
-│   └── Tokens.md
-└── research/
-    ├── Integrations.md
-    ├── Psychology.md
-    ├── Quick-capture.md
-    └── Temporal.md
-```
 
 ---
 
@@ -130,3 +104,13 @@ These areas are error-prone — always read the relevant file and double-check l
 | Splash | 500 | Loading splash |
 | Overlay | 999 | Top-level overlays |
 | Idle companion | 50 | Creatures |
+
+## Version Bumping (vA.BB.CC)
+
+| Segment | Bump when... | Example |
+|---------|--------------|---------|
+| **CC** (Patch) | Bug fix, polish, small tweak | 2.12.51 → 2.12.52 |
+| **BB** (Minor) | New feature, new UI section, new integration | 2.12.x → 2.13.0 |
+| **A** (Major) | Breaking change, full redesign, data migration | 2.x.x → 3.0.0 |
+
+**Reset rule:** When BB bumps, reset CC to 0. When A bumps, reset both BB and CC to 0.
