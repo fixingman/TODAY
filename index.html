@@ -895,7 +895,7 @@
     position: fixed;
     inset: 0;
     background: var(--color-overlay);
-    z-index: var(--z-modal);
+    z-index: var(--z-overlay); /* 999 — above everything including triageBar */
     display: flex;
     align-items: flex-end;
     justify-content: center;
@@ -2919,11 +2919,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.49';
+const APP_VERSION   = '2.12.50';
 const DEV_HOURS     = '160h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.50': 'Fix: Triage overlay z-index raised to 999 — prevents callout bar from showing through on mobile.',
   '2.12.49': 'Fix: PiP now closes when window is restored from minimized state.',
   '2.12.48': 'Fix: Sound delay after long focus sessions — play immediately instead of waiting for AudioContext resume promise.',
   '2.12.47': 'Hide Trello section when connected but no tasks — cleaner UI, section reappears when tasks exist.',

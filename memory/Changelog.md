@@ -2,6 +2,9 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.50** | **Fix: Triage overlay z-index** — Raised to 999 to prevent callout bar showing through on mobile. |
+| **2.12.49** | **Fix: PiP closes on restore** — PiP now closes when window is restored from minimized state. |
+| **2.12.48** | **Fix: Sound delay** — Sound plays immediately instead of waiting for AudioContext resume promise. |
 | **2.12.47** | **Hide Trello section** — When connected but no tasks, section is hidden for cleaner UI. |
 | **2.12.46** | **Skip splash on return** — Uses sessionStorage to skip splash animation when returning from background on mobile. |
 | **2.12.45** | **Code cleanup** — Removed unused CSS variables (`--color-noise-overlay`, `--shadow-divider`). |

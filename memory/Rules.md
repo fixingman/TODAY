@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes (sound delay, PiP close on restore)
-- **Recent:** v2.12.49 — PiP closes on window restore, sound plays immediately
-- **Watch for:** Memory file structure now uses subfolders
+- **Working on:** Bug fix — triage overlay z-index
+- **Recent:** v2.12.50 — Triage overlay z-index raised to 999
+- **Watch for:** Mobile overlay stacking issues
 
 ---
 
