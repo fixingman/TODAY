@@ -2919,11 +2919,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.51';
+const APP_VERSION   = '2.12.52';
 const DEV_HOURS     = '160h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.52': 'Fix: SOON/PAST ghost tasks — Zone merge now checks if task was pulled back to TODAY. Tasks no longer resurrect after being moved or deleted.',
   '2.12.51': 'Fix: Done Trello tasks no longer appear in triage. Race condition fixed — triage re-checks after sync/cleanup complete. AI context filter corrected.',
   '2.12.50': 'Fix: Triage overlay z-index raised to 999 — prevents callout bar from showing through on mobile.',
   '2.12.49': 'Fix: PiP now closes when window is restored from minimized state.',
@@ -7404,34 +7405,65 @@ function mergeRemoteData(data) {
   // Union merge by task ID — most recent zoneChangedAt wins for conflicts
   // (remoteSoon and remotePast already declared above for zone-aware task filtering)
   // IMPORTANT: Exclude tasks that were deleted on either device
+  // IMPORTANT: Exclude tasks that were pulled back to TODAY (exist in mergedTasks with newer timestamp)
   
-  // Merge SOON: union by ID, most recent zoneChangedAt wins, exclude deleted
+  // Build map of merged manual tasks for zone exclusion checks
+  const mergedTasksMap = new Map(mergedTasks.map(t => [t.id, t]));
+  
+  // Merge SOON: union by ID, most recent zoneChangedAt wins, exclude deleted and pulled-back
   const soonMap = new Map();
   soonTasks.forEach(t => {
     if (!mergedDeletedMap.has(t.id)) soonMap.set(t.id, t);
   });
   remoteSoon.forEach(t => {
     if (mergedDeletedMap.has(t.id)) return; // Skip deleted tasks
+    // Skip if task was pulled back to TODAY more recently
+    const inToday = mergedTasksMap.get(t.id);
+    if (inToday && inToday.zoneChangedAt && (!t.zoneChangedAt || inToday.zoneChangedAt > t.zoneChangedAt)) return;
     const existing = soonMap.get(t.id);
     if (!existing || (t.zoneChangedAt && (!existing.zoneChangedAt || t.zoneChangedAt > existing.zoneChangedAt))) {
       soonMap.set(t.id, t);
     }
   });
+  // Also remove any SOON tasks that are now in TODAY with newer timestamp
+  for (const [id, task] of soonMap) {
+    const inToday = mergedTasksMap.get(id);
+    if (inToday && inToday.zoneChangedAt && (!task.zoneChangedAt || inToday.zoneChangedAt > task.zoneChangedAt)) {
+      soonMap.delete(id);
+    }
+  }
   soonTasks = [...soonMap.values()];
   localStorage.setItem('today_soon', JSON.stringify(soonTasks));
   
-  // Merge PAST: union by ID, most recent zoneChangedAt wins, keep last 100, exclude deleted
+  // Merge PAST: union by ID, most recent zoneChangedAt wins, keep last 100, exclude deleted and pulled-back
   const pastMap = new Map();
   pastTasks.forEach(t => {
     if (!mergedDeletedMap.has(t.id)) pastMap.set(t.id, t);
   });
   remotePast.forEach(t => {
     if (mergedDeletedMap.has(t.id)) return; // Skip deleted tasks
+    // Skip if task was pulled back to TODAY or SOON more recently
+    const inToday = mergedTasksMap.get(t.id);
+    if (inToday && inToday.zoneChangedAt && (!t.zoneChangedAt || inToday.zoneChangedAt > t.zoneChangedAt)) return;
+    const inSoon = soonMap.get(t.id);
+    if (inSoon && inSoon.zoneChangedAt && (!t.zoneChangedAt || inSoon.zoneChangedAt > t.zoneChangedAt)) return;
     const existing = pastMap.get(t.id);
     if (!existing || (t.zoneChangedAt && (!existing.zoneChangedAt || t.zoneChangedAt > existing.zoneChangedAt))) {
       pastMap.set(t.id, t);
     }
   });
+  // Also remove any PAST tasks that are now in TODAY or SOON with newer timestamp
+  for (const [id, task] of pastMap) {
+    const inToday = mergedTasksMap.get(id);
+    if (inToday && inToday.zoneChangedAt && (!task.zoneChangedAt || inToday.zoneChangedAt > task.zoneChangedAt)) {
+      pastMap.delete(id);
+      continue;
+    }
+    const inSoon = soonMap.get(id);
+    if (inSoon && inSoon.zoneChangedAt && (!task.zoneChangedAt || inSoon.zoneChangedAt > task.zoneChangedAt)) {
+      pastMap.delete(id);
+    }
+  }
   // Sort by zoneChangedAt descending, keep last 100
   pastTasks = [...pastMap.values()]
     .sort((a, b) => (b.zoneChangedAt || '').localeCompare(a.zoneChangedAt || ''))
