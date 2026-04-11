@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes — SOON ghost tasks, triage race condition
-- **Recent:** v2.12.52 — Zone merge now checks pulled-back tasks
-- **Watch for:** Sync edge cases, zone task duplication
+- **Working on:** Bug fixes — Trello done state, SOON ghost tasks
+- **Recent:** v2.12.53 — Done Trello cards hide next day
+- **Watch for:** Trello card visibility edge cases
 
 ---
 

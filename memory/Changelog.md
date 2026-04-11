@@ -2,6 +2,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.53** | **Fix: Trello done next day** — Done Trello cards in today list now hide the next day. Uses `checked_ids` timestamp to show only if checked today. |
 | **2.12.52** | **Fix: SOON/PAST ghost tasks** — Zone merge now checks if task was pulled back to TODAY with newer timestamp. Tasks no longer resurrect after being moved or deleted. |
 | **2.12.51** | **Fix: Done Trello in triage** — Race condition fixed: triage re-checks after sync/cleanup complete. AI context filter also corrected (was double-prefixing Trello IDs). |
 | **2.12.50** | **Fix: Triage overlay z-index** — Raised to 999 to prevent callout bar showing through on mobile. |

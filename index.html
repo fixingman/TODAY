@@ -2919,11 +2919,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.52';
+const APP_VERSION   = '2.12.53';
 const DEV_HOURS     = '160h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.53': 'Fix: Done Trello cards in today list now hide the next day. Uses checked_ids timestamp to determine if checked today vs yesterday.',
   '2.12.52': 'Fix: SOON/PAST ghost tasks — Zone merge now checks if task was pulled back to TODAY. Tasks no longer resurrect after being moved or deleted.',
   '2.12.51': 'Fix: Done Trello tasks no longer appear in triage. Race condition fixed — triage re-checks after sync/cleanup complete. AI context filter corrected.',
   '2.12.50': 'Fix: Triage overlay z-index raised to 999 — prevents callout bar from showing through on mobile.',
@@ -4800,13 +4801,24 @@ async function loadTrello(fromSync) {
       : null;
 
     // Filter: in today list OR due today/overdue
-    // Done cards that are overdue (checked yesterday+) are hidden the next day
+    // Done cards are hidden the next day (they were completed yesterday)
     const filtered = cards.filter(c => {
       const trelloId = 'trello_' + c.id;
       const isDone = doneIds.has(trelloId);
       
-      // In today list — always show (done state handled in rendering)
-      if (todayListId && c.idList === todayListId) return true;
+      // In today list
+      if (todayListId && c.idList === todayListId) {
+        if (!isDone) return true; // Not done — show
+        // Done — show only if checked TODAY (hide if checked before today)
+        const checkedIds = JSON.parse(localStorage.getItem('today_checked_ids') || '[]');
+        const checkedEntry = checkedIds.find(e => e.id === trelloId);
+        if (checkedEntry && checkedEntry.at) {
+          const checkedDate = new Date(checkedEntry.at);
+          checkedDate.setHours(0,0,0,0);
+          if (checkedDate.getTime() === today.getTime()) return true; // Checked today — show
+        }
+        return false; // Checked before today — hide
+      }
       
       // Has due date
       if (c.due) {
