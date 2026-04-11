@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes — SOON ghost tasks, triage race condition
-- **Recent:** v2.12.52 — Zone merge now checks pulled-back tasks
-- **Watch for:** Sync edge cases, zone task duplication
+- **Working on:** Sync fixes — task order, Trello done state
+- **Recent:** v2.12.55 — Task order now syncs (was only detecting add/remove)
+- **Watch for:** Sync edge cases, merge conflicts
 
 ---
 
