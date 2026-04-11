@@ -2919,11 +2919,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.53';
+const APP_VERSION   = '2.12.55';
 const DEV_HOURS     = '160h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.55': 'Fix: Task order now syncs across devices. mergeRemoteData was only detecting add/remove, not reorder. Also added last_sync_read for accurate status display.',
   '2.12.53': 'Fix: Done Trello cards in today list now hide the next day. Uses checked_ids timestamp to determine if checked today vs yesterday.',
   '2.12.52': 'Fix: SOON/PAST ghost tasks — Zone merge now checks if task was pulled back to TODAY. Tasks no longer resurrect after being moved or deleted.',
   '2.12.51': 'Fix: Done Trello tasks no longer appear in triage. Race condition fixed — triage re-checks after sync/cleanup complete. AI context filter corrected.',
@@ -4481,9 +4482,14 @@ function renderConnections() {
   const dropboxConnected = dropboxToken && !dropboxExpired;
   
   const lastBackup = localStorage.getItem('last_successful_backup');
+  const lastSyncRead = localStorage.getItem('last_sync_read');
   let backupStatus = '';
-  if (lastBackup) {
-    const mins = Math.round((Date.now() - new Date(lastBackup).getTime()) / 60000);
+  if (lastBackup || lastSyncRead) {
+    // Show the most recent of read or write
+    const lastActivity = lastSyncRead && lastBackup 
+      ? (new Date(lastSyncRead) > new Date(lastBackup) ? lastSyncRead : lastBackup)
+      : (lastSyncRead || lastBackup);
+    const mins = Math.round((Date.now() - new Date(lastActivity).getTime()) / 60000);
     backupStatus = mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.round(mins/60)}h ago`;
   }
 
@@ -7516,6 +7522,16 @@ function mergeRemoteData(data) {
   const prevTaskIds = new Set(manualTasks.map(t => t.id));
   const nextTaskIds = new Set(mergedTasks.map(t => t.id));
   if (prevTaskIds.size !== nextTaskIds.size || [...nextTaskIds].some(id => !prevTaskIds.has(id))) _changed = true;
+  
+  // Also check if ORDER changed (same IDs but different sequence)
+  if (!_changed && manualTasks.length === mergedTasks.length) {
+    for (let i = 0; i < manualTasks.length; i++) {
+      if (manualTasks[i].id !== mergedTasks[i].id) {
+        _changed = true;
+        break;
+      }
+    }
+  }
 
   const prevDone = JSON.stringify([...doneIds].sort());
   const nextDone = JSON.stringify([...mergedDoneIds].sort());
@@ -7798,6 +7814,7 @@ async function dropboxRestore(fromSync) {
       if (!rev || rev === lastDropboxRev) return;
       lastDropboxRev = rev;
       await dropboxRestore(true);
+      localStorage.setItem('last_sync_read', new Date().toISOString());
     } catch(e) { /* silent */ }
   }
 
@@ -7929,6 +7946,8 @@ async function dropboxRestore(fromSync) {
               if (r.ok) {
                 const remoteData = await r.json();
                 const changed = mergeRemoteData(remoteData);
+                // Track when we last successfully pulled
+                localStorage.setItem('last_sync_read', new Date().toISOString());
                 // Seed rev so ticker doesn't re-trigger on same data
                 const meta = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
                   method: 'POST',

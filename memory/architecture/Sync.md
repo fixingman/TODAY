@@ -154,6 +154,32 @@ Deleted tasks are excluded from zone merge to prevent ghost tasks:
 
 ---
 
+## Task Order Sync (v2.12.55)
+
+**Bug fixed:** Prior to v2.12.55, `mergeRemoteData()` only detected task additions/removals, NOT reordering. If you reordered tasks on phone, desktop wouldn't update.
+
+### Detection Logic
+
+```javascript
+// OLD: Only checked add/remove
+if (prevTaskIds.size !== nextTaskIds.size || 
+    [...nextTaskIds].some(id => !prevTaskIds.has(id))) _changed = true;
+
+// NEW: Also checks order (v2.12.55)
+if (!_changed && manualTasks.length === mergedTasks.length) {
+  for (let i = 0; i < manualTasks.length; i++) {
+    if (manualTasks[i].id !== mergedTasks[i].id) {
+      _changed = true;
+      break;
+    }
+  }
+}
+```
+
+When `_changed` is true, `renderManual()` is called to update the UI.
+
+---
+
 ## Timestamps
 
 All timestamps are **ISO strings** (`new Date().toISOString()`).
@@ -167,7 +193,10 @@ All timestamps are **ISO strings** (`new Date().toISOString()`).
 | Task unchecked | `today_unchecked_ids` |
 | Habit deleted | `today_deleted_habit_ids` |
 | Local mutation | `last_local_change` |
-| Successful backup | `last_successful_backup` |
+| Successful backup (write) | `last_successful_backup` |
+| Successful sync (read) | `last_sync_read` |
+
+**Sync status display:** Shows most recent of `last_successful_backup` or `last_sync_read` (v2.12.55).
 
 ---
 
@@ -176,6 +205,7 @@ All timestamps are **ISO strings** (`new Date().toISOString()`).
 | Data Type | Resolution |
 |-----------|------------|
 | Task list | Union by ID, remote order wins |
+| Task order | Detected via ID sequence comparison (v2.12.55) |
 | Habit list | Union by ID, remote order wins |
 | Trello order | Remote wins |
 | Done IDs | Union with check/uncheck timestamps |

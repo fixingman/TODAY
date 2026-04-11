@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes — Trello done state, SOON ghost tasks
-- **Recent:** v2.12.53 — Done Trello cards hide next day
-- **Watch for:** Trello card visibility edge cases
+- **Working on:** Sync fixes — task order, Trello done state
+- **Recent:** v2.12.55 — Task order now syncs (was only detecting add/remove)
+- **Watch for:** Sync edge cases, merge conflicts
 
 ---
 
