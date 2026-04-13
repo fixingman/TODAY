@@ -7222,6 +7222,11 @@ window.addEventListener('focus', () => {
   // Trigger sync if available — PWA may not have fired visibilitychange
   if (window._dbxResetRev) window._dbxResetRev(); // force fresh pull (BUG-002 Path B)
   if (window._dbxSyncNow) window._dbxSyncNow();
+  // Deferred triage check — same as visibilitychange (BUG-001)
+  setTimeout(() => {
+    triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
+    checkTriageBar();
+  }, 3000);
 });
 
 // ── Backup ────────────────────────────────────────────────────────────────────
