@@ -2879,6 +2879,13 @@ window.scrollTo(0, 0);
 
 // ─── Error Monitoring (dev aid) ───────────────────────────────────────────────
 const _errorLog = [];
+function _logSyncError(source, msg) {
+  const entry = '[' + source + '] ' + (msg || 'unknown error');
+  _errorLog.push(entry);
+  const el = document.getElementById('errorIndicator');
+  if (el) { el.style.display = 'block'; el.dataset.count = _errorLog.length; }
+  console.warn(entry);
+}
 window.onerror = function(msg, url, line, col, err) {
   _errorLog.push(`${msg} at ${url}:${line}:${col}`);
   const el = document.getElementById('errorIndicator');
@@ -2919,11 +2926,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.57';
+const APP_VERSION   = '2.12.58';
 const DEV_HOURS     = '162h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.58': 'Fix: Sync errors now visible — red dot indicator shows sync failures (token refresh, Dropbox, Trello). Token refresh retries once on cold start timeout.',
   '2.12.57': 'Fix: Task list blank after inactivity — forced repaint on tab return, window focus (PWA), and bfcache restore. Browser paint deferral + contain:layout was causing stale compositor layer.',
   '2.12.56': 'Fix: Trello session count — 🍅 badge now updates on existing Trello tasks after focus session (patch path was skipping it).',
   '2.12.55': 'Fix: Task order now syncs across devices. mergeRemoteData was only detecting add/remove, not reorder. Also added last_sync_read for accurate status display.',
@@ -7132,23 +7140,31 @@ async function _dropboxEnsureToken() {
   if (!refreshToken) return; // legacy token — no refresh possible
   if (Date.now() < expiry)  return; // still valid
 
-  try {
-    const res  = await fetch('/.netlify/functions/dropbox-refresh', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ refresh_token: refreshToken }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      localStorage.setItem('dropbox_token_expired', '1');
+  // Retry once on failure — Netlify cold starts can cause first fetch to timeout (BUG-003)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res  = await fetch('/.netlify/functions/dropbox-refresh', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ refresh_token: refreshToken }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        localStorage.setItem('dropbox_token_expired', '1');
+        dropboxUpdateUI();
+        return;
+      }
+      localStorage.setItem('dropbox_token',        data.access_token);
+      localStorage.setItem('dropbox_token_expiry', String(Date.now() + (data.expires_in - 60) * 1000));
+      localStorage.removeItem('dropbox_token_expired');
       dropboxUpdateUI();
-      return;
+      return; // success — exit loop
+    } catch(e) {
+      _logSyncError('Dropbox', 'Token refresh attempt ' + (attempt + 1) + ': ' + e.message);
+      if (attempt === 0) await new Promise(r => setTimeout(r, 2000)); // wait 2s before retry
     }
-    localStorage.setItem('dropbox_token',        data.access_token);
-    localStorage.setItem('dropbox_token_expiry', String(Date.now() + (data.expires_in - 60) * 1000));
-    localStorage.removeItem('dropbox_token_expired');
-    dropboxUpdateUI();
-  } catch(e) { /* silent — will retry next tick */ }
+  }
+  // Both attempts failed — token stays expired, subsequent Dropbox calls will skip
 }
 
 // ── Auto-save (debounced, called after every user action that changes state) ──
@@ -7787,12 +7803,13 @@ async function dropboxRestore(fromSync) {
             body: JSON.stringify({ path: DROPBOX_FILE }),
           });
           if (_m.ok) { const _md = await _m.json(); if (_md && _md.rev) window._dbxSetRev(_md.rev); }
-        } catch(e) {}
+        } catch(e) { _logSyncError('Dropbox', 'Rev seed: ' + e.message); }
       }
       dropboxShowMsg('Restore complete ✓', 'success');
     }
 
   } catch(e) {
+    _logSyncError('Dropbox', 'Restore: ' + e.message);
     if (!fromSync) dropboxShowMsg('Restore failed: ' + (e.message || 'unknown error'), 'error');
   }
 }
@@ -7820,7 +7837,7 @@ async function dropboxRestore(fromSync) {
       if (!date || date === lastTrelloDate) return;
       lastTrelloDate = date;
       loadTrello(true);
-    } catch(e) { /* silent */ }
+    } catch(e) { _logSyncError('Trello', 'Sync: ' + e.message); }
   }
 
   // ── Dropbox: cheap rev check, only restore if file changed on another device ──
@@ -7843,7 +7860,7 @@ async function dropboxRestore(fromSync) {
       lastDropboxRev = rev;
       await dropboxRestore(true);
       localStorage.setItem('last_sync_read', new Date().toISOString());
-    } catch(e) { /* silent */ }
+    } catch(e) { _logSyncError('Dropbox', 'Sync: ' + e.message); }
   }
 
   // Expose rev setter so dropboxBackup can update baseline after its own write
@@ -7990,9 +8007,9 @@ async function dropboxRestore(fromSync) {
                 if (changed) await dropboxBackup(true);
               }
             }
-          } catch(e) { /* offline or missing file — continue with local data */ }
+          } catch(e) { _logSyncError('Dropbox', 'Initial pull: ' + e.message); }
         }
-      } catch(e) { /* silent */ }
+      } catch(e) { _logSyncError('Sync', 'Startup: ' + e.message); }
 
       // New-day cleanup runs here — AFTER Dropbox restore — so we always clean
       // the freshest data. Running it in init() before the restore caused done

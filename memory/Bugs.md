@@ -80,7 +80,7 @@ On tab return, trigger sync *first*, then check triage *after* sync completes. O
 
 ## BUG-003: "Failed to fetch" errors in production, disappear on refresh
 
-**Status:** Open
+**Status:** Fixed in v2.12.58 — awaiting verification
 **Severity:** Medium — intermittent, no permanent data loss, but confusing
 
 **Symptoms:**
@@ -88,39 +88,20 @@ On tab return, trigger sync *first*, then check triage *after* sync completes. O
 - App may appear to work but API calls (AI, Dropbox, Trello) silently fail
 - Refreshing the page fixes it
 
-**Likely causes (in order of probability):**
+**Root cause:**
+Every `catch(e) {}` in the sync module swallowed errors completely — no logging, no UI feedback. "Failed to fetch" appeared in the console only when it bubbled as an unhandled rejection (rare). Most failures were invisible. Netlify function cold starts could timeout `_dropboxEnsureToken()`, causing all subsequent Dropbox calls to fail silently for the session.
 
-### 1. Netlify function cold start timeout
-- `/.netlify/functions/dropbox-refresh` and `ai-assist` are serverless functions
-- Cold starts can take several seconds — browser may time out the fetch
-- On refresh, the function is already warm → works fine
-- Particularly affects `_dropboxEnsureToken()` which calls `dropbox-refresh` — if this times out, all subsequent Dropbox fetches fail because the token is expired
+**Fix (v2.12.58):**
+1. Added `_logSyncError(source, msg)` helper — pushes to the red dot error indicator AND logs to console. Errors now visible in PWA without devtools.
+2. All sync catch blocks now use `_logSyncError` with tagged sources: `Dropbox` (token refresh, sync, restore, rev seed, initial pull), `Trello` (sync), `Sync` (startup).
+3. `_dropboxEnsureToken()` retries once with 2s backoff — catches Netlify cold start timeouts.
 
-### 2. Momentary network loss (mobile)
-- PWA on mobile can lose connectivity briefly (cell handoff, sleep/wake)
-- `navigator.onLine` may still report `true` during brief drops
-- All in-flight fetches fail with "Failed to fetch"
-- On refresh, network is back
-
-### 3. Stale service worker
-- Old SW active + new app code = possible mismatch
-- SW caches same-origin GET requests (line 127) — if a Netlify function URL was ever fetched via GET by accident, stale cached response could cause issues
-- Refresh triggers SW update → fixed
-
-### 4. CORS or Dropbox API hiccup
-- Dropbox occasionally returns unexpected responses
-- `BYPASS_ORIGINS` in SW correctly skips Dropbox domains, but if Dropbox redirects to an unlisted domain, SW might intercept
-
-**Why it's hard to diagnose:**
-- Every `catch(e) {}` in the sync module swallows the error silently (see BUG-002)
-- The error indicator (red dot) shows console errors, but "Failed to fetch" gives no detail about which fetch failed
-- No retry mechanism — once a fetch fails, it waits for the next 7s tick
-
-**Correct fix direction:**
-1. Add context to catch blocks — log *which* fetch failed (Dropbox download, metadata, token refresh, Trello, AI)
-2. Add retry with backoff for critical fetches (token refresh, Dropbox sync)
-3. If `_dropboxEnsureToken()` fails, don't attempt subsequent Dropbox calls — they'll all fail too
-4. Consider showing a subtle sync status indicator (not just "45m ago")
+**How to verify:**
+1. Open app as PWA on desktop
+2. If sync errors occur, the red dot should appear in the top-right
+3. Click the red dot — error log should show tagged messages like `[Dropbox] Token refresh attempt 1: Failed to fetch`
+4. After refresh, if the error was a cold start, it should not recur (retry handles it)
+5. Monitor over several days — any "Failed to fetch" should now be visible and identifiable
 
 **Verified fixed:** ☐
 
