@@ -6,7 +6,7 @@
 
 ## BUG-001: Triage dismissed on one device, still shows on the other
 
-**Status:** Open
+**Status:** Fixed in v2.12.59–2.12.60 — awaiting verification
 **First noticed:** ~v2.12.27
 **Previous fix attempts:** v2.12.27 (triage sync), v2.12.40 (read fresh from localStorage on tab return), v2.12.43 (overlay hides on sync)
 
@@ -16,17 +16,25 @@
 - Device B still shows triage bar/overlay, even though Device A already dismissed it
 
 **Root cause:**
-On tab return, `visibilitychange` fires and checks `triage_dismissed` in localStorage immediately — but Dropbox sync hasn't run yet at that point. The dismissed state from Device A hasn't arrived. By the time sync pulls the remote state (next 7s tick), the triage bar is already visible.
-
-**The real problem:**
-`checkTriageBar()` runs *before* `syncDropbox()` on tab return. The sequence is:
+`checkTriageBar()` ran synchronously on tab return, before the async `syncDropbox()` could complete. The sequence was:
 1. Tab becomes visible
-2. `triageDismissedToday` reads from localStorage (still local/stale)
-3. `checkTriageBar()` shows triage bar
-4. ...seconds later, sync pulls remote data and hides it
+2. `triageDismissedToday` reads from localStorage (stale — sync hasn't pulled yet)
+3. `checkTriageBar()` shows triage bar immediately
+4. Sync pulls remote data seconds later → `mergeRemoteData` hides the bar
 
-**Correct fix direction:**
-On tab return, trigger sync *first*, then check triage *after* sync completes. Or: defer `checkTriageBar()` until after the first sync cycle on visibility return.
+The triage bar would flash on screen for a few seconds before being hidden — or worse, if sync failed silently, it would stay.
+
+**Fix (v2.12.59 + v2.12.60):**
+1. v2.12.59: Sync now runs immediately on tab return (no 2s delay), so the window is shorter
+2. v2.12.60: `checkTriageBar()` deferred 3s on tab return via `setTimeout`. This gives sync time to complete and pull the dismissed state from Dropbox. `mergeRemoteData` already handles setting `triageDismissedToday = true` and hiding the bar/overlay when remote has today's dismissal.
+
+**How to verify:**
+1. Have undone tasks on both devices during triage window (8pm–1am)
+2. On Device A, complete triage (keep/soon/let go all tasks) → bar dismisses
+3. Wait ~10 seconds for Dropbox sync to push
+4. Switch to Device B (or bring it to foreground)
+5. Triage bar should NOT appear — not even a brief flash
+6. If triage bar does flash briefly and then disappears, the fix is partially working but sync is slower than 3s
 
 **Verified fixed:** ☐
 
@@ -34,7 +42,7 @@ On tab return, trigger sync *first*, then check triage *after* sync completes. O
 
 ## BUG-002: Dropbox sync fails silently on fresh load / tab return
 
-**Status:** Open
+**Status:** Fixed in v2.12.58–2.12.59 — awaiting verification
 **Severity:** High — user sees stale data with no indication sync failed
 
 **Symptoms:**
@@ -42,37 +50,31 @@ On tab return, trigger sync *first*, then check triage *after* sync completes. O
 - Changes made on Device A don't appear on Device B even after fresh load
 - No error shown — app looks normal but data is stale
 
-**Multiple failure paths identified:**
+**Root causes and fixes:**
 
-### Path A: Token expired silently
-- `_dropboxEnsureToken()` checks `dropbox_token_expiry` — if expired, tries refresh
-- If refresh fails (network, Netlify cold start, etc.), it catches silently (line 7136: `catch(e) {}`)
-- Token stays expired, `freshToken` is stale/invalid
-- The download fetch at line 7939 fails with 401 or network error
-- Caught by the outer `catch(e) {}` at line 7965 — **completely silent**
-- `last_sync_read` is NOT updated → status shows old timestamp ("45m ago")
-- But no error is shown to the user
+### Path A: Token expired silently → Fixed v2.12.58
+- `_dropboxEnsureToken()` now retries once with 2s backoff (Netlify cold start)
+- Failures routed to `_logSyncError` → red dot visible in PWA
 
-### Path B: Download succeeds but rev seeding prevents ticker sync
-- On load, after merge, the rev is seeded (line 7959: `_dbxSetRev(m.rev)`)
-- On tab return, `syncDropbox()` compares rev: `if (!rev || rev === lastDropboxRev) return` (line 7814)
-- If the rev didn't change between load and tab return (because another device wrote but Dropbox CDN hasn't propagated), sync skips entirely
+### Path B: Rev comparison skips sync → Fixed v2.12.59
+- `lastDropboxRev` reset to `null` on tab return (`visibilitychange`) and PWA focus
+- Forces a fresh metadata check even if Dropbox CDN hasn't propagated the new rev yet
 
-### Path C: Tab return 2s delay + stale localStorage
-- `visibilitychange` handler delays `syncAll()` by 2 seconds (line 7869)
-- Meanwhile the Housekeeping `visibilitychange` listener (line 7154) reads stale localStorage immediately
-- Even after 2s, if Path A or B apply, sync still doesn't happen
+### Path C: Tab return 2s delay → Fixed v2.12.59
+- `syncDropbox()` and `syncTrello()` now run immediately on `visibilitychange`
+- 2s delay kept only for starting the ticker (not the initial pull)
+- PWA `window.focus` also triggers immediate sync as fallback
 
-### Path D: `catch(e) {}` swallows everything
-- Both the inner try/catch (line 7935) and outer try/catch (line 7967) on load are completely silent
-- The `syncDropbox()` ticker function also has `catch(e) {}` (line 7818)
-- Any failure — network, JSON parse, 401, 409 — is invisible
+### Path D: `catch(e) {}` swallows everything → Fixed v2.12.58
+- All sync catch blocks now use `_logSyncError()` → red dot error indicator
 
-**Correct fix direction:**
-1. On sync failure, update `last_sync_read` status to show "sync failed" or at least don't show a stale timestamp as if everything is fine
-2. On fresh load, if the initial pull fails, retry with backoff instead of giving up silently
-3. On tab return, run sync immediately (not 2s delay) and surface errors
-4. Token refresh failure should be visible — not caught silently
+**How to verify:**
+1. Make changes on Device A (add/check tasks), wait for sync indicator to update
+2. Switch to Device B (which has been idle)
+3. Tasks should appear within 1-2 seconds — no 2s+ delay, no stale data
+4. Check "last sync" timestamp in Connections — should show "just now"
+5. If sync fails, red dot should appear with tagged error message
+6. Test specifically in PWA standalone mode (not just browser tab)
 
 **Verified fixed:** ☐
 

@@ -2926,11 +2926,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.58';
+const APP_VERSION   = '2.12.60';
 const DEV_HOURS     = '162h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.60': 'Fix: Triage cross-device — triage check deferred 3s on tab return so sync can pull dismissal state from Dropbox first. No more premature triage bar flash.',
+  '2.12.59': 'Fix: Sync on return — immediate sync on tab return and PWA focus (no 2s delay). Rev baseline reset forces fresh Dropbox pull instead of skipping on stale rev match.',
   '2.12.58': 'Fix: Sync errors now visible — red dot indicator shows sync failures (token refresh, Dropbox, Trello). Token refresh retries once on cold start timeout.',
   '2.12.57': 'Fix: Task list blank after inactivity — forced repaint on tab return, window focus (PWA), and bfcache restore. Browser paint deferral + contain:layout was causing stale compositor layer.',
   '2.12.56': 'Fix: Trello session count — 🍅 badge now updates on existing Trello tasks after focus session (patch path was skipping it).',
@@ -7190,10 +7192,14 @@ document.addEventListener('visibilitychange', () => {
     const ml = $.manualList || document.getElementById('manualList');
     if (ml) { ml.style.display = 'none'; ml.offsetHeight; ml.style.display = ''; }
 
-    // Check triage bar on tab return — but read fresh from localStorage
-    // (synced dismissal may have arrived while tab was hidden)
-    triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
-    checkTriageBar();
+    // Defer triage check — sync runs immediately on tab return (BUG-002),
+    // and mergeRemoteData handles triage dismissal. Checking triage before
+    // sync completes shows a stale bar that gets hidden moments later. (BUG-001)
+    // Wait 3s to give sync time to complete, then check with fresh state.
+    setTimeout(() => {
+      triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
+      checkTriageBar();
+    }, 3000);
     
     // Retry pending backup
     if (_pendingBackup) {
@@ -7209,10 +7215,13 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // PWA standalone may not always fire visibilitychange on window restore —
-// window focus is a reliable fallback for forced repaint (BUG-004)
+// window focus is a reliable fallback for forced repaint (BUG-004) and sync (BUG-002)
 window.addEventListener('focus', () => {
   const ml = $.manualList || document.getElementById('manualList');
   if (ml) { ml.style.display = 'none'; ml.offsetHeight; ml.style.display = ''; }
+  // Trigger sync if available — PWA may not have fired visibilitychange
+  if (window._dbxResetRev) window._dbxResetRev(); // force fresh pull (BUG-002 Path B)
+  if (window._dbxSyncNow) window._dbxSyncNow();
 });
 
 // ── Backup ────────────────────────────────────────────────────────────────────
@@ -7906,12 +7915,22 @@ async function dropboxRestore(fromSync) {
   // Debug: expose ticker status and manual trigger
   window._dbxTickerRunning = () => !!ticker;
   window._dbxSyncNow = () => syncAll();
+  window._dbxResetRev = () => { lastDropboxRev = null; };
 
   let wakeTimer = null;
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       clearTimeout(wakeTimer);
-      wakeTimer = setTimeout(() => { syncAll(); startTicker(); }, 2000);
+      // Reset rev baseline so syncDropbox does a full pull on return —
+      // Dropbox CDN may lag, so rev could appear unchanged even when
+      // another device wrote new data. (BUG-002 Path B)
+      lastDropboxRev = null;
+      // Sync immediately on tab/PWA return — don't wait 2s (BUG-002 Path C)
+      _refreshSyncCache();
+      syncDropbox();
+      syncTrello();
+      // Start ticker after a short delay (let the immediate sync settle)
+      wakeTimer = setTimeout(() => { startTicker(); }, 2000);
     } else {
       clearTimeout(wakeTimer);
       stopTicker();
