@@ -1,80 +1,39 @@
 # TODAY — Known Bugs
 
-> Persistent bugs that need verified fixes. Each bug tracks the problem, root cause, fix attempts, and verification status.
+> Tracks persistent bugs, their fixes, and verification status. Read at session start (Tier 1).
 
 ---
 
 ## BUG-001: Triage dismissed on one device, still shows on the other
 
-**Status:** Fixed in v2.12.59–2.12.60 — awaiting verification
-**First noticed:** ~v2.12.27
-**Previous fix attempts:** v2.12.27 (triage sync), v2.12.40 (read fresh from localStorage on tab return), v2.12.43 (overlay hides on sync)
+**Status:** Fixed v2.12.59–2.12.60 — awaiting verification
 
-**Symptoms:**
-- Complete triage on Device A
-- Open Device B (or return to it) before end of day
-- Device B still shows triage bar/overlay, even though Device A already dismissed it
+**Symptom:** Complete triage on Device A → Device B still shows triage bar on return.
 
-**Root cause:**
-`checkTriageBar()` ran synchronously on tab return, before the async `syncDropbox()` could complete. The sequence was:
-1. Tab becomes visible
-2. `triageDismissedToday` reads from localStorage (stale — sync hasn't pulled yet)
-3. `checkTriageBar()` shows triage bar immediately
-4. Sync pulls remote data seconds later → `mergeRemoteData` hides the bar
+**Root cause:** `checkTriageBar()` ran synchronously on tab return, before async `syncDropbox()` could pull the dismissed state from Dropbox.
 
-The triage bar would flash on screen for a few seconds before being hidden — or worse, if sync failed silently, it would stay.
+**Fix:** Sync runs immediately on return (v2.12.59). `checkTriageBar()` deferred 3s on both `visibilitychange` and `window.focus` so sync has time to pull `triage_dismissed` from remote (v2.12.60). `mergeRemoteData` already handles hiding the bar when remote has today's dismissal.
 
-**Fix (v2.12.59 + v2.12.60):**
-1. v2.12.59: Sync now runs immediately on tab return (no 2s delay), so the window is shorter
-2. v2.12.60: `checkTriageBar()` deferred 3s on tab return via `setTimeout`. This gives sync time to complete and pull the dismissed state from Dropbox. `mergeRemoteData` already handles setting `triageDismissedToday = true` and hiding the bar/overlay when remote has today's dismissal.
-
-**How to verify:**
-1. Have undone tasks on both devices during triage window (8pm–1am)
-2. On Device A, complete triage (keep/soon/let go all tasks) → bar dismisses
-3. Wait ~10 seconds for Dropbox sync to push
-4. Switch to Device B (or bring it to foreground)
-5. Triage bar should NOT appear — not even a brief flash
-6. If triage bar does flash briefly and then disappears, the fix is partially working but sync is slower than 3s
+**Verify:** During triage window (8pm–1am), dismiss triage on Device A → wait 10s → return to Device B. Bar should not appear, not even briefly.
 
 **Verified fixed:** ☐
 
 ---
 
-## BUG-002: Dropbox sync fails silently on fresh load / tab return
+## BUG-002: Dropbox sync fails silently — stale data on return
 
-**Status:** Fixed in v2.12.58–2.12.59 — awaiting verification
-**Severity:** High — user sees stale data with no indication sync failed
+**Status:** Fixed v2.12.58–2.12.59 — awaiting verification
 
-**Symptoms:**
-- Open app fresh → shows "last sync 45m ago" and doesn't pull new data
-- Changes made on Device A don't appear on Device B even after fresh load
-- No error shown — app looks normal but data is stale
+**Symptom:** Open app or return to it → shows "last sync 45m ago", doesn't pull new data. No error visible.
 
-**Root causes and fixes:**
+**Root causes & fixes:**
+- **Token refresh fails silently** → Now retries once with 2s backoff + errors route to red dot (v2.12.58)
+- **Rev comparison skips sync** → `lastDropboxRev` reset to `null` on every return (v2.12.59)
+- **2s delay before sync on return** → Sync now runs immediately; 2s delay only for ticker start (v2.12.59)
+- **Silent `catch(e) {}`** → All sync catches use `_logSyncError()` → red dot indicator (v2.12.58)
+- **PWA fallback** → `window.focus` triggers rev reset + sync for standalone mode (v2.12.59)
 
-### Path A: Token expired silently → Fixed v2.12.58
-- `_dropboxEnsureToken()` now retries once with 2s backoff (Netlify cold start)
-- Failures routed to `_logSyncError` → red dot visible in PWA
-
-### Path B: Rev comparison skips sync → Fixed v2.12.59
-- `lastDropboxRev` reset to `null` on tab return (`visibilitychange`) and PWA focus
-- Forces a fresh metadata check even if Dropbox CDN hasn't propagated the new rev yet
-
-### Path C: Tab return 2s delay → Fixed v2.12.59
-- `syncDropbox()` and `syncTrello()` now run immediately on `visibilitychange`
-- 2s delay kept only for starting the ticker (not the initial pull)
-- PWA `window.focus` also triggers immediate sync as fallback
-
-### Path D: `catch(e) {}` swallows everything → Fixed v2.12.58
-- All sync catch blocks now use `_logSyncError()` → red dot error indicator
-
-**How to verify:**
-1. Make changes on Device A (add/check tasks), wait for sync indicator to update
-2. Switch to Device B (which has been idle)
-3. Tasks should appear within 1-2 seconds — no 2s+ delay, no stale data
-4. Check "last sync" timestamp in Connections — should show "just now"
-5. If sync fails, red dot should appear with tagged error message
-6. Test specifically in PWA standalone mode (not just browser tab)
+**Verify:** Make changes on Device A → switch to idle Device B → tasks should appear within 1-2s. If sync fails, red dot should appear.
 
 **Verified fixed:** ☐
 
@@ -82,70 +41,31 @@ The triage bar would flash on screen for a few seconds before being hidden — o
 
 ## BUG-003: "Failed to fetch" errors in production, disappear on refresh
 
-**Status:** Fixed in v2.12.58 — awaiting verification
-**Severity:** Medium — intermittent, no permanent data loss, but confusing
+**Status:** Fixed v2.12.58 — awaiting verification
 
-**Symptoms:**
-- Console shows "Failed to fetch" errors in production
-- App may appear to work but API calls (AI, Dropbox, Trello) silently fail
-- Refreshing the page fixes it
+**Symptom:** Red dot or console shows "Failed to fetch". App works after refresh.
 
-**Root cause:**
-Every `catch(e) {}` in the sync module swallowed errors completely — no logging, no UI feedback. "Failed to fetch" appeared in the console only when it bubbled as an unhandled rejection (rare). Most failures were invisible. Netlify function cold starts could timeout `_dropboxEnsureToken()`, causing all subsequent Dropbox calls to fail silently for the session.
+**Root cause:** Netlify function cold starts timeout `_dropboxEnsureToken()`. All subsequent Dropbox calls fail. Every `catch(e) {}` swallowed the error — no UI feedback.
 
-**Fix (v2.12.58):**
-1. Added `_logSyncError(source, msg)` helper — pushes to the red dot error indicator AND logs to console. Errors now visible in PWA without devtools.
-2. All sync catch blocks now use `_logSyncError` with tagged sources: `Dropbox` (token refresh, sync, restore, rev seed, initial pull), `Trello` (sync), `Sync` (startup).
-3. `_dropboxEnsureToken()` retries once with 2s backoff — catches Netlify cold start timeouts.
+**Fix:** `_logSyncError(source, msg)` helper routes all sync failures to the red dot error indicator with tagged source (Dropbox, Trello, Sync). `_dropboxEnsureToken()` retries once with 2s backoff for cold starts.
 
-**How to verify:**
-1. Open app as PWA on desktop
-2. If sync errors occur, the red dot should appear in the top-right
-3. Click the red dot — error log should show tagged messages like `[Dropbox] Token refresh attempt 1: Failed to fetch`
-4. After refresh, if the error was a cold start, it should not recur (retry handles it)
-5. Monitor over several days — any "Failed to fetch" should now be visible and identifiable
+**Verify:** Monitor red dot over several days. On tap, error log should show tagged messages like `[Dropbox] Token refresh attempt 1: Failed to fetch`. Cold start errors should self-heal via retry.
 
 **Verified fixed:** ☐
 
 ---
 
-## BUG-004: Task list disappears after inactivity, returns on click
+## BUG-004: Task list blank after inactivity, returns on click
 
-**Status:** Fixed in v2.12.57 — awaiting verification
-**Severity:** High — core UX broken, user thinks tasks are lost
-**Previous fix attempts:** v2.12.41 (clear stale `.focusing` class on init and bfcache restore)
+**Status:** Fixed v2.12.57 — awaiting verification
 
-**Symptoms:**
-- Leave app inactive for a while (tab in background or screen off)
-- Return to app — task list area appears empty/blank
-- Click anywhere on the task list area → tasks reappear instantly
-- No data loss — tasks were always there, just not visible
-- **Desktop only** — not observed on mobile
-- **No focus timer active** — app is simply idle in background
-- **Running as PWA** (standalone mode via Add to Dock) — not a browser tab
+**Symptom:** Leave desktop PWA idle → return → task list area blank. Click anywhere → tasks reappear instantly. No data loss.
 
-**Root cause:**
-Most likely browser paint deferral, but in PWA standalone context rather than tab throttling. When a PWA window is minimized or loses focus for extended periods, the OS suspends its renderer. On restore, the DOM may be correct but the compositor layer isn't repainted. The `contain: layout style` on `.task-list` makes this worse — it tells the browser the list's layout is isolated, giving it permission to skip repainting that layer.
+**Root cause:** Browser paint deferral in PWA standalone. OS suspends renderer when window loses focus. On restore, DOM is correct but compositor layer isn't repainted. `contain: layout style` on `.task-list` gives browser permission to skip repainting. PWA may not fire `visibilitychange` on window focus.
 
-PWA standalone mode doesn't fire `visibilitychange` the same way as browser tabs — some browsers only fire it on minimize/restore, not on window focus changes. This means the forced repaint fix may not trigger in all cases.
+**Fix:** Forced repaint (`display` toggle + `offsetHeight` reflow) on three entry points: `visibilitychange`, `window.focus` (PWA fallback), `pageshow` (bfcache).
 
-Clicking anywhere forces a repaint, which is why tasks "come back" on click — JS isn't restoring them, the browser is finally painting.
-
-**Fix (v2.12.57):**
-Forced repaint on three entry points:
-1. `visibilitychange` → when tab/app becomes visible, toggle `manualList.style.display` off/on with `offsetHeight` read in between to force reflow
-2. `pageshow` (bfcache) → same forced repaint after clearing stale focus state
-3. `window.focus` → fallback for PWA standalone mode, which may not fire `visibilitychange` on window restore/focus
-
-Both run before any sync or triage checks.
-
-**How to verify:**
-1. Open app on desktop (Chrome or Safari) with tasks visible
-2. Switch to another tab or minimize window
-3. Wait at least 2-3 minutes (longer = more likely to reproduce)
-4. Switch back to app tab
-5. Task list should be visible immediately — no blank state, no click needed
-6. Repeat several times over a day to confirm
+**Verify:** Open desktop PWA with tasks → minimize or switch away for 2-3 min → return. Task list should be visible immediately without clicking. Repeat over several days.
 
 **Verified fixed:** ☐
 
@@ -153,31 +73,22 @@ Both run before any sync or triage checks.
 
 ## BUG-005: Pomodoro session count not shown on Trello tasks
 
-**Status:** Fixed in v2.12.56 — awaiting verification
-**Severity:** Low — cosmetic, data is tracked but not displayed after patch render
+**Status:** Fixed v2.12.56 — awaiting verification
 
-**Symptoms:**
-- Complete a focus session on a Trello task
-- Session count (🍅) badge doesn't appear or update on the Trello task row
-- Manual tasks and habits show session counts correctly
+**Symptom:** Complete focus session on Trello task → 🍅 badge doesn't appear until page reload.
 
-**Root cause:**
-`renderTrello()` has two code paths:
-1. **New task** (line ~5001): uses `taskHTML(task, 'trello')` which correctly includes session count via `_getTrelloFocus()`
-2. **Existing task patch** (line ~4976): surgically updates text, due badge, and done state — but **never touches the session count badge**
+**Root cause:** `renderTrello()` has a surgical patch path for existing tasks that updates text, due badge, and done state — but skipped session count.
 
-After a focus session completes, `_logSession` updates `today_trello_focus` in localStorage, but `renderTrello`'s patch path doesn't re-read or update the `.session-count` span. The badge stays empty until a full page reload triggers path 1.
+**Fix:** Added `_getTrelloFocus()[id]` read and `.session-count` DOM update to the existing-task branch in `renderTrello()`.
 
-**Fix (v2.12.56):**
-Added session count patching to the existing-task branch in `renderTrello()`, after done state toggle. Reads `_getTrelloFocus()[id]`, updates `.session-count` text and `has-sessions` class. Also handles the reverse (count reset to 0).
-
-**How to verify:**
-1. Connect Trello with at least one task visible
-2. Click a Trello task to start a focus session (desktop)
-3. Complete or cancel the session (check the task or click away)
-4. Trello task should show `1 🍅` badge immediately — no refresh needed
-5. Start and complete a second session → badge should update to `2 🍅`
+**Verify:** Start and complete a focus session on a Trello task → `1 🍅` should appear immediately. Second session → `2 🍅`.
 
 **Verified fixed:** ☐
+
+---
+
+## Cross-cutting: `_logSyncError` (v2.12.58)
+
+Helper function that makes sync failures visible in PWA without devtools. Pushes to `_errorLog` array and shows the red dot error indicator. Click the red dot → alert shows all errors with tagged sources. Defined in the Error Monitoring section near the top of `<script>`.
 
 ---
