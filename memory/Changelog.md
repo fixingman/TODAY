@@ -2,6 +2,11 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.60** | **Fix: Triage cross-device** — `checkTriageBar()` deferred 3s on tab return so `syncDropbox()` can pull dismissal state first. Previously triage check ran synchronously before async sync completed, showing a stale bar that got hidden moments later. `mergeRemoteData` already handles hiding the bar when remote has `triage_dismissed` for today. |
+| **2.12.59** | **Fix: Sync on return** — Immediate `syncDropbox()` + `syncTrello()` on tab return (was 2s delay). Rev baseline (`lastDropboxRev`) reset to `null` on return so Dropbox CDN lag doesn't skip sync. PWA `window.focus` also triggers sync + rev reset as fallback when `visibilitychange` doesn't fire in standalone mode. |
+| **2.12.58** | **Fix: Sync errors visible** — All sync `catch` blocks now route through `_logSyncError()` which pushes to the red dot error indicator. Token refresh (`_dropboxEnsureToken`) retries once with 2s backoff for Netlify cold starts. Errors tagged by source: Dropbox, Trello, Sync. |
+| **2.12.57** | **Fix: Task list blank after inactivity** — Forced repaint on tab return (`visibilitychange`), window focus (PWA standalone), and bfcache restore (`pageshow`). Browser paint deferral combined with `contain: layout style` on `.task-list` was causing stale compositor layer. Desktop PWA only. |
+| **2.12.56** | **Fix: Trello session count** — 🍅 badge now updates on existing Trello tasks after focus session. `renderTrello` patch path was only updating text, due badge, and done state — session count was skipped. |
 | **2.12.55** | **Fix: Task order sync** — `mergeRemoteData` was only detecting add/remove, not reorder. Now checks ID sequence and re-renders when order differs. Also added `last_sync_read` for accurate status display. |
 | **2.12.53** | **Fix: Trello done next day** — Done Trello cards in today list now hide the next day. Uses `checked_ids` timestamp to show only if checked today. |
 | **2.12.52** | **Fix: SOON/PAST ghost tasks** — Zone merge now checks if task was pulled back to TODAY with newer timestamp. Tasks no longer resurrect after being moved or deleted. |

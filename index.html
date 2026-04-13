@@ -2879,6 +2879,13 @@ window.scrollTo(0, 0);
 
 // ─── Error Monitoring (dev aid) ───────────────────────────────────────────────
 const _errorLog = [];
+function _logSyncError(source, msg) {
+  const entry = '[' + source + '] ' + (msg || 'unknown error');
+  _errorLog.push(entry);
+  const el = document.getElementById('errorIndicator');
+  if (el) { el.style.display = 'block'; el.dataset.count = _errorLog.length; }
+  console.warn(entry);
+}
 window.onerror = function(msg, url, line, col, err) {
   _errorLog.push(`${msg} at ${url}:${line}:${col}`);
   const el = document.getElementById('errorIndicator');
@@ -2919,11 +2926,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.55';
-const DEV_HOURS     = '160h';
+const APP_VERSION   = '2.12.60';
+const DEV_HOURS     = '162h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.60': 'Fix: Triage cross-device — triage check deferred 3s on tab return so sync can pull dismissal state from Dropbox first. No more premature triage bar flash.',
+  '2.12.59': 'Fix: Sync on return — immediate sync on tab return and PWA focus (no 2s delay). Rev baseline reset forces fresh Dropbox pull instead of skipping on stale rev match.',
+  '2.12.58': 'Fix: Sync errors now visible — red dot indicator shows sync failures (token refresh, Dropbox, Trello). Token refresh retries once on cold start timeout.',
+  '2.12.57': 'Fix: Task list blank after inactivity — forced repaint on tab return, window focus (PWA), and bfcache restore. Browser paint deferral + contain:layout was causing stale compositor layer.',
+  '2.12.56': 'Fix: Trello session count — 🍅 badge now updates on existing Trello tasks after focus session (patch path was skipping it).',
   '2.12.55': 'Fix: Task order now syncs across devices. mergeRemoteData was only detecting add/remove, not reorder. Also added last_sync_read for accurate status display.',
   '2.12.53': 'Fix: Done Trello cards in today list now hide the next day. Uses checked_ids timestamp to determine if checked today vs yesterday.',
   '2.12.52': 'Fix: SOON/PAST ghost tasks — Zone merge now checks if task was pulled back to TODAY. Tasks no longer resurrect after being moved or deleted.',
@@ -4991,6 +5003,19 @@ function renderTrello() {
 
       el.classList.toggle('done', doneIds.has(id));
       _applyDoneStyles(el, doneIds.has(id));
+
+      // Patch session count badge
+      const focusCount = _getTrelloFocus()[id] || 0;
+      const sessionEl = el.querySelector('.session-count');
+      if (sessionEl) {
+        if (focusCount > 0) {
+          sessionEl.textContent = focusCount + ' 🍅';
+          sessionEl.classList.add('has-sessions');
+        } else {
+          sessionEl.textContent = '';
+          sessionEl.classList.remove('has-sessions');
+        }
+      }
 
       // Move to correct position — skip removing elements when counting index
       const stableChildren = [...list.children].filter(c => !c.classList.contains('removing'));
@@ -7117,23 +7142,31 @@ async function _dropboxEnsureToken() {
   if (!refreshToken) return; // legacy token — no refresh possible
   if (Date.now() < expiry)  return; // still valid
 
-  try {
-    const res  = await fetch('/.netlify/functions/dropbox-refresh', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ refresh_token: refreshToken }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      localStorage.setItem('dropbox_token_expired', '1');
+  // Retry once on failure — Netlify cold starts can cause first fetch to timeout (BUG-003)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res  = await fetch('/.netlify/functions/dropbox-refresh', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ refresh_token: refreshToken }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        localStorage.setItem('dropbox_token_expired', '1');
+        dropboxUpdateUI();
+        return;
+      }
+      localStorage.setItem('dropbox_token',        data.access_token);
+      localStorage.setItem('dropbox_token_expiry', String(Date.now() + (data.expires_in - 60) * 1000));
+      localStorage.removeItem('dropbox_token_expired');
       dropboxUpdateUI();
-      return;
+      return; // success — exit loop
+    } catch(e) {
+      _logSyncError('Dropbox', 'Token refresh attempt ' + (attempt + 1) + ': ' + e.message);
+      if (attempt === 0) await new Promise(r => setTimeout(r, 2000)); // wait 2s before retry
     }
-    localStorage.setItem('dropbox_token',        data.access_token);
-    localStorage.setItem('dropbox_token_expiry', String(Date.now() + (data.expires_in - 60) * 1000));
-    localStorage.removeItem('dropbox_token_expired');
-    dropboxUpdateUI();
-  } catch(e) { /* silent — will retry next tick */ }
+  }
+  // Both attempts failed — token stays expired, subsequent Dropbox calls will skip
 }
 
 // ── Auto-save (debounced, called after every user action that changes state) ──
@@ -7153,10 +7186,20 @@ function dropboxAutoSave() {
 // Retry pending backup when tab becomes visible
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
-    // Check triage bar on tab return — but read fresh from localStorage
-    // (synced dismissal may have arrived while tab was hidden)
-    triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
-    checkTriageBar();
+    // Force repaint — browsers defer painting for background tabs,
+    // especially with contain:layout. Without this, task list can appear
+    // blank after long inactivity until user clicks. (BUG-004)
+    const ml = $.manualList || document.getElementById('manualList');
+    if (ml) { ml.style.display = 'none'; ml.offsetHeight; ml.style.display = ''; }
+
+    // Defer triage check — sync runs immediately on tab return (BUG-002),
+    // and mergeRemoteData handles triage dismissal. Checking triage before
+    // sync completes shows a stale bar that gets hidden moments later. (BUG-001)
+    // Wait 3s to give sync time to complete, then check with fresh state.
+    setTimeout(() => {
+      triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
+      checkTriageBar();
+    }, 3000);
     
     // Retry pending backup
     if (_pendingBackup) {
@@ -7169,6 +7212,21 @@ document.addEventListener('visibilitychange', () => {
       }
     }
   }
+});
+
+// PWA standalone may not always fire visibilitychange on window restore —
+// window focus is a reliable fallback for forced repaint (BUG-004) and sync (BUG-002)
+window.addEventListener('focus', () => {
+  const ml = $.manualList || document.getElementById('manualList');
+  if (ml) { ml.style.display = 'none'; ml.offsetHeight; ml.style.display = ''; }
+  // Trigger sync if available — PWA may not have fired visibilitychange
+  if (window._dbxResetRev) window._dbxResetRev(); // force fresh pull (BUG-002 Path B)
+  if (window._dbxSyncNow) window._dbxSyncNow();
+  // Deferred triage check — same as visibilitychange (BUG-001)
+  setTimeout(() => {
+    triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
+    checkTriageBar();
+  }, 3000);
 });
 
 // ── Backup ────────────────────────────────────────────────────────────────────
@@ -7759,12 +7817,13 @@ async function dropboxRestore(fromSync) {
             body: JSON.stringify({ path: DROPBOX_FILE }),
           });
           if (_m.ok) { const _md = await _m.json(); if (_md && _md.rev) window._dbxSetRev(_md.rev); }
-        } catch(e) {}
+        } catch(e) { _logSyncError('Dropbox', 'Rev seed: ' + e.message); }
       }
       dropboxShowMsg('Restore complete ✓', 'success');
     }
 
   } catch(e) {
+    _logSyncError('Dropbox', 'Restore: ' + e.message);
     if (!fromSync) dropboxShowMsg('Restore failed: ' + (e.message || 'unknown error'), 'error');
   }
 }
@@ -7792,7 +7851,7 @@ async function dropboxRestore(fromSync) {
       if (!date || date === lastTrelloDate) return;
       lastTrelloDate = date;
       loadTrello(true);
-    } catch(e) { /* silent */ }
+    } catch(e) { _logSyncError('Trello', 'Sync: ' + e.message); }
   }
 
   // ── Dropbox: cheap rev check, only restore if file changed on another device ──
@@ -7815,7 +7874,7 @@ async function dropboxRestore(fromSync) {
       lastDropboxRev = rev;
       await dropboxRestore(true);
       localStorage.setItem('last_sync_read', new Date().toISOString());
-    } catch(e) { /* silent */ }
+    } catch(e) { _logSyncError('Dropbox', 'Sync: ' + e.message); }
   }
 
   // Expose rev setter so dropboxBackup can update baseline after its own write
@@ -7861,12 +7920,22 @@ async function dropboxRestore(fromSync) {
   // Debug: expose ticker status and manual trigger
   window._dbxTickerRunning = () => !!ticker;
   window._dbxSyncNow = () => syncAll();
+  window._dbxResetRev = () => { lastDropboxRev = null; };
 
   let wakeTimer = null;
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       clearTimeout(wakeTimer);
-      wakeTimer = setTimeout(() => { syncAll(); startTicker(); }, 2000);
+      // Reset rev baseline so syncDropbox does a full pull on return —
+      // Dropbox CDN may lag, so rev could appear unchanged even when
+      // another device wrote new data. (BUG-002 Path B)
+      lastDropboxRev = null;
+      // Sync immediately on tab/PWA return — don't wait 2s (BUG-002 Path C)
+      _refreshSyncCache();
+      syncDropbox();
+      syncTrello();
+      // Start ticker after a short delay (let the immediate sync settle)
+      wakeTimer = setTimeout(() => { startTicker(); }, 2000);
     } else {
       clearTimeout(wakeTimer);
       stopTicker();
@@ -7962,9 +8031,9 @@ async function dropboxRestore(fromSync) {
                 if (changed) await dropboxBackup(true);
               }
             }
-          } catch(e) { /* offline or missing file — continue with local data */ }
+          } catch(e) { _logSyncError('Dropbox', 'Initial pull: ' + e.message); }
         }
-      } catch(e) { /* silent */ }
+      } catch(e) { _logSyncError('Sync', 'Startup: ' + e.message); }
 
       // New-day cleanup runs here — AFTER Dropbox restore — so we always clean
       // the freshest data. Running it in init() before the restore caused done
@@ -10345,6 +10414,9 @@ window.addEventListener('pageshow', (e) => {
       mainApp.querySelectorAll('.focused').forEach(el => el.classList.remove('focused'));
       console.log('[TODAY] Cleared stale focus state after bfcache restore');
     }
+    // Force repaint after bfcache restore (BUG-004)
+    const ml = document.getElementById('manualList');
+    if (ml) { ml.style.display = 'none'; ml.offsetHeight; ml.style.display = ''; }
   }
 });
 

@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Sync fixes — task order, Trello done state
-- **Recent:** v2.12.55 — Task order now syncs (was only detecting add/remove)
-- **Watch for:** Sync edge cases, merge conflicts
+- **Working on:** Bug fixes — sync reliability, paint deferral, triage cross-device
+- **Recent:** v2.12.60 — All 5 known bugs fixed, awaiting production verification
+- **Watch for:** Red dot errors in PWA, triage still showing cross-device, blank task list
 
 ---
 
@@ -18,11 +18,13 @@
 | `Rules.md` | Critical constraints |
 | `Housekeeping.md` | Session routines |
 | `Backlog.md` | Pending work |
+| `Bugs.md` | Known bugs & verification status |
 | `Changelog.md` | Recent changes |
 
 ### Tier 2 — Read when task requires
 | Task | Read |
 |------|------|
+| Bug fixes | `Bugs.md` |
 | CSS/colors/fonts | `design/Tokens.md` |
 | Animation/motion | `design/Motion.md` |
 | UI components | `design/Components.md` |

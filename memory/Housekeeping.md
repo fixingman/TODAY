@@ -10,7 +10,8 @@ Before starting work, read (Tier 1):
 1. `Rules.md` — Critical constraints + File Guide
 2. `Housekeeping.md` — This file (routines, checklists)
 3. `Backlog.md` — Pending work, watch decisions
-4. `Changelog.md` — Recent changes
+4. `Bugs.md` — Known bugs, fix status, verification steps
+5. `Changelog.md` — Recent changes
 
 Then read Tier 2 files relevant to the task (see `Rules.md` File Guide).
 
@@ -35,6 +36,7 @@ After completing work:
 
 ### 3. Review & Update Memory Files
 **Every change should trigger a memory review.** Ask: "Does this change affect any documented behavior?"
+- Bug fix → `Bugs.md` (update status, add verification steps)
 - New rule → `Rules.md`
 - Data/localStorage change → `architecture/Data.md`
 - Sync behavior → `architecture/Sync.md`
