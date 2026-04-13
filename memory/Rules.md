@@ -18,11 +18,13 @@
 | `Rules.md` | Critical constraints |
 | `Housekeeping.md` | Session routines |
 | `Backlog.md` | Pending work |
+| `Bugs.md` | Known bugs & verification status |
 | `Changelog.md` | Recent changes |
 
 ### Tier 2 — Read when task requires
 | Task | Read |
 |------|------|
+| Bug fixes | `Bugs.md` |
 | CSS/colors/fonts | `design/Tokens.md` |
 | Animation/motion | `design/Motion.md` |
 | UI components | `design/Components.md` |

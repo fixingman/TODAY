@@ -2919,11 +2919,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.55';
+const APP_VERSION   = '2.12.56';
 const DEV_HOURS     = '160h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.56': 'Fix: Trello session count — 🍅 badge now updates on existing Trello tasks after focus session (patch path was skipping it).',
   '2.12.55': 'Fix: Task order now syncs across devices. mergeRemoteData was only detecting add/remove, not reorder. Also added last_sync_read for accurate status display.',
   '2.12.53': 'Fix: Done Trello cards in today list now hide the next day. Uses checked_ids timestamp to determine if checked today vs yesterday.',
   '2.12.52': 'Fix: SOON/PAST ghost tasks — Zone merge now checks if task was pulled back to TODAY. Tasks no longer resurrect after being moved or deleted.',
@@ -4991,6 +4992,19 @@ function renderTrello() {
 
       el.classList.toggle('done', doneIds.has(id));
       _applyDoneStyles(el, doneIds.has(id));
+
+      // Patch session count badge
+      const focusCount = _getTrelloFocus()[id] || 0;
+      const sessionEl = el.querySelector('.session-count');
+      if (sessionEl) {
+        if (focusCount > 0) {
+          sessionEl.textContent = focusCount + ' 🍅';
+          sessionEl.classList.add('has-sessions');
+        } else {
+          sessionEl.textContent = '';
+          sessionEl.classList.remove('has-sessions');
+        }
+      }
 
       // Move to correct position — skip removing elements when counting index
       const stableChildren = [...list.children].filter(c => !c.classList.contains('removing'));

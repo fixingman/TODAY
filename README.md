@@ -1,8 +1,6 @@
 # ✦ TODAY
 
-A single-day task manager. One screen, one list, one day.
-
-Nothing carries over. Nothing accumulates. The morning is a clean slate.
+Your daily task manager. A calm space for your day. Do what matters. Let go of what doesn't. Habits build quietly. Each morning is a clean slate.
 
 **[today-here.netlify.app](https://today-here.netlify.app)**
 
@@ -14,10 +12,12 @@ Nothing carries over. Nothing accumulates. The morning is a clean slate.
 - Drag to reorder tasks, Trello cards, and habits — desktop and mobile
 - **Zones** — SOON for deferred tasks, PAST for completed/let-go tasks
 - **Evening triage** — review aging tasks each night (8pm–1am)
+- **Morning nudge** — gentle reminder of tasks that carried over from yesterday
 - Track daily habits with a 21-day history strip and habit strength score
-- AI assistant (optional) — task breakdown, behavioral insights, powered by Gemini (free) or Claude
+- AI assistant (optional) — task breakdown, behavioral insights, triage hints, powered by Gemini (free) or Claude
 - Pull in cards from a Trello board so you don't re-enter work tasks
-- Focus mode (desktop) — click any task or habit to start a 25-minute Pomodoro session
+- Focus mode (desktop) — click any task or habit to start a 25-minute Pomodoro session with Picture-in-Picture timer
+- Idle companions — small creatures that wander the screen when you step away
 - Sync tasks and habits across devices via your own Dropbox
 - Installs as a desktop or mobile app (PWA) — no App Store needed
 - Works offline after the first load, updates automatically in the background
@@ -107,7 +107,7 @@ Your key is stored locally in your browser and sent only through your own Netlif
 
 Each device stores state in `localStorage`. Dropbox holds a single JSON backup file (`/today-backup.json`). On startup and every 7 seconds the app does a cheap metadata check — a full sync only happens if the file actually changed.
 
-Concurrent edits are handled with union merge: tasks and habits added on two devices offline both survive. Deletes and check/uncheck operations carry timestamps so the most recent intent wins. Backup schema version `5.1`.
+Concurrent edits are handled with union merge: tasks and habits added on two devices offline both survive. Deletes and check/uncheck operations carry timestamps so the most recent intent wins. Backup schema version `5.2`.
 
 ---
 
