@@ -2,6 +2,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.57** | **Fix: Task list blank after inactivity** — Forced repaint on tab return (`visibilitychange`), window focus (PWA standalone), and bfcache restore (`pageshow`). Browser paint deferral combined with `contain: layout style` on `.task-list` was causing stale compositor layer. Desktop PWA only. |
 | **2.12.56** | **Fix: Trello session count** — 🍅 badge now updates on existing Trello tasks after focus session. `renderTrello` patch path was only updating text, due badge, and done state — session count was skipped. |
 | **2.12.55** | **Fix: Task order sync** — `mergeRemoteData` was only detecting add/remove, not reorder. Now checks ID sequence and re-renders when order differs. Also added `last_sync_read` for accurate status display. |
 | **2.12.53** | **Fix: Trello done next day** — Done Trello cards in today list now hide the next day. Uses `checked_ids` timestamp to show only if checked today. |

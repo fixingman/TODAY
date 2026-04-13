@@ -2919,11 +2919,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.56';
+const APP_VERSION   = '2.12.57';
 const DEV_HOURS     = '160h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.57': 'Fix: Task list blank after inactivity — forced repaint on tab return, window focus (PWA), and bfcache restore. Browser paint deferral + contain:layout was causing stale compositor layer.',
   '2.12.56': 'Fix: Trello session count — 🍅 badge now updates on existing Trello tasks after focus session (patch path was skipping it).',
   '2.12.55': 'Fix: Task order now syncs across devices. mergeRemoteData was only detecting add/remove, not reorder. Also added last_sync_read for accurate status display.',
   '2.12.53': 'Fix: Done Trello cards in today list now hide the next day. Uses checked_ids timestamp to determine if checked today vs yesterday.',
@@ -7167,6 +7168,12 @@ function dropboxAutoSave() {
 // Retry pending backup when tab becomes visible
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
+    // Force repaint — browsers defer painting for background tabs,
+    // especially with contain:layout. Without this, task list can appear
+    // blank after long inactivity until user clicks. (BUG-004)
+    const ml = $.manualList || document.getElementById('manualList');
+    if (ml) { ml.style.display = 'none'; ml.offsetHeight; ml.style.display = ''; }
+
     // Check triage bar on tab return — but read fresh from localStorage
     // (synced dismissal may have arrived while tab was hidden)
     triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
@@ -7183,6 +7190,13 @@ document.addEventListener('visibilitychange', () => {
       }
     }
   }
+});
+
+// PWA standalone may not always fire visibilitychange on window restore —
+// window focus is a reliable fallback for forced repaint (BUG-004)
+window.addEventListener('focus', () => {
+  const ml = $.manualList || document.getElementById('manualList');
+  if (ml) { ml.style.display = 'none'; ml.offsetHeight; ml.style.display = ''; }
 });
 
 // ── Backup ────────────────────────────────────────────────────────────────────
@@ -10359,6 +10373,9 @@ window.addEventListener('pageshow', (e) => {
       mainApp.querySelectorAll('.focused').forEach(el => el.classList.remove('focused'));
       console.log('[TODAY] Cleared stale focus state after bfcache restore');
     }
+    // Force repaint after bfcache restore (BUG-004)
+    const ml = document.getElementById('manualList');
+    if (ml) { ml.style.display = 'none'; ml.offsetHeight; ml.style.display = ''; }
   }
 });
 

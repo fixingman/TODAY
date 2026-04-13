@@ -128,7 +128,7 @@ On tab return, trigger sync *first*, then check triage *after* sync completes. O
 
 ## BUG-004: Task list disappears after inactivity, returns on click
 
-**Status:** Open
+**Status:** Fixed in v2.12.57 — awaiting verification
 **Severity:** High — core UX broken, user thinks tasks are lost
 **Previous fix attempts:** v2.12.41 (clear stale `.focusing` class on init and bfcache restore)
 
@@ -139,35 +139,30 @@ On tab return, trigger sync *first*, then check triage *after* sync completes. O
 - No data loss — tasks were always there, just not visible
 - **Desktop only** — not observed on mobile
 - **No focus timer active** — app is simply idle in background
+- **Running as PWA** (standalone mode via Add to Dock) — not a browser tab
 
-**Likely root causes (in order of probability):**
+**Root cause:**
+Most likely browser paint deferral, but in PWA standalone context rather than tab throttling. When a PWA window is minimized or loses focus for extended periods, the OS suspends its renderer. On restore, the DOM may be correct but the compositor layer isn't repainted. The `contain: layout style` on `.task-list` makes this worse — it tells the browser the list's layout is isolated, giving it permission to skip repainting that layer.
 
-### 1. Browser paint deferral (most likely)
-- Chrome/Safari suspend rendering for background tabs
-- When tab returns, DOM is correct but pixels aren't redrawn
-- Any interaction (click, scroll) forces a repaint → tasks appear
-- The section header has no onclick handler — clicking it does nothing in JS, but the browser repaints
-- This would explain why it "comes back on click" — it's not JS restoring them, it's the browser finally painting
-- Desktop browsers are more aggressive about throttling background tabs than mobile
+PWA standalone mode doesn't fire `visibilitychange` the same way as browser tabs — some browsers only fire it on minimize/restore, not on window focus changes. This means the forced repaint fix may not trigger in all cases.
 
-### 2. Sync re-render while tab is hidden
-- `mergeRemoteData` calls `renderManual()` which sets `list.innerHTML`
-- If this runs while tab is hidden, browser may not paint the new DOM
-- The 7s sync ticker continues running in background (throttled) — if it fires and rebuilds DOM, the new content isn't painted until user interacts
+Clicking anywhere forces a repaint, which is why tasks "come back" on click — JS isn't restoring them, the browser is finally painting.
 
-### 3. CSS `contain` or compositing issue
-- `contain: layout style` on task lists (v1.6.47) may cause browsers to skip repainting contained elements after background tab throttling
+**Fix (v2.12.57):**
+Forced repaint on three entry points:
+1. `visibilitychange` → when tab/app becomes visible, toggle `manualList.style.display` off/on with `offsetHeight` read in between to force reflow
+2. `pageshow` (bfcache) → same forced repaint after clearing stale focus state
+3. `window.focus` → fallback for PWA standalone mode, which may not fire `visibilitychange` on window restore/focus
 
-**Correct fix direction:**
-1. Force a repaint on tab return — after sync completes, trigger a layout recalculation:
-   ```js
-   // Force repaint
-   list.style.display = 'none';
-   list.offsetHeight; // force reflow
-   list.style.display = '';
-   ```
-2. Clear `.focusing` on visibilitychange return (not just init/bfcache)
-3. After `closeUI`'s 200ms timeout, verify `.focusing` was actually removed — add a safety check
+Both run before any sync or triage checks.
+
+**How to verify:**
+1. Open app on desktop (Chrome or Safari) with tasks visible
+2. Switch to another tab or minimize window
+3. Wait at least 2-3 minutes (longer = more likely to reproduce)
+4. Switch back to app tab
+5. Task list should be visible immediately — no blank state, no click needed
+6. Repeat several times over a day to confirm
 
 **Verified fixed:** ☐
 
