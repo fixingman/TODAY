@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes — sync reliability, paint deferral, triage cross-device
-- **Recent:** v2.12.60 — All 5 known bugs fixed, awaiting production verification
-- **Watch for:** Red dot errors in PWA, triage still showing cross-device, blank task list
+- **Working on:** Bug fixes, code cleanup, performance audit
+- **Recent:** v2.12.65 — Focus timer reanchor, Trello tags, session count fix, dropboxUpdateUI crash fix, wake sync silent, code cleanup
+- **Watch for:** BUG-002/003/004/005/006 verification in production, red dot errors after sleep/wake
 
 ---
 
