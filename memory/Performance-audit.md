@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.12.47 · April 2026  
+> v2.12.61 · April 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -9,17 +9,17 @@
 
 | Metric | Value | Notes |
 |---|---|---|
-| Total file size | 433 KB | Single HTML file — no build step |
-| Lines of code | 10,263 | Up from 10,233 in v2.12.45 |
-| Functions | 217 | Stable |
-| Variables | 1,087 | const/let/var declarations |
-| Event listeners | 57 | addEventListener calls |
+| Total file size | 443 KB | Single HTML file — no build step |
+| Lines of code | 10,442 | +179 since v2.12.47 (sync fixes, error handling) |
+| Functions | 218 | +1 (`_logSyncError`) |
+| Variables | 1,123 | const/let/var declarations |
+| Event listeners | 58 | +1 (`window.focus` for PWA repaint/sync) |
 | External scripts | 0 | No CDN, no analytics SDK |
 | External fonts loaded on first visit | 6 files | Self-hosted, pre-cached by SW after first load |
 | External fonts on repeat visits | 0 | All served from SW cache |
 | Google Fonts requests | 0 | Fonts are self-hosted — zero external pings |
 
-**Assessment:** File size grew from 432KB (v2.12.45) to 433KB (v2.12.47) due to splash skip logic and Trello section hide. No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
+**Assessment:** File size grew from 433KB (v2.12.47) to 443KB (v2.12.61) — mostly sync hardening, error handling, and wake/sleep logic. No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
 
 ---
 
@@ -28,11 +28,11 @@
 ### DOM Query Optimization
 | Metric | Count | Notes |
 |---|---|---|
-| Total DOM queries | 228 | getElementById + querySelector |
-| Cached element usage | 64 | Via `$.element` pattern |
-| localStorage accesses | 204 | Many are writes on user action |
+| Total DOM queries | 246 | getElementById + querySelector |
+| Cached element usage | 68 | Via `$.element` pattern |
+| localStorage accesses | 225 | Many are writes on user action |
 
-**Opportunity:** ~164 uncached DOM queries. Most are in render functions (acceptable) or one-time init. Further caching would add complexity for minimal gain.
+**Opportunity:** ~178 uncached DOM queries. Most are in render functions (acceptable) or one-time init. Further caching would add complexity for minimal gain.
 
 ### Optimizations (v2.12.5+)
 - **Cached DOM elements:** 26 frequently-queried elements cached at startup (`$` object)
@@ -44,12 +44,14 @@
 - `_refreshSyncCache()` batches all localStorage reads into a single pass per tick.
 - `syncTrello()`: fetches board `dateLastActivity` only (~1 KB). Full card fetch only if `date !== lastTrelloDate`.
 - `syncDropbox()`: fetches file metadata only (~300 B). Full download only if `rev !== lastDropboxRev`.
-- Ticker stops on `visibilitychange hidden`, resumes 2s after visible. Background tabs produce zero network activity.
+- Ticker stops on `visibilitychange hidden`. On return: sync fires immediately, ticker resumes after 2s. Wake errors silenced for 3s (no red dot for transient network failures).
 
-### Dropbox Sync (v2.12.2 fix)
-- **Pending backup tracking:** `_pendingBackup` flag tracks unsaved changes
-- **Retry on tab focus:** Failed silent backups retry when tab becomes visible
-- **Console logging:** Silent failures now logged for debugging
+### Dropbox Sync Error Handling (v2.12.58+)
+- **`_logSyncError(source, msg)`:** Routes sync failures to red dot error indicator + console. Tagged by source: Dropbox, Trello, Sync.
+- **Token refresh retry:** `_dropboxEnsureToken()` retries once with 2s backoff (Netlify cold starts).
+- **Wake sync silent:** `_wakeSyncSilent` flag suppresses red dot for 3s after tab return — transient network failures after sleep don't alarm user. Ticker retries handle recovery.
+- **Silent catches remaining (4):** storage full, cross-origin poll, non-critical rev seed, offline reconnect fallback — all acceptable.
+- **Pending backup tracking:** `_pendingBackup` flag tracks unsaved changes, retries on tab focus.
 
 ### DOM rendering
 | Operation | Strategy | Notes |
@@ -72,15 +74,16 @@
 - Triage history: capped at 50 entries, oldest removed on overflow.
 - PAST zone: auto-purged (done: 7 days, let_go/aged: 30 days).
 
-### setTimeout/setInterval inventory (54 total)
+### setTimeout/setInterval inventory (61 total)
 
 **setInterval (persistent):**
 | Interval | Purpose | Notes |
 |---|---|---|
 | 7s | Background sync ticker | Cleared on tab hide |
+| 5s | Idle companion check | Runs continuously |
 | 500ms | Trello auth poll | Only while OAuth popup open |
-| 60min | SW update check | Runs continuously |
-| 1s | Focus mode tick | Only while timer active |
+| 500ms | Dropbox auth poll | Only while OAuth popup open |
+| 30min | SW update check | Runs continuously |
 
 **setTimeout (single-fire):**
 | Duration | Purpose |
@@ -93,7 +96,8 @@
 | 800ms | Dropbox autosave debounce, status message auto-hide |
 | 1000ms | Dropbox retry on tab focus, focus tick, PiP delay |
 | 1800ms | Config panel auto-close after Trello connect |
-| 2000ms | Ticker resume after show/online, AI analyze debounce |
+| 2000ms | Ticker resume after show/online, AI analyze debounce, token refresh retry |
+| 3000ms | Wake sync silent window, triage check defer (BUG-001) |
 | 12000ms | Proactive suggestion auto-dismiss |
 
 No runaway timers. All single-fire timers are purpose-built and short-lived.
@@ -157,12 +161,12 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 | Area | Score | Notes |
 |---|---|---|
-| Load performance | ✅ Good | 429KB single file, fonts cached, offline-capable |
+| Load performance | ✅ Good | 443KB single file, fonts cached, offline-capable |
 | Runtime performance | ✅ Good | Cached elements, cheap ticker, incremental DOM |
 | XSS protection | ✅ Good | `esc()` on all user content |
 | CSRF protection | ✅ Good | PKCE state verified |
 | Privacy | ✅ Good | No analytics, data stays local |
-| Error handling | ✅ Good | AI errors surfaced, sync retry on failure |
+| Error handling | ✅ Good | `_logSyncError` routes sync failures to red dot. Wake errors silenced 3s. 4 remaining silent catches are non-sync (acceptable). |
 | Offline support | ✅ Good | SW cache, union merge, backup-on-reconnect |
 | Token hygiene | ✅ Good | Secrets server-side only |
 | Animation performance | ✅ Good | CSS animations, GPU compositing, rAF batching |
@@ -170,10 +174,34 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-## 8. Recent Changes (v2.12.40 → v2.12.47)
+## 8. Recent Changes (v2.12.48 → v2.12.61)
 
 | Feature | Version | Performance Impact |
 |---|---|---|
+| Sound delay fix | 2.12.48 | Immediate playback — no AudioContext promise wait |
+| PiP closes on restore | 2.12.49 | Cleanup only — no runtime cost |
+| Triage z-index | 2.12.50 | CSS only |
+| Done Trello in triage | 2.12.51 | Re-check after sync — minor |
+| SOON/PAST ghost tasks | 2.12.52 | Timestamp check in merge — O(n) |
+| Trello done next day | 2.12.53 | `checked_ids` timestamp filter — cheap |
+| Task order sync | 2.12.55 | ID sequence comparison in merge — O(n) |
+| Trello session count | 2.12.56 | DOM patch in renderTrello — zero extra queries |
+| Forced repaint on wake | 2.12.57 | `display` toggle + `offsetHeight` — one forced reflow per wake |
+| `_logSyncError` + token retry | 2.12.58 | +1 retry (2s) on cold start. Error logging is cheap. |
+| Immediate sync on return | 2.12.59 | Sync fires on `visibilitychange` instead of 2s delay. Rev reset forces metadata check. |
+| Triage check deferred | 2.12.60 | 3s setTimeout — no runtime cost |
+| `dropboxUpdateUI` fix | 2.12.61 | Bug fix — was throwing on every token refresh |
+| Wake sync silent | 2.12.61 | `_wakeSyncSilent` flag — suppresses red dot for 3s. Negligible overhead. |
+
+---
+
+## 9. Historical Changes (v2.12.40 → v2.12.47)
+
+| Feature | Version | Performance Impact |
+|---|---|---|
+| Triage sync race fix | 2.12.40 | Read fresh localStorage — zero cost |
+| Stale focus state fix | 2.12.41 | Class removal on init — zero cost |
+| Zone changes sync | 2.12.42 | Adds backup calls to zone ops |
 | Triage overlay sync | 2.12.43 | Zero cost — hides overlay on merge |
 | Zone ops immediate sync | 2.12.44 | Removes 800ms debounce — faster but more Dropbox calls |
 | CSS variable cleanup | 2.12.45 | -2 unused vars — minor size reduction |
@@ -182,22 +210,4 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-## 9. Historical Changes (v2.12.14 → v2.12.40)
-
-| Feature | Version | Performance Impact |
-|---|---|---|
-| Zones (SOON/PAST) | 2.11.0 | +localStorage keys, minimal runtime |
-| Evening triage | 2.11.0 | DOM rendered on-demand, auto-cleanup |
-| Trello in triage | 2.12.1 | Included in existing render |
-| AI triage hints | 2.12.0 | +1 API call per triage (async, non-blocking) |
-| Triage history | 2.12.0 | 50 entries max, capped |
-| PAST purge | 2.12.6 | Runs once per day, O(n) filter |
-| Morning nudge | 2.12.7 | Single DOM element, tap to dismiss |
-| Dropbox sync retry | 2.12.2 | Retry on tab focus if backup failed |
-| PiP sync fix | 2.12.3 | Immediate sync on visibility change |
-| Element caching | 2.12.5 | ~50 DOM lookups eliminated |
-| safeJSON helper | 2.12.5 | Code consolidation, no runtime change |
-
----
-
-*Last updated: Session 22 (v2.12.47)*
+*Last updated: Session 25 (v2.12.61)*

@@ -59,8 +59,13 @@
 
 ### Console Error Monitoring
 **Priority:** Low
-**Status:** ✅ Implemented (v2.12.8)
-**Notes:** Red pulsing dot appears on errors, click to view log
+**Status:** ✅ Implemented (v2.12.8), extended (v2.12.58)
+**Notes:** Red pulsing dot appears on errors, click to view log. v2.12.58 added `_logSyncError()` to route sync failures (Dropbox, Trello) to the same red dot. Wake errors silenced for 3s to avoid false alarms.
+
+### Consolidate Wake Handlers into `_onWake()`
+**Priority:** Low — refactor when a wake-related bug next surfaces
+**Status:** Not started
+**Notes:** 5 `visibilitychange` listeners + `window.focus` handler all fire on wake, each with different delays. Changing wake behaviour requires updating multiple scattered listeners. See `Bugs.md` for full wake sequence table. Proposed: single `_onWake()` orchestrator, modules register callbacks. SW, focus timer, and PiP listeners can stay separate.
 
 ---
 
@@ -104,4 +109,4 @@ Captures what we tried or considered and why we didn't proceed — institutional
 
 ---
 
-*Last updated: Session 23 (v2.12.49)*
+*Last updated: Session 25 (v2.12.61)*

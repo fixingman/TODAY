@@ -26,10 +26,11 @@
 ### Sync Flow
 
 ```
-1. On load: fetch remote, merge with local
-2. On mutation: debounced save (2s)
-3. On focus: check for remote changes
-4. Every 7s: background sync check
+1. On load: fetch remote, merge with local (behind splash)
+2. On mutation: debounced save (800ms)
+3. On tab return / PWA focus: immediate sync (wake errors silenced for 3s)
+4. Every 7s: background sync check (rev comparison)
+5. On reconnect ('online' event): full pull + merge + push
 ```
 
 ### Merge Algorithm
@@ -85,15 +86,23 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
 
 **Zone status values:** `done`, `let_go`, `aged`
 
-### Triage Dismissed Sync (v2.12.40+)
+### Triage Dismissed Sync (v2.12.60)
 
-**Critical:** On tab return, always refresh `triageDismissedToday` from localStorage before checking triage bar. The sync may have updated localStorage while tab was hidden, but the in-memory variable would be stale.
+**Critical:** On tab return, do NOT check triage immediately — sync needs time to pull the dismissed state from Dropbox first. `mergeRemoteData` handles applying `triage_dismissed` from remote and hiding the bar/overlay.
 
 ```javascript
-// On visibility change:
-triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
-checkTriageBar();
+// On visibility change / window focus:
+// 1. Sync fires immediately (pulls remote data)
+// 2. mergeRemoteData sets triageDismissedToday if remote has today's dismissal
+// 3. Triage check deferred 3s to let sync complete
+setTimeout(() => {
+  triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
+  checkTriageBar();
+}, 3000);
 ```
+
+**v2.12.40:** Read fresh from localStorage on return (was using stale variable).
+**v2.12.60:** Deferred triage check 3s so sync can pull dismissal state first.
 
 ### Deletion Persistence (v2.12.35+)
 

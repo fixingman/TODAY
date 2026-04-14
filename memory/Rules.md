@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes — sync reliability, paint deferral, triage cross-device
-- **Recent:** v2.12.60 — All 5 known bugs fixed, awaiting production verification
-- **Watch for:** Red dot errors in PWA, triage still showing cross-device, blank task list
+- **Working on:** Bug fixes, code cleanup, performance audit
+- **Recent:** v2.12.65 — Focus timer reanchor, Trello tags, session count fix, dropboxUpdateUI crash fix, wake sync silent, code cleanup
+- **Watch for:** BUG-002/003/004/005/006 verification in production, red dot errors after sleep/wake
 
 ---
 
@@ -81,7 +81,7 @@
 23. Single-file app — all code in `index.html`, no build step
 24. SW cache version must match app version: `today-v{VERSION}`
 25. **`_cacheElements()` must run at START of `init()`** — before any rendering
-26. **Zone renderers must match `renderTask()` features** — tags, badges, etc.
+26. **All render paths must match `taskHTML()` features** — tags, badges, session counts, etc. Three places render tasks independently: `taskHTML()` (new tasks), `renderTrello()` patch path (existing Trello tasks, every 7s), and zone renderers (SOON/PAST). When adding a feature to `taskHTML()`, also add it to the Trello patch path and zone renderers.
 27. **Every code change requires memory review** — ask: "Does this affect documented behavior?" Update relevant memory files.
 
 ## Non-Delegation Zones (require extra scrutiny)
@@ -95,6 +95,7 @@ These areas are error-prone — always read the relevant file and double-check l
 | Delete operations | `deleted_ids` must persist across days | Rule 11, Data.md |
 | Day boundary logic | Tasks vs habits use different cutoffs | Rule 16 |
 | Zone operations | Must trigger `dropboxBackup(true)` | Rule 23 in Sync.md |
+| Trello patch path | Must mirror `taskHTML()` features (tags, badges, sessions) | Rule 26 |
 
 ## Z-Index Stack
 
