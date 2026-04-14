@@ -2,6 +2,8 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.62** | **Code cleanup** — Removed dead `_aiDismissProactive()` function, 3 unused CSS tokens (`--text-xl`, `--space-10`, `--space-12`), 2 debug helpers (`_dbxGetRev`, `_dbxTickerRunning`). `renderConnections()` now skips rebuild if panel is closed — eliminates ~16 wasted HTML rebuilds per sync cycle. |
+| **2.12.61** | **Fix: `dropboxUpdateUI` undefined + wake sync silent** — Function was renamed to `renderConnections()` but 8 call sites weren't updated, breaking token refresh entirely. Also added `_wakeSyncSilent` flag — sync errors in the first 3s after tab return are logged to console but don't show red dot, since network may not be ready after sleep. Ticker retries handle recovery. |
 | **2.12.60** | **Fix: Triage cross-device** — `checkTriageBar()` deferred 3s on tab return so `syncDropbox()` can pull dismissal state first. Previously triage check ran synchronously before async sync completed, showing a stale bar that got hidden moments later. `mergeRemoteData` already handles hiding the bar when remote has `triage_dismissed` for today. |
 | **2.12.59** | **Fix: Sync on return** — Immediate `syncDropbox()` + `syncTrello()` on tab return (was 2s delay). Rev baseline (`lastDropboxRev`) reset to `null` on return so Dropbox CDN lag doesn't skip sync. PWA `window.focus` also triggers sync + rev reset as fallback when `visibilitychange` doesn't fire in standalone mode. |
 | **2.12.58** | **Fix: Sync errors visible** — All sync `catch` blocks now route through `_logSyncError()` which pushes to the red dot error indicator. Token refresh (`_dropboxEnsureToken`) retries once with 2s backoff for Netlify cold starts. Errors tagged by source: Dropbox, Trello, Sync. |

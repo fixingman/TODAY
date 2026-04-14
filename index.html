@@ -424,8 +424,6 @@
     --space-5:  20px;
     --space-6:  24px;
     --space-8:  32px;
-    --space-10: 40px;
-    --space-12: 48px;
     --space-20: 80px;
 
     /* ── Radius scale ────────────────────────────────────────── */
@@ -444,7 +442,6 @@
     --text-base:  13px;
     --text-md:    14px;   /* body default                        */
     --text-lg:    16px;
-    --text-xl:    22px;
     --text-xs2:   12px;   /* small labels, config hints (12px)   */
     --text-sm2:   12px;   /* alias kept for compatibility         */
     --text-task:  13.5px; /* task row text — between base and md  */
@@ -2881,6 +2878,12 @@ window.scrollTo(0, 0);
 const _errorLog = [];
 function _logSyncError(source, msg) {
   const entry = '[' + source + '] ' + (msg || 'unknown error');
+  // During wake sync (first 3s after tab return), log but don't show red dot —
+  // network may not be ready yet, ticker will retry. (BUG-003)
+  if (window._isWakeSyncSilent && window._isWakeSyncSilent()) {
+    console.warn('[wake-silent] ' + entry);
+    return;
+  }
   _errorLog.push(entry);
   const el = document.getElementById('errorIndicator');
   if (el) { el.style.display = 'block'; el.dataset.count = _errorLog.length; }
@@ -2926,11 +2929,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.60';
+const APP_VERSION   = '2.12.62';
 const DEV_HOURS     = '162h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.62': 'Code cleanup — removed dead _aiDismissProactive function, 3 unused CSS tokens (--text-xl, --space-10, --space-12), 2 debug helpers. renderConnections() now skips if panel is closed (was rebuilding HTML on every background sync).',
+  '2.12.61': 'Fix: dropboxUpdateUI → renderConnections (was undefined, broke token refresh). Wake sync now silent — errors suppressed for 3s after tab return so transient network failures don\'t show red dot.',
   '2.12.60': 'Fix: Triage cross-device — triage check deferred 3s on tab return so sync can pull dismissal state from Dropbox first. No more premature triage bar flash.',
   '2.12.59': 'Fix: Sync on return — immediate sync on tab return and PWA focus (no 2s delay). Rev baseline reset forces fresh Dropbox pull instead of skipping on stale rev match.',
   '2.12.58': 'Fix: Sync errors now visible — red dot indicator shows sync failures (token refresh, Dropbox, Trello). Token refresh retries once on cold start timeout.',
@@ -4482,6 +4487,11 @@ function renderInfoStats() {
 // Renders Trello + Dropbox in a compact layout based on connection state
 
 function renderConnections() {
+  // Skip if panel isn't open — background sync calls this frequently
+  // but rebuilding HTML when panel is hidden is wasted work
+  const configPanel = $.configPanel || document.getElementById('configPanel');
+  if (configPanel && !configPanel.classList.contains('open')) return;
+
   const container = document.getElementById('connectionsContainer');
   if (!container) return;
 
@@ -7153,13 +7163,13 @@ async function _dropboxEnsureToken() {
       const data = await res.json();
       if (!res.ok) {
         localStorage.setItem('dropbox_token_expired', '1');
-        dropboxUpdateUI();
+        renderConnections();
         return;
       }
       localStorage.setItem('dropbox_token',        data.access_token);
       localStorage.setItem('dropbox_token_expiry', String(Date.now() + (data.expires_in - 60) * 1000));
       localStorage.removeItem('dropbox_token_expired');
-      dropboxUpdateUI();
+      renderConnections();
       return; // success — exit loop
     } catch(e) {
       _logSyncError('Dropbox', 'Token refresh attempt ' + (attempt + 1) + ': ' + e.message);
@@ -7220,8 +7230,10 @@ window.addEventListener('focus', () => {
   const ml = $.manualList || document.getElementById('manualList');
   if (ml) { ml.style.display = 'none'; ml.offsetHeight; ml.style.display = ''; }
   // Trigger sync if available — PWA may not have fired visibilitychange
-  if (window._dbxResetRev) window._dbxResetRev(); // force fresh pull (BUG-002 Path B)
+  if (window._dbxResetRev) window._dbxResetRev();
+  if (window._setWakeSyncSilent) window._setWakeSyncSilent(true);
   if (window._dbxSyncNow) window._dbxSyncNow();
+  setTimeout(() => { if (window._setWakeSyncSilent) window._setWakeSyncSilent(false); }, 3000);
   // Deferred triage check — same as visibilitychange (BUG-001)
   setTimeout(() => {
     triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
@@ -7283,13 +7295,13 @@ async function dropboxBackup(silent) {
       if (silent) {
         // Mark token as expired so UI reflects reality
         localStorage.setItem('dropbox_token_expired', '1');
-        dropboxUpdateUI();
+        renderConnections();
         return false;
       }
       localStorage.removeItem('dropbox_token');
       localStorage.removeItem('dropbox_token_expired');
-      dropboxUpdateUI();
-      dropboxShowMsg('Session expired — please reconnect.', 'error'); dropboxUpdateUI();
+      renderConnections();
+      dropboxShowMsg('Session expired — please reconnect.', 'error'); renderConnections();
       return false;
     }
     if (!res.ok) throw new Error(`Dropbox ${res.status}`);
@@ -7689,12 +7701,12 @@ async function dropboxRestore(fromSync) {
 
     if (res.status === 401) {
       localStorage.setItem('dropbox_token_expired', '1');
-      dropboxUpdateUI();
+      renderConnections();
       if (!fromSync) {
         localStorage.removeItem('dropbox_token');
         localStorage.removeItem('dropbox_token_expired');
-        dropboxUpdateUI();
-        dropboxShowMsg('Session expired — please reconnect.', 'error'); dropboxUpdateUI();
+        renderConnections();
+        dropboxShowMsg('Session expired — please reconnect.', 'error'); renderConnections();
       }
       return;
     }
@@ -7834,6 +7846,9 @@ async function dropboxRestore(fromSync) {
 (function() {
   let   ticker         = null;
   let   lastDropboxRev = null;
+  let   _wakeSyncSilent = false; // suppress red dot for transient wake failures
+  window._isWakeSyncSilent = () => _wakeSyncSilent;
+  window._setWakeSyncSilent = (v) => { _wakeSyncSilent = v; };
   let   lastTrelloDate = null;
 
   // ── Trello: cheap activity check first, full fetch only if board changed ──
@@ -7879,7 +7894,6 @@ async function dropboxRestore(fromSync) {
 
   // Expose rev setter so dropboxBackup can update baseline after its own write
   window._dbxSetRev = function(rev) { lastDropboxRev = rev; };
-  window._dbxGetRev = function() { return lastDropboxRev; }; // debug helper
 
   // Day boundary cleanup — uses app day (1am) instead of midnight
   function checkNewDay() {
@@ -7917,8 +7931,7 @@ async function dropboxRestore(fromSync) {
     ticker = null;
   }
   
-  // Debug: expose ticker status and manual trigger
-  window._dbxTickerRunning = () => !!ticker;
+  // Expose sync controls for cross-scope access (window.focus handler, etc.)
   window._dbxSyncNow = () => syncAll();
   window._dbxResetRev = () => { lastDropboxRev = null; };
 
@@ -7930,11 +7943,15 @@ async function dropboxRestore(fromSync) {
       // Dropbox CDN may lag, so rev could appear unchanged even when
       // another device wrote new data. (BUG-002 Path B)
       lastDropboxRev = null;
-      // Sync immediately on tab/PWA return — don't wait 2s (BUG-002 Path C)
       _refreshSyncCache();
+      // Sync on wake — but silently. After sleep, network may not be ready yet;
+      // if it fails, the ticker will retry every 7s. No red dot for transient
+      // wake failures — the 'online' event handles full reconnect. (BUG-003)
+      _wakeSyncSilent = true;
       syncDropbox();
       syncTrello();
-      // Start ticker after a short delay (let the immediate sync settle)
+      setTimeout(() => { _wakeSyncSilent = false; }, 3000);
+      // Start ticker
       wakeTimer = setTimeout(() => { startTicker(); }, 2000);
     } else {
       clearTimeout(wakeTimer);
@@ -9459,11 +9476,6 @@ function _aiClearBadge() {
   const badge = document.querySelector('.add-ai-btn .ai-badge');
   if (badge) badge.remove();
   _aiProactiveBadgeShown = false;
-}
-
-function _aiDismissProactive() {
-  _aiProactiveDismissedThisSession = true;
-  _aiClearBadge();
 }
 
 // ══════════════════════════════════════════════════════════════════════════

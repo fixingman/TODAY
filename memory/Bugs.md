@@ -6,7 +6,7 @@
 
 ## BUG-001: Triage dismissed on one device, still shows on the other
 
-**Status:** Fixed v2.12.59–2.12.60 — awaiting verification
+**Status:** ✅ Verified fixed (v2.12.59–2.12.60)
 
 **Symptom:** Complete triage on Device A → Device B still shows triage bar on return.
 
@@ -16,7 +16,7 @@
 
 **Verify:** During triage window (8pm–1am), dismiss triage on Device A → wait 10s → return to Device B. Bar should not appear, not even briefly.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
 
@@ -41,15 +41,20 @@
 
 ## BUG-003: "Failed to fetch" errors in production, disappear on refresh
 
-**Status:** Fixed v2.12.58 — awaiting verification
+**Status:** Fixed v2.12.58 + v2.12.61 — awaiting re-verification
 
-**Symptom:** Red dot or console shows "Failed to fetch". App works after refresh.
+**Symptom:** Red dot shows "Failed to fetch" and "dropboxUpdateUI is not defined". App works after refresh.
 
-**Root cause:** Netlify function cold starts timeout `_dropboxEnsureToken()`. All subsequent Dropbox calls fail. Every `catch(e) {}` swallowed the error — no UI feedback.
+**Root causes found:**
+1. `dropboxUpdateUI()` was called in 8 places but never defined (renamed to `renderConnections()` at some point). Broke token refresh entirely — every attempt threw, token never refreshed, all Dropbox sync failed.
+2. Sleep/wake: `navigator.onLine` reports `true` before network is actually ready. Sync fires immediately, fetch fails.
+3. Original silent `catch(e) {}` blocks hid all of the above.
 
-**Fix:** `_logSyncError(source, msg)` helper routes all sync failures to the red dot error indicator with tagged source (Dropbox, Trello, Sync). `_dropboxEnsureToken()` retries once with 2s backoff for cold starts.
+**Fixes:**
+- v2.12.58: `_logSyncError` + token retry (made errors visible, but retry still hit the undefined function)
+- v2.12.61: Replaced all `dropboxUpdateUI()` → `renderConnections()`. Added 500ms delay to sync on wake for network recovery.
 
-**Verify:** Monitor red dot over several days. On tap, error log should show tagged messages like `[Dropbox] Token refresh attempt 1: Failed to fetch`. Cold start errors should self-heal via retry.
+**Verify:** After computer sleep/wake, no red dot should appear. If it does, errors should be transient (self-heal on next tick, not "is not defined").
 
 **Verified fixed:** ☐
 

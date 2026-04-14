@@ -59,8 +59,8 @@
 
 ### Console Error Monitoring
 **Priority:** Low
-**Status:** ✅ Implemented (v2.12.8)
-**Notes:** Red pulsing dot appears on errors, click to view log
+**Status:** ✅ Implemented (v2.12.8), extended (v2.12.58)
+**Notes:** Red pulsing dot appears on errors, click to view log. v2.12.58 added `_logSyncError()` to route sync failures (Dropbox, Trello) to the same red dot. Wake errors silenced for 3s to avoid false alarms.
 
 ---
 
@@ -104,4 +104,4 @@ Captures what we tried or considered and why we didn't proceed — institutional
 
 ---
 
-*Last updated: Session 23 (v2.12.49)*
+*Last updated: Session 25 (v2.12.61)*
