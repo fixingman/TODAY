@@ -62,6 +62,11 @@
 **Status:** ✅ Implemented (v2.12.8), extended (v2.12.58)
 **Notes:** Red pulsing dot appears on errors, click to view log. v2.12.58 added `_logSyncError()` to route sync failures (Dropbox, Trello) to the same red dot. Wake errors silenced for 3s to avoid false alarms.
 
+### Consolidate Wake Handlers into `_onWake()`
+**Priority:** Low — refactor when a wake-related bug next surfaces
+**Status:** Not started
+**Notes:** 5 `visibilitychange` listeners + `window.focus` handler all fire on wake, each with different delays. Changing wake behaviour requires updating multiple scattered listeners. See `Bugs.md` for full wake sequence table. Proposed: single `_onWake()` orchestrator, modules register callbacks. SW, focus timer, and PiP listeners can stay separate.
+
 ---
 
 ## Watch Decisions
