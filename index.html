@@ -2929,11 +2929,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.63';
+const APP_VERSION   = '2.12.65';
 const DEV_HOURS     = '162h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.65': 'Fix: Focus timer splits from task on sync — renderManual innerHTML rebuild destroyed the task element timerEl was anchored to. Added _focusReanchor to re-attach timer bar to new DOM element after rebuild.',
+  '2.12.64': 'Fix: Session count jump — clicking "again?" to start next pomodoro was logging a session before it ran. Count now only increments on completion or check.',
   '2.12.63': 'Tags on Trello tasks — renderTrello patch path now detects "label: text" pattern. Copy in focus mode strips tag prefix.',
   '2.12.62': 'Code cleanup — removed dead _aiDismissProactive function, 3 unused CSS tokens (--text-xl, --space-10, --space-12), 2 debug helpers. renderConnections() now skips if panel is closed (was rebuilding HTML on every background sync).',
   '2.12.61': 'Fix: dropboxUpdateUI → renderConnections (was undefined, broke token refresh). Wake sync now silent — errors suppressed for 3s after tab return so transient network failures don\'t show red dot.',
@@ -5077,6 +5079,8 @@ function renderManual() {
   const countEl = $.manualCount || document.getElementById('manualCount');
   if (countEl) countEl.textContent = manualTasks.length;
   updateManualEmptyState();
+  // Re-anchor focus timer if active — innerHTML destroyed the old task element
+  if (window._focusReanchor) window._focusReanchor();
 }
 
 function taskHTML(task, type) {
@@ -9551,6 +9555,20 @@ function _aiClearBadge() {
     return false;
   };
 
+  // Re-anchor timer bar after DOM rebuild (e.g. renderManual from sync)
+  // Finds the new task element by ID and re-positions timerEl after it.
+  window._focusReanchor = function() {
+    if (!uiTaskId || !uiTaskEl) return;
+    const newTaskEl = document.querySelector('.task[data-taskid="' + CSS.escape(uiTaskId) + '"]');
+    if (newTaskEl && newTaskEl !== uiTaskEl) {
+      newTaskEl.classList.add('focused');
+      newTaskEl.after(timerEl);
+      timerEl.after(kbdHint);
+      uiTaskEl = newTaskEl;
+      syncDisplay(uiTaskId, newTaskEl);
+    }
+  };
+
   // ── Per-task pause state (in-memory, session-scoped) ─────────────────────
   // Stores { rem, running } keyed by taskId.
   // Survives UI dismiss. Cleared when a new task starts.
@@ -9600,7 +9618,9 @@ function _aiClearBadge() {
       setPaused(false);
       syncDisplay(uiTaskId, uiTaskEl);
       playStartSound();
-      _logSession(uiTaskId); // log the new session
+      // Don't log session here — session is logged when it completes (completeFor)
+      // or when user checks the task mid-session (_focusOnCheck). Logging on start
+      // caused the counter to jump to 2 before the second session ran.
       tickFor(uiTaskId);
     }
   });

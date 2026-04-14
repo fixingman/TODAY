@@ -97,3 +97,47 @@
 Helper function that makes sync failures visible in PWA without devtools. Pushes to `_errorLog` array and shows the red dot error indicator. Click the red dot → alert shows all errors with tagged sources. Defined in the Error Monitoring section near the top of `<script>`.
 
 ---
+
+## Future: Consolidate wake handlers into `_onWake()`
+
+**Status:** Not started — document only
+**Priority:** Low — refactor, not a bug
+
+**Problem:** 5 separate `visibilitychange` listeners + `window.focus` handler all fire on wake, each doing different things with different delays. Current wake sequence:
+
+| Source | Delay | Action |
+|--------|-------|--------|
+| visibilitychange (line ~7194) | 0ms | Force repaint (BUG-004) |
+| visibilitychange (line ~7194) | 3s | Deferred triage check (BUG-001) |
+| visibilitychange (line ~7938) | 0ms | Rev reset + sync (BUG-002) |
+| visibilitychange (line ~7938) | 2s | Start ticker |
+| visibilitychange (line ~7938) | 3s | Clear wake silent flag |
+| visibilitychange (line ~8317) | 0ms | SW update check |
+| visibilitychange (line ~9913) | 0ms | Focus timer correction |
+| visibilitychange (line ~10053) | 0ms | PiP check |
+| window.focus | 0ms | Repaint + rev reset + sync + wake silent |
+| window.focus | 3s | Triage check + clear wake silent |
+
+**Risk:** Changing any wake behaviour requires finding and updating multiple scattered listeners. Easy to miss one or introduce timing conflicts.
+
+**Proposed solution:** Create a single `_onWake()` function that orchestrates the full sequence. Each module registers a callback instead of its own listener. The SW, focus timer, and PiP listeners can stay separate (they're module-scoped and unrelated to sync/triage).
+
+**When to do this:** Next time a wake-related bug surfaces or we need to change wake timing. Don't refactor proactively — current code works.
+
+---
+
+## BUG-006: Focus timer bar splits from task after returning to window
+
+**Status:** Fixed v2.12.65 — awaiting verification
+
+**Symptom:** During focus mode on desktop PWA, leave window for a few minutes, return — gap appears between the task row and the countdown timer bar.
+
+**Root cause:** Sync fires on return → `mergeRemoteData` detects changes → `renderManual()` does `list.innerHTML = ...` which destroys the task DOM element. The timer bar was placed as a sibling via `taskEl.after(timerEl)`. Old element gone, new one created — timer bar orphaned, gap appears.
+
+**Fix:** Added `window._focusReanchor()` — exposed from focus mode IIFE, called at end of `renderManual()`. Finds new task element by `data-taskid`, re-attaches timer bar and kbd hint, updates `uiTaskEl` reference.
+
+**Verify:** Start focus session on a manual task → minimize/switch away for 2+ min → return. Timer bar should stay flush against the task row with no gap.
+
+**Verified fixed:** ☐
+
+---
