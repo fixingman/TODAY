@@ -2929,11 +2929,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.62';
+const APP_VERSION   = '2.12.63';
 const DEV_HOURS     = '162h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.63': 'Tags on Trello tasks — renderTrello patch path now detects "label: text" pattern. Copy in focus mode strips tag prefix.',
   '2.12.62': 'Code cleanup — removed dead _aiDismissProactive function, 3 unused CSS tokens (--text-xl, --space-10, --space-12), 2 debug helpers. renderConnections() now skips if panel is closed (was rebuilding HTML on every background sync).',
   '2.12.61': 'Fix: dropboxUpdateUI → renderConnections (was undefined, broke token refresh). Wake sync now silent — errors suppressed for 3s after tab return so transient network failures don\'t show red dot.',
   '2.12.60': 'Fix: Triage cross-device — triage check deferred 3s on tab return so sync can pull dismissal state from Dropbox first. No more premature triage bar flash.',
@@ -4989,7 +4990,12 @@ function renderTrello() {
   incomingIds.forEach((id, index) => {
     const task    = trelloTasks[index];
     const safeUrl = task.url && /^https?:\/\//i.test(task.url) ? task.url : '';
-    const newText = esc(task.text) + (safeUrl
+    // Detect tag pattern for Trello tasks (same as taskHTML)
+    const _tagMatch = task.text.match(/^([a-z0-9]{1,12}):\s+(.+)$/i);
+    const _textPart = _tagMatch
+      ? `<span class="task-tag">${esc(_tagMatch[1].toLowerCase())}</span>${esc(_tagMatch[2])}`
+      : esc(task.text);
+    const newText = _textPart + (safeUrl
       ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="trello-link" title="Open in Trello">↗</a>`
       : '');
 
@@ -5164,9 +5170,9 @@ document.addEventListener('click', function(e) {
     const taskEl = copyEl.closest('.task[data-taskid]');
     if (taskEl) {
       const textEl = taskEl.querySelector('.task-text');
-      // Get clean text — strip session count badge and link arrow
+      // Get clean text — strip session count badge, link arrow, and tag prefix
       const clone = textEl.cloneNode(true);
-      clone.querySelectorAll('.session-count, .trello-link').forEach(el => el.remove());
+      clone.querySelectorAll('.session-count, .trello-link, .task-tag').forEach(el => el.remove());
       const text = clone.textContent.trim();
 
       function _showCopied() {
