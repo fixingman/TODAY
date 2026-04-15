@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes, code cleanup, performance audit
-- **Recent:** v2.12.65 — Focus timer reanchor, Trello tags, session count fix, dropboxUpdateUI crash fix, wake sync silent, code cleanup
-- **Watch for:** BUG-002/003/004/005/006 verification in production, red dot errors after sleep/wake
+- **Working on:** Bug fixes, Trello error handling, triage timing
+- **Recent:** v2.12.68 — Triage bar flash fix, removed contain:layout, Trello 🍅 badge fix, Trello 405/429 handling
+- **Watch for:** BUG-002/003/004/005 re-verification in production
 
 ---
 

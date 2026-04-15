@@ -39,22 +39,25 @@
 
 ---
 
-## BUG-003: "Failed to fetch" errors in production, disappear on refresh
+## BUG-003: Sync errors in production — "Failed to fetch", Trello 405
 
-**Status:** Fixed v2.12.58 + v2.12.61 — awaiting re-verification
+**Status:** Fixed v2.12.58 + v2.12.61 + v2.12.67 — awaiting re-verification
 
-**Symptom:** Red dot shows "Failed to fetch" and "dropboxUpdateUI is not defined". App works after refresh.
+**Symptom:** Red dot shows various sync errors. Originally "dropboxUpdateUI is not defined". Later evolved to Trello 405 errors and missing Trello tasks on desktop PWA.
 
 **Root causes found:**
-1. `dropboxUpdateUI()` was called in 8 places but never defined (renamed to `renderConnections()` at some point). Broke token refresh entirely — every attempt threw, token never refreshed, all Dropbox sync failed.
-2. Sleep/wake: `navigator.onLine` reports `true` before network is actually ready. Sync fires immediately, fetch fails.
-3. Original silent `catch(e) {}` blocks hid all of the above.
+1. `dropboxUpdateUI()` called but never defined → fixed v2.12.61
+2. Sleep/wake: `navigator.onLine` true before network ready → fixed v2.12.61 (wake silent flag)
+3. Silent `catch(e) {}` blocks hid everything → fixed v2.12.58
+4. Trello 405/429 errors had no user-facing message → fixed v2.12.67
+5. Background Trello load errors were completely invisible → fixed v2.12.67 (routed to red dot)
 
 **Fixes:**
-- v2.12.58: `_logSyncError` + token retry (made errors visible, but retry still hit the undefined function)
-- v2.12.61: Replaced all `dropboxUpdateUI()` → `renderConnections()`. Added 500ms delay to sync on wake for network recovery.
+- v2.12.58: `_logSyncError` + token retry
+- v2.12.61: `dropboxUpdateUI` → `renderConnections()`, wake sync silent
+- v2.12.67: Added 405/429 error messages, background Trello errors now visible via red dot (non-network only)
 
-**Verify:** After computer sleep/wake, no red dot should appear. If it does, errors should be transient (self-heal on next tick, not "is not defined").
+**Verify:** Monitor red dot over several days. Trello 405 errors should show a clear message ("usually temporary — try again in a minute"). No "is not defined" errors. Wake errors should be silent for 3s then self-heal.
 
 **Verified fixed:** ☐
 
@@ -62,15 +65,19 @@
 
 ## BUG-004: Task list blank after inactivity, returns on click
 
-**Status:** Fixed v2.12.57 — awaiting verification
+**Status:** Fixed v2.12.57 + v2.12.66 — awaiting re-verification
 
-**Symptom:** Leave desktop PWA idle → return → task list area blank. Click anywhere → tasks reappear instantly. No data loss.
+**Symptom:** Leave desktop PWA idle → return → task list area blank (both manual AND Trello). Click anywhere → tasks reappear instantly. No data loss.
 
-**Root cause:** Browser paint deferral in PWA standalone. OS suspends renderer when window loses focus. On restore, DOM is correct but compositor layer isn't repainted. `contain: layout style` on `.task-list` gives browser permission to skip repainting. PWA may not fire `visibilitychange` on window focus.
+**Root cause:** Two issues compounding:
+1. `contain: layout style` on `.task-list` gave the browser permission to skip repainting isolated layers after background suspension
+2. Repaint fix only targeted `#manualList` — Trello list was also going blank
 
-**Fix:** Forced repaint (`display` toggle + `offsetHeight` reflow) on three entry points: `visibilitychange`, `window.focus` (PWA fallback), `pageshow` (bfcache).
+**Fixes:**
+- v2.12.57: Forced repaint on `visibilitychange`, `window.focus`, `pageshow` (targeted `manualList` only)
+- v2.12.66: Removed `contain: layout style` from `.task-list`. Repaint now targets `#main-app` to cover all child lists.
 
-**Verify:** Open desktop PWA with tasks → minimize or switch away for 2-3 min → return. Task list should be visible immediately without clicking. Repeat over several days.
+**Verify:** Open desktop PWA with both manual and Trello tasks → minimize/switch away for 2-3 min → return. Both lists should be visible immediately without clicking. Repeat over several days.
 
 **Verified fixed:** ☐
 
@@ -78,15 +85,17 @@
 
 ## BUG-005: Pomodoro session count not shown on Trello tasks
 
-**Status:** Fixed v2.12.56 — awaiting verification
+**Status:** Fixed v2.12.56 + v2.12.66 — awaiting re-verification
 
-**Symptom:** Complete focus session on Trello task → 🍅 badge doesn't appear until page reload.
+**Symptom:** Complete focus session on Trello task → 🍅 badge appears momentarily then vanishes.
 
-**Root cause:** `renderTrello()` has a surgical patch path for existing tasks that updates text, due badge, and done state — but skipped session count.
+**Root cause:** Two issues:
+1. v2.12.56 fix added session count patching to `renderTrello` — but as a separate DOM update after `innerHTML` overwrite
+2. The real problem: `newText` (used for `innerHTML` comparison) didn't include the session badge, but `textEl.innerHTML` did. They never matched → innerHTML was rewritten every 7s tick → badge destroyed
 
-**Fix:** Added `_getTrelloFocus()[id]` read and `.session-count` DOM update to the existing-task branch in `renderTrello()`.
+**Fix (v2.12.66):** Session badge now included in `newText` construction. Comparison is stable — `innerHTML` only overwrites when text/link/badge actually changes. Removed redundant separate session patch.
 
-**Verify:** Start and complete a focus session on a Trello task → `1 🍅` should appear immediately. Second session → `2 🍅`.
+**Verify:** Start and complete a focus session on a Trello task → `1 🍅` should appear and persist (not vanish after a few seconds). Complete second session → `2 🍅`.
 
 **Verified fixed:** ☐
 
@@ -128,7 +137,7 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 ## BUG-006: Focus timer bar splits from task after returning to window
 
-**Status:** Fixed v2.12.65 — awaiting verification
+**Status:** ✅ Verified fixed (v2.12.65)
 
 **Symptom:** During focus mode on desktop PWA, leave window for a few minutes, return — gap appears between the task row and the countdown timer bar.
 
@@ -137,6 +146,22 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 **Fix:** Added `window._focusReanchor()` — exposed from focus mode IIFE, called at end of `renderManual()`. Finds new task element by `data-taskid`, re-attaches timer bar and kbd hint, updates `uiTaskEl` reference.
 
 **Verify:** Start focus session on a manual task → minimize/switch away for 2+ min → return. Timer bar should stay flush against the task row with no gap.
+
+**Verified fixed:** ☑
+
+---
+
+## BUG-007: Triage bar flashes briefly after triage summary
+
+**Status:** Fixed v2.12.68 — awaiting verification
+
+**Symptom:** After completing triage and seeing the "All sorted" summary, the triage reminder bar flashes on screen for ~1 second before disappearing.
+
+**Root cause:** `triageApplyAll()` shows the summary and schedules `triageClose()` after 2s. But `triageDismissedToday` was only set in `triageClose()` — during the 2s summary window, it was still `false`. If `checkTriageBar()` fired (from Trello load, sync, or any other source), it would show the bar because there are kept (undone) tasks and dismissed is false.
+
+**Fix:** Set `triageDismissedToday = true` and write to localStorage immediately in `triageApplyAll()`, before the 2s summary timeout. `triageClose()` still runs after 2s but the dismissed flag is already set.
+
+**Verify:** During triage window, complete triage on all tasks → summary screen shows "All sorted" → triage bar should NOT flash at any point during or after the summary.
 
 **Verified fixed:** ☐
 

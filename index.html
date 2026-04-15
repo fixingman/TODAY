@@ -1076,7 +1076,6 @@
     gap: 2px;
     touch-action: pan-y;
     overscroll-behavior: contain;
-    contain: layout style;
   }
 
   /* Disable text selection on manual tasks for smoother mobile drag */
@@ -2929,11 +2928,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.65';
-const DEV_HOURS     = '164h';
+const APP_VERSION   = '2.12.68';
+const DEV_HOURS     = '166h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.68': 'Fix: Triage bar flashes after summary — triageDismissedToday now set immediately in triageApplyAll, not 2s later in triageClose. Prevents checkTriageBar showing the bar during the summary screen.',
+  '2.12.67': 'Trello error handling — added 405/429 status messages. Background Trello load errors now route to red dot (non-network only). Respects wake silent flag.',
+  '2.12.66': 'Fix: Blank task list (BUG-004) — removed contain:layout style from .task-list, repaint now targets #main-app. Fix: Trello 🍅 badge (BUG-005) — patch path was overwriting innerHTML every 7s tick, destroying the badge. Session badge now included in newText comparison.',
   '2.12.65': 'Fix: Focus timer splits from task on sync — renderManual innerHTML rebuild destroyed the task element timerEl was anchored to. Added _focusReanchor to re-attach timer bar to new DOM element after rebuild.',
   '2.12.64': 'Fix: Session count jump — clicking "again?" to start next pomodoro was logging a session before it ran. Count now only increments on completion or check.',
   '2.12.63': 'Tags on Trello tasks — renderTrello patch path now detects "label: text" pattern. Copy in focus mode strips tag prefix.',
@@ -3762,6 +3764,11 @@ function triageKeepAll() {
 }
 
 function triageApplyAll() {
+  // Mark dismissed immediately — don't wait for the 2s auto-close.
+  // Otherwise checkTriageBar() could show the bar during the summary. (BUG-007)
+  triageDismissedToday = true;
+  localStorage.setItem('triage_dismissed', _getAppDay());
+
   const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
   const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
   let keptCount = 0, soonCount = 0, letgoCount = 0;
@@ -4922,6 +4929,16 @@ async function loadTrello(fromSync) {
       msg = 'Unauthorised (401) — your token may be expired. Re-generate at trello.com/power-ups/admin.';
     } else if (msg.includes('404')) {
       msg = 'Board not found (404) — double-check your Board ID or URL.';
+    } else if (msg.includes('405')) {
+      msg = 'Trello rejected the request (405). This is usually temporary — try again in a minute.';
+    } else if (msg.includes('429')) {
+      msg = 'Trello rate limit hit (429). Wait a moment and try again.';
+    }
+
+    // Log to red dot on background sync so errors are visible in PWA
+    // But respect wake silent — transient errors after sleep shouldn't alarm
+    if (fromSync && !isNetworkError) {
+      _logSyncError('Trello', 'Load: ' + (e.message || msg));
     }
 
     setTrelloIcon(false);
@@ -4997,9 +5014,15 @@ function renderTrello() {
     const _textPart = _tagMatch
       ? `<span class="task-tag">${esc(_tagMatch[1].toLowerCase())}</span>${esc(_tagMatch[2])}`
       : esc(task.text);
-    const newText = _textPart + (safeUrl
+    const _link = safeUrl
       ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="trello-link" title="Open in Trello">↗</a>`
-      : '');
+      : '';
+    // Include session badge in text comparison so patch doesn't destroy it (BUG-005)
+    const _focusCount = _getTrelloFocus()[id] || 0;
+    const _sessionBadge = _focusCount > 0
+      ? `<span class="session-count has-sessions">${_focusCount} 🍅</span>`
+      : `<span class="session-count"></span>`;
+    const newText = _textPart + _link + _sessionBadge;
 
     let el = list.querySelector(`.task[data-taskid="${CSS.escape(id)}"]`);
 
@@ -5021,19 +5044,6 @@ function renderTrello() {
 
       el.classList.toggle('done', doneIds.has(id));
       _applyDoneStyles(el, doneIds.has(id));
-
-      // Patch session count badge
-      const focusCount = _getTrelloFocus()[id] || 0;
-      const sessionEl = el.querySelector('.session-count');
-      if (sessionEl) {
-        if (focusCount > 0) {
-          sessionEl.textContent = focusCount + ' 🍅';
-          sessionEl.classList.add('has-sessions');
-        } else {
-          sessionEl.textContent = '';
-          sessionEl.classList.remove('has-sessions');
-        }
-      }
 
       // Move to correct position — skip removing elements when counting index
       const stableChildren = [...list.children].filter(c => !c.classList.contains('removing'));
@@ -7206,11 +7216,12 @@ function dropboxAutoSave() {
 // Retry pending backup when tab becomes visible
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
-    // Force repaint — browsers defer painting for background tabs,
-    // especially with contain:layout. Without this, task list can appear
-    // blank after long inactivity until user clicks. (BUG-004)
-    const ml = $.manualList || document.getElementById('manualList');
-    if (ml) { ml.style.display = 'none'; ml.offsetHeight; ml.style.display = ''; }
+    // Force repaint — PWA standalone defers painting for background windows.
+    // Target the whole app container since both manual and Trello lists
+    // can go blank. Removing contain:layout (v2.12.66) should reduce
+    // occurrences, but this is a safety net. (BUG-004)
+    const app = document.getElementById('main-app');
+    if (app) { app.style.display = 'none'; app.offsetHeight; app.style.display = ''; }
 
     // Defer triage check — sync runs immediately on tab return (BUG-002),
     // and mergeRemoteData handles triage dismissal. Checking triage before
@@ -7237,8 +7248,8 @@ document.addEventListener('visibilitychange', () => {
 // PWA standalone may not always fire visibilitychange on window restore —
 // window focus is a reliable fallback for forced repaint (BUG-004) and sync (BUG-002)
 window.addEventListener('focus', () => {
-  const ml = $.manualList || document.getElementById('manualList');
-  if (ml) { ml.style.display = 'none'; ml.offsetHeight; ml.style.display = ''; }
+  const app = document.getElementById('main-app');
+  if (app) { app.style.display = 'none'; app.offsetHeight; app.style.display = ''; }
   // Trigger sync if available — PWA may not have fired visibilitychange
   if (window._dbxResetRev) window._dbxResetRev();
   if (window._setWakeSyncSilent) window._setWakeSyncSilent(true);
@@ -10453,8 +10464,8 @@ window.addEventListener('pageshow', (e) => {
       console.log('[TODAY] Cleared stale focus state after bfcache restore');
     }
     // Force repaint after bfcache restore (BUG-004)
-    const ml = document.getElementById('manualList');
-    if (ml) { ml.style.display = 'none'; ml.offsetHeight; ml.style.display = ''; }
+    const app = mainApp || document.getElementById('main-app');
+    if (app) { app.style.display = 'none'; app.offsetHeight; app.style.display = ''; }
   }
 });
 
