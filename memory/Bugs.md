@@ -62,15 +62,19 @@
 
 ## BUG-004: Task list blank after inactivity, returns on click
 
-**Status:** Fixed v2.12.57 — awaiting verification
+**Status:** Fixed v2.12.57 + v2.12.66 — awaiting re-verification
 
-**Symptom:** Leave desktop PWA idle → return → task list area blank. Click anywhere → tasks reappear instantly. No data loss.
+**Symptom:** Leave desktop PWA idle → return → task list area blank (both manual AND Trello). Click anywhere → tasks reappear instantly. No data loss.
 
-**Root cause:** Browser paint deferral in PWA standalone. OS suspends renderer when window loses focus. On restore, DOM is correct but compositor layer isn't repainted. `contain: layout style` on `.task-list` gives browser permission to skip repainting. PWA may not fire `visibilitychange` on window focus.
+**Root cause:** Two issues compounding:
+1. `contain: layout style` on `.task-list` gave the browser permission to skip repainting isolated layers after background suspension
+2. Repaint fix only targeted `#manualList` — Trello list was also going blank
 
-**Fix:** Forced repaint (`display` toggle + `offsetHeight` reflow) on three entry points: `visibilitychange`, `window.focus` (PWA fallback), `pageshow` (bfcache).
+**Fixes:**
+- v2.12.57: Forced repaint on `visibilitychange`, `window.focus`, `pageshow` (targeted `manualList` only)
+- v2.12.66: Removed `contain: layout style` from `.task-list`. Repaint now targets `#main-app` to cover all child lists.
 
-**Verify:** Open desktop PWA with tasks → minimize or switch away for 2-3 min → return. Task list should be visible immediately without clicking. Repeat over several days.
+**Verify:** Open desktop PWA with both manual and Trello tasks → minimize/switch away for 2-3 min → return. Both lists should be visible immediately without clicking. Repeat over several days.
 
 **Verified fixed:** ☐
 
@@ -78,15 +82,17 @@
 
 ## BUG-005: Pomodoro session count not shown on Trello tasks
 
-**Status:** Fixed v2.12.56 — awaiting verification
+**Status:** Fixed v2.12.56 + v2.12.66 — awaiting re-verification
 
-**Symptom:** Complete focus session on Trello task → 🍅 badge doesn't appear until page reload.
+**Symptom:** Complete focus session on Trello task → 🍅 badge appears momentarily then vanishes.
 
-**Root cause:** `renderTrello()` has a surgical patch path for existing tasks that updates text, due badge, and done state — but skipped session count.
+**Root cause:** Two issues:
+1. v2.12.56 fix added session count patching to `renderTrello` — but as a separate DOM update after `innerHTML` overwrite
+2. The real problem: `newText` (used for `innerHTML` comparison) didn't include the session badge, but `textEl.innerHTML` did. They never matched → innerHTML was rewritten every 7s tick → badge destroyed
 
-**Fix:** Added `_getTrelloFocus()[id]` read and `.session-count` DOM update to the existing-task branch in `renderTrello()`.
+**Fix (v2.12.66):** Session badge now included in `newText` construction. Comparison is stable — `innerHTML` only overwrites when text/link/badge actually changes. Removed redundant separate session patch.
 
-**Verify:** Start and complete a focus session on a Trello task → `1 🍅` should appear immediately. Second session → `2 🍅`.
+**Verify:** Start and complete a focus session on a Trello task → `1 🍅` should appear and persist (not vanish after a few seconds). Complete second session → `2 🍅`.
 
 **Verified fixed:** ☐
 
@@ -128,7 +134,7 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 ## BUG-006: Focus timer bar splits from task after returning to window
 
-**Status:** Fixed v2.12.65 — awaiting verification
+**Status:** ✅ Verified fixed (v2.12.65)
 
 **Symptom:** During focus mode on desktop PWA, leave window for a few minutes, return — gap appears between the task row and the countdown timer bar.
 
@@ -138,6 +144,6 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 **Verify:** Start focus session on a manual task → minimize/switch away for 2+ min → return. Timer bar should stay flush against the task row with no gap.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---

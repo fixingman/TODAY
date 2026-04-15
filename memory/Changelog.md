@@ -2,6 +2,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.66** | **Fix: Blank task list + Trello 🍅 badge** — BUG-004: removed `contain: layout style` from `.task-list` (was giving browser permission to skip repainting), repaint on wake now targets `#main-app` instead of just `#manualList` (both manual and Trello lists were going blank). BUG-005: `renderTrello` patch path was overwriting `.task-text` innerHTML every 7s tick — `newText` didn't include session badge, so comparison always failed, destroying the badge. Session badge now included in `newText` construction. |
 | **2.12.65** | **Fix: Focus timer splits from task on sync** — `renderManual()` does `innerHTML` rebuild which destroys the task element the timer bar was anchored to via `taskEl.after(timerEl)`. Added `_focusReanchor()` — exposed from focus IIFE, called after every `renderManual()`. Finds new task element by ID, re-attaches timer bar and kbd hint, updates `uiTaskEl` reference. |
 | **2.12.64** | **Fix: Session count jump** — Clicking "again?" to start next pomodoro was calling `_logSession` immediately, incrementing the counter before the session ran. Removed — sessions now only logged on timer completion (`completeFor`) or task check mid-session (`_focusOnCheck`). Applies to manual, Trello, and habit tasks. |
 | **2.12.63** | **Tags on Trello tasks** — `renderTrello` patch path now detects `"label: text"` tag pattern (was only in `taskHTML` for new tasks). Copy button in focus mode now strips `.task-tag` element so copied text doesn't include the tag prefix. |
