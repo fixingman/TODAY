@@ -9,8 +9,8 @@
 
 | Metric | Value | Notes |
 |---|---|---|
-| Total file size | 443 KB | Single HTML file — no build step |
-| Lines of code | 10,442 | +179 since v2.12.47 (sync fixes, error handling) |
+| Total file size | 445 KB | Single HTML file — no build step |
+| Lines of code | 10,458 | +16 since v2.12.61 (reanchor, badge fix, cleanup) |
 | Functions | 218 | +1 (`_logSyncError`) |
 | Variables | 1,123 | const/let/var declarations |
 | Event listeners | 58 | +1 (`window.focus` for PWA repaint/sync) |
@@ -19,7 +19,7 @@
 | External fonts on repeat visits | 0 | All served from SW cache |
 | Google Fonts requests | 0 | Fonts are self-hosted — zero external pings |
 
-**Assessment:** File size grew from 433KB (v2.12.47) to 443KB (v2.12.61) — mostly sync hardening, error handling, and wake/sleep logic. No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
+**Assessment:** File size grew from 433KB (v2.12.47) to 445KB (v2.12.66) — sync hardening, error handling, wake/sleep logic, focus reanchor. Removed `contain: layout style` (was causing paint deferral). Fixed Trello patch path innerHTML thrashing (was rewriting every 7s). No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
 
 ---
 
@@ -161,7 +161,7 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 | Area | Score | Notes |
 |---|---|---|
-| Load performance | ✅ Good | 443KB single file, fonts cached, offline-capable |
+| Load performance | ✅ Good | 445KB single file, fonts cached, offline-capable |
 | Runtime performance | ✅ Good | Cached elements, cheap ticker, incremental DOM |
 | XSS protection | ✅ Good | `esc()` on all user content |
 | CSRF protection | ✅ Good | PKCE state verified |
@@ -192,6 +192,12 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 | Triage check deferred | 2.12.60 | 3s setTimeout — no runtime cost |
 | `dropboxUpdateUI` fix | 2.12.61 | Bug fix — was throwing on every token refresh |
 | Wake sync silent | 2.12.61 | `_wakeSyncSilent` flag — suppresses red dot for 3s. Negligible overhead. |
+| Code cleanup | 2.12.62 | Dead code removed. `renderConnections()` guarded — skips if panel closed. |
+| Trello tags + copy strip | 2.12.63 | Tag detection added to patch path. Copy strips `.task-tag`. Zero cost. |
+| Session count jump fix | 2.12.64 | Removed premature `_logSession` call on restart. No perf change. |
+| Focus timer reanchor | 2.12.65 | `_focusReanchor()` after `renderManual()` — one DOM query per rebuild. |
+| Removed `contain: layout style` | 2.12.66 | **Removed** from `.task-list`. Was causing paint deferral (BUG-004). Negligible perf impact — lists are small (<20 items). Repaint on wake now targets `#main-app`. |
+| Trello 🍅 in newText | 2.12.66 | Session badge included in patch comparison — stops innerHTML thrashing every 7s. Net performance gain. |
 
 ---
 
@@ -210,4 +216,4 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-*Last updated: Session 25 (v2.12.61)*
+*Last updated: Session 26 (v2.12.66)*

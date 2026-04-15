@@ -2928,11 +2928,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.66';
+const APP_VERSION   = '2.12.67';
 const DEV_HOURS     = '164h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.67': 'Trello error handling — added 405/429 status messages. Background Trello load errors now route to red dot (non-network only). Respects wake silent flag.',
   '2.12.66': 'Fix: Blank task list (BUG-004) — removed contain:layout style from .task-list, repaint now targets #main-app. Fix: Trello 🍅 badge (BUG-005) — patch path was overwriting innerHTML every 7s tick, destroying the badge. Session badge now included in newText comparison.',
   '2.12.65': 'Fix: Focus timer splits from task on sync — renderManual innerHTML rebuild destroyed the task element timerEl was anchored to. Added _focusReanchor to re-attach timer bar to new DOM element after rebuild.',
   '2.12.64': 'Fix: Session count jump — clicking "again?" to start next pomodoro was logging a session before it ran. Count now only increments on completion or check.',
@@ -4922,6 +4923,16 @@ async function loadTrello(fromSync) {
       msg = 'Unauthorised (401) — your token may be expired. Re-generate at trello.com/power-ups/admin.';
     } else if (msg.includes('404')) {
       msg = 'Board not found (404) — double-check your Board ID or URL.';
+    } else if (msg.includes('405')) {
+      msg = 'Trello rejected the request (405). This is usually temporary — try again in a minute.';
+    } else if (msg.includes('429')) {
+      msg = 'Trello rate limit hit (429). Wait a moment and try again.';
+    }
+
+    // Log to red dot on background sync so errors are visible in PWA
+    // But respect wake silent — transient errors after sleep shouldn't alarm
+    if (fromSync && !isNetworkError) {
+      _logSyncError('Trello', 'Load: ' + (e.message || msg));
     }
 
     setTrelloIcon(false);

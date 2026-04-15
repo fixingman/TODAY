@@ -39,22 +39,25 @@
 
 ---
 
-## BUG-003: "Failed to fetch" errors in production, disappear on refresh
+## BUG-003: Sync errors in production — "Failed to fetch", Trello 405
 
-**Status:** Fixed v2.12.58 + v2.12.61 — awaiting re-verification
+**Status:** Fixed v2.12.58 + v2.12.61 + v2.12.67 — awaiting re-verification
 
-**Symptom:** Red dot shows "Failed to fetch" and "dropboxUpdateUI is not defined". App works after refresh.
+**Symptom:** Red dot shows various sync errors. Originally "dropboxUpdateUI is not defined". Later evolved to Trello 405 errors and missing Trello tasks on desktop PWA.
 
 **Root causes found:**
-1. `dropboxUpdateUI()` was called in 8 places but never defined (renamed to `renderConnections()` at some point). Broke token refresh entirely — every attempt threw, token never refreshed, all Dropbox sync failed.
-2. Sleep/wake: `navigator.onLine` reports `true` before network is actually ready. Sync fires immediately, fetch fails.
-3. Original silent `catch(e) {}` blocks hid all of the above.
+1. `dropboxUpdateUI()` called but never defined → fixed v2.12.61
+2. Sleep/wake: `navigator.onLine` true before network ready → fixed v2.12.61 (wake silent flag)
+3. Silent `catch(e) {}` blocks hid everything → fixed v2.12.58
+4. Trello 405/429 errors had no user-facing message → fixed v2.12.67
+5. Background Trello load errors were completely invisible → fixed v2.12.67 (routed to red dot)
 
 **Fixes:**
-- v2.12.58: `_logSyncError` + token retry (made errors visible, but retry still hit the undefined function)
-- v2.12.61: Replaced all `dropboxUpdateUI()` → `renderConnections()`. Added 500ms delay to sync on wake for network recovery.
+- v2.12.58: `_logSyncError` + token retry
+- v2.12.61: `dropboxUpdateUI` → `renderConnections()`, wake sync silent
+- v2.12.67: Added 405/429 error messages, background Trello errors now visible via red dot (non-network only)
 
-**Verify:** After computer sleep/wake, no red dot should appear. If it does, errors should be transient (self-heal on next tick, not "is not defined").
+**Verify:** Monitor red dot over several days. Trello 405 errors should show a clear message ("usually temporary — try again in a minute"). No "is not defined" errors. Wake errors should be silent for 3s then self-heal.
 
 **Verified fixed:** ☐
 
