@@ -150,3 +150,19 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 **Verified fixed:** ☑
 
 ---
+
+## BUG-007: Triage bar flashes briefly after triage summary
+
+**Status:** Fixed v2.12.68 — awaiting verification
+
+**Symptom:** After completing triage and seeing the "All sorted" summary, the triage reminder bar flashes on screen for ~1 second before disappearing.
+
+**Root cause:** `triageApplyAll()` shows the summary and schedules `triageClose()` after 2s. But `triageDismissedToday` was only set in `triageClose()` — during the 2s summary window, it was still `false`. If `checkTriageBar()` fired (from Trello load, sync, or any other source), it would show the bar because there are kept (undone) tasks and dismissed is false.
+
+**Fix:** Set `triageDismissedToday = true` and write to localStorage immediately in `triageApplyAll()`, before the 2s summary timeout. `triageClose()` still runs after 2s but the dismissed flag is already set.
+
+**Verify:** During triage window, complete triage on all tasks → summary screen shows "All sorted" → triage bar should NOT flash at any point during or after the summary.
+
+**Verified fixed:** ☐
+
+---

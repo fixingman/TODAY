@@ -2928,11 +2928,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.67';
-const DEV_HOURS     = '164h';
+const APP_VERSION   = '2.12.68';
+const DEV_HOURS     = '166h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.68': 'Fix: Triage bar flashes after summary — triageDismissedToday now set immediately in triageApplyAll, not 2s later in triageClose. Prevents checkTriageBar showing the bar during the summary screen.',
   '2.12.67': 'Trello error handling — added 405/429 status messages. Background Trello load errors now route to red dot (non-network only). Respects wake silent flag.',
   '2.12.66': 'Fix: Blank task list (BUG-004) — removed contain:layout style from .task-list, repaint now targets #main-app. Fix: Trello 🍅 badge (BUG-005) — patch path was overwriting innerHTML every 7s tick, destroying the badge. Session badge now included in newText comparison.',
   '2.12.65': 'Fix: Focus timer splits from task on sync — renderManual innerHTML rebuild destroyed the task element timerEl was anchored to. Added _focusReanchor to re-attach timer bar to new DOM element after rebuild.',
@@ -3763,6 +3764,11 @@ function triageKeepAll() {
 }
 
 function triageApplyAll() {
+  // Mark dismissed immediately — don't wait for the 2s auto-close.
+  // Otherwise checkTriageBar() could show the bar during the summary. (BUG-007)
+  triageDismissedToday = true;
+  localStorage.setItem('triage_dismissed', _getAppDay());
+
   const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
   const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
   let keptCount = 0, soonCount = 0, letgoCount = 0;
