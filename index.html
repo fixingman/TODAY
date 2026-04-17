@@ -2608,7 +2608,7 @@
 </head>
 <body>
 <!-- Error indicator (dev aid) -->
-<div id="errorIndicator" data-count="0" onclick="console.log(_errorLog); alert(_errorLog.join('\n\n'))"></div>
+<div id="errorIndicator" data-count="0" onclick="_showErrorLog()"></div>
 <!-- SVG noise filter for focus mode depth effect -->
 <svg style="position:absolute;width:0;height:0;pointer-events:none" aria-hidden="true">
   <defs>
@@ -2914,6 +2914,16 @@ window.addEventListener('unhandledrejection', function(e) {
   console.error('[TODAY Promise Error]', msg, e.reason);
 });
 
+// Show error log, then clear it so the dot can capture new errors freshly.
+// Old errors stay in the console via _logSyncError's console.warn calls.
+function _showErrorLog() {
+  console.log(_errorLog);
+  alert(_errorLog.length ? _errorLog.join('\n\n') : 'No errors logged.');
+  _errorLog.length = 0;
+  const el = document.getElementById('errorIndicator');
+  if (el) { el.style.display = 'none'; el.dataset.count = 0; }
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 const TRELLO_API_KEY  = 'f24cb0d938ae01e9cbf3feff20df8c1a';
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
@@ -2933,11 +2943,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.70';
+const APP_VERSION   = '2.12.71';
 const DEV_HOURS     = '166h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.71': 'Red dot clears on click — after viewing the error log, the dot disappears and the log resets. Fresh errors get captured cleanly, no mixing old with new. Errors still in console for full history.',
   '2.12.70': 'Error log timestamps — all entries in _errorLog (sync errors, window.onerror, unhandled promise rejections) now prefixed with HH:MM:SS. Easier to debug BUG-003 — can see when errors happened and cluster around wake events.',
   '2.12.69': 'Fix: Triage bar flash — checkTriageBar now returns early when overlay is open. Previously it was removing the hidden class from the bar during triage, making it visible behind the overlay and flashing when overlay closed.',
   '2.12.68': 'Fix: Triage bar flashes after summary — triageDismissedToday now set immediately in triageApplyAll, not 2s later in triageClose. Prevents checkTriageBar showing the bar during the summary screen.',

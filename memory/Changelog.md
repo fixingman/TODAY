@@ -2,6 +2,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.12.71** | **Red dot clears on click** — Clicking the error indicator now shows the log, then empties `_errorLog` and hides the dot. Fresh errors get captured cleanly, no mixing old with new. Full error history remains in browser console via `console.warn` calls in `_logSyncError`. |
 | **2.12.70** | **Error log timestamps** — All entries in `_errorLog` now prefixed with `HH:MM:SS` via `_fmtErrTime()` helper. Covers `_logSyncError`, `window.onerror`, and `unhandledrejection` handlers. Debug aid for BUG-003 — timestamps reveal when errors occur and cluster around wake events. |
 | **2.12.69** | **Fix: Triage bar flash (deeper cause)** — v2.12.68 set `triageDismissedToday` early but missed the real issue: during triage, `checkTriageBar()` fires every ~7s from `loadTrello` sync. Each call was removing `hidden` from the bar (dismissed was still false, tasks still undone). Bar was hidden behind the overlay — but when overlay closed, bar was briefly visible until the next tick hid it. Fix: `checkTriageBar` returns early when overlay is open — bar stays hidden during the whole triage flow. |
 | **2.12.68** | **Fix: Triage bar flashes after summary** — `triageDismissedToday` was only set in `triageClose()` (2s after summary). During those 2s, any `checkTriageBar()` call would show the bar because dismissed was still `false`. Now set immediately in `triageApplyAll()` along with `localStorage`. |
