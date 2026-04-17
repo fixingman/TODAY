@@ -142,14 +142,14 @@ Cleanup rules:
 
 ## Day Boundaries
 
-Two different boundaries exist to match user mental models:
+Unified at midnight (v2.12.74):
 
-| Feature | Boundary | Function | Rationale |
-|---------|----------|----------|-----------|
-| Tasks, triage, stats, cleanup | **1am** | `_getAppDay()` | Late-night work still feels like "today" |
-| Habits | **Midnight** | `_habitTodayISO()` | Daily practice resets with calendar day |
+| Feature | Boundary | Function |
+|---------|----------|----------|
+| Tasks, triage, stats, cleanup | **Midnight** | `_getAppDay()` |
+| Habits | **Midnight** | `_habitTodayISO()` |
 
-This prevents confusion when checking habits between midnight and 1am.
+Previously tasks/triage used a 1am shift (to make late-night work feel like "today"), but that created a UI lag between midnight and 1am where habits had flipped but tasks hadn't, blocking `checkNewDay` from refreshing the habit strip (BUG-010).
 
 ## Deletion Persistence
 

@@ -108,5 +108,5 @@ Not supported: Safari, Firefox (behind flag)
 ## Reset Behavior
 
 - `lastActive` updates on session complete
-- Removes task aging (`data-age-days`)
+- Removes task aging (`data-age-bucket`)
 - Task "feels fresh" after focused work

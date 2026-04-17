@@ -39,15 +39,14 @@
 ## Implementation Rules
 
 ### Day Boundary
-- Tasks/triage: Day changes at **1am**, not midnight
-- Use `_getAppDay()` for task day logic
-- Keeps late-night work feeling like "today"
-- **Exception:** Habits use midnight boundary (`_habitTodayISO()`) for simpler mental model
+- Unified at **midnight** (v2.12.74) — tasks, triage, and habits all roll over together
+- Use `_getAppDay()` for task/triage day logic, `_habitTodayISO()` for habits
+- Both return calendar date at 00:00
 
-### Evening Triage (8pm–1am)
+### Evening Triage (8pm–midnight)
 - Per-task decisions: Keep / Soon / Let go
 - AI hints based on task age, focus sessions, patterns
-- Dismissed state resets at new app day
+- Dismissed state resets at new day
 
 ### Aging
 | Zone | Condition | Action |

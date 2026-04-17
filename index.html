@@ -2921,11 +2921,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.74';
+const APP_VERSION   = '2.12.75';
 const DEV_HOURS     = '166h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.75': 'Cleanup — removed 15 unused cached elements from _cacheElements (trelloList, trelloEmpty, triageList, aiApiKey, aiSaveBtn, installBtn, listSelect, boardSelect, habitsBtn, trelloBtn, infoBtn, habitAddRow, habitNewBtn, statusMsg, undoToast). Removed stale 1am shift from streak calculation. Fixed date header + splash typewriter to use calendar midnight (were still shifting 1am). Updated stale doc references (data-age-days → data-age-bucket in Focus.md, Components.md).',
   '2.12.74': 'Day boundary aligned at midnight — tasks + triage now use midnight (was 1am) to match habits. Triage window narrowed to 8pm-midnight. Fix: habit day rollover bug — visibilitychange handler now calls checkNewDay() immediately so habits roll over as soon as app is visible after suspension.',
   '2.12.73': 'Fix: Task aging opacity — CSS was using attribute-starts-with selectors ([data-age-days^="1"]) that matched single-digit ages too. Day 1 was hitting the day 10+ rule (opacity 0.35). Replaced with data-age-bucket (young/mid/old) — clean three-stage fade: day 3-4 = 0.75, day 5-6 = 0.55, day 7+ = 0.35.',
   '2.12.72': 'Fix: Drag jump-back — syncDropbox skips pull when _pendingBackup is true. Prevents race where sync pulls old remote order during the 800ms debounce window after a drag, overwriting the local reorder.',
@@ -3208,13 +3209,14 @@ function _getAppDay() {
 // Frequently queried elements cached at load — saves DOM lookups per session
 const $ = {};
 function _cacheElements() {
+  // Only cache elements that are actually accessed via $ in hot paths.
+  // Elements fetched once at init or rarely can use getElementById directly.
+
   // Input & lists
   $.newTask       = document.getElementById('newTask');
   $.manualList    = document.getElementById('manualList');
   $.manualCount   = document.getElementById('manualCount');
   $.manualEmpty   = document.getElementById('manualEmpty');
-  $.trelloList    = document.getElementById('trelloList');
-  $.trelloEmpty   = document.getElementById('trelloEmpty');
   
   // Panels
   $.configPanel   = document.getElementById('configPanel');
@@ -3224,28 +3226,13 @@ function _cacheElements() {
   // Triage
   $.triageBar     = document.getElementById('triageBar');
   $.triageOverlay = document.getElementById('triageOverlay');
-  $.triageList    = document.getElementById('triageList');
   $.triageTitle   = document.getElementById('triageTitle');
   $.triageCount   = document.getElementById('triageCount');
   
-  // Buttons & controls
+  // Buttons
   $.addAiBtn      = document.getElementById('addAiBtn');
-  $.aiApiKey      = document.getElementById('aiApiKey');
-  $.aiSaveBtn     = document.getElementById('aiSaveBtn');
-  $.installBtn    = document.getElementById('installBtn');
-  $.listSelect    = document.getElementById('listSelect');
-  $.boardSelect   = document.getElementById('boardSelect');
-  $.habitsBtn     = document.getElementById('habitsBtn');
-  $.trelloBtn     = document.getElementById('trelloBtn');
-  $.infoBtn       = document.getElementById('infoBtn');
-  
-  // Habits
-  $.habitAddRow   = document.getElementById('habitAddRow');
-  $.habitNewBtn   = document.getElementById('habitNewBtn');
-  
-  // Status & misc
-  $.statusMsg     = document.getElementById('statusMsg');
-  $.undoToast     = document.getElementById('undoToast');
+
+  // Misc
   $.morningNudge  = document.getElementById('morningNudge');
 }
 
@@ -4232,9 +4219,8 @@ function applyNewDayCleanup() {
     return;
   }
 
-  // Calculate yesterday using app day logic (shift by 1 day from current app day)
+  // Yesterday = calendar day before today (midnight boundary, matches _getAppDay)
   const now = new Date();
-  if (now.getHours() < 1) now.setDate(now.getDate() - 1); // align to app day
   const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
   const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
   const newStreak = lastVisit === yesterday.toDateString() ? streak + 1 : 1;
@@ -4321,9 +4307,8 @@ function init() {
     mainApp.querySelectorAll('.focused').forEach(el => el.classList.remove('focused'));
   }
   
-  // Use app day for header — if before 1am, show yesterday's date
+  // Date header uses calendar day (midnight boundary, matches _getAppDay and habits)
   const now = new Date();
-  if (now.getHours() < 1) now.setDate(now.getDate() - 1);
   document.getElementById('dateTag').textContent =
     now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }).toUpperCase();
 
@@ -5517,7 +5502,7 @@ function _saveHabits() {
 }
 
 function _habitTodayISO() {
-  // Habits use midnight boundary (simpler than 1am app day)
+  // Midnight boundary — aligned with _getAppDay() since v2.12.74
   return new Date().toISOString().slice(0, 10);
 }
 
@@ -8227,9 +8212,8 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     }
   }
 
-  // Typewriter — use app day (1am boundary)
+  // Typewriter — uses calendar date (midnight boundary, matches date header)
   const splashNow = new Date();
-  if (splashNow.getHours() < 1) splashNow.setDate(splashNow.getDate() - 1);
   const dateStr = splashNow.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}).toUpperCase();
   const dateTxt = document.getElementById('splash-date');
   const cursor  = document.getElementById('splash-cursor');
