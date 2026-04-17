@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes, Trello error handling, triage timing
-- **Recent:** v2.12.68 — Triage bar flash fix, removed contain:layout, Trello 🍅 badge fix, Trello 405/429 handling
-- **Watch for:** BUG-002/003/004/005 re-verification in production
+- **Working on:** Bug fixes, cleanup, sync robustness
+- **Recent:** v2.12.76 — Drag fix robustness (retry w/ backoff), cleanup pass, midnight boundary, task aging fix, triage flash fix
+- **Watch for:** BUG-003/004/007/008/009/010 verification in production
 
 ---
 
@@ -65,8 +65,8 @@
 13. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
 14. All timestamps: ISO strings
 15. **State variables must be declared before functions that use them** — `let` has temporal dead zone
-16. **Day boundaries differ:** Tasks/triage use 1am (`_getAppDay()`), **Habits use midnight** (`_habitTodayISO()`)
-17. **Triage window: 8pm–1am** — triage bar only shows in this window
+16. **Day boundaries unified at midnight** — Tasks/triage use `_getAppDay()`, habits use `_habitTodayISO()`. Both return calendar date at midnight (v2.12.74). Previously tasks used 1am shift; now aligned.
+17. **Triage window: 8pm–midnight** — triage bar only shows in this window (aligned with day boundary)
 18. **Flow rate = `done / total`** — live calc of visible tasks, not stored
 
 ## Style Rules

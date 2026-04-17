@@ -21,12 +21,12 @@
 
 | Age | Opacity |
 |-----|---------|
-| Day 1-2 | 100% |
-| Day 3-4 | 75% |
-| Day 5-6 | 55% |
-| Day 7+ | 35% |
+| Day 0-2 | 100% (no attribute) |
+| Day 3-4 | 75% (`data-age-bucket="young"`) |
+| Day 5-6 | 55% (`data-age-bucket="mid"`) |
+| Day 7+ | 35% (`data-age-bucket="old"`) |
 
-Via `data-age-days` attribute. Hover restores to 85%.
+Hover restores to 85%.
 
 ---
 

@@ -22,7 +22,7 @@
 
 ## BUG-002: Dropbox sync fails silently — stale data on return
 
-**Status:** Fixed v2.12.58–2.12.59 — awaiting verification
+**Status:** ✅ Verified fixed (v2.12.58–2.12.61)
 
 **Symptom:** Open app or return to it → shows "last sync 45m ago", doesn't pull new data. No error visible.
 
@@ -35,7 +35,7 @@
 
 **Verify:** Make changes on Device A → switch to idle Device B → tasks should appear within 1-2s. If sync fails, red dot should appear.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
 
@@ -85,7 +85,7 @@
 
 ## BUG-005: Pomodoro session count not shown on Trello tasks
 
-**Status:** Fixed v2.12.56 + v2.12.66 — awaiting re-verification
+**Status:** ✅ Verified fixed (v2.12.56 + v2.12.66)
 
 **Symptom:** Complete focus session on Trello task → 🍅 badge appears momentarily then vanishes.
 
@@ -97,7 +97,7 @@
 
 **Verify:** Start and complete a focus session on a Trello task → `1 🍅` should appear and persist (not vanish after a few seconds). Complete second session → `2 🍅`.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
 
@@ -153,15 +153,99 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 ## BUG-007: Triage bar flashes briefly after triage summary
 
-**Status:** Fixed v2.12.68 — awaiting verification
+**Status:** Fixed v2.12.68 + v2.12.69 — awaiting verification
 
-**Symptom:** After completing triage and seeing the "All sorted" summary, the triage reminder bar flashes on screen for ~1 second before disappearing.
+**Symptom:** After completing triage and seeing the "All sorted" summary, the triage reminder bar flashes on screen for ~1 second before disappearing. User clarified: bar appears AFTER summary closes, stays visible for 1s, then disappears.
 
-**Root cause:** `triageApplyAll()` shows the summary and schedules `triageClose()` after 2s. But `triageDismissedToday` was only set in `triageClose()` — during the 2s summary window, it was still `false`. If `checkTriageBar()` fired (from Trello load, sync, or any other source), it would show the bar because there are kept (undone) tasks and dismissed is false.
+**Root cause (actual):** During triage, `checkTriageBar()` fires every ~7s (from `loadTrello` sync). Each call evaluates:
+- `triageDismissedToday === false` (still, until summary)
+- `totalUndone > 0` (still, even with decisions made — they're applied only in `triageApplyAll`)
+- `inTriageWindow === true`
+- → `bar.classList.remove('hidden')`
 
-**Fix:** Set `triageDismissedToday = true` and write to localStorage immediately in `triageApplyAll()`, before the 2s summary timeout. `triageClose()` still runs after 2s but the dismissed flag is already set.
+The bar was being **made visible repeatedly during triage**, hidden behind the overlay (z-index 999 > bar's z-modal). When overlay closed via `triageClose()`, bar was briefly visible. Next `checkTriageBar` call (~1s later) hid it because dismissed was now true.
 
-**Verify:** During triage window, complete triage on all tasks → summary screen shows "All sorted" → triage bar should NOT flash at any point during or after the summary.
+**Fixes:**
+- v2.12.68: `triageDismissedToday` set immediately in `triageApplyAll` (partial — shortened the flash window but didn't eliminate it)
+- v2.12.69: `checkTriageBar` returns early when overlay is open — bar never gets shown during triage at all
+
+**Verify:** During triage window, complete triage → summary screen → summary closes → triage bar should NOT appear at any point during or after.
+
+**Verified fixed:** ☐
+
+---
+
+## BUG-008: Dragged task jumps back to previous position
+
+**Status:** Fixed v2.12.72 — awaiting verification
+
+**Symptom:** Drag a task to reorder on mobile PWA → task briefly stays in new position, then jumps back to the old position. Not reproducible reliably.
+
+**Root cause:** Race condition between local drag save and sync pull.
+
+1. User drags → `_saveOrder` reorders `manualTasks` locally → `dropboxAutoSave()` debounced 800ms
+2. During the 800ms window, mobile PWA can fire `visibilitychange` (iOS drops notification, briefly loses focus, etc.)
+3. `visibilitychange` handler resets `lastDropboxRev = null` and calls `syncDropbox()` immediately
+4. `syncDropbox` fetches remote metadata → rev doesn't match null → triggers `dropboxRestore(true)` → `mergeRemoteData`
+5. Remote still has OLD order (our upload hasn't happened yet) → `orderedTasks` uses remote order → local order overwritten
+6. `renderManual()` runs → task visually jumps back to old position
+7. 800ms timer fires later → uploads the (now-reverted) order → drag is lost
+
+**Fix:** `syncDropbox` returns early if `_pendingBackup === true`. Pull waits for our upload to complete. Covers all drag paths (manual tasks, habits) since both use `dropboxAutoSave`.
+
+**Verify:** On mobile PWA, drag tasks around several times in succession. Each reorder should persist. No visual jump-back.
+
+**Verified fixed:** ☐
+
+---
+
+## BUG-009: Task aging opacity broken — day 1 immediately muted
+
+**Status:** Fixed v2.12.73 — awaiting verification
+
+**Symptom:** After 1 day, a task gets visually muted (minimum opacity). No three-stage fade (day 3-4, 5-6, 7+) as intended.
+
+**Root cause:** CSS selectors using attribute-starts-with:
+```css
+.task[data-age-days^="1"],  /* intended: day 10-19 */
+.task[data-age-days^="2"],  /* intended: day 20-29 */
+...
+{ opacity: 0.35; }
+```
+But `^="1"` also matches `"1"` (day 1). Same for `^="2"` → day 2, `^="3"` → day 3, etc. So single-digit aged tasks immediately got the "day 7+" minimum opacity, overriding the intended intermediate stages for days 3-4 and 5-6.
+
+**Fix:** Replaced fragile string-match selectors with `data-age-bucket="young|mid|old"` set in `taskHTML` based on age:
+- Day 0-2: no attribute (opacity 1)
+- Day 3-4: `young` (opacity 0.75)
+- Day 5-6: `mid` (opacity 0.55)
+- Day 7+: `old` (opacity 0.35)
+
+CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to remove the new attribute when a focus session resets age.
+
+**Verify:** Add a task, wait 3+ days, confirm it fades gradually. Or manually edit localStorage's `today_manual[N].lastActive` to an older timestamp and reload.
+
+**Verified fixed:** ☐
+
+---
+
+## BUG-010: Habits did not roll over at 1:02am
+
+**Status:** Fixed v2.12.74 — awaiting verification
+
+**Symptom:** At 1:02am, habits still showed yesterday's completion state. The "today" dot hadn't advanced.
+
+**Root cause:** Tasks and habits had different day boundaries:
+- Tasks: `_getAppDay()` returned previous day until 1am (shifted)
+- Habits: `_habitTodayISO()` returned new day at midnight
+
+`checkNewDay` was gated by `_getAppDay()` — so between midnight and 1am, it returned early (no day change from its perspective). This blocked `applyNewDayCleanup` → `renderHabits` from running. Habits used the midnight date internally, but the UI never re-rendered until `_getAppDay()` flipped at 1am. And even at 1am, the rollover depended on the 7s sync ticker running — if the app was suspended, you'd have to wait for the ticker to fire after returning.
+
+**Fix:**
+1. `_getAppDay()` now returns calendar date at midnight (matches habits)
+2. Triage window narrowed from 8pm-1am to 8pm-midnight
+3. `visibilitychange` handler now calls `checkNewDay()` immediately (was waiting 2s + 7s for first ticker tick after resume)
+
+**Verify:** Leave the app open past midnight → habits should roll over instantly. Close the app before midnight, reopen after → habits should roll over within ~1 second of returning.
 
 **Verified fixed:** ☐
 

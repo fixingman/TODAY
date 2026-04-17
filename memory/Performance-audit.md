@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.12.61 · April 2026  
+> v2.12.74 · April 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -9,9 +9,9 @@
 
 | Metric | Value | Notes |
 |---|---|---|
-| Total file size | 445 KB | Single HTML file — no build step |
-| Lines of code | 10,458 | +16 since v2.12.61 (reanchor, badge fix, cleanup) |
-| Functions | 218 | +1 (`_logSyncError`) |
+| Total file size | 450 KB | Single HTML file — no build step |
+| Lines of code | 10,487 | +45 since v2.12.61 (reanchor, badge fix, triage guard, timestamps, drag fix, age bucket, midnight boundary) |
+| Functions | 219 | +1 (`_showErrorLog`) |
 | Variables | 1,123 | const/let/var declarations |
 | Event listeners | 58 | +1 (`window.focus` for PWA repaint/sync) |
 | External scripts | 0 | No CDN, no analytics SDK |
@@ -19,7 +19,7 @@
 | External fonts on repeat visits | 0 | All served from SW cache |
 | Google Fonts requests | 0 | Fonts are self-hosted — zero external pings |
 
-**Assessment:** File size grew from 433KB (v2.12.47) to 445KB (v2.12.66) — sync hardening, error handling, wake/sleep logic, focus reanchor. Removed `contain: layout style` (was causing paint deferral). Fixed Trello patch path innerHTML thrashing (was rewriting every 7s). No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
+**Assessment:** File size grew from 433KB (v2.12.47) to 450KB (v2.12.74) — sync hardening, error handling, wake/sleep logic, focus reanchor, triage flash fix, drag race fix, age bucket refactor, midnight boundary alignment. Removed `contain: layout style` (was causing paint deferral). Fixed Trello patch path innerHTML thrashing (was rewriting every 7s). No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
 
 ---
 
@@ -161,7 +161,7 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 | Area | Score | Notes |
 |---|---|---|
-| Load performance | ✅ Good | 445KB single file, fonts cached, offline-capable |
+| Load performance | ✅ Good | 450KB single file, fonts cached, offline-capable |
 | Runtime performance | ✅ Good | Cached elements, cheap ticker, incremental DOM |
 | XSS protection | ✅ Good | `esc()` on all user content |
 | CSRF protection | ✅ Good | PKCE state verified |
@@ -174,7 +174,7 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-## 8. Recent Changes (v2.12.48 → v2.12.61)
+## 8. Recent Changes (v2.12.48 → v2.12.74)
 
 | Feature | Version | Performance Impact |
 |---|---|---|
@@ -198,6 +198,13 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 | Focus timer reanchor | 2.12.65 | `_focusReanchor()` after `renderManual()` — one DOM query per rebuild. |
 | Removed `contain: layout style` | 2.12.66 | **Removed** from `.task-list`. Was causing paint deferral (BUG-004). Negligible perf impact — lists are small (<20 items). Repaint on wake now targets `#main-app`. |
 | Trello 🍅 in newText | 2.12.66 | Session badge included in patch comparison — stops innerHTML thrashing every 7s. Net performance gain. |
+| Trello error handling | 2.12.67 | 405/429 status messages. Background errors route to red dot (non-network only). |
+| Triage bar guard | 2.12.68–69 | `checkTriageBar` returns early when overlay is open. Prevents repeated `classList` toggles during triage. |
+| Error log timestamps | 2.12.70 | `HH:MM:SS` prefix via `_fmtErrTime()`. Pure string concat — negligible. |
+| Red dot clears on click | 2.12.71 | `_showErrorLog()` empties array after display. No memory leak. |
+| Drag jump-back fix | 2.12.72 | `syncDropbox` returns early if `_pendingBackup === true`. One extra boolean check. |
+| Age bucket refactor | 2.12.73 | Replaced 12 attribute-starts-with selectors with 3 explicit bucket selectors. Faster CSS matching. |
+| Midnight boundary alignment | 2.12.74 | Removed 1am shift from `_getAppDay()`, date header, splash typewriter. Simpler logic, one less branch per call. `visibilitychange` now calls `checkNewDay()` immediately. |
 
 ---
 
@@ -216,4 +223,4 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-*Last updated: Session 26 (v2.12.66)*
+*Last updated: Session 28 (v2.12.74)*

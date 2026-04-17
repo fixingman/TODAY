@@ -38,7 +38,7 @@ If testing **focus mode** changes:
 - [ ] Pause/resume works
 
 If testing **zone** changes:
-- [ ] Triage bar appears 8pm–1am
+- [ ] Triage bar appears 8pm–midnight
 - [ ] Zone moves trigger sync
 - [ ] Other device receives changes
 
@@ -200,10 +200,10 @@ If testing **zone** changes:
 | # | Scenario | Risk | Mitigation |
 |---|----------|------|------------|
 | T1 | **Timezone change (travel)** | Date string changes mid-day → unexpected cleanup | `stat_last_visit` is local-only, but date shift could trigger `applyNewDayCleanup()` |
-| T2 | **DST spring forward** (2am→3am) | Skips 1am boundary | Cleanup runs at next tick after 1am — likely OK |
-| T3 | **DST fall back** (2am→1am) | Could hit 1am twice | `stat_last_visit` should prevent double-run |
+| T2 | **DST spring forward** (2am→3am) | No risk — midnight boundary already passed | Cleanup ran at last midnight |
+| T3 | **DST fall back** (2am→1am) | No risk — midnight boundary already passed | Cleanup ran at last midnight |
 | T4 | **Multi-timezone sync** | Device A/B have different "today" | `stat_last_visit` not synced — each device manages own day |
-| T5 | **Manual restore after travel** | Uses `toDateString()` not `_getAppDay()` | **BUG** — line 7423 should use `_getAppDay()` |
+| T5 | **Manual restore after travel** | `toDateString()` uses device timezone | Equivalent to `_getAppDay()` post-v2.12.74 — no separate bug |
 
 ### Testing Instructions
 
