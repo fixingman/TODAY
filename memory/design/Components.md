@@ -14,6 +14,7 @@
 
 - Checkbox: 18×18px, accent border on hover
 - Text: `--text-task` (13.5px), DM Mono
+- Link arrow: ↗ (`.task-link`) — opens `task.url` in new tab. Trello tasks get URL from API; manual tasks extract URL from input text at creation. Title: "Open in Trello" or "Open link".
 - Drag handle: appears on hover (desktop) or long-press (mobile)
 - Done state: strikethrough, muted opacity
 

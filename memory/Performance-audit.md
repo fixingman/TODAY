@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.12.74 · April 2026  
+> v2.12.79 · April 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -9,8 +9,8 @@
 
 | Metric | Value | Notes |
 |---|---|---|
-| Total file size | 450 KB | Single HTML file — no build step |
-| Lines of code | 10,487 | +45 since v2.12.61 (reanchor, badge fix, triage guard, timestamps, drag fix, age bucket, midnight boundary) |
+| Total file size | 452 KB | Single HTML file — no build step |
+| Lines of code | 10,517 | +30 since v2.12.74 (link extraction, unified clock, retry logic) |
 | Functions | 219 | +1 (`_showErrorLog`) |
 | Variables | 1,123 | const/let/var declarations |
 | Event listeners | 58 | +1 (`window.focus` for PWA repaint/sync) |
@@ -19,7 +19,7 @@
 | External fonts on repeat visits | 0 | All served from SW cache |
 | Google Fonts requests | 0 | Fonts are self-hosted — zero external pings |
 
-**Assessment:** File size grew from 433KB (v2.12.47) to 450KB (v2.12.74) — sync hardening, error handling, wake/sleep logic, focus reanchor, triage flash fix, drag race fix, age bucket refactor, midnight boundary alignment. Removed `contain: layout style` (was causing paint deferral). Fixed Trello patch path innerHTML thrashing (was rewriting every 7s). No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
+**Assessment:** File size grew from 433KB (v2.12.47) to 452KB (v2.12.79) — sync hardening, error handling, wake/sleep logic, focus reanchor, triage flash fix, drag race fix, age bucket refactor, midnight boundary alignment, unified clock, link extraction. Removed `contain: layout style` (was causing paint deferral). Fixed Trello patch path innerHTML thrashing (was rewriting every 7s). No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
 
 ---
 
@@ -161,7 +161,7 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 | Area | Score | Notes |
 |---|---|---|
-| Load performance | ✅ Good | 450KB single file, fonts cached, offline-capable |
+| Load performance | ✅ Good | 452KB single file, fonts cached, offline-capable |
 | Runtime performance | ✅ Good | Cached elements, cheap ticker, incremental DOM |
 | XSS protection | ✅ Good | `esc()` on all user content |
 | CSRF protection | ✅ Good | PKCE state verified |
@@ -174,7 +174,7 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-## 8. Recent Changes (v2.12.48 → v2.12.74)
+## 8. Recent Changes (v2.12.48 → v2.12.79)
 
 | Feature | Version | Performance Impact |
 |---|---|---|
@@ -205,6 +205,10 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 | Drag jump-back fix | 2.12.72 | `syncDropbox` returns early if `_pendingBackup === true`. One extra boolean check. |
 | Age bucket refactor | 2.12.73 | Replaced 12 attribute-starts-with selectors with 3 explicit bucket selectors. Faster CSS matching. |
 | Midnight boundary alignment | 2.12.74 | Removed 1am shift from `_getAppDay()`, date header, splash typewriter. Simpler logic, one less branch per call. `visibilitychange` now calls `checkNewDay()` immediately. |
+| Cache cleanup | 2.12.75 | Removed 15 unused `_cacheElements` entries — 15 fewer DOM lookups at init. |
+| Backup retry with backoff | 2.12.76 | Exponential backoff (2s→30s cap). Prevents `_pendingBackup` stuck state. |
+| Local timezone fix | 2.12.77–78 | `_localISO()` replaces UTC `toISOString().slice()`. One helper, no perf change. |
+| Link extraction | 2.12.79 | URL regex + `new URL()` on task add — one-time cost per task. Renamed `.trello-link` → `.task-link`. |
 
 ---
 
@@ -223,4 +227,4 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-*Last updated: Session 28 (v2.12.74)*
+*Last updated: Session 28 (v2.12.79)*

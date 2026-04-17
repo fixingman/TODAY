@@ -2199,7 +2199,7 @@
     padding: 2px 0;
     font-size: var(--text-sm);
   }
-  .trello-link {
+  .task-link {
     color: var(--highlight-ui);
     font-size: var(--text-sm);
     text-decoration: none;
@@ -2921,11 +2921,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.78';
+const APP_VERSION   = '2.12.79';
 const DEV_HOURS     = '168h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.79': 'Link extraction — URLs in manual task input are extracted, stored as task.url, and displayed as ↗ arrow (same as Trello links). Pasting just a URL uses the domain as display text. Renamed .trello-link → .task-link throughout since the feature now applies to all task types.',
   '2.12.78': 'Unified internal clock — created _localISO(d) helper for local YYYY-MM-DD dates. Replaced all 7 toISOString().slice(0,10) usages (habits, AI memory, moments, morning nudge) that returned UTC dates. App now has one consistent local-time date system. Full ISO timestamps (zoneChangedAt, ts) stay UTC — correct for cross-timezone sync.',
   '2.12.77': 'Fix: Habit rollover timezone bug (BUG-010) — _habitTodayISO, _getHabitDates, and _getHabitStrength all used toISOString().slice(0,10) which returns UTC date. At 1:23am Stockholm (UTC+2), UTC was still yesterday — habits never rolled over until 2am local. Switched all three to local date formatting.',
   '2.12.76': 'Drag fix robustness — backup retry with exponential backoff (2s, 5s, 15s, 30s, cap). Previously if upload failed, _pendingBackup stayed true forever and blocked sync pulls indefinitely. Visibility retry now routed through shared timer to prevent concurrent uploads.',
@@ -5011,7 +5012,7 @@ function renderTrello() {
       ? `<span class="task-tag">${esc(_tagMatch[1].toLowerCase())}</span>${esc(_tagMatch[2])}`
       : esc(task.text);
     const _link = safeUrl
-      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="trello-link" title="Open in Trello">↗</a>`
+      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="Open in Trello">↗</a>`
       : '';
     // Include session badge in text comparison so patch doesn't destroy it (BUG-005)
     const _focusCount = _getTrelloFocus()[id] || 0;
@@ -5118,8 +5119,9 @@ function taskHTML(task, type) {
     : '';
 
   const safeUrl = task.url && /^https?:\/\//i.test(task.url) ? task.url : '';
+  const linkTitle = type === 'trello' ? 'Open in Trello' : 'Open link';
   const link = safeUrl
-    ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="trello-link" title="Open in Trello">↗</a>`
+    ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="${linkTitle}">↗</a>`
     : '';
 
   const sessions = type === 'trello'
@@ -5189,7 +5191,7 @@ document.addEventListener('click', function(e) {
       const textEl = taskEl.querySelector('.task-text');
       // Get clean text — strip session count badge, link arrow, and tag prefix
       const clone = textEl.cloneNode(true);
-      clone.querySelectorAll('.session-count, .trello-link, .task-tag').forEach(el => el.remove());
+      clone.querySelectorAll('.session-count, .task-link, .task-tag').forEach(el => el.remove());
       const text = clone.textContent.trim();
 
       function _showCopied() {
@@ -5923,7 +5925,22 @@ function addManual() {
     text = text.slice(0, MAX_TASK_LENGTH);
   }
 
+  // Extract URL from text — store separately, strip from display text
+  const urlMatch = text.match(/(https?:\/\/[^\s]+)/i);
+  let url = null;
+  if (urlMatch) {
+    url = urlMatch[1];
+    // Remove the URL from task text; trim any leftover whitespace
+    text = text.replace(urlMatch[1], '').trim();
+    // If user pasted just a URL with no text, use the domain as display text
+    if (!text) {
+      try { text = new URL(url).hostname.replace(/^www\./, ''); }
+      catch(e) { text = url; }
+    }
+  }
+
   const task = { id: 'manual_' + Date.now(), text };
+  if (url) task.url = url;
   manualTasks.push(task);
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));
   _setLastLocalChange();
@@ -9997,7 +10014,7 @@ function _aiClearBadge() {
     if (e.target.closest('.zone-badge'))  return;  // pull button in SOON/PAST
     if (e.target.closest('.zone-list'))   return;  // don't focus tasks in SOON/PAST zones
     if (e.target.closest('.habit-check')) return;
-    if (e.target.closest('.trello-link')) return;
+    if (e.target.closest('.task-link')) return;
     if (e.target.closest('.focus-timer')) return;
     if (e.target.closest('.habit-edit-input')) return;
     if (e.target.closest('.habit-edit-delete')) return;
