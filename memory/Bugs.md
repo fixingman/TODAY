@@ -230,15 +230,17 @@ CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to 
 
 ## BUG-010: Habits did not roll over at 1:02am
 
-**Status:** Fixed v2.12.74 — awaiting verification
+**Status:** Fixed v2.12.74 + v2.12.77 — awaiting re-verification
 
-**Symptom:** At 1:02am, habits still showed yesterday's completion state. The "today" dot hadn't advanced.
+**Symptom:** At 1:23am Stockholm, habits still showed yesterday's completion state. Tasks cleaned up correctly, date header showed today. Dot strip hadn't shifted — today's dot was missing.
 
-**Root cause:** Tasks and habits had different day boundaries:
-- Tasks: `_getAppDay()` returned previous day until 1am (shifted)
-- Habits: `_habitTodayISO()` returned new day at midnight
+**Root causes found:**
+1. (v2.12.74) `checkNewDay` gated by `_getAppDay()` which used 1am shift — blocked cleanup between midnight and 1am. Fixed by aligning at midnight.
+2. (v2.12.77) **The real cause:** `_habitTodayISO()` used `toISOString().slice(0,10)` which returns **UTC** date. In Stockholm (UTC+2), at 1:23am local, UTC was still 11:23pm yesterday. So `_habitTodayISO()` returned yesterday's date. Tasks used `toDateString()` (local time) — correctly today. Same issue in `_getHabitDates()` and `_getHabitStrength()`.
 
-`checkNewDay` was gated by `_getAppDay()` — so between midnight and 1am, it returned early (no day change from its perspective). This blocked `applyNewDayCleanup` → `renderHabits` from running. Habits used the midnight date internally, but the UI never re-rendered until `_getAppDay()` flipped at 1am. And even at 1am, the rollover depended on the 7s sync ticker running — if the app was suspended, you'd have to wait for the ticker to fire after returning.
+**Fix (v2.12.77):** All three functions now use local date formatting (`getFullYear/getMonth/getDate`) instead of `toISOString()`.
+
+**Verify:** After midnight local time (but before UTC midnight), check habits panel. Dot strip should show today's empty dot. Completing a habit should fill today's dot, not yesterday's.
 
 **Fix:**
 1. `_getAppDay()` now returns calendar date at midnight (matches habits)

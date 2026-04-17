@@ -2921,11 +2921,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.76';
+const APP_VERSION   = '2.12.77';
 const DEV_HOURS     = '168h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.77': 'Fix: Habit rollover timezone bug (BUG-010) — _habitTodayISO, _getHabitDates, and _getHabitStrength all used toISOString().slice(0,10) which returns UTC date. At 1:23am Stockholm (UTC+2), UTC was still yesterday — habits never rolled over until 2am local. Switched all three to local date formatting.',
   '2.12.76': 'Drag fix robustness — backup retry with exponential backoff (2s, 5s, 15s, 30s, cap). Previously if upload failed, _pendingBackup stayed true forever and blocked sync pulls indefinitely. Visibility retry now routed through shared timer to prevent concurrent uploads.',
   '2.12.75': 'Cleanup — removed 15 unused cached elements from _cacheElements (trelloList, trelloEmpty, triageList, aiApiKey, aiSaveBtn, installBtn, listSelect, boardSelect, habitsBtn, trelloBtn, infoBtn, habitAddRow, habitNewBtn, statusMsg, undoToast). Removed stale 1am shift from streak calculation. Fixed date header + splash typewriter to use calendar midnight (were still shifting 1am). Updated stale doc references (data-age-days → data-age-bucket in Focus.md, Components.md).',
   '2.12.74': 'Day boundary aligned at midnight — tasks + triage now use midnight (was 1am) to match habits. Triage window narrowed to 8pm-midnight. Fix: habit day rollover bug — visibilitychange handler now calls checkNewDay() immediately so habits roll over as soon as app is visible after suspension.',
@@ -5503,18 +5504,20 @@ function _saveHabits() {
 }
 
 function _habitTodayISO() {
-  // Midnight boundary — aligned with _getAppDay() since v2.12.74
-  return new Date().toISOString().slice(0, 10);
+  // Local date as YYYY-MM-DD — NOT toISOString() which returns UTC.
+  // At 1am CET, UTC is still yesterday → habits wouldn't roll over. (BUG-010)
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 function _getHabitDates() {
-  // Last 21 days ending with today (midnight boundary)
+  // Last 21 days ending with today (local time, NOT UTC)
   const now = new Date();
   const days = [];
   for (let i = 20; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(now.getDate() - i);
-    days.push(d.toISOString().slice(0, 10));
+    days.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
   }
   return days;
 }
@@ -5530,7 +5533,7 @@ function _getHabitStrength(id) {
   for (let i = 89; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const ds = d.toISOString().slice(0, 10);
+    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     score = score * alpha + (completions.has(ds) ? 1 : 0) * (1 - alpha);
   }
   return Math.round(score * 100);
