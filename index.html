@@ -2875,8 +2875,13 @@ window.scrollTo(0, 0);
 
 // ─── Error Monitoring (dev aid) ───────────────────────────────────────────────
 const _errorLog = [];
+function _fmtErrTime() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
 function _logSyncError(source, msg) {
-  const entry = '[' + source + '] ' + (msg || 'unknown error');
+  const entry = _fmtErrTime() + ' [' + source + '] ' + (msg || 'unknown error');
   // During wake sync (first 3s after tab return), log but don't show red dot —
   // network may not be ready yet, ticker will retry. (BUG-003)
   if (window._isWakeSyncSilent && window._isWakeSyncSilent()) {
@@ -2889,7 +2894,7 @@ function _logSyncError(source, msg) {
   console.warn(entry);
 }
 window.onerror = function(msg, url, line, col, err) {
-  _errorLog.push(`${msg} at ${url}:${line}:${col}`);
+  _errorLog.push(`${_fmtErrTime()} ${msg} at ${url}:${line}:${col}`);
   const el = document.getElementById('errorIndicator');
   if (el) {
     el.style.display = 'block';
@@ -2900,7 +2905,7 @@ window.onerror = function(msg, url, line, col, err) {
 };
 window.addEventListener('unhandledrejection', function(e) {
   const msg = e.reason?.message || e.reason || 'Unhandled promise rejection';
-  _errorLog.push(`Promise: ${msg}`);
+  _errorLog.push(`${_fmtErrTime()} Promise: ${msg}`);
   const el = document.getElementById('errorIndicator');
   if (el) {
     el.style.display = 'block';
@@ -2928,11 +2933,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.69';
+const APP_VERSION   = '2.12.70';
 const DEV_HOURS     = '166h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.70': 'Error log timestamps — all entries in _errorLog (sync errors, window.onerror, unhandled promise rejections) now prefixed with HH:MM:SS. Easier to debug BUG-003 — can see when errors happened and cluster around wake events.',
   '2.12.69': 'Fix: Triage bar flash — checkTriageBar now returns early when overlay is open. Previously it was removing the hidden class from the bar during triage, making it visible behind the overlay and flashing when overlay closed.',
   '2.12.68': 'Fix: Triage bar flashes after summary — triageDismissedToday now set immediately in triageApplyAll, not 2s later in triageClose. Prevents checkTriageBar showing the bar during the summary screen.',
   '2.12.67': 'Trello error handling — added 405/429 status messages. Background Trello load errors now route to red dot (non-network only). Respects wake silent flag.',
