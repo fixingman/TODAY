@@ -174,3 +174,27 @@ The bar was being **made visible repeatedly during triage**, hidden behind the o
 **Verified fixed:** ☐
 
 ---
+
+## BUG-008: Dragged task jumps back to previous position
+
+**Status:** Fixed v2.12.72 — awaiting verification
+
+**Symptom:** Drag a task to reorder on mobile PWA → task briefly stays in new position, then jumps back to the old position. Not reproducible reliably.
+
+**Root cause:** Race condition between local drag save and sync pull.
+
+1. User drags → `_saveOrder` reorders `manualTasks` locally → `dropboxAutoSave()` debounced 800ms
+2. During the 800ms window, mobile PWA can fire `visibilitychange` (iOS drops notification, briefly loses focus, etc.)
+3. `visibilitychange` handler resets `lastDropboxRev = null` and calls `syncDropbox()` immediately
+4. `syncDropbox` fetches remote metadata → rev doesn't match null → triggers `dropboxRestore(true)` → `mergeRemoteData`
+5. Remote still has OLD order (our upload hasn't happened yet) → `orderedTasks` uses remote order → local order overwritten
+6. `renderManual()` runs → task visually jumps back to old position
+7. 800ms timer fires later → uploads the (now-reverted) order → drag is lost
+
+**Fix:** `syncDropbox` returns early if `_pendingBackup === true`. Pull waits for our upload to complete. Covers all drag paths (manual tasks, habits) since both use `dropboxAutoSave`.
+
+**Verify:** On mobile PWA, drag tasks around several times in succession. Each reorder should persist. No visual jump-back.
+
+**Verified fixed:** ☐
+
+---
