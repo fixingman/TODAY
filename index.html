@@ -2921,11 +2921,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.73';
+const APP_VERSION   = '2.12.74';
 const DEV_HOURS     = '166h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.74': 'Day boundary aligned at midnight — tasks + triage now use midnight (was 1am) to match habits. Triage window narrowed to 8pm-midnight. Fix: habit day rollover bug — visibilitychange handler now calls checkNewDay() immediately so habits roll over as soon as app is visible after suspension.',
   '2.12.73': 'Fix: Task aging opacity — CSS was using attribute-starts-with selectors ([data-age-days^="1"]) that matched single-digit ages too. Day 1 was hitting the day 10+ rule (opacity 0.35). Replaced with data-age-bucket (young/mid/old) — clean three-stage fade: day 3-4 = 0.75, day 5-6 = 0.55, day 7+ = 0.35.',
   '2.12.72': 'Fix: Drag jump-back — syncDropbox skips pull when _pendingBackup is true. Prevents race where sync pulls old remote order during the 800ms debounce window after a drag, overwriting the local reorder.',
   '2.12.71': 'Red dot clears on click — after viewing the error log, the dot disappears and the log resets. Fresh errors get captured cleanly, no mixing old with new. Errors still in console for full history.',
@@ -3194,17 +3195,13 @@ function safeJSON(key, fallback) {
   catch(e) { return fallback; }
 }
 
-// App day boundary — day changes at 1am instead of midnight
-// This keeps late-night work (11pm–1am) feeling like "today"
+// App day boundary — day rolls over at midnight (aligned with habits)
 function _getAppDay() {
-  const now = new Date();
-  // If before 1am, treat as previous calendar day
-  if (now.getHours() < 1) {
-    const shifted = new Date(now);
-    shifted.setDate(shifted.getDate() - 1);
-    return shifted.toDateString();
-  }
-  return now.toDateString();
+  // Midnight boundary — matches _habitTodayISO() so tasks, triage, and habits
+  // all flip at the same moment. Previously 1am for "late-night work feels like
+  // today" — but habits used midnight anyway, creating a mismatch where the
+  // habit strip wouldn't refresh until 1am. (v2.12.74)
+  return new Date().toDateString();
 }
 
 // ─── Cached DOM Elements ──────────────────────────────────────────────────────
@@ -3526,8 +3523,9 @@ function checkTriageBar() {
     return; // Don't touch bar while overlay is open
   }
   
-  // Show 8pm–1am (hour >= 20 OR hour < 1) with undone tasks, unless dismissed today
-  const inTriageWindow = hour >= 20 || hour < 1;
+  // Show 8pm–midnight with undone tasks, unless dismissed today.
+  // Previously extended to 1am (when day boundary was 1am). Now aligned to midnight. (v2.12.74)
+  const inTriageWindow = hour >= 20;
   if (inTriageWindow && totalUndone > 0 && !triageDismissedToday) {
     const countEl = $.triageCount || document.getElementById('triageCount');
     if (countEl) countEl.textContent = totalUndone;
@@ -7929,10 +7927,10 @@ async function dropboxRestore(fromSync) {
   // Expose rev setter so dropboxBackup can update baseline after its own write
   window._dbxSetRev = function(rev) { lastDropboxRev = rev; };
 
-  // Day boundary cleanup — uses app day (1am) instead of midnight
+  // Day boundary cleanup — uses midnight boundary (aligned with habits as of v2.12.74)
   function checkNewDay() {
     // Compute app day fresh each tick — a cached value set at module load would be
-    // stale if the app stays open past the 1am boundary without a reload.
+    // stale if the app stays open past midnight without a reload.
     const today = _getAppDay();
     if (localStorage.getItem('stat_last_visit') === today) return;
     applyNewDayCleanup();
@@ -7973,6 +7971,9 @@ async function dropboxRestore(fromSync) {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       clearTimeout(wakeTimer);
+      // Check day boundary immediately — if app was suspended past midnight,
+      // habits and tasks should roll over right away, not wait 9s for first tick. (v2.12.74)
+      checkNewDay();
       // Reset rev baseline so syncDropbox does a full pull on return —
       // Dropbox CDN may lag, so rev could appear unchanged even when
       // another device wrote new data. (BUG-002 Path B)
