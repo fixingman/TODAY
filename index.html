@@ -2921,11 +2921,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.77';
+const APP_VERSION   = '2.12.78';
 const DEV_HOURS     = '168h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.78': 'Unified internal clock — created _localISO(d) helper for local YYYY-MM-DD dates. Replaced all 7 toISOString().slice(0,10) usages (habits, AI memory, moments, morning nudge) that returned UTC dates. App now has one consistent local-time date system. Full ISO timestamps (zoneChangedAt, ts) stay UTC — correct for cross-timezone sync.',
   '2.12.77': 'Fix: Habit rollover timezone bug (BUG-010) — _habitTodayISO, _getHabitDates, and _getHabitStrength all used toISOString().slice(0,10) which returns UTC date. At 1:23am Stockholm (UTC+2), UTC was still yesterday — habits never rolled over until 2am local. Switched all three to local date formatting.',
   '2.12.76': 'Drag fix robustness — backup retry with exponential backoff (2s, 5s, 15s, 30s, cap). Previously if upload failed, _pendingBackup stayed true forever and blocked sync pulls indefinitely. Visibility retry now routed through shared timer to prevent concurrent uploads.',
   '2.12.75': 'Cleanup — removed 15 unused cached elements from _cacheElements (trelloList, trelloEmpty, triageList, aiApiKey, aiSaveBtn, installBtn, listSelect, boardSelect, habitsBtn, trelloBtn, infoBtn, habitAddRow, habitNewBtn, statusMsg, undoToast). Removed stale 1am shift from streak calculation. Fixed date header + splash typewriter to use calendar midnight (were still shifting 1am). Updated stale doc references (data-age-days → data-age-bucket in Focus.md, Components.md).',
@@ -3200,11 +3201,20 @@ function safeJSON(key, fallback) {
 
 // App day boundary — day rolls over at midnight (aligned with habits)
 function _getAppDay() {
-  // Midnight boundary — matches _habitTodayISO() so tasks, triage, and habits
+  // Midnight boundary — matches _localISO() so tasks, triage, and habits
   // all flip at the same moment. Previously 1am for "late-night work feels like
   // today" — but habits used midnight anyway, creating a mismatch where the
   // habit strip wouldn't refresh until 1am. (v2.12.74)
   return new Date().toDateString();
+}
+
+// Unified local date helper — returns YYYY-MM-DD in local timezone.
+// NEVER use toISOString().slice(0,10) for date logic — that returns UTC,
+// which diverges from local time near midnight (BUG-010). All date strings
+// stored in habits, AI memory, and moments must use this function.
+function _localISO(d) {
+  if (!d) d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 // ─── Cached DOM Elements ──────────────────────────────────────────────────────
@@ -3931,7 +3941,7 @@ let appMemory = (() => {
         dragKeywords: [],         // keywords that tend to linger
       },
       // Meta
-      firstSeen: new Date().toISOString().slice(0, 10),
+      firstSeen: _localISO(),
       totalTasksCompleted: 0,
       totalDaysActive: 0,
     };
@@ -3941,7 +3951,7 @@ let appMemory = (() => {
   patterns: { completionsByHour: {}, taskKeywords: {}, focusMinutesTotal: 0, bestStreak: 0 },
   moments: [],
   preferences: { peakHour: null, dragKeywords: [] },
-  firstSeen: new Date().toISOString().slice(0, 10),
+  firstSeen: _localISO(),
   totalTasksCompleted: 0,
   totalDaysActive: 0,
 };
@@ -3998,7 +4008,7 @@ function _memoryOnStreakUpdate(streak) {
       appMemory.moments.push({
         type: 'streak_milestone',
         value: streak,
-        date: new Date().toISOString().slice(0, 10)
+        date: _localISO()
       });
       // Keep only last 20 moments
       if (appMemory.moments.length > 20) appMemory.moments = appMemory.moments.slice(-20);
@@ -4014,7 +4024,7 @@ function _memoryOnDaySummary(tasksCompleted) {
     appMemory.moments.push({
       type: 'big_clear',
       count: tasksCompleted,
-      date: new Date().toISOString().slice(0, 10)
+      date: _localISO()
     });
     if (appMemory.moments.length > 20) appMemory.moments = appMemory.moments.slice(-20);
     _saveMemory();
@@ -4146,7 +4156,7 @@ function _getProactiveObservations(ctx) {
   const recentMoments = m.moments.slice(-3);
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+  const yesterdayStr = _localISO(yesterday);
   
   for (const moment of recentMoments) {
     // Big clear yesterday
@@ -5504,20 +5514,17 @@ function _saveHabits() {
 }
 
 function _habitTodayISO() {
-  // Local date as YYYY-MM-DD — NOT toISOString() which returns UTC.
-  // At 1am CET, UTC is still yesterday → habits wouldn't roll over. (BUG-010)
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return _localISO();
 }
 
 function _getHabitDates() {
-  // Last 21 days ending with today (local time, NOT UTC)
+  // Last 21 days ending with today (local time)
   const now = new Date();
   const days = [];
   for (let i = 20; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(now.getDate() - i);
-    days.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+    days.push(_localISO(d));
   }
   return days;
 }
@@ -5533,7 +5540,7 @@ function _getHabitStrength(id) {
   for (let i = 89; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const ds = _localISO(d);
     score = score * alpha + (completions.has(ds) ? 1 : 0) * (1 - alpha);
   }
   return Math.round(score * 100);

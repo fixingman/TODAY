@@ -142,14 +142,16 @@ Cleanup rules:
 
 ## Day Boundaries
 
-Unified at midnight (v2.12.74):
+Unified at midnight (v2.12.74), unified clock (v2.12.78):
 
-| Feature | Boundary | Function |
-|---------|----------|----------|
-| Tasks, triage, stats, cleanup | **Midnight** | `_getAppDay()` |
-| Habits | **Midnight** | `_habitTodayISO()` |
+| Purpose | Function | Format | Timezone |
+|---------|----------|--------|----------|
+| Day boundary checks | `_getAppDay()` | `"Fri Apr 18 2026"` | Local |
+| Date-only strings (YYYY-MM-DD) | `_localISO(d)` | `"2026-04-18"` | Local |
+| Habit today shorthand | `_habitTodayISO()` | wraps `_localISO()` | Local |
+| Full timestamps (sync ordering) | `new Date().toISOString()` | `"2026-04-18T01:23:45Z"` | UTC |
 
-Previously tasks/triage used a 1am shift (to make late-night work feel like "today"), but that created a UI lag between midnight and 1am where habits had flipped but tasks hadn't, blocking `checkNewDay` from refreshing the habit strip (BUG-010).
+**Never use `toISOString().slice(0,10)` for date logic** — returns UTC, diverges from local near midnight (BUG-010).
 
 ## Deletion Persistence
 
