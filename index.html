@@ -2928,11 +2928,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.68';
+const APP_VERSION   = '2.12.69';
 const DEV_HOURS     = '166h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.69': 'Fix: Triage bar flash — checkTriageBar now returns early when overlay is open. Previously it was removing the hidden class from the bar during triage, making it visible behind the overlay and flashing when overlay closed.',
   '2.12.68': 'Fix: Triage bar flashes after summary — triageDismissedToday now set immediately in triageApplyAll, not 2s later in triageClose. Prevents checkTriageBar showing the bar during the summary screen.',
   '2.12.67': 'Trello error handling — added 405/429 status messages. Background Trello load errors now route to red dot (non-network only). Respects wake silent flag.',
   '2.12.66': 'Fix: Blank task list (BUG-004) — removed contain:layout style from .task-list, repaint now targets #main-app. Fix: Trello 🍅 badge (BUG-005) — patch path was overwriting innerHTML every 7s tick, destroying the badge. Session badge now included in newText comparison.',
@@ -3516,6 +3517,8 @@ function checkTriageBar() {
   if (!bar) return;
   
   // If triage overlay is open, refresh the list (sync may have updated doneIds)
+  // and skip bar visibility logic — bar should stay hidden while overlay is up.
+  // Otherwise bar appears behind the overlay and flashes when overlay closes. (BUG-007)
   const overlay = $.triageOverlay || document.getElementById('triageOverlay');
   if (overlay && !overlay.classList.contains('hidden')) {
     renderTriageList();
@@ -3523,6 +3526,7 @@ function checkTriageBar() {
     // Re-filter for title since decisions are applied
     const remaining = totalUndone - Object.keys(triageDecisions).length;
     if (titleEl && remaining > 0) titleEl.textContent = `${remaining} didn't happen`;
+    return; // Don't touch bar while overlay is open
   }
   
   // Show 8pm–1am (hour >= 20 OR hour < 1) with undone tasks, unless dismissed today

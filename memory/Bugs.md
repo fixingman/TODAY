@@ -22,7 +22,7 @@
 
 ## BUG-002: Dropbox sync fails silently — stale data on return
 
-**Status:** Fixed v2.12.58–2.12.59 — awaiting verification
+**Status:** ✅ Verified fixed (v2.12.58–2.12.61)
 
 **Symptom:** Open app or return to it → shows "last sync 45m ago", doesn't pull new data. No error visible.
 
@@ -35,7 +35,7 @@
 
 **Verify:** Make changes on Device A → switch to idle Device B → tasks should appear within 1-2s. If sync fails, red dot should appear.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
 
@@ -85,7 +85,7 @@
 
 ## BUG-005: Pomodoro session count not shown on Trello tasks
 
-**Status:** Fixed v2.12.56 + v2.12.66 — awaiting re-verification
+**Status:** ✅ Verified fixed (v2.12.56 + v2.12.66)
 
 **Symptom:** Complete focus session on Trello task → 🍅 badge appears momentarily then vanishes.
 
@@ -97,7 +97,7 @@
 
 **Verify:** Start and complete a focus session on a Trello task → `1 🍅` should appear and persist (not vanish after a few seconds). Complete second session → `2 🍅`.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
 
@@ -153,15 +153,23 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 ## BUG-007: Triage bar flashes briefly after triage summary
 
-**Status:** Fixed v2.12.68 — awaiting verification
+**Status:** Fixed v2.12.68 + v2.12.69 — awaiting verification
 
-**Symptom:** After completing triage and seeing the "All sorted" summary, the triage reminder bar flashes on screen for ~1 second before disappearing.
+**Symptom:** After completing triage and seeing the "All sorted" summary, the triage reminder bar flashes on screen for ~1 second before disappearing. User clarified: bar appears AFTER summary closes, stays visible for 1s, then disappears.
 
-**Root cause:** `triageApplyAll()` shows the summary and schedules `triageClose()` after 2s. But `triageDismissedToday` was only set in `triageClose()` — during the 2s summary window, it was still `false`. If `checkTriageBar()` fired (from Trello load, sync, or any other source), it would show the bar because there are kept (undone) tasks and dismissed is false.
+**Root cause (actual):** During triage, `checkTriageBar()` fires every ~7s (from `loadTrello` sync). Each call evaluates:
+- `triageDismissedToday === false` (still, until summary)
+- `totalUndone > 0` (still, even with decisions made — they're applied only in `triageApplyAll`)
+- `inTriageWindow === true`
+- → `bar.classList.remove('hidden')`
 
-**Fix:** Set `triageDismissedToday = true` and write to localStorage immediately in `triageApplyAll()`, before the 2s summary timeout. `triageClose()` still runs after 2s but the dismissed flag is already set.
+The bar was being **made visible repeatedly during triage**, hidden behind the overlay (z-index 999 > bar's z-modal). When overlay closed via `triageClose()`, bar was briefly visible. Next `checkTriageBar` call (~1s later) hid it because dismissed was now true.
 
-**Verify:** During triage window, complete triage on all tasks → summary screen shows "All sorted" → triage bar should NOT flash at any point during or after the summary.
+**Fixes:**
+- v2.12.68: `triageDismissedToday` set immediately in `triageApplyAll` (partial — shortened the flash window but didn't eliminate it)
+- v2.12.69: `checkTriageBar` returns early when overlay is open — bar never gets shown during triage at all
+
+**Verify:** During triage window, complete triage → summary screen → summary closes → triage bar should NOT appear at any point during or after.
 
 **Verified fixed:** ☐
 
