@@ -2921,11 +2921,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.75';
-const DEV_HOURS     = '166h';
+const APP_VERSION   = '2.12.76';
+const DEV_HOURS     = '168h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.76': 'Drag fix robustness — backup retry with exponential backoff (2s, 5s, 15s, 30s, cap). Previously if upload failed, _pendingBackup stayed true forever and blocked sync pulls indefinitely. Visibility retry now routed through shared timer to prevent concurrent uploads.',
   '2.12.75': 'Cleanup — removed 15 unused cached elements from _cacheElements (trelloList, trelloEmpty, triageList, aiApiKey, aiSaveBtn, installBtn, listSelect, boardSelect, habitsBtn, trelloBtn, infoBtn, habitAddRow, habitNewBtn, statusMsg, undoToast). Removed stale 1am shift from streak calculation. Fixed date header + splash typewriter to use calendar midnight (were still shifting 1am). Updated stale doc references (data-age-days → data-age-bucket in Focus.md, Components.md).',
   '2.12.74': 'Day boundary aligned at midnight — tasks + triage now use midnight (was 1am) to match habits. Triage window narrowed to 8pm-midnight. Fix: habit day rollover bug — visibilitychange handler now calls checkNewDay() immediately so habits roll over as soon as app is visible after suspension.',
   '2.12.73': 'Fix: Task aging opacity — CSS was using attribute-starts-with selectors ([data-age-days^="1"]) that matched single-digit ages too. Day 1 was hitting the day 10+ rule (opacity 0.35). Replaced with data-age-bucket (young/mid/old) — clean three-stage fade: day 3-4 = 0.75, day 5-6 = 0.55, day 7+ = 0.35.',
@@ -7191,17 +7192,36 @@ async function _dropboxEnsureToken() {
 }
 
 // ── Auto-save (debounced, called after every user action that changes state) ──
-let _pendingBackup = false; // Track if there's an unsaved change
+let _pendingBackup  = false; // Track if there's an unsaved change
+let _backupAttempt  = 0;     // Retry counter for exponential backoff
+
+function _scheduleBackup(delay) {
+  clearTimeout(dropboxSaveTimer);
+  dropboxSaveTimer = setTimeout(async () => {
+    const token = localStorage.getItem('dropbox_token');
+    if (!token) return; // token revoked — give up silently, ticker will re-auth on next change
+    const success = await dropboxBackup(true);
+    if (success) {
+      _pendingBackup = false;
+      _backupAttempt = 0;
+    } else {
+      // Backup failed — retry with exponential backoff so _pendingBackup
+      // doesn't stay true forever and block sync pulls indefinitely.
+      // Delays: 2s, 5s, 15s, 30s, 30s, 30s... (cap at 30s, retry forever)
+      _backupAttempt++;
+      const delays = [2000, 5000, 15000, 30000];
+      const nextDelay = delays[Math.min(_backupAttempt - 1, delays.length - 1)];
+      _scheduleBackup(nextDelay);
+    }
+  }, delay);
+}
 
 function dropboxAutoSave() {
   const token = localStorage.getItem('dropbox_token');
   if (!token) return;
   _pendingBackup = true;
-  clearTimeout(dropboxSaveTimer);
-  dropboxSaveTimer = setTimeout(async () => {
-    const success = await dropboxBackup(true);
-    if (success) _pendingBackup = false;
-  }, 800);
+  _backupAttempt = 0; // Reset — new user change, start fresh
+  _scheduleBackup(800);
 }
 
 // Retry pending backup when tab becomes visible
@@ -7223,15 +7243,12 @@ document.addEventListener('visibilitychange', () => {
       checkTriageBar();
     }, 3000);
     
-    // Retry pending backup
+    // Retry pending backup — route through _scheduleBackup so it shares the
+    // same timer (clears any pending backoff retry). Prevents two concurrent
+    // uploads if backoff retry and visibility retry fire close together.
     if (_pendingBackup) {
       const token = localStorage.getItem('dropbox_token');
-      if (token) {
-        setTimeout(async () => {
-          const success = await dropboxBackup(true);
-          if (success) _pendingBackup = false;
-        }, 1000);
-      }
+      if (token) _scheduleBackup(1000);
     }
   }
 });

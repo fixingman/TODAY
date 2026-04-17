@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes, Trello error handling, triage timing
-- **Recent:** v2.12.68 — Triage bar flash fix, removed contain:layout, Trello 🍅 badge fix, Trello 405/429 handling
-- **Watch for:** BUG-002/003/004/005 re-verification in production
+- **Working on:** Bug fixes, cleanup, sync robustness
+- **Recent:** v2.12.76 — Drag fix robustness (retry w/ backoff), cleanup pass, midnight boundary, task aging fix, triage flash fix
+- **Watch for:** BUG-003/004/007/008/009/010 verification in production
 
 ---
 
