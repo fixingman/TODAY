@@ -1236,42 +1236,20 @@
   .task-check svg { display: none; }
   .task.done .task-check svg { display: block; }
 
-  /* Visual aging — tasks gradually fade as they age
-     Uses data-age-days attribute set in taskHTML
-     Day 1-2: full opacity (no attribute or 0-2)
-     Day 3-4: slightly muted
-     Day 5-6: noticeably aged
-     Day 7+: minimum (all the same) */
-  .task[data-age-days] {
+  /* Task aging — visual opacity steps as tasks linger.
+     Uses data-age-bucket attribute set in taskHTML (young|mid|old).
+     Day 0-2: full opacity (no attribute)
+     Day 3-4: slightly muted (young)
+     Day 5-6: noticeably aged (mid)
+     Day 7+: minimum (old) */
+  .task[data-age-bucket] {
     transition: opacity var(--dur-base);
   }
-  .task[data-age-days="3"],
-  .task[data-age-days="4"] {
-    opacity: 0.75;
-  }
-  .task[data-age-days="5"],
-  .task[data-age-days="6"] {
-    opacity: 0.55;
-  }
-  /* Day 7+ — all same minimum opacity */
-  .task[data-age-days="7"],
-  .task[data-age-days="8"],
-  .task[data-age-days="9"],
-  .task[data-age-days^="1"],
-  .task[data-age-days^="2"],
-  .task[data-age-days^="3"],
-  .task[data-age-days^="4"],
-  .task[data-age-days^="5"],
-  .task[data-age-days^="6"],
-  .task[data-age-days^="7"],
-  .task[data-age-days^="8"],
-  .task[data-age-days^="9"] {
-    opacity: 0.35;
-  }
+  .task[data-age-bucket="young"] { opacity: 0.75; }
+  .task[data-age-bucket="mid"]   { opacity: 0.55; }
+  .task[data-age-bucket="old"]   { opacity: 0.35; }
   /* Hover restores readability for aged tasks */
-  .task[data-age-days]:hover {
-    opacity: 0.85;
-  }
+  .task[data-age-bucket]:hover { opacity: 0.85; }
 
   .task-body { flex: 1; min-width: 0; }
 
@@ -2943,11 +2921,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.72';
+const APP_VERSION   = '2.12.73';
 const DEV_HOURS     = '166h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.12.73': 'Fix: Task aging opacity — CSS was using attribute-starts-with selectors ([data-age-days^="1"]) that matched single-digit ages too. Day 1 was hitting the day 10+ rule (opacity 0.35). Replaced with data-age-bucket (young/mid/old) — clean three-stage fade: day 3-4 = 0.75, day 5-6 = 0.55, day 7+ = 0.35.',
   '2.12.72': 'Fix: Drag jump-back — syncDropbox skips pull when _pendingBackup is true. Prevents race where sync pulls old remote order during the 800ms debounce window after a drag, overwriting the local reorder.',
   '2.12.71': 'Red dot clears on click — after viewing the error log, the dot disappears and the log resets. Fresh errors get captured cleanly, no mixing old with new. Errors still in console for full history.',
   '2.12.70': 'Error log timestamps — all entries in _errorLog (sync errors, window.onerror, unhandled promise rejections) now prefixed with HH:MM:SS. Easier to debug BUG-003 — can see when errors happened and cluster around wake events.',
@@ -5161,8 +5140,15 @@ function taskHTML(task, type) {
   // Copy button — visible only in focus mode via CSS, present on all task types
   const copyBtn = `<button class="task-copy" data-taskid="${tid}" title="Copy task text">copy</button>`;
 
-  // Age attribute for CSS-based visual aging (only for undone manual tasks)
-  const ageAttr = (type === 'manual' && !done && ageDays > 0) ? ` data-age-days="${ageDays}"` : '';
+  // Age bucket for CSS-based visual aging (only for undone manual tasks)
+  // Day 3-4: young, 5-6: mid, 7+: old. Day 0-2: no attribute (full opacity).
+  let ageBucket = '';
+  if (type === 'manual' && !done) {
+    if (ageDays >= 7) ageBucket = 'old';
+    else if (ageDays >= 5) ageBucket = 'mid';
+    else if (ageDays >= 3) ageBucket = 'young';
+  }
+  const ageAttr = ageBucket ? ` data-age-bucket="${ageBucket}"` : '';
 
   return `
     <div class="task${done ? ' done' : ''}"${ageAttr} data-taskid="${tid}">
@@ -9954,7 +9940,7 @@ function _aiClearBadge() {
       manualTasks[manualIdx].lastActive = Date.now(); // Reset age timer
       localStorage.setItem('today_manual', JSON.stringify(manualTasks));
       const taskDom = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
-      if (taskDom) taskDom.removeAttribute('data-age-days'); // Remove visual aging immediately
+      if (taskDom) taskDom.removeAttribute('data-age-bucket'); // Remove visual aging immediately
       const badge = taskDom ? taskDom.querySelector('.session-count') : null;
       if (badge) { badge.textContent = manualTasks[manualIdx].focusSessions + ' 🍅'; badge.classList.add('has-sessions'); }
       return;

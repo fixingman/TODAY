@@ -198,3 +198,32 @@ The bar was being **made visible repeatedly during triage**, hidden behind the o
 **Verified fixed:** ☐
 
 ---
+
+## BUG-009: Task aging opacity broken — day 1 immediately muted
+
+**Status:** Fixed v2.12.73 — awaiting verification
+
+**Symptom:** After 1 day, a task gets visually muted (minimum opacity). No three-stage fade (day 3-4, 5-6, 7+) as intended.
+
+**Root cause:** CSS selectors using attribute-starts-with:
+```css
+.task[data-age-days^="1"],  /* intended: day 10-19 */
+.task[data-age-days^="2"],  /* intended: day 20-29 */
+...
+{ opacity: 0.35; }
+```
+But `^="1"` also matches `"1"` (day 1). Same for `^="2"` → day 2, `^="3"` → day 3, etc. So single-digit aged tasks immediately got the "day 7+" minimum opacity, overriding the intended intermediate stages for days 3-4 and 5-6.
+
+**Fix:** Replaced fragile string-match selectors with `data-age-bucket="young|mid|old"` set in `taskHTML` based on age:
+- Day 0-2: no attribute (opacity 1)
+- Day 3-4: `young` (opacity 0.75)
+- Day 5-6: `mid` (opacity 0.55)
+- Day 7+: `old` (opacity 0.35)
+
+CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to remove the new attribute when a focus session resets age.
+
+**Verify:** Add a task, wait 3+ days, confirm it fades gradually. Or manually edit localStorage's `today_manual[N].lastActive` to an older timestamp and reload.
+
+**Verified fixed:** ☐
+
+---
