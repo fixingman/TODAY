@@ -2921,11 +2921,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.13.0';
+const APP_VERSION   = '2.13.1';
 const DEV_HOURS     = '168h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.13.1': 'Day-end review + morning reflection — triage summary now shows contextual acknowledgment (Solid day, Deep work today, You showed up) with stats (done, focus time, habits, streak). Triage breakdown shown in muted text below. Summary display extended to 3s. Morning nudge enhanced: shows Yesterday: 5 done, 1h focused instead of just task count. Review stored in localStorage, auto-clears after noon.',
   '2.13.0': 'AI personality overhaul — removed random gates (stale task awareness + behavioral insights now always show when applicable). Added 3 new action types: break_down (split big task into steps), move_soon (park for later), reflect (pattern reflection). Deterministic message rotation replaces random picking. Fallback messages now vary by time of day, progress, and context instead of always saying \"What should I focus on?\" Widened observation triggers (streak 3+, focus milestones every 10h, task milestones every 25). System prompt updated to guide richer, more varied AI responses.',
   '2.12.79': 'Link extraction — URLs in manual task input are extracted, stored as task.url, and displayed as ↗ arrow (same as Trello links). Pasting just a URL uses the domain as display text. Renamed .trello-link → .task-link throughout since the feature now applies to all task types.',
   '2.12.78': 'Unified internal clock — created _localISO(d) helper for local YYYY-MM-DD dates. Replaced all 7 toISOString().slice(0,10) usages (habits, AI memory, moments, morning nudge) that returned UTC dates. App now has one consistent local-time date system. Full ISO timestamps (zoneChangedAt, ts) stay UTC — correct for cross-timezone sync.',
@@ -3468,35 +3469,68 @@ function moveToPast(id, status = 'let_go') {
   if (token) dropboxBackup(true);
 }
 
-// Morning nudge — gentle reminder of carried-over tasks
+// Morning nudge — yesterday's reflection + carried-over tasks
 function checkMorningNudge() {
   const nudgeEl = $.morningNudge || document.getElementById('morningNudge');
   if (!nudgeEl) return;
-  
-  const count = parseInt(localStorage.getItem('morning_nudge_count') || '0');
-  if (count === 0) {
-    nudgeEl.style.display = 'none';
-    return;
-  }
   
   // Only show in morning hours (before noon)
   const hour = new Date().getHours();
   if (hour >= 12) {
     nudgeEl.style.display = 'none';
-    localStorage.removeItem('morning_nudge_count'); // Clear after noon
+    localStorage.removeItem('morning_nudge_count');
+    localStorage.removeItem('today_day_review');
     return;
   }
   
-  // Craft the message
-  const plural = count === 1 ? '' : 's';
-  const verb = count === 1 ? 'is' : 'are';
-  nudgeEl.innerHTML = `<span class="nudge-dot"></span>${count} task${plural} ${verb} still here from yesterday`;
+  const carriedOver = parseInt(localStorage.getItem('morning_nudge_count') || '0');
+  const review = (() => {
+    try { return JSON.parse(localStorage.getItem('today_day_review') || 'null'); }
+    catch(e) { return null; }
+  })();
+  
+  // Only show review if it's from yesterday (not stale)
+  const isReviewFresh = review && review.date && review.date !== _localISO();
+  
+  if (!isReviewFresh && carriedOver === 0) {
+    nudgeEl.style.display = 'none';
+    return;
+  }
+  
+  // Build the nudge message
+  let msg = '';
+  
+  if (isReviewFresh) {
+    // Yesterday's reflection — contextual, warm
+    const parts = [];
+    if (review.done > 0) parts.push(`${review.done} done`);
+    if (review.focusMins >= 5) parts.push(_formatFocusTime(review.focusMins) + ' focused');
+    if (review.habits > 0) parts.push(`${review.habits} habit${review.habits > 1 ? 's' : ''}`);
+    
+    if (parts.length > 0) {
+      msg = `Yesterday: ${parts.join(', ')}`;
+      if (carriedOver > 0) {
+        msg += ` · ${carriedOver} carried over`;
+      }
+    } else if (carriedOver > 0) {
+      msg = `${carriedOver} task${carriedOver === 1 ? '' : 's'} carried over from yesterday`;
+    }
+  } else if (carriedOver > 0) {
+    const plural = carriedOver === 1 ? '' : 's';
+    const verb = carriedOver === 1 ? 'is' : 'are';
+    msg = `${carriedOver} task${plural} ${verb} still here from yesterday`;
+  }
+  
+  if (!msg) { nudgeEl.style.display = 'none'; return; }
+  
+  nudgeEl.innerHTML = `<span class="nudge-dot"></span>${esc(msg)}`;
   nudgeEl.style.display = 'flex';
   
   // Dismiss on click
   nudgeEl.onclick = () => {
     nudgeEl.style.display = 'none';
     localStorage.removeItem('morning_nudge_count');
+    localStorage.removeItem('today_day_review');
   };
 }
 
@@ -3858,19 +3892,71 @@ function triageApplyAll() {
     if (token) dropboxBackup(true);
   }
   
-  // Show summary
-  const parts = [];
-  if (keptCount > 0) parts.push(`${keptCount} kept`);
-  if (soonCount > 0) parts.push(`${soonCount} to soon`);
-  if (letgoCount > 0) parts.push(`${letgoCount} let go`);
+  // Show summary — contextual, earned acknowledgment
+  const triageParts = [];
+  if (keptCount > 0) triageParts.push(`${keptCount} kept`);
+  if (soonCount > 0) triageParts.push(`${soonCount} to soon`);
+  if (letgoCount > 0) triageParts.push(`${letgoCount} let go`);
+  
+  // Gather day stats for the acknowledgment line
+  const _doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
+  const _focusMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+  const _streak    = parseInt(localStorage.getItem('stat_streak') || '1');
+  const _habitsDoneCount = habitsList.filter(h =>
+    (habitCompletions[h.id] || []).includes(_habitTodayISO())
+  ).length;
+  
+  // Pick a warm, contextual headline — different days earn different words
+  let headline = 'All sorted';
+  if (_doneToday >= 8)                          headline = 'Big day';
+  else if (_doneToday >= 5)                     headline = 'Solid day';
+  else if (_doneToday >= 3 && _focusMins >= 50) headline = 'Deep work today';
+  else if (_doneToday >= 3)                     headline = 'Good day';
+  else if (_doneToday >= 1)                     headline = 'You showed up';
+  else if (_habitsDoneCount > 0)                headline = 'Habits held';
+  else                                          headline = 'All sorted';
+  
+  // Build the detail line — only include non-zero, meaningful stats
+  const detailParts = [];
+  if (_doneToday > 0) detailParts.push(`${_doneToday} done`);
+  if (_focusMins >= 5) detailParts.push(_formatFocusTime(_focusMins) + ' focused');
+  if (_habitsDoneCount > 0) detailParts.push(`${_habitsDoneCount} habit${_habitsDoneCount > 1 ? 's' : ''}`);
+  if (_streak >= 3) detailParts.push(`day ${_streak}`);
+  
+  // Compose: headline + day stats + triage breakdown
+  const detailLine = detailParts.length > 0 ? detailParts.join(' · ') : '';
+  const triageLine = triageParts.join(' · ');
   
   document.getElementById('triageList').innerHTML = '';
-  document.getElementById('triageSummary').textContent = parts.join(' · ');
   document.getElementById('triageComplete').classList.remove('hidden');
+  
+  const msgEl = document.querySelector('.triage-complete-msg');
+  if (msgEl) msgEl.textContent = headline;
+  
+  const summaryEl = document.getElementById('triageSummary');
+  if (summaryEl) {
+    summaryEl.innerHTML = detailLine
+      ? `${esc(detailLine)}<br><span style="opacity:0.5">${esc(triageLine)}</span>`
+      : esc(triageLine);
+  }
+  
+  // Save day stats for morning-after reflection (Option 5)
+  localStorage.setItem('today_day_review', JSON.stringify({
+    done: _doneToday,
+    focusMins: _focusMins,
+    habits: _habitsDoneCount,
+    habitsTotal: habitsList.length,
+    streak: _streak,
+    kept: keptCount,
+    soon: soonCount,
+    letgo: letgoCount,
+    date: _localISO(),
+  }));
   
   _haptic('success');
   
-  // Auto-close after 2s
+  // Auto-close after 3s — longer than before (was 2s) to let the
+  // day summary sink in. This is a reflective moment.
   setTimeout(() => {
     triageClose();
     renderManual();
@@ -3878,7 +3964,7 @@ function triageApplyAll() {
     renderSoon();
     renderPast();
     updateStats();
-  }, 2000);
+  }, 3000);
 }
 
 // ─── Triage History ───────────────────────────────────────────────────────────
