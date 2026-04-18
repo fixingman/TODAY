@@ -2921,11 +2921,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.79';
+const APP_VERSION   = '2.13.0';
 const DEV_HOURS     = '168h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.13.0': 'AI personality overhaul — removed random gates (stale task awareness + behavioral insights now always show when applicable). Added 3 new action types: break_down (split big task into steps), move_soon (park for later), reflect (pattern reflection). Deterministic message rotation replaces random picking. Fallback messages now vary by time of day, progress, and context instead of always saying \"What should I focus on?\" Widened observation triggers (streak 3+, focus milestones every 10h, task milestones every 25). System prompt updated to guide richer, more varied AI responses.',
   '2.12.79': 'Link extraction — URLs in manual task input are extracted, stored as task.url, and displayed as ↗ arrow (same as Trello links). Pasting just a URL uses the domain as display text. Renamed .trello-link → .task-link throughout since the feature now applies to all task types.',
   '2.12.78': 'Unified internal clock — created _localISO(d) helper for local YYYY-MM-DD dates. Replaced all 7 toISOString().slice(0,10) usages (habits, AI memory, moments, morning nudge) that returned UTC dates. App now has one consistent local-time date system. Full ISO timestamps (zoneChangedAt, ts) stay UTC — correct for cross-timezone sync.',
   '2.12.77': 'Fix: Habit rollover timezone bug (BUG-010) — _habitTodayISO, _getHabitDates, and _getHabitStrength all used toISOString().slice(0,10) which returns UTC date. At 1:23am Stockholm (UTC+2), UTC was still yesterday — habits never rolled over until 2am local. Switched all three to local date formatting.',
@@ -4100,8 +4101,8 @@ function _getProactiveObservations(ctx) {
       text: `Day ${currentStreak}. That's worth noticing.`
     });
   }
-  // Good streak going
-  else if (currentStreak >= 5 && Math.random() < 0.2) {
+  // Good streak going (always show if 3+)
+  else if (currentStreak >= 3) {
     observations.push({
       type: 'streak_acknowledge',
       priority: 'low',
@@ -4131,8 +4132,8 @@ function _getProactiveObservations(ctx) {
   // ── FOCUS TIME OBSERVATIONS ──
   
   const focusHours = Math.round(m.patterns.focusMinutesTotal / 60);
-  // Round number milestones
-  if ([10, 25, 50, 100, 200].includes(focusHours)) {
+  // Focus time milestones (every 10 hours, or notable numbers)
+  if (focusHours >= 5 && (focusHours % 10 === 0 || [5, 25, 50, 100].includes(focusHours))) {
     observations.push({
       type: 'focus_milestone',
       priority: 'medium',
@@ -4143,8 +4144,8 @@ function _getProactiveObservations(ctx) {
   // ── TASK COMPLETION OBSERVATIONS ──
   
   const totalCompleted = m.totalTasksCompleted || 0;
-  // Round number milestones
-  if ([50, 100, 200, 500, 1000].includes(totalCompleted)) {
+  // Task completion milestones (every 25, or notable numbers)
+  if (totalCompleted >= 25 && (totalCompleted % 25 === 0 || [10, 50, 100, 200, 500].includes(totalCompleted))) {
     observations.push({
       type: 'tasks_milestone',
       priority: 'medium',
@@ -8589,19 +8590,18 @@ function _aiIntroMessage(ctx) {
     return `Sunday evening. This week: ${w.tasksCompletedToday} tasks done today, ${focusStr}streak at ${ctx.streak}. How did it feel?`;
   }
   
-  // ── STALE TASK AWARENESS + BREAKDOWN SUGGESTION (~25% chance) ──
-  if (agingTasks.length > 0 && Math.random() < 0.25) {
+  // ── STALE TASK AWARENESS — always show if aging tasks exist ──
+  if (agingTasks.length > 0) {
     const oldest = agingTasks.sort((a, b) => b.ageDays - a.ageDays)[0];
-    // Suggest breakdown for really old tasks (7+ days)
     if (oldest.ageDays >= 7) {
-      return `"${oldest.text}" has been here ${oldest.ageDays} days. Maybe it's too big? Want me to help break it down into smaller steps?`;
+      return `"${oldest.text}" has been here ${oldest.ageDays} days. Maybe it's too big? Want me to help break it down?`;
     }
-    return `I notice "${oldest.text}" has been here ${oldest.ageDays} days. Still relevant, or ready to let it go?`;
+    return `"${oldest.text}" has been here ${oldest.ageDays} days. Still relevant, or ready to let it go?`;
   }
   
-  // ── BEHAVIORAL INSIGHT (~15% chance when patterns exist) ──
+  // ── BEHAVIORAL INSIGHT — always show if meaningful patterns exist ──
   const m = appMemory;
-  if (m && Math.random() < 0.15) {
+  if (m) {
     const insights = [];
     
     // Peak productivity hour insight
@@ -8610,25 +8610,29 @@ function _aiIntroMessage(ctx) {
       const hourStr = hour === 0 ? '12am' : hour < 12 ? `${hour}am` : hour === 12 ? '12pm' : `${hour - 12}pm`;
       const now = new Date().getHours();
       if (Math.abs(now - hour) <= 1) {
-        insights.push(`It's around ${hourStr} — your peak productivity time based on past completions. Good time to tackle something important.`);
+        insights.push(`It's around ${hourStr} — your peak productivity time. Good moment for the hard stuff.`);
+      } else if (now < hour && (hour - now) <= 3) {
+        insights.push(`You usually peak around ${hourStr}. Warming up — start light.`);
       }
     }
     
     // Focus time insight
-    if (m.patterns.focusMinutesTotal > 120) {
+    if (m.patterns.focusMinutesTotal > 60) {
       const hours = Math.round(m.patterns.focusMinutesTotal / 60);
-      insights.push(`You've focused for ${hours}+ hours total. That's real deep work adding up.`);
+      insights.push(`${hours}+ hours of focused time so far. That adds up.`);
     }
     
     // Streak insight
-    if (ctx.streak >= 7 && ctx.streak < m.patterns.bestStreak) {
-      insights.push(`${ctx.streak} days strong. Your best was ${m.patterns.bestStreak}. Getting close!`);
+    if (ctx.streak >= 5 && ctx.streak < m.patterns.bestStreak) {
+      insights.push(`${ctx.streak} days strong. Your best was ${m.patterns.bestStreak}. Getting close.`);
+    } else if (ctx.streak >= 3) {
+      insights.push(`Day ${ctx.streak}. You're building a rhythm.`);
     }
     
     // Days active insight
     if (m.totalDaysActive >= 14) {
       const weeks = Math.floor(m.totalDaysActive / 7);
-      insights.push(`We've been at this for ${weeks}+ weeks. ${m.totalTasksCompleted} tasks completed together.`);
+      insights.push(`${weeks}+ weeks together. ${m.totalTasksCompleted} tasks completed along the way.`);
     }
     
     // Task keyword patterns
@@ -8637,24 +8641,15 @@ function _aiIntroMessage(ctx) {
       .sort((a, b) => b[1].completed - a[1].completed);
     if (keywords.length > 0) {
       const topKeyword = keywords[0][0];
-      insights.push(`I notice you often work on "${topKeyword}" tasks. It seems important to you.`);
+      insights.push(`"${topKeyword}" keeps coming up in your tasks. Seems important to you.`);
     }
     
+    // Cycle through insights deterministically — use day + hour to pick
     if (insights.length > 0) {
-      const insight = insights[Math.floor(Math.random() * insights.length)];
-      return `Good ${ctx.timeOfDay}. ${insight} What's on your mind?`;
+      const pick = (new Date().getDate() + new Date().getHours()) % insights.length;
+      const insight = insights[pick];
+      return `Good ${ctx.timeOfDay}. ${insight}`;
     }
-  }
-  
-  // ── APP IMPROVEMENT PROMPT (~5% chance for engaged users) ──
-  const m2 = appMemory;
-  if (m2 && m2.totalDaysActive >= 7 && Math.random() < 0.05) {
-    const prompts = [
-      `You've been using TODAY for ${m2.totalDaysActive} days now. Anything you wish it did differently? I can pass ideas along.`,
-      `Quick thought: is there something about TODAY that could work better for you? Always looking to improve.`,
-      `You know this app pretty well by now. Any features you'd love to see? Or something that bugs you?`,
-    ];
-    return prompts[Math.floor(Math.random() * prompts.length)];
   }
   
   // ── STANDARD CONTEXTUAL MESSAGES ──
@@ -8745,12 +8740,44 @@ function _aiIntroMessage(ctx) {
     return `Good ${ctx.timeOfDay}. ${prompt}`;
   }
   
-  // Normal state with tasks
+  // Normal state with tasks — vary the message by time and context
   const parts = [];
   if (totalPending) parts.push(`${totalPending} task${totalPending > 1 ? 's' : ''}`);
   if (habitsDue)    parts.push(`${habitsDue} habit${habitsDue > 1 ? 's' : ''}`);
+  const summary = parts.join(' and ');
   
-  return `Good ${ctx.timeOfDay}. ${parts.join(' and ')} pending. What should I focus on?`;
+  // Contextual variations — deterministic rotation based on hour
+  const hour = new Date().getHours();
+  const focusMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+  const doneToday = ctx.tasks.done.length;
+  
+  // Afternoon with progress
+  if (ctx.timeOfDay === 'afternoon' && doneToday > 0) {
+    return `Good ${ctx.timeOfDay}. ${doneToday} done already, ${summary} left. What's next?`;
+  }
+  // Evening wind-down
+  if (ctx.timeOfDay === 'evening' && totalPending > 0) {
+    return `Evening. ${summary} still here. Tackle one more, or call it a day?`;
+  }
+  // Lots of tasks — empathetic
+  if (totalPending >= 5) {
+    return `Good ${ctx.timeOfDay}. ${summary} pending — that's a lot. Pick one to start with.`;
+  }
+  // Focus time today
+  if (focusMins >= 25 && totalPending > 0) {
+    return `Good ${ctx.timeOfDay}. ${_formatFocusTime(focusMins)} focused today, ${summary} left.`;
+  }
+  // Habits + tasks
+  if (habitsDue > 0 && totalPending > 0) {
+    return `Good ${ctx.timeOfDay}. ${summary} waiting. Habits or tasks first?`;
+  }
+  // Default — but with slight variation
+  const defaults = [
+    `Good ${ctx.timeOfDay}. ${summary} pending. Where to start?`,
+    `Good ${ctx.timeOfDay}. ${summary} on the list. What matters most?`,
+    `Good ${ctx.timeOfDay}. ${summary} waiting. One step at a time.`,
+  ];
+  return defaults[hour % defaults.length];
 }
 
 // ── Natural language from panel input ────────────────────────────────────────
@@ -9067,17 +9094,31 @@ Action types (use exact IDs from brackets above):
   check_task  { "id": "exact-id-from-list" }  — mark task done
   check_habit { "id": "exact-id-from-list" }  — mark habit done
   add_task    { "text": "task text" }         — add new task
+  break_down  { "id": "exact-id-from-list" }  — ask AI to split a big task into smaller steps
+  move_soon   { "id": "exact-id-from-list" }  — park a task in SOON (not today, but not gone)
   delete_task { "id": "exact-id-from-list" }  — remove a task (use for letting go of stale tasks)
   delete_done {}                               — clear completed
   open_panel  { "panel": "habits" }           — show habits panel (only valid value)
+  reflect     {}                               — offer a brief reflection on patterns, wins, or energy
   dismiss     {}                               — close this
 
 Rules:
-- 2-3 actions max, always end with dismiss
+- 2-4 actions max, always end with dismiss
 - Labels: 2-4 words max
 - Use real IDs from the lists above — never invent IDs
-- For aging tasks, "Let it go" action should use delete_task with the task's ID
-- For empty state, suggest an add_task action with a gentle prompt like "Add first task"`;
+- For aging tasks (7+ days), suggest break_down OR delete_task — "Break it down" or "Let it go"
+- For aging tasks (3-6 days), suggest move_soon OR start_focus — "Park for later" or "Do it now"
+- For empty state, suggest an add_task action with a gentle prompt like "Add first task"
+- Vary your responses — don't always suggest the same action type:
+  * Morning: briefing tone, overview of the day ahead
+  * Afternoon with tasks done: acknowledge progress, suggest focus on remaining
+  * Evening: wind-down tone, suggest clearing done items or reflecting
+  * Sunday evening: reflection, acknowledge the week
+  * All done: celebrate genuinely, offer to clear done items
+  * Overwhelmed (5+ tasks): empathetic, suggest one clear next step
+  * Habits due: weave habit reminders in naturally, use check_habit
+  * Streak milestones: acknowledge warmly
+- Don't always lead with "start focus on X" — sometimes the right response is a reflection, a habit nudge, or just an observation with no task suggestion`;
 }
 
 // ── Execute action ────────────────────────────────────────────────────────────
@@ -9148,6 +9189,73 @@ function _aiExecute(action) {
       if (p === 'habits') {
         setTimeout(toggleHabits, 100);
       }
+      return;
+    }
+    case 'break_down': {
+      // Ask AI to split a big task into smaller steps
+      const id = action.payload?.id;
+      const task = manualTasks.find(t => t.id === id);
+      if (!task) { closeAI(); return; }
+      _aiLoadedOnce = true;
+      _aiSetThinking();
+      _aiSetChips([]);
+      _aiCall([{
+        role: 'user',
+        content: `Break down "${task.text}" into 2-4 smaller, concrete steps I can do today. Return each as an add_task action.`
+      }]).then(result => {
+        if (result) {
+          _aiRenderResult(result);
+          _showNlRow();
+        }
+      }).catch(e => {
+        _aiSetMsg('Could not break down — ' + (e.message || '').slice(0, 50));
+      });
+      return;
+    }
+    case 'move_soon': {
+      // Park a task in SOON zone
+      const id = action.payload?.id;
+      if (id && id.startsWith('manual_')) {
+        const idx = manualTasks.findIndex(t => t.id === id);
+        if (idx !== -1) {
+          const task = manualTasks[idx];
+          task.zone = 'soon';
+          task.zoneChangedAt = new Date().toISOString();
+          soonTasks.unshift(task);
+          manualTasks.splice(idx, 1);
+          localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+          _saveSoon();
+          renderManual();
+          renderSoon();
+          updateStats();
+          dropboxAutoSave();
+        }
+      }
+      closeAI();
+      return;
+    }
+    case 'reflect': {
+      // Ask AI for a brief reflection
+      _aiLoadedOnce = true;
+      _aiSetThinking();
+      _aiSetChips([]);
+      const ctx = _aiContext();
+      const focusMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+      const doneCount = ctx.tasks.done.length;
+      const pending = ctx.tasks.pending.length + ctx.tasks.trello.length;
+      const habitsDone = ctx.habits.filter(h => h.doneToday).length;
+      const habitsTotal = ctx.habits.length;
+      _aiCall([{
+        role: 'user',
+        content: `Reflect on my day so far: ${doneCount} tasks done, ${pending} pending, ${habitsDone}/${habitsTotal} habits, ${focusMins} minutes focused, day ${ctx.streak} streak. Give me a warm, honest 1-2 sentence reflection. Not advice — just noticing.`
+      }]).then(result => {
+        if (result) {
+          _aiRenderResult(result);
+          _showNlRow();
+        }
+      }).catch(e => {
+        _aiSetMsg('Could not reflect — ' + (e.message || '').slice(0, 50));
+      });
       return;
     }
     default: // dismiss
