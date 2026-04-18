@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes, cleanup, sync robustness
-- **Recent:** v2.12.76 — Drag fix robustness (retry w/ backoff), cleanup pass, midnight boundary, task aging fix, triage flash fix
-- **Watch for:** BUG-003/004/007/008/009/010 verification in production
+- **Working on:** AI overhaul, day-end review, link extraction, timezone unification
+- **Recent:** v2.13.1 — AI personality overhaul, day-end review + morning reflection, link extraction, unified clock, BUG-009/010 fixes
+- **Watch for:** BUG-003/004/007/008/010 verification in production, AI response variety in practice
 
 ---
 

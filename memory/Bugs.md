@@ -201,7 +201,7 @@ The bar was being **made visible repeatedly during triage**, hidden behind the o
 
 ## BUG-009: Task aging opacity broken — day 1 immediately muted
 
-**Status:** Fixed v2.12.73 — awaiting verification
+**Status:** ✅ Verified fixed (v2.12.73)
 
 **Symptom:** After 1 day, a task gets visually muted (minimum opacity). No three-stage fade (day 3-4, 5-6, 7+) as intended.
 
@@ -224,7 +224,7 @@ CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to 
 
 **Verify:** Add a task, wait 3+ days, confirm it fades gradually. Or manually edit localStorage's `today_manual[N].lastActive` to an older timestamp and reload.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
 

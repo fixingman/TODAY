@@ -174,7 +174,7 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-## 8. Recent Changes (v2.12.48 → v2.12.79)
+## 8. Recent Changes (v2.12.48 → v2.13.1)
 
 | Feature | Version | Performance Impact |
 |---|---|---|
@@ -209,6 +209,8 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 | Backup retry with backoff | 2.12.76 | Exponential backoff (2s→30s cap). Prevents `_pendingBackup` stuck state. |
 | Local timezone fix | 2.12.77–78 | `_localISO()` replaces UTC `toISOString().slice()`. One helper, no perf change. |
 | Link extraction | 2.12.79 | URL regex + `new URL()` on task add — one-time cost per task. Renamed `.trello-link` → `.task-link`. |
+| AI personality overhaul | 2.13.0 | Removed `Math.random()` gates — replaced with deterministic modulo. Added 3 action handlers. No perf change. |
+| Day-end review + morning reflection | 2.13.1 | One `localStorage.setItem` at triage completion. Morning nudge reads + clears. Negligible. |
 
 ---
 

@@ -42,11 +42,12 @@ The AI companion is accessed via the ✦ button. It reads app state, provides co
 
 1. Morning + first open → **Morning Briefing**
 2. Sunday evening → **Weekly Reflection**
-3. Aging tasks + 30% roll → **Stale Awareness**
-4. Overdue tasks → Overdue nudge
-5. All done + tasks completed → **Celebrate**
-6. Empty (no tasks, no done) → **Invitation**
-7. Default → Standard contextual
+3. Aging tasks (3+ days) → **Stale Awareness** (always, not random)
+4. Behavioral insight (patterns exist) → **Insight** (deterministic rotation by day+hour)
+5. Overdue tasks → Overdue nudge
+6. All done + tasks completed → **Celebrate**
+7. Empty (no tasks, no done) → **Invitation**
+8. Default → **Contextual** (varies by time, progress, energy)
 
 ---
 
@@ -55,8 +56,9 @@ The AI companion is accessed via the ✦ button. It reads app state, provides co
 ### Morning Briefing
 > "Good morning. First look: 3 tasks waiting, 2 habits due, 1 been here a while. Day 5 of your streak."
 
-### Stale Task Awareness (~30% chance)
-> "I notice 'fix the bike' has been here 5 days. Still relevant, or ready to let it go?"
+### Stale Task Awareness (always when aging tasks exist)
+> "fix the bike" has been here 5 days. Still relevant, or ready to let it go?
+> (7+ days: suggests break_down instead)
 
 ### Sunday Reflection
 > "Sunday evening. This week: 12 tasks done, 2 hours focused, streak at 7. How did it feel?"
@@ -106,9 +108,12 @@ Based on peak hour from memory:
 | `check_task` | `{id}` | Mark done |
 | `check_habit` | `{id}` | Mark habit done |
 | `add_task` | `{text}` | Add new task |
+| `break_down` | `{id}` | Ask AI to split big task into 2-4 subtasks |
+| `move_soon` | `{id}` | Park task in SOON zone |
 | `delete_task` | `{id}` | Remove task |
 | `delete_done` | `{}` | Clear completed |
 | `open_panel` | `{panel: 'habits'}` | Open habits |
+| `reflect` | `{}` | Ask AI for warm day reflection |
 | `dismiss` | `{}` | Close AI panel |
 
 ---
@@ -120,3 +125,33 @@ Based on peak hour from memory:
 - No exclamation marks
 - Acknowledges effort without gamification
 - Weaves observations naturally, doesn't lead with them
+
+---
+
+## Day-End Review (v2.13.1)
+
+Triage summary shows contextual acknowledgment after all decisions are made:
+
+| Condition | Headline |
+|---|---|
+| 8+ done | "Big day" |
+| 5+ done | "Solid day" |
+| 3+ done + 50m+ focus | "Deep work today" |
+| 3+ done | "Good day" |
+| 1-2 done | "You showed up" |
+| Only habits | "Habits held" |
+| Default | "All sorted" |
+
+Below headline: stats line (`5 done · 1h focused · 2 habits · day 12`) + muted triage breakdown. Displays for 3s.
+
+Saved to `today_day_review` in localStorage for morning reflection.
+
+---
+
+## Morning Reflection (v2.13.1)
+
+Morning nudge (before noon) shows yesterday's review if available:
+
+> Yesterday: 5 done, 1h focused, 2 habits · 3 carried over
+
+Falls back to simple carried-over count if no review exists. Auto-clears after noon. Tap to dismiss.
