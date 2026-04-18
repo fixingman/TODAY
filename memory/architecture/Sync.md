@@ -191,7 +191,7 @@ When `_changed` is true, `renderManual()` is called to update the UI.
 
 ## Timestamps
 
-All timestamps are **ISO strings** (`new Date().toISOString()`).
+All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UTC, for cross-timezone ordering. Date-only strings (habits, AI memory) use `_localISO()` — local YYYY-MM-DD. Never mix the two.
 
 ### Tracked Events
 

@@ -39,9 +39,10 @@
 ## Implementation Rules
 
 ### Day Boundary
-- Unified at **midnight** (v2.12.74) — tasks, triage, and habits all roll over together
-- Use `_getAppDay()` for task/triage day logic, `_habitTodayISO()` for habits
-- Both return calendar date at 00:00
+- Unified at **midnight** (v2.12.74), unified clock (v2.12.78)
+- `_getAppDay()` for day boundary checks (human-readable), `_localISO()` for YYYY-MM-DD strings, `_habitTodayISO()` wraps `_localISO()`
+- All local time — never use `toISOString().slice(0,10)` (UTC, diverges near midnight)
+- Full ISO timestamps (`zoneChangedAt`, `ts`) stay UTC for cross-timezone sync
 
 ### Evening Triage (8pm–midnight)
 - Per-task decisions: Keep / Soon / Let go

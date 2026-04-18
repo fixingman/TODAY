@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes, cleanup, sync robustness
-- **Recent:** v2.12.76 — Drag fix robustness (retry w/ backoff), cleanup pass, midnight boundary, task aging fix, triage flash fix
-- **Watch for:** BUG-003/004/007/008/009/010 verification in production
+- **Working on:** AI overhaul, day-end review, link extraction, timezone unification
+- **Recent:** v2.13.1 — AI personality overhaul, day-end review + morning reflection, link extraction, unified clock, BUG-009/010 fixes
+- **Watch for:** BUG-003/004/007/008/010 verification in production, AI response variety in practice
 
 ---
 
@@ -63,9 +63,9 @@
 11. `manualTasks` and `habitsList` preserve drag order — **never re-sort**
 12. Backup schema version: **5.2** (includes trello_order)
 13. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
-14. All timestamps: ISO strings
+14. All timestamps: ISO strings (UTC for sync ordering). **Date-only strings: use `_localISO()`** (local YYYY-MM-DD) — never `toISOString().slice(0,10)` which returns UTC and diverges near midnight (BUG-010).
 15. **State variables must be declared before functions that use them** — `let` has temporal dead zone
-16. **Day boundaries unified at midnight** — Tasks/triage use `_getAppDay()`, habits use `_habitTodayISO()`. Both return calendar date at midnight (v2.12.74). Previously tasks used 1am shift; now aligned.
+16. **Day boundaries unified at midnight** — `_getAppDay()` for human-readable day, `_localISO()` for YYYY-MM-DD, `_habitTodayISO()` wraps `_localISO()`. All local time. Full ISO timestamps (`zoneChangedAt`, `ts`) stay UTC for cross-timezone sync.
 17. **Triage window: 8pm–midnight** — triage bar only shows in this window (aligned with day boundary)
 18. **Flow rate = `done / total`** — live calc of visible tasks, not stored
 

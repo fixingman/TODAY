@@ -2199,7 +2199,7 @@
     padding: 2px 0;
     font-size: var(--text-sm);
   }
-  .trello-link {
+  .task-link {
     color: var(--highlight-ui);
     font-size: var(--text-sm);
     text-decoration: none;
@@ -2921,11 +2921,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.12.76';
-const DEV_HOURS     = '168h';
+const APP_VERSION   = '2.13.1';
+const DEV_HOURS     = '170h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.13.1': 'Day-end review + morning reflection — triage summary now shows contextual acknowledgment (Solid day, Deep work today, You showed up) with stats (done, focus time, habits, streak). Triage breakdown shown in muted text below. Summary display extended to 3s. Morning nudge enhanced: shows Yesterday: 5 done, 1h focused instead of just task count. Review stored in localStorage, auto-clears after noon.',
+  '2.13.0': 'AI personality overhaul — removed random gates (stale task awareness + behavioral insights now always show when applicable). Added 3 new action types: break_down (split big task into steps), move_soon (park for later), reflect (pattern reflection). Deterministic message rotation replaces random picking. Fallback messages now vary by time of day, progress, and context instead of always saying \"What should I focus on?\" Widened observation triggers (streak 3+, focus milestones every 10h, task milestones every 25). System prompt updated to guide richer, more varied AI responses.',
+  '2.12.79': 'Link extraction — URLs in manual task input are extracted, stored as task.url, and displayed as ↗ arrow (same as Trello links). Pasting just a URL uses the domain as display text. Renamed .trello-link → .task-link throughout since the feature now applies to all task types.',
+  '2.12.78': 'Unified internal clock — created _localISO(d) helper for local YYYY-MM-DD dates. Replaced all 7 toISOString().slice(0,10) usages (habits, AI memory, moments, morning nudge) that returned UTC dates. App now has one consistent local-time date system. Full ISO timestamps (zoneChangedAt, ts) stay UTC — correct for cross-timezone sync.',
+  '2.12.77': 'Fix: Habit rollover timezone bug (BUG-010) — _habitTodayISO, _getHabitDates, and _getHabitStrength all used toISOString().slice(0,10) which returns UTC date. At 1:23am Stockholm (UTC+2), UTC was still yesterday — habits never rolled over until 2am local. Switched all three to local date formatting.',
   '2.12.76': 'Drag fix robustness — backup retry with exponential backoff (2s, 5s, 15s, 30s, cap). Previously if upload failed, _pendingBackup stayed true forever and blocked sync pulls indefinitely. Visibility retry now routed through shared timer to prevent concurrent uploads.',
   '2.12.75': 'Cleanup — removed 15 unused cached elements from _cacheElements (trelloList, trelloEmpty, triageList, aiApiKey, aiSaveBtn, installBtn, listSelect, boardSelect, habitsBtn, trelloBtn, infoBtn, habitAddRow, habitNewBtn, statusMsg, undoToast). Removed stale 1am shift from streak calculation. Fixed date header + splash typewriter to use calendar midnight (were still shifting 1am). Updated stale doc references (data-age-days → data-age-bucket in Focus.md, Components.md).',
   '2.12.74': 'Day boundary aligned at midnight — tasks + triage now use midnight (was 1am) to match habits. Triage window narrowed to 8pm-midnight. Fix: habit day rollover bug — visibilitychange handler now calls checkNewDay() immediately so habits roll over as soon as app is visible after suspension.',
@@ -3199,11 +3204,20 @@ function safeJSON(key, fallback) {
 
 // App day boundary — day rolls over at midnight (aligned with habits)
 function _getAppDay() {
-  // Midnight boundary — matches _habitTodayISO() so tasks, triage, and habits
+  // Midnight boundary — matches _localISO() so tasks, triage, and habits
   // all flip at the same moment. Previously 1am for "late-night work feels like
   // today" — but habits used midnight anyway, creating a mismatch where the
   // habit strip wouldn't refresh until 1am. (v2.12.74)
   return new Date().toDateString();
+}
+
+// Unified local date helper — returns YYYY-MM-DD in local timezone.
+// NEVER use toISOString().slice(0,10) for date logic — that returns UTC,
+// which diverges from local time near midnight (BUG-010). All date strings
+// stored in habits, AI memory, and moments must use this function.
+function _localISO(d) {
+  if (!d) d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 // ─── Cached DOM Elements ──────────────────────────────────────────────────────
@@ -3455,35 +3469,68 @@ function moveToPast(id, status = 'let_go') {
   if (token) dropboxBackup(true);
 }
 
-// Morning nudge — gentle reminder of carried-over tasks
+// Morning nudge — yesterday's reflection + carried-over tasks
 function checkMorningNudge() {
   const nudgeEl = $.morningNudge || document.getElementById('morningNudge');
   if (!nudgeEl) return;
-  
-  const count = parseInt(localStorage.getItem('morning_nudge_count') || '0');
-  if (count === 0) {
-    nudgeEl.style.display = 'none';
-    return;
-  }
   
   // Only show in morning hours (before noon)
   const hour = new Date().getHours();
   if (hour >= 12) {
     nudgeEl.style.display = 'none';
-    localStorage.removeItem('morning_nudge_count'); // Clear after noon
+    localStorage.removeItem('morning_nudge_count');
+    localStorage.removeItem('today_day_review');
     return;
   }
   
-  // Craft the message
-  const plural = count === 1 ? '' : 's';
-  const verb = count === 1 ? 'is' : 'are';
-  nudgeEl.innerHTML = `<span class="nudge-dot"></span>${count} task${plural} ${verb} still here from yesterday`;
+  const carriedOver = parseInt(localStorage.getItem('morning_nudge_count') || '0');
+  const review = (() => {
+    try { return JSON.parse(localStorage.getItem('today_day_review') || 'null'); }
+    catch(e) { return null; }
+  })();
+  
+  // Only show review if it's from yesterday (not stale)
+  const isReviewFresh = review && review.date && review.date !== _localISO();
+  
+  if (!isReviewFresh && carriedOver === 0) {
+    nudgeEl.style.display = 'none';
+    return;
+  }
+  
+  // Build the nudge message
+  let msg = '';
+  
+  if (isReviewFresh) {
+    // Yesterday's reflection — contextual, warm
+    const parts = [];
+    if (review.done > 0) parts.push(`${review.done} done`);
+    if (review.focusMins >= 5) parts.push(_formatFocusTime(review.focusMins) + ' focused');
+    if (review.habits > 0) parts.push(`${review.habits} habit${review.habits > 1 ? 's' : ''}`);
+    
+    if (parts.length > 0) {
+      msg = `Yesterday: ${parts.join(', ')}`;
+      if (carriedOver > 0) {
+        msg += ` · ${carriedOver} carried over`;
+      }
+    } else if (carriedOver > 0) {
+      msg = `${carriedOver} task${carriedOver === 1 ? '' : 's'} carried over from yesterday`;
+    }
+  } else if (carriedOver > 0) {
+    const plural = carriedOver === 1 ? '' : 's';
+    const verb = carriedOver === 1 ? 'is' : 'are';
+    msg = `${carriedOver} task${plural} ${verb} still here from yesterday`;
+  }
+  
+  if (!msg) { nudgeEl.style.display = 'none'; return; }
+  
+  nudgeEl.innerHTML = `<span class="nudge-dot"></span>${esc(msg)}`;
   nudgeEl.style.display = 'flex';
   
   // Dismiss on click
   nudgeEl.onclick = () => {
     nudgeEl.style.display = 'none';
     localStorage.removeItem('morning_nudge_count');
+    localStorage.removeItem('today_day_review');
   };
 }
 
@@ -3845,19 +3892,71 @@ function triageApplyAll() {
     if (token) dropboxBackup(true);
   }
   
-  // Show summary
-  const parts = [];
-  if (keptCount > 0) parts.push(`${keptCount} kept`);
-  if (soonCount > 0) parts.push(`${soonCount} to soon`);
-  if (letgoCount > 0) parts.push(`${letgoCount} let go`);
+  // Show summary — contextual, earned acknowledgment
+  const triageParts = [];
+  if (keptCount > 0) triageParts.push(`${keptCount} kept`);
+  if (soonCount > 0) triageParts.push(`${soonCount} to soon`);
+  if (letgoCount > 0) triageParts.push(`${letgoCount} let go`);
+  
+  // Gather day stats for the acknowledgment line
+  const _doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
+  const _focusMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+  const _streak    = parseInt(localStorage.getItem('stat_streak') || '1');
+  const _habitsDoneCount = habitsList.filter(h =>
+    (habitCompletions[h.id] || []).includes(_habitTodayISO())
+  ).length;
+  
+  // Pick a warm, contextual headline — different days earn different words
+  let headline = 'All sorted';
+  if (_doneToday >= 8)                          headline = 'Big day';
+  else if (_doneToday >= 5)                     headline = 'Solid day';
+  else if (_doneToday >= 3 && _focusMins >= 50) headline = 'Deep work today';
+  else if (_doneToday >= 3)                     headline = 'Good day';
+  else if (_doneToday >= 1)                     headline = 'You showed up';
+  else if (_habitsDoneCount > 0)                headline = 'Habits held';
+  else                                          headline = 'All sorted';
+  
+  // Build the detail line — only include non-zero, meaningful stats
+  const detailParts = [];
+  if (_doneToday > 0) detailParts.push(`${_doneToday} done`);
+  if (_focusMins >= 5) detailParts.push(_formatFocusTime(_focusMins) + ' focused');
+  if (_habitsDoneCount > 0) detailParts.push(`${_habitsDoneCount} habit${_habitsDoneCount > 1 ? 's' : ''}`);
+  if (_streak >= 3) detailParts.push(`day ${_streak}`);
+  
+  // Compose: headline + day stats + triage breakdown
+  const detailLine = detailParts.length > 0 ? detailParts.join(' · ') : '';
+  const triageLine = triageParts.join(' · ');
   
   document.getElementById('triageList').innerHTML = '';
-  document.getElementById('triageSummary').textContent = parts.join(' · ');
   document.getElementById('triageComplete').classList.remove('hidden');
+  
+  const msgEl = document.querySelector('.triage-complete-msg');
+  if (msgEl) msgEl.textContent = headline;
+  
+  const summaryEl = document.getElementById('triageSummary');
+  if (summaryEl) {
+    summaryEl.innerHTML = detailLine
+      ? `${esc(detailLine)}<br><span style="opacity:0.5">${esc(triageLine)}</span>`
+      : esc(triageLine);
+  }
+  
+  // Save day stats for morning-after reflection (Option 5)
+  localStorage.setItem('today_day_review', JSON.stringify({
+    done: _doneToday,
+    focusMins: _focusMins,
+    habits: _habitsDoneCount,
+    habitsTotal: habitsList.length,
+    streak: _streak,
+    kept: keptCount,
+    soon: soonCount,
+    letgo: letgoCount,
+    date: _localISO(),
+  }));
   
   _haptic('success');
   
-  // Auto-close after 2s
+  // Auto-close after 3s — longer than before (was 2s) to let the
+  // day summary sink in. This is a reflective moment.
   setTimeout(() => {
     triageClose();
     renderManual();
@@ -3865,7 +3964,7 @@ function triageApplyAll() {
     renderSoon();
     renderPast();
     updateStats();
-  }, 2000);
+  }, 3000);
 }
 
 // ─── Triage History ───────────────────────────────────────────────────────────
@@ -3930,7 +4029,7 @@ let appMemory = (() => {
         dragKeywords: [],         // keywords that tend to linger
       },
       // Meta
-      firstSeen: new Date().toISOString().slice(0, 10),
+      firstSeen: _localISO(),
       totalTasksCompleted: 0,
       totalDaysActive: 0,
     };
@@ -3940,7 +4039,7 @@ let appMemory = (() => {
   patterns: { completionsByHour: {}, taskKeywords: {}, focusMinutesTotal: 0, bestStreak: 0 },
   moments: [],
   preferences: { peakHour: null, dragKeywords: [] },
-  firstSeen: new Date().toISOString().slice(0, 10),
+  firstSeen: _localISO(),
   totalTasksCompleted: 0,
   totalDaysActive: 0,
 };
@@ -3997,7 +4096,7 @@ function _memoryOnStreakUpdate(streak) {
       appMemory.moments.push({
         type: 'streak_milestone',
         value: streak,
-        date: new Date().toISOString().slice(0, 10)
+        date: _localISO()
       });
       // Keep only last 20 moments
       if (appMemory.moments.length > 20) appMemory.moments = appMemory.moments.slice(-20);
@@ -4013,7 +4112,7 @@ function _memoryOnDaySummary(tasksCompleted) {
     appMemory.moments.push({
       type: 'big_clear',
       count: tasksCompleted,
-      date: new Date().toISOString().slice(0, 10)
+      date: _localISO()
     });
     if (appMemory.moments.length > 20) appMemory.moments = appMemory.moments.slice(-20);
     _saveMemory();
@@ -4088,8 +4187,8 @@ function _getProactiveObservations(ctx) {
       text: `Day ${currentStreak}. That's worth noticing.`
     });
   }
-  // Good streak going
-  else if (currentStreak >= 5 && Math.random() < 0.2) {
+  // Good streak going (always show if 3+)
+  else if (currentStreak >= 3) {
     observations.push({
       type: 'streak_acknowledge',
       priority: 'low',
@@ -4119,8 +4218,8 @@ function _getProactiveObservations(ctx) {
   // ── FOCUS TIME OBSERVATIONS ──
   
   const focusHours = Math.round(m.patterns.focusMinutesTotal / 60);
-  // Round number milestones
-  if ([10, 25, 50, 100, 200].includes(focusHours)) {
+  // Focus time milestones (every 10 hours, or notable numbers)
+  if (focusHours >= 5 && (focusHours % 10 === 0 || [5, 25, 50, 100].includes(focusHours))) {
     observations.push({
       type: 'focus_milestone',
       priority: 'medium',
@@ -4131,8 +4230,8 @@ function _getProactiveObservations(ctx) {
   // ── TASK COMPLETION OBSERVATIONS ──
   
   const totalCompleted = m.totalTasksCompleted || 0;
-  // Round number milestones
-  if ([50, 100, 200, 500, 1000].includes(totalCompleted)) {
+  // Task completion milestones (every 25, or notable numbers)
+  if (totalCompleted >= 25 && (totalCompleted % 25 === 0 || [10, 50, 100, 200, 500].includes(totalCompleted))) {
     observations.push({
       type: 'tasks_milestone',
       priority: 'medium',
@@ -4145,7 +4244,7 @@ function _getProactiveObservations(ctx) {
   const recentMoments = m.moments.slice(-3);
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+  const yesterdayStr = _localISO(yesterday);
   
   for (const moment of recentMoments) {
     // Big clear yesterday
@@ -5000,7 +5099,7 @@ function renderTrello() {
       ? `<span class="task-tag">${esc(_tagMatch[1].toLowerCase())}</span>${esc(_tagMatch[2])}`
       : esc(task.text);
     const _link = safeUrl
-      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="trello-link" title="Open in Trello">↗</a>`
+      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="Open in Trello">↗</a>`
       : '';
     // Include session badge in text comparison so patch doesn't destroy it (BUG-005)
     const _focusCount = _getTrelloFocus()[id] || 0;
@@ -5107,8 +5206,9 @@ function taskHTML(task, type) {
     : '';
 
   const safeUrl = task.url && /^https?:\/\//i.test(task.url) ? task.url : '';
+  const linkTitle = type === 'trello' ? 'Open in Trello' : 'Open link';
   const link = safeUrl
-    ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="trello-link" title="Open in Trello">↗</a>`
+    ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="${linkTitle}">↗</a>`
     : '';
 
   const sessions = type === 'trello'
@@ -5178,7 +5278,7 @@ document.addEventListener('click', function(e) {
       const textEl = taskEl.querySelector('.task-text');
       // Get clean text — strip session count badge, link arrow, and tag prefix
       const clone = textEl.cloneNode(true);
-      clone.querySelectorAll('.session-count, .trello-link, .task-tag').forEach(el => el.remove());
+      clone.querySelectorAll('.session-count, .task-link, .task-tag').forEach(el => el.remove());
       const text = clone.textContent.trim();
 
       function _showCopied() {
@@ -5503,18 +5603,17 @@ function _saveHabits() {
 }
 
 function _habitTodayISO() {
-  // Midnight boundary — aligned with _getAppDay() since v2.12.74
-  return new Date().toISOString().slice(0, 10);
+  return _localISO();
 }
 
 function _getHabitDates() {
-  // Last 21 days ending with today (midnight boundary)
+  // Last 21 days ending with today (local time)
   const now = new Date();
   const days = [];
   for (let i = 20; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(now.getDate() - i);
-    days.push(d.toISOString().slice(0, 10));
+    days.push(_localISO(d));
   }
   return days;
 }
@@ -5530,7 +5629,7 @@ function _getHabitStrength(id) {
   for (let i = 89; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const ds = d.toISOString().slice(0, 10);
+    const ds = _localISO(d);
     score = score * alpha + (completions.has(ds) ? 1 : 0) * (1 - alpha);
   }
   return Math.round(score * 100);
@@ -5913,7 +6012,22 @@ function addManual() {
     text = text.slice(0, MAX_TASK_LENGTH);
   }
 
+  // Extract URL from text — store separately, strip from display text
+  const urlMatch = text.match(/(https?:\/\/[^\s]+)/i);
+  let url = null;
+  if (urlMatch) {
+    url = urlMatch[1];
+    // Remove the URL from task text; trim any leftover whitespace
+    text = text.replace(urlMatch[1], '').trim();
+    // If user pasted just a URL with no text, use the domain as display text
+    if (!text) {
+      try { text = new URL(url).hostname.replace(/^www\./, ''); }
+      catch(e) { text = url; }
+    }
+  }
+
   const task = { id: 'manual_' + Date.now(), text };
+  if (url) task.url = url;
   manualTasks.push(task);
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));
   _setLastLocalChange();
@@ -8562,19 +8676,18 @@ function _aiIntroMessage(ctx) {
     return `Sunday evening. This week: ${w.tasksCompletedToday} tasks done today, ${focusStr}streak at ${ctx.streak}. How did it feel?`;
   }
   
-  // ── STALE TASK AWARENESS + BREAKDOWN SUGGESTION (~25% chance) ──
-  if (agingTasks.length > 0 && Math.random() < 0.25) {
+  // ── STALE TASK AWARENESS — always show if aging tasks exist ──
+  if (agingTasks.length > 0) {
     const oldest = agingTasks.sort((a, b) => b.ageDays - a.ageDays)[0];
-    // Suggest breakdown for really old tasks (7+ days)
     if (oldest.ageDays >= 7) {
-      return `"${oldest.text}" has been here ${oldest.ageDays} days. Maybe it's too big? Want me to help break it down into smaller steps?`;
+      return `"${oldest.text}" has been here ${oldest.ageDays} days. Maybe it's too big? Want me to help break it down?`;
     }
-    return `I notice "${oldest.text}" has been here ${oldest.ageDays} days. Still relevant, or ready to let it go?`;
+    return `"${oldest.text}" has been here ${oldest.ageDays} days. Still relevant, or ready to let it go?`;
   }
   
-  // ── BEHAVIORAL INSIGHT (~15% chance when patterns exist) ──
+  // ── BEHAVIORAL INSIGHT — always show if meaningful patterns exist ──
   const m = appMemory;
-  if (m && Math.random() < 0.15) {
+  if (m) {
     const insights = [];
     
     // Peak productivity hour insight
@@ -8583,25 +8696,29 @@ function _aiIntroMessage(ctx) {
       const hourStr = hour === 0 ? '12am' : hour < 12 ? `${hour}am` : hour === 12 ? '12pm' : `${hour - 12}pm`;
       const now = new Date().getHours();
       if (Math.abs(now - hour) <= 1) {
-        insights.push(`It's around ${hourStr} — your peak productivity time based on past completions. Good time to tackle something important.`);
+        insights.push(`It's around ${hourStr} — your peak productivity time. Good moment for the hard stuff.`);
+      } else if (now < hour && (hour - now) <= 3) {
+        insights.push(`You usually peak around ${hourStr}. Warming up — start light.`);
       }
     }
     
     // Focus time insight
-    if (m.patterns.focusMinutesTotal > 120) {
+    if (m.patterns.focusMinutesTotal > 60) {
       const hours = Math.round(m.patterns.focusMinutesTotal / 60);
-      insights.push(`You've focused for ${hours}+ hours total. That's real deep work adding up.`);
+      insights.push(`${hours}+ hours of focused time so far. That adds up.`);
     }
     
     // Streak insight
-    if (ctx.streak >= 7 && ctx.streak < m.patterns.bestStreak) {
-      insights.push(`${ctx.streak} days strong. Your best was ${m.patterns.bestStreak}. Getting close!`);
+    if (ctx.streak >= 5 && ctx.streak < m.patterns.bestStreak) {
+      insights.push(`${ctx.streak} days strong. Your best was ${m.patterns.bestStreak}. Getting close.`);
+    } else if (ctx.streak >= 3) {
+      insights.push(`Day ${ctx.streak}. You're building a rhythm.`);
     }
     
     // Days active insight
     if (m.totalDaysActive >= 14) {
       const weeks = Math.floor(m.totalDaysActive / 7);
-      insights.push(`We've been at this for ${weeks}+ weeks. ${m.totalTasksCompleted} tasks completed together.`);
+      insights.push(`${weeks}+ weeks together. ${m.totalTasksCompleted} tasks completed along the way.`);
     }
     
     // Task keyword patterns
@@ -8610,24 +8727,15 @@ function _aiIntroMessage(ctx) {
       .sort((a, b) => b[1].completed - a[1].completed);
     if (keywords.length > 0) {
       const topKeyword = keywords[0][0];
-      insights.push(`I notice you often work on "${topKeyword}" tasks. It seems important to you.`);
+      insights.push(`"${topKeyword}" keeps coming up in your tasks. Seems important to you.`);
     }
     
+    // Cycle through insights deterministically — use day + hour to pick
     if (insights.length > 0) {
-      const insight = insights[Math.floor(Math.random() * insights.length)];
-      return `Good ${ctx.timeOfDay}. ${insight} What's on your mind?`;
+      const pick = (new Date().getDate() + new Date().getHours()) % insights.length;
+      const insight = insights[pick];
+      return `Good ${ctx.timeOfDay}. ${insight}`;
     }
-  }
-  
-  // ── APP IMPROVEMENT PROMPT (~5% chance for engaged users) ──
-  const m2 = appMemory;
-  if (m2 && m2.totalDaysActive >= 7 && Math.random() < 0.05) {
-    const prompts = [
-      `You've been using TODAY for ${m2.totalDaysActive} days now. Anything you wish it did differently? I can pass ideas along.`,
-      `Quick thought: is there something about TODAY that could work better for you? Always looking to improve.`,
-      `You know this app pretty well by now. Any features you'd love to see? Or something that bugs you?`,
-    ];
-    return prompts[Math.floor(Math.random() * prompts.length)];
   }
   
   // ── STANDARD CONTEXTUAL MESSAGES ──
@@ -8718,12 +8826,44 @@ function _aiIntroMessage(ctx) {
     return `Good ${ctx.timeOfDay}. ${prompt}`;
   }
   
-  // Normal state with tasks
+  // Normal state with tasks — vary the message by time and context
   const parts = [];
   if (totalPending) parts.push(`${totalPending} task${totalPending > 1 ? 's' : ''}`);
   if (habitsDue)    parts.push(`${habitsDue} habit${habitsDue > 1 ? 's' : ''}`);
+  const summary = parts.join(' and ');
   
-  return `Good ${ctx.timeOfDay}. ${parts.join(' and ')} pending. What should I focus on?`;
+  // Contextual variations — deterministic rotation based on hour
+  const hour = new Date().getHours();
+  const focusMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+  const doneToday = ctx.tasks.done.length;
+  
+  // Afternoon with progress
+  if (ctx.timeOfDay === 'afternoon' && doneToday > 0) {
+    return `Good ${ctx.timeOfDay}. ${doneToday} done already, ${summary} left. What's next?`;
+  }
+  // Evening wind-down
+  if (ctx.timeOfDay === 'evening' && totalPending > 0) {
+    return `Evening. ${summary} still here. Tackle one more, or call it a day?`;
+  }
+  // Lots of tasks — empathetic
+  if (totalPending >= 5) {
+    return `Good ${ctx.timeOfDay}. ${summary} pending — that's a lot. Pick one to start with.`;
+  }
+  // Focus time today
+  if (focusMins >= 25 && totalPending > 0) {
+    return `Good ${ctx.timeOfDay}. ${_formatFocusTime(focusMins)} focused today, ${summary} left.`;
+  }
+  // Habits + tasks
+  if (habitsDue > 0 && totalPending > 0) {
+    return `Good ${ctx.timeOfDay}. ${summary} waiting. Habits or tasks first?`;
+  }
+  // Default — but with slight variation
+  const defaults = [
+    `Good ${ctx.timeOfDay}. ${summary} pending. Where to start?`,
+    `Good ${ctx.timeOfDay}. ${summary} on the list. What matters most?`,
+    `Good ${ctx.timeOfDay}. ${summary} waiting. One step at a time.`,
+  ];
+  return defaults[hour % defaults.length];
 }
 
 // ── Natural language from panel input ────────────────────────────────────────
@@ -9040,17 +9180,31 @@ Action types (use exact IDs from brackets above):
   check_task  { "id": "exact-id-from-list" }  — mark task done
   check_habit { "id": "exact-id-from-list" }  — mark habit done
   add_task    { "text": "task text" }         — add new task
+  break_down  { "id": "exact-id-from-list" }  — ask AI to split a big task into smaller steps
+  move_soon   { "id": "exact-id-from-list" }  — park a task in SOON (not today, but not gone)
   delete_task { "id": "exact-id-from-list" }  — remove a task (use for letting go of stale tasks)
   delete_done {}                               — clear completed
   open_panel  { "panel": "habits" }           — show habits panel (only valid value)
+  reflect     {}                               — offer a brief reflection on patterns, wins, or energy
   dismiss     {}                               — close this
 
 Rules:
-- 2-3 actions max, always end with dismiss
+- 2-4 actions max, always end with dismiss
 - Labels: 2-4 words max
 - Use real IDs from the lists above — never invent IDs
-- For aging tasks, "Let it go" action should use delete_task with the task's ID
-- For empty state, suggest an add_task action with a gentle prompt like "Add first task"`;
+- For aging tasks (7+ days), suggest break_down OR delete_task — "Break it down" or "Let it go"
+- For aging tasks (3-6 days), suggest move_soon OR start_focus — "Park for later" or "Do it now"
+- For empty state, suggest an add_task action with a gentle prompt like "Add first task"
+- Vary your responses — don't always suggest the same action type:
+  * Morning: briefing tone, overview of the day ahead
+  * Afternoon with tasks done: acknowledge progress, suggest focus on remaining
+  * Evening: wind-down tone, suggest clearing done items or reflecting
+  * Sunday evening: reflection, acknowledge the week
+  * All done: celebrate genuinely, offer to clear done items
+  * Overwhelmed (5+ tasks): empathetic, suggest one clear next step
+  * Habits due: weave habit reminders in naturally, use check_habit
+  * Streak milestones: acknowledge warmly
+- Don't always lead with "start focus on X" — sometimes the right response is a reflection, a habit nudge, or just an observation with no task suggestion`;
 }
 
 // ── Execute action ────────────────────────────────────────────────────────────
@@ -9121,6 +9275,73 @@ function _aiExecute(action) {
       if (p === 'habits') {
         setTimeout(toggleHabits, 100);
       }
+      return;
+    }
+    case 'break_down': {
+      // Ask AI to split a big task into smaller steps
+      const id = action.payload?.id;
+      const task = manualTasks.find(t => t.id === id);
+      if (!task) { closeAI(); return; }
+      _aiLoadedOnce = true;
+      _aiSetThinking();
+      _aiSetChips([]);
+      _aiCall([{
+        role: 'user',
+        content: `Break down "${task.text}" into 2-4 smaller, concrete steps I can do today. Return each as an add_task action.`
+      }]).then(result => {
+        if (result) {
+          _aiRenderResult(result);
+          _showNlRow();
+        }
+      }).catch(e => {
+        _aiSetMsg('Could not break down — ' + (e.message || '').slice(0, 50));
+      });
+      return;
+    }
+    case 'move_soon': {
+      // Park a task in SOON zone
+      const id = action.payload?.id;
+      if (id && id.startsWith('manual_')) {
+        const idx = manualTasks.findIndex(t => t.id === id);
+        if (idx !== -1) {
+          const task = manualTasks[idx];
+          task.zone = 'soon';
+          task.zoneChangedAt = new Date().toISOString();
+          soonTasks.unshift(task);
+          manualTasks.splice(idx, 1);
+          localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+          _saveSoon();
+          renderManual();
+          renderSoon();
+          updateStats();
+          dropboxAutoSave();
+        }
+      }
+      closeAI();
+      return;
+    }
+    case 'reflect': {
+      // Ask AI for a brief reflection
+      _aiLoadedOnce = true;
+      _aiSetThinking();
+      _aiSetChips([]);
+      const ctx = _aiContext();
+      const focusMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+      const doneCount = ctx.tasks.done.length;
+      const pending = ctx.tasks.pending.length + ctx.tasks.trello.length;
+      const habitsDone = ctx.habits.filter(h => h.doneToday).length;
+      const habitsTotal = ctx.habits.length;
+      _aiCall([{
+        role: 'user',
+        content: `Reflect on my day so far: ${doneCount} tasks done, ${pending} pending, ${habitsDone}/${habitsTotal} habits, ${focusMins} minutes focused, day ${ctx.streak} streak. Give me a warm, honest 1-2 sentence reflection. Not advice — just noticing.`
+      }]).then(result => {
+        if (result) {
+          _aiRenderResult(result);
+          _showNlRow();
+        }
+      }).catch(e => {
+        _aiSetMsg('Could not reflect — ' + (e.message || '').slice(0, 50));
+      });
       return;
     }
     default: // dismiss
@@ -9987,7 +10208,7 @@ function _aiClearBadge() {
     if (e.target.closest('.zone-badge'))  return;  // pull button in SOON/PAST
     if (e.target.closest('.zone-list'))   return;  // don't focus tasks in SOON/PAST zones
     if (e.target.closest('.habit-check')) return;
-    if (e.target.closest('.trello-link')) return;
+    if (e.target.closest('.task-link')) return;
     if (e.target.closest('.focus-timer')) return;
     if (e.target.closest('.habit-edit-input')) return;
     if (e.target.closest('.habit-edit-delete')) return;

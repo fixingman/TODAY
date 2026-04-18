@@ -15,8 +15,9 @@
 **Notes:** Needs exploration both in UX and UI. Desktop only.
 
 ### AI Improvements
-**Status:** Not started
-**Goal:** More proactive AI — morning briefings, end-of-day summaries.
+**Status:** Partially done (v2.13.0–2.13.1)
+**Done:** Morning briefings, end-of-day summaries, stale task awareness (always-on), behavioral insights (deterministic), break_down/move_soon/reflect actions, day-end review in triage, morning reflection nudge.
+**Remaining:** Deeper personality (weather/energy awareness beyond peak hour), conversation memory across AI sessions, richer habit streak celebrations.
 
 ### Notifications
 **Status:** Not started
@@ -75,9 +76,7 @@ Decisions that may need revisiting based on real usage:
 
 | Decision | Current | Watch For |
 |----------|---------|-----------|
-| PAST read-only | Yes | Need restore for accidentally archived items? |
 | Triage trigger time | 8pm | Too early? Too late? User-configurable? |
-| Habit strength curve | Linear display | Above 70%, should progress feel harder? Diminishing returns curve like flow rate? |
 | Modularization | Single file (10K+ lines) | App is mature — might benefit from eventual modularization if it grows further |
 
 ---
@@ -106,7 +105,11 @@ Captures what we tried or considered and why we didn't proceed — institutional
 | Idle companion (7 creatures) | 2.10.0 | Mar 2026 |
 | Memory compartmentalization | — | Mar 2026 |
 | Zones prototype | 2.11.0 | Mar 2026 |
+| Link extraction for tasks | 2.12.79 | Apr 2026 |
+| Unified internal clock | 2.12.78 | Apr 2026 |
+| AI personality overhaul | 2.13.0 | Apr 2026 |
+| Day-end review + morning reflection | 2.13.1 | Apr 2026 |
 
 ---
 
-*Last updated: Session 25 (v2.12.61)*
+*Last updated: Session 28 (v2.13.1)*

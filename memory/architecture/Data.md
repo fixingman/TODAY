@@ -10,7 +10,7 @@
 
 | Key | Type | Description |
 |---|---|---|
-| `today_manual` | JSON array | Manual tasks: `{id, text, lastActive?}` |
+| `today_manual` | JSON array | Manual tasks: `{id, text, url?, lastActive?, focusSessions?}` |
 | `today_done` | JSON array | IDs of completed tasks |
 | `today_deleted_ids` | JSON array | `{id, at}` — explicit deletes |
 | `today_checked_ids` | JSON array | `{id, at}` — explicit checks |
@@ -75,6 +75,8 @@
 | `stat_tasks_done_today` | string | Tasks completed today (for memory/AI) |
 | `stat_focus_mins_today` | string | Focus minutes today |
 | `stat_focus_mins_alltime` | string | Lifetime focus minutes |
+| `morning_nudge_count` | string | Carried-over tasks from yesterday (set by `applyNewDayCleanup`) |
+| `today_day_review` | JSON | Yesterday's day-end stats `{done, focusMins, habits, habitsTotal, streak, kept, soon, letgo, date}` — saved at triage, consumed by morning nudge, auto-cleared after noon |
 
 **Note:** Flow rate is calculated live using research-based diminishing returns formula: `100 × (1 - 0.8^done)`. First task = 20% (quick win), 5 tasks ≈ 67% (good day). Based on Endowed Progress Effect (Nunes & Dreze 2006) and Goal Gradient Hypothesis (Kivetz et al. 2006). Not stored.
 
@@ -142,14 +144,16 @@ Cleanup rules:
 
 ## Day Boundaries
 
-Unified at midnight (v2.12.74):
+Unified at midnight (v2.12.74), unified clock (v2.12.78):
 
-| Feature | Boundary | Function |
-|---------|----------|----------|
-| Tasks, triage, stats, cleanup | **Midnight** | `_getAppDay()` |
-| Habits | **Midnight** | `_habitTodayISO()` |
+| Purpose | Function | Format | Timezone |
+|---------|----------|--------|----------|
+| Day boundary checks | `_getAppDay()` | `"Fri Apr 18 2026"` | Local |
+| Date-only strings (YYYY-MM-DD) | `_localISO(d)` | `"2026-04-18"` | Local |
+| Habit today shorthand | `_habitTodayISO()` | wraps `_localISO()` | Local |
+| Full timestamps (sync ordering) | `new Date().toISOString()` | `"2026-04-18T01:23:45Z"` | UTC |
 
-Previously tasks/triage used a 1am shift (to make late-night work feel like "today"), but that created a UI lag between midnight and 1am where habits had flipped but tasks hadn't, blocking `checkNewDay` from refreshing the habit strip (BUG-010).
+**Never use `toISOString().slice(0,10)` for date logic** — returns UTC, diverges from local near midnight (BUG-010).
 
 ## Deletion Persistence
 

@@ -75,7 +75,9 @@ If testing **zone** changes:
 | 2.4 | Pull from SOON | Returns to TODAY |
 | 2.5 | PAST purge (done 7d) | Auto-removed |
 | 2.6 | PAST purge (letgo 30d) | Auto-removed |
-| 2.7 | Morning nudge | Shows count |
+| 2.7 | Morning nudge (no review) | Shows carried-over count |
+| 2.7a | Morning nudge (with review) | Shows "Yesterday: X done, Ym focused" |
+| 2.7b | Morning nudge after noon | Hidden, review cleared |
 | 2.8 | **SYNC: A→SOON, B has in TODAY** | B gets SOON (newer timestamp) |
 | 2.9 | **SYNC: A pulls back, B has in SOON** | A's pull wins (newer) |
 | 2.10 | **SYNC: Both move to zones** | Most recent zoneChangedAt wins |
@@ -84,6 +86,9 @@ If testing **zone** changes:
 | 2.13 | **SYNC: Schema v5.0 vs v5.1** | Backward compatible |
 | 2.14 | **SYNC: Race condition triage** | Last zoneChangedAt wins |
 | 2.15 | **SYNC: PAST limit 100** | Only 100 most recent kept |
+| 2.16 | Triage summary (5+ done) | Shows "Solid day" + stats |
+| 2.17 | Triage summary (0 done) | Shows "All sorted" |
+| 2.18 | Triage summary saves review | `today_day_review` in localStorage |
 
 ### 3. Habits (9 tests)
 
