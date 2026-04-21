@@ -76,7 +76,6 @@ Decisions that may need revisiting based on real usage:
 
 | Decision | Current | Watch For |
 |----------|---------|-----------|
-| Triage trigger time | 8pm | Too early? Too late? User-configurable? |
 | Modularization | Single file (10K+ lines) | App is mature — might benefit from eventual modularization if it grows further |
 
 ---
@@ -109,7 +108,9 @@ Captures what we tried or considered and why we didn't proceed — institutional
 | Unified internal clock | 2.12.78 | Apr 2026 |
 | AI personality overhaul | 2.13.0 | Apr 2026 |
 | Day-end review + morning reflection | 2.13.1 | Apr 2026 |
+| Error log panel (replaced alert()) | 2.14.3 | Apr 2026 |
+| Triage summary redesign (Option 1) | 2.14.4 | Apr 2026 |
 
 ---
 
-*Last updated: Session 28 (v2.13.1)*
+*Last updated: Session 30 (v2.14.4)*

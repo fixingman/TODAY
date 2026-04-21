@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes, token cleanup, PiP timer rewrite
-- **Recent:** v2.13.8 — BUG-007 triage rewrite, BUG-003 network errors, BUG-011 PiP lag + chime, triage summary legibility, token cleanup
-- **Watch for:** BUG-003/007/010/011 verification in production, AI response variety in practice
+- **Working on:** Red dot panel, triage summary redesign, cross-device triage flash
+- **Recent:** v2.14.4 — error log panel (no alert), triage summary Option 1 (Syne headline), cross-device triage bar fix, AI button CSS hotfix, BUG-010 verified
+- **Watch for:** BUG-003/007/011 verification in production. Error log panel first production test., AI response variety in practice
 
 ---
 

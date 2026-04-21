@@ -41,7 +41,7 @@
 
 ## BUG-003: Sync errors in production — "Failed to fetch", Trello 405
 
-**Status:** Fixed v2.12.58 + v2.12.61 + v2.12.67 + v2.13.4 — awaiting verification
+**Status:** Fixed v2.12.58 + v2.12.61 + v2.12.67 + v2.13.4 + v2.14.1 — awaiting verification
 
 **Symptom:** Red dot shows sync errors. Originally "dropboxUpdateUI is not defined". Later Trello 405. Most recently: red dot on every WiFi drop — "Failed to fetch" from sync attempts.
 
@@ -52,6 +52,7 @@
 4. Trello 405/429 errors had no user-facing message → fixed v2.12.67
 5. Background Trello load errors invisible → fixed v2.12.67 (routed to red dot)
 6. Network errors treated as real errors → fixed v2.13.4: `_logSyncError` detects "Failed to fetch" / "NetworkError" / "Load failed" / "CORS" and suppresses red dot. Console only.
+7. `unhandledrejection` had no network filter → fixed v2.14.1: "Promise: Failed to fetch" at 00:21:16 was bypassing `_logSyncError` entirely. Same filter now applied.
 
 **Verify:** Disconnect WiFi briefly while app is open → no red dot should appear. Reconnect → sync resumes. Red dot should only appear for actual API errors (expired token, wrong key).
 
