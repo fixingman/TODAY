@@ -222,7 +222,7 @@ CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to 
 
 ## BUG-010: Habits did not roll over at 1:02am
 
-**Status:** Fixed v2.12.74 + v2.12.77 — awaiting re-verification
+**Status:** ✅ Verified fixed (v2.12.74 + v2.12.77)
 
 **Symptom:** At 1:23am Stockholm, habits still showed yesterday's completion state. Tasks cleaned up correctly, date header showed today. Dot strip hadn't shifted — today's dot was missing.
 
@@ -241,11 +241,7 @@ CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to 
 
 **Verify:** Leave the app open past midnight → habits should roll over instantly. Close the app before midnight, reopen after → habits should roll over within ~1 second of returning.
 
-**Verified fixed:** ☐
-
----
-
-## BUG-011: PiP timer delayed vs main app timer + chime fires late
+**Verified fixed:** ☑
 
 **Status:** Fixed v2.13.5 + v2.13.6 — awaiting verification
 
