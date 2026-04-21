@@ -2911,8 +2911,19 @@ window.onerror = function(msg, url, line, col, err) {
   return false; // Don't suppress default handling
 };
 window.addEventListener('unhandledrejection', function(e) {
-  const msg = e.reason?.message || e.reason || 'Unhandled promise rejection';
-  _errorLog.push(`${_fmtErrTime()} Promise: ${msg}`);
+  const msg = e.reason?.message || String(e.reason) || 'Unhandled promise rejection';
+  
+  // Network errors are expected during connectivity drops — same filter as _logSyncError.
+  // Don't show red dot for transient network failures. (BUG-003)
+  const isNetworkError = msg.includes('Failed to fetch') || msg.includes('NetworkError')
+    || msg.includes('Load failed') || msg.includes('CORS') || msg.includes('ERR_INTERNET');
+  if (isNetworkError) {
+    console.warn('[network-promise] ' + msg);
+    return;
+  }
+  
+  const entry = `${_fmtErrTime()} Promise: ${msg}`;
+  _errorLog.push(entry);
   const el = document.getElementById('errorIndicator');
   if (el) {
     el.style.display = 'block';
@@ -2950,7 +2961,7 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.14.0';
+const APP_VERSION   = '2.14.1';
 const DEV_HOURS     = '172h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
