@@ -174,7 +174,7 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-## 8. Recent Changes (v2.12.48 → v2.13.1)
+## 8. Recent Changes (v2.12.48 → v2.13.8)
 
 | Feature | Version | Performance Impact |
 |---|---|---|
@@ -211,6 +211,12 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 | Link extraction | 2.12.79 | URL regex + `new URL()` on task add — one-time cost per task. Renamed `.trello-link` → `.task-link`. |
 | AI personality overhaul | 2.13.0 | Removed `Math.random()` gates — replaced with deterministic modulo. Added 3 action handlers. No perf change. |
 | Day-end review + morning reflection | 2.13.1 | One `localStorage.setItem` at triage completion. Morning nudge reads + clears. Negligible. |
+| Triage bar rewrite | 2.13.2 | `_triageActive` boolean replaces `classList.contains` check — simpler branch, no DOM query. |
+| Delete button hit target | 2.13.3 | CSS padding only. No perf change. |
+| Network error suppression | 2.13.4 | `_logSyncError` string check before DOM update. Negligible. |
+| PiP RAF clock | 2.13.5 | PiP now runs its own RAF loop. Runs only when PiP is open and timer is active — no always-on cost. |
+| PiP chime fix | 2.13.6 | `completeFor` guard (`if !st.running return`) — one boolean check. |
+| Triage summary legibility | 2.13.7–8 | CSS only. Token cleanup (`opacity: 0.75` → `var(--opacity-strong)`, `font-weight: 600` → `500`). |
 
 ---
 
