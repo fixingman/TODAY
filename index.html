@@ -1301,7 +1301,8 @@
     color: var(--muted);
     cursor: pointer;
     font-size: var(--text-lg);
-    padding: 0 2px;
+    padding: var(--space-2) var(--space-3);
+    margin: calc(-1 * var(--space-2)) 0; /* Expand target without affecting layout height */
     line-height: 1;
     transition: opacity var(--dur-fast), color var(--dur-fast);
     flex-shrink: 0;
@@ -2921,7 +2922,7 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.13.2';
+const APP_VERSION   = '2.13.3';
 const DEV_HOURS     = '170h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
