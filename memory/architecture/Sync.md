@@ -27,11 +27,20 @@
 
 ```
 1. On load: fetch remote, merge with local (behind splash)
-2. On mutation: debounced save (800ms)
+2. On mutation: debounced save (800ms), retry with exponential backoff on failure
 3. On tab return / PWA focus: immediate sync (wake errors silenced for 3s)
-4. Every 7s: background sync check (rev comparison)
+4. Every 7s: background sync check (rev comparison, skipped if _pendingBackup)
 5. On reconnect ('online' event): full pull + merge + push
+6. On disconnect ('offline' event): stop ticker
 ```
+
+### Error Handling (v2.13.4)
+
+`_logSyncError()` routes errors to the red dot indicator, with two filters:
+- **Wake silent** (first 3s after tab return): suppressed entirely — network may not be ready
+- **Network errors** ("Failed to fetch", "NetworkError", "Load failed", "CORS"): logged to console only, no red dot — expected during WiFi drops
+
+Red dot only shows for real problems: expired tokens (401), API rejections (405/429), server errors, code bugs.
 
 ### Merge Algorithm
 

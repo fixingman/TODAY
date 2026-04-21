@@ -41,23 +41,19 @@
 
 ## BUG-003: Sync errors in production — "Failed to fetch", Trello 405
 
-**Status:** Fixed v2.12.58 + v2.12.61 + v2.12.67 — awaiting re-verification
+**Status:** Fixed v2.12.58 + v2.12.61 + v2.12.67 + v2.13.4 — awaiting verification
 
-**Symptom:** Red dot shows various sync errors. Originally "dropboxUpdateUI is not defined". Later evolved to Trello 405 errors and missing Trello tasks on desktop PWA.
+**Symptom:** Red dot shows sync errors. Originally "dropboxUpdateUI is not defined". Later Trello 405. Most recently: red dot on every WiFi drop — "Failed to fetch" from sync attempts.
 
-**Root causes found:**
+**Root causes found and fixed:**
 1. `dropboxUpdateUI()` called but never defined → fixed v2.12.61
 2. Sleep/wake: `navigator.onLine` true before network ready → fixed v2.12.61 (wake silent flag)
 3. Silent `catch(e) {}` blocks hid everything → fixed v2.12.58
 4. Trello 405/429 errors had no user-facing message → fixed v2.12.67
-5. Background Trello load errors were completely invisible → fixed v2.12.67 (routed to red dot)
+5. Background Trello load errors invisible → fixed v2.12.67 (routed to red dot)
+6. Network errors treated as real errors → fixed v2.13.4: `_logSyncError` detects "Failed to fetch" / "NetworkError" / "Load failed" / "CORS" and suppresses red dot. Console only.
 
-**Fixes:**
-- v2.12.58: `_logSyncError` + token retry
-- v2.12.61: `dropboxUpdateUI` → `renderConnections()`, wake sync silent
-- v2.12.67: Added 405/429 error messages, background Trello errors now visible via red dot (non-network only)
-
-**Verify:** Monitor red dot over several days. Trello 405 errors should show a clear message ("usually temporary — try again in a minute"). No "is not defined" errors. Wake errors should be silent for 3s then self-heal.
+**Verify:** Disconnect WiFi briefly while app is open → no red dot should appear. Reconnect → sync resumes. Red dot should only appear for actual API errors (expired token, wrong key).
 
 **Verified fixed:** ☐
 

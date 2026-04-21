@@ -2861,12 +2861,24 @@ function _fmtErrTime() {
 }
 function _logSyncError(source, msg) {
   const entry = _fmtErrTime() + ' [' + source + '] ' + (msg || 'unknown error');
-  // During wake sync (first 3s after tab return), log but don't show red dot —
+  
+  // During wake sync (first 3s after tab return), suppress entirely —
   // network may not be ready yet, ticker will retry. (BUG-003)
   if (window._isWakeSyncSilent && window._isWakeSyncSilent()) {
     console.warn('[wake-silent] ' + entry);
     return;
   }
+  
+  // Network errors (offline, DNS, CORS) are expected during connectivity drops.
+  // Log to console but don't show red dot — the ticker will retry when
+  // connection returns, and the 'online' event handles full reconnect. (BUG-003)
+  const isNetworkError = !msg || msg.includes('Failed to fetch') || msg.includes('NetworkError')
+    || msg.includes('Load failed') || msg.includes('CORS') || msg.includes('ERR_INTERNET');
+  if (isNetworkError) {
+    console.warn('[network] ' + entry);
+    return;
+  }
+  
   _errorLog.push(entry);
   const el = document.getElementById('errorIndicator');
   if (el) { el.style.display = 'block'; el.dataset.count = _errorLog.length; }
@@ -2922,11 +2934,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.13.3';
+const APP_VERSION   = '2.13.4';
 const DEV_HOURS     = '170h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.13.4': 'Fix: Red dot on network loss (BUG-003) — _logSyncError now detects network errors (Failed to fetch, NetworkError, Load failed, CORS) and suppresses the red dot. Errors still logged to console. Red dot now only shows for real problems (401, 405, server errors).',
+  '2.13.3': 'Delete button click target enlarged — padding increased with negative margin to keep row height. Easier to hit on desktop.',
   '2.13.2': 'Fix: Triage bar stays visible (BUG-007 rewrite) — replaced fragile overlay.classList.contains check with explicit _triageActive flag. triageExpand sets flag true (bar locked hidden), triageClose/triageMinimize clear it. checkTriageBar respects the flag unconditionally. Clean three-state model: bar visible → triage active (bar hidden) → dismissed (bar hidden).',
   '2.13.1': 'Day-end review + morning reflection — triage summary now shows contextual acknowledgment (Solid day, Deep work today, You showed up) with stats (done, focus time, habits, streak). Triage breakdown shown in muted text below. Summary display extended to 3s. Morning nudge enhanced: shows Yesterday: 5 done, 1h focused instead of just task count. Review stored in localStorage, auto-clears after noon.',
   '2.13.0': 'AI personality overhaul — removed random gates (stale task awareness + behavioral insights now always show when applicable). Added 3 new action types: break_down (split big task into steps), move_soon (park for later), reflect (pattern reflection). Deterministic message rotation replaces random picking. Fallback messages now vary by time of day, progress, and context instead of always saying \"What should I focus on?\" Widened observation triggers (streak 3+, focus milestones every 10h, task milestones every 25). System prompt updated to guide richer, more varied AI responses.',
