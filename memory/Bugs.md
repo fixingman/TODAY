@@ -41,23 +41,19 @@
 
 ## BUG-003: Sync errors in production — "Failed to fetch", Trello 405
 
-**Status:** Fixed v2.12.58 + v2.12.61 + v2.12.67 — awaiting re-verification
+**Status:** Fixed v2.12.58 + v2.12.61 + v2.12.67 + v2.13.4 — awaiting verification
 
-**Symptom:** Red dot shows various sync errors. Originally "dropboxUpdateUI is not defined". Later evolved to Trello 405 errors and missing Trello tasks on desktop PWA.
+**Symptom:** Red dot shows sync errors. Originally "dropboxUpdateUI is not defined". Later Trello 405. Most recently: red dot on every WiFi drop — "Failed to fetch" from sync attempts.
 
-**Root causes found:**
+**Root causes found and fixed:**
 1. `dropboxUpdateUI()` called but never defined → fixed v2.12.61
 2. Sleep/wake: `navigator.onLine` true before network ready → fixed v2.12.61 (wake silent flag)
 3. Silent `catch(e) {}` blocks hid everything → fixed v2.12.58
 4. Trello 405/429 errors had no user-facing message → fixed v2.12.67
-5. Background Trello load errors were completely invisible → fixed v2.12.67 (routed to red dot)
+5. Background Trello load errors invisible → fixed v2.12.67 (routed to red dot)
+6. Network errors treated as real errors → fixed v2.13.4: `_logSyncError` detects "Failed to fetch" / "NetworkError" / "Load failed" / "CORS" and suppresses red dot. Console only.
 
-**Fixes:**
-- v2.12.58: `_logSyncError` + token retry
-- v2.12.61: `dropboxUpdateUI` → `renderConnections()`, wake sync silent
-- v2.12.67: Added 405/429 error messages, background Trello errors now visible via red dot (non-network only)
-
-**Verify:** Monitor red dot over several days. Trello 405 errors should show a clear message ("usually temporary — try again in a minute"). No "is not defined" errors. Wake errors should be silent for 3s then self-heal.
+**Verify:** Disconnect WiFi briefly while app is open → no red dot should appear. Reconnect → sync resumes. Red dot should only appear for actual API errors (expired token, wrong key).
 
 **Verified fixed:** ☐
 
@@ -65,7 +61,7 @@
 
 ## BUG-004: Task list blank after inactivity, returns on click
 
-**Status:** Fixed v2.12.57 + v2.12.66 — awaiting re-verification
+**Status:** ✅ Verified fixed (v2.12.57 + v2.12.66)
 
 **Symptom:** Leave desktop PWA idle → return → task list area blank (both manual AND Trello). Click anywhere → tasks reappear instantly. No data loss.
 
@@ -79,7 +75,7 @@
 
 **Verify:** Open desktop PWA with both manual and Trello tasks → minimize/switch away for 2-3 min → return. Both lists should be visible immediately without clicking. Repeat over several days.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
 
@@ -151,25 +147,21 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 ---
 
-## BUG-007: Triage bar flashes briefly after triage summary
+## BUG-007: Triage bar stays visible during and after triage
 
-**Status:** Fixed v2.12.68 + v2.12.69 — awaiting verification
+**Status:** Fixed v2.13.2 — awaiting verification
 
-**Symptom:** After completing triage and seeing the "All sorted" summary, the triage reminder bar flashes on screen for ~1 second before disappearing. User clarified: bar appears AFTER summary closes, stays visible for 1s, then disappears.
+**Symptom:** Click "Review" on triage bar → overlay opens but bar stays visible behind it. After triage completes and overlay closes, bar is still on screen for ~1s.
 
-**Root cause (actual):** During triage, `checkTriageBar()` fires every ~7s (from `loadTrello` sync). Each call evaluates:
-- `triageDismissedToday === false` (still, until summary)
-- `totalUndone > 0` (still, even with decisions made — they're applied only in `triageApplyAll`)
-- `inTriageWindow === true`
-- → `bar.classList.remove('hidden')`
+**Root cause:** `checkTriageBar()` fires every ~7s from sync. Previous fixes checked `overlay.classList.contains('hidden')` to decide whether bar should show — but this was fragile and could race with DOM changes. The overlay backdrop is also 60% transparent, so even with correct z-index the bar's accent border bleeds through.
 
-The bar was being **made visible repeatedly during triage**, hidden behind the overlay (z-index 999 > bar's z-modal). When overlay closed via `triageClose()`, bar was briefly visible. Next `checkTriageBar` call (~1s later) hid it because dismissed was now true.
+**Fix (v2.13.2 — rewrite):** Added `_triageActive` boolean flag. Clean three-state model:
+- `triageExpand()`: sets `_triageActive = true`, hides bar, shows overlay
+- `triageMinimize()`: sets `_triageActive = false`, hides overlay, shows bar
+- `triageClose()`: sets `_triageActive = false`, hides both, sets dismissed
+- `checkTriageBar()`: if `_triageActive`, bar stays hidden unconditionally — no classList checks needed
 
-**Fixes:**
-- v2.12.68: `triageDismissedToday` set immediately in `triageApplyAll` (partial — shortened the flash window but didn't eliminate it)
-- v2.12.69: `checkTriageBar` returns early when overlay is open — bar never gets shown during triage at all
-
-**Verify:** During triage window, complete triage → summary screen → summary closes → triage bar should NOT appear at any point during or after.
+**Verify:** During triage window, click Review → bar should disappear completely. Complete triage → bar should not reappear.
 
 **Verified fixed:** ☐
 
@@ -177,7 +169,7 @@ The bar was being **made visible repeatedly during triage**, hidden behind the o
 
 ## BUG-008: Dragged task jumps back to previous position
 
-**Status:** Fixed v2.12.72 — awaiting verification
+**Status:** ✅ Verified fixed (v2.12.72)
 
 **Symptom:** Drag a task to reorder on mobile PWA → task briefly stays in new position, then jumps back to the old position. Not reproducible reliably.
 
@@ -195,7 +187,7 @@ The bar was being **made visible repeatedly during triage**, hidden behind the o
 
 **Verify:** On mobile PWA, drag tasks around several times in succession. Each reorder should persist. No visual jump-back.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
 
@@ -248,6 +240,28 @@ CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to 
 3. `visibilitychange` handler now calls `checkNewDay()` immediately (was waiting 2s + 7s for first ticker tick after resume)
 
 **Verify:** Leave the app open past midnight → habits should roll over instantly. Close the app before midnight, reopen after → habits should roll over within ~1 second of returning.
+
+**Verified fixed:** ☐
+
+---
+
+## BUG-011: PiP timer delayed vs main app timer + chime fires late
+
+**Status:** Fixed v2.13.5 + v2.13.6 — awaiting verification
+
+**Symptom:** PiP countdown runs behind the main app timer. When the main timer hits 00:00, PiP still shows time remaining. Chime fires late — after PiP shows 00:00, not simultaneously.
+
+**Root cause:** Two compounding issues:
+
+1. **PiP was driven by throttled ticks.** The PiP only updated when `_pipSync()` was called from `tickFor`. `tickFor` uses `setTimeout(1000)`. When the main tab is hidden (which is always when PiP is open), browsers aggressively throttle `setTimeout` — each "1 second" tick can take 1.5s, 2s, or longer. PiP mirrored these stale ticks and fell further behind real wall time.
+
+2. **Chime tied to throttled tick.** `completeFor()` (which calls `playChime()`) was only triggered when `tickFor` hit zero — the same throttled path. So even if PiP showed 00:00, the chime wouldn't fire until the next throttled tick arrived.
+
+**Fix (v2.13.5) — Timer display:** PiP now drives its own `requestAnimationFrame` loop inside the PiP window. Uses a fixed reference point (`refTime` + `refRem`): real remaining = `refRem - (Date.now() - refTime)`. Completely independent of main tab tick rate. Handles pause/resume by re-anchoring reference on state change.
+
+**Fix (v2.13.6) — Chime:** PiP RAF calls `completeFor()` directly when `currentRem <= 0`. Guard added to `completeFor()`: `if (!st.running) return` prevents double chime/session if `tickFor` also fires.
+
+**Verify:** Start a focus session, switch to another app so PiP appears. PiP should count down in sync with wall clock. When timer ends, chime should fire at the same moment PiP shows 00:00.
 
 **Verified fixed:** ☐
 

@@ -1018,18 +1018,36 @@
   .triage-btn.keep:hover {
     background: var(--accent-hover);
   }
-  .triage-complete-msg {
-    font-size: var(--text-md);
-    text-align: center;
-    margin-bottom: var(--space-2);
-  }
-  #triageSummary {
-    font-size: var(--text-sm2);
-    color: var(--muted);
-    text-align: center;
+  #triageComplete {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-6) var(--space-4);
+    gap: var(--space-3);
+    min-height: 160px; /* layout constant — no token covers this scale */
   }
   #triageComplete.hidden {
     display: none;
+  }
+  .triage-complete-msg {
+    font-size: var(--text-lg);
+    font-weight: 500;
+    color: var(--text);
+    text-align: center;
+  }
+  .triage-complete-detail {
+    font-size: var(--text-md);
+    color: var(--text);
+    text-align: center;
+    opacity: var(--opacity-strong);
+    line-height: 1.5;
+  }
+  .triage-complete-breakdown {
+    font-size: var(--text-sm2);
+    color: var(--muted);
+    text-align: center;
+    margin-top: var(--space-1);
   }
   /* Trigger bar (minimized) */
   #triageBar {
@@ -1301,7 +1319,8 @@
     color: var(--muted);
     cursor: pointer;
     font-size: var(--text-lg);
-    padding: 0 2px;
+    padding: var(--space-2) var(--space-3);
+    margin: calc(-1 * var(--space-2)) 0; /* Expand target without affecting layout height */
     line-height: 1;
     transition: opacity var(--dur-fast), color var(--dur-fast);
     flex-shrink: 0;
@@ -2426,10 +2445,7 @@
     padding: 1px 4px;
     margin-left: var(--space-1);
     vertical-align: middle;
-    opacity: 0.75;
-  }
-
-  /* AI panel — slides up from bottom, overrides .config-panel base */
+    opacity: var(--opacity-strong);
   #aiPanel {
     position: fixed !important;
     left: 0 !important;
@@ -2860,12 +2876,24 @@ function _fmtErrTime() {
 }
 function _logSyncError(source, msg) {
   const entry = _fmtErrTime() + ' [' + source + '] ' + (msg || 'unknown error');
-  // During wake sync (first 3s after tab return), log but don't show red dot —
+  
+  // During wake sync (first 3s after tab return), suppress entirely —
   // network may not be ready yet, ticker will retry. (BUG-003)
   if (window._isWakeSyncSilent && window._isWakeSyncSilent()) {
     console.warn('[wake-silent] ' + entry);
     return;
   }
+  
+  // Network errors (offline, DNS, CORS) are expected during connectivity drops.
+  // Log to console but don't show red dot — the ticker will retry when
+  // connection returns, and the 'online' event handles full reconnect. (BUG-003)
+  const isNetworkError = !msg || msg.includes('Failed to fetch') || msg.includes('NetworkError')
+    || msg.includes('Load failed') || msg.includes('CORS') || msg.includes('ERR_INTERNET');
+  if (isNetworkError) {
+    console.warn('[network] ' + entry);
+    return;
+  }
+  
   _errorLog.push(entry);
   const el = document.getElementById('errorIndicator');
   if (el) { el.style.display = 'block'; el.dataset.count = _errorLog.length; }
@@ -2921,11 +2949,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.13.1';
-const DEV_HOURS     = '170h';
+const APP_VERSION   = '2.13.8';
+const DEV_HOURS     = '172h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.13.6': 'Fix: PiP completion chime sync — PiP RAF now calls completeFor() directly when wall-clock hits zero, instead of waiting for throttled tickFor. Chime fires at the right moment. Guard added to completeFor (if !st.running return) prevents double chime/session if tickFor also fires.',
+  '2.13.5': 'Fix: PiP timer lag — PiP now drives its own display via requestAnimationFrame + fixed reference point (refTime + refRem), completely independent of the main tab setTimeout ticks. When tab is hidden, setTimeout gets throttled by browser; PiP was just mirroring those stale ticks. Now anchored to wall-clock time — PiP and main timer always agree on remaining seconds.',
+  '2.13.4': 'Fix: Red dot on network loss (BUG-003) — _logSyncError now detects network errors (Failed to fetch, NetworkError, Load failed, CORS) and suppresses the red dot. Errors still logged to console. Red dot now only shows for real problems (401, 405, server errors).',
+  '2.13.3': 'Delete button click target enlarged — padding increased with negative margin to keep row height. Easier to hit on desktop.',
+  '2.13.2': 'Fix: Triage bar stays visible (BUG-007 rewrite) — replaced fragile overlay.classList.contains check with explicit _triageActive flag. triageExpand sets flag true (bar locked hidden), triageClose/triageMinimize clear it. checkTriageBar respects the flag unconditionally. Clean three-state model: bar visible → triage active (bar hidden) → dismissed (bar hidden).',
   '2.13.1': 'Day-end review + morning reflection — triage summary now shows contextual acknowledgment (Solid day, Deep work today, You showed up) with stats (done, focus time, habits, streak). Triage breakdown shown in muted text below. Summary display extended to 3s. Morning nudge enhanced: shows Yesterday: 5 done, 1h focused instead of just task count. Review stored in localStorage, auto-clears after noon.',
   '2.13.0': 'AI personality overhaul — removed random gates (stale task awareness + behavioral insights now always show when applicable). Added 3 new action types: break_down (split big task into steps), move_soon (park for later), reflect (pattern reflection). Deterministic message rotation replaces random picking. Fallback messages now vary by time of day, progress, and context instead of always saying \"What should I focus on?\" Widened observation triggers (streak 3+, focus milestones every 10h, task milestones every 25). System prompt updated to guide richer, more varied AI responses.',
   '2.12.79': 'Link extraction — URLs in manual task input are extracted, stored as task.url, and displayed as ↗ arrow (same as Trello links). Pasting just a URL uses the domain as display text. Renamed .trello-link → .task-link throughout since the feature now applies to all task types.',
@@ -3536,35 +3569,42 @@ function checkMorningNudge() {
 
 // Evening triage (per-task)
 let triageDecisions = {}; // {taskId: 'kept'|'soon'|'letgo'}
+let _triageActive = false; // True while triage overlay is open — prevents bar from showing
 
 function checkTriageBar() {
+  const bar = $.triageBar || document.getElementById('triageBar');
+  if (!bar) return;
+  
+  // While triage is active, bar stays hidden — no exceptions.
+  // This replaces the fragile overlay.classList.contains('hidden') check. (BUG-007)
+  if (_triageActive) {
+    bar.classList.add('hidden');
+    // Still refresh the overlay list if it's showing (sync may have updated doneIds)
+    const overlay = $.triageOverlay || document.getElementById('triageOverlay');
+    if (overlay && !overlay.classList.contains('hidden')) {
+      const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
+      const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
+      const totalUndone = undoneManual.length + undoneTrello.length;
+      renderTriageList();
+      const titleEl = $.triageTitle || document.getElementById('triageTitle');
+      const remaining = totalUndone - Object.keys(triageDecisions).length;
+      if (titleEl && remaining > 0) titleEl.textContent = `${remaining} didn't happen`;
+    }
+    return;
+  }
+  
+  // Normal bar visibility: 8pm–midnight, undone tasks, not dismissed today
   const hour = new Date().getHours();
   const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
   const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
   const totalUndone = undoneManual.length + undoneTrello.length;
-  const bar = $.triageBar || document.getElementById('triageBar');
-  if (!bar) return;
   
-  // If triage overlay is open, refresh the list (sync may have updated doneIds)
-  // and skip bar visibility logic — bar should stay hidden while overlay is up.
-  // Otherwise bar appears behind the overlay and flashes when overlay closes. (BUG-007)
-  const overlay = $.triageOverlay || document.getElementById('triageOverlay');
-  if (overlay && !overlay.classList.contains('hidden')) {
-    renderTriageList();
-    const titleEl = $.triageTitle || document.getElementById('triageTitle');
-    // Re-filter for title since decisions are applied
-    const remaining = totalUndone - Object.keys(triageDecisions).length;
-    if (titleEl && remaining > 0) titleEl.textContent = `${remaining} didn't happen`;
-    return; // Don't touch bar while overlay is open
-  }
-  
-  // Show 8pm–midnight with undone tasks, unless dismissed today.
-  // Previously extended to 1am (when day boundary was 1am). Now aligned to midnight. (v2.12.74)
   const inTriageWindow = hour >= 20;
   if (inTriageWindow && totalUndone > 0 && !triageDismissedToday) {
     const countEl = $.triageCount || document.getElementById('triageCount');
     if (countEl) countEl.textContent = totalUndone;
     bar.classList.remove('hidden');
+    bar.style.display = ''; // Clear any inline override
   } else {
     bar.classList.add('hidden');
   }
@@ -3573,10 +3613,13 @@ function checkTriageBar() {
 function triageExpand() {
   triageDecisions = {};
   _triageHints = {}; // Reset AI hints
+  _triageActive = true; // Lock bar hidden while triage is in progress
+  
   const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
   const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
   const totalUndone = undoneManual.length + undoneTrello.length;
   
+  // Hide bar, show overlay
   const bar = $.triageBar || document.getElementById('triageBar');
   if (bar) bar.classList.add('hidden');
   const titleEl = $.triageTitle || document.getElementById('triageTitle');
@@ -3935,9 +3978,10 @@ function triageApplyAll() {
   
   const summaryEl = document.getElementById('triageSummary');
   if (summaryEl) {
-    summaryEl.innerHTML = detailLine
-      ? `${esc(detailLine)}<br><span style="opacity:0.5">${esc(triageLine)}</span>`
-      : esc(triageLine);
+    summaryEl.innerHTML = [
+      detailLine ? `<div class="triage-complete-detail">${esc(detailLine)}</div>` : '',
+      triageLine ? `<div class="triage-complete-breakdown">${esc(triageLine)}</div>` : '',
+    ].join('');
   }
   
   // Save day stats for morning-after reflection (Option 5)
@@ -3985,11 +4029,13 @@ function _getTriageHistory() {
 }
 
 function triageMinimize() {
+  _triageActive = false; // Allow bar to show again
   document.getElementById('triageOverlay').classList.add('hidden');
   document.getElementById('triageBar').classList.remove('hidden');
 }
 
 function triageClose() {
+  _triageActive = false;
   triageDismissedToday = true;
   localStorage.setItem('triage_dismissed', _getAppDay());
   document.getElementById('triageOverlay').classList.add('hidden');
@@ -10111,6 +10157,8 @@ function _aiClearBadge() {
   // ── Complete ──────────────────────────────────────────────────────────────
   function completeFor(taskId) {
     const st = getState(taskId);
+    // Guard against double-call (can happen if PiP RAF and tickFor both hit zero)
+    if (!st.running) return;
     st.running   = false;
     st.rem       = 0;
     st.paused    = false;
@@ -10443,7 +10491,7 @@ function _aiClearBadge() {
               left: 0;
               bottom: 0;
               background: rgba(200,240,96,0.2);
-              transition: width 1s linear;
+              /* No transition — animated by RAF in _pipSync for accuracy */
             }
             .pip-controls {
               position: absolute;
@@ -10532,6 +10580,9 @@ function _aiClearBadge() {
           pipTimeEl = null;
         });
 
+        // Start the PiP's own RAF-driven clock — wall-clock accurate
+        startPiPClock();
+
       } catch (err) {
         // Silent fail — user gesture may not be available
       }
@@ -10551,14 +10602,81 @@ function _aiClearBadge() {
       return 'Focus';
     }
 
-    // Expose sync function for timer tick
+    // Expose sync function — called on open and on pause/resume.
+    // The PiP drives its own display via RAF + wallStart (wall-clock accurate).
+    // We no longer depend on the throttled setTimeout ticks from the hidden tab.
     window._pipSync = function(rem, total) {
       if (!pipWindow || pipWindow.closed) return;
       if (!pipFillEl || !pipTimeEl) return;
+      // Direct update — called on pause/resume to sync state change immediately
       const progress = (1 - rem / total) * 100;
       pipFillEl.style.width = progress + '%';
       pipTimeEl.textContent = fmt(rem);
     };
+
+    // PiP drives its own countdown via RAF with a fixed reference point.
+    // Immune to tickFor's setTimeout drift and main tab throttling.
+    // refTime + refRem = the anchor: "at refTime, there were refRem seconds left"
+    function startPiPClock() {
+      if (!pipWindow || pipWindow.closed || !uiTaskId) return;
+
+      // Anchor to current wall-clock reality
+      const st = getState(uiTaskId);
+      const initialElapsed = st.wallStart ? Math.floor((Date.now() - st.wallStart) / 1000) : 0;
+      let refRem  = Math.max(0, st.rem - initialElapsed);
+      let refTime = Date.now();
+      let lastRem = refRem;
+      let wasPaused = st.paused || !st.running;
+      let rafId = null;
+
+      function pipTick() {
+        if (!pipWindow || pipWindow.closed || !pipFillEl || !pipTimeEl) return;
+        if (!uiTaskId) return;
+
+        const cur = getState(uiTaskId);
+        const nowPaused = cur.paused || !cur.running;
+
+        if (nowPaused) {
+          // Paused — show frozen time, keep polling slowly
+          pipTimeEl.textContent = fmt(lastRem);
+          pipFillEl.style.width = ((1 - lastRem / TOTAL) * 100) + '%';
+          wasPaused = true;
+          rafId = pipWindow.requestAnimationFrame(pipTick);
+          return;
+        }
+
+        if (wasPaused) {
+          // Just resumed — re-anchor reference point from current state
+          const elapsed2 = cur.wallStart ? Math.floor((Date.now() - cur.wallStart) / 1000) : 0;
+          refRem  = Math.max(0, cur.rem - elapsed2);
+          refTime = Date.now();
+          wasPaused = false;
+        }
+
+        // True remaining = refRem - time elapsed since refTime
+        const elapsed = (Date.now() - refTime) / 1000;
+        const currentRem = Math.max(0, refRem - elapsed);
+        lastRem = Math.ceil(currentRem); // ceil so display matches main timer
+
+        pipTimeEl.textContent = fmt(lastRem);
+        pipFillEl.style.width = ((1 - lastRem / TOTAL) * 100) + '%';
+
+        if (lastRem <= 0) {
+          // Timer reached zero — trigger completion immediately from wall clock.
+          // Don't wait for the throttled tickFor tick in the hidden main tab.
+          completeFor(uiTaskId);
+          return;
+        }
+
+        rafId = pipWindow.requestAnimationFrame(pipTick);
+      }
+
+      rafId = pipWindow.requestAnimationFrame(pipTick);
+
+      pipWindow.addEventListener('pagehide', function() {
+        if (rafId && pipWindow) pipWindow.cancelAnimationFrame(rafId);
+      }, { once: true });
+    }
 
     // Expose close function
     window._pipClose = function() {
