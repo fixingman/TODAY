@@ -2934,11 +2934,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.13.4';
+const APP_VERSION   = '2.13.5';
 const DEV_HOURS     = '170h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.13.5': 'Fix: PiP timer lag — PiP now drives its own display via requestAnimationFrame + fixed reference point (refTime + refRem), completely independent of the main tab setTimeout ticks. When tab is hidden, setTimeout gets throttled by browser; PiP was just mirroring those stale ticks. Now anchored to wall-clock time — PiP and main timer always agree on remaining seconds.',
   '2.13.4': 'Fix: Red dot on network loss (BUG-003) — _logSyncError now detects network errors (Failed to fetch, NetworkError, Load failed, CORS) and suppresses the red dot. Errors still logged to console. Red dot now only shows for real problems (401, 405, server errors).',
   '2.13.3': 'Delete button click target enlarged — padding increased with negative margin to keep row height. Easier to hit on desktop.',
   '2.13.2': 'Fix: Triage bar stays visible (BUG-007 rewrite) — replaced fragile overlay.classList.contains check with explicit _triageActive flag. triageExpand sets flag true (bar locked hidden), triageClose/triageMinimize clear it. checkTriageBar respects the flag unconditionally. Clean three-state model: bar visible → triage active (bar hidden) → dismissed (bar hidden).',
@@ -10471,7 +10472,7 @@ function _aiClearBadge() {
               left: 0;
               bottom: 0;
               background: rgba(200,240,96,0.2);
-              transition: width 1s linear;
+              /* No transition — animated by RAF in _pipSync for accuracy */
             }
             .pip-controls {
               position: absolute;
@@ -10560,6 +10561,9 @@ function _aiClearBadge() {
           pipTimeEl = null;
         });
 
+        // Start the PiP's own RAF-driven clock — wall-clock accurate
+        startPiPClock();
+
       } catch (err) {
         // Silent fail — user gesture may not be available
       }
@@ -10579,14 +10583,76 @@ function _aiClearBadge() {
       return 'Focus';
     }
 
-    // Expose sync function for timer tick
+    // Expose sync function — called on open and on pause/resume.
+    // The PiP drives its own display via RAF + wallStart (wall-clock accurate).
+    // We no longer depend on the throttled setTimeout ticks from the hidden tab.
     window._pipSync = function(rem, total) {
       if (!pipWindow || pipWindow.closed) return;
       if (!pipFillEl || !pipTimeEl) return;
+      // Direct update — called on pause/resume to sync state change immediately
       const progress = (1 - rem / total) * 100;
       pipFillEl.style.width = progress + '%';
       pipTimeEl.textContent = fmt(rem);
     };
+
+    // PiP drives its own countdown via RAF with a fixed reference point.
+    // Immune to tickFor's setTimeout drift and main tab throttling.
+    // refTime + refRem = the anchor: "at refTime, there were refRem seconds left"
+    function startPiPClock() {
+      if (!pipWindow || pipWindow.closed || !uiTaskId) return;
+
+      // Anchor to current wall-clock reality
+      const st = getState(uiTaskId);
+      const initialElapsed = st.wallStart ? Math.floor((Date.now() - st.wallStart) / 1000) : 0;
+      let refRem  = Math.max(0, st.rem - initialElapsed);
+      let refTime = Date.now();
+      let lastRem = refRem;
+      let wasPaused = st.paused || !st.running;
+      let rafId = null;
+
+      function pipTick() {
+        if (!pipWindow || pipWindow.closed || !pipFillEl || !pipTimeEl) return;
+        if (!uiTaskId) return;
+
+        const cur = getState(uiTaskId);
+        const nowPaused = cur.paused || !cur.running;
+
+        if (nowPaused) {
+          // Paused — show frozen time, keep polling slowly
+          pipTimeEl.textContent = fmt(lastRem);
+          pipFillEl.style.width = ((1 - lastRem / TOTAL) * 100) + '%';
+          wasPaused = true;
+          rafId = pipWindow.requestAnimationFrame(pipTick);
+          return;
+        }
+
+        if (wasPaused) {
+          // Just resumed — re-anchor reference point from current state
+          const elapsed2 = cur.wallStart ? Math.floor((Date.now() - cur.wallStart) / 1000) : 0;
+          refRem  = Math.max(0, cur.rem - elapsed2);
+          refTime = Date.now();
+          wasPaused = false;
+        }
+
+        // True remaining = refRem - time elapsed since refTime
+        const elapsed = (Date.now() - refTime) / 1000;
+        const currentRem = Math.max(0, refRem - elapsed);
+        lastRem = Math.ceil(currentRem); // ceil so display matches main timer
+
+        pipTimeEl.textContent = fmt(lastRem);
+        pipFillEl.style.width = ((1 - lastRem / TOTAL) * 100) + '%';
+
+        if (lastRem <= 0) return; // Timer done
+
+        rafId = pipWindow.requestAnimationFrame(pipTick);
+      }
+
+      rafId = pipWindow.requestAnimationFrame(pipTick);
+
+      pipWindow.addEventListener('pagehide', function() {
+        if (rafId && pipWindow) pipWindow.cancelAnimationFrame(rafId);
+      }, { once: true });
+    }
 
     // Expose close function
     window._pipClose = function() {
