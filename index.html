@@ -504,25 +504,80 @@
     z-index: 9999;
     cursor: pointer;
     display: none;
-    animation: errorPulse 1s ease-in-out infinite;
+    animation: errorPulse 2s ease-in-out infinite;
   }
-  #errorIndicator:hover::after {
-    content: attr(data-count) ' error(s) — click to view';
-    position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: var(--surface);
-    color: var(--fg);
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  #errorIndicator.open {
+    animation: none;
+    opacity: 1;
   }
   @keyframes errorPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,95,95,0.4); }
+    50%       { box-shadow: 0 0 0 4px rgba(255,95,95,0); }
+  }
+  #errorPanel {
+    position: fixed;
+    top: 24px;
+    right: 8px;
+    width: 220px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl) var(--radius-sm) var(--radius-xl) var(--radius-xl);
+    overflow: hidden;
+    z-index: 9998;
+    display: none;
+    animation: fadeIn var(--dur-base) var(--ease-std);
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  #errorPanel.open {
+    display: block;
+  }
+  .error-panel-row {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .error-panel-row:last-child { border-bottom: none; }
+  .error-panel-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .error-panel-time {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted);
+  }
+  .error-panel-badge {
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: var(--radius-sm);
+  }
+  .error-panel-badge.source-dropbox,
+  .error-panel-badge.source-trello,
+  .error-panel-badge.source-sync {
+    background: rgba(87,157,255,0.10);
+    color: var(--highlight);
+    border: 1px solid rgba(87,157,255,0.20);
+  }
+  .error-panel-badge.source-external {
+    background: rgba(107,107,120,0.12);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .error-panel-badge.source-app {
+    background: rgba(255,95,95,0.10);
+    color: var(--danger);
+    border: 1px solid rgba(255,95,95,0.20);
+  }
+  .error-panel-msg {
+    font-size: var(--text-sm2);
+    color: var(--text);
+    line-height: 1.4;
   }
   
   /* ── Component: Splash ────────────────────────────────────────────── */
@@ -2603,7 +2658,8 @@
 </head>
 <body>
 <!-- Error indicator (dev aid) -->
-<div id="errorIndicator" data-count="0" onclick="_showErrorLog()"></div>
+<div id="errorIndicator" data-count="0" onclick="_toggleErrorPanel()"></div>
+<div id="errorPanel"></div>
 <!-- SVG noise filter for focus mode depth effect -->
 <svg style="position:absolute;width:0;height:0;pointer-events:none" aria-hidden="true">
   <defs>
@@ -2875,6 +2931,10 @@ function _fmtErrTime() {
   const pad = n => String(n).padStart(2, '0');
   return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
 }
+function _showErrorDot() {
+  const el = document.getElementById('errorIndicator');
+  if (el) { el.style.display = 'block'; el.dataset.count = _errorLog.length; }
+}
 function _logSyncError(source, msg) {
   const entry = _fmtErrTime() + ' [' + source + '] ' + (msg || 'unknown error');
   
@@ -2896,8 +2956,7 @@ function _logSyncError(source, msg) {
   }
   
   _errorLog.push(entry);
-  const el = document.getElementById('errorIndicator');
-  if (el) { el.style.display = 'block'; el.dataset.count = _errorLog.length; }
+  _showErrorDot();
   console.warn(entry);
 }
 window.onerror = function(msg, url, line, col, err) {
@@ -2905,11 +2964,7 @@ window.onerror = function(msg, url, line, col, err) {
   const isExternal = url && !url.includes(window.location.hostname) && !url.includes('index.html');
   const prefix = isExternal ? '[external] ' : '';
   _errorLog.push(`${_fmtErrTime()} ${prefix}${msg} at ${url}:${line}:${col}`);
-  const el = document.getElementById('errorIndicator');
-  if (el) {
-    el.style.display = 'block';
-    el.dataset.count = _errorLog.length;
-  }
+  _showErrorDot();
   console.error('[TODAY Error]', prefix + msg, { url, line, col, err });
   return false;
 };
@@ -2927,22 +2982,54 @@ window.addEventListener('unhandledrejection', function(e) {
   
   const entry = `${_fmtErrTime()} Promise: ${msg}`;
   _errorLog.push(entry);
-  const el = document.getElementById('errorIndicator');
-  if (el) {
-    el.style.display = 'block';
-    el.dataset.count = _errorLog.length;
-  }
+  _showErrorDot();
   console.error('[TODAY Promise Error]', msg, e.reason);
 });
 
-// Show error log, then clear it so the dot can capture new errors freshly.
-// Old errors stay in the console via _logSyncError's console.warn calls.
-function _showErrorLog() {
-  console.log(_errorLog);
-  alert(_errorLog.length ? _errorLog.join('\n\n') : 'No errors logged.');
-  _errorLog.length = 0;
-  const el = document.getElementById('errorIndicator');
-  if (el) { el.style.display = 'none'; el.dataset.count = 0; }
+// Show/hide error panel — dot is the toggle. Close clears the log.
+let _errorPanelOpen = false;
+
+function _toggleErrorPanel() {
+  const dot   = document.getElementById('errorIndicator');
+  const panel = document.getElementById('errorPanel');
+  if (!dot || !panel) return;
+
+  if (_errorPanelOpen) {
+    // Close and clear
+    _errorPanelOpen = false;
+    panel.classList.remove('open');
+    dot.classList.remove('open');
+    _errorLog.length = 0;
+    dot.style.display = 'none';
+    dot.dataset.count = 0;
+  } else {
+    // Open — render entries
+    _errorPanelOpen = true;
+    dot.classList.add('open');
+    panel.innerHTML = _errorLog.map(entry => {
+      // Parse: "HH:MM:SS [source] message" or "HH:MM:SS [external] message"
+      const timeMatch   = entry.match(/^(\d{2}:\d{2}:\d{2})\s/);
+      const sourceMatch = entry.match(/\[([\w-]+)\]/);
+      const time   = timeMatch   ? timeMatch[1]   : '';
+      const source = sourceMatch ? sourceMatch[1] : 'app';
+      const msg    = entry
+        .replace(/^\d{2}:\d{2}:\d{2}\s/, '')
+        .replace(/\[[\w-]+\]\s?/, '')
+        .trim();
+      const badgeClass = ['Dropbox','Trello','Sync'].includes(source)
+        ? 'source-' + source.toLowerCase()
+        : source === 'external' ? 'source-external' : 'source-app';
+      return `
+        <div class="error-panel-row">
+          <div class="error-panel-meta">
+            <span class="error-panel-time">${esc(time)}</span>
+            <span class="error-panel-badge ${badgeClass}">${esc(source)}</span>
+          </div>
+          <div class="error-panel-msg">${esc(msg)}</div>
+        </div>`;
+    }).join('');
+    panel.classList.add('open');
+  }
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -2964,7 +3051,7 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.14.2';
+const APP_VERSION   = '2.14.3';
 const DEV_HOURS     = '172h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
