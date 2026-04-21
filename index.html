@@ -1086,23 +1086,19 @@
     display: none;
   }
   .triage-complete-msg {
-    font-size: var(--text-lg);
-    font-weight: 500;
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     color: var(--text);
     text-align: center;
+    line-height: 1;
   }
-  .triage-complete-detail {
-    font-size: var(--text-md);
-    color: var(--text);
-    text-align: center;
-    opacity: var(--opacity-strong);
-    line-height: 1.5;
-  }
-  .triage-complete-breakdown {
+  .triage-complete-sub {
     font-size: var(--text-sm2);
     color: var(--muted);
     text-align: center;
-    margin-top: var(--space-1);
+    letter-spacing: 0.01em;
   }
   /* Trigger bar (minimized) */
   #triageBar {
@@ -3051,7 +3047,7 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.14.3';
+const APP_VERSION   = '2.14.4';
 const DEV_HOURS     = '172h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
@@ -4082,14 +4078,22 @@ function triageApplyAll() {
   document.getElementById('triageComplete').classList.remove('hidden');
   
   const msgEl = document.querySelector('.triage-complete-msg');
-  if (msgEl) msgEl.textContent = headline;
+  if (msgEl) msgEl.textContent = headline + '.';
+  
+  // Adaptive sub-line — pick the most meaningful single stat pair
+  // No breakdown line (user just made those decisions — they know)
+  const subParts = [];
+  if (_doneToday > 0) subParts.push(`${_doneToday} done`);
+  if (_focusMins >= 25) subParts.push(_formatFocusTime(_focusMins) + ' focused');
+  if (_habitsDoneCount > 0 && _doneToday === 0) subParts.push(`${_habitsDoneCount} habit${_habitsDoneCount > 1 ? 's' : ''}`);
+  if (_streak >= 3 && subParts.length < 2) subParts.push(`day ${_streak}`);
   
   const summaryEl = document.getElementById('triageSummary');
   if (summaryEl) {
-    summaryEl.innerHTML = [
-      detailLine ? `<div class="triage-complete-detail">${esc(detailLine)}</div>` : '',
-      triageLine ? `<div class="triage-complete-breakdown">${esc(triageLine)}</div>` : '',
-    ].join('');
+    const subLine = subParts.join(' · ');
+    summaryEl.innerHTML = subLine
+      ? `<div class="triage-complete-sub">${esc(subLine)}</div>`
+      : '';
   }
   
   // Save day stats for morning-after reflection (Option 5)
