@@ -2921,11 +2921,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.13.1';
+const APP_VERSION   = '2.13.2';
 const DEV_HOURS     = '170h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.13.2': 'Fix: Triage bar stays visible (BUG-007 rewrite) — replaced fragile overlay.classList.contains check with explicit _triageActive flag. triageExpand sets flag true (bar locked hidden), triageClose/triageMinimize clear it. checkTriageBar respects the flag unconditionally. Clean three-state model: bar visible → triage active (bar hidden) → dismissed (bar hidden).',
   '2.13.1': 'Day-end review + morning reflection — triage summary now shows contextual acknowledgment (Solid day, Deep work today, You showed up) with stats (done, focus time, habits, streak). Triage breakdown shown in muted text below. Summary display extended to 3s. Morning nudge enhanced: shows Yesterday: 5 done, 1h focused instead of just task count. Review stored in localStorage, auto-clears after noon.',
   '2.13.0': 'AI personality overhaul — removed random gates (stale task awareness + behavioral insights now always show when applicable). Added 3 new action types: break_down (split big task into steps), move_soon (park for later), reflect (pattern reflection). Deterministic message rotation replaces random picking. Fallback messages now vary by time of day, progress, and context instead of always saying \"What should I focus on?\" Widened observation triggers (streak 3+, focus milestones every 10h, task milestones every 25). System prompt updated to guide richer, more varied AI responses.',
   '2.12.79': 'Link extraction — URLs in manual task input are extracted, stored as task.url, and displayed as ↗ arrow (same as Trello links). Pasting just a URL uses the domain as display text. Renamed .trello-link → .task-link throughout since the feature now applies to all task types.',
@@ -3536,35 +3537,42 @@ function checkMorningNudge() {
 
 // Evening triage (per-task)
 let triageDecisions = {}; // {taskId: 'kept'|'soon'|'letgo'}
+let _triageActive = false; // True while triage overlay is open — prevents bar from showing
 
 function checkTriageBar() {
+  const bar = $.triageBar || document.getElementById('triageBar');
+  if (!bar) return;
+  
+  // While triage is active, bar stays hidden — no exceptions.
+  // This replaces the fragile overlay.classList.contains('hidden') check. (BUG-007)
+  if (_triageActive) {
+    bar.classList.add('hidden');
+    // Still refresh the overlay list if it's showing (sync may have updated doneIds)
+    const overlay = $.triageOverlay || document.getElementById('triageOverlay');
+    if (overlay && !overlay.classList.contains('hidden')) {
+      const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
+      const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
+      const totalUndone = undoneManual.length + undoneTrello.length;
+      renderTriageList();
+      const titleEl = $.triageTitle || document.getElementById('triageTitle');
+      const remaining = totalUndone - Object.keys(triageDecisions).length;
+      if (titleEl && remaining > 0) titleEl.textContent = `${remaining} didn't happen`;
+    }
+    return;
+  }
+  
+  // Normal bar visibility: 8pm–midnight, undone tasks, not dismissed today
   const hour = new Date().getHours();
   const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
   const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
   const totalUndone = undoneManual.length + undoneTrello.length;
-  const bar = $.triageBar || document.getElementById('triageBar');
-  if (!bar) return;
   
-  // If triage overlay is open, refresh the list (sync may have updated doneIds)
-  // and skip bar visibility logic — bar should stay hidden while overlay is up.
-  // Otherwise bar appears behind the overlay and flashes when overlay closes. (BUG-007)
-  const overlay = $.triageOverlay || document.getElementById('triageOverlay');
-  if (overlay && !overlay.classList.contains('hidden')) {
-    renderTriageList();
-    const titleEl = $.triageTitle || document.getElementById('triageTitle');
-    // Re-filter for title since decisions are applied
-    const remaining = totalUndone - Object.keys(triageDecisions).length;
-    if (titleEl && remaining > 0) titleEl.textContent = `${remaining} didn't happen`;
-    return; // Don't touch bar while overlay is open
-  }
-  
-  // Show 8pm–midnight with undone tasks, unless dismissed today.
-  // Previously extended to 1am (when day boundary was 1am). Now aligned to midnight. (v2.12.74)
   const inTriageWindow = hour >= 20;
   if (inTriageWindow && totalUndone > 0 && !triageDismissedToday) {
     const countEl = $.triageCount || document.getElementById('triageCount');
     if (countEl) countEl.textContent = totalUndone;
     bar.classList.remove('hidden');
+    bar.style.display = ''; // Clear any inline override
   } else {
     bar.classList.add('hidden');
   }
@@ -3573,10 +3581,13 @@ function checkTriageBar() {
 function triageExpand() {
   triageDecisions = {};
   _triageHints = {}; // Reset AI hints
+  _triageActive = true; // Lock bar hidden while triage is in progress
+  
   const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
   const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
   const totalUndone = undoneManual.length + undoneTrello.length;
   
+  // Hide bar, show overlay
   const bar = $.triageBar || document.getElementById('triageBar');
   if (bar) bar.classList.add('hidden');
   const titleEl = $.triageTitle || document.getElementById('triageTitle');
@@ -3985,11 +3996,13 @@ function _getTriageHistory() {
 }
 
 function triageMinimize() {
+  _triageActive = false; // Allow bar to show again
   document.getElementById('triageOverlay').classList.add('hidden');
   document.getElementById('triageBar').classList.remove('hidden');
 }
 
 function triageClose() {
+  _triageActive = false;
   triageDismissedToday = true;
   localStorage.setItem('triage_dismissed', _getAppDay());
   document.getElementById('triageOverlay').classList.add('hidden');

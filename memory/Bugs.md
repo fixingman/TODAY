@@ -65,7 +65,7 @@
 
 ## BUG-004: Task list blank after inactivity, returns on click
 
-**Status:** Fixed v2.12.57 + v2.12.66 — awaiting re-verification
+**Status:** ✅ Verified fixed (v2.12.57 + v2.12.66)
 
 **Symptom:** Leave desktop PWA idle → return → task list area blank (both manual AND Trello). Click anywhere → tasks reappear instantly. No data loss.
 
@@ -79,7 +79,7 @@
 
 **Verify:** Open desktop PWA with both manual and Trello tasks → minimize/switch away for 2-3 min → return. Both lists should be visible immediately without clicking. Repeat over several days.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
 
@@ -151,25 +151,21 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 ---
 
-## BUG-007: Triage bar flashes briefly after triage summary
+## BUG-007: Triage bar stays visible during and after triage
 
-**Status:** Fixed v2.12.68 + v2.12.69 — awaiting verification
+**Status:** Fixed v2.13.2 — awaiting verification
 
-**Symptom:** After completing triage and seeing the "All sorted" summary, the triage reminder bar flashes on screen for ~1 second before disappearing. User clarified: bar appears AFTER summary closes, stays visible for 1s, then disappears.
+**Symptom:** Click "Review" on triage bar → overlay opens but bar stays visible behind it. After triage completes and overlay closes, bar is still on screen for ~1s.
 
-**Root cause (actual):** During triage, `checkTriageBar()` fires every ~7s (from `loadTrello` sync). Each call evaluates:
-- `triageDismissedToday === false` (still, until summary)
-- `totalUndone > 0` (still, even with decisions made — they're applied only in `triageApplyAll`)
-- `inTriageWindow === true`
-- → `bar.classList.remove('hidden')`
+**Root cause:** `checkTriageBar()` fires every ~7s from sync. Previous fixes checked `overlay.classList.contains('hidden')` to decide whether bar should show — but this was fragile and could race with DOM changes. The overlay backdrop is also 60% transparent, so even with correct z-index the bar's accent border bleeds through.
 
-The bar was being **made visible repeatedly during triage**, hidden behind the overlay (z-index 999 > bar's z-modal). When overlay closed via `triageClose()`, bar was briefly visible. Next `checkTriageBar` call (~1s later) hid it because dismissed was now true.
+**Fix (v2.13.2 — rewrite):** Added `_triageActive` boolean flag. Clean three-state model:
+- `triageExpand()`: sets `_triageActive = true`, hides bar, shows overlay
+- `triageMinimize()`: sets `_triageActive = false`, hides overlay, shows bar
+- `triageClose()`: sets `_triageActive = false`, hides both, sets dismissed
+- `checkTriageBar()`: if `_triageActive`, bar stays hidden unconditionally — no classList checks needed
 
-**Fixes:**
-- v2.12.68: `triageDismissedToday` set immediately in `triageApplyAll` (partial — shortened the flash window but didn't eliminate it)
-- v2.12.69: `checkTriageBar` returns early when overlay is open — bar never gets shown during triage at all
-
-**Verify:** During triage window, complete triage → summary screen → summary closes → triage bar should NOT appear at any point during or after.
+**Verify:** During triage window, click Review → bar should disappear completely. Complete triage → bar should not reappear.
 
 **Verified fixed:** ☐
 
@@ -177,7 +173,7 @@ The bar was being **made visible repeatedly during triage**, hidden behind the o
 
 ## BUG-008: Dragged task jumps back to previous position
 
-**Status:** Fixed v2.12.72 — awaiting verification
+**Status:** ✅ Verified fixed (v2.12.72)
 
 **Symptom:** Drag a task to reorder on mobile PWA → task briefly stays in new position, then jumps back to the old position. Not reproducible reliably.
 
@@ -195,7 +191,7 @@ The bar was being **made visible repeatedly during triage**, hidden behind the o
 
 **Verify:** On mobile PWA, drag tasks around several times in succession. Each reorder should persist. No visual jump-back.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
 
