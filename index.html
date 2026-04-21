@@ -2950,7 +2950,7 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.13.9';
+const APP_VERSION   = '2.14.0';
 const DEV_HOURS     = '172h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
@@ -3570,17 +3570,16 @@ function checkMorningNudge() {
 
 // Evening triage (per-task)
 let triageDecisions = {}; // {taskId: 'kept'|'soon'|'letgo'}
-let _triageActive = false; // True while triage overlay is open — prevents bar from showing
+let _triageActive = false;      // True while triage overlay is open
+let _triageBarSilent = false;   // True for 3s after wake — lets sync settle before showing bar
 
 function checkTriageBar() {
   const bar = $.triageBar || document.getElementById('triageBar');
   if (!bar) return;
   
-  // While triage is active, bar stays hidden — no exceptions.
-  // This replaces the fragile overlay.classList.contains('hidden') check. (BUG-007)
+  // Triage overlay is open — bar stays hidden unconditionally (BUG-007)
   if (_triageActive) {
     bar.classList.add('hidden');
-    // Still refresh the overlay list if it's showing (sync may have updated doneIds)
     const overlay = $.triageOverlay || document.getElementById('triageOverlay');
     if (overlay && !overlay.classList.contains('hidden')) {
       const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
@@ -3591,6 +3590,13 @@ function checkTriageBar() {
       const remaining = totalUndone - Object.keys(triageDecisions).length;
       if (titleEl && remaining > 0) titleEl.textContent = `${remaining} didn't happen`;
     }
+    return;
+  }
+  
+  // Wake grace window — sync may not have completed yet. Don't show bar
+  // until mergeRemoteData has had a chance to apply remote triage dismissal. (BUG-001)
+  if (_triageBarSilent) {
+    bar.classList.add('hidden');
     return;
   }
   
@@ -3605,7 +3611,7 @@ function checkTriageBar() {
     const countEl = $.triageCount || document.getElementById('triageCount');
     if (countEl) countEl.textContent = totalUndone;
     bar.classList.remove('hidden');
-    bar.style.display = ''; // Clear any inline override
+    bar.style.display = '';
   } else {
     bar.classList.add('hidden');
   }
@@ -7398,8 +7404,11 @@ document.addEventListener('visibilitychange', () => {
     // Defer triage check — sync runs immediately on tab return (BUG-002),
     // and mergeRemoteData handles triage dismissal. Checking triage before
     // sync completes shows a stale bar that gets hidden moments later. (BUG-001)
-    // Wait 3s to give sync time to complete, then check with fresh state.
+    // _triageBarSilent suppresses checkTriageBar during this window — the ticker
+    // can fire any time, and without this it would show the bar before sync settles.
+    _triageBarSilent = true;
     setTimeout(() => {
+      _triageBarSilent = false;
       triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
       checkTriageBar();
     }, 3000);
@@ -7425,7 +7434,9 @@ window.addEventListener('focus', () => {
   if (window._dbxSyncNow) window._dbxSyncNow();
   setTimeout(() => { if (window._setWakeSyncSilent) window._setWakeSyncSilent(false); }, 3000);
   // Deferred triage check — same as visibilitychange (BUG-001)
+  _triageBarSilent = true;
   setTimeout(() => {
+    _triageBarSilent = false;
     triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
     checkTriageBar();
   }, 3000);
