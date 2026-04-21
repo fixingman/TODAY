@@ -500,29 +500,84 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: #ff4444;
+    background: var(--danger);
     z-index: 9999;
     cursor: pointer;
     display: none;
-    animation: errorPulse 1s ease-in-out infinite;
+    animation: errorPulse 2s ease-in-out infinite;
   }
-  #errorIndicator:hover::after {
-    content: attr(data-count) ' error(s) — click to view';
-    position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: var(--surface);
-    color: var(--fg);
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  #errorIndicator.open {
+    animation: none;
+    opacity: 1;
   }
   @keyframes errorPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,95,95,0.4); }
+    50%       { box-shadow: 0 0 0 4px rgba(255,95,95,0); }
+  }
+  #errorPanel {
+    position: fixed;
+    top: 24px;
+    right: 8px;
+    width: 220px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl) var(--radius-sm) var(--radius-xl) var(--radius-xl);
+    overflow: hidden;
+    z-index: 9998;
+    display: none;
+    animation: fadeIn var(--dur-base) var(--ease-std);
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  #errorPanel.open {
+    display: block;
+  }
+  .error-panel-row {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .error-panel-row:last-child { border-bottom: none; }
+  .error-panel-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .error-panel-time {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted);
+  }
+  .error-panel-badge {
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: var(--radius-sm);
+  }
+  .error-panel-badge.source-dropbox,
+  .error-panel-badge.source-trello,
+  .error-panel-badge.source-sync {
+    background: rgba(87,157,255,0.10);
+    color: var(--highlight);
+    border: 1px solid rgba(87,157,255,0.20);
+  }
+  .error-panel-badge.source-external {
+    background: rgba(107,107,120,0.12);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .error-panel-badge.source-app {
+    background: rgba(255,95,95,0.10);
+    color: var(--danger);
+    border: 1px solid rgba(255,95,95,0.20);
+  }
+  .error-panel-msg {
+    font-size: var(--text-sm2);
+    color: var(--text);
+    line-height: 1.4;
   }
   
   /* ── Component: Splash ────────────────────────────────────────────── */
@@ -1031,23 +1086,19 @@
     display: none;
   }
   .triage-complete-msg {
-    font-size: var(--text-lg);
-    font-weight: 500;
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     color: var(--text);
     text-align: center;
+    line-height: 1;
   }
-  .triage-complete-detail {
-    font-size: var(--text-md);
-    color: var(--text);
-    text-align: center;
-    opacity: var(--opacity-strong);
-    line-height: 1.5;
-  }
-  .triage-complete-breakdown {
+  .triage-complete-sub {
     font-size: var(--text-sm2);
     color: var(--muted);
     text-align: center;
-    margin-top: var(--space-1);
+    letter-spacing: 0.01em;
   }
   /* Trigger bar (minimized) */
   #triageBar {
@@ -2446,6 +2497,7 @@
     margin-left: var(--space-1);
     vertical-align: middle;
     opacity: var(--opacity-strong);
+  }
   #aiPanel {
     position: fixed !important;
     left: 0 !important;
@@ -2602,7 +2654,8 @@
 </head>
 <body>
 <!-- Error indicator (dev aid) -->
-<div id="errorIndicator" data-count="0" onclick="_showErrorLog()"></div>
+<div id="errorIndicator" data-count="0" onclick="_toggleErrorPanel()"></div>
+<div id="errorPanel"></div>
 <!-- SVG noise filter for focus mode depth effect -->
 <svg style="position:absolute;width:0;height:0;pointer-events:none" aria-hidden="true">
   <defs>
@@ -2874,6 +2927,10 @@ function _fmtErrTime() {
   const pad = n => String(n).padStart(2, '0');
   return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
 }
+function _showErrorDot() {
+  const el = document.getElementById('errorIndicator');
+  if (el) { el.style.display = 'block'; el.dataset.count = _errorLog.length; }
+}
 function _logSyncError(source, msg) {
   const entry = _fmtErrTime() + ' [' + source + '] ' + (msg || 'unknown error');
   
@@ -2895,39 +2952,80 @@ function _logSyncError(source, msg) {
   }
   
   _errorLog.push(entry);
-  const el = document.getElementById('errorIndicator');
-  if (el) { el.style.display = 'block'; el.dataset.count = _errorLog.length; }
+  _showErrorDot();
   console.warn(entry);
 }
 window.onerror = function(msg, url, line, col, err) {
-  _errorLog.push(`${_fmtErrTime()} ${msg} at ${url}:${line}:${col}`);
-  const el = document.getElementById('errorIndicator');
-  if (el) {
-    el.style.display = 'block';
-    el.dataset.count = _errorLog.length;
-  }
-  console.error('[TODAY Error]', msg, { url, line, col, err });
-  return false; // Don't suppress default handling
+  // Check if error originates from outside the app (browser extensions, injected scripts)
+  const isExternal = url && !url.includes(window.location.hostname) && !url.includes('index.html');
+  const prefix = isExternal ? '[external] ' : '';
+  _errorLog.push(`${_fmtErrTime()} ${prefix}${msg} at ${url}:${line}:${col}`);
+  _showErrorDot();
+  console.error('[TODAY Error]', prefix + msg, { url, line, col, err });
+  return false;
 };
 window.addEventListener('unhandledrejection', function(e) {
-  const msg = e.reason?.message || e.reason || 'Unhandled promise rejection';
-  _errorLog.push(`${_fmtErrTime()} Promise: ${msg}`);
-  const el = document.getElementById('errorIndicator');
-  if (el) {
-    el.style.display = 'block';
-    el.dataset.count = _errorLog.length;
+  const msg = e.reason?.message || String(e.reason) || 'Unhandled promise rejection';
+  
+  // Network errors are expected during connectivity drops — same filter as _logSyncError.
+  // Don't show red dot for transient network failures. (BUG-003)
+  const isNetworkError = msg.includes('Failed to fetch') || msg.includes('NetworkError')
+    || msg.includes('Load failed') || msg.includes('CORS') || msg.includes('ERR_INTERNET');
+  if (isNetworkError) {
+    console.warn('[network-promise] ' + msg);
+    return;
   }
+  
+  const entry = `${_fmtErrTime()} Promise: ${msg}`;
+  _errorLog.push(entry);
+  _showErrorDot();
   console.error('[TODAY Promise Error]', msg, e.reason);
 });
 
-// Show error log, then clear it so the dot can capture new errors freshly.
-// Old errors stay in the console via _logSyncError's console.warn calls.
-function _showErrorLog() {
-  console.log(_errorLog);
-  alert(_errorLog.length ? _errorLog.join('\n\n') : 'No errors logged.');
-  _errorLog.length = 0;
-  const el = document.getElementById('errorIndicator');
-  if (el) { el.style.display = 'none'; el.dataset.count = 0; }
+// Show/hide error panel — dot is the toggle. Close clears the log.
+let _errorPanelOpen = false;
+
+function _toggleErrorPanel() {
+  const dot   = document.getElementById('errorIndicator');
+  const panel = document.getElementById('errorPanel');
+  if (!dot || !panel) return;
+
+  if (_errorPanelOpen) {
+    // Close and clear
+    _errorPanelOpen = false;
+    panel.classList.remove('open');
+    dot.classList.remove('open');
+    _errorLog.length = 0;
+    dot.style.display = 'none';
+    dot.dataset.count = 0;
+  } else {
+    // Open — render entries
+    _errorPanelOpen = true;
+    dot.classList.add('open');
+    panel.innerHTML = _errorLog.map(entry => {
+      // Parse: "HH:MM:SS [source] message" or "HH:MM:SS [external] message"
+      const timeMatch   = entry.match(/^(\d{2}:\d{2}:\d{2})\s/);
+      const sourceMatch = entry.match(/\[([\w-]+)\]/);
+      const time   = timeMatch   ? timeMatch[1]   : '';
+      const source = sourceMatch ? sourceMatch[1] : 'app';
+      const msg    = entry
+        .replace(/^\d{2}:\d{2}:\d{2}\s/, '')
+        .replace(/\[[\w-]+\]\s?/, '')
+        .trim();
+      const badgeClass = ['Dropbox','Trello','Sync'].includes(source)
+        ? 'source-' + source.toLowerCase()
+        : source === 'external' ? 'source-external' : 'source-app';
+      return `
+        <div class="error-panel-row">
+          <div class="error-panel-meta">
+            <span class="error-panel-time">${esc(time)}</span>
+            <span class="error-panel-badge ${badgeClass}">${esc(source)}</span>
+          </div>
+          <div class="error-panel-msg">${esc(msg)}</div>
+        </div>`;
+    }).join('');
+    panel.classList.add('open');
+  }
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -2949,8 +3047,8 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.13.8';
-const DEV_HOURS     = '172h';
+const APP_VERSION   = '2.14.4';
+const DEV_HOURS     = '174h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
@@ -3569,17 +3667,16 @@ function checkMorningNudge() {
 
 // Evening triage (per-task)
 let triageDecisions = {}; // {taskId: 'kept'|'soon'|'letgo'}
-let _triageActive = false; // True while triage overlay is open — prevents bar from showing
+let _triageActive = false;      // True while triage overlay is open
+let _triageBarSilent = false;   // True for 3s after wake — lets sync settle before showing bar
 
 function checkTriageBar() {
   const bar = $.triageBar || document.getElementById('triageBar');
   if (!bar) return;
   
-  // While triage is active, bar stays hidden — no exceptions.
-  // This replaces the fragile overlay.classList.contains('hidden') check. (BUG-007)
+  // Triage overlay is open — bar stays hidden unconditionally (BUG-007)
   if (_triageActive) {
     bar.classList.add('hidden');
-    // Still refresh the overlay list if it's showing (sync may have updated doneIds)
     const overlay = $.triageOverlay || document.getElementById('triageOverlay');
     if (overlay && !overlay.classList.contains('hidden')) {
       const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
@@ -3590,6 +3687,13 @@ function checkTriageBar() {
       const remaining = totalUndone - Object.keys(triageDecisions).length;
       if (titleEl && remaining > 0) titleEl.textContent = `${remaining} didn't happen`;
     }
+    return;
+  }
+  
+  // Wake grace window — sync may not have completed yet. Don't show bar
+  // until mergeRemoteData has had a chance to apply remote triage dismissal. (BUG-001)
+  if (_triageBarSilent) {
+    bar.classList.add('hidden');
     return;
   }
   
@@ -3604,7 +3708,7 @@ function checkTriageBar() {
     const countEl = $.triageCount || document.getElementById('triageCount');
     if (countEl) countEl.textContent = totalUndone;
     bar.classList.remove('hidden');
-    bar.style.display = ''; // Clear any inline override
+    bar.style.display = '';
   } else {
     bar.classList.add('hidden');
   }
@@ -3974,14 +4078,22 @@ function triageApplyAll() {
   document.getElementById('triageComplete').classList.remove('hidden');
   
   const msgEl = document.querySelector('.triage-complete-msg');
-  if (msgEl) msgEl.textContent = headline;
+  if (msgEl) msgEl.textContent = headline + '.';
+  
+  // Adaptive sub-line — pick the most meaningful single stat pair
+  // No breakdown line (user just made those decisions — they know)
+  const subParts = [];
+  if (_doneToday > 0) subParts.push(`${_doneToday} done`);
+  if (_focusMins >= 25) subParts.push(_formatFocusTime(_focusMins) + ' focused');
+  if (_habitsDoneCount > 0 && _doneToday === 0) subParts.push(`${_habitsDoneCount} habit${_habitsDoneCount > 1 ? 's' : ''}`);
+  if (_streak >= 3 && subParts.length < 2) subParts.push(`day ${_streak}`);
   
   const summaryEl = document.getElementById('triageSummary');
   if (summaryEl) {
-    summaryEl.innerHTML = [
-      detailLine ? `<div class="triage-complete-detail">${esc(detailLine)}</div>` : '',
-      triageLine ? `<div class="triage-complete-breakdown">${esc(triageLine)}</div>` : '',
-    ].join('');
+    const subLine = subParts.join(' · ');
+    summaryEl.innerHTML = subLine
+      ? `<div class="triage-complete-sub">${esc(subLine)}</div>`
+      : '';
   }
   
   // Save day stats for morning-after reflection (Option 5)
@@ -7397,8 +7509,11 @@ document.addEventListener('visibilitychange', () => {
     // Defer triage check — sync runs immediately on tab return (BUG-002),
     // and mergeRemoteData handles triage dismissal. Checking triage before
     // sync completes shows a stale bar that gets hidden moments later. (BUG-001)
-    // Wait 3s to give sync time to complete, then check with fresh state.
+    // _triageBarSilent suppresses checkTriageBar during this window — the ticker
+    // can fire any time, and without this it would show the bar before sync settles.
+    _triageBarSilent = true;
     setTimeout(() => {
+      _triageBarSilent = false;
       triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
       checkTriageBar();
     }, 3000);
@@ -7424,7 +7539,9 @@ window.addEventListener('focus', () => {
   if (window._dbxSyncNow) window._dbxSyncNow();
   setTimeout(() => { if (window._setWakeSyncSilent) window._setWakeSyncSilent(false); }, 3000);
   // Deferred triage check — same as visibilitychange (BUG-001)
+  _triageBarSilent = true;
   setTimeout(() => {
+    _triageBarSilent = false;
     triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
     checkTriageBar();
   }, 3000);

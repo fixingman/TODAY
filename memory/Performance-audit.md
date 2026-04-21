@@ -174,7 +174,7 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-## 8. Recent Changes (v2.12.48 → v2.13.8)
+## 8. Recent Changes (v2.12.48 → v2.14.4)
 
 | Feature | Version | Performance Impact |
 |---|---|---|
@@ -216,7 +216,13 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 | Network error suppression | 2.13.4 | `_logSyncError` string check before DOM update. Negligible. |
 | PiP RAF clock | 2.13.5 | PiP now runs its own RAF loop. Runs only when PiP is open and timer is active — no always-on cost. |
 | PiP chime fix | 2.13.6 | `completeFor` guard (`if !st.running return`) — one boolean check. |
-| Triage summary legibility | 2.13.7–8 | CSS only. Token cleanup (`opacity: 0.75` → `var(--opacity-strong)`, `font-weight: 600` → `500`). |
+| Triage summary legibility | 2.13.7–8 | CSS only. Token cleanup. |
+| AI button hotfix | 2.13.9 | Missing `}` brace — CSS parse error fixed. No perf change. |
+| Cross-device triage flash | 2.14.0 | `_triageBarSilent` flag — one boolean check per `checkTriageBar` call. 3s window on wake. |
+| unhandledrejection filter | 2.14.1 | String check added. Negligible. |
+| Red dot token + external label | 2.14.2 | CSS token swap, URL check in onerror. Negligible. |
+| Error log panel | 2.14.3 | Panel DOM rendered on click — not on every error. `_showErrorDot()` helper. No always-on cost. |
+| Triage summary redesign | 2.14.4 | CSS only — Syne font, simplified structure. Removed two CSS classes. |
 
 ---
 
