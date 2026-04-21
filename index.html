@@ -1018,18 +1018,37 @@
   .triage-btn.keep:hover {
     background: var(--accent-hover);
   }
-  .triage-complete-msg {
-    font-size: var(--text-md);
-    text-align: center;
-    margin-bottom: var(--space-2);
-  }
-  #triageSummary {
-    font-size: var(--text-sm2);
-    color: var(--muted);
-    text-align: center;
+  #triageComplete {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-6) var(--space-4);
+    gap: var(--space-3);
+    min-height: 160px;
   }
   #triageComplete.hidden {
     display: none;
+  }
+  .triage-complete-msg {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--text);
+    text-align: center;
+    letter-spacing: -0.01em;
+  }
+  .triage-complete-detail {
+    font-size: var(--text-md);
+    color: var(--text);
+    text-align: center;
+    opacity: 0.75;
+    line-height: 1.5;
+  }
+  .triage-complete-breakdown {
+    font-size: var(--text-sm2);
+    color: var(--muted);
+    text-align: center;
+    margin-top: var(--space-1);
   }
   /* Trigger bar (minimized) */
   #triageBar {
@@ -2934,7 +2953,7 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.13.6';
+const APP_VERSION   = '2.13.7';
 const DEV_HOURS     = '170h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
@@ -3963,9 +3982,10 @@ function triageApplyAll() {
   
   const summaryEl = document.getElementById('triageSummary');
   if (summaryEl) {
-    summaryEl.innerHTML = detailLine
-      ? `${esc(detailLine)}<br><span style="opacity:0.5">${esc(triageLine)}</span>`
-      : esc(triageLine);
+    summaryEl.innerHTML = [
+      detailLine ? `<div class="triage-complete-detail">${esc(detailLine)}</div>` : '',
+      triageLine ? `<div class="triage-complete-breakdown">${esc(triageLine)}</div>` : '',
+    ].join('');
   }
   
   // Save day stats for morning-after reflection (Option 5)
