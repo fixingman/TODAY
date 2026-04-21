@@ -244,3 +244,25 @@ CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to 
 **Verified fixed:** ☐
 
 ---
+
+## BUG-011: PiP timer delayed vs main app timer + chime fires late
+
+**Status:** Fixed v2.13.5 + v2.13.6 — awaiting verification
+
+**Symptom:** PiP countdown runs behind the main app timer. When the main timer hits 00:00, PiP still shows time remaining. Chime fires late — after PiP shows 00:00, not simultaneously.
+
+**Root cause:** Two compounding issues:
+
+1. **PiP was driven by throttled ticks.** The PiP only updated when `_pipSync()` was called from `tickFor`. `tickFor` uses `setTimeout(1000)`. When the main tab is hidden (which is always when PiP is open), browsers aggressively throttle `setTimeout` — each "1 second" tick can take 1.5s, 2s, or longer. PiP mirrored these stale ticks and fell further behind real wall time.
+
+2. **Chime tied to throttled tick.** `completeFor()` (which calls `playChime()`) was only triggered when `tickFor` hit zero — the same throttled path. So even if PiP showed 00:00, the chime wouldn't fire until the next throttled tick arrived.
+
+**Fix (v2.13.5) — Timer display:** PiP now drives its own `requestAnimationFrame` loop inside the PiP window. Uses a fixed reference point (`refTime` + `refRem`): real remaining = `refRem - (Date.now() - refTime)`. Completely independent of main tab tick rate. Handles pause/resume by re-anchoring reference on state change.
+
+**Fix (v2.13.6) — Chime:** PiP RAF calls `completeFor()` directly when `currentRem <= 0`. Guard added to `completeFor()`: `if (!st.running) return` prevents double chime/session if `tickFor` also fires.
+
+**Verify:** Start a focus session, switch to another app so PiP appears. PiP should count down in sync with wall clock. When timer ends, chime should fire at the same moment PiP shows 00:00.
+
+**Verified fixed:** ☐
+
+---

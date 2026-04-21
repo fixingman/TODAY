@@ -2,6 +2,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.13.6** | **Fix: PiP completion chime sync** — With v2.13.5, the PiP RAF correctly shows `00:00` at wall-clock zero, but `completeFor()` (chime + session log) was still triggered by the throttled `tickFor` — firing seconds late. Now PiP RAF calls `completeFor()` directly when `currentRem <= 0`. Guard added to `completeFor()`: `if (!st.running) return` prevents double chime/session if `tickFor` also fires. |
 | **2.13.5** | **Fix: PiP timer lag** — PiP was mirroring throttled `setTimeout` ticks from the hidden main tab. When the tab is hidden, browsers throttle `setTimeout` — ticks come slower than 1s, causing accumulated lag. Rewrote PiP display to use its own `requestAnimationFrame` loop with a fixed reference point (`refTime + refRem`). Real remaining = `refRem - (Date.now() - refTime)`. Handles pause/resume by re-anchoring reference point on resume. Completely independent of main tab tick rate. |
 | **2.13.4** | **Fix: Red dot on network loss (BUG-003)** — `_logSyncError` now detects network errors ("Failed to fetch", "NetworkError", "Load failed", "CORS") and suppresses the red dot for them. Logged to console with `[network]` prefix for debugging. Red dot now only shows for real problems (401, 405, server errors, code bugs). Previously every WiFi drop triggered visible errors that alarmed the user. |
 | **2.13.3** | **Delete button click target** — Padding increased from `0 2px` to `var(--space-2) var(--space-3)` with negative margin to keep row height. Easier to hit on desktop. |

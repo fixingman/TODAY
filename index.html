@@ -2934,11 +2934,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.13.5';
+const APP_VERSION   = '2.13.6';
 const DEV_HOURS     = '170h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.13.6': 'Fix: PiP completion chime sync — PiP RAF now calls completeFor() directly when wall-clock hits zero, instead of waiting for throttled tickFor. Chime fires at the right moment. Guard added to completeFor (if !st.running return) prevents double chime/session if tickFor also fires.',
   '2.13.5': 'Fix: PiP timer lag — PiP now drives its own display via requestAnimationFrame + fixed reference point (refTime + refRem), completely independent of the main tab setTimeout ticks. When tab is hidden, setTimeout gets throttled by browser; PiP was just mirroring those stale ticks. Now anchored to wall-clock time — PiP and main timer always agree on remaining seconds.',
   '2.13.4': 'Fix: Red dot on network loss (BUG-003) — _logSyncError now detects network errors (Failed to fetch, NetworkError, Load failed, CORS) and suppresses the red dot. Errors still logged to console. Red dot now only shows for real problems (401, 405, server errors).',
   '2.13.3': 'Delete button click target enlarged — padding increased with negative margin to keep row height. Easier to hit on desktop.',
@@ -10140,6 +10141,8 @@ function _aiClearBadge() {
   // ── Complete ──────────────────────────────────────────────────────────────
   function completeFor(taskId) {
     const st = getState(taskId);
+    // Guard against double-call (can happen if PiP RAF and tickFor both hit zero)
+    if (!st.running) return;
     st.running   = false;
     st.rem       = 0;
     st.paused    = false;
@@ -10642,7 +10645,12 @@ function _aiClearBadge() {
         pipTimeEl.textContent = fmt(lastRem);
         pipFillEl.style.width = ((1 - lastRem / TOTAL) * 100) + '%';
 
-        if (lastRem <= 0) return; // Timer done
+        if (lastRem <= 0) {
+          // Timer reached zero — trigger completion immediately from wall clock.
+          // Don't wait for the throttled tickFor tick in the hidden main tab.
+          completeFor(uiTaskId);
+          return;
+        }
 
         rafId = pipWindow.requestAnimationFrame(pipTick);
       }
