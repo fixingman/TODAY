@@ -8,40 +8,32 @@
 
 ```
 ┌─────────────────────────────────────────┐
-│ ○  Task text here                    ⋮  │
+│ ○  Task text here                    ×  │
 └─────────────────────────────────────────┘
 ```
 
-- Checkbox: 18×18px, accent border on hover
-- Text: `--text-task` (13.5px), DM Mono
-- Link arrow: ↗ (`.task-link`) — opens `task.url` in new tab. Trello tasks get URL from API; manual tasks extract URL from input text at creation. Title: "Open in Trello" or "Open link".
-- Drag handle: appears on hover (desktop) or long-press (mobile)
+- Checkbox: 16×16px circle, accent border on hover
+- Text: `--text-task` (13.5px), `--font-mono`
+- Delete button: `×`, appears on row hover (desktop), opacity 0→1
+- Link arrow: ↗ (`.task-link`) — opens `task.url` in new tab. Trello tasks get URL from API; manual tasks extract URL from input at creation. Title: "Open in Trello" or "Open link"
 - Done state: strikethrough, muted opacity
 
 ### Task Aging
 
-| Age | Opacity |
-|-----|---------|
-| Day 0-2 | 100% (no attribute) |
-| Day 3-4 | 75% (`data-age-bucket="young"`) |
-| Day 5-6 | 55% (`data-age-bucket="mid"`) |
-| Day 7+ | 35% (`data-age-bucket="old"`) |
+| Age | CSS attribute | Opacity |
+|-----|---------------|---------|
+| Day 0–2 | none | 100% |
+| Day 3–4 | `data-age-bucket="young"` | 75% |
+| Day 5–6 | `data-age-bucket="mid"` | 55% |
+| Day 7+ | `data-age-bucket="old"` | 35% |
 
-Hover restores to 85%.
+Hover restores to 85%. Age resets to 0 on focus session complete.
 
 ---
 
 ## Habit Row
 
-```
-┌─────────────────────────────────────────┐
-│ ○  Habit name                     3/7   │
-└─────────────────────────────────────────┘
-```
-
-- Same structure as task
-- Progress indicator: `done/7` for weekly view
-- Resets daily, history preserved
+Same structure as task row. Progress indicator: `done/7` weekly view. Resets daily, history preserved.
 
 ---
 
@@ -56,14 +48,14 @@ Fixed at bottom, outside `.app` container.
 ```
 
 - Input: full width minus button
-- ✦ button: opens AI panel
-- Enter: always adds task (no mode switching)
+- ✦ button: opens AI panel (or adds task if AI not configured)
+- Enter: always adds task
 
 ---
 
 ## AI Panel
 
-Slides up from bottom with spring easing.
+Slides up from bottom with spring easing (`--ease-spring`, `--dur-slow`).
 
 ```
 ┌─────────────────────────────────────────┐
@@ -73,13 +65,62 @@ Slides up from bottom with spring easing.
 └─────────────────────────────────────────┘
 ```
 
-- Background: `--color-surface2`
-- Border-top: accent glow
+- Background: `--color-surface`
+- Max height: 45vh, scrollable
 - Actions: rendered as chips, execute immediately
 
 ---
 
+## Triage Callout Bar
+
+Fixed, centered above the input bar. 8pm–midnight when undone tasks exist.
+
+```
+┌─────────────────────────────┐
+│  3 didn't happen  [Review]  │
+└─────────────────────────────┘
+```
+
+- Background: `--surface2`, border: `--accent-glow`
+- Entire bar is tappable → opens triage overlay
+- Controlled by `_triageActive`, `_triageBarSilent`, `_triageBarShown` flags
+- Dismissed for the day on triage completion or `triageClose()`
+
+---
+
+## Triage Overlay
+
+Slides up from bottom (same as AI panel). Full-screen backdrop.
+
+```
+┌─────────────────────────────────────────┐
+│  3 didn't happen          [Keep all]    │
+│  ─────────────────────────────────────  │
+│  ○ Task one      [Keep] [↩ Soon] [✕]   │
+│  ○ Task two      [Keep] [↩ Soon] [✕]   │
+└─────────────────────────────────────────┘
+```
+
+Backdrop tap → `triageMinimize()` → returns to callout bar.
+
+### Triage Summary (v2.14.4)
+
+After all decisions, replaces task list for 3s before auto-close:
+
+```
+┌─────────────────────────────────────────┐
+│                                         │
+│           Solid day.                    │  ← Syne 28px 700
+│         5 done · 1h focused             │  ← --text-sm2 muted
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+---
+
 ## Focus Mode Timer
+
+Appears below focused task, replaces task row bottom area.
 
 ```
 ┌─────────────────────────────────────────┐
@@ -89,9 +130,10 @@ Slides up from bottom with spring easing.
 └─────────────────────────────────────────┘
 ```
 
-- Timer: large accent text
+- Timer: `--font-display`, large accent text
 - Progress bar: fills left to right
-- Controls: appear on hover/tap
+- Controls: slide up on task hover/tap
+- Non-focused tasks recede to 7% opacity
 
 ---
 
@@ -104,11 +146,48 @@ Slides up from bottom with spring easing.
 └─────────────────────────────────────────┘
 ```
 
-- Logo: Syne font, accent color
-- Progress bar: accent fill
+- Logo: `--font-display`, `--accent`
+- Progress bar: accent fill (flow rate)
 - Icons: timer, AI, info
 
-**Critical:** Must be BEFORE `.app` div, not inside it.
+**Critical:** Must be BEFORE `.app` div in DOM.
+
+---
+
+## Error Log Dot + Panel (v2.14.3)
+
+Fixed top-right. Pulses when errors exist.
+
+```
+●  ← red dot (10px, top: 8px, right: 8px, z: 9999)
+
+┌──────────────────────────────┐  ← panel (z: 9998)
+│ 00:21:16  [Dropbox]          │
+│ Token refresh — 401          │
+├──────────────────────────────┤
+│ 00:22:01  [External]         │
+│ Script error at chrome-ext   │
+└──────────────────────────────┘
+```
+
+- Panel: 220px wide, anchored top-right below dot, flat top-right corner
+- Fades in with `fadeIn --dur-base` (same as config panels)
+- No backdrop — content stays interactive behind it
+- Dot is the toggle: tap to open, tap again to close and clear log
+- Source badges: Dropbox/Trello/Sync (blue), External (muted), App (red)
+
+---
+
+## Morning Nudge
+
+Horizontal strip below the header, shows before noon if yesterday's review exists.
+
+```
+● Yesterday: 5 done, 1h focused, 2 habits · 3 carried over
+```
+
+- Tap to dismiss, auto-clears after noon
+- Falls back to simple carried-over count if no review data
 
 ---
 
@@ -123,8 +202,8 @@ Slides up from bottom with spring easing.
 
 ## Idle Companion
 
-Bottom-right corner, 60% opacity, DM Mono.
+Bottom-right corner, 60% opacity, `--font-mono`. Appears after 45s idle.
 
 Creatures: Dino, Fish, Bird, Cat, Snail, Crab, Star
 
-Appears after 45s idle, fades on activity.
+Fades in over 0.6s, fades out on activity.

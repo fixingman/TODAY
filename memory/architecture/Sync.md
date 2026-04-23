@@ -34,11 +34,13 @@
 6. On disconnect ('offline' event): stop ticker
 ```
 
-### Error Handling (v2.13.4)
+### Error Handling (v2.13.4 + v2.14.1)
 
 `_logSyncError()` routes errors to the red dot indicator, with two filters:
 - **Wake silent** (first 3s after tab return): suppressed entirely — network may not be ready
 - **Network errors** ("Failed to fetch", "NetworkError", "Load failed", "CORS"): logged to console only, no red dot — expected during WiFi drops
+
+`window.unhandledrejection` applies the same network filter — previously "Promise: Failed to fetch" bypassed `_logSyncError` entirely and went straight to the red dot.
 
 Red dot only shows for real problems: expired tokens (401), API rejections (405/429), server errors, code bugs.
 
@@ -95,7 +97,7 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
 
 **Zone status values:** `done`, `let_go`, `aged`
 
-### Triage Dismissed Sync (v2.12.60)
+### Triage Dismissed Sync (v2.12.60 + v2.14.0)
 
 **Critical:** On tab return, do NOT check triage immediately — sync needs time to pull the dismissed state from Dropbox first. `mergeRemoteData` handles applying `triage_dismissed` from remote and hiding the bar/overlay.
 
@@ -103,15 +105,21 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
 // On visibility change / window focus:
 // 1. Sync fires immediately (pulls remote data)
 // 2. mergeRemoteData sets triageDismissedToday if remote has today's dismissal
-// 3. Triage check deferred 3s to let sync complete
+// 3. _triageBarSilent set true — suppresses ticker from showing bar during grace window
+// 4. Triage check deferred 3s to let sync complete, then clears silent flag
+_triageBarSilent = true;
 setTimeout(() => {
+  _triageBarSilent = false;
   triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
   checkTriageBar();
 }, 3000);
 ```
 
-**v2.12.40:** Read fresh from localStorage on return (was using stale variable).
-**v2.12.60:** Deferred triage check 3s so sync can pull dismissal state first.
+**Why `_triageBarSilent` matters:** The 7s ticker fires `checkTriageBar()` independently. Without the flag, the ticker would show the bar during the 3s grace window (before sync settles), causing a brief flash on the second device. `_triageBarSilent` makes `checkTriageBar()` hide the bar unconditionally during that window.
+
+**v2.12.40:** Read fresh from localStorage on return (was using stale variable).  
+**v2.12.60:** Deferred triage check 3s so sync can pull dismissal state first.  
+**v2.14.0:** Added `_triageBarSilent` flag to suppress ticker during the grace window.
 
 ### Deletion Persistence (v2.12.35+)
 
@@ -242,3 +250,21 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 2. Mutations queued in localStorage
 3. Sync resumes on connectivity
 4. SW caches app shell for offline access
+
+---
+
+## Triage Bar State Flags
+
+Three boolean flags control triage bar visibility. All default `false`, all in module scope.
+
+| Flag | Set by | Cleared by | Purpose |
+|---|---|---|---|
+| `_triageActive` | `triageExpand()` | `triageClose()`, `triageMinimize()` | Locks bar hidden while overlay is open (BUG-007) |
+| `_triageBarSilent` | `visibilitychange` + `focus` on wake | 3s `setTimeout` | Prevents ticker showing bar before sync settles (BUG-001, cross-device flash) |
+| `_triageBarShown` | `checkTriageBar()` on first show | `applyNewDayCleanup()`, all tasks gone, midnight | Once shown, mutations (delete, zone moves) don't hide bar mid-evening |
+
+**Priority in `checkTriageBar()`:**
+1. `_triageActive` → hide unconditionally, refresh overlay list
+2. `_triageBarSilent` → hide unconditionally (no list refresh)
+3. Normal rules: `inTriageWindow && totalUndone > 0 && !triageDismissedToday`
+4. `_triageBarShown` prevents hiding when conditions unchanged mid-evening

@@ -263,3 +263,25 @@ CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to 
 **Verified fixed:** ☐
 
 ---
+
+## BUG-012: Completed overdue Trello task shows unchecked on other device
+
+**Status:** Fixed v2.14.5 — awaiting verification
+
+**Symptom:** Complete a Trello task with a past due date on Device A. Open app on Device B — the task appears unchecked. Tab refresh doesn't fix it. Clicking "Refresh" in Connections fixes it.
+
+**Root cause:** Race condition between `loadTrello()` and Dropbox sync:
+
+1. Device B opens → cache restores Trello tasks (task shown, `doneIds` empty)
+2. `loadTrello()` fetches Trello API → task has past due date + `doneIds` doesn't have it yet → included in `trelloTasks` as undone
+3. Dropbox sync completes → `mergeRemoteData` adds task to `doneIds` → DOM patches `.done` class
+
+But the task is still in `trelloTasks`. The DOM patch shows it as visually done, but a subsequent `renderTrello` call (from any sync tick) would re-render it as undone because `trelloTasks` still contains it. Manual Trello refresh re-runs the full filter with the now-correct `doneIds`.
+
+**Fix (v2.14.5):** After `mergeRemoteData` updates `doneIds`, re-filter `trelloTasks` to evict done+overdue cards. If any were removed, calls `renderTrello()`. Same filter logic as `loadTrello` line 5109: cards due before today that are now done are removed.
+
+**Verify:** Complete an overdue Trello card on Device A. Open Device B — card should disappear within 3-7s (Dropbox sync interval), not require manual refresh.
+
+**Verified fixed:** ☐
+
+---

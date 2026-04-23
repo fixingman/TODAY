@@ -24,12 +24,12 @@ After completing work:
 ### 1. Run Pre-Release Tests
 **See `Test-matrix.md` → Pre-Release Checklist (9 tests)**
 
-### 2. Update Changelogs (both)
+### 2. Update both Changelogs
 **a) `memory/Changelog.md`** — add row:
 ```markdown
 | **X.X.X** | **Feature name** — Brief description. |
 ```
-**b) `index.html` CHANGELOG object** — add entry:
+**b) `index.html` CHANGELOG object** — add entry at the top:
 ```javascript
 'X.X.X': 'Feature name — Brief description.',
 ```

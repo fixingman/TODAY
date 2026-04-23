@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Red dot panel, triage summary redesign, cross-device triage flash
-- **Recent:** v2.14.4 — error log panel (no alert), triage summary Option 1 (Syne headline), cross-device triage bar fix, AI button CSS hotfix, BUG-010 verified
-- **Watch for:** BUG-003/007/011 verification in production. Error log panel first production test., AI response variety in practice
+- **Working on:** Memory audit, documentation cleanup
+- **Recent:** v2.14.6 — triage bar sticky fix, BUG-012 (Trello overdue), in-app changelog catch-up, memory audit (Tokens/Components/AI/Sync/Rules/Backlog all updated)
+- **Watch for:** BUG-003/007/011/012 verification in production
 
 ---
 
@@ -67,7 +67,7 @@
 15. **State variables must be declared before functions that use them** — `let` has temporal dead zone
 16. **Day boundaries unified at midnight** — `_getAppDay()` for human-readable day, `_localISO()` for YYYY-MM-DD, `_habitTodayISO()` wraps `_localISO()`. All local time. Full ISO timestamps (`zoneChangedAt`, `ts`) stay UTC for cross-timezone sync.
 17. **Triage window: 8pm–midnight** — triage bar only shows in this window (aligned with day boundary)
-18. **Flow rate = `done / total`** — live calc of visible tasks, not stored
+18. **Flow rate = `100 × (1 - 0.8^done)`** — diminishing returns formula. First task = 20%, 5 tasks ≈ 67%. Live calc, not stored. (Based on Endowed Progress Effect + Goal Gradient Hypothesis)
 
 ## Style Rules
 
