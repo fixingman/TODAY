@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** BUG-012 fix, in-app changelog catch-up
-- **Recent:** v2.14.5 — BUG-012 (Trello done+overdue re-filter), in-app CHANGELOG gap fixed (v2.13.7–v2.14.5 entries added), Housekeeping.md step 2b reinforced
-- **Watch for:** BUG-003/007/011/012 verification in production. Error log panel first production test.
+- **Working on:** Memory audit, documentation cleanup
+- **Recent:** v2.14.6 — triage bar sticky fix, BUG-012 (Trello overdue), in-app changelog catch-up, memory audit (Tokens/Components/AI/Sync/Rules/Backlog all updated)
+- **Watch for:** BUG-003/007/011/012 verification in production
 
 ---
 
