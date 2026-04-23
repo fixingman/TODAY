@@ -3047,11 +3047,20 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.14.4';
+const APP_VERSION   = '2.14.5';
 const DEV_HOURS     = '174h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.14.5': 'Fix: Completed overdue Trello task shows undone on other device (BUG-012) — race condition between loadTrello and Dropbox sync. mergeRemoteData now re-filters trelloTasks after updating doneIds, evicting done+overdue cards. renderTrello called if any removed.',
+  '2.14.4': 'Triage summary redesign — Syne display font at 28px, weight 700. Full stop on headline. Adaptive sub-line (max 2 parts). Triage breakdown removed — user just made those decisions.',
+  '2.14.3': 'Error log panel — replaced alert() with compact panel anchored to red dot. Fades in below dot, no backdrop. Dot toggles open/close and clears log. Errors listed with timestamp + source badge.',
+  '2.14.2': 'Red dot token cleanup — background: #ff4444 → var(--danger). window.onerror labels external errors with [external] prefix.',
+  '2.14.1': 'Fix: unhandledrejection had no network filter — Promise: Failed to fetch was bypassing _logSyncError and reaching red dot. Same filter now applied.',
+  '2.14.0': 'Fix: Triage bar cross-device flash — added _triageBarSilent flag set for 3s on wake. Prevents ticker from showing bar before sync settles and mergeRemoteData applies remote dismissal.',
+  '2.13.9': 'Hotfix: AI button broken — missing closing brace on .ai-provider-badge CSS rule introduced in v2.13.8 token cleanup. Broke all CSS below that point including #aiPanel.',
+  '2.13.8': 'Token cleanup — opacity: 0.75 → var(--opacity-strong) on triage detail and accent badge. font-weight: 600 → 500. letter-spacing removed. Accent badge missing closing brace fixed.',
+  '2.13.7': 'Triage summary legibility — #triageComplete as flex column with proper padding. .triage-complete-msg for headline (16px, 500 weight). .triage-complete-detail for stats. .triage-complete-breakdown for triage counts. Summary display extended to 3s.',
   '2.13.6': 'Fix: PiP completion chime sync — PiP RAF now calls completeFor() directly when wall-clock hits zero, instead of waiting for throttled tickFor. Chime fires at the right moment. Guard added to completeFor (if !st.running return) prevents double chime/session if tickFor also fires.',
   '2.13.5': 'Fix: PiP timer lag — PiP now drives its own display via requestAnimationFrame + fixed reference point (refTime + refRem), completely independent of the main tab setTimeout ticks. When tab is hidden, setTimeout gets throttled by browser; PiP was just mirroring those stale ticks. Now anchored to wall-clock time — PiP and main timer always agree on remaining seconds.',
   '2.13.4': 'Fix: Red dot on network loss (BUG-003) — _logSyncError now detects network errors (Failed to fetch, NetworkError, Load failed, CORS) and suppresses the red dot. Errors still logged to console. Red dot now only shows for real problems (401, 405, server errors).',
@@ -7984,6 +7993,21 @@ function mergeRemoteData(data) {
     document.querySelectorAll('.task[data-taskid]').forEach(el => {
       el.classList.toggle('done', doneIds.has(el.dataset.taskid));
     });
+  }
+
+  // Re-filter Trello tasks — done+overdue cards should disappear.
+  // loadTrello may have run before Dropbox sync completed, so it used stale doneIds.
+  // Now that doneIds is authoritative, evict any overdue cards that are now done.
+  if (trelloTasks.length > 0) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const prevLen = trelloTasks.length;
+    trelloTasks = trelloTasks.filter(t => {
+      if (!doneIds.has(t.id)) return true; // Not done — keep
+      if (!t.due) return true; // No due date — keep (today-list cards show done until EOD)
+      const d = new Date(t.due); d.setHours(0,0,0,0);
+      return d.getTime() >= today.getTime(); // Due today or future — keep. Overdue+done → remove.
+    });
+    if (trelloTasks.length !== prevLen) renderTrello();
   }
   updateStats();
   return _changed;
