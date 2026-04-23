@@ -3047,11 +3047,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.14.5';
+const APP_VERSION   = '2.14.6';
 const DEV_HOURS     = '174h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.14.6': 'Fix: Triage bar disappears on task mutation — added _triageBarShown flag. Once bar appears, mutations (task delete, move to zone, etc.) no longer hide it. Bar only hides when: all tasks gone, triage dismissed, or outside 8pm–midnight window. Reset on new day.',
   '2.14.5': 'Fix: Completed overdue Trello task shows undone on other device (BUG-012) — race condition between loadTrello and Dropbox sync. mergeRemoteData now re-filters trelloTasks after updating doneIds, evicting done+overdue cards. renderTrello called if any removed.',
   '2.14.4': 'Triage summary redesign — Syne display font at 28px, weight 700. Full stop on headline. Adaptive sub-line (max 2 parts). Triage breakdown removed — user just made those decisions.',
   '2.14.3': 'Error log panel — replaced alert() with compact panel anchored to red dot. Fades in below dot, no backdrop. Dot toggles open/close and clears log. Errors listed with timestamp + source badge.',
@@ -3678,6 +3679,7 @@ function checkMorningNudge() {
 let triageDecisions = {}; // {taskId: 'kept'|'soon'|'letgo'}
 let _triageActive = false;      // True while triage overlay is open
 let _triageBarSilent = false;   // True for 3s after wake — lets sync settle before showing bar
+let _triageBarShown = false;    // True once bar has been shown this evening — prevents mutations hiding it
 
 function checkTriageBar() {
   const bar = $.triageBar || document.getElementById('triageBar');
@@ -3699,8 +3701,7 @@ function checkTriageBar() {
     return;
   }
   
-  // Wake grace window — sync may not have completed yet. Don't show bar
-  // until mergeRemoteData has had a chance to apply remote triage dismissal. (BUG-001)
+  // Wake grace window — sync may not have completed yet. (BUG-001)
   if (_triageBarSilent) {
     bar.classList.add('hidden');
     return;
@@ -3711,16 +3712,25 @@ function checkTriageBar() {
   const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
   const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
   const totalUndone = undoneManual.length + undoneTrello.length;
-  
   const inTriageWindow = hour >= 20;
+
   if (inTriageWindow && totalUndone > 0 && !triageDismissedToday) {
+    // Show bar — update count whether first appearance or already showing
     const countEl = $.triageCount || document.getElementById('triageCount');
     if (countEl) countEl.textContent = totalUndone;
     bar.classList.remove('hidden');
     bar.style.display = '';
-  } else {
+    _triageBarShown = true;
+  } else if (_triageBarShown && inTriageWindow && !triageDismissedToday && totalUndone === 0) {
+    // All tasks gone while bar was showing — triage no longer needed, hide it
     bar.classList.add('hidden');
+    _triageBarShown = false;
+  } else if (!inTriageWindow || triageDismissedToday) {
+    // Outside window or dismissed — hide and reset
+    bar.classList.add('hidden');
+    _triageBarShown = false;
   }
+  // If none of the above: bar state unchanged — mutations don't hide it
 }
 
 function triageExpand() {
@@ -4536,6 +4546,7 @@ function applyNewDayCleanup() {
   // Reset triage dismissed flag
   localStorage.removeItem('triage_dismissed');
   triageDismissedToday = false;
+  _triageBarShown = false; // Reset for the new evening
 
   // Track carried-over tasks for morning nudge (undone tasks that survived cleanup)
   const carriedOver = manualTasks.length;

@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Red dot panel, triage summary redesign, cross-device triage flash
-- **Recent:** v2.14.4 — error log panel (no alert), triage summary Option 1 (Syne headline), cross-device triage bar fix, AI button CSS hotfix, BUG-010 verified
-- **Watch for:** BUG-003/007/011 verification in production. Error log panel first production test., AI response variety in practice
+- **Working on:** BUG-012 fix, in-app changelog catch-up
+- **Recent:** v2.14.5 — BUG-012 (Trello done+overdue re-filter), in-app CHANGELOG gap fixed (v2.13.7–v2.14.5 entries added), Housekeeping.md step 2b reinforced
+- **Watch for:** BUG-003/007/011/012 verification in production. Error log panel first production test.
 
 ---
 
