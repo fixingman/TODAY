@@ -128,23 +128,28 @@ Based on peak hour from memory:
 
 ---
 
-## Day-End Review (v2.13.1)
+## Day-End Review (v2.14.4)
 
-Triage summary shows contextual acknowledgment after all decisions are made:
+Triage summary shows contextual acknowledgment after all decisions are made. Headline uses Syne display font at 28px with full stop. Single adaptive sub-line below — no triage breakdown (user just made those decisions).
 
 | Condition | Headline |
 |---|---|
-| 8+ done | "Big day" |
-| 5+ done | "Solid day" |
-| 3+ done + 50m+ focus | "Deep work today" |
-| 3+ done | "Good day" |
-| 1-2 done | "You showed up" |
-| Only habits | "Habits held" |
-| Default | "All sorted" |
+| 8+ done | "Big day." |
+| 5+ done | "Solid day." |
+| 3+ done + 50m+ focus | "Deep work today." |
+| 3+ done | "Good day." |
+| 1-2 done | "You showed up." |
+| Only habits | "Habits held." |
+| Default | "All sorted." |
 
-Below headline: stats line (`5 done · 1h focused · 2 habits · day 12`) + muted triage breakdown. Displays for 3s.
+**Sub-line** (adaptive, max 2 parts, `--text-sm2` muted):
+- Shows `done count` if any tasks completed
+- Shows `focus time` if 25m+ focused
+- Shows `habits` only if no tasks done
+- Shows `day N` streak if room and streak ≥ 3
+- Empty if nothing to show
 
-Saved to `today_day_review` in localStorage for morning reflection.
+Displays for 3s then auto-closes. Saves `today_day_review` to localStorage for morning reflection.
 
 ---
 

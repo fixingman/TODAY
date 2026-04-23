@@ -44,6 +44,10 @@
 **Priority:** Highest integration priority
 **Status:** Not started
 
+### Document Connections Panel & First-Run Flow
+**Status:** Not started
+**Goal:** Document the UX and technical flow for connecting Trello, Dropbox, and AI — both the first-time setup experience and the reconnect/forget flows. Nothing currently in memory about this. Relevant for onboarding decisions and future integrations.
+
 ---
 
 ## Technical Debt
@@ -110,7 +114,9 @@ Captures what we tried or considered and why we didn't proceed — institutional
 | Day-end review + morning reflection | 2.13.1 | Apr 2026 |
 | Error log panel (replaced alert()) | 2.14.3 | Apr 2026 |
 | Triage summary redesign (Option 1) | 2.14.4 | Apr 2026 |
+| Trello overdue re-filter (BUG-012) | 2.14.5 | Apr 2026 |
+| Triage bar sticky once shown | 2.14.6 | Apr 2026 |
 
 ---
 
-*Last updated: Session 30 (v2.14.4)*
+*Last updated: Session 31 (v2.14.6)*

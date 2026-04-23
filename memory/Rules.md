@@ -67,7 +67,7 @@
 15. **State variables must be declared before functions that use them** — `let` has temporal dead zone
 16. **Day boundaries unified at midnight** — `_getAppDay()` for human-readable day, `_localISO()` for YYYY-MM-DD, `_habitTodayISO()` wraps `_localISO()`. All local time. Full ISO timestamps (`zoneChangedAt`, `ts`) stay UTC for cross-timezone sync.
 17. **Triage window: 8pm–midnight** — triage bar only shows in this window (aligned with day boundary)
-18. **Flow rate = `done / total`** — live calc of visible tasks, not stored
+18. **Flow rate = `100 × (1 - 0.8^done)`** — diminishing returns formula. First task = 20%, 5 tasks ≈ 67%. Live calc, not stored. (Based on Endowed Progress Effect + Goal Gradient Hypothesis)
 
 ## Style Rules
 

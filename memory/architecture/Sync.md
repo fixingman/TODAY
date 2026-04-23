@@ -250,3 +250,21 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 2. Mutations queued in localStorage
 3. Sync resumes on connectivity
 4. SW caches app shell for offline access
+
+---
+
+## Triage Bar State Flags
+
+Three boolean flags control triage bar visibility. All default `false`, all in module scope.
+
+| Flag | Set by | Cleared by | Purpose |
+|---|---|---|---|
+| `_triageActive` | `triageExpand()` | `triageClose()`, `triageMinimize()` | Locks bar hidden while overlay is open (BUG-007) |
+| `_triageBarSilent` | `visibilitychange` + `focus` on wake | 3s `setTimeout` | Prevents ticker showing bar before sync settles (BUG-001, cross-device flash) |
+| `_triageBarShown` | `checkTriageBar()` on first show | `applyNewDayCleanup()`, all tasks gone, midnight | Once shown, mutations (delete, zone moves) don't hide bar mid-evening |
+
+**Priority in `checkTriageBar()`:**
+1. `_triageActive` → hide unconditionally, refresh overlay list
+2. `_triageBarSilent` → hide unconditionally (no list refresh)
+3. Normal rules: `inTriageWindow && totalUndone > 0 && !triageDismissedToday`
+4. `_triageBarShown` prevents hiding when conditions unchanged mid-evening
