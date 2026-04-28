@@ -3046,11 +3046,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.15.1';
-const DEV_HOURS     = '176h';
+const APP_VERSION   = '2.15.6';
+const DEV_HOURS     = '178h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.15.6': 'Fix: AI Sonnet inconsistencies — (1) break_down chips now use actual step text as label instead of generic "Add step"; label capped at 28 chars. (2) System prompt: banned mid-conversation openers ("It is.", "Yeah —") — message must open fresh, not respond. (3) System prompt: banned colons and task content in chip labels.',
+  '2.15.5': 'Fix: BUG-014 — PiP not reappearing after restoring app. documentPictureInPicture.requestWindow() needs a user gesture; second minimize had none. Fix: _pipRestoredFromButton flag. When user taps "open app" in PiP, flag is set, PiP window kept alive on restore instead of closed. Next minimize reuses existing window — no new gesture needed.',
+  '2.15.4': 'AI suggestion history now sent to AI context — _memoryForAI() now includes past suggestions (last 30 days, up to 5 tasks) with what action was taken. AI can now write contextually aware messages: "You dismissed this twice" or "You parked this to Soon last week." Data was already stored and Dropbox-synced.',
+  '2.15.3': 'AI aging task chips now deterministic — chips pre-set by app, not AI. 7+ days: Break it down + Let it go + Dismiss. 3-6 days: Park for later + Do it now + Let it go + Dismiss. AI only writes the message. Fixes inconsistency where same task got different chips each session.',
+  '2.15.2': 'Fix: AI repeats same aging task suggestion — cooldown pruning only checked manualTasks, so Trello task cooldowns were deleted nightly and the same task kept appearing every week. Fixed to include trelloTasks in the existing ID set. suggestionCooldowns and suggestionHistory were already implemented (cooldown=7 days, history=50 entries, synced via Dropbox).',
   '2.15.1': 'AI upgraded to Claude Sonnet — warmer, more contextual responses especially for reflect, break_down, and pattern observations. UI label updated from "Claude Haiku" to "Claude Sonnet" in Connections panel.',
   '2.15.0': 'Habit strength: asymmetric smoothing — alpha_up=0.90 (build rate unchanged), alpha_down=0.97 (miss penalty much softer). 30-day streak miss: was 10% drop, now 3%. Perfect streaks reach same peaks at same speed. Building still takes work; one bad day no longer feels catastrophic. Designed for the punishing 30-80% zone.',
   '2.14.9': 'Fix: BUG-013 — focus timer jumps 8-10s on minimize/restore. Double-counting between tickFor (st.rem--) and visibilitychange wall-clock correction (st.rem -= elapsed). wallStart never advanced during ticks so correction counted time tickFor already counted. Fix: st.wallStart += 1000 on every tick — correction now only applies to the throttling gap, not double-counted time.',
@@ -4209,6 +4214,10 @@ let appMemory = (() => {
         peakHour: null,           // hour with most completions
         dragKeywords: [],         // keywords that tend to linger
       },
+      // AI suggestion cooldowns — prevents repeating the same task suggestion
+      suggestionCooldowns: {},    // { taskId: 'YYYY-MM-DD' } — last suggested date
+      // AI suggestion history — what was suggested and what action was taken
+      suggestionHistory: [],      // [{ taskId, taskText, suggested: 'YYYY-MM-DD', action: 'break_down'|'move_soon'|'dismiss'|... }]
       // Meta
       firstSeen: _localISO(),
       totalTasksCompleted: 0,
@@ -4220,16 +4229,20 @@ let appMemory = (() => {
   patterns: { completionsByHour: {}, taskKeywords: {}, focusMinutesTotal: 0, bestStreak: 0 },
   moments: [],
   preferences: { peakHour: null, dragKeywords: [] },
+  suggestionCooldowns: {},
+  suggestionHistory: [],
   firstSeen: _localISO(),
   totalTasksCompleted: 0,
   totalDaysActive: 0,
 };
 
-// Ensure aiName exists for users with existing memory
+// Ensure fields exist for users with older memory schema
 if (!appMemory.aiName) {
   appMemory.aiName = _pickAIName();
   localStorage.setItem('today_memory', JSON.stringify(appMemory));
 }
+if (!appMemory.suggestionCooldowns) appMemory.suggestionCooldowns = {};
+if (!appMemory.suggestionHistory)   appMemory.suggestionHistory = [];
 
 function _saveMemory() {
   localStorage.setItem('today_memory', JSON.stringify(appMemory));
@@ -4336,6 +4349,38 @@ function _memoryForAI() {
   // Days active
   if (m.totalDaysActive > 7) {
     lines.push(`You've used TODAY for ${m.totalDaysActive} days.`);
+  }
+  
+  // Suggestion history — what was suggested for each task, and what the user did
+  // Grouped by taskText, last 30 days only, max 5 unique tasks
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const recent = (m.suggestionHistory || []).filter(h => new Date(h.suggested) >= thirtyDaysAgo);
+  
+  if (recent.length > 0) {
+    // Group by taskText
+    const byTask = {};
+    for (const entry of recent) {
+      if (!byTask[entry.taskText]) byTask[entry.taskText] = [];
+      byTask[entry.taskText].push(entry);
+    }
+    const taskEntries = Object.entries(byTask).slice(0, 5);
+    if (taskEntries.length > 0) {
+      const historyLines = taskEntries.map(([text, entries]) => {
+        const actions = entries.map(e => {
+          const label = {
+            break_down:  'asked to break it down',
+            move_soon:   'parked it to Soon',
+            delete_task: 'let it go',
+            dismiss:     'dismissed the suggestion',
+            start_focus: 'started focusing on it',
+          }[e.action] || e.action;
+          return `${label} (${e.suggested})`;
+        });
+        return `"${text}": ${actions.join(', ')}`;
+      });
+      lines.push(`Past suggestions:\n${historyLines.join('\n')}`);
+    }
   }
   
   return lines.length > 0 ? lines.join(' ') : '';
@@ -4551,6 +4596,18 @@ function applyNewDayCleanup() {
   localStorage.removeItem('triage_dismissed');
   triageDismissedToday = false;
   _triageBarShown = false; // Reset for the new evening
+
+  // Prune suggestion cooldowns for tasks that no longer exist (manual OR Trello)
+  if (appMemory?.suggestionCooldowns) {
+    const existingIds = new Set([
+      ...manualTasks.map(t => t.id),
+      ...(trelloTasks || []).map(t => t.id),
+    ]);
+    for (const id of Object.keys(appMemory.suggestionCooldowns)) {
+      if (!existingIds.has(id)) delete appMemory.suggestionCooldowns[id];
+    }
+    _saveMemory();
+  }
 
   // Track carried-over tasks for morning nudge (undone tasks that survived cleanup)
   const carriedOver = manualTasks.length;
@@ -8165,6 +8222,20 @@ async function dropboxRestore(fromSync) {
           }
         }
         appMemory.moments = appMemory.moments.slice(-20);
+        // Merge suggestion cooldowns (remote wins if more recent)
+        for (const [id, date] of Object.entries(remote.suggestionCooldowns || {})) {
+          if (!appMemory.suggestionCooldowns[id] || date > appMemory.suggestionCooldowns[id]) {
+            appMemory.suggestionCooldowns[id] = date;
+          }
+        }
+        // Merge suggestion history (union by taskId+date+action)
+        const existingHistoryKeys = new Set((appMemory.suggestionHistory || []).map(h => h.taskId + h.suggested + h.action));
+        for (const entry of (remote.suggestionHistory || [])) {
+          if (!existingHistoryKeys.has(entry.taskId + entry.suggested + entry.action)) {
+            appMemory.suggestionHistory.unshift(entry);
+          }
+        }
+        if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
         _saveMemory();
       }
       // stat_last_visit intentionally NOT restored — it's local device state.
@@ -8837,10 +8908,58 @@ async function _aiLoad() {
   try {
     const ctx = _aiContext();
     const intro = _aiIntroMessage(ctx);
-    const result = await _aiCall([{ role: 'user', content: intro }]);
+
+    // ── Deterministic chips for aging tasks (Option B) ──
+    // The AI writes the message; we set the chips based on age.
+    // This prevents the AI from randomly varying between move_soon/delete/break_down.
+    const agingTasks = ctx.tasks.aging || [];
+    const cooldowns = appMemory?.suggestionCooldowns || {};
+    const today = _localISO();
+    const COOLDOWN_DAYS = 7;
+    const eligibleAging = agingTasks
+      .sort((a, b) => b.ageDays - a.ageDays)
+      .filter(t => {
+        const last = cooldowns[t.id];
+        if (!last) return true;
+        return Math.floor((new Date(today) - new Date(last)) / 86400000) >= COOLDOWN_DAYS;
+      });
+
+    let deterministicChips = null;
+    if (eligibleAging.length > 0) {
+      const task = eligibleAging[0];
+      if (task.ageDays >= 7) {
+        // Old — break it down or let it go
+        deterministicChips = [
+          { label: 'Break it down', type: 'break_down', payload: { id: task.id }, primary: true },
+          { label: 'Let it go',     type: 'delete_task', payload: { id: task.id } },
+          { label: 'Dismiss',       type: 'dismiss',     payload: {} },
+        ];
+      } else {
+        // Medium (3-6 days) — park or do it now
+        deterministicChips = [
+          { label: 'Park for later', type: 'move_soon',    payload: { id: task.id }, primary: true },
+          { label: 'Do it now',      type: 'start_focus',  payload: { id: task.id } },
+          { label: 'Let it go',      type: 'delete_task',  payload: { id: task.id } },
+          { label: 'Dismiss',        type: 'dismiss',       payload: {} },
+        ];
+      }
+    }
+
+    // If we have deterministic chips, tell AI to only return a message
+    const messages = deterministicChips
+      ? [{ role: 'user', content: intro + '\n\nRespond with ONLY the "message" field in your JSON — no actions array needed, chips are pre-set.' }]
+      : [{ role: 'user', content: intro }];
+
+    const result = await _aiCall(messages);
     if (result) {
-      _aiRenderResult(result);
-      _showNlRow(); // reveal natural language input after chips load
+      // Use pre-set chips if we have them, otherwise use AI's chips
+      if (deterministicChips) {
+        _aiSetMsg(result.message || '');
+        _aiSetChips(deterministicChips);
+      } else {
+        _aiRenderResult(result);
+      }
+      _showNlRow();
     }
   } catch(e) {
     const errText = e.message || '';
@@ -8889,13 +9008,35 @@ function _aiIntroMessage(ctx) {
     return `Sunday evening. This week: ${w.tasksCompletedToday} tasks done today, ${focusStr}streak at ${ctx.streak}. How did it feel?`;
   }
   
-  // ── STALE TASK AWARENESS — always show if aging tasks exist ──
+  // ── STALE TASK AWARENESS — show if aging tasks exist, skip recently suggested ──
   if (agingTasks.length > 0) {
-    const oldest = agingTasks.sort((a, b) => b.ageDays - a.ageDays)[0];
-    if (oldest.ageDays >= 7) {
-      return `"${oldest.text}" has been here ${oldest.ageDays} days. Maybe it's too big? Want me to help break it down?`;
+    const cooldowns = appMemory?.suggestionCooldowns || {};
+    const today = _localISO();
+    const COOLDOWN_DAYS = 7;
+    
+    // Filter out tasks suggested within the cooldown window
+    const eligible = agingTasks
+      .sort((a, b) => b.ageDays - a.ageDays)
+      .filter(t => {
+        const lastSuggested = cooldowns[t.id];
+        if (!lastSuggested) return true;
+        const daysSince = Math.floor((new Date(today) - new Date(lastSuggested)) / 86400000);
+        return daysSince >= COOLDOWN_DAYS;
+      });
+    
+    if (eligible.length > 0) {
+      const oldest = eligible[0];
+      // Record suggestion in cooldown
+      if (appMemory) {
+        appMemory.suggestionCooldowns[oldest.id] = today;
+        _saveMemory();
+      }
+      if (oldest.ageDays >= 7) {
+        return `"${oldest.text}" has been here ${oldest.ageDays} days. Maybe it's too big? Want me to help break it down?`;
+      }
+      return `"${oldest.text}" has been here ${oldest.ageDays} days. Still relevant, or ready to let it go?`;
     }
-    return `"${oldest.text}" has been here ${oldest.ageDays} days. Still relevant, or ready to let it go?`;
+    // All aging tasks are on cooldown — fall through to behavioral insight
   }
   
   // ── BEHAVIORAL INSIGHT — always show if meaningful patterns exist ──
@@ -9403,11 +9544,11 @@ Action types (use exact IDs from brackets above):
 
 Rules:
 - 2-4 actions max, always end with dismiss
-- Labels: 2-4 words max
+- Labels: 2-4 words max. Plain words only — no colons, no task names, no task content in labels
 - Use real IDs from the lists above — never invent IDs
-- For aging tasks (7+ days), suggest break_down OR delete_task — "Break it down" or "Let it go"
-- For aging tasks (3-6 days), suggest move_soon OR start_focus — "Park for later" or "Do it now"
+- For aging tasks: chips are pre-set by the app — focus only on writing a warm, specific message
 - For empty state, suggest an add_task action with a gentle prompt like "Add first task"
+- Message tone: start fresh each time — never "It is.", "Yeah —", "Exactly.", or any opener that implies prior conversation. You are opening, not responding.
 - Vary your responses — don't always suggest the same action type:
   * Morning: briefing tone, overview of the day ahead
   * Afternoon with tasks done: acknowledge progress, suggest focus on remaining
@@ -9456,7 +9597,16 @@ function _aiExecute(action) {
       if (id && id.startsWith('manual_')) {
         const idx = manualTasks.findIndex(t => t.id === id);
         if (idx !== -1) {
-          _addDeletedId(id); // Track deletion for sync
+          const task = manualTasks[idx];
+          // Record in suggestion history
+          if (appMemory) {
+            appMemory.suggestionHistory.unshift({ taskId: id, taskText: task.text, suggested: _localISO(), action: 'delete_task' });
+            if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
+            // Also remove from cooldowns — task is gone
+            delete appMemory.suggestionCooldowns[id];
+            _saveMemory();
+          }
+          _addDeletedId(id);
           manualTasks.splice(idx, 1);
           localStorage.setItem('today_manual', JSON.stringify(manualTasks));
           renderManual();
@@ -9491,18 +9641,33 @@ function _aiExecute(action) {
       return;
     }
     case 'break_down': {
-      // Ask AI to split a big task into smaller steps
       const id = action.payload?.id;
       const task = manualTasks.find(t => t.id === id);
       if (!task) { closeAI(); return; }
+      // Record in suggestion history
+      if (appMemory) {
+        appMemory.suggestionHistory.unshift({ taskId: id, taskText: task.text, suggested: _localISO(), action: 'break_down' });
+        if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
+        _saveMemory();
+      }
       _aiLoadedOnce = true;
       _aiSetThinking();
       _aiSetChips([]);
       _aiCall([{
         role: 'user',
-        content: `Break down "${task.text}" into 2-4 smaller, concrete steps I can do today. Return each as an add_task action.`
+        content: `Break down "${task.text}" into 2-4 smaller, concrete steps I can do today. Return each as an add_task action. Use the step text as the label — not "Add step".`
       }]).then(result => {
         if (result) {
+          // Override labels: use the task text (truncated) not whatever label the AI chose
+          if (result.actions) {
+            result.actions = result.actions.map(a => {
+              if (a.type === 'add_task' && a.payload?.text) {
+                const text = a.payload.text;
+                a.label = text.length > 28 ? text.slice(0, 26) + '…' : text;
+              }
+              return a;
+            });
+          }
           _aiRenderResult(result);
           _showNlRow();
         }
@@ -9518,6 +9683,13 @@ function _aiExecute(action) {
         const idx = manualTasks.findIndex(t => t.id === id);
         if (idx !== -1) {
           const task = manualTasks[idx];
+          // Record in suggestion history
+          if (appMemory) {
+            appMemory.suggestionHistory.unshift({ taskId: id, taskText: task.text, suggested: _localISO(), action: 'move_soon' });
+            if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
+            delete appMemory.suggestionCooldowns[id]; // Moved out — remove cooldown
+            _saveMemory();
+          }
           task.zone = 'soon';
           task.zoneChangedAt = new Date().toISOString();
           soonTasks.unshift(task);
@@ -10533,6 +10705,7 @@ function _aiClearBadge() {
     let pipFillEl = null;
     let pipTimeEl = null;
     let openPipTimeout = null;
+    let _pipRestoredFromButton = false; // PiP "open app" was tapped — don't close PiP on restore
 
     // Auto-open PiP when leaving tab during focus mode
     // Note: Document PIP API requires a user gesture. Opening PIP on visibilitychange
@@ -10548,10 +10721,19 @@ function _aiClearBadge() {
       clearTimeout(openPipTimeout);
       
       if (document.hidden) {
-        // Close existing PIP first (so we can reopen fresh and bring to front)
+        // Clear any pending open
+        clearTimeout(openPipTimeout);
+
         if (pipWindow && !pipWindow.closed) {
-          pipWindow.close();
+          // PiP already open (kept alive from button restore) — sync and let it float up
+          if (window._pipSync && uiTaskId) {
+            const st = getState(uiTaskId);
+            window._pipSync(st.rem, TOTAL);
+          }
+          return;
         }
+        
+        // No existing PiP — close any stale references and open fresh
         pipWindow = null;
         pipFillEl = null;
         pipTimeEl = null;
@@ -10567,13 +10749,25 @@ function _aiClearBadge() {
           await openPiP().catch(() => {});
         }, 150);
       } else {
-        // Window restored — close PiP
-        if (pipWindow && !pipWindow.closed) {
-          pipWindow.close();
+        // Window restored
+        if (_pipRestoredFromButton) {
+          // User tapped "open app" in PiP — keep PiP window alive so it reappears
+          // on next minimize without needing a new user gesture. (BUG-014)
+          _pipRestoredFromButton = false;
+          // Just sync the display — PiP stays open in background
+          if (window._pipSync && uiTaskId) {
+            const st = getState(uiTaskId);
+            window._pipSync(st.rem, TOTAL);
+          }
+        } else {
+          // Normal restore (tab switched back, not via PiP button) — close PiP
+          if (pipWindow && !pipWindow.closed) {
+            pipWindow.close();
+          }
+          pipWindow = null;
+          pipFillEl = null;
+          pipTimeEl = null;
         }
-        pipWindow = null;
-        pipFillEl = null;
-        pipTimeEl = null;
       }
     });
 
@@ -10727,8 +10921,11 @@ function _aiClearBadge() {
 
         // Wire up controls
         pipWindow.document.getElementById('pipOpen').addEventListener('click', function() {
-          // Focus main window. When user minimizes again, visibilitychange
-          // will close this PIP and open a fresh one (bringing it to front)
+          // User tapped "open app" inside PiP — set flag so visibilitychange
+          // doesn't close the PiP window on restore. It stays alive, hidden behind
+          // the main tab. When user minimizes again, existing PiP comes to front
+          // without needing a new requestWindow() call (no user gesture needed).
+          _pipRestoredFromButton = true;
           window.focus();
         });
 

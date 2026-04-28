@@ -292,7 +292,7 @@ But the task is still in `trelloTasks`. The DOM patch shows it as visually done,
 
 ## BUG-013: Focus timer jumps 8-10 seconds on minimize/PiP restore
 
-**Status:** Fixed v2.14.9 — awaiting verification
+**Status:** ✅ Verified fixed (v2.14.9)
 
 **Symptom:** During a focus session, minimize the app or switch to PiP, then return. The timer jumps forward 8-10 seconds — more time has passed than the actual elapsed.
 
@@ -312,6 +312,27 @@ st.rem = Math.max(0, st.rem - elapsed);
 **Fix (v2.14.9):** Update `st.wallStart += 1000` on every tick inside `tickFor`. Now `wallStart` tracks "when the last tick fired". On return, `elapsed = time since last tick` = only the throttling gap, not time already counted.
 
 **Verify:** Start focus session → minimize for 30s → restore. Timer should show approximately 30s elapsed, not 38-40s.
+
+**Verified fixed:** ☑
+
+---
+
+## BUG-014: PiP doesn't reappear after restoring app during focus
+
+**Status:** Fixed v2.15.5 — awaiting verification
+
+**Symptom:** Focus running → minimize → PiP appears ✅. Restore app (via PiP "open app" button) → minimize again → PiP does NOT appear.
+
+**Root cause:** `documentPictureInPicture.requestWindow()` requires a user gesture. The first minimize works because the focus start button was recently pressed (gesture still valid). When the tab restores and the user minimizes again, `visibilitychange` fires but has no user gesture → `requestWindow()` silently fails → no PiP.
+
+**Fix (v2.15.5):** Added `_pipRestoredFromButton` flag. When user taps "open app" in PiP, the flag is set and `window.focus()` is called. On tab restore, if flag is set, the PiP window is kept alive (not closed) instead of being destroyed. On next minimize, the existing PiP window is still valid — we just sync the display and let it float back up. No new `requestWindow()` needed → no gesture required.
+
+**Edge cases handled:**
+- Normal restore (switching tabs, not via PiP button) → PiP still closes as before
+- Focus ends while PiP kept alive → `_pipClose()` closes it via `closeUI()`
+- `_pipRestoredFromButton` reset immediately after use
+
+**Verify:** Start focus → minimize (PiP appears) → tap "open app" in PiP → minimize again → PiP should reappear.
 
 **Verified fixed:** ☐
 

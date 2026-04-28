@@ -2,6 +2,11 @@
 
 | Version | Key change |
 |---|---|
+| **2.15.6** | **Fix: AI Sonnet inconsistencies** — (1) `break_down` chips now show actual step text as label (capped 28 chars), not generic "Add step". (2) System prompt: banned mid-conversation openers ("It is.", "Yeah —"). (3) System prompt: banned colon syntax and task content in chip labels. |
+| **2.15.5** | **Fix: BUG-014 — PiP not reappearing after restore** — `requestWindow()` requires user gesture; second minimize had none. Added `_pipRestoredFromButton` flag: when user taps "open app" in PiP, PiP window is kept alive on restore instead of closed. Next minimize reuses existing window — no new gesture needed. |
+| **2.15.4** | **AI suggestion history in context** — `_memoryForAI()` now includes past suggestions (last 30 days, up to 5 tasks) with action taken. AI can reference: "You dismissed this twice" or "You parked this to Soon last week." |
+| **2.15.3** | **AI aging task chips deterministic (Option B)** — chips for aging tasks pre-set by app, not AI. 7+ days: "Break it down" + "Let it go" + Dismiss. 3-6 days: "Park for later" + "Do it now" + "Let it go" + Dismiss. AI writes message only. |
+| **2.15.2** | **Fix: AI repeats same aging task** — `suggestionCooldowns` pruning only checked `manualTasks`, so Trello task cooldowns were deleted nightly and the same card appeared weekly. Fixed to include `trelloTasks`. |
 | **2.15.1** | **AI upgraded to Claude Sonnet** — `claude-haiku-4-5-20251001` → `claude-sonnet-4-5` in `ai-assist.js`. UI label updated in Connections panel. Comment updated. AI.md + Integrations.md updated. |
 | **2.15.0** | **Habit strength: asymmetric smoothing** — Split alpha into `alpha_up=0.90` (build rate unchanged) and `alpha_down=0.97` (miss penalty much softer). 30-day streak miss: was 10% drop → now 3%. |
 | **2.14.9** | **Fix: BUG-013 — focus timer jumps 8-10s on minimize/restore** — double-counting between `tickFor` (`st.rem--`) and `visibilitychange` wall-clock correction. `wallStart` never advanced during ticks so correction recounted time already counted. Fix: `st.wallStart += 1000` on every `tickFor` tick. |
