@@ -2,7 +2,8 @@
 
 | Version | Key change |
 |---|---|
-| **2.15.2** | **Fix: AI repeats same aging task** — `suggestionCooldowns` pruning only checked `manualTasks`, so Trello task cooldowns were deleted nightly and the same card appeared weekly. Fixed to include `trelloTasks`. `suggestionCooldowns` (7-day) + `suggestionHistory` (50 entries, Dropbox-synced) were already implemented. |
+| **2.15.3** | **AI aging task chips deterministic (Option B)** — chips for aging tasks pre-set by app, not AI. 7+ days: "Break it down" + "Let it go" + Dismiss. 3-6 days: "Park for later" + "Do it now" + "Let it go" + Dismiss. AI writes message only. System prompt rule updated. Fixes session-to-session inconsistency. |
+| **2.15.2** | **Fix: AI repeats same aging task** — `suggestionCooldowns` pruning only checked `manualTasks`, so Trello task cooldowns were deleted nightly and the same card appeared weekly. Fixed to include `trelloTasks`. |
 | **2.15.1** | **AI upgraded to Claude Sonnet** — `claude-haiku-4-5-20251001` → `claude-sonnet-4-5` in `ai-assist.js`. UI label updated in Connections panel. Comment updated. AI.md + Integrations.md updated. |
 | **2.15.0** | **Habit strength: asymmetric smoothing** — Split alpha into `alpha_up=0.90` (build rate unchanged) and `alpha_down=0.97` (miss penalty much softer). 30-day streak miss: was 10% drop → now 3%. |
 | **2.14.9** | **Fix: BUG-013 — focus timer jumps 8-10s on minimize/restore** — double-counting between `tickFor` (`st.rem--`) and `visibilitychange` wall-clock correction. `wallStart` never advanced during ticks so correction recounted time already counted. Fix: `st.wallStart += 1000` on every `tickFor` tick. |

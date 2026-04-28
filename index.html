@@ -3046,11 +3046,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.15.2';
+const APP_VERSION   = '2.15.3';
 const DEV_HOURS     = '176h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.15.3': 'AI aging task chips now deterministic — chips pre-set by app, not AI. 7+ days: Break it down + Let it go + Dismiss. 3-6 days: Park for later + Do it now + Let it go + Dismiss. AI only writes the message. Fixes inconsistency where same task got different chips each session.',
   '2.15.2': 'Fix: AI repeats same aging task suggestion — cooldown pruning only checked manualTasks, so Trello task cooldowns were deleted nightly and the same task kept appearing every week. Fixed to include trelloTasks in the existing ID set. suggestionCooldowns and suggestionHistory were already implemented (cooldown=7 days, history=50 entries, synced via Dropbox).',
   '2.15.1': 'AI upgraded to Claude Sonnet — warmer, more contextual responses especially for reflect, break_down, and pattern observations. UI label updated from "Claude Haiku" to "Claude Sonnet" in Connections panel.',
   '2.15.0': 'Habit strength: asymmetric smoothing — alpha_up=0.90 (build rate unchanged), alpha_down=0.97 (miss penalty much softer). 30-day streak miss: was 10% drop, now 3%. Perfect streaks reach same peaks at same speed. Building still takes work; one bad day no longer feels catastrophic. Designed for the punishing 30-80% zone.',
@@ -8872,10 +8873,58 @@ async function _aiLoad() {
   try {
     const ctx = _aiContext();
     const intro = _aiIntroMessage(ctx);
-    const result = await _aiCall([{ role: 'user', content: intro }]);
+
+    // ── Deterministic chips for aging tasks (Option B) ──
+    // The AI writes the message; we set the chips based on age.
+    // This prevents the AI from randomly varying between move_soon/delete/break_down.
+    const agingTasks = ctx.tasks.aging || [];
+    const cooldowns = appMemory?.suggestionCooldowns || {};
+    const today = _localISO();
+    const COOLDOWN_DAYS = 7;
+    const eligibleAging = agingTasks
+      .sort((a, b) => b.ageDays - a.ageDays)
+      .filter(t => {
+        const last = cooldowns[t.id];
+        if (!last) return true;
+        return Math.floor((new Date(today) - new Date(last)) / 86400000) >= COOLDOWN_DAYS;
+      });
+
+    let deterministicChips = null;
+    if (eligibleAging.length > 0) {
+      const task = eligibleAging[0];
+      if (task.ageDays >= 7) {
+        // Old — break it down or let it go
+        deterministicChips = [
+          { label: 'Break it down', type: 'break_down', payload: { id: task.id }, primary: true },
+          { label: 'Let it go',     type: 'delete_task', payload: { id: task.id } },
+          { label: 'Dismiss',       type: 'dismiss',     payload: {} },
+        ];
+      } else {
+        // Medium (3-6 days) — park or do it now
+        deterministicChips = [
+          { label: 'Park for later', type: 'move_soon',    payload: { id: task.id }, primary: true },
+          { label: 'Do it now',      type: 'start_focus',  payload: { id: task.id } },
+          { label: 'Let it go',      type: 'delete_task',  payload: { id: task.id } },
+          { label: 'Dismiss',        type: 'dismiss',       payload: {} },
+        ];
+      }
+    }
+
+    // If we have deterministic chips, tell AI to only return a message
+    const messages = deterministicChips
+      ? [{ role: 'user', content: intro + '\n\nRespond with ONLY the "message" field in your JSON — no actions array needed, chips are pre-set.' }]
+      : [{ role: 'user', content: intro }];
+
+    const result = await _aiCall(messages);
     if (result) {
-      _aiRenderResult(result);
-      _showNlRow(); // reveal natural language input after chips load
+      // Use pre-set chips if we have them, otherwise use AI's chips
+      if (deterministicChips) {
+        _aiSetMsg(result.message || '');
+        _aiSetChips(deterministicChips);
+      } else {
+        _aiRenderResult(result);
+      }
+      _showNlRow();
     }
   } catch(e) {
     const errText = e.message || '';
@@ -9462,8 +9511,7 @@ Rules:
 - 2-4 actions max, always end with dismiss
 - Labels: 2-4 words max
 - Use real IDs from the lists above — never invent IDs
-- For aging tasks (7+ days), suggest break_down OR delete_task — "Break it down" or "Let it go"
-- For aging tasks (3-6 days), suggest move_soon OR start_focus — "Park for later" or "Do it now"
+- For aging tasks: chips are pre-set by the app — focus only on writing a warm, specific message
 - For empty state, suggest an add_task action with a gentle prompt like "Add first task"
 - Vary your responses — don't always suggest the same action type:
   * Morning: briefing tone, overview of the day ahead
