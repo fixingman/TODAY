@@ -160,3 +160,23 @@ Morning nudge (before noon) shows yesterday's review if available:
 > Yesterday: 5 done, 1h focused, 2 habits · 3 carried over
 
 Falls back to simple carried-over count if no review exists. Auto-clears after noon. Tap to dismiss.
+
+---
+
+## Suggestion Cooldown + History
+
+Prevents the AI from repeatedly suggesting the same aging task.
+
+**Cooldown (`appMemory.suggestionCooldowns`):**
+- Format: `{ taskId: 'YYYY-MM-DD' }` — date last suggested
+- 7-day cooldown — task skipped for 7 days after suggestion
+- Pruned nightly in `applyNewDayCleanup`: removes IDs not in `manualTasks` OR `trelloTasks`
+- Bug fixed v2.15.2: was only checking `manualTasks` — Trello IDs were pruned every night, resetting cooldown
+- Synced via Dropbox
+
+**History (`appMemory.suggestionHistory`):**
+- Format: `[{ taskId, taskText, suggested: 'YYYY-MM-DD', action: 'break_down'|'move_soon'|'delete_task'|'dismiss' }]`
+- Recorded when user taps a chip action on a suggested task
+- Max 50 entries, newest first
+- Synced via Dropbox
+- Currently stored but not sent to AI in context — tracked for potential future use

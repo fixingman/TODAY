@@ -3046,11 +3046,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.15.1';
+const APP_VERSION   = '2.15.2';
 const DEV_HOURS     = '176h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.15.2': 'Fix: AI repeats same aging task suggestion — cooldown pruning only checked manualTasks, so Trello task cooldowns were deleted nightly and the same task kept appearing every week. Fixed to include trelloTasks in the existing ID set. suggestionCooldowns and suggestionHistory were already implemented (cooldown=7 days, history=50 entries, synced via Dropbox).',
   '2.15.1': 'AI upgraded to Claude Sonnet — warmer, more contextual responses especially for reflect, break_down, and pattern observations. UI label updated from "Claude Haiku" to "Claude Sonnet" in Connections panel.',
   '2.15.0': 'Habit strength: asymmetric smoothing — alpha_up=0.90 (build rate unchanged), alpha_down=0.97 (miss penalty much softer). 30-day streak miss: was 10% drop, now 3%. Perfect streaks reach same peaks at same speed. Building still takes work; one bad day no longer feels catastrophic. Designed for the punishing 30-80% zone.',
   '2.14.9': 'Fix: BUG-013 — focus timer jumps 8-10s on minimize/restore. Double-counting between tickFor (st.rem--) and visibilitychange wall-clock correction (st.rem -= elapsed). wallStart never advanced during ticks so correction counted time tickFor already counted. Fix: st.wallStart += 1000 on every tick — correction now only applies to the throttling gap, not double-counted time.',
@@ -4209,6 +4210,10 @@ let appMemory = (() => {
         peakHour: null,           // hour with most completions
         dragKeywords: [],         // keywords that tend to linger
       },
+      // AI suggestion cooldowns — prevents repeating the same task suggestion
+      suggestionCooldowns: {},    // { taskId: 'YYYY-MM-DD' } — last suggested date
+      // AI suggestion history — what was suggested and what action was taken
+      suggestionHistory: [],      // [{ taskId, taskText, suggested: 'YYYY-MM-DD', action: 'break_down'|'move_soon'|'dismiss'|... }]
       // Meta
       firstSeen: _localISO(),
       totalTasksCompleted: 0,
@@ -4220,16 +4225,20 @@ let appMemory = (() => {
   patterns: { completionsByHour: {}, taskKeywords: {}, focusMinutesTotal: 0, bestStreak: 0 },
   moments: [],
   preferences: { peakHour: null, dragKeywords: [] },
+  suggestionCooldowns: {},
+  suggestionHistory: [],
   firstSeen: _localISO(),
   totalTasksCompleted: 0,
   totalDaysActive: 0,
 };
 
-// Ensure aiName exists for users with existing memory
+// Ensure fields exist for users with older memory schema
 if (!appMemory.aiName) {
   appMemory.aiName = _pickAIName();
   localStorage.setItem('today_memory', JSON.stringify(appMemory));
 }
+if (!appMemory.suggestionCooldowns) appMemory.suggestionCooldowns = {};
+if (!appMemory.suggestionHistory)   appMemory.suggestionHistory = [];
 
 function _saveMemory() {
   localStorage.setItem('today_memory', JSON.stringify(appMemory));
@@ -4551,6 +4560,18 @@ function applyNewDayCleanup() {
   localStorage.removeItem('triage_dismissed');
   triageDismissedToday = false;
   _triageBarShown = false; // Reset for the new evening
+
+  // Prune suggestion cooldowns for tasks that no longer exist (manual OR Trello)
+  if (appMemory?.suggestionCooldowns) {
+    const existingIds = new Set([
+      ...manualTasks.map(t => t.id),
+      ...(trelloTasks || []).map(t => t.id),
+    ]);
+    for (const id of Object.keys(appMemory.suggestionCooldowns)) {
+      if (!existingIds.has(id)) delete appMemory.suggestionCooldowns[id];
+    }
+    _saveMemory();
+  }
 
   // Track carried-over tasks for morning nudge (undone tasks that survived cleanup)
   const carriedOver = manualTasks.length;
@@ -8165,6 +8186,20 @@ async function dropboxRestore(fromSync) {
           }
         }
         appMemory.moments = appMemory.moments.slice(-20);
+        // Merge suggestion cooldowns (remote wins if more recent)
+        for (const [id, date] of Object.entries(remote.suggestionCooldowns || {})) {
+          if (!appMemory.suggestionCooldowns[id] || date > appMemory.suggestionCooldowns[id]) {
+            appMemory.suggestionCooldowns[id] = date;
+          }
+        }
+        // Merge suggestion history (union by taskId+date+action)
+        const existingHistoryKeys = new Set((appMemory.suggestionHistory || []).map(h => h.taskId + h.suggested + h.action));
+        for (const entry of (remote.suggestionHistory || [])) {
+          if (!existingHistoryKeys.has(entry.taskId + entry.suggested + entry.action)) {
+            appMemory.suggestionHistory.unshift(entry);
+          }
+        }
+        if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
         _saveMemory();
       }
       // stat_last_visit intentionally NOT restored — it's local device state.
@@ -8889,13 +8924,35 @@ function _aiIntroMessage(ctx) {
     return `Sunday evening. This week: ${w.tasksCompletedToday} tasks done today, ${focusStr}streak at ${ctx.streak}. How did it feel?`;
   }
   
-  // ── STALE TASK AWARENESS — always show if aging tasks exist ──
+  // ── STALE TASK AWARENESS — show if aging tasks exist, skip recently suggested ──
   if (agingTasks.length > 0) {
-    const oldest = agingTasks.sort((a, b) => b.ageDays - a.ageDays)[0];
-    if (oldest.ageDays >= 7) {
-      return `"${oldest.text}" has been here ${oldest.ageDays} days. Maybe it's too big? Want me to help break it down?`;
+    const cooldowns = appMemory?.suggestionCooldowns || {};
+    const today = _localISO();
+    const COOLDOWN_DAYS = 7;
+    
+    // Filter out tasks suggested within the cooldown window
+    const eligible = agingTasks
+      .sort((a, b) => b.ageDays - a.ageDays)
+      .filter(t => {
+        const lastSuggested = cooldowns[t.id];
+        if (!lastSuggested) return true;
+        const daysSince = Math.floor((new Date(today) - new Date(lastSuggested)) / 86400000);
+        return daysSince >= COOLDOWN_DAYS;
+      });
+    
+    if (eligible.length > 0) {
+      const oldest = eligible[0];
+      // Record suggestion in cooldown
+      if (appMemory) {
+        appMemory.suggestionCooldowns[oldest.id] = today;
+        _saveMemory();
+      }
+      if (oldest.ageDays >= 7) {
+        return `"${oldest.text}" has been here ${oldest.ageDays} days. Maybe it's too big? Want me to help break it down?`;
+      }
+      return `"${oldest.text}" has been here ${oldest.ageDays} days. Still relevant, or ready to let it go?`;
     }
-    return `"${oldest.text}" has been here ${oldest.ageDays} days. Still relevant, or ready to let it go?`;
+    // All aging tasks are on cooldown — fall through to behavioral insight
   }
   
   // ── BEHAVIORAL INSIGHT — always show if meaningful patterns exist ──
@@ -9456,7 +9513,16 @@ function _aiExecute(action) {
       if (id && id.startsWith('manual_')) {
         const idx = manualTasks.findIndex(t => t.id === id);
         if (idx !== -1) {
-          _addDeletedId(id); // Track deletion for sync
+          const task = manualTasks[idx];
+          // Record in suggestion history
+          if (appMemory) {
+            appMemory.suggestionHistory.unshift({ taskId: id, taskText: task.text, suggested: _localISO(), action: 'delete_task' });
+            if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
+            // Also remove from cooldowns — task is gone
+            delete appMemory.suggestionCooldowns[id];
+            _saveMemory();
+          }
+          _addDeletedId(id);
           manualTasks.splice(idx, 1);
           localStorage.setItem('today_manual', JSON.stringify(manualTasks));
           renderManual();
@@ -9491,10 +9557,15 @@ function _aiExecute(action) {
       return;
     }
     case 'break_down': {
-      // Ask AI to split a big task into smaller steps
       const id = action.payload?.id;
       const task = manualTasks.find(t => t.id === id);
       if (!task) { closeAI(); return; }
+      // Record in suggestion history
+      if (appMemory) {
+        appMemory.suggestionHistory.unshift({ taskId: id, taskText: task.text, suggested: _localISO(), action: 'break_down' });
+        if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
+        _saveMemory();
+      }
       _aiLoadedOnce = true;
       _aiSetThinking();
       _aiSetChips([]);
@@ -9518,6 +9589,13 @@ function _aiExecute(action) {
         const idx = manualTasks.findIndex(t => t.id === id);
         if (idx !== -1) {
           const task = manualTasks[idx];
+          // Record in suggestion history
+          if (appMemory) {
+            appMemory.suggestionHistory.unshift({ taskId: id, taskText: task.text, suggested: _localISO(), action: 'move_soon' });
+            if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
+            delete appMemory.suggestionCooldowns[id]; // Moved out — remove cooldown
+            _saveMemory();
+          }
           task.zone = 'soon';
           task.zoneChangedAt = new Date().toISOString();
           soonTasks.unshift(task);
