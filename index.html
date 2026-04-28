@@ -3046,11 +3046,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.15.5';
-const DEV_HOURS     = '176h';
+const APP_VERSION   = '2.15.6';
+const DEV_HOURS     = '178h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.15.6': 'Fix: AI Sonnet inconsistencies — (1) break_down chips now use actual step text as label instead of generic "Add step"; label capped at 28 chars. (2) System prompt: banned mid-conversation openers ("It is.", "Yeah —") — message must open fresh, not respond. (3) System prompt: banned colons and task content in chip labels.',
   '2.15.5': 'Fix: BUG-014 — PiP not reappearing after restoring app. documentPictureInPicture.requestWindow() needs a user gesture; second minimize had none. Fix: _pipRestoredFromButton flag. When user taps "open app" in PiP, flag is set, PiP window kept alive on restore instead of closed. Next minimize reuses existing window — no new gesture needed.',
   '2.15.4': 'AI suggestion history now sent to AI context — _memoryForAI() now includes past suggestions (last 30 days, up to 5 tasks) with what action was taken. AI can now write contextually aware messages: "You dismissed this twice" or "You parked this to Soon last week." Data was already stored and Dropbox-synced.',
   '2.15.3': 'AI aging task chips now deterministic — chips pre-set by app, not AI. 7+ days: Break it down + Let it go + Dismiss. 3-6 days: Park for later + Do it now + Let it go + Dismiss. AI only writes the message. Fixes inconsistency where same task got different chips each session.',
@@ -9543,10 +9544,11 @@ Action types (use exact IDs from brackets above):
 
 Rules:
 - 2-4 actions max, always end with dismiss
-- Labels: 2-4 words max
+- Labels: 2-4 words max. Plain words only — no colons, no task names, no task content in labels
 - Use real IDs from the lists above — never invent IDs
 - For aging tasks: chips are pre-set by the app — focus only on writing a warm, specific message
 - For empty state, suggest an add_task action with a gentle prompt like "Add first task"
+- Message tone: start fresh each time — never "It is.", "Yeah —", "Exactly.", or any opener that implies prior conversation. You are opening, not responding.
 - Vary your responses — don't always suggest the same action type:
   * Morning: briefing tone, overview of the day ahead
   * Afternoon with tasks done: acknowledge progress, suggest focus on remaining
@@ -9653,9 +9655,19 @@ function _aiExecute(action) {
       _aiSetChips([]);
       _aiCall([{
         role: 'user',
-        content: `Break down "${task.text}" into 2-4 smaller, concrete steps I can do today. Return each as an add_task action.`
+        content: `Break down "${task.text}" into 2-4 smaller, concrete steps I can do today. Return each as an add_task action. Use the step text as the label — not "Add step".`
       }]).then(result => {
         if (result) {
+          // Override labels: use the task text (truncated) not whatever label the AI chose
+          if (result.actions) {
+            result.actions = result.actions.map(a => {
+              if (a.type === 'add_task' && a.payload?.text) {
+                const text = a.payload.text;
+                a.label = text.length > 28 ? text.slice(0, 26) + '…' : text;
+              }
+              return a;
+            });
+          }
           _aiRenderResult(result);
           _showNlRow();
         }

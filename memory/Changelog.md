@@ -2,6 +2,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.15.6** | **Fix: AI Sonnet inconsistencies** — (1) `break_down` chips now show actual step text as label (capped 28 chars), not generic "Add step". (2) System prompt: banned mid-conversation openers ("It is.", "Yeah —"). (3) System prompt: banned colon syntax and task content in chip labels. |
 | **2.15.5** | **Fix: BUG-014 — PiP not reappearing after restore** — `requestWindow()` requires user gesture; second minimize had none. Added `_pipRestoredFromButton` flag: when user taps "open app" in PiP, PiP window is kept alive on restore instead of closed. Next minimize reuses existing window — no new gesture needed. |
 | **2.15.4** | **AI suggestion history in context** — `_memoryForAI()` now includes past suggestions (last 30 days, up to 5 tasks) with action taken. AI can reference: "You dismissed this twice" or "You parked this to Soon last week." |
 | **2.15.3** | **AI aging task chips deterministic (Option B)** — chips for aging tasks pre-set by app, not AI. 7+ days: "Break it down" + "Let it go" + Dismiss. 3-6 days: "Park for later" + "Do it now" + "Let it go" + Dismiss. AI writes message only. |

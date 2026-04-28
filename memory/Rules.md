@@ -6,9 +6,9 @@
 27. **`--font-display` (Syne) = all-caps or numbers only** — Syne's geometric letterforms work for "TODAY", version numbers, and stat values. Never use Syne for mixed-case English sentences — DM Mono handles all natural language text.
 
 ## Current Focus (update each session)
-- **Working on:** Timer accuracy, habit strength, font consistency
-- **Recent:** v2.15.0 — habit asymmetric smoothing, BUG-013 timer double-counting, BUG-006 re-fix, triage font fix, Syne rule
-- **Watch for:** BUG-006/011/012/013 verification in production
+- **Working on:** AI quality (Sonnet consistency, chip fixes, suggestion history), PiP stability, habit smoothing
+- **Recent:** v2.15.6 — AI Sonnet fixes (openers, chip labels, break_down), BUG-014 PiP re-open, habit asymmetric smoothing, Claude Sonnet upgrade, AI suggestion history in context, deterministic aging chips
+- **Watch for:** BUG-006/007/011/012/014 verification in production. Sonnet feel.
 
 ---
 
