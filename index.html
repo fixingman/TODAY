@@ -2746,7 +2746,7 @@
           Gemini 2.5 Flash <span class="ai-provider-badge">free</span>
         </button>
         <button class="ai-provider-btn" id="aiProviderClaude" onclick="setAIProvider('claude')">
-          Claude Haiku
+          Claude Sonnet
         </button>
       </div>
 
@@ -3046,11 +3046,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.15.0';
+const APP_VERSION   = '2.15.1';
 const DEV_HOURS     = '176h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.15.1': 'AI upgraded to Claude Sonnet — warmer, more contextual responses especially for reflect, break_down, and pattern observations. UI label updated from "Claude Haiku" to "Claude Sonnet" in Connections panel.',
   '2.15.0': 'Habit strength: asymmetric smoothing — alpha_up=0.90 (build rate unchanged), alpha_down=0.97 (miss penalty much softer). 30-day streak miss: was 10% drop, now 3%. Perfect streaks reach same peaks at same speed. Building still takes work; one bad day no longer feels catastrophic. Designed for the punishing 30-80% zone.',
   '2.14.9': 'Fix: BUG-013 — focus timer jumps 8-10s on minimize/restore. Double-counting between tickFor (st.rem--) and visibilitychange wall-clock correction (st.rem -= elapsed). wallStart never advanced during ticks so correction counted time tickFor already counted. Fix: st.wallStart += 1000 on every tick — correction now only applies to the throttling gap, not double-counted time.',
   '2.14.8': 'Fix: BUG-006 regression — focus timer splits from Trello task. v2.14.5 BUG-012 fix added renderTrello() call in mergeRemoteData with no _focusReanchor() after it. Added _focusReanchor() to end of renderTrello() — mirrors existing call in renderManual(). All render paths now safe.',
@@ -8737,7 +8738,7 @@ if ('serviceWorker' in navigator && canRegisterSW) {
 // Natural language: small input at bottom of panel for stuck/action mode.
 // The main add-task input always adds tasks — no mode routing.
 //
-// Provider: Gemini 2.5 Flash (default/free) or Claude Haiku (private).
+// Provider: Gemini 2.5 Flash (default/free) or Claude Sonnet (private).
 // Key: stored in localStorage, proxied through /.netlify/functions/ai-assist.
 // ══════════════════════════════════════════════════════════════════════════
 

@@ -10,7 +10,7 @@ The AI companion is accessed via the ✦ button. It reads app state, provides co
 
 **Providers:**
 - Gemini 2.5 Flash (default, free)
-- Claude Haiku (private option)
+- Claude Sonnet (private option)
 
 **Proxy:** `/.netlify/functions/ai-assist`
 
