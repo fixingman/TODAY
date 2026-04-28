@@ -134,17 +134,21 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 ## BUG-006: Focus timer bar splits from task after returning to window
 
-**Status:** ✅ Verified fixed (v2.12.65)
+**Status:** Fixed v2.12.65 + v2.14.8 — awaiting verification
 
-**Symptom:** During focus mode on desktop PWA, leave window for a few minutes, return — gap appears between the task row and the countdown timer bar.
+**Symptom:** During focus mode, leave window for a few minutes, return — gap appears between the task row and the countdown timer bar. Timer floats near the bottom of the screen detached from the task.
 
-**Root cause:** Sync fires on return → `mergeRemoteData` detects changes → `renderManual()` does `list.innerHTML = ...` which destroys the task DOM element. The timer bar was placed as a sibling via `taskEl.after(timerEl)`. Old element gone, new one created — timer bar orphaned, gap appears.
+**Root cause (original — v2.12.65):** Sync fires on return → `mergeRemoteData` detects changes → `renderManual()` does `list.innerHTML = ...` which destroys the task DOM element. The timer bar was placed as a sibling via `taskEl.after(timerEl)`. Old element gone, new one created — timer bar orphaned.
 
-**Fix:** Added `window._focusReanchor()` — exposed from focus mode IIFE, called at end of `renderManual()`. Finds new task element by `data-taskid`, re-attaches timer bar and kbd hint, updates `uiTaskEl` reference.
+**Fix (v2.12.65):** Added `window._focusReanchor()` — called at end of `renderManual()`. Finds new task element by `data-taskid`, re-attaches timer bar and kbd hint, updates `uiTaskEl` reference.
 
-**Verify:** Start focus session on a manual task → minimize/switch away for 2+ min → return. Timer bar should stay flush against the task row with no gap.
+**Regression (v2.14.5 → reported v2.14.7):** BUG-012 fix added a `renderTrello()` call inside `mergeRemoteData` that runs standalone — no `renderManual()` after it, no `_focusReanchor()`. If the focused task is a Trello task and the eviction changes `trelloTasks.length`, `renderTrello` may recreate the task element, orphaning the timer.
 
-**Verified fixed:** ☑
+**Fix (v2.14.8):** Added `_focusReanchor()` call at the end of `renderTrello()` — mirrors the existing call in `renderManual()`. Now all render paths are safe.
+
+**Verify:** Start focus on a Trello task → minimize for 2+ min → return. Timer bar should stay flush against the task row. Also test manual tasks.
+
+**Verified fixed:** ☐
 
 ---
 

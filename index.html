@@ -3046,11 +3046,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.14.7';
+const APP_VERSION   = '2.14.8';
 const DEV_HOURS     = '176h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.14.8': 'Fix: BUG-006 regression — focus timer splits from Trello task. v2.14.5 BUG-012 fix added renderTrello() call in mergeRemoteData with no _focusReanchor() after it. Added _focusReanchor() to end of renderTrello() — mirrors existing call in renderManual(). All render paths now safe.',
   '2.14.7': 'Fix: Triage summary font inconsistency — switched from Syne 28px to DM Mono --text-lg (16px) weight 500. Syne in lowercase looks wrong — it is for all-caps/numbers only (TODAY, stat values). Now consistent with triage panel voice.',
   '2.14.6': 'Fix: Triage bar disappears on task mutation — added _triageBarShown flag. Once bar appears, mutations (task delete, move to zone, etc.) no longer hide it. Bar only hides when: all tasks gone, triage dismissed, or outside 8pm–midnight window. Reset on new day.',
   '2.14.5': 'Fix: Completed overdue Trello task shows undone on other device (BUG-012) — race condition between loadTrello and Dropbox sync. mergeRemoteData now re-filters trelloTasks after updating doneIds, evicting done+overdue cards. renderTrello called if any removed.',
@@ -5325,6 +5326,8 @@ function renderTrello() {
       list.insertBefore(el, sibling || null);
     }
   });
+  // Re-anchor focus timer if active — Trello patch may have replaced the focused task element
+  if (window._focusReanchor) window._focusReanchor();
 }
 
 function _getDueStr(task) {
