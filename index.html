@@ -1086,13 +1086,12 @@
     display: none;
   }
   .triage-complete-msg {
-    font-family: var(--font-display);
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-family: var(--font-mono);
+    font-size: var(--text-lg);
+    font-weight: 500;
     color: var(--text);
     text-align: center;
-    line-height: 1;
+    line-height: 1.2;
   }
   .triage-complete-sub {
     font-size: var(--text-sm2);
@@ -3047,11 +3046,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.14.6';
+const APP_VERSION   = '2.14.7';
 const DEV_HOURS     = '176h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.14.7': 'Fix: Triage summary font inconsistency — switched from Syne 28px to DM Mono --text-lg (16px) weight 500. Syne in lowercase looks wrong — it is for all-caps/numbers only (TODAY, stat values). Now consistent with triage panel voice.',
   '2.14.6': 'Fix: Triage bar disappears on task mutation — added _triageBarShown flag. Once bar appears, mutations (task delete, move to zone, etc.) no longer hide it. Bar only hides when: all tasks gone, triage dismissed, or outside 8pm–midnight window. Reset on new day.',
   '2.14.5': 'Fix: Completed overdue Trello task shows undone on other device (BUG-012) — race condition between loadTrello and Dropbox sync. mergeRemoteData now re-filters trelloTasks after updating doneIds, evicting done+overdue cards. renderTrello called if any removed.',
   '2.14.4': 'Triage summary redesign — Syne display font at 28px, weight 700. Full stop on headline. Adaptive sub-line (max 2 parts). Triage breakdown removed — user just made those decisions.',

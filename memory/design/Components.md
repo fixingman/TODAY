@@ -110,7 +110,7 @@ After all decisions, replaces task list for 3s before auto-close:
 ```
 ┌─────────────────────────────────────────┐
 │                                         │
-│           Solid day.                    │  ← Syne 28px 700
+│           Solid day.                    │  ← DM Mono --text-lg (16px) weight 500
 │         5 done · 1h focused             │  ← --text-sm2 muted
 │                                         │
 └─────────────────────────────────────────┘
