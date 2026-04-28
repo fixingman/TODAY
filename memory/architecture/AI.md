@@ -179,4 +179,4 @@ Prevents the AI from repeatedly suggesting the same aging task.
 - Recorded when user taps a chip action on a suggested task
 - Max 50 entries, newest first
 - Synced via Dropbox
-- Currently stored but not sent to AI in context — tracked for potential future use
+- **Sent to AI via `_memoryForAI()` (v2.15.4)** — last 30 days, up to 5 tasks, grouped by taskText with action labels. AI uses this to write contextually aware messages.

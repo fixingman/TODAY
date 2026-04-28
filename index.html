@@ -3046,11 +3046,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.15.3';
+const APP_VERSION   = '2.15.4';
 const DEV_HOURS     = '176h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.15.4': 'AI suggestion history now sent to AI context — _memoryForAI() now includes past suggestions (last 30 days, up to 5 tasks) with what action was taken. AI can now write contextually aware messages: "You dismissed this twice" or "You parked this to Soon last week." Data was already stored and Dropbox-synced.',
   '2.15.3': 'AI aging task chips now deterministic — chips pre-set by app, not AI. 7+ days: Break it down + Let it go + Dismiss. 3-6 days: Park for later + Do it now + Let it go + Dismiss. AI only writes the message. Fixes inconsistency where same task got different chips each session.',
   '2.15.2': 'Fix: AI repeats same aging task suggestion — cooldown pruning only checked manualTasks, so Trello task cooldowns were deleted nightly and the same task kept appearing every week. Fixed to include trelloTasks in the existing ID set. suggestionCooldowns and suggestionHistory were already implemented (cooldown=7 days, history=50 entries, synced via Dropbox).',
   '2.15.1': 'AI upgraded to Claude Sonnet — warmer, more contextual responses especially for reflect, break_down, and pattern observations. UI label updated from "Claude Haiku" to "Claude Sonnet" in Connections panel.',
@@ -4346,6 +4347,38 @@ function _memoryForAI() {
   // Days active
   if (m.totalDaysActive > 7) {
     lines.push(`You've used TODAY for ${m.totalDaysActive} days.`);
+  }
+  
+  // Suggestion history — what was suggested for each task, and what the user did
+  // Grouped by taskText, last 30 days only, max 5 unique tasks
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const recent = (m.suggestionHistory || []).filter(h => new Date(h.suggested) >= thirtyDaysAgo);
+  
+  if (recent.length > 0) {
+    // Group by taskText
+    const byTask = {};
+    for (const entry of recent) {
+      if (!byTask[entry.taskText]) byTask[entry.taskText] = [];
+      byTask[entry.taskText].push(entry);
+    }
+    const taskEntries = Object.entries(byTask).slice(0, 5);
+    if (taskEntries.length > 0) {
+      const historyLines = taskEntries.map(([text, entries]) => {
+        const actions = entries.map(e => {
+          const label = {
+            break_down:  'asked to break it down',
+            move_soon:   'parked it to Soon',
+            delete_task: 'let it go',
+            dismiss:     'dismissed the suggestion',
+            start_focus: 'started focusing on it',
+          }[e.action] || e.action;
+          return `${label} (${e.suggested})`;
+        });
+        return `"${text}": ${actions.join(', ')}`;
+      });
+      lines.push(`Past suggestions:\n${historyLines.join('\n')}`);
+    }
   }
   
   return lines.length > 0 ? lines.join(' ') : '';
