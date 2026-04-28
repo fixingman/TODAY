@@ -3046,11 +3046,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.14.9';
+const APP_VERSION   = '2.15.0';
 const DEV_HOURS     = '176h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.15.0': 'Habit strength: asymmetric smoothing — alpha_up=0.90 (build rate unchanged), alpha_down=0.97 (miss penalty much softer). 30-day streak miss: was 10% drop, now 3%. Perfect streaks reach same peaks at same speed. Building still takes work; one bad day no longer feels catastrophic. Designed for the punishing 30-80% zone.',
   '2.14.9': 'Fix: BUG-013 — focus timer jumps 8-10s on minimize/restore. Double-counting between tickFor (st.rem--) and visibilitychange wall-clock correction (st.rem -= elapsed). wallStart never advanced during ticks so correction counted time tickFor already counted. Fix: st.wallStart += 1000 on every tick — correction now only applies to the throttling gap, not double-counted time.',
   '2.14.8': 'Fix: BUG-006 regression — focus timer splits from Trello task. v2.14.5 BUG-012 fix added renderTrello() call in mergeRemoteData with no _focusReanchor() after it. Added _focusReanchor() to end of renderTrello() — mirrors existing call in renderManual(). All render paths now safe.',
   '2.14.7': 'Fix: Triage summary font inconsistency — switched from Syne 28px to DM Mono --text-lg (16px) weight 500. Syne in lowercase looks wrong — it is for all-caps/numbers only (TODAY, stat values). Now consistent with triage panel voice.',
@@ -5801,18 +5802,27 @@ function _getHabitDates() {
 }
 
 function _getHabitStrength(id) {
-  // Exponential smoothing: score = score * α + done * (1-α)
-  // α=0.9 — recent days matter most, but full history counts.
-  // A few missed days won't zero the score. 90 perfect days → ~100%.
+  // Asymmetric exponential smoothing:
+  // - alpha_up   = 0.90 — building takes time (same as before)
+  // - alpha_down = 0.97 — misses are forgiven more gently
+  //
+  // A perfect day moves the score up at the same rate as before.
+  // A missed day barely dents a good streak — life happens.
+  // Building feels like work; one slip doesn't feel catastrophic.
+  //
+  // Drop from 30-day streak: old=10%, new=3%.
+  // Perfect streaks reach the same peaks at the same rate.
   const completions = new Set(habitCompletions[id] || []);
-  const alpha = 0.9;
+  const alpha_up   = 0.90;
+  const alpha_down = 0.97;
   let score = 0;
   const today = new Date();
   for (let i = 89; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const ds = _localISO(d);
-    score = score * alpha + (completions.has(ds) ? 1 : 0) * (1 - alpha);
+    const done = completions.has(_localISO(d)) ? 1 : 0;
+    const alpha = done === 1 ? alpha_up : alpha_down;
+    score = score * alpha + done * (1 - alpha);
   }
   return Math.round(score * 100);
 }

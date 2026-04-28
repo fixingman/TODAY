@@ -114,3 +114,17 @@ Completing the last task deserves more than text.
 - Message: variable, warm ("8 tasks cleared. Impressive.")
 
 Not fireworks. Just acknowledgment.
+
+---
+
+## Habit Strength Philosophy
+
+Habit tracking has the same gamification backfire risk as streaks. If missing one day drops the indicator too far, users feel punished → anxiety → abandon the habit entirely.
+
+**The 30–80% zone problem:** With symmetric smoothing (α=0.9 both ways), gains in the 30–80% range are tiny (+2-3% per day) but misses are large (−8-10%). One bad day undoes a week of progress. This is the zone where most users are most of the time — making it feel like Sisyphus.
+
+**TODAY's answer (v2.15.0):** Asymmetric smoothing:
+- Build rate unchanged: `alpha_up = 0.90` — gaining strength still takes consistent effort
+- Miss penalty softened: `alpha_down = 0.97` — one miss from a 30-day streak drops ~3%, not 10%
+
+**Design principle:** Building a habit should feel like work. Missing one day should feel like life, not failure. The indicator reflects the pattern, not the exception.

@@ -116,7 +116,8 @@ Captures what we tried or considered and why we didn't proceed — institutional
 | Triage summary redesign (Option 1) | 2.14.4 | Apr 2026 |
 | Trello overdue re-filter (BUG-012) | 2.14.5 | Apr 2026 |
 | Triage bar sticky once shown | 2.14.6 | Apr 2026 |
+| Habit asymmetric smoothing | 2.15.0 | Apr 2026 |
 
 ---
 
-*Last updated: Session 31 (v2.14.6)*
+*Last updated: Session 32 (v2.15.0)*

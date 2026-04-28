@@ -4,9 +4,11 @@
 ---
 
 27. **`--font-display` (Syne) = all-caps or numbers only** — Syne's geometric letterforms work for "TODAY", version numbers, and stat values. Never use Syne for mixed-case English sentences — DM Mono handles all natural language text.
-- **Working on:** Memory audit, documentation cleanup
-- **Recent:** v2.14.6 — triage bar sticky fix, BUG-012 (Trello overdue), in-app changelog catch-up, memory audit (Tokens/Components/AI/Sync/Rules/Backlog all updated)
-- **Watch for:** BUG-003/007/011/012 verification in production
+
+## Current Focus (update each session)
+- **Working on:** Timer accuracy, habit strength, font consistency
+- **Recent:** v2.15.0 — habit asymmetric smoothing, BUG-013 timer double-counting, BUG-006 re-fix, triage font fix, Syne rule
+- **Watch for:** BUG-006/011/012/013 verification in production
 
 ---
 

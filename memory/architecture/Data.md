@@ -80,6 +80,11 @@
 
 **Note:** Flow rate is calculated live using research-based diminishing returns formula: `100 × (1 - 0.8^done)`. First task = 20% (quick win), 5 tasks ≈ 67% (good day). Based on Endowed Progress Effect (Nunes & Dreze 2006) and Goal Gradient Hypothesis (Kivetz et al. 2006). Not stored.
 
+**Note:** Habit strength uses asymmetric exponential smoothing over 90 days:
+- `alpha_up = 0.90` — building is unchanged (7 days → ~52%, 14 days → ~77%)
+- `alpha_down = 0.97` — misses are gentle (30-day streak miss: 3% drop, not 10%)
+- Perfect streaks reach identical peaks. One bad day doesn't feel catastrophic.
+
 ### Memory (AI Companion)
 
 | Key | Type | Description |

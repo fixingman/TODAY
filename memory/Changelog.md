@@ -2,7 +2,8 @@
 
 | Version | Key change |
 |---|---|
-| **2.14.9** | **Fix: BUG-013 — focus timer jumps on minimize/restore** — double-counting between `tickFor` (`st.rem--`) and `visibilitychange` wall-clock correction (`st.rem -= elapsed`). `wallStart` never advanced during ticks so correction recounted time already counted. Fix: `st.wallStart += 1000` on every `tickFor` tick — correction now only covers the throttling gap. |
+| **2.15.0** | **Habit strength: asymmetric smoothing** — Split alpha into `alpha_up=0.90` (build rate unchanged) and `alpha_down=0.97` (miss penalty much softer). 30-day streak miss: was 10% drop → now 3%. 7-day streak miss: was 5% → now 1%. Perfect streaks hit identical peaks. Building still takes time; one bad day no longer feels catastrophic in the 30–80% zone. |
+| **2.14.9** | **Fix: BUG-013 — focus timer jumps 8-10s on minimize/restore** — double-counting between `tickFor` (`st.rem--`) and `visibilitychange` wall-clock correction. `wallStart` never advanced during ticks so correction recounted time already counted. Fix: `st.wallStart += 1000` on every `tickFor` tick. |
 | **2.14.8** | **Fix: BUG-006 regression** — `_focusReanchor()` was only called from `renderManual()`. v2.14.5 BUG-012 fix added `renderTrello()` standalone call in `mergeRemoteData` with no reanchor — focused Trello tasks could orphan the timer bar. Added `_focusReanchor()` to end of `renderTrello()`. |
 | **2.14.7** | **Fix: Triage summary font** — `.triage-complete-msg` switched from Syne 28px weight 700 to DM Mono `--text-lg` weight 500. Syne in lowercase looks wrong — it's for all-caps/numbers only. Rule 27 added to Rules.md. |
 | **2.14.6** | **Fix: Triage bar disappears on task mutation** — added `_triageBarShown` flag. Once bar appears, mutations (delete, zone moves) no longer hide it. Hides only when all tasks gone, dismissed, or outside window. Reset on new day. |
