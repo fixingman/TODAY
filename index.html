@@ -1086,13 +1086,12 @@
     display: none;
   }
   .triage-complete-msg {
-    font-family: var(--font-display);
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-family: var(--font-mono);
+    font-size: var(--text-lg);
+    font-weight: 500;
     color: var(--text);
     text-align: center;
-    line-height: 1;
+    line-height: 1.2;
   }
   .triage-complete-sub {
     font-size: var(--text-sm2);
@@ -2747,7 +2746,7 @@
           Gemini 2.5 Flash <span class="ai-provider-badge">free</span>
         </button>
         <button class="ai-provider-btn" id="aiProviderClaude" onclick="setAIProvider('claude')">
-          Claude Haiku
+          Claude Sonnet
         </button>
       </div>
 
@@ -3047,11 +3046,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.14.6';
+const APP_VERSION   = '2.15.1';
 const DEV_HOURS     = '176h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.15.1': 'AI upgraded to Claude Sonnet — warmer, more contextual responses especially for reflect, break_down, and pattern observations. UI label updated from "Claude Haiku" to "Claude Sonnet" in Connections panel.',
+  '2.15.0': 'Habit strength: asymmetric smoothing — alpha_up=0.90 (build rate unchanged), alpha_down=0.97 (miss penalty much softer). 30-day streak miss: was 10% drop, now 3%. Perfect streaks reach same peaks at same speed. Building still takes work; one bad day no longer feels catastrophic. Designed for the punishing 30-80% zone.',
+  '2.14.9': 'Fix: BUG-013 — focus timer jumps 8-10s on minimize/restore. Double-counting between tickFor (st.rem--) and visibilitychange wall-clock correction (st.rem -= elapsed). wallStart never advanced during ticks so correction counted time tickFor already counted. Fix: st.wallStart += 1000 on every tick — correction now only applies to the throttling gap, not double-counted time.',
+  '2.14.8': 'Fix: BUG-006 regression — focus timer splits from Trello task. v2.14.5 BUG-012 fix added renderTrello() call in mergeRemoteData with no _focusReanchor() after it. Added _focusReanchor() to end of renderTrello() — mirrors existing call in renderManual(). All render paths now safe.',
+  '2.14.7': 'Fix: Triage summary font inconsistency — switched from Syne 28px to DM Mono --text-lg (16px) weight 500. Syne in lowercase looks wrong — it is for all-caps/numbers only (TODAY, stat values). Now consistent with triage panel voice.',
   '2.14.6': 'Fix: Triage bar disappears on task mutation — added _triageBarShown flag. Once bar appears, mutations (task delete, move to zone, etc.) no longer hide it. Bar only hides when: all tasks gone, triage dismissed, or outside 8pm–midnight window. Reset on new day.',
   '2.14.5': 'Fix: Completed overdue Trello task shows undone on other device (BUG-012) — race condition between loadTrello and Dropbox sync. mergeRemoteData now re-filters trelloTasks after updating doneIds, evicting done+overdue cards. renderTrello called if any removed.',
   '2.14.4': 'Triage summary redesign — Syne display font at 28px, weight 700. Full stop on headline. Adaptive sub-line (max 2 parts). Triage breakdown removed — user just made those decisions.',
@@ -5325,6 +5329,8 @@ function renderTrello() {
       list.insertBefore(el, sibling || null);
     }
   });
+  // Re-anchor focus timer if active — Trello patch may have replaced the focused task element
+  if (window._focusReanchor) window._focusReanchor();
 }
 
 function _getDueStr(task) {
@@ -5797,18 +5803,27 @@ function _getHabitDates() {
 }
 
 function _getHabitStrength(id) {
-  // Exponential smoothing: score = score * α + done * (1-α)
-  // α=0.9 — recent days matter most, but full history counts.
-  // A few missed days won't zero the score. 90 perfect days → ~100%.
+  // Asymmetric exponential smoothing:
+  // - alpha_up   = 0.90 — building takes time (same as before)
+  // - alpha_down = 0.97 — misses are forgiven more gently
+  //
+  // A perfect day moves the score up at the same rate as before.
+  // A missed day barely dents a good streak — life happens.
+  // Building feels like work; one slip doesn't feel catastrophic.
+  //
+  // Drop from 30-day streak: old=10%, new=3%.
+  // Perfect streaks reach the same peaks at the same rate.
   const completions = new Set(habitCompletions[id] || []);
-  const alpha = 0.9;
+  const alpha_up   = 0.90;
+  const alpha_down = 0.97;
   let score = 0;
   const today = new Date();
   for (let i = 89; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const ds = _localISO(d);
-    score = score * alpha + (completions.has(ds) ? 1 : 0) * (1 - alpha);
+    const done = completions.has(_localISO(d)) ? 1 : 0;
+    const alpha = done === 1 ? alpha_up : alpha_down;
+    score = score * alpha + done * (1 - alpha);
   }
   return Math.round(score * 100);
 }
@@ -8723,7 +8738,7 @@ if ('serviceWorker' in navigator && canRegisterSW) {
 // Natural language: small input at bottom of panel for stuck/action mode.
 // The main add-task input always adds tasks — no mode routing.
 //
-// Provider: Gemini 2.5 Flash (default/free) or Claude Haiku (private).
+// Provider: Gemini 2.5 Flash (default/free) or Claude Sonnet (private).
 // Key: stored in localStorage, proxied through /.netlify/functions/ai-assist.
 // ══════════════════════════════════════════════════════════════════════════
 
@@ -10289,6 +10304,10 @@ function _aiClearBadge() {
     if (!st.running) return;
     if (st.rem <= 0) { completeFor(taskId); return; }
     st.rem--;
+    // Advance wallStart by exactly 1s on each tick.
+    // This ensures visibilitychange correction only accounts for the gap
+    // since the last tick (throttling gap), not time already counted. (BUG-013)
+    if (st.wallStart) st.wallStart += 1000;
     // Only update DOM if this task is currently showing
     if (taskId === uiTaskId && uiTaskEl) {
       timeEl.textContent = fmt(st.rem);

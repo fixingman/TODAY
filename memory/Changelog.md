@@ -2,6 +2,11 @@
 
 | Version | Key change |
 |---|---|
+| **2.15.1** | **AI upgraded to Claude Sonnet** — `claude-haiku-4-5-20251001` → `claude-sonnet-4-5` in `ai-assist.js`. UI label updated in Connections panel. Comment updated. AI.md + Integrations.md updated. |
+| **2.15.0** | **Habit strength: asymmetric smoothing** — Split alpha into `alpha_up=0.90` (build rate unchanged) and `alpha_down=0.97` (miss penalty much softer). 30-day streak miss: was 10% drop → now 3%. |
+| **2.14.9** | **Fix: BUG-013 — focus timer jumps 8-10s on minimize/restore** — double-counting between `tickFor` (`st.rem--`) and `visibilitychange` wall-clock correction. `wallStart` never advanced during ticks so correction recounted time already counted. Fix: `st.wallStart += 1000` on every `tickFor` tick. |
+| **2.14.8** | **Fix: BUG-006 regression** — `_focusReanchor()` was only called from `renderManual()`. v2.14.5 BUG-012 fix added `renderTrello()` standalone call in `mergeRemoteData` with no reanchor — focused Trello tasks could orphan the timer bar. Added `_focusReanchor()` to end of `renderTrello()`. |
+| **2.14.7** | **Fix: Triage summary font** — `.triage-complete-msg` switched from Syne 28px weight 700 to DM Mono `--text-lg` weight 500. Syne in lowercase looks wrong — it's for all-caps/numbers only. Rule 27 added to Rules.md. |
 | **2.14.6** | **Fix: Triage bar disappears on task mutation** — added `_triageBarShown` flag. Once bar appears, mutations (delete, zone moves) no longer hide it. Hides only when all tasks gone, dismissed, or outside window. Reset on new day. |
 | **2.14.5** | **Fix: BUG-012 + in-app changelog catch-up** — `mergeRemoteData` re-filters `trelloTasks` after `doneIds` update. In-app CHANGELOG entries added for v2.13.7–v2.14.5. Housekeeping step 2b reinforced. |
 | **2.13.6** | **Fix: PiP completion chime sync** — With v2.13.5, the PiP RAF correctly shows `00:00` at wall-clock zero, but `completeFor()` (chime + session log) was still triggered by the throttled `tickFor` — firing seconds late. Now PiP RAF calls `completeFor()` directly when `currentRem <= 0`. Guard added to `completeFor()`: `if (!st.running) return` prevents double chime/session if `tickFor` also fires. |

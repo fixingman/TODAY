@@ -88,9 +88,11 @@ Alternative to Dropbox for users without Dropbox account.
 - No credit card required
 - Good for personal use
 
-### Claude Haiku (private)
-- Pay-per-token (~$0.000003/call)
-- Higher quality responses
+### Claude Sonnet (private)
+- Pay-per-token (~$0.000015/call — ~5x Haiku, negligible at personal scale)
+- Noticeably warmer, more contextual responses
+- Better at reflective outputs (reflect, break_down, observations)
+- Model: `claude-sonnet-4-5`
 - For maintainer's deploy
 
 ### Proxy Architecture
