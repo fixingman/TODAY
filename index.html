@@ -3046,11 +3046,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.14.8';
+const APP_VERSION   = '2.14.9';
 const DEV_HOURS     = '176h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.14.9': 'Fix: BUG-013 — focus timer jumps 8-10s on minimize/restore. Double-counting between tickFor (st.rem--) and visibilitychange wall-clock correction (st.rem -= elapsed). wallStart never advanced during ticks so correction counted time tickFor already counted. Fix: st.wallStart += 1000 on every tick — correction now only applies to the throttling gap, not double-counted time.',
   '2.14.8': 'Fix: BUG-006 regression — focus timer splits from Trello task. v2.14.5 BUG-012 fix added renderTrello() call in mergeRemoteData with no _focusReanchor() after it. Added _focusReanchor() to end of renderTrello() — mirrors existing call in renderManual(). All render paths now safe.',
   '2.14.7': 'Fix: Triage summary font inconsistency — switched from Syne 28px to DM Mono --text-lg (16px) weight 500. Syne in lowercase looks wrong — it is for all-caps/numbers only (TODAY, stat values). Now consistent with triage panel voice.',
   '2.14.6': 'Fix: Triage bar disappears on task mutation — added _triageBarShown flag. Once bar appears, mutations (task delete, move to zone, etc.) no longer hide it. Bar only hides when: all tasks gone, triage dismissed, or outside 8pm–midnight window. Reset on new day.',
@@ -10292,6 +10293,10 @@ function _aiClearBadge() {
     if (!st.running) return;
     if (st.rem <= 0) { completeFor(taskId); return; }
     st.rem--;
+    // Advance wallStart by exactly 1s on each tick.
+    // This ensures visibilitychange correction only accounts for the gap
+    // since the last tick (throttling gap), not time already counted. (BUG-013)
+    if (st.wallStart) st.wallStart += 1000;
     // Only update DOM if this task is currently showing
     if (taskId === uiTaskId && uiTaskEl) {
       timeEl.textContent = fmt(st.rem);
