@@ -3046,11 +3046,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.15.4';
+const APP_VERSION   = '2.15.5';
 const DEV_HOURS     = '176h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.15.5': 'Fix: BUG-014 — PiP not reappearing after restoring app. documentPictureInPicture.requestWindow() needs a user gesture; second minimize had none. Fix: _pipRestoredFromButton flag. When user taps "open app" in PiP, flag is set, PiP window kept alive on restore instead of closed. Next minimize reuses existing window — no new gesture needed.',
   '2.15.4': 'AI suggestion history now sent to AI context — _memoryForAI() now includes past suggestions (last 30 days, up to 5 tasks) with what action was taken. AI can now write contextually aware messages: "You dismissed this twice" or "You parked this to Soon last week." Data was already stored and Dropbox-synced.',
   '2.15.3': 'AI aging task chips now deterministic — chips pre-set by app, not AI. 7+ days: Break it down + Let it go + Dismiss. 3-6 days: Park for later + Do it now + Let it go + Dismiss. AI only writes the message. Fixes inconsistency where same task got different chips each session.',
   '2.15.2': 'Fix: AI repeats same aging task suggestion — cooldown pruning only checked manualTasks, so Trello task cooldowns were deleted nightly and the same task kept appearing every week. Fixed to include trelloTasks in the existing ID set. suggestionCooldowns and suggestionHistory were already implemented (cooldown=7 days, history=50 entries, synced via Dropbox).',
@@ -10692,6 +10693,7 @@ function _aiClearBadge() {
     let pipFillEl = null;
     let pipTimeEl = null;
     let openPipTimeout = null;
+    let _pipRestoredFromButton = false; // PiP "open app" was tapped — don't close PiP on restore
 
     // Auto-open PiP when leaving tab during focus mode
     // Note: Document PIP API requires a user gesture. Opening PIP on visibilitychange
@@ -10707,10 +10709,19 @@ function _aiClearBadge() {
       clearTimeout(openPipTimeout);
       
       if (document.hidden) {
-        // Close existing PIP first (so we can reopen fresh and bring to front)
+        // Clear any pending open
+        clearTimeout(openPipTimeout);
+
         if (pipWindow && !pipWindow.closed) {
-          pipWindow.close();
+          // PiP already open (kept alive from button restore) — sync and let it float up
+          if (window._pipSync && uiTaskId) {
+            const st = getState(uiTaskId);
+            window._pipSync(st.rem, TOTAL);
+          }
+          return;
         }
+        
+        // No existing PiP — close any stale references and open fresh
         pipWindow = null;
         pipFillEl = null;
         pipTimeEl = null;
@@ -10726,13 +10737,25 @@ function _aiClearBadge() {
           await openPiP().catch(() => {});
         }, 150);
       } else {
-        // Window restored — close PiP
-        if (pipWindow && !pipWindow.closed) {
-          pipWindow.close();
+        // Window restored
+        if (_pipRestoredFromButton) {
+          // User tapped "open app" in PiP — keep PiP window alive so it reappears
+          // on next minimize without needing a new user gesture. (BUG-014)
+          _pipRestoredFromButton = false;
+          // Just sync the display — PiP stays open in background
+          if (window._pipSync && uiTaskId) {
+            const st = getState(uiTaskId);
+            window._pipSync(st.rem, TOTAL);
+          }
+        } else {
+          // Normal restore (tab switched back, not via PiP button) — close PiP
+          if (pipWindow && !pipWindow.closed) {
+            pipWindow.close();
+          }
+          pipWindow = null;
+          pipFillEl = null;
+          pipTimeEl = null;
         }
-        pipWindow = null;
-        pipFillEl = null;
-        pipTimeEl = null;
       }
     });
 
@@ -10886,8 +10909,11 @@ function _aiClearBadge() {
 
         // Wire up controls
         pipWindow.document.getElementById('pipOpen').addEventListener('click', function() {
-          // Focus main window. When user minimizes again, visibilitychange
-          // will close this PIP and open a fresh one (bringing it to front)
+          // User tapped "open app" inside PiP — set flag so visibilitychange
+          // doesn't close the PiP window on restore. It stays alive, hidden behind
+          // the main tab. When user minimizes again, existing PiP comes to front
+          // without needing a new requestWindow() call (no user gesture needed).
+          _pipRestoredFromButton = true;
           window.focus();
         });
 

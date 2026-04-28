@@ -2,7 +2,8 @@
 
 | Version | Key change |
 |---|---|
-| **2.15.4** | **AI suggestion history in context** — `_memoryForAI()` now includes past suggestions (last 30 days, up to 5 tasks) with action taken. AI can reference: "You dismissed this twice" or "You parked this to Soon last week." Data already stored and Dropbox-synced. AI.md updated. |
+| **2.15.5** | **Fix: BUG-014 — PiP not reappearing after restore** — `requestWindow()` requires user gesture; second minimize had none. Added `_pipRestoredFromButton` flag: when user taps "open app" in PiP, PiP window is kept alive on restore instead of closed. Next minimize reuses existing window — no new gesture needed. |
+| **2.15.4** | **AI suggestion history in context** — `_memoryForAI()` now includes past suggestions (last 30 days, up to 5 tasks) with action taken. AI can reference: "You dismissed this twice" or "You parked this to Soon last week." |
 | **2.15.3** | **AI aging task chips deterministic (Option B)** — chips for aging tasks pre-set by app, not AI. 7+ days: "Break it down" + "Let it go" + Dismiss. 3-6 days: "Park for later" + "Do it now" + "Let it go" + Dismiss. AI writes message only. |
 | **2.15.2** | **Fix: AI repeats same aging task** — `suggestionCooldowns` pruning only checked `manualTasks`, so Trello task cooldowns were deleted nightly and the same card appeared weekly. Fixed to include `trelloTasks`. |
 | **2.15.1** | **AI upgraded to Claude Sonnet** — `claude-haiku-4-5-20251001` → `claude-sonnet-4-5` in `ai-assist.js`. UI label updated in Connections panel. Comment updated. AI.md + Integrations.md updated. |
