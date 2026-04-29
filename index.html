@@ -3046,12 +3046,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.0';
+const APP_VERSION   = '2.16.1';
 const DEV_HOURS     = '178h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.1': 'Fix: Splash shows on every mobile PWA return — sessionStorage is cleared when iOS kills the page in background. Switched to localStorage with a date key (splash_shown_date = YYYY-MM-DD). Splash now shows at most once per calendar day regardless of page reloads.',
   '2.16.0': 'Fix: BUG-017 — focus minutes only recorded on full session completion. _trackFocusTime was only called when doResetState=true (natural timer end). Pressing Escape, switching tasks, or closing early lost all those minutes. Now tracks on every closeUI call. Guards prevent double-counting.',
   '2.15.9': 'SOON list sorted alphabetically — renderSoon now sorts a copy of soonTasks by localeCompare before rendering. Array order preserved for sync.',
   '2.15.8': 'Habit strength hot threshold raised from 70% to 80%. Accent highlight now requires stronger consistency to earn.',
@@ -8529,8 +8530,12 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
 
 // ─── Splash screen ────────────────────────────────────────────────────────────
 (function() {
-  // Skip splash if already shown this session (e.g. returning from background on mobile)
-  if (sessionStorage.getItem('splash_shown')) {
+  // Skip splash if already shown today — use localStorage so iOS PWA page
+  // reloads (which clear sessionStorage) don't re-trigger the splash.
+  // Show at most once per calendar day (local time).
+  const splashKey = 'splash_shown_date';
+  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+  if (localStorage.getItem(splashKey) === today) {
     const splash = document.getElementById('splash');
     if (splash) splash.remove();
     const stickyHdr = document.getElementById('sticky-header');
@@ -8545,7 +8550,7 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     _appLoadDone = true;
     return;
   }
-  sessionStorage.setItem('splash_shown', '1');
+  localStorage.setItem(splashKey, today);
 
   const CHARS = '01∆◊×+−░▒·~⌁⊕⊗'.split('');
 
