@@ -2945,7 +2945,7 @@ function _logSyncError(source, msg) {
   // connection returns, and the 'online' event handles full reconnect. (BUG-003)
   const isNetworkError = !msg || msg.includes('Failed to fetch') || msg.includes('NetworkError')
     || msg.includes('Load failed') || msg.includes('CORS') || msg.includes('ERR_INTERNET')
-    || msg.includes('Failed to update a ServiceWorker') || msg.includes('An unknown error occurred when fetching the script');
+    || msg.includes('Failed to update a ServiceWorker');
   if (isNetworkError) {
     console.warn('[network] ' + entry);
     return;
@@ -2971,7 +2971,7 @@ window.addEventListener('unhandledrejection', function(e) {
   // Don't show red dot for transient network failures. (BUG-003)
   const isNetworkError = msg.includes('Failed to fetch') || msg.includes('NetworkError')
     || msg.includes('Load failed') || msg.includes('CORS') || msg.includes('ERR_INTERNET')
-    || msg.includes('Failed to update a ServiceWorker') || msg.includes('An unknown error occurred when fetching the script');
+    || msg.includes('Failed to update a ServiceWorker');
   if (isNetworkError) {
     console.warn('[network-promise] ' + msg);
     return;
@@ -3054,7 +3054,7 @@ const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
-  '2.16.3': 'Fix: SW update error in red dot — "Failed to update a ServiceWorker" and "An unknown error occurred when fetching the script" are browser-level network events, not app errors. Added to network error filter in both _logSyncError and unhandledrejection. Console only.',
+  '2.16.3': 'Fix: SW update error in red dot — "Failed to update a ServiceWorker" is browser-generated, not an app error. Added to network error filter in both _logSyncError and unhandledrejection. Kept precise — "An unknown error occurred when fetching the script" removed as too broad.',
   '2.16.2': 'Splash cursor hold reduced from 800ms to 500ms. No matching token (longest is --dur-slow: 300ms) — kept as one-off splash timing.',
   '2.16.1': 'Fix: Splash shows on every mobile PWA return — sessionStorage is cleared when iOS kills the page in background. Switched to localStorage with a date key (splash_shown_date = YYYY-MM-DD). Splash now shows at most once per calendar day regardless of page reloads.',
   '2.16.0': 'Fix: BUG-017 — focus minutes only recorded on full session completion. _trackFocusTime was only called when doResetState=true (natural timer end). Pressing Escape, switching tasks, or closing early lost all those minutes. Now tracks on every closeUI call. Guards prevent double-counting.',
