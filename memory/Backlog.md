@@ -101,7 +101,11 @@
 | AI upgraded to Claude Sonnet | 2.15.1 | Apr 2026 |
 | AI deterministic aging task chips | 2.15.3 | Apr 2026 |
 | AI suggestion history in context | 2.15.4 | Apr 2026 |
+| PiP re-open after restore (BUG-014) | 2.15.5 | Apr 2026 |
+| AI chip label + opener fixes | 2.15.6 | Apr 2026 |
+| BUG-006 v3 fix (timer repositioning) | 2.15.7 | Apr 2026 |
+| Habit hot threshold raised to 80% | 2.15.8 | Apr 2026 |
 
 ---
 
-*Last updated: Session 32 (v2.15.5)*
+*Last updated: Session 32 (v2.15.8)*

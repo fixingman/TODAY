@@ -3,12 +3,10 @@
 
 ---
 
-27. **`--font-display` (Syne) = all-caps or numbers only** — Syne's geometric letterforms work for "TODAY", version numbers, and stat values. Never use Syne for mixed-case English sentences — DM Mono handles all natural language text.
-
 ## Current Focus (update each session)
-- **Working on:** AI quality (Sonnet consistency, chip fixes, suggestion history), PiP stability, habit smoothing
-- **Recent:** v2.15.6 — AI Sonnet fixes (openers, chip labels, break_down), BUG-014 PiP re-open, habit asymmetric smoothing, Claude Sonnet upgrade, AI suggestion history in context, deterministic aging chips
-- **Watch for:** BUG-006/007/011/012/014 verification in production. Sonnet feel.
+- **Working on:** BUG-006 re-fix (timer repositioning), memory audit, process improvements
+- **Recent:** v2.15.8 — habit hot threshold 70→80%, BUG-006 v3 fix (_focusReanchor position check), BUG-007 verified, memory audit (Tokens/Components/AI/Sync rewritten)
+- **Watch for:** BUG-006/011/012/014 verification in production
 
 ---
 
@@ -77,14 +75,15 @@
 20. No emojis in system UI text
 21. Fonts: `--font-mono: 'DM Mono'`, `--font-display: 'Syne'`
 22. Accent: `#c8f060` — all variants derived from this
+23. **`--font-display` (Syne) = all-caps or numbers only** — Syne's geometric letterforms work for "TODAY", version numbers, and stat values. Never use Syne for mixed-case English sentences — DM Mono handles all natural language text.
 
 ## Build Rules
 
-23. Single-file app — all code in `index.html`, no build step
-24. SW cache version must match app version: `today-v{VERSION}`
-25. **`_cacheElements()` must run at START of `init()`** — before any rendering
-26. **All render paths must match `taskHTML()` features** — tags, badges, session counts, etc. Three places render tasks independently: `taskHTML()` (new tasks), `renderTrello()` patch path (existing Trello tasks, every 7s), and zone renderers (SOON/PAST). When adding a feature to `taskHTML()`, also add it to the Trello patch path and zone renderers.
-27. **Every code change requires memory review** — ask: "Does this affect documented behavior?" Update relevant memory files.
+24. Single-file app — all code in `index.html`, no build step
+25. SW cache version must match app version: `today-v{VERSION}`
+26. **`_cacheElements()` must run at START of `init()`** — before any rendering
+27. **All render paths must match `taskHTML()` features** — tags, badges, session counts, etc. Three places render tasks independently: `taskHTML()` (new tasks), `renderTrello()` patch path (existing Trello tasks, every 7s), and zone renderers (SOON/PAST). When adding a feature to `taskHTML()`, also add it to the Trello patch path and zone renderers.
+28. **Every code change requires memory review** — ask: "Does this affect documented behavior?" Update relevant memory files.
 
 ## Non-Delegation Zones (require extra scrutiny)
 
@@ -96,8 +95,8 @@ These areas are error-prone — always read the relevant file and double-check l
 | Data schema changes | Breaking changes affect backups | `architecture/Data.md` |
 | Delete operations | `deleted_ids` must persist across days | Rule 11, Data.md |
 | Day boundary logic | Tasks vs habits use different cutoffs | Rule 16 |
-| Zone operations | Must trigger `dropboxBackup(true)` | Rule 23 in Sync.md |
-| Trello patch path | Must mirror `taskHTML()` features (tags, badges, sessions) | Rule 26 |
+| Zone operations | Must trigger `dropboxBackup(true)` | Sync.md |
+| Trello patch path | Must mirror `taskHTML()` features (tags, badges, sessions) | Rule 27 |
 
 ## Z-Index Stack
 
