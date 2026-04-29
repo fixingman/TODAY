@@ -3046,12 +3046,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.15.9';
+const APP_VERSION   = '2.16.0';
 const DEV_HOURS     = '178h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.0': 'Fix: BUG-017 — focus minutes only recorded on full session completion. _trackFocusTime was only called when doResetState=true (natural timer end). Pressing Escape, switching tasks, or closing early lost all those minutes. Now tracks on every closeUI call. Guards prevent double-counting.',
   '2.15.9': 'SOON list sorted alphabetically — renderSoon now sorts a copy of soonTasks by localeCompare before rendering. Array order preserved for sync.',
   '2.15.8': 'Habit strength hot threshold raised from 70% to 80%. Accent highlight now requires stronger consistency to earn.',
   '2.15.7': 'Fix: BUG-006 continued — focus timer splits from repositioned Trello task. _focusReanchor only checked element reference identity. Trello patch path reuses existing elements and repositions with insertBefore — same reference, different DOM position. Added check: also re-attach if timerEl.previousElementSibling !== newTaskEl.',
@@ -10387,8 +10388,9 @@ function _aiClearBadge() {
     const closingTask   = uiTaskEl;
     const closingTaskId = uiTaskId;
     
-    // Track focus time before clearing state
-    if (doResetState && closingTaskId) {
+    // Track focus time before clearing state — always, not just on full completion.
+    // _trackFocusTime guards against double-counting (st.tracked) and sub-minute sessions.
+    if (closingTaskId) {
       _trackFocusTime(closingTaskId);
     }
 

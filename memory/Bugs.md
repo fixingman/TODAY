@@ -380,3 +380,22 @@ st.rem = Math.max(0, st.rem - elapsed);
 **Verified fixed:** ☑
 
 ---
+
+## BUG-017: Focus minutes only recorded on full session completion
+
+**Status:** ✅ Verified fixed (v2.16.0)
+
+**Symptom:** Focus time shown in stats (flow bar, triage summary, morning nudge, AI context) only accumulates when the 25-minute timer runs to zero. Stopping early with Escape, switching tasks, or closing the timer manually — those minutes are lost. Users noticed minutes only appeared when checking a task (which often happens immediately after a natural completion).
+
+**Root cause:** `_trackFocusTime()` was only called in `closeUI(doResetState)` when `doResetState === true`. The only caller that passes `true` is `completeFor()` — the natural timer completion path. All other `closeUI` callers pass `false`:
+- Switching to a different task: `closeUI(false)`
+- Escape key: `closeUI(false)`
+- visibilitychange / PiP restore: `closeUI(false)`
+
+**Fix (v2.16.0):** Removed the `doResetState` condition from `_trackFocusTime` call in `closeUI`. Now tracks on every close. Guards already in `_trackFocusTime` prevent issues: `st.tracked` prevents double-counting on natural completion, `timeSpentMins <= 0` discards sub-minute sessions.
+
+**Verify:** Start a focus session, run for 5+ minutes, press Escape. Focus minutes in the flow bar should increase. Repeat with task-switch path.
+
+**Verified fixed:** ☐
+
+---
