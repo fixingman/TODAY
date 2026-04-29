@@ -105,7 +105,10 @@
 | AI chip label + opener fixes | 2.15.6 | Apr 2026 |
 | BUG-006 v3 fix (timer repositioning) | 2.15.7 | Apr 2026 |
 | Habit hot threshold raised to 80% | 2.15.8 | Apr 2026 |
+| SOON list alphabetical sort | 2.15.9 | Apr 2026 |
+| BUG-017 focus minutes fix | 2.16.0 | Apr 2026 |
+| Splash localStorage (mobile PWA) | 2.16.1 | Apr 2026 |
 
 ---
 
-*Last updated: Session 32 (v2.15.8)*
+*Last updated: Session 32 (v2.16.2)*

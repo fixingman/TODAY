@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** BUG-006 re-fix (timer repositioning), memory audit, process improvements
-- **Recent:** v2.15.8 — habit hot threshold 70→80%, BUG-006 v3 fix (_focusReanchor position check), BUG-007 verified, memory audit (Tokens/Components/AI/Sync rewritten)
-- **Watch for:** BUG-006/011/012/014 verification in production
+- **Working on:** Bug fixes, process improvements, splash UX
+- **Recent:** v2.16.2 — BUG-017 (focus minutes), splash localStorage fix, splash cursor trim, SOON alpha sort, habit threshold 80%, BUG-006 v3 fix, process/memory audit
+- **Watch for:** BUG-006/011/012/014/017 verification in production
 
 ---
 

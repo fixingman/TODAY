@@ -2,6 +2,12 @@
 
 | Version | Key change |
 |---|---|
+| **2.16.2** | **Splash cursor hold** — reduced from 800ms to 500ms. No token covers this scale (`--dur-slow` is 300ms) — kept as one-off splash timing. |
+| **2.16.1** | **Fix: Splash on every mobile return** — `sessionStorage` cleared when iOS kills PWA page in background. Switched to `localStorage` with date key (`splash_shown_date`). Shows at most once per calendar day. |
+| **2.16.0** | **Fix: BUG-017 — focus minutes only on full completion** — `_trackFocusTime` only called when `doResetState=true` (natural timer end). Escape, task-switch, and early close lost all minutes. Removed the condition — now tracks on every `closeUI`. `st.tracked` and `timeSpentMins <= 0` guards prevent double-counting. |
+| **2.15.9** | **SOON list alphabetical sort** — `renderSoon` sorts a shallow copy by `localeCompare` before rendering. Array order preserved for sync. |
+| **2.15.8** | **Habit hot threshold 80%** — accent highlight (`streak-label.hot`) raised from ≥70% to ≥80%. |
+| **2.15.7** | **Fix: BUG-006 v3 — timer splits from repositioned Trello task** — `_focusReanchor` only re-attached when element reference changed. Trello patch path reuses same element, repositions with `insertBefore`. Added check: also re-attach if `timerEl.previousElementSibling !== newTaskEl`. |
 | **2.15.6** | **Fix: AI Sonnet inconsistencies** — (1) `break_down` chips now show actual step text as label (capped 28 chars), not generic "Add step". (2) System prompt: banned mid-conversation openers ("It is.", "Yeah —"). (3) System prompt: banned colon syntax and task content in chip labels. |
 | **2.15.5** | **Fix: BUG-014 — PiP not reappearing after restore** — `requestWindow()` requires user gesture; second minimize had none. Added `_pipRestoredFromButton` flag: when user taps "open app" in PiP, PiP window is kept alive on restore instead of closed. Next minimize reuses existing window — no new gesture needed. |
 | **2.15.4** | **AI suggestion history in context** — `_memoryForAI()` now includes past suggestions (last 30 days, up to 5 tasks) with action taken. AI can reference: "You dismissed this twice" or "You parked this to Soon last week." |
