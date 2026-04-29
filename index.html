@@ -3046,11 +3046,12 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.15.6';
+const APP_VERSION   = '2.15.7';
 const DEV_HOURS     = '178h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 const CHANGELOG = {
+  '2.15.7': 'Fix: BUG-006 continued — focus timer splits from repositioned Trello task. _focusReanchor only checked element reference identity. Trello patch path reuses existing elements and repositions with insertBefore — same reference, different DOM position. Added check: also re-attach if timerEl.previousElementSibling !== newTaskEl.',
   '2.15.6': 'Fix: AI Sonnet inconsistencies — (1) break_down chips now use actual step text as label instead of generic "Add step"; label capped at 28 chars. (2) System prompt: banned mid-conversation openers ("It is.", "Yeah —") — message must open fresh, not respond. (3) System prompt: banned colons and task content in chip labels.',
   '2.15.5': 'Fix: BUG-014 — PiP not reappearing after restoring app. documentPictureInPicture.requestWindow() needs a user gesture; second minimize had none. Fix: _pipRestoredFromButton flag. When user taps "open app" in PiP, flag is set, PiP window kept alive on restore instead of closed. Next minimize reuses existing window — no new gesture needed.',
   '2.15.4': 'AI suggestion history now sent to AI context — _memoryForAI() now includes past suggestions (last 30 days, up to 5 tasks) with what action was taken. AI can now write contextually aware messages: "You dismissed this twice" or "You parked this to Soon last week." Data was already stored and Dropbox-synced.',
@@ -10192,7 +10193,13 @@ function _aiClearBadge() {
   window._focusReanchor = function() {
     if (!uiTaskId || !uiTaskEl) return;
     const newTaskEl = document.querySelector('.task[data-taskid="' + CSS.escape(uiTaskId) + '"]');
-    if (newTaskEl && newTaskEl !== uiTaskEl) {
+    if (!newTaskEl) return;
+
+    // Re-attach if: element reference changed (full re-render) OR
+    // timer is no longer immediately after the task (element was repositioned by patch)
+    const timerDetached = timerEl.previousElementSibling !== newTaskEl;
+
+    if (newTaskEl !== uiTaskEl || timerDetached) {
       newTaskEl.classList.add('focused');
       newTaskEl.after(timerEl);
       timerEl.after(kbdHint);

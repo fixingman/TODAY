@@ -134,7 +134,7 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 ## BUG-006: Focus timer bar splits from task after returning to window
 
-**Status:** Fixed v2.12.65 + v2.14.8 — awaiting verification
+**Status:** Fixed v2.12.65 + v2.14.8 + v2.15.7 — awaiting verification
 
 **Symptom:** During focus mode, leave window for a few minutes, return — gap appears between the task row and the countdown timer bar. Timer floats near the bottom of the screen detached from the task.
 
@@ -142,11 +142,15 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 **Fix (v2.12.65):** Added `window._focusReanchor()` — called at end of `renderManual()`. Finds new task element by `data-taskid`, re-attaches timer bar and kbd hint, updates `uiTaskEl` reference.
 
-**Regression (v2.14.5 → reported v2.14.7):** BUG-012 fix added a `renderTrello()` call inside `mergeRemoteData` that runs standalone — no `renderManual()` after it, no `_focusReanchor()`. If the focused task is a Trello task and the eviction changes `trelloTasks.length`, `renderTrello` may recreate the task element, orphaning the timer.
+**Regression (v2.14.5 → reported v2.14.7):** BUG-012 fix added a `renderTrello()` call inside `mergeRemoteData` that ran standalone — no `_focusReanchor()` after it.
 
-**Fix (v2.14.8):** Added `_focusReanchor()` call at the end of `renderTrello()` — mirrors the existing call in `renderManual()`. Now all render paths are safe.
+**Fix (v2.14.8):** Added `_focusReanchor()` call at the end of `renderTrello()`.
 
-**Verify:** Start focus on a Trello task → minimize for 2+ min → return. Timer bar should stay flush against the task row. Also test manual tasks.
+**Continued regression on Trello tasks (v2.15.7):** `_focusReanchor` only re-attached when `newTaskEl !== uiTaskEl` (element reference changed). But the Trello patch path reuses existing elements and repositions them with `list.insertBefore()`. Same element reference, just moved — so `_focusReanchor` did nothing. Timer stayed at old DOM position while task moved.
+
+**Fix (v2.15.7):** Added a second condition to `_focusReanchor`: also re-attach if `timerEl.previousElementSibling !== newTaskEl` — i.e. if the timer is no longer immediately after the task in the DOM, regardless of element reference identity.
+
+**Verify:** Start focus on a Trello task → minimize for 2+ min → return. Timer bar should stay flush against the task row. Sync may reorder tasks — timer must follow the task. Also test manual tasks.
 
 **Verified fixed:** ☐
 
@@ -154,7 +158,7 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 ## BUG-007: Triage bar stays visible during and after triage
 
-**Status:** Fixed v2.13.2 — awaiting verification
+**Status:** ✅ Verified fixed (v2.13.2)
 
 **Symptom:** Click "Review" on triage bar → overlay opens but bar stays visible behind it. After triage completes and overlay closes, bar is still on screen for ~1s.
 
@@ -168,7 +172,7 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 **Verify:** During triage window, click Review → bar should disappear completely. Complete triage → bar should not reappear.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
 
@@ -247,6 +251,10 @@ CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to 
 **Verify:** Leave the app open past midnight → habits should roll over instantly. Close the app before midnight, reopen after → habits should roll over within ~1 second of returning.
 
 **Verified fixed:** ☑
+
+---
+
+## BUG-011: PiP timer delayed vs main app timer + chime fires late
 
 **Status:** Fixed v2.13.5 + v2.13.6 — awaiting verification
 
@@ -335,5 +343,40 @@ st.rem = Math.max(0, st.rem - elapsed);
 **Verify:** Start focus → minimize (PiP appears) → tap "open app" in PiP → minimize again → PiP should reappear.
 
 **Verified fixed:** ☐
+
+---
+
+## BUG-015: AI repeats same aging task suggestion every session
+
+**Status:** ✅ Verified fixed (v2.15.2)
+
+**Symptom:** The AI consistently shows the same aging Trello task in the intro message session after session, even after the user dismissed or acted on it. Cooldown appeared to work for manual tasks but not Trello.
+
+**Root cause:** Suggestion cooldown pruning only iterated over `manualTasks` IDs when building the retention set. Trello task IDs were never included, so all Trello cooldown entries were deleted nightly during cleanup. Trello tasks appeared perpetually "new" to the cooldown system despite repeated suggestions.
+
+**Fix (v2.15.2):** Updated the pruning step to build the ID retention set from both `manualTasks` and `trelloTasks`. `suggestionCooldowns` (7-day cooldown) and `suggestionHistory` (50 entries, Dropbox-synced) were already implemented correctly — only the cleanup was wrong.
+
+**Verify:** Dismiss or act on an aging Trello task suggestion → it should not reappear in the AI intro for at least 7 days.
+
+**Verified fixed:** ☑
+
+---
+
+## BUG-016: AI break_down chips show generic "Add step" label
+
+**Status:** ✅ Verified fixed (v2.15.6)
+
+**Symptom:** When the AI uses the `break_down` action and returns subtask suggestions, all action chips showed the label "Add step" regardless of step content. Also: AI was using colons in chip labels ("Focus: deep work") and starting responses with conversational openers ("It is.", "Yeah —") mismatched to a fresh message context.
+
+**Root cause:** `break_down` handler rendered chips with a hardcoded `"Add step"` label string instead of extracting the step text from the returned `add_task` action payload.
+
+**Fix (v2.15.6):**
+1. `break_down` chips now use the actual step text as the label, capped at 28 chars with ellipsis
+2. System prompt updated: banned colons in chip labels — labels must be noun/verb phrases only
+3. System prompt updated: banned mid-conversation openers — AI message must open fresh, not as a reply
+
+**Verify:** Ask AI to break down a task → chips should show abbreviated step text, no colons. AI intro should not start with "It is." or "Yeah —" style fragments.
+
+**Verified fixed:** ☑
 
 ---
