@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes, process improvements, splash UX
-- **Recent:** v2.16.2 — BUG-017 (focus minutes), splash localStorage fix, splash cursor trim, SOON alpha sort, habit threshold 80%, BUG-006 v3 fix, process/memory audit
-- **Watch for:** BUG-006/011/012/014/017 verification in production
+- **Working on:** Maintenance, performance, red dot improvements
+- **Recent:** v2.16.4 — SW error filter, loop hoisting, safeJSON protection, BUG-011 verified, Trello checklist backlogged, SOON sort, splash fixes
+- **Watch for:** BUG-006/012/014/017 verification in production
 
 ---
 

@@ -2,6 +2,8 @@
 
 | Version | Key change |
 |---|---|
+| **2.16.4** | **Perf + safety** — `today_trello_focus` hoisted before `.map()` loops in `_fetchTriageHints` and `renderTriageList` (was N reads per render). All `today_trello_focus` and `today_triage_history` reads now use `safeJSON()` for corrupted-localStorage protection. |
+| **2.16.3** | **Fix: SW update error in red dot** — "Failed to update a ServiceWorker" added to network error filter in `_logSyncError` and `unhandledrejection`. Browser-generated, not an app error. Precise string only — overly broad companion string removed after review. |
 | **2.16.2** | **Splash cursor hold** — reduced from 800ms to 500ms. No token covers this scale (`--dur-slow` is 300ms) — kept as one-off splash timing. |
 | **2.16.1** | **Fix: Splash on every mobile return** — `sessionStorage` cleared when iOS kills PWA page in background. Switched to `localStorage` with date key (`splash_shown_date`). Shows at most once per calendar day. |
 | **2.16.0** | **Fix: BUG-017 — focus minutes only on full completion** — `_trackFocusTime` only called when `doResetState=true` (natural timer end). Escape, task-switch, and early close lost all minutes. Removed the condition — now tracks on every `closeUI`. `st.tracked` and `timeSpentMins <= 0` guards prevent double-counting. |
