@@ -35,7 +35,14 @@
 **Status:** Not started
 **Goal:** Keyboard-first power user flow. Needs UX + UI exploration.
 
-### Document Connections Panel & First-Run Flow
+### Trello Checklist Support
+**Status:** Not started — design decision pending
+**Options evaluated:**
+- A: Read-only display (low complexity)
+- B: Write back to Trello (bidirectional, right long-term answer)
+- C: Explode into TODAY tasks (loses Trello connection)
+- D: Progress badge only — "3/5 ✓" on task row (minimal, fits aesthetic)
+**Next step:** Decide between D (visibility) or B (editable) before building anything.
 **Status:** Not started
 **Goal:** Document the UX and technical flow for connecting Trello, Dropbox, and AI — first-time setup, reconnect, and forget flows. Relevant for onboarding decisions and future integrations.
 

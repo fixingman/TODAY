@@ -256,7 +256,7 @@ CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to 
 
 ## BUG-011: PiP timer delayed vs main app timer + chime fires late
 
-**Status:** Fixed v2.13.5 + v2.13.6 — awaiting verification
+**Status:** ✅ Verified fixed (v2.13.5 + v2.13.6)
 
 **Symptom:** PiP countdown runs behind the main app timer. When the main timer hits 00:00, PiP still shows time remaining. Chime fires late — after PiP shows 00:00, not simultaneously.
 
@@ -272,7 +272,7 @@ CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to 
 
 **Verify:** Start a focus session, switch to another app so PiP appears. PiP should count down in sync with wall clock. When timer ends, chime should fire at the same moment PiP shows 00:00.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
 

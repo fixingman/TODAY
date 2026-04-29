@@ -3048,12 +3048,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.3';
+const APP_VERSION   = '2.16.4';
 const DEV_HOURS     = '180h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.4': 'Perf + safety: today_trello_focus no longer read inside .map() loops (was N reads per render in _fetchTriageHints and renderTriageList). All today_trello_focus and today_triage_history reads now use safeJSON() for corrupted-localStorage protection.',
   '2.16.3': 'Fix: SW update error in red dot — "Failed to update a ServiceWorker" is browser-generated, not an app error. Added to network error filter in both _logSyncError and unhandledrejection. Kept precise — "An unknown error occurred when fetching the script" removed as too broad.',
   '2.16.2': 'Splash cursor hold reduced from 800ms to 500ms. No matching token (longest is --dur-slow: 300ms) — kept as one-off splash timing.',
   '2.16.1': 'Fix: Splash shows on every mobile PWA return — sessionStorage is cleared when iOS kills the page in background. Switched to localStorage with a date key (splash_shown_date = YYYY-MM-DD). Splash now shows at most once per calendar day regardless of page reloads.',
@@ -3789,10 +3790,12 @@ async function _fetchTriageHints(tasks) {
   const dayOfWeek = new Date().getDay();
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   
+  // Read once before map — not inside the loop (was reading N times per render)
+  const focusData = safeJSON('today_trello_focus', {});
+
   const taskContexts = tasks.map(t => {
     const created = t.lastActive || t.createdAt || _getCreatedFromId(t.id);
     const ageDays = _getAgeDays(created);
-    const focusData = JSON.parse(localStorage.getItem('today_trello_focus') || '{}');
     const sessions = focusData[t.id] || 0;
     return {
       id: t.id,
@@ -3893,6 +3896,9 @@ function renderTriageList() {
   ];
   const list = document.getElementById('triageList');
   
+  // Read once before map — not inside the loop (was reading N times per render)
+  const focusData = safeJSON('today_trello_focus', {});
+
   list.innerHTML = allUndone.map(t => {
     const decision = triageDecisions[t.id];
     const isTrello = t.source === 'trello';
@@ -3906,7 +3912,6 @@ function renderTriageList() {
     }
     
     // Check for focus sessions
-    const focusData = JSON.parse(localStorage.getItem('today_trello_focus') || '{}');
     const focusCount = focusData[t.id] || 0;
     const metaClass = focusCount > 0 ? 'focus' : (isTrello ? 'trello' : '');
     if (focusCount > 0) metaText = `${focusCount} ⏱`;
@@ -3995,7 +4000,7 @@ function triageApplyAll() {
   // Track decisions for AI learning
   const hour = new Date().getHours();
   const dayOfWeek = new Date().getDay();
-  const focusData = JSON.parse(localStorage.getItem('today_trello_focus') || '{}');
+  const focusData = safeJSON('today_trello_focus', {});
   
   // Process manual tasks
   undoneManual.forEach(t => {
@@ -4166,7 +4171,7 @@ function triageApplyAll() {
 const TRIAGE_HISTORY_MAX = 50;
 
 function _saveTriageHistory(entry) {
-  let history = JSON.parse(localStorage.getItem('today_triage_history') || '[]');
+  let history = safeJSON('today_triage_history', []);
   history.unshift(entry);
   if (history.length > TRIAGE_HISTORY_MAX) {
     history = history.slice(0, TRIAGE_HISTORY_MAX);
@@ -4175,7 +4180,7 @@ function _saveTriageHistory(entry) {
 }
 
 function _getTriageHistory() {
-  return JSON.parse(localStorage.getItem('today_triage_history') || '[]');
+  return safeJSON('today_triage_history', []);
 }
 
 function triageMinimize() {
@@ -8052,7 +8057,7 @@ function mergeRemoteData(data) {
 
   // ── Triage history: union merge by timestamp ──
   if (data.triage_history && Array.isArray(data.triage_history)) {
-    const localHistory = JSON.parse(localStorage.getItem('today_triage_history') || '[]');
+    const localHistory = safeJSON('today_triage_history', []);
     const localTs = new Set(localHistory.map(h => h.ts));
     const remoteNew = data.triage_history.filter(h => h.ts && !localTs.has(h.ts));
     if (remoteNew.length > 0) {
@@ -8193,7 +8198,7 @@ async function dropboxRestore(fromSync) {
       }
       // Restore triage history
       if (Array.isArray(data.triage_history)) {
-        const localHistory = JSON.parse(localStorage.getItem('today_triage_history') || '[]');
+        const localHistory = safeJSON('today_triage_history', []);
         const localTs = new Set(localHistory.map(h => h.ts));
         const remoteNew = data.triage_history.filter(h => h.ts && !localTs.has(h.ts));
         if (remoteNew.length > 0) {
