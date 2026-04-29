@@ -2944,7 +2944,8 @@ function _logSyncError(source, msg) {
   // Log to console but don't show red dot — the ticker will retry when
   // connection returns, and the 'online' event handles full reconnect. (BUG-003)
   const isNetworkError = !msg || msg.includes('Failed to fetch') || msg.includes('NetworkError')
-    || msg.includes('Load failed') || msg.includes('CORS') || msg.includes('ERR_INTERNET');
+    || msg.includes('Load failed') || msg.includes('CORS') || msg.includes('ERR_INTERNET')
+    || msg.includes('Failed to update a ServiceWorker');
   if (isNetworkError) {
     console.warn('[network] ' + entry);
     return;
@@ -2969,7 +2970,8 @@ window.addEventListener('unhandledrejection', function(e) {
   // Network errors are expected during connectivity drops — same filter as _logSyncError.
   // Don't show red dot for transient network failures. (BUG-003)
   const isNetworkError = msg.includes('Failed to fetch') || msg.includes('NetworkError')
-    || msg.includes('Load failed') || msg.includes('CORS') || msg.includes('ERR_INTERNET');
+    || msg.includes('Load failed') || msg.includes('CORS') || msg.includes('ERR_INTERNET')
+    || msg.includes('Failed to update a ServiceWorker');
   if (isNetworkError) {
     console.warn('[network-promise] ' + msg);
     return;
@@ -3046,11 +3048,20 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.15.6';
-const DEV_HOURS     = '178h';
+const APP_VERSION   = '2.16.4';
+const DEV_HOURS     = '182h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
+// ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.4': 'Perf + safety: today_trello_focus no longer read inside .map() loops (was N reads per render in _fetchTriageHints and renderTriageList). All today_trello_focus and today_triage_history reads now use safeJSON() for corrupted-localStorage protection.',
+  '2.16.3': 'Fix: SW update error in red dot — "Failed to update a ServiceWorker" is browser-generated, not an app error. Added to network error filter in both _logSyncError and unhandledrejection. Kept precise — "An unknown error occurred when fetching the script" removed as too broad.',
+  '2.16.2': 'Splash cursor hold reduced from 800ms to 500ms. No matching token (longest is --dur-slow: 300ms) — kept as one-off splash timing.',
+  '2.16.1': 'Fix: Splash shows on every mobile PWA return — sessionStorage is cleared when iOS kills the page in background. Switched to localStorage with a date key (splash_shown_date = YYYY-MM-DD). Splash now shows at most once per calendar day regardless of page reloads.',
+  '2.16.0': 'Fix: BUG-017 — focus minutes only recorded on full session completion. _trackFocusTime was only called when doResetState=true (natural timer end). Pressing Escape, switching tasks, or closing early lost all those minutes. Now tracks on every closeUI call. Guards prevent double-counting.',
+  '2.15.9': 'SOON list sorted alphabetically — renderSoon now sorts a copy of soonTasks by localeCompare before rendering. Array order preserved for sync.',
+  '2.15.8': 'Habit strength hot threshold raised from 70% to 80%. Accent highlight now requires stronger consistency to earn.',
+  '2.15.7': 'Fix: BUG-006 continued — focus timer splits from repositioned Trello task. _focusReanchor only checked element reference identity. Trello patch path reuses existing elements and repositions with insertBefore — same reference, different DOM position. Added check: also re-attach if timerEl.previousElementSibling !== newTaskEl.',
   '2.15.6': 'Fix: AI Sonnet inconsistencies — (1) break_down chips now use actual step text as label instead of generic "Add step"; label capped at 28 chars. (2) System prompt: banned mid-conversation openers ("It is.", "Yeah —") — message must open fresh, not respond. (3) System prompt: banned colons and task content in chip labels.',
   '2.15.5': 'Fix: BUG-014 — PiP not reappearing after restoring app. documentPictureInPicture.requestWindow() needs a user gesture; second minimize had none. Fix: _pipRestoredFromButton flag. When user taps "open app" in PiP, flag is set, PiP window kept alive on restore instead of closed. Next minimize reuses existing window — no new gesture needed.',
   '2.15.4': 'AI suggestion history now sent to AI context — _memoryForAI() now includes past suggestions (last 30 days, up to 5 tasks) with what action was taken. AI can now write contextually aware messages: "You dismissed this twice" or "You parked this to Soon last week." Data was already stored and Dropbox-synced.',
@@ -3492,7 +3503,7 @@ function renderSoon() {
   section.style.display = 'block';
   count.textContent = soonTasks.length;
   
-  list.innerHTML = soonTasks.map(t => {
+  list.innerHTML = [...soonTasks].sort((a, b) => a.text.localeCompare(b.text)).map(t => {
     // Parse tag pattern: "tag: rest of text"
     const tagMatch = t.text.match(/^([a-z0-9]{1,12}):\s+(.+)$/i);
     const textHTML = tagMatch
@@ -3779,10 +3790,12 @@ async function _fetchTriageHints(tasks) {
   const dayOfWeek = new Date().getDay();
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   
+  // Read once before map — not inside the loop (was reading N times per render)
+  const focusData = safeJSON('today_trello_focus', {});
+
   const taskContexts = tasks.map(t => {
     const created = t.lastActive || t.createdAt || _getCreatedFromId(t.id);
     const ageDays = _getAgeDays(created);
-    const focusData = JSON.parse(localStorage.getItem('today_trello_focus') || '{}');
     const sessions = focusData[t.id] || 0;
     return {
       id: t.id,
@@ -3883,6 +3896,9 @@ function renderTriageList() {
   ];
   const list = document.getElementById('triageList');
   
+  // Read once before map — not inside the loop (was reading N times per render)
+  const focusData = safeJSON('today_trello_focus', {});
+
   list.innerHTML = allUndone.map(t => {
     const decision = triageDecisions[t.id];
     const isTrello = t.source === 'trello';
@@ -3896,7 +3912,6 @@ function renderTriageList() {
     }
     
     // Check for focus sessions
-    const focusData = JSON.parse(localStorage.getItem('today_trello_focus') || '{}');
     const focusCount = focusData[t.id] || 0;
     const metaClass = focusCount > 0 ? 'focus' : (isTrello ? 'trello' : '');
     if (focusCount > 0) metaText = `${focusCount} ⏱`;
@@ -3985,7 +4000,7 @@ function triageApplyAll() {
   // Track decisions for AI learning
   const hour = new Date().getHours();
   const dayOfWeek = new Date().getDay();
-  const focusData = JSON.parse(localStorage.getItem('today_trello_focus') || '{}');
+  const focusData = safeJSON('today_trello_focus', {});
   
   // Process manual tasks
   undoneManual.forEach(t => {
@@ -4156,7 +4171,7 @@ function triageApplyAll() {
 const TRIAGE_HISTORY_MAX = 50;
 
 function _saveTriageHistory(entry) {
-  let history = JSON.parse(localStorage.getItem('today_triage_history') || '[]');
+  let history = safeJSON('today_triage_history', []);
   history.unshift(entry);
   if (history.length > TRIAGE_HISTORY_MAX) {
     history = history.slice(0, TRIAGE_HISTORY_MAX);
@@ -4165,7 +4180,7 @@ function _saveTriageHistory(entry) {
 }
 
 function _getTriageHistory() {
-  return JSON.parse(localStorage.getItem('today_triage_history') || '[]');
+  return safeJSON('today_triage_history', []);
 }
 
 function triageMinimize() {
@@ -5933,7 +5948,7 @@ function renderHabits() {
       <div class="habit-body"><div class="habit-name">${esc(h.name)}${sessionBadge}</div></div>
       <div class="habit-week">${dots}</div>
       <div class="habit-streak" title="${strength}% habit strength">
-        <span class="streak-label${strength >= 70 ? ' hot' : ''}">${strengthTxt}</span>
+        <span class="streak-label${strength >= 80 ? ' hot' : ''}">${strengthTxt}</span>
       </div>`;
     list.appendChild(el);
   });
@@ -5975,7 +5990,7 @@ function toggleHabitEditMode() {
       const streakDiv = document.createElement('div');
       streakDiv.className = 'habit-streak';
       streakDiv.title     = strength + '% habit strength';
-      streakDiv.innerHTML = `<span class="streak-label${strength >= 70 ? ' hot' : ''}">${strength > 0 ? strength + '%' : '—'}</span>`;
+      streakDiv.innerHTML = `<span class="streak-label${strength >= 80 ? ' hot' : ''}">${strength > 0 ? strength + '%' : '—'}</span>`;
       del.replaceWith(streakDiv);
       row.classList.remove('editing');
     });
@@ -6088,7 +6103,7 @@ function toggleHabitDone(id) {
   const streakEl = el.querySelector('.streak-label');
   if (streakEl) {
     streakEl.textContent = strength > 0 ? strength + '%' : '—';
-    streakEl.className   = 'streak-label' + (strength >= 70 ? ' hot' : '');
+    streakEl.className   = 'streak-label' + (strength >= 80 ? ' hot' : '');
   }
 
   const check = el.querySelector('.habit-check');
@@ -8042,7 +8057,7 @@ function mergeRemoteData(data) {
 
   // ── Triage history: union merge by timestamp ──
   if (data.triage_history && Array.isArray(data.triage_history)) {
-    const localHistory = JSON.parse(localStorage.getItem('today_triage_history') || '[]');
+    const localHistory = safeJSON('today_triage_history', []);
     const localTs = new Set(localHistory.map(h => h.ts));
     const remoteNew = data.triage_history.filter(h => h.ts && !localTs.has(h.ts));
     if (remoteNew.length > 0) {
@@ -8183,7 +8198,7 @@ async function dropboxRestore(fromSync) {
       }
       // Restore triage history
       if (Array.isArray(data.triage_history)) {
-        const localHistory = JSON.parse(localStorage.getItem('today_triage_history') || '[]');
+        const localHistory = safeJSON('today_triage_history', []);
         const localTs = new Set(localHistory.map(h => h.ts));
         const remoteNew = data.triage_history.filter(h => h.ts && !localTs.has(h.ts));
         if (remoteNew.length > 0) {
@@ -8524,8 +8539,12 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
 
 // ─── Splash screen ────────────────────────────────────────────────────────────
 (function() {
-  // Skip splash if already shown this session (e.g. returning from background on mobile)
-  if (sessionStorage.getItem('splash_shown')) {
+  // Skip splash if already shown today — use localStorage so iOS PWA page
+  // reloads (which clear sessionStorage) don't re-trigger the splash.
+  // Show at most once per calendar day (local time).
+  const splashKey = 'splash_shown_date';
+  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+  if (localStorage.getItem(splashKey) === today) {
     const splash = document.getElementById('splash');
     if (splash) splash.remove();
     const stickyHdr = document.getElementById('sticky-header');
@@ -8540,7 +8559,7 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     _appLoadDone = true;
     return;
   }
-  sessionStorage.setItem('splash_shown', '1');
+  localStorage.setItem(splashKey, today);
 
   const CHARS = '01∆◊×+−░▒·~⌁⊕⊗'.split('');
 
@@ -8640,7 +8659,7 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
       setTimeout(typeChar,38+Math.random()*28);
     } else {
       cursor.className='blink';
-      setTimeout(()=>{cursor.className='off';window._onSplashAnimDone();},800);
+      setTimeout(()=>{cursor.className='off';window._onSplashAnimDone();},500);
     }
   }
 
@@ -10192,7 +10211,13 @@ function _aiClearBadge() {
   window._focusReanchor = function() {
     if (!uiTaskId || !uiTaskEl) return;
     const newTaskEl = document.querySelector('.task[data-taskid="' + CSS.escape(uiTaskId) + '"]');
-    if (newTaskEl && newTaskEl !== uiTaskEl) {
+    if (!newTaskEl) return;
+
+    // Re-attach if: element reference changed (full re-render) OR
+    // timer is no longer immediately after the task (element was repositioned by patch)
+    const timerDetached = timerEl.previousElementSibling !== newTaskEl;
+
+    if (newTaskEl !== uiTaskEl || timerDetached) {
       newTaskEl.classList.add('focused');
       newTaskEl.after(timerEl);
       timerEl.after(kbdHint);
@@ -10377,8 +10402,9 @@ function _aiClearBadge() {
     const closingTask   = uiTaskEl;
     const closingTaskId = uiTaskId;
     
-    // Track focus time before clearing state
-    if (doResetState && closingTaskId) {
+    // Track focus time before clearing state — always, not just on full completion.
+    // _trackFocusTime guards against double-counting (st.tracked) and sub-minute sessions.
+    if (closingTaskId) {
       _trackFocusTime(closingTaskId);
     }
 

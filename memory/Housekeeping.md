@@ -6,7 +6,16 @@
 
 ## Pre-Session Checklist
 
-Before starting work, read (Tier 1):
+Before starting work:
+
+### 0. Log the session (3 lines, forces the scan)
+```
+Session N — vX.X.X · Nh
+Unverified bugs: BUG-XXX, BUG-XXX
+Goal: [what we're doing today]
+```
+
+### 1. Read Tier 1 files
 1. `Rules.md` — Critical constraints + File Guide
 2. `Housekeeping.md` — This file (routines, checklists)
 3. `Backlog.md` — Pending work, watch decisions
@@ -19,12 +28,9 @@ Then read Tier 2 files relevant to the task (see `Rules.md` File Guide).
 
 ## Post-Session Checklist
 
-After completing work:
+> **Ownership:** Steps 1–5 are Claude's responsibility. Step 6 (production tests) is Can's responsibility — Claude cannot run the app.
 
-### 1. Run Pre-Release Tests
-**See `Test-matrix.md` → Pre-Release Checklist (9 tests)**
-
-### 2. Update both Changelogs
+### 1. Update both Changelogs
 **a) `memory/Changelog.md`** — add row:
 ```markdown
 | **X.X.X** | **Feature name** — Brief description. |
@@ -34,7 +40,7 @@ After completing work:
 'X.X.X': 'Feature name — Brief description.',
 ```
 
-### 3. Review & Update Memory Files
+### 2. Review & Update Memory Files
 **Every change should trigger a memory review.** Ask: "Does this change affect any documented behavior?"
 - Bug fix → `Bugs.md` (update status, add verification steps)
 - New rule → `Rules.md`
@@ -51,47 +57,65 @@ After completing work:
 - Integrations → `research/Integrations.md`
 - Prototype work → `Backlog.md`
 
-### 4. Version Bump
+### 3. Version Bump
 - `index.html`: Update `APP_VERSION`
 - `index.html`: Update `DEV_HOURS` (add session time to current value)
 - `sw.js`: Update `CACHE_VERSION` to match `APP_VERSION`
 
-### 5. Commit Format
+### 4. Commit Format
 ```
 type: brief description (vX.X.X)
 ```
 Types: `feat`, `fix`, `docs`, `refactor`, `style`
 
-### 6. Reflect
+### 5. Reflect
 - What broke or was harder than expected?
 - Any pattern worth adding to `Rules.md`?
 - Any routine that failed? Fix it now, not later.
 
 ---
 
-## Periodic Maintenance
+## Production Tests (Can's responsibility)
 
-### Weekly: Quality Check
-- Run `bash memory/validate-files.sh` — ensure File Guide is current
-- Any file > 150 lines? Split or trim
-- Review `Backlog.md` — any stale items to close?
+> Run after deploying to production. Claude cannot do these — they require the live app.
+> **See `Test-matrix.md` → Pre-Release Checklist (9 tests)**
 
-### Monthly: Documentation Audit
-- Remove outdated information
-- Archive decided research (keep decision + rationale only)
-- Update version references
-- Check `README.md` reflects current features and schema version
+Quick smoke test after any deploy:
+- [ ] App loads, splash dismisses
+- [ ] Add task, check task, delete task
+- [ ] Sync triggers (if Dropbox connected)
+- [ ] No red dot appears
+- [ ] Visual intact — no broken layout
 
 ---
 
-## File Size Targets
+## Periodic Maintenance
 
-| File Type | Target | Max |
-|-----------|--------|-----|
-| Rules.md | < 60 lines | 80 lines |
-| Split docs | < 120 lines | 150 lines |
-| Research (decided) | < 50 lines | — |
-| Research (exploring) | < 150 lines | — |
+> These run on a best-effort basis — not a hard schedule. Do them when the session is light or things feel cluttered.
+
+### Occasionally: Quality Check
+- Run from repo root: `bash memory/validate-files.sh` — checks all memory files are in File Guide
+- Review `Backlog.md` — any stale items to close or move to Not Implementing?
+- Check `Bugs.md` — any "awaiting" bugs that have been soaking for 3+ sessions? Follow up with Can.
+
+### Occasionally: Documentation Audit
+- Changelog.md over 20 versions? Archive oldest entries to `Changelog-archive.md`
+- Any architecture doc drifting from reality? Spot-check against code
+- Update version references in performance audit, component docs
+
+---
+
+## File Size Guidance
+
+No hard limits — but when files get large they slow down Tier 1 reads. Use judgement:
+
+| File | Note |
+|------|------|
+| `Rules.md` | Keep focused — if a rule belongs in a Tier 2 doc, move it there |
+| `Bugs.md` | Grows naturally — archive verified bugs older than ~3 months if file exceeds 400 lines |
+| `Changelog.md` | Keep last ~20 versions. Older entries → `Changelog-archive.md` |
+| Architecture docs | Split if over 200 lines |
+| Research docs | Keep concise — decided research should be < 50 lines |
 
 ---
 

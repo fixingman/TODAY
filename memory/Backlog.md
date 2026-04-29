@@ -35,7 +35,14 @@
 **Status:** Not started
 **Goal:** Keyboard-first power user flow. Needs UX + UI exploration.
 
-### Document Connections Panel & First-Run Flow
+### Trello Checklist Support
+**Status:** Not started — design decision pending
+**Options evaluated:**
+- A: Read-only display (low complexity)
+- B: Write back to Trello (bidirectional, right long-term answer)
+- C: Explode into TODAY tasks (loses Trello connection)
+- D: Progress badge only — "3/5 ✓" on task row (minimal, fits aesthetic)
+**Next step:** Decide between D (visibility) or B (editable) before building anything.
 **Status:** Not started
 **Goal:** Document the UX and technical flow for connecting Trello, Dropbox, and AI — first-time setup, reconnect, and forget flows. Relevant for onboarding decisions and future integrations.
 
@@ -101,7 +108,14 @@
 | AI upgraded to Claude Sonnet | 2.15.1 | Apr 2026 |
 | AI deterministic aging task chips | 2.15.3 | Apr 2026 |
 | AI suggestion history in context | 2.15.4 | Apr 2026 |
+| PiP re-open after restore (BUG-014) | 2.15.5 | Apr 2026 |
+| AI chip label + opener fixes | 2.15.6 | Apr 2026 |
+| BUG-006 v3 fix (timer repositioning) | 2.15.7 | Apr 2026 |
+| Habit hot threshold raised to 80% | 2.15.8 | Apr 2026 |
+| SOON list alphabetical sort | 2.15.9 | Apr 2026 |
+| BUG-017 focus minutes fix | 2.16.0 | Apr 2026 |
+| Splash localStorage (mobile PWA) | 2.16.1 | Apr 2026 |
 
 ---
 
-*Last updated: Session 32 (v2.15.5)*
+*Last updated: Session 33 (v2.16.4)*
