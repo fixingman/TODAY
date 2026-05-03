@@ -588,7 +588,7 @@
     align-items: flex-start; justify-content: center;
     padding: 0 clamp(20px, 6vw, 80px);
     background: var(--bg);
-    pointer-events: none;
+    pointer-events: all;
   }
 
   #splash-logo {
@@ -3048,12 +3048,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.6';
+const APP_VERSION   = '2.16.7';
 const DEV_HOURS     = '182h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.7': 'Fix: Splash screen click-through — pointer-events: none meant taps during splash reached tasks drawn underneath, causing accidental deletes/checks. Changed to pointer-events: all. Tasks still render during splash for zero-lag reveal, but are not tappable until splash dismisses.',
   '2.16.6': 'Fix: BUG-007 mobile — triage bar flashes after triage completion. triageMinimize() (backdrop tap during 3s summary) was clearing _triageActive and restoring bar. If triageDismissedToday already true, triageMinimize now calls triageClose() instead.',
   '2.16.5': 'Fix: BUG-012 continued — overdue Trello card disappears immediately after being checked. Filter logic said done+overdue = hide, but didn\'t check WHEN it was done. Cards checked today should persist until EOD like due-today cards. Both loadTrello filter and mergeRemoteData eviction now check today_checked_ids timestamp — only evict if checked before today.',
   '2.16.4': 'Perf + safety: today_trello_focus no longer read inside .map() loops (was N reads per render in _fetchTriageHints and renderTriageList). All today_trello_focus and today_triage_history reads now use safeJSON() for corrupted-localStorage protection.',
