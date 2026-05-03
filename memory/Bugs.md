@@ -158,7 +158,7 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 ## BUG-007: Triage bar stays visible during and after triage
 
-**Status:** ✅ Verified fixed (v2.13.2)
+**Status:** Fixed v2.13.2 + v2.16.6 — awaiting verification (mobile)
 
 **Symptom:** Click "Review" on triage bar → overlay opens but bar stays visible behind it. After triage completes and overlay closes, bar is still on screen for ~1s.
 
@@ -170,9 +170,13 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 - `triageClose()`: sets `_triageActive = false`, hides both, sets dismissed
 - `checkTriageBar()`: if `_triageActive`, bar stays hidden unconditionally — no classList checks needed
 
-**Verify:** During triage window, click Review → bar should disappear completely. Complete triage → bar should not reappear.
+**Continued regression on mobile (v2.16.6):** After triage completes, the 3s summary shows with the overlay still open. `_triageActive` is `true`. But on mobile, tapping the backdrop during this 3s window calls `triageMinimize()`, which was clearing `_triageActive = false` and restoring the bar (`classList.remove('hidden')`). Bar flashed briefly before `triageClose()` fired.
 
-**Verified fixed:** ☑
+**Fix (v2.16.6):** `triageMinimize()` now checks `triageDismissedToday` — if already true, it calls `triageClose()` directly instead of restoring the bar. Keeps `_triageActive` locked until the proper close path.
+
+**Verify:** Complete triage → summary shows → tap backdrop during 3s summary. Bar should NOT flash. Also verify backdrop tap during active triage (before completion) still minimizes correctly.
+
+**Verified fixed:** ☐
 
 ---
 

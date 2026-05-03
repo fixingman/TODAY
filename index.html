@@ -3048,12 +3048,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.5';
+const APP_VERSION   = '2.16.6';
 const DEV_HOURS     = '182h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.6': 'Fix: BUG-007 mobile — triage bar flashes after triage completion. triageMinimize() (backdrop tap during 3s summary) was clearing _triageActive and restoring bar. If triageDismissedToday already true, triageMinimize now calls triageClose() instead.',
   '2.16.5': 'Fix: BUG-012 continued — overdue Trello card disappears immediately after being checked. Filter logic said done+overdue = hide, but didn\'t check WHEN it was done. Cards checked today should persist until EOD like due-today cards. Both loadTrello filter and mergeRemoteData eviction now check today_checked_ids timestamp — only evict if checked before today.',
   '2.16.4': 'Perf + safety: today_trello_focus no longer read inside .map() loops (was N reads per render in _fetchTriageHints and renderTriageList). All today_trello_focus and today_triage_history reads now use safeJSON() for corrupted-localStorage protection.',
   '2.16.3': 'Fix: SW update error in red dot — "Failed to update a ServiceWorker" is browser-generated, not an app error. Added to network error filter in both _logSyncError and unhandledrejection. Kept precise — "An unknown error occurred when fetching the script" removed as too broad.',
@@ -4185,6 +4186,11 @@ function _getTriageHistory() {
 }
 
 function triageMinimize() {
+  // If triage was already completed (summary showing), backdrop tap = close, not minimize
+  if (triageDismissedToday) {
+    triageClose();
+    return;
+  }
   _triageActive = false; // Allow bar to show again
   document.getElementById('triageOverlay').classList.add('hidden');
   document.getElementById('triageBar').classList.remove('hidden');
