@@ -258,11 +258,24 @@ CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to 
 
 ---
 
-## BUG-011: PiP timer delayed vs main app timer + chime fires late
+## BUG-011: PiP timer delayed vs main app timer + chime fires late / on wrong task
 
-**Status:** ✅ Verified fixed (v2.13.5 + v2.13.6)
+**Status:** Fixed v2.13.5 + v2.13.6 + v2.16.9 — awaiting verification
 
-**Symptom:** PiP countdown runs behind the main app timer. When the main timer hits 00:00, PiP still shows time remaining. Chime fires late — after PiP shows 00:00, not simultaneously.
+**Original symptom:** PiP countdown ran behind main timer. Chime fired late.
+
+**Original fix (v2.13.5–6):** PiP now uses its own RAF loop with `refTime + refRem` reference point. Calls `completeFor()` directly at wall-clock zero.
+
+**New symptom (reported session 34):** Untimely chime during a second focus session. Scenario: Task A → PiP → restore → check Task A → start Task B focus → chime fires during Task B's session.
+
+**Root cause:** `startPiPClock` captured `uiTaskId` by reference (closure over outer variable). With the BUG-014 fix, the PiP window stays alive when user taps "open app". If the user then checked Task A and started Task B, the old RAF from Task A's clock was still running. When its reference point hit zero, it called `completeFor(uiTaskId)` — but `uiTaskId` had changed to Task B. Ghost chime on the wrong task.
+
+**Fix (v2.16.9):**
+1. `startPiPClock` captures `const clockTaskId = uiTaskId` by value at start. All `getState()`, `completeFor()` calls use `clockTaskId` not `uiTaskId`.
+2. RAF stops early if `uiTaskId !== clockTaskId` — task switched, this clock is stale.
+3. Reused PiP path (line ~10784) now calls `startPiPClock()` for the current task so a fresh, correctly-anchored clock replaces the stale one.
+
+**Verify:** Task A → PiP → restore → check Task A → start Task B focus → chime should NOT fire during Task B unless Task B's 25 minutes completes.
 
 **Root cause:** Two compounding issues:
 
