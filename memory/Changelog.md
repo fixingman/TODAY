@@ -2,6 +2,12 @@
 
 | Version | Key change |
 |---|---|
+| **2.16.10** | **Task link UX** — `↗` → `link ↗` in both `taskHTML` and Trello patch path. Copy CTA now appends `task.url` to copied text. |
+| **2.16.9** | **Fix: BUG-011 ghost chime** — PiP RAF captured `uiTaskId` by reference. With BUG-014 PiP staying alive, switching tasks left old RAF running. `clockTaskId` captured by value; RAF stops if `uiTaskId !== clockTaskId`. Reused PiP path now calls `startPiPClock()`. |
+| **2.16.8** | **AI context** — message word limit raised 20→30 words. Added instruction: name the task in the message when suggesting an action, so chips have context without putting task names in labels. |
+| **2.16.7** | **Fix: Splash click-through** — `pointer-events: none` on `#splash` let taps reach tasks below, causing accidental deletes. Changed to `pointer-events: all`. |
+| **2.16.6** | **Fix: BUG-007 mobile** — backdrop tap during 3s triage summary called `triageMinimize()`, restoring the bar. `triageMinimize()` now calls `triageClose()` if `triageDismissedToday` already true. |
+| **2.16.5** | **Fix: BUG-012 continued** — overdue card disappeared immediately on check. `loadTrello` filter and `mergeRemoteData` eviction now check `today_checked_ids` timestamp — only hide if checked before today. |
 | **2.16.4** | **Perf + safety** — `today_trello_focus` hoisted before `.map()` loops in `_fetchTriageHints` and `renderTriageList` (was N reads per render). All `today_trello_focus` and `today_triage_history` reads now use `safeJSON()` for corrupted-localStorage protection. |
 | **2.16.3** | **Fix: SW update error in red dot** — "Failed to update a ServiceWorker" added to network error filter in `_logSyncError` and `unhandledrejection`. Browser-generated, not an app error. Precise string only — overly broad companion string removed after review. |
 | **2.16.2** | **Splash cursor hold** — reduced from 800ms to 500ms. No token covers this scale (`--dur-slow` is 300ms) — kept as one-off splash timing. |

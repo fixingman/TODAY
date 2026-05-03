@@ -43,8 +43,67 @@
 - C: Explode into TODAY tasks (loses Trello connection)
 - D: Progress badge only — "3/5 ✓" on task row (minimal, fits aesthetic)
 **Next step:** Decide between D (visibility) or B (editable) before building anything.
+
+### Document Connections Panel & First-Run Flow
 **Status:** Not started
 **Goal:** Document the UX and technical flow for connecting Trello, Dropbox, and AI — first-time setup, reconnect, and forget flows. Relevant for onboarding decisions and future integrations.
+
+### Energy-Aware AI Suggestions
+**Status:** Not started
+**Goal:** TODAY already tracks `peakHour` in `appMemory.preferences`. The AI system prompt has `energyContext` (peak / pre-peak / post-peak / morning / evening) — but the language is generic. Tighten so the AI ties task suggestions explicitly to the user's energy rhythm.
+**Inspiration:** Momentum (momentumplanner.co) — "Work with your energy, not against it." Their version requires explicit S/M/L/XL energy tagging per task. TODAY's version stays AI-inferred — no user friction, the AI infers task weight from text.
+**Examples of desired AI behaviour:**
+- Peak time + heavy task: "You usually peak around 2pm — save the report for then."
+- Pre-peak + heavy task: "Energy's still warming up — start with email, save the proposal for after lunch."
+- Post-peak + heavy task: "Past your usual peak — could the proposal wait until tomorrow morning?"
+**Scope:** System prompt change only. No data model changes, no UI. ~10–15 lines in `_aiSystemPrompt`.
+
+### 5-7 Task Soft Cap (AI nudge)
+**Status:** Not started
+**Goal:** When the task list grows past 5-7 items, the AI gently surfaces the overload — not as a hard block, but as a nudge. Inspired by Momentum's "Five Projects Rule" (science: brain manages ~5 active projects at once). Fits TODAY's anti-accumulation ethos.
+**Implementation question:** Two approaches:
+- A: AI-driven — when today's list hits 5+, AI context includes a flag; AI nudges naturally ("It's getting full — anything ready for SOON?")
+- B: Passive visual — a subtle indicator in the header or flow bar that the list is dense
+**Recommendation:** Option A first. Pure context change, no UI. If the nudge feels right in practice, consider B as a follow-on.
+**Key constraint:** Must feel observational, not prescriptive. TODAY never blocks or warns — it acknowledges.
+
+### Emergent vs Planned Insight (Memory-Driven)
+**Status:** Not started
+**Goal:** Track when tasks are added during the day (time of addition vs start of day). Surface patterns to the AI: tasks added after 4pm may signal reactive mode, tasks added in the morning may signal intention. Over time, AI could notice: "You add a lot of tasks after 4pm — late-day reactive mode or a pattern worth looking at?"
+**Data needed:** `task.createdAt` timestamp already exists. Need to distinguish tasks that existed at day-start vs added during the day.
+**Memory hook:** Add to `appMemory` — daily "planned count" snapshotted at midnight vs tasks added during the day.
+**Scope:** Data capture is small. The value is in the AI using it. Medium effort.
+
+### "Calm Technology" Copy Audit
+**Status:** Not started
+**Goal:** Momentum explicitly names "calm technology" as a design principle in their marketing. TODAY embodies the same principle but doesn't state it — not in the README, not in the app, not in the AI prompt. A copy audit would surface places to be explicit about what TODAY IS (a focus instrument, present-tense, energy-aware) and what it deliberately ISN'T (no due dates, no priorities, no ranking, no streaks-as-pressure).
+**Why it matters:** As the landscape fills with apps using the same emotional language, TODAY needs its own clear statement. "No due dates" is a feature. "No priorities" is a choice worth owning.
+**Scope:** README copy, app ABOUT section, AI system prompt personality paragraph. No code changes — pure copy and positioning.
+**Reference:** See `research/Landscape.md` → Momentum tonality section for examples of explicit calm-tech language.
+
+### Momentum + TODAY Integration (Research)
+**Status:** Not started — research only
+**Goal:** Explore whether Momentum (momentumplanner.co) and TODAY can be complementary rather than competing tools. Hypothesis: plan the week in Momentum on Sunday, use TODAY daily for focus execution.
+**Questions to answer:**
+- Does Momentum have an API or ICS export that TODAY could read?
+- Could TODAY import "today's Momentum plan" as the task list for the day?
+- Would the user experience of moving between apps feel natural or fragmented?
+- Is this a pairing to document/recommend, or an integration to build?
+**First step:** Check Momentum's API availability. Their Pro plan mentions ICS calendar import — that's inbound to Momentum, not outbound. Check if they expose any data.
+**Note:** Don't over-engineer. A "Pair with Momentum" section in the README might be the right answer over a technical integration.
+
+### WEEK — Standalone Weekly Planning Companion
+**Status:** Concept stage — not ready to build
+**Vision:** A separate lightweight weekly planning tool that complements TODAY rather than competing with it. TODAY = focus instrument for execution. WEEK = planning surface for intention.
+**Core idea:** Momentum has many things right but risks feature creep (energy sizing, capacity ratios, time blocks, skip reasons, theme tags, progress dashboards, reflect history). WEEK could be the stripped version — same philosophy, radical simplicity.
+**The differentiator:** Predictive AI generated from user behaviour, not manual input. Instead of asking users to rate task energy (S/M/L/XL) or set daily energy manually, WEEK learns organically: what tasks does this user typically do on Monday mornings? When do they focus vs when do they coast? What kind of tasks do they defer? The plan adapts to observed rhythm rather than requiring the user to configure it.
+**Key principle:** Users still have full control (can override, add, remove) but the default is AI-shaped by their history. The "personalisation" happens invisibly over time, not via onboarding questionnaires.
+**Relationship to TODAY:** TODAY data feeds WEEK's model. Focus sessions, task completion times, habit patterns, peak hour — all inputs. WEEK doesn't re-collect what TODAY already knows.
+**Why not build yet:**
+- TODAY needs to be more stable first (bugs 006/012/014 awaiting)
+- TODAY's AI memory needs more depth before WEEK can leverage it meaningfully
+- Needs a design session before any code — the stripped Momentum concept needs a proper identity
+**When to revisit:** When TODAY has 3+ months of behavioural data and the bug backlog is cleared.
 
 ---
 
@@ -115,7 +174,15 @@
 | SOON list alphabetical sort | 2.15.9 | Apr 2026 |
 | BUG-017 focus minutes fix | 2.16.0 | Apr 2026 |
 | Splash localStorage (mobile PWA) | 2.16.1 | Apr 2026 |
+| SW error filter (red dot) | 2.16.3 | May 2026 |
+| Loop hoisting + safeJSON protection | 2.16.4 | May 2026 |
+| BUG-012 overdue card timing fix | 2.16.5 | May 2026 |
+| BUG-007 mobile triage bar flash | 2.16.6 | May 2026 |
+| Splash pointer-events fix | 2.16.7 | May 2026 |
+| AI message 20→30 words + task naming | 2.16.8 | May 2026 |
+| BUG-011 ghost chime fix | 2.16.9 | May 2026 |
+| Task link text + copy with URL | 2.16.10 | May 2026 |
 
 ---
 
-*Last updated: Session 33 (v2.16.4)*
+*Last updated: Session 34 (v2.16.10)*

@@ -588,7 +588,7 @@
     align-items: flex-start; justify-content: center;
     padding: 0 clamp(20px, 6vw, 80px);
     background: var(--bg);
-    pointer-events: none;
+    pointer-events: all;
   }
 
   #splash-logo {
@@ -3048,12 +3048,18 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.4';
-const DEV_HOURS     = '182h';
+const APP_VERSION   = '2.16.10';
+const DEV_HOURS     = '184h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.10': 'Task link improvements — (1) arrow ↗ now shows as "link ↗" for legibility, in both taskHTML and Trello patch path. (2) Copy CTA now appends URL to copied text when task has a link — looks up task.url from manualTasks/trelloTasks by data-taskid.',
+  '2.16.9': 'Fix: BUG-011 ghost chime — PiP RAF captured uiTaskId by reference. When PiP stayed alive (BUG-014 path) and user switched tasks, old RAF still ran and called completeFor(uiTaskId) which now pointed to the new task. Fix: startPiPClock captures clockTaskId by value. RAF stops if uiTaskId !== clockTaskId. Reused PiP path now calls startPiPClock() for the current task.',
+  '2.16.8': 'AI context improvement — message word limit raised 20→30 words. Added instruction: name the task in the message when suggesting an action on it, so chips have context without putting task names in labels.',
+  '2.16.7': 'Fix: Splash screen click-through — pointer-events: none meant taps during splash reached tasks drawn underneath, causing accidental deletes/checks. Changed to pointer-events: all. Tasks still render during splash for zero-lag reveal, but are not tappable until splash dismisses.',
+  '2.16.6': 'Fix: BUG-007 mobile — triage bar flashes after triage completion. triageMinimize() (backdrop tap during 3s summary) was clearing _triageActive and restoring bar. If triageDismissedToday already true, triageMinimize now calls triageClose() instead.',
+  '2.16.5': 'Fix: BUG-012 continued — overdue Trello card disappears immediately after being checked. Filter logic said done+overdue = hide, but didn\'t check WHEN it was done. Cards checked today should persist until EOD like due-today cards. Both loadTrello filter and mergeRemoteData eviction now check today_checked_ids timestamp — only evict if checked before today.',
   '2.16.4': 'Perf + safety: today_trello_focus no longer read inside .map() loops (was N reads per render in _fetchTriageHints and renderTriageList). All today_trello_focus and today_triage_history reads now use safeJSON() for corrupted-localStorage protection.',
   '2.16.3': 'Fix: SW update error in red dot — "Failed to update a ServiceWorker" is browser-generated, not an app error. Added to network error filter in both _logSyncError and unhandledrejection. Kept precise — "An unknown error occurred when fetching the script" removed as too broad.',
   '2.16.2': 'Splash cursor hold reduced from 800ms to 500ms. No matching token (longest is --dur-slow: 300ms) — kept as one-off splash timing.',
@@ -4184,6 +4190,11 @@ function _getTriageHistory() {
 }
 
 function triageMinimize() {
+  // If triage was already completed (summary showing), backdrop tap = close, not minimize
+  if (triageDismissedToday) {
+    triageClose();
+    return;
+  }
   _triageActive = false; // Allow bar to show again
   document.getElementById('triageOverlay').classList.add('hidden');
   document.getElementById('triageBar').classList.remove('hidden');
@@ -5199,10 +5210,22 @@ async function loadTrello(fromSync) {
       // Has due date
       if (c.due) {
         const d = new Date(c.due); d.setHours(0,0,0,0);
-        // Due today — show (even if done, until day ends)
+        // Due today — show all day (even if done)
         if (d.getTime() === today.getTime()) return true;
-        // Overdue — show only if NOT done (done overdue = completed yesterday, hide)
+        // Overdue — show if not done
         if (d < today && !isDone) return true;
+        // Overdue + done — show only if checked TODAY (same grace as due-today cards)
+        // If checked before today it's stale — hide it
+        if (d < today && isDone) {
+          const checkedIds = safeJSON('today_checked_ids', []);
+          const checkedEntry = checkedIds.find(e => e.id === trelloId);
+          if (checkedEntry && checkedEntry.at) {
+            const checkedDate = new Date(checkedEntry.at);
+            checkedDate.setHours(0,0,0,0);
+            if (checkedDate.getTime() === today.getTime()) return true; // Checked today — show until day ends
+          }
+          return false; // Checked before today — hide
+        }
       }
       return false;
     });
@@ -5353,7 +5376,7 @@ function renderTrello() {
       ? `<span class="task-tag">${esc(_tagMatch[1].toLowerCase())}</span>${esc(_tagMatch[2])}`
       : esc(task.text);
     const _link = safeUrl
-      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="Open in Trello">↗</a>`
+      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="Open in Trello">link ↗</a>`
       : '';
     // Include session badge in text comparison so patch doesn't destroy it (BUG-005)
     const _focusCount = _getTrelloFocus()[id] || 0;
@@ -5464,7 +5487,7 @@ function taskHTML(task, type) {
   const safeUrl = task.url && /^https?:\/\//i.test(task.url) ? task.url : '';
   const linkTitle = type === 'trello' ? 'Open in Trello' : 'Open link';
   const link = safeUrl
-    ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="${linkTitle}">↗</a>`
+    ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="${linkTitle}">link ↗</a>`
     : '';
 
   const sessions = type === 'trello'
@@ -5535,7 +5558,16 @@ document.addEventListener('click', function(e) {
       // Get clean text — strip session count badge, link arrow, and tag prefix
       const clone = textEl.cloneNode(true);
       clone.querySelectorAll('.session-count, .task-link, .task-tag').forEach(el => el.remove());
-      const text = clone.textContent.trim();
+      let text = clone.textContent.trim();
+
+      // Append URL if task has one — find task in data by taskid
+      const taskId = taskEl.dataset.taskid;
+      const manualTask = manualTasks.find(t => t.id === taskId);
+      const trelloTask = (window.trelloTasks || []).find(t => t.id === taskId);
+      const taskUrl = manualTask?.url || trelloTask?.url;
+      if (taskUrl && /^https?:\/\//i.test(taskUrl)) {
+        text = text + ' ' + taskUrl;
+      }
 
       function _showCopied() {
         copyEl.textContent = 'copied';
@@ -8093,17 +8125,25 @@ function mergeRemoteData(data) {
     });
   }
 
-  // Re-filter Trello tasks — done+overdue cards should disappear.
+  // Re-filter Trello tasks — done+overdue cards checked BEFORE today should disappear.
+  // Cards checked TODAY should persist until end of day (same grace as due-today cards).
   // loadTrello may have run before Dropbox sync completed, so it used stale doneIds.
-  // Now that doneIds is authoritative, evict any overdue cards that are now done.
   if (trelloTasks.length > 0) {
     const today = new Date(); today.setHours(0,0,0,0);
+    const checkedIds = safeJSON('today_checked_ids', []);
     const prevLen = trelloTasks.length;
     trelloTasks = trelloTasks.filter(t => {
       if (!doneIds.has(t.id)) return true; // Not done — keep
-      if (!t.due) return true; // No due date — keep (today-list cards show done until EOD)
+      if (!t.due) return true; // No due date — keep
       const d = new Date(t.due); d.setHours(0,0,0,0);
-      return d.getTime() >= today.getTime(); // Due today or future — keep. Overdue+done → remove.
+      if (d.getTime() >= today.getTime()) return true; // Due today or future — keep
+      // Overdue + done — keep only if checked today
+      const entry = checkedIds.find(e => e.id === t.id);
+      if (entry && entry.at) {
+        const checkedDate = new Date(entry.at); checkedDate.setHours(0,0,0,0);
+        if (checkedDate.getTime() === today.getTime()) return true; // Checked today — keep until EOD
+      }
+      return false; // Checked before today — evict
     });
     if (trelloTasks.length !== prevLen) renderTrello();
   }
@@ -9528,12 +9568,13 @@ ${totalPending === 0 && totalDone === 0 ? '- EMPTY STATE: The list is empty. Thi
 
 Reply ONLY with raw JSON (no markdown, no code fences):
 {
-  "message": "your message — warm, specific, ≤20 words",
+  "message": "your message — warm, specific, ≤30 words",
   "actions": [{ "label": "2-4 words", "type": "TYPE", "payload": {} }]
 }
 
 Message guidelines:
 - Be specific to THEIR tasks, not generic advice
+- When suggesting an action on a specific task, NAME the task in your message so the chip has context — "The report has been here 4 days" → chip: "Let it go". Never make the user guess which task a chip refers to.
 - Reference their patterns if relevant (peak hours, past wins)
 - If they've done a lot: acknowledge it genuinely
 - If overdue: gentle nudge, not alarm
@@ -10756,6 +10797,9 @@ function _aiClearBadge() {
             const st = getState(uiTaskId);
             window._pipSync(st.rem, TOTAL);
           }
+          // Start a new clock for the current task — old clock stops itself when
+          // it sees uiTaskId !== clockTaskId. (BUG-011 ghost chime)
+          startPiPClock();
           return;
         }
         
@@ -11014,8 +11058,13 @@ function _aiClearBadge() {
     function startPiPClock() {
       if (!pipWindow || pipWindow.closed || !uiTaskId) return;
 
+      // Capture the task ID this clock was started for — by VALUE not reference.
+      // If uiTaskId changes (user switches tasks while PiP is alive from BUG-014 path),
+      // this clock must not fire completeFor on the new task. (BUG-011 ghost chime)
+      const clockTaskId = uiTaskId;
+
       // Anchor to current wall-clock reality
-      const st = getState(uiTaskId);
+      const st = getState(clockTaskId);
       const initialElapsed = st.wallStart ? Math.floor((Date.now() - st.wallStart) / 1000) : 0;
       let refRem  = Math.max(0, st.rem - initialElapsed);
       let refTime = Date.now();
@@ -11025,9 +11074,10 @@ function _aiClearBadge() {
 
       function pipTick() {
         if (!pipWindow || pipWindow.closed || !pipFillEl || !pipTimeEl) return;
-        if (!uiTaskId) return;
+        // If the task this clock was started for is no longer active, stop the RAF
+        if (uiTaskId !== clockTaskId) return;
 
-        const cur = getState(uiTaskId);
+        const cur = getState(clockTaskId);
         const nowPaused = cur.paused || !cur.running;
 
         if (nowPaused) {
@@ -11058,7 +11108,7 @@ function _aiClearBadge() {
         if (lastRem <= 0) {
           // Timer reached zero — trigger completion immediately from wall clock.
           // Don't wait for the throttled tickFor tick in the hidden main tab.
-          completeFor(uiTaskId);
+          completeFor(clockTaskId);
           return;
         }
 

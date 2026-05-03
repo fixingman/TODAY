@@ -158,7 +158,7 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 ## BUG-007: Triage bar stays visible during and after triage
 
-**Status:** ✅ Verified fixed (v2.13.2)
+**Status:** Fixed v2.13.2 + v2.16.6 — awaiting verification (mobile)
 
 **Symptom:** Click "Review" on triage bar → overlay opens but bar stays visible behind it. After triage completes and overlay closes, bar is still on screen for ~1s.
 
@@ -170,9 +170,13 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 - `triageClose()`: sets `_triageActive = false`, hides both, sets dismissed
 - `checkTriageBar()`: if `_triageActive`, bar stays hidden unconditionally — no classList checks needed
 
-**Verify:** During triage window, click Review → bar should disappear completely. Complete triage → bar should not reappear.
+**Continued regression on mobile (v2.16.6):** After triage completes, the 3s summary shows with the overlay still open. `_triageActive` is `true`. But on mobile, tapping the backdrop during this 3s window calls `triageMinimize()`, which was clearing `_triageActive = false` and restoring the bar (`classList.remove('hidden')`). Bar flashed briefly before `triageClose()` fired.
 
-**Verified fixed:** ☑
+**Fix (v2.16.6):** `triageMinimize()` now checks `triageDismissedToday` — if already true, it calls `triageClose()` directly instead of restoring the bar. Keeps `_triageActive` locked until the proper close path.
+
+**Verify:** Complete triage → summary shows → tap backdrop during 3s summary. Bar should NOT flash. Also verify backdrop tap during active triage (before completion) still minimizes correctly.
+
+**Verified fixed:** ☐
 
 ---
 
@@ -254,11 +258,24 @@ CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to 
 
 ---
 
-## BUG-011: PiP timer delayed vs main app timer + chime fires late
+## BUG-011: PiP timer delayed vs main app timer + chime fires late / on wrong task
 
-**Status:** ✅ Verified fixed (v2.13.5 + v2.13.6)
+**Status:** Fixed v2.13.5 + v2.13.6 + v2.16.9 — awaiting verification
 
-**Symptom:** PiP countdown runs behind the main app timer. When the main timer hits 00:00, PiP still shows time remaining. Chime fires late — after PiP shows 00:00, not simultaneously.
+**Original symptom:** PiP countdown ran behind main timer. Chime fired late.
+
+**Original fix (v2.13.5–6):** PiP now uses its own RAF loop with `refTime + refRem` reference point. Calls `completeFor()` directly at wall-clock zero.
+
+**New symptom (reported session 34):** Untimely chime during a second focus session. Scenario: Task A → PiP → restore → check Task A → start Task B focus → chime fires during Task B's session.
+
+**Root cause:** `startPiPClock` captured `uiTaskId` by reference (closure over outer variable). With the BUG-014 fix, the PiP window stays alive when user taps "open app". If the user then checked Task A and started Task B, the old RAF from Task A's clock was still running. When its reference point hit zero, it called `completeFor(uiTaskId)` — but `uiTaskId` had changed to Task B. Ghost chime on the wrong task.
+
+**Fix (v2.16.9):**
+1. `startPiPClock` captures `const clockTaskId = uiTaskId` by value at start. All `getState()`, `completeFor()` calls use `clockTaskId` not `uiTaskId`.
+2. RAF stops early if `uiTaskId !== clockTaskId` — task switched, this clock is stale.
+3. Reused PiP path (line ~10784) now calls `startPiPClock()` for the current task so a fresh, correctly-anchored clock replaces the stale one.
+
+**Verify:** Task A → PiP → restore → check Task A → start Task B focus → chime should NOT fire during Task B unless Task B's 25 minutes completes.
 
 **Root cause:** Two compounding issues:
 
@@ -276,23 +293,23 @@ CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to 
 
 ---
 
-## BUG-012: Completed overdue Trello task shows unchecked on other device
+## BUG-012: Completed overdue Trello task shows unchecked on other device / disappears immediately
 
-**Status:** Fixed v2.14.5 — awaiting verification
+**Status:** Fixed v2.14.5 + v2.16.5 — awaiting verification
 
-**Symptom:** Complete a Trello task with a past due date on Device A. Open app on Device B — the task appears unchecked. Tab refresh doesn't fix it. Clicking "Refresh" in Connections fixes it.
+**Symptom 1 (original):** Complete an overdue Trello card on Device A → Device B shows it unchecked. Manual refresh fixes it.
 
-**Root cause:** Race condition between `loadTrello()` and Dropbox sync:
+**Symptom 2 (new):** Complete an overdue Trello card on any device → it disappears from TODAY immediately, before end of day.
 
-1. Device B opens → cache restores Trello tasks (task shown, `doneIds` empty)
-2. `loadTrello()` fetches Trello API → task has past due date + `doneIds` doesn't have it yet → included in `trelloTasks` as undone
-3. Dropbox sync completes → `mergeRemoteData` adds task to `doneIds` → DOM patches `.done` class
+**Root cause (original — v2.14.5):** Race between `loadTrello()` and Dropbox sync. `loadTrello` runs with stale `doneIds` → includes overdue card as undone → Dropbox sync updates `doneIds` → DOM patches done, but subsequent `renderTrello` re-shows it undone.
 
-But the task is still in `trelloTasks`. The DOM patch shows it as visually done, but a subsequent `renderTrello` call (from any sync tick) would re-render it as undone because `trelloTasks` still contains it. Manual Trello refresh re-runs the full filter with the now-correct `doneIds`.
+**Fix (v2.14.5):** `mergeRemoteData` re-filters `trelloTasks` after updating `doneIds`, evicting done+overdue cards.
 
-**Fix (v2.14.5):** After `mergeRemoteData` updates `doneIds`, re-filter `trelloTasks` to evict done+overdue cards. If any were removed, calls `renderTrello()`. Same filter logic as `loadTrello` line 5109: cards due before today that are now done are removed.
+**Root cause (v2.16.5):** The filter logic in both `loadTrello` and the v2.14.5 `mergeRemoteData` eviction said `done + overdue = hide` — without checking **when** it was done. Checking an overdue card today immediately hid it. The "due today" path correctly shows done cards all day; overdue lacked that grace.
 
-**Verify:** Complete an overdue Trello card on Device A. Open Device B — card should disappear within 3-7s (Dropbox sync interval), not require manual refresh.
+**Fix (v2.16.5):** Both `loadTrello` filter and `mergeRemoteData` eviction now check `today_checked_ids` timestamp. Overdue + done: if checked today → show until EOD (same as due-today). If checked before today → hide immediately.
+
+**Verify:** Complete an overdue Trello card → it should remain visible (with done styling) until midnight, not disappear immediately. Next day open → it should be gone.
 
 **Verified fixed:** ☐
 
