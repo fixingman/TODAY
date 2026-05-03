@@ -3048,12 +3048,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.9';
+const APP_VERSION   = '2.16.10';
 const DEV_HOURS     = '182h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.10': 'Task link improvements — (1) arrow ↗ now shows as "link ↗" for legibility, in both taskHTML and Trello patch path. (2) Copy CTA now appends URL to copied text when task has a link — looks up task.url from manualTasks/trelloTasks by data-taskid.',
   '2.16.9': 'Fix: BUG-011 ghost chime — PiP RAF captured uiTaskId by reference. When PiP stayed alive (BUG-014 path) and user switched tasks, old RAF still ran and called completeFor(uiTaskId) which now pointed to the new task. Fix: startPiPClock captures clockTaskId by value. RAF stops if uiTaskId !== clockTaskId. Reused PiP path now calls startPiPClock() for the current task.',
   '2.16.8': 'AI context improvement — message word limit raised 20→30 words. Added instruction: name the task in the message when suggesting an action on it, so chips have context without putting task names in labels.',
   '2.16.7': 'Fix: Splash screen click-through — pointer-events: none meant taps during splash reached tasks drawn underneath, causing accidental deletes/checks. Changed to pointer-events: all. Tasks still render during splash for zero-lag reveal, but are not tappable until splash dismisses.',
@@ -5375,7 +5376,7 @@ function renderTrello() {
       ? `<span class="task-tag">${esc(_tagMatch[1].toLowerCase())}</span>${esc(_tagMatch[2])}`
       : esc(task.text);
     const _link = safeUrl
-      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="Open in Trello">↗</a>`
+      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="Open in Trello">link ↗</a>`
       : '';
     // Include session badge in text comparison so patch doesn't destroy it (BUG-005)
     const _focusCount = _getTrelloFocus()[id] || 0;
@@ -5486,7 +5487,7 @@ function taskHTML(task, type) {
   const safeUrl = task.url && /^https?:\/\//i.test(task.url) ? task.url : '';
   const linkTitle = type === 'trello' ? 'Open in Trello' : 'Open link';
   const link = safeUrl
-    ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="${linkTitle}">↗</a>`
+    ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="${linkTitle}">link ↗</a>`
     : '';
 
   const sessions = type === 'trello'
@@ -5557,7 +5558,16 @@ document.addEventListener('click', function(e) {
       // Get clean text — strip session count badge, link arrow, and tag prefix
       const clone = textEl.cloneNode(true);
       clone.querySelectorAll('.session-count, .task-link, .task-tag').forEach(el => el.remove());
-      const text = clone.textContent.trim();
+      let text = clone.textContent.trim();
+
+      // Append URL if task has one — find task in data by taskid
+      const taskId = taskEl.dataset.taskid;
+      const manualTask = manualTasks.find(t => t.id === taskId);
+      const trelloTask = (window.trelloTasks || []).find(t => t.id === taskId);
+      const taskUrl = manualTask?.url || trelloTask?.url;
+      if (taskUrl && /^https?:\/\//i.test(taskUrl)) {
+        text = text + ' ' + taskUrl;
+      }
 
       function _showCopied() {
         copyEl.textContent = 'copied';
