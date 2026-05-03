@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Maintenance, performance, red dot improvements
-- **Recent:** v2.16.4 — SW error filter, loop hoisting, safeJSON protection, BUG-011 verified, Trello checklist backlogged, SOON sort, splash fixes
-- **Watch for:** BUG-006/012/014/017 verification in production
+- **Working on:** Bug fixes, Momentum research, backlog growth
+- **Recent:** v2.16.10 — BUG-012 deeper fix, BUG-007 mobile fix, BUG-011 ghost chime, splash click-through, AI context (+10 words, task naming), task link text, SW error filter, perf/safeJSON. Momentum inspected, Landscape.md created, 6 backlog items added.
+- **Watch for:** BUG-006/007/011/012/014/017 verification in production
 
 ---
 
@@ -37,6 +37,7 @@
 | Time/day logic | `research/Temporal.md` |
 | Integrations | `research/Integrations.md` |
 | Quick capture | `research/Quick-capture.md` |
+| Competitor analysis | `research/Landscape.md` |
 | Testing | `Test-matrix.md` |
 | Performance | `Performance-audit.md` |
 
