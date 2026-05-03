@@ -276,23 +276,23 @@ CSS is now three trivial selectors, no ambiguity. Also updated `_logSession` to 
 
 ---
 
-## BUG-012: Completed overdue Trello task shows unchecked on other device
+## BUG-012: Completed overdue Trello task shows unchecked on other device / disappears immediately
 
-**Status:** Fixed v2.14.5 — awaiting verification
+**Status:** Fixed v2.14.5 + v2.16.5 — awaiting verification
 
-**Symptom:** Complete a Trello task with a past due date on Device A. Open app on Device B — the task appears unchecked. Tab refresh doesn't fix it. Clicking "Refresh" in Connections fixes it.
+**Symptom 1 (original):** Complete an overdue Trello card on Device A → Device B shows it unchecked. Manual refresh fixes it.
 
-**Root cause:** Race condition between `loadTrello()` and Dropbox sync:
+**Symptom 2 (new):** Complete an overdue Trello card on any device → it disappears from TODAY immediately, before end of day.
 
-1. Device B opens → cache restores Trello tasks (task shown, `doneIds` empty)
-2. `loadTrello()` fetches Trello API → task has past due date + `doneIds` doesn't have it yet → included in `trelloTasks` as undone
-3. Dropbox sync completes → `mergeRemoteData` adds task to `doneIds` → DOM patches `.done` class
+**Root cause (original — v2.14.5):** Race between `loadTrello()` and Dropbox sync. `loadTrello` runs with stale `doneIds` → includes overdue card as undone → Dropbox sync updates `doneIds` → DOM patches done, but subsequent `renderTrello` re-shows it undone.
 
-But the task is still in `trelloTasks`. The DOM patch shows it as visually done, but a subsequent `renderTrello` call (from any sync tick) would re-render it as undone because `trelloTasks` still contains it. Manual Trello refresh re-runs the full filter with the now-correct `doneIds`.
+**Fix (v2.14.5):** `mergeRemoteData` re-filters `trelloTasks` after updating `doneIds`, evicting done+overdue cards.
 
-**Fix (v2.14.5):** After `mergeRemoteData` updates `doneIds`, re-filter `trelloTasks` to evict done+overdue cards. If any were removed, calls `renderTrello()`. Same filter logic as `loadTrello` line 5109: cards due before today that are now done are removed.
+**Root cause (v2.16.5):** The filter logic in both `loadTrello` and the v2.14.5 `mergeRemoteData` eviction said `done + overdue = hide` — without checking **when** it was done. Checking an overdue card today immediately hid it. The "due today" path correctly shows done cards all day; overdue lacked that grace.
 
-**Verify:** Complete an overdue Trello card on Device A. Open Device B — card should disappear within 3-7s (Dropbox sync interval), not require manual refresh.
+**Fix (v2.16.5):** Both `loadTrello` filter and `mergeRemoteData` eviction now check `today_checked_ids` timestamp. Overdue + done: if checked today → show until EOD (same as due-today). If checked before today → hide immediately.
+
+**Verify:** Complete an overdue Trello card → it should remain visible (with done styling) until midnight, not disappear immediately. Next day open → it should be gone.
 
 **Verified fixed:** ☐
 

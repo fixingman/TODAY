@@ -3048,12 +3048,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.4';
+const APP_VERSION   = '2.16.5';
 const DEV_HOURS     = '182h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.5': 'Fix: BUG-012 continued — overdue Trello card disappears immediately after being checked. Filter logic said done+overdue = hide, but didn\'t check WHEN it was done. Cards checked today should persist until EOD like due-today cards. Both loadTrello filter and mergeRemoteData eviction now check today_checked_ids timestamp — only evict if checked before today.',
   '2.16.4': 'Perf + safety: today_trello_focus no longer read inside .map() loops (was N reads per render in _fetchTriageHints and renderTriageList). All today_trello_focus and today_triage_history reads now use safeJSON() for corrupted-localStorage protection.',
   '2.16.3': 'Fix: SW update error in red dot — "Failed to update a ServiceWorker" is browser-generated, not an app error. Added to network error filter in both _logSyncError and unhandledrejection. Kept precise — "An unknown error occurred when fetching the script" removed as too broad.',
   '2.16.2': 'Splash cursor hold reduced from 800ms to 500ms. No matching token (longest is --dur-slow: 300ms) — kept as one-off splash timing.',
@@ -5199,10 +5200,22 @@ async function loadTrello(fromSync) {
       // Has due date
       if (c.due) {
         const d = new Date(c.due); d.setHours(0,0,0,0);
-        // Due today — show (even if done, until day ends)
+        // Due today — show all day (even if done)
         if (d.getTime() === today.getTime()) return true;
-        // Overdue — show only if NOT done (done overdue = completed yesterday, hide)
+        // Overdue — show if not done
         if (d < today && !isDone) return true;
+        // Overdue + done — show only if checked TODAY (same grace as due-today cards)
+        // If checked before today it's stale — hide it
+        if (d < today && isDone) {
+          const checkedIds = safeJSON('today_checked_ids', []);
+          const checkedEntry = checkedIds.find(e => e.id === trelloId);
+          if (checkedEntry && checkedEntry.at) {
+            const checkedDate = new Date(checkedEntry.at);
+            checkedDate.setHours(0,0,0,0);
+            if (checkedDate.getTime() === today.getTime()) return true; // Checked today — show until day ends
+          }
+          return false; // Checked before today — hide
+        }
       }
       return false;
     });
@@ -8093,17 +8106,25 @@ function mergeRemoteData(data) {
     });
   }
 
-  // Re-filter Trello tasks — done+overdue cards should disappear.
+  // Re-filter Trello tasks — done+overdue cards checked BEFORE today should disappear.
+  // Cards checked TODAY should persist until end of day (same grace as due-today cards).
   // loadTrello may have run before Dropbox sync completed, so it used stale doneIds.
-  // Now that doneIds is authoritative, evict any overdue cards that are now done.
   if (trelloTasks.length > 0) {
     const today = new Date(); today.setHours(0,0,0,0);
+    const checkedIds = safeJSON('today_checked_ids', []);
     const prevLen = trelloTasks.length;
     trelloTasks = trelloTasks.filter(t => {
       if (!doneIds.has(t.id)) return true; // Not done — keep
-      if (!t.due) return true; // No due date — keep (today-list cards show done until EOD)
+      if (!t.due) return true; // No due date — keep
       const d = new Date(t.due); d.setHours(0,0,0,0);
-      return d.getTime() >= today.getTime(); // Due today or future — keep. Overdue+done → remove.
+      if (d.getTime() >= today.getTime()) return true; // Due today or future — keep
+      // Overdue + done — keep only if checked today
+      const entry = checkedIds.find(e => e.id === t.id);
+      if (entry && entry.at) {
+        const checkedDate = new Date(entry.at); checkedDate.setHours(0,0,0,0);
+        if (checkedDate.getTime() === today.getTime()) return true; // Checked today — keep until EOD
+      }
+      return false; // Checked before today — evict
     });
     if (trelloTasks.length !== prevLen) renderTrello();
   }
