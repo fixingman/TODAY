@@ -3048,12 +3048,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.7';
+const APP_VERSION   = '2.16.8';
 const DEV_HOURS     = '182h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.8': 'AI context improvement — message word limit raised 20→30 words. Added instruction: name the task in the message when suggesting an action on it, so chips have context without putting task names in labels.',
   '2.16.7': 'Fix: Splash screen click-through — pointer-events: none meant taps during splash reached tasks drawn underneath, causing accidental deletes/checks. Changed to pointer-events: all. Tasks still render during splash for zero-lag reveal, but are not tappable until splash dismisses.',
   '2.16.6': 'Fix: BUG-007 mobile — triage bar flashes after triage completion. triageMinimize() (backdrop tap during 3s summary) was clearing _triageActive and restoring bar. If triageDismissedToday already true, triageMinimize now calls triageClose() instead.',
   '2.16.5': 'Fix: BUG-012 continued — overdue Trello card disappears immediately after being checked. Filter logic said done+overdue = hide, but didn\'t check WHEN it was done. Cards checked today should persist until EOD like due-today cards. Both loadTrello filter and mergeRemoteData eviction now check today_checked_ids timestamp — only evict if checked before today.',
@@ -9556,12 +9557,13 @@ ${totalPending === 0 && totalDone === 0 ? '- EMPTY STATE: The list is empty. Thi
 
 Reply ONLY with raw JSON (no markdown, no code fences):
 {
-  "message": "your message — warm, specific, ≤20 words",
+  "message": "your message — warm, specific, ≤30 words",
   "actions": [{ "label": "2-4 words", "type": "TYPE", "payload": {} }]
 }
 
 Message guidelines:
 - Be specific to THEIR tasks, not generic advice
+- When suggesting an action on a specific task, NAME the task in your message so the chip has context — "The report has been here 4 days" → chip: "Let it go". Never make the user guess which task a chip refers to.
 - Reference their patterns if relevant (peak hours, past wins)
 - If they've done a lot: acknowledge it genuinely
 - If overdue: gentle nudge, not alarm
