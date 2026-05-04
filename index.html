@@ -3048,12 +3048,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.10';
+const APP_VERSION   = '2.16.11';
 const DEV_HOURS     = '184h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.11': 'Fix: Splash not showing on desktop PWA close + reopen — v2.16.1 date-key guard was too broad (once per day, never on genuine reopens). Replaced with 30-minute timestamp guard. iOS background kill still suppressed; desktop close + reopen after 30+ min shows splash.',
   '2.16.10': 'Task link improvements — (1) arrow ↗ now shows as "link ↗" for legibility, in both taskHTML and Trello patch path. (2) Copy CTA now appends URL to copied text when task has a link — looks up task.url from manualTasks/trelloTasks by data-taskid.',
   '2.16.9': 'Fix: BUG-011 ghost chime — PiP RAF captured uiTaskId by reference. When PiP stayed alive (BUG-014 path) and user switched tasks, old RAF still ran and called completeFor(uiTaskId) which now pointed to the new task. Fix: startPiPClock captures clockTaskId by value. RAF stops if uiTaskId !== clockTaskId. Reused PiP path now calls startPiPClock() for the current task.',
   '2.16.8': 'AI context improvement — message word limit raised 20→30 words. Added instruction: name the task in the message when suggesting an action on it, so chips have context without putting task names in labels.',
@@ -8579,12 +8580,14 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
 
 // ─── Splash screen ────────────────────────────────────────────────────────────
 (function() {
-  // Skip splash if already shown today — use localStorage so iOS PWA page
-  // reloads (which clear sessionStorage) don't re-trigger the splash.
-  // Show at most once per calendar day (local time).
-  const splashKey = 'splash_shown_date';
-  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
-  if (localStorage.getItem(splashKey) === today) {
+  // Skip splash if shown within the last 30 minutes.
+  // Using a timestamp (not a date key) so iOS background kill + restore
+  // doesn't re-show the splash (kill happens within seconds/minutes),
+  // but a genuine desktop close + reopen after a meaningful gap still does.
+  const splashKey = 'splash_shown_at';
+  const lastShown = parseInt(localStorage.getItem(splashKey) || '0', 10);
+  const SPLASH_COOLDOWN = 30 * 60 * 1000; // 30 minutes
+  if (Date.now() - lastShown < SPLASH_COOLDOWN) {
     const splash = document.getElementById('splash');
     if (splash) splash.remove();
     const stickyHdr = document.getElementById('sticky-header');
@@ -8599,7 +8602,7 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     _appLoadDone = true;
     return;
   }
-  localStorage.setItem(splashKey, today);
+  localStorage.setItem(splashKey, Date.now().toString());
 
   const CHARS = '01∆◊×+−░▒·~⌁⊕⊗'.split('');
 
