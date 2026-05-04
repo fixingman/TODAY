@@ -164,8 +164,11 @@
 | Splash pointer-events fix | 2.16.7 | May 2026 |
 | AI message 20→30 words + task naming | 2.16.8 | May 2026 |
 | BUG-011 ghost chime fix | 2.16.9 | May 2026 |
-| Task link text + copy with URL | 2.16.10 | May 2026 |
+| Task link inline (manual) + ↗ only (Trello) | 2.16.15 | May 2026 |
+| AI energy-aware suggestions + soft cap | 2.16.16 | May 2026 |
+| Emergent vs planned insight | 2.16.17 | May 2026 |
+| Copy audit (README, AI prompt, info panel) | 2.16.18 | May 2026 |
 
 ---
 
-*Last updated: Session 34 (v2.16.10)*
+*Last updated: Session 35 (v2.16.18)*

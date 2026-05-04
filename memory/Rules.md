@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Splash UX, Trello loading, memory maintenance
-- **Recent:** v2.16.12 — Trello silent cache load, splash 30-min guard, Landscape.md + Backlog updated
-- **Watch for:** BUG-006/007/011/012/014 verification in production
+- **Working on:** AI improvements, copy audit, UX polish
+- **Recent:** v2.16.18 — copy audit (README, AI prompt, info panel), emergent/planned insight, energy-aware AI, soft cap, task link UX, Trello loading fix, splash fixes
+- **Watch for:** BUG-007/011/012/014 verification in production
 
 ---
 
