@@ -3049,13 +3049,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.16';
+const APP_VERSION   = '2.16.17';
 const DEV_HOURS     = '184h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
-  '2.16.16': 'AI improvements — (1) Energy-aware suggestions: AI now names specific tasks tied to energy moment ("You usually peak around now — good moment for the report") not generic guidance. (2) Soft cap: 6+ tasks sets LIST_HEAVY flag — AI acknowledges full plate warmly, focuses on one task, may suggest SOON.',
+  '2.16.17': 'Emergent vs planned insight — AI memory now tracks when tasks are added during the day (appMemory.patterns.lateAdditions) and how many tasks existed at day start (dayStartCount). After 10+ additions, AI notices patterns: consistent afternoon adds → "reactive day?" observation; consistent morning adds → "intentional planner" observation.',
+  '2.16.16': 'AI — (1) Energy-aware: AI names specific tasks tied to energy moment. (2) Soft cap: 6+ tasks sets LIST_HEAVY — AI acknowledges, focuses on one.',
   '2.16.15': 'Task link UX — (1) Trello: system URL shows ↗ only (no "link" text). (2) Manual tasks: URL kept inline in task.text, rendered at its position as "link ↗". Legacy tasks (URL already stripped) still append at end. (3) Copy replaces link element with actual href.',
   '2.16.14': 'Connections panel — AI key status and link now inline on one line ("Free tier — no credit card needed  Get free key →") instead of left/right flex split.',
   '2.16.13': 'Token audit — --accent-glow alias was missing (triage bar lost its border). Added. Token standardisation (Fix 2) reverted after causing circular :root references. Tokens.md updated.',
@@ -4276,6 +4277,9 @@ if (!appMemory.aiName) {
 }
 if (!appMemory.suggestionCooldowns) appMemory.suggestionCooldowns = {};
 if (!appMemory.suggestionHistory)   appMemory.suggestionHistory = [];
+if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
+if (appMemory.patterns.dayStartCount === undefined) appMemory.patterns.dayStartCount = null;
+if (appMemory.patterns.dayStartDate  === undefined) appMemory.patterns.dayStartDate  = null;
 
 function _saveMemory() {
   localStorage.setItem('today_memory', JSON.stringify(appMemory));
@@ -4516,6 +4520,33 @@ function _getProactiveObservations(ctx) {
     }
   }
   
+  // ── EMERGENT VS PLANNED INSIGHT ──
+  
+  const lateAdditions = m.patterns.lateAdditions || [];
+  if (lateAdditions.length >= 10) {
+    // Calculate average hour of addition
+    const avgHour = Math.round(lateAdditions.reduce((a, b) => a + b, 0) / lateAdditions.length);
+    // Count how many are "late" (afternoon/evening: ≥ 14)
+    const lateCount = lateAdditions.filter(h => h >= 14).length;
+    const latePct = Math.round((lateCount / lateAdditions.length) * 100);
+
+    if (latePct >= 60 && avgHour >= 15) {
+      // Consistent pattern: tasks added late in the day
+      observations.push({
+        type: 'reactive_pattern',
+        priority: 'low',
+        text: `A lot of your tasks get added in the afternoon. Reactive day, or just how you plan?`
+      });
+    } else if (latePct <= 30 && avgHour <= 11) {
+      // Consistent pattern: intentional morning planner
+      observations.push({
+        type: 'intentional_pattern',
+        priority: 'low',
+        text: `You tend to add tasks in the morning. Good instinct — plans made early tend to stick.`
+      });
+    }
+  }
+
   return observations;
 }
 
@@ -4597,6 +4628,17 @@ function applyNewDayCleanup() {
   // Reset daily counters
   localStorage.setItem('stat_tasks_done_today', '0');
   localStorage.setItem('stat_focus_mins_today', '0');
+
+  // Snapshot planned task count at day start — carried-over undone tasks.
+  // Used for emergent vs planned insight: how many tasks started the day planned
+  // vs how many were added reactively during the day.
+  if (appMemory?.patterns) {
+    const undoneCarriedOver = manualTasks.filter(t => !doneIds.has(t.id)).length;
+    appMemory.patterns.dayStartCount = undoneCarriedOver;
+    appMemory.patterns.dayStartDate  = _localISO();
+    if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
+    _saveMemory();
+  }
 
   // Move done manual tasks to PAST (zone model)
   const doneTasks = manualTasks.filter(t => doneIds.has(t.id));
@@ -6357,6 +6399,19 @@ function addManual() {
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));
   _setLastLocalChange();
   dropboxAutoSave();
+
+  // Track reactive (mid-day) additions for emergent vs planned insight
+  // Only track additions after the first hour of the day (≥8am) to exclude morning planning
+  const addHour = new Date().getHours();
+  if (appMemory?.patterns && addHour >= 8) {
+    if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
+    appMemory.patterns.lateAdditions.push(addHour);
+    // Keep last 50 additions only
+    if (appMemory.patterns.lateAdditions.length > 50) {
+      appMemory.patterns.lateAdditions = appMemory.patterns.lateAdditions.slice(-50);
+    }
+    _saveMemory();
+  }
   input.value = '';
   input.focus();
   toggleClearBtn();
@@ -9465,6 +9520,9 @@ function _aiContext() {
     })),
     progress: manualTasks.length ? Math.round(done.length / manualTasks.length * 100) : 0,
     weeklyStats,
+    // Emergent vs planned insight data
+    dayStartCount: appMemory.patterns.dayStartCount,   // tasks at day start (planned)
+    addedToday: pending.length + done.length - (appMemory.patterns.dayStartCount || 0), // added reactively today
   };
   
   // Generate proactive observations based on memory patterns

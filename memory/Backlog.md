@@ -57,11 +57,8 @@
 **Shipped:** LIST_HEAVY flag set at 6+ pending tasks. AI acknowledges the full plate warmly, focuses on one task, may suggest moving something to SOON. Option A (AI-driven, no UI).
 
 ### Emergent vs Planned Insight (Memory-Driven)
-**Status:** Not started
-**Goal:** Track when tasks are added during the day (time of addition vs start of day). Surface patterns to the AI: tasks added after 4pm may signal reactive mode, tasks added in the morning may signal intention. Over time, AI could notice: "You add a lot of tasks after 4pm — late-day reactive mode or a pattern worth looking at?"
-**Data needed:** `task.createdAt` timestamp already exists. Need to distinguish tasks that existed at day-start vs added during the day.
-**Memory hook:** Add to `appMemory` — daily "planned count" snapshotted at midnight vs tasks added during the day.
-**Scope:** Data capture is small. The value is in the AI using it. Medium effort.
+**Status:** ✅ Done (v2.16.17)
+**Shipped:** `appMemory.patterns.lateAdditions` tracks hour of each task addition. `dayStartCount` snapshotted at midnight. After 10+ data points, AI notices: ≥60% afternoon adds → "reactive day?" observation; ≤30% afternoon adds → "intentional planner" observation. Data compounds over weeks.
 
 ### "Calm Technology" Copy Audit
 **Status:** Not started
