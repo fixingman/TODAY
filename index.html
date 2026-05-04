@@ -3049,12 +3049,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.15';
+const APP_VERSION   = '2.16.16';
 const DEV_HOURS     = '184h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.16': 'AI improvements — (1) Energy-aware suggestions: AI now names specific tasks tied to energy moment ("You usually peak around now — good moment for the report") not generic guidance. (2) Soft cap: 6+ tasks sets LIST_HEAVY flag — AI acknowledges full plate warmly, focuses on one task, may suggest SOON.',
   '2.16.15': 'Task link UX — (1) Trello: system URL shows ↗ only (no "link" text). (2) Manual tasks: URL kept inline in task.text, rendered at its position as "link ↗". Legacy tasks (URL already stripped) still append at end. (3) Copy replaces link element with actual href.',
   '2.16.14': 'Connections panel — AI key status and link now inline on one line ("Free tier — no credit card needed  Get free key →") instead of left/right flex split.',
   '2.16.13': 'Token audit — --accent-glow alias was missing (triage bar lost its border). Added. Token standardisation (Fix 2) reverted after causing circular :root references. Tokens.md updated.',
@@ -9565,6 +9566,8 @@ function _aiSystemPrompt(ctx) {
   if (ctx.dayOfWeek === 0 && ctx.timeOfDay === 'evening') contextFlags.push('SUNDAY_EVENING');
   if (agingTasks.length > 0) contextFlags.push('HAS_AGING_TASKS');
   if (observation) contextFlags.push('HAS_OBSERVATION');
+  const totalPendingCount = (regularTasks.length || 0) + (overdueTasks.length || 0);
+  if (totalPendingCount >= 6) contextFlags.push('LIST_HEAVY');
 
   return `You are ${aiName} — a gentle, supportive presence inside TODAY, a minimal daily focus app.
 
@@ -9594,6 +9597,7 @@ ${ctx.isFirstOpenToday && ctx.timeOfDay === 'morning' ? '- MORNING BRIEFING: Giv
 ${ctx.dayOfWeek === 0 && ctx.timeOfDay === 'evening' ? '- WEEKLY REFLECTION: Sunday evening. Offer a gentle reflection on their week — tasks done, focus time, streak. Not analytics, just acknowledgment. "How did it feel?" rather than "Great job!"' : ''}
 ${agingTasks.length > 0 ? '- STALE AWARENESS: You see tasks that have been sitting. Don\'t always mention them, but when you do, be curious not judgmental: "Still relevant, or ready to let it go?"' : ''}
 ${totalPending === 0 && totalDone === 0 ? '- EMPTY STATE: The list is empty. This is an invitation moment, not a void. Invite gently: "What would feel good to finish today?" Use their patterns if you know them. If they have a streak, mention it. If they usually add tasks in the morning, acknowledge that. Suggest adding one thing — keep it light, not pushy.' : ''}
+${contextFlags.includes('LIST_HEAVY') ? `- LIST_HEAVY: ${totalPendingCount} tasks pending. Acknowledge the full plate once, warmly. Then focus on just one. Suggest moving something to SOON if it doesn\'t belong today.` : ''}
 
 Reply ONLY with raw JSON (no markdown, no code fences):
 {
@@ -9611,11 +9615,13 @@ Message guidelines:
 - If overwhelmed: empathetic, one clear next step
 - If aging tasks: curious, not nagging — "still on your mind?" not "you should do this"
 - If proactive observation: weave it naturally, don't lead with it
-- Energy awareness: use the "Energy rhythm" context to guide task suggestions:
-  * Peak time? Suggest demanding tasks: "Good moment for that deep work"
-  * Pre-peak? Keep it light: "Warming up — start with something easy"
-  * Post-peak/evening? Quick wins: "Wind down with the quick ones"
-  * Don't lecture about energy — just let it inform which task you suggest first
+- Energy awareness: use the "Energy rhythm" context to pick WHICH task to suggest first — name the task, tie it to the moment:
+  * Peak time? Name a demanding task from their list: "You usually peak around now — good moment for [task name]"
+  * Pre-peak? Name an easier task: "Still warming up — start with [easy task], save [heavy task] for later"
+  * Post-peak/evening? Name a quick win: "[task name] looks quick — good wind-down task"
+  * Never say "demanding task" or "easy task" generically — pick the actual task from their list and name it
+  * Don't lecture about energy — just let it shape which task you surface
+- List size: if there are 6+ pending tasks (LIST_HEAVY), gently notice it once — "That's a full plate. Anything ready for SOON?" — then focus on one task. Don't mention list size if there are fewer than 6.
 - Never use: "Let's", "Why not", "How about", exclamation marks, or emoji
 
 Action types (use exact IDs from brackets above):

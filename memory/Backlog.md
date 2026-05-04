@@ -49,23 +49,12 @@
 **Goal:** Document the UX and technical flow for connecting Trello, Dropbox, and AI — first-time setup, reconnect, and forget flows. Relevant for onboarding decisions and future integrations.
 
 ### Energy-Aware AI Suggestions
-**Status:** Not started
-**Goal:** TODAY already tracks `peakHour` in `appMemory.preferences`. The AI system prompt has `energyContext` (peak / pre-peak / post-peak / morning / evening) — but the language is generic. Tighten so the AI ties task suggestions explicitly to the user's energy rhythm.
-**Inspiration:** Momentum (momentumplanner.co) — "Work with your energy, not against it." Their version requires explicit S/M/L/XL energy tagging per task. TODAY's version stays AI-inferred — no user friction, the AI infers task weight from text.
-**Examples of desired AI behaviour:**
-- Peak time + heavy task: "You usually peak around 2pm — save the report for then."
-- Pre-peak + heavy task: "Energy's still warming up — start with email, save the proposal for after lunch."
-- Post-peak + heavy task: "Past your usual peak — could the proposal wait until tomorrow morning?"
-**Scope:** System prompt change only. No data model changes, no UI. ~10–15 lines in `_aiSystemPrompt`.
+**Status:** ✅ Done (v2.16.16)
+**Shipped:** AI now names specific tasks tied to energy moment instead of generic guidance. Peak time → names a demanding task. Pre-peak → names an easier one. Post-peak → names a quick win.
 
 ### 5-7 Task Soft Cap (AI nudge)
-**Status:** Not started
-**Goal:** When the task list grows past 5-7 items, the AI gently surfaces the overload — not as a hard block, but as a nudge. Inspired by Momentum's "Five Projects Rule" (science: brain manages ~5 active projects at once). Fits TODAY's anti-accumulation ethos.
-**Implementation question:** Two approaches:
-- A: AI-driven — when today's list hits 5+, AI context includes a flag; AI nudges naturally ("It's getting full — anything ready for SOON?")
-- B: Passive visual — a subtle indicator in the header or flow bar that the list is dense
-**Recommendation:** Option A first. Pure context change, no UI. If the nudge feels right in practice, consider B as a follow-on.
-**Key constraint:** Must feel observational, not prescriptive. TODAY never blocks or warns — it acknowledges.
+**Status:** ✅ Done (v2.16.16)
+**Shipped:** LIST_HEAVY flag set at 6+ pending tasks. AI acknowledges the full plate warmly, focuses on one task, may suggest moving something to SOON. Option A (AI-driven, no UI).
 
 ### Emergent vs Planned Insight (Memory-Driven)
 **Status:** Not started
