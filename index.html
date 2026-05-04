@@ -2762,10 +2762,10 @@
             onkeydown="if(event.key==='Enter')saveAIKey()" />
           <button class="btn-primary" id="aiSaveBtn" onclick="saveAIKey()" disabled style="flex-shrink:0">Connect</button>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:var(--space-2)">
-          <span id="aiStatusLine" style="font-size:var(--text-xs);color:var(--muted)">Free tier — no credit card needed</span>
+        <div style="margin-top:var(--space-2);font-size:var(--text-xs);color:var(--muted)">
+          <span id="aiStatusLine">Free tier — no credit card needed</span>
           <a id="aiKeyLink" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener"
-            style="font-size:var(--text-xs);color:var(--highlight-ui);text-decoration:none;letter-spacing:0.04em">
+            style="color:var(--highlight-ui);text-decoration:none;letter-spacing:0.04em;margin-left:var(--space-2)">
             Get free key →
           </a>
         </div>
@@ -3049,13 +3049,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.13';
+const APP_VERSION   = '2.16.14';
 const DEV_HOURS     = '184h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
-  '2.16.13': 'Token audit — (1) --accent-glow was used but never defined as alias (triage bar lost its border). Added to :root alias block. (2) 17 stray var(--color-*) usages standardised to short aliases (--bg, --border, --text, etc). (3) Tokens.md updated with missing aliases.',
+  '2.16.14': 'Connections panel — AI key status and link now inline on one line ("Free tier — no credit card needed  Get free key →") instead of left/right flex split.',
+  '2.16.13': 'Token audit — --accent-glow alias was missing (triage bar lost its border). Added. Token standardisation (Fix 2) reverted after causing circular :root references. Tokens.md updated.',
   '2.16.12': 'Fix: Trello tasks show loading spinner on every open despite cache. loadTrello() wiped list and showed spinner even when cache had already seeded trelloTasks. Now skips spinner if hasCachedTasks — API update is silent. Trello now loads same as manual tasks.',
   '2.16.11': 'Fix: Splash not showing on desktop PWA close + reopen — v2.16.1 date-key guard was too broad (once per day, never on genuine reopens). Replaced with 30-minute timestamp guard. iOS background kill still suppressed; desktop close + reopen after 30+ min shows splash.',
   '2.16.10': 'Task link improvements — (1) arrow ↗ now shows as "link ↗" for legibility, in both taskHTML and Trello patch path. (2) Copy CTA now appends URL to copied text when task has a link — looks up task.url from manualTasks/trelloTasks by data-taskid.',
