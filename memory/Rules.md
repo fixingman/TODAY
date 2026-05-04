@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes, Momentum research, backlog growth
-- **Recent:** v2.16.10 — BUG-012 deeper fix, BUG-007 mobile fix, BUG-011 ghost chime, splash click-through, AI context (+10 words, task naming), task link text, SW error filter, perf/safeJSON. Momentum inspected, Landscape.md created, 6 backlog items added.
-- **Watch for:** BUG-006/007/011/012/014/017 verification in production
+- **Working on:** AI improvements, copy audit, UX polish
+- **Recent:** v2.16.18 — copy audit (README, AI prompt, info panel), emergent/planned insight, energy-aware AI, soft cap, task link UX, Trello loading fix, splash fixes
+- **Watch for:** BUG-007/011/012/014 verification in production
 
 ---
 

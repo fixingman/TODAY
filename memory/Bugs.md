@@ -134,7 +134,7 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 ## BUG-006: Focus timer bar splits from task after returning to window
 
-**Status:** Fixed v2.12.65 + v2.14.8 + v2.15.7 — awaiting verification
+**Status:** ✅ Verified fixed (v2.12.65 + v2.14.8 + v2.15.7)
 
 **Symptom:** During focus mode, leave window for a few minutes, return — gap appears between the task row and the countdown timer bar. Timer floats near the bottom of the screen detached from the task.
 
@@ -152,7 +152,7 @@ Helper function that makes sync failures visible in PWA without devtools. Pushes
 
 **Verify:** Start focus on a Trello task → minimize for 2+ min → return. Timer bar should stay flush against the task row. Sync may reorder tasks — timer must follow the task. Also test manual tasks.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
 

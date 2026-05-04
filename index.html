@@ -399,6 +399,7 @@
     --accent:       var(--color-accent);
     --accent-dim:   var(--color-accent-dim);
     --accent-hover: var(--color-accent-hover);
+    --accent-glow:  var(--color-accent-glow);
     --text:         var(--color-text);
     --muted:        var(--color-muted);
     --danger:       var(--color-danger);
@@ -1254,7 +1255,7 @@
     color: var(--muted);
   }
   .task-suggestion-chip.dismiss:hover {
-    color: var(--color-text);
+    color: var(--text);
   }
   @keyframes slideDown {
     from { opacity: 0; transform: translateY(-8px); }
@@ -1298,7 +1299,7 @@
   .task.done .task-check {
     background: var(--accent);
     border-color: var(--accent);
-    color: var(--color-bg);
+    color: var(--bg);
   }
 
   .task-check svg { display: none; }
@@ -1392,9 +1393,9 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-    background: var(--color-surface2);
-    border: 1px solid var(--color-border);
-    color: var(--color-muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     padding: 7px 12px;
@@ -1411,7 +1412,7 @@
     align-items: center;
     gap: var(--space-1);
     background: var(--highlight);
-    color: var(--color-bg);
+    color: var(--bg);
     font-family: var(--font-display);
     font-weight: 700;
     font-size: var(--text-sm);
@@ -1460,7 +1461,7 @@
     content: '';
     position: absolute; left: 0; top: 20%; bottom: 20%;
     width: 2px; border-radius: 1px;
-    background: var(--color-border);
+    background: var(--border);
     opacity: 0; transition: opacity var(--dur-fast);
   }
   #manualList .task:not(.done):hover::before,
@@ -1482,8 +1483,8 @@
     opacity: 0.85;
     box-shadow: var(--shadow-float);
     border-radius: var(--radius-lg);
-    background: var(--color-surface2);
-    border: 1px solid var(--color-border);
+    background: var(--surface2);
+    border: 1px solid var(--border);
     transform: scale(1.03);  /* overridden by JS translate — scale preserved via matrix */
     transition: none;
     left: 0; top: 0;
@@ -1625,7 +1626,7 @@
     background: var(--accent);
     border: none;
     border-radius: var(--radius-lg);
-    color: var(--color-bg);
+    color: var(--bg);
     font-size: var(--text-lg);
     width: 44px;
     height: 44px;
@@ -1922,7 +1923,7 @@
     background: var(--highlight-ui);
     border: none;
     border-radius: var(--radius-lg);
-    color: var(--color-bg);
+    color: var(--bg);
     font-family: var(--font-display);
     font-weight: 700;
     font-size: var(--text-sm2);
@@ -2225,7 +2226,7 @@
   .version-badge {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
-    color: var(--color-bg);
+    color: var(--bg);
     background: var(--accent);
     padding: 1px var(--space-2);
     border-radius: var(--radius-sm);
@@ -2350,11 +2351,11 @@
     transition: background var(--dur-fast), border-color var(--dur-fast);
   }
   .habit-new { animation: fadeIn var(--dur-slow) var(--ease-std); }
-  .habit:hover { background: var(--color-surface2); border-color: var(--color-border); }
+  .habit:hover { background: var(--surface2); border-color: var(--border); }
 
   /* Edit mode: no global box — rows reveal individually on hover */
   .habit.editing { background: transparent; border-color: transparent; }
-  .habit.editing:hover { background: var(--color-surface2); border-color: var(--color-border); }
+  .habit.editing:hover { background: var(--surface2); border-color: var(--border); }
   .habit.editing .habit-check { visibility: hidden; }
 
   .habit-check {
@@ -2387,7 +2388,7 @@
   }
   .week-dot {
     width: 5px; height: 5px; border-radius: 50%;
-    background: var(--color-border); flex-shrink: 0;
+    background: var(--border); flex-shrink: 0;
     transition: background var(--dur-fast);
   }
   .week-dot.filled { background: var(--accent); }
@@ -2440,7 +2441,7 @@
   }
   .habit-add-row.open { display: flex; }
   .habit-input {
-    flex: 1; min-width: 0; background: var(--color-surface2);
+    flex: 1; min-width: 0; background: var(--surface2);
     border: 1px solid var(--border); border-radius: var(--radius-lg);
     padding: 10px 14px; color: var(--text);
     font-family: var(--font-mono); font-size: var(--text-lg);
@@ -2450,7 +2451,7 @@
   .habit-input:focus { border-color: var(--accent); }
   .habit-add-btn {
     background: var(--accent); border: none; border-radius: var(--radius-lg);
-    color: var(--color-bg); font-family: var(--font-display); font-weight: 700;
+    color: var(--bg); font-family: var(--font-display); font-weight: 700;
     font-size: var(--text-base); padding: 0 18px; cursor: pointer;
     transition: opacity var(--dur-fast); letter-spacing: 0.04em; white-space: nowrap;
   }
@@ -2761,10 +2762,10 @@
             onkeydown="if(event.key==='Enter')saveAIKey()" />
           <button class="btn-primary" id="aiSaveBtn" onclick="saveAIKey()" disabled style="flex-shrink:0">Connect</button>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:var(--space-2)">
-          <span id="aiStatusLine" style="font-size:var(--text-xs);color:var(--muted)">Free tier — no credit card needed</span>
+        <div style="margin-top:var(--space-2);font-size:var(--text-xs);color:var(--muted)">
+          <span id="aiStatusLine">Free tier — no credit card needed</span>
           <a id="aiKeyLink" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener"
-            style="font-size:var(--text-xs);color:var(--highlight-ui);text-decoration:none;letter-spacing:0.04em">
+            style="color:var(--highlight-ui);text-decoration:none;letter-spacing:0.04em;margin-left:var(--space-2)">
             Get free key →
           </a>
         </div>
@@ -2785,7 +2786,7 @@
   <!-- Info panel -->
   <div class="config-panel" id="infoPanel">
     <div class="panel-header">
-      <div class="config-title">ℹ About TODAY</div>
+      <div class="config-title">✦ TODAY</div>
     </div>
 
     <div id="infoStats"></div>
@@ -3048,12 +3049,20 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.10';
-const DEV_HOURS     = '184h';
+const APP_VERSION   = '2.16.18';
+const DEV_HOURS     = '186h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.18': 'Copy audit — README rewritten with "What it deliberately doesn\'t do" (no due dates, priorities, ranking, gamification, cloud). AI prompt: TODAY design philosophy block added. Info panel title: "ℹ About TODAY" → "✦ TODAY".',
+  '2.16.17': 'Emergent vs planned insight — AI memory now tracks when tasks are added during the day (appMemory.patterns.lateAdditions) and how many tasks existed at day start (dayStartCount). After 10+ additions, AI notices patterns: consistent afternoon adds → "reactive day?" observation; consistent morning adds → "intentional planner" observation.',
+  '2.16.16': 'AI — (1) Energy-aware: AI names specific tasks tied to energy moment. (2) Soft cap: 6+ tasks sets LIST_HEAVY — AI acknowledges, focuses on one.',
+  '2.16.15': 'Task link UX — (1) Trello: system URL shows ↗ only (no "link" text). (2) Manual tasks: URL kept inline in task.text, rendered at its position as "link ↗". Legacy tasks (URL already stripped) still append at end. (3) Copy replaces link element with actual href.',
+  '2.16.14': 'Connections panel — AI key status and link now inline on one line ("Free tier — no credit card needed  Get free key →") instead of left/right flex split.',
+  '2.16.13': 'Token audit — --accent-glow alias was missing (triage bar lost its border). Added. Token standardisation (Fix 2) reverted after causing circular :root references. Tokens.md updated.',
+  '2.16.12': 'Fix: Trello tasks show loading spinner on every open despite cache. loadTrello() wiped list and showed spinner even when cache had already seeded trelloTasks. Now skips spinner if hasCachedTasks — API update is silent. Trello now loads same as manual tasks.',
+  '2.16.11': 'Fix: Splash not showing on desktop PWA close + reopen — v2.16.1 date-key guard was too broad (once per day, never on genuine reopens). Replaced with 30-minute timestamp guard. iOS background kill still suppressed; desktop close + reopen after 30+ min shows splash.',
   '2.16.10': 'Task link improvements — (1) arrow ↗ now shows as "link ↗" for legibility, in both taskHTML and Trello patch path. (2) Copy CTA now appends URL to copied text when task has a link — looks up task.url from manualTasks/trelloTasks by data-taskid.',
   '2.16.9': 'Fix: BUG-011 ghost chime — PiP RAF captured uiTaskId by reference. When PiP stayed alive (BUG-014 path) and user switched tasks, old RAF still ran and called completeFor(uiTaskId) which now pointed to the new task. Fix: startPiPClock captures clockTaskId by value. RAF stops if uiTaskId !== clockTaskId. Reused PiP path now calls startPiPClock() for the current task.',
   '2.16.8': 'AI context improvement — message word limit raised 20→30 words. Added instruction: name the task in the message when suggesting an action on it, so chips have context without putting task names in labels.',
@@ -4269,6 +4278,9 @@ if (!appMemory.aiName) {
 }
 if (!appMemory.suggestionCooldowns) appMemory.suggestionCooldowns = {};
 if (!appMemory.suggestionHistory)   appMemory.suggestionHistory = [];
+if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
+if (appMemory.patterns.dayStartCount === undefined) appMemory.patterns.dayStartCount = null;
+if (appMemory.patterns.dayStartDate  === undefined) appMemory.patterns.dayStartDate  = null;
 
 function _saveMemory() {
   localStorage.setItem('today_memory', JSON.stringify(appMemory));
@@ -4509,6 +4521,33 @@ function _getProactiveObservations(ctx) {
     }
   }
   
+  // ── EMERGENT VS PLANNED INSIGHT ──
+  
+  const lateAdditions = m.patterns.lateAdditions || [];
+  if (lateAdditions.length >= 10) {
+    // Calculate average hour of addition
+    const avgHour = Math.round(lateAdditions.reduce((a, b) => a + b, 0) / lateAdditions.length);
+    // Count how many are "late" (afternoon/evening: ≥ 14)
+    const lateCount = lateAdditions.filter(h => h >= 14).length;
+    const latePct = Math.round((lateCount / lateAdditions.length) * 100);
+
+    if (latePct >= 60 && avgHour >= 15) {
+      // Consistent pattern: tasks added late in the day
+      observations.push({
+        type: 'reactive_pattern',
+        priority: 'low',
+        text: `A lot of your tasks get added in the afternoon. Reactive day, or just how you plan?`
+      });
+    } else if (latePct <= 30 && avgHour <= 11) {
+      // Consistent pattern: intentional morning planner
+      observations.push({
+        type: 'intentional_pattern',
+        priority: 'low',
+        text: `You tend to add tasks in the morning. Good instinct — plans made early tend to stick.`
+      });
+    }
+  }
+
   return observations;
 }
 
@@ -4590,6 +4629,17 @@ function applyNewDayCleanup() {
   // Reset daily counters
   localStorage.setItem('stat_tasks_done_today', '0');
   localStorage.setItem('stat_focus_mins_today', '0');
+
+  // Snapshot planned task count at day start — carried-over undone tasks.
+  // Used for emergent vs planned insight: how many tasks started the day planned
+  // vs how many were added reactively during the day.
+  if (appMemory?.patterns) {
+    const undoneCarriedOver = manualTasks.filter(t => !doneIds.has(t.id)).length;
+    appMemory.patterns.dayStartCount = undoneCarriedOver;
+    appMemory.patterns.dayStartDate  = _localISO();
+    if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
+    _saveMemory();
+  }
 
   // Move done manual tasks to PAST (zone model)
   const doneTasks = manualTasks.filter(t => doneIds.has(t.id));
@@ -5158,8 +5208,11 @@ async function loadTrello(fromSync) {
   const emptyEl = document.getElementById('trelloEmpty');
   const listEl  = document.getElementById('trelloList');
 
-  // Only wipe list on manual load — background sync keeps existing DOM for diff render
-  if (!fromSync) {
+  // Only wipe list on manual load with no cache — background sync and
+  // cache-seeded loads keep existing DOM for diff render (no spinner flash).
+  // If trelloTasks already populated from cache, treat like a sync load.
+  const hasCachedTasks = trelloTasks.length > 0;
+  if (!fromSync && !hasCachedTasks) {
     emptyEl.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span> Getting your cards…';
     emptyEl.style.display = 'block';
     listEl.innerHTML = '';
@@ -5376,7 +5429,7 @@ function renderTrello() {
       ? `<span class="task-tag">${esc(_tagMatch[1].toLowerCase())}</span>${esc(_tagMatch[2])}`
       : esc(task.text);
     const _link = safeUrl
-      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="Open in Trello">link ↗</a>`
+      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="Open in Trello">↗</a>`
       : '';
     // Include session badge in text comparison so patch doesn't destroy it (BUG-005)
     const _focusCount = _getTrelloFocus()[id] || 0;
@@ -5471,23 +5524,44 @@ function taskHTML(task, type) {
   // Detect tag pattern: "tag: rest of text" at start
   // Tag must be 1-12 chars, lowercase/numbers only, followed by ": "
   const tagMatch = task.text.match(/^([a-z0-9]{1,12}):\s+(.+)$/i);
+
+  const safeUrl = task.url && /^https?:\/\//i.test(task.url) ? task.url : '';
+  const linkTitle = type === 'trello' ? 'Open in Trello' : 'Open link';
+  // Trello links are system-generated URLs — just ↗. Manual links were pasted by user — link ↗.
+  const linkLabel = type === 'trello' ? '↗' : 'link ↗';
+  const linkHTML = safeUrl
+    ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="${linkTitle}">${linkLabel}</a>`
+    : '';
+
+  // For manual tasks: if URL is still in task.text (new behavior), inject inline.
+  // For legacy manual tasks and Trello: URL not in text, append at end.
   let taskTextHTML;
-  if (tagMatch) {
-    const tag = tagMatch[1].toLowerCase();
-    const rest = tagMatch[2];
-    taskTextHTML = `<span class="task-tag">${esc(tag)}</span>${esc(rest)}`;
+  const urlInText = safeUrl && task.text.includes(safeUrl);
+
+  if (urlInText) {
+    // Split text around the URL, escape each part, inject link inline
+    const parts = task.text.split(safeUrl);
+    const before = parts[0];
+    const after = parts.slice(1).join(safeUrl); // handles edge case of URL appearing twice
+    if (tagMatch) {
+      const tag = tagMatch[1].toLowerCase();
+      // Tag detection on the before portion
+      const tagRest = before.replace(new RegExp('^' + tag + ':\\s+', 'i'), '');
+      taskTextHTML = `<span class="task-tag">${esc(tag)}</span>${esc(tagRest)}${linkHTML}${esc(after)}`;
+    } else {
+      taskTextHTML = `${esc(before)}${linkHTML}${esc(after)}`;
+    }
   } else {
-    taskTextHTML = esc(task.text);
+    // Legacy / Trello: text has no inline URL — build text then append link
+    if (tagMatch) {
+      taskTextHTML = `<span class="task-tag">${esc(tagMatch[1].toLowerCase())}</span>${esc(tagMatch[2])}${linkHTML}`;
+    } else {
+      taskTextHTML = `${esc(task.text)}${linkHTML}`;
+    }
   }
 
   const badges = type === 'trello' && dueStr
     ? `<span class="badge due">due ${esc(dueStr)}</span>`
-    : '';
-
-  const safeUrl = task.url && /^https?:\/\//i.test(task.url) ? task.url : '';
-  const linkTitle = type === 'trello' ? 'Open in Trello' : 'Open link';
-  const link = safeUrl
-    ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="${linkTitle}">link ↗</a>`
     : '';
 
   const sessions = type === 'trello'
@@ -5521,7 +5595,7 @@ function taskHTML(task, type) {
         </svg>
       </div>
       <div class="task-body">
-        <div class="task-text">${taskTextHTML}${link}${sessionBadge}</div>
+        <div class="task-text">${taskTextHTML}${sessionBadge}</div>
         ${badges ? `<div class="task-meta">${badges}</div>` : ''}
       </div>
       ${deleteBtn}
@@ -5555,19 +5629,14 @@ document.addEventListener('click', function(e) {
     const taskEl = copyEl.closest('.task[data-taskid]');
     if (taskEl) {
       const textEl = taskEl.querySelector('.task-text');
-      // Get clean text — strip session count badge, link arrow, and tag prefix
       const clone = textEl.cloneNode(true);
-      clone.querySelectorAll('.session-count, .task-link, .task-tag').forEach(el => el.remove());
-      let text = clone.textContent.trim();
-
-      // Append URL if task has one — find task in data by taskid
-      const taskId = taskEl.dataset.taskid;
-      const manualTask = manualTasks.find(t => t.id === taskId);
-      const trelloTask = (window.trelloTasks || []).find(t => t.id === taskId);
-      const taskUrl = manualTask?.url || trelloTask?.url;
-      if (taskUrl && /^https?:\/\//i.test(taskUrl)) {
-        text = text + ' ' + taskUrl;
-      }
+      // Replace each task-link <a> with its actual URL so copy preserves the link
+      // inline (new tasks) or at end (legacy/Trello tasks)
+      clone.querySelectorAll('.task-link').forEach(a => {
+        a.replaceWith(document.createTextNode(' ' + a.href));
+      });
+      clone.querySelectorAll('.session-count, .task-tag').forEach(el => el.remove());
+      const text = clone.textContent.replace(/\s+/g, ' ').trim();
 
       function _showCopied() {
         copyEl.textContent = 'copied';
@@ -6309,18 +6378,20 @@ function addManual() {
     text = text.slice(0, MAX_TASK_LENGTH);
   }
 
-  // Extract URL from text — store separately, strip from display text
+  // Extract URL from text — keep in task.text for inline rendering,
+  // but also store separately in task.url for copy, AI context, and filters.
   const urlMatch = text.match(/(https?:\/\/[^\s]+)/i);
   let url = null;
   if (urlMatch) {
     url = urlMatch[1];
-    // Remove the URL from task text; trim any leftover whitespace
-    text = text.replace(urlMatch[1], '').trim();
-    // If user pasted just a URL with no text, use the domain as display text
-    if (!text) {
+    // If user pasted just a URL with no other text, use the domain as display text
+    // and don't keep the raw URL in task.text (it would be the entire text)
+    const textWithoutUrl = text.replace(urlMatch[1], '').trim();
+    if (!textWithoutUrl) {
       try { text = new URL(url).hostname.replace(/^www\./, ''); }
       catch(e) { text = url; }
     }
+    // Otherwise: leave URL in task.text — rendered inline at its position
   }
 
   const task = { id: 'manual_' + Date.now(), text };
@@ -6329,6 +6400,19 @@ function addManual() {
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));
   _setLastLocalChange();
   dropboxAutoSave();
+
+  // Track reactive (mid-day) additions for emergent vs planned insight
+  // Only track additions after the first hour of the day (≥8am) to exclude morning planning
+  const addHour = new Date().getHours();
+  if (appMemory?.patterns && addHour >= 8) {
+    if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
+    appMemory.patterns.lateAdditions.push(addHour);
+    // Keep last 50 additions only
+    if (appMemory.patterns.lateAdditions.length > 50) {
+      appMemory.patterns.lateAdditions = appMemory.patterns.lateAdditions.slice(-50);
+    }
+    _saveMemory();
+  }
   input.value = '';
   input.focus();
   toggleClearBtn();
@@ -8579,12 +8663,14 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
 
 // ─── Splash screen ────────────────────────────────────────────────────────────
 (function() {
-  // Skip splash if already shown today — use localStorage so iOS PWA page
-  // reloads (which clear sessionStorage) don't re-trigger the splash.
-  // Show at most once per calendar day (local time).
-  const splashKey = 'splash_shown_date';
-  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
-  if (localStorage.getItem(splashKey) === today) {
+  // Skip splash if shown within the last 30 minutes.
+  // Using a timestamp (not a date key) so iOS background kill + restore
+  // doesn't re-show the splash (kill happens within seconds/minutes),
+  // but a genuine desktop close + reopen after a meaningful gap still does.
+  const splashKey = 'splash_shown_at';
+  const lastShown = parseInt(localStorage.getItem(splashKey) || '0', 10);
+  const SPLASH_COOLDOWN = 30 * 60 * 1000; // 30 minutes
+  if (Date.now() - lastShown < SPLASH_COOLDOWN) {
     const splash = document.getElementById('splash');
     if (splash) splash.remove();
     const stickyHdr = document.getElementById('sticky-header');
@@ -8599,7 +8685,7 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     _appLoadDone = true;
     return;
   }
-  localStorage.setItem(splashKey, today);
+  localStorage.setItem(splashKey, Date.now().toString());
 
   const CHARS = '01∆◊×+−░▒·~⌁⊕⊗'.split('');
 
@@ -9435,6 +9521,9 @@ function _aiContext() {
     })),
     progress: manualTasks.length ? Math.round(done.length / manualTasks.length * 100) : 0,
     weeklyStats,
+    // Emergent vs planned insight data
+    dayStartCount: appMemory.patterns.dayStartCount,   // tasks at day start (planned)
+    addedToday: pending.length + done.length - (appMemory.patterns.dayStartCount || 0), // added reactively today
   };
   
   // Generate proactive observations based on memory patterns
@@ -9536,6 +9625,8 @@ function _aiSystemPrompt(ctx) {
   if (ctx.dayOfWeek === 0 && ctx.timeOfDay === 'evening') contextFlags.push('SUNDAY_EVENING');
   if (agingTasks.length > 0) contextFlags.push('HAS_AGING_TASKS');
   if (observation) contextFlags.push('HAS_OBSERVATION');
+  const totalPendingCount = (regularTasks.length || 0) + (overdueTasks.length || 0);
+  if (totalPendingCount >= 6) contextFlags.push('LIST_HEAVY');
 
   return `You are ${aiName} — a gentle, supportive presence inside TODAY, a minimal daily focus app.
 
@@ -9548,6 +9639,12 @@ Your personality:
 - You're honest when things pile up, but never judgmental.
 - You speak like a thoughtful friend, not a productivity coach.
 - Short sentences. Natural rhythm. No corporate speak.
+
+TODAY's design philosophy — never contradict these:
+- No due dates, no deadlines, no urgency signals. TODAY is about now, not a deadline system.
+- No priorities or ranking. The list is intentionally flat — honest reckoning over forced ranking.
+- No pressure. Streaks are acknowledgment, not obligation. A missed day is just a missed day.
+- You never suggest "prioritising", "scheduling", "setting a deadline", or "ranking tasks". That's not what this is.
 
 ${memoryContext ? `What you remember about this person:\n${memoryContext}\n` : ''}
 Context: ${ctx.timeOfDay}, ${ctx.isFirstOpenToday ? 'first open today' : 'returning'}, streak: ${ctx.streak} days
@@ -9565,6 +9662,7 @@ ${ctx.isFirstOpenToday && ctx.timeOfDay === 'morning' ? '- MORNING BRIEFING: Giv
 ${ctx.dayOfWeek === 0 && ctx.timeOfDay === 'evening' ? '- WEEKLY REFLECTION: Sunday evening. Offer a gentle reflection on their week — tasks done, focus time, streak. Not analytics, just acknowledgment. "How did it feel?" rather than "Great job!"' : ''}
 ${agingTasks.length > 0 ? '- STALE AWARENESS: You see tasks that have been sitting. Don\'t always mention them, but when you do, be curious not judgmental: "Still relevant, or ready to let it go?"' : ''}
 ${totalPending === 0 && totalDone === 0 ? '- EMPTY STATE: The list is empty. This is an invitation moment, not a void. Invite gently: "What would feel good to finish today?" Use their patterns if you know them. If they have a streak, mention it. If they usually add tasks in the morning, acknowledge that. Suggest adding one thing — keep it light, not pushy.' : ''}
+${contextFlags.includes('LIST_HEAVY') ? `- LIST_HEAVY: ${totalPendingCount} tasks pending. Acknowledge the full plate once, warmly. Then focus on just one. Suggest moving something to SOON if it doesn\'t belong today.` : ''}
 
 Reply ONLY with raw JSON (no markdown, no code fences):
 {
@@ -9582,11 +9680,13 @@ Message guidelines:
 - If overwhelmed: empathetic, one clear next step
 - If aging tasks: curious, not nagging — "still on your mind?" not "you should do this"
 - If proactive observation: weave it naturally, don't lead with it
-- Energy awareness: use the "Energy rhythm" context to guide task suggestions:
-  * Peak time? Suggest demanding tasks: "Good moment for that deep work"
-  * Pre-peak? Keep it light: "Warming up — start with something easy"
-  * Post-peak/evening? Quick wins: "Wind down with the quick ones"
-  * Don't lecture about energy — just let it inform which task you suggest first
+- Energy awareness: use the "Energy rhythm" context to pick WHICH task to suggest first — name the task, tie it to the moment:
+  * Peak time? Name a demanding task from their list: "You usually peak around now — good moment for [task name]"
+  * Pre-peak? Name an easier task: "Still warming up — start with [easy task], save [heavy task] for later"
+  * Post-peak/evening? Name a quick win: "[task name] looks quick — good wind-down task"
+  * Never say "demanding task" or "easy task" generically — pick the actual task from their list and name it
+  * Don't lecture about energy — just let it shape which task you surface
+- List size: if there are 6+ pending tasks (LIST_HEAVY), gently notice it once — "That's a full plate. Anything ready for SOON?" — then focus on one task. Don't mention list size if there are fewer than 6.
 - Never use: "Let's", "Why not", "How about", exclamation marks, or emoji
 
 Action types (use exact IDs from brackets above):

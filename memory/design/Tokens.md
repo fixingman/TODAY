@@ -28,6 +28,10 @@
 | `--color-accent-hover` | `rgba(200,240,96,0.18)` | Accent bg on hover |
 | `--color-accent-glow` | `rgba(200,240,96,0.28)` | Accent glow border |
 
+**Aliases:** `--accent`, `--accent-dim`, `--accent-hover`, `--accent-glow`
+
+**Special aliases:** `--highlight-ui` → `--color-accent` (used for UI highlight elements distinct from Trello `--highlight`)
+
 **Focus mode variants:**
 
 | Token | Value | Usage |
@@ -61,6 +65,8 @@
 | `--color-overlay` | `rgba(0,0,0,0.6)` | Modal backdrop |
 | `--color-breathe` | `rgba(22,26,20,0.88)` | Focus breathe overlay (rest) |
 | `--color-breathe-active` | `rgba(28,34,24,0.92)` | Focus breathe overlay (active) |
+
+**Aliases:** `--done-line`, `--bg-glass`
 
 ---
 

@@ -49,37 +49,20 @@
 **Goal:** Document the UX and technical flow for connecting Trello, Dropbox, and AI — first-time setup, reconnect, and forget flows. Relevant for onboarding decisions and future integrations.
 
 ### Energy-Aware AI Suggestions
-**Status:** Not started
-**Goal:** TODAY already tracks `peakHour` in `appMemory.preferences`. The AI system prompt has `energyContext` (peak / pre-peak / post-peak / morning / evening) — but the language is generic. Tighten so the AI ties task suggestions explicitly to the user's energy rhythm.
-**Inspiration:** Momentum (momentumplanner.co) — "Work with your energy, not against it." Their version requires explicit S/M/L/XL energy tagging per task. TODAY's version stays AI-inferred — no user friction, the AI infers task weight from text.
-**Examples of desired AI behaviour:**
-- Peak time + heavy task: "You usually peak around 2pm — save the report for then."
-- Pre-peak + heavy task: "Energy's still warming up — start with email, save the proposal for after lunch."
-- Post-peak + heavy task: "Past your usual peak — could the proposal wait until tomorrow morning?"
-**Scope:** System prompt change only. No data model changes, no UI. ~10–15 lines in `_aiSystemPrompt`.
+**Status:** ✅ Done (v2.16.16)
+**Shipped:** AI now names specific tasks tied to energy moment instead of generic guidance. Peak time → names a demanding task. Pre-peak → names an easier one. Post-peak → names a quick win.
 
 ### 5-7 Task Soft Cap (AI nudge)
-**Status:** Not started
-**Goal:** When the task list grows past 5-7 items, the AI gently surfaces the overload — not as a hard block, but as a nudge. Inspired by Momentum's "Five Projects Rule" (science: brain manages ~5 active projects at once). Fits TODAY's anti-accumulation ethos.
-**Implementation question:** Two approaches:
-- A: AI-driven — when today's list hits 5+, AI context includes a flag; AI nudges naturally ("It's getting full — anything ready for SOON?")
-- B: Passive visual — a subtle indicator in the header or flow bar that the list is dense
-**Recommendation:** Option A first. Pure context change, no UI. If the nudge feels right in practice, consider B as a follow-on.
-**Key constraint:** Must feel observational, not prescriptive. TODAY never blocks or warns — it acknowledges.
+**Status:** ✅ Done (v2.16.16)
+**Shipped:** LIST_HEAVY flag set at 6+ pending tasks. AI acknowledges the full plate warmly, focuses on one task, may suggest moving something to SOON. Option A (AI-driven, no UI).
 
 ### Emergent vs Planned Insight (Memory-Driven)
-**Status:** Not started
-**Goal:** Track when tasks are added during the day (time of addition vs start of day). Surface patterns to the AI: tasks added after 4pm may signal reactive mode, tasks added in the morning may signal intention. Over time, AI could notice: "You add a lot of tasks after 4pm — late-day reactive mode or a pattern worth looking at?"
-**Data needed:** `task.createdAt` timestamp already exists. Need to distinguish tasks that existed at day-start vs added during the day.
-**Memory hook:** Add to `appMemory` — daily "planned count" snapshotted at midnight vs tasks added during the day.
-**Scope:** Data capture is small. The value is in the AI using it. Medium effort.
+**Status:** ✅ Done (v2.16.17)
+**Shipped:** `appMemory.patterns.lateAdditions` tracks hour of each task addition. `dayStartCount` snapshotted at midnight. After 10+ data points, AI notices: ≥60% afternoon adds → "reactive day?" observation; ≤30% afternoon adds → "intentional planner" observation. Data compounds over weeks.
 
 ### "Calm Technology" Copy Audit
-**Status:** Not started
-**Goal:** Momentum explicitly names "calm technology" as a design principle in their marketing. TODAY embodies the same principle but doesn't state it — not in the README, not in the app, not in the AI prompt. A copy audit would surface places to be explicit about what TODAY IS (a focus instrument, present-tense, energy-aware) and what it deliberately ISN'T (no due dates, no priorities, no ranking, no streaks-as-pressure).
-**Why it matters:** As the landscape fills with apps using the same emotional language, TODAY needs its own clear statement. "No due dates" is a feature. "No priorities" is a choice worth owning.
-**Scope:** README copy, app ABOUT section, AI system prompt personality paragraph. No code changes — pure copy and positioning.
-**Reference:** See `research/Landscape.md` → Momentum tonality section for examples of explicit calm-tech language.
+**Status:** ✅ Done (v2.16.18)
+**Shipped:** README rewritten with explicit "What it deliberately doesn't do" section. AI prompt updated with TODAY design philosophy (no due dates, priorities, ranking — AI will never suggest these). Info panel title humanised.
 
 ### Momentum + TODAY Integration (Research)
 **Status:** Not started — research only
@@ -181,8 +164,11 @@
 | Splash pointer-events fix | 2.16.7 | May 2026 |
 | AI message 20→30 words + task naming | 2.16.8 | May 2026 |
 | BUG-011 ghost chime fix | 2.16.9 | May 2026 |
-| Task link text + copy with URL | 2.16.10 | May 2026 |
+| Task link inline (manual) + ↗ only (Trello) | 2.16.15 | May 2026 |
+| AI energy-aware suggestions + soft cap | 2.16.16 | May 2026 |
+| Emergent vs planned insight | 2.16.17 | May 2026 |
+| Copy audit (README, AI prompt, info panel) | 2.16.18 | May 2026 |
 
 ---
 
-*Last updated: Session 34 (v2.16.10)*
+*Last updated: Session 35 (v2.16.18)*
