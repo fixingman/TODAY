@@ -61,11 +61,8 @@
 **Shipped:** `appMemory.patterns.lateAdditions` tracks hour of each task addition. `dayStartCount` snapshotted at midnight. After 10+ data points, AI notices: ≥60% afternoon adds → "reactive day?" observation; ≤30% afternoon adds → "intentional planner" observation. Data compounds over weeks.
 
 ### "Calm Technology" Copy Audit
-**Status:** Not started
-**Goal:** Momentum explicitly names "calm technology" as a design principle in their marketing. TODAY embodies the same principle but doesn't state it — not in the README, not in the app, not in the AI prompt. A copy audit would surface places to be explicit about what TODAY IS (a focus instrument, present-tense, energy-aware) and what it deliberately ISN'T (no due dates, no priorities, no ranking, no streaks-as-pressure).
-**Why it matters:** As the landscape fills with apps using the same emotional language, TODAY needs its own clear statement. "No due dates" is a feature. "No priorities" is a choice worth owning.
-**Scope:** README copy, app ABOUT section, AI system prompt personality paragraph. No code changes — pure copy and positioning.
-**Reference:** See `research/Landscape.md` → Momentum tonality section for examples of explicit calm-tech language.
+**Status:** ✅ Done (v2.16.18)
+**Shipped:** README rewritten with explicit "What it deliberately doesn't do" section. AI prompt updated with TODAY design philosophy (no due dates, priorities, ranking — AI will never suggest these). Info panel title humanised.
 
 ### Momentum + TODAY Integration (Research)
 **Status:** Not started — research only

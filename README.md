@@ -1,6 +1,8 @@
 # ✦ TODAY
 
-Your daily task manager. A calm space for your day. Do what matters. Let go of what doesn't. Habits build quietly. Each morning is a clean slate.
+A minimal daily task manager built around one question: *what actually matters today?*
+
+No due dates. No priorities. No ranking system. Just today's list, a focus timer, and a quiet companion that notices your patterns over time.
 
 **[today-here.netlify.app](https://today-here.netlify.app)**
 
@@ -11,17 +13,26 @@ Your daily task manager. A calm space for your day. Do what matters. Let go of w
 - Add tasks for today, check them off as you go
 - Drag to reorder tasks, Trello cards, and habits — desktop and mobile
 - **Zones** — SOON for deferred tasks, PAST for completed/let-go tasks
-- **Evening triage** — review aging tasks each night (8pm–1am)
+- **Evening triage** — review undone tasks each night; keep, defer, or let go
 - **Morning nudge** — gentle reminder of tasks that carried over from yesterday
 - Track daily habits with a 21-day history strip and habit strength score
-- AI assistant (optional) — task breakdown, behavioral insights, triage hints, powered by Gemini (free) or Claude
+- AI assistant (optional) — powered by Gemini (free) or Claude. Notices patterns, suggests focus, never lectures.
 - Pull in cards from a Trello board so you don't re-enter work tasks
-- Focus mode (desktop) — click any task or habit to start a 25-minute Pomodoro session with Picture-in-Picture timer
+- Focus mode — click any task to start a 25-minute Pomodoro with a Picture-in-Picture timer
 - Idle companions — small creatures that wander the screen when you step away
-- Sync tasks and habits across devices via your own Dropbox
+- Sync across devices via your own Dropbox — no account, no server
 - Installs as a desktop or mobile app (PWA) — no App Store needed
-- Works offline after the first load, updates automatically in the background
-- No account. No server. Your data stays in your browser and your Dropbox.
+- Works offline after the first load
+
+---
+
+## What it deliberately doesn't do
+
+- No due dates — urgency lives in your head, not the app
+- No priorities or ranking — a flat list forces honest reckoning
+- No notifications by default — you come to it, it doesn't chase you
+- No gamification — streaks are acknowledgment, not pressure
+- No cloud account — your data stays in your browser and your Dropbox
 
 ---
 
@@ -91,7 +102,7 @@ Trello pulls in cards from a board and list of your choice. Read-only.
 
 ### 4. Enable AI Assistant (optional)
 
-The AI assistant can suggest how to break down complex tasks. Powered by Gemini 2.5 Flash (free) or Claude Haiku.
+The AI assistant notices patterns in your day and suggests what to focus on next. Powered by Gemini 2.5 Flash (free) or Claude Sonnet.
 
 1. Get an API key:
    - **Gemini (free):** [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
@@ -122,7 +133,7 @@ Documentation lives in `/memory/`. Start with `Rules.md` — it has a file guide
 When making changes:
 - Bump `APP_VERSION` and `DEV_HOURS` in `index.html`
 - Update `sw.js` cache version to match `APP_VERSION`
-- Add a row to `memory/Changelog.md`
+- Add a row to `memory/Changelog.md` and to the `CHANGELOG` object in `index.html`
 
 ---
 

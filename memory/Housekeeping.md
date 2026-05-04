@@ -30,7 +30,7 @@ Then read Tier 2 files relevant to the task (see `Rules.md` File Guide).
 
 > **Ownership:** Steps 1–5 are Claude's responsibility. Step 6 (production tests) is Can's responsibility — Claude cannot run the app.
 
-### 1. Update both Changelogs
+### 1. Update both Changelogs (per version bump — not just at session end)
 **a) `memory/Changelog.md`** — add row:
 ```markdown
 | **X.X.X** | **Feature name** — Brief description. |

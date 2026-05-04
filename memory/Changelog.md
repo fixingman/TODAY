@@ -2,6 +2,12 @@
 
 | Version | Key change |
 |---|---|
+| **2.16.18** | **Copy audit** — README rewritten with "What it deliberately doesn't do" section (no due dates, priorities, ranking, gamification, cloud). AI prompt: TODAY design philosophy block added so AI never suggests priorities/deadlines. Info panel title: `ℹ About TODAY` → `✦ TODAY`. |
+| **2.16.17** | **Emergent vs planned insight** — `appMemory.patterns.lateAdditions` tracks hour of each task addition. `dayStartCount` snapshotted at midnight. After 10+ data points, AI notices: ≥60% afternoon adds → "reactive day?" observation; ≤30% → "intentional planner" observation. |
+| **2.16.16** | **AI: energy-aware + soft cap** — Energy suggestions now name specific tasks tied to the moment (not generic guidance). `LIST_HEAVY` flag at 6+ tasks — AI acknowledges full plate warmly, focuses on one task, may suggest SOON. |
+| **2.16.15** | **Task link UX overhaul** — Trello: `link ↗` → `↗` only (system URL). Manual: URL kept inline in `task.text`, rendered at its position as `link ↗`. Legacy tasks append at end. Copy handler replaces `.task-link` elements with actual `href`. |
+| **2.16.14** | **Connections panel** — AI key status and link now inline on one line (`Free tier — no credit card needed  Get free key →`) instead of left/right flex split. |
+| **2.16.13** | **Token audit** — `--accent-glow` alias was missing (triage bar border undefined). Added to `:root`. Token standardisation (Fix 2) reverted after causing circular `:root` references. `Tokens.md` updated with missing aliases. |
 | **2.16.12** | **Fix: Trello loading flash** — `loadTrello()` was wiping the list and showing spinner even when cache had already seeded `trelloTasks`. Added `hasCachedTasks` check — if cache rendered, API update is silent (same as `fromSync` path). Trello now loads identically to manual tasks. |
 | **2.16.11** | **Fix: Splash not showing on desktop PWA reopen** — `v2.16.1` date-key guard was once-per-day, blocking genuine desktop close + reopen. Replaced with 30-minute timestamp guard (`splash_shown_at`). iOS background kill (seconds) still suppressed; desktop close + reopen after 30+ min shows splash. |
 | **2.16.10** | **Task link UX** — `↗` → `link ↗` in both `taskHTML` and Trello patch path. Copy CTA now appends `task.url` to copied text. |
