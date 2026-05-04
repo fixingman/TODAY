@@ -3049,12 +3049,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.14';
+const APP_VERSION   = '2.16.15';
 const DEV_HOURS     = '184h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.15': 'Task link UX — (1) Trello: system URL shows ↗ only (no "link" text). (2) Manual tasks: URL kept inline in task.text, rendered at its position as "link ↗". Legacy tasks (URL already stripped) still append at end. (3) Copy replaces link element with actual href.',
   '2.16.14': 'Connections panel — AI key status and link now inline on one line ("Free tier — no credit card needed  Get free key →") instead of left/right flex split.',
   '2.16.13': 'Token audit — --accent-glow alias was missing (triage bar lost its border). Added. Token standardisation (Fix 2) reverted after causing circular :root references. Tokens.md updated.',
   '2.16.12': 'Fix: Trello tasks show loading spinner on every open despite cache. loadTrello() wiped list and showed spinner even when cache had already seeded trelloTasks. Now skips spinner if hasCachedTasks — API update is silent. Trello now loads same as manual tasks.',
@@ -5384,7 +5385,7 @@ function renderTrello() {
       ? `<span class="task-tag">${esc(_tagMatch[1].toLowerCase())}</span>${esc(_tagMatch[2])}`
       : esc(task.text);
     const _link = safeUrl
-      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="Open in Trello">link ↗</a>`
+      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="Open in Trello">↗</a>`
       : '';
     // Include session badge in text comparison so patch doesn't destroy it (BUG-005)
     const _focusCount = _getTrelloFocus()[id] || 0;
@@ -5479,23 +5480,44 @@ function taskHTML(task, type) {
   // Detect tag pattern: "tag: rest of text" at start
   // Tag must be 1-12 chars, lowercase/numbers only, followed by ": "
   const tagMatch = task.text.match(/^([a-z0-9]{1,12}):\s+(.+)$/i);
+
+  const safeUrl = task.url && /^https?:\/\//i.test(task.url) ? task.url : '';
+  const linkTitle = type === 'trello' ? 'Open in Trello' : 'Open link';
+  // Trello links are system-generated URLs — just ↗. Manual links were pasted by user — link ↗.
+  const linkLabel = type === 'trello' ? '↗' : 'link ↗';
+  const linkHTML = safeUrl
+    ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="${linkTitle}">${linkLabel}</a>`
+    : '';
+
+  // For manual tasks: if URL is still in task.text (new behavior), inject inline.
+  // For legacy manual tasks and Trello: URL not in text, append at end.
   let taskTextHTML;
-  if (tagMatch) {
-    const tag = tagMatch[1].toLowerCase();
-    const rest = tagMatch[2];
-    taskTextHTML = `<span class="task-tag">${esc(tag)}</span>${esc(rest)}`;
+  const urlInText = safeUrl && task.text.includes(safeUrl);
+
+  if (urlInText) {
+    // Split text around the URL, escape each part, inject link inline
+    const parts = task.text.split(safeUrl);
+    const before = parts[0];
+    const after = parts.slice(1).join(safeUrl); // handles edge case of URL appearing twice
+    if (tagMatch) {
+      const tag = tagMatch[1].toLowerCase();
+      // Tag detection on the before portion
+      const tagRest = before.replace(new RegExp('^' + tag + ':\\s+', 'i'), '');
+      taskTextHTML = `<span class="task-tag">${esc(tag)}</span>${esc(tagRest)}${linkHTML}${esc(after)}`;
+    } else {
+      taskTextHTML = `${esc(before)}${linkHTML}${esc(after)}`;
+    }
   } else {
-    taskTextHTML = esc(task.text);
+    // Legacy / Trello: text has no inline URL — build text then append link
+    if (tagMatch) {
+      taskTextHTML = `<span class="task-tag">${esc(tagMatch[1].toLowerCase())}</span>${esc(tagMatch[2])}${linkHTML}`;
+    } else {
+      taskTextHTML = `${esc(task.text)}${linkHTML}`;
+    }
   }
 
   const badges = type === 'trello' && dueStr
     ? `<span class="badge due">due ${esc(dueStr)}</span>`
-    : '';
-
-  const safeUrl = task.url && /^https?:\/\//i.test(task.url) ? task.url : '';
-  const linkTitle = type === 'trello' ? 'Open in Trello' : 'Open link';
-  const link = safeUrl
-    ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="${linkTitle}">link ↗</a>`
     : '';
 
   const sessions = type === 'trello'
@@ -5529,7 +5551,7 @@ function taskHTML(task, type) {
         </svg>
       </div>
       <div class="task-body">
-        <div class="task-text">${taskTextHTML}${link}${sessionBadge}</div>
+        <div class="task-text">${taskTextHTML}${sessionBadge}</div>
         ${badges ? `<div class="task-meta">${badges}</div>` : ''}
       </div>
       ${deleteBtn}
@@ -5563,19 +5585,14 @@ document.addEventListener('click', function(e) {
     const taskEl = copyEl.closest('.task[data-taskid]');
     if (taskEl) {
       const textEl = taskEl.querySelector('.task-text');
-      // Get clean text — strip session count badge, link arrow, and tag prefix
       const clone = textEl.cloneNode(true);
-      clone.querySelectorAll('.session-count, .task-link, .task-tag').forEach(el => el.remove());
-      let text = clone.textContent.trim();
-
-      // Append URL if task has one — find task in data by taskid
-      const taskId = taskEl.dataset.taskid;
-      const manualTask = manualTasks.find(t => t.id === taskId);
-      const trelloTask = (window.trelloTasks || []).find(t => t.id === taskId);
-      const taskUrl = manualTask?.url || trelloTask?.url;
-      if (taskUrl && /^https?:\/\//i.test(taskUrl)) {
-        text = text + ' ' + taskUrl;
-      }
+      // Replace each task-link <a> with its actual URL so copy preserves the link
+      // inline (new tasks) or at end (legacy/Trello tasks)
+      clone.querySelectorAll('.task-link').forEach(a => {
+        a.replaceWith(document.createTextNode(' ' + a.href));
+      });
+      clone.querySelectorAll('.session-count, .task-tag').forEach(el => el.remove());
+      const text = clone.textContent.replace(/\s+/g, ' ').trim();
 
       function _showCopied() {
         copyEl.textContent = 'copied';
@@ -6317,18 +6334,20 @@ function addManual() {
     text = text.slice(0, MAX_TASK_LENGTH);
   }
 
-  // Extract URL from text — store separately, strip from display text
+  // Extract URL from text — keep in task.text for inline rendering,
+  // but also store separately in task.url for copy, AI context, and filters.
   const urlMatch = text.match(/(https?:\/\/[^\s]+)/i);
   let url = null;
   if (urlMatch) {
     url = urlMatch[1];
-    // Remove the URL from task text; trim any leftover whitespace
-    text = text.replace(urlMatch[1], '').trim();
-    // If user pasted just a URL with no text, use the domain as display text
-    if (!text) {
+    // If user pasted just a URL with no other text, use the domain as display text
+    // and don't keep the raw URL in task.text (it would be the entire text)
+    const textWithoutUrl = text.replace(urlMatch[1], '').trim();
+    if (!textWithoutUrl) {
       try { text = new URL(url).hostname.replace(/^www\./, ''); }
       catch(e) { text = url; }
     }
+    // Otherwise: leave URL in task.text — rendered inline at its position
   }
 
   const task = { id: 'manual_' + Date.now(), text };
