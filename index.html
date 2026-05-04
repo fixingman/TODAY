@@ -399,6 +399,7 @@
     --accent:       var(--color-accent);
     --accent-dim:   var(--color-accent-dim);
     --accent-hover: var(--color-accent-hover);
+    --accent-glow:  var(--color-accent-glow);
     --text:         var(--color-text);
     --muted:        var(--color-muted);
     --danger:       var(--color-danger);
@@ -1254,7 +1255,7 @@
     color: var(--muted);
   }
   .task-suggestion-chip.dismiss:hover {
-    color: var(--color-text);
+    color: var(--text);
   }
   @keyframes slideDown {
     from { opacity: 0; transform: translateY(-8px); }
@@ -1298,7 +1299,7 @@
   .task.done .task-check {
     background: var(--accent);
     border-color: var(--accent);
-    color: var(--color-bg);
+    color: var(--bg);
   }
 
   .task-check svg { display: none; }
@@ -1392,9 +1393,9 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-    background: var(--color-surface2);
-    border: 1px solid var(--color-border);
-    color: var(--color-muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     padding: 7px 12px;
@@ -1411,7 +1412,7 @@
     align-items: center;
     gap: var(--space-1);
     background: var(--highlight);
-    color: var(--color-bg);
+    color: var(--bg);
     font-family: var(--font-display);
     font-weight: 700;
     font-size: var(--text-sm);
@@ -1460,7 +1461,7 @@
     content: '';
     position: absolute; left: 0; top: 20%; bottom: 20%;
     width: 2px; border-radius: 1px;
-    background: var(--color-border);
+    background: var(--border);
     opacity: 0; transition: opacity var(--dur-fast);
   }
   #manualList .task:not(.done):hover::before,
@@ -1482,8 +1483,8 @@
     opacity: 0.85;
     box-shadow: var(--shadow-float);
     border-radius: var(--radius-lg);
-    background: var(--color-surface2);
-    border: 1px solid var(--color-border);
+    background: var(--surface2);
+    border: 1px solid var(--border);
     transform: scale(1.03);  /* overridden by JS translate — scale preserved via matrix */
     transition: none;
     left: 0; top: 0;
@@ -1625,7 +1626,7 @@
     background: var(--accent);
     border: none;
     border-radius: var(--radius-lg);
-    color: var(--color-bg);
+    color: var(--bg);
     font-size: var(--text-lg);
     width: 44px;
     height: 44px;
@@ -1922,7 +1923,7 @@
     background: var(--highlight-ui);
     border: none;
     border-radius: var(--radius-lg);
-    color: var(--color-bg);
+    color: var(--bg);
     font-family: var(--font-display);
     font-weight: 700;
     font-size: var(--text-sm2);
@@ -2225,7 +2226,7 @@
   .version-badge {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
-    color: var(--color-bg);
+    color: var(--bg);
     background: var(--accent);
     padding: 1px var(--space-2);
     border-radius: var(--radius-sm);
@@ -2350,11 +2351,11 @@
     transition: background var(--dur-fast), border-color var(--dur-fast);
   }
   .habit-new { animation: fadeIn var(--dur-slow) var(--ease-std); }
-  .habit:hover { background: var(--color-surface2); border-color: var(--color-border); }
+  .habit:hover { background: var(--surface2); border-color: var(--border); }
 
   /* Edit mode: no global box — rows reveal individually on hover */
   .habit.editing { background: transparent; border-color: transparent; }
-  .habit.editing:hover { background: var(--color-surface2); border-color: var(--color-border); }
+  .habit.editing:hover { background: var(--surface2); border-color: var(--border); }
   .habit.editing .habit-check { visibility: hidden; }
 
   .habit-check {
@@ -2387,7 +2388,7 @@
   }
   .week-dot {
     width: 5px; height: 5px; border-radius: 50%;
-    background: var(--color-border); flex-shrink: 0;
+    background: var(--border); flex-shrink: 0;
     transition: background var(--dur-fast);
   }
   .week-dot.filled { background: var(--accent); }
@@ -2440,7 +2441,7 @@
   }
   .habit-add-row.open { display: flex; }
   .habit-input {
-    flex: 1; min-width: 0; background: var(--color-surface2);
+    flex: 1; min-width: 0; background: var(--surface2);
     border: 1px solid var(--border); border-radius: var(--radius-lg);
     padding: 10px 14px; color: var(--text);
     font-family: var(--font-mono); font-size: var(--text-lg);
@@ -2450,7 +2451,7 @@
   .habit-input:focus { border-color: var(--accent); }
   .habit-add-btn {
     background: var(--accent); border: none; border-radius: var(--radius-lg);
-    color: var(--color-bg); font-family: var(--font-display); font-weight: 700;
+    color: var(--bg); font-family: var(--font-display); font-weight: 700;
     font-size: var(--text-base); padding: 0 18px; cursor: pointer;
     transition: opacity var(--dur-fast); letter-spacing: 0.04em; white-space: nowrap;
   }
@@ -3048,12 +3049,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.12';
+const APP_VERSION   = '2.16.13';
 const DEV_HOURS     = '184h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.13': 'Token audit — (1) --accent-glow was used but never defined as alias (triage bar lost its border). Added to :root alias block. (2) 17 stray var(--color-*) usages standardised to short aliases (--bg, --border, --text, etc). (3) Tokens.md updated with missing aliases.',
   '2.16.12': 'Fix: Trello tasks show loading spinner on every open despite cache. loadTrello() wiped list and showed spinner even when cache had already seeded trelloTasks. Now skips spinner if hasCachedTasks — API update is silent. Trello now loads same as manual tasks.',
   '2.16.11': 'Fix: Splash not showing on desktop PWA close + reopen — v2.16.1 date-key guard was too broad (once per day, never on genuine reopens). Replaced with 30-minute timestamp guard. iOS background kill still suppressed; desktop close + reopen after 30+ min shows splash.',
   '2.16.10': 'Task link improvements — (1) arrow ↗ now shows as "link ↗" for legibility, in both taskHTML and Trello patch path. (2) Copy CTA now appends URL to copied text when task has a link — looks up task.url from manualTasks/trelloTasks by data-taskid.',
