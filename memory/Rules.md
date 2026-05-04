@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes, Momentum research, backlog growth
-- **Recent:** v2.16.10 — BUG-012 deeper fix, BUG-007 mobile fix, BUG-011 ghost chime, splash click-through, AI context (+10 words, task naming), task link text, SW error filter, perf/safeJSON. Momentum inspected, Landscape.md created, 6 backlog items added.
-- **Watch for:** BUG-006/007/011/012/014/017 verification in production
+- **Working on:** Splash UX, Trello loading, memory maintenance
+- **Recent:** v2.16.12 — Trello silent cache load, splash 30-min guard, Landscape.md + Backlog updated
+- **Watch for:** BUG-006/007/011/012/014 verification in production
 
 ---
 

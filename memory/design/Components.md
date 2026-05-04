@@ -207,3 +207,22 @@ Bottom-right corner, 60% opacity, `--font-mono`. Appears after 45s idle.
 Creatures: Dino, Fish, Bird, Cat, Snail, Crab, Star
 
 Fades in over 0.6s, fades out on activity.
+
+---
+
+## Splash Screen
+
+Full-screen overlay (`z-index: 500`, `pointer-events: all`) shown on cold app open. Covers the task list while it loads — `pointer-events: all` prevents accidental taps reaching tasks below.
+
+**Animation:** Typewriter date string at 38–66ms per character, then 500ms cursor hold, then dismiss.
+
+**Gate system:** Two parallel signals must both fire before dismiss:
+- `_splashAnimDone` — set by the 500ms cursor timeout
+- `_appLoadDone` — set after Dropbox pull + local render completes
+
+**Skip logic (`splash_shown_at` in localStorage):**
+- Splash was shown within the last **30 minutes** → skip (covers iOS background kill + restore, which happens within seconds)
+- Splash was shown more than 30 minutes ago → show (genuine desktop close + reopen)
+- localStorage cleared → always show
+
+This 30-minute window replaced an earlier date-key approach (`splash_shown_date`) which was once-per-day and blocked desktop PWA close + reopen from seeing the splash.

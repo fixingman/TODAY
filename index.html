@@ -3048,12 +3048,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.11';
+const APP_VERSION   = '2.16.12';
 const DEV_HOURS     = '184h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.12': 'Fix: Trello tasks show loading spinner on every open despite cache. loadTrello() wiped list and showed spinner even when cache had already seeded trelloTasks. Now skips spinner if hasCachedTasks — API update is silent. Trello now loads same as manual tasks.',
   '2.16.11': 'Fix: Splash not showing on desktop PWA close + reopen — v2.16.1 date-key guard was too broad (once per day, never on genuine reopens). Replaced with 30-minute timestamp guard. iOS background kill still suppressed; desktop close + reopen after 30+ min shows splash.',
   '2.16.10': 'Task link improvements — (1) arrow ↗ now shows as "link ↗" for legibility, in both taskHTML and Trello patch path. (2) Copy CTA now appends URL to copied text when task has a link — looks up task.url from manualTasks/trelloTasks by data-taskid.',
   '2.16.9': 'Fix: BUG-011 ghost chime — PiP RAF captured uiTaskId by reference. When PiP stayed alive (BUG-014 path) and user switched tasks, old RAF still ran and called completeFor(uiTaskId) which now pointed to the new task. Fix: startPiPClock captures clockTaskId by value. RAF stops if uiTaskId !== clockTaskId. Reused PiP path now calls startPiPClock() for the current task.',
@@ -5159,8 +5160,11 @@ async function loadTrello(fromSync) {
   const emptyEl = document.getElementById('trelloEmpty');
   const listEl  = document.getElementById('trelloList');
 
-  // Only wipe list on manual load — background sync keeps existing DOM for diff render
-  if (!fromSync) {
+  // Only wipe list on manual load with no cache — background sync and
+  // cache-seeded loads keep existing DOM for diff render (no spinner flash).
+  // If trelloTasks already populated from cache, treat like a sync load.
+  const hasCachedTasks = trelloTasks.length > 0;
+  if (!fromSync && !hasCachedTasks) {
     emptyEl.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span> Getting your cards…';
     emptyEl.style.display = 'block';
     listEl.innerHTML = '';

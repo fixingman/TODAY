@@ -2,6 +2,8 @@
 
 | Version | Key change |
 |---|---|
+| **2.16.12** | **Fix: Trello loading flash** — `loadTrello()` was wiping the list and showing spinner even when cache had already seeded `trelloTasks`. Added `hasCachedTasks` check — if cache rendered, API update is silent (same as `fromSync` path). Trello now loads identically to manual tasks. |
+| **2.16.11** | **Fix: Splash not showing on desktop PWA reopen** — `v2.16.1` date-key guard was once-per-day, blocking genuine desktop close + reopen. Replaced with 30-minute timestamp guard (`splash_shown_at`). iOS background kill (seconds) still suppressed; desktop close + reopen after 30+ min shows splash. |
 | **2.16.10** | **Task link UX** — `↗` → `link ↗` in both `taskHTML` and Trello patch path. Copy CTA now appends `task.url` to copied text. |
 | **2.16.9** | **Fix: BUG-011 ghost chime** — PiP RAF captured `uiTaskId` by reference. With BUG-014 PiP staying alive, switching tasks left old RAF running. `clockTaskId` captured by value; RAF stops if `uiTaskId !== clockTaskId`. Reused PiP path now calls `startPiPClock()`. |
 | **2.16.8** | **AI context** — message word limit raised 20→30 words. Added instruction: name the task in the message when suggesting an action, so chips have context without putting task names in labels. |

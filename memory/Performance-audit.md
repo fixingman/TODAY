@@ -174,7 +174,7 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 
 ---
 
-## 8. Recent Changes (v2.12.48 → v2.14.4)
+## 8. Recent Changes (v2.12.48 → v2.16.12)
 
 | Feature | Version | Performance Impact |
 |---|---|---|
@@ -223,6 +223,9 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 | Red dot token + external label | 2.14.2 | CSS token swap, URL check in onerror. Negligible. |
 | Error log panel | 2.14.3 | Panel DOM rendered on click — not on every error. `_showErrorDot()` helper. No always-on cost. |
 | Triage summary redesign | 2.14.4 | CSS only — Syne font, simplified structure. Removed two CSS classes. |
+| focusData loop hoisting | 2.16.4 | `today_trello_focus` was read + JSON.parsed inside `.map()` — N reads per render in `_fetchTriageHints` and `renderTriageList`. Hoisted to one read before loop. |
+| safeJSON adoption | 2.16.4 | All `today_trello_focus` and `today_triage_history` reads now use `safeJSON()` — try/catch protection, no perf cost. |
+| Trello silent cache load | 2.16.12 | `loadTrello()` wiped DOM and showed spinner even when cache had seeded `trelloTasks`. Added `hasCachedTasks` guard — cache-seeded loads now silent like `fromSync`. Eliminates ~1-3s visible spinner on every app open. |
 
 ---
 
