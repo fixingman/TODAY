@@ -45,8 +45,8 @@
 **Next step:** Decide between D (visibility) or B (editable) before building anything.
 
 ### Document Connections Panel & First-Run Flow
-**Status:** Not started
-**Goal:** Document the UX and technical flow for connecting Trello, Dropbox, and AI — first-time setup, reconnect, and forget flows. Relevant for onboarding decisions and future integrations.
+**Status:** ✅ Done — `architecture/Connections.md`
+**Covers:** Trello OAuth flow + board selection, Dropbox PKCE flow + token lifecycle, AI key entry + provider selection, first-run experience, all localStorage keys.
 
 ### Energy-Aware AI Suggestions
 **Status:** ✅ Done (v2.16.16)

@@ -31,6 +31,7 @@
 | Design philosophy/voice | `design/Philosophy.md` |
 | Data/localStorage | `architecture/Data.md` |
 | Sync/backup | `architecture/Sync.md` |
+| Connections panel / auth flows | `architecture/Connections.md` |
 | AI companion | `architecture/AI.md` |
 | Focus/timer | `architecture/Focus.md` |
 | User psychology | `research/Psychology.md` |
