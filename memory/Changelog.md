@@ -2,6 +2,8 @@
 
 | Version | Key change |
 |---|---|
+| **2.16.19** | **Fix: BUG-014 — PiP not reappearing after manual restore** — Browser auto-closes PiP on dock/Alt+Tab restore (`pagehide` fires → `pipWindow = null`). OS minimize has no user gesture so `requestWindow()` fails. Added `_hadPiP` flag. On restore, if `_hadPiP` and focus active, reopens PiP immediately using the dock-click gesture. PiP floats alongside main window; already open when user minimizes. |
+| **2.16.19** | **Fix: BUG-014 continued** — PiP not reappearing after manual window restore. `_pipRestoredFromButton` path kept PiP alive but normal restore (Alt+Tab, dock click) still closed it. Next minimize had no user gesture → silent fail. Now PiP stays alive on all restore paths. |
 | **2.16.18** | **Copy audit** — README rewritten with "What it deliberately doesn't do" section (no due dates, priorities, ranking, gamification, cloud). AI prompt: TODAY design philosophy block added so AI never suggests priorities/deadlines. Info panel title: `ℹ About TODAY` → `✦ TODAY`. |
 | **2.16.17** | **Emergent vs planned insight** — `appMemory.patterns.lateAdditions` tracks hour of each task addition. `dayStartCount` snapshotted at midnight. After 10+ data points, AI notices: ≥60% afternoon adds → "reactive day?" observation; ≤30% → "intentional planner" observation. |
 | **2.16.16** | **AI: energy-aware + soft cap** — Energy suggestions now name specific tasks tied to the moment (not generic guidance). `LIST_HEAVY` flag at 6+ tasks — AI acknowledges full plate warmly, focuses on one task, may suggest SOON. |

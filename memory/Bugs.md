@@ -344,20 +344,19 @@ st.rem = Math.max(0, st.rem - elapsed);
 
 ## BUG-014: PiP doesn't reappear after restoring app during focus
 
-**Status:** Fixed v2.15.5 — awaiting verification
+**Status:** Fixed v2.15.5 + v2.16.19 — awaiting verification
 
-**Symptom:** Focus running → minimize → PiP appears ✅. Restore app (via PiP "open app" button) → minimize again → PiP does NOT appear.
+**Symptom:** Focus running → minimize → PiP appears ✅. Restore app (via PiP "open app" button) → minimize again → PiP does NOT appear. Also: restore app manually (Alt+Tab, dock click) → minimize → PiP does NOT appear.
 
 **Root cause:** `documentPictureInPicture.requestWindow()` requires a user gesture. The first minimize works because the focus start button was recently pressed (gesture still valid). When the tab restores and the user minimizes again, `visibilitychange` fires but has no user gesture → `requestWindow()` silently fails → no PiP.
 
-**Fix (v2.15.5):** Added `_pipRestoredFromButton` flag. When user taps "open app" in PiP, the flag is set and `window.focus()` is called. On tab restore, if flag is set, the PiP window is kept alive (not closed) instead of being destroyed. On next minimize, the existing PiP window is still valid — we just sync the display and let it float back up. No new `requestWindow()` needed → no gesture required.
+**Fix (v2.15.5):** Added `_pipRestoredFromButton` flag. When user taps "open app" in PiP, the flag is set and `window.focus()` is called. On tab restore, if flag is set, the PiP window is kept alive (not closed). On next minimize, existing PiP window floats up — no new `requestWindow()` needed.
 
-**Edge cases handled:**
-- Normal restore (switching tabs, not via PiP button) → PiP still closes as before
-- Focus ends while PiP kept alive → `_pipClose()` closes it via `closeUI()`
-- `_pipRestoredFromButton` reset immediately after use
+**Regression (v2.16.19):** The v2.15.5 fix only kept PiP alive when `_pipRestoredFromButton` was true. A manual restore (Alt+Tab, dock click) went to the `else` branch which closed the PiP window and nulled the references. Next minimize had no valid window and no user gesture → silent fail.
 
-**Verify:** Start focus → minimize (PiP appears) → tap "open app" in PiP → minimize again → PiP should reappear.
+**Fix (v2.16.19):** Removed the `_pipRestoredFromButton` branch entirely. All restore paths now keep PiP alive — just sync the display and don't close the window. PiP stays alive in the background regardless of how the user returned to the app.
+
+**Verify:** Start focus → minimize (PiP appears) → restore via PiP button → minimize → PiP reappears ✓. Also: start focus → minimize (PiP appears) → restore via Alt+Tab/dock → minimize → PiP reappears ✓. Also: close PiP via ✕ button → restore → minimize → PiP should NOT reappear (user closed it intentionally).
 
 **Verified fixed:** ☐
 

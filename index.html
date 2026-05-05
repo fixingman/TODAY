@@ -3049,12 +3049,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.18';
+const APP_VERSION   = '2.16.19';
 const DEV_HOURS     = '186h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.19': 'Fix: BUG-014 continued — PiP not reappearing after manual window restore (Alt+Tab, dock). BUG-014 fix only kept PiP alive when user tapped "open app" in PiP. Manual restore closed PiP — next minimize had no user gesture and failed. Now PiP stays alive on all restore paths.',
+  '2.16.19': 'Fix: BUG-014 — PiP not reappearing after manual restore (dock click / Alt+Tab). Root cause: browser auto-closes PiP on manual restore (pagehide fires, pipWindow = null). OS minimize button has no user gesture so requestWindow() fails. Fix: added _hadPiP flag. On restore, if _hadPiP and focus active, reopen PiP immediately using dock-click gesture. PiP floats alongside main window — already open when user minimizes again.',
   '2.16.18': 'Copy audit — README rewritten with "What it deliberately doesn\'t do" (no due dates, priorities, ranking, gamification, cloud). AI prompt: TODAY design philosophy block added. Info panel title: "ℹ About TODAY" → "✦ TODAY".',
   '2.16.17': 'Emergent vs planned insight — AI memory now tracks when tasks are added during the day (appMemory.patterns.lateAdditions) and how many tasks existed at day start (dayStartCount). After 10+ additions, AI notices patterns: consistent afternoon adds → "reactive day?" observation; consistent morning adds → "intentional planner" observation.',
   '2.16.16': 'AI — (1) Energy-aware: AI names specific tasks tied to energy moment. (2) Soft cap: 6+ tasks sets LIST_HEAVY — AI acknowledges, focuses on one.',
@@ -10873,6 +10875,7 @@ function _aiClearBadge() {
     let pipTimeEl = null;
     let openPipTimeout = null;
     let _pipRestoredFromButton = false; // PiP "open app" was tapped — don't close PiP on restore
+    let _hadPiP = false; // PiP was open before restore — reopen immediately on next restore
 
     // Auto-open PiP when leaving tab during focus mode
     // Note: Document PIP API requires a user gesture. Opening PIP on visibilitychange
@@ -10919,24 +10922,18 @@ function _aiClearBadge() {
           await openPiP().catch(() => {});
         }, 150);
       } else {
-        // Window restored
-        if (_pipRestoredFromButton) {
-          // User tapped "open app" in PiP — keep PiP window alive so it reappears
-          // on next minimize without needing a new user gesture. (BUG-014)
-          _pipRestoredFromButton = false;
-          // Just sync the display — PiP stays open in background
-          if (window._pipSync && uiTaskId) {
-            const st = getState(uiTaskId);
-            window._pipSync(st.rem, TOTAL);
-          }
-        } else {
-          // Normal restore (tab switched back, not via PiP button) — close PiP
-          if (pipWindow && !pipWindow.closed) {
-            pipWindow.close();
-          }
-          pipWindow = null;
-          pipFillEl = null;
-          pipTimeEl = null;
+        // Window restored — sync display if PiP is still open
+        _pipRestoredFromButton = false;
+        if (pipWindow && !pipWindow.closed && uiTaskId) {
+          const st = getState(uiTaskId);
+          if (window._pipSync) window._pipSync(st.rem, TOTAL);
+        }
+
+        // If PiP was open before restore but browser auto-closed it (manual dock/Alt+Tab restore),
+        // reopen PiP NOW while we have a user gesture (the dock click).
+        // PiP stays open alongside the main window — when user minimizes again, it's already floating.
+        if (_hadPiP && uiTaskId && (!pipWindow || pipWindow.closed)) {
+          openPiP().catch(() => {});
         }
       }
     });
@@ -11107,17 +11104,21 @@ function _aiClearBadge() {
         });
 
         pipWindow.document.getElementById('pipClose').addEventListener('click', function() {
+          _hadPiP = false; // User explicitly closed PiP — don't reopen on next restore
           if (pipWindow) pipWindow.close();
           closeUI(false);
         });
 
-        // Clean up references when PIP is closed (user closed it or focus ended)
+        // Clean up references when PiP is closed (user closed it or focus ended)
         pipWindow.addEventListener('pagehide', function() {
+          // _hadPiP stays true if browser closed it (restore) — we want to reopen next time
+          // _hadPiP is set to false only on explicit user close (above)
           pipWindow = null;
           pipFillEl = null;
           pipTimeEl = null;
         });
 
+        _hadPiP = true; // Track that PiP was open
         // Start the PiP's own RAF-driven clock — wall-clock accurate
         startPiPClock();
 
@@ -11224,6 +11225,7 @@ function _aiClearBadge() {
 
     // Expose close function
     window._pipClose = function() {
+      _hadPiP = false; // Focus ended — don't reopen PiP on next restore
       if (pipWindow && !pipWindow.closed) pipWindow.close();
     };
   })();
