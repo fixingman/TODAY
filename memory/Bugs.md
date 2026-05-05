@@ -62,7 +62,7 @@
 
 ## BUG-004: Task list blank after inactivity, returns on click
 
-**Status:** Fixed v2.12.57 + v2.12.66 + v2.16.20 — awaiting verification (sleep/wake during focus)
+**Status:** Fixed v2.12.57 + v2.12.66 + v2.16.20 + v2.16.21 — awaiting verification (sleep/wake during focus)
 
 **Symptom:** Leave desktop PWA idle → return → task list area blank (both manual AND Trello). Click anywhere → tasks reappear instantly. No data loss.
 

@@ -3049,12 +3049,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.20';
+const APP_VERSION   = '2.16.21';
 const DEV_HOURS     = '186h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.16.21': 'Fix: BUG-004 continued — app blank after sleep/wake in focus. v2.16.20 immediate check was too early. Real gap: async renderManual() destroys .focused element, _focusReanchor re-attaches moments later. Between those two: .focusing on but no .focused → 7% opacity → blank. Added 350ms deferred check to both visibilitychange and window.focus handlers.',
   '2.16.20': 'Fix: BUG-004 regression — app blank after sleep/wake during focus. .focusing class (recedes items to 7% opacity) was cleared on bfcache restore but not on visibilitychange. Added cleanup: if .focusing set but no .focused element exists in DOM, clear it.',
   '2.16.19': 'Fix: BUG-014 — PiP not reappearing after manual restore (dock click / Alt+Tab). Root cause: browser auto-closes PiP on manual restore. OS minimize has no user gesture so requestWindow() fails. Fix: _hadPiP flag; reopen PiP on restore using dock-click gesture.',
   '2.16.18': 'Copy audit — README rewritten with "What it deliberately doesn\'t do" (no due dates, priorities, ranking, gamification, cloud). AI prompt: TODAY design philosophy block added. Info panel title: "ℹ About TODAY" → "✦ TODAY".',
@@ -7731,17 +7732,23 @@ document.addEventListener('visibilitychange', () => {
     const app = document.getElementById('main-app');
     if (app) { app.style.display = 'none'; app.offsetHeight; app.style.display = ''; }
 
-    // Clear stale focus state — if .focusing is stuck on app after sleep/wake
-    // (habit or task focus, computer sleeps, wakes with inconsistent UI state),
-    // the recede overlay (7% opacity) makes everything look blank. Clear if
-    // .focusing is set but no .focused element exists in the DOM. (BUG-004 regression)
-    if (app && app.classList.contains('focusing')) {
-      const hasFocused = app.querySelector('.focused');
-      if (!hasFocused) {
-        app.classList.remove('focusing');
-        console.log('[TODAY] Cleared stale .focusing class on wake — no focused element found');
+    // Clear stale focus state — two checks:
+    // 1. Immediate: covers case where .focused was never set (clean sleep/wake)
+    // 2. Deferred 350ms: covers case where renderManual() (from async Dropbox sync)
+    //    destroys the .focused element, creating a gap before _focusReanchor re-attaches it.
+    //    During that gap, .focusing is on but nothing is .focused → everything at 7% → blank.
+    //    350ms gives sync + reanchor time to complete. (BUG-004)
+    function _clearStaleFocusing() {
+      const appEl = document.getElementById('main-app');
+      if (appEl && appEl.classList.contains('focusing')) {
+        if (!appEl.querySelector('.focused')) {
+          appEl.classList.remove('focusing');
+          console.log('[TODAY] Cleared stale .focusing class — no focused element found');
+        }
       }
     }
+    _clearStaleFocusing(); // immediate check
+    setTimeout(_clearStaleFocusing, 350); // deferred check after async sync + reanchor
 
     // Defer triage check — sync runs immediately on tab return (BUG-002),
     // and mergeRemoteData handles triage dismissal. Checking triage before
@@ -7782,6 +7789,13 @@ window.addEventListener('focus', () => {
     triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
     checkTriageBar();
   }, 3000);
+  // Deferred .focusing cleanup — matches visibilitychange handler (BUG-004)
+  setTimeout(() => {
+    const appEl = document.getElementById('main-app');
+    if (appEl && appEl.classList.contains('focusing') && !appEl.querySelector('.focused')) {
+      appEl.classList.remove('focusing');
+    }
+  }, 350);
 });
 
 // ── Backup ────────────────────────────────────────────────────────────────────
