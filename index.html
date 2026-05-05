@@ -3049,14 +3049,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.19';
+const APP_VERSION   = '2.16.20';
 const DEV_HOURS     = '186h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
-  '2.16.19': 'Fix: BUG-014 continued — PiP not reappearing after manual window restore (Alt+Tab, dock). BUG-014 fix only kept PiP alive when user tapped "open app" in PiP. Manual restore closed PiP — next minimize had no user gesture and failed. Now PiP stays alive on all restore paths.',
-  '2.16.19': 'Fix: BUG-014 — PiP not reappearing after manual restore (dock click / Alt+Tab). Root cause: browser auto-closes PiP on manual restore (pagehide fires, pipWindow = null). OS minimize button has no user gesture so requestWindow() fails. Fix: added _hadPiP flag. On restore, if _hadPiP and focus active, reopen PiP immediately using dock-click gesture. PiP floats alongside main window — already open when user minimizes again.',
+  '2.16.20': 'Fix: BUG-004 regression — app blank after sleep/wake during focus. .focusing class (recedes items to 7% opacity) was cleared on bfcache restore but not on visibilitychange. Added cleanup: if .focusing set but no .focused element exists in DOM, clear it.',
+  '2.16.19': 'Fix: BUG-014 — PiP not reappearing after manual restore (dock click / Alt+Tab). Root cause: browser auto-closes PiP on manual restore. OS minimize has no user gesture so requestWindow() fails. Fix: _hadPiP flag; reopen PiP on restore using dock-click gesture.',
   '2.16.18': 'Copy audit — README rewritten with "What it deliberately doesn\'t do" (no due dates, priorities, ranking, gamification, cloud). AI prompt: TODAY design philosophy block added. Info panel title: "ℹ About TODAY" → "✦ TODAY".',
   '2.16.17': 'Emergent vs planned insight — AI memory now tracks when tasks are added during the day (appMemory.patterns.lateAdditions) and how many tasks existed at day start (dayStartCount). After 10+ additions, AI notices patterns: consistent afternoon adds → "reactive day?" observation; consistent morning adds → "intentional planner" observation.',
   '2.16.16': 'AI — (1) Energy-aware: AI names specific tasks tied to energy moment. (2) Soft cap: 6+ tasks sets LIST_HEAVY — AI acknowledges, focuses on one.',
@@ -7730,6 +7730,18 @@ document.addEventListener('visibilitychange', () => {
     // occurrences, but this is a safety net. (BUG-004)
     const app = document.getElementById('main-app');
     if (app) { app.style.display = 'none'; app.offsetHeight; app.style.display = ''; }
+
+    // Clear stale focus state — if .focusing is stuck on app after sleep/wake
+    // (habit or task focus, computer sleeps, wakes with inconsistent UI state),
+    // the recede overlay (7% opacity) makes everything look blank. Clear if
+    // .focusing is set but no .focused element exists in the DOM. (BUG-004 regression)
+    if (app && app.classList.contains('focusing')) {
+      const hasFocused = app.querySelector('.focused');
+      if (!hasFocused) {
+        app.classList.remove('focusing');
+        console.log('[TODAY] Cleared stale .focusing class on wake — no focused element found');
+      }
+    }
 
     // Defer triage check — sync runs immediately on tab return (BUG-002),
     // and mergeRemoteData handles triage dismissal. Checking triage before

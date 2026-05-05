@@ -62,7 +62,7 @@
 
 ## BUG-004: Task list blank after inactivity, returns on click
 
-**Status:** ✅ Verified fixed (v2.12.57 + v2.12.66)
+**Status:** Fixed v2.12.57 + v2.12.66 + v2.16.20 — awaiting verification (sleep/wake during focus)
 
 **Symptom:** Leave desktop PWA idle → return → task list area blank (both manual AND Trello). Click anywhere → tasks reappear instantly. No data loss.
 
@@ -74,7 +74,11 @@
 - v2.12.57: Forced repaint on `visibilitychange`, `window.focus`, `pageshow` (targeted `manualList` only)
 - v2.12.66: Removed `contain: layout style` from `.task-list`. Repaint now targets `#main-app` to cover all child lists.
 
-**Verify:** Open desktop PWA with both manual and Trello tasks → minimize/switch away for 2-3 min → return. Both lists should be visible immediately without clicking. Repeat over several days.
+**Verify:** Open desktop PWA with both manual and Trello tasks → minimize/switch away for 2-3 min → return. Both lists should be visible immediately without clicking. Repeat over several days. Also test: start focus on a habit → let computer sleep → wake → app should show normally, not blank.
+
+**Regression (v2.16.20):** After sleep/wake during a habit or task focus session, `.focusing` class could be stuck on `#main-app` (recedes everything to 7% opacity → app looks blank). The `pageshow` handler cleared this on bfcache restore but `visibilitychange` (which fires on sleep/wake) did not. Added cleanup to `visibilitychange`: if `.focusing` is set but no `.focused` element exists in DOM, clear it.
+
+**Verified fixed:** ☐
 
 **Verified fixed:** ☑
 
@@ -412,6 +416,6 @@ st.rem = Math.max(0, st.rem - elapsed);
 
 **Verify:** Start a focus session, run for 5+ minutes, press Escape. Focus minutes in the flow bar should increase. Repeat with task-switch path.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
