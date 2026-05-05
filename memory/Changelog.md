@@ -2,6 +2,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.16.21** | **Fix: BUG-004 continued** — v2.16.20 immediate check missed the async gap. `renderManual()` (async Dropbox sync on wake) destroys `.focused` element; `_focusReanchor` re-attaches 10-100ms later. During that window: `.focusing` on but no `.focused` → 7% opacity → blank screen. Added 350ms deferred `_clearStaleFocusing()` to both `visibilitychange` and `window.focus` handlers. |
 | **2.16.20** | **Fix: BUG-004 regression — app blank after sleep/wake during focus** — `.focusing` class (recedes non-focused items to 7% opacity) was cleared on `pageshow` (bfcache) but not on `visibilitychange` (sleep/wake). After waking from sleep during a habit/task focus session, `.focusing` stayed stuck. Added cleanup to `visibilitychange`: if `.focusing` is set but no `.focused` element exists in DOM, clear it. |
 | **2.16.19** | **Fix: BUG-014 — PiP manual restore path** — browser auto-closes PiP on dock/Alt+Tab restore. `pagehide` fires → `pipWindow = null`. OS minimize has no user gesture so `requestWindow()` fails. Added `_hadPiP` flag; on restore, reopen PiP using dock-click gesture. `_hadPiP` cleared on explicit close or focus end. |
 | **2.16.19** | **Fix: BUG-014 continued** — PiP not reappearing after manual window restore. `_pipRestoredFromButton` path kept PiP alive but normal restore (Alt+Tab, dock click) still closed it. Next minimize had no user gesture → silent fail. Now PiP stays alive on all restore paths. |
