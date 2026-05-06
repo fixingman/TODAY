@@ -93,9 +93,8 @@
 ## Technical Debt
 
 ### Consolidate Wake Handlers into `_onWake()`
-**Priority:** Low — refactor when a wake-related bug next surfaces
-**Status:** Not started
-**Notes:** 5 `visibilitychange` listeners + `window.focus` handler all fire on wake, each with different delays. Changing wake behaviour requires updating multiple scattered listeners. Proposed: single `_onWake()` orchestrator, modules register callbacks. SW, focus timer, and PiP listeners can stay separate.
+**Status:** ✅ Done (v2.16.22)
+**Shipped:** `window._onWake()` consolidates repaint, `.focusing` cleanup, triage silent, pending backup. Called from sync module `visibilitychange`, `window.focus`, `pageshow`. Three closure-bound handlers (SW update, timer wall-clock, PiP) left untouched — as planned.
 
 ---
 
@@ -168,7 +167,9 @@
 | AI energy-aware suggestions + soft cap | 2.16.16 | May 2026 |
 | Emergent vs planned insight | 2.16.17 | May 2026 |
 | Copy audit (README, AI prompt, info panel) | 2.16.18 | May 2026 |
+| Connections panel documented | 2.16.18 | May 2026 |
+| _onWake() consolidation | 2.17.0 | May 2026 |
 
 ---
 
-*Last updated: Session 35 (v2.16.18)*
+*Last updated: Session 36 (v2.17.0)*

@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** AI improvements, copy audit, UX polish
-- **Recent:** v2.16.18 — copy audit (README, AI prompt, info panel), emergent/planned insight, energy-aware AI, soft cap, task link UX, Trello loading fix, splash fixes
-- **Watch for:** BUG-007/011/012/014 verification in production
+- **Working on:** Architecture cleanup, bug fixes
+- **Recent:** v2.17.0 — _onWake() consolidation (minor bump), BUG-004 deeper fix, BUG-007/014 verified, memory archiving (Bugs/Changelog), Connections.md created, BUG-019 PiP manual restore
+- **Watch for:** BUG-004/011/012 verification in production
 
 ---
 
@@ -19,7 +19,7 @@
 | `Housekeeping.md` | Session routines |
 | `Backlog.md` | Pending work |
 | `Bugs.md` | Known bugs & verification status |
-| `Changelog.md` | Recent changes |
+| `Changelog.md` | Recent changes (last ~20 versions) |
 
 ### Tier 2 — Read when task requires
 | Task | Read |
@@ -41,6 +41,8 @@
 | Competitor analysis | `research/Landscape.md` |
 | Testing | `Test-matrix.md` |
 | Performance | `Performance-audit.md` |
+| Historical bugs (verified, closed) | `archive/Bugs-archive.md` |
+| Full changelog history | `archive/Changelog-archive.md` |
 
 ---
 
