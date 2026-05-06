@@ -3049,12 +3049,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.16.21';
-const DEV_HOURS     = '186h';
+const APP_VERSION   = '2.17.0';
+const DEV_HOURS     = '188h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.0': 'Refactor: _onWake() consolidation — repaint, focus cleanup (.focusing), morning nudge, triage silent, pending backup all in window._onWake(). Called from visibilitychange (sync module), window.focus (PWA fallback), pageshow (bfcache). Minor bump: architectural change. Also added checkMorningNudge() to wake path — returning users after overnight now see morning nudge.',
+  '2.16.22': 'Intermediate refactor step — superseded by v2.17.0.',
   '2.16.21': 'Fix: BUG-004 continued — app blank after sleep/wake in focus. v2.16.20 immediate check was too early. Real gap: async renderManual() destroys .focused element, _focusReanchor re-attaches moments later. Between those two: .focusing on but no .focused → 7% opacity → blank. Added 350ms deferred check to both visibilitychange and window.focus handlers.',
   '2.16.20': 'Fix: BUG-004 regression — app blank after sleep/wake during focus. .focusing class (recedes items to 7% opacity) was cleared on bfcache restore but not on visibilitychange. Added cleanup: if .focusing set but no .focused element exists in DOM, clear it.',
   '2.16.19': 'Fix: BUG-014 — PiP not reappearing after manual restore (dock click / Alt+Tab). Root cause: browser auto-closes PiP on manual restore. OS minimize has no user gesture so requestWindow() fails. Fix: _hadPiP flag; reopen PiP on restore using dock-click gesture.',
@@ -7723,79 +7725,60 @@ function dropboxAutoSave() {
 }
 
 // Retry pending backup when tab becomes visible
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    // Force repaint — PWA standalone defers painting for background windows.
-    // Target the whole app container since both manual and Trello lists
-    // can go blank. Removing contain:layout (v2.12.66) should reduce
-    // occurrences, but this is a safety net. (BUG-004)
-    const app = document.getElementById('main-app');
-    if (app) { app.style.display = 'none'; app.offsetHeight; app.style.display = ''; }
-
-    // Clear stale focus state — two checks:
-    // 1. Immediate: covers case where .focused was never set (clean sleep/wake)
-    // 2. Deferred 350ms: covers case where renderManual() (from async Dropbox sync)
-    //    destroys the .focused element, creating a gap before _focusReanchor re-attaches it.
-    //    During that gap, .focusing is on but nothing is .focused → everything at 7% → blank.
-    //    350ms gives sync + reanchor time to complete. (BUG-004)
-    function _clearStaleFocusing() {
-      const appEl = document.getElementById('main-app');
-      if (appEl && appEl.classList.contains('focusing')) {
-        if (!appEl.querySelector('.focused')) {
-          appEl.classList.remove('focusing');
-          console.log('[TODAY] Cleared stale .focusing class — no focused element found');
-        }
-      }
-    }
-    _clearStaleFocusing(); // immediate check
-    setTimeout(_clearStaleFocusing, 350); // deferred check after async sync + reanchor
-
-    // Defer triage check — sync runs immediately on tab return (BUG-002),
-    // and mergeRemoteData handles triage dismissal. Checking triage before
-    // sync completes shows a stale bar that gets hidden moments later. (BUG-001)
-    // _triageBarSilent suppresses checkTriageBar during this window — the ticker
-    // can fire any time, and without this it would show the bar before sync settles.
-    _triageBarSilent = true;
-    setTimeout(() => {
-      _triageBarSilent = false;
-      triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
-      checkTriageBar();
-    }, 3000);
-    
-    // Retry pending backup — route through _scheduleBackup so it shares the
-    // same timer (clears any pending backoff retry). Prevents two concurrent
-    // uploads if backoff retry and visibility retry fire close together.
-    if (_pendingBackup) {
-      const token = localStorage.getItem('dropbox_token');
-      if (token) _scheduleBackup(1000);
-    }
-  }
-});
-
-// PWA standalone may not always fire visibilitychange on window restore —
-// window focus is a reliable fallback for forced repaint (BUG-004) and sync (BUG-002)
-window.addEventListener('focus', () => {
+// ─── _onWake — unified wake sequence ─────────────────────────────────────────
+// Called by the Dropbox sync module's visibilitychange handler (which has the
+// right closure variables for sync). Handles repaint, focus cleanup, and triage.
+// Do NOT add a second visibilitychange listener here — let the sync module call this.
+window._onWake = function() {
+  // Force repaint — PWA standalone defers painting for background windows. (BUG-004)
   const app = document.getElementById('main-app');
   if (app) { app.style.display = 'none'; app.offsetHeight; app.style.display = ''; }
-  // Trigger sync if available — PWA may not have fired visibilitychange
-  if (window._dbxResetRev) window._dbxResetRev();
-  if (window._setWakeSyncSilent) window._setWakeSyncSilent(true);
-  if (window._dbxSyncNow) window._dbxSyncNow();
-  setTimeout(() => { if (window._setWakeSyncSilent) window._setWakeSyncSilent(false); }, 3000);
-  // Deferred triage check — same as visibilitychange (BUG-001)
+
+  // Clear stale .focusing — two checks:
+  // 1. Immediate: covers clean sleep/wake where .focused was never set
+  // 2. Deferred 350ms: covers async Dropbox sync gap — renderManual() destroys
+  //    .focused element, _focusReanchor re-attaches moments later. During that
+  //    gap .focusing is on but nothing is .focused → everything at 7% → blank. (BUG-004)
+  function _clearStaleFocusing() {
+    const appEl = document.getElementById('main-app');
+    if (appEl && appEl.classList.contains('focusing') && !appEl.querySelector('.focused')) {
+      appEl.classList.remove('focusing');
+      console.log('[TODAY] Cleared stale .focusing class on wake');
+    }
+  }
+  _clearStaleFocusing();
+  setTimeout(_clearStaleFocusing, 350);
+
+  // Check morning nudge — only called in init() normally, so returning users
+  // after overnight don't see it without this. Nudge has its own hour < 12 guard.
+  if (typeof checkMorningNudge === 'function') checkMorningNudge();
+
+  // Triage silent window — prevents ticker showing bar before sync settles. (BUG-001)
   _triageBarSilent = true;
   setTimeout(() => {
     _triageBarSilent = false;
     triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
     checkTriageBar();
   }, 3000);
-  // Deferred .focusing cleanup — matches visibilitychange handler (BUG-004)
-  setTimeout(() => {
-    const appEl = document.getElementById('main-app');
-    if (appEl && appEl.classList.contains('focusing') && !appEl.querySelector('.focused')) {
-      appEl.classList.remove('focusing');
-    }
-  }, 350);
+
+  // Retry pending backup — route through _scheduleBackup to share timer. (BUG-002)
+  if (_pendingBackup) {
+    const token = localStorage.getItem('dropbox_token');
+    if (token) _scheduleBackup(1000);
+  }
+};
+
+// PWA standalone may not always fire visibilitychange on window restore —
+// window focus is a reliable fallback for forced repaint (BUG-004) and sync (BUG-002)
+window.addEventListener('focus', () => {
+  // PWA may not always fire visibilitychange on window restore — this is a fallback.
+  // Trigger sync if available
+  if (window._dbxResetRev) window._dbxResetRev();
+  if (window._setWakeSyncSilent) window._setWakeSyncSilent(true);
+  if (window._dbxSyncNow) window._dbxSyncNow();
+  setTimeout(() => { if (window._setWakeSyncSilent) window._setWakeSyncSilent(false); }, 3000);
+  // Unified wake handler — repaint, focus cleanup, triage, pending backup
+  if (window._onWake) window._onWake();
 });
 
 // ── Backup ────────────────────────────────────────────────────────────────────
@@ -8546,13 +8529,14 @@ async function dropboxRestore(fromSync) {
       // another device wrote new data. (BUG-002 Path B)
       lastDropboxRev = null;
       _refreshSyncCache();
-      // Sync on wake — but silently. After sleep, network may not be ready yet;
-      // if it fails, the ticker will retry every 7s. No red dot for transient
-      // wake failures — the 'online' event handles full reconnect. (BUG-003)
+      // Sync on wake — but silently. After sleep, network may not be ready yet.
+      // No red dot for transient wake failures. (BUG-003)
       _wakeSyncSilent = true;
       syncDropbox();
       syncTrello();
       setTimeout(() => { _wakeSyncSilent = false; }, 3000);
+      // Unified wake handler — repaint, focus cleanup, triage, pending backup
+      if (window._onWake) window._onWake();
       // Start ticker
       wakeTimer = setTimeout(() => { startTicker(); }, 2000);
     } else {
@@ -11383,15 +11367,8 @@ if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.
 // but JS state is reset, leaving app visually stuck in focus mode
 window.addEventListener('pageshow', (e) => {
   if (e.persisted) {
-    const mainApp = document.getElementById('main-app');
-    if (mainApp && mainApp.classList.contains('focusing')) {
-      mainApp.classList.remove('focusing');
-      mainApp.querySelectorAll('.focused').forEach(el => el.classList.remove('focused'));
-      console.log('[TODAY] Cleared stale focus state after bfcache restore');
-    }
-    // Force repaint after bfcache restore (BUG-004)
-    const app = mainApp || document.getElementById('main-app');
-    if (app) { app.style.display = 'none'; app.offsetHeight; app.style.display = ''; }
+    // bfcache restore — run full wake sequence
+    if (window._onWake) window._onWake();
   }
 });
 

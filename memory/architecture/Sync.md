@@ -34,6 +34,34 @@
 6. On disconnect ('offline' event): stop ticker
 ```
 
+### Wake Sequence — `window._onWake()` (v2.17.0)
+
+All wake-related UI logic is consolidated into `window._onWake()`, defined in global scope. Called from three entry points:
+
+| Entry point | When |
+|---|---|
+| Sync module `visibilitychange` | Tab becomes visible, after sync is set up |
+| `window.focus` | PWA window gains focus (fallback — PWA may skip `visibilitychange`) |
+| `pageshow` (persisted) | bfcache restore |
+
+Three handlers remain in their own closures — not merged, they need private variables: SW update check, timer wall-clock correction, PiP show/hide.
+
+**`_onWake()` sequence:**
+1. Force repaint (BUG-004)
+2. Clear stale `.focusing` immediately + 350ms deferred (covers async `renderManual` gap)
+3. `checkMorningNudge()` — returning users after overnight need this
+4. `_triageBarSilent = true` (3s window)
+5. After 3s: clear silent, re-read `triage_dismissed`, `checkTriageBar()`
+6. Retry `_pendingBackup` if any
+
+**Sync module `visibilitychange` calls `_onWake` after sync is triggered:**
+1. `clearTimeout(wakeTimer)`
+2. `checkNewDay()`
+3. `lastDropboxRev = null` + `_refreshSyncCache()`
+4. `_wakeSyncSilent = true` → `syncDropbox()` + `syncTrello()`
+5. `window._onWake()`
+6. `wakeTimer` → `startTicker()` after 2s
+
 ### Error Handling (v2.13.4 + v2.14.1)
 
 `_logSyncError()` routes errors to the red dot indicator, with two filters:
