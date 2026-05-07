@@ -3049,12 +3049,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.0';
+const APP_VERSION   = '2.17.1';
 const DEV_HOURS     = '188h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.1': 'Fix: BUG-004 — app blank after long sleep (clicking restores). Clicking works because user-interactive paints are browser-prioritised. Synchronous display:none/offsetHeight trick fails when GPU compositor layers not ready after long sleep. Now: immediate repaint + rAF repaint + second rAF + 500ms deferred. Covers GPU warmup after hours of sleep.',
   '2.17.0': 'Refactor: _onWake() consolidation — repaint, focus cleanup (.focusing), morning nudge, triage silent, pending backup all in window._onWake(). Called from visibilitychange (sync module), window.focus (PWA fallback), pageshow (bfcache). Minor bump: architectural change. Also added checkMorningNudge() to wake path — returning users after overnight now see morning nudge.',
   '2.16.22': 'Intermediate refactor step — superseded by v2.17.0.',
   '2.16.21': 'Fix: BUG-004 continued — app blank after sleep/wake in focus. v2.16.20 immediate check was too early. Real gap: async renderManual() destroys .focused element, _focusReanchor re-attaches moments later. Between those two: .focusing on but no .focused → 7% opacity → blank. Added 350ms deferred check to both visibilitychange and window.focus handlers.',
@@ -7730,9 +7731,21 @@ function dropboxAutoSave() {
 // right closure variables for sync). Handles repaint, focus cleanup, and triage.
 // Do NOT add a second visibilitychange listener here — let the sync module call this.
 window._onWake = function() {
-  // Force repaint — PWA standalone defers painting for background windows. (BUG-004)
-  const app = document.getElementById('main-app');
-  if (app) { app.style.display = 'none'; app.offsetHeight; app.style.display = ''; }
+  // Force repaint — PWA standalone defers painting after sleep/wake. (BUG-004)
+  // After a long sleep the GPU compositor layers may not be ready synchronously.
+  // Run repaint immediately, on next rAF (GPU more likely ready), and after 500ms.
+  // Clicking also restores it (user-interactive paints are prioritised) — these
+  // deferred passes replicate that urgency without requiring user interaction.
+  function _forceRepaint() {
+    const appEl = document.getElementById('main-app');
+    if (appEl) { appEl.style.display = 'none'; void appEl.offsetHeight; appEl.style.display = ''; }
+  }
+  _forceRepaint();
+  requestAnimationFrame(() => {
+    _forceRepaint();
+    requestAnimationFrame(_forceRepaint);
+  });
+  setTimeout(_forceRepaint, 500);
 
   // Clear stale .focusing — two checks:
   // 1. Immediate: covers clean sleep/wake where .focused was never set

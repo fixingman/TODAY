@@ -28,7 +28,7 @@
 
 ## BUG-004: App blank after sleep/wake during focus
 
-**Status:** Fixed v2.12.57 + v2.12.66 + v2.16.20 + v2.16.21 — awaiting verification (sleep/wake during focus)
+**Status:** Fixed v2.12.57 + v2.12.66 + v2.16.20 + v2.16.21 + v2.17.1 — awaiting verification
 
 **Symptom:** Focus mode running → computer sleeps → wakes → app is blank. No data loss, clicking anywhere restores it.
 

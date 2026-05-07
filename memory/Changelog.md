@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.1** | **Fix: BUG-004 — blank after long sleep (clicking restores)** — synchronous repaint trick (`display:none/offsetHeight`) fires before GPU compositor layers are ready after hours of sleep. Now runs repaint at: immediate + rAF + second rAF + 500ms deferred. Covers full GPU warmup window. |
 | **2.17.0** | **Refactor: `_onWake()` consolidation (minor bump)** — repaint, `.focusing` cleanup (immediate + 350ms deferred), `checkMorningNudge()`, triage silent window, pending backup all in `window._onWake()`. Called from 3 entry points: sync module `visibilitychange`, `window.focus` (PWA fallback), `pageshow` (bfcache). SW update, timer wall-clock, PiP handlers stay in their closures. Also fixes: returning users after overnight now correctly see morning nudge (was only shown in `init()`). |
 | **2.16.21** | **Fix: BUG-004 continued** — v2.16.20 immediate check missed the async gap. `renderManual()` (async Dropbox sync on wake) destroys `.focused` element; `_focusReanchor` re-attaches 10-100ms later. During that window: `.focusing` on but no `.focused` → 7% opacity → blank screen. Added 350ms deferred `_clearStaleFocusing()` to both `visibilitychange` and `window.focus` handlers. |
 | **2.16.20** | **Fix: BUG-004 regression — app blank after sleep/wake during focus** — `.focusing` class cleared on `pageshow` (bfcache) but not on `visibilitychange` (sleep/wake). Added cleanup to `visibilitychange`: if `.focusing` set but no `.focused` element in DOM, clear it. |
