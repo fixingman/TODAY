@@ -43,6 +43,8 @@
 - **v2.16.20:** Added `.focusing` cleanup to `visibilitychange` (immediate check)
 - **v2.16.21:** Added 350ms deferred `_clearStaleFocusing()` to both `visibilitychange` and `window.focus` — catches the async DOM rebuild gap after sync + reanchor
 
+**Alternative approach considered (not implemented):** Observer-based detection — use `ResizeObserver` or `IntersectionObserver` to detect when `#main-app` has been painted and trigger repaint reactively. Rejected: observers report geometry (dimensions, intersection), not pixel paint state. They cannot detect GPU compositor layer failure — the blank is a GPU-level issue invisible to JS. No browser API exposes "are compositor layers ready?" Multi-pass repaint chosen instead: simpler, predictable, negligible performance cost on wake. Genuine improvement would be tighter intervals (200ms + 500ms + 1000ms) to cover more of the GPU recovery curve, but still heuristic-based.
+
 **Verify:** Focus on a task or habit → let computer sleep for 5+ min → wake → app should show normally. Header visible, tasks visible, not blank.
 
 **Verified fixed:** ☐
