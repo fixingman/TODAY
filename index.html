@@ -3049,12 +3049,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.5';
+const APP_VERSION   = '2.17.6';
 const DEV_HOURS     = '188h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.6': 'AI multi-task actions — move_soon and delete_task now accept ids array in payload for single-tap multi-task operations. System prompt updated with ids syntax. _aiSetChips label shows "N tasks incl. [first task name]" for multi-task chips. Handlers iterate over all ids atomically.',
   '2.17.5': 'Fix: AI chip acts on wrong task — message refers to one task but payload ID is another (AI hallucination/ID mixup with multiple tasks). _aiSetChips now resolves task name from payload ID for delete_task/move_soon/check_task/start_focus and appends to label: "Let it go · Write the report". User sees which task will be affected before tapping.',
   '2.17.4': 'Fix: break_down deletes original task — secondary AI call used full system prompt (including delete_task action type). AI "helpfully" returned delete_task for the original alongside add_task chips. Fix: break_down now uses a minimal direct fetch with restricted system prompt (add_task only) + client-side filter that strips any non-add_task actions from response.',
   '2.17.3': 'Fix: AI errors — (1) Gemini 2.5 Flash thinking mode on by default causes 15-30s responses, exceeding Netlify 10s timeout. Added thinkingBudget:0 to disable. (2) Claude model was claude-sonnet-4-5 (old) — updated to claude-sonnet-4-6 (current). Old model may return intermittent 500s under larger context.',
@@ -9439,18 +9440,31 @@ function _aiSetChips(actions) {
 
     let label = action.label || action.type;
 
-    // For task-specific actions, append the actual task name from the payload ID.
+    // For task-specific actions, append the actual task name(s) from the payload ID.
     // Prevents wrong-task confusion when AI message refers to one task but payload
     // has a different ID. User sees "Let it go · Write the report" and can verify
-    // before tapping. (critical: message and payload can diverge with multiple tasks)
+    // before tapping. Handles both single id and ids array. (critical: message and payload can diverge)
     const taskId = action.payload?.id;
-    if (taskId && ['delete_task', 'move_soon', 'check_task', 'start_focus'].includes(action.type)) {
-      const task = manualTasks.find(t => t.id === taskId)
-                || (window.trelloTasks || []).find(t => t.id === taskId);
-      if (task) {
-        const name = (task.text || task.name || '').trim();
-        const short = name.length > 22 ? name.slice(0, 20) + '…' : name;
-        if (short) label = label + ' · ' + short;
+    const taskIds = action.payload?.ids;
+    if (['delete_task', 'move_soon', 'check_task', 'start_focus'].includes(action.type)) {
+      if (taskIds && taskIds.length > 0) {
+        // Multi-task: show count + first task name
+        const first = manualTasks.find(t => t.id === taskIds[0]);
+        const name = first ? (first.text || '').trim() : '';
+        const short = name.length > 18 ? name.slice(0, 16) + '…' : name;
+        if (taskIds.length > 1) {
+          label = label + ' · ' + taskIds.length + ' tasks' + (short ? ' incl. ' + short : '');
+        } else if (short) {
+          label = label + ' · ' + short;
+        }
+      } else if (taskId) {
+        const task = manualTasks.find(t => t.id === taskId)
+                  || (window.trelloTasks || []).find(t => t.id === taskId);
+        if (task) {
+          const name = (task.text || task.name || '').trim();
+          const short = name.length > 22 ? name.slice(0, 20) + '…' : name;
+          if (short) label = label + ' · ' + short;
+        }
       }
     }
 
@@ -9737,17 +9751,19 @@ Message guidelines:
 - Never use: "Let's", "Why not", "How about", exclamation marks, or emoji
 
 Action types (use exact IDs from brackets above):
-  start_focus { "id": "exact-id-from-list" }  — begin 25-min pomodoro
-  check_task  { "id": "exact-id-from-list" }  — mark task done
-  check_habit { "id": "exact-id-from-list" }  — mark habit done
-  add_task    { "text": "task text" }         — add new task
-  break_down  { "id": "exact-id-from-list" }  — ask AI to split a big task into smaller steps
-  move_soon   { "id": "exact-id-from-list" }  — park a task in SOON (not today, but not gone)
-  delete_task { "id": "exact-id-from-list" }  — remove a task (use for letting go of stale tasks)
-  delete_done {}                               — clear completed
-  open_panel  { "panel": "habits" }           — show habits panel (only valid value)
-  reflect     {}                               — offer a brief reflection on patterns, wins, or energy
-  dismiss     {}                               — close this
+  start_focus { "id": "exact-id-from-list" }                    — begin 25-min pomodoro
+  check_task  { "id": "exact-id-from-list" }                    — mark task done
+  check_habit { "id": "exact-id-from-list" }                    — mark habit done
+  add_task    { "text": "task text" }                           — add new task
+  break_down  { "id": "exact-id-from-list" }                    — ask AI to split a big task into smaller steps
+  move_soon   { "id": "exact-id-from-list" }                    — park a task in SOON (not today, but not gone)
+  move_soon   { "ids": ["id-1", "id-2", "id-3"] }              — park MULTIPLE tasks in SOON in one tap (use when suggesting 2+ tasks to defer)
+  delete_task { "id": "exact-id-from-list" }                    — remove a task (use for letting go of stale tasks)
+  delete_task { "ids": ["id-1", "id-2"] }                       — remove MULTIPLE tasks in one tap
+  delete_done {}                                                 — clear completed
+  open_panel  { "panel": "habits" }                             — show habits panel (only valid value)
+  reflect     {}                                                 — offer a brief reflection on patterns, wins, or energy
+  dismiss     {}                                                 — close this
 
 Rules:
 - 2-4 actions max, always end with dismiss
@@ -9800,28 +9816,28 @@ function _aiExecute(action) {
       return;
     }
     case 'delete_task': {
-      // Let go of a task (used for stale task awareness)
-      const id = action.payload?.id;
-      if (id && id.startsWith('manual_')) {
+      // Support both single id and ids array for multi-task deletion
+      const ids = action.payload?.ids
+        ? action.payload.ids
+        : (action.payload?.id ? [action.payload.id] : []);
+      ids.forEach(id => {
+        if (!id || !id.startsWith('manual_')) return;
         const idx = manualTasks.findIndex(t => t.id === id);
-        if (idx !== -1) {
-          const task = manualTasks[idx];
-          // Record in suggestion history
-          if (appMemory) {
-            appMemory.suggestionHistory.unshift({ taskId: id, taskText: task.text, suggested: _localISO(), action: 'delete_task' });
-            if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
-            // Also remove from cooldowns — task is gone
-            delete appMemory.suggestionCooldowns[id];
-            _saveMemory();
-          }
-          _addDeletedId(id);
-          manualTasks.splice(idx, 1);
-          localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-          renderManual();
-          updateStats();
-          dropboxAutoSave();
+        if (idx === -1) return;
+        const task = manualTasks[idx];
+        if (appMemory) {
+          appMemory.suggestionHistory.unshift({ taskId: id, taskText: task.text, suggested: _localISO(), action: 'delete_task' });
+          if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
+          delete appMemory.suggestionCooldowns[id];
+          _saveMemory();
         }
-      }
+        _addDeletedId(id);
+        manualTasks.splice(idx, 1);
+        localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+      });
+      renderManual();
+      updateStats();
+      dropboxAutoSave();
       closeAI();
       return;
     }
@@ -9906,31 +9922,32 @@ function _aiExecute(action) {
       return;
     }
     case 'move_soon': {
-      // Park a task in SOON zone
-      const id = action.payload?.id;
-      if (id && id.startsWith('manual_')) {
+      // Support both single id and ids array for multi-task deferral
+      const ids = action.payload?.ids
+        ? action.payload.ids
+        : (action.payload?.id ? [action.payload.id] : []);
+      ids.forEach(id => {
+        if (!id || !id.startsWith('manual_')) return;
         const idx = manualTasks.findIndex(t => t.id === id);
-        if (idx !== -1) {
-          const task = manualTasks[idx];
-          // Record in suggestion history
-          if (appMemory) {
-            appMemory.suggestionHistory.unshift({ taskId: id, taskText: task.text, suggested: _localISO(), action: 'move_soon' });
-            if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
-            delete appMemory.suggestionCooldowns[id]; // Moved out — remove cooldown
-            _saveMemory();
-          }
-          task.zone = 'soon';
-          task.zoneChangedAt = new Date().toISOString();
-          soonTasks.unshift(task);
-          manualTasks.splice(idx, 1);
-          localStorage.setItem('today_manual', JSON.stringify(manualTasks));
-          _saveSoon();
-          renderManual();
-          renderSoon();
-          updateStats();
-          dropboxAutoSave();
+        if (idx === -1) return;
+        const task = manualTasks[idx];
+        if (appMemory) {
+          appMemory.suggestionHistory.unshift({ taskId: id, taskText: task.text, suggested: _localISO(), action: 'move_soon' });
+          if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
+          delete appMemory.suggestionCooldowns[id];
+          _saveMemory();
         }
-      }
+        task.zone = 'soon';
+        task.zoneChangedAt = new Date().toISOString();
+        soonTasks.unshift(task);
+        manualTasks.splice(idx, 1);
+        localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+        _saveSoon();
+      });
+      renderManual();
+      renderSoon();
+      updateStats();
+      dropboxAutoSave();
       closeAI();
       return;
     }
