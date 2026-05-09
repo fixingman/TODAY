@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.4** | **Fix: `break_down` deletes original task** — secondary AI call used full system prompt (including `delete_task`). AI returned `delete_task` for the original alongside subtask chips. Fix: `break_down` uses minimal direct fetch with restricted system prompt (`add_task` only) + client-side filter strips any non-`add_task` actions. |
 | **2.17.3** | **Fix: AI errors** — (1) Gemini 2.5 Flash thinking mode causes 15-30s responses, exceeding Netlify 10s timeout → `thinkingBudget: 0` added. (2) Claude model was `claude-sonnet-4-5` (old) → updated to `claude-sonnet-4-6`. Old model returns intermittent 500s under larger context. |
 | **2.17.2** | **Fix: `ReferenceError: syncDropbox` in `_aiExecute`** — `syncDropbox()` is private to the Dropbox sync closure. `_aiExecute` (global scope) called it directly when adding a task via AI chip. Replaced with `_setLastLocalChange()` + `dropboxAutoSave()` — the correct public API for all mutations. |
 | **2.17.1** | **Fix: BUG-004 — blank after long sleep (clicking restores)** — synchronous repaint trick (`display:none/offsetHeight`) fires before GPU compositor layers are ready after hours of sleep. Now runs repaint at: immediate + rAF + second rAF + 500ms deferred. Covers full GPU warmup window. |

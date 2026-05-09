@@ -3049,12 +3049,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.3';
+const APP_VERSION   = '2.17.4';
 const DEV_HOURS     = '188h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.4': 'Fix: break_down deletes original task — secondary AI call used full system prompt (including delete_task action type). AI "helpfully" returned delete_task for the original alongside add_task chips. Fix: break_down now uses a minimal direct fetch with restricted system prompt (add_task only) + client-side filter that strips any non-add_task actions from response.',
   '2.17.3': 'Fix: AI errors — (1) Gemini 2.5 Flash thinking mode on by default causes 15-30s responses, exceeding Netlify 10s timeout. Added thinkingBudget:0 to disable. (2) Claude model was claude-sonnet-4-5 (old) — updated to claude-sonnet-4-6 (current). Old model may return intermittent 500s under larger context.',
   '2.17.2': 'Fix: ReferenceError syncDropbox in _aiExecute (red dot) — syncDropbox() is private to Dropbox sync closure. _aiExecute called it directly when adding a task via AI chip. Replaced with _setLastLocalChange() + dropboxAutoSave() — the correct public API for mutations.',
   '2.17.1': 'Fix: BUG-004 — app blank after long sleep (clicking restores). Clicking works because user-interactive paints are browser-prioritised. Synchronous display:none/offsetHeight trick fails when GPU compositor layers not ready after long sleep. Now: immediate repaint + rAF repaint + second rAF + 500ms deferred. Covers GPU warmup after hours of sleep.',
@@ -9841,23 +9842,44 @@ function _aiExecute(action) {
       _aiLoadedOnce = true;
       _aiSetThinking();
       _aiSetChips([]);
-      _aiCall([{
-        role: 'user',
-        content: `Break down "${task.text}" into 2-4 smaller, concrete steps I can do today. Return each as an add_task action. Use the step text as the label — not "Add step".`
-      }]).then(result => {
-        if (result) {
-          // Override labels: use the task text (truncated) not whatever label the AI chose
+
+      // Use a minimal direct call — NOT _aiCall() — to avoid sending the full system prompt
+      // which includes delete_task and other action types. The AI was using those to delete
+      // the original task "helpfully" alongside the breakdown. This call only returns add_task.
+      const key = _aiGetKey();
+      const provider = _aiGetProvider();
+      if (!key) { closeAI(); return; }
+
+      fetch('/.netlify/functions/ai-assist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider,
+          apiKey: key,
+          messages: [{
+            role: 'user',
+            content: `Break down this task into 2-4 smaller, concrete steps: "${task.text}". Reply ONLY with raw JSON (no markdown): { "message": "one short sentence", "actions": [{ "label": "step text (max 28 chars)", "type": "add_task", "payload": { "text": "full step text" } }] }. Only use add_task actions. Do not delete or modify the original task.`
+          }],
+          systemPrompt: 'You are a task breakdown assistant. Return ONLY valid JSON with a message and add_task actions. Never return delete_task, move_soon, or any other action type.',
+        }),
+      }).then(r => r.json()).then(result => {
+        if (result && !result.error) {
+          // Override labels: use the task text (truncated) not whatever the AI chose
           if (result.actions) {
-            result.actions = result.actions.map(a => {
-              if (a.type === 'add_task' && a.payload?.text) {
-                const text = a.payload.text;
-                a.label = text.length > 28 ? text.slice(0, 26) + '…' : text;
-              }
-              return a;
-            });
+            result.actions = result.actions
+              .filter(a => a.type === 'add_task') // safety: only add_task allowed through
+              .map(a => {
+                if (a.payload?.text) {
+                  const text = a.payload.text;
+                  a.label = text.length > 28 ? text.slice(0, 26) + '…' : text;
+                }
+                return a;
+              });
           }
           _aiRenderResult(result);
           _showNlRow();
+        } else {
+          _aiSetMsg('Could not break down — ' + ((result?.error || '').slice(0, 50)));
         }
       }).catch(e => {
         _aiSetMsg('Could not break down — ' + (e.message || '').slice(0, 50));
