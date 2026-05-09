@@ -3049,12 +3049,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.4';
+const APP_VERSION   = '2.17.5';
 const DEV_HOURS     = '188h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.5': 'Fix: AI chip acts on wrong task — message refers to one task but payload ID is another (AI hallucination/ID mixup with multiple tasks). _aiSetChips now resolves task name from payload ID for delete_task/move_soon/check_task/start_focus and appends to label: "Let it go · Write the report". User sees which task will be affected before tapping.',
   '2.17.4': 'Fix: break_down deletes original task — secondary AI call used full system prompt (including delete_task action type). AI "helpfully" returned delete_task for the original alongside add_task chips. Fix: break_down now uses a minimal direct fetch with restricted system prompt (add_task only) + client-side filter that strips any non-add_task actions from response.',
   '2.17.3': 'Fix: AI errors — (1) Gemini 2.5 Flash thinking mode on by default causes 15-30s responses, exceeding Netlify 10s timeout. Added thinkingBudget:0 to disable. (2) Claude model was claude-sonnet-4-5 (old) — updated to claude-sonnet-4-6 (current). Old model may return intermittent 500s under larger context.',
   '2.17.2': 'Fix: ReferenceError syncDropbox in _aiExecute (red dot) — syncDropbox() is private to Dropbox sync closure. _aiExecute called it directly when adding a task via AI chip. Replaced with _setLastLocalChange() + dropboxAutoSave() — the correct public API for mutations.',
@@ -9435,7 +9436,25 @@ function _aiSetChips(actions) {
   (actions || []).forEach((action, i) => {
     const btn = document.createElement('button');
     btn.className = 'ai-chip' + (action.primary || i === 0 ? ' primary' : '');
-    btn.textContent = action.label || action.type;
+
+    let label = action.label || action.type;
+
+    // For task-specific actions, append the actual task name from the payload ID.
+    // Prevents wrong-task confusion when AI message refers to one task but payload
+    // has a different ID. User sees "Let it go · Write the report" and can verify
+    // before tapping. (critical: message and payload can diverge with multiple tasks)
+    const taskId = action.payload?.id;
+    if (taskId && ['delete_task', 'move_soon', 'check_task', 'start_focus'].includes(action.type)) {
+      const task = manualTasks.find(t => t.id === taskId)
+                || (window.trelloTasks || []).find(t => t.id === taskId);
+      if (task) {
+        const name = (task.text || task.name || '').trim();
+        const short = name.length > 22 ? name.slice(0, 20) + '…' : name;
+        if (short) label = label + ' · ' + short;
+      }
+    }
+
+    btn.textContent = label;
     btn.onclick = () => _aiExecute(action);
     el.appendChild(btn);
   });
