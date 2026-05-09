@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.3** | **Fix: AI 500 internal server error** — Gemini 2.5 Flash thinking mode on by default causes 15-30s responses. Netlify free tier 10s timeout → 500 as prompt grows. Added `thinkingConfig: { thinkingBudget: 0 }` to `ai-assist.js`. Response time 1-3s. Output quality unaffected. |
 | **2.17.2** | **Fix: `ReferenceError: syncDropbox` in `_aiExecute`** — `syncDropbox()` is private to the Dropbox sync closure. `_aiExecute` (global scope) called it directly when adding a task via AI chip. Replaced with `_setLastLocalChange()` + `dropboxAutoSave()` — the correct public API for all mutations. |
 | **2.17.1** | **Fix: BUG-004 — blank after long sleep (clicking restores)** — synchronous repaint trick (`display:none/offsetHeight`) fires before GPU compositor layers are ready after hours of sleep. Now runs repaint at: immediate + rAF + second rAF + 500ms deferred. Covers full GPU warmup window. |
 | **2.17.0** | **Refactor: `_onWake()` consolidation (minor bump)** — repaint, `.focusing` cleanup (immediate + 350ms deferred), `checkMorningNudge()`, triage silent window, pending backup all in `window._onWake()`. Called from 3 entry points: sync module `visibilitychange`, `window.focus` (PWA fallback), `pageshow` (bfcache). SW update, timer wall-clock, PiP handlers stay in their closures. Also fixes: returning users after overnight now correctly see morning nudge (was only shown in `init()`). |
