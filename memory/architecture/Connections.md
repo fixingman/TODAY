@@ -126,7 +126,7 @@ The AI panel is separate from the connections panel — it lives at `#aiPanel` (
 
 ### Provider Selection
 
-Two providers: **Gemini** (Gemini 2.5 Flash, free) and **Claude** (Claude Sonnet, paid). User selects via toggle buttons (`setAIProvider('gemini'|'claude')`).
+Two providers: **Gemini** (Gemini 2.5 Flash, free) and **Claude** (Claude Sonnet 4.6, paid). User selects via toggle buttons (`setAIProvider('gemini'|'claude')`).
 
 **UI state per provider:**
 
