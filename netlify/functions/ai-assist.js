@@ -68,7 +68,11 @@ exports.handler = async function(event) {
 
       const geminiBody = {
         contents: geminiMessages,
-        generationConfig: { maxOutputTokens: 512, temperature: 0.7 },
+        generationConfig: {
+          maxOutputTokens: 512,
+          temperature: 0.7,
+          thinkingConfig: { thinkingBudget: 0 }, // Disable thinking — prevents Netlify 10s timeout
+        },
       };
       if (systemPrompt) {
         geminiBody.systemInstruction = { parts: [{ text: systemPrompt }] };
@@ -151,7 +155,7 @@ exports.handler = async function(event) {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
+          model: 'claude-sonnet-4-6',
           max_tokens: 512,
           system: systemPrompt || '',
           messages: messages.map(m => ({ role: m.role, content: m.content })),
