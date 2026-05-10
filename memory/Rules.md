@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Architecture cleanup, bug fixes
-- **Recent:** v2.17.0 — _onWake() consolidation (minor bump), BUG-004 deeper fix, BUG-007/014 verified, memory archiving (Bugs/Changelog), Connections.md created, BUG-019 PiP manual restore
+- **Working on:** AI fixes, bug fixes, architecture
+- **Recent:** v2.17.6 — AI multi-task actions, wrong-task chip fix, break_down delete bug, Gemini thinking, Claude model, syncDropbox ref error, BUG-004 repaint, _onWake() consolidation
 - **Watch for:** BUG-004/011/012 verification in production
 
 ---

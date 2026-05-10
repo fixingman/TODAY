@@ -169,7 +169,8 @@
 | Copy audit (README, AI prompt, info panel) | 2.16.18 | May 2026 |
 | Connections panel documented | 2.16.18 | May 2026 |
 | _onWake() consolidation | 2.17.0 | May 2026 |
+| AI multi-task actions (ids array) | 2.17.6 | May 2026 |
 
 ---
 
-*Last updated: Session 36 (v2.17.0)*
+*Last updated: Session 36 (v2.17.6)*

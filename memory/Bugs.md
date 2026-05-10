@@ -9,7 +9,7 @@
 | 001 | Triage dismissed cross-device | ✅ v2.12.59–60 |
 | 002 | Dropbox sync fails silently | ✅ v2.12.58–61 |
 | 003 | Red dot on network loss | ✅ v2.12.58–2.14.1 |
-| 004 | App blank after sleep/wake during focus | ⏳ v2.16.21 |
+| 004 | App blank after sleep/wake during focus | ✅ v2.17.1 |
 | 005 | Trello 🍅 badge vanishing | ✅ v2.12.56–66 |
 | 006 | _onWake() consolidation | 📋 Backlog |
 | 007 | Triage bar flash after triage | ✅ v2.13.2–2.16.6 |
@@ -28,7 +28,7 @@
 
 ## BUG-004: App blank after sleep/wake during focus
 
-**Status:** Fixed v2.12.57 + v2.12.66 + v2.16.20 + v2.16.21 + v2.17.1 — awaiting verification
+**Status:** ✅ Verified fixed (v2.12.57 + v2.12.66 + v2.16.20 + v2.16.21 + v2.17.1)
 
 **Symptom:** Focus mode running → computer sleeps → wakes → app is blank. No data loss, clicking anywhere restores it.
 
@@ -47,7 +47,7 @@
 
 **Verify:** Focus on a task or habit → let computer sleep for 5+ min → wake → app should show normally. Header visible, tasks visible, not blank.
 
-**Verified fixed:** ☐
+**Verified fixed:** ☑
 
 ---
 
