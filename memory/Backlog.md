@@ -47,10 +47,12 @@
 ---
 
 ### AI System Prompt Trimming
-**Status:** Not started
-**Goal:** `_aiSystemPrompt()` is 368 lines and rebuilt on every AI call. Not a JS perf issue but increases API token cost on every call. The action type definitions are verbose and the conditional blocks have grown over time.
-**Fix:** Pass to trim verbose instructions — particularly action type definitions (which list every action with full descriptions) and redundant conditional blocks. Aim for ~250 lines without losing behaviour.
-**Reference:** Performance audit session 37.
+**Status:** Deferred — revisit if token cost becomes a real concern
+**Analysis (session 37):** Prompt is ~700–800 static tokens + 50–400 dynamic (task/habit lists). Realistic trim is ~100–120 tokens per call. At personal productivity usage (10–30 AI calls/day) and current free Gemini tier, this is under $0.01/day on Claude — negligible.
+**Risk:** The prompt has been carefully tuned through many sessions. The "name the task in message" rule, energy awareness examples, and philosophy block all fix real bugs or produce measurably better output. Trimming risks regression.
+**What's safe to cut when needed:** Action type descriptions after `—` (~40 tokens), energy awareness sub-bullets with examples (~40 tokens), redundant message/rules overlap (~30 tokens).
+**What must not be cut:** Task/habit lists with IDs, JSON format rules, "name the task" guideline, `ids` array docs, personality + philosophy block.
+**Revisit when:** Token cost becomes a real concern, or prompt grows past 500 static lines.
 
 ### Momentum + TODAY Integration (Research)
 **Status:** Not started — research only
@@ -146,4 +148,12 @@
 
 ---
 
-*Last updated: Session 37 (v2.17.9)*
+| Phantom SOON tasks fix (BUG-018) | 2.17.9 | May 2026 |
+| Section count after label + pull in | 2.17.10 | May 2026 |
+| AI conversation memory | 2.17.11 | May 2026 |
+| CHANGELOG trimmed 235→3 entries | 2.17.12 | May 2026 |
+| safeJSON + transition:all perf fixes | 2.17.13 | May 2026 |
+
+---
+
+*Last updated: Session 37 (v2.17.13)*

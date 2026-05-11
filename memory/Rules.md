@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** AI fixes, bug fixes, architecture
-- **Recent:** v2.17.6 — AI multi-task actions, wrong-task chip fix, break_down delete bug, Gemini thinking, Claude model, syncDropbox ref error, BUG-004 repaint, _onWake() consolidation
-- **Watch for:** BUG-004/011/012 verification in production
+- **Working on:** Performance, copy, AI improvements
+- **Recent:** v2.17.13 — perf audit (CHANGELOG trimmed, safeJSON, transition:all), AI conversation memory, phantom SOON fix, scroll fix, copy audit, BUG-004 verified
+- **Watch for:** BUG-011/012/018 verification in production
 
 ---
 
