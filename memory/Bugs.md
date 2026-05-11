@@ -9,7 +9,7 @@
 | 001 | Triage dismissed cross-device | ✅ v2.12.59–60 |
 | 002 | Dropbox sync fails silently | ✅ v2.12.58–61 |
 | 003 | Red dot on network loss | ✅ v2.12.58–2.14.1 |
-| 004 | App blank after sleep/wake during focus | ⏳ v2.16.21 |
+| 004 | App blank after sleep/wake during focus | ✅ v2.17.1 |
 | 005 | Trello 🍅 badge vanishing | ✅ v2.12.56–66 |
 | 006 | _onWake() consolidation | 📋 Backlog |
 | 007 | Triage bar flash after triage | ✅ v2.13.2–2.16.6 |
@@ -18,36 +18,12 @@
 | 010 | Habits didn't roll over | ✅ v2.12.74–77 |
 | 011 | PiP ghost chime on wrong task | ⏳ v2.16.9 |
 | 012 | Overdue Trello card disappears on check | ⏳ v2.16.5 |
+| 018 | Phantom SOON tasks reappear after day | ⏳ v2.17.9 |
 | 013 | Focus timer double-counts | ✅ v2.14.9 |
 | 014 | PiP not reappearing after restore | ✅ v2.15.5–2.16.19 |
 | 015 | AI repeats same aging task | ✅ v2.15.2 |
 | 016 | AI chip labels generic | ✅ v2.15.6 |
 | 017 | Focus minutes only on full completion | ✅ v2.16.0 |
-
----
-
-## BUG-004: App blank after sleep/wake during focus
-
-**Status:** Fixed v2.12.57 + v2.12.66 + v2.16.20 + v2.16.21 + v2.17.1 — awaiting verification
-
-**Symptom:** Focus mode running → computer sleeps → wakes → app is blank. No data loss, clicking anywhere restores it.
-
-**Root causes (compounding):**
-1. `contain: layout style` on `.task-list` — browser skipped repainting isolated layers (v2.12.57–66)
-2. `.focusing` class stuck on `#main-app` after wake — recedes all non-focused elements to 7% opacity (v2.16.20)
-3. Async timing gap — `renderManual()` (from Dropbox sync on wake) destroys `.focused` element; `_focusReanchor` re-attaches moments later. During that 10–100ms gap: `.focusing` on, nothing `.focused` → blank (v2.16.21)
-
-**Fixes:**
-- **v2.12.57:** Force repaint on `visibilitychange`, `window.focus`, `pageshow`
-- **v2.12.66:** Removed `contain: layout style`. Repaint targets `#main-app`
-- **v2.16.20:** Added `.focusing` cleanup to `visibilitychange` (immediate check)
-- **v2.16.21:** Added 350ms deferred `_clearStaleFocusing()` to both `visibilitychange` and `window.focus` — catches the async DOM rebuild gap after sync + reanchor
-
-**Alternative approach considered (not implemented):** Observer-based detection — use `ResizeObserver` or `IntersectionObserver` to detect when `#main-app` has been painted and trigger repaint reactively. Rejected: observers report geometry (dimensions, intersection), not pixel paint state. They cannot detect GPU compositor layer failure — the blank is a GPU-level issue invisible to JS. No browser API exposes "are compositor layers ready?" Multi-pass repaint chosen instead: simpler, predictable, negligible performance cost on wake. Genuine improvement would be tighter intervals (200ms + 500ms + 1000ms) to cover more of the GPU recovery curve, but still heuristic-based.
-
-**Verify:** Focus on a task or habit → let computer sleep for 5+ min → wake → app should show normally. Header visible, tasks visible, not blank.
-
-**Verified fixed:** ☐
 
 ---
 
@@ -85,5 +61,25 @@
 **Fix (v2.16.5):** Both `loadTrello` filter and `mergeRemoteData` eviction check `today_checked_ids` timestamp — overdue + done + checked today → show until EOD. Only evict if checked before today.
 
 **Verify:** Check an overdue Trello card → should stay visible (done styling) until midnight. Other device → should clear within 7s without manual refresh.
+
+**Verified fixed:** ☐
+
+---
+
+## BUG-018: Phantom SOON tasks reappear after day
+
+**Status:** Fixed v2.17.9 — awaiting verification
+
+**Symptom:** Tasks moved to SOON that were subsequently deleted or completed reappear in the SOON list the following day. Deleting or completing them again triggers the same cycle.
+
+**Root cause:** `mergeRemoteData` built a `mergedDeletedMap` from `deleted_ids` and excluded those from the SOON merge. However, tasks that are completed or age out of SOON are moved to `pastTasks` — their IDs are **never added to `deleted_ids`**. The Dropbox remote backup still had these tasks in `soon_tasks`. On the next day's sync (morning wake pull), the merge saw the task ID was not in `mergedDeletedMap`, not in TODAY, so it was restored to SOON from the remote backup.
+
+**Fix (v2.17.9):** Built `pastIds = new Set(pastTasks.map(t => t.id))` before the SOON merge. Added `pastIds` exclusion to both the local and remote sides of the SOON union:
+- Local: `if (!mergedDeletedMap.has(t.id) && !pastIds.has(t.id))`
+- Remote: `if (pastIds.has(t.id)) return;`
+
+Tasks already in PAST cannot re-enter SOON via sync, regardless of what the remote backup contains.
+
+**Verify:** Move a task to SOON → complete it or delete it → wait until next day or force sync → task should NOT reappear in SOON.
 
 **Verified fixed:** ☐

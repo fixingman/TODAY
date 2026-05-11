@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Architecture cleanup, bug fixes
-- **Recent:** v2.17.0 — _onWake() consolidation (minor bump), BUG-004 deeper fix, BUG-007/014 verified, memory archiving (Bugs/Changelog), Connections.md created, BUG-019 PiP manual restore
-- **Watch for:** BUG-004/011/012 verification in production
+- **Working on:** Performance, copy, AI improvements
+- **Recent:** v2.17.13 — perf audit (CHANGELOG trimmed, safeJSON, transition:all), AI conversation memory, phantom SOON fix, scroll fix, copy audit, BUG-004 verified
+- **Watch for:** BUG-011/012/018 verification in production
 
 ---
 

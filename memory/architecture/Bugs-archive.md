@@ -26,10 +26,28 @@
 
 ---
 
+## BUG-004: App blank after sleep/wake during focus
+**Status:** ✅ Verified fixed (v2.12.57 + v2.12.66 + v2.16.20 + v2.16.21 + v2.17.1)
+**Root causes (compounding):**
+1. `contain: layout style` on `.task-list` — browser skipped repainting isolated layers
+2. `.focusing` class stuck on `#main-app` after wake — recedes all non-focused elements to 7% opacity
+3. Async timing gap — `renderManual()` destroys `.focused` element; `_focusReanchor` re-attaches moments later. During gap: `.focusing` on, nothing `.focused` → blank
+4. GPU compositor layers not ready after long sleep — synchronous repaint too early
+**Fixes:** v2.12.57: force repaint. v2.12.66: removed `contain: layout style`. v2.16.20: `.focusing` cleanup immediate. v2.16.21: 350ms deferred `_clearStaleFocusing()`. v2.17.1: multi-pass repaint (immediate + rAF + rAF + 500ms).
+**Note:** Observer-based detection considered and rejected — observers report geometry, not pixel paint state. GPU compositor failure is invisible to JS.
+
+---
+
 ## BUG-005: Pomodoro session count not shown on Trello tasks
 **Status:** ✅ Verified fixed (v2.12.56 + v2.12.66)
 **Root cause:** `newText` (used for innerHTML comparison in Trello patch path) didn't include the session badge. `innerHTML` was rewritten every 7s tick → badge destroyed.
 **Fix:** Session badge included in `newText`. Comparison now stable — innerHTML only overwrites when text/link/badge actually changes.
+
+---
+
+## BUG-006: _onWake() consolidation
+**Status:** ✅ Done (v2.17.0) — refactor, not a user-facing bug
+**Note:** Four separate `visibilitychange` handlers scattered across codebase. Consolidated into `window._onWake()` called from sync module `visibilitychange`, `window.focus`, and `pageshow`. Three closure-bound handlers (SW update, timer wall-clock, PiP) left in their closures.
 
 ---
 
@@ -44,14 +62,14 @@
 
 ## BUG-008: Dragged task jumps back to previous position
 **Status:** ✅ Verified fixed (v2.12.72)
-**Root cause:** `touchend` handler was calling `renderManual()` synchronously after drop, which rebuilt the list from `manualTasks` array (not yet updated with new order). Task appeared to snap back.
+**Root cause:** `touchend` handler called `renderManual()` synchronously after drop, rebuilding the list from `manualTasks` array not yet updated with new order. Task appeared to snap back.
 **Fix:** Drag-end updates `manualTasks` array order before triggering render.
 
 ---
 
 ## BUG-009: Task aging opacity broken — day 1 immediately muted
 **Status:** ✅ Verified fixed (v2.12.73)
-**Root cause:** Age calculation used `Date.now()` vs task ID timestamp comparison in UTC, crossing local midnight boundaries incorrectly.
+**Root cause:** Age calculation used `Date.now()` vs task ID timestamp in UTC, crossing local midnight boundaries incorrectly.
 **Fix:** Age calculation uses `_localISO()` for consistent local-time date comparison.
 
 ---
@@ -63,15 +81,9 @@
 
 ---
 
-## BUG-006: _onWake() consolidation (not a bug — backlog refactor)
-**Status:** 📋 Backlog — not started
-**Note:** Four separate `visibilitychange` handlers scattered across the codebase. Not a bug, but a maintenance risk. Tracked in `Backlog.md`.
-
----
-
 ## BUG-013: Focus timer jumps 8-10 seconds on minimize/PiP restore
 **Status:** ✅ Verified fixed (v2.14.9)
-**Root cause:** `tickFor` used `setTimeout(1000)` which browsers throttle when tab is hidden (1s tick could take 1.5–2s). On restore, several missed ticks fired rapidly — timer jumped visually.
+**Root cause:** `tickFor` used `setTimeout(1000)` which browsers throttle when tab is hidden. On restore, several missed ticks fired rapidly — timer jumped visually.
 **Fix:** Wall-clock correction on restore. `wallStart` timestamp used to calculate true elapsed time. PiP RAF uses its own wall-clock anchor, immune to throttling.
 
 ---
@@ -103,26 +115,3 @@
 **Status:** ✅ Verified fixed (v2.16.0)
 **Root cause:** `_trackFocusTime()` only called when `doResetState=true` in `closeUI()`. Only `completeFor()` passed `true`. Escape/task-switch/early close lost all minutes.
 **Fix:** Removed `doResetState` condition. `_trackFocusTime` called on every `closeUI`. Guards (`st.tracked`, `timeSpentMins <= 0`) prevent double-counting.
-
----
-
-## BUG-004: App blank after sleep/wake during focus
-
-**Status:** ✅ Verified fixed (v2.12.57 + v2.12.66 + v2.16.20 + v2.16.21 + v2.17.1)
-
-**Symptom:** Focus mode running → computer sleeps → wakes → app is blank. No data loss, clicking restores it.
-
-**Root causes (compounding):**
-1. `contain: layout style` on `.task-list` — browser skipped repainting isolated layers
-2. `.focusing` class stuck on `#main-app` after wake — recedes all non-focused elements to 7% opacity
-3. Async timing gap — `renderManual()` (from Dropbox sync on wake) destroys `.focused` element; `_focusReanchor` re-attaches moments later. During that gap: `.focusing` on, nothing `.focused` → blank
-4. GPU compositor layers not ready after long sleep — synchronous repaint too early
-
-**Fixes:**
-- **v2.12.57:** Force repaint on `visibilitychange`, `window.focus`, `pageshow`
-- **v2.12.66:** Removed `contain: layout style`. Repaint targets `#main-app`
-- **v2.16.20:** Added `.focusing` cleanup to `visibilitychange` (immediate check)
-- **v2.16.21:** Added 350ms deferred `_clearStaleFocusing()` — catches async DOM rebuild gap
-- **v2.17.1:** Multi-pass repaint (immediate + rAF + rAF + 500ms) — covers GPU warmup after hours of sleep
-
-**Alternative approach considered:** Observer-based detection rejected — observers report geometry, not pixel paint state. GPU compositor failure is invisible to JS.

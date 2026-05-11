@@ -4,6 +4,13 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.13** | **Perf** — 11 raw `JSON.parse(localStorage...)` replaced with `safeJSON()` (resilience + consistency). 2 `transition: all` replaced with specific properties (triage button: `background, color`; PiP button: `background, border-color`). AI system prompt trimming added to Backlog. |
+| **2.17.12** | **Perf** — in-app `CHANGELOG` object trimmed from 235 entries to 3. Only 3 are ever shown in the About panel; full history lives in `memory/Changelog.md`. Saves ~327 lines / 10KB on every page load. |
+| **2.17.11** | **AI conversation memory** — last AI message saved to `appMemory.recentConversations` on close. Last 3 sessions included in memory context. AI instructed to use them for continuity. Max 5 sessions, 200 char cap. Synced via Dropbox. |
+| **2.17.10** | **Copy** — section counts moved after labels (`From Trello 3`, `Your tasks 5`). SOON pull button: `← grab` → `← pull in`. |
+| **2.17.9** | **Fix: Phantom SOON tasks reappear after day** — `mergeRemoteData` excluded `deleted_ids` from SOON merge but not `pastTasks` IDs. Completed/aged tasks move to PAST (not `deleted_ids`), so remote backup still had them in `soon_tasks`. On next sync they were resurrected. Built `pastIds` set from `pastTasks`, excluded from both sides of SOON merge. |
+| **2.17.8** | **Fix: Scroll resets on app return** — `_forceRepaint()` was setting `display:none` on `#main-app`, which clears scroll position. Now saves `scrollTop` of all list elements + `window.scrollY` before hide, restores after. |
+| **2.17.7** | **UI: Focus mode checkbox fill removed** — `::before` progress fill on `.task-check`/`.habit-check` was filling the checkbox interior during focus. Removed. Checkbox stays clear. |
 | **2.17.6** | **AI multi-task actions** — `move_soon` and `delete_task` now accept `ids` array for single-tap multi-task operations. System prompt updated with `ids` syntax. Chip label shows "N tasks incl. [first name]". Handlers iterate atomically. |
 | **2.17.5** | **Fix: AI chip acts on wrong task** — AI message refers to one task but payload ID is different (ID mixup with multiple tasks). `_aiSetChips` now resolves task name from payload ID for `delete_task`/`move_soon`/`check_task`/`start_focus` and appends to label: "Let it go · Write the report". User sees which task is affected before tapping. |
 | **2.17.4** | **Fix: `break_down` deletes original task** — secondary AI call used full system prompt (including `delete_task`). AI returned `delete_task` for the original alongside subtask chips. Fix: `break_down` uses minimal direct fetch with restricted system prompt (`add_task` only) + client-side filter strips any non-`add_task` actions. |
