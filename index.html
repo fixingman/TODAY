@@ -133,21 +133,6 @@
       box-shadow: 0 0 0 3px var(--accent-check-glow);
     }
 
-    /* Checkbox progress fill — grows with timer */
-    .focusing .task.focused .task-check::before,
-    .focusing .habit.focused .habit-check::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: var(--accent);
-      opacity: var(--opacity-subtle);
-      transform: scaleX(var(--progress, 0));
-      transform-origin: left;
-      will-change: transform;
-      transition: transform 1s linear;
-      pointer-events: none;
-    }
-
     /* Breathe overlay — persistent blur state on pause */
     #breatheOverlay {
       position: fixed;
@@ -3049,12 +3034,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.6';
+const APP_VERSION   = '2.17.7';
 const DEV_HOURS     = '190h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.7': 'UI: Focus mode checkbox fill removed — ::before progress fill on .task-check/.habit-check was mimicking the timer bar inside the checkbox during focus. Checkbox interior now stays clear.',
   '2.17.6': 'AI multi-task actions — move_soon and delete_task now accept ids array in payload for single-tap multi-task operations. System prompt updated with ids syntax. _aiSetChips label shows "N tasks incl. [first task name]" for multi-task chips. Handlers iterate over all ids atomically.',
   '2.17.5': 'Fix: AI chip acts on wrong task — message refers to one task but payload ID is another (AI hallucination/ID mixup with multiple tasks). _aiSetChips now resolves task name from payload ID for delete_task/move_soon/check_task/start_focus and appends to label: "Let it go · Write the report". User sees which task will be affected before tapping.',
   '2.17.4': 'Fix: break_down deletes original task — secondary AI call used full system prompt (including delete_task action type). AI "helpfully" returned delete_task for the original alongside add_task chips. Fix: break_down now uses a minimal direct fetch with restricted system prompt (add_task only) + client-side filter that strips any non-add_task actions from response.',

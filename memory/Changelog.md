@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.7** | **UI: Focus mode checkbox fill removed** — `::before` progress fill on `.task-check`/`.habit-check` was filling the checkbox interior during focus. Removed. Checkbox stays clear. |
 | **2.17.6** | **AI multi-task actions** — `move_soon` and `delete_task` now accept `ids` array for single-tap multi-task operations. System prompt updated with `ids` syntax. Chip label shows "N tasks incl. [first name]". Handlers iterate atomically. |
 | **2.17.5** | **Fix: AI chip acts on wrong task** — AI message refers to one task but payload ID is different (ID mixup with multiple tasks). `_aiSetChips` now resolves task name from payload ID for `delete_task`/`move_soon`/`check_task`/`start_focus` and appends to label: "Let it go · Write the report". User sees which task is affected before tapping. |
 | **2.17.4** | **Fix: `break_down` deletes original task** — secondary AI call used full system prompt (including `delete_task`). AI returned `delete_task` for the original alongside subtask chips. Fix: `break_down` uses minimal direct fetch with restricted system prompt (`add_task` only) + client-side filter strips any non-`add_task` actions. |
