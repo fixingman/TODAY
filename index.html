@@ -3034,12 +3034,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.7';
+const APP_VERSION   = '2.17.8';
 const DEV_HOURS     = '190h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.8': 'Fix: Scroll resets to top on app return — _forceRepaint() set display:none on #main-app which clears scroll position. Now saves scrollTop of all list elements + window.scrollY before hide, restores after display is restored.',
   '2.17.7': 'UI: Focus mode checkbox fill removed — ::before progress fill on .task-check/.habit-check was mimicking the timer bar inside the checkbox during focus. Checkbox interior now stays clear.',
   '2.17.6': 'AI multi-task actions — move_soon and delete_task now accept ids array in payload for single-tap multi-task operations. System prompt updated with ids syntax. _aiSetChips label shows "N tasks incl. [first task name]" for multi-task chips. Handlers iterate over all ids atomically.',
   '2.17.5': 'Fix: AI chip acts on wrong task — message refers to one task but payload ID is another (AI hallucination/ID mixup with multiple tasks). _aiSetChips now resolves task name from payload ID for delete_task/move_soon/check_task/start_focus and appends to label: "Let it go · Write the report". User sees which task will be affected before tapping.',
@@ -7729,7 +7730,17 @@ window._onWake = function() {
   // deferred passes replicate that urgency without requiring user interaction.
   function _forceRepaint() {
     const appEl = document.getElementById('main-app');
-    if (appEl) { appEl.style.display = 'none'; void appEl.offsetHeight; appEl.style.display = ''; }
+    if (!appEl) return;
+    // Save scroll positions of all scrollable children before display:none
+    // which resets scroll to 0. Restore after display:''.
+    const scrollEls = appEl.querySelectorAll('[id$="List"], #main-app');
+    const scrollPositions = Array.from(scrollEls).map(el => ({ el, top: el.scrollTop }));
+    const appScroll = window.scrollY;
+    appEl.style.display = 'none';
+    void appEl.offsetHeight;
+    appEl.style.display = '';
+    scrollPositions.forEach(({ el, top }) => { el.scrollTop = top; });
+    window.scrollTo(0, appScroll);
   }
   _forceRepaint();
   requestAnimationFrame(() => {
