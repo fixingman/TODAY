@@ -3034,12 +3034,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.10';
+const APP_VERSION   = '2.17.11';
 const DEV_HOURS     = '190h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.11': 'AI conversation memory — last AI message saved to appMemory.recentConversations on closeAI(). Last 3 sessions included in memory context sent to AI. System prompt instructs AI to use them for continuity: notice resolved threads, avoid repeating dismissed suggestions. Max 5 sessions stored, 200 char cap per message.',
   '2.17.10': 'Copy — section counts moved after labels (From Trello N, Your tasks N). SOON pull button: "← grab" → "← pull in".',
   '2.17.9': 'Fix: Phantom SOON tasks reappear after day — mergeRemoteData excluded deleted_ids from SOON merge but not pastTasks IDs. Completed/aged SOON tasks move to PAST (not deleted_ids), so remote backup still had them in soon_tasks. On next sync they were resurrected. Fix: pastIds set built from pastTasks, excluded from both local and remote sides of SOON merge.',
   '2.17.8': 'Fix: Scroll resets to top on app return — _forceRepaint() set display:none on #main-app which clears scroll position. Now saves scrollTop of all list elements + window.scrollY before hide, restores after display is restored.',
@@ -4278,6 +4279,7 @@ if (!appMemory.aiName) {
 }
 if (!appMemory.suggestionCooldowns) appMemory.suggestionCooldowns = {};
 if (!appMemory.suggestionHistory)   appMemory.suggestionHistory = [];
+if (!appMemory.recentConversations) appMemory.recentConversations = [];
 if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
 if (appMemory.patterns.dayStartCount === undefined) appMemory.patterns.dayStartCount = null;
 if (appMemory.patterns.dayStartDate  === undefined) appMemory.patterns.dayStartDate  = null;
@@ -4421,6 +4423,13 @@ function _memoryForAI() {
     }
   }
   
+  // Recent conversation history — last 3 sessions so AI can continue threads
+  const recentConvos = (m.recentConversations || []).slice(0, 3);
+  if (recentConvos.length > 0) {
+    const convoLines = recentConvos.map(c => `[${c.date}] "${c.message}"`);
+    lines.push(`Recent conversations:\n${convoLines.join('\n')}`);
+  }
+
   return lines.length > 0 ? lines.join(' ') : '';
 }
 
@@ -9043,6 +9052,23 @@ function openAI() {
 }
 
 function closeAI() {
+  // Save last AI message to conversation memory before closing
+  const msgEl = document.getElementById('aiSuggestionMsg');
+  const rawMsg = msgEl ? msgEl.textContent.trim() : '';
+  if (rawMsg && rawMsg.length > 5 && appMemory && !rawMsg.includes('API key')) {
+    if (!appMemory.recentConversations) appMemory.recentConversations = [];
+    appMemory.recentConversations.unshift({
+      message: rawMsg.slice(0, 200), // cap length
+      date: _localISO(),
+      time: new Date().getHours(),
+    });
+    // Keep last 5 conversations only
+    if (appMemory.recentConversations.length > 5) {
+      appMemory.recentConversations = appMemory.recentConversations.slice(0, 5);
+    }
+    _saveMemory();
+  }
+
   _aiPanelOpen = false;
   document.getElementById('aiPanel')?.classList.remove('open');
   document.body.classList.remove('ai-chat-open');
@@ -9710,7 +9736,7 @@ TODAY's design philosophy — never contradict these:
 - No pressure. Streaks are acknowledgment, not obligation. A missed day is just a missed day.
 - You never suggest "prioritising", "scheduling", "setting a deadline", or "ranking tasks". That's not what this is.
 
-${memoryContext ? `What you remember about this person:\n${memoryContext}\n` : ''}
+${memoryContext ? `What you remember about this person:\n${memoryContext}\nIf "Recent conversations" appear above, use them for continuity — notice if something was resolved, avoid repeating suggestions that were recently dismissed.\n` : ''}
 Context: ${ctx.timeOfDay}, ${ctx.isFirstOpenToday ? 'first open today' : 'returning'}, streak: ${ctx.streak} days
 ${energyContext ? `Energy rhythm: ${energyContext}` : ''}
 ${stateSummary}

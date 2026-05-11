@@ -7,9 +7,9 @@
 ## Pending Features
 
 ### AI Improvements
-**Status:** Partially done (v2.13.0–2.15.4)
-**Done:** Morning briefings, day-end review, stale task awareness (always-on), behavioral insights (deterministic), break_down/move_soon/reflect actions, morning reflection nudge, suggestion cooldowns (7-day), suggestion history (Dropbox-synced), deterministic chips for aging tasks, suggestion history in AI context.
-**Remaining:** Deeper personality (weather/energy awareness beyond peak hour), conversation memory across AI sessions, richer habit streak celebrations.
+**Status:** Partially done (v2.13.0–2.17.11)
+**Done:** Morning briefings, day-end review, stale task awareness, behavioral insights, break_down/move_soon/reflect actions, morning reflection nudge, suggestion cooldowns (7-day), suggestion history (Dropbox-synced), deterministic chips for aging tasks, suggestion history in AI context, conversation memory across sessions (v2.17.11).
+**Remaining:** Deeper personality (weather/energy awareness beyond peak hour), richer habit streak celebrations.
 
 ### Push Notifications
 **Status:** Not started

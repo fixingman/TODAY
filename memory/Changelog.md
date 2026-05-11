@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.11** | **AI conversation memory** — last AI message saved to `appMemory.recentConversations` on close. Last 3 sessions included in memory context. AI instructed to use them for continuity. Max 5 sessions, 200 char cap. Synced via Dropbox. |
 | **2.17.10** | **Copy** — section counts moved after labels (`From Trello 3`, `Your tasks 5`). SOON pull button: `← grab` → `← pull in`. |
 | **2.17.9** | **Fix: Phantom SOON tasks reappear after day** — `mergeRemoteData` excluded `deleted_ids` from SOON merge but not `pastTasks` IDs. Completed/aged tasks move to PAST (not `deleted_ids`), so remote backup still had them in `soon_tasks`. On next sync they were resurrected. Built `pastIds` set from `pastTasks`, excluded from both sides of SOON merge. |
 | **2.17.8** | **Fix: Scroll resets on app return** — `_forceRepaint()` was setting `display:none` on `#main-app`, which clears scroll position. Now saves `scrollTop` of all list elements + `window.scrollY` before hide, restores after. |
