@@ -1047,7 +1047,7 @@
     background: var(--surface2);
     color: var(--text);
     cursor: pointer;
-    transition: all var(--dur-fast);
+    transition: background var(--dur-fast), color var(--dur-fast);
   }
   .triage-btn:hover {
     background: var(--border);
@@ -3034,15 +3034,15 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.12';
+const APP_VERSION   = '2.17.13';
 const DEV_HOURS     = '190h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
-  '2.17.12': 'Perf — CHANGELOG object trimmed from 235 entries to 3. Only 3 ever shown; full history in memory/Changelog.md. Saves ~327 lines on every load.',
+  '2.17.13': 'Perf — 11 raw JSON.parse(localStorage) calls replaced with safeJSON(). 2 transition:all replaced with specific properties. safeJSON added to Backlog for AI system prompt trimming.',
+  '2.17.12': 'Perf — CHANGELOG object trimmed 235→3 entries. Saves ~327 lines on every load.',
   '2.17.11': 'AI conversation memory — last AI message saved on close, last 3 sessions sent to AI for continuity.',
-  '2.17.10': 'Copy — section counts after labels. SOON pull button: grab → pull in.',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -3335,7 +3335,7 @@ function checkMorningNudge() {
   
   const carriedOver = parseInt(localStorage.getItem('morning_nudge_count') || '0');
   const review = (() => {
-    try { return JSON.parse(localStorage.getItem('today_day_review') || 'null'); }
+    try { return safeJSON('today_day_review', null); }
     catch(e) { return null; }
   })();
   
@@ -3906,7 +3906,7 @@ function _pickAIName() {
 
 let appMemory = (() => {
   try {
-    return JSON.parse(localStorage.getItem('today_memory') || 'null') || {
+    return safeJSON('today_memory', null) || {
       // AI identity — picked once, kept forever
       aiName: _pickAIName(),
       // Patterns observed over time
@@ -4734,7 +4734,7 @@ function renderConnections() {
 // Helper to get board name from cache or config
 function _getTrelloBoardName() {
   try {
-    const cache = JSON.parse(localStorage.getItem('today_trello_cache') || '{}');
+    const cache = safeJSON('today_trello_cache', {});
     return cache.boardName || '';
   } catch(e) { return ''; }
 }
@@ -4932,7 +4932,7 @@ async function loadTrello(fromSync) {
       if (todayListId && c.idList === todayListId) {
         if (!isDone) return true; // Not done — show
         // Done — show only if checked TODAY (hide if checked before today)
-        const checkedIds = JSON.parse(localStorage.getItem('today_checked_ids') || '[]');
+        const checkedIds = safeJSON('today_checked_ids', []);
         const checkedEntry = checkedIds.find(e => e.id === trelloId);
         if (checkedEntry && checkedEntry.at) {
           const checkedDate = new Date(checkedEntry.at);
@@ -5631,8 +5631,8 @@ function _flashAccentGlow() {
 }
 
 // ─── Habits ───────────────────────────────────────────────────────────────────
-let habitsList        = JSON.parse(localStorage.getItem('today_habits')            || '[]');
-let habitCompletions  = JSON.parse(localStorage.getItem('today_habit_completions') || '{}');
+let habitsList        = safeJSON('today_habits', []);
+let habitCompletions  = safeJSON('today_habit_completions', {});
 let habitEditMode     = false;
 
 function _saveHabits() {
@@ -5935,7 +5935,7 @@ function deleteHabit(id) {
   habitsList = habitsList.filter(h => h.id !== id);
   delete habitCompletions[id];
   // Track deletion so other devices remove it on next sync
-  const deleted = new Set(JSON.parse(localStorage.getItem('today_deleted_habit_ids') || '[]'));
+  const deleted = new Set(safeJSON('today_deleted_habit_ids', []));
   deleted.add(id);
   localStorage.setItem('today_deleted_habit_ids', JSON.stringify([...deleted]));
   _saveHabits();
@@ -6371,7 +6371,7 @@ function _clearAllDone() {
       localStorage.setItem('today_trello_order', JSON.stringify(ids));
       // Also update cache for faster local reload
       try {
-        const cached = JSON.parse(localStorage.getItem('today_trello_cache') || 'null');
+        const cached = safeJSON('today_trello_cache', null);
         if (cached) { cached.tasks = trelloTasks; localStorage.setItem('today_trello_cache', JSON.stringify(cached)); }
       } catch(e) {}
       _setLastLocalChange();
@@ -6456,7 +6456,7 @@ function _clearAllDone() {
       const ids = newOrder.map(el => el.dataset.taskid);
       trelloTasks.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
       try {
-        const cached = JSON.parse(localStorage.getItem('today_trello_cache') || 'null');
+        const cached = safeJSON('today_trello_cache', null);
         if (cached) { cached.tasks = trelloTasks; localStorage.setItem('today_trello_cache', JSON.stringify(cached)); }
       } catch(ex) {}
     } else if (listId === 'habitList') {
@@ -7682,7 +7682,7 @@ function mergeRemoteData(data) {
   const remoteHabits      = Array.isArray(data.habits)            ? data.habits            : [];
   const remoteHabitComps  = (data.habit_completions && typeof data.habit_completions === 'object') ? data.habit_completions : {};
   const remoteDeletedHabitIds = new Set(Array.isArray(data.deleted_habit_ids) ? data.deleted_habit_ids : []);
-  const localDeletedHabitIds  = new Set(JSON.parse(localStorage.getItem('today_deleted_habit_ids') || '[]'));
+  const localDeletedHabitIds  = new Set(safeJSON('today_deleted_habit_ids', []));
   const mergedDeletedHabitIds = new Set([...localDeletedHabitIds, ...remoteDeletedHabitIds]);
 
   // Build habit map — remote data wins on conflict (like tasks)
@@ -9993,7 +9993,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
   manualTasks.splice(idx, 1);
   
   // Track deletion for sync
-  const deleted = JSON.parse(localStorage.getItem('today_deleted_ids') || '[]');
+  const deleted = safeJSON('today_deleted_ids', []);
   deleted.push({ id: originalTaskId, at: new Date().toISOString() });
   localStorage.setItem('today_deleted_ids', JSON.stringify(deleted));
   
@@ -10839,7 +10839,7 @@ function _aiClearBadge() {
               font-weight: 300;
               cursor: pointer;
               letter-spacing: 0.02em;
-              transition: all 0.15s ease;
+              transition: background 0.15s ease, border-color 0.15s ease;
             }
             .pip-btn:hover {
               background: rgba(200,240,96,0.25);

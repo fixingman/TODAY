@@ -46,6 +46,12 @@
 
 ---
 
+### AI System Prompt Trimming
+**Status:** Not started
+**Goal:** `_aiSystemPrompt()` is 368 lines and rebuilt on every AI call. Not a JS perf issue but increases API token cost on every call. The action type definitions are verbose and the conditional blocks have grown over time.
+**Fix:** Pass to trim verbose instructions — particularly action type definitions (which list every action with full descriptions) and redundant conditional blocks. Aim for ~250 lines without losing behaviour.
+**Reference:** Performance audit session 37.
+
 ### Momentum + TODAY Integration (Research)
 **Status:** Not started — research only
 **Goal:** Explore whether Momentum (momentumplanner.co) and TODAY can be complementary. Hypothesis: plan the week in Momentum on Sunday, use TODAY daily for focus execution.

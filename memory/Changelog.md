@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.13** | **Perf** — 11 raw `JSON.parse(localStorage...)` replaced with `safeJSON()` (resilience + consistency). 2 `transition: all` replaced with specific properties (triage button: `background, color`; PiP button: `background, border-color`). AI system prompt trimming added to Backlog. |
 | **2.17.12** | **Perf** — in-app `CHANGELOG` object trimmed from 235 entries to 3. Only 3 are ever shown in the About panel; full history lives in `memory/Changelog.md`. Saves ~327 lines / 10KB on every page load. |
 | **2.17.11** | **AI conversation memory** — last AI message saved to `appMemory.recentConversations` on close. Last 3 sessions included in memory context. AI instructed to use them for continuity. Max 5 sessions, 200 char cap. Synced via Dropbox. |
 | **2.17.10** | **Copy** — section counts moved after labels (`From Trello 3`, `Your tasks 5`). SOON pull button: `← grab` → `← pull in`. |
