@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.9** | **Fix: Phantom SOON tasks reappear after day** — `mergeRemoteData` excluded `deleted_ids` from SOON merge but not `pastTasks` IDs. Completed/aged tasks move to PAST (not `deleted_ids`), so remote backup still had them in `soon_tasks`. On next sync they were resurrected. Built `pastIds` set from `pastTasks`, excluded from both sides of SOON merge. |
 | **2.17.8** | **Fix: Scroll resets on app return** — `_forceRepaint()` was setting `display:none` on `#main-app`, which clears scroll position. Now saves `scrollTop` of all list elements + `window.scrollY` before hide, restores after. |
 | **2.17.7** | **UI: Focus mode checkbox fill removed** — `::before` progress fill on `.task-check`/`.habit-check` was filling the checkbox interior during focus. Removed. Checkbox stays clear. |
 | **2.17.6** | **AI multi-task actions** — `move_soon` and `delete_task` now accept `ids` array for single-tap multi-task operations. System prompt updated with `ids` syntax. Chip label shows "N tasks incl. [first name]". Handlers iterate atomically. |

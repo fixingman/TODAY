@@ -3034,12 +3034,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.8';
+const APP_VERSION   = '2.17.9';
 const DEV_HOURS     = '190h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.9': 'Fix: Phantom SOON tasks reappear after day — mergeRemoteData excluded deleted_ids from SOON merge but not pastTasks IDs. Completed/aged SOON tasks move to PAST (not deleted_ids), so remote backup still had them in soon_tasks. On next sync they were resurrected. Fix: pastIds set built from pastTasks, excluded from both local and remote sides of SOON merge.',
   '2.17.8': 'Fix: Scroll resets to top on app return — _forceRepaint() set display:none on #main-app which clears scroll position. Now saves scrollTop of all list elements + window.scrollY before hide, restores after display is restored.',
   '2.17.7': 'UI: Focus mode checkbox fill removed — ::before progress fill on .task-check/.habit-check was mimicking the timer bar inside the checkbox during focus. Checkbox interior now stays clear.',
   '2.17.6': 'AI multi-task actions — move_soon and delete_task now accept ids array in payload for single-tap multi-task operations. System prompt updated with ids syntax. _aiSetChips label shows "N tasks incl. [first task name]" for multi-task chips. Handlers iterate over all ids atomically.',
@@ -8054,12 +8055,16 @@ function mergeRemoteData(data) {
   const mergedTasksMap = new Map(mergedTasks.map(t => [t.id, t]));
   
   // Merge SOON: union by ID, most recent zoneChangedAt wins, exclude deleted and pulled-back
+  // Also exclude tasks already in PAST — completed/aged tasks in PAST won't be in deleted_ids
+  // but must not reappear in SOON when remote backup still has them in soon_tasks. (phantom task bug)
+  const pastIds = new Set(pastTasks.map(t => t.id));
   const soonMap = new Map();
   soonTasks.forEach(t => {
-    if (!mergedDeletedMap.has(t.id)) soonMap.set(t.id, t);
+    if (!mergedDeletedMap.has(t.id) && !pastIds.has(t.id)) soonMap.set(t.id, t);
   });
   remoteSoon.forEach(t => {
     if (mergedDeletedMap.has(t.id)) return; // Skip deleted tasks
+    if (pastIds.has(t.id)) return; // Skip tasks already in PAST (completed/aged)
     // Skip if task was pulled back to TODAY more recently
     const inToday = mergedTasksMap.get(t.id);
     if (inToday && inToday.zoneChangedAt && (!t.zoneChangedAt || inToday.zoneChangedAt > t.zoneChangedAt)) return;
