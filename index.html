@@ -3034,15 +3034,15 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.14';
+const APP_VERSION   = '2.17.15';
 const DEV_HOURS     = '192h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
-  '2.17.14': 'Fix: White screen before splash on PWA open — window.focus fires on initial load, triggering _onWake() repaint passes during splash animation. Added _appReady flag (set at end of init()). _onWake() now skips if app not ready.',
-  '2.17.13': 'Perf — 11 raw JSON.parse(localStorage) replaced with safeJSON(). 2 transition:all → specific properties.',
-  '2.17.12': 'Perf — CHANGELOG object trimmed 235→3 entries.',
+  '2.17.15': 'Fix: Focus time carries over to next day — mergeRemoteData used Math.max(local, remote) for stat_focus_mins_today. After midnight reset to 0, remote backup still had yesterday total → restored. Added stat_focus_mins_date to backup; merge only uses remote focus mins if date matches today.',
+  '2.17.14': 'Fix: White screen before splash — _appReady flag prevents _onWake() running during initial load.',
+  '2.17.13': 'Perf — safeJSON for localStorage, transition:all fixes.',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -7513,6 +7513,7 @@ async function dropboxBackup(silent) {
     past_tasks:        safeJSON('today_past', []),
     // Stats — synced cross-device (flow rate is calculated live, not stored)
     stat_focus_mins_today:  localStorage.getItem('stat_focus_mins_today')  || '0',
+    stat_focus_mins_date:   _getAppDay(), // date guard — prevents yesterday's total restoring after midnight
     stat_streak:            localStorage.getItem('stat_streak')            || '1',
     stat_tasks_done_today:  localStorage.getItem('stat_tasks_done_today')  || '0',
     // Habits — persisted cross-device
@@ -7870,14 +7871,19 @@ function mergeRemoteData(data) {
   const localFocusMins  = parseInt(localStorage.getItem('stat_focus_mins_today')  || '0');
   const localStreak     = parseInt(localStorage.getItem('stat_streak')            || '1');
   const localDone       = parseInt(localStorage.getItem('stat_tasks_done_today')  || '0');
-  
+
   const remoteFocusMins = parseInt(data.stat_focus_mins_today  || '0');
   const remoteStreak    = parseInt(data.stat_streak            || '1');
   const remoteDoneCount = parseInt(data.stat_tasks_done_today  || '0');
-  
-  // Max wins — if you focused 10min on phone and 15min on laptop, total is 15min (not 25)
-  // This prevents double-counting while ensuring the highest value is preserved
-  const mergedFocusMins = Math.max(localFocusMins, remoteFocusMins);
+
+  // Max wins — but ONLY merge focus mins if the remote data is from today.
+  // Without this guard, yesterday's backed-up total (e.g. 45min) would restore
+  // after midnight when local resets to 0 but remote still holds the old value.
+  const today = _getAppDay();
+  const remoteFocusDate = data.stat_focus_mins_date || '';
+  const remoteFocusMinsToday = remoteFocusDate === today ? remoteFocusMins : 0;
+
+  const mergedFocusMins = Math.max(localFocusMins, remoteFocusMinsToday);
   const mergedStreak    = Math.max(localStreak, remoteStreak);
   const mergedDoneCount = Math.max(localDone, remoteDoneCount);
   
