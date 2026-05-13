@@ -3034,15 +3034,15 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.13';
+const APP_VERSION   = '2.17.14';
 const DEV_HOURS     = '192h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
-  '2.17.13': 'Perf — 11 raw JSON.parse(localStorage) calls replaced with safeJSON(). 2 transition:all replaced with specific properties. safeJSON added to Backlog for AI system prompt trimming.',
-  '2.17.12': 'Perf — CHANGELOG object trimmed 235→3 entries. Saves ~327 lines on every load.',
-  '2.17.11': 'AI conversation memory — last AI message saved on close, last 3 sessions sent to AI for continuity.',
+  '2.17.14': 'Fix: White screen before splash on PWA open — window.focus fires on initial load, triggering _onWake() repaint passes during splash animation. Added _appReady flag (set at end of init()). _onWake() now skips if app not ready.',
+  '2.17.13': 'Perf — 11 raw JSON.parse(localStorage) replaced with safeJSON(). 2 transition:all → specific properties.',
+  '2.17.12': 'Perf — CHANGELOG object trimmed 235→3 entries.',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -4485,6 +4485,8 @@ function init() {
     }).join('');
   }
 
+  // App is fully initialised — allow _onWake() to run on subsequent wake events
+  _appReady = true;
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -7402,11 +7404,18 @@ function dropboxAutoSave() {
 }
 
 // Retry pending backup when tab becomes visible
+// ─── _appReady flag ──────────────────────────────────────────────────────────
+// Prevents _onWake() firing during initial page load. window.focus fires on
+// PWA open which would trigger repaint passes during the splash animation.
+// Set to true at the end of init().
+let _appReady = false;
+
 // ─── _onWake — unified wake sequence ─────────────────────────────────────────
 // Called by the Dropbox sync module's visibilitychange handler (which has the
 // right closure variables for sync). Handles repaint, focus cleanup, and triage.
 // Do NOT add a second visibilitychange listener here — let the sync module call this.
 window._onWake = function() {
+  if (!_appReady) return; // Skip during initial page load — window.focus fires on PWA open
   // Force repaint — PWA standalone defers painting after sleep/wake. (BUG-004)
   // After a long sleep the GPU compositor layers may not be ready synchronously.
   // Run repaint immediately, on next rAF (GPU more likely ready), and after 500ms.
