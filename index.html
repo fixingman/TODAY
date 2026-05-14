@@ -3034,15 +3034,15 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.16';
+const APP_VERSION   = '2.17.17';
 const DEV_HOURS     = '192h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
-  '2.17.16': 'Fix: Focus minutes restore gap — full Restore path (Dropbox) lacked date guard. Added same check as mergeRemoteData: only restore focus mins if backup date matches today. Test-matrix updated: 73→77 tests.',
-  '2.17.15': 'Fix: Focus time carryover — mergeRemoteData date guard added. stat_focus_mins_date in backup prevents yesterday total restoring after midnight.',
-  '2.17.14': 'Fix: White screen before splash — _appReady flag prevents _onWake() running during initial load.',
+  '2.17.17': 'Fix: _appReady timing — was set at end of init() (~50ms) but splash shows 2-3s. window.focus still fired during splash → _onWake() triggered. Now set inside splash dismiss callback after splash.remove(). _onWake() safely blocked until splash is fully gone.',
+  '2.17.16': 'Fix: Focus mins restore gap in full Restore path. Test-matrix 73→77 tests.',
+  '2.17.15': 'Fix: Focus time carryover — date guard on mergeRemoteData stat_focus_mins_today.',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -4485,8 +4485,6 @@ function init() {
     }).join('');
   }
 
-  // App is fully initialised — allow _onWake() to run on subsequent wake events
-  _appReady = true;
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -8559,6 +8557,10 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
         window.removeEventListener('resize', sResize);
         splash.remove();
         splashCanvas.remove();
+        // App is ready — allow _onWake() to run on subsequent wake events.
+        // Must be AFTER splash is gone, not at end of init() which completes in ~50ms
+        // while the splash still shows for 2-3s. (v2.17.14 fix for white screen before splash)
+        _appReady = true;
 
         // Step 2: reveal sticky header + children top-to-bottom with stagger
         const stickyHdr = document.getElementById('sticky-header');
