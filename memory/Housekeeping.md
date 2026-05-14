@@ -142,6 +142,7 @@ After `str_replace`, the new content is known. No need to re-read the result unl
 ## Code Hygiene
 
 ### Before Committing
+- [ ] Run syntax check: `node -e "const fs=require('fs');const c=fs.readFileSync('index.html','utf8');const s=c.slice(c.indexOf('<script>')+8,c.lastIndexOf('</script>'));try{new Function(s);console.log('OK')}catch(e){console.log('ERROR:',e.message)}"`
 - [ ] No console.log debugging left
 - [ ] No hardcoded test values (like 10s idle timer)
 - [ ] Version numbers match across files
