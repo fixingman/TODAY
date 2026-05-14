@@ -3034,15 +3034,15 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.17';
+const APP_VERSION   = '2.17.18';
 const DEV_HOURS     = '192h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
-  '2.17.17': 'Fix: _appReady timing — was set at end of init() (~50ms) but splash shows 2-3s. window.focus still fired during splash → _onWake() triggered. Now set inside splash dismiss callback after splash.remove(). _onWake() safely blocked until splash is fully gone.',
+  '2.17.18': 'Fix: Syntax error — duplicate const today in mergeRemoteData. v2.17.15 added const today at line 7880 but one already existed at line 7918 in same function scope. App crashed on load (Identifier already declared). Replaced with inline _getAppDay() call.',
+  '2.17.17': 'Fix: _appReady timing — now set inside splash dismiss callback after splash.remove().',
   '2.17.16': 'Fix: Focus mins restore gap in full Restore path. Test-matrix 73→77 tests.',
-  '2.17.15': 'Fix: Focus time carryover — date guard on mergeRemoteData stat_focus_mins_today.',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -7877,9 +7877,8 @@ function mergeRemoteData(data) {
   // Max wins — but ONLY merge focus mins if the remote data is from today.
   // Without this guard, yesterday's backed-up total (e.g. 45min) would restore
   // after midnight when local resets to 0 but remote still holds the old value.
-  const today = _getAppDay();
   const remoteFocusDate = data.stat_focus_mins_date || '';
-  const remoteFocusMinsToday = remoteFocusDate === today ? remoteFocusMins : 0;
+  const remoteFocusMinsToday = remoteFocusDate === _getAppDay() ? remoteFocusMins : 0;
 
   const mergedFocusMins = Math.max(localFocusMins, remoteFocusMinsToday);
   const mergedStreak    = Math.max(localStreak, remoteStreak);

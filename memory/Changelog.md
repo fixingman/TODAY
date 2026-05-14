@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.18** | **Fix: Syntax error crashing app on load** — `const today` declared twice in `mergeRemoteData`. v2.17.15 added one at line 7880 but one already existed at line 7918 in the same function scope → `Identifier 'today' has already been declared` → app crashed before splash completed. Replaced with inline `_getAppDay()` call. |
 | **2.17.17** | **Fix: `_appReady` timing** — was set at end of `init()` (~50ms) but splash shows 2-3s. `window.focus` still fired during splash → `_onWake()` triggered → app broke. Now set inside splash dismiss callback after `splash.remove()`. `_onWake()` safely blocked until splash is fully gone. |
 | **2.17.16** | **Fix: Focus mins restore gap** — full Restore path (Dropbox Connections panel) lacked date guard. Added same check as `mergeRemoteData`: only restore focus mins if `stat_focus_mins_date` matches today. Also: Test-matrix 73→77 tests (5.1 corrected, 5.2/5.3/5.10/7.6 added). |
 | **2.17.15** | **Fix: Focus time carries over to next day** — `mergeRemoteData` used `Math.max(local, remote)` for `stat_focus_mins_today`. After midnight reset to 0, remote backup still had yesterday's total → restored it. Added `stat_focus_mins_date` to backup. Merge only uses remote focus mins if date matches today. |
