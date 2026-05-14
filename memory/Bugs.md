@@ -83,9 +83,11 @@
 2. Canvas removal moved into `sLoop` end handler — removed only when particles are done.
 3. Children set to `opacity:0; transition:none` before container reveal; container revealed in next `requestAnimationFrame`.
 
-**Additional root causes found and fixed (v2.17.23):**
+**Additional root cause found and fixed (v2.17.23):**
 4. `sResize` used `sctx.scale(dpr, dpr)` which compounds if `canvas.width=` doesn't reset context (iOS WebKit inconsistency). Each `sResize` call doubled/tripled the scale, placing explosion at `(x×dpr², y×dpr²)` — bottom-right corner. Fixed: `sctx.setTransform(dpr, 0, 0, dpr, 0, 0)` replaces the matrix rather than multiplying.
-5. Skip-splash path revealed app immediately (before `init()` ran), causing skeleton flash (headers/checkboxes visible before task text). Fixed: skip path defines a lightweight `_doSplashDismiss` and waits for `_onAppLoadDone()` to call it after tasks are rendered.
+
+**Reverted bad fix (v2.17.23):**
+Skip-splash deferred reveal was introduced thinking tasks weren't rendered yet, but `init()` calls `renderManual()` synchronously at line 4443 before the splash IIFE (line 8423) executes — tasks are already in DOM. Deferring to `_onAppLoadDone` caused a black screen lasting seconds (Dropbox network round-trip). Reverted to immediate reveal.
 
 **Verify:** Open TODAY on mobile as PWA → star should visibly explode into particles → explosion plays fully → no white flash on app reveal.
 
