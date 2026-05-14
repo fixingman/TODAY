@@ -20,8 +20,9 @@
 **Effort:** Medium. Code is straightforward; main decision is what to notify and when.
 
 ### Weekly Reports
-**Status:** Not started
-**Goal:** Weekly productivity summary — tasks done, habits kept, focus time, streak trend.
+**Status:** Approach A in progress (v2.17.21)
+**Done:** Daily history snapshots written to `today_daily_history` at midnight. Sunday AI reflection uses real 7-day totals.
+**Remaining:** Approach B (dedicated weekly panel) — revisit once there's 3+ weeks of real data to show.
 
 ### Todoist Integration
 **Status:** Not started

@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Splash polish, bug fixes, code quality
-- **Recent:** v2.17.20 — splash animation (rAF typewriter, DPR canvas, explosion timing), syntax error fix, _appReady flag, focus time carryover fix, code review, test-matrix updated, Bugs.md tidied
+- **Working on:** Weekly reports
+- **Recent:** v2.17.21 — daily history snapshots (today_daily_history), Sunday AI reflection uses real 7-day totals
 - **Watch for:** BUG-011/012/019 verification in production
 
 ---
