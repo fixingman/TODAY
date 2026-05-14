@@ -4,6 +4,31 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.4** | **Fix: `break_down` deletes original task** — secondary AI call used full system prompt (including `delete_task`). AI returned `delete_task` for the original alongside subtask chips. Fix: `break_down` uses minimal direct fetch with restricted system prompt (`add_task` only) + client-side filter strips any non-`add_task` actions. |
+| **2.17.3** | **Fix: AI errors** — (1) Gemini 2.5 Flash thinking mode causes 15-30s responses, exceeding Netlify 10s timeout → `thinkingBudget: 0` added. (2) Claude model was `claude-sonnet-4-5` (old) → updated to `claude-sonnet-4-6`. Old model returns intermittent 500s under larger context. |
+| **2.17.2** | **Fix: `ReferenceError: syncDropbox` in `_aiExecute`** — `syncDropbox()` is private to the Dropbox sync closure. `_aiExecute` (global scope) called it directly when adding a task via AI chip. Replaced with `_setLastLocalChange()` + `dropboxAutoSave()` — the correct public API for all mutations. |
+| **2.17.1** | **Fix: BUG-004 — blank after long sleep (clicking restores)** — synchronous repaint trick (`display:none/offsetHeight`) fires before GPU compositor layers are ready after hours of sleep. Now runs repaint at: immediate + rAF + second rAF + 500ms deferred. Covers full GPU warmup window. |
+| **2.17.0** | **Refactor: `_onWake()` consolidation (minor bump)** — repaint, `.focusing` cleanup (immediate + 350ms deferred), `checkMorningNudge()`, triage silent window, pending backup all in `window._onWake()`. Called from 3 entry points: sync module `visibilitychange`, `window.focus` (PWA fallback), `pageshow` (bfcache). SW update, timer wall-clock, PiP handlers stay in their closures. Also fixes: returning users after overnight now correctly see morning nudge. |
+| **2.16.21** | **Fix: BUG-004 continued** — v2.16.20 immediate check missed the async gap. `renderManual()` destroys `.focused` element; `_focusReanchor` re-attaches 10-100ms later. During that window: `.focusing` on but no `.focused` → 7% opacity → blank screen. Added 350ms deferred `_clearStaleFocusing()`. |
+| **2.16.20** | **Fix: BUG-004 regression** — `.focusing` class cleared on `pageshow` but not on `visibilitychange`. Added cleanup: if `.focusing` set but no `.focused` element in DOM, clear it. |
+| **2.16.19** | **Fix: BUG-014 — PiP manual restore path** — `_hadPiP` flag added; on restore, reopen PiP using dock-click gesture. `_hadPiP` cleared on explicit close or focus end. |
+| **2.16.18** | **Copy audit** — README rewritten with "What it deliberately doesn't do" section. AI prompt: TODAY design philosophy block added. Info panel title humanised. |
+| **2.16.17** | **Emergent vs planned insight** — `appMemory.patterns.lateAdditions` tracks hour of each task addition. `dayStartCount` snapshotted at midnight. After 10+ data points, AI notices reactive vs intentional patterns. |
+| **2.16.16** | **AI: energy-aware + soft cap** — Energy suggestions name specific tasks tied to the moment. `LIST_HEAVY` flag at 6+ tasks. |
+| **2.16.15** | **Task link UX overhaul** — Trello: `link ↗` → `↗` only. Manual: URL inline in `task.text`. |
+| **2.16.14** | **Connections panel** — AI key status inline on one line. |
+| **2.16.13** | **Token audit** — `--accent-glow` alias added to `:root`. |
+| **2.16.12** | **Fix: Trello loading flash** — `hasCachedTasks` check added; API update silent when cache rendered. |
+| **2.16.11** | **Fix: Splash not showing on desktop PWA reopen** — 30-minute timestamp guard (`splash_shown_at`) replaces date-key guard. |
+| **2.16.10** | **Task link UX** — `↗` → `link ↗`. Copy CTA appends `task.url`. |
+| **2.16.9** | **Fix: BUG-011 ghost chime** — `clockTaskId` captured by value; RAF stops if `uiTaskId !== clockTaskId`. |
+| **2.16.8** | **AI context** — message word limit 20→30 words. Added: name the task in the message. |
+| **2.16.7** | **Fix: Splash click-through** — `pointer-events: none` → `pointer-events: all`. |
+| **2.16.6** | **Fix: BUG-007 mobile** — `triageMinimize()` now calls `triageClose()` if `triageDismissedToday` true. |
+| **2.16.5** | **Fix: BUG-012 continued** — both `loadTrello` filter and `mergeRemoteData` check `today_checked_ids` timestamp. |
+| **2.16.4** | **Perf + safety** — `today_trello_focus` hoisted. All related reads use `safeJSON()`. |
+| **2.16.3** | **Fix: SW update error in red dot** — "Failed to update a ServiceWorker" added to network error filter. |
+| **2.16.2** | **Splash cursor hold** — reduced from 800ms to 500ms. |
 | **2.16.1** | **Fix: Splash on every mobile return** — `sessionStorage` cleared when iOS kills PWA page. Switched to `localStorage` with date key (`splash_shown_date`). Shows at most once per calendar day. |
 | **2.16.0** | **Fix: BUG-017 — focus minutes only on full completion** — `_trackFocusTime` only called when `doResetState=true`. Escape, task-switch, and early close lost all minutes. Removed the condition — now tracks on every `closeUI`. |
 | **2.15.9** | **SOON list alphabetical sort** — `renderSoon` sorts a shallow copy by `localeCompare`. Array order preserved for sync. |

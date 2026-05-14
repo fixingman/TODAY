@@ -1,6 +1,6 @@
 # TODAY — Changelog
 
-> Entries older than ~20 versions → `Changelog-archive.md`
+> Entries older than ~15 versions → `Changelog-archive.md`
 
 | Version | Key change |
 |---|---|
@@ -19,28 +19,3 @@
 | **2.17.7** | **UI: Focus mode checkbox fill removed** — `::before` progress fill on `.task-check`/`.habit-check` was filling the checkbox interior during focus. Removed. Checkbox stays clear. |
 | **2.17.6** | **AI multi-task actions** — `move_soon` and `delete_task` now accept `ids` array for single-tap multi-task operations. System prompt updated with `ids` syntax. Chip label shows "N tasks incl. [first name]". Handlers iterate atomically. |
 | **2.17.5** | **Fix: AI chip acts on wrong task** — AI message refers to one task but payload ID is different (ID mixup with multiple tasks). `_aiSetChips` now resolves task name from payload ID for `delete_task`/`move_soon`/`check_task`/`start_focus` and appends to label: "Let it go · Write the report". User sees which task is affected before tapping. |
-| **2.17.4** | **Fix: `break_down` deletes original task** — secondary AI call used full system prompt (including `delete_task`). AI returned `delete_task` for the original alongside subtask chips. Fix: `break_down` uses minimal direct fetch with restricted system prompt (`add_task` only) + client-side filter strips any non-`add_task` actions. |
-| **2.17.3** | **Fix: AI errors** — (1) Gemini 2.5 Flash thinking mode causes 15-30s responses, exceeding Netlify 10s timeout → `thinkingBudget: 0` added. (2) Claude model was `claude-sonnet-4-5` (old) → updated to `claude-sonnet-4-6`. Old model returns intermittent 500s under larger context. |
-| **2.17.2** | **Fix: `ReferenceError: syncDropbox` in `_aiExecute`** — `syncDropbox()` is private to the Dropbox sync closure. `_aiExecute` (global scope) called it directly when adding a task via AI chip. Replaced with `_setLastLocalChange()` + `dropboxAutoSave()` — the correct public API for all mutations. |
-| **2.17.1** | **Fix: BUG-004 — blank after long sleep (clicking restores)** — synchronous repaint trick (`display:none/offsetHeight`) fires before GPU compositor layers are ready after hours of sleep. Now runs repaint at: immediate + rAF + second rAF + 500ms deferred. Covers full GPU warmup window. |
-| **2.17.0** | **Refactor: `_onWake()` consolidation (minor bump)** — repaint, `.focusing` cleanup (immediate + 350ms deferred), `checkMorningNudge()`, triage silent window, pending backup all in `window._onWake()`. Called from 3 entry points: sync module `visibilitychange`, `window.focus` (PWA fallback), `pageshow` (bfcache). SW update, timer wall-clock, PiP handlers stay in their closures. Also fixes: returning users after overnight now correctly see morning nudge (was only shown in `init()`). |
-| **2.16.21** | **Fix: BUG-004 continued** — v2.16.20 immediate check missed the async gap. `renderManual()` (async Dropbox sync on wake) destroys `.focused` element; `_focusReanchor` re-attaches 10-100ms later. During that window: `.focusing` on but no `.focused` → 7% opacity → blank screen. Added 350ms deferred `_clearStaleFocusing()` to both `visibilitychange` and `window.focus` handlers. |
-| **2.16.20** | **Fix: BUG-004 regression — app blank after sleep/wake during focus** — `.focusing` class cleared on `pageshow` (bfcache) but not on `visibilitychange` (sleep/wake). Added cleanup to `visibilitychange`: if `.focusing` set but no `.focused` element in DOM, clear it. |
-| **2.16.19** | **Fix: BUG-014 — PiP manual restore path** — browser auto-closes PiP on dock/Alt+Tab restore. `pagehide` fires → `pipWindow = null`. OS minimize has no user gesture so `requestWindow()` fails. Added `_hadPiP` flag; on restore, reopen PiP using dock-click gesture. `_hadPiP` cleared on explicit close or focus end. |
-| **2.16.18** | **Copy audit** — README rewritten with "What it deliberately doesn't do" section. AI prompt: TODAY design philosophy block added so AI never suggests priorities/deadlines. Info panel title: `ℹ About TODAY` → `✦ TODAY`. |
-| **2.16.17** | **Emergent vs planned insight** — `appMemory.patterns.lateAdditions` tracks hour of each task addition. `dayStartCount` snapshotted at midnight. After 10+ data points, AI notices reactive vs intentional patterns. |
-| **2.16.16** | **AI: energy-aware + soft cap** — Energy suggestions now name specific tasks tied to the moment (not generic guidance). `LIST_HEAVY` flag at 6+ tasks — AI acknowledges full plate warmly, focuses on one task, may suggest SOON. |
-| **2.16.15** | **Task link UX overhaul** — Trello: `link ↗` → `↗` only (system URL). Manual: URL kept inline in `task.text`, rendered at its position as `link ↗`. Legacy tasks append at end. Copy handler replaces `.task-link` elements with actual `href`. |
-| **2.16.14** | **Connections panel** — AI key status and link now inline on one line instead of left/right flex split. |
-| **2.16.13** | **Token audit** — `--accent-glow` alias was missing (triage bar border undefined). Added to `:root`. Token standardisation reverted after causing circular `:root` references. `Tokens.md` updated with missing aliases. |
-| **2.16.12** | **Fix: Trello loading flash** — `loadTrello()` was wiping the list and showing spinner even when cache had seeded `trelloTasks`. Added `hasCachedTasks` check — API update now silent when cache rendered. Trello loads identically to manual tasks. |
-| **2.16.11** | **Fix: Splash not showing on desktop PWA reopen** — `v2.16.1` date-key guard was once-per-day. Replaced with 30-minute timestamp guard (`splash_shown_at`). iOS background kill still suppressed; desktop close + reopen after 30+ min shows splash. |
-| **2.16.10** | **Task link UX** — `↗` → `link ↗` in both `taskHTML` and Trello patch path. Copy CTA now appends `task.url` to copied text. |
-| **2.16.9** | **Fix: BUG-011 ghost chime** — PiP RAF captured `uiTaskId` by reference. `clockTaskId` captured by value; RAF stops if `uiTaskId !== clockTaskId`. Reused PiP path now calls `startPiPClock()`. |
-| **2.16.8** | **AI context** — message word limit raised 20→30 words. Added instruction: name the task in the message when suggesting an action. |
-| **2.16.7** | **Fix: Splash click-through** — `pointer-events: none` on `#splash` let taps reach tasks below. Changed to `pointer-events: all`. |
-| **2.16.6** | **Fix: BUG-007 mobile** — backdrop tap during 3s triage summary called `triageMinimize()`, restoring the bar. `triageMinimize()` now calls `triageClose()` if `triageDismissedToday` already true. |
-| **2.16.5** | **Fix: BUG-012 continued** — overdue card disappeared immediately on check. Both `loadTrello` filter and `mergeRemoteData` eviction now check `today_checked_ids` timestamp — only hide if checked before today. |
-| **2.16.4** | **Perf + safety** — `today_trello_focus` hoisted before `.map()` loops. All `today_trello_focus` and `today_triage_history` reads now use `safeJSON()`. |
-| **2.16.3** | **Fix: SW update error in red dot** — "Failed to update a ServiceWorker" added to network error filter. Browser-generated, not an app error. |
-| **2.16.2** | **Splash cursor hold** — reduced from 800ms to 500ms. |
