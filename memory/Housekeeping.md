@@ -119,6 +119,26 @@ No hard limits — but when files get large they slow down Tier 1 reads. Use jud
 
 ---
 
+## Code Reading Discipline
+
+> Applies during every session. Token cost from `view` calls accumulates permanently in context.
+
+**Before viewing any code, ask: is this section already in context?**
+- If I viewed it earlier this session AND no edit has touched that section since → trust the in-context version, skip the re-read
+- If any `str_replace` or `create_file` has touched that section since the last view → re-read before acting on it
+- If in doubt → re-read (a 300-token view is cheaper than a bad edit that needs reverting)
+
+**Prefer grep over view when possible**
+`grep -n "funcName"` gives line number and enough context for many tasks. Only `view` when surrounding code is genuinely needed.
+
+**Read wider ranges once, not narrow ranges repeatedly**
+If lines 100–120 and 130–150 are both needed, read 100–155 once.
+
+**Trust edits — don't confirm with a view unless something looks wrong**
+After `str_replace`, the new content is known. No need to re-read the result unless the edit was complex or uncertain.
+
+---
+
 ## Code Hygiene
 
 ### Before Committing

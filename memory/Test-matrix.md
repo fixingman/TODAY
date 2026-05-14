@@ -115,17 +115,20 @@ If testing **zone** changes:
 | 4.5 | Manual task checked | Persists across sync |
 | 4.6 | **SYNC: Check/uncheck rapid toggle** | Final state correct |
 
-### 5. Stats & Memory (7 tests)
+### 5. Stats & Memory (10 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
-| 5.1 | Focus minutes | Max wins |
-| 5.2 | Streak | Max wins |
-| 5.3 | Tasks done today | Max wins |
-| 5.4 | Memory totalTasksCompleted | Max wins |
-| 5.5 | Memory patterns | Merged |
-| 5.6 | Memory moments | Union |
-| 5.7 | AI name | Preserved |
+| 5.1 | Focus minutes — same day, two devices | Max wins (higher of the two) |
+| 5.2 | Focus minutes — after midnight reset | Remote yesterday's total NOT restored (date guard) |
+| 5.3 | Focus minutes — manual Restore button | Only restored if backup date matches today |
+| 5.4 | Streak | Max wins |
+| 5.5 | Tasks done today | Max wins |
+| 5.6 | Memory totalTasksCompleted | Max wins |
+| 5.7 | Memory patterns | Merged |
+| 5.8 | Memory moments | Union |
+| 5.9 | AI name | Preserved |
+| 5.10 | SOON phantom — complete/delete task in SOON, sync next day | Task does NOT reappear in SOON |
 
 ### 6. Trello (6 tests)
 
@@ -138,7 +141,7 @@ If testing **zone** changes:
 | 6.5 | Trello config syncs | boardId/listId synced |
 | 6.6 | Trello popup blocked | Error shown |
 
-### 7. Focus Mode (5 tests)
+### 7. Focus Mode (6 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -147,6 +150,7 @@ If testing **zone** changes:
 | 7.3 | Tab away, return | Wall-clock correct |
 | 7.4 | PiP sync | Both displays match |
 | 7.5 | Session complete | Chime + count increment |
+| 7.6 | PWA cold open | Splash appears immediately — no white flash before it |
 
 ### 8. Network Edge Cases (7 tests)
 
@@ -179,12 +183,12 @@ If testing **zone** changes:
 | Zones | 15 | 8 |
 | Habits | 9 | 3 |
 | Done State | 6 | 3 |
-| Stats/Memory | 7 | 2 |
+| Stats/Memory | 10 | 4 |
 | Trello | 6 | 2 |
-| Focus | 5 | 2 |
+| Focus | 6 | 2 |
 | Network | 7 | 4 |
 | Destructive | 4 | 2 |
-| **Total** | **73** | **31** |
+| **Total** | **77** | **33** |
 
 ---
 

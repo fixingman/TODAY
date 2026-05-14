@@ -3034,15 +3034,15 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.15';
+const APP_VERSION   = '2.17.16';
 const DEV_HOURS     = '192h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
-  '2.17.15': 'Fix: Focus time carries over to next day — mergeRemoteData used Math.max(local, remote) for stat_focus_mins_today. After midnight reset to 0, remote backup still had yesterday total → restored. Added stat_focus_mins_date to backup; merge only uses remote focus mins if date matches today.',
+  '2.17.16': 'Fix: Focus minutes restore gap — full Restore path (Dropbox) lacked date guard. Added same check as mergeRemoteData: only restore focus mins if backup date matches today. Test-matrix updated: 73→77 tests.',
+  '2.17.15': 'Fix: Focus time carryover — mergeRemoteData date guard added. stat_focus_mins_date in backup prevents yesterday total restoring after midnight.',
   '2.17.14': 'Fix: White screen before splash — _appReady flag prevents _onWake() running during initial load.',
-  '2.17.13': 'Perf — safeJSON for localStorage, transition:all fixes.',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -8025,7 +8025,14 @@ async function dropboxRestore(fromSync) {
       // Trello order — remote order wins (like tasks and habits)
       if (Array.isArray(data.trello_order)) localStorage.setItem('today_trello_order', JSON.stringify(data.trello_order));
       // Stats (flow_rate is calculated live from visible tasks, not stored)
-      if (data.stat_focus_mins_today)  localStorage.setItem('stat_focus_mins_today',  data.stat_focus_mins_today);
+      // Date guard: only restore focus mins if the backup is from today,
+      // same as mergeRemoteData — prevents yesterday's total restoring after midnight
+      const _restoreFocusDate = data.stat_focus_mins_date || '';
+      if (data.stat_focus_mins_today && _restoreFocusDate === _getAppDay()) {
+        localStorage.setItem('stat_focus_mins_today', data.stat_focus_mins_today);
+      } else if (_restoreFocusDate !== _getAppDay()) {
+        localStorage.setItem('stat_focus_mins_today', '0');
+      }
       if (data.stat_streak)            localStorage.setItem('stat_streak',            data.stat_streak);
       if (data.stat_tasks_done_today)  localStorage.setItem('stat_tasks_done_today',  data.stat_tasks_done_today);
       // Habits
