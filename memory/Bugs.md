@@ -18,7 +18,7 @@
 | 010 | Habits didn't roll over | ✅ v2.12.74–77 |
 | 011 | PiP ghost chime on wrong task | ⏳ v2.16.9 |
 | 012 | Overdue Trello card disappears on check | ⏳ v2.16.5 |
-| 018 | Phantom SOON tasks reappear after day | ⏳ v2.17.9 |
+| 018 | Phantom SOON tasks reappear | ✅ v2.17.9 |
 | 019 | Star explosion missing on mobile at splash end | ⏳ v2.17.20 |
 | 013 | Focus timer double-counts | ✅ v2.14.9 |
 | 014 | PiP not reappearing after restore | ✅ v2.15.5–2.16.19 |
@@ -66,24 +66,6 @@
 **Verified fixed:** ☐
 
 ---
-
-## BUG-018: Phantom SOON tasks reappear after day
-
-**Status:** Fixed v2.17.9 — awaiting verification
-
-**Symptom:** Tasks moved to SOON that were subsequently deleted or completed reappear in the SOON list the following day. Deleting or completing them again triggers the same cycle.
-
-**Root cause:** `mergeRemoteData` built a `mergedDeletedMap` from `deleted_ids` and excluded those from the SOON merge. However, tasks that are completed or age out of SOON are moved to `pastTasks` — their IDs are **never added to `deleted_ids`**. The Dropbox remote backup still had these tasks in `soon_tasks`. On the next day's sync (morning wake pull), the merge saw the task ID was not in `mergedDeletedMap`, not in TODAY, so it was restored to SOON from the remote backup.
-
-**Fix (v2.17.9):** Built `pastIds = new Set(pastTasks.map(t => t.id))` before the SOON merge. Added `pastIds` exclusion to both the local and remote sides of the SOON union:
-- Local: `if (!mergedDeletedMap.has(t.id) && !pastIds.has(t.id))`
-- Remote: `if (pastIds.has(t.id)) return;`
-
-Tasks already in PAST cannot re-enter SOON via sync, regardless of what the remote backup contains.
-
-**Verify:** Move a task to SOON → complete it or delete it → wait until next day or force sync → task should NOT reappear in SOON.
-
-**Verified fixed:** ☐
 
 ---
 
