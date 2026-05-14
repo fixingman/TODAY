@@ -3034,12 +3034,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.21';
+const APP_VERSION   = '2.17.23';
 const DEV_HOURS     = '194h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.23': 'Fix BUG-019: sResize now uses setTransform instead of scale — scale() compounds on each call if canvas.width= does not reset context (iOS WebKit inconsistency), shifting explosion coordinates. Reverted erroneous deferred-reveal in skip-splash path (no skeleton risk since init() runs renderManual() synchronously before the IIFE).',
+  '2.17.22': 'Fix BUG-019 (3 root causes): resize listener now removed at start of dismiss (not 630ms later) so mobile viewport shifts no longer wipe canvas mid-explosion. Canvas removed by sLoop end handler (not fixed 500ms timeout) so explosion plays fully. Children hidden before container reveal to eliminate white flash.',
   '2.17.21': 'Weekly reports (approach A): daily history snapshots written to today_daily_history at midnight cleanup. Sunday evening AI reflection now shows real 7-day totals (tasks, focus, habit checks) instead of today-only stats.',
   '2.17.20': 'Fix: BUG-019 — star explosion not visible on mobile. Canvas removed at same moment main app appeared (T+630ms), too brief on mobile. Canvas now removed 500ms later (T+1130ms) so explosion plays over the appearing app. _appReady moved before splashCanvas.remove().',
   '2.17.19': 'Splash: typewriter rAF-based (no setTimeout drift). Canvas DPR-aware (width/height × devicePixelRatio). Fixes laggy typewriter + explosion blurry on retina mobile.',
@@ -8429,6 +8431,8 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
   if (Date.now() - lastShown < SPLASH_COOLDOWN) {
     const splash = document.getElementById('splash');
     if (splash) splash.remove();
+    // init() runs renderManual() synchronously before this IIFE executes,
+    // so tasks are already in the DOM — reveal immediately with no skeleton risk.
     const stickyHdr = document.getElementById('sticky-header');
     if (stickyHdr) stickyHdr.style.opacity = '1';
     const mainApp = document.getElementById('main-app');
@@ -8456,7 +8460,10 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
   function sResize(){
     splashCanvas.width  = innerWidth  * dpr;
     splashCanvas.height = innerHeight * dpr;
-    sctx.scale(dpr, dpr); // keep coords in CSS px regardless of DPR
+    // setTransform REPLACES the current matrix — safe even if canvas.width
+    // assignment doesn't reset context on this browser (iOS WebKit inconsistency).
+    // scale() would compound on each sResize call, shifting explosion coordinates.
+    sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   sResize(); addEventListener('resize', sResize);
 
@@ -8530,6 +8537,7 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
       srf=null;
       sFrameCount=0;
       sctx.clearRect(0,0,splashCanvas.width/dpr,splashCanvas.height/dpr);
+      splashCanvas.remove(); // remove once explosion fully plays out
     }
   }
 
@@ -8560,6 +8568,11 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
 
   // Transition
   window._doSplashDismiss = function(){
+    // Stop resize listener immediately — viewport shifts on mobile (address bar
+    // show/hide) call sResize which resets canvas.width, wiping the context
+    // transform and erasing the explosion mid-animation.
+    window.removeEventListener('resize', sResize);
+
     // Fade logo and date out
     const logo     = document.getElementById('splash-logo');
     const dateWrap = document.getElementById('splash-date-wrap');
@@ -8587,50 +8600,50 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
       splash.style.opacity    = '0';
 
       setTimeout(()=>{
-        // Fully remove splash from DOM — frees canvas memory and resize listener
-        window.removeEventListener('resize', sResize);
         splash.remove();
-        // App is ready — allow _onWake() to run on subsequent wake events.
-        // Set BEFORE splashCanvas.remove() so any immediate _onWake() call
-        // doesn't interfere with the explosion rAF loop on a removed canvas.
         _appReady = true;
 
-        // Step 2: reveal sticky header + children top-to-bottom with stagger
-        const stickyHdr = document.getElementById('sticky-header');
-        if (stickyHdr) { stickyHdr.style.transition = 'opacity 300ms ease'; stickyHdr.style.opacity = '1'; }
-        mainApp.style.opacity = '1';
+        // Hide children before making the container visible to avoid white flash:
+        // setting mainApp opacity:1 before children are hidden causes a brief
+        // paint where the container background shows through.
         const children = Array.from(mainApp.children);
-        children.forEach((el, i) => {
+        children.forEach(el => {
           el.style.opacity = '0';
           el.style.transform = 'translateY(-8px)';
           el.style.transition = 'none';
-          setTimeout(() => {
-            el.style.transition = 'opacity 300ms ease, transform 300ms cubic-bezier(0.16,1,0.3,1)';
-            el.style.opacity = '1';
-            el.style.transform = 'translateY(0)';
-          }, i * 80);
         });
-        
-        // Reveal fixed elements outside main-app
-        const addTaskBar = document.getElementById('addTaskBar');
-        const triageBar = document.getElementById('triageBar');
-        if (addTaskBar) {
-          addTaskBar.style.transition = 'opacity 300ms ease';
-          addTaskBar.style.opacity = '1';
-        }
-        if (triageBar) {
-          triageBar.style.transition = 'opacity 300ms ease';
-          triageBar.style.opacity = '1';
-        }
 
-        // Re-trigger progress bar after header has appeared
-        setTimeout(() => {
-          if (typeof updateStats === 'function') updateStats();
-        }, children.length * 80 + 60);
+        // Step 2: reveal container in next paint frame — children are already
+        // hidden so there's no intermediate flash.
+        requestAnimationFrame(() => {
+          const stickyHdr = document.getElementById('sticky-header');
+          if (stickyHdr) { stickyHdr.style.transition = 'opacity 300ms ease'; stickyHdr.style.opacity = '1'; }
+          mainApp.style.opacity = '1';
 
-        // Remove canvas 500ms later — gives explosion time to fully play over
-        // the appearing app. On mobile, 630ms alone was too brief to see clearly.
-        setTimeout(() => { splashCanvas.remove(); }, 500);
+          // Stagger children in top-to-bottom
+          children.forEach((el, i) => {
+            setTimeout(() => {
+              el.style.transition = 'opacity 300ms ease, transform 300ms cubic-bezier(0.16,1,0.3,1)';
+              el.style.opacity = '1';
+              el.style.transform = 'translateY(0)';
+            }, i * 80);
+          });
+
+          // Reveal fixed elements outside main-app
+          const addTaskBar = document.getElementById('addTaskBar');
+          const triageBar  = document.getElementById('triageBar');
+          if (addTaskBar) { addTaskBar.style.transition = 'opacity 300ms ease'; addTaskBar.style.opacity = '1'; }
+          if (triageBar)  { triageBar.style.transition  = 'opacity 300ms ease'; triageBar.style.opacity  = '1'; }
+
+          // Re-trigger progress bar after header has appeared
+          setTimeout(() => {
+            if (typeof updateStats === 'function') updateStats();
+          }, children.length * 80 + 60);
+        });
+
+        // Canvas removal is handled by sLoop when the explosion finishes —
+        // no fixed timeout needed. The canvas is transparent so the app
+        // is fully visible underneath while particles are still playing.
 
       }, FADE_OUT + 30);
 

@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Weekly reports
-- **Recent:** v2.17.21 — daily history snapshots (today_daily_history), Sunday AI reflection uses real 7-day totals
+- **Working on:** BUG-019 splash fixes
+- **Recent:** v2.17.23 — BUG-019 two more root causes: setTransform fixes explosion position (scale was compounding), skip-splash waits for init before reveal
 - **Watch for:** BUG-011/012/019 verification in production
 
 ---
