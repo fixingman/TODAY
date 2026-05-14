@@ -153,7 +153,9 @@
 | AI conversation memory | 2.17.11 | May 2026 |
 | CHANGELOG trimmed 235→3 entries | 2.17.12 | May 2026 |
 | safeJSON + transition:all perf fixes | 2.17.13 | May 2026 |
+| Splash rAF typewriter + DPR canvas | 2.17.19 | May 2026 |
+| BUG-018 phantom SOON verified | 2.17.9 | May 2026 |
 
 ---
 
-*Last updated: Session 37 (v2.17.13)*
+*Last updated: Session 38 (v2.17.20)*

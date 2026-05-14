@@ -9,22 +9,22 @@
 | 001 | Triage dismissed cross-device | ✅ v2.12.59–60 |
 | 002 | Dropbox sync fails silently | ✅ v2.12.58–61 |
 | 003 | Red dot on network loss | ✅ v2.12.58–2.14.1 |
-| 004 | App blank after sleep/wake during focus | ✅ v2.17.1 |
+| 004 | App blank after sleep/wake | ✅ v2.17.1 |
 | 005 | Trello 🍅 badge vanishing | ✅ v2.12.56–66 |
-| 006 | _onWake() consolidation | 📋 Backlog |
+| 006 | _onWake() consolidation | ✅ v2.17.0 |
 | 007 | Triage bar flash after triage | ✅ v2.13.2–2.16.6 |
 | 008 | Drag jump-back on mobile | ✅ v2.12.72 |
 | 009 | Task aging opacity broken | ✅ v2.12.73 |
 | 010 | Habits didn't roll over | ✅ v2.12.74–77 |
 | 011 | PiP ghost chime on wrong task | ⏳ v2.16.9 |
 | 012 | Overdue Trello card disappears on check | ⏳ v2.16.5 |
-| 018 | Phantom SOON tasks reappear | ✅ v2.17.9 |
-| 019 | Star explosion missing on mobile at splash end | ⏳ v2.17.20 |
-| 013 | Focus timer double-counts | ✅ v2.14.9 |
+| 013 | Focus timer jumps on restore | ✅ v2.14.9 |
 | 014 | PiP not reappearing after restore | ✅ v2.15.5–2.16.19 |
 | 015 | AI repeats same aging task | ✅ v2.15.2 |
 | 016 | AI chip labels generic | ✅ v2.15.6 |
 | 017 | Focus minutes only on full completion | ✅ v2.16.0 |
+| 018 | Phantom SOON tasks reappear | ✅ v2.17.9 |
+| 019 | Star explosion missing on mobile | ⏳ v2.17.20 |
 
 ---
 
