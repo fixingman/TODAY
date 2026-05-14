@@ -24,7 +24,7 @@
 | 016 | AI chip labels generic | ✅ v2.15.6 |
 | 017 | Focus minutes only on full completion | ✅ v2.16.0 |
 | 018 | Phantom SOON tasks reappear | ✅ v2.17.9 |
-| 019 | Star explosion missing on mobile | ⏳ v2.17.20 |
+| 019 | Star explosion missing on mobile | ⏳ v2.17.22 |
 
 ---
 
@@ -71,25 +71,18 @@
 
 ## BUG-019: Star explosion missing on mobile at splash end
 
-**Status:** Under investigation — introduced around v2.17.0 (_onWake consolidation)
+**Status:** Fixed v2.17.22 — awaiting verification
 
-**Symptom:** At the end of the splash screen, the star should explode into a burst of particles. Works on desktop, not visible on mobile. The splash still dismisses correctly — only the explosion is absent or invisible.
+**Root causes identified (3):**
+1. **Resize listener not removed early enough** — `sResize` was removed inside the inner timeout (T+630ms) but the explosion starts at T+0. Mobile viewport shifts (address bar appearing/disappearing) call `sResize` during that window, which resets `canvas.width` — wiping the context transform and clearing the canvas mid-explosion.
+2. **Canvas removed too early** — fixed `setTimeout(..., 500)` removed canvas at T+1130ms but particles live 1.7–2.6s. Explosion always cut short.
+3. **White flash** — `mainApp.style.opacity = '1'` was set before children were hidden at `opacity:0`. Brief paint with container visible and children not hidden yet caused a flash.
 
-**Pre-regression baseline:** v2.16.21 — splash worked correctly on mobile. `sResize` used `innerWidth/innerHeight` (no DPR). Typewriter used `setTimeout`. No `_appReady` flag.
+**Fixes (v2.17.22):**
+1. `window.removeEventListener('resize', sResize)` moved to top of `_doSplashDismiss` (before burst).
+2. Canvas removal moved into `sLoop` end handler — removed only when particles are done.
+3. Children set to `opacity:0; transition:none` before container reveal; container revealed in next `requestAnimationFrame`.
 
-**Changes since baseline that touch splash or its timing:**
-- **v2.17.0** — `window.focus` now calls `_onWake()` (extra work on PWA open, may shift timing)
-- **v2.17.1** — Multi-pass repaint (0ms, rAF, rAF, 500ms) fires on `window.focus` — during splash before `_appReady` guard existed
-- **v2.17.14** — `_appReady` flag added — `_onWake()` blocked during splash ✓ but `_appReady = true` set too early (end of `init()`)
-- **v2.17.17** — `_appReady = true` moved to inside splash dismiss callback — correct timing
-- **v2.17.19** — DPR canvas scaling added. Typewriter switched to rAF. `sctx.scale(dpr, dpr)` applied in `sResize`.
-
-**Candidates under investigation:**
-1. `_appReady = true` is set AFTER `splashCanvas.remove()` — canvas is already detached when `_onWake()` first runs. Could this affect rAF scheduling?
-2. DPR scaling in `sResize` — `sctx.scale(dpr, dpr)` changes coordinate space. `clearRect` now uses `splashCanvas.width/dpr`. Need to verify particles render in correct CSS px space on all DPR values.
-3. `window.focus` extra work (checkMorningNudge, triageBarSilent etc.) shifting timing before `_appReady` guard was added — possibly corrupted JS execution order during explosion.
-4. `sBurst` fires correctly but explosion is invisible against fading splash background on mobile.
-
-**Verify:** Open TODAY on mobile as PWA → watch end of splash → star should visibly explode into particles.
+**Verify:** Open TODAY on mobile as PWA → star should visibly explode into particles → explosion plays fully → no white flash on app reveal.
 
 **Verified fixed:** ☐
