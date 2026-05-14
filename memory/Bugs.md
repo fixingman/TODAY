@@ -24,7 +24,7 @@
 | 016 | AI chip labels generic | ✅ v2.15.6 |
 | 017 | Focus minutes only on full completion | ✅ v2.16.0 |
 | 018 | Phantom SOON tasks reappear | ✅ v2.17.9 |
-| 019 | Star explosion missing on mobile | ⏳ v2.17.22 |
+| 019 | Star explosion missing on mobile | ⏳ v2.17.23 |
 
 ---
 
@@ -71,7 +71,7 @@
 
 ## BUG-019: Star explosion missing on mobile at splash end
 
-**Status:** Fixed v2.17.22 — awaiting verification
+**Status:** Fixed v2.17.22–23 — awaiting verification
 
 **Root causes identified (3):**
 1. **Resize listener not removed early enough** — `sResize` was removed inside the inner timeout (T+630ms) but the explosion starts at T+0. Mobile viewport shifts (address bar appearing/disappearing) call `sResize` during that window, which resets `canvas.width` — wiping the context transform and clearing the canvas mid-explosion.
@@ -82,6 +82,10 @@
 1. `window.removeEventListener('resize', sResize)` moved to top of `_doSplashDismiss` (before burst).
 2. Canvas removal moved into `sLoop` end handler — removed only when particles are done.
 3. Children set to `opacity:0; transition:none` before container reveal; container revealed in next `requestAnimationFrame`.
+
+**Additional root causes found and fixed (v2.17.23):**
+4. `sResize` used `sctx.scale(dpr, dpr)` which compounds if `canvas.width=` doesn't reset context (iOS WebKit inconsistency). Each `sResize` call doubled/tripled the scale, placing explosion at `(x×dpr², y×dpr²)` — bottom-right corner. Fixed: `sctx.setTransform(dpr, 0, 0, dpr, 0, 0)` replaces the matrix rather than multiplying.
+5. Skip-splash path revealed app immediately (before `init()` ran), causing skeleton flash (headers/checkboxes visible before task text). Fixed: skip path defines a lightweight `_doSplashDismiss` and waits for `_onAppLoadDone()` to call it after tasks are rendered.
 
 **Verify:** Open TODAY on mobile as PWA → star should visibly explode into particles → explosion plays fully → no white flash on app reveal.
 

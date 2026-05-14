@@ -5,7 +5,7 @@
 
 ## Current Focus (update each session)
 - **Working on:** BUG-019 splash fixes
-- **Recent:** v2.17.22 — BUG-019 three root causes fixed (resize listener, canvas lifetime, white flash)
+- **Recent:** v2.17.23 — BUG-019 two more root causes: setTransform fixes explosion position (scale was compounding), skip-splash waits for init before reveal
 - **Watch for:** BUG-011/012/019 verification in production
 
 ---
