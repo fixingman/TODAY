@@ -19,6 +19,7 @@
 | 011 | PiP ghost chime on wrong task | ⏳ v2.16.9 |
 | 012 | Overdue Trello card disappears on check | ⏳ v2.16.5 |
 | 018 | Phantom SOON tasks reappear after day | ⏳ v2.17.9 |
+| 019 | Star explosion missing on mobile at splash end | ⏳ v2.17.20 |
 | 013 | Focus timer double-counts | ✅ v2.14.9 |
 | 014 | PiP not reappearing after restore | ✅ v2.15.5–2.16.19 |
 | 015 | AI repeats same aging task | ✅ v2.15.2 |
@@ -81,5 +82,32 @@
 Tasks already in PAST cannot re-enter SOON via sync, regardless of what the remote backup contains.
 
 **Verify:** Move a task to SOON → complete it or delete it → wait until next day or force sync → task should NOT reappear in SOON.
+
+**Verified fixed:** ☐
+
+---
+
+## BUG-019: Star explosion missing on mobile at splash end
+
+**Status:** Under investigation — introduced around v2.17.0 (_onWake consolidation)
+
+**Symptom:** At the end of the splash screen, the star should explode into a burst of particles. Works on desktop, not visible on mobile. The splash still dismisses correctly — only the explosion is absent or invisible.
+
+**Pre-regression baseline:** v2.16.21 — splash worked correctly on mobile. `sResize` used `innerWidth/innerHeight` (no DPR). Typewriter used `setTimeout`. No `_appReady` flag.
+
+**Changes since baseline that touch splash or its timing:**
+- **v2.17.0** — `window.focus` now calls `_onWake()` (extra work on PWA open, may shift timing)
+- **v2.17.1** — Multi-pass repaint (0ms, rAF, rAF, 500ms) fires on `window.focus` — during splash before `_appReady` guard existed
+- **v2.17.14** — `_appReady` flag added — `_onWake()` blocked during splash ✓ but `_appReady = true` set too early (end of `init()`)
+- **v2.17.17** — `_appReady = true` moved to inside splash dismiss callback — correct timing
+- **v2.17.19** — DPR canvas scaling added. Typewriter switched to rAF. `sctx.scale(dpr, dpr)` applied in `sResize`.
+
+**Candidates under investigation:**
+1. `_appReady = true` is set AFTER `splashCanvas.remove()` — canvas is already detached when `_onWake()` first runs. Could this affect rAF scheduling?
+2. DPR scaling in `sResize` — `sctx.scale(dpr, dpr)` changes coordinate space. `clearRect` now uses `splashCanvas.width/dpr`. Need to verify particles render in correct CSS px space on all DPR values.
+3. `window.focus` extra work (checkMorningNudge, triageBarSilent etc.) shifting timing before `_appReady` guard was added — possibly corrupted JS execution order during explosion.
+4. `sBurst` fires correctly but explosion is invisible against fading splash background on mobile.
+
+**Verify:** Open TODAY on mobile as PWA → watch end of splash → star should visibly explode into particles.
 
 **Verified fixed:** ☐
