@@ -3034,12 +3034,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.22';
+const APP_VERSION   = '2.17.23';
 const DEV_HOURS     = '194h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.23': 'Fix BUG-019 (2 more root causes): sResize now uses setTransform instead of scale — scale() compounds on each call if canvas.width= does not reset context (iOS WebKit inconsistency), shifting explosion to bottom-right. Skip-splash path no longer reveals app immediately — waits for init() to render tasks via _doSplashDismiss, preventing skeleton flash.',
   '2.17.22': 'Fix BUG-019 (3 root causes): resize listener now removed at start of dismiss (not 630ms later) so mobile viewport shifts no longer wipe canvas mid-explosion. Canvas removed by sLoop end handler (not fixed 500ms timeout) so explosion plays fully. Children hidden before container reveal to eliminate white flash.',
   '2.17.21': 'Weekly reports (approach A): daily history snapshots written to today_daily_history at midnight cleanup. Sunday evening AI reflection now shows real 7-day totals (tasks, focus, habit checks) instead of today-only stats.',
   '2.17.20': 'Fix: BUG-019 — star explosion not visible on mobile. Canvas removed at same moment main app appeared (T+630ms), too brief on mobile. Canvas now removed 500ms later (T+1130ms) so explosion plays over the appearing app. _appReady moved before splashCanvas.remove().',
@@ -8430,16 +8431,22 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
   if (Date.now() - lastShown < SPLASH_COOLDOWN) {
     const splash = document.getElementById('splash');
     if (splash) splash.remove();
-    const stickyHdr = document.getElementById('sticky-header');
-    if (stickyHdr) stickyHdr.style.opacity = '1';
-    const mainApp = document.getElementById('main-app');
-    if (mainApp) mainApp.style.opacity = '1';
-    const addBar = document.getElementById('addTaskBar');
-    if (addBar) addBar.style.opacity = '1';
-    const triageBar = document.getElementById('triageBar');
-    if (triageBar) triageBar.style.opacity = '1';
+    // Don't reveal app immediately — wait for init() to render tasks first so
+    // the user never sees an empty skeleton. _doSplashDismiss is called by
+    // _onAppLoadDone() after renderManual/renderHabits have run.
+    window._doSplashDismiss = function() {
+      const stickyHdr = document.getElementById('sticky-header');
+      if (stickyHdr) stickyHdr.style.opacity = '1';
+      const mainApp = document.getElementById('main-app');
+      if (mainApp) mainApp.style.opacity = '1';
+      const addBar = document.getElementById('addTaskBar');
+      if (addBar) addBar.style.opacity = '1';
+      const triageBar = document.getElementById('triageBar');
+      if (triageBar) triageBar.style.opacity = '1';
+    };
     _splashAnimDone = true;
-    _appLoadDone = true;
+    // _appLoadDone intentionally NOT set here — _onAppLoadDone() sets it after
+    // init renders tasks, then calls _tryDismissSplash → _doSplashDismiss above.
     return;
   }
   localStorage.setItem(splashKey, Date.now().toString());
@@ -8457,7 +8464,10 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
   function sResize(){
     splashCanvas.width  = innerWidth  * dpr;
     splashCanvas.height = innerHeight * dpr;
-    sctx.scale(dpr, dpr); // keep coords in CSS px regardless of DPR
+    // setTransform REPLACES the current matrix — safe even if canvas.width
+    // assignment doesn't reset context on this browser (iOS WebKit inconsistency).
+    // scale() would compound on each sResize call, shifting explosion coordinates.
+    sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   sResize(); addEventListener('resize', sResize);
 
