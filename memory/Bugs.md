@@ -9,21 +9,22 @@
 | 001 | Triage dismissed cross-device | ✅ v2.12.59–60 |
 | 002 | Dropbox sync fails silently | ✅ v2.12.58–61 |
 | 003 | Red dot on network loss | ✅ v2.12.58–2.14.1 |
-| 004 | App blank after sleep/wake during focus | ✅ v2.17.1 |
+| 004 | App blank after sleep/wake | ✅ v2.17.1 |
 | 005 | Trello 🍅 badge vanishing | ✅ v2.12.56–66 |
-| 006 | _onWake() consolidation | 📋 Backlog |
+| 006 | _onWake() consolidation | ✅ v2.17.0 |
 | 007 | Triage bar flash after triage | ✅ v2.13.2–2.16.6 |
 | 008 | Drag jump-back on mobile | ✅ v2.12.72 |
 | 009 | Task aging opacity broken | ✅ v2.12.73 |
 | 010 | Habits didn't roll over | ✅ v2.12.74–77 |
 | 011 | PiP ghost chime on wrong task | ⏳ v2.16.9 |
 | 012 | Overdue Trello card disappears on check | ⏳ v2.16.5 |
-| 018 | Phantom SOON tasks reappear after day | ⏳ v2.17.9 |
-| 013 | Focus timer double-counts | ✅ v2.14.9 |
+| 013 | Focus timer jumps on restore | ✅ v2.14.9 |
 | 014 | PiP not reappearing after restore | ✅ v2.15.5–2.16.19 |
 | 015 | AI repeats same aging task | ✅ v2.15.2 |
 | 016 | AI chip labels generic | ✅ v2.15.6 |
 | 017 | Focus minutes only on full completion | ✅ v2.16.0 |
+| 018 | Phantom SOON tasks reappear | ✅ v2.17.9 |
+| 019 | Star explosion missing on mobile | ⏳ v2.17.20 |
 
 ---
 
@@ -66,20 +67,29 @@
 
 ---
 
-## BUG-018: Phantom SOON tasks reappear after day
+---
 
-**Status:** Fixed v2.17.9 — awaiting verification
+## BUG-019: Star explosion missing on mobile at splash end
 
-**Symptom:** Tasks moved to SOON that were subsequently deleted or completed reappear in the SOON list the following day. Deleting or completing them again triggers the same cycle.
+**Status:** Under investigation — introduced around v2.17.0 (_onWake consolidation)
 
-**Root cause:** `mergeRemoteData` built a `mergedDeletedMap` from `deleted_ids` and excluded those from the SOON merge. However, tasks that are completed or age out of SOON are moved to `pastTasks` — their IDs are **never added to `deleted_ids`**. The Dropbox remote backup still had these tasks in `soon_tasks`. On the next day's sync (morning wake pull), the merge saw the task ID was not in `mergedDeletedMap`, not in TODAY, so it was restored to SOON from the remote backup.
+**Symptom:** At the end of the splash screen, the star should explode into a burst of particles. Works on desktop, not visible on mobile. The splash still dismisses correctly — only the explosion is absent or invisible.
 
-**Fix (v2.17.9):** Built `pastIds = new Set(pastTasks.map(t => t.id))` before the SOON merge. Added `pastIds` exclusion to both the local and remote sides of the SOON union:
-- Local: `if (!mergedDeletedMap.has(t.id) && !pastIds.has(t.id))`
-- Remote: `if (pastIds.has(t.id)) return;`
+**Pre-regression baseline:** v2.16.21 — splash worked correctly on mobile. `sResize` used `innerWidth/innerHeight` (no DPR). Typewriter used `setTimeout`. No `_appReady` flag.
 
-Tasks already in PAST cannot re-enter SOON via sync, regardless of what the remote backup contains.
+**Changes since baseline that touch splash or its timing:**
+- **v2.17.0** — `window.focus` now calls `_onWake()` (extra work on PWA open, may shift timing)
+- **v2.17.1** — Multi-pass repaint (0ms, rAF, rAF, 500ms) fires on `window.focus` — during splash before `_appReady` guard existed
+- **v2.17.14** — `_appReady` flag added — `_onWake()` blocked during splash ✓ but `_appReady = true` set too early (end of `init()`)
+- **v2.17.17** — `_appReady = true` moved to inside splash dismiss callback — correct timing
+- **v2.17.19** — DPR canvas scaling added. Typewriter switched to rAF. `sctx.scale(dpr, dpr)` applied in `sResize`.
 
-**Verify:** Move a task to SOON → complete it or delete it → wait until next day or force sync → task should NOT reappear in SOON.
+**Candidates under investigation:**
+1. `_appReady = true` is set AFTER `splashCanvas.remove()` — canvas is already detached when `_onWake()` first runs. Could this affect rAF scheduling?
+2. DPR scaling in `sResize` — `sctx.scale(dpr, dpr)` changes coordinate space. `clearRect` now uses `splashCanvas.width/dpr`. Need to verify particles render in correct CSS px space on all DPR values.
+3. `window.focus` extra work (checkMorningNudge, triageBarSilent etc.) shifting timing before `_appReady` guard was added — possibly corrupted JS execution order during explosion.
+4. `sBurst` fires correctly but explosion is invisible against fading splash background on mobile.
+
+**Verify:** Open TODAY on mobile as PWA → watch end of splash → star should visibly explode into particles.
 
 **Verified fixed:** ☐

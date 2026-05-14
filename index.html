@@ -3034,15 +3034,15 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.18';
-const DEV_HOURS     = '192h';
+const APP_VERSION   = '2.17.20';
+const DEV_HOURS     = '194h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
-  '2.17.18': 'Fix: Syntax error — duplicate const today in mergeRemoteData. v2.17.15 added const today at line 7880 but one already existed at line 7918 in same function scope. App crashed on load (Identifier already declared). Replaced with inline _getAppDay() call.',
-  '2.17.17': 'Fix: _appReady timing — now set inside splash dismiss callback after splash.remove().',
-  '2.17.16': 'Fix: Focus mins restore gap in full Restore path. Test-matrix 73→77 tests.',
+  '2.17.20': 'Fix: BUG-019 — star explosion not visible on mobile. Canvas removed at same moment main app appeared (T+630ms), too brief on mobile. Canvas now removed 500ms later (T+1130ms) so explosion plays over the appearing app. _appReady moved before splashCanvas.remove().',
+  '2.17.19': 'Splash: typewriter rAF-based (no setTimeout drift). Canvas DPR-aware (width/height × devicePixelRatio). Fixes laggy typewriter + explosion blurry on retina mobile.',
+  '2.17.18': 'Fix: syntax error (duplicate const today) crashing app on load.',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -8428,9 +8428,14 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
   splashCanvas.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:600;';
   document.body.appendChild(splashCanvas);
   const sctx = splashCanvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
   let spp = [], srf = null;
 
-  function sResize(){ splashCanvas.width=innerWidth; splashCanvas.height=innerHeight; }
+  function sResize(){
+    splashCanvas.width  = innerWidth  * dpr;
+    splashCanvas.height = innerHeight * dpr;
+    sctx.scale(dpr, dpr); // keep coords in CSS px regardless of DPR
+  }
   sResize(); addEventListener('resize', sResize);
 
   function spawnFrag(x,y,vx,vy,ch,sz,depth){
@@ -8492,7 +8497,7 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
   let sFrameCount = 0;
   const SPLASH_MAX_FRAMES = 240; // 4s at 60fps — hard stop
   function sLoop(){
-    sctx.clearRect(0,0,splashCanvas.width,splashCanvas.height);
+    sctx.clearRect(0,0,splashCanvas.width/dpr,splashCanvas.height/dpr);
     spp=spp.filter(p=>p.life>0);
     spp.forEach(p=>{p.update();p.draw(sctx);});
     sFrameCount++;
@@ -8502,25 +8507,33 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
       cancelAnimationFrame(srf);
       srf=null;
       sFrameCount=0;
-      sctx.clearRect(0,0,splashCanvas.width,splashCanvas.height);
+      sctx.clearRect(0,0,splashCanvas.width/dpr,splashCanvas.height/dpr);
     }
   }
 
-  // Typewriter — uses calendar date (midnight boundary, matches date header)
+  // Typewriter — rAF-based for frame-accurate timing (setTimeout drifts on mobile)
   const splashNow = new Date();
   const dateStr = splashNow.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}).toUpperCase();
   const dateTxt = document.getElementById('splash-date');
   const cursor  = document.getElementById('splash-cursor');
-  let tidx = 0;
+  let tidx = 0, typeLastTs = 0;
+  const TYPE_BASE = 38, TYPE_RAND = 22;
+  let typeDelay = TYPE_BASE + Math.random() * TYPE_RAND;
 
-  function typeChar(){
-    if(tidx<dateStr.length){
-      dateTxt.textContent=dateStr.slice(0,++tidx);
-      setTimeout(typeChar,38+Math.random()*28);
-    } else {
-      cursor.className='blink';
-      setTimeout(()=>{cursor.className='off';window._onSplashAnimDone();},500);
+  function typeFrame(ts) {
+    if (!typeLastTs) typeLastTs = ts;
+    if (ts - typeLastTs >= typeDelay) {
+      typeLastTs = ts;
+      typeDelay  = TYPE_BASE + Math.random() * TYPE_RAND;
+      if (tidx < dateStr.length) {
+        dateTxt.textContent = dateStr.slice(0, ++tidx);
+      } else {
+        cursor.className = 'blink';
+        setTimeout(() => { cursor.className = 'off'; window._onSplashAnimDone(); }, 500);
+        return; // stop rAF loop
+      }
     }
+    requestAnimationFrame(typeFrame);
   }
 
   // Transition
@@ -8555,10 +8568,9 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
         // Fully remove splash from DOM — frees canvas memory and resize listener
         window.removeEventListener('resize', sResize);
         splash.remove();
-        splashCanvas.remove();
         // App is ready — allow _onWake() to run on subsequent wake events.
-        // Must be AFTER splash is gone, not at end of init() which completes in ~50ms
-        // while the splash still shows for 2-3s. (v2.17.14 fix for white screen before splash)
+        // Set BEFORE splashCanvas.remove() so any immediate _onWake() call
+        // doesn't interfere with the explosion rAF loop on a removed canvas.
         _appReady = true;
 
         // Step 2: reveal sticky header + children top-to-bottom with stagger
@@ -8594,6 +8606,10 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
           if (typeof updateStats === 'function') updateStats();
         }, children.length * 80 + 60);
 
+        // Remove canvas 500ms later — gives explosion time to fully play over
+        // the appearing app. On mobile, 630ms alone was too brief to see clearly.
+        setTimeout(() => { splashCanvas.remove(); }, 500);
+
       }, FADE_OUT + 30);
 
     }, 180);
@@ -8608,7 +8624,7 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     star.style.transform='scale(1)';
     star.style.animation='splashStarBreath 3.2s ease-in-out .4s infinite';
     cursor.className='on';
-    typeChar();
+    requestAnimationFrame(typeFrame);
   };
   if (document.fonts && document.fonts.ready) {
     // Cap wait at 800ms so a slow network never stalls the splash indefinitely

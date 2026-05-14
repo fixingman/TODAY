@@ -126,3 +126,10 @@
 - **v2.17.1:** Multi-pass repaint (immediate + rAF + rAF + 500ms) — covers GPU warmup after hours of sleep
 
 **Alternative approach considered:** Observer-based detection rejected — observers report geometry, not pixel paint state. GPU compositor failure is invisible to JS.
+
+---
+
+## BUG-018: Phantom SOON tasks reappear after day
+**Status:** ✅ Verified fixed (v2.17.9)
+**Root cause:** `mergeRemoteData` excluded `deleted_ids` from SOON merge but not `pastTasks` IDs. Completed/aged tasks move to PAST (not `deleted_ids`), so remote backup still had them in `soon_tasks`. On next day's sync, merge restored them to SOON.
+**Fix:** Built `pastIds = new Set(pastTasks.map(t => t.id))` before SOON merge. Added `pastIds` exclusion to both local and remote sides of the SOON union. Tasks already in PAST cannot re-enter SOON via sync.
