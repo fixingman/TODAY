@@ -4,6 +4,9 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.16** | **Fix: Focus mins restore gap** — full Restore path (Dropbox Connections panel) lacked date guard. Added same check as `mergeRemoteData`: only restore focus mins if `stat_focus_mins_date` matches today. Also: Test-matrix 73→77 tests (5.1 corrected, 5.2/5.3/5.10/7.6 added). |
+| **2.17.15** | **Fix: Focus time carries over to next day** — `mergeRemoteData` used `Math.max(local, remote)` for `stat_focus_mins_today`. After midnight reset to 0, remote backup still had yesterday's total → restored it. Added `stat_focus_mins_date` to backup. Merge only uses remote focus mins if date matches today. |
+| **2.17.14** | **Fix: White screen before splash on PWA open** — `window.focus` fires on initial load, triggering `_onWake()` repaint passes during splash animation. Added `_appReady` flag (false until end of `init()`). `_onWake()` returns immediately if `!_appReady`. |
 | **2.17.13** | **Perf** — 11 raw `JSON.parse(localStorage...)` replaced with `safeJSON()` (resilience + consistency). 2 `transition: all` replaced with specific properties (triage button: `background, color`; PiP button: `background, border-color`). AI system prompt trimming added to Backlog. |
 | **2.17.12** | **Perf** — in-app `CHANGELOG` object trimmed from 235 entries to 3. Only 3 are ever shown in the About panel; full history lives in `memory/Changelog.md`. Saves ~327 lines / 10KB on every page load. |
 | **2.17.11** | **AI conversation memory** — last AI message saved to `appMemory.recentConversations` on close. Last 3 sessions included in memory context. AI instructed to use them for continuity. Max 5 sessions, 200 char cap. Synced via Dropbox. |
