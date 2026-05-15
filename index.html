@@ -8427,7 +8427,11 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
 
   // Particle engine (separate canvas from celebCanvas)
   const splashCanvas = document.createElement('canvas');
-  splashCanvas.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:600;';
+  // position:fixed;top:0;left:0 only — width/height set explicitly in sResize as CSS px.
+  // Do NOT use inset:0 (right:0;bottom:0): some browsers treat the canvas width attribute
+  // as the intrinsic CSS size, making the display box innerWidth*dpr px wide instead of
+  // innerWidth px, which doubles/triples all drawing coordinates and breaks burst placement.
+  splashCanvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:600;';
   document.body.appendChild(splashCanvas);
   const sctx = splashCanvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
@@ -8435,9 +8439,13 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
   let _burstX = innerWidth / 2, _burstY = innerHeight / 3; // safe fallbacks; overwritten once star settles
 
   function sResize(){
-    splashCanvas.width  = innerWidth  * dpr;
-    splashCanvas.height = innerHeight * dpr;
-    sctx.scale(dpr, dpr); // keep coords in CSS px regardless of DPR
+    const w = innerWidth, h = innerHeight;
+    splashCanvas.width  = w * dpr;
+    splashCanvas.height = h * dpr;
+    // Explicitly pin CSS display size to CSS px — guarantees drawing coords match viewport coords
+    splashCanvas.style.width  = w + 'px';
+    splashCanvas.style.height = h + 'px';
+    sctx.scale(dpr, dpr); // keep drawing coords in CSS px
   }
   sResize(); addEventListener('resize', sResize);
 
