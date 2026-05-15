@@ -8506,14 +8506,16 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
   }
 
   let sFrameCount = 0;
-  const SPLASH_MAX_FRAMES = 240; // 4s at 60fps — hard stop
+  const SPLASH_MAX_FRAMES = 90; // 1.5s at 60fps — hard stop
   let _sBurstComplete = null;
   function sLoop(){
     sctx.clearRect(0,0,splashCanvas.width/dpr,splashCanvas.height/dpr);
     spp=spp.filter(p=>p.life>0);
-    spp.forEach(p=>{p.update();p.draw(sctx);});
+    let maxAlpha = 0;
+    spp.forEach(p=>{p.update();p.draw(sctx);maxAlpha=Math.max(maxAlpha,p.life/p.maxLife);});
     sFrameCount++;
-    if(spp.length>0 && sFrameCount<SPLASH_MAX_FRAMES){
+    // Stop when all particles are below 10% opacity (visually done) or hard cap reached
+    if(maxAlpha > 0.10 && sFrameCount < SPLASH_MAX_FRAMES){
       srf=requestAnimationFrame(sLoop);
     } else {
       cancelAnimationFrame(srf);
@@ -8610,10 +8612,10 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
 
     // Wire callback — fires when sLoop exhausts all particles or hits frame cap
     _sBurstComplete = _afterExplosion;
-    // Safety fallback: if no burst was fired (no star found) or callback never fires
+    // Safety fallback: if sLoop never starts or stalls (e.g. tab hidden)
     setTimeout(() => {
       if (_sBurstComplete) { _sBurstComplete = null; _afterExplosion(); }
-    }, 2500);
+    }, 2000);
   };
 
   // Wait for fonts to be truly ready before animating — prevents swap flash
