@@ -8432,6 +8432,7 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
   const sctx = splashCanvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   let spp = [], srf = null;
+  let _burstX = innerWidth / 2, _burstY = innerHeight / 3; // safe fallbacks; overwritten once star settles
 
   function sResize(){
     splashCanvas.width  = innerWidth  * dpr;
@@ -8551,12 +8552,8 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
       el.style.opacity = '0';
     });
 
-    // Burst from the star — guard against null if splash already removed
-    const star = document.getElementById('splash-star');
-    if (star) {
-      const sr = star.getBoundingClientRect();
-      sBurst(sr.left + sr.width / 2, sr.top + sr.height / 2);
-    }
+    // Burst from star — use position captured at startSplash time (stable, post-transition)
+    sBurst(_burstX, _burstY);
 
     // After explosion fully completes, fade splash and reveal app
     function _afterExplosion(){
@@ -8622,6 +8619,14 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     star.style.transform='scale(1)';
     star.style.animation='splashStarBreath 3.2s ease-in-out .4s infinite';
     cursor.className='on';
+    // Capture star center after transform+opacity transitions settle (450ms/300ms) — used as burst origin
+    setTimeout(() => {
+      const sr = star.getBoundingClientRect();
+      if (sr.width > 0 && sr.height > 0) {
+        _burstX = sr.left + sr.width / 2;
+        _burstY = sr.top + sr.height / 2;
+      }
+    }, 600);
     requestAnimationFrame(typeFrame);
   };
   if (document.fonts && document.fonts.ready) {
