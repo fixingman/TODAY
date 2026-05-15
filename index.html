@@ -3034,12 +3034,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.21';
+const APP_VERSION   = '2.17.23';
 const DEV_HOURS     = '196h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.23': 'AI: Conversation threading — follow-up questions in the same session carry full message history. Panel opens with AI intro as thread seed; each exchange appends to thread; thread clears on close.',
+  '2.17.22': 'AI: No task chips on conversational questions — system prompt now instructs AI to return only dismiss when user asks a non-task question.',
   '2.17.21': 'Fix: Splash overhaul — white flash (inline bg on html), enforced typewriter→explosion→tasks sequence, burst coordinates captured at startSplash (not dismiss), canvas DPR coordinate fix (explicit CSS px size), dark pause removed (app cross-fades with splash), explosion loop stops on visual completion (maxAlpha threshold).',
   '2.17.20': 'Fix: BUG-019 — star explosion not visible on mobile. Canvas removed at same moment main app appeared (T+630ms), too brief on mobile. Canvas now removed 500ms later (T+1130ms) so explosion plays over the appearing app. _appReady moved before splashCanvas.remove().',
   '2.17.19': 'Splash: typewriter rAF-based (no setTimeout drift). Canvas DPR-aware (width/height × devicePixelRatio). Fixes laggy typewriter + explosion blurry on retina mobile.',
@@ -8749,6 +8751,7 @@ if ('serviceWorker' in navigator && canRegisterSW) {
 
 let _aiPanelOpen = false;
 let _aiLoadedOnce = false; // prevent re-fetching if panel is toggled quickly
+let _aiThread = []; // in-session conversation history, cleared on panel close
 
 function _aiGetProvider() { return localStorage.getItem('today_ai_provider') || AI_DEFAULT_PROVIDER; }
 function _aiGetKey()      { return localStorage.getItem('today_ai_key') || ''; }
@@ -8817,6 +8820,7 @@ function closeAI() {
   }
 
   _aiPanelOpen = false;
+  _aiThread = [];
   document.getElementById('aiPanel')?.classList.remove('open');
   document.body.classList.remove('ai-chat-open');
   document.getElementById('addAiBtn')?.classList.remove('active');
@@ -8910,6 +8914,8 @@ async function _aiLoad() {
       } else {
         _aiRenderResult(result);
       }
+      // Seed thread with opening message so follow-up questions have context
+      if (result.message) _aiThread = [{ role: 'assistant', content: result.message }];
       _showNlRow();
     }
   } catch(e) {
@@ -9186,8 +9192,12 @@ async function _aiAskFromPanel() {
   _aiSetThinking();
   _aiSetChips([]);
   try {
-    const result = await _aiCall([{ role: 'user', content: text }]);
-    if (result) _aiRenderResult(result);
+    _aiThread.push({ role: 'user', content: text });
+    const result = await _aiCall([..._aiThread]);
+    if (result) {
+      _aiRenderResult(result);
+      if (result.message) _aiThread.push({ role: 'assistant', content: result.message });
+    }
   } catch(e) {
     const errText = e.message || 'unknown';
     const isHtml = errText.includes('<!DOCTYPE') || errText.includes('<html');
@@ -9566,6 +9576,7 @@ Rules:
 - Use real IDs from the lists above — never invent IDs
 - For aging tasks: chips are pre-set by the app — focus only on writing a warm, specific message
 - For empty state, suggest an add_task action with a gentle prompt like "Add first task"
+- Conversational questions: if the user's message is a question, reflection, or chat (not asking for task help), respond warmly and return ONLY a dismiss action — no task chips. Examples: "how are you?", "what do you think about X?", "I'm feeling tired" → just your message + dismiss.
 - Message tone: start fresh each time — never "It is.", "Yeah —", "Exactly.", or any opener that implies prior conversation. You are opening, not responding.
 - Vary your responses — don't always suggest the same action type:
   * Morning: briefing tone, overview of the day ahead

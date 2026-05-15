@@ -4,7 +4,7 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Splash polish complete — ready for version bump
+- **Working on:** AI conversation threading + no-chips-on-conversational-questions (v2.17.22–23)
 - **Recent:** Splash overhaul — fixed white flash (inline bg on `<html>`), enforced typewriter→explosion→tasks sequence, fixed burst coordinates (capture at startSplash, not dismiss), fixed canvas DPR coordinate system (explicit CSS px size), removed dark pause (app reveals simultaneously with splash fade), stopped explosion loop on visual completion (maxAlpha threshold + 90-frame cap)
 - **Watch for:** Splash sequence on mobile and Mac app after deploy
 
