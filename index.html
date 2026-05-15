@@ -8569,44 +8569,42 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
       const mainApp = document.getElementById('main-app');
       if (!splash || !mainApp) return;
 
+      // Remove explosion canvas immediately — particles are done
+      window.removeEventListener('resize', sResize);
+      splashCanvas.remove();
+      _appReady = true;
+
+      // Fade splash out
       const FADE_OUT = 420;
       splash.style.transition = `opacity ${FADE_OUT}ms ease`;
       splash.style.opacity    = '0';
 
-      setTimeout(()=>{
-        // Fully remove splash and canvas from DOM
-        window.removeEventListener('resize', sResize);
-        splash.remove();
-        splashCanvas.remove(); // explosion is already done — safe to remove immediately
-        _appReady = true;
-
-        // Reveal sticky header + children top-to-bottom with stagger
-        const stickyHdr = document.getElementById('sticky-header');
-        if (stickyHdr) { stickyHdr.style.transition = 'opacity 300ms ease'; stickyHdr.style.opacity = '1'; }
-        mainApp.style.opacity = '1';
-        const children = Array.from(mainApp.children);
-        children.forEach((el, i) => {
-          el.style.opacity = '0';
-          el.style.transform = 'translateY(-8px)';
-          el.style.transition = 'none';
-          setTimeout(() => {
-            el.style.transition = 'opacity 300ms ease, transform 300ms cubic-bezier(0.16,1,0.3,1)';
-            el.style.opacity = '1';
-            el.style.transform = 'translateY(0)';
-          }, i * 80);
-        });
-
-        // Reveal fixed elements outside main-app
-        const addTaskBar = document.getElementById('addTaskBar');
-        const triageBar  = document.getElementById('triageBar');
-        if (addTaskBar) { addTaskBar.style.transition = 'opacity 300ms ease'; addTaskBar.style.opacity = '1'; }
-        if (triageBar)  { triageBar.style.transition  = 'opacity 300ms ease'; triageBar.style.opacity  = '1'; }
-
-        // Re-trigger progress bar after header has appeared
+      // Reveal app at the same time — content fades in through the departing splash.
+      // Splash is z-index 500, app is z-index 1, so app shows through as splash turns transparent.
+      const stickyHdr = document.getElementById('sticky-header');
+      if (stickyHdr) { stickyHdr.style.transition = 'opacity 300ms ease'; stickyHdr.style.opacity = '1'; }
+      mainApp.style.opacity = '1';
+      const children = Array.from(mainApp.children);
+      children.forEach((el, i) => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-8px)';
+        el.style.transition = 'none';
         setTimeout(() => {
-          if (typeof updateStats === 'function') updateStats();
-        }, children.length * 80 + 60);
+          el.style.transition = 'opacity 300ms ease, transform 300ms cubic-bezier(0.16,1,0.3,1)';
+          el.style.opacity = '1';
+          el.style.transform = 'translateY(0)';
+        }, i * 80);
+      });
 
+      const addTaskBar = document.getElementById('addTaskBar');
+      const triageBar  = document.getElementById('triageBar');
+      if (addTaskBar) { addTaskBar.style.transition = 'opacity 300ms ease'; addTaskBar.style.opacity = '1'; }
+      if (triageBar)  { triageBar.style.transition  = 'opacity 300ms ease'; triageBar.style.opacity  = '1'; }
+
+      // Remove splash DOM after fade completes + refresh progress bar
+      setTimeout(() => {
+        splash.remove();
+        if (typeof updateStats === 'function') updateStats();
       }, FADE_OUT + 30);
     }
 
