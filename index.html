@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background:#0e0e10">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -8417,6 +8417,8 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     if (triageBar) triageBar.style.opacity = '1';
     _splashAnimDone = true;
     _appLoadDone = true;
+    // Enable wake detection after load settles (no splash path — _appReady never set otherwise)
+    window.addEventListener('load', () => { _appReady = true; }, { once: true });
     return;
   }
   localStorage.setItem(splashKey, Date.now().toString());
@@ -8496,6 +8498,7 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
 
   let sFrameCount = 0;
   const SPLASH_MAX_FRAMES = 240; // 4s at 60fps — hard stop
+  let _sBurstComplete = null;
   function sLoop(){
     sctx.clearRect(0,0,splashCanvas.width/dpr,splashCanvas.height/dpr);
     spp=spp.filter(p=>p.life>0);
@@ -8508,6 +8511,7 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
       srf=null;
       sFrameCount=0;
       sctx.clearRect(0,0,splashCanvas.width/dpr,splashCanvas.height/dpr);
+      if(_sBurstComplete){ const cb=_sBurstComplete; _sBurstComplete=null; cb(); }
     }
   }
 
@@ -8536,9 +8540,9 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     requestAnimationFrame(typeFrame);
   }
 
-  // Transition
+  // Transition: typewriter done → burst → wait for explosion → fade splash → reveal app
   window._doSplashDismiss = function(){
-    // Fade logo and date out
+    // Fade logo and date out while explosion plays
     const logo     = document.getElementById('splash-logo');
     const dateWrap = document.getElementById('splash-date-wrap');
     [logo, dateWrap].forEach(el => {
@@ -8554,26 +8558,24 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
       sBurst(sr.left + sr.width / 2, sr.top + sr.height / 2);
     }
 
-    setTimeout(()=>{
+    // After explosion fully completes, fade splash and reveal app
+    function _afterExplosion(){
       const splash  = document.getElementById('splash');
       const mainApp = document.getElementById('main-app');
       if (!splash || !mainApp) return;
 
-      // Step 1: splash fades out completely
       const FADE_OUT = 420;
       splash.style.transition = `opacity ${FADE_OUT}ms ease`;
       splash.style.opacity    = '0';
 
       setTimeout(()=>{
-        // Fully remove splash from DOM — frees canvas memory and resize listener
+        // Fully remove splash and canvas from DOM
         window.removeEventListener('resize', sResize);
         splash.remove();
-        // App is ready — allow _onWake() to run on subsequent wake events.
-        // Set BEFORE splashCanvas.remove() so any immediate _onWake() call
-        // doesn't interfere with the explosion rAF loop on a removed canvas.
+        splashCanvas.remove(); // explosion is already done — safe to remove immediately
         _appReady = true;
 
-        // Step 2: reveal sticky header + children top-to-bottom with stagger
+        // Reveal sticky header + children top-to-bottom with stagger
         const stickyHdr = document.getElementById('sticky-header');
         if (stickyHdr) { stickyHdr.style.transition = 'opacity 300ms ease'; stickyHdr.style.opacity = '1'; }
         mainApp.style.opacity = '1';
@@ -8588,31 +8590,27 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
             el.style.transform = 'translateY(0)';
           }, i * 80);
         });
-        
+
         // Reveal fixed elements outside main-app
         const addTaskBar = document.getElementById('addTaskBar');
-        const triageBar = document.getElementById('triageBar');
-        if (addTaskBar) {
-          addTaskBar.style.transition = 'opacity 300ms ease';
-          addTaskBar.style.opacity = '1';
-        }
-        if (triageBar) {
-          triageBar.style.transition = 'opacity 300ms ease';
-          triageBar.style.opacity = '1';
-        }
+        const triageBar  = document.getElementById('triageBar');
+        if (addTaskBar) { addTaskBar.style.transition = 'opacity 300ms ease'; addTaskBar.style.opacity = '1'; }
+        if (triageBar)  { triageBar.style.transition  = 'opacity 300ms ease'; triageBar.style.opacity  = '1'; }
 
         // Re-trigger progress bar after header has appeared
         setTimeout(() => {
           if (typeof updateStats === 'function') updateStats();
         }, children.length * 80 + 60);
 
-        // Remove canvas 500ms later — gives explosion time to fully play over
-        // the appearing app. On mobile, 630ms alone was too brief to see clearly.
-        setTimeout(() => { splashCanvas.remove(); }, 500);
-
       }, FADE_OUT + 30);
+    }
 
-    }, 180);
+    // Wire callback — fires when sLoop exhausts all particles or hits frame cap
+    _sBurstComplete = _afterExplosion;
+    // Safety fallback: if no burst was fired (no star found) or callback never fires
+    setTimeout(() => {
+      if (_sBurstComplete) { _sBurstComplete = null; _afterExplosion(); }
+    }, 2500);
   };
 
   // Wait for fonts to be truly ready before animating — prevents swap flash
