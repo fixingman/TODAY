@@ -24,7 +24,7 @@
 | 016 | AI chip labels generic | ✅ v2.15.6 |
 | 017 | Focus minutes only on full completion | ✅ v2.16.0 |
 | 018 | Phantom SOON tasks reappear | ✅ v2.17.9 |
-| 019 | Star explosion missing on mobile | ⏳ v2.17.20 |
+| 019 | Star explosion missing on mobile | ✅ v2.17.21 |
 
 ---
 
@@ -71,25 +71,15 @@
 
 ## BUG-019: Star explosion missing on mobile at splash end
 
-**Status:** Under investigation — introduced around v2.17.0 (_onWake consolidation)
+**Status:** Fixed v2.17.21 — awaiting production verification
 
-**Symptom:** At the end of the splash screen, the star should explode into a burst of particles. Works on desktop, not visible on mobile. The splash still dismisses correctly — only the explosion is absent or invisible.
+**Root causes found and fixed:**
+1. **Canvas coordinate system** — `position:fixed;inset:0` on a canvas with `width=innerWidth*dpr` attribute caused some browsers to use the attribute as intrinsic CSS size, making the display box `innerWidth*dpr` px wide. Drawing coords landed at `x*dpr` on screen — burst appeared off-screen on mobile (bottom-right), misaligned on Mac Retina. **Fix:** explicit `style.width/height` in CSS px in `sResize()`.
+2. **Burst origin unreliable** — `getBoundingClientRect()` on the star at dismiss time (parent opacity transition just triggered) returned stale/wrong layout values. **Fix:** capture star center 600ms after `startSplash()` into `_burstX/_burstY`.
+3. **Animation sequence wrong** — app was revealed at T+630ms while explosion was still playing. **Fix:** sequence now enforced: typewriter → explosion (waits for `sLoop` to complete) → app cross-fades in.
+4. **Dark pause after explosion** — app reveal was delayed `FADE_OUT+30ms` after explosion end. **Fix:** app cross-fade starts simultaneously with splash fade.
+5. **Loop ran too long** — `SPLASH_MAX_FRAMES=240` (4s/8s at 30fps) kept invisible sub-particles alive. **Fix:** stop loop when `maxAlpha < 0.1` (visually done); cap reduced to 90 frames.
 
-**Pre-regression baseline:** v2.16.21 — splash worked correctly on mobile. `sResize` used `innerWidth/innerHeight` (no DPR). Typewriter used `setTimeout`. No `_appReady` flag.
-
-**Changes since baseline that touch splash or its timing:**
-- **v2.17.0** — `window.focus` now calls `_onWake()` (extra work on PWA open, may shift timing)
-- **v2.17.1** — Multi-pass repaint (0ms, rAF, rAF, 500ms) fires on `window.focus` — during splash before `_appReady` guard existed
-- **v2.17.14** — `_appReady` flag added — `_onWake()` blocked during splash ✓ but `_appReady = true` set too early (end of `init()`)
-- **v2.17.17** — `_appReady = true` moved to inside splash dismiss callback — correct timing
-- **v2.17.19** — DPR canvas scaling added. Typewriter switched to rAF. `sctx.scale(dpr, dpr)` applied in `sResize`.
-
-**Candidates under investigation:**
-1. `_appReady = true` is set AFTER `splashCanvas.remove()` — canvas is already detached when `_onWake()` first runs. Could this affect rAF scheduling?
-2. DPR scaling in `sResize` — `sctx.scale(dpr, dpr)` changes coordinate space. `clearRect` now uses `splashCanvas.width/dpr`. Need to verify particles render in correct CSS px space on all DPR values.
-3. `window.focus` extra work (checkMorningNudge, triageBarSilent etc.) shifting timing before `_appReady` guard was added — possibly corrupted JS execution order during explosion.
-4. `sBurst` fires correctly but explosion is invisible against fading splash background on mobile.
-
-**Verify:** Open TODAY on mobile as PWA → watch end of splash → star should visibly explode into particles.
+**Verify:** Open TODAY on mobile PWA → splash shows → typewriter completes → star explodes visibly → tasks slide in immediately after explosion fades.
 
 **Verified fixed:** ☐
