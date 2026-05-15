@@ -3034,15 +3034,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.23';
-const DEV_HOURS     = '194h';
+const APP_VERSION   = '2.17.21';
+const DEV_HOURS     = '196h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
-  '2.17.23': 'Fix BUG-019: sResize now uses setTransform instead of scale — scale() compounds on each call if canvas.width= does not reset context (iOS WebKit inconsistency), shifting explosion coordinates. Reverted erroneous deferred-reveal in skip-splash path (no skeleton risk since init() runs renderManual() synchronously before the IIFE).',
-  '2.17.22': 'Fix BUG-019 (3 root causes): resize listener now removed at start of dismiss (not 630ms later) so mobile viewport shifts no longer wipe canvas mid-explosion. Canvas removed by sLoop end handler (not fixed 500ms timeout) so explosion plays fully. Children hidden before container reveal to eliminate white flash.',
-  '2.17.21': 'Weekly reports (approach A): daily history snapshots written to today_daily_history at midnight cleanup. Sunday evening AI reflection now shows real 7-day totals (tasks, focus, habit checks) instead of today-only stats.',
+  '2.17.21': 'Fix: Splash overhaul — white flash (inline bg on html), enforced typewriter→explosion→tasks sequence, burst coordinates captured at startSplash (not dismiss), canvas DPR coordinate fix (explicit CSS px size), dark pause removed (app cross-fades with splash), explosion loop stops on visual completion (maxAlpha threshold).',
   '2.17.20': 'Fix: BUG-019 — star explosion not visible on mobile. Canvas removed at same moment main app appeared (T+630ms), too brief on mobile. Canvas now removed 500ms later (T+1130ms) so explosion plays over the appearing app. _appReady moved before splashCanvas.remove().',
   '2.17.19': 'Splash: typewriter rAF-based (no setTimeout drift). Canvas DPR-aware (width/height × devicePixelRatio). Fixes laggy typewriter + explosion blurry on retina mobile.',
   '2.17.18': 'Fix: syntax error (duplicate const today) crashing app on load.',
@@ -8443,6 +8441,8 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     if (triageBar) triageBar.style.opacity = '1';
     _splashAnimDone = true;
     _appLoadDone = true;
+    // Enable wake detection after load settles (no splash path — _appReady never set otherwise)
+    window.addEventListener('load', () => { _appReady = true; }, { once: true });
     return;
   }
   localStorage.setItem(splashKey, Date.now().toString());
@@ -8451,19 +8451,25 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
 
   // Particle engine (separate canvas from celebCanvas)
   const splashCanvas = document.createElement('canvas');
-  splashCanvas.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:600;';
+  // position:fixed;top:0;left:0 only — width/height set explicitly in sResize as CSS px.
+  // Do NOT use inset:0 (right:0;bottom:0): some browsers treat the canvas width attribute
+  // as the intrinsic CSS size, making the display box innerWidth*dpr px wide instead of
+  // innerWidth px, which doubles/triples all drawing coordinates and breaks burst placement.
+  splashCanvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:600;';
   document.body.appendChild(splashCanvas);
   const sctx = splashCanvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   let spp = [], srf = null;
+  let _burstX = innerWidth / 2, _burstY = innerHeight / 3; // safe fallbacks; overwritten once star settles
 
   function sResize(){
-    splashCanvas.width  = innerWidth  * dpr;
-    splashCanvas.height = innerHeight * dpr;
-    // setTransform REPLACES the current matrix — safe even if canvas.width
-    // assignment doesn't reset context on this browser (iOS WebKit inconsistency).
-    // scale() would compound on each sResize call, shifting explosion coordinates.
-    sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const w = innerWidth, h = innerHeight;
+    splashCanvas.width  = w * dpr;
+    splashCanvas.height = h * dpr;
+    // Explicitly pin CSS display size to CSS px — guarantees drawing coords match viewport coords
+    splashCanvas.style.width  = w + 'px';
+    splashCanvas.style.height = h + 'px';
+    sctx.scale(dpr, dpr); // keep drawing coords in CSS px
   }
   sResize(); addEventListener('resize', sResize);
 
@@ -8524,20 +8530,23 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
   }
 
   let sFrameCount = 0;
-  const SPLASH_MAX_FRAMES = 240; // 4s at 60fps — hard stop
+  const SPLASH_MAX_FRAMES = 90; // 1.5s at 60fps — hard stop
+  let _sBurstComplete = null;
   function sLoop(){
     sctx.clearRect(0,0,splashCanvas.width/dpr,splashCanvas.height/dpr);
     spp=spp.filter(p=>p.life>0);
-    spp.forEach(p=>{p.update();p.draw(sctx);});
+    let maxAlpha = 0;
+    spp.forEach(p=>{p.update();p.draw(sctx);maxAlpha=Math.max(maxAlpha,p.life/p.maxLife);});
     sFrameCount++;
-    if(spp.length>0 && sFrameCount<SPLASH_MAX_FRAMES){
+    // Stop when all particles are below 10% opacity (visually done) or hard cap reached
+    if(maxAlpha > 0.10 && sFrameCount < SPLASH_MAX_FRAMES){
       srf=requestAnimationFrame(sLoop);
     } else {
       cancelAnimationFrame(srf);
       srf=null;
       sFrameCount=0;
       sctx.clearRect(0,0,splashCanvas.width/dpr,splashCanvas.height/dpr);
-      splashCanvas.remove(); // remove once explosion fully plays out
+      if(_sBurstComplete){ const cb=_sBurstComplete; _sBurstComplete=null; cb(); }
     }
   }
 
@@ -8566,14 +8575,9 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     requestAnimationFrame(typeFrame);
   }
 
-  // Transition
+  // Transition: typewriter done → burst → wait for explosion → fade splash → reveal app
   window._doSplashDismiss = function(){
-    // Stop resize listener immediately — viewport shifts on mobile (address bar
-    // show/hide) call sResize which resets canvas.width, wiping the context
-    // transform and erasing the explosion mid-animation.
-    window.removeEventListener('resize', sResize);
-
-    // Fade logo and date out
+    // Fade logo and date out while explosion plays
     const logo     = document.getElementById('splash-logo');
     const dateWrap = document.getElementById('splash-date-wrap');
     [logo, dateWrap].forEach(el => {
@@ -8582,72 +8586,60 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
       el.style.opacity = '0';
     });
 
-    // Burst from the star — guard against null if splash already removed
-    const star = document.getElementById('splash-star');
-    if (star) {
-      const sr = star.getBoundingClientRect();
-      sBurst(sr.left + sr.width / 2, sr.top + sr.height / 2);
-    }
+    // Burst from star — use position captured at startSplash time (stable, post-transition)
+    sBurst(_burstX, _burstY);
 
-    setTimeout(()=>{
+    // After explosion fully completes, fade splash and reveal app
+    function _afterExplosion(){
       const splash  = document.getElementById('splash');
       const mainApp = document.getElementById('main-app');
       if (!splash || !mainApp) return;
 
-      // Step 1: splash fades out completely
+      // Remove explosion canvas immediately — particles are done
+      window.removeEventListener('resize', sResize);
+      splashCanvas.remove();
+      _appReady = true;
+
+      // Fade splash out
       const FADE_OUT = 420;
       splash.style.transition = `opacity ${FADE_OUT}ms ease`;
       splash.style.opacity    = '0';
 
-      setTimeout(()=>{
+      // Reveal app at the same time — content fades in through the departing splash.
+      // Splash is z-index 500, app is z-index 1, so app shows through as splash turns transparent.
+      const stickyHdr = document.getElementById('sticky-header');
+      if (stickyHdr) { stickyHdr.style.transition = 'opacity 300ms ease'; stickyHdr.style.opacity = '1'; }
+      mainApp.style.opacity = '1';
+      const children = Array.from(mainApp.children);
+      children.forEach((el, i) => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-8px)';
+        el.style.transition = 'none';
+        setTimeout(() => {
+          el.style.transition = 'opacity 300ms ease, transform 300ms cubic-bezier(0.16,1,0.3,1)';
+          el.style.opacity = '1';
+          el.style.transform = 'translateY(0)';
+        }, i * 80);
+      });
+
+      const addTaskBar = document.getElementById('addTaskBar');
+      const triageBar  = document.getElementById('triageBar');
+      if (addTaskBar) { addTaskBar.style.transition = 'opacity 300ms ease'; addTaskBar.style.opacity = '1'; }
+      if (triageBar)  { triageBar.style.transition  = 'opacity 300ms ease'; triageBar.style.opacity  = '1'; }
+
+      // Remove splash DOM after fade completes + refresh progress bar
+      setTimeout(() => {
         splash.remove();
-        _appReady = true;
-
-        // Hide children before making the container visible to avoid white flash:
-        // setting mainApp opacity:1 before children are hidden causes a brief
-        // paint where the container background shows through.
-        const children = Array.from(mainApp.children);
-        children.forEach(el => {
-          el.style.opacity = '0';
-          el.style.transform = 'translateY(-8px)';
-          el.style.transition = 'none';
-        });
-
-        // Step 2: reveal container in next paint frame — children are already
-        // hidden so there's no intermediate flash.
-        requestAnimationFrame(() => {
-          const stickyHdr = document.getElementById('sticky-header');
-          if (stickyHdr) { stickyHdr.style.transition = 'opacity 300ms ease'; stickyHdr.style.opacity = '1'; }
-          mainApp.style.opacity = '1';
-
-          // Stagger children in top-to-bottom
-          children.forEach((el, i) => {
-            setTimeout(() => {
-              el.style.transition = 'opacity 300ms ease, transform 300ms cubic-bezier(0.16,1,0.3,1)';
-              el.style.opacity = '1';
-              el.style.transform = 'translateY(0)';
-            }, i * 80);
-          });
-
-          // Reveal fixed elements outside main-app
-          const addTaskBar = document.getElementById('addTaskBar');
-          const triageBar  = document.getElementById('triageBar');
-          if (addTaskBar) { addTaskBar.style.transition = 'opacity 300ms ease'; addTaskBar.style.opacity = '1'; }
-          if (triageBar)  { triageBar.style.transition  = 'opacity 300ms ease'; triageBar.style.opacity  = '1'; }
-
-          // Re-trigger progress bar after header has appeared
-          setTimeout(() => {
-            if (typeof updateStats === 'function') updateStats();
-          }, children.length * 80 + 60);
-        });
-
-        // Canvas removal is handled by sLoop when the explosion finishes —
-        // no fixed timeout needed. The canvas is transparent so the app
-        // is fully visible underneath while particles are still playing.
-
+        if (typeof updateStats === 'function') updateStats();
       }, FADE_OUT + 30);
+    }
 
-    }, 180);
+    // Wire callback — fires when sLoop exhausts all particles or hits frame cap
+    _sBurstComplete = _afterExplosion;
+    // Safety fallback: if sLoop never starts or stalls (e.g. tab hidden)
+    setTimeout(() => {
+      if (_sBurstComplete) { _sBurstComplete = null; _afterExplosion(); }
+    }, 2000);
   };
 
   // Wait for fonts to be truly ready before animating — prevents swap flash
@@ -8659,6 +8651,14 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     star.style.transform='scale(1)';
     star.style.animation='splashStarBreath 3.2s ease-in-out .4s infinite';
     cursor.className='on';
+    // Capture star center after transform+opacity transitions settle (450ms/300ms) — used as burst origin
+    setTimeout(() => {
+      const sr = star.getBoundingClientRect();
+      if (sr.width > 0 && sr.height > 0) {
+        _burstX = sr.left + sr.width / 2;
+        _burstY = sr.top + sr.height / 2;
+      }
+    }, 600);
     requestAnimationFrame(typeFrame);
   };
   if (document.fonts && document.fonts.ready) {

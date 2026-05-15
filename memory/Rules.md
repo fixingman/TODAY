@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** BUG-019 splash fixes
-- **Recent:** v2.17.23 — BUG-019 two more root causes: setTransform fixes explosion position (scale was compounding), skip-splash waits for init before reveal
-- **Watch for:** BUG-011/012/019 verification in production
+- **Working on:** Splash polish complete — ready for version bump
+- **Recent:** Splash overhaul — fixed white flash (inline bg on `<html>`), enforced typewriter→explosion→tasks sequence, fixed burst coordinates (capture at startSplash, not dismiss), fixed canvas DPR coordinate system (explicit CSS px size), removed dark pause (app reveals simultaneously with splash fade), stopped explosion loop on visual completion (maxAlpha threshold + 90-frame cap)
+- **Watch for:** Splash sequence on mobile and Mac app after deploy
 
 ---
 
@@ -80,6 +80,10 @@
 21. Fonts: `--font-mono: 'DM Mono'`, `--font-display: 'Syne'`
 22. Accent: `#c8f060` — all variants derived from this
 23. **`--font-display` (Syne) = all-caps or numbers only** — Syne's geometric letterforms work for "TODAY", version numbers, and stat values. Never use Syne for mixed-case English sentences — DM Mono handles all natural language text.
+
+## Git Rules
+
+29. **Always work on `dev` branch** — never create feature branches unless explicitly asked
 
 ## Build Rules
 

@@ -68,6 +68,25 @@ Why 1.8s: slower than heartbeat, calmer than urgency, matches breathing rhythm.
 
 ---
 
+### Splash Screen Sequence (v2.17.21)
+
+Strict order — each step gates the next:
+
+1. **Fonts ready** → `startSplash()` — star scales in (450ms), typewriter begins (rAF, ~38–60ms/char)
+2. **Typewriter done** → cursor blinks 500ms → `_onSplashAnimDone`
+3. **App load done** (`_onAppLoadDone` from window.load sync) → `_doSplashDismiss`
+4. **Dismiss fires** — logo/date fade out (600ms), `sBurst(_burstX, _burstY)` fires immediately
+5. **`sLoop` runs** — stops when `maxAlpha < 0.1` (10% opacity threshold) OR 90 frames (1.5s hard cap)
+6. **`_sBurstComplete` callback** — splash fades (420ms) AND app cross-fades in simultaneously
+7. **450ms later** — splash DOM removed, canvas removed
+
+**Canvas coordinate rules:**
+- Buffer: `innerWidth*dpr × innerHeight*dpr`; context: `scale(dpr,dpr)`; CSS: `style.width/height` explicitly set to `innerWidth × innerHeight` px
+- Never use `inset:0` alone on canvas — some browsers use the `width` attribute as intrinsic CSS size
+- Burst origin captured at `startSplash+600ms` (post-transition), not at dismiss time
+
+---
+
 ## Rules
 
 1. **Never block interaction** — animations complete async

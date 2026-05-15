@@ -24,7 +24,7 @@
 | 016 | AI chip labels generic | ✅ v2.15.6 |
 | 017 | Focus minutes only on full completion | ✅ v2.16.0 |
 | 018 | Phantom SOON tasks reappear | ✅ v2.17.9 |
-| 019 | Star explosion missing on mobile | ⏳ v2.17.23 |
+| 019 | Star explosion missing on mobile | ✅ v2.17.21 |
 
 ---
 
@@ -71,24 +71,15 @@
 
 ## BUG-019: Star explosion missing on mobile at splash end
 
-**Status:** Fixed v2.17.22–23 — awaiting verification
+**Status:** Fixed v2.17.21 — awaiting production verification
 
-**Root causes identified (3):**
-1. **Resize listener not removed early enough** — `sResize` was removed inside the inner timeout (T+630ms) but the explosion starts at T+0. Mobile viewport shifts (address bar appearing/disappearing) call `sResize` during that window, which resets `canvas.width` — wiping the context transform and clearing the canvas mid-explosion.
-2. **Canvas removed too early** — fixed `setTimeout(..., 500)` removed canvas at T+1130ms but particles live 1.7–2.6s. Explosion always cut short.
-3. **White flash** — `mainApp.style.opacity = '1'` was set before children were hidden at `opacity:0`. Brief paint with container visible and children not hidden yet caused a flash.
+**Root causes found and fixed:**
+1. **Canvas coordinate system** — `position:fixed;inset:0` on a canvas with `width=innerWidth*dpr` attribute caused some browsers to use the attribute as intrinsic CSS size, making the display box `innerWidth*dpr` px wide. Drawing coords landed at `x*dpr` on screen — burst appeared off-screen on mobile (bottom-right), misaligned on Mac Retina. **Fix:** explicit `style.width/height` in CSS px in `sResize()`.
+2. **Burst origin unreliable** — `getBoundingClientRect()` on the star at dismiss time (parent opacity transition just triggered) returned stale/wrong layout values. **Fix:** capture star center 600ms after `startSplash()` into `_burstX/_burstY`.
+3. **Animation sequence wrong** — app was revealed at T+630ms while explosion was still playing. **Fix:** sequence now enforced: typewriter → explosion (waits for `sLoop` to complete) → app cross-fades in.
+4. **Dark pause after explosion** — app reveal was delayed `FADE_OUT+30ms` after explosion end. **Fix:** app cross-fade starts simultaneously with splash fade.
+5. **Loop ran too long** — `SPLASH_MAX_FRAMES=240` (4s/8s at 30fps) kept invisible sub-particles alive. **Fix:** stop loop when `maxAlpha < 0.1` (visually done); cap reduced to 90 frames.
 
-**Fixes (v2.17.22):**
-1. `window.removeEventListener('resize', sResize)` moved to top of `_doSplashDismiss` (before burst).
-2. Canvas removal moved into `sLoop` end handler — removed only when particles are done.
-3. Children set to `opacity:0; transition:none` before container reveal; container revealed in next `requestAnimationFrame`.
-
-**Additional root cause found and fixed (v2.17.23):**
-4. `sResize` used `sctx.scale(dpr, dpr)` which compounds if `canvas.width=` doesn't reset context (iOS WebKit inconsistency). Each `sResize` call doubled/tripled the scale, placing explosion at `(x×dpr², y×dpr²)` — bottom-right corner. Fixed: `sctx.setTransform(dpr, 0, 0, dpr, 0, 0)` replaces the matrix rather than multiplying.
-
-**Reverted bad fix (v2.17.23):**
-Skip-splash deferred reveal was introduced thinking tasks weren't rendered yet, but `init()` calls `renderManual()` synchronously at line 4443 before the splash IIFE (line 8423) executes — tasks are already in DOM. Deferring to `_onAppLoadDone` caused a black screen lasting seconds (Dropbox network round-trip). Reverted to immediate reveal.
-
-**Verify:** Open TODAY on mobile as PWA → star should visibly explode into particles → explosion plays fully → no white flash on app reveal.
+**Verify:** Open TODAY on mobile PWA → splash shows → typewriter completes → star explodes visibly → tasks slide in immediately after explosion fades.
 
 **Verified fixed:** ☐
