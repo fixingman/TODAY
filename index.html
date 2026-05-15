@@ -4304,11 +4304,32 @@ function applyNewDayCleanup() {
   _memoryOnStreakUpdate(newStreak);
 
   // ── Daily counters reset ──
-  
+
   // Update memory with day summary
   const doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
   _memoryOnDaySummary(doneToday);
-  
+
+  // Snapshot yesterday into rolling 30-day history (before counters reset)
+  const focusMinsYesterday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+  const yesterdayISO = _localISO(yesterday);
+  const habitsKeptYesterday = habitsList.filter(h =>
+    (habitCompletions[h.id] || []).includes(yesterdayISO)
+  ).length;
+  const dailyHistory = safeJSON('today_daily_history', []);
+  if (!dailyHistory.find(e => e.date === yesterdayISO)) {
+    dailyHistory.push({
+      date: yesterdayISO,
+      tasksDone: doneToday,
+      focusMins: focusMinsYesterday,
+      habitsKept: habitsKeptYesterday,
+      habitsTotal: habitsList.length,
+    });
+    // Keep only the last 30 days
+    dailyHistory.sort((a, b) => a.date.localeCompare(b.date));
+    if (dailyHistory.length > 30) dailyHistory.splice(0, dailyHistory.length - 30);
+    localStorage.setItem('today_daily_history', JSON.stringify(dailyHistory));
+  }
+
   // Reset daily counters
   localStorage.setItem('stat_tasks_done_today', '0');
   localStorage.setItem('stat_focus_mins_today', '0');
@@ -8408,6 +8429,8 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
   if (Date.now() - lastShown < SPLASH_COOLDOWN) {
     const splash = document.getElementById('splash');
     if (splash) splash.remove();
+    // init() runs renderManual() synchronously before this IIFE executes,
+    // so tasks are already in the DOM — reveal immediately with no skeleton risk.
     const stickyHdr = document.getElementById('sticky-header');
     if (stickyHdr) stickyHdr.style.opacity = '1';
     const mainApp = document.getElementById('main-app');
@@ -8932,8 +8955,13 @@ function _aiIntroMessage(ctx) {
   // ── WEEKLY REFLECTION (Sunday evening) ──
   if (ctx.dayOfWeek === 0 && ctx.timeOfDay === 'evening') {
     const w = ctx.weeklyStats;
-    const focusStr = w.focusMinsToday > 0 ? _formatFocusTime(w.focusMinsToday) + ' focused, ' : '';
-    return `Sunday evening. This week: ${w.tasksCompletedToday} tasks done today, ${focusStr}streak at ${ctx.streak}. How did it feel?`;
+    const parts = [];
+    if (w.weekTasksDone > 0) parts.push(`${w.weekTasksDone} task${w.weekTasksDone !== 1 ? 's' : ''} done`);
+    if (w.weekFocusMins >= 5) parts.push(_formatFocusTime(w.weekFocusMins) + ' focused');
+    if (w.weekHabitsKept > 0) parts.push(`${w.weekHabitsKept} habit check${w.weekHabitsKept !== 1 ? 's' : ''}`);
+    const summary = parts.length > 0 ? parts.join(', ') : 'a quieter week';
+    const streakLine = ctx.streak > 1 ? ` Streak at ${ctx.streak}.` : '';
+    return `Sunday evening. This week: ${summary}.${streakLine} How did it feel?`;
   }
   
   // ── STALE TASK AWARENESS — show if aging tasks exist, skip recently suggested ──
@@ -9355,9 +9383,18 @@ function _getWeeklyStats() {
   const m = appMemory;
   const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
   const doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
-  
-  // We track totals, not daily breakdowns, so approximate weekly from totals
-  // For a proper weekly view, we'd need to store daily history — for now, use totals
+
+  // Build a 7-day window: last 6 days from history + today's live counters
+  const dailyHistory = safeJSON('today_daily_history', []);
+  const todayISO = _localISO();
+  const cutoff = _localISO(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000));
+  const week = dailyHistory.filter(e => e.date >= cutoff && e.date < todayISO);
+
+  const weekTasksDone  = week.reduce((s, e) => s + (e.tasksDone  || 0), 0) + doneToday;
+  const weekFocusMins  = week.reduce((s, e) => s + (e.focusMins  || 0), 0) + focusMinsToday;
+  const weekHabitsKept = week.reduce((s, e) => s + (e.habitsKept || 0), 0);
+  const daysWithData   = week.length + (doneToday > 0 || focusMinsToday > 0 ? 1 : 0);
+
   return {
     focusMinsToday,
     focusMinutesTotal: m.patterns.focusMinutesTotal || 0,
@@ -9365,6 +9402,11 @@ function _getWeeklyStats() {
     tasksCompletedToday: doneToday,
     daysActive: m.totalDaysActive || 0,
     bestStreak: m.patterns.bestStreak || 0,
+    // True weekly totals (last 7 days)
+    weekTasksDone,
+    weekFocusMins,
+    weekHabitsKept,
+    daysWithData,
   };
 }
 
