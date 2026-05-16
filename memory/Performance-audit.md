@@ -9,8 +9,8 @@
 
 | Metric | Value | Notes |
 |---|---|---|
-| Total file size | 452 KB | Single HTML file — no build step |
-| Lines of code | 10,517 | +30 since v2.12.74 (link extraction, unified clock, retry logic) |
+| Total file size | ~461 KB | Single HTML file — no build step |
+| Lines of code | ~11,342 | +825 since v2.12.79 (splash rework, AI threading, focus/PiP fixes, micro interactions) |
 | Functions | 219 | +1 (`_showErrorLog`) |
 | Variables | 1,123 | const/let/var declarations |
 | Event listeners | 58 | +1 (`window.focus` for PWA repaint/sync) |
@@ -209,6 +209,13 @@ No runaway timers. All single-fire timers are purpose-built and short-lived.
 | Backup retry with backoff | 2.12.76 | Exponential backoff (2s→30s cap). Prevents `_pendingBackup` stuck state. |
 | Local timezone fix | 2.12.77–78 | `_localISO()` replaces UTC `toISOString().slice()`. One helper, no perf change. |
 | Link extraction | 2.12.79 | URL regex + `new URL()` on task add — one-time cost per task. Renamed `.trello-link` → `.task-link`. |
+| Splash rAF typewriter | 2.17.19 | `requestAnimationFrame` replaces `setTimeout` for typewriter — frame-accurate, no drift. DPR canvas (later reverted). |
+| BUG-019/021 splash DPR strip | 2.17.29 | Reverted DPR from splash canvas (no `setTransform`, no `scale`). Restored v2.1.0 dismiss timing (180ms→fade→remove). Removed `_sBurstComplete` path. Net: simpler code, ~1.4s shorter splash stare time. |
+| CHANGELOG trimmed | 2.17.12 | Trimmed in-app CHANGELOG object from 235→3 entries. Saves ~10KB on every page load. Full history in memory/Changelog.md. |
+| safeJSON + transition:all | 2.17.13 | 11 raw `JSON.parse(localStorage...)` → `safeJSON()`. 2 `transition:all` → specific properties. |
+| Checkmark stroke-draw | 2.17.34 | SVG `stroke-dasharray/dashoffset` on `.just-checked` — CSS only, 150ms, no layout cost. |
+| Habit run cascade | 2.17.34 | `box-shadow` ripple on filled week dots — CSS animation, no layout trigger. 40ms stagger via `setTimeout`. |
+| PiP completion detection | 2.17.35 | `_pipDone` boolean flag — one boolean check per `pipTick` frame. Stops RAF on completion instead of looping forever. |
 | AI personality overhaul | 2.13.0 | Removed `Math.random()` gates — replaced with deterministic modulo. Added 3 action handlers. No perf change. |
 | Day-end review + morning reflection | 2.13.1 | One `localStorage.setItem` at triage completion. Morning nudge reads + clears. Negligible. |
 | Triage bar rewrite | 2.13.2 | `_triageActive` boolean replaces `classList.contains` check — simpler branch, no DOM query. |
