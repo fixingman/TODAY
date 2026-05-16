@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes — streak, splash (v2.17.26–27)
-- **Recent:** BUG-020 streak double-count fixed (stat_streak_date guard). BUG-021 splash fixed — sctx.scale() was accumulating on resize (setTransform fix) + 6s safety timeout on splash gate. BUG-004 archived. Bug list + archive reformatted for consistency.
+- **Working on:** BUG-019/021 splash explosion (v2.17.29)
+- **Recent:** Restored v2.1.0 splash dismiss structure — stripped DPR from canvas, removed _sBurstComplete mechanism, explosion now plays over fading splash (not after). BUG-020 streak fix awaiting verification.
 - **Watch for:** BUG-011 (ghost chime), BUG-012 (overdue Trello card), BUG-020 (streak cross-device), BUG-021 (splash explosion + freeze) — all awaiting Can's verification
 
 ---

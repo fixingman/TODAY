@@ -2589,12 +2589,12 @@
     border: none;
     color: var(--text);
     font-family: var(--font-mono);
-    font-size: var(--text-sm);
+    font-size: var(--text-md);
     padding: 0;
     outline: none;
     -webkit-font-smoothing: antialiased;
   }
-  .ai-nl-input::placeholder { color: var(--muted); opacity: 0.5; }
+  .ai-nl-input::placeholder { color: var(--muted); }
   .ai-nl-btn {
     background: none;
     border: none;
@@ -3034,12 +3034,15 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.27';
+const APP_VERSION   = '2.17.30';
 const DEV_HOURS     = '196h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.30': 'Style: AI panel input — font-size bumped to --text-md (14px, matches task input). Placeholder opacity:0.5 removed (was double-muted).',
+  '2.17.29': 'Fix: BUG-019/021 — restore v2.1.0 splash dismiss structure. Strip DPR from canvas (no transform, CSS px direct like celebCanvas). Remove _sBurstComplete mechanism: explosion now plays over fading splash (burst → 180ms → fade → canvas removed at 630ms). Eliminates 2s premature-cancel timeout and 1.4s extra stare time. Total splash ~2.2s restored.',
+  '2.17.28': 'Fix: Splash safety timeout now covers both gate flags — _splashAnimDone gets the same 6s fallback as _appLoadDone, so a stalled typewriter rAF (tab hidden on iOS PWA launch) can no longer freeze the splash from the animation side.',
   '2.17.27': 'Fix: Splash animation — sctx.scale() was accumulating on resize (dpr² after first resize); switched to setTransform() which resets each call. Added 6s safety timeout on splash gate so a stalled Dropbox fetch can no longer freeze the splash permanently.',
   '2.17.26': 'Fix: BUG-020 streak double-counts across devices — added stat_streak_date guard so checkNewDay() skips increment if another device already bumped the streak today.',
   '2.17.25': 'AI: Observation-first rewrite — system prompt rewritten from task-manager framing to companion-that-notices. Removed break_down, check_task, delete_done, open_panel from available chips. Actions limited to start_focus, check_habit, add_task, reflect (rare), dismiss. Max chips 1-2 (was 2-4). Message limit 25 words (was 30). Aging task chips: 7+ days now offers park/let-go (removed break-down); 3-6 days offers start/park (removed let-go).',
@@ -8442,7 +8445,8 @@ function _tryDismissSplash() {
 window._onSplashAnimDone = function() { _splashAnimDone = true; _tryDismissSplash(); };
 window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplash(); };
 // Safety: if load chain stalls (network hang, token refresh, etc.) dismiss splash anyway
-setTimeout(() => { if (!_appLoadDone) window._onAppLoadDone && window._onAppLoadDone(); }, 6000);
+setTimeout(() => { if (!_appLoadDone)    window._onAppLoadDone    && window._onAppLoadDone();    }, 6000);
+setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onSplashAnimDone(); }, 6000);
 
 // ─── Splash screen ────────────────────────────────────────────────────────────
 (function() {
@@ -8485,19 +8489,10 @@ setTimeout(() => { if (!_appLoadDone) window._onAppLoadDone && window._onAppLoad
   splashCanvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:600;';
   document.body.appendChild(splashCanvas);
   const sctx = splashCanvas.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
   let spp = [], srf = null;
   let _burstX = innerWidth / 2, _burstY = innerHeight / 3; // safe fallbacks; overwritten once star settles
 
-  function sResize(){
-    const w = innerWidth, h = innerHeight;
-    splashCanvas.width  = w * dpr;
-    splashCanvas.height = h * dpr;
-    // Explicitly pin CSS display size to CSS px — guarantees drawing coords match viewport coords
-    splashCanvas.style.width  = w + 'px';
-    splashCanvas.style.height = h + 'px';
-    sctx.setTransform(dpr, 0, 0, dpr, 0, 0); // reset+set — scale() accumulates on resize
-  }
+  function sResize(){ splashCanvas.width=innerWidth; splashCanvas.height=innerHeight; }
   sResize(); addEventListener('resize', sResize);
 
   function spawnFrag(x,y,vx,vy,ch,sz,depth){
@@ -8557,23 +8552,19 @@ setTimeout(() => { if (!_appLoadDone) window._onAppLoadDone && window._onAppLoad
   }
 
   let sFrameCount = 0;
-  const SPLASH_MAX_FRAMES = 90; // 1.5s at 60fps — hard stop
-  let _sBurstComplete = null;
+  const SPLASH_MAX_FRAMES = 240; // 4s at 60fps — hard stop
   function sLoop(){
-    sctx.clearRect(0,0,splashCanvas.width/dpr,splashCanvas.height/dpr);
+    sctx.clearRect(0,0,splashCanvas.width,splashCanvas.height);
     spp=spp.filter(p=>p.life>0);
-    let maxAlpha = 0;
-    spp.forEach(p=>{p.update();p.draw(sctx);maxAlpha=Math.max(maxAlpha,p.life/p.maxLife);});
+    spp.forEach(p=>{p.update();p.draw(sctx);});
     sFrameCount++;
-    // Stop when all particles are below 10% opacity (visually done) or hard cap reached
-    if(maxAlpha > 0.10 && sFrameCount < SPLASH_MAX_FRAMES){
+    if(spp.length>0 && sFrameCount<SPLASH_MAX_FRAMES){
       srf=requestAnimationFrame(sLoop);
     } else {
       cancelAnimationFrame(srf);
       srf=null;
       sFrameCount=0;
-      sctx.clearRect(0,0,splashCanvas.width/dpr,splashCanvas.height/dpr);
-      if(_sBurstComplete){ const cb=_sBurstComplete; _sBurstComplete=null; cb(); }
+      sctx.clearRect(0,0,splashCanvas.width,splashCanvas.height);
     }
   }
 
@@ -8602,9 +8593,8 @@ setTimeout(() => { if (!_appLoadDone) window._onAppLoadDone && window._onAppLoad
     requestAnimationFrame(typeFrame);
   }
 
-  // Transition: typewriter done → burst → wait for explosion → fade splash → reveal app
+  // Transition: typewriter done → burst → 180ms → fade splash (explosion plays over it) → reveal app
   window._doSplashDismiss = function(){
-    // Fade logo and date out while explosion plays
     const logo     = document.getElementById('splash-logo');
     const dateWrap = document.getElementById('splash-date-wrap');
     [logo, dateWrap].forEach(el => {
@@ -8616,57 +8606,44 @@ setTimeout(() => { if (!_appLoadDone) window._onAppLoadDone && window._onAppLoad
     // Burst from star — use position captured at startSplash time (stable, post-transition)
     sBurst(_burstX, _burstY);
 
-    // After explosion fully completes, fade splash and reveal app
-    function _afterExplosion(){
+    setTimeout(() => {
       const splash  = document.getElementById('splash');
       const mainApp = document.getElementById('main-app');
       if (!splash || !mainApp) return;
 
-      // Remove explosion canvas immediately — particles are done
-      window.removeEventListener('resize', sResize);
-      splashCanvas.remove();
-      _appReady = true;
-
-      // Fade splash out
       const FADE_OUT = 420;
       splash.style.transition = `opacity ${FADE_OUT}ms ease`;
       splash.style.opacity    = '0';
 
-      // Reveal app at the same time — content fades in through the departing splash.
-      // Splash is z-index 500, app is z-index 1, so app shows through as splash turns transparent.
-      const stickyHdr = document.getElementById('sticky-header');
-      if (stickyHdr) { stickyHdr.style.transition = 'opacity 300ms ease'; stickyHdr.style.opacity = '1'; }
-      mainApp.style.opacity = '1';
-      const children = Array.from(mainApp.children);
-      children.forEach((el, i) => {
-        el.style.opacity = '0';
-        el.style.transform = 'translateY(-8px)';
-        el.style.transition = 'none';
-        setTimeout(() => {
-          el.style.transition = 'opacity 300ms ease, transform 300ms cubic-bezier(0.16,1,0.3,1)';
-          el.style.opacity = '1';
-          el.style.transform = 'translateY(0)';
-        }, i * 80);
-      });
-
-      const addTaskBar = document.getElementById('addTaskBar');
-      const triageBar  = document.getElementById('triageBar');
-      if (addTaskBar) { addTaskBar.style.transition = 'opacity 300ms ease'; addTaskBar.style.opacity = '1'; }
-      if (triageBar)  { triageBar.style.transition  = 'opacity 300ms ease'; triageBar.style.opacity  = '1'; }
-
-      // Remove splash DOM after fade completes + refresh progress bar
       setTimeout(() => {
+        window.removeEventListener('resize', sResize);
         splash.remove();
-        if (typeof updateStats === 'function') updateStats();
-      }, FADE_OUT + 30);
-    }
+        splashCanvas.remove();
+        _appReady = true;
 
-    // Wire callback — fires when sLoop exhausts all particles or hits frame cap
-    _sBurstComplete = _afterExplosion;
-    // Safety fallback: if sLoop never starts or stalls (e.g. tab hidden)
-    setTimeout(() => {
-      if (_sBurstComplete) { _sBurstComplete = null; _afterExplosion(); }
-    }, 2000);
+        const stickyHdr = document.getElementById('sticky-header');
+        if (stickyHdr) { stickyHdr.style.transition = 'opacity 300ms ease'; stickyHdr.style.opacity = '1'; }
+        mainApp.style.opacity = '1';
+        const children = Array.from(mainApp.children);
+        children.forEach((el, i) => {
+          el.style.opacity = '0';
+          el.style.transform = 'translateY(-8px)';
+          el.style.transition = 'none';
+          setTimeout(() => {
+            el.style.transition = 'opacity 300ms ease, transform 300ms cubic-bezier(0.16,1,0.3,1)';
+            el.style.opacity = '1';
+            el.style.transform = 'translateY(0)';
+          }, i * 80);
+        });
+
+        const addTaskBar = document.getElementById('addTaskBar');
+        const triageBar  = document.getElementById('triageBar');
+        if (addTaskBar) { addTaskBar.style.transition = 'opacity 300ms ease'; addTaskBar.style.opacity = '1'; }
+        if (triageBar)  { triageBar.style.transition  = 'opacity 300ms ease'; triageBar.style.opacity  = '1'; }
+
+        setTimeout(() => { if (typeof updateStats === 'function') updateStats(); }, FADE_OUT + 30);
+      }, FADE_OUT + 30);
+    }, 180);
   };
 
   // Wait for fonts to be truly ready before animating — prevents swap flash

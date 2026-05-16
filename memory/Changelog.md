@@ -4,6 +4,9 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.30** | **Style: AI panel input** — font-size `--text-sm` → `--text-md` (11px → 14px, matches task input). Placeholder `opacity:0.5` removed. |
+| **2.17.29** | **Fix: BUG-019/021 splash explosion** — Strip DPR from canvas (CSS px direct, matches `celebCanvas`). Restore v2.1.0 dismiss structure: burst → 180ms → fade → canvas removed at 630ms. Explosion plays over fading splash. Removes `_sBurstComplete` + 2s premature-cancel timeout. Total splash ~2.2s restored. |
+| **2.17.28** | **Fix: Splash gate timeout symmetry** — `_splashAnimDone` now has the same 6s safety timeout as `_appLoadDone`. A stalled typewriter rAF (tab hidden on iOS PWA launch) can no longer freeze the splash from the animation side. |
 | **2.17.27** | **Fix: Splash animation reliability** — `sctx.scale()` was accumulating on every resize event, making the transform `dpr²` after first resize and corrupting all drawing coordinates. Replaced with `sctx.setTransform()` which resets each call. Added 6s safety timeout on the two-flag splash gate so a stalled Dropbox token fetch can no longer freeze the splash permanently. |
 | **2.17.26** | **Fix: BUG-020 streak double-counts across devices** — added `stat_streak_date` guard (YYYY-MM-DD local). `checkNewDay()` skips increment if streak was already bumped today. Merge adopts newer date from remote. Full restore also restores `stat_streak_date`. |
 | **2.17.25** | **AI: Observation-first rewrite** — system prompt rewritten from task-manager framing to companion-that-notices. Available chips reduced to `start_focus`, `check_habit`, `add_task`, `reflect` (rare), `dismiss`. Max chips 1–2 (was 2–4). Message cap 25 words. Aging chip tiers simplified: 7+ days → park or let go (removed break-down); 3–6 days → start or park (removed let-go). |
