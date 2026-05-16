@@ -133,3 +133,14 @@
 **Status:** ✅ Verified fixed (v2.17.9)
 **Root cause:** `mergeRemoteData` excluded `deleted_ids` from SOON merge but not `pastTasks` IDs. Completed/aged tasks move to PAST (not `deleted_ids`), so remote backup still had them in `soon_tasks`. On next day's sync, merge restored them to SOON.
 **Fix:** Built `pastIds = new Set(pastTasks.map(t => t.id))` before SOON merge. Added `pastIds` exclusion to both local and remote sides of the SOON union. Tasks already in PAST cannot re-enter SOON via sync.
+
+---
+
+## BUG-019: Star explosion missing on mobile at splash end
+**Status:** ✅ Verified fixed (v2.17.21)
+**Root causes:**
+1. **Canvas coordinate system** — `position:fixed;inset:0` on a canvas with `width=innerWidth*dpr` attribute caused some browsers to use the attribute as intrinsic CSS size, making the display box `innerWidth*dpr` px wide. Drawing coords landed at `x*dpr` on screen — burst appeared off-screen on mobile. **Fix:** explicit `style.width/height` in CSS px in `sResize()`.
+2. **Burst origin unreliable** — `getBoundingClientRect()` on the star at dismiss time returned stale/wrong layout values (parent opacity transition just triggered). **Fix:** capture star center 600ms after `startSplash()` into `_burstX/_burstY`.
+3. **Animation sequence wrong** — app was revealed at T+630ms while explosion still playing. **Fix:** typewriter → explosion (waits for `sLoop` to complete) → app cross-fades in.
+4. **Dark pause after explosion** — app reveal delayed `FADE_OUT+30ms` after explosion end. **Fix:** app cross-fade starts simultaneously with splash fade-out.
+5. **Loop ran too long** — `SPLASH_MAX_FRAMES=240` kept invisible sub-particles alive. **Fix:** stop loop when `maxAlpha < 0.1`; cap reduced to 90 frames.
