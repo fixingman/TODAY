@@ -3034,12 +3034,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.23';
+const APP_VERSION   = '2.17.27';
 const DEV_HOURS     = '196h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.27': 'Fix: Splash animation — sctx.scale() was accumulating on resize (dpr² after first resize); switched to setTransform() which resets each call. Added 6s safety timeout on splash gate so a stalled Dropbox fetch can no longer freeze the splash permanently.',
+  '2.17.26': 'Fix: BUG-020 streak double-counts across devices — added stat_streak_date guard so checkNewDay() skips increment if another device already bumped the streak today.',
+  '2.17.25': 'AI: Observation-first rewrite — system prompt rewritten from task-manager framing to companion-that-notices. Removed break_down, check_task, delete_done, open_panel from available chips. Actions limited to start_focus, check_habit, add_task, reflect (rare), dismiss. Max chips 1-2 (was 2-4). Message limit 25 words (was 30). Aging task chips: 7+ days now offers park/let-go (removed break-down); 3-6 days offers start/park (removed let-go).',
+  '2.17.24': 'Fix: BUG-004 recurrence — blank UI on restore when focus timer completed in background. GPU compositor layer from timerCompletePulse animation rendered at wrong position after tab hide/show. Fix: toggle animationPlayState on restore to force layer recreation. Also: extra _clearStaleFocusing pass at 1000ms + _forceRepaint at 1500ms.',
   '2.17.23': 'AI: Conversation threading — follow-up questions in the same session carry full message history. Panel opens with AI intro as thread seed; each exchange appends to thread; thread clears on close.',
   '2.17.22': 'AI: No task chips on conversational questions — system prompt now instructs AI to return only dismiss when user asks a non-task question.',
   '2.17.21': 'Fix: Splash overhaul — white flash (inline bg on html), enforced typewriter→explosion→tasks sequence, burst coordinates captured at startSplash (not dismiss), canvas DPR coordinate fix (explicit CSS px size), dark pause removed (app cross-fades with splash), explosion loop stops on visual completion (maxAlpha threshold).',
@@ -4298,10 +4302,18 @@ function applyNewDayCleanup() {
   // Yesterday = calendar day before today (midnight boundary, matches _getAppDay)
   const now = new Date();
   const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
-  const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
+  const streak     = parseInt(localStorage.getItem('stat_streak') || '1');
+  const streakDate = localStorage.getItem('stat_streak_date') || '';
+  const todayISO   = _localISO();
+  // Guard: skip increment if streak was already bumped today (e.g. via sync from another device)
+  if (streakDate === todayISO) {
+    localStorage.setItem('stat_last_visit', today);
+    return;
+  }
   const newStreak = lastVisit === yesterday.toDateString() ? streak + 1 : 1;
   localStorage.setItem('stat_streak', newStreak);
-  
+  localStorage.setItem('stat_streak_date', todayISO);
+
   // Update memory with streak
   _memoryOnStreakUpdate(newStreak);
 
@@ -7463,12 +7475,14 @@ window._onWake = function() {
     requestAnimationFrame(_forceRepaint);
   });
   setTimeout(_forceRepaint, 500);
+  setTimeout(_forceRepaint, 1500); // extra pass for slow GPU wakeup after long sleep (BUG-004)
 
-  // Clear stale .focusing — two checks:
+  // Clear stale .focusing — three checks:
   // 1. Immediate: covers clean sleep/wake where .focused was never set
   // 2. Deferred 350ms: covers async Dropbox sync gap — renderManual() destroys
   //    .focused element, _focusReanchor re-attaches moments later. During that
   //    gap .focusing is on but nothing is .focused → everything at 7% → blank. (BUG-004)
+  // 3. Deferred 1000ms: catches late renders after Dropbox/Trello sync completes
   function _clearStaleFocusing() {
     const appEl = document.getElementById('main-app');
     if (appEl && appEl.classList.contains('focusing') && !appEl.querySelector('.focused')) {
@@ -7478,6 +7492,7 @@ window._onWake = function() {
   }
   _clearStaleFocusing();
   setTimeout(_clearStaleFocusing, 350);
+  setTimeout(_clearStaleFocusing, 1000);
 
   // Check morning nudge — only called in init() normally, so returning users
   // after overnight don't see it without this. Nudge has its own hour < 12 guard.
@@ -7537,6 +7552,7 @@ async function dropboxBackup(silent) {
     stat_focus_mins_today:  localStorage.getItem('stat_focus_mins_today')  || '0',
     stat_focus_mins_date:   _getAppDay(), // date guard — prevents yesterday's total restoring after midnight
     stat_streak:            localStorage.getItem('stat_streak')            || '1',
+    stat_streak_date:       localStorage.getItem('stat_streak_date')       || '',
     stat_tasks_done_today:  localStorage.getItem('stat_tasks_done_today')  || '0',
     // Habits — persisted cross-device
     habits:               safeJSON('today_habits',            []),
@@ -7892,10 +7908,12 @@ function mergeRemoteData(data) {
   // Flow rate is calculated live from visible tasks, not stored
   const localFocusMins  = parseInt(localStorage.getItem('stat_focus_mins_today')  || '0');
   const localStreak     = parseInt(localStorage.getItem('stat_streak')            || '1');
+  const localStreakDate  = localStorage.getItem('stat_streak_date') || '';
   const localDone       = parseInt(localStorage.getItem('stat_tasks_done_today')  || '0');
 
   const remoteFocusMins = parseInt(data.stat_focus_mins_today  || '0');
   const remoteStreak    = parseInt(data.stat_streak            || '1');
+  const remoteStreakDate = data.stat_streak_date || '';
   const remoteDoneCount = parseInt(data.stat_tasks_done_today  || '0');
 
   // Max wins — but ONLY merge focus mins if the remote data is from today.
@@ -7906,14 +7924,18 @@ function mergeRemoteData(data) {
 
   const mergedFocusMins = Math.max(localFocusMins, remoteFocusMinsToday);
   const mergedStreak    = Math.max(localStreak, remoteStreak);
+  // Adopt the remote streak date if remote has a newer/later date — this prevents
+  // Device B from incrementing a streak that Device A already bumped today (BUG-020).
+  const mergedStreakDate = remoteStreakDate > localStreakDate ? remoteStreakDate : localStreakDate;
   const mergedDoneCount = Math.max(localDone, remoteDoneCount);
-  
+
   if (mergedFocusMins !== localFocusMins) {
     localStorage.setItem('stat_focus_mins_today', String(mergedFocusMins));
     _changed = true;
   }
-  if (mergedStreak !== localStreak) {
+  if (mergedStreak !== localStreak || mergedStreakDate !== localStreakDate) {
     localStorage.setItem('stat_streak', String(mergedStreak));
+    localStorage.setItem('stat_streak_date', mergedStreakDate);
     _changed = true;
   }
   if (mergedDoneCount !== localDone) {
@@ -8055,6 +8077,7 @@ async function dropboxRestore(fromSync) {
         localStorage.setItem('stat_focus_mins_today', '0');
       }
       if (data.stat_streak)            localStorage.setItem('stat_streak',            data.stat_streak);
+      if (data.stat_streak_date)       localStorage.setItem('stat_streak_date',       data.stat_streak_date);
       if (data.stat_tasks_done_today)  localStorage.setItem('stat_tasks_done_today',  data.stat_tasks_done_today);
       // Habits
       if (Array.isArray(data.habits)) {
@@ -8418,6 +8441,8 @@ function _tryDismissSplash() {
 }
 window._onSplashAnimDone = function() { _splashAnimDone = true; _tryDismissSplash(); };
 window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplash(); };
+// Safety: if load chain stalls (network hang, token refresh, etc.) dismiss splash anyway
+setTimeout(() => { if (!_appLoadDone) window._onAppLoadDone && window._onAppLoadDone(); }, 6000);
 
 // ─── Splash screen ────────────────────────────────────────────────────────────
 (function() {
@@ -8471,7 +8496,7 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     // Explicitly pin CSS display size to CSS px — guarantees drawing coords match viewport coords
     splashCanvas.style.width  = w + 'px';
     splashCanvas.style.height = h + 'px';
-    sctx.scale(dpr, dpr); // keep drawing coords in CSS px
+    sctx.setTransform(dpr, 0, 0, dpr, 0, 0); // reset+set — scale() accumulates on resize
   }
   sResize(); addEventListener('resize', sResize);
 
@@ -8883,18 +8908,17 @@ async function _aiLoad() {
     if (eligibleAging.length > 0) {
       const task = eligibleAging[0];
       if (task.ageDays >= 7) {
-        // Old — break it down or let it go
-        deterministicChips = [
-          { label: 'Break it down', type: 'break_down', payload: { id: task.id }, primary: true },
-          { label: 'Let it go',     type: 'delete_task', payload: { id: task.id } },
-          { label: 'Dismiss',       type: 'dismiss',     payload: {} },
-        ];
-      } else {
-        // Medium (3-6 days) — park or do it now
+        // Very old — park it or let it go
         deterministicChips = [
           { label: 'Park for later', type: 'move_soon',    payload: { id: task.id }, primary: true },
-          { label: 'Do it now',      type: 'start_focus',  payload: { id: task.id } },
           { label: 'Let it go',      type: 'delete_task',  payload: { id: task.id } },
+          { label: 'Dismiss',        type: 'dismiss',       payload: {} },
+        ];
+      } else {
+        // Medium (3-6 days) — start it or park it
+        deterministicChips = [
+          { label: 'Start it now',   type: 'start_focus',  payload: { id: task.id }, primary: true },
+          { label: 'Park for later', type: 'move_soon',    payload: { id: task.id } },
           { label: 'Dismiss',        type: 'dismiss',       payload: {} },
         ];
       }
@@ -9494,100 +9518,70 @@ function _aiSystemPrompt(ctx) {
   const totalPendingCount = (regularTasks.length || 0) + (overdueTasks.length || 0);
   if (totalPendingCount >= 6) contextFlags.push('LIST_HEAVY');
 
-  return `You are ${aiName} — a gentle, supportive presence inside TODAY, a minimal daily focus app.
+  return `You are ${aiName} — a calm, quiet presence inside TODAY, a minimal daily focus app.
 
-Your name is ${aiName}. You don't announce it unless asked, but it's who you are.
+Your role: notice what's actually happening, say one true thing about it, and occasionally invite focus on a specific task. You are not a task manager. You do not reorganise, coach, or push.
 
-Your personality:
-- Warm but not effusive. Calm, grounded.
-- You notice patterns without being preachy about them.
-- You celebrate small wins genuinely, not performatively.
-- You're honest when things pile up, but never judgmental.
-- You speak like a thoughtful friend, not a productivity coach.
-- Short sentences. Natural rhythm. No corporate speak.
+Personality:
+- Brief and specific. One or two sentences is almost always enough.
+- You notice things — patterns, effort, small wins — and name them warmly.
+- You speak like a thoughtful friend who checked in, not a productivity coach.
+- Never urgent. No "you should", no alarm, no pressure.
 
-TODAY's design philosophy — never contradict these:
-- No due dates, no deadlines, no urgency signals. TODAY is about now, not a deadline system.
-- No priorities or ranking. The list is intentionally flat — honest reckoning over forced ranking.
-- No pressure. Streaks are acknowledgment, not obligation. A missed day is just a missed day.
-- You never suggest "prioritising", "scheduling", "setting a deadline", or "ranking tasks". That's not what this is.
+TODAY's design philosophy — never contradict:
+- No due dates, no deadlines, no urgency signals.
+- No priorities or ranking. The list is intentionally flat.
+- Streaks are acknowledgment, not obligation. A missed day is just a missed day.
+- Never suggest "prioritising", "scheduling", "setting a deadline", or "ranking tasks".
 
-${memoryContext ? `What you remember about this person:\n${memoryContext}\nIf "Recent conversations" appear above, use them for continuity — notice if something was resolved, avoid repeating suggestions that were recently dismissed.\n` : ''}
+${memoryContext ? `What you know about this person:\n${memoryContext}\nUse this for continuity — notice if something resolved, avoid repeating what was recently dismissed.\n` : ''}
 Context: ${ctx.timeOfDay}, ${ctx.isFirstOpenToday ? 'first open today' : 'returning'}, streak: ${ctx.streak} days
-${energyContext ? `Energy rhythm: ${energyContext}` : ''}
+${energyContext ? `Energy: ${energyContext}` : ''}
 ${stateSummary}
 ${overdueTasks.length ? `Overdue: ${overdueList}` : ''}
 ${regularTasks.length ? `Pending: ${pendingList}` : ''}
-${agingTasks.length ? `Aging (3+ days): ${agingList}` : ''}
-${pendingHabits.length ? `Habits waiting: ${habitList}` : ''}
+${agingTasks.length ? `Long-standing (3+ days): ${agingList}` : ''}
+${pendingHabits.length ? `Habits pending: ${habitList}` : ''}
 ${ctx.tasks.done.length ? `Done today: ${doneList}` : ''}
 
-${observation ? `PROACTIVE OBSERVATION — weave this naturally into your message:\n"${observation.text}"\nThis is something you noticed about their patterns. Mention it warmly, not as a lecture.\n` : ''}
-Special moments to notice:
-${ctx.isFirstOpenToday && ctx.timeOfDay === 'morning' ? '- MORNING BRIEFING: Give a gentle overview of what\'s on their plate. Mention carried-over tasks, habits due, and any aging items. Brief, warm, grounding.' : ''}
-${ctx.dayOfWeek === 0 && ctx.timeOfDay === 'evening' ? '- WEEKLY REFLECTION: Sunday evening. Offer a gentle reflection on their week — tasks done, focus time, streak. Not analytics, just acknowledgment. "How did it feel?" rather than "Great job!"' : ''}
-${agingTasks.length > 0 ? '- STALE AWARENESS: You see tasks that have been sitting. Don\'t always mention them, but when you do, be curious not judgmental: "Still relevant, or ready to let it go?"' : ''}
-${totalPending === 0 && totalDone === 0 ? '- EMPTY STATE: The list is empty. This is an invitation moment, not a void. Invite gently: "What would feel good to finish today?" Use their patterns if you know them. If they have a streak, mention it. If they usually add tasks in the morning, acknowledge that. Suggest adding one thing — keep it light, not pushy.' : ''}
-${contextFlags.includes('LIST_HEAVY') ? `- LIST_HEAVY: ${totalPendingCount} tasks pending. Acknowledge the full plate once, warmly. Then focus on just one. Suggest moving something to SOON if it doesn\'t belong today.` : ''}
+${observation ? `Something you noticed about this person's patterns — mention it only if it fits naturally:\n"${observation.text}"\n` : ''}
+Special moments:
+${ctx.isFirstOpenToday && ctx.timeOfDay === 'morning' ? '- MORNING: Brief, grounding overview. What\'s waiting, habits due, anything old. Warm, not alarming.' : ''}
+${ctx.dayOfWeek === 0 && ctx.timeOfDay === 'evening' ? '- SUNDAY EVENING: Gentle reflection on the week. Acknowledgment, not analytics. "How did it feel?" energy.' : ''}
+${agingTasks.length > 0 ? '- LONG-STANDING TASKS: Some tasks have been here a while. Be curious, not nagging. "Still on your mind?" Chips are pre-set for these — just write the message.' : ''}
+${totalPending === 0 && totalDone === 0 ? '- EMPTY STATE: Nothing here yet. Invite gently — what would feel good to finish? One suggestion, not a prompt.' : ''}
 
 Reply ONLY with raw JSON (no markdown, no code fences):
 {
-  "message": "your message — warm, specific, ≤30 words",
+  "message": "your message — specific, ≤25 words",
   "actions": [{ "label": "2-4 words", "type": "TYPE", "payload": {} }]
 }
 
 Message guidelines:
-- Be specific to THEIR tasks, not generic advice
-- When suggesting an action on a specific task, NAME the task in your message so the chip has context — "The report has been here 4 days" → chip: "Let it go". Never make the user guess which task a chip refers to.
-- Reference their patterns if relevant (peak hours, past wins)
-- If they've done a lot: acknowledge it genuinely
-- If overdue: gentle nudge, not alarm
-- If empty: invite warmly — "What would feel good to finish?" not "Add a task"
-- If overwhelmed: empathetic, one clear next step
-- If aging tasks: curious, not nagging — "still on your mind?" not "you should do this"
-- If proactive observation: weave it naturally, don't lead with it
-- Energy awareness: use the "Energy rhythm" context to pick WHICH task to suggest first — name the task, tie it to the moment:
-  * Peak time? Name a demanding task from their list: "You usually peak around now — good moment for [task name]"
-  * Pre-peak? Name an easier task: "Still warming up — start with [easy task], save [heavy task] for later"
-  * Post-peak/evening? Name a quick win: "[task name] looks quick — good wind-down task"
-  * Never say "demanding task" or "easy task" generically — pick the actual task from their list and name it
-  * Don't lecture about energy — just let it shape which task you surface
-- List size: if there are 6+ pending tasks (LIST_HEAVY), gently notice it once — "That's a full plate. Anything ready for SOON?" — then focus on one task. Don't mention list size if there are fewer than 6.
-- Never use: "Let's", "Why not", "How about", exclamation marks, or emoji
+- Find one true thing to notice. Say that. You don't need to solve anything.
+- When inviting focus, NAME the task — "the report has been sitting" → chip: "Start focus". Never vague.
+- If energy context is available, let it shape which task you surface. Name it, tie it to this moment.
+- If they've done a lot today, just acknowledge it — no action needed.
+- Sometimes the right response is an observation with no action. That's fine.
+- Conversational questions ("how are you?", "I'm tired") → respond warmly, dismiss only, no task chips.
+- Never: "Let's", "Why not", "How about", exclamation marks, emoji.
+- Don't comment on list size. Don't suggest reorganising.
 
-Action types (use exact IDs from brackets above):
-  start_focus { "id": "exact-id-from-list" }                    — begin 25-min pomodoro
-  check_task  { "id": "exact-id-from-list" }                    — mark task done
-  check_habit { "id": "exact-id-from-list" }                    — mark habit done
-  add_task    { "text": "task text" }                           — add new task
-  break_down  { "id": "exact-id-from-list" }                    — ask AI to split a big task into smaller steps
-  move_soon   { "id": "exact-id-from-list" }                    — park a task in SOON (not today, but not gone)
-  move_soon   { "ids": ["id-1", "id-2", "id-3"] }              — park MULTIPLE tasks in SOON in one tap (use when suggesting 2+ tasks to defer)
-  delete_task { "id": "exact-id-from-list" }                    — remove a task (use for letting go of stale tasks)
-  delete_task { "ids": ["id-1", "id-2"] }                       — remove MULTIPLE tasks in one tap
-  delete_done {}                                                 — clear completed
-  open_panel  { "panel": "habits" }                             — show habits panel (only valid value)
-  reflect     {}                                                 — offer a brief reflection on patterns, wins, or energy
-  dismiss     {}                                                 — close this
+Available actions (use only what genuinely fits — fewer is better):
+  start_focus  { "id": "exact-id" }      — invite 25-min focus on a specific task
+  check_habit  { "id": "exact-id" }      — remind to mark a habit done
+  add_task     { "text": "task text" }   — add something (empty state only)
+  reflect      {}                        — use rarely, only when you have a specific pattern observation worth sharing
+  dismiss      {}                        — close
 
 Rules:
-- 2-4 actions max, always end with dismiss
-- Labels: 2-4 words max. Plain words only — no colons, no task names, no task content in labels
+- 1-2 actions max, always end with dismiss
+- Labels: 2-4 plain words, no task content in labels
 - Use real IDs from the lists above — never invent IDs
-- For aging tasks: chips are pre-set by the app — focus only on writing a warm, specific message
-- For empty state, suggest an add_task action with a gentle prompt like "Add first task"
-- Conversational questions: if the user's message is a question, reflection, or chat (not asking for task help), respond warmly and return ONLY a dismiss action — no task chips. Examples: "how are you?", "what do you think about X?", "I'm feeling tired" → just your message + dismiss.
-- Message tone: start fresh each time — never "It is.", "Yeah —", "Exactly.", or any opener that implies prior conversation. You are opening, not responding.
-- Vary your responses — don't always suggest the same action type:
-  * Morning: briefing tone, overview of the day ahead
-  * Afternoon with tasks done: acknowledge progress, suggest focus on remaining
-  * Evening: wind-down tone, suggest clearing done items or reflecting
-  * Sunday evening: reflection, acknowledge the week
-  * All done: celebrate genuinely, offer to clear done items
-  * Overwhelmed (5+ tasks): empathetic, suggest one clear next step
-  * Habits due: weave habit reminders in naturally, use check_habit
-  * Streak milestones: acknowledge warmly
-- Don't always lead with "start focus on X" — sometimes the right response is a reflection, a habit nudge, or just an observation with no task suggestion`;
+- For long-standing task messages: chips are pre-set — just write the message
+- For empty state: suggest add_task with a gentle prompt
+- Conversational questions: dismiss only, no task chips
+- Don't always suggest start_focus — a warm observation + dismiss is often the right response`;
 }
 
 // ── Execute action ────────────────────────────────────────────────────────────
@@ -10647,6 +10641,16 @@ function _aiClearBadge() {
         tickFor(taskId);
       }
     });
+    // If timer completed in the background, the fill's infinite CSS animation
+    // created a GPU compositor layer while hidden. On restore that layer can
+    // render at the wrong position, masking the task list ("blank" UI). Toggling
+    // animationPlayState forces the compositor to destroy and recreate the layer
+    // at the correct position. (BUG-004 recurrence)
+    const fill = document.getElementById('focusFill');
+    if (fill && fill.classList.contains('complete')) {
+      fill.style.animationPlayState = 'paused';
+      requestAnimationFrame(() => { fill.style.animationPlayState = ''; });
+    }
   });
 
   // ── Click handler ─────────────────────────────────────────────────────────

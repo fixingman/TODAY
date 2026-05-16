@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** AI conversation threading + no-chips-on-conversational-questions (v2.17.22–23)
+- **Working on:** AI observation-first rewrite (v2.17.25)
 - **Recent:** Splash overhaul — fixed white flash (inline bg on `<html>`), enforced typewriter→explosion→tasks sequence, fixed burst coordinates (capture at startSplash, not dismiss), fixed canvas DPR coordinate system (explicit CSS px size), removed dark pause (app reveals simultaneously with splash fade), stopped explosion loop on visual completion (maxAlpha threshold + 90-frame cap)
-- **Watch for:** Splash sequence on mobile and Mac app after deploy
+- **Watch for:** BUG-011 (ghost chime), BUG-012 (overdue Trello card) — awaiting Can's verification
 
 ---
 
