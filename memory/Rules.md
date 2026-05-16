@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** AI observation-first rewrite (v2.17.25)
-- **Recent:** Splash overhaul — fixed white flash (inline bg on `<html>`), enforced typewriter→explosion→tasks sequence, fixed burst coordinates (capture at startSplash, not dismiss), fixed canvas DPR coordinate system (explicit CSS px size), removed dark pause (app reveals simultaneously with splash fade), stopped explosion loop on visual completion (maxAlpha threshold + 90-frame cap)
-- **Watch for:** BUG-011 (ghost chime), BUG-012 (overdue Trello card) — awaiting Can's verification
+- **Working on:** Bug fixes — streak, splash (v2.17.26–27)
+- **Recent:** BUG-020 streak double-count fixed (stat_streak_date guard). BUG-021 splash fixed — sctx.scale() was accumulating on resize (setTransform fix) + 6s safety timeout on splash gate. BUG-004 archived. Bug list + archive reformatted for consistency.
+- **Watch for:** BUG-011 (ghost chime), BUG-012 (overdue Trello card), BUG-020 (streak cross-device), BUG-021 (splash explosion + freeze) — all awaiting Can's verification
 
 ---
 
