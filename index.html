@@ -3034,12 +3034,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.25';
+const APP_VERSION   = '2.17.27';
 const DEV_HOURS     = '196h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.27': 'Fix: Splash animation — sctx.scale() was accumulating on resize (dpr² after first resize); switched to setTransform() which resets each call. Added 6s safety timeout on splash gate so a stalled Dropbox fetch can no longer freeze the splash permanently.',
+  '2.17.26': 'Fix: BUG-020 streak double-counts across devices — added stat_streak_date guard so checkNewDay() skips increment if another device already bumped the streak today.',
   '2.17.25': 'AI: Observation-first rewrite — system prompt rewritten from task-manager framing to companion-that-notices. Removed break_down, check_task, delete_done, open_panel from available chips. Actions limited to start_focus, check_habit, add_task, reflect (rare), dismiss. Max chips 1-2 (was 2-4). Message limit 25 words (was 30). Aging task chips: 7+ days now offers park/let-go (removed break-down); 3-6 days offers start/park (removed let-go).',
   '2.17.24': 'Fix: BUG-004 recurrence — blank UI on restore when focus timer completed in background. GPU compositor layer from timerCompletePulse animation rendered at wrong position after tab hide/show. Fix: toggle animationPlayState on restore to force layer recreation. Also: extra _clearStaleFocusing pass at 1000ms + _forceRepaint at 1500ms.',
   '2.17.23': 'AI: Conversation threading — follow-up questions in the same session carry full message history. Panel opens with AI intro as thread seed; each exchange appends to thread; thread clears on close.',
@@ -4300,10 +4302,18 @@ function applyNewDayCleanup() {
   // Yesterday = calendar day before today (midnight boundary, matches _getAppDay)
   const now = new Date();
   const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
-  const streak    = parseInt(localStorage.getItem('stat_streak') || '1');
+  const streak     = parseInt(localStorage.getItem('stat_streak') || '1');
+  const streakDate = localStorage.getItem('stat_streak_date') || '';
+  const todayISO   = _localISO();
+  // Guard: skip increment if streak was already bumped today (e.g. via sync from another device)
+  if (streakDate === todayISO) {
+    localStorage.setItem('stat_last_visit', today);
+    return;
+  }
   const newStreak = lastVisit === yesterday.toDateString() ? streak + 1 : 1;
   localStorage.setItem('stat_streak', newStreak);
-  
+  localStorage.setItem('stat_streak_date', todayISO);
+
   // Update memory with streak
   _memoryOnStreakUpdate(newStreak);
 
@@ -7542,6 +7552,7 @@ async function dropboxBackup(silent) {
     stat_focus_mins_today:  localStorage.getItem('stat_focus_mins_today')  || '0',
     stat_focus_mins_date:   _getAppDay(), // date guard — prevents yesterday's total restoring after midnight
     stat_streak:            localStorage.getItem('stat_streak')            || '1',
+    stat_streak_date:       localStorage.getItem('stat_streak_date')       || '',
     stat_tasks_done_today:  localStorage.getItem('stat_tasks_done_today')  || '0',
     // Habits — persisted cross-device
     habits:               safeJSON('today_habits',            []),
@@ -7897,10 +7908,12 @@ function mergeRemoteData(data) {
   // Flow rate is calculated live from visible tasks, not stored
   const localFocusMins  = parseInt(localStorage.getItem('stat_focus_mins_today')  || '0');
   const localStreak     = parseInt(localStorage.getItem('stat_streak')            || '1');
+  const localStreakDate  = localStorage.getItem('stat_streak_date') || '';
   const localDone       = parseInt(localStorage.getItem('stat_tasks_done_today')  || '0');
 
   const remoteFocusMins = parseInt(data.stat_focus_mins_today  || '0');
   const remoteStreak    = parseInt(data.stat_streak            || '1');
+  const remoteStreakDate = data.stat_streak_date || '';
   const remoteDoneCount = parseInt(data.stat_tasks_done_today  || '0');
 
   // Max wins — but ONLY merge focus mins if the remote data is from today.
@@ -7911,14 +7924,18 @@ function mergeRemoteData(data) {
 
   const mergedFocusMins = Math.max(localFocusMins, remoteFocusMinsToday);
   const mergedStreak    = Math.max(localStreak, remoteStreak);
+  // Adopt the remote streak date if remote has a newer/later date — this prevents
+  // Device B from incrementing a streak that Device A already bumped today (BUG-020).
+  const mergedStreakDate = remoteStreakDate > localStreakDate ? remoteStreakDate : localStreakDate;
   const mergedDoneCount = Math.max(localDone, remoteDoneCount);
-  
+
   if (mergedFocusMins !== localFocusMins) {
     localStorage.setItem('stat_focus_mins_today', String(mergedFocusMins));
     _changed = true;
   }
-  if (mergedStreak !== localStreak) {
+  if (mergedStreak !== localStreak || mergedStreakDate !== localStreakDate) {
     localStorage.setItem('stat_streak', String(mergedStreak));
+    localStorage.setItem('stat_streak_date', mergedStreakDate);
     _changed = true;
   }
   if (mergedDoneCount !== localDone) {
@@ -8060,6 +8077,7 @@ async function dropboxRestore(fromSync) {
         localStorage.setItem('stat_focus_mins_today', '0');
       }
       if (data.stat_streak)            localStorage.setItem('stat_streak',            data.stat_streak);
+      if (data.stat_streak_date)       localStorage.setItem('stat_streak_date',       data.stat_streak_date);
       if (data.stat_tasks_done_today)  localStorage.setItem('stat_tasks_done_today',  data.stat_tasks_done_today);
       // Habits
       if (Array.isArray(data.habits)) {
@@ -8423,6 +8441,8 @@ function _tryDismissSplash() {
 }
 window._onSplashAnimDone = function() { _splashAnimDone = true; _tryDismissSplash(); };
 window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplash(); };
+// Safety: if load chain stalls (network hang, token refresh, etc.) dismiss splash anyway
+setTimeout(() => { if (!_appLoadDone) window._onAppLoadDone && window._onAppLoadDone(); }, 6000);
 
 // ─── Splash screen ────────────────────────────────────────────────────────────
 (function() {
@@ -8476,7 +8496,7 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
     // Explicitly pin CSS display size to CSS px — guarantees drawing coords match viewport coords
     splashCanvas.style.width  = w + 'px';
     splashCanvas.style.height = h + 'px';
-    sctx.scale(dpr, dpr); // keep drawing coords in CSS px
+    sctx.setTransform(dpr, 0, 0, dpr, 0, 0); // reset+set — scale() accumulates on resize
   }
   sResize(); addEventListener('resize', sResize);
 
