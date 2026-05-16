@@ -102,19 +102,28 @@ Based on peak hour from memory:
 
 ## Actions
 
-| Action | Parameters | Effect |
-|---|---|---|
-| `start_focus` | `{id}` | Begin pomodoro |
-| `check_task` | `{id}` | Mark done |
-| `check_habit` | `{id}` | Mark habit done |
-| `add_task` | `{text}` | Add new task |
-| `break_down` | `{id}` | Ask AI to split big task into 2-4 subtasks |
-| `move_soon` | `{id}` | Park task in SOON zone |
-| `delete_task` | `{id}` | Remove task |
-| `delete_done` | `{}` | Clear completed |
-| `open_panel` | `{panel: 'habits'}` | Open habits |
-| `reflect` | `{}` | Ask AI for warm day reflection |
-| `dismiss` | `{}` | Close AI panel |
+Active chips (v2.17.25 — observation-first redesign):
+
+| Action | Parameters | Effect | When |
+|---|---|---|---|
+| `start_focus` | `{id}` | Begin pomodoro | When one task clearly fits the moment |
+| `check_habit` | `{id}` | Mark habit done | When habits are pending |
+| `add_task` | `{text}` | Add new task | Empty state only |
+| `reflect` | `{}` | Ask AI for reflection | Rarely — only with specific pattern insight |
+| `dismiss` | `{}` | Close AI panel | Always last |
+
+Available in handlers but not offered by AI (kept for edge cases):
+
+| Action | Notes |
+|---|---|
+| `move_soon` | Deterministic aging chips only (7+ days old) |
+| `delete_task` | Deterministic aging chips only (7+ days old) |
+| `check_task` | Handler exists, not in AI chip set |
+| `break_down` | Handler exists, removed from AI — was never used |
+| `delete_done` | Handler exists, not in AI chip set |
+| `open_panel` | Handler exists, error state only |
+
+**Chip limits:** 1–2 max per response (was 2–4). Always ends with dismiss.
 
 ---
 
