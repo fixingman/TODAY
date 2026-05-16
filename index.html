@@ -3028,12 +3028,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.31';
+const APP_VERSION   = '2.17.32';
 const DEV_HOURS     = '196h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.32': 'Fix: Undo delete restores task at bottom of list (was top).',
   '2.17.31': 'Fix: Changelog bullet dots removed — entries now display as clean lines matching old-entry style.',
   '2.17.30': 'Style: AI panel input — font-size bumped to --text-md (14px, matches task input). Placeholder opacity:0.5 removed (was double-muted).',
   '2.17.29': 'Fix: BUG-019/021 — restore v2.1.0 splash dismiss structure. Strip DPR from canvas (no transform, CSS px direct like celebCanvas). Remove _sBurstComplete mechanism: explosion now plays over fading splash (burst → 180ms → fade → canvas removed at 630ms). Eliminates 2s premature-cancel timeout and 1.4s extra stare time. Total splash ~2.2s restored.',
@@ -6626,7 +6627,7 @@ function _undoDelete() {
   localStorage.setItem('today_deleted_ids', JSON.stringify(deletedIds));
   
   // Re-add task
-  manualTasks.unshift(task); // Add at top
+  manualTasks.push(task); // Add at bottom
   if (task.wasDone) doneIds.add(task.id);
   
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));

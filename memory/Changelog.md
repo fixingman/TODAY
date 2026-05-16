@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.32** | **Fix: Undo delete placement** — restored task now appended at bottom of list instead of top. |
 | **2.17.31** | **Fix: Changelog bullet dots** — removed `·` decorators from expanded current-version entries. Lines now display flush and consistent with old-entry style. |
 | **2.17.30** | **Style: AI panel input** — font-size `--text-sm` → `--text-md` (11px → 14px, matches task input). Placeholder `opacity:0.5` removed. |
 | **2.17.29** | **Fix: BUG-019/021 splash explosion** — Strip DPR from canvas (CSS px direct, matches `celebCanvas`). Restore v2.1.0 dismiss structure: burst → 180ms → fade → canvas removed at 630ms. Explosion plays over fading splash. Removes `_sBurstComplete` + 2s premature-cancel timeout. Total splash ~2.2s restored. |
