@@ -24,9 +24,9 @@
 | 016 | AI chip labels generic | ✅ v2.15.6 |
 | 017 | Focus minutes only on full completion | ✅ v2.16.0 |
 | 018 | Phantom SOON tasks reappear | ✅ v2.17.9 |
-| 019 | Star explosion missing on mobile | ✅ v2.17.21 + v2.17.27 |
+| 019 | Star explosion missing on mobile | ⏳ v2.17.29 |
 | 020 | Streak double-counts across devices | ⏳ v2.17.26 |
-| 021 | Splash explosion invisible / freezes after typewriter | ⏳ v2.17.27 |
+| 021 | Splash explosion invisible / freezes after typewriter | ⏳ v2.17.29 |
 
 
 ## BUG-021: Splash explosion invisible / freezes after typewriter

@@ -156,7 +156,16 @@
 | safeJSON + transition:all perf fixes | 2.17.13 | May 2026 |
 | Splash rAF typewriter + DPR canvas | 2.17.19 | May 2026 |
 | BUG-018 phantom SOON verified | 2.17.9 | May 2026 |
+| BUG-019/021 splash explosion fix (DPR strip + v2.1.0 dismiss restore) | 2.17.29 | May 2026 |
+| AI observation-first rewrite, reduced chips | 2.17.25 | May 2026 |
+| BUG-004 blank-on-wake fix | 2.17.24 | May 2026 |
+| BUG-020 streak cross-device double-count fix | 2.17.26 | May 2026 |
+| AI panel input size fix (--text-md, placeholder opacity) | 2.17.30 | May 2026 |
+| Changelog expanded entry — bullet dots removed | 2.17.31 | May 2026 |
+| Undo delete — restores to original list position | 2.17.33 | May 2026 |
+| Micro interactions — checkmark stroke-draw, streak milestone pulse, habit run cascade | 2.17.34 | May 2026 |
+| PiP froze at 00:01 — completion detection + Again CTA | 2.17.35 | May 2026 |
 
 ---
 
-*Last updated: Session 38 (v2.17.20)*
+*Last updated: Session 39 (v2.17.35)*

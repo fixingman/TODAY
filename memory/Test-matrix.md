@@ -151,6 +151,7 @@ If testing **zone** changes:
 | 7.4 | PiP sync | Both displays match |
 | 7.5 | Session complete | Chime + count increment |
 | 7.6 | PWA cold open | Splash appears immediately — no white flash before it |
+| 7.7 | PiP: timer completes while minimized | PiP shows 00:00, bar full, button switches Breathe→Again |
 
 ### 8. Network Edge Cases (7 tests)
 
@@ -185,10 +186,10 @@ If testing **zone** changes:
 | Done State | 6 | 3 |
 | Stats/Memory | 10 | 4 |
 | Trello | 6 | 2 |
-| Focus | 6 | 2 |
+| Focus | 7 | 2 |
 | Network | 7 | 4 |
 | Destructive | 4 | 2 |
-| **Total** | **77** | **33** |
+| **Total** | **78** | **33** |
 
 ---
 

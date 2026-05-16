@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Bug fixes — streak, splash (v2.17.26–27)
-- **Recent:** BUG-020 streak double-count fixed (stat_streak_date guard). BUG-021 splash fixed — sctx.scale() was accumulating on resize (setTransform fix) + 6s safety timeout on splash gate. BUG-004 archived. Bug list + archive reformatted for consistency.
-- **Watch for:** BUG-011 (ghost chime), BUG-012 (overdue Trello card), BUG-020 (streak cross-device), BUG-021 (splash explosion + freeze) — all awaiting Can's verification
+- **Working on:** Session closed at v2.17.35
+- **Recent:** PiP frozen at 00:01 fix, micro interactions (checkmark draw, streak milestone, habit cascade), undo restore to original position, changelog display polish
+- **Watch for:** BUG-011 (ghost chime), BUG-012 (overdue Trello card), BUG-019/020/021 (splash + streak cross-device) — all awaiting Can's verification
 
 ---
 
