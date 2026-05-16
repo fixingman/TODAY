@@ -4,7 +4,7 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** BUG-019/021 splash explosion (v2.17.29)
+- **Working on:** Changelog display polish (v2.17.31)
 - **Recent:** Restored v2.1.0 splash dismiss structure — stripped DPR from canvas, removed _sBurstComplete mechanism, explosion now plays over fading splash (not after). BUG-020 streak fix awaiting verification.
 - **Watch for:** BUG-011 (ghost chime), BUG-012 (overdue Trello card), BUG-020 (streak cross-device), BUG-021 (splash explosion + freeze) — all awaiting Can's verification
 

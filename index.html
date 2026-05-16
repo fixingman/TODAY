@@ -2234,13 +2234,7 @@
     flex-shrink: 0;
   }
   .changelog-line {
-    display: flex;
-    gap: var(--space-2);
     margin-bottom: 3px;
-  }
-  .changelog-dot {
-    color: var(--accent);
-    flex-shrink: 0;
   }
   .changelog-text {
     font-size: var(--text-sm);
@@ -3034,12 +3028,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.30';
+const APP_VERSION   = '2.17.31';
 const DEV_HOURS     = '196h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.31': 'Fix: Changelog bullet dots removed — entries now display as clean lines matching old-entry style.',
   '2.17.30': 'Style: AI panel input — font-size bumped to --text-md (14px, matches task input). Placeholder opacity:0.5 removed (was double-muted).',
   '2.17.29': 'Fix: BUG-019/021 — restore v2.1.0 splash dismiss structure. Strip DPR from canvas (no transform, CSS px direct like celebCanvas). Remove _sBurstComplete mechanism: explosion now plays over fading splash (burst → 180ms → fade → canvas removed at 630ms). Eliminates 2s premature-cancel timeout and 1.4s extra stare time. Total splash ~2.2s restored.',
   '2.17.28': 'Fix: Splash safety timeout now covers both gate flags — _splashAnimDone gets the same 6s fallback as _appLoadDone, so a stalled typewriter rAF (tab hidden on iOS PWA launch) can no longer freeze the splash from the animation side.',
@@ -4503,10 +4498,7 @@ function init() {
     clPanel.innerHTML = shown.map((v, i) => {
       if (i === 0) {
         const bullets = CHANGELOG[v].split(' | ').map(b =>
-          `<div class="changelog-line">
-            <span class="changelog-dot">·</span>
-            <span>${b}</span>
-          </div>`
+          `<div class="changelog-line"><span>${b}</span></div>`
         ).join('');
         return `<div class="changelog-entry">
           <div class="changelog-entry-header">
