@@ -3028,12 +3028,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.32';
+const APP_VERSION   = '2.17.33';
 const DEV_HOURS     = '196h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.33': 'Fix: Undo delete restores task to its original position in the list.',
   '2.17.32': 'Fix: Undo delete restores task at bottom of list (was top).',
   '2.17.31': 'Fix: Changelog bullet dots removed — entries now display as clean lines matching old-entry style.',
   '2.17.30': 'Style: AI panel input — font-size bumped to --text-md (14px, matches task input). Placeholder opacity:0.5 removed (was double-muted).',
@@ -6627,7 +6628,8 @@ function _undoDelete() {
   localStorage.setItem('today_deleted_ids', JSON.stringify(deletedIds));
   
   // Re-add task
-  manualTasks.push(task); // Add at bottom
+  const pos = (task._idx != null && task._idx <= manualTasks.length) ? task._idx : manualTasks.length;
+  manualTasks.splice(pos, 0, task);
   if (task.wasDone) doneIds.add(task.id);
   
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));
@@ -6650,9 +6652,10 @@ function _undoDelete() {
 
 function deleteManual(taskId) {
   // Store task for undo before removing
-  const task = manualTasks.find(t => t.id === taskId);
+  const idx  = manualTasks.findIndex(t => t.id === taskId);
+  const task = idx !== -1 ? manualTasks[idx] : null;
   if (task) {
-    _deletedStack.push({ ...task, wasDone: doneIds.has(taskId) });
+    _deletedStack.push({ ...task, wasDone: doneIds.has(taskId), _idx: idx });
     // Keep stack reasonable size (max 10)
     if (_deletedStack.length > 10) _deletedStack.shift();
   }
