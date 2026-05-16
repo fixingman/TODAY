@@ -9,7 +9,7 @@
 | 001 | Triage dismissed cross-device | ✅ v2.12.59–60 |
 | 002 | Dropbox sync fails silently | ✅ v2.12.58–61 |
 | 003 | Red dot on network loss | ✅ v2.12.58–2.14.1 |
-| 004 | App blank after sleep/wake | ✅ v2.17.1 |
+| 004 | App blank after sleep/wake | ⏳ v2.17.24 — recurred, awaiting verification |
 | 005 | Trello 🍅 badge vanishing | ✅ v2.12.56–66 |
 | 006 | _onWake() consolidation | ✅ v2.17.0 |
 | 007 | Triage bar flash after triage | ✅ v2.13.2–2.16.6 |
@@ -24,7 +24,24 @@
 | 016 | AI chip labels generic | ✅ v2.15.6 |
 | 017 | Focus minutes only on full completion | ✅ v2.16.0 |
 | 018 | Phantom SOON tasks reappear | ✅ v2.17.9 |
-| 019 | Star explosion missing on mobile | ✅ v2.17.21 |
+| 019 | Star explosion missing on mobile | ✅ v2.17.21 — verified |
+
+---
+
+## BUG-004 (recurrence): App blank on restore after background focus completion
+
+**Status:** Fixed v2.17.24 — awaiting verification
+
+**Scenario:** Desktop PWA, focus mode active, user switches to another app. Focus timer completes in background via `tickFor` setTimeout. On return: logo visible but task list blank. Clicking restores.
+
+**Root cause:** `completeFor()` runs while tab is hidden → adds `.complete` class to `#focusFill` → starts `timerCompletePulse` animation (infinite, `will-change: transform`). GPU compositor creates a promoted layer for this animation while page is hidden. On restore, WebKit/macOS keeps this stale compositor layer, rendering it at the wrong Z-position and masking the task list. `display:none → display:''` on `#main-app` (existing repaint) doesn't always destroy `will-change` promoted layers in all GPU drivers.
+
+**Fix (v2.17.24):**
+1. In focus module `visibilitychange` handler: after returning from background, if `#focusFill` has `.complete`, toggle `animationPlayState` (`paused` → rAF → `''`). This forces the GPU to destroy and recreate the compositor layer at the correct position.
+2. `_clearStaleFocusing()` extended to also run at 1000ms (was 0ms + 350ms).
+3. `_forceRepaint()` extra pass at 1500ms.
+
+**Verify:** Focus a task → switch to another app → wait for 25min timer to complete → return to PWA → task list should be visible immediately (no blank state).
 
 ---
 
@@ -65,21 +82,3 @@
 
 **Verified fixed:** ☐
 
----
-
----
-
-## BUG-019: Star explosion missing on mobile at splash end
-
-**Status:** Fixed v2.17.21 — awaiting production verification
-
-**Root causes found and fixed:**
-1. **Canvas coordinate system** — `position:fixed;inset:0` on a canvas with `width=innerWidth*dpr` attribute caused some browsers to use the attribute as intrinsic CSS size, making the display box `innerWidth*dpr` px wide. Drawing coords landed at `x*dpr` on screen — burst appeared off-screen on mobile (bottom-right), misaligned on Mac Retina. **Fix:** explicit `style.width/height` in CSS px in `sResize()`.
-2. **Burst origin unreliable** — `getBoundingClientRect()` on the star at dismiss time (parent opacity transition just triggered) returned stale/wrong layout values. **Fix:** capture star center 600ms after `startSplash()` into `_burstX/_burstY`.
-3. **Animation sequence wrong** — app was revealed at T+630ms while explosion was still playing. **Fix:** sequence now enforced: typewriter → explosion (waits for `sLoop` to complete) → app cross-fades in.
-4. **Dark pause after explosion** — app reveal was delayed `FADE_OUT+30ms` after explosion end. **Fix:** app cross-fade starts simultaneously with splash fade.
-5. **Loop ran too long** — `SPLASH_MAX_FRAMES=240` (4s/8s at 30fps) kept invisible sub-particles alive. **Fix:** stop loop when `maxAlpha < 0.1` (visually done); cap reduced to 90 frames.
-
-**Verify:** Open TODAY on mobile PWA → splash shows → typewriter completes → star explodes visibly → tasks slide in immediately after explosion fades.
-
-**Verified fixed:** ☐
