@@ -1290,6 +1290,37 @@
   .task-check svg { display: none; }
   .task.done .task-check svg { display: block; }
 
+  /* Checkbox stroke-draw: path starts hidden, animates in on .just-checked */
+  .task-check svg path,
+  .habit-check svg path {
+    stroke-dasharray: 13;
+    stroke-dashoffset: 0;
+  }
+  @keyframes checkDraw {
+    from { stroke-dashoffset: 13; }
+    to   { stroke-dashoffset: 0; }
+  }
+  .task-check.just-checked svg path,
+  .habit-check.just-checked svg path {
+    animation: checkDraw 150ms var(--ease-out) forwards;
+  }
+
+  /* Streak milestone: single breath on the stat value */
+  @keyframes milestonePulse {
+    0%   { opacity: 1; }
+    30%  { opacity: 0.35; }
+    100% { opacity: 1; }
+  }
+  .milestone-pulse { animation: milestonePulse 600ms var(--ease-out) forwards; }
+
+  /* Habit dot consecutive-run ripple */
+  @keyframes dotRipple {
+    0%   { box-shadow: 0 0 0 0 rgba(200, 240, 96, 0.55); }
+    70%  { box-shadow: 0 0 0 5px rgba(200, 240, 96, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(200, 240, 96, 0); }
+  }
+  .dot-ripple { animation: dotRipple 320ms var(--ease-out) forwards; }
+
   /* Task aging — visual opacity steps as tasks linger.
      Uses data-age-bucket attribute set in taskHTML (young|mid|old).
      Day 0-2: full opacity (no attribute)
@@ -3028,12 +3059,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.33';
+const APP_VERSION   = '2.17.34';
 const DEV_HOURS     = '196h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.34': 'Delight: checkmark stroke-draw (SVG dashoffset) | streak milestone pulse at 7/14/30/60/100d | habit consecutive-run dot ripple cascade.',
   '2.17.33': 'Fix: Undo delete restores task to its original position in the list.',
   '2.17.32': 'Fix: Undo delete restores task at bottom of list (was top).',
   '2.17.31': 'Fix: Changelog bullet dots removed — entries now display as clean lines matching old-entry style.',
@@ -4313,6 +4345,9 @@ function applyNewDayCleanup() {
   const newStreak = lastVisit === yesterday.toDateString() ? streak + 1 : 1;
   localStorage.setItem('stat_streak', newStreak);
   localStorage.setItem('stat_streak_date', todayISO);
+  if ([7, 14, 30, 60, 100].includes(newStreak)) {
+    localStorage.setItem('_streak_milestone_pending', '1');
+  }
 
   // Update memory with streak
   _memoryOnStreakUpdate(newStreak);
@@ -4597,14 +4632,25 @@ function renderInfoStats() {
   const stats = [
     { val: _formatFocusTime(focusMinsToday), label: 'Focus' },
     { val: flowRate + '%', label: 'Flow' },
-    { val: streak + 'd', label: 'Streak' },
+    { val: streak + 'd', label: 'Streak', id: 'statStreakVal' },
   ];
 
   document.getElementById('infoStats').innerHTML = stats.map(s => `
     <div class="info-stat">
-      <div class="info-stat-val">${s.val}</div>
+      <div class="info-stat-val"${s.id ? ` id="${s.id}"` : ''}>${s.val}</div>
       <div class="info-stat-label">${s.label}</div>
     </div>`).join('');
+
+  if (localStorage.getItem('_streak_milestone_pending') === '1') {
+    localStorage.removeItem('_streak_milestone_pending');
+    requestAnimationFrame(() => {
+      const el = document.getElementById('statStreakVal');
+      if (el) {
+        el.classList.add('milestone-pulse');
+        el.addEventListener('animationend', () => el.classList.remove('milestone-pulse'), { once: true });
+      }
+    });
+  }
 }
 
 // ─── Connections Panel Rendering ──────────────────────────────────────────────
@@ -5954,6 +6000,30 @@ function toggleHabitDone(id) {
         }
       }
     }
+
+    // Stroke-draw animation on the habit checkbox
+    if (check) {
+      check.classList.add('just-checked');
+      check.addEventListener('animationend', () => check.classList.remove('just-checked'), { once: true });
+    }
+
+    // Consecutive-run dot cascade — ripple left-to-right across the run
+    const completions = new Set(habitCompletions[id]);
+    let runLen = 0;
+    const runCursor = new Date();
+    while (completions.has(_localISO(runCursor))) {
+      runLen++;
+      runCursor.setDate(runCursor.getDate() - 1);
+    }
+    if (runLen >= 2) {
+      const filledDots = Array.from(el.querySelectorAll('.week-dot.filled'));
+      filledDots.slice(-runLen).forEach((dot, i) => {
+        setTimeout(() => {
+          dot.classList.add('dot-ripple');
+          dot.addEventListener('animationend', () => dot.classList.remove('dot-ripple'), { once: true });
+        }, i * 40);
+      });
+    }
   } else {
     // Uncheck: brief neutral pulse on the checkbox
     if (check) {
@@ -6036,6 +6106,14 @@ function toggleDone(taskId) {
       if (check) {
         const r = check.getBoundingClientRect();
         fireEmberDrift(r.left + r.width/2, r.top + r.height/2);
+      }
+    }
+    // Stroke-draw animation on check
+    if (isNowDone) {
+      const chk = el.querySelector('.task-check');
+      if (chk) {
+        chk.classList.add('just-checked');
+        chk.addEventListener('animationend', () => chk.classList.remove('just-checked'), { once: true });
       }
     }
     // Uncheck: brief neutral pulse on the checkbox

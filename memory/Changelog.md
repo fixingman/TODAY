@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.34** | **Delight: Micro interactions** — (1) Checkmark stroke-draw: SVG `stroke-dashoffset` 13→0 on check (150ms, `.just-checked` class). (2) Streak milestone pulse at 7/14/30/60/100d: stat value dims then returns (600ms). (3) Habit consecutive-run dot cascade: box-shadow ripple left→right across run, 40ms stagger, 320ms each. |
 | **2.17.33** | **Fix: Undo delete position** — task restored to its exact original slot. `deleteManual` captures array index; `_undoDelete` splices back at that index (falls back to end if out of bounds). |
 | **2.17.32** | **Fix: Undo delete placement** — restored task now appended at bottom of list instead of top. |
 | **2.17.31** | **Fix: Changelog bullet dots** — removed `·` decorators from expanded current-version entries. Lines now display flush and consistent with old-entry style. |
