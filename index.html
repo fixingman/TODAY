@@ -3059,12 +3059,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.34';
+const APP_VERSION   = '2.17.35';
 const DEV_HOURS     = '196h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.35': 'Fix: PiP froze at 00:01 after timer complete. Detect completion in pipTick paused-branch (rem=0 + !paused), show 00:00 + switch Breathe→Again. Again restarts session. _pipSync also handles completion on window restore.',
   '2.17.34': 'Delight: checkmark stroke-draw (SVG dashoffset) | streak milestone pulse at 7/14/30/60/100d | habit consecutive-run dot ripple cascade.',
   '2.17.33': 'Fix: Undo delete restores task to its original position in the list.',
   '2.17.32': 'Fix: Undo delete restores task at bottom of list (was top).',
@@ -10820,7 +10821,8 @@ function _aiClearBadge() {
     let pipTimeEl = null;
     let openPipTimeout = null;
     let _pipRestoredFromButton = false; // PiP "open app" was tapped — don't close PiP on restore
-    let _hadPiP = false; // PiP was open before restore — reopen immediately on next restore
+    let _hadPiP  = false; // PiP was open before restore — reopen immediately on next restore
+    let _pipDone = false; // PiP is in complete state — pause button shows "Again"
 
     // Auto-open PiP when leaving tab during focus mode
     // Note: Document PIP API requires a user gesture. Opening PIP on visibilitychange
@@ -10895,6 +10897,7 @@ function _aiClearBadge() {
           disallowReturnToOpener: true
         });
 
+        _pipDone = false; // Fresh PiP — reset complete state
         const taskName = getTaskName(uiTaskId);
         const st = getState(uiTaskId);
         const baseUrl = window.location.origin;
@@ -11043,9 +11046,22 @@ function _aiClearBadge() {
 
         const pauseBtn = pipWindow.document.getElementById('pipPause');
         pauseBtn.addEventListener('click', function() {
-          toggle();
-          const newSt = getState(uiTaskId);
-          this.textContent = newSt.paused ? 'Resume' : 'Breathe';
+          if (_pipDone) {
+            // "Again" — restart the session
+            _pipDone = false;
+            const st = getState(uiTaskId);
+            st.rem       = TOTAL;
+            st.running   = true;
+            st.paused    = false;
+            st.wallStart = Date.now();
+            this.textContent = 'Breathe';
+            playStartSound();
+            startPiPClock();
+          } else {
+            toggle();
+            const newSt = getState(uiTaskId);
+            this.textContent = newSt.paused ? 'Resume' : 'Breathe';
+          }
         });
 
         pipWindow.document.getElementById('pipClose').addEventListener('click', function() {
@@ -11092,10 +11108,14 @@ function _aiClearBadge() {
     window._pipSync = function(rem, total) {
       if (!pipWindow || pipWindow.closed) return;
       if (!pipFillEl || !pipTimeEl) return;
-      // Direct update — called on pause/resume to sync state change immediately
       const progress = (1 - rem / total) * 100;
       pipFillEl.style.width = progress + '%';
       pipTimeEl.textContent = fmt(rem);
+      if (rem === 0) {
+        _pipDone = true;
+        const pauseBtn = pipWindow.document.getElementById('pipPause');
+        if (pauseBtn) pauseBtn.textContent = 'Again';
+      }
     };
 
     // PiP drives its own countdown via RAF with a fixed reference point.
@@ -11127,7 +11147,16 @@ function _aiClearBadge() {
         const nowPaused = cur.paused || !cur.running;
 
         if (nowPaused) {
-          // Paused — show frozen time, keep polling slowly
+          if (cur.rem === 0 && !cur.paused) {
+            // Timer completed (not just paused) — update PiP to done state and stop RAF
+            pipTimeEl.textContent = fmt(0);
+            pipFillEl.style.width = '100%';
+            _pipDone = true;
+            const pauseBtn = pipWindow.document.getElementById('pipPause');
+            if (pauseBtn) pauseBtn.textContent = 'Again';
+            return;
+          }
+          // Regular pause — show frozen time, keep polling slowly
           pipTimeEl.textContent = fmt(lastRem);
           pipFillEl.style.width = ((1 - lastRem / TOTAL) * 100) + '%';
           wasPaused = true;

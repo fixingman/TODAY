@@ -4,7 +4,7 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Changelog display polish (v2.17.31)
+- **Working on:** PiP freeze at 00:01 on timer complete (v2.17.35)
 - **Recent:** Restored v2.1.0 splash dismiss structure — stripped DPR from canvas, removed _sBurstComplete mechanism, explosion now plays over fading splash (not after). BUG-020 streak fix awaiting verification.
 - **Watch for:** BUG-011 (ghost chime), BUG-012 (overdue Trello card), BUG-020 (streak cross-device), BUG-021 (splash explosion + freeze) — all awaiting Can's verification
 
