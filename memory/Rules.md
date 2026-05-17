@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Session closed at v2.17.35
-- **Recent:** PiP frozen at 00:01 fix, micro interactions (checkmark draw, streak milestone, habit cascade), undo restore to original position, changelog display polish
-- **Watch for:** BUG-011 (ghost chime), BUG-012 (overdue Trello card), BUG-019/020/021 (splash + streak cross-device) — all awaiting Can's verification
+- **Working on:** Session closed at v2.17.36
+- **Recent:** BUG-022 fix (fill bar pulsating during countdown), PiP frozen at 00:01 fix, micro interactions (checkmark draw, streak milestone, habit cascade)
+- **Watch for:** BUG-011 (ghost chime), BUG-012 (overdue Trello card), BUG-019/021 (splash), BUG-022 (fill pulsate) — all awaiting Can's verification
 
 ---
 

@@ -3059,12 +3059,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.35';
+const APP_VERSION   = '2.17.36';
 const DEV_HOURS     = '196h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.36': 'Fix: BUG-022 focus fill bar pulsated during active countdown — .complete class left stranded by PiP Again handler and task-switch-after-complete path. Cleared in openUI and PiP Again handler.',
   '2.17.35': 'Fix: PiP froze at 00:01 after timer complete. Detect completion in pipTick paused-branch (rem=0 + !paused), show 00:00 + switch Breathe→Again. Again restarts session. _pipSync also handles completion on window restore.',
   '2.17.34': 'Delight: checkmark stroke-draw (SVG dashoffset) | streak milestone pulse at 7/14/30/60/100d | habit consecutive-run dot ripple cascade.',
   '2.17.33': 'Fix: Undo delete restores task to its original position in the list.',
@@ -10399,6 +10400,11 @@ function _aiClearBadge() {
     uiTaskEl = taskEl;
     uiTaskId = taskId;
 
+    // Strip complete state — timerEl is reused; prior .complete bleeds into new session (BUG-022)
+    fillEl.classList.remove('complete');
+    timeEl.classList.remove('complete');
+    timerEl.classList.remove('complete');
+
     appEl.classList.add('focusing');
     taskEl.classList.add('focused');
     taskEl.after(timerEl);
@@ -11055,6 +11061,12 @@ function _aiClearBadge() {
             st.paused    = false;
             st.wallStart = Date.now();
             this.textContent = 'Breathe';
+            // Clear complete state from main UI — otherwise fill pulsates on restore (BUG-022)
+            fillEl.classList.remove('complete');
+            timeEl.classList.remove('complete');
+            timerEl.classList.remove('complete');
+            if (uiTaskEl) setProgress(0, uiTaskEl);
+            timeEl.textContent = fmt(TOTAL);
             playStartSound();
             startPiPClock();
           } else {

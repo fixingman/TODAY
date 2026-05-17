@@ -2,6 +2,7 @@
 
 > Verified fixed bugs. Full root cause + fix detail preserved here.
 > Active / awaiting bugs → `Bugs.md`
+> **Ordering rule:** bugs must be listed in ascending numeric order (BUG-001 first, highest last).
 
 ---
 
@@ -158,3 +159,11 @@
 4. **Dark pause after explosion** — app reveal delayed `FADE_OUT+30ms` after explosion end. **Fix:** app cross-fade starts simultaneously with splash fade-out.
 5. **Loop ran too long** — `SPLASH_MAX_FRAMES=240` kept invisible sub-particles alive. **Fix:** stop loop when `maxAlpha < 0.1`; cap reduced to 90 frames.
 **Recurrence (v2.17.27 — BUG-021):** Bug persisted on retina devices after v2.17.21. Real root cause: `sctx.scale(dpr, dpr)` inside `sResize()` accumulated on every resize event — after first resize context ran at `dpr²` scale, compressing particle coordinates into the top-left corner (invisible on 2× and 3× screens). Mobile PWA launch always triggers a resize. **Fix:** replaced `scale()` with `setTransform()` which resets the transform each call.
+
+---
+
+## BUG-020: Streak double-counts across devices
+**Status:** ✅ Verified fixed (v2.17.26)
+**Symptom:** Streak was 108 on Friday. Opened app on Device A Saturday → 109. Opened on Device B Saturday → jumped to 110.
+**Root cause:** `stat_streak` was merged with `Math.max` but had no date guard (unlike `stat_focus_mins_today` which has `stat_focus_mins_date`). If Device B received streak=109 via background sync from Device A's Saturday backup, then on first open `checkNewDay()` saw `lastVisit = Friday = yesterday` → incremented 109→110. Same calendar day counted twice across devices.
+**Fix:** Added `stat_streak_date` (YYYY-MM-DD local) — set whenever streak is incremented in `checkNewDay()`. `checkNewDay()` skips the increment if `stat_streak_date === todayISO`. Merge adopts the lexicographically newer `stat_streak_date` from remote alongside `Math.max` streak. Full restore and backup payload also include `stat_streak_date`.

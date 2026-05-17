@@ -25,9 +25,35 @@
 | 017 | Focus minutes only on full completion | ✅ v2.16.0 |
 | 018 | Phantom SOON tasks reappear | ✅ v2.17.9 |
 | 019 | Star explosion missing on mobile | ⏳ v2.17.29 |
-| 020 | Streak double-counts across devices | ⏳ v2.17.26 |
+| 020 | Streak double-counts across devices | ✅ v2.17.26 |
 | 021 | Splash explosion invisible / freezes after typewriter | ⏳ v2.17.29 |
+| 022 | Focus fill bar pulsates during active countdown | ⏳ v2.17.36 |
 
+
+## BUG-022: Focus fill bar pulsates during active countdown
+
+**Status:** Fixed v2.17.36 — awaiting verification
+
+**Symptoms:**
+- During an active focus session, the fill bar simultaneously fills left-to-right AND pulsates in opacity — should only pulsate when complete ("again?" state)
+
+**Root cause:** `timerCompletePulse` animation is applied via `.complete` class on `fillEl`. Two paths leave `.complete` stranded after a session ends:
+1. **PiP "Again" (v2.17.35):** Clicking "Again" in PiP resets state and calls `startPiPClock()` but doesn't remove `.complete` from main UI. On restore, `visibilitychange` restarts `tickFor` → fill updates while `.complete` still active → pulsating during fill.
+2. **Task-switch after complete:** `closeUI(false)` (Esc or opening different task) skips the `remove('complete')` block (inside `if (doResetState)` only). Next `openUI()` call hits `syncDisplay()` which doesn't clean `.complete` → new task's fill pulsates.
+
+**Fix (v2.17.36):**
+1. PiP "Again" handler: after resetting state, remove `.complete` from `fillEl`, `timeEl`, `timerEl` and reset fill display (`setProgress(0)`, `timeEl.textContent = fmt(TOTAL)`).
+2. `openUI()`: strip `.complete` from all three elements before `syncDisplay()` — covers all remaining paths.
+
+**Verify:**
+- Start focus session → bar fills with NO pulsating
+- Complete session → "again?" + pulsating ✅ correct
+- PiP: complete → "Again" in PiP → bring app to front → bar fills from 0, NO pulsating
+- Complete → Esc → open different task → new task fills, NO pulsating
+
+**Verified fixed:** ☐
+
+---
 
 ## BUG-021: Splash explosion invisible / freezes after typewriter
 
@@ -50,27 +76,6 @@
 - Open app fresh (splash shows) on mobile PWA → star should explode visibly
 - Open app fresh on desktop PWA → star should explode visibly
 - On slow/flaky network, splash should still dismiss within ~6s even if Dropbox stalls
-
-**Verified fixed:** ☐
-
----
-
-## BUG-020: Streak double-counts across devices
-
-**Status:** Fixed v2.17.26 — awaiting verification
-
-**Symptom:** Streak was 108 on Friday. Opened app on Device A Saturday → 109. Opened on Device B Saturday → jumped to 110.
-
-**Root cause:** `stat_streak` was merged with `Math.max` but had no date guard (unlike `stat_focus_mins_today` which has `stat_focus_mins_date`). If Device B received streak=109 via background sync from Device A's Saturday backup, then on first open `checkNewDay()` saw `lastVisit = Friday = yesterday` → incremented 109→110. Same calendar day counted twice across devices.
-
-**Fix (v2.17.26):**
-1. Added `stat_streak_date` (YYYY-MM-DD local) — set whenever streak is incremented in `checkNewDay()`.
-2. `checkNewDay()` now skips the increment if `stat_streak_date === todayISO` — prevents double-count when another device already bumped the streak today.
-3. Merge adopts the lexicographically newer `stat_streak_date` from remote alongside `Math.max` streak — so Device B receives today's date and won't re-increment.
-4. Full restore (Connections panel) also restores `stat_streak_date`.
-5. Backup payload includes `stat_streak_date`.
-
-**Verify:** Open app on Device A → note streak. Open app on Device B same day → streak should match Device A, not be +1 higher.
 
 **Verified fixed:** ☐
 
