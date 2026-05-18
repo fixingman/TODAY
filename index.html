@@ -1721,6 +1721,22 @@
     transition-delay: 120ms;
   }
 
+  /* AI offline state — no connectivity */
+  .add-ai-btn.offline {
+    background: var(--surface2);
+    color: var(--muted);
+    box-shadow: inset 0 0 0 1px var(--border);
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  .add-ai-btn.offline::before,
+  .add-ai-btn.offline::after {
+    display: none;
+  }
+  .add-ai-btn.offline .ai-badge {
+    display: none;
+  }
+
   /* AI active state — panel open */
   .add-ai-btn.active {
     background: var(--surface2);
@@ -2041,6 +2057,19 @@
     margin-top: var(--space-5);
   }
   
+  /* ── Offline banner — connections panel ──────────────────────────── */
+  .offline-banner {
+    display: none;
+    font-size: var(--text-sm);
+    color: var(--muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+  .offline-banner.visible { display: block; }
+
   /* ── Connections Grid (Trello + Dropbox side by side) ─────────────── */
   .connections-grid {
     display: grid;
@@ -2245,8 +2274,9 @@
   .version-badge {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
-    color: var(--bg);
-    background: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-glow);
     padding: 1px var(--space-2);
     border-radius: var(--radius-sm);
     letter-spacing: 0.06em;
@@ -2744,6 +2774,9 @@
   <div class="config-panel" id="configPanel">
     <div class="config-title">⚡&#xFE0E; Connections</div>
 
+    <!-- Offline banner — shown when navigator.onLine is false -->
+    <div class="offline-banner" id="offlineBanner">You're offline — connections unavailable</div>
+
     <!-- Connections container — JS will render the appropriate state -->
     <div id="connectionsContainer"></div>
 
@@ -3064,12 +3097,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.40';
+const APP_VERSION   = '2.17.42';
 const DEV_HOURS     = '198h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.42': 'Feature: Offline mode — AI CTA switches to ✧ and disables (pointer-events:none, muted style) when offline; connections panel shows offline banner and disables all CTAs. Restored on reconnect.',
+  '2.17.41': 'Style: version-badge — ghost style replacing solid accent fill. accent-dim bg, accent text, accent-glow border.',
   '2.17.40': 'Style: CSS token audit — tokenised all hardcoded hex/rgba values. Added --color-highlight-dim/border, --color-muted-dim tokens. Error badges, PiP window (local :root), idle companion now use vars.',
   '2.17.39': 'Fix: desktop PWA launch showed dim green flash — manifest background_color (#161a14, breathe overlay tint) mismatched app background (#0e0e10). Aligned both to #0e0e10.',
   '2.17.38': 'Fix: Changelog alignment in About panel — current entry now uses same flex layout as old entries so text left-edges align. Old entries get v-prefix. Entry text split corrected to | delimiter.',
@@ -3078,21 +3113,6 @@ const CHANGELOG = {
   '2.17.35': 'Fix: PiP froze at 00:01 after timer complete. Detect completion in pipTick paused-branch (rem=0 + !paused), show 00:00 + switch Breathe→Again. Again restarts session. _pipSync also handles completion on window restore.',
   '2.17.34': 'Delight: checkmark stroke-draw (SVG dashoffset) | streak milestone pulse at 7/14/30/60/100d | habit consecutive-run dot ripple cascade.',
   '2.17.33': 'Fix: Undo delete restores task to its original position in the list.',
-  '2.17.32': 'Fix: Undo delete restores task at bottom of list (was top).',
-  '2.17.31': 'Fix: Changelog bullet dots removed — entries now display as clean lines matching old-entry style.',
-  '2.17.30': 'Style: AI panel input — font-size bumped to --text-md (14px, matches task input). Placeholder opacity:0.5 removed (was double-muted).',
-  '2.17.29': 'Fix: BUG-019/021 — restore v2.1.0 splash dismiss structure. Strip DPR from canvas (no transform, CSS px direct like celebCanvas). Remove _sBurstComplete mechanism: explosion now plays over fading splash (burst → 180ms → fade → canvas removed at 630ms). Eliminates 2s premature-cancel timeout and 1.4s extra stare time. Total splash ~2.2s restored.',
-  '2.17.28': 'Fix: Splash safety timeout now covers both gate flags — _splashAnimDone gets the same 6s fallback as _appLoadDone, so a stalled typewriter rAF (tab hidden on iOS PWA launch) can no longer freeze the splash from the animation side.',
-  '2.17.27': 'Fix: Splash animation — sctx.scale() was accumulating on resize (dpr² after first resize); switched to setTransform() which resets each call. Added 6s safety timeout on splash gate so a stalled Dropbox fetch can no longer freeze the splash permanently.',
-  '2.17.26': 'Fix: BUG-020 streak double-counts across devices — added stat_streak_date guard so checkNewDay() skips increment if another device already bumped the streak today.',
-  '2.17.25': 'AI: Observation-first rewrite — system prompt rewritten from task-manager framing to companion-that-notices. Removed break_down, check_task, delete_done, open_panel from available chips. Actions limited to start_focus, check_habit, add_task, reflect (rare), dismiss. Max chips 1-2 (was 2-4). Message limit 25 words (was 30). Aging task chips: 7+ days now offers park/let-go (removed break-down); 3-6 days offers start/park (removed let-go).',
-  '2.17.24': 'Fix: BUG-004 recurrence — blank UI on restore when focus timer completed in background. GPU compositor layer from timerCompletePulse animation rendered at wrong position after tab hide/show. Fix: toggle animationPlayState on restore to force layer recreation. Also: extra _clearStaleFocusing pass at 1000ms + _forceRepaint at 1500ms.',
-  '2.17.23': 'AI: Conversation threading — follow-up questions in the same session carry full message history. Panel opens with AI intro as thread seed; each exchange appends to thread; thread clears on close.',
-  '2.17.22': 'AI: No task chips on conversational questions — system prompt now instructs AI to return only dismiss when user asks a non-task question.',
-  '2.17.21': 'Fix: Splash overhaul — white flash (inline bg on html), enforced typewriter→explosion→tasks sequence, burst coordinates captured at startSplash (not dismiss), canvas DPR coordinate fix (explicit CSS px size), dark pause removed (app cross-fades with splash), explosion loop stops on visual completion (maxAlpha threshold).',
-  '2.17.20': 'Fix: BUG-019 — star explosion not visible on mobile. Canvas removed at same moment main app appeared (T+630ms), too brief on mobile. Canvas now removed 500ms later (T+1130ms) so explosion plays over the appearing app. _appReady moved before splashCanvas.remove().',
-  '2.17.19': 'Splash: typewriter rAF-based (no setTimeout drift). Canvas DPR-aware (width/height × devicePixelRatio). Fixes laggy typewriter + explosion blurry on retina mobile.',
-  '2.17.18': 'Fix: syntax error (duplicate const today) crashing app on load.',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -4523,11 +4543,13 @@ function init() {
     renderTrello();
   }
 
-  // Set AI button tooltip with assistant name
+  // Set AI button tooltip with assistant name + offline state
   const aiBtn = document.getElementById('addAiBtn');
-  if (aiBtn && appMemory.aiName) {
-    aiBtn.title = `Ask ${appMemory.aiName}`;
+  if (aiBtn) {
+    if (appMemory.aiName) aiBtn.title = `Ask ${appMemory.aiName}`;
+    if (!navigator.onLine) { aiBtn.classList.add('offline'); aiBtn.textContent = '✧'; }
   }
+  _applyOfflinePanel();
 
   // Version and AI config
   console.log('[TODAY] Version:', APP_VERSION);
@@ -4669,6 +4691,27 @@ function renderInfoStats() {
 // ─── Connections Panel Rendering ──────────────────────────────────────────────
 // Renders Trello + Dropbox in a compact layout based on connection state
 
+function _applyOfflinePanel() {
+  const offline = !navigator.onLine;
+  const banner = document.getElementById('offlineBanner');
+  if (banner) banner.classList.toggle('visible', offline);
+
+  // Disable/enable all CTAs in the connections panel and AI section
+  const panel = document.getElementById('configPanel');
+  if (panel) {
+    panel.querySelectorAll('button:not(#offlineBanner *)').forEach(btn => {
+      btn.disabled = offline;
+      btn.style.opacity = offline ? 'var(--opacity-dim)' : '';
+      btn.style.cursor  = offline ? 'not-allowed' : '';
+    });
+    const aiInput = panel.querySelector('#aiApiKey');
+    if (aiInput) {
+      aiInput.disabled = offline;
+      aiInput.style.opacity = offline ? 'var(--opacity-dim)' : '';
+    }
+  }
+}
+
 function renderConnections() {
   // Skip if panel isn't open — background sync calls this frequently
   // but rebuilding HTML when panel is hidden is wasted work
@@ -4717,6 +4760,7 @@ function renderConnections() {
           <button class="btn-primary" onclick="dropboxAuth()">Connect</button>
         </div>
       </div>`;
+    _applyOfflinePanel();
     return;
   }
 
@@ -4816,11 +4860,13 @@ function renderConnections() {
   }
 
   container.innerHTML = html;
-  
+
   // If Trello needs board loading, do it now
   if (trelloToken && !trelloHasBoard) {
     loadTrelloBoards();
   }
+
+  _applyOfflinePanel();
 }
 
 // Helper to get board name from cache or config
@@ -8451,7 +8497,16 @@ async function dropboxRestore(fromSync) {
   window.addEventListener('offline', () => {
     clearTimeout(wakeTimer);
     stopTicker();
+    const aiBtn = document.getElementById('addAiBtn');
+    if (aiBtn) { aiBtn.classList.add('offline'); aiBtn.textContent = '✧'; }
+    _applyOfflinePanel();
   });
+
+  window.addEventListener('online', () => {
+    const aiBtn = document.getElementById('addAiBtn');
+    if (aiBtn) { aiBtn.classList.remove('offline'); aiBtn.textContent = '✦'; }
+    _applyOfflinePanel();
+  }, { capture: true });
 
   // Seed baselines before starting ticker so first tick has something to compare
   window.addEventListener('load', () => {

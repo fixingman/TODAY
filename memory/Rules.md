@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Session closed at v2.17.40
-- **Recent:** CSS token audit (v2.17.40), PWA green flash fix (v2.17.39), BUG-023 panel flash (v2.17.37), BUG-022 fill pulsate (v2.17.36)
+- **Working on:** v2.17.42
+- **Recent:** Offline mode — AI btn + connections panel (v2.17.42), version-badge ghost style (v2.17.41), CSS token audit (v2.17.40), PWA green flash fix (v2.17.39)
 - **Watch for:** BUG-021 (splash explosion/freeze) — awaiting Can's verification
 
 ---
