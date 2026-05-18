@@ -6,7 +6,7 @@
 ## Current Focus (update each session)
 - **Working on:** Session closed at v2.17.40
 - **Recent:** CSS token audit (v2.17.40), PWA green flash fix (v2.17.39), BUG-023 panel flash (v2.17.37), BUG-022 fill pulsate (v2.17.36)
-- **Watch for:** BUG-011 (ghost chime), BUG-019/021 (splash), BUG-023 (panel flash) — awaiting Can's verification
+- **Watch for:** BUG-021 (splash explosion/freeze) — awaiting Can's verification
 
 ---
 
@@ -81,10 +81,6 @@
 22. Accent: `#c8f060` — all variants derived from this
 23. **`--font-display` (Syne) = all-caps or numbers only** — Syne's geometric letterforms work for "TODAY", version numbers, and stat values. Never use Syne for mixed-case English sentences — DM Mono handles all natural language text.
 
-## Git Rules
-
-29. **Always work on `dev` branch** — never create feature branches unless explicitly asked
-
 ## Build Rules
 
 24. Single-file app — all code in `index.html`, no build step
@@ -92,6 +88,10 @@
 26. **`_cacheElements()` must run at START of `init()`** — before any rendering
 27. **All render paths must match `taskHTML()` features** — tags, badges, session counts, etc. Three places render tasks independently: `taskHTML()` (new tasks), `renderTrello()` patch path (existing Trello tasks, every 7s), and zone renderers (SOON/PAST). When adding a feature to `taskHTML()`, also add it to the Trello patch path and zone renderers.
 28. **Every code change requires memory review** — ask: "Does this affect documented behavior?" Update relevant memory files.
+
+## Git Rules
+
+29. **Always work on `dev` branch** — never create feature branches unless explicitly asked
 
 ## Non-Delegation Zones (require extra scrutiny)
 

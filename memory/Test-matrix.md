@@ -193,18 +193,6 @@ If testing **zone** changes:
 
 ---
 
-## Known Issues
-
-| Issue | Fixed | Notes |
-|-------|-------|-------|
-| Zone duplication | v2.12.13 | Tasks duplicated in TODAY |
-| Backup fails silently | v2.12.2 | Retry on focus |
-| Deleted tasks in zones | v2.12.14 | Ghost tasks in SOON/PAST |
-| AI delete not synced | v2.12.14 | No _addDeletedId call |
-| Zone tasks in deleted_ids | v2.12.17 | Sync adding zone task IDs |
-
----
-
 ## Edge Cases: Time & Timezone (needs testing)
 
 | # | Scenario | Risk | Mitigation |
@@ -231,4 +219,4 @@ If testing **zone** changes:
 
 ---
 
-*Last updated: Session 23 (v2.12.49)*
+*Last updated: v2.17.40*

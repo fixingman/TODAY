@@ -16,7 +16,7 @@
 | 008 | Drag jump-back on mobile | ✅ v2.12.72 |
 | 009 | Task aging opacity broken | ✅ v2.12.73 |
 | 010 | Habits didn't roll over | ✅ v2.12.74–77 |
-| 011 | PiP ghost chime on wrong task | ⏳ v2.16.9 |
+| 011 | PiP ghost chime on wrong task | ✅ v2.16.9 |
 | 012 | Overdue Trello card disappears on check | ✅ v2.16.5 |
 | 013 | Focus timer jumps on restore | ✅ v2.14.9 |
 | 014 | PiP not reappearing after restore | ✅ v2.15.5–2.16.19 |
@@ -24,34 +24,12 @@
 | 016 | AI chip labels generic | ✅ v2.15.6 |
 | 017 | Focus minutes only on full completion | ✅ v2.16.0 |
 | 018 | Phantom SOON tasks reappear | ✅ v2.17.9 |
-| 019 | Star explosion missing on mobile | ⏳ v2.17.29 |
+| 019 | Star explosion missing on mobile | ✅ v2.17.29 |
 | 020 | Streak double-counts across devices | ✅ v2.17.26 |
 | 021 | Splash explosion invisible / freezes after typewriter | ⏳ v2.17.29 |
 | 022 | Focus fill bar pulsates during active countdown | ✅ v2.17.36 |
-| 023 | Top panels flash twice on desktop PWA restore | ⏳ v2.17.37 |
+| 023 | Top panels flash twice on desktop PWA restore | ✅ v2.17.37 |
 
-
-## BUG-023: Top panels flash twice on desktop PWA restore
-
-**Status:** Fixed v2.17.37 — awaiting verification
-
-**Symptom:** Habits, Connections, or About panel is open → user alt-tabs away and back → panel flashes twice (brief disappear+reappear with fadeIn animation).
-
-**Root cause:** `_forceRepaint()` (BUG-004 fix) sets `#main-app.style.display = 'none'` then `''`. CSS `animation` properties restart from scratch when an element re-enters the render tree after its parent was `display:none`. `.config-panel.open` has `animation: fadeIn` — so every repaint call replays the fade-in. `_forceRepaint()` runs 5 times on wake (immediate, rAF×2, 500ms, 1500ms); the 500ms and 1500ms passes are the two clearly visible flashes.
-
-**Fix (v2.17.37):**
-1. `_forceRepaint()`: after restoring `display: ''`, synchronously set `animation: none` inline on all `.config-panel.open` elements — suppresses the fadeIn before any paint.
-2. `toggleConfig()`, `toggleInfo()`, `toggleHabits()`: clear the inline `animation` style (`panel.style.animation = ''`) when opening, so user-triggered opens still play fadeIn normally.
-
-**Verify:**
-- Open any panel → fades in normally ✅
-- Alt-tab away → alt-tab back → panel is static, no flash ✅
-- Close and reopen panel → fades in again ✅
-- BUG-004 (blank on wake) not regressed ✅
-
-**Verified fixed:** ☐
-
----
 
 ## BUG-021: Splash explosion invisible / freezes after typewriter
 
@@ -74,25 +52,6 @@
 - Open app fresh (splash shows) on mobile PWA → star should explode visibly
 - Open app fresh on desktop PWA → star should explode visibly
 - On slow/flaky network, splash should still dismiss within ~6s even if Dropbox stalls
-
-**Verified fixed:** ☐
-
----
-
-## BUG-011: PiP ghost chime on wrong task
-
-**Status:** Fixed v2.13.5 + v2.13.6 + v2.16.9 — awaiting verification
-
-**Symptom:** Task A → PiP → restore → check Task A → start Task B focus → chime fires during Task B's session.
-
-**Root cause (v2.16.9):** `startPiPClock` captured `uiTaskId` by reference (closure). With BUG-014 fix keeping PiP alive, old RAF from Task A still ran. When its reference point hit zero, it called `completeFor(uiTaskId)` — but `uiTaskId` had changed to Task B.
-
-**Fix (v2.16.9):**
-1. `clockTaskId = uiTaskId` captured by value at clock start
-2. RAF stops if `uiTaskId !== clockTaskId`
-3. Reused PiP path calls `startPiPClock()` for current task
-
-**Verify:** Task A → PiP → restore app → check Task A → start Task B → chime should NOT fire during Task B unless Task B's 25min completes.
 
 **Verified fixed:** ☐
 

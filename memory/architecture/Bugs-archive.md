@@ -81,6 +81,14 @@
 
 ---
 
+## BUG-011: PiP ghost chime on wrong task
+**Status:** ✅ Verified fixed (v2.13.5 + v2.13.6 + v2.16.9)
+**Symptom:** Task A → PiP → restore → check Task A → start Task B focus → chime fires during Task B's session.
+**Root cause:** `startPiPClock` captured `uiTaskId` by reference (closure). With BUG-014 fix keeping PiP alive, old RAF from Task A still ran. When its reference point hit zero, it called `completeFor(uiTaskId)` — but `uiTaskId` had changed to Task B.
+**Fix (v2.16.9):** `clockTaskId = uiTaskId` captured by value at clock start. RAF stops if `uiTaskId !== clockTaskId`. Reused PiP path calls `startPiPClock()` for current task.
+
+---
+
 ## BUG-013: Focus timer jumps 8-10 seconds on minimize/PiP restore
 **Status:** ✅ Verified fixed (v2.14.9)
 **Root cause:** `tickFor` used `setTimeout(1000)` which browsers throttle when tab is hidden. On restore, several missed ticks fired rapidly — timer jumped visually.
@@ -115,3 +123,19 @@
 **Status:** ✅ Verified fixed (v2.16.0)
 **Root cause:** `_trackFocusTime()` only called when `doResetState=true` in `closeUI()`. Only `completeFor()` passed `true`. Escape/task-switch/early close lost all minutes.
 **Fix:** Removed `doResetState` condition. `_trackFocusTime` called on every `closeUI`. Guards (`st.tracked`, `timeSpentMins <= 0`) prevent double-counting.
+
+---
+
+## BUG-019: Star explosion missing on mobile PWA
+**Status:** ✅ Verified fixed (v2.17.29)
+**Symptom:** Mobile PWA launch — star doesn't explode, task list loads directly (app recovers via 2s fallback).
+**Root cause:** `sctx.scale(dpr, dpr)` inside `sResize()` accumulated on every resize event. After first resize, context ran at `dpr²` scale — particles compressed into top-left corner on high-DPR phones (invisible on a 3× screen). Mobile PWA launch almost always fires a resize event (viewport settling), so explosion always drew at the wrong position.
+**Fix:** Replaced `sctx.scale()` with `sctx.setTransform(dpr, 0, 0, dpr, 0, 0)` which resets to exactly `dpr×` each call. DPR stripped from canvas sizing (CSS px direct). v2.1.0 dismiss structure restored.
+
+---
+
+## BUG-023: Top panels flash twice on desktop PWA restore
+**Status:** ✅ Verified fixed (v2.17.37)
+**Symptom:** Panel open (Habits/Connections/About) → alt-tab away and back → panel flashes twice (brief disappear+reappear with fadeIn animation).
+**Root cause:** `_forceRepaint()` sets `#main-app.style.display = 'none'` then `''`. CSS `animation` properties restart when an element re-enters the render tree after its parent was `display:none`. `.config-panel.open` has `animation: fadeIn` — every repaint pass replays it. `_forceRepaint()` runs 5 times on wake; the 500ms and 1500ms passes produce the two clearly visible flashes.
+**Fix:** After restoring `display: ''`, synchronously set `animation: none` inline on all `.config-panel.open` elements — suppresses fadeIn before any paint. `toggleConfig()`, `toggleInfo()`, `toggleHabits()` clear the inline `animation` style on open so user-triggered opens still play fadeIn normally.

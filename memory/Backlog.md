@@ -146,16 +146,11 @@
 | Focus mode checkbox fill removed | 2.17.7 | May 2026 |
 | Scroll position preserved on app return | 2.17.8 | May 2026 |
 | Phantom SOON tasks fix (BUG-018) | 2.17.9 | May 2026 |
-
----
-
-| Phantom SOON tasks fix (BUG-018) | 2.17.9 | May 2026 |
 | Section count after label + pull in | 2.17.10 | May 2026 |
 | AI conversation memory | 2.17.11 | May 2026 |
 | CHANGELOG trimmed 235→3 entries | 2.17.12 | May 2026 |
 | safeJSON + transition:all perf fixes | 2.17.13 | May 2026 |
 | Splash rAF typewriter + DPR canvas | 2.17.19 | May 2026 |
-| BUG-018 phantom SOON verified | 2.17.9 | May 2026 |
 | BUG-019/021 splash explosion fix (DPR strip + v2.1.0 dismiss restore) | 2.17.29 | May 2026 |
 | AI observation-first rewrite, reduced chips | 2.17.25 | May 2026 |
 | BUG-004 blank-on-wake fix | 2.17.24 | May 2026 |
