@@ -53,6 +53,8 @@
 | `--color-danger-dim` | `rgba(255,95,95,0.10)` | Danger bg tint |
 | `--color-danger-border` | `rgba(255,95,95,0.20)` | Danger border |
 | `--color-highlight` | `#579dff` | Info / Trello link |
+| `--color-highlight-dim` | `rgba(87,157,255,0.10)` | Highlight bg tint (error badges) |
+| `--color-highlight-border` | `rgba(87,157,255,0.20)` | Highlight border (error badges) |
 
 **Aliases:** `--danger`, `--highlight`
 
@@ -61,12 +63,30 @@
 | Token | Value | Usage |
 |---|---|---|
 | `--color-done-line` | `rgba(107,107,120,0.55)` | Strikethrough on done tasks |
+| `--color-muted-dim` | `rgba(107,107,120,0.12)` | Muted bg tint (external error badge) |
 | `--color-bg-glass` | `rgba(14,14,16,0.92)` | Sticky header frosted bg |
 | `--color-overlay` | `rgba(0,0,0,0.6)` | Modal backdrop |
 | `--color-breathe` | `rgba(22,26,20,0.88)` | Focus breathe overlay (rest) |
 | `--color-breathe-active` | `rgba(28,34,24,0.92)` | Focus breathe overlay (active) |
 
 **Aliases:** `--done-line`, `--bg-glass`
+
+### PiP Window Tokens
+
+PiP runs in a separate `document` and cannot inherit the main page's CSS custom properties. The injected `<style>` block defines a local `:root` with these tokens as literal values. They mirror the main palette — update both if values change.
+
+| Token | Value | Maps to |
+|---|---|---|
+| `--pip-bg` | `#0e0e10` | `--color-bg` |
+| `--pip-accent` | `#c8f060` | `--color-accent` |
+| `--pip-text-muted` | `rgba(255,255,255,0.50)` | (no main equiv) |
+| `--pip-fill-track` | `rgba(200,240,96,0.08)` | `--color-accent-timer-fill` |
+| `--pip-fill-bar` | `rgba(200,240,96,0.20)` | (between dim and hover) |
+| `--pip-overlay` | `rgba(14,14,16,0.85)` | `--color-bg-glass` (0.92 in main) |
+| `--pip-btn-bg` | `rgba(200,240,96,0.15)` | (between dim and hover) |
+| `--pip-btn-border` | `rgba(200,240,96,0.30)` | `--color-accent-glow` (0.28 in main) |
+| `--pip-btn-hover-bg` | `rgba(200,240,96,0.25)` | (between hover and glow) |
+| `--pip-btn-hover-border` | `rgba(200,240,96,0.50)` | (between check and check-hover) |
 
 ---
 

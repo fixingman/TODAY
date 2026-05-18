@@ -17,7 +17,7 @@
 | 009 | Task aging opacity broken | ✅ v2.12.73 |
 | 010 | Habits didn't roll over | ✅ v2.12.74–77 |
 | 011 | PiP ghost chime on wrong task | ⏳ v2.16.9 |
-| 012 | Overdue Trello card disappears on check | ⏳ v2.16.5 |
+| 012 | Overdue Trello card disappears on check | ✅ v2.16.5 |
 | 013 | Focus timer jumps on restore | ✅ v2.14.9 |
 | 014 | PiP not reappearing after restore | ✅ v2.15.5–2.16.19 |
 | 015 | AI repeats same aging task | ✅ v2.15.2 |
@@ -27,29 +27,27 @@
 | 019 | Star explosion missing on mobile | ⏳ v2.17.29 |
 | 020 | Streak double-counts across devices | ✅ v2.17.26 |
 | 021 | Splash explosion invisible / freezes after typewriter | ⏳ v2.17.29 |
-| 022 | Focus fill bar pulsates during active countdown | ⏳ v2.17.36 |
+| 022 | Focus fill bar pulsates during active countdown | ✅ v2.17.36 |
+| 023 | Top panels flash twice on desktop PWA restore | ⏳ v2.17.37 |
 
 
-## BUG-022: Focus fill bar pulsates during active countdown
+## BUG-023: Top panels flash twice on desktop PWA restore
 
-**Status:** Fixed v2.17.36 — awaiting verification
+**Status:** Fixed v2.17.37 — awaiting verification
 
-**Symptoms:**
-- During an active focus session, the fill bar simultaneously fills left-to-right AND pulsates in opacity — should only pulsate when complete ("again?" state)
+**Symptom:** Habits, Connections, or About panel is open → user alt-tabs away and back → panel flashes twice (brief disappear+reappear with fadeIn animation).
 
-**Root cause:** `timerCompletePulse` animation is applied via `.complete` class on `fillEl`. Two paths leave `.complete` stranded after a session ends:
-1. **PiP "Again" (v2.17.35):** Clicking "Again" in PiP resets state and calls `startPiPClock()` but doesn't remove `.complete` from main UI. On restore, `visibilitychange` restarts `tickFor` → fill updates while `.complete` still active → pulsating during fill.
-2. **Task-switch after complete:** `closeUI(false)` (Esc or opening different task) skips the `remove('complete')` block (inside `if (doResetState)` only). Next `openUI()` call hits `syncDisplay()` which doesn't clean `.complete` → new task's fill pulsates.
+**Root cause:** `_forceRepaint()` (BUG-004 fix) sets `#main-app.style.display = 'none'` then `''`. CSS `animation` properties restart from scratch when an element re-enters the render tree after its parent was `display:none`. `.config-panel.open` has `animation: fadeIn` — so every repaint call replays the fade-in. `_forceRepaint()` runs 5 times on wake (immediate, rAF×2, 500ms, 1500ms); the 500ms and 1500ms passes are the two clearly visible flashes.
 
-**Fix (v2.17.36):**
-1. PiP "Again" handler: after resetting state, remove `.complete` from `fillEl`, `timeEl`, `timerEl` and reset fill display (`setProgress(0)`, `timeEl.textContent = fmt(TOTAL)`).
-2. `openUI()`: strip `.complete` from all three elements before `syncDisplay()` — covers all remaining paths.
+**Fix (v2.17.37):**
+1. `_forceRepaint()`: after restoring `display: ''`, synchronously set `animation: none` inline on all `.config-panel.open` elements — suppresses the fadeIn before any paint.
+2. `toggleConfig()`, `toggleInfo()`, `toggleHabits()`: clear the inline `animation` style (`panel.style.animation = ''`) when opening, so user-triggered opens still play fadeIn normally.
 
 **Verify:**
-- Start focus session → bar fills with NO pulsating
-- Complete session → "again?" + pulsating ✅ correct
-- PiP: complete → "Again" in PiP → bring app to front → bar fills from 0, NO pulsating
-- Complete → Esc → open different task → new task fills, NO pulsating
+- Open any panel → fades in normally ✅
+- Alt-tab away → alt-tab back → panel is static, no flash ✅
+- Close and reopen panel → fades in again ✅
+- BUG-004 (blank on wake) not regressed ✅
 
 **Verified fixed:** ☐
 
@@ -100,21 +98,4 @@
 
 ---
 
-## BUG-012: Overdue Trello card disappears on check / shows undone cross-device
-
-**Status:** Fixed v2.14.5 + v2.16.5 — awaiting verification
-
-**Symptom 1:** Check overdue Trello card → it disappears immediately before midnight.
-**Symptom 2:** Check overdue card on Device A → Device B shows it unchecked.
-
-**Root cause (original):** Race between `loadTrello()` and Dropbox sync — stale `doneIds` when filter ran.
-
-**Root cause (Symptom 1):** Filter said `done + overdue = hide` without checking WHEN it was done.
-
-**Fix (v2.14.5):** `mergeRemoteData` re-filters after updating `doneIds`.
-**Fix (v2.16.5):** Both `loadTrello` filter and `mergeRemoteData` eviction check `today_checked_ids` timestamp — overdue + done + checked today → show until EOD. Only evict if checked before today.
-
-**Verify:** Check an overdue Trello card → should stay visible (done styling) until midnight. Other device → should clear within 7s without manual refresh.
-
-**Verified fixed:** ☐
 

@@ -99,6 +99,17 @@
 
 ---
 
+## BUG-012: Overdue Trello card disappears on check / shows undone cross-device
+**Status:** ✅ Verified fixed (v2.14.5 + v2.16.5)
+**Symptom 1:** Check overdue Trello card → it disappears immediately before midnight.
+**Symptom 2:** Check overdue card on Device A → Device B shows it unchecked.
+**Root cause (original):** Race between `loadTrello()` and Dropbox sync — stale `doneIds` when filter ran.
+**Root cause (Symptom 1):** Filter said `done + overdue = hide` without checking WHEN it was done.
+**Fix (v2.14.5):** `mergeRemoteData` re-filters after updating `doneIds`.
+**Fix (v2.16.5):** Both `loadTrello` filter and `mergeRemoteData` eviction check `today_checked_ids` timestamp — overdue + done + checked today → show until EOD. Only evict if checked before today.
+
+---
+
 ## BUG-013: Focus timer jumps 8-10 seconds on minimize/PiP restore
 **Status:** ✅ Verified fixed (v2.14.9)
 **Symptom:** Switch away during focus → come back → timer visually jumps forward several seconds.
@@ -167,3 +178,11 @@
 **Symptom:** Streak was 108 on Friday. Opened app on Device A Saturday → 109. Opened on Device B Saturday → jumped to 110.
 **Root cause:** `stat_streak` was merged with `Math.max` but had no date guard (unlike `stat_focus_mins_today` which has `stat_focus_mins_date`). If Device B received streak=109 via background sync from Device A's Saturday backup, then on first open `checkNewDay()` saw `lastVisit = Friday = yesterday` → incremented 109→110. Same calendar day counted twice across devices.
 **Fix:** Added `stat_streak_date` (YYYY-MM-DD local) — set whenever streak is incremented in `checkNewDay()`. `checkNewDay()` skips the increment if `stat_streak_date === todayISO`. Merge adopts the lexicographically newer `stat_streak_date` from remote alongside `Math.max` streak. Full restore and backup payload also include `stat_streak_date`.
+
+---
+
+## BUG-022: Focus fill bar pulsates during active countdown
+**Status:** ✅ Verified fixed (v2.17.36)
+**Symptom:** During an active focus session the fill bar simultaneously fills left-to-right AND pulsates in opacity — pulsating should only occur when the session is complete ("again?" state).
+**Root cause:** `timerCompletePulse` animation runs via `.complete` class on the shared `fillEl`. Two paths left `.complete` stranded: (1) PiP "Again" handler (introduced v2.17.35) reset session state but didn't remove `.complete` from main UI elements — on restore `visibilitychange` restarted `tickFor` so the bar filled while `.complete` was still active. (2) `closeUI(false)` (Esc or task-switch) skips the `remove('complete')` block (inside `if (doResetState)` only) — next `openUI()` called `syncDisplay()` which also doesn't clean `.complete`, so the new task's fill pulsated.
+**Fix:** (1) PiP "Again" handler: after resetting state, removes `.complete` from `fillEl`, `timeEl`, `timerEl` and resets fill display. (2) `openUI()`: strips `.complete` from all three elements before `syncDisplay()` — covers all remaining paths.

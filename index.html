@@ -364,10 +364,13 @@
     --color-danger:      #ff5f5f;   /* error / delete              */
     --color-danger-dim:  rgba(255,95,95,0.10);  /* danger bg tint  */
     --color-danger-border: rgba(255,95,95,0.20);/* danger border   */
-    --color-highlight:   #579dff;   /* info / Trello link          */
+    --color-highlight:        #579dff;              /* info / Trello link      */
+    --color-highlight-dim:    rgba(87,157,255,0.10); /* highlight bg tint       */
+    --color-highlight-border: rgba(87,157,255,0.20); /* highlight border        */
 
     /* ── Color: Utility ──────────────────────────────────────── */
     --color-done-line:   rgba(107,107,120,0.55); /* strikethrough  */
+    --color-muted-dim:   rgba(107,107,120,0.12); /* muted bg tint  */
     --color-bg-glass:    rgba(14,14,16,0.92);    /* sticky header frosted bg */
     --color-overlay:     rgba(0,0,0,0.6);        /* modal backdrop */
     --color-breathe:     rgba(22,26,20,0.88);    /* focus breathe rest */
@@ -546,19 +549,19 @@
   .error-panel-badge.source-dropbox,
   .error-panel-badge.source-trello,
   .error-panel-badge.source-sync {
-    background: rgba(87,157,255,0.10);
+    background: var(--color-highlight-dim);
     color: var(--highlight);
-    border: 1px solid rgba(87,157,255,0.20);
+    border: 1px solid var(--color-highlight-border);
   }
   .error-panel-badge.source-external {
-    background: rgba(107,107,120,0.12);
+    background: var(--color-muted-dim);
     color: var(--muted);
     border: 1px solid var(--border);
   }
   .error-panel-badge.source-app {
-    background: rgba(255,95,95,0.10);
+    background: var(--color-danger-dim);
     color: var(--danger);
-    border: 1px solid rgba(255,95,95,0.20);
+    border: 1px solid var(--color-danger-border);
   }
   .error-panel-msg {
     font-size: var(--text-sm2);
@@ -2249,13 +2252,15 @@
     letter-spacing: 0.06em;
   }
   .changelog-entry {
-    margin-bottom: var(--space-2);
-  }
-  .changelog-entry-header {
     display: flex;
-    align-items: baseline;
     gap: var(--space-2);
-    margin-bottom: var(--space-2);
+    align-items: flex-start;
+    margin-bottom: var(--space-3);
+  }
+  .changelog-entry-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
   .changelog-version {
     font-family: var(--font-display);
@@ -3059,12 +3064,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.36';
-const DEV_HOURS     = '196h';
+const APP_VERSION   = '2.17.40';
+const DEV_HOURS     = '198h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.40': 'Style: CSS token audit — tokenised all hardcoded hex/rgba values. Added --color-highlight-dim/border, --color-muted-dim tokens. Error badges, PiP window (local :root), idle companion now use vars.',
+  '2.17.39': 'Fix: desktop PWA launch showed dim green flash — manifest background_color (#161a14, breathe overlay tint) mismatched app background (#0e0e10). Aligned both to #0e0e10.',
+  '2.17.38': 'Fix: Changelog alignment in About panel — current entry now uses same flex layout as old entries so text left-edges align. Old entries get v-prefix. Entry text split corrected to | delimiter.',
+  '2.17.37': 'Fix: BUG-023 top panels (Habits/Connections/About) flash twice on desktop PWA restore — _forceRepaint() display:none/block restarted CSS fadeIn on open panels. Suppress animation inline after repaint; restored on next user-open.',
   '2.17.36': 'Fix: BUG-022 focus fill bar pulsated during active countdown — .complete class left stranded by PiP Again handler and task-switch-after-complete path. Cleared in openUI and PiP Again handler.',
   '2.17.35': 'Fix: PiP froze at 00:01 after timer complete. Detect completion in pipTick paused-branch (rem=0 + !paused), show 00:00 + switch Breathe→Again. Again restarts session. _pipSync also handles completion on window restore.',
   '2.17.34': 'Delight: checkmark stroke-draw (SVG dashoffset) | streak milestone pulse at 7/14/30/60/100d | habit consecutive-run dot ripple cascade.',
@@ -4540,16 +4549,16 @@ function init() {
           `<div class="changelog-line"><span>${b}</span></div>`
         ).join('');
         return `<div class="changelog-entry">
-          <div class="changelog-entry-header">
-            <span class="changelog-version">v${v}</span>
+          <span class="changelog-version">v${v}</span>
+          <div class="changelog-entry-body">
             <span class="version-badge">CURRENT</span>
+            <div class="changelog-text">${bullets}</div>
           </div>
-          <div class="changelog-text">${bullets}</div>
         </div>`;
       } else {
         return `<div class="changelog-old">
-          <span class="changelog-version">${v}</span>
-          <span class="changelog-text">${CHANGELOG[v].split(',')[0]}</span>
+          <span class="changelog-version">v${v}</span>
+          <span class="changelog-text">${CHANGELOG[v].split(' | ')[0]}</span>
         </div>`;
       }
     }).join('');
@@ -4580,6 +4589,7 @@ function toggleConfig() {
   const scrollY = window.scrollY; // Preserve scroll position
   const configPanel = $.configPanel;
   const isOpening = !configPanel.classList.contains('open');
+  if (isOpening) configPanel.style.animation = ''; // clear repaint suppression so fadeIn plays (BUG-023)
   configPanel.classList.toggle('open');
   $.infoPanel.classList.remove('open');
   $.habitsPanel.classList.remove('open');
@@ -4600,6 +4610,7 @@ function toggleInfo() {
   const scrollY = window.scrollY; // Preserve scroll position
   const panel = $.infoPanel;
   const isOpening = !panel.classList.contains('open');
+  if (isOpening) panel.style.animation = ''; // clear repaint suppression so fadeIn plays (BUG-023)
   panel.classList.toggle('open');
   $.configPanel.classList.remove('open');
   $.habitsPanel.classList.remove('open');
@@ -5822,6 +5833,7 @@ function toggleHabits() {
   const scrollY = window.scrollY; // Preserve scroll position
   const panel = document.getElementById('habitsPanel');
   const isOpening = !panel.classList.contains('open');
+  if (isOpening) panel.style.animation = ''; // clear repaint suppression so fadeIn plays (BUG-023)
   panel.classList.toggle('open');
   $.configPanel.classList.remove('open');
   document.getElementById('infoPanel').classList.remove('open');
@@ -7180,13 +7192,13 @@ function updateFavicon(pct, isEmpty) {
       font-family: var(--font-mono, 'DM Mono', monospace);
       font-size: 12px;
       line-height: 1.2;
-      color: var(--accent, #c8f060);
+      color: var(--accent);
       opacity: 0;
       transition: opacity 0.6s ease;
       pointer-events: none;
       white-space: pre;
       z-index: 50;
-      text-shadow: 0 0 8px rgba(200,240,96,0.3);
+      text-shadow: 0 0 8px var(--color-accent-glow);
     `;
     document.body.appendChild(idleCompanion);
     
@@ -7545,6 +7557,10 @@ window._onWake = function() {
     appEl.style.display = 'none';
     void appEl.offsetHeight;
     appEl.style.display = '';
+    // Suppress fadeIn restart on open panels — CSS animations replay when parent
+    // re-enters the render tree after display:none. Inline none overrides the
+    // .open rule; cleared on next user-triggered open. (BUG-023)
+    appEl.querySelectorAll('.config-panel.open').forEach(el => { el.style.animation = 'none'; });
     scrollPositions.forEach(({ el, top }) => { el.scrollTop = top; });
     window.scrollTo(0, appScroll);
   }
@@ -10911,6 +10927,18 @@ function _aiClearBadge() {
         // Full 300×200 design — big centered timer, full-width progress bar
         pipWindow.document.body.innerHTML = `
           <style>
+            :root {
+              --pip-bg:               #0e0e10;
+              --pip-accent:           #c8f060;
+              --pip-text-muted:       rgba(255,255,255,0.50);
+              --pip-fill-track:       rgba(200,240,96,0.08);
+              --pip-fill-bar:         rgba(200,240,96,0.20);
+              --pip-overlay:          rgba(14,14,16,0.85);
+              --pip-btn-bg:           rgba(200,240,96,0.15);
+              --pip-btn-border:       rgba(200,240,96,0.30);
+              --pip-btn-hover-bg:     rgba(200,240,96,0.25);
+              --pip-btn-hover-border: rgba(200,240,96,0.50);
+            }
             * { box-sizing: border-box; margin: 0; padding: 0; }
             @font-face {
               font-family: 'Syne';
@@ -10925,7 +10953,7 @@ function _aiClearBadge() {
             html, body {
               width: 100%;
               height: 100%;
-              background: #0e0e10;
+              background: var(--pip-bg);
               overflow: hidden;
             }
             .pip-widget {
@@ -10947,7 +10975,7 @@ function _aiClearBadge() {
               font-family: 'DM Mono', 'SF Mono', Monaco, monospace;
               font-size: 13px;
               font-weight: 300;
-              color: rgba(255,255,255,0.5);
+              color: var(--pip-text-muted);
               letter-spacing: 0.02em;
               margin-bottom: 8px;
               text-align: center;
@@ -10960,7 +10988,7 @@ function _aiClearBadge() {
               font-family: 'Syne', system-ui, sans-serif;
               font-size: 72px;
               font-weight: 700;
-              color: #c8f060;
+              color: var(--pip-accent);
               letter-spacing: -0.03em;
               font-variant-numeric: tabular-nums;
               line-height: 1;
@@ -10968,7 +10996,7 @@ function _aiClearBadge() {
             .pip-bar {
               width: 100%;
               height: 32px;
-              background: rgba(200,240,96,0.08);
+              background: var(--pip-fill-track);
               position: relative;
             }
             .pip-fill {
@@ -10976,7 +11004,7 @@ function _aiClearBadge() {
               top: 0;
               left: 0;
               bottom: 0;
-              background: rgba(200,240,96,0.2);
+              background: var(--pip-fill-bar);
               /* No transition — animated by RAF in _pipSync for accuracy */
             }
             .pip-controls {
@@ -10990,16 +11018,16 @@ function _aiClearBadge() {
               justify-content: center;
               gap: 12px;
               opacity: 0;
-              background: rgba(14,14,16,0.85);
+              background: var(--pip-overlay);
               transition: opacity 0.15s ease;
             }
             .pip-bar:hover .pip-controls {
               opacity: 1;
             }
             .pip-btn {
-              background: rgba(200,240,96,0.15);
-              border: 1px solid rgba(200,240,96,0.3);
-              color: #c8f060;
+              background: var(--pip-btn-bg);
+              border: 1px solid var(--pip-btn-border);
+              color: var(--pip-accent);
               padding: 6px 16px;
               border-radius: 5px;
               font-family: 'DM Mono', 'SF Mono', Monaco, monospace;
@@ -11010,8 +11038,8 @@ function _aiClearBadge() {
               transition: background 0.15s ease, border-color 0.15s ease;
             }
             .pip-btn:hover {
-              background: rgba(200,240,96,0.25);
-              border-color: rgba(200,240,96,0.5);
+              background: var(--pip-btn-hover-bg);
+              border-color: var(--pip-btn-hover-border);
             }
           </style>
           <div class="pip-widget">

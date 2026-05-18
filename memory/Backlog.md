@@ -165,7 +165,12 @@
 | Undo delete — restores to original list position | 2.17.33 | May 2026 |
 | Micro interactions — checkmark stroke-draw, streak milestone pulse, habit run cascade | 2.17.34 | May 2026 |
 | PiP froze at 00:01 — completion detection + Again CTA | 2.17.35 | May 2026 |
+| BUG-022 focus fill bar pulsating during countdown | 2.17.36 | May 2026 |
+| BUG-023 top panels flash twice on desktop PWA restore | 2.17.37 | May 2026 |
+| Changelog alignment fix in About panel | 2.17.38 | May 2026 |
+| PWA launch dim green flash — manifest background_color fix | 2.17.39 | May 2026 |
+| CSS token audit — all hardcoded hex/rgba tokenised | 2.17.40 | May 2026 |
 
 ---
 
-*Last updated: Session 39 (v2.17.35)*
+*Last updated: v2.17.40*

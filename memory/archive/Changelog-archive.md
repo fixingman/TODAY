@@ -4,6 +4,27 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.25** | **AI: Observation-first rewrite** — system prompt rewritten from task-manager framing to companion-that-notices. Available chips reduced to `start_focus`, `check_habit`, `add_task`, `reflect` (rare), `dismiss`. Max chips 1–2 (was 2–4). Message cap 25 words. Aging chip tiers simplified: 7+ days → park or let go (removed break-down); 3–6 days → start or park (removed let-go). |
+| **2.17.24** | **Fix: BUG-004 recurrence** — blank UI on return when focus timer completed in background. `timerCompletePulse` (infinite CSS animation) created a GPU compositor layer while tab was hidden; on restore, layer rendered at wrong position masking tasks. Fix: toggle `animationPlayState` on restore to destroy/recreate the layer. Also: `_clearStaleFocusing` extended to 1000ms, `_forceRepaint` pass added at 1500ms. |
+| **2.17.23** | **AI: Conversation threading** — `_aiThread` accumulates message history per session. Intro message seeds the thread; each user/assistant exchange appends. Thread cleared on panel close. Enables genuine back-and-forth without re-stating context. |
+| **2.17.22** | **AI: No task chips on conversational questions** — system prompt rule added: if user's message is a question/reflection/chat (not asking for task help), AI returns only a dismiss chip, no task actions. |
+| **2.17.21** | **Fix: Splash overhaul** — white flash fixed; animation sequence enforced (typewriter→explosion→tasks); canvas DPR bug fixed; dark pause removed; explosion loop stops on visual completion. `_appReady` fixed in no-splash path. |
+| **2.17.20** | **Fix: BUG-019 — star explosion not visible on mobile** — canvas removed too early (T+630ms). Now removed 500ms later so explosion plays over the appearing app. |
+| **2.17.19** | **Splash fixes** — typewriter switched to `requestAnimationFrame`. Canvas made DPR-aware. |
+| **2.17.18** | **Fix: Syntax error crashing app** — `const today` declared twice in `mergeRemoteData` scope. App crashed before splash completed. Replaced with inline `_getAppDay()` call. |
+| **2.17.17** | **Fix: `_appReady` timing** — was set at end of `init()` (~50ms) but splash shows 2-3s. Now set inside splash dismiss callback. `_onWake()` safely blocked until splash is fully gone. |
+| **2.17.16** | **Fix: Focus mins restore gap** — full Restore path (Dropbox Connections panel) lacked date guard. Added same check as `mergeRemoteData`. Test-matrix 73→77 tests. |
+| **2.17.15** | **Fix: Focus time carries over to next day** — `mergeRemoteData` used `Math.max(local, remote)` for `stat_focus_mins_today`. Added `stat_focus_mins_date` guard to backup. |
+| **2.17.14** | **Fix: White screen before splash on PWA open** — `window.focus` triggers `_onWake()` during splash. Added `_appReady` flag; `_onWake()` returns immediately if not ready. |
+| **2.17.13** | **Perf** — 11 raw `JSON.parse(localStorage...)` → `safeJSON()`. 2 `transition: all` → specific properties. AI system prompt trimming deferred to Backlog. |
+| **2.17.12** | **Perf** — in-app `CHANGELOG` trimmed from 235→3 entries. ~10KB saved on every page load. |
+| **2.17.11** | **AI conversation memory** — last AI message saved to `appMemory.recentConversations`. Last 3 sessions in memory context. Max 5 sessions, 200 char cap. Synced via Dropbox. |
+| **2.17.10** | **Copy** — section counts moved after labels. SOON pull button: `← grab` → `← pull in`. |
+| **2.17.9** | **Fix: Phantom SOON tasks reappear after day** — `mergeRemoteData` excluded `pastTasks` IDs from SOON merge. |
+| **2.17.8** | **Fix: Scroll resets on app return** — `_forceRepaint()` `display:none` cleared scroll. Now saves/restores all list `scrollTop` + `window.scrollY`. |
+| **2.17.7** | **UI: Focus mode checkbox fill removed** — `::before` fill on `.task-check`/`.habit-check` removed. Checkbox stays clear during focus. |
+| **2.17.6** | **AI multi-task actions** — `move_soon` and `delete_task` accept `ids` array. |
+| **2.17.5** | **Fix: AI chip acts on wrong task** — `_aiSetChips` now resolves task name from payload ID and appends to label so user sees which task is affected. |
 | **2.17.4** | **Fix: `break_down` deletes original task** — secondary AI call used full system prompt (including `delete_task`). AI returned `delete_task` for the original alongside subtask chips. Fix: `break_down` uses minimal direct fetch with restricted system prompt (`add_task` only) + client-side filter strips any non-`add_task` actions. |
 | **2.17.3** | **Fix: AI errors** — (1) Gemini 2.5 Flash thinking mode causes 15-30s responses, exceeding Netlify 10s timeout → `thinkingBudget: 0` added. (2) Claude model was `claude-sonnet-4-5` (old) → updated to `claude-sonnet-4-6`. Old model returns intermittent 500s under larger context. |
 | **2.17.2** | **Fix: `ReferenceError: syncDropbox` in `_aiExecute`** — `syncDropbox()` is private to the Dropbox sync closure. `_aiExecute` (global scope) called it directly when adding a task via AI chip. Replaced with `_setLastLocalChange()` + `dropboxAutoSave()` — the correct public API for all mutations. |
