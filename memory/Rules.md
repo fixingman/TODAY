@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.42
-- **Recent:** Offline mode — AI btn + connections panel (v2.17.42), version-badge ghost style (v2.17.41), CSS token audit (v2.17.40), PWA green flash fix (v2.17.39)
+- **Working on:** v2.17.43
+- **Recent:** PAST count stuck at 100 fix (v2.17.43), offline mode (v2.17.42), version-badge ghost style (v2.17.41), CSS token audit (v2.17.40)
 - **Watch for:** BUG-021 (splash explosion/freeze) — awaiting Can's verification
 
 ---
