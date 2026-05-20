@@ -29,6 +29,7 @@
 | 021 | Splash explosion invisible / freezes after typewriter | ⏳ v2.17.29 |
 | 022 | Focus fill bar pulsates during active countdown | ✅ v2.17.36 |
 | 023 | Top panels flash twice on desktop PWA restore | ✅ v2.17.37 |
+| 024 | Per-task focus minutes carry over to next day | ✅ v2.17.44 |
 
 
 ## BUG-021: Splash explosion invisible / freezes after typewriter
@@ -57,4 +58,29 @@
 
 ---
 
+## BUG-024: Per-task focus minutes carry over to next day
+
+**Status:** Open
+
+**Symptoms:**
+- A task carried to the next day shows focus minutes accumulated from the previous day
+- Today's focus time counter appears inflated before any work is done
+- The 🍅 pomodoro count and icon carrying over is **intentional and correct** — only the focus minutes should reset
+
+**Expected behaviour:**
+- Each day starts at 0m focused per task
+- The 🍅 count stays (lifetime sessions on that task)
+- Focus minutes build fresh each day from zero
+
+**Suspected cause:**
+- `focusSessions` is stored on the task object (`manualTasks[idx].focusSessions`) and carries with the task into the next day — this is correct for the 🍅 badge
+- Per-task focus minutes may not be separated from the session count, so both persist across the day boundary
+- `stat_focus_mins_today` (global) correctly resets to `0` on day change, but per-task minutes tracked within the task object or `today_trello_focus` may not
+
+**Files to investigate:**
+- `index.html` — `checkNewDay()` (~line 4417), `_trackFocusTime()` (~line 10517), `onSessionComplete()` (~line 10730)
+- Per-task `focusSessions` on `manualTasks` and `habitsList`
+- `today_trello_focus` localStorage key (cleared on day change at line 4452 — Trello is fine, manual tasks may not be)
+
+---
 

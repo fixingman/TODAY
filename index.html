@@ -3098,12 +3098,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.43';
+const APP_VERSION   = '2.17.44';
 const DEV_HOURS     = '198h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.44': 'Fix: BUG-024 focus minutes restored from previous day — backup payload was always stamping stat_focus_mins_date as _getAppDay() even when minutes were from yesterday, poisoning the date guard on the next sync. Now stat_focus_mins_date is persisted to localStorage when minutes are earned and on day-reset, so the backup carries the correct date.',
   '2.17.43': 'Fix: PAST count stuck at 100 — mergeRemoteData() now runs _purgePast() after union+cap so age-expired items are not resurrected from Dropbox on every sync.',
   '2.17.42': 'Feature: Offline mode — AI CTA switches to ✧ and disables (pointer-events:none, muted style) when offline; connections panel shows offline banner and disables all CTAs. Restored on reconnect.',
   '2.17.41': 'Style: version-badge — ghost style replacing solid accent fill. accent-dim bg, accent text, accent-glow border.',
@@ -4415,6 +4416,7 @@ function applyNewDayCleanup() {
   // Reset daily counters
   localStorage.setItem('stat_tasks_done_today', '0');
   localStorage.setItem('stat_focus_mins_today', '0');
+  localStorage.setItem('stat_focus_mins_date',  _getAppDay());
 
   // Snapshot planned task count at day start — carried-over undone tasks.
   // Used for emergent vs planned insight: how many tasks started the day planned
@@ -7693,7 +7695,7 @@ async function dropboxBackup(silent) {
     past_tasks:        safeJSON('today_past', []),
     // Stats — synced cross-device (flow rate is calculated live, not stored)
     stat_focus_mins_today:  localStorage.getItem('stat_focus_mins_today')  || '0',
-    stat_focus_mins_date:   _getAppDay(), // date guard — prevents yesterday's total restoring after midnight
+    stat_focus_mins_date:   localStorage.getItem('stat_focus_mins_date')  || _getAppDay(),
     stat_streak:            localStorage.getItem('stat_streak')            || '1',
     stat_streak_date:       localStorage.getItem('stat_streak_date')       || '',
     stat_tasks_done_today:  localStorage.getItem('stat_tasks_done_today')  || '0',
@@ -10536,6 +10538,7 @@ function _aiClearBadge() {
     // Add to today's focus minutes
     const prevMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
     localStorage.setItem('stat_focus_mins_today', prevMins + timeSpentMins);
+    localStorage.setItem('stat_focus_mins_date', _getAppDay());
     
     // Update memory with focus time
     _memoryOnFocusComplete(timeSpentMins);
@@ -10709,6 +10712,7 @@ function _aiClearBadge() {
     // Track full 25 minutes for completed session
     const prevMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
     localStorage.setItem('stat_focus_mins_today', prevMins + 25);
+    localStorage.setItem('stat_focus_mins_date', _getAppDay());
     
     // Update memory with focus session
     _memoryOnFocusComplete(25);

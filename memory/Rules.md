@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.43
-- **Recent:** PAST count stuck at 100 fix (v2.17.43), offline mode (v2.17.42), version-badge ghost style (v2.17.41), CSS token audit (v2.17.40)
+- **Working on:** v2.17.44
+- **Recent:** BUG-024 focus mins day carry fix (v2.17.44), PAST count stuck at 100 (v2.17.43), offline mode (v2.17.42), version-badge ghost style (v2.17.41)
 - **Watch for:** BUG-021 (splash explosion/freeze) — awaiting Can's verification
 
 ---

@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.44** | **Fix: BUG-024 focus minutes carry across day boundary** — `stat_focus_mins_date` was always generated as `_getAppDay()` in the backup payload, even when the stored minutes were from yesterday. On Day 2 startup: pre-cleanup backup stamped yesterday's minutes with today's date → next sync's date guard passed → `Math.max(0, 90) = 90` restored. Fix: save `stat_focus_mins_date` to localStorage whenever minutes are earned or reset, so the backup date reflects when minutes were actually accumulated. |
 | **2.17.43** | **Fix: PAST count stuck at 100** — `mergeRemoteData()` now calls `_purgePast()` immediately after the union+100-cap, so age-expired items (done >7d, let_go/aged >30d) are removed rather than resurrected from the Dropbox backup on every sync tick. |
 | **2.17.42** | **Feature: Offline mode** — AI CTA (`#addAiBtn`) switches to `✧` + `.offline` class (muted style, pointer-events none) when `navigator.onLine` is false. Connections panel gets `.offline-banner` above `#connectionsContainer` and all panel buttons + AI key input are disabled. `_applyOfflinePanel()` helper toggles state. Wired to `online`/`offline` events and applied on `init()`. Restored on reconnect. |
 | **2.17.41** | **Style: version-badge ghost** — changed from solid `--accent` fill + `--bg` text to `--accent-dim` bg + `--accent-glow` border + `--accent` text. Quieter, token-native. |
