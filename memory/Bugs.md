@@ -29,7 +29,8 @@
 | 021 | Splash explosion invisible / freezes after typewriter | ⏳ v2.17.29 |
 | 022 | Focus fill bar pulsates during active countdown | ✅ v2.17.36 |
 | 023 | Top panels flash twice on desktop PWA restore | ✅ v2.17.37 |
-| 024 | Per-task focus minutes carry over to next day | ✅ v2.17.44 |
+| 024 | Per-task focus minutes carry over to next day | ⏳ v2.17.44 |
+| 025 | PiP "Again" bar flashes twice on desktop PWA restore after session complete | 🐛 open |
 
 
 ## BUG-021: Splash explosion invisible / freezes after typewriter
@@ -55,6 +56,24 @@
 - On slow/flaky network, splash should still dismiss within ~6s even if Dropbox stalls
 
 **Verified fixed:** ☐
+
+---
+
+## BUG-025: PiP "Again" bar flashes twice on desktop PWA restore
+
+**Status:** Open
+
+**Symptoms:**
+- After a focus session completes, bring the desktop PWA back to foreground
+- The "Again" bar (complete state) flashes twice before settling into normal pulsate
+
+**Suspected cause:**
+- Similar pattern to BUG-022/023 — CSS animation restarted by visibility sync calls on restore
+- `_pipSync(0, TOTAL)` fires on `visibilitychange` and may re-trigger complete state CSS
+- `completeFor()` may also fire a second time via `_pipSync` path when app restores
+
+**Files to investigate:**
+- `index.html` visibilitychange handler (~line 10927), `_pipSync` (~line 11213), `completeFor` (~line 10700)
 
 ---
 

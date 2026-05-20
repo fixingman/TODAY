@@ -3098,12 +3098,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.44';
+const APP_VERSION   = '2.17.45';
 const DEV_HOURS     = '198h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.45': 'Feat: PiP CTAs always visible when session completes — pip-bar gets .complete class on done state; .pip-bar.complete .pip-controls { opacity:1 } removes the hover requirement. Cleared on Again restart.',
   '2.17.44': 'Fix: BUG-024 focus minutes restored from previous day — backup payload was always stamping stat_focus_mins_date as _getAppDay() even when minutes were from yesterday, poisoning the date guard on the next sync. Now stat_focus_mins_date is persisted to localStorage when minutes are earned and on day-reset, so the backup carries the correct date.',
   '2.17.43': 'Fix: PAST count stuck at 100 — mergeRemoteData() now runs _purgePast() after union+cap so age-expired items are not resurrected from Dropbox on every sync.',
   '2.17.42': 'Feature: Offline mode — AI CTA switches to ✧ and disables (pointer-events:none, muted style) when offline; connections panel shows offline banner and disables all CTAs. Restored on reconnect.',
@@ -10906,6 +10907,7 @@ function _aiClearBadge() {
     let pipWindow = null;
     let pipFillEl = null;
     let pipTimeEl = null;
+    let pipBarEl  = null;
     let openPipTimeout = null;
     let _pipRestoredFromButton = false; // PiP "open app" was tapped — don't close PiP on restore
     let _hadPiP  = false; // PiP was open before restore — reopen immediately on next restore
@@ -10944,7 +10946,8 @@ function _aiClearBadge() {
         pipWindow = null;
         pipFillEl = null;
         pipTimeEl = null;
-        
+        pipBarEl  = null;
+
         // Try opening immediately (might work if user gesture is still valid)
         openPiP().catch(() => {});
         
@@ -11086,7 +11089,8 @@ function _aiClearBadge() {
               background: var(--pip-overlay);
               transition: opacity 0.15s ease;
             }
-            .pip-bar:hover .pip-controls {
+            .pip-bar:hover .pip-controls,
+            .pip-bar.complete .pip-controls {
               opacity: 1;
             }
             .pip-btn {
@@ -11128,6 +11132,7 @@ function _aiClearBadge() {
 
         pipFillEl = pipWindow.document.getElementById('pipFill');
         pipTimeEl = pipWindow.document.getElementById('pipTime');
+        pipBarEl  = pipFillEl ? pipFillEl.parentElement : null;
 
         // Set initial progress
         const progress = (1 - st.rem / TOTAL) * 100;
@@ -11158,6 +11163,7 @@ function _aiClearBadge() {
             fillEl.classList.remove('complete');
             timeEl.classList.remove('complete');
             timerEl.classList.remove('complete');
+            if (pipBarEl) pipBarEl.classList.remove('complete');
             if (uiTaskEl) setProgress(0, uiTaskEl);
             timeEl.textContent = fmt(TOTAL);
             playStartSound();
@@ -11182,6 +11188,7 @@ function _aiClearBadge() {
           pipWindow = null;
           pipFillEl = null;
           pipTimeEl = null;
+          pipBarEl  = null;
         });
 
         _hadPiP = true; // Track that PiP was open
@@ -11220,6 +11227,7 @@ function _aiClearBadge() {
         _pipDone = true;
         const pauseBtn = pipWindow.document.getElementById('pipPause');
         if (pauseBtn) pauseBtn.textContent = 'Again';
+        if (pipBarEl) pipBarEl.classList.add('complete');
       }
     };
 
@@ -11259,6 +11267,7 @@ function _aiClearBadge() {
             _pipDone = true;
             const pauseBtn = pipWindow.document.getElementById('pipPause');
             if (pauseBtn) pauseBtn.textContent = 'Again';
+            if (pipBarEl) pipBarEl.classList.add('complete');
             return;
           }
           // Regular pause — show frozen time, keep polling slowly
