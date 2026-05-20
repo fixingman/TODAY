@@ -30,7 +30,7 @@
 | 022 | Focus fill bar pulsates during active countdown | ✅ v2.17.36 |
 | 023 | Top panels flash twice on desktop PWA restore | ✅ v2.17.37 |
 | 024 | Per-task focus minutes carry over to next day | ⏳ v2.17.44 |
-| 025 | PiP "Again" bar flashes twice on desktop PWA restore after session complete | 🐛 open |
+| 025 | PiP "Again" bar flashes twice on desktop PWA restore after session complete | ⏳ v2.17.45 |
 
 
 ## BUG-021: Splash explosion invisible / freezes after typewriter
@@ -59,9 +59,31 @@
 
 ---
 
+## BUG-024: Per-task focus minutes carry over to next day
+
+**Status:** Fixed v2.17.44 — awaiting verification
+
+**Symptoms:**
+- A task carried to the next day shows focus minutes accumulated from the previous day
+- Today's focus time counter appears inflated before any work is done
+- The 🍅 pomodoro count and icon carrying over is **intentional and correct** — only the focus minutes should reset
+
+**Expected behaviour:**
+- Each day starts at 0m focused per task
+- The 🍅 count stays (lifetime sessions on that task)
+- Focus minutes build fresh each day from zero
+
+**Root cause:** `stat_focus_mins_date` was only generated as `_getAppDay()` in the backup payload — not persisted to localStorage. On Day 2 startup, the pre-cleanup `dropboxBackup()` call stamped yesterday's minutes with today's date. The next sync's date guard passed and `Math.max(0, 90) = 90` restored yesterday's total.
+
+**Fix:** `stat_focus_mins_date` now saved to localStorage when minutes are earned and on day-reset. Backup uses stored date (not `_getAppDay()`), so pre-cleanup backups carry the correct previous-day date.
+
+**Verified fixed:** ☐
+
+---
+
 ## BUG-025: PiP "Again" bar flashes twice on desktop PWA restore
 
-**Status:** Open
+**Status:** Logged v2.17.45 — awaiting fix
 
 **Symptoms:**
 - After a focus session completes, bring the desktop PWA back to foreground
@@ -74,32 +96,6 @@
 
 **Files to investigate:**
 - `index.html` visibilitychange handler (~line 10927), `_pipSync` (~line 11213), `completeFor` (~line 10700)
-
----
-
-## BUG-024: Per-task focus minutes carry over to next day
-
-**Status:** Open
-
-**Symptoms:**
-- A task carried to the next day shows focus minutes accumulated from the previous day
-- Today's focus time counter appears inflated before any work is done
-- The 🍅 pomodoro count and icon carrying over is **intentional and correct** — only the focus minutes should reset
-
-**Expected behaviour:**
-- Each day starts at 0m focused per task
-- The 🍅 count stays (lifetime sessions on that task)
-- Focus minutes build fresh each day from zero
-
-**Suspected cause:**
-- `focusSessions` is stored on the task object (`manualTasks[idx].focusSessions`) and carries with the task into the next day — this is correct for the 🍅 badge
-- Per-task focus minutes may not be separated from the session count, so both persist across the day boundary
-- `stat_focus_mins_today` (global) correctly resets to `0` on day change, but per-task minutes tracked within the task object or `today_trello_focus` may not
-
-**Files to investigate:**
-- `index.html` — `checkNewDay()` (~line 4417), `_trackFocusTime()` (~line 10517), `onSessionComplete()` (~line 10730)
-- Per-task `focusSessions` on `manualTasks` and `habitsList`
-- `today_trello_focus` localStorage key (cleared on day change at line 4452 — Trello is fine, manual tasks may not be)
 
 ---
 
