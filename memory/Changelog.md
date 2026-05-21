@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.46** | **Fix: BUG-024 focus minutes carry (complete fix)** — backup payload fallback for `stat_focus_mins_date` was `_getAppDay()`, meaning users without the key in localStorage (upgrading from pre-v2.17.44) got today's date stamped on stale minutes, bypassing the date guard. Fallback changed to `''` so the guard rejects unknown-date data and treats remote minutes as 0. |
 | **2.17.45** | **Feat: PiP CTAs visible on session complete** — `pip-bar` gains `.complete` class when `_pipDone = true` (set in both `_pipSync` and `pipTick`). CSS `.pip-bar.complete .pip-controls { opacity:1 }` keeps controls permanently visible after completion, no hover required. Cleared on Again restart. |
 | **2.17.44** | **Fix: BUG-024 focus minutes carry across day boundary** — `stat_focus_mins_date` was always generated as `_getAppDay()` in the backup payload, even when the stored minutes were from yesterday. On Day 2 startup: pre-cleanup backup stamped yesterday's minutes with today's date → next sync's date guard passed → `Math.max(0, 90) = 90` restored. Fix: save `stat_focus_mins_date` to localStorage whenever minutes are earned or reset, so the backup date reflects when minutes were actually accumulated. |
 | **2.17.43** | **Fix: PAST count stuck at 100** — `mergeRemoteData()` now calls `_purgePast()` immediately after the union+100-cap, so age-expired items (done >7d, let_go/aged >30d) are removed rather than resurrected from the Dropbox backup on every sync tick. |

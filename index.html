@@ -3098,12 +3098,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.45';
+const APP_VERSION   = '2.17.46';
 const DEV_HOURS     = '198h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.46': 'Fix: BUG-024 focus minutes carry — backup payload fallback was _getAppDay() for users without stat_focus_mins_date in localStorage, stamping today\'s date on stale minutes and bypassing the date guard. Fallback changed to \'\' so the guard rejects unknown-date data.',
   '2.17.45': 'Feat: PiP CTAs always visible when session completes — pip-bar gets .complete class on done state; .pip-bar.complete .pip-controls { opacity:1 } removes the hover requirement. Cleared on Again restart.',
   '2.17.44': 'Fix: BUG-024 focus minutes restored from previous day — backup payload was always stamping stat_focus_mins_date as _getAppDay() even when minutes were from yesterday, poisoning the date guard on the next sync. Now stat_focus_mins_date is persisted to localStorage when minutes are earned and on day-reset, so the backup carries the correct date.',
   '2.17.43': 'Fix: PAST count stuck at 100 — mergeRemoteData() now runs _purgePast() after union+cap so age-expired items are not resurrected from Dropbox on every sync.',
@@ -7696,7 +7697,7 @@ async function dropboxBackup(silent) {
     past_tasks:        safeJSON('today_past', []),
     // Stats — synced cross-device (flow rate is calculated live, not stored)
     stat_focus_mins_today:  localStorage.getItem('stat_focus_mins_today')  || '0',
-    stat_focus_mins_date:   localStorage.getItem('stat_focus_mins_date')  || _getAppDay(),
+    stat_focus_mins_date:   localStorage.getItem('stat_focus_mins_date')  || '',
     stat_streak:            localStorage.getItem('stat_streak')            || '1',
     stat_streak_date:       localStorage.getItem('stat_streak_date')       || '',
     stat_tasks_done_today:  localStorage.getItem('stat_tasks_done_today')  || '0',

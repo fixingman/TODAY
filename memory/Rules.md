@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.45
-- **Recent:** BUG-024 focus mins day carry fix (v2.17.44), PAST count stuck at 100 (v2.17.43), offline mode (v2.17.42), version-badge ghost style (v2.17.41)
+- **Working on:** v2.17.46
+- **Recent:** BUG-024 complete fix (v2.17.46), PiP CTAs visible on complete (v2.17.45), BUG-024 partial fix (v2.17.44), PAST count stuck at 100 (v2.17.43)
 - **Watch for:** BUG-021 (splash explosion/freeze) — awaiting Can's verification
 
 ---
