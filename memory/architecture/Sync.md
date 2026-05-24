@@ -34,7 +34,7 @@
 6. On disconnect ('offline' event): stop ticker
 ```
 
-### Wake Sequence — `window._onWake()` (v2.17.0)
+### Wake Sequence — `window._onWake()` (v2.17.0, updated v2.17.50)
 
 All wake-related UI logic is consolidated into `window._onWake()`, defined in global scope. Called from three entry points:
 
@@ -47,12 +47,24 @@ All wake-related UI logic is consolidated into `window._onWake()`, defined in gl
 Three handlers remain in their own closures — not merged, they need private variables: SW update check, timer wall-clock correction, PiP show/hide.
 
 **`_onWake()` sequence:**
-1. Force repaint (BUG-004)
-2. Clear stale `.focusing` immediately + 350ms deferred (covers async `renderManual` gap)
-3. `checkMorningNudge()` — returning users after overnight need this
-4. `_triageBarSilent = true` (3s window)
-5. After 3s: clear silent, re-read `triage_dismissed`, `checkTriageBar()`
-6. Retry `_pendingBackup` if any
+1. `_forceRepaint()` × 5 passes (immediately, rAF, rAF+rAF, 500ms, 1500ms) — BUG-004
+2. Each repaint pass suppresses persistent CSS animations so they don't restart on `display:none/block` cycle:
+   - `.config-panel.open` → `fadeIn` (BUG-023), cleared on next user-open
+   - `.complete` → `timerCompletePulse` (BUG-025)
+   - `.ai-badge`, `.done-star`, `#errorIndicator.open`, `.loading-dots span`, `.ai-suggestion-msg.thinking`
+   - After the final 1500ms pass, all except `.config-panel.open` are restored via rAF
+3. Single-play animation classes cleared once on wake (not per-pass): `.task-slide-in`, `.removing`, `.just-checked`, `.milestone-pulse`, `.dot-ripple`, `#manualEmpty.fading-in`
+4. Clear stale `.focusing` immediately, at 350ms, and at 1000ms — guarded by `window._focusUIActive` to prevent premature removal when re-anchor is in progress (race condition: Dropbox sync may call `renderManual` which destroys `.focused` before `_focusReanchor` re-attaches it)
+5. `checkMorningNudge()` — returning users after overnight need this
+6. `_triageBarSilent = true` (3s window)
+7. After 3s: clear silent, re-read `triage_dismissed`, `checkTriageBar()`
+8. Retry `_pendingBackup` if any
+9. `_applyOfflinePanel()` — re-apply offline/online state in case connectivity changed while sleeping
+
+**`window._focusUIActive` flag:**
+- Set to `true` in `openUI()`, `false` in `closeUI()`
+- Read by `_clearStaleFocusing()` to skip removal when focus mode is legitimately active
+- Prevents a race where the 350ms check fires between `renderManual()` destroying `.focused` and `_focusReanchor()` re-attaching it
 
 **Sync module `visibilitychange` calls `_onWake` after sync is triggered:**
 1. `clearTimeout(wakeTimer)`
@@ -113,7 +125,9 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   deleted_habit_ids: ['id1', ...],
   // Stats
   stat_focus_mins_today: '0',
+  stat_focus_mins_date: '',      // YYYY-MM-DD local — date guard prevents yesterday's total restoring after midnight
   stat_streak: '1',
+  stat_streak_date: '',          // YYYY-MM-DD local — prevents double-increment across devices (BUG-020)
   stat_tasks_done_today: '0',
   // Memory
   memory: {totalTasksCompleted, patterns: {...}, aiName, moments: [...]},
@@ -265,10 +279,25 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 | Done IDs | Union with check/uncheck timestamps |
 | Deleted IDs | Union (excluded from tasks) |
 | SOON tasks | Union by ID, newer zoneChangedAt wins |
-| PAST tasks | Union by ID, newer zoneChangedAt wins, keep last 100 |
+| PAST tasks | Union by ID, newer zoneChangedAt wins, age-based purge only (done >7d, let_go/aged >30d) — no count cap (v2.17.47) |
 | Stats | Max wins |
 | Triage dismissed | If remote = today, apply locally |
 | Memory | Merge patterns, max of counters, union of moments |
+
+### Stat Merge — Date Guards
+
+Stats use `Math.max` but two have date guards to prevent yesterday's value restoring after midnight:
+
+**`stat_focus_mins_today` / `stat_focus_mins_date`**
+- `stat_focus_mins_date` is saved to localStorage whenever minutes are earned or reset
+- Backup payload uses the stored date (never `_getAppDay()` — that was the BUG-024 root cause)
+- Fallback in backup payload is `''` (empty) not today's date — `''` fails the date guard and treats remote value as 0
+- Merge: `remoteFocusMinsToday = remoteFocusDate === _getAppDay() ? remoteFocusMins : 0`
+
+**`stat_streak` / `stat_streak_date`**
+- `stat_streak_date` is set to `_localISO()` whenever streak is incremented in `applyNewDayCleanup()`
+- Merge adopts the lexicographically newer date from remote (alongside `Math.max` streak)
+- **Critical:** `applyNewDayCleanup()` only skips the streak INCREMENT when `streakDate === todayISO` — it must NOT return early, as the focus-minutes reset and other daily cleanup still need to run (BUG-024 true root cause, fixed v2.17.48)
 
 ---
 
