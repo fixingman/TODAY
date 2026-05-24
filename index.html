@@ -3098,12 +3098,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.49';
+const APP_VERSION   = '2.17.50';
 const DEV_HOURS     = '198h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.50': 'Fix: _onWake animation audit — _forceRepaint() now suppresses all persistent animations (.ai-badge, .done-star, #errorIndicator.open, .loading-dots, .thinking) matching BUG-023/025 pattern. Single-play classes (.task-slide-in, .removing, .just-checked, .milestone-pulse, .dot-ripple) cleared once on wake. _clearStaleFocusing guards against re-anchor race via window._focusUIActive. Offline panel re-applied on wake.',
   '2.17.49': 'Fix: BUG-025 + re-open stuck at 00:00 — (1) _forceRepaint() suppresses .complete animation on each display:none/block pass (500ms + 1500ms were the two visible flashes); cleared after final pass so pulsate resumes. (2) openUI() clears done task state before syncDisplay so re-opening a completed task shows fresh 25:00, not frozen 00:00.',
   '2.17.48': 'Fix: BUG-024 true root cause — applyNewDayCleanup() early-returned when stat_streak_date already matched today (BUG-020 guard), skipping the focus-mins reset entirely. Restructured to only skip the streak increment, not the full cleanup.',
   '2.17.47': 'Fix: PAST 100-task cap removed — sync merge no longer slices to 100 after union. Age-based purge (_purgePast: done >7d, let_go/aged >30d) is the only retention limit.',
@@ -7609,14 +7610,20 @@ window._onWake = function() {
     appEl.style.display = 'none';
     void appEl.offsetHeight;
     appEl.style.display = '';
-    // Suppress fadeIn restart on open panels — CSS animations replay when parent
-    // re-enters the render tree after display:none. Inline none overrides the
-    // .open rule; cleared on next user-triggered open. (BUG-023)
-    appEl.querySelectorAll('.config-panel.open').forEach(el => { el.style.animation = 'none'; });
-    // Suppress timerCompletePulse restart on complete-state timer elements. Same
-    // mechanism as BUG-023 — display:none resets the animation on every repaint pass.
-    // The 500ms and 1500ms passes produce two visible flashes. (BUG-025)
-    appEl.querySelectorAll('.complete').forEach(el => { el.style.animation = 'none'; });
+    // Suppress animations that restart on display:none/block cycle.
+    // Each selector targets an element with a persistent (infinite or long) animation.
+    // .config-panel.open — fadeIn, cleared on next user-open (BUG-023)
+    // .complete — timerCompletePulse, restored after final pass (BUG-025)
+    // All others — infinite breathing/blinking animations added after the original fixes.
+    [
+      '.config-panel.open',
+      '.complete',
+      '.ai-badge',
+      '.done-star',
+      '#errorIndicator.open',
+      '.loading-dots span',
+      '.ai-suggestion-msg.thinking',
+    ].forEach(sel => appEl.querySelectorAll(sel).forEach(el => { el.style.animation = 'none'; }));
     scrollPositions.forEach(({ el, top }) => { el.scrollTop = top; });
     window.scrollTo(0, appScroll);
   }
@@ -7628,13 +7635,29 @@ window._onWake = function() {
   setTimeout(_forceRepaint, 500);
   setTimeout(() => {
     _forceRepaint();
-    // After the final repaint pass, restore .complete animations so pulsate resumes
-    // cleanly instead of staying suppressed permanently. (BUG-025)
+    // Restore suppressed animations after the final repaint pass.
+    // .config-panel.open stays suppressed — cleared on next user-open (BUG-023 pattern).
     requestAnimationFrame(() => {
       const _a = document.getElementById('main-app');
-      if (_a) _a.querySelectorAll('.complete').forEach(el => { el.style.animation = ''; });
+      if (_a) [
+        '.complete', '.ai-badge', '.done-star',
+        '#errorIndicator.open', '.loading-dots span', '.ai-suggestion-msg.thinking',
+      ].forEach(sel => _a.querySelectorAll(sel).forEach(el => { el.style.animation = ''; }));
     });
   }, 1500); // extra pass for slow GPU wakeup after long sleep (BUG-004)
+
+  // Clear single-play animation classes that may be mid-flight at sleep time.
+  // Removing the class cancels cleanly; the animation will re-play on next trigger.
+  const _wakeEl = document.getElementById('main-app');
+  if (_wakeEl) {
+    _wakeEl.querySelectorAll('.task-slide-in').forEach(el => el.classList.remove('task-slide-in'));
+    _wakeEl.querySelectorAll('.task.removing').forEach(el => el.classList.remove('removing'));
+    _wakeEl.querySelectorAll('.just-checked').forEach(el => el.classList.remove('just-checked'));
+    _wakeEl.querySelectorAll('.milestone-pulse').forEach(el => el.classList.remove('milestone-pulse'));
+    _wakeEl.querySelectorAll('.dot-ripple').forEach(el => el.classList.remove('dot-ripple'));
+    const _emptyFading = _wakeEl.querySelector('#manualEmpty.fading-in');
+    if (_emptyFading) _emptyFading.classList.remove('fading-in');
+  }
 
   // Clear stale .focusing — three checks:
   // 1. Immediate: covers clean sleep/wake where .focused was never set
@@ -7643,6 +7666,9 @@ window._onWake = function() {
   //    gap .focusing is on but nothing is .focused → everything at 7% → blank. (BUG-004)
   // 3. Deferred 1000ms: catches late renders after Dropbox/Trello sync completes
   function _clearStaleFocusing() {
+    // If focus mode is still active, _focusReanchor may not have re-attached .focused yet
+    // (sync can trigger renderManual between our checks). Don't remove .focusing prematurely.
+    if (window._focusUIActive) return;
     const appEl = document.getElementById('main-app');
     if (appEl && appEl.classList.contains('focusing') && !appEl.querySelector('.focused')) {
       appEl.classList.remove('focusing');
@@ -7670,6 +7696,9 @@ window._onWake = function() {
     const token = localStorage.getItem('dropbox_token');
     if (token) _scheduleBackup(1000);
   }
+
+  // Re-apply offline state — navigator.onLine may have changed while sleeping.
+  if (typeof _applyOfflinePanel === 'function') _applyOfflinePanel();
 };
 
 // PWA standalone may not always fire visibilitychange on window restore —
@@ -10491,6 +10520,7 @@ function _aiClearBadge() {
 
     uiTaskEl = taskEl;
     uiTaskId = taskId;
+    window._focusUIActive = true;
 
     // Strip complete state — timerEl is reused; prior .complete bleeds into new session (BUG-022)
     fillEl.classList.remove('complete');
@@ -10611,6 +10641,7 @@ function _aiClearBadge() {
 
     uiTaskEl = null;
     uiTaskId = null;
+    window._focusUIActive = false;
 
     // Timer was paused before closeUI — nothing to continue
   }
