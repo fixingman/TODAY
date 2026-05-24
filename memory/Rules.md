@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.48
-- **Recent:** BUG-024 true fix (v2.17.48), PAST 100-cap removed (v2.17.47), BUG-024 payload fix (v2.17.46), PiP CTAs visible on complete (v2.17.45)
+- **Working on:** v2.17.49
+- **Recent:** BUG-025 + re-open stuck 00:00 (v2.17.49), BUG-024 true fix (v2.17.48), PAST 100-cap removed (v2.17.47), BUG-024 payload fix (v2.17.46)
 - **Watch for:** BUG-021 (splash explosion/freeze) — awaiting Can's verification
 
 ---

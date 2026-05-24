@@ -30,7 +30,7 @@
 | 022 | Focus fill bar pulsates during active countdown | ✅ v2.17.36 |
 | 023 | Top panels flash twice on desktop PWA restore | ✅ v2.17.37 |
 | 024 | Per-task focus minutes carry over to next day | ⏳ v2.17.48 |
-| 025 | PiP "Again" bar flashes twice on desktop PWA restore after session complete | ⏳ v2.17.45 |
+| 025 | PiP "Again" bar flashes twice on desktop PWA restore after session complete | ⏳ v2.17.49 |
 
 
 ## BUG-021: Splash explosion invisible / freezes after typewriter
@@ -87,19 +87,15 @@
 
 ## BUG-025: PiP "Again" bar flashes twice on desktop PWA restore
 
-**Status:** Logged v2.17.45 — awaiting fix
+**Status:** Fixed v2.17.49 — awaiting verification
 
 **Symptoms:**
 - After a focus session completes, bring the desktop PWA back to foreground
 - The "Again" bar (complete state) flashes twice before settling into normal pulsate
 
-**Suspected cause:**
-- Similar pattern to BUG-022/023 — CSS animation restarted by visibility sync calls on restore
-- `_pipSync(0, TOTAL)` fires on `visibilitychange` and may re-trigger complete state CSS
-- `completeFor()` may also fire a second time via `_pipSync` path when app restores
+**Root cause:** `_onWake` calls `_forceRepaint()` 5 times. Each call cycles `#main-app` through `display:none → display:''`, which resets all CSS animations on child elements — including `timerCompletePulse` on `fillEl.complete` (timer is inside `#main-app` while open). The first 3 calls happen within ~32ms and are imperceptible. The 4th at 500ms and 5th at 1500ms produce two clearly visible flashes. BUG-023 handled `.config-panel.open` the same way but missed `.complete` timer elements.
 
-**Files to investigate:**
-- `index.html` visibilitychange handler (~line 10927), `_pipSync` (~line 11213), `completeFor` (~line 10700)
+**Fix:** In `_forceRepaint`, suppress `animation` on `.complete` elements after each `display:none/block` cycle (same pattern as BUG-023). After the final 1500ms pass, clear suppression via rAF so the pulsate animation resumes once cleanly.
 
 ---
 

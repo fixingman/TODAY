@@ -3098,12 +3098,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.48';
+const APP_VERSION   = '2.17.49';
 const DEV_HOURS     = '198h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.49': 'Fix: BUG-025 + re-open stuck at 00:00 — (1) _forceRepaint() suppresses .complete animation on each display:none/block pass (500ms + 1500ms were the two visible flashes); cleared after final pass so pulsate resumes. (2) openUI() clears done task state before syncDisplay so re-opening a completed task shows fresh 25:00, not frozen 00:00.',
   '2.17.48': 'Fix: BUG-024 true root cause — applyNewDayCleanup() early-returned when stat_streak_date already matched today (BUG-020 guard), skipping the focus-mins reset entirely. Restructured to only skip the streak increment, not the full cleanup.',
   '2.17.47': 'Fix: PAST 100-task cap removed — sync merge no longer slices to 100 after union. Age-based purge (_purgePast: done >7d, let_go/aged >30d) is the only retention limit.',
   '2.17.46': 'Fix: BUG-024 focus minutes carry — backup payload fallback was _getAppDay() for users without stat_focus_mins_date in localStorage, stamping today\'s date on stale minutes and bypassing the date guard. Fallback changed to \'\' so the guard rejects unknown-date data.',
@@ -7612,6 +7613,10 @@ window._onWake = function() {
     // re-enters the render tree after display:none. Inline none overrides the
     // .open rule; cleared on next user-triggered open. (BUG-023)
     appEl.querySelectorAll('.config-panel.open').forEach(el => { el.style.animation = 'none'; });
+    // Suppress timerCompletePulse restart on complete-state timer elements. Same
+    // mechanism as BUG-023 — display:none resets the animation on every repaint pass.
+    // The 500ms and 1500ms passes produce two visible flashes. (BUG-025)
+    appEl.querySelectorAll('.complete').forEach(el => { el.style.animation = 'none'; });
     scrollPositions.forEach(({ el, top }) => { el.scrollTop = top; });
     window.scrollTo(0, appScroll);
   }
@@ -7621,7 +7626,15 @@ window._onWake = function() {
     requestAnimationFrame(_forceRepaint);
   });
   setTimeout(_forceRepaint, 500);
-  setTimeout(_forceRepaint, 1500); // extra pass for slow GPU wakeup after long sleep (BUG-004)
+  setTimeout(() => {
+    _forceRepaint();
+    // After the final repaint pass, restore .complete animations so pulsate resumes
+    // cleanly instead of staying suppressed permanently. (BUG-025)
+    requestAnimationFrame(() => {
+      const _a = document.getElementById('main-app');
+      if (_a) _a.querySelectorAll('.complete').forEach(el => { el.style.animation = ''; });
+    });
+  }, 1500); // extra pass for slow GPU wakeup after long sleep (BUG-004)
 
   // Clear stale .focusing — three checks:
   // 1. Immediate: covers clean sleep/wake where .focused was never set
@@ -10483,6 +10496,10 @@ function _aiClearBadge() {
     fillEl.classList.remove('complete');
     timeEl.classList.remove('complete');
     timerEl.classList.remove('complete');
+    // If the previous session completed (rem=0), clear state so syncDisplay shows fresh 25:00.
+    // Without this, re-opening a completed task shows a frozen 00:00 until the timer bar is clicked. (BUG-025 sibling)
+    const _priorSt = getState(taskId);
+    if (_priorSt.rem === 0 && !_priorSt.running) clearState(taskId);
 
     appEl.classList.add('focusing');
     taskEl.classList.add('focused');
