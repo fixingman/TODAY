@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.50
-- **Recent:** _onWake animation audit (v2.17.50), BUG-025 + re-open 00:00 (v2.17.49), BUG-024 true fix (v2.17.48), PAST 100-cap removed (v2.17.47)
+- **Working on:** v2.17.51
+- **Recent:** CSS token audit (v2.17.51), _onWake animation audit (v2.17.50), BUG-025 + re-open 00:00 (v2.17.49), BUG-024 true fix (v2.17.48)
 - **Watch for:** BUG-021 (splash explosion/freeze) — awaiting Can's verification
 
 ---

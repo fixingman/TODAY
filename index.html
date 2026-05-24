@@ -364,6 +364,7 @@
     --color-danger:      #ff5f5f;   /* error / delete              */
     --color-danger-dim:  rgba(255,95,95,0.10);  /* danger bg tint  */
     --color-danger-border: rgba(255,95,95,0.20);/* danger border   */
+    --color-danger-pulse: rgba(255,95,95,0.40); /* error indicator ring animation start */
     --color-highlight:        #579dff;              /* info / Trello link      */
     --color-highlight-dim:    rgba(87,157,255,0.10); /* highlight bg tint       */
     --color-highlight-border: rgba(87,157,255,0.20); /* highlight border        */
@@ -500,8 +501,8 @@
     opacity: 1;
   }
   @keyframes errorPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255,95,95,0.4); }
-    50%       { box-shadow: 0 0 0 4px rgba(255,95,95,0); }
+    0%, 100% { box-shadow: 0 0 0 0 var(--color-danger-pulse); }
+    50%       { box-shadow: 0 0 0 4px transparent; }
   }
   #errorPanel {
     position: fixed;
@@ -1318,9 +1319,9 @@
 
   /* Habit dot consecutive-run ripple */
   @keyframes dotRipple {
-    0%   { box-shadow: 0 0 0 0 rgba(200, 240, 96, 0.55); }
-    70%  { box-shadow: 0 0 0 5px rgba(200, 240, 96, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(200, 240, 96, 0); }
+    0%   { box-shadow: 0 0 0 0 var(--color-accent-check); }
+    70%  { box-shadow: 0 0 0 5px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
   }
   .dot-ripple { animation: dotRipple 320ms var(--ease-out) forwards; }
 
@@ -3098,12 +3099,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.50';
+const APP_VERSION   = '2.17.51';
 const DEV_HOURS     = '198h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.51': 'Fix: CSS token audit — @keyframes errorPulse and dotRipple now use tokens (--color-danger-pulse, --color-accent-check) instead of hardcoded rgba. CHK SVG stroke changed from #0e0e10 to currentColor (inherits from .task.done .task-check color: var(--bg)).',
   '2.17.50': 'Fix: _onWake animation audit — _forceRepaint() now suppresses all persistent animations (.ai-badge, .done-star, #errorIndicator.open, .loading-dots, .thinking) matching BUG-023/025 pattern. Single-play classes (.task-slide-in, .removing, .just-checked, .milestone-pulse, .dot-ripple) cleared once on wake. _clearStaleFocusing guards against re-anchor race via window._focusUIActive. Offline panel re-applied on wake.',
   '2.17.49': 'Fix: BUG-025 + re-open stuck at 00:00 — (1) _forceRepaint() suppresses .complete animation on each display:none/block pass (500ms + 1500ms were the two visible flashes); cleared after final pass so pulsate resumes. (2) openUI() clears done task state before syncDisplay so re-opening a completed task shows fresh 25:00, not frozen 00:00.',
   '2.17.48': 'Fix: BUG-024 true root cause — applyNewDayCleanup() early-returned when stat_streak_date already matched today (BUG-020 guard), skipping the focus-mins reset entirely. Restructured to only skip the streak increment, not the full cleanup.',
@@ -5853,7 +5855,7 @@ function renderHabits() {
   
   if (editBtn) editBtn.style.display = habitsList.length > 0 ? '' : 'none';
   list.innerHTML = '';
-  const CHK = `<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#0e0e10" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const CHK = `<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   habitsList.forEach(h => {
     const ds     = new Set(habitCompletions[h.id] || []);
     const isDone = ds.has(_habitTodayISO());
