@@ -3098,12 +3098,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.47';
+const APP_VERSION   = '2.17.48';
 const DEV_HOURS     = '198h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.48': 'Fix: BUG-024 true root cause — applyNewDayCleanup() early-returned when stat_streak_date already matched today (BUG-020 guard), skipping the focus-mins reset entirely. Restructured to only skip the streak increment, not the full cleanup.',
   '2.17.47': 'Fix: PAST 100-task cap removed — sync merge no longer slices to 100 after union. Age-based purge (_purgePast: done >7d, let_go/aged >30d) is the only retention limit.',
   '2.17.46': 'Fix: BUG-024 focus minutes carry — backup payload fallback was _getAppDay() for users without stat_focus_mins_date in localStorage, stamping today\'s date on stale minutes and bypassing the date guard. Fallback changed to \'\' so the guard rejects unknown-date data.',
   '2.17.45': 'Feat: PiP CTAs always visible when session completes — pip-bar gets .complete class on done state; .pip-bar.complete .pip-controls { opacity:1 } removes the hover requirement. Cleared on Again restart.',
@@ -4374,20 +4375,17 @@ function applyNewDayCleanup() {
   const streak     = parseInt(localStorage.getItem('stat_streak') || '1');
   const streakDate = localStorage.getItem('stat_streak_date') || '';
   const todayISO   = _localISO();
-  // Guard: skip increment if streak was already bumped today (e.g. via sync from another device)
-  if (streakDate === todayISO) {
-    localStorage.setItem('stat_last_visit', today);
-    return;
+  // Only increment streak if not already bumped today — another device may have synced it first.
+  // Do NOT return early here; the daily counter reset must still run regardless.
+  if (streakDate !== todayISO) {
+    const newStreak = lastVisit === yesterday.toDateString() ? streak + 1 : 1;
+    localStorage.setItem('stat_streak', newStreak);
+    localStorage.setItem('stat_streak_date', todayISO);
+    if ([7, 14, 30, 60, 100].includes(newStreak)) {
+      localStorage.setItem('_streak_milestone_pending', '1');
+    }
+    _memoryOnStreakUpdate(newStreak);
   }
-  const newStreak = lastVisit === yesterday.toDateString() ? streak + 1 : 1;
-  localStorage.setItem('stat_streak', newStreak);
-  localStorage.setItem('stat_streak_date', todayISO);
-  if ([7, 14, 30, 60, 100].includes(newStreak)) {
-    localStorage.setItem('_streak_milestone_pending', '1');
-  }
-
-  // Update memory with streak
-  _memoryOnStreakUpdate(newStreak);
 
   // ── Daily counters reset ──
 

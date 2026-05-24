@@ -29,7 +29,7 @@
 | 021 | Splash explosion invisible / freezes after typewriter | ⏳ v2.17.29 |
 | 022 | Focus fill bar pulsates during active countdown | ✅ v2.17.36 |
 | 023 | Top panels flash twice on desktop PWA restore | ✅ v2.17.37 |
-| 024 | Per-task focus minutes carry over to next day | ⏳ v2.17.46 |
+| 024 | Per-task focus minutes carry over to next day | ⏳ v2.17.48 |
 | 025 | PiP "Again" bar flashes twice on desktop PWA restore after session complete | ⏳ v2.17.45 |
 
 
@@ -61,7 +61,7 @@
 
 ## BUG-024: Per-task focus minutes carry over to next day
 
-**Status:** Fixed v2.17.46 — awaiting verification
+**Status:** Fixed v2.17.48 — awaiting verification
 
 **Symptoms:**
 - A task carried to the next day shows focus minutes accumulated from the previous day
@@ -77,7 +77,9 @@
 
 **Fix (v2.17.44):** `stat_focus_mins_date` now saved to localStorage when minutes are earned and on day-reset. Backup uses stored date (not `_getAppDay()`), so pre-cleanup backups carry the correct previous-day date.
 
-**Fix (v2.17.46 — complete):** Backup payload fallback was `|| _getAppDay()`, meaning users without `stat_focus_mins_date` in localStorage (upgrading from pre-v2.17.44) got today's date stamped on stale minutes — bypassing the date guard. Fallback changed to `|| ''` so the guard rejects unknown-date data and treats remote minutes as 0.
+**Fix (v2.17.46):** Backup payload fallback was `|| _getAppDay()`, meaning users without `stat_focus_mins_date` in localStorage (upgrading from pre-v2.17.44) got today's date stamped on stale minutes — bypassing the date guard. Fallback changed to `|| ''` so the guard rejects unknown-date data and treats remote minutes as 0.
+
+**Fix (v2.17.48 — true root cause):** `applyNewDayCleanup()` had an early `return` at the streak guard (added for BUG-020): when `stat_streak_date` already matched today — e.g. because another device had synced the streak via Dropbox and `mergeRemoteData` had written it to localStorage — the function returned before resetting `stat_focus_mins_today`. The BUG-020 guard was correct in intent (skip the streak INCREMENT) but wrong in scope (it skipped the entire cleanup). Restructured: streak increment is now conditional inside an `if (streakDate !== todayISO)` block; daily counter reset always runs after.
 
 **Verified fixed:** ☐
 

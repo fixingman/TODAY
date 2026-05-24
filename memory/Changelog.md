@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.48** | **Fix: BUG-024 true root cause** — `applyNewDayCleanup()` had an early `return` when `stat_streak_date` already matched today (the BUG-020 fix). This silently skipped the focus-minutes reset whenever another device had synced the streak first. Restructured so only the streak increment is conditional — daily counter reset always runs. |
 | **2.17.47** | **Fix: PAST 100-task cap removed** — sync merge no longer slices to 100 after union. Only retention limit is `_purgePast()` age-based expiry: done tasks >7d, let_go/aged tasks >30d. |
 | **2.17.46** | **Fix: BUG-024 focus minutes carry (complete fix)** — backup payload fallback for `stat_focus_mins_date` was `_getAppDay()`, meaning users without the key in localStorage (upgrading from pre-v2.17.44) got today's date stamped on stale minutes, bypassing the date guard. Fallback changed to `''` so the guard rejects unknown-date data and treats remote minutes as 0. |
 | **2.17.45** | **Feat: PiP CTAs visible on session complete** — `pip-bar` gains `.complete` class when `_pipDone = true` (set in both `_pipSync` and `pipTick`). CSS `.pip-bar.complete .pip-controls { opacity:1 }` keeps controls permanently visible after completion, no hover required. Cleared on Again restart. |
