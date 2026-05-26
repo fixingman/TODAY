@@ -2414,7 +2414,7 @@
   }
   .habit-check::after { content: ''; position: absolute; inset: -16px -16px -16px -8px; }
   .habit-check:hover { border-color: var(--accent); background: var(--accent-dim); }
-  .habit.done-today .habit-check { background: var(--accent); border-color: var(--accent); }
+  .habit.done-today .habit-check { background: var(--accent); border-color: var(--accent); color: var(--bg); }
   .habit-check svg { display: none; }
   .habit.done-today .habit-check svg { display: block; }
 
@@ -3099,12 +3099,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.51';
+const APP_VERSION   = '2.17.52';
 const DEV_HOURS     = '198h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.52': 'Fix: BUG-025 extension — (1) PiP visibilitychange restore path now always syncs PiP (done sessions included); st.rem<=0 guard moved to hide-only path. (2) pipTick running branch now updates PiP display on completion (was stopping RAF before done-state could render). (3) syncDisplay re-applies .complete state instead of overwriting "again?" with 00:00. Fix: habit checkmark color — added color:var(--bg) so stroke=currentColor matches task checkmark.',
   '2.17.51': 'Fix: CSS token audit — @keyframes errorPulse and dotRipple now use tokens (--color-danger-pulse, --color-accent-check) instead of hardcoded rgba. CHK SVG stroke changed from #0e0e10 to currentColor (inherits from .task.done .task-check color: var(--bg)).',
   '2.17.50': 'Fix: _onWake animation audit — _forceRepaint() now suppresses all persistent animations (.ai-badge, .done-star, #errorIndicator.open, .loading-dots, .thinking) matching BUG-023/025 pattern. Single-play classes (.task-slide-in, .removing, .just-checked, .milestone-pulse, .dot-ripple) cleared once on wake. _clearStaleFocusing guards against re-anchor race via window._focusUIActive. Offline panel re-applied on wake.',
   '2.17.49': 'Fix: BUG-025 + re-open stuck at 00:00 — (1) _forceRepaint() suppresses .complete animation on each display:none/block pass (500ms + 1500ms were the two visible flashes); cleared after final pass so pulsate resumes. (2) openUI() clears done task state before syncDisplay so re-opening a completed task shows fresh 25:00, not frozen 00:00.',
@@ -10502,11 +10503,19 @@ function _aiClearBadge() {
   function syncDisplay(taskId, taskEl) {
     const st = getState(taskId);
     const p  = 1 - st.rem / TOTAL;
-    timeEl.textContent = fmt(st.rem);
     setProgress(p, taskEl);
     setPaused(st.paused);   // show paused only if user explicitly paused
-    // Also sync PiP if open
     if (window._pipSync) window._pipSync(st.rem, TOTAL);
+    // Session complete — re-apply done state in case DOM was rebuilt by sync/renderManual.
+    // Do NOT overwrite "again?" with fmt(0)="00:00" here. (BUG-025 extension)
+    if (st.rem === 0 && !st.running) {
+      fillEl.classList.add('complete');
+      timeEl.classList.add('complete');
+      timerEl.classList.add('complete');
+      timeEl.textContent = 'again?';
+    } else {
+      timeEl.textContent = fmt(st.rem);
+    }
   }
 
   function setPaused(on) {
@@ -10968,29 +10977,25 @@ function _aiClearBadge() {
     // We try immediately first, then with a short delay as fallback.
     document.addEventListener('visibilitychange', function() {
       if (!uiTaskId) return; // Not in focus mode
-      
-      const st = getState(uiTaskId);
-      if (st.rem <= 0) return; // Timer complete, no need for PiP
-      
-      // Clear any pending open
+
       clearTimeout(openPipTimeout);
-      
+
       if (document.hidden) {
-        // Clear any pending open
-        clearTimeout(openPipTimeout);
+        const st = getState(uiTaskId);
+        if (st.rem <= 0) return; // Timer complete — no PiP needed for a finished session
 
         if (pipWindow && !pipWindow.closed) {
           // PiP already open (kept alive from button restore) — sync and let it float up
           if (window._pipSync && uiTaskId) {
-            const st = getState(uiTaskId);
-            window._pipSync(st.rem, TOTAL);
+            const st2 = getState(uiTaskId);
+            window._pipSync(st2.rem, TOTAL);
           }
           // Start a new clock for the current task — old clock stops itself when
           // it sees uiTaskId !== clockTaskId. (BUG-011 ghost chime)
           startPiPClock();
           return;
         }
-        
+
         // No existing PiP — close any stale references and open fresh
         pipWindow = null;
         pipFillEl = null;
@@ -10999,7 +11004,7 @@ function _aiClearBadge() {
 
         // Try opening immediately (might work if user gesture is still valid)
         openPiP().catch(() => {});
-        
+
         // Also try after a short delay (in case immediate failed)
         openPipTimeout = setTimeout(async function() {
           if (!document.hidden) return; // User came back
@@ -11007,8 +11012,9 @@ function _aiClearBadge() {
           if (pipWindow && !pipWindow.closed) return; // Already opened
           await openPiP().catch(() => {});
         }, 150);
+
       } else {
-        // Window restored — sync display if PiP is still open
+        // Window restored — always sync PiP if open (handles complete state too). (BUG-025 extension)
         _pipRestoredFromButton = false;
         if (pipWindow && !pipWindow.closed && uiTaskId) {
           const st = getState(uiTaskId);
@@ -11016,9 +11022,9 @@ function _aiClearBadge() {
         }
 
         // If PiP was open before restore but browser auto-closed it (manual dock/Alt+Tab restore),
-        // reopen PiP NOW while we have a user gesture (the dock click).
-        // PiP stays open alongside the main window — when user minimizes again, it's already floating.
-        if (_hadPiP && uiTaskId && (!pipWindow || pipWindow.closed)) {
+        // reopen PiP — but only for running/paused sessions; complete sessions don't need PiP.
+        const stRestore = getState(uiTaskId);
+        if (_hadPiP && uiTaskId && (!pipWindow || pipWindow.closed) && stRestore.rem > 0) {
           openPiP().catch(() => {});
         }
       }
@@ -11347,6 +11353,17 @@ function _aiClearBadge() {
           // Timer reached zero — trigger completion immediately from wall clock.
           // Don't wait for the throttled tickFor tick in the hidden main tab.
           completeFor(clockTaskId);
+          // completeFor doesn't call _pipSync — update PiP done state here directly.
+          // (The paused-branch detection on the next pipTick would handle it, but
+          //  this branch returns without scheduling the next RAF.) (BUG-025 extension)
+          if (pipWindow && !pipWindow.closed && pipTimeEl) {
+            pipTimeEl.textContent = fmt(0);
+            if (pipFillEl) pipFillEl.style.width = '100%';
+            _pipDone = true;
+            const _pb = pipWindow.document.getElementById('pipPause');
+            if (_pb) _pb.textContent = 'Again';
+            if (pipBarEl) pipBarEl.classList.add('complete');
+          }
           return;
         }
 

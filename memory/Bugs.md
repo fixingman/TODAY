@@ -30,8 +30,9 @@
 | 022 | Focus fill bar pulsates during active countdown | ✅ v2.17.36 |
 | 023 | Top panels flash twice on desktop PWA restore | ✅ v2.17.37 |
 | 024 | Per-task focus minutes carry over to next day | ⏳ v2.17.48 |
-| 025 | PiP "Again" bar flashes twice on desktop PWA restore after session complete | ⏳ v2.17.49 |
+| 025 | PiP "Again" lost / shows 25:00 on sleep/wake after session complete | ⏳ v2.17.52 |
 
+---
 
 ## BUG-021: Splash explosion invisible / freezes after typewriter
 
@@ -85,17 +86,31 @@
 
 ---
 
-## BUG-025: PiP "Again" bar flashes twice on desktop PWA restore
+## BUG-025: PiP "Again" lost / shows 25:00 on sleep/wake after session complete
 
-**Status:** Fixed v2.17.49 — awaiting verification
+**Status:** Fixed v2.17.52 — awaiting verification
 
-**Symptoms:**
+**Original symptom (v2.17.49):**
 - After a focus session completes, bring the desktop PWA back to foreground
 - The "Again" bar (complete state) flashes twice before settling into normal pulsate
 
-**Root cause:** `_onWake` calls `_forceRepaint()` 5 times. Each call cycles `#main-app` through `display:none → display:''`, which resets all CSS animations on child elements — including `timerCompletePulse` on `fillEl.complete` (timer is inside `#main-app` while open). The first 3 calls happen within ~32ms and are imperceptible. The 4th at 500ms and 5th at 1500ms produce two clearly visible flashes. BUG-023 handled `.config-panel.open` the same way but missed `.complete` timer elements.
+**Extended symptom (v2.17.52):**
+- Complete a session (timer shows "again?" pulsating, PiP shows "Again")
+- Computer sleeps
+- On wake: PiP shows 25:00 with "Breathe" instead of "Again"; main timer may revert to "00:00"
 
-**Fix:** In `_forceRepaint`, suppress `animation` on `.complete` elements after each `display:none/block` cycle (same pattern as BUG-023). After the final 1500ms pass, clear suppression via rAF so the pulsate animation resumes once cleanly.
+**Root cause — original (flash):** `_onWake` calls `_forceRepaint()` 5 times. Each call cycles `#main-app` through `display:none → display:''`, which resets all CSS animations — including `timerCompletePulse` on `.complete` elements. The 500ms and 1500ms passes produced two visible flashes.
+
+**Fix (v2.17.49):** `_forceRepaint` suppresses `animation` on `.complete` elements after each display cycle; restored after the final 1500ms pass.
+
+**Root cause — extended (sleep/wake loses done state):** Three compounding issues:
+1. `pipTick` running branch calls `completeFor` then returns, stopping the RAF — but `completeFor` doesn't update the PiP display, and the next RAF tick (which would detect done state via the paused branch) never fires.
+2. `visibilitychange` PiP handler had `if (st.rem <= 0) return` at the top, which blocked the restore path — so on wake, PiP was never re-synced to done state even if still alive.
+3. `syncDisplay` (called from `_focusReanchor` after sync rebuilds DOM) set `timeEl.textContent = fmt(0)` = "00:00", overwriting the "again?" text.
+
+**Fix (v2.17.52):**
+1. `pipTick` running branch now explicitly shows done state in PiP immediately after `completeFor`.
+2. `visibilitychange` `st.rem <= 0` guard moved inside the `document.hidden` branch (don't open new PiP for complete sessions); restore path always syncs existing PiP and skips reopen for complete sessions.
+3. `syncDisplay` checks `rem === 0 && !running` — re-applies `.complete` classes and "again?" text instead of "00:00".
 
 ---
-
