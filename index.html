@@ -3099,12 +3099,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.52';
+const APP_VERSION   = '2.17.53';
 const DEV_HOURS     = '198h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.53': 'Fix: BUG-026 habit re-check after uncheck — mergeRemoteData pure union was re-checking habits from stale Dropbox data within the 800ms debounce window. Added habitEvents LWW map ("habitId::YYYY-MM-DD" → {type,at}): toggleHabitDone records every check/uncheck with a timestamp; merge keeps the newer event and filters union accordingly. Old completions without events pass through unchanged.',
   '2.17.52': 'Fix: BUG-025 extension — (1) PiP visibilitychange restore path now always syncs PiP (done sessions included); st.rem<=0 guard moved to hide-only path. (2) pipTick running branch now updates PiP display on completion (was stopping RAF before done-state could render). (3) syncDisplay re-applies .complete state instead of overwriting "again?" with 00:00. Fix: habit checkmark color — added color:var(--bg) so stroke=currentColor matches task checkmark.',
   '2.17.51': 'Fix: CSS token audit — @keyframes errorPulse and dotRipple now use tokens (--color-danger-pulse, --color-accent-check) instead of hardcoded rgba. CHK SVG stroke changed from #0e0e10 to currentColor (inherits from .task.done .task-check color: var(--bg)).',
   '2.17.50': 'Fix: _onWake animation audit — _forceRepaint() now suppresses all persistent animations (.ai-badge, .done-star, #errorIndicator.open, .loading-dots, .thinking) matching BUG-023/025 pattern. Single-play classes (.task-slide-in, .removing, .just-checked, .milestone-pulse, .dot-ripple) cleared once on wake. _clearStaleFocusing guards against re-anchor race via window._focusUIActive. Offline panel re-applied on wake.',
@@ -4531,7 +4532,8 @@ function init() {
   renderManual();
   renderSoon();
   renderPast();
-  _cleanupDeletedIds();  // Remove invalid deleted_ids that match zone tasks
+  _cleanupDeletedIds();   // Remove invalid deleted_ids that match zone tasks
+  _cleanupHabitEvents();  // Purge habit_events older than 30 days
   updateStats();
   checkTriageBar();
   checkMorningNudge();
@@ -5781,11 +5783,13 @@ function _flashAccentGlow() {
 // ─── Habits ───────────────────────────────────────────────────────────────────
 let habitsList        = safeJSON('today_habits', []);
 let habitCompletions  = safeJSON('today_habit_completions', {});
+let habitEvents       = safeJSON('today_habit_events', {});   // LWW map: "habitId::YYYY-MM-DD" → {type,at}
 let habitEditMode     = false;
 
 function _saveHabits() {
   localStorage.setItem('today_habits',            JSON.stringify(habitsList));
   localStorage.setItem('today_habit_completions', JSON.stringify(habitCompletions));
+  localStorage.setItem('today_habit_events',      JSON.stringify(habitEvents));
   dropboxAutoSave();
 }
 
@@ -6013,6 +6017,9 @@ function toggleHabitDone(id) {
   const isNowDone = i === -1;
   if (isNowDone) { habitCompletions[id].push(today); playHabitDoneSound(); }
   else           { habitCompletions[id].splice(i, 1); }
+  // Record explicit check/uncheck event so sync merge can apply LWW instead of pure union.
+  // Without this, a 7s background sync re-checks the habit from stale Dropbox data. (BUG-026)
+  habitEvents[id + '::' + today] = { type: isNowDone ? 'check' : 'uncheck', at: new Date().toISOString() };
   _saveHabits();
 
   // If this habit is currently in focus mode, close the UI cleanly — same
@@ -7381,6 +7388,16 @@ const _cleanupDeletedIds = () => {
   }
 };
 
+// Purge habit_events older than 30 days — called from applyNewDayCleanup
+function _cleanupHabitEvents() {
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  let changed = false;
+  Object.keys(habitEvents).forEach(key => {
+    if (habitEvents[key].at < cutoff) { delete habitEvents[key]; changed = true; }
+  });
+  if (changed) localStorage.setItem('today_habit_events', JSON.stringify(habitEvents));
+}
+
 // ── Unchecked IDs: {id, at} — explicit uncheck tracking ───────────────────────
 const _getUncheckedIds = () => safeJSON('today_unchecked_ids', []);
 const _addUncheckedId  = (id) => {
@@ -7748,6 +7765,7 @@ async function dropboxBackup(silent) {
     // Habits — persisted cross-device
     habits:               safeJSON('today_habits',            []),
     habit_completions:    safeJSON('today_habit_completions', {}),
+    habit_events:         habitEvents,
     deleted_habit_ids:    safeJSON('today_deleted_habit_ids', []),
     // Memory — AI's learned patterns and moments
     memory:               safeJSON('today_memory', null),
@@ -7936,12 +7954,29 @@ function mergeRemoteData(data) {
   habitsList = [...remoteHabits.map(h => habitMap.get(h.id)), ...localOnlyHabits]
     .filter(h => !mergedDeletedHabitIds.has(h.id));
 
-  // Union of completions — for each habit, merge date arrays (dedup)
+  // Merge habit events: LWW per "habitId::YYYY-MM-DD" key.
+  // Prevents a 7s background sync from re-checking a habit the user just unchecked. (BUG-026)
+  const remoteHabitEvents = (data.habit_events && typeof data.habit_events === 'object') ? data.habit_events : {};
+  const mergedHabitEvents = { ...habitEvents };
+  Object.keys(remoteHabitEvents).forEach(key => {
+    const remote = remoteHabitEvents[key];
+    const local  = habitEvents[key];
+    if (!local || remote.at > local.at) mergedHabitEvents[key] = remote;
+  });
+  habitEvents = mergedHabitEvents;
+  localStorage.setItem('today_habit_events', JSON.stringify(habitEvents));
+
+  // Union of completions, then filter by merged events — uncheck events veto dates from the union.
+  // Dates with no event (pre-fix data) pass through unchanged for backward compatibility.
   const allHabitIds = new Set([...Object.keys(habitCompletions), ...Object.keys(remoteHabitComps)]);
   allHabitIds.forEach(id => {
     const local  = new Set(habitCompletions[id]  || []);
     const remote = new Set(remoteHabitComps[id]  || []);
-    habitCompletions[id] = [...new Set([...local, ...remote])];
+    const union  = [...new Set([...local, ...remote])];
+    habitCompletions[id] = union.filter(date => {
+      const ev = mergedHabitEvents[id + '::' + date];
+      return !ev || ev.type === 'check';
+    });
   });
 
   localStorage.setItem('today_habits',            JSON.stringify(habitsList));

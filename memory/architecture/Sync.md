@@ -122,6 +122,7 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   // Habits
   habits: [{id, name, created_at, focusSessions?}, ...],
   habit_completions: {habitId: ['YYYY-MM-DD', ...]},
+  habit_events: {'habitId::YYYY-MM-DD': {type: 'check'|'uncheck', at: ISO}},  // LWW map — BUG-026
   deleted_habit_ids: ['id1', ...],
   // Stats
   stat_focus_mins_today: '0',

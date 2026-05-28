@@ -29,8 +29,9 @@
 | 021 | Splash explosion invisible / freezes after typewriter | ⏳ v2.17.29 |
 | 022 | Focus fill bar pulsates during active countdown | ✅ v2.17.36 |
 | 023 | Top panels flash twice on desktop PWA restore | ✅ v2.17.37 |
-| 024 | Per-task focus minutes carry over to next day | ⏳ v2.17.48 |
-| 025 | PiP "Again" lost / shows 25:00 on sleep/wake after session complete | ⏳ v2.17.52 |
+| 024 | Per-task focus minutes carry over to next day | ✅ v2.17.48 |
+| 025 | PiP "Again" lost / shows 25:00 on sleep/wake after session complete | ✅ v2.17.52 |
+| 026 | Habit re-checks itself after uncheck (sync union race) | ⏳ v2.17.53 |
 
 ---
 
@@ -112,5 +113,20 @@
 1. `pipTick` running branch now explicitly shows done state in PiP immediately after `completeFor`.
 2. `visibilitychange` `st.rem <= 0` guard moved inside the `document.hidden` branch (don't open new PiP for complete sessions); restore path always syncs existing PiP and skips reopen for complete sessions.
 3. `syncDisplay` checks `rem === 0 && !running` — re-applies `.complete` classes and "again?" text instead of "00:00".
+
+---
+
+## BUG-026: Habit re-checks itself after uncheck (sync union race)
+
+**Status:** Fixed v2.17.53 — awaiting verification
+
+**Symptoms:**
+- User unchecks a habit during the day
+- Within ~10 seconds it re-checks itself
+- Also reproducible on wake or tab return
+
+**Root cause:** `mergeRemoteData` used a pure set union for `habit_completions` (lines 7939–7945). Uncheck removes today's date locally, but the 7s background sync reads stale Dropbox data (still has the date) and unions it back. The 800ms upload debounce creates a window where the sync fires before the local uncheck is uploaded. Tasks don't have this because they use timestamped `checked_ids` / `unchecked_ids` arrays with LWW merge. Habits had no equivalent.
+
+**Fix (v2.17.53):** Added `habitEvents` — a flat LWW map `{ "habitId::YYYY-MM-DD": { type, at } }` loaded from `today_habit_events` localStorage. `toggleHabitDone` records every check/uncheck with a timestamp. `mergeRemoteData` merges event maps (newer timestamp wins per key), then filters the union of completion dates — dates where the most recent event is `'uncheck'` are excluded. Old data without events passes through unchanged (backward compatible). Events purged after 30 days by `_cleanupHabitEvents()` called from `applyNewDayCleanup`.
 
 ---
