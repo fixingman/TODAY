@@ -432,8 +432,7 @@
     --text-base:  13px;
     --text-md:    14px;   /* body default                        */
     --text-lg:    16px;
-    --text-xs2:   12px;   /* small labels, config hints (12px)   */
-    --text-sm2:   12px;   /* alias kept for compatibility         */
+    --text-sm2:   12px;   /* small labels, config hints          */
     --text-task:  13.5px; /* task row text — between base and md  */
 
     /* ── Motion ──────────────────────────────────────────────── */
@@ -885,7 +884,7 @@
     cursor: default;
   }
   #pastList .past-icon {
-    font-size: var(--text-xs2);
+    font-size: var(--text-sm2);
     color: var(--muted);
     opacity: var(--opacity-soft);
   }
@@ -3099,12 +3098,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.53';
+const APP_VERSION   = '2.17.54';
 const DEV_HOURS     = '202h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.54': 'Fix: habitEvents not restored on full page load — full-restore path now reads data.habit_events from backup (same as mergeRemoteData does). Without this, a recently unchecked habit could briefly re-appear checked until the first 7s sync. Also: removed redundant --text-xs2 token (duplicate of --text-sm2); one usage migrated.',
   '2.17.53': 'Fix: BUG-026 habit re-check after uncheck — mergeRemoteData pure union was re-checking habits from stale Dropbox data within the 800ms debounce window. Added habitEvents LWW map ("habitId::YYYY-MM-DD" → {type,at}): toggleHabitDone records every check/uncheck with a timestamp; merge keeps the newer event and filters union accordingly. Old completions without events pass through unchanged.',
   '2.17.52': 'Fix: BUG-025 extension — (1) PiP visibilitychange restore path now always syncs PiP (done sessions included); st.rem<=0 guard moved to hide-only path. (2) pipTick running branch now updates PiP display on completion (was stopping RAF before done-state could render). (3) syncDisplay re-applies .complete state instead of overwriting "again?" with 00:00. Fix: habit checkmark color — added color:var(--bg) so stroke=currentColor matches task checkmark.',
   '2.17.51': 'Fix: CSS token audit — @keyframes errorPulse and dotRipple now use tokens (--color-danger-pulse, --color-accent-check) instead of hardcoded rgba. CHK SVG stroke changed from #0e0e10 to currentColor (inherits from .task.done .task-check color: var(--bg)).',
@@ -8312,8 +8312,10 @@ async function dropboxRestore(fromSync) {
       if (Array.isArray(data.habits)) {
         habitsList       = data.habits;
         habitCompletions = (data.habit_completions && typeof data.habit_completions === 'object') ? data.habit_completions : {};
+        habitEvents      = (data.habit_events      && typeof data.habit_events      === 'object') ? data.habit_events      : {};
         localStorage.setItem('today_habits',            JSON.stringify(habitsList));
         localStorage.setItem('today_habit_completions', JSON.stringify(habitCompletions));
+        localStorage.setItem('today_habit_events',      JSON.stringify(habitEvents));
         localStorage.setItem('today_deleted_habit_ids', JSON.stringify(Array.isArray(data.deleted_habit_ids) ? data.deleted_habit_ids : []));
         const habitsPanel = document.getElementById('habitsPanel');
         if (habitsPanel && habitsPanel.classList.contains('open')) renderHabits();

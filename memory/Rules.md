@@ -4,7 +4,7 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.53
+- **Working on:** v2.17.54
 - **Recent:** BUG-026 habit re-check (v2.17.53), BUG-025 extension + habit checkmark (v2.17.52), CSS token audit (v2.17.51), _onWake animation audit (v2.17.50)
 - **Watch for:** BUG-021 (splash explosion/freeze) — awaiting Can's verification
 
