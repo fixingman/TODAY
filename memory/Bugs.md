@@ -29,8 +29,8 @@
 | 021 | Splash explosion invisible / freezes after typewriter | ⏳ v2.17.29 |
 | 022 | Focus fill bar pulsates during active countdown | ✅ v2.17.36 |
 | 023 | Top panels flash twice on desktop PWA restore | ✅ v2.17.37 |
-| 024 | Per-task focus minutes carry over to next day | ✅ v2.17.48 |
-| 025 | PiP "Again" lost / shows 25:00 on sleep/wake after session complete | ✅ v2.17.52 |
+| 024 | Per-task focus minutes carry over to next day | ✅ v2.17.48 — verified |
+| 025 | PiP "Again" lost / shows 25:00 on sleep/wake after session complete | ✅ v2.17.52 — verified |
 | 026 | Habit re-checks itself after uncheck (sync union race) | ⏳ v2.17.53 |
 
 ---
@@ -58,61 +58,6 @@
 - On slow/flaky network, splash should still dismiss within ~6s even if Dropbox stalls
 
 **Verified fixed:** ☐
-
----
-
-## BUG-024: Per-task focus minutes carry over to next day
-
-**Status:** Fixed v2.17.48 — awaiting verification
-
-**Symptoms:**
-- A task carried to the next day shows focus minutes accumulated from the previous day
-- Today's focus time counter appears inflated before any work is done
-- The 🍅 pomodoro count and icon carrying over is **intentional and correct** — only the focus minutes should reset
-
-**Expected behaviour:**
-- Each day starts at 0m focused per task
-- The 🍅 count stays (lifetime sessions on that task)
-- Focus minutes build fresh each day from zero
-
-**Root cause:** `stat_focus_mins_date` was only generated as `_getAppDay()` in the backup payload — not persisted to localStorage. On Day 2 startup, the pre-cleanup `dropboxBackup()` call stamped yesterday's minutes with today's date. The next sync's date guard passed and `Math.max(0, 90) = 90` restored yesterday's total.
-
-**Fix (v2.17.44):** `stat_focus_mins_date` now saved to localStorage when minutes are earned and on day-reset. Backup uses stored date (not `_getAppDay()`), so pre-cleanup backups carry the correct previous-day date.
-
-**Fix (v2.17.46):** Backup payload fallback was `|| _getAppDay()`, meaning users without `stat_focus_mins_date` in localStorage (upgrading from pre-v2.17.44) got today's date stamped on stale minutes — bypassing the date guard. Fallback changed to `|| ''` so the guard rejects unknown-date data and treats remote minutes as 0.
-
-**Fix (v2.17.48 — true root cause):** `applyNewDayCleanup()` had an early `return` at the streak guard (added for BUG-020): when `stat_streak_date` already matched today — e.g. because another device had synced the streak via Dropbox and `mergeRemoteData` had written it to localStorage — the function returned before resetting `stat_focus_mins_today`. The BUG-020 guard was correct in intent (skip the streak INCREMENT) but wrong in scope (it skipped the entire cleanup). Restructured: streak increment is now conditional inside an `if (streakDate !== todayISO)` block; daily counter reset always runs after.
-
-**Verified fixed:** ☐
-
----
-
-## BUG-025: PiP "Again" lost / shows 25:00 on sleep/wake after session complete
-
-**Status:** Fixed v2.17.52 — awaiting verification
-
-**Original symptom (v2.17.49):**
-- After a focus session completes, bring the desktop PWA back to foreground
-- The "Again" bar (complete state) flashes twice before settling into normal pulsate
-
-**Extended symptom (v2.17.52):**
-- Complete a session (timer shows "again?" pulsating, PiP shows "Again")
-- Computer sleeps
-- On wake: PiP shows 25:00 with "Breathe" instead of "Again"; main timer may revert to "00:00"
-
-**Root cause — original (flash):** `_onWake` calls `_forceRepaint()` 5 times. Each call cycles `#main-app` through `display:none → display:''`, which resets all CSS animations — including `timerCompletePulse` on `.complete` elements. The 500ms and 1500ms passes produced two visible flashes.
-
-**Fix (v2.17.49):** `_forceRepaint` suppresses `animation` on `.complete` elements after each display cycle; restored after the final 1500ms pass.
-
-**Root cause — extended (sleep/wake loses done state):** Three compounding issues:
-1. `pipTick` running branch calls `completeFor` then returns, stopping the RAF — but `completeFor` doesn't update the PiP display, and the next RAF tick (which would detect done state via the paused branch) never fires.
-2. `visibilitychange` PiP handler had `if (st.rem <= 0) return` at the top, which blocked the restore path — so on wake, PiP was never re-synced to done state even if still alive.
-3. `syncDisplay` (called from `_focusReanchor` after sync rebuilds DOM) set `timeEl.textContent = fmt(0)` = "00:00", overwriting the "again?" text.
-
-**Fix (v2.17.52):**
-1. `pipTick` running branch now explicitly shows done state in PiP immediately after `completeFor`.
-2. `visibilitychange` `st.rem <= 0` guard moved inside the `document.hidden` branch (don't open new PiP for complete sessions); restore path always syncs existing PiP and skips reopen for complete sessions.
-3. `syncDisplay` checks `rem === 0 && !running` — re-applies `.complete` classes and "again?" text instead of "00:00".
 
 ---
 

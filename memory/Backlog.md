@@ -66,7 +66,7 @@
 **Vision:** A separate lightweight weekly planning tool. TODAY = focus instrument. WEEK = planning surface.
 **The differentiator:** Predictive AI from user behaviour — no manual energy ratings. WEEK learns organically what tasks this user does Monday mornings, when they focus vs coast, what they defer. Plan adapts to observed rhythm.
 **Relationship to TODAY:** TODAY data feeds WEEK's model. Focus sessions, task completion times, habit patterns, peak hour — all inputs.
-**Why not build yet:** BUG-011/012 still awaiting. AI memory needs more depth. Needs a design session — stripped Momentum concept needs its own identity.
+**Why not build yet:** AI memory needs more depth. Needs a design session — stripped Momentum concept needs its own identity.
 **When to revisit:** When TODAY has 3+ months of behavioural data and bug backlog is cleared.
 
 ---
@@ -165,7 +165,15 @@
 | Changelog alignment fix in About panel | 2.17.38 | May 2026 |
 | PWA launch dim green flash — manifest background_color fix | 2.17.39 | May 2026 |
 | CSS token audit — all hardcoded hex/rgba tokenised | 2.17.40 | May 2026 |
+| Offline mode — AI CTA and connections panel disabled when offline | 2.17.42 | May 2026 |
+| PiP CTAs always visible when session completes | 2.17.45 | May 2026 |
+| BUG-024 focus minutes carry fix (true root cause — applyNewDayCleanup early return) | 2.17.48 | May 2026 |
+| BUG-025 PiP Again flash + re-open 00:00 + sleep/wake done state | 2.17.49–52 | May 2026 |
+| _onWake animation audit — all persistent animations suppressed on repaint cycle | 2.17.50 | May 2026 |
+| CSS token audit pass 2 — keyframes + CHK SVG currentColor | 2.17.51 | May 2026 |
+| Habit checkmark color fix (color:var(--bg) for currentColor stroke) | 2.17.52 | May 2026 |
+| BUG-026 habit re-check after uncheck — habitEvents LWW map | 2.17.53 | May 2026 |
 
 ---
 
-*Last updated: v2.17.40*
+*Last updated: v2.17.53*

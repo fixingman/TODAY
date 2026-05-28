@@ -186,3 +186,26 @@
 **Symptom:** During an active focus session the fill bar simultaneously fills left-to-right AND pulsates in opacity — pulsating should only occur when the session is complete ("again?" state).
 **Root cause:** `timerCompletePulse` animation runs via `.complete` class on the shared `fillEl`. Two paths left `.complete` stranded: (1) PiP "Again" handler (introduced v2.17.35) reset session state but didn't remove `.complete` from main UI elements — on restore `visibilitychange` restarted `tickFor` so the bar filled while `.complete` was still active. (2) `closeUI(false)` (Esc or task-switch) skips the `remove('complete')` block (inside `if (doResetState)` only) — next `openUI()` called `syncDisplay()` which also doesn't clean `.complete`, so the new task's fill pulsated.
 **Fix:** (1) PiP "Again" handler: after resetting state, removes `.complete` from `fillEl`, `timeEl`, `timerEl` and resets fill display. (2) `openUI()`: strips `.complete` from all three elements before `syncDisplay()` — covers all remaining paths.
+
+---
+
+## BUG-024: Per-task focus minutes carry over to next day
+**Status:** ✅ Verified fixed (v2.17.44 + v2.17.46 + v2.17.48)
+**Symptom:** A task carried to the next day shows focus minutes accumulated from the previous day. Today's focus time counter appears inflated before any work is done. The 🍅 pomodoro count carrying over is intentional — only focus minutes should reset.
+**Root cause (v2.17.44):** `stat_focus_mins_date` was only generated as `_getAppDay()` in the backup payload — not persisted to localStorage. On Day 2 startup, the pre-cleanup `dropboxBackup()` stamped yesterday's minutes with today's date. Next sync's date guard passed → `Math.max(0, 90) = 90` restored yesterday's total.
+**Fix (v2.17.44):** `stat_focus_mins_date` now saved to localStorage when minutes are earned and on day-reset. Backup uses stored date (not `_getAppDay()`).
+**Root cause (v2.17.46):** Backup payload fallback was `|| _getAppDay()` — users upgrading from pre-v2.17.44 (no `stat_focus_mins_date` in localStorage) got today's date stamped on stale minutes, bypassing the date guard.
+**Fix (v2.17.46):** Fallback changed to `|| ''` so the guard rejects unknown-date data and treats remote minutes as 0.
+**Root cause (v2.17.48 — true root cause):** `applyNewDayCleanup()` had an early `return` at the BUG-020 streak guard — when `stat_streak_date` already matched today (synced from another device), the function returned before resetting `stat_focus_mins_today`.
+**Fix (v2.17.48):** Streak increment is now conditional inside `if (streakDate !== todayISO)` block; daily counter reset always runs after.
+
+---
+
+## BUG-025: PiP "Again" lost / shows 25:00 on sleep/wake after session complete
+**Status:** ✅ Verified fixed (v2.17.49 + v2.17.52)
+**Original symptom (v2.17.49):** After a focus session completes, bring the desktop PWA back to foreground — the "Again" bar flashes twice before settling into normal pulsate.
+**Extended symptom (v2.17.52):** Complete a session (timer shows "again?" pulsating, PiP shows "Again"), computer sleeps, on wake PiP shows 25:00 with "Breathe" instead of "Again"; main timer may revert to "00:00".
+**Root cause — original flash:** `_onWake` calls `_forceRepaint()` 5 times, each cycling `#main-app` through `display:none → display:''`, resetting all CSS animations — including `timerCompletePulse` on `.complete` elements. 500ms and 1500ms passes produced two visible flashes.
+**Fix (v2.17.49):** `_forceRepaint` suppresses `animation` on `.complete` elements after each display cycle; restored after the final 1500ms pass.
+**Root cause — extended (three compounding issues):** (1) `pipTick` running branch calls `completeFor` then stops RAF without updating PiP display — the next RAF tick (paused branch detection) never fires. (2) `visibilitychange` PiP handler had `if (st.rem <= 0) return` at top, blocking restore sync for complete sessions. (3) `syncDisplay` called from `_focusReanchor` after sync rebuilds DOM set `timeEl.textContent = fmt(0)` = "00:00", overwriting "again?".
+**Fix (v2.17.52):** (1) `pipTick` running branch explicitly shows done state before stopping. (2) `st.rem <= 0` guard moved inside `document.hidden` branch — restore path always syncs PiP. (3) `syncDisplay` re-applies `.complete` classes and "again?" text when `rem === 0 && !running`.
