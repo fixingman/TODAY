@@ -1800,6 +1800,30 @@
     text-transform: uppercase;
   }
 
+  #weekGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    text-align: center;
+    padding: var(--space-1) 0 var(--space-2);
+  }
+  .week-col { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .week-col-day { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .week-col-tasks { font-size: var(--text-md); color: var(--text); font-variant-numeric: tabular-nums; }
+  .week-col-tasks.is-today { color: var(--accent); }
+  .week-col-tasks.zero { color: var(--muted); opacity: var(--opacity-dim); }
+  .week-col-focus { font-size: 9px; color: var(--muted); }
+
+  #sundayBlock {
+    margin-bottom: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--accent-dim);
+    border-radius: var(--radius-md);
+    background: rgba(200,240,96,0.04);
+  }
+  .sunday-label { font-size: 9px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 3px; }
+  .sunday-summary { font-size: var(--text-base); color: var(--text); }
+
   .config-title {
     font-family: var(--font-display);
     font-weight: 700;
@@ -2834,11 +2858,15 @@
 
   <!-- Info panel -->
   <div class="config-panel" id="infoPanel">
-    <div class="panel-header">
-      <div class="config-title">✦ TODAY</div>
-    </div>
+    <div class="config-title">ℹ About</div>
 
+    <div id="sundayBlock" style="display:none"></div>
     <div id="infoStats"></div>
+
+    <div class="panel-section" id="weekSection" style="display:none">
+      <div class="config-label">This week</div>
+      <div id="weekGrid"></div>
+    </div>
 
     <div class="panel-section">
       <div class="config-label">Changelog</div>
@@ -3098,12 +3126,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.54';
+const APP_VERSION   = '2.17.55';
 const DEV_HOURS     = '202h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.55': 'Feat: Weekly retrospective in About panel — 7-day grid (tasks done + focus time per day, today shown live). Sunday shows a summary block above stats (total tasks, focus, habit ratio). Fix: About panel title changed from "TODAY" to "About". Fix: Connections button tooltip no longer changes to "Trello connected" — always reads "Connections".',
   '2.17.54': 'Fix: habitEvents not restored on full page load — full-restore path now reads data.habit_events from backup (same as mergeRemoteData does). Without this, a recently unchecked habit could briefly re-appear checked until the first 7s sync. Also: removed redundant --text-xs2 token (duplicate of --text-sm2); one usage migrated.',
   '2.17.53': 'Fix: BUG-026 habit re-check after uncheck — mergeRemoteData pure union was re-checking habits from stale Dropbox data within the 800ms debounce window. Added habitEvents LWW map ("habitId::YYYY-MM-DD" → {type,at}): toggleHabitDone records every check/uncheck with a timestamp; merge keeps the newer event and filters union accordingly. Old completions without events pass through unchanged.',
   '2.17.52': 'Fix: BUG-025 extension — (1) PiP visibilitychange restore path now always syncs PiP (done sessions included); st.rem<=0 guard moved to hide-only path. (2) pipTick running branch now updates PiP display on completion (was stopping RAF before done-state could render). (3) syncDisplay re-applies .complete state instead of overwriting "again?" with 00:00. Fix: habit checkmark color — added color:var(--bg) so stroke=currentColor matches task checkmark.',
@@ -4605,7 +4634,7 @@ function setTrelloIcon(connected) {
   const btn = document.getElementById('trelloBtn');
   if (!btn) return;
   btn.textContent = connected ? '✦︎' : '⚡︎';
-  btn.title = connected ? 'Trello connected' : 'Configure Trello';
+  // title stays "Connections" — set in HTML, never overwritten
 }
 
 function syncActiveButtons() {
@@ -4697,6 +4726,70 @@ function renderInfoStats() {
         el.addEventListener('animationend', () => el.classList.remove('milestone-pulse'), { once: true });
       }
     });
+  }
+
+  // ── Week grid ───────────────────────────────────────────────────────────────
+  const _history = safeJSON('today_daily_history', []);
+  const _today   = _localISO();
+  const _isSun   = new Date().getDay() === 0;
+
+  // Build 7-day window ending today
+  const _days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const iso = d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+    const letter = ['S','M','T','W','T','F','S'][d.getDay()];
+    const entry = _history.find(e => e.date === iso);
+    // Today: read live counters; prior days: use snapshot
+    const tasks = iso === _today
+      ? [...manualTasks, ...(trelloTasks || [])].filter(t => doneIds.has(t.id)).length
+      : (entry ? entry.tasksDone : null);
+    const focus = iso === _today
+      ? parseInt(localStorage.getItem('stat_focus_mins_today') || '0')
+      : (entry ? entry.focusMins : null);
+    _days.push({ iso, letter, tasks, focus, isToday: iso === _today });
+  }
+
+  const _weekSection = document.getElementById('weekSection');
+  const _hasData = _days.some(d => d.tasks !== null);
+  if (_weekSection) _weekSection.style.display = _hasData ? '' : 'none';
+
+  const _weekGrid = document.getElementById('weekGrid');
+  if (_weekGrid) {
+    _weekGrid.innerHTML = _days.map(d => {
+      const tStr = d.tasks === null ? '·' : String(d.tasks);
+      const fStr = !d.focus ? '' : _formatFocusTime(d.focus);
+      const cls  = d.tasks === null || d.tasks === 0 ? 'zero' : (d.isToday ? 'is-today' : '');
+      return '<div class="week-col">' +
+        '<div class="week-col-day">' + d.letter + '</div>' +
+        '<div class="week-col-tasks ' + cls + '">' + tStr + '</div>' +
+        '<div class="week-col-focus">' + fStr + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  // ── Sunday reflection (above stats) ────────────────────────────────────────
+  const _sundayBlock = document.getElementById('sundayBlock');
+  if (_sundayBlock) {
+    if (_isSun && _history.length > 0) {
+      const _week  = _days.filter(d => d.tasks !== null);
+      const _wT    = _week.reduce((s, d) => s + (d.tasks || 0), 0);
+      const _wF    = _week.reduce((s, d) => s + (d.focus || 0), 0);
+      const _snap7 = _history.slice(-7);
+      const _wHK   = _snap7.reduce((s, e) => s + (e.habitsKept  || 0), 0);
+      const _wHT   = _snap7.reduce((s, e) => s + (e.habitsTotal || 0), 0);
+      const _fStr  = _wF  > 0 ? ' · ' + _formatFocusTime(_wF) + ' focused' : '';
+      const _hStr  = _wHT > 0 ? ' · ' + _wHK + '/' + _wHT + ' habits' : '';
+      _sundayBlock.innerHTML =
+        '<div class="sunday-label">This week</div>' +
+        '<div class="sunday-summary">' + _wT + ' task' + (_wT !== 1 ? 's' : '') + ' done' + _fStr + _hStr + '</div>';
+      _sundayBlock.style.display = '';
+    } else {
+      _sundayBlock.style.display = 'none';
+    }
   }
 }
 
