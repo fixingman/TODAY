@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.58** | **Feat: Trello checklist badge** — cards with checklists show "N/M ✓" in the task meta row (read-only, option D). `checklists=all` added to cards fetch; `checklist: {done, total}` on task object; `.badge.checklist` muted style. |
 | **2.17.57** | **Fix: week narrative reads shape, not totals** — Pattern detection: trend (built momentum / strong start quieter finish), spike day (one day carried most weight), weekend pattern (left it clean / had movement), focus depth (deep when you sat down), or consistency. Replaces count-based observations that were redundant with the grid. |
 | **2.17.56** | **Feat: Week reflections** — Rule-based narrative below 7-day grid (picks from: "Showed up every day", "N days in motion", "Xh of deep work", "Best day: X with N done", etc.). Sunday block now shows an AI-generated 1-sentence reflection (cached per day in localStorage, "reflecting…" loading state, silent fallback to rule-based summary if no AI key or offline). |
 | **2.17.55** | **Feat: Weekly retrospective in About panel** — 7-day grid shows tasks done + focus time per day (today live, prior days from `today_daily_history` snapshots). On Sunday a summary block appears above the stat tiles: total tasks, focus time, habit ratio for the week. Also: About panel title fixed ("TODAY" → "About"); Connections button tooltip no longer mutates to "Trello connected". |

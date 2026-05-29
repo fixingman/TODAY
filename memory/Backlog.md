@@ -36,13 +36,9 @@
 **Goal:** Keyboard-first power user flow. Needs UX + UI exploration.
 
 ### Trello Checklist Support
-**Status:** Not started — design decision pending
-**Options evaluated:**
-- A: Read-only display (low complexity)
-- B: Write back to Trello (bidirectional, right long-term answer)
-- C: Explode into TODAY tasks (loses Trello connection)
-- D: Progress badge only — "3/5 ✓" on task row (minimal, fits aesthetic)
-**Next step:** Decide between D (visibility) or B (editable) before building anything.
+**Status:** Done (v2.17.58) — Option D implemented
+**Done:** Progress badge "N/M ✓" in task meta row. Read-only, pulls from `checklists=all` API param. Only shows when card has checklists.
+**Future:** Option B (write-back) is the right long-term answer if bidirectional editing is ever needed.
 
 ---
 
@@ -53,11 +49,6 @@
 **What's safe to cut when needed:** Action type descriptions after `—` (~40 tokens), energy awareness sub-bullets with examples (~40 tokens), redundant message/rules overlap (~30 tokens).
 **What must not be cut:** Task/habit lists with IDs, JSON format rules, "name the task" guideline, `ids` array docs, personality + philosophy block.
 **Revisit when:** Token cost becomes a real concern, or prompt grows past 500 static lines.
-
-### Momentum + TODAY Integration (Research)
-**Status:** Resolved — no technical integration
-**Finding:** Momentum has no public API. ICS import is inbound to Momentum only (no outbound). Technical bridge would require reverse-engineering. Not worth building.
-**Outcome:** Workflow pairing is the right answer — plan in Momentum on Sunday, execute in TODAY daily. Can be documented as a one-paragraph note in the About/Connections panel if desired.
 
 ### WEEK — Standalone Weekly Planning Companion
 **Status:** Concept stage — not ready to build
@@ -84,6 +75,7 @@
 | Widget/Home Screen | True widgets require WidgetKit (iOS) or native Android code — not accessible from a PWA. Revisit only if TODAY has a native wrapper. |
 | Quick Task Capture (without opening app) | No intuitive cross-platform solution. iOS has no PWA share target. Siri requires native app. |
 | Microsoft Notes Integration | Low priority, no clear user need identified. |
+| Momentum Integration | No public API. ICS is inbound-only to Momentum. Workflow pairing (plan in Momentum on Sunday, execute in TODAY daily) is the right answer. |
 
 ---
 
@@ -169,6 +161,7 @@
 | habitEvents full-restore gap + --text-xs2 token removed | 2.17.54 | May 2026 |
 | Weekly retrospective in About panel + header/tooltip fixes | 2.17.55 | May 2026 |
 | Week reflections — pattern narrative + AI Sunday block | 2.17.56–57 | May 2026 |
+| Trello checklist progress badge (option D) | 2.17.58 | May 2026 |
 | BUG-024 focus minutes carry fix (true root cause — applyNewDayCleanup early return) | 2.17.48 | May 2026 |
 | BUG-025 PiP Again flash + re-open 00:00 + sleep/wake done state | 2.17.49–52 | May 2026 |
 | _onWake animation audit — all persistent animations suppressed on repaint cycle | 2.17.50 | May 2026 |

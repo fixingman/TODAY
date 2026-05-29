@@ -1382,6 +1382,11 @@
     border: 1px solid var(--color-danger-border);
   }
 
+  .badge.checklist {
+    background: var(--color-muted-dim);
+    color: var(--muted);
+  }
+
   .task-delete {
     opacity: 0;
     background: none;
@@ -3135,12 +3140,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.57';
+const APP_VERSION   = '2.17.58';
 const DEV_HOURS     = '206h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.58': 'Feat: Trello checklist progress badge — cards with checklists show "N/M ✓" in task meta row (read-only, minimal).',
   '2.17.57': 'Fix: week narrative now reads the shape of the week instead of restating totals — detects trend (building/fading), spike days, weekend pattern, focus depth, or spread. Priority: trend > spike > weekend > depth > consistency.',
   '2.17.56': 'Feat: Week reflections — rule-based narrative below 7-day grid ("Showed up every day", "3h of deep work", etc.). Sunday block replaced with AI-generated 1-sentence reflection (cached per day, loading state, silent fallback to rule-based summary if no AI key or offline).',
   '2.17.55': 'Feat: Weekly retrospective in About panel — 7-day grid (tasks done + focus time per day, today shown live). Sunday shows a summary block above stats (total tasks, focus, habit ratio). Fix: About panel title changed from "TODAY" to "About". Fix: Connections button tooltip no longer changes to "Trello connected" — always reads "Connections".',
@@ -5266,7 +5272,7 @@ async function loadTrello(fromSync) {
     // Fetch lists and cards in parallel
     const [listsRes, cardsRes] = await Promise.all([
       fetch(`https://api.trello.com/1/boards/${config.boardId}/lists?key=${config.apiKey}&token=${config.apiToken}`),
-      fetch(`https://api.trello.com/1/boards/${config.boardId}/cards?key=${config.apiKey}&token=${config.apiToken}&fields=name,due,idList,url,labels`)
+      fetch(`https://api.trello.com/1/boards/${config.boardId}/cards?key=${config.apiKey}&token=${config.apiToken}&fields=name,due,idList,url,labels&checklists=all`)
     ]);
 
     if (!listsRes.ok) throw new Error(`Trello ${listsRes.status}: ${listsRes.statusText}`);
@@ -5328,12 +5334,18 @@ async function loadTrello(fromSync) {
 
     trelloTasks = filtered
       .filter(c => !isEmpty(c.name))
-      .map(c => ({
-        id:   'trello_' + c.id,
-        text: c.name,
-        due:  c.due || null,
-        url:  c.url || '',
-      }));
+      .map(c => {
+        const cls = c.checklists || [];
+        const checkTotal = cls.reduce((s, cl) => s + (cl.checkItems || []).length, 0);
+        const checkDone  = cls.reduce((s, cl) => s + (cl.checkItems || []).filter(i => i.state === 'complete').length, 0);
+        return {
+          id:        'trello_' + c.id,
+          text:      c.name,
+          due:       c.due || null,
+          url:       c.url || '',
+          checklist: checkTotal > 0 ? { done: checkDone, total: checkTotal } : null,
+        };
+      });
 
     // Apply synced order if available (cards not in order list go to the end)
     const savedOrder = safeJSON('today_trello_order', []);
@@ -5486,12 +5498,16 @@ function renderTrello() {
       const textEl = el.querySelector('.task-text');
       if (textEl && textEl.innerHTML !== newText) textEl.innerHTML = newText;
 
-      // Patch due badge silently
+      // Patch due + checklist badges silently
       const dueStr = _getDueStr(task);
       const metaEl = el.querySelector('.task-meta');
-      const newBadge = dueStr ? `<span class="badge due">due ${esc(dueStr)}</span>` : '';
+      const _clBadge = task.checklist
+        ? `<span class="badge checklist">${task.checklist.done}/${task.checklist.total} ✓</span>`
+        : '';
+      const newBadge = `${dueStr ? `<span class="badge due">due ${esc(dueStr)}</span>` : ''}${_clBadge}`;
       if (metaEl) {
         if (metaEl.innerHTML !== newBadge) metaEl.innerHTML = newBadge;
+        if (!newBadge) metaEl.remove();
       } else if (newBadge) {
         const body = el.querySelector('.task-body');
         if (body) body.insertAdjacentHTML('beforeend', `<div class="task-meta">${newBadge}</div>`);
@@ -5601,8 +5617,11 @@ function taskHTML(task, type) {
     }
   }
 
-  const badges = type === 'trello' && dueStr
-    ? `<span class="badge due">due ${esc(dueStr)}</span>`
+  const checklistBadge = type === 'trello' && task.checklist
+    ? `<span class="badge checklist">${task.checklist.done}/${task.checklist.total} ✓</span>`
+    : '';
+  const badges = type === 'trello' && (dueStr || checklistBadge)
+    ? `${dueStr ? `<span class="badge due">due ${esc(dueStr)}</span>` : ''}${checklistBadge}`
     : '';
 
   const sessions = type === 'trello'
