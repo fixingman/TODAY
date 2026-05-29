@@ -4,6 +4,10 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.37** | **Fix: BUG-023 top panels flash on desktop PWA restore** — `_forceRepaint()` `display:none/block` restarted CSS `fadeIn` animation on open panels (Habits/Connections/About) every repaint pass (500ms + 1500ms = two visible flashes). Fix: suppress `animation` inline after each repaint; clear inline style on next user-open so fadeIn still plays. |
+| **2.17.36** | **Fix: BUG-022 focus fill bar pulsates during countdown** — `.complete` class left stranded on shared `fillEl` by two paths: PiP "Again" handler (v2.17.35) and `closeUI(false)` on task-switch. Fixed in PiP "Again" (clears classes + resets fill display) and `openUI` (strips `.complete` before `syncDisplay`). |
+| **2.17.35** | **Fix: PiP froze at 00:01** — `pipTick` paused-branch now detects completion (`rem=0 && !paused`): shows `00:00`, fills bar, switches Breathe→Again, stops RAF. "Again" restarts session. `_pipSync` also triggers completion UI on window restore. |
+| **2.17.34** | **Delight: Micro interactions** — (1) Checkmark stroke-draw: SVG `stroke-dashoffset` 13→0 on check (150ms, `.just-checked` class). (2) Streak milestone pulse at 7/14/30/60/100d: stat value dims then returns (600ms). (3) Habit consecutive-run dot cascade: box-shadow ripple left→right across run, 40ms stagger, 320ms each. |
 | **2.17.33** | **Fix: Undo delete position** — task restored to its exact original slot. `deleteManual` captures array index; `_undoDelete` splices back at that index (falls back to end if out of bounds). |
 | **2.17.32** | **Fix: Undo delete placement** — restored task now appended at bottom of list instead of top. |
 | **2.17.31** | **Fix: Changelog bullet dots** — removed `·` decorators from expanded current-version entries. Lines now display flush and consistent with old-entry style. |

@@ -20,9 +20,8 @@
 **Effort:** Medium. Code is straightforward; main decision is what to notify and when.
 
 ### Weekly Reports
-**Status:** Approach A in progress (v2.17.21)
-**Done:** Daily history snapshots written to `today_daily_history` at midnight. Sunday AI reflection uses real 7-day totals.
-**Remaining:** Approach B (dedicated weekly panel) — revisit once there's 3+ weeks of real data to show.
+**Status:** Done (v2.17.55–57)
+**Done:** Daily history snapshots at midnight. 7-day grid in About panel (tasks + focus per day, today live). Pattern-based narrative below grid (reads trend/spike/weekend/depth — not totals). Sunday AI-generated reflection cached per day, with rule-based fallback if no AI key or offline.
 
 ### Todoist Integration
 **Status:** Not started
@@ -56,10 +55,9 @@
 **Revisit when:** Token cost becomes a real concern, or prompt grows past 500 static lines.
 
 ### Momentum + TODAY Integration (Research)
-**Status:** Not started — research only
-**Goal:** Explore whether Momentum (momentumplanner.co) and TODAY can be complementary. Hypothesis: plan the week in Momentum on Sunday, use TODAY daily for focus execution.
-**First step:** Check Momentum's API. Their Pro plan mentions ICS import — inbound to Momentum. Check if they expose data outbound.
-**Note:** A "Pair with Momentum" section in README might be the right answer over a technical integration. See `research/Landscape.md` for full analysis.
+**Status:** Resolved — no technical integration
+**Finding:** Momentum has no public API. ICS import is inbound to Momentum only (no outbound). Technical bridge would require reverse-engineering. Not worth building.
+**Outcome:** Workflow pairing is the right answer — plan in Momentum on Sunday, execute in TODAY daily. Can be documented as a one-paragraph note in the About/Connections panel if desired.
 
 ### WEEK — Standalone Weekly Planning Companion
 **Status:** Concept stage — not ready to build
@@ -167,6 +165,10 @@
 | CSS token audit — all hardcoded hex/rgba tokenised | 2.17.40 | May 2026 |
 | Offline mode — AI CTA and connections panel disabled when offline | 2.17.42 | May 2026 |
 | PiP CTAs always visible when session completes | 2.17.45 | May 2026 |
+| BUG-026 habit re-check after uncheck — habitEvents LWW map | 2.17.53 | May 2026 |
+| habitEvents full-restore gap + --text-xs2 token removed | 2.17.54 | May 2026 |
+| Weekly retrospective in About panel + header/tooltip fixes | 2.17.55 | May 2026 |
+| Week reflections — pattern narrative + AI Sunday block | 2.17.56–57 | May 2026 |
 | BUG-024 focus minutes carry fix (true root cause — applyNewDayCleanup early return) | 2.17.48 | May 2026 |
 | BUG-025 PiP Again flash + re-open 00:00 + sleep/wake done state | 2.17.49–52 | May 2026 |
 | _onWake animation audit — all persistent animations suppressed on repaint cycle | 2.17.50 | May 2026 |
