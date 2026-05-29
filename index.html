@@ -3135,12 +3135,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.56';
+const APP_VERSION   = '2.17.57';
 const DEV_HOURS     = '202h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.57': 'Fix: week narrative now reads the shape of the week instead of restating totals — detects trend (building/fading), spike days, weekend pattern, focus depth, or spread. Priority: trend > spike > weekend > depth > consistency.',
   '2.17.56': 'Feat: Week reflections — rule-based narrative below 7-day grid ("Showed up every day", "3h of deep work", etc.). Sunday block replaced with AI-generated 1-sentence reflection (cached per day, loading state, silent fallback to rule-based summary if no AI key or offline).',
   '2.17.55': 'Feat: Weekly retrospective in About panel — 7-day grid (tasks done + focus time per day, today shown live). Sunday shows a summary block above stats (total tasks, focus, habit ratio). Fix: About panel title changed from "TODAY" to "About". Fix: Connections button tooltip no longer changes to "Trello connected" — always reads "Connections".',
   '2.17.54': 'Fix: habitEvents not restored on full page load — full-restore path now reads data.habit_events from backup (same as mergeRemoteData does). Without this, a recently unchecked habit could briefly re-appear checked until the first 7s sync. Also: removed redundant --text-xs2 token (duplicate of --text-sm2); one usage migrated.',
@@ -4781,22 +4782,56 @@ function renderInfoStats() {
     }).join('');
   }
 
-  // ── Rule-based week narrative (below grid) ──────────────────────────────────
+  // ── Pattern-based week reflection (below grid) ─────────────────────────────
+  // Reads the shape of the week, not the totals — things the grid shows
+  // visually but doesn't say. Priority: trend > spike > weekend > depth > spread.
   const _weekNarrative = document.getElementById('weekNarrative');
   if (_weekNarrative && _hasData) {
-    const _activeDays  = _days.filter(d => d.tasks !== null && (d.tasks > 0 || d.focus > 0)).length;
-    const _totalTasks  = _days.reduce((s, d) => s + (d.tasks || 0), 0);
-    const _totalFocus  = _days.reduce((s, d) => s + (d.focus || 0), 0);
-    const _bestDay     = _days.reduce((best, d) => (d.tasks || 0) > (best.tasks || 0) ? d : best, _days[0]);
+    const _known  = _days.filter(d => d.tasks !== null);
+    const _active = _known.filter(d => (d.tasks || 0) > 0 || (d.focus || 0) > 0);
+    const _totT   = _known.reduce((s, d) => s + (d.tasks || 0), 0);
+    const _totF   = _known.reduce((s, d) => s + (d.focus || 0), 0);
     let _note = '';
-    if (_activeDays >= 6)        _note = 'Showed up every day.';
-    else if (_activeDays >= 4)   _note = _activeDays + ' days in motion.';
-    else if (_totalFocus >= 120) _note = _formatFocusTime(_totalFocus) + ' of deep work.';
-    else if (_totalTasks >= 10)  _note = _totalTasks + ' tasks cleared.';
-    else if (_bestDay && (_bestDay.tasks || 0) >= 4)
-                                 _note = 'Best day: ' + _bestDay.letter + ' with ' + _bestDay.tasks + ' done.';
-    else if (_totalTasks === 0)  _note = 'Quiet week. Rest counts too.';
-    else                         _note = 'Showing up matters.';
+
+    if (_known.length >= 3) {
+      // Trend: compare first half vs last half of known days
+      const _mid    = Math.floor(_known.length / 2);
+      const _firstT = _known.slice(0, _mid).reduce((s, d) => s + (d.tasks || 0), 0);
+      const _lastT  = _known.slice(-_mid).reduce((s, d) => s + (d.tasks || 0), 0);
+
+      // Spike: one day holds > 45% of tasks and at least 3 on its own
+      const _maxT     = Math.max(..._known.map(d => d.tasks || 0));
+      const _spikeDay = _known.find(d => (d.tasks || 0) === _maxT);
+      const _isSpike  = _totT >= 4 && _maxT >= 3 && _maxT / _totT > 0.45;
+
+      // Weekend shape (Sat=6, Sun=0)
+      const _wknd      = _known.filter(d => { const w = new Date(d.iso).getDay(); return w === 0 || w === 6; });
+      const _wkndBusy  = _wknd.some(d => (d.tasks || 0) > 0 || (d.focus || 0) > 0);
+      const _wkndClean = _wknd.length > 0 && _wknd.every(d => (d.tasks || 0) === 0 && (d.focus || 0) === 0);
+
+      // Focus depth: average focus per active day
+      const _avgF = _active.length > 0 ? _totF / _active.length : 0;
+
+      if (_totT === 0 && _totF === 0)
+        _note = 'A quiet week.';
+      else if (_lastT - _firstT >= 3 && _known.length >= 5)
+        _note = 'Built momentum as the week went on.';
+      else if (_firstT - _lastT >= 3 && _firstT >= 4)
+        _note = 'Strong start, quieter finish.';
+      else if (_isSpike)
+        _note = (_spikeDay ? _spikeDay.letter + ' day' : 'One day') + ' carried most of the weight.';
+      else if (_wkndClean && _active.length >= 3)
+        _note = 'Worked through the week, left the weekend clean.';
+      else if (_wkndBusy)
+        _note = 'Even the weekend had movement.';
+      else if (_avgF >= 50)
+        _note = 'Deep when you sat down.';
+      else if (_active.length === _known.length)
+        _note = 'Something every day — consistent.';
+      else
+        _note = 'Steady presence through the week.';
+    }
+
     _weekNarrative.textContent = _note;
   }
 
