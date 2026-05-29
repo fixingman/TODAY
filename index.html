@@ -1822,7 +1822,15 @@
     background: rgba(200,240,96,0.04);
   }
   .sunday-label { font-size: 9px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 3px; }
-  .sunday-summary { font-size: var(--text-base); color: var(--text); }
+  .sunday-summary { font-size: var(--text-base); color: var(--text); line-height: 1.5; }
+  .sunday-summary.loading { color: var(--muted); font-style: italic; }
+
+  #weekNarrative {
+    margin-top: var(--space-2);
+    font-size: var(--text-sm2);
+    color: var(--muted);
+    font-style: italic;
+  }
 
   .config-title {
     font-family: var(--font-display);
@@ -2866,6 +2874,7 @@
     <div class="panel-section" id="weekSection" style="display:none">
       <div class="config-label">This week</div>
       <div id="weekGrid"></div>
+      <div id="weekNarrative"></div>
     </div>
 
     <div class="panel-section">
@@ -3126,12 +3135,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.55';
+const APP_VERSION   = '2.17.56';
 const DEV_HOURS     = '202h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.56': 'Feat: Week reflections — rule-based narrative below 7-day grid ("Showed up every day", "3h of deep work", etc.). Sunday block replaced with AI-generated 1-sentence reflection (cached per day, loading state, silent fallback to rule-based summary if no AI key or offline).',
   '2.17.55': 'Feat: Weekly retrospective in About panel — 7-day grid (tasks done + focus time per day, today shown live). Sunday shows a summary block above stats (total tasks, focus, habit ratio). Fix: About panel title changed from "TODAY" to "About". Fix: Connections button tooltip no longer changes to "Trello connected" — always reads "Connections".',
   '2.17.54': 'Fix: habitEvents not restored on full page load — full-restore path now reads data.habit_events from backup (same as mergeRemoteData does). Without this, a recently unchecked habit could briefly re-appear checked until the first 7s sync. Also: removed redundant --text-xs2 token (duplicate of --text-sm2); one usage migrated.',
   '2.17.53': 'Fix: BUG-026 habit re-check after uncheck — mergeRemoteData pure union was re-checking habits from stale Dropbox data within the 800ms debounce window. Added habitEvents LWW map ("habitId::YYYY-MM-DD" → {type,at}): toggleHabitDone records every check/uncheck with a timestamp; merge keeps the newer event and filters union accordingly. Old completions without events pass through unchanged.',
@@ -4771,7 +4781,26 @@ function renderInfoStats() {
     }).join('');
   }
 
-  // ── Sunday reflection (above stats) ────────────────────────────────────────
+  // ── Rule-based week narrative (below grid) ──────────────────────────────────
+  const _weekNarrative = document.getElementById('weekNarrative');
+  if (_weekNarrative && _hasData) {
+    const _activeDays  = _days.filter(d => d.tasks !== null && (d.tasks > 0 || d.focus > 0)).length;
+    const _totalTasks  = _days.reduce((s, d) => s + (d.tasks || 0), 0);
+    const _totalFocus  = _days.reduce((s, d) => s + (d.focus || 0), 0);
+    const _bestDay     = _days.reduce((best, d) => (d.tasks || 0) > (best.tasks || 0) ? d : best, _days[0]);
+    let _note = '';
+    if (_activeDays >= 6)        _note = 'Showed up every day.';
+    else if (_activeDays >= 4)   _note = _activeDays + ' days in motion.';
+    else if (_totalFocus >= 120) _note = _formatFocusTime(_totalFocus) + ' of deep work.';
+    else if (_totalTasks >= 10)  _note = _totalTasks + ' tasks cleared.';
+    else if (_bestDay && (_bestDay.tasks || 0) >= 4)
+                                 _note = 'Best day: ' + _bestDay.letter + ' with ' + _bestDay.tasks + ' done.';
+    else if (_totalTasks === 0)  _note = 'Quiet week. Rest counts too.';
+    else                         _note = 'Showing up matters.';
+    _weekNarrative.textContent = _note;
+  }
+
+  // ── Sunday AI reflection (above stats) ─────────────────────────────────────
   const _sundayBlock = document.getElementById('sundayBlock');
   if (_sundayBlock) {
     if (_isSun && _history.length > 0) {
@@ -4781,15 +4810,67 @@ function renderInfoStats() {
       const _snap7 = _history.slice(-7);
       const _wHK   = _snap7.reduce((s, e) => s + (e.habitsKept  || 0), 0);
       const _wHT   = _snap7.reduce((s, e) => s + (e.habitsTotal || 0), 0);
-      const _fStr  = _wF  > 0 ? ' · ' + _formatFocusTime(_wF) + ' focused' : '';
-      const _hStr  = _wHT > 0 ? ' · ' + _wHK + '/' + _wHT + ' habits' : '';
-      _sundayBlock.innerHTML =
-        '<div class="sunday-label">This week</div>' +
-        '<div class="sunday-summary">' + _wT + ' task' + (_wT !== 1 ? 's' : '') + ' done' + _fStr + _hStr + '</div>';
       _sundayBlock.style.display = '';
+
+      // Check cache — regenerate once per day
+      const _cacheKey = 'week_reflection_' + _today;
+      const _cached   = localStorage.getItem(_cacheKey);
+      if (_cached) {
+        _sundayBlock.innerHTML =
+          '<div class="sunday-label">This week</div>' +
+          '<div class="sunday-summary">' + _cached + '</div>';
+      } else {
+        // Show loading state, then fetch AI reflection
+        _sundayBlock.innerHTML =
+          '<div class="sunday-label">This week</div>' +
+          '<div class="sunday-summary loading">reflecting…</div>';
+        _fetchWeekReflection({ wT: _wT, wF: _wF, wHK: _wHK, wHT: _wHT }).then(text => {
+          if (text) {
+            localStorage.setItem(_cacheKey, text);
+            const el = _sundayBlock.querySelector('.sunday-summary');
+            if (el) { el.textContent = text; el.classList.remove('loading'); }
+          } else {
+            // Fallback: rule-based summary
+            const _fStr = _wF > 0 ? ' ' + _formatFocusTime(_wF) + ' of focus.' : '';
+            const _hStr = _wHT > 0 ? ' ' + _wHK + '/' + _wHT + ' habits.' : '';
+            const fb = _wT + ' task' + (_wT !== 1 ? 's' : '') + ' done.' + _fStr + _hStr;
+            localStorage.setItem(_cacheKey, fb);
+            const el = _sundayBlock.querySelector('.sunday-summary');
+            if (el) { el.textContent = fb; el.classList.remove('loading'); }
+          }
+        });
+      }
     } else {
       _sundayBlock.style.display = 'none';
     }
+  }
+}
+
+async function _fetchWeekReflection(stats) {
+  try {
+    const key = _aiGetKey ? _aiGetKey() : null;
+    if (!key || !navigator.onLine) return null;
+    const parts = [];
+    if (stats.wT > 0)  parts.push(stats.wT + ' tasks done');
+    if (stats.wF >= 5) parts.push(_formatFocusTime(stats.wF) + ' focused');
+    if (stats.wHT > 0) parts.push(stats.wHK + '/' + stats.wHT + ' habits kept');
+    const summary = parts.length > 0 ? parts.join(', ') : 'a quiet week';
+    const res = await fetch('/.netlify/functions/ai-assist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: _aiGetProvider(),
+        apiKey: key,
+        messages: [{ role: 'user', content: 'This week: ' + summary + '. One sentence — warm and honest, like a friend noticing what I did. Not a motivational poster.' }],
+        systemPrompt: 'One sentence only. No quotes. Under 15 words. Plain, warm, grounded.',
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) return null;
+    return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
+  } catch (e) {
+    return null;
   }
 }
 
