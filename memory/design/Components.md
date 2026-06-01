@@ -191,6 +191,34 @@ Horizontal strip below the header, shows before noon if yesterday's review exist
 
 ---
 
+## Week Summary (About panel)
+
+Lives in `#infoPanel` under "This week". Rendered by `renderInfoStats()`. Hidden entirely
+until `today_daily_history` has any data (`_hasData` guard).
+
+```
+ S   M   T   W   T   F   S      ← #weekGrid (.week-col × 7)
+ ▁   ▃   █   ▅   ·   ▂   ▄      ← .week-col-bar / -fill (height ∝ tasks vs week max)
+ 1   3   6   4   ·   2   3      ← .week-col-tasks (today = accent)
+             •                  ← .week-col-dot (standout day only)
+30m  1h  2h  1h      45m 1h     ← .week-col-focus
+
+Built momentum as the week went on.      ← #weekNarrative (shape of this week)
+A little more focus than last week.       ← #weekCompare  (kind, only when confident)
+You tend to move most on Tuesdays.        ← #weekRhythm   (≥14d history, distinct leader)
+```
+
+- **Bars (①):** track 6×26px, fill `--accent-dim` (today `--accent`), nonzero floor 14%,
+  height transitions `--dur-slow`/`--ease-out`.
+- **Your-day dot (②):** quiet accent dot under the single strict-max day (week total ≥4, not
+  today). No label — recognition, not a trophy.
+- **Narrative / compare / rhythm:** all muted italic; compare + rhythm `:empty` → `display:none`,
+  so they silently vanish when there's no confident, kind thing to say.
+- **Voice rule:** `#weekCompare` down-week wording must never read as failure ("…that's
+  alright."). See `research/Psychology.md`.
+
+---
+
 ## Empty States
 
 | State | Message |

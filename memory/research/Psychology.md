@@ -128,3 +128,17 @@ Habit tracking has the same gamification backfire risk as streaks. If missing on
 - Miss penalty softened: `alpha_down = 0.97` — one miss from a 30-day streak drops ~3%, not 10%
 
 **Design principle:** Building a habit should feel like work. Missing one day should feel like life, not failure. The indicator reflects the pattern, not the exception.
+
+---
+
+## Comparison Framing (week-over-week)
+
+Any feature that compares the user to their past self (week-over-week, month-over-month) inherits the streak/gamification backfire risk: a "down" period can read as a verdict.
+
+**TODAY's rule (v2.17.59, `#weekCompare`):**
+- An up-period is stated plainly ("A little more focus than last week.").
+- A down-period is only ever surfaced when it can be framed as permission, not failure ("Quieter than last week — that's alright.").
+- When there isn't a confident *and* kind thing to say, **say nothing** — render empty. Silence beats a neutral metric that the user will read as judgement.
+- Gate on real data (≥3 known prior days) and clear deltas (~1.4×) so noise never triggers a comparison.
+
+This applies to all future comparative/predictive surfaces (incl. the WEEK companion).

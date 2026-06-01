@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.58
-- **Recent:** Trello checklist badge option D (v2.17.58), week narrative shape-based (v2.17.57), weekly retrospective + AI Sunday reflection (v2.17.55–56)
+- **Working on:** v2.17.59
+- **Recent:** Week summary rhythm bars + noticing lines + WEEK-seed weekday rhythm (v2.17.59), Trello checklist badge option D (v2.17.58), week narrative shape-based (v2.17.57)
 - **Watch for:** BUG-021 (splash explosion/freeze) — awaiting Can's verification; BUG-026 (habit re-check) — awaiting Can's verification
 
 ---

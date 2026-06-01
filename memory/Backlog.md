@@ -20,8 +20,9 @@
 **Effort:** Medium. Code is straightforward; main decision is what to notify and when.
 
 ### Weekly Reports
-**Status:** Done (v2.17.55–57)
-**Done:** Daily history snapshots at midnight. 7-day grid in About panel (tasks + focus per day, today live). Pattern-based narrative below grid (reads trend/spike/weekend/depth — not totals). Sunday AI-generated reflection cached per day, with rule-based fallback if no AI key or offline.
+**Status:** Done (v2.17.55–59)
+**Done:** Daily history snapshots at midnight. 7-day grid in About panel (tasks + focus per day, today live). Pattern-based narrative below grid (reads trend/spike/weekend/depth — not totals). Sunday AI-generated reflection cached per day, with rule-based fallback if no AI key or offline. v2.17.59: grid activity bars (shape, not just numbers), standout-day dot, kind week-over-week line (`#weekCompare`), and a weekday-rhythm insight (`#weekRhythm`) — the first behaviour-predictive WEEK seed.
+**Possible next:** habit consistency ribbon in the grid (evaluated, deferred — habit/streak anxiety risk needs careful framing).
 
 ### Todoist Integration
 **Status:** Not started
@@ -56,6 +57,7 @@
 **The differentiator:** Predictive AI from user behaviour — no manual energy ratings. WEEK learns organically what tasks this user does Monday mornings, when they focus vs coast, what they defer. Plan adapts to observed rhythm.
 **Relationship to TODAY:** TODAY data feeds WEEK's model. Focus sessions, task completion times, habit patterns, peak hour — all inputs.
 **Why not build yet:** AI memory needs more depth. Needs a design session — stripped Momentum concept needs its own identity.
+**First seed shipped (v2.17.59):** the weekday-rhythm line in the About week summary ("You tend to move most on Tuesdays.") is the first behaviour-predictive output, computed from `today_daily_history`. Proves the data can carry a WEEK-style insight. Reuse this aggregation pattern when WEEK gets built.
 **When to revisit:** When TODAY has 3+ months of behavioural data and bug backlog is cleared.
 
 ---

@@ -66,6 +66,10 @@ Why 1.8s: slower than heartbeat, calmer than urgency, matches breathing rhythm.
 - ASCII animation (creature-specific timing)
 - Fade out on activity (0.6s)
 
+### Week Grid Bars (v2.17.59)
+- `.week-col-bar-fill` height transitions `--dur-slow` / `--ease-out` — bars settle into
+  shape rather than snapping when the About panel opens. Communicates the week's rhythm.
+
 ---
 
 ### Splash Screen Sequence (v2.17.21)
