@@ -6,7 +6,7 @@
 ## Current Focus (update each session)
 - **Working on:** v2.17.59
 - **Recent:** Week summary rhythm bars + noticing lines + WEEK-seed weekday rhythm (v2.17.59), Trello checklist badge option D (v2.17.58), week narrative shape-based (v2.17.57)
-- **Watch for:** BUG-021 (splash explosion/freeze) — awaiting Can's verification; BUG-026 (habit re-check) — awaiting Can's verification
+- **Watch for:** No bugs awaiting verification — BUG-021 and BUG-026 verified fixed and archived (v2.17.59 housekeeping)
 
 ---
 

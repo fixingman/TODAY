@@ -189,6 +189,16 @@
 
 ---
 
+## BUG-021: Splash explosion invisible / freezes after typewriter
+**Status:** ✅ Verified fixed (v2.17.27–29)
+**Symptom:** Mobile + desktop PWA — star doesn't explode on launch (app recovers via 2s fallback). Desktop PWA: animation freezes after typewriter completes, requires page refresh (no recovery).
+**Root cause 1 — explosion invisible (retina):** `sctx.scale(dpr, dpr)` was called inside `sResize()`, which fires on every `resize`. `scale()` multiplies the existing transform — after the first resize the context ran at `dpr²` scale, corrupting all particle coordinates. PWA launch almost always fires a resize (viewport settling), so the explosion drew at the wrong position; on a 3× phone particles compressed into the top-left corner — invisible. Introduced v2.17.19 with DPR-aware canvas.
+**Fix (v2.17.27):** Replaced `sctx.scale(dpr, dpr)` with `sctx.setTransform(dpr, 0, 0, dpr, 0, 0)` in `sResize()` — resets to exactly `dpr×` each call regardless of prior state.
+**Root cause 2 — freeze after typewriter:** The two-flag splash gate (`_splashAnimDone` + `_appLoadDone`) had no top-level timeout. If `await _dropboxEnsureToken()` hangs (OS network stack not ready on desktop PWA), the chain stalls indefinitely — splash never dismisses.
+**Fix (v2.17.27–28):** 6s safety timeouts on both gate flags so a stalled fetch degrades gracefully (`_splashAnimDone` timeout added v2.17.28 for symmetry).
+
+---
+
 ## BUG-022: Focus fill bar pulsates during active countdown
 **Status:** ✅ Verified fixed (v2.17.36)
 **Symptom:** During an active focus session the fill bar simultaneously fills left-to-right AND pulsates in opacity — pulsating should only occur when the session is complete ("again?" state).
@@ -225,3 +235,11 @@
 **Fix (v2.17.49):** `_forceRepaint` suppresses `animation` on `.complete` elements after each display cycle; restored after the final 1500ms pass.
 **Root cause — extended (three compounding issues):** (1) `pipTick` running branch calls `completeFor` then stops RAF without updating PiP display — the next RAF tick (paused branch detection) never fires. (2) `visibilitychange` PiP handler had `if (st.rem <= 0) return` at top, blocking restore sync for complete sessions. (3) `syncDisplay` called from `_focusReanchor` after sync rebuilds DOM set `timeEl.textContent = fmt(0)` = "00:00", overwriting "again?".
 **Fix (v2.17.52):** (1) `pipTick` running branch explicitly shows done state before stopping. (2) `st.rem <= 0` guard moved inside `document.hidden` branch — restore path always syncs PiP. (3) `syncDisplay` re-applies `.complete` classes and "again?" text when `rem === 0 && !running`.
+
+---
+
+## BUG-026: Habit re-checks itself after uncheck
+**Status:** ✅ Verified fixed (v2.17.53)
+**Symptom:** Uncheck a habit during the day → within ~10s it re-checks itself. Also reproducible on wake or tab return.
+**Root cause:** `mergeRemoteData` used a pure set union for `habit_completions`. Uncheck removes today's date locally, but the 7s background sync reads stale Dropbox data (still has the date) and unions it back. The 800ms upload debounce creates a window where the sync fires before the local uncheck is uploaded. Tasks avoid this via timestamped `checked_ids`/`unchecked_ids` LWW arrays; habits had no equivalent.
+**Fix (v2.17.53):** Added `habitEvents` — a flat LWW map `{ "habitId::YYYY-MM-DD": { type, at } }` from `today_habit_events` localStorage. `toggleHabitDone` records every check/uncheck with a timestamp. `mergeRemoteData` merges event maps (newer timestamp wins per key), then filters the union of completion dates — dates whose most recent event is `'uncheck'` are excluded. Old data without events passes through unchanged. Events purged after 30 days by `_cleanupHabitEvents()` in `applyNewDayCleanup`. Full-restore gap closed in v2.17.54 (reads `data.habit_events`).
