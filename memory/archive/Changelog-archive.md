@@ -4,6 +4,8 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.39** | **Fix: PWA launch dim green flash** — `manifest.json` `background_color`/`theme_color` was `#161a14` (breathe overlay tint, dark green cast), mismatching the app's `#0e0e10` background. Chrome shows the manifest colour as a native splash before the page paints. Both aligned to `#0e0e10`. |
+| **2.17.38** | **Fix: Changelog alignment in About panel** — current entry restructured to same flex layout as old entries (version left, body right) so text left-edges align. Old entries get `v` prefix. Text split corrected from `,` to ` \| ` delimiter. |
 | **2.17.37** | **Fix: BUG-023 top panels flash on desktop PWA restore** — `_forceRepaint()` `display:none/block` restarted CSS `fadeIn` animation on open panels (Habits/Connections/About) every repaint pass (500ms + 1500ms = two visible flashes). Fix: suppress `animation` inline after each repaint; clear inline style on next user-open so fadeIn still plays. |
 | **2.17.36** | **Fix: BUG-022 focus fill bar pulsates during countdown** — `.complete` class left stranded on shared `fillEl` by two paths: PiP "Again" handler (v2.17.35) and `closeUI(false)` on task-switch. Fixed in PiP "Again" (clears classes + resets fill display) and `openUI` (strips `.complete` before `syncDisplay`). |
 | **2.17.35** | **Fix: PiP froze at 00:01** — `pipTick` paused-branch now detects completion (`rem=0 && !paused`): shows `00:00`, fills bar, switches Breathe→Again, stops RAF. "Again" restarts session. `_pipSync` also triggers completion UI on window restore. |

@@ -99,6 +99,14 @@
 
 ---
 
+## BUG-011: PiP ghost chime on wrong task
+**Status:** ✅ Verified fixed (v2.13.5 + v2.13.6 + v2.16.9)
+**Symptom:** Task A → PiP → restore → check Task A → start Task B focus → chime fires during Task B's session.
+**Root cause:** `startPiPClock` captured `uiTaskId` by reference (closure). With BUG-014 fix keeping PiP alive, old RAF from Task A still ran. When its reference point hit zero, it called `completeFor(uiTaskId)` — but `uiTaskId` had changed to Task B.
+**Fix (v2.16.9):** `clockTaskId = uiTaskId` captured by value at clock start. RAF stops if `uiTaskId !== clockTaskId`. Reused PiP path calls `startPiPClock()` for current task.
+
+---
+
 ## BUG-012: Overdue Trello card disappears on check / shows undone cross-device
 **Status:** ✅ Verified fixed (v2.14.5 + v2.16.5)
 **Symptom 1:** Check overdue Trello card → it disappears immediately before midnight.
@@ -186,6 +194,14 @@
 **Symptom:** During an active focus session the fill bar simultaneously fills left-to-right AND pulsates in opacity — pulsating should only occur when the session is complete ("again?" state).
 **Root cause:** `timerCompletePulse` animation runs via `.complete` class on the shared `fillEl`. Two paths left `.complete` stranded: (1) PiP "Again" handler (introduced v2.17.35) reset session state but didn't remove `.complete` from main UI elements — on restore `visibilitychange` restarted `tickFor` so the bar filled while `.complete` was still active. (2) `closeUI(false)` (Esc or task-switch) skips the `remove('complete')` block (inside `if (doResetState)` only) — next `openUI()` called `syncDisplay()` which also doesn't clean `.complete`, so the new task's fill pulsated.
 **Fix:** (1) PiP "Again" handler: after resetting state, removes `.complete` from `fillEl`, `timeEl`, `timerEl` and resets fill display. (2) `openUI()`: strips `.complete` from all three elements before `syncDisplay()` — covers all remaining paths.
+
+---
+
+## BUG-023: Top panels flash twice on desktop PWA restore
+**Status:** ✅ Verified fixed (v2.17.37)
+**Symptom:** Panel open (Habits/Connections/About) → alt-tab away and back → panel flashes twice (brief disappear+reappear with fadeIn animation).
+**Root cause:** `_forceRepaint()` sets `#main-app.style.display = 'none'` then `''`. CSS `animation` properties restart when an element re-enters the render tree after its parent was `display:none`. `.config-panel.open` has `animation: fadeIn` — every repaint pass replays it. `_forceRepaint()` runs 5 times on wake; the 500ms and 1500ms passes produce the two clearly visible flashes.
+**Fix:** After restoring `display: ''`, synchronously set `animation: none` inline on all `.config-panel.open` elements — suppresses fadeIn before any paint. `toggleConfig()`, `toggleInfo()`, `toggleHabits()` clear the inline `animation` style on open so user-triggered opens still play fadeIn normally.
 
 ---
 
