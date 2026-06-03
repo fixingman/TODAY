@@ -19,11 +19,6 @@
 **Key constraint:** iOS has no background sync — notifications must be server-sent via Netlify Scheduled Functions. App cannot self-schedule.
 **Effort:** Medium. Code is straightforward; main decision is what to notify and when.
 
-### Weekly Reports
-**Status:** Done (v2.17.55–59)
-**Done:** Daily history snapshots at midnight. 7-day grid in About panel (tasks + focus per day, today live). Pattern-based narrative below grid (reads trend/spike/weekend/depth — not totals). Sunday AI-generated reflection cached per day, with rule-based fallback if no AI key or offline. v2.17.59: grid activity bars (shape, not just numbers), standout-day dot, kind week-over-week line (`#weekCompare`), and a weekday-rhythm insight (`#weekRhythm`) — the first behaviour-predictive WEEK seed.
-**Possible next:** habit consistency ribbon in the grid (evaluated, deferred — habit/streak anxiety risk needs careful framing).
-
 ### Todoist Integration
 **Status:** Not started
 **Priority:** Highest integration priority after Trello.
@@ -36,12 +31,9 @@
 **Status:** Not started
 **Goal:** Keyboard-first power user flow. Needs UX + UI exploration.
 
-### Trello Checklist Support
-**Status:** Done (v2.17.58) — Option D implemented
-**Done:** Progress badge "N/M ✓" in task meta row. Read-only, pulls from `checklists=all` API param. Only shows when card has checklists.
-**Future:** Option B (write-back) is the right long-term answer if bidirectional editing is ever needed.
-
 ---
+
+## Deferred / Concept
 
 ### AI System Prompt Trimming
 **Status:** Deferred — revisit if token cost becomes a real concern
@@ -58,7 +50,11 @@
 **Relationship to TODAY:** TODAY data feeds WEEK's model. Focus sessions, task completion times, habit patterns, peak hour — all inputs.
 **Why not build yet:** AI memory needs more depth. Needs a design session — stripped Momentum concept needs its own identity.
 **First seed shipped (v2.17.59):** the weekday-rhythm line in the About week summary ("You tend to move most on Tuesdays.") is the first behaviour-predictive output, computed from `today_daily_history`. Proves the data can carry a WEEK-style insight. Reuse this aggregation pattern when WEEK gets built.
-**When to revisit:** When TODAY has 3+ months of behavioural data and bug backlog is cleared.
+**When to revisit:** When TODAY has 3+ months of behavioural data and bug backlog is cleared (bug backlog is clear as of v2.17.59).
+
+### Small enhancements (low priority)
+- **Trello checklist write-back (Option B)** — bidirectional editing of card checklists. Current state is the read-only progress badge (v2.17.58). Build only if editing is actually wanted.
+- **Week summary habit ribbon** — a per-day habit-kept row in the 7-day grid. Deferred: carries habit/streak anxiety risk, needs careful framing before building.
 
 ---
 
@@ -97,13 +93,15 @@
 
 ## Completed Features
 
+> Milestone log. Bug fixes have full detail in `archive/Bugs-archive.md`; every version is in `Changelog.md` / `archive/Changelog-archive.md`.
+
 | Feature | Version | Date |
 |---------|---------|------|
 | Idle companion (7 creatures) | 2.10.0 | Mar 2026 |
 | Memory compartmentalization | — | Mar 2026 |
 | Zones prototype | 2.11.0 | Mar 2026 |
-| Link extraction for tasks | 2.12.79 | Apr 2026 |
 | Unified internal clock | 2.12.78 | Apr 2026 |
+| Link extraction for tasks | 2.12.79 | Apr 2026 |
 | AI personality overhaul | 2.13.0 | Apr 2026 |
 | Day-end review + morning reflection | 2.13.1 | Apr 2026 |
 | Error log panel (replaced alert()) | 2.14.3 | Apr 2026 |
@@ -143,10 +141,10 @@
 | CHANGELOG trimmed 235→3 entries | 2.17.12 | May 2026 |
 | safeJSON + transition:all perf fixes | 2.17.13 | May 2026 |
 | Splash rAF typewriter + DPR canvas | 2.17.19 | May 2026 |
-| BUG-019/021 splash explosion fix (DPR strip + v2.1.0 dismiss restore) | 2.17.29 | May 2026 |
-| AI observation-first rewrite, reduced chips | 2.17.25 | May 2026 |
 | BUG-004 blank-on-wake fix | 2.17.24 | May 2026 |
+| AI observation-first rewrite, reduced chips | 2.17.25 | May 2026 |
 | BUG-020 streak cross-device double-count fix | 2.17.26 | May 2026 |
+| BUG-019/021 splash explosion fix (DPR strip + dismiss restore) | 2.17.29 | May 2026 |
 | AI panel input size fix (--text-md, placeholder opacity) | 2.17.30 | May 2026 |
 | Changelog expanded entry — bullet dots removed | 2.17.31 | May 2026 |
 | Undo delete — restores to original list position | 2.17.33 | May 2026 |
@@ -159,18 +157,18 @@
 | CSS token audit — all hardcoded hex/rgba tokenised | 2.17.40 | May 2026 |
 | Offline mode — AI CTA and connections panel disabled when offline | 2.17.42 | May 2026 |
 | PiP CTAs always visible when session completes | 2.17.45 | May 2026 |
+| BUG-024 focus minutes carry fix (applyNewDayCleanup early return) | 2.17.48 | May 2026 |
+| BUG-025 PiP Again flash + re-open 00:00 + sleep/wake done state | 2.17.49–52 | May 2026 |
+| _onWake animation audit — persistent animations suppressed on repaint | 2.17.50 | May 2026 |
+| CSS token audit pass 2 — keyframes + CHK SVG currentColor | 2.17.51 | May 2026 |
+| Habit checkmark color fix (color:var(--bg) for currentColor stroke) | 2.17.52 | May 2026 |
 | BUG-026 habit re-check after uncheck — habitEvents LWW map | 2.17.53 | May 2026 |
 | habitEvents full-restore gap + --text-xs2 token removed | 2.17.54 | May 2026 |
 | Weekly retrospective in About panel + header/tooltip fixes | 2.17.55 | May 2026 |
 | Week reflections — pattern narrative + AI Sunday block | 2.17.56–57 | May 2026 |
-| Trello checklist progress badge (option D) | 2.17.58 | May 2026 |
-| BUG-024 focus minutes carry fix (true root cause — applyNewDayCleanup early return) | 2.17.48 | May 2026 |
-| BUG-025 PiP Again flash + re-open 00:00 + sleep/wake done state | 2.17.49–52 | May 2026 |
-| _onWake animation audit — all persistent animations suppressed on repaint cycle | 2.17.50 | May 2026 |
-| CSS token audit pass 2 — keyframes + CHK SVG currentColor | 2.17.51 | May 2026 |
-| Habit checkmark color fix (color:var(--bg) for currentColor stroke) | 2.17.52 | May 2026 |
-| BUG-026 habit re-check after uncheck — habitEvents LWW map | 2.17.53 | May 2026 |
+| Trello checklist progress badge (option D) | 2.17.58 | Jun 2026 |
+| Week summary rhythm bars + noticing lines + WEEK-seed weekday rhythm | 2.17.59 | Jun 2026 |
 
 ---
 
-*Last updated: v2.17.59*
+*Last updated: v2.17.60*
