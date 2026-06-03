@@ -212,8 +212,10 @@ You tend to move most on Tuesdays.        ← #weekRhythm   (≥14d history, dis
   height transitions `--dur-slow`/`--ease-out`.
 - **Your-day dot (②):** quiet accent dot under the single strict-max day (week total ≥4, not
   today). No label — recognition, not a trophy.
-- **Narrative / compare / rhythm:** all muted italic; compare + rhythm `:empty` → `display:none`,
-  so they silently vanish when there's no confident, kind thing to say.
+- **Narrative / compare / rhythm:** muted secondary text at `--text-sm` (11px) / line-height 1.5,
+  matching `.changelog-text` — *not italic* (DM Mono oblique reads heavy; muted color carries the
+  secondary signal). `#weekRhythm` keeps extra `opacity` as the quietest tier. Compare + rhythm
+  `:empty` → `display:none`, so they silently vanish when there's no confident, kind thing to say.
 - **Voice rule:** `#weekCompare` down-week wording must never read as failure ("…that's
   alright."). See `research/Psychology.md`.
 

@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.59
-- **Recent:** Week summary rhythm bars + noticing lines + WEEK-seed weekday rhythm (v2.17.59), Trello checklist badge option D (v2.17.58), week narrative shape-based (v2.17.57)
+- **Working on:** v2.17.60
+- **Recent:** Week summary line typography consistency — dropped italic, 12→11px (v2.17.60), week summary rhythm bars + noticing lines + WEEK-seed weekday rhythm (v2.17.59), Trello checklist badge option D (v2.17.58)
 - **Watch for:** No bugs awaiting verification — BUG-021 and BUG-026 verified fixed and archived (v2.17.59 housekeeping)
 
 ---
