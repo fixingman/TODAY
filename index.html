@@ -3174,12 +3174,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.60';
+const APP_VERSION   = '2.17.61';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.61': 'Habits: 3am grace rollover — a habit checked late (e.g. 12:30am) now counts toward the day that is ending, not the new one. The day ends when you sleep, not when the clock flips. Tasks, streak and focus still roll at midnight; only habits get the grace window. Keeps the deadline (just at a humane hour) while fixing late-but-done false misses.',
   '2.17.60': 'Style: week summary lines consistency — narrative / compare / rhythm dropped italic (the only italic running text in the panel; rendered heavy in DM Mono) and moved from 12px to 11px (--text-sm) with line-height 1.5, matching the changelog descriptions. Muted color now carries the secondary signal.',
   '2.17.59': 'Feat: Week summary rhythm + noticing — 7-day grid now shows activity bars (this week reads as a shape, not just numbers), a quiet dot on your standout day, a kind week-over-week line, and a weekday rhythm insight once there is enough history.',
   '2.17.58': 'Feat: Trello checklist progress badge — cards with checklists show "N/M ✓" in task meta row (read-only, minimal).',
@@ -3217,12 +3218,11 @@ function safeJSON(key, fallback) {
   catch(e) { return fallback; }
 }
 
-// App day boundary — day rolls over at midnight (aligned with habits)
+// App day boundary — tasks / triage / streak / focus roll over at midnight.
+// Habits roll over at 3am instead (see _habitTodayISO / _habitNow) — a deliberate,
+// consistent grace window, not the v2.12.74 lag bug (that was an *unintended*
+// mismatch where the strip refreshed on a different boundary than checking).
 function _getAppDay() {
-  // Midnight boundary — matches _localISO() so tasks, triage, and habits
-  // all flip at the same moment. Previously 1am for "late-night work feels like
-  // today" — but habits used midnight anyway, creating a mismatch where the
-  // habit strip wouldn't refresh until 1am. (v2.12.74)
   return new Date().toDateString();
 }
 
@@ -6138,13 +6138,29 @@ function _saveHabits() {
   dropboxAutoSave();
 }
 
+// Habits roll over at 3am, not midnight — a "late but done" check (e.g. 12:30am)
+// still counts toward the day that's ending, because behaviourally the day ends
+// when you sleep, not when the clock flips. Tasks / streak / focus keep the midnight
+// boundary (_getAppDay) — only habits get this grace window. (v2.17.61)
+//
+// BUG-010 safety: we shift a Date object back by the grace hours, then derive the
+// local YYYY-MM-DD via _localISO(). This stays entirely in local time — never UTC.
+//
+// History note (v2.12.74): an *unintended* 1am habit lag was once a bug because the
+// strip refreshed on a different boundary than checking. This is intentional and
+// consistent — every habit-day read (_habitTodayISO + _getHabitDates) goes through
+// _habitNow(), so the strip refreshes at 3am in lockstep with check eligibility.
+const HABIT_ROLLOVER_HOURS = 3;
+function _habitNow() {
+  return new Date(Date.now() - HABIT_ROLLOVER_HOURS * 60 * 60 * 1000);
+}
 function _habitTodayISO() {
-  return _localISO();
+  return _localISO(_habitNow());
 }
 
 function _getHabitDates() {
-  // Last 21 days ending with today (local time)
-  const now = new Date();
+  // Last 21 days ending with the current habit-day (3am-shifted, local time)
+  const now = _habitNow();
   const days = [];
   for (let i = 20; i >= 0; i--) {
     const d = new Date(now);

@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.41** | **Style: version-badge ghost** — changed from solid `--accent` fill + `--bg` text to `--accent-dim` bg + `--accent-glow` border + `--accent` text. Quieter, token-native. |
 | **2.17.40** | **Style: CSS token audit** — all hardcoded hex/rgba eliminated outside `:root`. New tokens: `--color-highlight-dim` / `--color-highlight-border` / `--color-muted-dim`. Error-panel badges now use tokens. PiP injected stylesheet gets its own `:root` block with `--pip-*` literals (PiP is a separate document and cannot inherit parent vars). Idle companion: removed redundant `#c8f060` fallback from `var(--accent)`, replaced `rgba(200,240,96,0.3)` text-shadow with `var(--color-accent-glow)`. |
 | **2.17.39** | **Fix: PWA launch dim green flash** — `manifest.json` `background_color`/`theme_color` was `#161a14` (breathe overlay tint, dark green cast), mismatching the app's `#0e0e10` background. Chrome shows the manifest colour as a native splash before the page paints. Both aligned to `#0e0e10`. |
 | **2.17.38** | **Fix: Changelog alignment in About panel** — current entry restructured to same flex layout as old entries (version left, body right) so text left-edges align. Old entries get `v` prefix. Text split corrected from `,` to ` \| ` delimiter. |

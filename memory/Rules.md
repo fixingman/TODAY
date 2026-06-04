@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.60
-- **Recent:** Week summary line typography consistency — dropped italic, 12→11px (v2.17.60), week summary rhythm bars + noticing lines + WEEK-seed weekday rhythm (v2.17.59), Trello checklist badge option D (v2.17.58)
+- **Working on:** v2.17.61
+- **Recent:** Habits 3am grace rollover (v2.17.61), week summary line typography consistency (v2.17.60), week summary rhythm bars + noticing lines + WEEK-seed weekday rhythm (v2.17.59)
 - **Watch for:** No bugs awaiting verification — BUG-021 and BUG-026 verified fixed and archived (v2.17.59 housekeeping)
 
 ---
@@ -69,7 +69,7 @@
 13. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
 14. All timestamps: ISO strings (UTC for sync ordering). **Date-only strings: use `_localISO()`** (local YYYY-MM-DD) — never `toISOString().slice(0,10)` which returns UTC and diverges near midnight (BUG-010).
 15. **State variables must be declared before functions that use them** — `let` has temporal dead zone
-16. **Day boundaries unified at midnight** — `_getAppDay()` for human-readable day, `_localISO()` for YYYY-MM-DD, `_habitTodayISO()` wraps `_localISO()`. All local time. Full ISO timestamps (`zoneChangedAt`, `ts`) stay UTC for cross-timezone sync.
+16. **Day boundaries — tasks/triage/streak/focus at midnight, habits at 3am.** `_getAppDay()` (midnight, human-readable) and `_localISO()` (YYYY-MM-DD) govern tasks, triage, streak, focus. **Habits roll at 3am** via `_habitTodayISO()` → `_localISO(_habitNow())` where `_habitNow() = Date.now() - 3h` (a late-night check counts toward the day that's ending). `_getHabitDates()` uses the same `_habitNow()` so the strip refreshes in lockstep (do NOT split these — that was the v2.12.74 lag bug). All local time — the grace shifts a Date then derives the local date, never UTC (BUG-010). Full ISO timestamps (`zoneChangedAt`, `ts`) stay UTC for cross-timezone sync.
 17. **Triage window: 8pm–midnight** — triage bar only shows in this window (aligned with day boundary)
 18. **Flow rate = `100 × (1 - 0.8^done)`** — diminishing returns formula. First task = 20%, 5 tasks ≈ 67%. Live calc, not stored. (Based on Endowed Progress Effect + Goal Gradient Hypothesis)
 

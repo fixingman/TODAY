@@ -39,10 +39,12 @@
 ## Implementation Rules
 
 ### Day Boundary
-- Unified at **midnight** (v2.12.74), unified clock (v2.12.78)
-- `_getAppDay()` for day boundary checks (human-readable), `_localISO()` for YYYY-MM-DD strings, `_habitTodayISO()` wraps `_localISO()`
-- All local time — never use `toISOString().slice(0,10)` (UTC, diverges near midnight)
+- Tasks / triage / streak / focus roll at **midnight** (v2.12.74), unified clock (v2.12.78)
+- **Habits roll at 3am** (v2.17.61) — `_habitTodayISO()` → `_localISO(_habitNow())`, `_habitNow() = Date.now() - 3h`. A late-night check counts toward the day that's ending (the day ends when you sleep, not when the clock flips). See `research/Psychology.md` → *Habit deadline & the 3am grace*.
+- `_getAppDay()` for task-day checks (human-readable), `_localISO()` for YYYY-MM-DD strings. `_getHabitDates()` uses the same `_habitNow()` so the 21-day strip refreshes in lockstep with checking — never split these (that mismatch was the v2.12.74 lag bug).
+- All local time — never use `toISOString().slice(0,10)` (UTC, diverges near midnight). The 3am grace shifts a Date object then derives the local date via `_localISO`, so it stays local too.
 - Full ISO timestamps (`zoneChangedAt`, `ts`) stay UTC for cross-timezone sync
+- **Edge:** the `today_daily_history` habit snapshot runs on the midnight cleanup; a check made between the first post-midnight open and 3am may not land in that day's snapshot `habitsKept` (live strip is always correct).
 
 ### Evening Triage (8pm–midnight)
 - Per-task decisions: Keep / Soon / Let go

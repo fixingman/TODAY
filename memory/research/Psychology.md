@@ -131,6 +131,20 @@ Habit tracking has the same gamification backfire risk as streaks. If missing on
 
 ---
 
+## Habit Deadline & the 3am Grace
+
+A firm midnight cutoff acts as a **commitment device** — a self-imposed deadline that raises completion (the deadline effect), powered by loss aversion over the streak. That pressure is valuable; don't dissolve it.
+
+But "unchecked at midnight" hides two very different things:
+- **A true miss** — you didn't do it. The deadline *should* bite (and asymmetric smoothing already softens it).
+- **A false negative** — you did it (or finished at 12:30am) but the clock beat your tap. This is uniquely corrosive: the tracker punishes a thing you actually did, eroding trust in the data.
+
+**Free next-day editing is the wrong fix** — it can't tell the two apart, so it removes the deadline for both and invites moral licensing ("I'll just backfill tomorrow").
+
+**TODAY's answer (v2.17.61):** a bounded **3am grace rollover** for habits — "the day ends when you sleep, not when the clock flips." It keeps a real deadline (at a humane hour), fixes the common false-negative, and closes the licensing hole (still a hard cutoff, no editing the distant past). The reframe underneath: we measure *doing the habit*, not *logging on time*.
+
+---
+
 ## Comparison Framing (week-over-week)
 
 Any feature that compares the user to their past self (week-over-week, month-over-month) inherits the streak/gamification backfire risk: a "down" period can read as a verdict.
