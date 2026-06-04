@@ -4599,7 +4599,9 @@ function init() {
     mainApp.querySelectorAll('.focused').forEach(el => el.classList.remove('focused'));
   }
   
-  // Date header uses calendar day (midnight boundary, matches _getAppDay and habits)
+  // Date header uses the real calendar day (midnight boundary, matches _getAppDay /
+  // tasks). NOTE: habits roll at 3am (_habitTodayISO), so between midnight and 3am the
+  // header shows the new day while the habit strip still belongs to the day that's ending.
   const now = new Date();
   document.getElementById('dateTag').textContent =
     now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }).toUpperCase();
