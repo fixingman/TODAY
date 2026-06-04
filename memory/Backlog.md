@@ -15,7 +15,7 @@
 | **Keyboard shortcuts (desktop)** | Not started | Keyboard-first power-user flow. Needs UX exploration first. |
 | **Idle companion artwork** | Not started | Higher-resolution creatures, more visual consistency across the 7. |
 
-**Parked (see _Deferred_ below):** AI prompt trimming · WEEK companion · Trello checklist write-back · week-summary habit ribbon.
+**Parked (see _Deferred_ below):** AI prompt trimming · WEEK companion · Trello checklist write-back.
 
 ---
 
@@ -50,7 +50,6 @@ At ~700–800 static + 50–400 dynamic tokens and personal usage (10–30 calls
 
 ### Small enhancements *(low priority)*
 - **Trello checklist write-back (Option B)** — bidirectional editing of card checklists. Today it's a read-only progress badge (v2.17.58). Build only if editing is actually wanted.
-- **Week-summary habit ribbon** — a per-day habit-kept row in the 7-day grid. Carries habit/streak anxiety risk; needs careful framing first.
 
 ---
 
