@@ -3174,12 +3174,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.61';
+const APP_VERSION   = '2.17.62';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.62': 'Fix: BUG-027 Trello focus timer — (1) re-opening a completed-then-dismissed task now starts a fresh countdown on the first click instead of sitting idle at 25:00 (a completed session, rem=0, was wrongly treated as a resumable partial). (2) renderTrello no longer counts the focus timer / kbd hint as cards when repositioning, which was shuffling rows and disrupting the completed "again?" pulse every 7s sync. Trello-specific because #trelloList is the only list re-rendered on the sync tick.',
   '2.17.61': 'Habits: 3am grace rollover — a habit checked late (e.g. 12:30am) now counts toward the day that is ending, not the new one. The day ends when you sleep, not when the clock flips. Tasks, streak and focus still roll at midnight; only habits get the grace window. Keeps the deadline (just at a humane hour) while fixing late-but-done false misses.',
   '2.17.60': 'Style: week summary lines consistency — narrative / compare / rhythm dropped italic (the only italic running text in the panel; rendered heavy in DM Mono) and moved from 12px to 11px (--text-sm) with line-height 1.5, matching the changelog descriptions. Muted color now carries the secondary signal.',
   '2.17.59': 'Feat: Week summary rhythm + noticing — 7-day grid now shows activity bars (this week reads as a shape, not just numbers), a quiet dot on your standout day, a kind week-over-week line, and a weekday rhythm insight once there is enough history.',
@@ -5635,8 +5636,11 @@ function renderTrello() {
       el.classList.toggle('done', doneIds.has(id));
       _applyDoneStyles(el, doneIds.has(id));
 
-      // Move to correct position — skip removing elements when counting index
-      const stableChildren = [...list.children].filter(c => !c.classList.contains('removing'));
+      // Move to correct position — count only task rows. When a Trello task is focused,
+      // the focus timer (timerEl) + kbd hint are children of #trelloList; counting them
+      // here threw off the index→sibling mapping and shuffled rows / churned the timer
+      // every 7s sync, disrupting the completed "again?" pulse. (BUG-027)
+      const stableChildren = [...list.children].filter(c => c.matches('.task[data-taskid]') && !c.classList.contains('removing'));
       const sibling = stableChildren[index];
       if (sibling !== el) list.insertBefore(el, sibling || null);
 
@@ -5648,7 +5652,8 @@ function renderTrello() {
       _applyDoneStyles(el, doneIds.has(id));
       el.classList.add('task-slide-in');
       el.addEventListener('animationend', () => el.classList.remove('task-slide-in'), { once: true });
-      const stableChildren = [...list.children].filter(c => !c.classList.contains('removing'));
+      // Task rows only — exclude focus timer / kbd hint nodes (BUG-027, see above)
+      const stableChildren = [...list.children].filter(c => c.matches('.task[data-taskid]') && !c.classList.contains('removing'));
       const sibling = stableChildren[index];
       list.insertBefore(el, sibling || null);
     }
@@ -11317,8 +11322,12 @@ function _aiClearBadge() {
       return;
     }
 
-    // Clicked a task/habit that has an in-progress session (UI was dismissed)
-    if (taskStates[taskId] && taskStates[taskId].rem < TOTAL) {
+    // Clicked a task/habit that has an in-progress session (UI was dismissed).
+    // rem must be > 0: a *completed* session (rem === 0) is not resumable — it must
+    // fall through to start() so one click begins a fresh countdown, like any other
+    // task. Without the `> 0`, a completed-then-dismissed task re-opened idle at 25:00
+    // and needed an extra click to start. (BUG-027)
+    if (taskStates[taskId] && taskStates[taskId].rem > 0 && taskStates[taskId].rem < TOTAL) {
       const st = getState(taskId);
       // Stop any background tick for this task — openUI + tickFor will restart it
       clearTimeout(tickHandle);

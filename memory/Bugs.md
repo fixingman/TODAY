@@ -32,7 +32,34 @@
 | 024 | Focus minutes carry over to next day | ✅ v2.17.48 |
 | 025 | PiP "Again" lost / shows 25:00 after sleep/wake | ✅ v2.17.52 |
 | 026 | Habit re-checks itself after uncheck | ✅ v2.17.53 |
+| 027 | Trello focus timer — re-open idle 25:00 + completed bar stops pulsing | ⏳ v2.17.62 |
 
 ---
 
-*All listed bugs are verified fixed. Full root-cause + fix detail → `archive/Bugs-archive.md`.*
+*Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-027: Trello focus timer — re-open idle + completed bar stops pulsing
+
+**Status:** Fixed v2.17.62 — awaiting verification
+
+**Symptoms (Trello cards only):**
+1. Complete a focus session on a Trello card, click away, click back to focus → timer shows **25:00 but doesn't count down**; needs an extra click. Other task types start on the first click.
+2. After completion the bar **stays solid highlighted and doesn't pulse** ("again?" not blinking).
+
+**Why Trello-specific:** `openUI()` injects the focus `timerEl` + `kbdHint` right after the focused row, so for a Trello card they become children of `#trelloList` — the only task list re-rendered every ~7s (`loadTrello()` → `renderTrello()`; `renderManual` runs only on data merges).
+
+**Root cause 1 (symptom 1):** the click handler treated any `taskStates[id].rem < TOTAL` as a resumable partial session. A completed session has `rem === 0` (also `< TOTAL`), so it opened the UI but the `rem > 0` resume guard failed → idle 25:00 instead of starting. (Likely affected all task types; most visible on Trello.)
+**Fix:** gate `rem > 0 && rem < TOTAL`, so a completed session falls through to `start()` and one click begins a fresh countdown.
+
+**Root cause 2 (symptom 2):** `renderTrello`'s reposition loop computed `stableChildren` from all `#trelloList` children minus `.removing`. With the timer + kbd hint living in that list during focus, they were counted as cards, corrupting the index→sibling mapping and shuffling rows / churning the timer every 7s — disrupting the completed `.complete` pulse.
+**Fix:** filter `stableChildren` to `.task[data-taskid]` only (both branches).
+
+**Verify:**
+- Focus a Trello card → complete it → bar should pulse "again?" and keep pulsing across 7s sync ticks.
+- Complete, click away, click the card again → countdown should **start on the first click**.
+- Trello list shouldn't visibly reorder while a card is focused.
+- (If the bar still doesn't pulse after this: likely a stranded inline `animation:none` from a prior wake — flag and I'll chase root cause 2b.)
+
+**Verified fixed:** ☐

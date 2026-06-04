@@ -110,3 +110,18 @@ Not supported: Safari, Firefox (behind flag)
 - `lastActive` updates on session complete
 - Removes task aging (`data-age-bucket`)
 - Task "feels fresh" after focused work
+
+---
+
+## Gotcha: timer DOM lives inside the task's list (BUG-027)
+
+`openUI()` does `taskEl.after(timerEl); timerEl.after(kbdHint)`, so the shared `timerEl` +
+`kbdHint` become **children of whatever list holds the focused row** — `#trelloList`,
+`#manualList`, etc. `#trelloList` is re-rendered every ~7s by `renderTrello()`, so anything
+that walks `#trelloList.children` (e.g. index-based repositioning) **must filter to
+`.task[data-taskid]`** or it will count the timer/hint as cards and churn the focus UI.
+Manual list avoids this (full `innerHTML` rebuild + `_focusReanchor`); habits don't tick-render.
+
+Also: a **completed** session keeps `taskStates[id].rem === 0`. Any "resume in-progress
+session" check must use `rem > 0 && rem < TOTAL`, else a completed-then-dismissed task
+re-opens idle instead of starting fresh on click.

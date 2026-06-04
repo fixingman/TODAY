@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.61
-- **Recent:** Habits 3am grace rollover (v2.17.61), week summary line typography consistency (v2.17.60), week summary rhythm bars + noticing lines + WEEK-seed weekday rhythm (v2.17.59)
-- **Watch for:** No bugs awaiting verification — BUG-021 and BUG-026 verified fixed and archived (v2.17.59 housekeeping)
+- **Working on:** v2.17.62
+- **Recent:** BUG-027 Trello focus timer (re-open idle + pulse) (v2.17.62), habits 3am grace rollover (v2.17.61), week summary line typography (v2.17.60)
+- **Watch for:** BUG-027 (Trello focus timer) — awaiting Can's verification that the completed bar pulses across sync ticks
 
 ---
 
