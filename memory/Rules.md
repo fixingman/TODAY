@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.62
-- **Recent:** BUG-027 Trello focus timer (re-open idle + pulse) (v2.17.62), habits 3am grace rollover (v2.17.61), week summary line typography (v2.17.60)
-- **Watch for:** BUG-027 (Trello focus timer) — awaiting Can's verification that the completed bar pulses across sync ticks
+- **Working on:** v2.17.63
+- **Recent:** BUG-028 completion shown a tick late (v2.17.63), BUG-027 Trello focus timer — verified + archived (v2.17.62), habits 3am grace rollover (v2.17.61)
+- **Watch for:** BUG-028 (completed bar "again?" ~1s late) — awaiting Can's verification
 
 ---
 

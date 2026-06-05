@@ -3174,12 +3174,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.62';
+const APP_VERSION   = '2.17.63';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.63': 'Fix: BUG-028 focus completion shown a tick late — when the countdown hit zero, tickFor drew "00:00" and a full bar but only ran completeFor on the next scheduled tick, so the bar sat full and static for ~1s before the "again?" pulse appeared. Now completes in the same tick it reaches zero. Affects all task types.',
   '2.17.62': 'Fix: BUG-027 Trello focus timer — (1) re-opening a completed-then-dismissed task now starts a fresh countdown on the first click instead of sitting idle at 25:00 (a completed session, rem=0, was wrongly treated as a resumable partial). (2) renderTrello no longer counts the focus timer / kbd hint as cards when repositioning, which was shuffling rows and disrupting the completed "again?" pulse every 7s sync. Trello-specific because #trelloList is the only list re-rendered on the sync tick.',
   '2.17.61': 'Habits: 3am grace rollover — a habit checked late (e.g. 12:30am) now counts toward the day that is ending, not the new one. The day ends when you sleep, not when the clock flips. Tasks, streak and focus still roll at midnight; only habits get the grace window. Keeps the deadline (just at a humane hour) while fixing late-but-done false misses.',
   '2.17.60': 'Style: week summary lines consistency — narrative / compare / rhythm dropped italic (the only italic running text in the panel; rendered heavy in DM Mono) and moved from 12px to 11px (--text-sm) with line-height 1.5, matching the changelog descriptions. Muted color now carries the secondary signal.',
@@ -11135,6 +11136,11 @@ function _aiClearBadge() {
     // This ensures visibilitychange correction only accounts for the gap
     // since the last tick (throttling gap), not time already counted. (BUG-013)
     if (st.wallStart) st.wallStart += 1000;
+    // Reached zero — complete in this same tick. Previously the decrement-to-0
+    // tick only drew "00:00" + a full bar and scheduled another tick, so
+    // completeFor (which adds .complete + "again?" + pulse) fired ~1s late: the
+    // bar sat full and static for a second before it started blinking. (BUG-028)
+    if (st.rem <= 0) { completeFor(taskId); return; }
     // Only update DOM if this task is currently showing
     if (taskId === uiTaskId && uiTaskEl) {
       timeEl.textContent = fmt(st.rem);

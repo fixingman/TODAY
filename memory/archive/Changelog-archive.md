@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.43** | **Fix: PAST count stuck at 100** — `mergeRemoteData()` now calls `_purgePast()` immediately after the union+100-cap, so age-expired items (done >7d, let_go/aged >30d) are removed rather than resurrected from the Dropbox backup on every sync tick. |
 | **2.17.42** | **Feature: Offline mode** — AI CTA (`#addAiBtn`) switches to `✧` + `.offline` class (muted style, pointer-events none) when `navigator.onLine` is false. Connections panel gets `.offline-banner` above `#connectionsContainer` and all panel buttons + AI key input are disabled. `_applyOfflinePanel()` helper toggles state. Wired to `online`/`offline` events and applied on `init()`. Restored on reconnect. |
 | **2.17.41** | **Style: version-badge ghost** — changed from solid `--accent` fill + `--bg` text to `--accent-dim` bg + `--accent-glow` border + `--accent` text. Quieter, token-native. |
 | **2.17.40** | **Style: CSS token audit** — all hardcoded hex/rgba eliminated outside `:root`. New tokens: `--color-highlight-dim` / `--color-highlight-border` / `--color-muted-dim`. Error-panel badges now use tokens. PiP injected stylesheet gets its own `:root` block with `--pip-*` literals (PiP is a separate document and cannot inherit parent vars). Idle companion: removed redundant `#c8f060` fallback from `var(--accent)`, replaced `rgba(200,240,96,0.3)` text-shadow with `var(--color-accent-glow)`. |

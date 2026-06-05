@@ -243,3 +243,14 @@
 **Symptom:** Uncheck a habit during the day → within ~10s it re-checks itself. Also reproducible on wake or tab return.
 **Root cause:** `mergeRemoteData` used a pure set union for `habit_completions`. Uncheck removes today's date locally, but the 7s background sync reads stale Dropbox data (still has the date) and unions it back. The 800ms upload debounce creates a window where the sync fires before the local uncheck is uploaded. Tasks avoid this via timestamped `checked_ids`/`unchecked_ids` LWW arrays; habits had no equivalent.
 **Fix (v2.17.53):** Added `habitEvents` — a flat LWW map `{ "habitId::YYYY-MM-DD": { type, at } }` from `today_habit_events` localStorage. `toggleHabitDone` records every check/uncheck with a timestamp. `mergeRemoteData` merges event maps (newer timestamp wins per key), then filters the union of completion dates — dates whose most recent event is `'uncheck'` are excluded. Old data without events passes through unchanged. Events purged after 30 days by `_cleanupHabitEvents()` in `applyNewDayCleanup`. Full-restore gap closed in v2.17.54 (reads `data.habit_events`).
+
+---
+
+## BUG-027: Trello focus timer — re-open idle 25:00 + completed bar stops pulsing
+**Status:** ✅ Verified fixed (v2.17.62)
+**Symptom (Trello cards only):** (1) complete a session on a Trello card, click away, click back → timer shows 25:00 but doesn't count down; needs an extra click (other task types start on first click). (2) After completion the bar stayed solid and didn't pulse.
+**Why Trello-specific:** `openUI()` injects the focus `timerEl` + `kbdHint` right after the focused row, so for a Trello card they become children of `#trelloList` — the only task list re-rendered every ~7s (`loadTrello()` → `renderTrello()`).
+**Root cause 1:** the click handler treated any `taskStates[id].rem < TOTAL` as a resumable partial session; a completed session has `rem === 0` (< TOTAL), so it opened the UI but the `rem > 0` resume guard failed → idle 25:00.
+**Fix:** gate `rem > 0 && rem < TOTAL`, so a completed session falls through to `start()`.
+**Root cause 2:** `renderTrello`'s reposition loop computed `stableChildren` from all `#trelloList` children minus `.removing`; the timer + kbd hint were counted as cards, corrupting the index→sibling mapping and churning the timer every 7s, disrupting the completed pulse.
+**Fix:** filter `stableChildren` to `.task[data-taskid]` only (both branches).
