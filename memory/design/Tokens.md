@@ -45,6 +45,8 @@
 | `--color-accent-timer-fill` | `rgba(200,240,96,0.08)` | Timer progress fill |
 | `--color-accent-timer-paused` | `rgba(200,240,96,0.03)` | Timer fill when paused |
 
+**Aliases (used in components):** `--accent-focus-bg`, `--accent-focus-border`, `--accent-check`, `--accent-check-hover`, `--accent-check-glow`, `--accent-timer-bg`, `--accent-timer-fill`, `--accent-timer-paused` — each maps to its `--color-accent-*` form above.
+
 ### Semantic Colors
 
 | Token | Value | Usage |
@@ -52,6 +54,7 @@
 | `--color-danger` | `#ff5f5f` | Error / delete |
 | `--color-danger-dim` | `rgba(255,95,95,0.10)` | Danger bg tint |
 | `--color-danger-border` | `rgba(255,95,95,0.20)` | Danger border |
+| `--color-danger-pulse` | `rgba(255,95,95,0.40)` | Error-indicator `errorPulse` ring animation start |
 | `--color-highlight` | `#579dff` | Info / Trello link |
 | `--color-highlight-dim` | `rgba(87,157,255,0.10)` | Highlight bg tint (error badges) |
 | `--color-highlight-border` | `rgba(87,157,255,0.20)` | Highlight border (error badges) |
@@ -106,9 +109,8 @@ Self-hosted under `/fonts/`, pre-cached by service worker.
 | Token | Value | Usage |
 |---|---|---|
 | `--text-xs` | `10px` | Tiny labels, kbd hints |
-| `--text-sm` | `11px` | Small labels |
-| `--text-xs2` | `12px` | Config hints, secondary |
-| `--text-sm2` | `12px` | Compat alias for `--text-xs2` |
+| `--text-sm` | `11px` | Small labels, week-summary lines |
+| `--text-sm2` | `12px` | Small labels, config hints |
 | `--text-base` | `13px` | Base body size, timer |
 | `--text-task` | `13.5px` | Task row text (between base and md) |
 | `--text-md` | `14px` | Body default |
