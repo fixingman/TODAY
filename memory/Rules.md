@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.64
-- **Recent:** BUG-029 `_aiSendFromInput` undefined crash (v2.17.64), BUG-028 completion shown a tick late (v2.17.63), BUG-027 Trello focus timer verified (v2.17.62)
-- **Watch for:** BUG-028 (completed bar "again?" ~1s late) and BUG-029 (AI send from bar) — both awaiting Can's verification
+- **Working on:** v2.17.65
+- **Recent:** BUG-028 true root fix — _forceRepaint held anim 1.5s (v2.17.65), BUG-029 _aiSendFromInput undefined (v2.17.64), BUG-027 Trello focus timer verified (v2.17.62)
+- **Watch for:** BUG-028 (completed bar static on window return) and BUG-029 (AI send from bar) — both awaiting Can's verification
 
 ---
 

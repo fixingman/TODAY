@@ -3174,12 +3174,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.64';
+const APP_VERSION   = '2.17.65';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.65': 'Fix: BUG-028 true root cause — completed focus bar stops pulsing for ~1.5s on window return. _forceRepaint suppressed .complete animation on every wake pass but only restored after 1500ms. Fix: restore infinite animations (complete, ai-badge, done-star, etc.) on the next frame inside _forceRepaint itself — one frame kills the restarted animation, no long pause needed. .config-panel.open stays suppressed until user-open (BUG-023 pattern unchanged).',
   '2.17.64': 'Fix: BUG-029 _aiSendFromInput was never defined — ReferenceError when submitting text to AI from the main input bar (✦ tap with text, or Enter while AI panel open). Added the missing function: same pattern as _aiAskFromPanel but takes text as a parameter instead of reading the in-panel input.',
   '2.17.63': 'Fix: BUG-028 focus completion shown a tick late — when the countdown hit zero, tickFor drew "00:00" and a full bar but only ran completeFor on the next scheduled tick, so the bar sat full and static for ~1s before the "again?" pulse appeared. Now completes in the same tick it reaches zero. Affects all task types.',
   '2.17.62': 'Fix: BUG-027 Trello focus timer — (1) re-opening a completed-then-dismissed task now starts a fresh countdown on the first click instead of sitting idle at 25:00 (a completed session, rem=0, was wrongly treated as a resumable partial). (2) renderTrello no longer counts the focus timer / kbd hint as cards when repositioning, which was shuffling rows and disrupting the completed "again?" pulse every 7s sync. Trello-specific because #trelloList is the only list re-rendered on the sync tick.',
@@ -8001,21 +8002,27 @@ window._onWake = function() {
     void appEl.offsetHeight;
     appEl.style.display = '';
     // Suppress animations that restart on display:none/block cycle.
-    // Each selector targets an element with a persistent (infinite or long) animation.
-    // .config-panel.open — fadeIn, cleared on next user-open (BUG-023)
-    // .complete — timerCompletePulse, restored after final pass (BUG-025)
-    // All others — infinite breathing/blinking animations added after the original fixes.
-    [
-      '.config-panel.open',
+    // .config-panel.open — fadeIn stays suppressed; cleared on next user-open (BUG-023).
+    // All others (infinite loops) — suppressed for exactly one frame, then restored
+    // immediately so they resume without a visible pause (BUG-028 root fix).
+    const _resumeAfterRepaint = [
       '.complete',
       '.ai-badge',
       '.done-star',
       '#errorIndicator.open',
       '.loading-dots span',
       '.ai-suggestion-msg.thinking',
-    ].forEach(sel => appEl.querySelectorAll(sel).forEach(el => { el.style.animation = 'none'; }));
+    ];
+    ['.config-panel.open', ..._resumeAfterRepaint]
+      .forEach(sel => appEl.querySelectorAll(sel).forEach(el => { el.style.animation = 'none'; }));
     scrollPositions.forEach(({ el, top }) => { el.scrollTop = top; });
     window.scrollTo(0, appScroll);
+    // Restore infinite animations on the very next frame — one frame was enough to
+    // kill the restarted animation; holding longer causes the visible ~1.5s static
+    // pause on the completed focus bar when returning to the window. (BUG-028)
+    requestAnimationFrame(() => {
+      _resumeAfterRepaint.forEach(sel => appEl.querySelectorAll(sel).forEach(el => { el.style.animation = ''; }));
+    });
   }
   _forceRepaint();
   requestAnimationFrame(() => {
@@ -8023,18 +8030,7 @@ window._onWake = function() {
     requestAnimationFrame(_forceRepaint);
   });
   setTimeout(_forceRepaint, 500);
-  setTimeout(() => {
-    _forceRepaint();
-    // Restore suppressed animations after the final repaint pass.
-    // .config-panel.open stays suppressed — cleared on next user-open (BUG-023 pattern).
-    requestAnimationFrame(() => {
-      const _a = document.getElementById('main-app');
-      if (_a) [
-        '.complete', '.ai-badge', '.done-star',
-        '#errorIndicator.open', '.loading-dots span', '.ai-suggestion-msg.thinking',
-      ].forEach(sel => _a.querySelectorAll(sel).forEach(el => { el.style.animation = ''; }));
-    });
-  }, 1500); // extra pass for slow GPU wakeup after long sleep (BUG-004)
+  setTimeout(_forceRepaint, 1500); // extra pass for slow GPU wakeup after long sleep (BUG-004)
 
   // Clear single-play animation classes that may be mid-flight at sleep time.
   // Removing the class cancels cleanly; the animation will re-play on next trigger.

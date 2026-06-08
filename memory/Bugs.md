@@ -33,7 +33,7 @@
 | 025 | PiP "Again" lost / shows 25:00 after sleep/wake | ✅ v2.17.52 |
 | 026 | Habit re-checks itself after uncheck | ✅ v2.17.53 |
 | 027 | Trello focus timer — re-open idle 25:00 + completed bar stops pulsing | ✅ v2.17.62 |
-| 028 | Completed bar shows "again?" a tick (~1s) late | ⏳ v2.17.63 |
+| 028 | Completed bar static ~1.5s on window return (true root: _forceRepaint held anim) | ⏳ v2.17.65 |
 | 029 | `_aiSendFromInput` undefined — crash on ✦ submit with text | ⏳ v2.17.64 |
 
 ---
