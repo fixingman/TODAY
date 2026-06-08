@@ -3174,12 +3174,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.63';
+const APP_VERSION   = '2.17.64';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.64': 'Fix: BUG-029 _aiSendFromInput was never defined — ReferenceError when submitting text to AI from the main input bar (✦ tap with text, or Enter while AI panel open). Added the missing function: same pattern as _aiAskFromPanel but takes text as a parameter instead of reading the in-panel input.',
   '2.17.63': 'Fix: BUG-028 focus completion shown a tick late — when the countdown hit zero, tickFor drew "00:00" and a full bar but only ran completeFor on the next scheduled tick, so the bar sat full and static for ~1s before the "again?" pulse appeared. Now completes in the same tick it reaches zero. Affects all task types.',
   '2.17.62': 'Fix: BUG-027 Trello focus timer — (1) re-opening a completed-then-dismissed task now starts a fresh countdown on the first click instead of sitting idle at 25:00 (a completed session, rem=0, was wrongly treated as a resumable partial). (2) renderTrello no longer counts the focus timer / kbd hint as cards when repositioning, which was shuffling rows and disrupting the completed "again?" pulse every 7s sync. Trello-specific because #trelloList is the only list re-rendered on the sync tick.',
   '2.17.61': 'Habits: 3am grace rollover — a habit checked late (e.g. 12:30am) now counts toward the day that is ending, not the new one. The day ends when you sleep, not when the clock flips. Tasks, streak and focus still roll at midnight; only habits get the grace window. Keeps the deadline (just at a humane hour) while fixing late-but-done false misses.',
@@ -9790,6 +9791,28 @@ function _aiIntroMessage(ctx) {
 }
 
 // ── Natural language from panel input ────────────────────────────────────────
+// Send text typed in the main task-input bar directly to AI.
+// Companion to _aiAskFromPanel (which reads from the in-panel input);
+// this version takes the already-extracted text as a parameter. (BUG-029)
+async function _aiSendFromInput(text) {
+  if (!text) return;
+  _aiLoadedOnce = true; // mark loaded so panel auto-load doesn't clobber our result
+  _aiSetThinking();
+  _aiSetChips([]);
+  try {
+    _aiThread.push({ role: 'user', content: text });
+    const result = await _aiCall([..._aiThread]);
+    if (result) {
+      _aiRenderResult(result);
+      if (result.message) _aiThread.push({ role: 'assistant', content: result.message });
+    }
+  } catch(e) {
+    const errText = e.message || 'unknown';
+    const isHtml = errText.includes('<!DOCTYPE') || errText.includes('<html');
+    _aiSetMsg(isHtml ? 'Function not deployed' : 'Can\'t reach AI — ' + errText.slice(0, 50));
+  }
+}
+
 async function _aiAskFromPanel() {
   const input = document.getElementById('aiNlInput');
   const text  = input?.value.trim();
