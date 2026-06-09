@@ -3057,6 +3057,20 @@ function _logSyncError(source, msg) {
   _showErrorDot();
   console.warn(entry);
 }
+// Catch localStorage quota errors globally — wraps setItem so failures surface
+// in the red dot instead of disappearing silently. (v2.17.70)
+(function() {
+  const _orig = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = function(key, val) {
+    try { _orig(key, val); }
+    catch(e) {
+      if (e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014)) {
+        _logSyncError('Storage', 'Quota exceeded — "' + key + '" not saved. Clear some data.');
+      }
+    }
+  };
+})();
+
 window.onerror = function(msg, url, line, col, err) {
   // Check if error originates from outside the app (browser extensions, injected scripts)
   const isExternal = url && !url.includes(window.location.hostname) && !url.includes('index.html');
@@ -3150,12 +3164,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.69';
+const APP_VERSION   = '2.17.70';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.70': 'Fix: localStorage quota failures now visible — global localStorage.setItem wrapper catches QuotaExceededError and routes it to the red dot with a clear message instead of silently dropping the save. Placed immediately after _logSyncError definition so all subsequent writes are protected.',
   '2.17.69': 'Refactor: _onWake 200ms debounce — visibilitychange and window.focus both fire on desktop PWA restore within ~50ms, running _onWake twice (double repaint passes, double timers). Added _lastWakeTime guard: skip if called within 200ms of previous run. 200ms covers the same-event-cluster without affecting genuine rapid wake-sleep-wake cycles.',
   '2.17.68': 'Fix: BUG-028b completed bar flashes on window return — the v2.17.65 per-pass rAF restore caused each of the 4 _forceRepaint passes to suppress then immediately restore, creating rapid suppress/restore cycles visible as 2–3 quick flashes before the pulse settled. Fix: remove per-pass restore; suppress across all passes (0–500ms); restore once at 520ms in a single rAF callback. The 1500ms slow-GPU pass receives skipAnimSuppression=true so it does not suppress animations that are already restored.',
   '2.17.67': 'Style: design maintenance — added --text-micro: 9px token (5 uses: week grid letters/focus, Sunday label, AI provider badge, error panel badge); tokenised #sundayBlock background (was hardcoded rgba, now var(--accent-focus-bg)); documented all z-index values including undocumented 90/#aiPanel, 600/splash-canvas, 0/noise-texture.',

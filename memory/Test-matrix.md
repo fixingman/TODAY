@@ -90,7 +90,7 @@ If testing **zone** changes:
 | 2.17 | Triage summary (0 done) | Shows "All sorted" |
 | 2.18 | Triage summary saves review | `today_day_review` in localStorage |
 
-### 3. Habits (9 tests)
+### 3. Habits (12 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -103,6 +103,9 @@ If testing **zone** changes:
 | 3.7 | **SYNC: Both complete same day** | Deduped |
 | 3.8 | **SYNC: A deletes, B completes** | Habit deleted |
 | 3.9 | Focus on habit | Session tracked |
+| 3.10 | **SYNC: A unchecks, B has checked (BUG-026)** | Stays unchecked — LWW timestamp wins |
+| 3.11 | **Habit 3am rollover** — check habit at 1am | Counts for yesterday's date, not today's |
+| 3.12 | **Habit 3am rollover** — open at 3:01am | Habit strip shows today fresh, yesterday's check preserved as past dot |
 
 ### 4. Done/Check State (6 tests)
 
@@ -115,22 +118,25 @@ If testing **zone** changes:
 | 4.5 | Manual task checked | Persists across sync |
 | 4.6 | **SYNC: Check/uncheck rapid toggle** | Final state correct |
 
-### 5. Stats & Memory (10 tests)
+### 5. Stats & Memory (13 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
 | 5.1 | Focus minutes — same day, two devices | Max wins (higher of the two) |
-| 5.2 | Focus minutes — after midnight reset | Remote yesterday's total NOT restored (date guard) |
+| 5.2 | Focus minutes — after midnight reset | Remote yesterday's total NOT restored (date guard via `stat_focus_mins_date`) |
 | 5.3 | Focus minutes — manual Restore button | Only restored if backup date matches today |
-| 5.4 | Streak | Max wins |
+| 5.4 | Streak | Max wins; `stat_streak_date` guards against double-increment on multi-device (BUG-020) |
 | 5.5 | Tasks done today | Max wins |
 | 5.6 | Memory totalTasksCompleted | Max wins |
 | 5.7 | Memory patterns | Merged |
 | 5.8 | Memory moments | Union |
 | 5.9 | AI name | Preserved |
 | 5.10 | SOON phantom — complete/delete task in SOON, sync next day | Task does NOT reappear in SOON |
+| 5.11 | Daily history — midnight snapshot | `today_daily_history` gains a new entry after midnight; capped at 30 entries |
+| 5.12 | About weekly grid | "This week" section shows 7-day grid with bar heights matching task counts |
+| 5.13 | Sunday AI reflection | On Sunday, `#sundayBlock` shows AI-generated sentence; cached in `week_reflection_YYYY-MM-DD` |
 
-### 6. Trello (6 tests)
+### 6. Trello (8 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -140,8 +146,10 @@ If testing **zone** changes:
 | 6.4 | Trello in triage (letgo) | Card hidden locally |
 | 6.5 | Trello config syncs | boardId/listId synced |
 | 6.6 | Trello popup blocked | Error shown |
+| 6.7 | Trello checklist badge | Card with checklist shows "N/M ✓" in meta row |
+| 6.8 | Trello focus — complete, dismiss, re-click | Fresh 25:00 starts on first click (BUG-027) |
 
-### 7. Focus Mode (6 tests)
+### 7. Focus Mode (11 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -152,6 +160,10 @@ If testing **zone** changes:
 | 7.5 | Session complete | Chime + count increment |
 | 7.6 | PWA cold open | Splash appears immediately — no white flash before it |
 | 7.7 | PiP: timer completes while minimized | PiP shows 00:00, bar full, button switches Breathe→Again |
+| 7.8 | Completion — bar state | Bar fills and immediately starts pulsing "again?" (no static pause, BUG-028) |
+| 7.9 | Window return with completed bar | Bar pulses on return with no flash (BUG-028b) |
+| 7.10 | AI send from input bar | Type text, tap ✦ → AI responds (no ReferenceError, BUG-029) |
+| 7.11 | _onWake rapid double-fire | Alt-tab away and back quickly multiple times — no repaint glitches |
 
 ### 8. Network Edge Cases (7 tests)
 
@@ -182,14 +194,14 @@ If testing **zone** changes:
 |----------|-------|----------|
 | Manual Tasks | 14 | 5 |
 | Zones | 15 | 8 |
-| Habits | 9 | 3 |
+| Habits | 12 | 5 |
 | Done State | 6 | 3 |
-| Stats/Memory | 10 | 4 |
-| Trello | 6 | 2 |
-| Focus | 7 | 2 |
+| Stats/Memory | 13 | 5 |
+| Trello | 8 | 3 |
+| Focus | 11 | 4 |
 | Network | 7 | 4 |
 | Destructive | 4 | 2 |
-| **Total** | **78** | **33** |
+| **Total** | **90** | **39** |
 
 ---
 
@@ -219,4 +231,4 @@ If testing **zone** changes:
 
 ---
 
-*Last updated: v2.17.40*
+*Last updated: v2.17.69*

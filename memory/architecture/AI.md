@@ -31,7 +31,7 @@ The AI companion is accessed via the ✦ button. It reads app state, provides co
   },
   habits,
   progress,
-  weeklyStats,
+  weeklyStats,             // from today_daily_history — last 7 days (tasksDone, focusMins)
   proactiveObservation,    // from _getProactiveObservations()
 }
 ```
@@ -106,11 +106,13 @@ Active chips (v2.17.25 — observation-first redesign):
 
 | Action | Parameters | Effect | When |
 |---|---|---|---|
-| `start_focus` | `{id}` | Begin pomodoro | When one task clearly fits the moment |
-| `check_habit` | `{id}` | Mark habit done | When habits are pending |
+| `start_focus` | `{id}` or `{ids:[...]}` | Begin pomodoro | When one task clearly fits the moment |
+| `check_habit` | `{id}` or `{ids:[...]}` | Mark habit done | When habits are pending |
 | `add_task` | `{text}` | Add new task | Empty state only |
 | `reflect` | `{}` | Ask AI for reflection | Rarely — only with specific pattern insight |
 | `dismiss` | `{}` | Close AI panel | Always last |
+
+Multi-task actions use an `ids` array (v2.17.6) — handler iterates and applies the action to each ID. Chip label shows the count and first task name.
 
 Available in handlers but not offered by AI (kept for edge cases):
 
@@ -169,6 +171,28 @@ Morning nudge (before noon) shows yesterday's review if available:
 > Yesterday: 5 done, 1h focused, 2 habits · 3 carried over
 
 Falls back to simple carried-over count if no review exists. Auto-clears after noon. Tap to dismiss.
+
+---
+
+## Sunday Weekly Reflection (v2.17.56)
+
+On Sundays, `#sundayBlock` appears above the stat tiles in the About panel. Shows an AI-generated one-sentence reflection (warm, honest, under 15 words) based on the week's stats (tasks done, focus time, habits kept).
+
+**Cache:** stored as `week_reflection_YYYY-MM-DD` in localStorage, regenerated once per day.
+
+**Fallback:** if no AI key or offline, shows a rule-based summary ("3 tasks done. 90m of focus. 4/5 habits.").
+
+**Entry point:** `_fetchWeekReflection({wT, wF, wHK, wHT})` via `/.netlify/functions/ai-assist`.
+
+System prompt: *"One sentence only. No quotes. Under 15 words. Plain, warm, grounded."*
+
+---
+
+## Sending Messages from the Main Input Bar (v2.17.64)
+
+`_aiSendFromInput(text)` — companion to `_aiAskFromPanel`. Called when the user types text in the main task input bar and submits to AI (✦ tap with text, or Enter while AI panel is open).
+
+Same `_aiThread` / `_aiCall` / `_aiRenderResult` pattern as `_aiAskFromPanel`, but takes the already-extracted text as a parameter instead of reading `#aiNlInput`. Sets `_aiLoadedOnce = true` to prevent the concurrent panel auto-load from clobbering the response.
 
 ---
 

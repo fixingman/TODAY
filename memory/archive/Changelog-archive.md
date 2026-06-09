@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.50** | **Fix: `_onWake` animation audit** — `_forceRepaint()` now suppresses all persistent animations (`.ai-badge`, `.done-star`, `#errorIndicator.open`, `.loading-dots span`, `.ai-suggestion-msg.thinking`) matching the BUG-023/025 pattern. Single-play classes (`.task-slide-in`, `.removing`, `.just-checked`, `.milestone-pulse`, `.dot-ripple`, `#manualEmpty.fading-in`) cleared once on wake. `_clearStaleFocusing` guards against the re-anchor race via `window._focusUIActive` flag set in `openUI`/`closeUI`. Offline panel state re-applied on wake. |
 | **2.17.49** | **Fix: BUG-025 + re-open stuck at 00:00** — (1) `_forceRepaint()` now suppresses `.complete` animation on each `display:none/block` pass, same as BUG-023 did for panels; animation restored after the final 1500ms pass. (2) `openUI()` calls `clearState(taskId)` when the session is done (`rem=0 && !running`), so re-opening a completed task shows fresh 25:00 instead of frozen 00:00. |
 | **2.17.48** | **Fix: BUG-024 true root cause** — `applyNewDayCleanup()` had an early `return` when `stat_streak_date` already matched today (the BUG-020 fix). This silently skipped the focus-minutes reset whenever another device had synced the streak first. Restructured so only the streak increment is conditional — daily counter reset always runs. |
 | **2.17.47** | **Fix: PAST 100-task cap removed** — sync merge no longer slices to 100 after union. Only retention limit is `_purgePast()` age-based expiry: done tasks >7d, let_go/aged tasks >30d. |

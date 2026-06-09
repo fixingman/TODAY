@@ -72,12 +72,21 @@
 |---|---|---|
 | `stat_alltime_done` | string | Lifetime completed count |
 | `stat_streak` | string | Current daily streak |
+| `stat_streak_date` | string | YYYY-MM-DD local — date streak was last incremented; guards against double-count on multi-device sync (BUG-020) |
 | `stat_last_visit` | string | Last date app opened |
 | `stat_tasks_done_today` | string | Tasks completed today (for memory/AI) |
 | `stat_focus_mins_today` | string | Focus minutes today |
+| `stat_focus_mins_date` | string | `_getAppDay()` string — date those minutes were earned; used as a guard on sync merge so yesterday's minutes are never restored as today's (BUG-024) |
 | `stat_focus_mins_alltime` | string | Lifetime focus minutes |
 | `morning_nudge_count` | string | Carried-over tasks from yesterday (set by `applyNewDayCleanup`) |
 | `today_day_review` | JSON | Yesterday's day-end stats `{done, focusMins, habits, habitsTotal, streak, kept, soon, letgo, date}` — saved at triage, consumed by morning nudge, auto-cleared after noon |
+
+### History & Reports
+
+| Key | Type | Description |
+|---|---|---|
+| `today_daily_history` | JSON array | Rolling 30-day snapshot `{date, tasksDone, focusMins, habitsKept, habitsTotal}` — one entry per day, written at midnight in `applyNewDayCleanup`, used by the About weekly grid and the Sunday AI reflection (v2.17.55) |
+| `week_reflection_YYYY-MM-DD` | string | Cached AI-generated Sunday reflection for that date — regenerated at most once per day; falls back to rule-based summary if no AI key (v2.17.56) |
 
 **Note:** Flow rate is calculated live using research-based diminishing returns formula: `100 × (1 - 0.8^done)`. First task = 20% (quick win), 5 tasks ≈ 67% (good day). Based on Endowed Progress Effect (Nunes & Dreze 2006) and Goal Gradient Hypothesis (Kivetz et al. 2006). Not stored.
 
@@ -114,6 +123,7 @@
   manual: [...],
   habits: [...],
   habitCompletions: {...},
+  habit_events: {...},         // v2.17.53 — LWW map for uncheck protection (BUG-026)
   done: [...],
   deleted: [...],
   checked: [...],
@@ -125,6 +135,8 @@
   soon_tasks: [...],           // v5.0 — SOON zone
   past_tasks: [...],           // v5.0 — PAST zone
   triage_history: [...],       // v5.1 — AI triage learning
+  stat_focus_mins_date: '',    // v2.17.44 — date guard for focus minutes sync
+  stat_streak_date: '',        // BUG-020 — prevents double-count on multi-device
   exportedAt: 'ISO string'
 }
 ```
@@ -150,16 +162,19 @@ Cleanup rules:
 
 ## Day Boundaries
 
-Unified at midnight (v2.12.74), unified clock (v2.12.78):
+Tasks, zones, streak, and focus roll at midnight. **Habits roll at 3am** (v2.17.61) — a late-night check (e.g. 12:30am) still counts toward the day that's ending.
 
 | Purpose | Function | Format | Timezone |
 |---------|----------|--------|----------|
-| Day boundary checks | `_getAppDay()` | `"Fri Apr 18 2026"` | Local |
+| Task/streak/focus day boundary | `_getAppDay()` | `"Fri Apr 18 2026"` | Local midnight |
 | Date-only strings (YYYY-MM-DD) | `_localISO(d)` | `"2026-04-18"` | Local |
-| Habit today shorthand | `_habitTodayISO()` | wraps `_localISO()` | Local |
+| Habit today (3am roll) | `_habitTodayISO()` | `_localISO(_habitNow())` | Local — `_habitNow()` = `Date.now() - 3h` |
+| Habit 21-day strip | `_getHabitDates()` | uses `_habitNow()` | Same shift — **must stay in lockstep with `_habitTodayISO()`** |
 | Full timestamps (sync ordering) | `new Date().toISOString()` | `"2026-04-18T01:23:45Z"` | UTC |
 
 **Never use `toISOString().slice(0,10)` for date logic** — returns UTC, diverges from local near midnight (BUG-010).
+
+**Never split `_habitTodayISO()` and `_getHabitDates()`** — both must use `_habitNow()` or the 21-day strip refreshes on a different boundary than checking (this exact mismatch caused BUG-010's original regression in v2.12.74).
 
 ## Deletion Persistence
 
