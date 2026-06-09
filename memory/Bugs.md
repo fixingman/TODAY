@@ -35,7 +35,7 @@
 | 027 | Trello focus timer — re-open idle 25:00 + completed bar stops pulsing | ✅ v2.17.62 |
 | 028 | Completed bar static ~1.5s on window return (true root: _forceRepaint held anim) | ⏳ v2.17.68 |
 | 029 | `_aiSendFromInput` undefined — crash on ✦ submit with text | ⏳ v2.17.64 |
-| 030 | Checkmark animation lags ~30s on iOS PWA open | ✅ v2.17.71 |
+| 030 | Checkmark animation lags ~30s on iOS PWA open | ⏳ v2.17.71 |
 
 ---
 
@@ -59,5 +59,26 @@ Sub-fix B's per-pass rAF created rapid suppress→restore cycles (each of the 4 
 **Verify (all three — see Test-matrix 7.8 and 7.9):**
 - (A) Complete a focus session → bar fills and **immediately** pulses "again?" — no static pause
 - (B+C) Leave a session completed, switch away then return → bar pulses on return with **no flash and no long pause**
+
+**Verified fixed:** ☐
+
+---
+
+## BUG-030: Checkmark animation lags ~30s on iOS PWA open
+
+**Status:** Fixed v2.17.71 — awaiting verification
+
+**Symptom:** For the first ~20-30 seconds after opening the PWA on iOS, checking a task shows a laggy or stuttering checkmark animation. After ~30s it becomes smooth and stays smooth.
+
+**Root cause A — SVG stroke-dashoffset (main cause):** The old `checkDraw` animation used `stroke-dashoffset`, a paint-triggered CSS property that cannot be GPU-composited. It forces the SVG rasterizer to recalculate and repaint the stroke path geometry on every animation frame (CPU-only). iOS WebKit's JavaScriptCore JIT compiler spends ~20-30s JIT-compiling a large bundle; during JIT commit phases the main thread stalls briefly, which stalls paint-path animations.
+
+**Root cause B — canvas Metal pipeline cold:** The first `fireEmberDrift` call (first task check after open) triggers iOS Metal GPU shader compilation for the Canvas 2D context — a ~100-200ms one-time stall.
+
+**Fix:** Replaced `checkDraw` (stroke-dashoffset) with `checkPop` (`transform: scale + opacity` on the svg element). Both properties are compositor-animatable — they run on the GPU thread entirely separate from JS/JIT. Also added a 2s idle canvas pre-warm (`clearRect(0,0,1,1)`) in `init()` to trigger Metal compilation before the first tap.
+
+**Verify:**
+- Open the PWA fresh on iOS (force-quit first to ensure cold start)
+- Within the first 5 seconds, check a task → checkmark should pop in crisply with no stutter
+- The animation should feel the same at 5s as at 60s
 
 **Verified fixed:** ☐
