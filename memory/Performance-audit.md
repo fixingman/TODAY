@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.17.69 · Jun 2026  
+> v2.17.70 · Jun 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -180,7 +180,7 @@
 
 ---
 
-## 8. Recent Changes (v2.17.41 → v2.17.69)
+## 8. Recent Changes (v2.17.41 → v2.17.70)
 
 | Feature | Version | Performance Impact |
 |---|---|---|
@@ -213,4 +213,4 @@
 
 ---
 
-*Last updated: v2.17.69 · Jun 2026*
+*Last updated: v2.17.70 · Jun 2026*

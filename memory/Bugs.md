@@ -33,7 +33,7 @@
 | 025 | PiP "Again" lost / shows 25:00 after sleep/wake | ✅ v2.17.52 |
 | 026 | Habit re-checks itself after uncheck | ✅ v2.17.53 |
 | 027 | Trello focus timer — re-open idle 25:00 + completed bar stops pulsing | ✅ v2.17.62 |
-| 028 | Completed bar static ~1.5s on window return (true root: _forceRepaint held anim) | ⏳ v2.17.65 |
+| 028 | Completed bar static ~1.5s on window return (true root: _forceRepaint held anim) | ⏳ v2.17.68 |
 | 029 | `_aiSendFromInput` undefined — crash on ✦ submit with text | ⏳ v2.17.64 |
 
 ---
@@ -42,17 +42,21 @@
 
 ---
 
-## BUG-028: Completed focus bar shows "again?" a tick late
+## BUG-028: Completed focus bar — three sub-fixes
 
-**Status:** Fixed v2.17.63 — awaiting verification
+**Status:** Fixed across v2.17.63 / v2.17.65 / v2.17.68 — awaiting verification
 
-**Symptom (all task types):** when a focus session reaches zero, the bar fills and looks complete but sits **full and static for ~1s before the "again?" pulse appears**. Noticed after BUG-027 made the completed state reliably visible.
+**Sub-fix A — v2.17.63: "again?" shown a tick late (all task types)**
+`tickFor` hit 0, drew "00:00" + full bar, then scheduled another tick; `completeFor` only ran on the *next* tick (~1s later). Fix: call `completeFor` in the same tick that reaches zero and `return` — skip the dead "00:00" frame.
 
-**Root cause:** `tickFor` decrements `st.rem`, and when it hits 0 it drew `"00:00"` + a full bar and then **scheduled another tick**. `completeFor` (which adds `.complete` + "again?" + the pulse) only ran at the *top* of that next tick — one full second later. So there was always a dead "00:00" second between the bar filling and the completed state rendering. Sibling of BUG-025/027 but a distinct root cause (tick scheduling, not Trello re-render or sleep/wake).
+**Sub-fix B — v2.17.65: bar holds static ~1.5s on window return**
+`_forceRepaint` suppressed `.complete` animation on every wake pass but only restored after 1500ms. Fix: restore infinite animations (`.complete`, `.ai-badge`, `.done-star`) on the very next `rAF` inside `_forceRepaint` itself.
 
-**Fix (v2.17.63):** after the decrement, `if (st.rem <= 0) { completeFor(taskId); return; }` — complete in the same tick that reaches zero, skipping the dead "00:00" frame. The display-update + reschedule only run while `rem > 0`.
+**Sub-fix C — v2.17.68: bar flashes 2–3× on window return**
+Sub-fix B's per-pass rAF created rapid suppress→restore cycles (each of the 4 passes suppressed then immediately restored). Fix: restore moved outside `_forceRepaint`; animations suppressed 0–500ms across all passes, then restored **once** at 520ms in a single external rAF. The 1500ms slow-GPU pass gets `skipAnimSuppression=true`.
 
-**Verify:**
-- Run a focus session to completion (any task type) → the moment the bar fills it should show the pulsing **"again?"**, with no static full-bar pause first.
+**Verify (all three — see Test-matrix 7.8 and 7.9):**
+- (A) Complete a focus session → bar fills and **immediately** pulses "again?" — no static pause
+- (B+C) Leave a session completed, switch away then return → bar pulses on return with **no flash and no long pause**
 
 **Verified fixed:** ☐

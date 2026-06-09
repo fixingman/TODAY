@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.70
-- **Recent:** Removed static week narrative lines (v2.17.66), BUG-028 _forceRepaint held anim 1.5s (v2.17.65), BUG-029 _aiSendFromInput undefined (v2.17.64)
-- **Watch for:** BUG-028 (completed bar static on window return) and BUG-029 (AI send from bar) — both awaiting Can's verification
+- **Working on:** v2.17.71 (next)
+- **Recent:** localStorage quota catch (v2.17.70), _onWake debounce (v2.17.69), BUG-028b flash fix (v2.17.68)
+- **Watch for:** BUG-028 (completed bar — 3 sub-fixes at v2.17.63/65/68) and BUG-029 (AI send from bar, v2.17.64) — both awaiting Can's verification
 
 ---
 
