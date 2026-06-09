@@ -1294,17 +1294,8 @@
   .task-check svg { display: none; }
   .task.done .task-check svg { display: block; }
 
-  /* Checkbox pop-in: scale + fade on the svg element — GPU-composited, runs on the
-     compositor thread independent of JS. Replaces stroke-dashoffset which is a
-     paint-triggered property (CPU-only) that lagged during iOS JIT warmup (~30s). */
-  @keyframes checkPop {
-    from { opacity: 0; transform: scale(0.5); }
-    to   { opacity: 1; transform: scale(1); }
-  }
-  .task-check.just-checked svg,
-  .habit-check.just-checked svg {
-    animation: checkPop 150ms var(--ease-out) forwards;
-  }
+  /* Checkmark pop-in driven by Web Animations API in JS (svg.animate) —
+     no CSS class needed. fill:'none' returns svg to natural state after 150ms. */
 
   /* Streak milestone: single breath on the stat value */
   @keyframes milestonePulse {
@@ -3161,12 +3152,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.71';
+const APP_VERSION   = '2.17.72';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.72': 'Fix: BUG-030b checkmark animation skipped on rapid back-to-back checks (desktop PWA) — CSS class approach replaced with Web Animations API (svg.animate()). Each call creates a fresh Animation object with no shared state, so sequential checks never interfere. CSS @keyframes and .just-checked selector removed.',
   '2.17.71': 'Fix: BUG-030 checkmark animation lags ~30s on iOS PWA open — stroke-dashoffset (CPU paint-triggered, blocked by JIT warmup) replaced with transform+opacity on the svg element (GPU-composited, runs on compositor thread independent of JS). Also pre-warms the celebCanvas GPU pipeline at idle so Metal shader compilation happens before the first task check.',
   '2.17.70': 'Fix: localStorage quota failures now visible — global localStorage.setItem wrapper catches QuotaExceededError and routes it to the red dot with a clear message instead of silently dropping the save. Placed immediately after _logSyncError definition so all subsequent writes are protected.',
   '2.17.69': 'Refactor: _onWake 200ms debounce — visibilitychange and window.focus both fire on desktop PWA restore within ~50ms, running _onWake twice (double repaint passes, double timers). Added _lastWakeTime guard: skip if called within 200ms of previous run. 200ms covers the same-event-cluster without affecting genuine rapid wake-sleep-wake cycles.',
@@ -6333,10 +6325,14 @@ function toggleHabitDone(id) {
       }
     }
 
-    // Stroke-draw animation on the habit checkbox
+    // Checkmark pop-in via Web Animations API — creates a fresh Animation object
+    // each call, so rapid back-to-back checks never share state or drop each other.
     if (check) {
-      check.classList.add('just-checked');
-      check.addEventListener('animationend', () => check.classList.remove('just-checked'), { once: true });
+      const svg = check.querySelector('svg');
+      if (svg && svg.animate) svg.animate(
+        [{ opacity: 0, transform: 'scale(0.5)' }, { opacity: 1, transform: 'scale(1)' }],
+        { duration: 150, easing: 'cubic-bezier(0.16,1,0.3,1)', fill: 'none' }
+      );
     }
 
     // Consecutive-run dot cascade — ripple left-to-right across the run
@@ -6440,13 +6436,14 @@ function toggleDone(taskId) {
         fireEmberDrift(r.left + r.width/2, r.top + r.height/2);
       }
     }
-    // Stroke-draw animation on check
+    // Checkmark pop-in via Web Animations API — fresh Animation object per call,
+    // immune to Chrome's CSS animation restart-drop on rapid back-to-back checks.
     if (isNowDone) {
-      const chk = el.querySelector('.task-check');
-      if (chk) {
-        chk.classList.add('just-checked');
-        chk.addEventListener('animationend', () => chk.classList.remove('just-checked'), { once: true });
-      }
+      const svg = el.querySelector('.task-check svg');
+      if (svg && svg.animate) svg.animate(
+        [{ opacity: 0, transform: 'scale(0.5)' }, { opacity: 1, transform: 'scale(1)' }],
+        { duration: 150, easing: 'cubic-bezier(0.16,1,0.3,1)', fill: 'none' }
+      );
     }
     // Uncheck: brief neutral pulse on the checkbox
     if (!isNowDone) {
