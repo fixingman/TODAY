@@ -35,7 +35,7 @@
 | 027 | Trello focus timer — re-open idle 25:00 + completed bar stops pulsing | ✅ v2.17.62 |
 | 028 | Completed bar static ~1.5s on window return (true root: _forceRepaint held anim) | ⏳ v2.17.68 |
 | 029 | `_aiSendFromInput` undefined — crash on ✦ submit with text | ⏳ v2.17.64 |
-| 030 | Checkmark animation lags ~30s on iOS PWA open | ⏳ v2.17.71 |
+| 030 | Checkmark animation lags ~30s on iOS PWA open | ✅ v2.17.71 |
 
 ---
 
@@ -60,13 +60,13 @@ Sub-fix B's per-pass rAF created rapid suppress→restore cycles (each of the 4 
 - (A) Complete a focus session → bar fills and **immediately** pulses "again?" — no static pause
 - (B+C) Leave a session completed, switch away then return → bar pulses on return with **no flash and no long pause**
 
-**Verified fixed:** ☐
+**Verified fixed:** ✅ (Can, Jun 2026)
 
 ---
 
 ## BUG-030: Checkmark animation lags ~30s on iOS PWA open
 
-**Status:** Fixed v2.17.71 — awaiting verification
+**Status:** Fixed v2.17.71/72 — verified ✅
 
 **Symptom:** For the first ~20-30 seconds after opening the PWA on iOS, checking a task shows a laggy or stuttering checkmark animation. After ~30s it becomes smooth and stays smooth.
 
@@ -81,4 +81,4 @@ Sub-fix B's per-pass rAF created rapid suppress→restore cycles (each of the 4 
 - Within the first 5 seconds, check a task → checkmark should pop in crisply with no stutter
 - The animation should feel the same at 5s as at 60s
 
-**Verified fixed:** ☐
+**Verified fixed:** ✅ (Can, Jun 2026) — iOS warmup lag gone. Rapid back-to-back desktop checks improved but can still skip in extreme cases (edge case, low priority).
