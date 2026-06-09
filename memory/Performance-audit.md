@@ -180,7 +180,7 @@
 
 ---
 
-## 8. Recent Changes (v2.17.41 → v2.17.70)
+## 8. Recent Changes (v2.17.41 → v2.17.71)
 
 | Feature | Version | Performance Impact |
 |---|---|---|
@@ -194,6 +194,7 @@
 | `_onWake` 200ms debounce | 2.17.69 | Eliminates duplicate wake sequence (8→4 repaint passes on desktop PWA). Small steady-state win. |
 | `--text-micro` token | 2.17.67 | Zero runtime cost — CSS token addition only. |
 | localStorage quota catch | 2.17.70 | Global `setItem` wrapper — try/catch cost on every write, negligible. |
+| BUG-030 checkmark `checkPop` | 2.17.71 | `stroke-dashoffset` → `transform+opacity` on svg. Compositor-animated, zero paint cost. Canvas pre-warm: one `clearRect` at 2s idle. |
 
 ---
 
@@ -213,4 +214,4 @@
 
 ---
 
-*Last updated: v2.17.70 · Jun 2026*
+*Last updated: v2.17.71 · Jun 2026*

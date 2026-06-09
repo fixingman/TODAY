@@ -47,6 +47,7 @@ Why 1.8s: slower than heartbeat, calmer than urgency, matches breathing rhythm.
 
 ### Task Completion
 - Checkbox fills with accent color
+- Checkmark SVG pops in: `scale(0.5)→scale(1)` + `opacity:0→1` (`checkPop`, 150ms, GPU-composited). Replaced `stroke-dashoffset` at v2.17.71 — paint-triggered stroke draw lagged during iOS JIT warmup (~30s window).
 - Particles drift upward (ember drift)
 - Haptic feedback (success pattern)
 - Sound: soft completion tone

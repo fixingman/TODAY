@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.71 (next)
-- **Recent:** localStorage quota catch (v2.17.70), _onWake debounce (v2.17.69), BUG-028b flash fix (v2.17.68)
+- **Working on:** v2.17.72 (next)
+- **Recent:** BUG-030 checkmark anim lag on iOS (v2.17.71), localStorage quota catch (v2.17.70), _onWake debounce (v2.17.69)
 - **Watch for:** BUG-028 (completed bar — 3 sub-fixes at v2.17.63/65/68) and BUG-029 (AI send from bar, v2.17.64) — both awaiting Can's verification
 
 ---
