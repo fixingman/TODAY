@@ -11,7 +11,7 @@
 |------|--------|-------|
 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — see `research/Integrations.md`. |
 | **Push notifications** | Not started | Medium effort. Server-sent (iOS can't self-schedule). Detail ↓ |
-| **AI improvements** | Partial | Remaining: deeper personality, richer habit celebrations. Detail ↓ |
+| **AI improvements** | Partial | Remaining: auto morning briefing (inline, no tap needed), input bar discoverability, deeper personality, richer habit celebrations. Detail ↓ |
 | **Keyboard shortcuts (desktop)** | Not started | Keyboard-first power-user flow. Needs UX exploration first. |
 | **Idle companion artwork** | Not started | Higher-resolution creatures, more visual consistency across the 7. |
 
@@ -30,7 +30,10 @@
 
 ### AI Improvements
 **Done so far (v2.13.0–2.17.11):** morning briefings, day-end review, stale-task awareness, behavioral insights, break_down/move_soon/reflect actions, morning reflection nudge, 7-day suggestion cooldowns, Dropbox-synced suggestion history (also fed into AI context), deterministic chips for aging tasks, conversation memory across sessions.
-**Remaining:** deeper personality (weather/energy awareness beyond peak hour), richer habit-streak celebrations.
+**Remaining:**
+- **Auto morning briefing** — surface the morning briefing inline (above task list) on first open, no ✦ tap needed. Dismisses on tap or after 30s. The AI call + message already exist; this is purely a surface/trigger change.
+- **Input bar discoverability** — the `type + ✦` trick (sends text to AI as a free-form message) is a hidden superpower. Needs a hint: placeholder text change, tooltip, or a one-time nudge on first ✦ open.
+- **Deeper personality** — weather/energy awareness beyond peak hour, richer habit-streak celebrations.
 
 ---
 
