@@ -108,6 +108,7 @@ Self-hosted under `/fonts/`, pre-cached by service worker.
 
 | Token | Value | Usage |
 |---|---|---|
+| `--text-micro` | `9px` | Micro labels — week grid letters/focus, Sunday label, AI provider badge, error panel badge |
 | `--text-xs` | `10px` | Tiny labels, kbd hints |
 | `--text-sm` | `11px` | Small labels, week-summary lines |
 | `--text-sm2` | `12px` | Small labels, config hints |
@@ -196,13 +197,18 @@ Scale is numeric, 4px base:
 
 | Token | Value | Element |
 |---|---|---|
-| `--z-base` | `1` | Normal content |
+| `--z-base` | `1` | Normal content (`.app`) |
 | `--z-header` | `10` | Sticky header |
 | `--z-modal` | `100` | Panels, overlays, triage bar |
-| `--z-splash` | `500` | Loading splash |
+| `--z-splash` | `500` | Loading splash overlay |
 | `--z-overlay` | `999` | Top-level overlays |
 
 **Hardcoded (not tokenised):**
-- Error dot: `9999`
-- Error panel: `9998`
-- Idle companion: `50`
+| Value | Element | Reason |
+|---|---|---|
+| `0` | `body::before` noise texture | Below all content |
+| `50` | Idle companion | Between header and modal |
+| `90` | `#aiPanel` | Below modal (100), above header (10) |
+| `600` | Splash canvas (star burst) | Above splash overlay (500); burst fires on top of the splash |
+| `9998` | Error panel | Above all app content |
+| `9999` | Error dot | Always on top |

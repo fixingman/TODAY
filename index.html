@@ -427,6 +427,7 @@
     --font-mono:  'DM Mono', monospace;
     --font-display: 'Syne', sans-serif;
 
+    --text-micro: 9px;    /* micro labels: grid col letters, focus time, provider badge */
     --text-xs:    10px;
     --text-sm:    11px;
     --text-base:  13px;
@@ -540,7 +541,7 @@
     color: var(--muted);
   }
   .error-panel-badge {
-    font-size: 9px;
+    font-size: var(--text-micro);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     padding: 1px 5px;
@@ -1813,7 +1814,7 @@
     padding: var(--space-1) 0 var(--space-2);
   }
   .week-col { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-  .week-col-day { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .week-col-day { font-size: var(--text-micro); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
   .week-col-bar {
     width: 6px;
     height: 26px;
@@ -1832,7 +1833,7 @@
   .week-col-tasks { font-size: var(--text-md); color: var(--text); font-variant-numeric: tabular-nums; }
   .week-col-tasks.is-today { color: var(--accent); }
   .week-col-tasks.zero { color: var(--muted); opacity: var(--opacity-dim); }
-  .week-col-focus { font-size: 9px; color: var(--muted); }
+  .week-col-focus { font-size: var(--text-micro); color: var(--muted); }
   .week-col-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--accent); opacity: 0; }
   .week-col-dot.on { opacity: var(--opacity-soft); }
 
@@ -1841,9 +1842,9 @@
     padding: var(--space-2) var(--space-3);
     border: 1px solid var(--accent-dim);
     border-radius: var(--radius-md);
-    background: rgba(200,240,96,0.04);
+    background: var(--accent-focus-bg);
   }
-  .sunday-label { font-size: 9px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 3px; }
+  .sunday-label { font-size: var(--text-micro); color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 3px; }
   .sunday-summary { font-size: var(--text-base); color: var(--text); line-height: 1.5; }
   .sunday-summary.loading { color: var(--muted); font-style: italic; }
 
@@ -2580,7 +2581,7 @@
   }
   .ai-provider-badge {
     display: inline-block;
-    font-size: 9px;
+    font-size: var(--text-micro);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--accent);
@@ -3149,12 +3150,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.66';
+const APP_VERSION   = '2.17.67';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.67': 'Style: design maintenance — added --text-micro: 9px token (5 uses: week grid letters/focus, Sunday label, AI provider badge, error panel badge); tokenised #sundayBlock background (was hardcoded rgba, now var(--accent-focus-bg)); documented all z-index values including undocumented 90/#aiPanel, 600/splash-canvas, 0/noise-texture.',
   '2.17.66': 'Style: removed static week narrative lines (weekNarrative, weekCompare, weekRhythm) from About panel. Rule-based phrases ("Strong start, quieter finish.", "Quieter than last week.", etc.) became wallpaper — always visible, always the same, adding no new information after first reading. The visual grid and your-day dot communicate the week shape without words. Sunday AI reflection stays; it is personal, fresh, and AI-generated.',
   '2.17.65': 'Fix: BUG-028 true root cause — completed focus bar stops pulsing for ~1.5s on window return. _forceRepaint suppressed .complete animation on every wake pass but only restored after 1500ms. Fix: restore infinite animations (complete, ai-badge, done-star, etc.) on the next frame inside _forceRepaint itself — one frame kills the restarted animation, no long pause needed. .config-panel.open stays suppressed until user-open (BUG-023 pattern unchanged).',
   '2.17.64': 'Fix: BUG-029 _aiSendFromInput was never defined — ReferenceError when submitting text to AI from the main input bar (✦ tap with text, or Enter while AI panel open). Added the missing function: same pattern as _aiAskFromPanel but takes text as a parameter instead of reading the in-panel input.',
