@@ -3150,12 +3150,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.67';
+const APP_VERSION   = '2.17.68';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.68': 'Fix: BUG-028b completed bar flashes on window return — the v2.17.65 per-pass rAF restore caused each of the 4 _forceRepaint passes to suppress then immediately restore, creating rapid suppress/restore cycles visible as 2–3 quick flashes before the pulse settled. Fix: remove per-pass restore; suppress across all passes (0–500ms); restore once at 520ms in a single rAF callback. The 1500ms slow-GPU pass receives skipAnimSuppression=true so it does not suppress animations that are already restored.',
   '2.17.67': 'Style: design maintenance — added --text-micro: 9px token (5 uses: week grid letters/focus, Sunday label, AI provider badge, error panel badge); tokenised #sundayBlock background (was hardcoded rgba, now var(--accent-focus-bg)); documented all z-index values including undocumented 90/#aiPanel, 600/splash-canvas, 0/noise-texture.',
   '2.17.66': 'Style: removed static week narrative lines (weekNarrative, weekCompare, weekRhythm) from About panel. Rule-based phrases ("Strong start, quieter finish.", "Quieter than last week.", etc.) became wallpaper — always visible, always the same, adding no new information after first reading. The visual grid and your-day dot communicate the week shape without words. Sunday AI reflection stays; it is personal, fresh, and AI-generated.',
   '2.17.65': 'Fix: BUG-028 true root cause — completed focus bar stops pulsing for ~1.5s on window return. _forceRepaint suppressed .complete animation on every wake pass but only restored after 1500ms. Fix: restore infinite animations (complete, ai-badge, done-star, etc.) on the next frame inside _forceRepaint itself — one frame kills the restarted animation, no long pause needed. .config-panel.open stays suppressed until user-open (BUG-023 pattern unchanged).',
@@ -7851,7 +7852,21 @@ window._onWake = function() {
   // Run repaint immediately, on next rAF (GPU more likely ready), and after 500ms.
   // Clicking also restores it (user-interactive paints are prioritised) — these
   // deferred passes replicate that urgency without requiring user interaction.
-  function _forceRepaint() {
+  // Selectors for infinite animations that must be suppressed during each
+  // display:none/block cycle but restored as soon as all passes are done.
+  // .config-panel.open is excluded — it stays suppressed until next user-open (BUG-023).
+  const _resumeAfterRepaint = [
+    '.complete',
+    '.ai-badge',
+    '.done-star',
+    '#errorIndicator.open',
+    '.loading-dots span',
+    '.ai-suggestion-msg.thinking',
+  ];
+
+  // skipAnimSuppression: true for the slow-GPU 1500ms pass — by then animations are
+  // already restored (at 520ms), and suppressing again would cause another flash. (BUG-028b)
+  function _forceRepaint(skipAnimSuppression) {
     const appEl = document.getElementById('main-app');
     if (!appEl) return;
     // Save scroll positions of all scrollable children before display:none
@@ -7863,27 +7878,14 @@ window._onWake = function() {
     void appEl.offsetHeight;
     appEl.style.display = '';
     // Suppress animations that restart on display:none/block cycle.
-    // .config-panel.open — fadeIn stays suppressed; cleared on next user-open (BUG-023).
-    // All others (infinite loops) — suppressed for exactly one frame, then restored
-    // immediately so they resume without a visible pause (BUG-028 root fix).
-    const _resumeAfterRepaint = [
-      '.complete',
-      '.ai-badge',
-      '.done-star',
-      '#errorIndicator.open',
-      '.loading-dots span',
-      '.ai-suggestion-msg.thinking',
-    ];
-    ['.config-panel.open', ..._resumeAfterRepaint]
-      .forEach(sel => appEl.querySelectorAll(sel).forEach(el => { el.style.animation = 'none'; }));
+    // Do NOT restore per-pass — each suppress+restore cycle is a visible flash. (BUG-028b)
+    // Restoration is handled once externally at 520ms, after all normal passes are done.
+    if (!skipAnimSuppression) {
+      ['.config-panel.open', ..._resumeAfterRepaint]
+        .forEach(sel => appEl.querySelectorAll(sel).forEach(el => { el.style.animation = 'none'; }));
+    }
     scrollPositions.forEach(({ el, top }) => { el.scrollTop = top; });
     window.scrollTo(0, appScroll);
-    // Restore infinite animations on the very next frame — one frame was enough to
-    // kill the restarted animation; holding longer causes the visible ~1.5s static
-    // pause on the completed focus bar when returning to the window. (BUG-028)
-    requestAnimationFrame(() => {
-      _resumeAfterRepaint.forEach(sel => appEl.querySelectorAll(sel).forEach(el => { el.style.animation = ''; }));
-    });
   }
   _forceRepaint();
   requestAnimationFrame(() => {
@@ -7891,7 +7893,18 @@ window._onWake = function() {
     requestAnimationFrame(_forceRepaint);
   });
   setTimeout(_forceRepaint, 500);
-  setTimeout(_forceRepaint, 1500); // extra pass for slow GPU wakeup after long sleep (BUG-004)
+  // Restore infinite animations once, after the 500ms pass has settled (one rAF delay).
+  // Suppressed from t=0 through ~520ms — imperceptible on a normal tab switch.
+  // .config-panel.open stays suppressed (BUG-023 pattern). (BUG-028)
+  setTimeout(() => {
+    requestAnimationFrame(() => {
+      const _a = document.getElementById('main-app');
+      if (_a) _resumeAfterRepaint.forEach(sel => _a.querySelectorAll(sel).forEach(el => { el.style.animation = ''; }));
+    });
+  }, 520);
+  // Extra pass for slow GPU wakeup after long sleep (BUG-004). Animations are already
+  // restored at 520ms so this pass skips suppression to avoid a late flash. (BUG-028b)
+  setTimeout(() => _forceRepaint(true), 1500);
 
   // Clear single-play animation classes that may be mid-flight at sleep time.
   // Removing the class cancels cleanly; the animation will re-play on next trigger.
