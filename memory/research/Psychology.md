@@ -149,10 +149,10 @@ But "unchecked at midnight" hides two very different things:
 
 Any feature that compares the user to their past self (week-over-week, month-over-month) inherits the streak/gamification backfire risk: a "down" period can read as a verdict.
 
-**TODAY's rule (v2.17.59, `#weekCompare`):**
+**TODAY's rule (first used in `#weekCompare`, v2.17.59; that feature removed v2.17.66):**
 - An up-period is stated plainly ("A little more focus than last week.").
 - A down-period is only ever surfaced when it can be framed as permission, not failure ("Quieter than last week — that's alright.").
-- When there isn't a confident *and* kind thing to say, **say nothing** — render empty. Silence beats a neutral metric that the user will read as judgement.
+- When there isn't a confident *and* kind thing to say, **say nothing**. Silence beats a neutral metric the user reads as judgement.
 - Gate on real data (≥3 known prior days) and clear deltas (~1.4×) so noise never triggers a comparison.
 
-This applies to all future comparative/predictive surfaces (incl. the WEEK companion).
+**Why `#weekCompare` was removed (v2.17.66):** even with kind framing, rule-based phrases become wallpaper after the first few readings. The principle above applies to all future comparative/predictive surfaces (incl. the WEEK companion) — but the presentation should be AI-generated and fresh, not a fixed phrase from a lookup table.

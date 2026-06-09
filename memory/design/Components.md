@@ -202,22 +202,15 @@ until `today_daily_history` has any data (`_hasData` guard).
  1   3   6   4   ·   2   3      ← .week-col-tasks (today = accent)
              •                  ← .week-col-dot (standout day only)
 30m  1h  2h  1h      45m 1h     ← .week-col-focus
-
-Built momentum as the week went on.      ← #weekNarrative (shape of this week)
-A little more focus than last week.       ← #weekCompare  (kind, only when confident)
-You tend to move most on Tuesdays.        ← #weekRhythm   (≥14d history, distinct leader)
 ```
 
 - **Bars (①):** track 6×26px, fill `--accent-dim` (today `--accent`), nonzero floor 14%,
   height transitions `--dur-slow`/`--ease-out`.
 - **Your-day dot (②):** quiet accent dot under the single strict-max day (week total ≥4, not
   today). No label — recognition, not a trophy.
-- **Narrative / compare / rhythm:** muted secondary text at `--text-sm` (11px) / line-height 1.5,
-  matching `.changelog-text` — *not italic* (DM Mono oblique reads heavy; muted color carries the
-  secondary signal). `#weekRhythm` keeps extra `opacity` as the quietest tier. Compare + rhythm
-  `:empty` → `display:none`, so they silently vanish when there's no confident, kind thing to say.
-- **Voice rule:** `#weekCompare` down-week wording must never read as failure ("…that's
-  alright."). See `research/Psychology.md`.
+- **No text lines below the grid (v2.17.66):** `#weekNarrative`, `#weekCompare`, `#weekRhythm`
+  were removed. Rule-based phrases became wallpaper after first reading — the visual bars
+  already show the week's shape. The Sunday AI block handles the one case where words add value.
 
 ---
 

@@ -40,7 +40,7 @@
 **Vision:** a separate lightweight weekly planning tool. TODAY = focus instrument, WEEK = planning surface.
 **Differentiator:** predictive AI from observed behaviour — no manual energy ratings. WEEK learns what this user does Monday mornings, when they focus vs coast, what they defer.
 **Feeds on TODAY data:** focus sessions, completion times, habit patterns, peak hour.
-**First seed already shipped (v2.17.59):** the weekday-rhythm line in the About week summary ("You tend to move most on Tuesdays.") — first behaviour-predictive output from `today_daily_history`. Reuse that aggregation pattern when WEEK is built.
+**Aggregation explored (v2.17.59, removed v2.17.66):** a weekday-rhythm line ("You tend to move most on Tuesdays.") was shipped as a WEEK seed but removed with the other static narrative lines — rule-based phrases became wallpaper. The data (`today_daily_history`) still accumulates; the aggregation logic (bucket `tasksDone` by `getDay()`, find distinct leader) is worth reusing for WEEK, but with AI-generated output, not a fixed phrase.
 **Revisit when:** TODAY has 3+ months of behavioural data (bug backlog is already clear).
 
 ### AI system-prompt trimming *(deferred — only if token cost ever matters)*

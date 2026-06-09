@@ -1847,28 +1847,6 @@
   .sunday-summary { font-size: var(--text-base); color: var(--text); line-height: 1.5; }
   .sunday-summary.loading { color: var(--muted); font-style: italic; }
 
-  #weekNarrative {
-    margin-top: var(--space-2);
-    font-size: var(--text-sm);
-    color: var(--muted);
-    line-height: 1.5;
-  }
-  #weekCompare {
-    margin-top: var(--space-1);
-    font-size: var(--text-sm);
-    color: var(--muted);
-    line-height: 1.5;
-  }
-  #weekCompare:empty { display: none; }
-  #weekRhythm {
-    margin-top: var(--space-1);
-    font-size: var(--text-sm);
-    color: var(--muted);
-    line-height: 1.5;
-    opacity: var(--opacity-soft);
-  }
-  #weekRhythm:empty { display: none; }
-
   .config-title {
     font-family: var(--font-display);
     font-weight: 700;
@@ -2911,9 +2889,6 @@
     <div class="panel-section" id="weekSection" style="display:none">
       <div class="config-label">This week</div>
       <div id="weekGrid"></div>
-      <div id="weekNarrative"></div>
-      <div id="weekCompare"></div>
-      <div id="weekRhythm"></div>
     </div>
 
     <div class="panel-section">
@@ -3174,12 +3149,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.65';
+const APP_VERSION   = '2.17.66';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.66': 'Style: removed static week narrative lines (weekNarrative, weekCompare, weekRhythm) from About panel. Rule-based phrases ("Strong start, quieter finish.", "Quieter than last week.", etc.) became wallpaper — always visible, always the same, adding no new information after first reading. The visual grid and your-day dot communicate the week shape without words. Sunday AI reflection stays; it is personal, fresh, and AI-generated.',
   '2.17.65': 'Fix: BUG-028 true root cause — completed focus bar stops pulsing for ~1.5s on window return. _forceRepaint suppressed .complete animation on every wake pass but only restored after 1500ms. Fix: restore infinite animations (complete, ai-badge, done-star, etc.) on the next frame inside _forceRepaint itself — one frame kills the restarted animation, no long pause needed. .config-panel.open stays suppressed until user-open (BUG-023 pattern unchanged).',
   '2.17.64': 'Fix: BUG-029 _aiSendFromInput was never defined — ReferenceError when submitting text to AI from the main input bar (✦ tap with text, or Enter while AI panel open). Added the missing function: same pattern as _aiAskFromPanel but takes text as a parameter instead of reading the in-panel input.',
   '2.17.63': 'Fix: BUG-028 focus completion shown a tick late — when the countdown hit zero, tickFor drew "00:00" and a full bar but only ran completeFor on the next scheduled tick, so the bar sat full and static for ~1s before the "again?" pulse appeared. Now completes in the same tick it reaches zero. Affects all task types.',
@@ -4847,123 +4823,6 @@ function renderInfoStats() {
   }
 
   // ── Pattern-based week reflection (below grid) ─────────────────────────────
-  // Reads the shape of the week, not the totals — things the grid shows
-  // visually but doesn't say. Priority: trend > spike > weekend > depth > spread.
-  const _weekNarrative = document.getElementById('weekNarrative');
-  if (_weekNarrative && _hasData) {
-    const _known  = _days.filter(d => d.tasks !== null);
-    const _active = _known.filter(d => (d.tasks || 0) > 0 || (d.focus || 0) > 0);
-    const _totT   = _known.reduce((s, d) => s + (d.tasks || 0), 0);
-    const _totF   = _known.reduce((s, d) => s + (d.focus || 0), 0);
-    let _note = '';
-
-    if (_known.length >= 3) {
-      // Trend: compare first half vs last half of known days
-      const _mid    = Math.floor(_known.length / 2);
-      const _firstT = _known.slice(0, _mid).reduce((s, d) => s + (d.tasks || 0), 0);
-      const _lastT  = _known.slice(-_mid).reduce((s, d) => s + (d.tasks || 0), 0);
-
-      // Spike: one day holds > 45% of tasks and at least 3 on its own
-      const _maxT     = Math.max(..._known.map(d => d.tasks || 0));
-      const _spikeDay = _known.find(d => (d.tasks || 0) === _maxT);
-      const _isSpike  = _totT >= 4 && _maxT >= 3 && _maxT / _totT > 0.45;
-
-      // Weekend shape (Sat=6, Sun=0)
-      const _wknd      = _known.filter(d => { const w = new Date(d.iso).getDay(); return w === 0 || w === 6; });
-      const _wkndBusy  = _wknd.some(d => (d.tasks || 0) > 0 || (d.focus || 0) > 0);
-      const _wkndClean = _wknd.length > 0 && _wknd.every(d => (d.tasks || 0) === 0 && (d.focus || 0) === 0);
-
-      // Focus depth: average focus per active day
-      const _avgF = _active.length > 0 ? _totF / _active.length : 0;
-
-      // Rest as rhythm (③): a day or two off inside an otherwise active week
-      // is rest, not absence — name it that way.
-      const _restDays = _known.length - _active.length;
-      const _midRest  = _active.length >= 3 && (_restDays === 1 || _restDays === 2);
-
-      if (_totT === 0 && _totF === 0)
-        _note = 'A quiet week.';
-      else if (_lastT - _firstT >= 3 && _known.length >= 5)
-        _note = 'Built momentum as the week went on.';
-      else if (_firstT - _lastT >= 3 && _firstT >= 4)
-        _note = 'Strong start, quieter finish.';
-      else if (_isSpike)
-        _note = (_spikeDay ? _spikeDay.letter + ' day' : 'One day') + ' carried most of the weight.';
-      else if (_wkndClean && _active.length >= 3)
-        _note = 'Worked through the week, left the weekend clean.';
-      else if (_wkndBusy)
-        _note = 'Even the weekend had movement.';
-      else if (_avgF >= 50)
-        _note = 'Deep when you sat down.';
-      else if (_active.length === _known.length)
-        _note = 'Something every day — consistent.';
-      else if (_midRest)
-        _note = 'Steady, with a day to breathe.';
-      else
-        _note = 'Steady presence through the week.';
-    }
-
-    _weekNarrative.textContent = _note;
-  }
-
-  // ── Week-over-week noticing (④) ────────────────────────────────────────────
-  // One calm line comparing this week to the prior 7 days. Renders only when
-  // confident AND kind — a quieter week must never read as failure. Today is
-  // live (this week); the prior window comes entirely from history snapshots.
-  const _weekCompare = document.getElementById('weekCompare');
-  if (_weekCompare) {
-    let _cmp = '';
-    const _curT = _days.reduce((s, d) => s + (d.tasks || 0), 0);
-    const _curF = _days.reduce((s, d) => s + (d.focus || 0), 0);
-    // Prior 7 days: history entries dated -13..-7 from today
-    const _prevWin = [];
-    for (let i = 13; i >= 7; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i);
-      const e = _history.find(x => x.date === _localISO(d));
-      if (e) _prevWin.push(e);
-    }
-    if (_prevWin.length >= 3) {
-      const _prevT = _prevWin.reduce((s, e) => s + (e.tasksDone || 0), 0);
-      const _prevF = _prevWin.reduce((s, e) => s + (e.focusMins || 0), 0);
-      // Thresholds keep noise out: need a clear, meaningful difference.
-      if (_prevF >= 15 && _curF >= _prevF * 1.4 && _curF - _prevF >= 30)
-        _cmp = 'A little more focus than last week.';
-      else if (_prevT >= 3 && _curT >= _prevT * 1.4 && _curT - _prevT >= 3)
-        _cmp = 'Busier than last week.';
-      else if (_prevT >= 6 && _curT <= _prevT * 0.6 && _prevT - _curT >= 3)
-        _cmp = 'Quieter than last week — that\'s alright.';
-    }
-    _weekCompare.textContent = _cmp;
-  }
-
-  // ── Weekday rhythm insight (⑥ — WEEK seed) ─────────────────────────────────
-  // Across all stored history, which weekday tends to carry the most? Surfaces
-  // only with enough data and a distinct leader, so we never assert a pattern
-  // that isn't really there. First taste of behaviour-predictive WEEK.
-  const _weekRhythm = document.getElementById('weekRhythm');
-  if (_weekRhythm) {
-    let _rh = '';
-    if (_history.length >= 14) {
-      const _names = ['Sundays','Mondays','Tuesdays','Wednesdays','Thursdays','Fridays','Saturdays'];
-      const _sum = [0,0,0,0,0,0,0];
-      const _cnt = [0,0,0,0,0,0,0];
-      _history.forEach(e => {
-        const w = new Date(e.date).getDay();
-        _sum[w] += (e.tasksDone || 0);
-        _cnt[w] += 1;
-      });
-      const _avg = _sum.map((s, i) => _cnt[i] > 0 ? s / _cnt[i] : 0);
-      const _overall = _avg.reduce((a, b) => a + b, 0) / 7;
-      let _topDay = -1, _topAvg = 0;
-      _avg.forEach((a, i) => { if (a > _topAvg) { _topAvg = a; _topDay = i; } });
-      // Distinct leader: sampled enough, and clearly above the average day.
-      if (_topDay >= 0 && _cnt[_topDay] >= 3 && _overall > 0 &&
-          _topAvg >= _overall * 1.4 && _topAvg >= 1)
-        _rh = 'You tend to move most on ' + _names[_topDay] + '.';
-    }
-    _weekRhythm.textContent = _rh;
-  }
-
   // ── Sunday AI reflection (above stats) ─────────────────────────────────────
   const _sundayBlock = document.getElementById('sundayBlock');
   if (_sundayBlock) {
