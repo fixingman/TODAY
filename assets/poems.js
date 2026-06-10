@@ -204,19 +204,7 @@ const POEMS = [
   // ── Sufi, bhakti & Stoic voices (all PD worldwide; translations verified
   //    verbatim against Gutenberg/Wikisource source texts) ───────────────────
   {
-    text: 'Past and future are what veil God from our sight.\nBurn up both of them with fire! How long\nWilt thou be partitioned by these segments, as a reed?',
-    author: 'Rumi',
-    season: null,
-    source: 'Masnavi I, trans. E. H. Whinfield, 1898 (via Wikisource)',
-  },
-  {
     text: 'Cup-bearer, seize to-day, nor wait\nUntil to-morrow!—or from Fate\nSome passport to felicity,\nSome written surety bring to me!',
-    author: 'Hafiz',
-    season: null,
-    source: 'Poems from the Divan of Hafiz, trans. Gertrude Bell, 1897 (Gutenberg #74883)',
-  },
-  {
-    text: "Ah, foolish Heart! the pleasures of To-day,\nIf thou abandon, will To-morrow stand\nThy surety for the gold thou'st thrown away?",
     author: 'Hafiz',
     season: null,
     source: 'Poems from the Divan of Hafiz, trans. Gertrude Bell, 1897 (Gutenberg #74883)',
@@ -263,11 +251,26 @@ const POEMS = [
     season: null,
     source: 'Meditations II, trans. Meric Casaubon, 1634 (Gutenberg #2680)',
   },
+
+  // ── From the pages of Carnegie's How to Stop Worrying (the poems he
+  //    quotes are PD even though his 1948 book is not; verified verbatim) ────
   {
-    text: "In the moment of our talking, envious time has ebb'd away.\nSeize the present; trust to-morrow e'en as little as you may.",
+    text: 'Happy the man, and happy he alone,\nHe who can call today his own;\nHe who, secure within, can say,\nTomorrow, do thy worst, for I have lived today.',
     author: 'Horace',
     season: null,
-    source: 'Odes I.11, trans. John Conington, 1863 (Gutenberg #5432)',
+    source: "Odes III.29, trans. John Dryden, 1685 — the epigraph of Carnegie's day-tight-compartments chapter",
+  },
+  {
+    text: 'For every evil under the sun\nThere is a remedy, or there is none;\nIf there be one, try to find it;\nIf there be none, never mind it.',
+    author: 'Mother Goose',
+    season: null,
+    source: 'traditional rhyme, quoted in How to Stop Worrying ch. 1',
+  },
+  {
+    text: "If you can fill the unforgiving minute\nWith sixty seconds' worth of distance run,\nYours is the Earth and everything that's in it.",
+    author: 'Rudyard Kipling',
+    season: null,
+    source: "'If—', Rewards and Fairies, 1910 (d. 1936; Gutenberg #556)",
   },
 
   // ── US public domain (pub. pre-1931; authors d. post-1956 → still under
