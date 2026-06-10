@@ -336,24 +336,6 @@ const POEMS = [
     source: "'The Little Rain', A Lute of Jade, trans. L. Cranmer-Byng, 1909 (Gutenberg #390)",
   },
   {
-    text: 'Who is content\nNeeds fear no shame.\nWho knows to stop\nIncurs no blame.',
-    author: 'Lao Tzu',
-    season: null,
-    source: 'Tao Te Ching ch. 44, trans. James Legge, 1891 (Gutenberg #216)',
-  },
-  {
-    text: "When the work is done, and one's name is becoming distinguished,\nto withdraw into obscurity is the way of Heaven.",
-    author: 'Lao Tzu',
-    season: null,
-    source: 'Tao Te Ching ch. 9, trans. James Legge, 1891 (Gutenberg #216)',
-  },
-  {
-    text: 'Evening, thou that bringest all that bright morning scattered;\nthou bringest the sheep, the goat, the child back to her mother.',
-    author: 'Sappho',
-    season: null,
-    source: 'fr. 104, trans. H. T. Wharton, 1885 (Gutenberg #57390; d. 1895)',
-  },
-  {
     text: 'Weeping may endure for a night,\nbut joy cometh in the morning.',
     author: 'Psalm 30',
     season: null,
@@ -365,11 +347,43 @@ const POEMS = [
     season: null,
     source: 'King James Version, 1611',
   },
+
+  // ── Later moderns now PD worldwide (verified verbatim, Gutenberg) ─────────
   {
-    text: 'Be still, and know.',
-    author: 'Psalm 46',
+    text: 'One must have a mind of winter\nTo regard the frost and the boughs\nOf the pine-trees crusted with snow;\nAnd have been cold a long time\nTo behold the junipers shagged with ice.',
+    author: 'Wallace Stevens',
+    season: 'winter',
+    source: "'The Snow Man', Harmonium, 1923 (Gutenberg #78743; d. 1955 — PD worldwide since Jan 2026)",
+  },
+  {
+    text: 'Listen . . .\nWith faint dry sound,\nLike steps of passing ghosts,\nThe leaves, frost-crisp’d, break from the trees\nAnd fall.',
+    author: 'Adelaide Crapsey',
+    season: 'autumn',
+    source: "'November Night', Verse, 1915 (Gutenberg #63010; d. 1914)",
+  },
+  {
+    text: 'Loveliest of trees, the cherry now\nIs hung with bloom along the bough,\nAnd stands about the woodland ride\nWearing white for Eastertide.',
+    author: 'A. E. Housman',
+    season: 'spring',
+    source: 'A Shropshire Lad II, 1896 (Gutenberg #5720; d. 1936)',
+  },
+  {
+    text: 'The dawn was apple-green,\nThe sky was green wine held up in the sun,\nThe moon was a golden petal between.',
+    author: 'D. H. Lawrence',
+    season: 'spring',
+    source: "'Green', 1917 (Gutenberg #23394; d. 1930)",
+  },
+  {
+    text: 'My candle burns at both ends;\nIt will not last the night;\nBut ah, my foes, and oh, my friends—\nIt gives a lovely light!',
+    author: 'Edna St. Vincent Millay',
     season: null,
-    source: 'King James Version, 1611 (abridged from "Be still, and know that I am God")',
+    source: "'First Fig', A Few Figs from Thistles, 1920 (Gutenberg #4399; d. 1950 — PD worldwide since 2021)",
+  },
+  {
+    text: 'He giveth snow like wool:\nhe scattereth the hoarfrost like ashes.',
+    author: 'Psalm 147',
+    season: 'winter',
+    source: 'King James Version, 1611',
   },
 
   // ── US public domain (pub. pre-1931; authors d. post-1956 → still under
