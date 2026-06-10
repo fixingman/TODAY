@@ -2102,12 +2102,14 @@
   }
   
   /* ── Offline banner — connections panel ──────────────────────────── */
+  /* Accent (lime) = the app's state-emphasis colour — offline is an active
+     state notice, not a disabled label, so it shouldn't read as muted gray. */
   .offline-banner {
     display: none;
     font-size: var(--text-sm);
-    color: var(--muted);
-    background: var(--surface2);
-    border: 1px solid var(--border);
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-focus-border);
     border-radius: var(--radius-md);
     padding: var(--space-2) var(--space-3);
     margin-bottom: var(--space-4);
@@ -3160,12 +3162,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.76';
+const APP_VERSION   = '2.17.77';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.77': 'Style: the offline notice now uses the highlight colour instead of gray.',
   '2.17.76': 'Style: the × on tasks now sits closer to the edge on mobile.',
   '2.17.75': 'Fix: error dot was hidden behind the status bar on mobile — now visible.',
   '2.17.74': 'Fix: asking the assistant to park a task to Soon now works.',

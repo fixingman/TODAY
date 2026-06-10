@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.56** | **Feat: Week reflections** — Rule-based narrative below 7-day grid (picks from: "Showed up every day", "N days in motion", "Xh of deep work", "Best day: X with N done", etc.). Sunday block now shows an AI-generated 1-sentence reflection (cached per day in localStorage, "reflecting…" loading state, silent fallback to rule-based summary if no AI key or offline). |
 | **2.17.55** | **Feat: Weekly retrospective in About panel** — 7-day grid shows tasks done + focus time per day (today live, prior days from `today_daily_history` snapshots). On Sunday a summary block appears above the stat tiles: total tasks, focus time, habit ratio for the week. Also: About panel title fixed ("TODAY" → "About"); Connections button tooltip no longer mutates to "Trello connected". |
 | **2.17.54** | **Fix: `habitEvents` missing from full restore** — full-restore path now reads `data.habit_events` from backup so uncheck filtering applies immediately on first load (not deferred 7s to next sync). Also: removed redundant `--text-xs2` token (duplicate of `--text-sm2`). |
 | **2.17.53** | **Fix: BUG-026 habit re-check after uncheck** — `mergeRemoteData` pure union was restoring checked state from stale Dropbox data within the 800ms debounce window. Added `habitEvents` LWW map (`"habitId::YYYY-MM-DD"` → `{type, at}`): `toggleHabitDone` records every check/uncheck with a timestamp; merge keeps the newer event per key and filters the date union accordingly. Old completions without events pass through unchanged (backward compatible). |

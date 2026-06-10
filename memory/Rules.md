@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.77 (next)
-- **Recent:** task × mobile alignment (v2.17.76), BUG-031 error dot safe-area fix (v2.17.75), AI move_soon on explicit ask (v2.17.74)
+- **Working on:** v2.17.78 (next)
+- **Recent:** offline banner accent colour (v2.17.77), task × mobile alignment (v2.17.76), BUG-031 error dot safe-area fix (v2.17.75)
 - **Watch for:** BUG-028 + BUG-029 + BUG-031 awaiting Can's verification · AI morning nudge awaiting real-morning impressions (W3 day-14 follow-up) · move_soon: watch it stays explicit-ask-only, never proactive
 
 ---
