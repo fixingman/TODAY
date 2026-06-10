@@ -42,6 +42,7 @@ Then read Tier 2 files relevant to the task (see `Rules.md` File Guide).
 
 ### 2. Review & Update Memory Files
 **Every change should trigger a memory review.** Ask: "Does this change affect any documented behavior?"
+**If the change adds/modifies a recurring surface** (message, badge, panel, animation, AI feature): run the Wallpaper Test gates W1–W2 (`Test-matrix.md` → Design Review Gate) and note the W3 day-14 follow-up in `Backlog.md`.
 - Bug fix → `Bugs.md` (update status, add verification steps)
 - New rule → `Rules.md`
 - Data/localStorage change → `architecture/Data.md`
@@ -97,6 +98,7 @@ Quick smoke test after any deploy:
 - Run from repo root: `bash memory/validate-files.sh` — checks all memory files are in File Guide
 - Review `Backlog.md` — any stale items to close or move to Not Implementing?
 - Check `Bugs.md` — any "awaiting" bugs that have been soaking for 3+ sessions? Follow up with Can.
+- **Wallpaper audit (W3):** any recurring surface shipped ~2+ weeks ago — ask Can whether it still delivers each time it appears, or has become skippable. Iterate or remove (removal is a valid outcome).
 
 ### Occasionally: Documentation Audit
 - Changelog.md over 20 versions? Archive oldest entries to `Changelog-archive.md`

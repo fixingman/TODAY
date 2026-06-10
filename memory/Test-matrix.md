@@ -44,6 +44,22 @@ If testing **zone** changes:
 
 ---
 
+## Design Review Gate: The Wallpaper Test
+
+> Full principle: `design/Philosophy.md`. Not a per-deploy checkbox — that would itself become wallpaper. Triggered by the change type, not the release.
+
+**When a change adds or modifies a recurring surface** (message, badge, panel, animation, stat, AI feature):
+
+| Gate | Question | When |
+|------|----------|------|
+| W1 | Does it deliver value **every time** it appears — info the screen doesn't show, an action worth taking now, or a genuinely fresh feeling? | Before shipping |
+| W2 | Which escape does it use — appear rarely (gated on signal), different each time (fresh context), or should it not exist? | Before shipping |
+| W3 | Day-14 follow-up: is it still delivering, or has the user stopped reading/tapping/opening it? Behavioral symptoms (untapped chips, unopened panels) are the measurable signal. | ~2 weeks after ship |
+
+A surface that fails W3 gets iterated or removed — removal is a valid outcome (`#weekNarrative`, v2.17.66).
+
+---
+
 ## Full Test Matrix
 
 ### 1. Manual Tasks (14 tests)
@@ -77,7 +93,10 @@ If testing **zone** changes:
 | 2.6 | PAST purge (letgo 30d) | Auto-removed |
 | 2.7 | Morning nudge (no review) | Shows carried-over count |
 | 2.7a | Morning nudge (with review) | Shows "Yesterday: X done, Ym focused" |
-| 2.7b | Morning nudge after noon | Hidden, review cleared |
+| 2.7b | Morning nudge after noon | Hidden, review cleared + AI cache cleared |
+| 2.7c | Morning nudge AI upgrade (v2.17.73) | Rule-based line renders instantly, AI sentence fades in when ready; cached — same sentence on re-open that morning |
+| 2.7d | Morning nudge AI — no key / offline | Rule-based line stays, no error, no loading state |
+| 2.7e | Morning nudge dismissed while AI fetching | Stays dismissed — AI response does not resurrect it |
 | 2.8 | **SYNC: A→SOON, B has in TODAY** | B gets SOON (newer timestamp) |
 | 2.9 | **SYNC: A pulls back, B has in SOON** | A's pull wins (newer) |
 | 2.10 | **SYNC: Both move to zones** | Most recent zoneChangedAt wins |
@@ -231,4 +250,4 @@ If testing **zone** changes:
 
 ---
 
-*Last updated: v2.17.69*
+*Last updated: v2.17.73*
