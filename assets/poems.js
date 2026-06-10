@@ -272,6 +272,48 @@ const POEMS = [
     season: null,
     source: "'If—', Rewards and Fairies, 1910 (d. 1936; Gutenberg #556)",
   },
+  {
+    text: 'The Moving Finger writes; and, having writ,\nMoves on: nor all thy Piety nor Wit\nShall lure it back to cancel half a Line,\nNor all thy Tears wash out a Word of it.',
+    author: 'Omar Khayyám',
+    season: null,
+    source: 'Rubáiyát, trans. FitzGerald (Gutenberg #246) — quoted in How to Stop Worrying, "don\'t saw sawdust"',
+  },
+  {
+    text: 'Two men look out through the same bars:\nOne sees the mud, and one the stars.',
+    author: 'Frederick Langbridge',
+    season: null,
+    source: "'A Cluster of Quiet Thoughts', 1896 (d. 1922) — quoted in How to Stop Worrying",
+  },
+  {
+    text: 'I had the blues\nbecause I had no shoes,\nuntil upon the street\nI met a man who had no feet.',
+    author: 'traditional',
+    season: null,
+    source: 'old rhyme of Persian descent, quoted in How to Stop Worrying',
+  },
+  {
+    text: 'This is the day which the Lord hath made;\nwe will rejoice and be glad in it.',
+    author: 'Psalm 118',
+    season: null,
+    source: 'King James Version, 1611',
+  },
+  {
+    text: 'Our main business is not to see\nwhat lies dimly at a distance,\nbut to do what lies clearly at hand.',
+    author: 'Thomas Carlyle',
+    season: null,
+    source: 'Carlyle (d. 1881), as quoted in How to Stop Worrying ch. 1',
+  },
+  {
+    text: 'Live in day-tight compartments.',
+    author: 'Sir William Osler',
+    season: null,
+    source: "'A Way of Life', Yale address, 1913 (d. 1919) — the phrase Carnegie built the book on",
+  },
+  {
+    text: 'Anyone can do his work, however hard, for one day.\nAnyone can live sweetly, patiently, lovingly, purely,\ntill the sun goes down.\nAnd this is all that life really means.',
+    author: 'Robert Louis Stevenson',
+    season: null,
+    source: 'as quoted in How to Stop Worrying (d. 1894)',
+  },
 
   // ── US public domain (pub. pre-1931; authors d. post-1956 → still under
   //    copyright in life+70 countries until the 2030s. Can approved inclusion
