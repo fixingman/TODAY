@@ -201,6 +201,75 @@ const POEMS = [
     source: "Sing-Song, 1872 (d. 1894)",
   },
 
+  // ── Sufi, bhakti & Stoic voices (all PD worldwide; translations verified
+  //    verbatim against Gutenberg/Wikisource source texts) ───────────────────
+  {
+    text: 'Past and future are what veil God from our sight.\nBurn up both of them with fire! How long\nWilt thou be partitioned by these segments, as a reed?',
+    author: 'Rumi',
+    season: null,
+    source: 'Masnavi I, trans. E. H. Whinfield, 1898 (via Wikisource)',
+  },
+  {
+    text: 'Cup-bearer, seize to-day, nor wait\nUntil to-morrow!—or from Fate\nSome passport to felicity,\nSome written surety bring to me!',
+    author: 'Hafiz',
+    season: null,
+    source: 'Poems from the Divan of Hafiz, trans. Gertrude Bell, 1897 (Gutenberg #74883)',
+  },
+  {
+    text: "Ah, foolish Heart! the pleasures of To-day,\nIf thou abandon, will To-morrow stand\nThy surety for the gold thou'st thrown away?",
+    author: 'Hafiz',
+    season: null,
+    source: 'Poems from the Divan of Hafiz, trans. Gertrude Bell, 1897 (Gutenberg #74883)',
+  },
+  {
+    text: 'I laugh when I hear that the fish\nin the water is thirsty:\nYou do not see that the Real is in your home,\nand you wander from forest to forest listlessly!',
+    author: 'Kabir',
+    season: null,
+    source: 'Songs of Kabir I.82, trans. Rabindranath Tagore, 1915 (Gutenberg #6519)',
+  },
+  {
+    text: 'The moon shines in my body,\nbut my blind eyes cannot see it:\nThe moon is within me, and so is the sun.',
+    author: 'Kabir',
+    season: null,
+    source: 'Songs of Kabir I.83, trans. Rabindranath Tagore, 1915 (Gutenberg #6519)',
+  },
+  {
+    text: 'Let life be beautiful like summer flowers\nand death like autumn leaves.',
+    author: 'Rabindranath Tagore',
+    season: null,
+    source: 'Stray Birds 82, 1916 (Gutenberg #6524; d. 1941)',
+  },
+  {
+    text: 'If you shed tears when you miss the sun,\nyou also miss the stars.',
+    author: 'Rabindranath Tagore',
+    season: null,
+    source: 'Stray Birds 6, 1916 (Gutenberg #6524; d. 1941)',
+  },
+  {
+    text: 'The butterfly counts not months but moments,\nand has time enough.',
+    author: 'Rabindranath Tagore',
+    season: 'summer',
+    source: 'Fireflies, 1928 (d. 1941)',
+  },
+  {
+    text: 'Neither that which is future,\nnor that which is past can hurt thee;\nbut that only which is present.',
+    author: 'Marcus Aurelius',
+    season: null,
+    source: 'Meditations VIII, trans. Meric Casaubon, 1634 (Gutenberg #2680)',
+  },
+  {
+    text: 'No man properly can be said to live\nmore than that which is now present,\nwhich is but a moment of time.',
+    author: 'Marcus Aurelius',
+    season: null,
+    source: 'Meditations II, trans. Meric Casaubon, 1634 (Gutenberg #2680)',
+  },
+  {
+    text: "In the moment of our talking, envious time has ebb'd away.\nSeize the present; trust to-morrow e'en as little as you may.",
+    author: 'Horace',
+    season: null,
+    source: 'Odes I.11, trans. John Conington, 1863 (Gutenberg #5432)',
+  },
+
   // ── US public domain (pub. pre-1931; authors d. post-1956 → still under
   //    copyright in life+70 countries until the 2030s. Can approved inclusion
   //    knowing this — app is US-hosted.) ──────────────────────────────────────
