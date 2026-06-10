@@ -11,7 +11,7 @@
 |------|--------|-------|
 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — see `research/Integrations.md`. |
 | **Push notifications** | Not started | Medium effort. Server-sent (iOS can't self-schedule). Detail ↓ |
-| **AI improvements** | Partial | Remaining: auto morning briefing (inline, no tap needed), input bar discoverability, deeper personality, richer habit celebrations. Detail ↓ |
+| **AI improvements** | In progress | AI morning nudge shipped v2.17.73 (awaiting impressions). Next: input bar discoverability, deeper personality. Detail ↓ |
 | **Keyboard shortcuts (desktop)** | Not started | Keyboard-first power-user flow. Needs UX exploration first. |
 | **Idle companion artwork** | Not started | Higher-resolution creatures, more visual consistency across the 7. |
 
@@ -30,8 +30,9 @@
 
 ### AI Improvements
 **Done so far (v2.13.0–2.17.11):** morning briefings, day-end review, stale-task awareness, behavioral insights, break_down/move_soon/reflect actions, morning reflection nudge, 7-day suggestion cooldowns, Dropbox-synced suggestion history (also fed into AI context), deterministic chips for aging tasks, conversation memory across sessions.
+**Shipped v2.17.73 — AI morning nudge:** the existing morning nudge line (rule-based "Yesterday: N done · N carried over") now upgrades itself with a one-sentence AI observation (task names, ages, streak, yesterday's review). Insight-gated prompt: say something non-obvious if there is one, otherwise state the morning plainly. Cached per day; silent fallback to rule-based. **Awaiting Can's real-morning impressions — iterate on prompt/voice based on how the sentences feel over a week.**
 **Remaining:**
-- **Auto morning briefing** — surface the morning briefing inline (above task list) on first open, no ✦ tap needed. Dismisses on tap or after 30s. The AI call + message already exist; this is purely a surface/trigger change.
+- **Morning nudge voice iteration** — collect a week of real mornings, then tune the prompt (more specific? quieter? should it ever suggest an action chip?).
 - **Input bar discoverability** — the `type + ✦` trick (sends text to AI as a free-form message) is a hidden superpower. Needs a hint: placeholder text change, tooltip, or a one-time nudge on first ✦ open.
 - **Deeper personality** — weather/energy awareness beyond peak hour, richer habit-streak celebrations.
 

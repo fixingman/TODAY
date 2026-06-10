@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.72 (next)
-- **Recent:** BUG-030 checkmark anim lag on iOS (v2.17.71), localStorage quota catch (v2.17.70), _onWake debounce (v2.17.69)
-- **Watch for:** BUG-028 (completed bar — 3 sub-fixes at v2.17.63/65/68) and BUG-029 (AI send from bar, v2.17.64) — both awaiting Can's verification
+- **Working on:** v2.17.74 (next)
+- **Recent:** AI morning nudge (v2.17.73), BUG-030b rapid-check anim via Web Animations API (v2.17.72), BUG-030 iOS checkmark lag (v2.17.71)
+- **Watch for:** BUG-028 + BUG-029 awaiting Can's verification · AI morning nudge awaiting real-morning impressions (iterate prompt/voice after ~a week)
 
 ---
 

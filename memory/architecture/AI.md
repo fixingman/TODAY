@@ -164,13 +164,21 @@ Displays for 3s then auto-closes. Saves `today_day_review` to localStorage for m
 
 ---
 
-## Morning Reflection (v2.13.1)
+## Morning Reflection (v2.13.1) + AI Morning Nudge (v2.17.73)
 
 Morning nudge (before noon) shows yesterday's review if available:
 
 > Yesterday: 5 done, 1h focused, 2 habits · 3 carried over
 
 Falls back to simple carried-over count if no review exists. Auto-clears after noon. Tap to dismiss.
+
+**AI upgrade (v2.17.73):** the rule-based line renders instantly, then `_fetchMorningNudgeAI(review, carriedOver)` fires one background call and swaps the text in place (200ms fade) when the response arrives.
+
+- **Context sent:** weekday, streak, yesterday's review line, carried-over count, up to 6 pending task names with ages (≥2 days shown).
+- **Insight gate (in prompt):** "If something non-obvious is worth noticing — an aging task, a pattern, a gentle nudge — say that, naming the task naturally. Otherwise state the morning plainly."
+- **Voice:** one sentence, under 18 words, no quotes/exclamations/emoji. Same system-prompt style as the Sunday reflection.
+- **Cache:** `morning_nudge_ai_YYYY-MM-DD` — one generation per day. Stale keys pruned on write; today's key cleared at noon alongside the other nudge keys.
+- **Guards:** dismissed-while-fetching → response discarded. No key / offline / API error → silent null, rule-based message stays (mirrors `_fetchWeekReflection`).
 
 ---
 

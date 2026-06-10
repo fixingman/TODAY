@@ -80,6 +80,7 @@
 | `stat_focus_mins_alltime` | string | Lifetime focus minutes |
 | `morning_nudge_count` | string | Carried-over tasks from yesterday (set by `applyNewDayCleanup`) |
 | `today_day_review` | JSON | Yesterday's day-end stats `{done, focusMins, habits, habitsTotal, streak, kept, soon, letgo, date}` — saved at triage, consumed by morning nudge, auto-cleared after noon |
+| `morning_nudge_ai_YYYY-MM-DD` | string | Cached AI-rewritten morning nudge for that date — generated once per morning by `_fetchMorningNudgeAI`; stale keys pruned on write, today's cleared at noon (v2.17.73) |
 
 ### History & Reports
 

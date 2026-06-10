@@ -3152,12 +3152,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.72';
+const APP_VERSION   = '2.17.73';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.73': 'Feat: AI morning nudge — the morning message (Yesterday: N done · N carried over) now upgrades itself with a one-sentence AI observation using task names, ages, streak and yesterday\'s review. Rule-based message renders instantly; AI text swaps in with a gentle fade when ready. Cached once per day; silently stays rule-based if no key or offline.',
   '2.17.72': 'Fix: BUG-030b checkmark animation skipped on rapid back-to-back checks (desktop PWA) — CSS class approach replaced with Web Animations API (svg.animate()). Each call creates a fresh Animation object with no shared state, so sequential checks never interfere. CSS @keyframes and .just-checked selector removed.',
   '2.17.71': 'Fix: BUG-030 checkmark animation lags ~30s on iOS PWA open — stroke-dashoffset (CPU paint-triggered, blocked by JIT warmup) replaced with transform+opacity on the svg element (GPU-composited, runs on compositor thread independent of JS). Also pre-warms the celebCanvas GPU pipeline at idle so Metal shader compilation happens before the first task check.',
   '2.17.70': 'Fix: localStorage quota failures now visible — global localStorage.setItem wrapper catches QuotaExceededError and routes it to the red dot with a clear message instead of silently dropping the save. Placed immediately after _logSyncError definition so all subsequent writes are protected.',
@@ -3484,6 +3485,7 @@ function checkMorningNudge() {
     nudgeEl.style.display = 'none';
     localStorage.removeItem('morning_nudge_count');
     localStorage.removeItem('today_day_review');
+    localStorage.removeItem('morning_nudge_ai_' + _localISO());
     return;
   }
   
@@ -3526,16 +3528,100 @@ function checkMorningNudge() {
   }
   
   if (!msg) { nudgeEl.style.display = 'none'; return; }
-  
+
   nudgeEl.innerHTML = `<span class="nudge-dot"></span>${esc(msg)}`;
   nudgeEl.style.display = 'flex';
-  
+
   // Dismiss on click
   nudgeEl.onclick = () => {
     nudgeEl.style.display = 'none';
     localStorage.removeItem('morning_nudge_count');
     localStorage.removeItem('today_day_review');
   };
+
+  // ── AI upgrade (v2.17.73) — same slot, richer content ──
+  // Rule-based message renders instantly above; then one background AI call
+  // rewrites it with context (task names, ages, streak, yesterday). Cached per
+  // day. If no key / offline / error, the rule-based message simply stays.
+  const _aiCacheKey = 'morning_nudge_ai_' + _localISO();
+  const _aiCached = localStorage.getItem(_aiCacheKey);
+  if (_aiCached) {
+    nudgeEl.innerHTML = `<span class="nudge-dot"></span>${esc(_aiCached)}`;
+  } else {
+    _fetchMorningNudgeAI(review, carriedOver).then(text => {
+      if (!text) return;
+      // Prune stale per-day cache keys, then store today's
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('morning_nudge_ai_') && k !== _aiCacheKey) localStorage.removeItem(k);
+      }
+      localStorage.setItem(_aiCacheKey, text);
+      if (nudgeEl.style.display === 'none') return; // dismissed while fetching
+      // Gentle swap — fade out, replace, fade in
+      nudgeEl.style.transition = 'opacity 200ms ease';
+      nudgeEl.style.opacity = '0';
+      setTimeout(() => {
+        nudgeEl.innerHTML = `<span class="nudge-dot"></span>${esc(text)}`;
+        nudgeEl.style.opacity = '1';
+        setTimeout(() => { nudgeEl.style.transition = ''; }, 250);
+      }, 200);
+    });
+  }
+}
+
+// Morning nudge AI rewrite — one sentence with something worth noticing.
+// Mirrors _fetchWeekReflection: silent null on any failure (rule-based stays).
+async function _fetchMorningNudgeAI(review, carriedOver) {
+  try {
+    const key = (typeof _aiGetKey === 'function') ? _aiGetKey() : null;
+    if (!key || !navigator.onLine) return null;
+
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const streak = parseInt(localStorage.getItem('stat_streak') || '1');
+
+    // Yesterday line from the day review (may be absent)
+    let yLine = 'no record of yesterday';
+    if (review && review.date) {
+      const yp = [];
+      if (review.done > 0)        yp.push(review.done + ' done');
+      if (review.focusMins >= 5)  yp.push(_formatFocusTime(review.focusMins) + ' focused');
+      if (review.habits > 0)      yp.push(review.habits + ' habit' + (review.habits > 1 ? 's' : ''));
+      if (yp.length) yLine = yp.join(', ');
+    }
+
+    // Pending tasks with ages — names matter, that's what makes it personal
+    const taskLines = manualTasks
+      .filter(t => !doneIds.has(t.id))
+      .slice(0, 6)
+      .map(t => {
+        const created = _getCreatedFromId(t.id);
+        const age = created ? Math.floor((Date.now() - created) / 86400000) : 0;
+        return '"' + t.text + '"' + (age >= 2 ? ' (' + age + ' days old)' : '');
+      });
+
+    const facts =
+      'Morning check-in. Today is ' + dayNames[new Date().getDay()] + '. Streak: day ' + streak + '.\n' +
+      'Yesterday: ' + yLine + '.\n' +
+      (carriedOver > 0 ? carriedOver + ' task(s) carried over from yesterday.\n' : '') +
+      (taskLines.length ? 'Waiting today:\n' + taskLines.join('\n') : 'The list is empty.');
+
+    const res = await fetch('/.netlify/functions/ai-assist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: _aiGetProvider(),
+        apiKey: key,
+        messages: [{ role: 'user', content: facts + '\n\nIf something non-obvious is worth noticing — an aging task, a pattern, a gentle nudge — say that, naming the task naturally. Otherwise state the morning plainly.' }],
+        systemPrompt: 'You are the quiet companion in a minimal daily task app. One sentence only. Under 18 words. No quotes, no exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) return null;
+    return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
+  } catch (e) {
+    return null;
+  }
 }
 
 // Evening triage (per-task)
