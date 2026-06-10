@@ -31,14 +31,19 @@ Then read Tier 2 files relevant to the task (see `Rules.md` File Guide).
 > **Ownership:** Steps 1–5 are Claude's responsibility. Step 6 (production tests) is Can's responsibility — Claude cannot run the app.
 
 ### 1. Update both Changelogs (per version bump — not just at session end)
-**a) `memory/Changelog.md`** — add row:
+**The two changelogs have different audiences — write them differently:**
+
+**a) `memory/Changelog.md`** — for dev sessions. Technical detail welcome: root causes, function names, design rationale.
 ```markdown
 | **X.X.X** | **Feature name** — Brief description. |
 ```
-**b) `index.html` CHANGELOG object** — add entry at the top:
+
+**b) `index.html` CHANGELOG object** — **user-facing** (renders in the About panel). Short, plain language, no lingo. Say what changed for the user, not how. One sentence, two max. No function names, no CSS properties, no root-cause archaeology, no version cross-references.
 ```javascript
-'X.X.X': 'Feature name — Brief description.',
+'X.X.X': 'Feature name — what changed, in plain words.',
 ```
+✗ `'Fix: #errorIndicator sat at top:8px but viewport-fit=cover draws under the status bar — offset by env(safe-area-inset-top).'`
+✓ `'Fix: error dot was hidden behind the status bar on mobile — now visible.'`
 
 ### 2. Review & Update Memory Files
 **Every change should trigger a memory review.** Ask: "Does this change affect any documented behavior?"

@@ -3160,9 +3160,9 @@ const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
-  '2.17.75': 'Fix: BUG-031 red error dot invisible on mobile PWA — #errorIndicator sat at top:8px, but viewport-fit=cover draws the app under the iOS status bar (~47-59px), hiding the dot behind it. Both the dot and #errorPanel now offset by env(safe-area-inset-top). Desktop unchanged (inset is 0).',
-  '2.17.74': 'Fix: AI can now park a task to Soon when explicitly asked — move_soon was removed from the AI action set in v2.17.25 (observation-first redesign) so the assistant refused direct requests like "move X to soon". Re-added to the system prompt, scoped: explicit user request only, never suggested proactively, manual tasks only. Handler was already in place.',
-  '2.17.73': 'Feat: AI morning nudge — the morning message (Yesterday: N done · N carried over) now upgrades itself with a one-sentence AI observation using task names, ages, streak and yesterday\'s review. Rule-based message renders instantly; AI text swaps in with a gentle fade when ready. Cached once per day; silently stays rule-based if no key or offline.',
+  '2.17.75': 'Fix: error dot was hidden behind the status bar on mobile — now visible.',
+  '2.17.74': 'Fix: asking the assistant to park a task to Soon now works.',
+  '2.17.73': 'The morning message can now notice things — task ages, patterns, yesterday — in one fresh sentence each day.',
   '2.17.72': 'Fix: BUG-030b checkmark animation skipped on rapid back-to-back checks (desktop PWA) — CSS class approach replaced with Web Animations API (svg.animate()). Each call creates a fresh Animation object with no shared state, so sequential checks never interfere. CSS @keyframes and .just-checked selector removed.',
   '2.17.71': 'Fix: BUG-030 checkmark animation lags ~30s on iOS PWA open — stroke-dashoffset (CPU paint-triggered, blocked by JIT warmup) replaced with transform+opacity on the svg element (GPU-composited, runs on compositor thread independent of JS). Also pre-warms the celebCanvas GPU pipeline at idle so Metal shader compilation happens before the first task check.',
   '2.17.70': 'Fix: localStorage quota failures now visible — global localStorage.setItem wrapper catches QuotaExceededError and routes it to the red dot with a clear message instead of silently dropping the save. Placed immediately after _logSyncError definition so all subsequent writes are protected.',
