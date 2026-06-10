@@ -109,6 +109,7 @@ Active chips (v2.17.25 — observation-first redesign):
 | `start_focus` | `{id}` or `{ids:[...]}` | Begin pomodoro | When one task clearly fits the moment |
 | `check_habit` | `{id}` or `{ids:[...]}` | Mark habit done | When habits are pending |
 | `add_task` | `{text}` | Add new task | Empty state only |
+| `move_soon` | `{id}` or `{ids:[...]}` | Park task to SOON | **Explicit user request only** (v2.17.74) — never proactive. Manual tasks only; handler ignores non-`manual_` ids |
 | `reflect` | `{}` | Ask AI for reflection | Rarely — only with specific pattern insight |
 | `dismiss` | `{}` | Close AI panel | Always last |
 
@@ -118,7 +119,6 @@ Available in handlers but not offered by AI (kept for edge cases):
 
 | Action | Notes |
 |---|---|
-| `move_soon` | Deterministic aging chips only (7+ days old) |
 | `delete_task` | Deterministic aging chips only (7+ days old) |
 | `check_task` | Handler exists, not in AI chip set |
 | `break_down` | Handler exists, removed from AI — was never used |

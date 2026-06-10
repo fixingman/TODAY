@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.74 (next)
-- **Recent:** AI morning nudge (v2.17.73), BUG-030b rapid-check anim via Web Animations API (v2.17.72), BUG-030 iOS checkmark lag (v2.17.71)
-- **Watch for:** BUG-028 + BUG-029 awaiting Can's verification · AI morning nudge awaiting real-morning impressions (iterate prompt/voice after ~a week)
+- **Working on:** v2.17.75 (next)
+- **Recent:** AI move_soon on explicit ask (v2.17.74), AI morning nudge (v2.17.73), BUG-030b rapid-check anim (v2.17.72)
+- **Watch for:** BUG-028 + BUG-029 awaiting Can's verification · AI morning nudge awaiting real-morning impressions (W3 day-14 follow-up) · move_soon: watch it stays explicit-ask-only, never proactive
 
 ---
 

@@ -3152,12 +3152,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.73';
+const APP_VERSION   = '2.17.74';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.74': 'Fix: AI can now park a task to Soon when explicitly asked — move_soon was removed from the AI action set in v2.17.25 (observation-first redesign) so the assistant refused direct requests like "move X to soon". Re-added to the system prompt, scoped: explicit user request only, never suggested proactively, manual tasks only. Handler was already in place.',
   '2.17.73': 'Feat: AI morning nudge — the morning message (Yesterday: N done · N carried over) now upgrades itself with a one-sentence AI observation using task names, ages, streak and yesterday\'s review. Rule-based message renders instantly; AI text swaps in with a gentle fade when ready. Cached once per day; silently stays rule-based if no key or offline.',
   '2.17.72': 'Fix: BUG-030b checkmark animation skipped on rapid back-to-back checks (desktop PWA) — CSS class approach replaced with Web Animations API (svg.animate()). Each call creates a fresh Animation object with no shared state, so sequential checks never interfere. CSS @keyframes and .just-checked selector removed.',
   '2.17.71': 'Fix: BUG-030 checkmark animation lags ~30s on iOS PWA open — stroke-dashoffset (CPU paint-triggered, blocked by JIT warmup) replaced with transform+opacity on the svg element (GPU-composited, runs on compositor thread independent of JS). Also pre-warms the celebCanvas GPU pipeline at idle so Metal shader compilation happens before the first task check.',
@@ -10160,6 +10161,7 @@ Available actions (use only what genuinely fits — fewer is better):
   start_focus  { "id": "exact-id" }      — invite 25-min focus on a specific task
   check_habit  { "id": "exact-id" }      — remind to mark a habit done
   add_task     { "text": "task text" }   — add something (empty state only)
+  move_soon    { "id": "exact-id" }      — park a task to Soon. ONLY when they explicitly ask to park/move/defer it — never suggest it yourself. Works for manual tasks only (ids starting "manual_"), not trello cards.
   reflect      {}                        — use rarely, only when you have a specific pattern observation worth sharing
   dismiss      {}                        — close
 
