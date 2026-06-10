@@ -1507,7 +1507,13 @@
   }
 
   @media (hover: none) {
-    .task-delete { opacity: var(--opacity-dim); }
+    .task-delete {
+      opacity: var(--opacity-dim);
+      /* Pull the × toward the row edge — its own padding (--space-3) plus the row's
+         padding (--space-4) read as over-indented when always visible on mobile.
+         Negative margin keeps the full tap target, just shifts the glyph out. */
+      margin-right: calc(-1 * var(--space-3));
+    }
     .task-delete:active { color: var(--danger); opacity: 1; }
   }
 
@@ -3154,12 +3160,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.75';
+const APP_VERSION   = '2.17.76';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.76': 'Style: the × on tasks now sits closer to the edge on mobile.',
   '2.17.75': 'Fix: error dot was hidden behind the status bar on mobile — now visible.',
   '2.17.74': 'Fix: asking the assistant to park a task to Soon now works.',
   '2.17.73': 'The morning message can now notice things — task ages, patterns, yesterday — in one fresh sentence each day.',
