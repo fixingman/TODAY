@@ -35,18 +35,6 @@ const POEMS = [
     source: 'Chamberlain 1902, no. 39',
   },
   {
-    text: 'A snowy morning,—everywhere\nThe figure "2" left by the clogs.',
-    author: 'Sute-jo',
-    season: 'winter',
-    source: 'Chamberlain 1902, no. 71 — composed by the poetess at age six',
-  },
-  {
-    text: "Well then, we'll off to see the snow,\nFar as we can without a tumble.",
-    author: 'Bashō',
-    season: 'winter',
-    source: 'Chamberlain 1902, no. 77',
-  },
-  {
     text: 'But for its voice, the heron were\nA line of snow, and nothing more.',
     author: 'Sōkan',
     season: 'winter',
@@ -57,6 +45,18 @@ const POEMS = [
     author: 'Kiyohara no Fukayabu',
     season: 'winter',
     source: 'Kokinshū tanka, trans. Chamberlain 1902 — the "blossoms" are snowflakes',
+  },
+  {
+    text: "A rough sea, and the Milky Way\nStretching across to Sado's isle.",
+    author: 'Bashō',
+    season: 'autumn',
+    source: 'Chamberlain 1902, no. 84 — the Milky Way is an autumn kigo',
+  },
+  {
+    text: 'A stem of grass, whereon in vain\nA dragon-fly essayed to light!',
+    author: 'Bashō',
+    season: 'autumn',
+    source: 'Chamberlain 1902, no. 47 (attribution marked uncertain by Chamberlain)',
   },
 
   // ── English originals ─────────────────────────────────────────────────────
@@ -127,40 +127,10 @@ const POEMS = [
     source: "winter song, Love's Labour's Lost, c. 1595",
   },
   {
-    text: 'So little cause for carolings\nOf such ecstatic sound\nWas written on terrestrial things\nAfar or nigh around,\nThat I could think there trembled through\nHis happy good-night air\nSome blessed Hope, whereof he knew\nAnd I was unaware.',
-    author: 'Thomas Hardy',
-    season: 'winter',
-    source: "'The Darkling Thrush', 31 December 1900",
-  },
-  {
     text: 'Fall, leaves, fall; die, flowers, away;\nLengthen night and shorten day;\nEvery leaf speaks bliss to me\nFluttering from the autumn tree.',
     author: 'Emily Brontë',
     season: 'autumn',
     source: 'c. 1838, posthumous',
-  },
-  {
-    text: 'Season of mists and mellow fruitfulness,\nClose bosom-friend of the maturing sun;\nConspiring with him how to load and bless\nWith fruit the vines that round the thatch-eves run.',
-    author: 'John Keats',
-    season: 'autumn',
-    source: "'To Autumn', 1819",
-  },
-  {
-    text: "The morns are meeker than they were –\nThe nuts are getting brown –\nThe berry's cheek is plumper –\nThe Rose is out of town.\nThe maple wears a gayer scarf –\nAnd the field a scarlet gown –\nLest I should be old fashioned\nI'll put a trinket on.",
-    author: 'Emily Dickinson',
-    season: 'autumn',
-    source: 'Poems, posthumous (d. 1886)',
-  },
-  {
-    text: 'A touch of cold in the Autumn night—\nI walked abroad,\nAnd saw the ruddy moon lean over a hedge\nLike a red-faced farmer.\nI did not stop to speak, but nodded,\nAnd round about were the wistful stars\nWith white faces like town children.',
-    author: 'T. E. Hulme',
-    season: 'autumn',
-    source: "'Autumn', 1908 (d. 1917)",
-  },
-  {
-    text: "That time of year thou mayst in me behold\nWhen yellow leaves, or none, or few, do hang\nUpon those boughs which shake against the cold,\nBare ruin'd choirs, where late the sweet birds sang.",
-    author: 'William Shakespeare',
-    season: 'autumn',
-    source: 'Sonnet 73, 1609',
   },
   {
     text: 'And what is so rare as a day in June?\nThen, if ever, come perfect days;\nThen Heaven tries earth if it be in tune,\nAnd over it softly her warm ear lays.',
@@ -175,18 +145,6 @@ const POEMS = [
     source: "'The Throstle', 1889",
   },
   {
-    text: 'The Bee is not afraid of me.\nI know the Butterfly.\nThe pretty people in the Woods\nReceive me cordially —',
-    author: 'Emily Dickinson',
-    season: 'summer',
-    source: 'Poems, posthumous (d. 1886)',
-  },
-  {
-    text: 'A Drop fell on the Apple Tree –\nAnother – on the Roof –\nA Half a Dozen kissed the Eaves –\nAnd made the Gables laugh –',
-    author: 'Emily Dickinson',
-    season: 'summer',
-    source: 'Poems, posthumous (d. 1886)',
-  },
-  {
     text: 'Grief melts away\nLike snow in May,\nAs if there were no such cold thing.',
     author: 'George Herbert',
     season: 'spring',
@@ -197,5 +155,49 @@ const POEMS = [
     author: 'William Wordsworth',
     season: null,
     source: "'My Heart Leaps Up', 1802",
+  },
+
+  // ── Early moderns (all died pre-1956 → PD worldwide) ─────────────────────
+  {
+    text: "Life has loveliness to sell,\nAll beautiful and splendid things,\nBlue waves whitened on a cliff,\nSoaring fire that sways and sings,\nAnd children's faces looking up\nHolding wonder like a cup.",
+    author: 'Sara Teasdale',
+    season: null,
+    source: "'Barter', 1917 (d. 1933)",
+  },
+  {
+    text: 'Spend all you have for loveliness,\nBuy it and never count the cost;\nFor one white singing hour of peace\nCount many a year of strife well lost,\nAnd for a breath of ecstasy\nGive all you have been, or could be.',
+    author: 'Sara Teasdale',
+    season: null,
+    source: "'Barter', closing stanza, 1917 (d. 1933)",
+  },
+  {
+    text: 'These I have loved:\nWhite plates and cups, clean-gleaming,\nRinged with blue lines; and feathery, faery dust;\nWet roofs, beneath the lamp-light; the strong crust\nOf friendly bread; and many-tasting food.',
+    author: 'Rupert Brooke',
+    season: null,
+    source: "'The Great Lover', 1914 (d. 1915)",
+  },
+  {
+    text: 'And for that minute a blackbird sang\nClose by, and round him, mistier,\nFarther and farther, all the birds\nOf Oxfordshire and Gloucestershire.',
+    author: 'Edward Thomas',
+    season: 'summer',
+    source: "'Adlestrop', written 1915 (d. 1917) — a train's unscheduled minute of stillness in late June",
+  },
+  {
+    text: 'Glory be to God for dappled things—\nFor skies of couple-colour as a brinded cow;\nFor rose-moles all in stipple upon trout that swim.',
+    author: 'Gerard Manley Hopkins',
+    season: null,
+    source: "'Pied Beauty', 1877 (d. 1889)",
+  },
+  {
+    text: 'Greatly shining,\nThe Autumn moon floats in the thin sky;\nAnd the fish-ponds shake their backs and flash their dragon scales\nAs she passes over them.',
+    author: 'Amy Lowell',
+    season: 'autumn',
+    source: "'Wind and Silver', 1919 (d. 1925)",
+  },
+  {
+    text: 'Who has seen the wind?\nNeither I nor you:\nBut when the leaves hang trembling,\nThe wind is passing through.',
+    author: 'Christina Rossetti',
+    season: null,
+    source: "Sing-Song, 1872 (d. 1894)",
   },
 ];
