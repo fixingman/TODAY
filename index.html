@@ -485,7 +485,9 @@
   /* ── Error indicator (dev aid) ──────────────────────────────────────── */
   #errorIndicator {
     position: fixed;
-    top: 8px;
+    /* viewport-fit=cover draws under the iOS status bar — offset by the safe area
+       or the dot is invisible on mobile PWA (BUG-031). Desktop: inset is 0. */
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
     right: 8px;
     width: 10px;
     height: 10px;
@@ -506,7 +508,7 @@
   }
   #errorPanel {
     position: fixed;
-    top: 24px;
+    top: calc(env(safe-area-inset-top, 0px) + 24px);
     right: 8px;
     width: 220px;
     background: var(--surface);
@@ -3152,12 +3154,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.74';
+const APP_VERSION   = '2.17.75';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.75': 'Fix: BUG-031 red error dot invisible on mobile PWA — #errorIndicator sat at top:8px, but viewport-fit=cover draws the app under the iOS status bar (~47-59px), hiding the dot behind it. Both the dot and #errorPanel now offset by env(safe-area-inset-top). Desktop unchanged (inset is 0).',
   '2.17.74': 'Fix: AI can now park a task to Soon when explicitly asked — move_soon was removed from the AI action set in v2.17.25 (observation-first redesign) so the assistant refused direct requests like "move X to soon". Re-added to the system prompt, scoped: explicit user request only, never suggested proactively, manual tasks only. Handler was already in place.',
   '2.17.73': 'Feat: AI morning nudge — the morning message (Yesterday: N done · N carried over) now upgrades itself with a one-sentence AI observation using task names, ages, streak and yesterday\'s review. Rule-based message renders instantly; AI text swaps in with a gentle fade when ready. Cached once per day; silently stays rule-based if no key or offline.',
   '2.17.72': 'Fix: BUG-030b checkmark animation skipped on rapid back-to-back checks (desktop PWA) — CSS class approach replaced with Web Animations API (svg.animate()). Each call creates a fresh Animation object with no shared state, so sequential checks never interfere. CSS @keyframes and .just-checked selector removed.',
