@@ -361,29 +361,36 @@ const POEMS = [
     season: 'autumn',
     source: "'November Night', Verse, 1915 (Gutenberg #63010; d. 1914)",
   },
+
   {
-    text: 'Loveliest of trees, the cherry now\nIs hung with bloom along the bough,\nAnd stands about the woodland ride\nWearing white for Eastertide.',
-    author: 'A. E. Housman',
-    season: 'spring',
-    source: 'A Shropshire Lad II, 1896 (Gutenberg #5720; d. 1936)',
-  },
-  {
-    text: 'The dawn was apple-green,\nThe sky was green wine held up in the sun,\nThe moon was a golden petal between.',
-    author: 'D. H. Lawrence',
-    season: 'spring',
-    source: "'Green', 1917 (Gutenberg #23394; d. 1930)",
-  },
-  {
-    text: 'My candle burns at both ends;\nIt will not last the night;\nBut ah, my foes, and oh, my friends—\nIt gives a lovely light!',
-    author: 'Edna St. Vincent Millay',
-    season: null,
-    source: "'First Fig', A Few Figs from Thistles, 1920 (Gutenberg #4399; d. 1950 — PD worldwide since 2021)",
-  },
-  {
-    text: 'He giveth snow like wool:\nhe scattereth the hoarfrost like ashes.',
-    author: 'Psalm 147',
+    text: 'Among twenty snowy mountains,\nThe only moving thing\nWas the eye of the blackbird.',
+    author: 'Wallace Stevens',
     season: 'winter',
-    source: 'King James Version, 1611',
+    source: "'Thirteen Ways of Looking at a Blackbird' I, Harmonium, 1923 (Gutenberg #78743)",
+  },
+  {
+    text: 'It was evening all afternoon.\nIt was snowing\nAnd it was going to snow.\nThe blackbird sat\nIn the cedar-limbs.',
+    author: 'Wallace Stevens',
+    season: 'winter',
+    source: "'Thirteen Ways of Looking at a Blackbird' XIII, Harmonium, 1923 (Gutenberg #78743)",
+  },
+  {
+    text: 'Look up . . .\nFrom bleakening hills\nBlows down the light, first breath\nOf wintry wind . . . look up, and scent\nThe snow!',
+    author: 'Adelaide Crapsey',
+    season: 'winter',
+    source: "'Snow', Verse, 1915 (Gutenberg #63010)",
+  },
+  {
+    text: 'Go placidly amid the noise and the haste,\nand remember what peace there may be in silence.',
+    author: 'Max Ehrmann',
+    season: null,
+    source: "'Desiderata', 1927 (d. 1945; PD by court ruling 1975 + expiry; verified via Wikisource)",
+  },
+  {
+    text: 'You are a child of the universe\nno less than the trees and the stars;\nyou have a right to be here.\nAnd whether or not it is clear to you,\nno doubt the universe is unfolding as it should.',
+    author: 'Max Ehrmann',
+    season: null,
+    source: "'Desiderata', 1927 (d. 1945; verified via Wikisource)",
   },
 
   // ── US public domain (pub. pre-1931; authors d. post-1956 → still under
