@@ -200,4 +200,26 @@ const POEMS = [
     season: null,
     source: "Sing-Song, 1872 (d. 1894)",
   },
+
+  // ── US public domain (pub. pre-1931; authors d. post-1956 → still under
+  //    copyright in life+70 countries until the 2030s. Can approved inclusion
+  //    knowing this — app is US-hosted.) ──────────────────────────────────────
+  {
+    text: 'so much depends\nupon\na red wheel\nbarrow\nglazed with rain\nwater\nbeside the white\nchickens',
+    author: 'William Carlos Williams',
+    season: null,
+    source: 'Spring and All, 1923 (d. 1963 — US PD only)',
+  },
+  {
+    text: 'The fog comes\non little cat feet.\nIt sits looking\nover harbor and city\non silent haunches\nand then moves on.',
+    author: 'Carl Sandburg',
+    season: null,
+    source: "'Fog', Chicago Poems, 1916 (d. 1967 — US PD only)",
+  },
+  {
+    text: "I'm going out to clean the pasture spring;\nI'll only stop to rake the leaves away\n(And wait to watch the water clear, I may):\nI sha'n't be gone long.—You come too.",
+    author: 'Robert Frost',
+    season: 'spring',
+    source: "'The Pasture', A Boy's Will, 1913 (d. 1963 — US PD only)",
+  },
 ];

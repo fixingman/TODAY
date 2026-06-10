@@ -14,7 +14,7 @@
 | **AI improvements** | In progress | AI morning nudge shipped v2.17.73 (awaiting impressions). Next: input bar discoverability, deeper personality. Detail ↓ |
 | **Keyboard shortcuts (desktop)** | Not started | Keyboard-first power-user flow. Needs UX exploration first. |
 | **Idle companion artwork** | Not started | Higher-resolution creatures, more visual consistency across the 7. |
-| **Daily poem corpus growth** | Round 3 shipped (v2.17.81) | Grow `assets/poems.js` (31 after round 3) toward ~90 via curation rounds in chat. Taste signal: cut bleak/ornate/cutesy, keep clear + light + affirming. PD rule: authors d. pre-1956 = safe worldwide; pre-1931 US-only pubs (WCW, Sandburg, Frost) need Can's explicit OK — offered, pending. Winter is thinnest (3 tagged). |
+| **Daily poem corpus growth** | Round 3 + US trio shipped (v2.17.82) | Grow `assets/poems.js` (34 now) toward ~90 via curation rounds in chat. Taste signal: cut bleak/ornate/cutesy, keep clear + light + affirming. PD rule: authors d. pre-1956 = safe worldwide; Can explicitly approved US-PD-only additions (WCW, Sandburg, Frost — v2.17.82). Winter is thinnest (3 tagged) — prioritise next round. |
 
 **Parked (see _Deferred_ below):** AI prompt trimming · WEEK companion · Trello checklist write-back.
 
