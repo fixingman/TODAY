@@ -14,6 +14,7 @@
 | **AI improvements** | In progress | AI morning nudge shipped v2.17.73 (awaiting impressions). Next: input bar discoverability, deeper personality. Detail ↓ |
 | **Keyboard shortcuts (desktop)** | Not started | Keyboard-first power-user flow. Needs UX exploration first. |
 | **Idle companion artwork** | Not started | Higher-resolution creatures, more visual consistency across the 7. |
+| **Daily poem corpus growth** | Round 1 shipped (v2.17.79) | Grow `assets/poems.js` from 19 toward ~90 via curation rounds in chat: Claude proposes ~15–20 verified public-domain poems, Can accepts/rejects. Keep seasonal balance (autumn/winter are thin) + year-round share. PD rule: pre-1931 publications (haiku via Chamberlain 1902 et al.; no Blyth, no Hass, no Coleman Barks). |
 
 **Parked (see _Deferred_ below):** AI prompt trimming · WEEK companion · Trello checklist write-back.
 

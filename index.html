@@ -2388,6 +2388,14 @@
     color: var(--muted);
     line-height: 1.7;
   }
+  #dailyPoem { margin-bottom: var(--space-3); }
+  .poem-author {
+    margin-top: 6px;
+    font-size: var(--text-micro);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
 
   /* ── Component: Loading Dots ────────────────────────────────────────── */
   .loading-dots {
@@ -2898,9 +2906,11 @@
     <div class="panel-section">
       <div class="config-label">README</div>
       <div class="panel-haiku">
-        Only today shows<br>
-        Done rests, quietly proud<br>
-        Morning clears the slate<br><br>
+        <div id="dailyPoem">
+          Only today shows<br>
+          Done rests, quietly proud<br>
+          Morning clears the slate
+        </div>
         <div class="readme-actions">
           <button id="installBtn" class="btn-install" style="display:none" onclick="installPWA()">
             <span class="install-icon">⬇</span> Install App
@@ -3014,6 +3024,7 @@
 
 <canvas id="celebCanvas"></canvas>
 
+<script src="assets/poems.js"></script>
 <script>
 // Always start at top — browser's auto scroll-restoration causes mid-page reloads
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -3162,12 +3173,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.78';
+const APP_VERSION   = '2.17.79';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.79': 'A poem for the day — the About panel now greets you with a different short poem each day. All human-written, from Bashō to Dickinson.',
   '2.17.78': 'Style: the About title icon showed as an emoji on iOS — now matches the app\'s monochrome icons.',
   '2.17.77': 'Style: the offline notice now uses the highlight colour instead of gray.',
   '2.17.76': 'Style: the × on tasks now sits closer to the edge on mobile.',
@@ -4832,7 +4844,41 @@ function toggleInfo() {
   $.habitsPanel.classList.remove('open');
   syncActiveButtons();
   window.scrollTo(0, scrollY); // Restore scroll position
-  if (isOpening) renderInfoStats();
+  if (isOpening) { renderInfoStats(); renderDailyPoem(); }
+}
+
+// ─── Daily poem ──────────────────────────────────────────────────────────────
+// One human-written public-domain poem per day (corpus in assets/poems.js).
+// Deterministic by local date → same poem on every device, cycles without
+// repeats. Season pool follows the kigo idea: poems tagged for the current
+// season plus year-round ones. Hemisphere inferred from the device timezone
+// (no geolocation) — travelling flips the season with the device clock.
+const _SOUTHERN_TZ = ['Australia/', 'Pacific/Auckland', 'Pacific/Fiji',
+  'Pacific/Port_Moresby', 'America/Sao_Paulo', 'America/Argentina',
+  'America/Santiago', 'America/Montevideo', 'America/Asuncion', 'America/Lima',
+  'America/La_Paz', 'Africa/Johannesburg', 'Africa/Windhoek', 'Africa/Maputo',
+  'Africa/Lusaka', 'Africa/Harare', 'Indian/Antananarivo'];
+
+function _poemOfTheDay() {
+  if (typeof POEMS === 'undefined' || !POEMS.length) return null;
+  const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || '');
+  let m = new Date().getMonth();
+  if (_SOUTHERN_TZ.some(p => tz.startsWith(p))) m = (m + 6) % 12;
+  const season = m >= 2 && m <= 4 ? 'spring'
+               : m >= 5 && m <= 7 ? 'summer'
+               : m >= 8 && m <= 10 ? 'autumn' : 'winter';
+  const pool = POEMS.filter(p => !p.season || p.season === season);
+  if (!pool.length) return null;
+  const days = Math.floor(new Date(_getAppDay()).getTime() / 86400000);
+  return pool[days % pool.length];
+}
+
+function renderDailyPoem() {
+  const el = document.getElementById('dailyPoem');
+  const poem = _poemOfTheDay();
+  if (!el || !poem) return; // corpus missing — static haiku in the markup stays
+  el.innerHTML = poem.text.split('\n').map(esc).join('<br>')
+    + `<div class="poem-author">${esc(poem.author)}</div>`;
 }
 
 // Format focus time: "Xh Ym" if >= 60 minutes, "Xm" otherwise
