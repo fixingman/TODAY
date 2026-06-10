@@ -28,22 +28,26 @@ TODAY is a single-day task manager. It shows only what matters right now.
 
 ## The Wallpaper Test
 
-> *Will this still tell me something in two weeks, or will my eyes slide over it?*
+> *Does this feature deliver value every time it appears — or is it just present?*
 
-Anything that's supposed to be smart, dynamic, or AI-backed must pass this test. **Wallpaper** is content that repeats its shape until the eye stops reading it — and it isn't about quality. A well-written phrase becomes wallpaper the moment it's *predictable*: same trigger, same shape, every day. Smartness that repeats is indistinguishable from a template.
+A product-level test, not a copywriting one. It applies to any recurring surface: messages, badges, panels, animations, stats, AI features. **Wallpaper** is a feature that shows up repeatedly without delivering value each time. The cost isn't cognitive load — a quiet line is cheap to ignore. The cost is that a surface which doesn't pay rent *teaches the user to stop looking at it*, and takes neighboring features down with it (you stopped opening ✦ not because it was hidden, but because it usually had nothing to offer).
+
+It isn't about quality either. A well-built feature becomes wallpaper the moment its output is *predictable*: same trigger, same shape, same takeaway every time. Smart-looking and template are indistinguishable after the third encounter.
+
+**The bar:** every appearance must deliver something — information the screen doesn't already show, an action worth taking now, or a feeling that's genuinely fresh. "It's nice" on day one is not the test; day fourteen is.
 
 **The three escapes:**
-1. **Say it rarely** — gate on real signal (≥N days of data, clear deltas), so appearing at all carries information.
-2. **Say it differently** — AI-generated from fresh context, never a fixed phrase from a lookup table.
-3. **Say nothing** — silence beats a neutral line the user reads as filler (or worse, judgement).
+1. **Appear rarely** — gate on real signal (≥N days of data, clear deltas), so appearing at all carries information.
+2. **Be different each time** — generated from fresh context (real patterns, memory, today's specifics), never a fixed output from a lookup table.
+3. **Don't exist** — absence beats a surface the user has learned to skip. Removing a feature that stopped paying rent is a feature.
 
 **"AI-backed" alone doesn't pass the test.** An LLM prompted the same way over the same data drifts toward its own house style — slower wallpaper. Variety of *input* (fresh context, real patterns, memory) matters more than the model.
 
 **Case law:**
-- Week narrative lines (`#weekNarrative`/`#weekCompare`/`#weekRhythm`) — shipped v2.17.59, removed v2.17.66. Rule-based phrases became wallpaper after first reading; the visual grid already showed the week's shape.
-- Sunday AI reflection — kept. Personal, fresh, AI-generated, once a week.
-- Morning nudge AI upgrade (v2.17.73) — insight-gated prompt: name something non-obvious if it exists, else state the morning plainly.
-- Comparison framing rule (`research/Psychology.md`) — when there isn't a confident *and* kind thing to say, say nothing.
+- Week narrative lines (`#weekNarrative`/`#weekCompare`/`#weekRhythm`) — shipped v2.17.59, removed v2.17.66. Rule-based phrases stopped delivering after first reading; the visual grid already showed the week's shape. Escape 3.
+- Sunday AI reflection — kept. Personal, fresh, AI-generated, once a week. Escapes 1 + 2.
+- Morning nudge AI upgrade (v2.17.73) — insight-gated prompt: name something non-obvious if it exists, else state the morning plainly. Escape 2.
+- Comparison framing rule (`research/Psychology.md`) — when there isn't a confident *and* kind thing to say, say nothing. Escape 1.
 
 ---
 
