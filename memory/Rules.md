@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.78 (next)
-- **Recent:** offline banner accent colour (v2.17.77), task × mobile alignment (v2.17.76), BUG-031 error dot safe-area fix (v2.17.75)
+- **Working on:** v2.17.79 (next)
+- **Recent:** About ℹ emoji fix (v2.17.78), offline banner accent colour (v2.17.77), task × mobile alignment (v2.17.76)
 - **Watch for:** BUG-028 + BUG-029 + BUG-031 awaiting Can's verification · AI morning nudge awaiting real-morning impressions (W3 day-14 follow-up) · move_soon: watch it stays explicit-ask-only, never proactive
 
 ---
@@ -77,7 +77,7 @@
 ## Style Rules
 
 19. No hardcoded hex/rgba outside `:root` — all tokenized
-20. No emojis in system UI text
+20. No emojis in system UI text. **Emoji-capable Unicode glyphs (ℹ ⚡ ⏱ etc.) must carry the `U+FE0E` text-presentation selector** (`&#xFE0E;` in HTML, `︎` appended in JS strings) or iOS renders them as full-colour emoji. Exception: 🍅 session badges are intentional emoji. (v2.17.78)
 21. Fonts: `--font-mono: 'DM Mono'`, `--font-display: 'Syne'`
 22. Accent: `#c8f060` — all variants derived from this
 23. **`--font-display` (Syne) = all-caps or numbers only** — Syne's geometric letterforms work for "TODAY", version numbers, and stat values. Never use Syne for mixed-case English sentences — DM Mono handles all natural language text.

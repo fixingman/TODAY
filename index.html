@@ -2880,7 +2880,7 @@
 
   <!-- Info panel -->
   <div class="config-panel" id="infoPanel">
-    <div class="config-title">ℹ About</div>
+    <div class="config-title">ℹ&#xFE0E; About</div>
 
     <div id="sundayBlock" style="display:none"></div>
     <div id="infoStats"></div>
@@ -3162,12 +3162,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.77';
+const APP_VERSION   = '2.17.78';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.78': 'Style: the About title icon showed as an emoji on iOS — now matches the app\'s monochrome icons.',
   '2.17.77': 'Style: the offline notice now uses the highlight colour instead of gray.',
   '2.17.76': 'Style: the × on tasks now sits closer to the edge on mobile.',
   '2.17.75': 'Fix: error dot was hidden behind the status bar on mobile — now visible.',
@@ -3857,7 +3858,7 @@ function renderTriageList() {
     // Check for focus sessions
     const focusCount = focusData[t.id] || 0;
     const metaClass = focusCount > 0 ? 'focus' : (isTrello ? 'trello' : '');
-    if (focusCount > 0) metaText = `${focusCount} ⏱`;
+    if (focusCount > 0) metaText = `${focusCount} ⏱︎`;
     
     if (decision) {
       const badgeClass = decision;
@@ -4742,7 +4743,7 @@ function init() {
 
   // Dev hours display
   const devHoursEl = document.querySelector('.dev-hours-val');
-  if (devHoursEl) devHoursEl.innerHTML = '⏱ built in <span style="color:var(--accent);font-weight:500">' + DEV_HOURS + '</span>';
+  if (devHoursEl) devHoursEl.innerHTML = '⏱︎ built in <span style="color:var(--accent);font-weight:500">' + DEV_HOURS + '</span>';
 
   // Changelog — current version expanded, rest as quiet one-liners
   const clPanel  = document.getElementById('changelogPanel');
