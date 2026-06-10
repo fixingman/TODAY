@@ -155,4 +155,4 @@ Any feature that compares the user to their past self (week-over-week, month-ove
 - When there isn't a confident *and* kind thing to say, **say nothing**. Silence beats a neutral metric the user reads as judgement.
 - Gate on real data (≥3 known prior days) and clear deltas (~1.4×) so noise never triggers a comparison.
 
-**Why `#weekCompare` was removed (v2.17.66):** even with kind framing, rule-based phrases become wallpaper after the first few readings. The principle above applies to all future comparative/predictive surfaces (incl. the WEEK companion) — but the presentation should be AI-generated and fresh, not a fixed phrase from a lookup table.
+**Why `#weekCompare` was removed (v2.17.66):** even with kind framing, rule-based phrases become wallpaper after the first few readings. The principle above applies to all future comparative/predictive surfaces (incl. the WEEK companion) — but the presentation should be AI-generated and fresh, not a fixed phrase from a lookup table. Now formalized as **the Wallpaper Test** in `design/Philosophy.md`.
