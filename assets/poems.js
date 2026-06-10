@@ -315,6 +315,63 @@ const POEMS = [
     source: 'as quoted in How to Stop Worrying (d. 1894)',
   },
 
+  // ── Chinese, Greek & Hebrew (all PD worldwide; verified verbatim against
+  //    Gutenberg sources) ────────────────────────────────────────────────────
+  {
+    text: "We cannot keep the gold of yesterday;\nTo-day's dun clouds we cannot roll away.",
+    author: 'Li Po',
+    season: null,
+    source: "'Drifting', A Lute of Jade, trans. L. Cranmer-Byng, 1909 (Gutenberg #390; d. 1945)",
+  },
+  {
+    text: "In vain we cleave the torrent's thread with steel,\nIn vain we drink to drown the grief we feel;\nWhen man's desire with fate doth war this, this avails alone—\nTo hoist the sail and let the gale and the waters bear us on.",
+    author: 'Li Po',
+    season: null,
+    source: "'Drifting', A Lute of Jade, trans. L. Cranmer-Byng, 1909 (Gutenberg #390)",
+  },
+  {
+    text: 'Oh! she is good, the little rain! and well she knows our need\nWho cometh in the time of spring to aid the sun-drawn seed;\nShe wanders with a friendly wind through silent nights unseen,\nThe furrows feel her happy tears, and lo! the land is green.',
+    author: 'Tu Fu',
+    season: 'spring',
+    source: "'The Little Rain', A Lute of Jade, trans. L. Cranmer-Byng, 1909 (Gutenberg #390)",
+  },
+  {
+    text: 'Who is content\nNeeds fear no shame.\nWho knows to stop\nIncurs no blame.',
+    author: 'Lao Tzu',
+    season: null,
+    source: 'Tao Te Ching ch. 44, trans. James Legge, 1891 (Gutenberg #216)',
+  },
+  {
+    text: "When the work is done, and one's name is becoming distinguished,\nto withdraw into obscurity is the way of Heaven.",
+    author: 'Lao Tzu',
+    season: null,
+    source: 'Tao Te Ching ch. 9, trans. James Legge, 1891 (Gutenberg #216)',
+  },
+  {
+    text: 'Evening, thou that bringest all that bright morning scattered;\nthou bringest the sheep, the goat, the child back to her mother.',
+    author: 'Sappho',
+    season: null,
+    source: 'fr. 104, trans. H. T. Wharton, 1885 (Gutenberg #57390; d. 1895)',
+  },
+  {
+    text: 'Weeping may endure for a night,\nbut joy cometh in the morning.',
+    author: 'Psalm 30',
+    season: null,
+    source: 'King James Version, 1611',
+  },
+  {
+    text: 'So teach us to number our days,\nthat we may apply our hearts unto wisdom.',
+    author: 'Psalm 90',
+    season: null,
+    source: 'King James Version, 1611',
+  },
+  {
+    text: 'Be still, and know.',
+    author: 'Psalm 46',
+    season: null,
+    source: 'King James Version, 1611 (abridged from "Be still, and know that I am God")',
+  },
+
   // ── US public domain (pub. pre-1931; authors d. post-1956 → still under
   //    copyright in life+70 countries until the 2030s. Can approved inclusion
   //    knowing this — app is US-hosted.) ──────────────────────────────────────
