@@ -53,6 +53,7 @@
 3. Add-task bar: `<div id="addTaskBar">` goes **after** `</div><!-- end .app -->`
 4. `scrollRestoration = 'manual'` must be the **very first line** of `<script>`
 5. Fixed elements outside `.app` need `style="opacity:0"` — revealed after splash dismissal
+5b. **Every `position: fixed` element anchored to a screen edge must offset by `env(safe-area-inset-*)`** — `viewport-fit=cover` draws the iOS PWA under the status bar (~47–59px) and home indicator. An element at `top: 8px` is invisible on mobile (BUG-031: error dot fired behind the status bar). Pattern: `top: calc(env(safe-area-inset-top, 0px) + 8px)`. Desktop unaffected (inset = 0).
 
 ## Interaction Rules
 
