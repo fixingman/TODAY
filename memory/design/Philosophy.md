@@ -34,6 +34,8 @@ A product-level test, not a copywriting one. It applies to any recurring surface
 
 It isn't about quality either. A well-built feature becomes wallpaper the moment its output is *predictable*: same trigger, same shape, same takeaway every time. Smart-looking and template are indistinguishable after the third encounter.
 
+**How wallpaper shows itself** (symptoms, by surface type): passive surfaces → eyes slide over the text; interactive surfaces → chips stop getting tapped, panels stop getting opened. Same disease, different symptoms — watch for the behavioral one, it's measurable.
+
 **The bar:** every appearance must deliver something — information the screen doesn't already show, an action worth taking now, or a feeling that's genuinely fresh. "It's nice" on day one is not the test; day fourteen is.
 
 **The three escapes:**
