@@ -2213,6 +2213,15 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* Telemetry line under a connection row (e.g. sync conflicts auto-resolved) */
+  .connection-row-note {
+    font-size: var(--text-micro);
+    color: var(--muted);
+    opacity: var(--opacity-muted);
+    letter-spacing: 0.04em;
+    margin-top: calc(-1 * var(--space-1));
+    padding: 0 var(--space-1) var(--space-2);
+  }
   .connection-row-actions {
     display: flex;
     gap: var(--space-2);
@@ -3200,12 +3209,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.101';
+const APP_VERSION   = '2.17.102';
 const DEV_HOURS     = '210h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.102': 'The sync-conflict count gets its own line under Dropbox — no more crowding the status on small screens.',
   '2.17.101': 'Sync now keeps a quiet count of cross-device conflicts it resolves — visible in Connections, next to the Dropbox status.',
   '2.17.100': 'Fix: a startup crash slipped into the previous build — caught by our new automatic pre-release test.',
   '2.17.99': 'The input bar now shows it can ask the assistant too — hint in the placeholder, a glow on ✦ while you type, and a one-time tip.',
@@ -5163,10 +5173,11 @@ function renderConnections() {
     const mins = Math.round((Date.now() - new Date(lastActivity).getTime()) / 60000);
     backupStatus = mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.round(mins/60)}h ago`;
   }
-  // Merge-anomaly telemetry — quiet count, only when conflicts have ever occurred
+  // Merge-anomaly telemetry — own line below the Dropbox row (the status span
+  // is nowrap+ellipsis and shares its row with three buttons; no width to spare)
   const _mergeAnomalies = safeJSON('today_merge_anomalies', []);
   const anomalyNote = _mergeAnomalies.length
-    ? ` · ${_mergeAnomalies.length} conflict${_mergeAnomalies.length > 1 ? 's' : ''} resolved`
+    ? `<div class="connection-row-note" title="Both devices changed the same task — the newest change was kept.">${_mergeAnomalies.length} sync conflict${_mergeAnomalies.length > 1 ? 's' : ''} auto-resolved</div>`
     : '';
 
   // Both disconnected: side-by-side cards
@@ -5253,14 +5264,14 @@ function renderConnections() {
       <div class="connection-row">
         <div class="connection-row-info">
           <span class="connection-row-title">Dropbox</span>
-          <span class="connection-row-status">${backupStatus ? 'Saved ' + backupStatus : 'Connected'}${anomalyNote}</span>
+          <span class="connection-row-status">${backupStatus ? 'Saved ' + backupStatus : 'Connected'}</span>
         </div>
         <div class="connection-row-actions">
           <button class="btn-sm" onclick="dropboxBackup()">Save</button>
           <button class="btn-sm" onclick="dropboxRestore()">Restore</button>
           <button class="btn-sm" onclick="dropboxDisconnect()">Forget</button>
         </div>
-      </div>`;
+      </div>${anomalyNote}`;
   } else if (dropboxExpired) {
     // Expired — show reconnect
     html += `
