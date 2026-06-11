@@ -5,63 +5,66 @@
 
 ---
 
-## ▸ Next up (at a glance)
+## ◎ North star (agreed Jun 2026)
 
-| Item | Status | Notes |
-|------|--------|-------|
-| **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — see `research/Integrations.md`. |
-| **Push notifications** | Not started | Medium effort. Server-sent (iOS can't self-schedule). Detail ↓ |
-| **AI improvements** | In progress | AI morning nudge shipped v2.17.73 (awaiting impressions). Next: input bar discoverability, deeper personality. Detail ↓ |
-| **Idle companion artwork** | Not started | Higher-resolution creatures, more visual consistency across the 7. |
-| **Daily poem corpus growth** | Round 10 shipped (v2.17.89; corpus 66) | Grow toward ~90 via curation rounds in chat. Detail ↓ |
-
-**Parked (see _Deferred_ below):** AI prompt trimming · WEEK companion · Trello checklist write-back.
+**Own the first 30 seconds of the day.** The morning is becoming TODAY's signature beat — nudge, poem, briefing. Roadmap items 1, 2, 4 all serve it; everything else supports or follows.
 
 ---
 
-## Details (for the items that need it)
+## ▸ Roadmap (prioritised, Jun 2026 review)
 
-### Daily Poem Corpus Growth
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| 1 | **Morning nudge — impressions week → iterate** | Shipped v2.17.73, collecting | Costs nothing, decides the AI-presence direction. Can collects real-morning impressions; then tune prompt/voice. Detail ↓ |
+| 2 | **Promote poem to a daily moment** | Not started | Highest delight-per-effort. Corpus built (66); today it's buried in About. Candidate: first open of the day, shown once, quietly. Original plan foresaw this promotion. Corpus growth continues in parallel — detail ↓ |
+| 3 | **Smoke-test script + module extraction** | Not started | Do **before** push/Todoist/WEEK. Headless boot/add/splash check runnable pre-push; extract more `assets/*.js` modules (poems.js proved the pattern). One session, pays on every session after. |
+| 4 | **Input bar discoverability** | Not started | The `type + ✦` trick is a hidden superpower. Placeholder hint, tooltip, or one-time nudge. Tiny scope. |
+| 5 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing, nothing else — marks day boundaries without chasing tasks. Needs server infra; after #3. Detail ↓ |
+| 6 | **WAAPI migration of remaining infinite animations** | Opportunistic | `.ai-badge`, `.done-star`, `errorPulse` → WAAPI, then **delete** the `_forceRepaint` suppress/restore machinery. Fold into the next session touching wake/repaint. |
+| 7 | **Empty/peak states audit** | Not started | First-open, everything-done, brand-new-user. "Everything done" is the app's promise fulfilled — currently just an empty list. Polish session for a quiet week. |
+| 8 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
+
+**Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months behavioural data + #1 learnings + #3 foundations). Detail ↓
+
+**Parked:** idle companion artwork · sync merge-anomaly counter · AI prompt trimming · Trello checklist write-back. Detail ↓
+
+---
+
+## Details
+
+### 1 · AI Improvements / Morning Nudge
+**Done so far (v2.13.0–2.17.73):** morning briefings, day-end review, stale-task awareness, behavioral insights, break_down/move_soon/reflect actions, 7-day suggestion cooldowns, Dropbox-synced suggestion history, deterministic chips for aging tasks, conversation memory, AI morning nudge (one-sentence observation over the rule-based line; insight-gated, cached per day, silent fallback).
+**Next:** collect a week of real-morning impressions → tune the prompt (more specific? quieter? ever suggest an action chip?). Then: deeper personality (weather/energy awareness beyond peak hour, richer habit-streak celebrations).
+
+### 2 · Daily Poem Corpus Growth
 **Process:** curation rounds in chat — Claude proposes verified public-domain candidates (text checked verbatim against Gutenberg/Wikisource, never from memory), Can cuts by number. Accepted poems land in `assets/poems.js`.
-**Taste signal (established over 10 rounds):** spare modern free verse + clear/light/affirming in; rhymed-quaint, ornate, cutesy, bleak out.
-**Seasons:** balanced 6/7/6/6 (W/Sp/Su/Au) as of round 10.
+**Taste signal (10 rounds):** spare modern free verse + clear/light/affirming in; rhymed-quaint, ornate, cutesy, bleak out.
+**Seasons:** balanced 6/7/6/6 (W/Sp/Su/Au) as of round 10 (corpus 66, target ~90).
 **PD rules:** authors d. pre-1956 safe worldwide; US-PD-only (pre-1931 pub, author d. post-1956) approved by Can v2.17.82 (WCW, Sandburg, Frost); no PD modern-English Rumi exists (declined to bundle copyrighted Barks).
 **Future PD unlocks (Jan 1):** cummings 2033, Frost/WCW worldwide 2034, Eliot 2036.
-**Leads for next round:** CC-licensed living poets (verify each license), Yeats 'Innisfree' + Bridges 'London Snow' (need verified sources), more Chamberlain haiku.
+**Leads:** CC-licensed living poets (verify each license), Yeats 'Innisfree' + Bridges 'London Snow' (need verified sources), more Chamberlain haiku.
 
-### Push Notifications
+### 5 · Push Notifications
 **Platform:** iOS 16.4+ (installed PWA only) + Android. Web Push API + VAPID keys.
 **Stack:** `push` listener in `sw.js`, VAPID keys in Netlify env, two new Netlify functions (store subscription + scheduled send), permission UI in Connections panel.
-**Candidates:** 8pm triage reminder, habit nudge (custom time), morning briefing, peak-hour focus suggestion.
 **Key constraint:** iOS has no background sync — notifications must be server-sent via Netlify Scheduled Functions. The app cannot self-schedule.
-**Open question:** what to notify and when (the code is straightforward; the product decision isn't).
+**Scope decision (Jun 2026):** day boundaries only — 8pm triage reminder + morning briefing. No habit nudges, no task chasing.
 
-### AI Improvements
-**Done so far (v2.13.0–2.17.11):** morning briefings, day-end review, stale-task awareness, behavioral insights, break_down/move_soon/reflect actions, morning reflection nudge, 7-day suggestion cooldowns, Dropbox-synced suggestion history (also fed into AI context), deterministic chips for aging tasks, conversation memory across sessions.
-**Shipped v2.17.73 — AI morning nudge:** the existing morning nudge line (rule-based "Yesterday: N done · N carried over") now upgrades itself with a one-sentence AI observation (task names, ages, streak, yesterday's review). Insight-gated prompt: say something non-obvious if there is one, otherwise state the morning plainly. Cached per day; silent fallback to rule-based. **Awaiting Can's real-morning impressions — iterate on prompt/voice based on how the sentences feel over a week.**
-**Remaining:**
-- **Morning nudge voice iteration** — collect a week of real mornings, then tune the prompt (more specific? quieter? should it ever suggest an action chip?).
-- **Input bar discoverability** — the `type + ✦` trick (sends text to AI as a free-form message) is a hidden superpower. Needs a hint: placeholder text change, tooltip, or a one-time nudge on first ✦ open.
-- **Deeper personality** — weather/energy awareness beyond peak hour, richer habit-streak celebrations.
+### WEEK — standalone weekly planning companion *(gated)*
+**Vision:** a separate lightweight weekly planning tool. TODAY = focus instrument, WEEK = planning surface.
+**Differentiator:** predictive AI from observed behaviour — no manual energy ratings. WEEK learns what this user does Monday mornings, when they focus vs coast, what they defer.
+**Feeds on TODAY data:** focus sessions, completion times, habit patterns, peak hour (`today_daily_history` accumulating since v2.17.55).
+**Lesson (v2.17.59→66):** rule-based weekday-rhythm phrases became wallpaper and were removed; the aggregation logic is reusable but output must be AI-generated.
+**Revisit:** ~autumn 2026, with 3+ months of data.
 
 ---
 
-## Deferred / Someday
+## Parked / Someday
 
-### WEEK — standalone weekly planning companion *(concept)*
-**Vision:** a separate lightweight weekly planning tool. TODAY = focus instrument, WEEK = planning surface.
-**Differentiator:** predictive AI from observed behaviour — no manual energy ratings. WEEK learns what this user does Monday mornings, when they focus vs coast, what they defer.
-**Feeds on TODAY data:** focus sessions, completion times, habit patterns, peak hour.
-**Aggregation explored (v2.17.59, removed v2.17.66):** a weekday-rhythm line ("You tend to move most on Tuesdays.") was shipped as a WEEK seed but removed with the other static narrative lines — rule-based phrases became wallpaper. The data (`today_daily_history`) still accumulates; the aggregation logic (bucket `tasksDone` by `getDay()`, find distinct leader) is worth reusing for WEEK, but with AI-generated output, not a fixed phrase.
-**Revisit when:** TODAY has 3+ months of behavioural data (bug backlog is already clear).
-
-### AI system-prompt trimming *(deferred — only if token cost ever matters)*
-At ~700–800 static + 50–400 dynamic tokens and personal usage (10–30 calls/day), cost is <$0.01/day — negligible. The prompt is carefully tuned, so trimming risks regression.
-**Safe to cut if needed:** action-type descriptions, energy-awareness example sub-bullets, message/rules overlap (~110 tokens total).
-**Never cut:** task/habit lists with IDs, JSON format rules, "name the task" guideline, `ids` array docs, personality + philosophy block.
-
-### Small enhancements *(low priority)*
-- **Trello checklist write-back (Option B)** — bidirectional editing of card checklists. Today it's a read-only progress badge (v2.17.58). Build only if editing is actually wanted.
+- **Idle companion artwork** — higher-resolution creatures, consistency across the 7. Or reduce to one perfect creature. Revisit if they start mattering.
+- **Sync merge-anomaly counter** — cheap local log when both devices changed the same task; tells us whether the unhandled 1% of conflicts is real. Build before WEEK consumes the data.
+- **AI system-prompt trimming** — cost is <$0.01/day; only if token cost ever matters. Safe cuts: action-type descriptions, energy-awareness sub-bullets (~110 tokens). Never cut: task/habit lists with IDs, JSON rules, personality block.
+- **Trello checklist write-back** — bidirectional checklist editing. Today read-only badge (v2.17.58). Build only if editing is actually wanted.
 
 ---
 
@@ -70,7 +73,7 @@ At ~700–800 static + 50–400 dynamic tokens and personal usage (10–30 calls
 ### Watching
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| Modularization | Single file (~11K lines) | Revisit if it grows significantly further. |
+| Modularization | Single file (~12K lines) + `assets/poems.js` | Roadmap #3 starts the extraction. Revisit harder if growth continues. |
 
 ### Not implementing
 | Feature | Reason |
@@ -94,4 +97,4 @@ At ~700–800 static + 50–400 dynamic tokens and personal usage (10–30 calls
 
 ---
 
-*History (shipped features, fixed bugs) lives in `Changelog.md`, `archive/Changelog-archive.md`, and `archive/Bugs-archive.md` — intentionally not mirrored here. Last reorganised: v2.17.98.*
+*History (shipped features, fixed bugs) lives in `Changelog.md`, `archive/Changelog-archive.md`, and `archive/Bugs-archive.md` — intentionally not mirrored here. Last reorganised: v2.17.98 (Jun 2026 roadmap review).*
