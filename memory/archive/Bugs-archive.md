@@ -257,6 +257,26 @@
 
 ---
 
+## BUG-028: Completed focus bar — four sub-fixes
+
+**Status:** Fixed across v2.17.63 / v2.17.65 / v2.17.68 / v2.17.94 — verified ✅
+
+**Sub-fix A — v2.17.63: "again?" shown a tick late (all task types)**
+`tickFor` hit 0, drew "00:00" + full bar, then scheduled another tick; `completeFor` only ran on the *next* tick (~1s later). Fix: call `completeFor` in the same tick that reaches zero and `return` — skip the dead "00:00" frame.
+
+**Sub-fix B — v2.17.65: bar holds static ~1.5s on window return**
+`_forceRepaint` suppressed `.complete` animation on every wake pass but only restored after 1500ms. Fix: restore infinite animations (`.complete`, `.ai-badge`, `.done-star`) on the very next `rAF` inside `_forceRepaint` itself.
+
+**Sub-fix C — v2.17.68: bar flashes 2–3× on window return**
+Sub-fix B's per-pass rAF created rapid suppress→restore cycles (each of the 4 passes suppressed then immediately restored). Fix: restore moved outside `_forceRepaint`; animations suppressed 0–500ms across all passes, then restored **once** at 520ms in a single external rAF. The 1500ms slow-GPU pass gets `skipAnimSuppression=true`.
+
+**Sub-fix D — v2.17.94: still one flash on window return (reported after C was verified)**
+Architectural dead end: with a CSS animation, every `display:none/block` repaint pass restarts it from keyframe 0 (opacity 1) — if the bar is mid-pulse (0.65) at wake, one visible jump is *guaranteed*; suppress/restore only relocates it. Fix: pulse converted to Web Animations API (`_pulseComplete(fillEl, on)` beside the fillEl definition; same approach as the v2.17.72 checkmark). A WAAPI timeline is unaffected by display toggles — measured continuous (opacity 0.766 → 0.760 across the exact `_forceRepaint` cycle, headless Chrome). CSS `timerCompletePulse` keyframes deleted; `.complete` removed from `_resumeAfterRepaint`; reduced-motion preference respected via `matchMedia` gate.
+
+**Verified fixed:** ✅ (Can, Jun 2026) — A–C verified earlier; D (WAAPI pulse) validated on device, no flash on window return.
+
+---
+
 ## BUG-030: Checkmark animation lags ~30s on iOS PWA open
 
 **Status:** Fixed v2.17.71/72 — verified ✅
