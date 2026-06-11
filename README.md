@@ -16,7 +16,8 @@ No due dates. No priorities. No ranking system. Just today's list, a focus timer
 - **Evening triage** — review undone tasks each night; keep, defer, or let go
 - **Morning nudge** — gentle reminder of tasks that carried over from yesterday
 - Track daily habits with a 21-day history strip and habit strength score
-- AI assistant (optional) — powered by Gemini (free) or Claude. Notices patterns, suggests focus, never lectures.
+- AI assistant (optional) — powered by Gemini Flash (free) or Claude Sonnet. Notices patterns, suggests focus, never lectures.
+- Daily poem — a human-written, public-domain poem in the About panel, rotating by day and season
 - Pull in cards from a Trello board so you don't re-enter work tasks
 - Focus mode — click any task to start a 25-minute Pomodoro with a Picture-in-Picture timer
 - Idle companions — small creatures that wander the screen when you step away
@@ -102,7 +103,7 @@ Trello pulls in cards from a board and list of your choice. Read-only.
 
 ### 4. Enable AI Assistant (optional)
 
-The AI assistant notices patterns in your day and suggests what to focus on next. Powered by Gemini 2.5 Flash (free) or Claude Sonnet.
+The AI assistant notices patterns in your day and suggests what to focus on next. Powered by Gemini Flash (free) or Claude Sonnet.
 
 1. Get an API key:
    - **Gemini (free):** [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
