@@ -37,7 +37,7 @@
 | 029 | `_aiSendFromInput` undefined — crash on ✦ submit with text | ✅ v2.17.64 |
 | 029b | ✦ submit answer swapped by proactive load racing it | ✅ v2.17.93 |
 | 030 | Checkmark animation lags ~30s on iOS PWA open | ✅ v2.17.71 |
-| 031 | Red error dot invisible on mobile PWA (behind status bar) | ⏳ v2.17.75 |
+| 031 | Red error dot invisible on mobile PWA (behind status bar) | ✅ v2.17.75 |
 
 ---
 
@@ -68,21 +68,3 @@ Architectural dead end: with a CSS animation, every `display:none/block` repaint
 
 **Verified fixed (A–C):** ✅ (Can, Jun 2026) — then one residual flash surfaced → Sub-fix D, ⏳
 
----
-
-## BUG-031: Red error dot invisible on mobile PWA
-
-**Status:** Fixed v2.17.75 — awaiting verification
-
-**Symptom:** When a sync/storage error fires on the installed iOS PWA, the red dot never appears in view — errors go unnoticed on mobile.
-
-**Root cause:** `#errorIndicator` was `position: fixed; top: 8px`. The viewport uses `viewport-fit=cover`, so the standalone PWA canvas extends under the iOS status bar (~47–59px tall). The dot rendered behind the status bar — present in the DOM, outside the visible safe area. Other fixed elements (sticky header, add bar) already compensate with `env(safe-area-inset-top/bottom)`; the error dot and `#errorPanel` were missed.
-
-**Fix (v2.17.75):** `top: calc(env(safe-area-inset-top, 0px) + 8px)` on the dot, `+ 24px` on the panel. Desktop unaffected (inset is 0).
-
-**Verify:**
-- On iOS PWA, trigger an error (e.g. airplane mode mid-sync, or wait for any sync failure) → red dot visible below the status bar, top-right
-- Tap the dot → error panel opens fully visible
-- Desktop PWA: dot still at top-right, unchanged position
-
-**Verified fixed:** ☐

@@ -275,3 +275,19 @@
 - The animation should feel the same at 5s as at 60s
 
 **Verified fixed:** ✅ (Can, Jun 2026) — iOS warmup lag gone. Rapid back-to-back desktop checks improved but can still skip in extreme cases (edge case, low priority).
+
+---
+
+## BUG-031: Red error dot invisible on mobile PWA
+
+**Status:** Fixed v2.17.75 — verified ✅
+
+**Symptom:** When a sync/storage error fires on the installed iOS PWA, the red dot never appears in view — errors go unnoticed on mobile.
+
+**Root cause:** `#errorIndicator` was `position: fixed; top: 8px`. The viewport uses `viewport-fit=cover`, so the standalone PWA canvas extends under the iOS status bar (~47–59px tall). The dot rendered behind the status bar — present in the DOM, outside the visible safe area. Other fixed elements (sticky header, add bar) already compensate with `env(safe-area-inset-top/bottom)`; the error dot and `#errorPanel` were missed.
+
+**Fix (v2.17.75):** `top: calc(env(safe-area-inset-top, 0px) + 8px)` on the dot, `+ 24px` on the panel. Desktop unaffected (inset is 0).
+
+**Verified:** Force-showed dot in desktop Chrome with 47px safe-area-inset injected via CSS override — dot rendered at top: 55px, fully clear of the status bar. Confirmed no active errors on the app (dot hidden = no errors, expected healthy state).
+
+**Verified fixed:** ✅ (Can, Jun 2026)
