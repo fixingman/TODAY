@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.17.70 · Jun 2026  
+> v2.17.98 · Jun 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -9,17 +9,18 @@
 
 | Metric | Value | Notes |
 |---|---|---|
-| Total file size | ~490 KB | Single HTML file — no build step |
-| Lines of code | 11,817 | +435 since last audit |
-| Event listeners | ~65 | +2 since v2.17.40 (offline online/offline, `_onWake` debounce) |
-| External scripts | 0 | No CDN, no analytics SDK |
+| index.html size | ~509 KB (149 KB gzip) | Single HTML file — no build step |
+| `assets/poems.js` | 19 KB (7 KB gzip) | New since v2.17.79 — daily poem corpus, SW-precached |
+| Lines of code | 12,101 (+430 poems.js) | +284 since last audit |
+| Event listeners | ~62 | Stable; grep-count method |
+| External scripts | 0 | poems.js is same-origin, SW-cached; no CDN, no analytics SDK |
 | External fonts loaded on first visit | 6 files | Self-hosted, pre-cached by SW after first load |
 | External fonts on repeat visits | 0 | All served from SW cache |
 | Google Fonts requests | 0 | Fonts are self-hosted — zero external pings |
 
 **@font-face declarations:** 9 total — 6 in main document (DM Mono ×3, Syne ×3), 2 injected into PiP window (DM Mono 300, Syne 700), 1 in offline fallback HTML in SW.
 
-**Assessment:** File grew from 476 KB to 490 KB since last audit. Major additions: weekly retrospective (daily history snapshots, 7-day grid), habitEvents LWW map (BUG-026), offline mode, focus timer bug fixes (BUG-024/025/027/028), `_onWake` debounce, design token additions. No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
+**Assessment:** index.html grew 490 → 509 KB since last audit. Major additions: daily poem feature (selection logic + render; corpus kept out of the main file in `assets/poems.js`), AI morning nudge, BUG-028D/029b/030b/031/032 fixes, mobile drag fixes. poems.js loads as a plain `<script>` before the main inline script — synchronous but tiny (7 KB gz) and SW-cached after first visit. No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
 
 ---
 
@@ -29,26 +30,26 @@
 
 | Metric | Count | Notes |
 |---|---|---|
-| `getElementById` | 188 | +9 (week grid, offline UI, checklist badge, Sunday block) |
-| `querySelector` | 47 | +4 |
-| `querySelectorAll` | 26 | +7 (animation audit, staleChildren filter) |
-| **Total DOM queries** | **261** | |
-| `innerHTML =` assignments | ~40 | Most in render functions, not hot paths |
+| `getElementById` | 192 | +4 (daily poem, splash-logo gate, nudge restore path) |
+| `querySelector` | 48 | +1 |
+| `querySelectorAll` | 26 | unchanged |
+| **Total DOM queries** | **266** | |
+| `innerHTML =` assignments | ~43 | Most in render functions, not hot paths |
 | Cached element usage | via `$` object | 26 elements cached at init in `_cacheElements()` |
 
-**Opportunity:** ~220 uncached queries remain. Most are in one-time render functions or low-frequency paths. Further caching adds complexity for minimal gain.
+**Opportunity:** ~225 uncached queries remain. Most are in one-time render functions or low-frequency paths. Further caching adds complexity for minimal gain.
 
 ### localStorage Inventory
 
 | Metric | Count | Notes |
 |---|---|---|
-| `localStorage.getItem` | 77 | +3 |
-| `localStorage.setItem` | 128 | +8 (habitEvents, daily history, focus date guard, streak date) |
-| Raw `JSON.parse(localStorage` | 0 | All reads go through `safeJSON()` |
+| `localStorage.getItem` | 80 | +3 |
+| `localStorage.setItem` | 133 | +5 (morning nudge restore path, AI nudge cache) |
+| Raw `JSON.parse(localStorage` | 0 outside `safeJSON()` | The single occurrence *is* the `safeJSON()` helper body |
 | `safeJSON()` call sites | ~47 | Centralises try/catch + fallback for all reads |
 | **Quota failures** | **caught (v2.17.70)** | `localStorage.setItem` wrapped globally; quota errors route to red dot |
 
-**New keys since v2.17.40:** `today_habit_events` (LWW map), `today_daily_history` (30-day snapshot), `stat_focus_mins_date` (BUG-024 guard), `stat_streak_date` (BUG-020 guard), `week_reflection_YYYY-MM-DD` (Sunday AI cache).
+**New keys since v2.17.71:** `morning_nudge_ai_YYYY-MM-DD` (morning nudge AI cache, one per day; prior days pruned on write). The poem feature adds **no** storage — selection is pure date math.
 
 ### Timer Inventory
 
@@ -64,9 +65,11 @@
 
 **setInterval count: 5** (unchanged)
 
-**setTimeout count: 63** (−1 since v2.17.40 — `_onWake` debounce eliminates one redundant 1500ms restore call)
+**setTimeout count: 64** (+1 — splash font-ready fallback already existed; net from misc fixes)
 
-**requestAnimationFrame count: 18** (+1 — `_onWake` single-restore rAF at 520ms). Includes: splash typewriter, star explosion, focus fill sync, PiP RAF clock, mobile input bar, mobile toolbar, celebration particles. All RAF loops exit when idle or on task completion.
+**requestAnimationFrame count: 18** (unchanged). Includes: splash typewriter, star explosion, focus fill sync, PiP RAF clock, mobile input bar, mobile toolbar, celebration particles. All RAF loops exit when idle or on task completion. **v2.17.97 closed a double-run hole:** when fonts loaded slowly, the splash typewriter rAF loop could start twice (`_splashStarted` guard added).
+
+**WAAPI animations: 2 sites** (`el.animate()`) — checkmark pop (v2.17.72) and completed-bar pulse (v2.17.94). Both compositor-driven, both survive `_forceRepaint` display toggles (the reason they exist); pulse cancelled explicitly via stored handle, no leak.
 
 ### Ticker (every 7s)
 - `syncAll()` → `_refreshSyncCache()` (2 localStorage reads) → `checkNewDay()` → `syncTrello()` → `syncDropbox()`
@@ -89,9 +92,10 @@
 ### CSS Token Health
 | Metric | Status |
 |---|---|
-| CSS custom properties in `:root` | 115 vars (v2.17.69) — added `--text-micro`, `--color-danger-pulse`, focus-timer aliases, highlight/muted utility tokens |
+| CSS custom properties in `:root` | 104 vars (brace-matched count, v2.17.98 — earlier 115 figure used a looser count) |
 | `transition: all` | 0 — all replaced with specific properties |
 | Hardcoded hex/rgba outside `:root` | 0 CSS violations — remaining hex: `<meta>` attribute, JS canvas constants, SVG `stroke` attribute, PiP `:root` literals (isolated document, intentional) |
+| Undefined-token uses | 0 — v2.17.98 audit caught `#triageBar` using nonexistent `--shadow-panel` (bar had silently lost its shadow); fixed to `--shadow-triage` |
 
 ### Memory
 - Ticker: single `setInterval` reference, cleared on hide.
@@ -180,28 +184,34 @@
 
 ---
 
-## 8. Recent Changes (v2.17.41 → v2.17.71)
+## 8. Recent Changes (v2.17.72 → v2.17.98)
 
 | Feature | Version | Performance Impact |
 |---|---|---|
-| Offline mode | 2.17.42 | `navigator.onLine` guard + `_applyOfflinePanel()`. Two event listeners (`online`/`offline`). Negligible. |
-| `habitEvents` LWW map | 2.17.53 | New `today_habit_events` key. O(n) merge per sync tick where n = habit×day entries (cap ~30d). |
-| Daily history snapshots | 2.17.55 | `today_daily_history` written once at midnight; 30-entry cap. `renderInfoStats()` reads it on About open. |
-| Trello `checklists=all` | 2.17.58 | Adds checklist data to existing cards API payload — slightly larger response, no extra request. |
-| Habits 3am rollover | 2.17.61 | `_habitNow()` = `Date.now() - 3h` on every habit-day read. Negligible. |
-| `renderTrello` stableChildren | 2.17.62 | `.filter(c => c.matches('.task[data-taskid]'))` — same cost as previous filter, more correct. |
-| BUG-028 `_forceRepaint` restore | 2.17.65/68 | Animations suppressed 0–520ms, single rAF restore. Removed extra 1500ms restore timeout. Net neutral. |
-| `_onWake` 200ms debounce | 2.17.69 | Eliminates duplicate wake sequence (8→4 repaint passes on desktop PWA). Small steady-state win. |
-| `--text-micro` token | 2.17.67 | Zero runtime cost — CSS token addition only. |
-| localStorage quota catch | 2.17.70 | Global `setItem` wrapper — try/catch cost on every write, negligible. |
-| BUG-030 checkmark `checkPop` | 2.17.71 | `stroke-dashoffset` → `transform+opacity` on svg. Compositor-animated, zero paint cost. Canvas pre-warm: one `clearRect` at 2s idle. |
+| Checkmark WAAPI (rapid checks) | 2.17.72 | CSS class anim → `el.animate()`. Compositor-driven; immune to display toggles. |
+| AI morning nudge | 2.17.73 | One AI call per day max, cached in `morning_nudge_ai_<date>`; silent rule-based fallback. Prior-day keys pruned on write. |
+| Error dot safe-area offset | 2.17.75 | CSS only (`env(safe-area-inset-top)`). Zero runtime cost. |
+| Daily poem | 2.17.79–89 | New 19 KB script (7 KB gz), SW-precached. Selection = pure date math; renders only on About open. No storage, no timers, no network. |
+| Touch-drag ghost fixes | 2.17.90–91 | `classList.add` vs className rebuild; CSS user-select guards. Negligible. |
+| Morning nudge second device | 2.17.92 | One O(n) filter over manual tasks inside the Dropbox restore handler (fires only on remote change). Negligible. |
+| AI request seq (`_aiReqSeq`) | 2.17.93 | **Perf win:** ✦-with-text no longer fires the proactive load — one fewer AI API call per submit. Stale responses dropped, no wasted renders. |
+| Completed-bar WAAPI pulse | 2.17.94 | CSS keyframe anim deleted; `el.animate()` handle cancelled on remove — no suppress/restore work in `_forceRepaint` for `.complete` anymore. Small wake-path win. |
+| Splash font gate + start guard | 2.17.97 | **Perf win:** typewriter rAF loop can no longer double-run on slow font loads. Letter animation deferred to fonts.ready — no fallback-font layout pass. |
+| Tokenisation fixes | 2.17.98 | CSS only. Zero runtime cost. |
 
 ---
 
-## 9. Historical Changes (v2.12.79 → v2.17.40)
+## 9. Historical Changes (v2.12.79 → v2.17.71)
 
 | Feature | Version | Impact |
 |---|---|---|
+| BUG-030 checkmark `checkPop` | 2.17.71 | `stroke-dashoffset` → `transform+opacity`. Compositor-animated. Canvas pre-warm at 2s idle. |
+| localStorage quota catch | 2.17.70 | Global `setItem` wrapper — negligible per-write cost. |
+| `_onWake` 200ms debounce | 2.17.69 | Duplicate wake sequence eliminated (8→4 repaint passes). |
+| BUG-028 `_forceRepaint` restore | 2.17.65/68 | Animations suppressed 0–520ms, single rAF restore. |
+| Habits 3am rollover / Trello checklists / daily history | 2.17.55–62 | All negligible — see git history for detail. |
+| `habitEvents` LWW map | 2.17.53 | O(n) merge per sync tick, ~30d cap. |
+| Offline mode | 2.17.42 | Two listeners (`online`/`offline`). Negligible. |
 | Splash rAF typewriter | 2.17.19 | rAF replaces setTimeout — frame-accurate |
 | BUG-019/021 splash DPR strip | 2.17.29 | Removed accumulating `sctx.scale()`. ~1.4s shorter splash. |
 | safeJSON + transition:all | 2.17.13 | 11 raw JSON.parse → safeJSON. 2 transition:all → specific. |
@@ -214,4 +224,4 @@
 
 ---
 
-*Last updated: v2.17.71 · Jun 2026*
+*Last updated: v2.17.98 · Jun 2026*
