@@ -1495,7 +1495,9 @@
     position: fixed;
     pointer-events: none;
     z-index: var(--z-overlay);
-    opacity: 0.85;
+    /* !important: the clone keeps .task (for flex layout), so age-fade rules
+       like .task[data-age-bucket="old"] would dim it — the card in hand stays solid */
+    opacity: 0.85 !important;
     box-shadow: var(--shadow-float);
     border-radius: var(--radius-lg);
     background: var(--surface2);
@@ -3173,12 +3175,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.89';
+const APP_VERSION   = '2.17.90';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.90': 'Fix: while dragging a task on mobile, the floating card no longer grows taller than the row it mirrors.',
   '2.17.89': 'More daily poems \u2014 Whitman\u2019s miracles, the blackbird whistling, stray birds of summer.',
   '2.17.88': 'Desiderata joins the daily poems \u2014 \u201cGo placidly amid the noise and the haste\u201d \u2014 plus more Stevens winter.',
   '2.17.87': 'Modern voices for every season \u2014 Wallace Stevens\u2019 snow, Millay\u2019s candle, Housman\u2019s cherry blossom.',
@@ -7008,7 +7011,10 @@ function _clearAllDone() {
   function _startGhost(row, touchX, touchY) {
     const rect = row.getBoundingClientRect();
     ghost = row.cloneNode(true);
-    ghost.className = 'touch-drag-ghost';
+    // Keep the row's own classes (.task/.habit) — they carry display:flex;
+    // replacing className made the clone block-stack its children, rendering
+    // the floating card ~45px taller than the row it mirrors.
+    ghost.classList.add('touch-drag-ghost');
     // Match source row width exactly
     ghost.style.width  = rect.width + 'px';
     ghost.style.padding = getComputedStyle(row).padding;
