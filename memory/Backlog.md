@@ -7,7 +7,7 @@
 
 ## ◎ North star (agreed Jun 2026)
 
-**Own the first 30 seconds of the day.** The morning is becoming TODAY's signature beat — nudge, poem, briefing. Roadmap items 1 and 2 serve it directly; everything else supports or follows. (Input bar discoverability shipped v2.17.99 toward the same goal.)
+**Own the first 30 seconds of the day.** The morning is becoming TODAY's signature beat — nudge, poem, briefing. Roadmap items 1 and 2 serve it directly; everything else supports or follows.
 
 ---
 
@@ -23,11 +23,11 @@
 | 6 | **Empty/peak states audit** | Not started | First-open, everything-done, brand-new-user. "Everything done" is the app's promise fulfilled — currently just an empty list. Polish session for a quiet week. |
 | 7 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 
-**Recently shipped, awaiting device verification:** input bar discoverability (v2.17.99) — placeholder hint, ✦ glow, one-time tip.
+**Awaiting device verification:** input bar discoverability (v2.17.99) · merge-anomaly counter line in Connections (v2.17.101–102).
 
 **Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months behavioural data + #1 learnings + #3 extraction done). Detail ↓
 
-**Parked:** idle companion artwork · AI prompt trimming · Trello checklist write-back. Detail ↓ (Merge-anomaly counter shipped v2.17.101 — count shows in Connections → Dropbox.)
+**Parked:** idle companion artwork · AI prompt trimming · Trello checklist write-back. Detail ↓
 
 ---
 
@@ -74,6 +74,7 @@
 | Decision | Current | Watch for |
 |----------|---------|-----------|
 | Modularization | Single file (~12K lines) + `assets/poems.js` | Roadmap #3 (module extraction) is the plan; smoke test already guards the boot path. Revisit harder if growth continues. |
+| Sync conflict rate | Merge-anomaly counter live since v2.17.101 (Connections → Dropbox) | If the count climbs above zero in normal use, revisit conflict handling before WEEK consumes the data. Zero for months = the "unhandled 1%" was theoretical. |
 
 ### Not implementing
 | Feature | Reason |
@@ -97,4 +98,4 @@
 
 ---
 
-*History (shipped features, fixed bugs) lives in `Changelog.md`, `archive/Changelog-archive.md`, and `archive/Bugs-archive.md` — intentionally not mirrored here. Last reorganised: v2.17.100 (Jun 2026 roadmap review).*
+*History (shipped features, fixed bugs) lives in `Changelog.md`, `archive/Changelog-archive.md`, and `archive/Bugs-archive.md` — intentionally not mirrored here. Last reorganised: v2.17.102 (Jun 2026 roadmap review).*
