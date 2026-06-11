@@ -2848,7 +2848,7 @@
       <!-- Provider selector -->
       <div class="ai-provider-row" style="margin-top:var(--space-3)">
         <button class="ai-provider-btn" id="aiProviderGemini" onclick="setAIProvider('gemini')">
-          Gemini 2.5 Flash <span class="ai-provider-badge">free</span>
+          Gemini Flash <span class="ai-provider-badge">free</span>
         </button>
         <button class="ai-provider-btn" id="aiProviderClaude" onclick="setAIProvider('claude')">
           Claude Sonnet
@@ -3174,12 +3174,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.94';
+const APP_VERSION   = '2.17.95';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.95': 'The AI provider label in Connections now reads “Gemini Flash” — no version number that goes stale.',
   '2.17.94': 'Fix: the completed focus bar no longer flashes when you come back to the window.',
   '2.17.93': 'Fix: asking the assistant from the input bar no longer gets its answer replaced moments later.',
   '2.17.92': 'Fix: the morning message now appears on every device, not just the first one you open.',
