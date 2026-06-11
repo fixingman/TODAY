@@ -589,14 +589,17 @@
   #splash-logo .l {
     display: inline-block;
     opacity: 0; transform: translateY(0.12em);
-    animation: splashLetterRise .4s var(--ease-out) forwards;
   }
+  /* Letters animate only after fonts are ready (.go set in startSplash) —
+     animating immediately rendered the fallback font, then the Syne swap
+     re-measured the centered flex column and visibly shifted the logo (BUG-032) */
+  #splash-logo.go .l { animation: splashLetterRise .4s var(--ease-out) forwards; }
   #splash-logo .l.a { color: var(--accent); }
-  #splash-logo .l:nth-child(1){animation-delay:.06s}
-  #splash-logo .l:nth-child(2){animation-delay:.10s}
-  #splash-logo .l:nth-child(3){animation-delay:.14s}
-  #splash-logo .l:nth-child(4){animation-delay:.18s}
-  #splash-logo .l:nth-child(5){animation-delay:.22s}
+  #splash-logo.go .l:nth-child(1){animation-delay:.06s}
+  #splash-logo.go .l:nth-child(2){animation-delay:.10s}
+  #splash-logo.go .l:nth-child(3){animation-delay:.14s}
+  #splash-logo.go .l:nth-child(4){animation-delay:.18s}
+  #splash-logo.go .l:nth-child(5){animation-delay:.22s}
 
   #splash-star {
     position: absolute; right: -0.28em; top: -0.2em;
@@ -3182,12 +3185,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.96';
+const APP_VERSION   = '2.17.97';
 const DEV_HOURS     = '210h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.97': 'Fix: the logo no longer shifts during the opening animation on mobile.',
   '2.17.96': 'Polish: title and buttons sit at the same height on the mobile app.',
   '2.17.95': 'The AI provider label in Connections now reads “Gemini Flash” — no version number that goes stale.',
   '2.17.94': 'Fix: the completed focus bar no longer flashes when you come back to the window.',
@@ -9343,9 +9347,17 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
   };
 
   // Wait for fonts to be truly ready before animating — prevents swap flash
+  let _splashStarted = false;
   const startSplash = () => {
+    // Guard: the 800ms fallback timeout and fonts.ready can BOTH fire when fonts
+    // are slow — second run restarted the typewriter mid-type (BUG-032)
+    if (_splashStarted) return;
+    _splashStarted = true;
     const star=document.getElementById('splash-star');
     if (!star) return;
+    // Logo letters rise only now — fonts are loaded, no fallback-font swap shift
+    const slogo=document.getElementById('splash-logo');
+    if (slogo) slogo.classList.add('go');
     star.style.transition='opacity .3s ease, transform .45s cubic-bezier(0.34,1.56,0.64,1)';
     star.style.opacity='1';
     star.style.transform='scale(1)';

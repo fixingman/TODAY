@@ -38,8 +38,30 @@
 | 029b | ✦ submit answer swapped by proactive load racing it | ✅ v2.17.93 |
 | 030 | Checkmark animation lags ~30s on iOS PWA open | ✅ v2.17.71 |
 | 031 | Red error dot invisible on mobile PWA (behind status bar) | ✅ v2.17.75 |
+| 032 | Splash logo shifts down before date typing starts (mobile) | ⏳ v2.17.97 |
 
 ---
 
-*Verified bugs → `archive/Bugs-archive.md`. No bugs currently awaiting verification.*
+*Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-032: Splash logo shifts down before date typing starts (mobile)
+
+**Status:** Fixed v2.17.97 — awaiting verification
+
+**Symptom:** Sometimes on mobile, the TODAY logo visibly shifts down during the splash, just before the date typewriter begins. Never seen on desktop.
+
+**Root cause (two parts):**
+1. The logo letters' rise animation started immediately from page render (CSS `animation-delay` from .06s), but the typewriter waits for `document.fonts.ready`. On mobile cold starts Syne isn't loaded yet, so the logo rendered in the fallback font; when Syne arrived the swap changed the logo block's metrics, and `#splash` (`justify-content: center`) re-centered the column — a visible shift right before typing starts. Desktop has fonts cached → never reproduces.
+2. `startSplash` could fire twice when fonts take >800ms: the fallback timeout fires it, then `fonts.ready.then()` fires it again (the `clearTimeout` only helps if fonts win the race) — restarting the star transition and double-running the typewriter rAF loop.
+
+**Fix (v2.17.97):** Letter-rise animation moved behind a `#splash-logo.go` gate; `startSplash` adds the class after fonts are ready, so the logo only ever renders in Syne. `_splashStarted` guard makes `startSplash` idempotent.
+
+**Verify:**
+- Mobile PWA cold start (force-quit first, ideally after clearing cache or on slow network) → logo rises once in place, no downward jump before the date types
+- Desktop: splash unchanged
+- Slow network (DevTools throttle): splash starts at ~800ms in fallback at worst, but never double-types the date
+
+**Verified fixed:** ☐
 
