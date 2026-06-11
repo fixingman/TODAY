@@ -68,6 +68,11 @@ Then read Tier 2 files relevant to the task (see `Rules.md` File Guide).
 - `index.html`: Update `DEV_HOURS` (add session time to current value)
 - `sw.js`: Update `CACHE_VERSION` to match `APP_VERSION`
 
+**Which digit (rule added Jun 2026 — 2.17.x ran 103 patches because this was undefined):**
+- **Minor (2.X.0):** a roadmap-level feature ships, or a deliberate chapter marker (e.g. daily poem should have been 2.18.0). When in doubt and it's a new user-visible capability → minor.
+- **Patch (2.x.N):** fixes, styles, copy, docs-driven code changes, corpus growth, telemetry.
+- Never bump retroactively; the next qualifying feature rolls the minor.
+
 ### 4. Commit Format
 ```
 type: brief description (vX.X.X)
