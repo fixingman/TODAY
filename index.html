@@ -3178,12 +3178,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.92';
+const APP_VERSION   = '2.17.93';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.93': 'Fix: asking the assistant from the input bar no longer gets its answer replaced moments later.',
   '2.17.92': 'Fix: the morning message now appears on every device, not just the first one you open.',
   '2.17.91': 'Fix: dragging Trello cards and habits on mobile no longer selects text along the way.',
   '2.17.90': 'Fix: while dragging a task on mobile, the floating card no longer grows taller than the row it mirrors.',
@@ -6789,7 +6790,7 @@ function handleBarSubmit() {
       // Text present → send to AI immediately, clear field
       input.value = '';
       toggleClearBtn();
-      if (!_aiPanelOpen) toggleAI();
+      if (!_aiPanelOpen) openAI(true); // skip auto-load — we send our own request next
       _aiSendFromInput(text);
     } else {
       // Empty → open/close AI panel to browse suggestions
@@ -9440,6 +9441,7 @@ if ('serviceWorker' in navigator && canRegisterSW) {
 
 let _aiPanelOpen = false;
 let _aiLoadedOnce = false; // prevent re-fetching if panel is toggled quickly
+let _aiReqSeq = 0; // monotonic request id — late responses from superseded requests are dropped (BUG-029b)
 let _aiThread = []; // in-session conversation history, cleared on panel close
 
 function _aiGetProvider() { return localStorage.getItem('today_ai_provider') || AI_DEFAULT_PROVIDER; }
@@ -9458,7 +9460,7 @@ function toggleAI() {
   _aiPanelOpen ? closeAI() : openAI();
 }
 
-function openAI() {
+function openAI(skipAutoLoad) {
   const panel = document.getElementById('aiPanel');
   if (!panel) return;
 
@@ -9484,9 +9486,13 @@ function openAI() {
 
   if (!_aiIsConfigured()) {
     _aiShowSetup();
-  } else {
+  } else if (!skipAutoLoad) {
     _aiLoadedOnce = false;
     _aiLoad();
+  } else {
+    // Caller is about to fire its own request (✦ submit with text) — don't
+    // start the proactive load; its late response would swap over the answer. (BUG-029b)
+    _aiLoadedOnce = true;
   }
 }
 
@@ -9544,6 +9550,7 @@ function _aiShowSetup() {
 async function _aiLoad() {
   if (_aiLoadedOnce) return;
   _aiLoadedOnce = true;
+  const _seq = ++_aiReqSeq;
 
   _aiSetThinking();
   _aiSetChips([]);
@@ -9594,6 +9601,7 @@ async function _aiLoad() {
       : [{ role: 'user', content: intro }];
 
     const result = await _aiCall(messages);
+    if (_seq !== _aiReqSeq) return; // superseded by a user question while in flight (BUG-029b)
     if (result) {
       // Use pre-set chips if we have them, otherwise use AI's chips
       if (deterministicChips) {
@@ -9607,6 +9615,7 @@ async function _aiLoad() {
       _showNlRow();
     }
   } catch(e) {
+    if (_seq !== _aiReqSeq) return; // superseded — don't paint a stale error either
     const errText = e.message || '';
     // Detect HTML in error (function not deployed)
     const isHtml   = errText.includes('<!DOCTYPE') || errText.includes('<html');
@@ -9877,16 +9886,20 @@ function _aiIntroMessage(ctx) {
 async function _aiSendFromInput(text) {
   if (!text) return;
   _aiLoadedOnce = true; // mark loaded so panel auto-load doesn't clobber our result
+  const _seq = ++_aiReqSeq;
   _aiSetThinking();
   _aiSetChips([]);
   try {
     _aiThread.push({ role: 'user', content: text });
     const result = await _aiCall([..._aiThread]);
+    if (_seq !== _aiReqSeq) return; // a newer request superseded this one (BUG-029b)
     if (result) {
       _aiRenderResult(result);
       if (result.message) _aiThread.push({ role: 'assistant', content: result.message });
+      _showNlRow(); // panel may have opened with auto-load skipped — ensure follow-up input shows
     }
   } catch(e) {
+    if (_seq !== _aiReqSeq) return;
     const errText = e.message || 'unknown';
     const isHtml = errText.includes('<!DOCTYPE') || errText.includes('<html');
     _aiSetMsg(isHtml ? 'Function not deployed' : 'Can\'t reach AI — ' + errText.slice(0, 50));
@@ -9899,16 +9912,19 @@ async function _aiAskFromPanel() {
   if (!text) return;
   input.value = '';
   _aiLoadedOnce = true; // prevent auto-reload
+  const _seq = ++_aiReqSeq;
   _aiSetThinking();
   _aiSetChips([]);
   try {
     _aiThread.push({ role: 'user', content: text });
     const result = await _aiCall([..._aiThread]);
+    if (_seq !== _aiReqSeq) return; // superseded (BUG-029b)
     if (result) {
       _aiRenderResult(result);
       if (result.message) _aiThread.push({ role: 'assistant', content: result.message });
     }
   } catch(e) {
+    if (_seq !== _aiReqSeq) return;
     const errText = e.message || 'unknown';
     const isHtml = errText.includes('<!DOCTYPE') || errText.includes('<html');
     _aiSetMsg(isHtml ? 'Function not deployed' : 'Can\'t reach AI — ' + errText.slice(0, 50));
