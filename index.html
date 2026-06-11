@@ -3200,12 +3200,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.100';
+const APP_VERSION   = '2.17.101';
 const DEV_HOURS     = '210h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.101': 'Sync now keeps a quiet count of cross-device conflicts it resolves — visible in Connections, next to the Dropbox status.',
   '2.17.100': 'Fix: a startup crash slipped into the previous build — caught by our new automatic pre-release test.',
   '2.17.99': 'The input bar now shows it can ask the assistant too — hint in the placeholder, a glow on ✦ while you type, and a one-time tip.',
   '2.17.98': 'Fix: the evening triage bar got its floating shadow back.',
@@ -5162,6 +5163,11 @@ function renderConnections() {
     const mins = Math.round((Date.now() - new Date(lastActivity).getTime()) / 60000);
     backupStatus = mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.round(mins/60)}h ago`;
   }
+  // Merge-anomaly telemetry — quiet count, only when conflicts have ever occurred
+  const _mergeAnomalies = safeJSON('today_merge_anomalies', []);
+  const anomalyNote = _mergeAnomalies.length
+    ? ` · ${_mergeAnomalies.length} conflict${_mergeAnomalies.length > 1 ? 's' : ''} resolved`
+    : '';
 
   // Both disconnected: side-by-side cards
   if (!trelloToken && !dropboxConnected) {
@@ -5247,7 +5253,7 @@ function renderConnections() {
       <div class="connection-row">
         <div class="connection-row-info">
           <span class="connection-row-title">Dropbox</span>
-          <span class="connection-row-status">${backupStatus ? 'Saved ' + backupStatus : 'Connected'}</span>
+          <span class="connection-row-status">${backupStatus ? 'Saved ' + backupStatus : 'Connected'}${anomalyNote}</span>
         </div>
         <div class="connection-row-actions">
           <button class="btn-sm" onclick="dropboxBackup()">Save</button>
@@ -8319,6 +8325,19 @@ async function dropboxBackup(silent) {
   }
 }
 
+// ── Merge-anomaly log — silent telemetry, NOT an error ───────────────────────
+// Records when union merge had to discard one device's intent (a true concurrent
+// change to the same task since the last sync read). The merge itself succeeded,
+// so this never touches the red dot — it just counts how often the theoretical
+// "unhandled 1%" of conflicts actually happens. Read: Connections → Dropbox row,
+// or localStorage `today_merge_anomalies` (latest 50). Local-only, not synced.
+function _logMergeAnomaly(kind, id, detail) {
+  const log = safeJSON('today_merge_anomalies', []);
+  log.unshift({ at: new Date().toISOString(), kind, id, detail });
+  localStorage.setItem('today_merge_anomalies', JSON.stringify(log.slice(0, 50)));
+  console.warn('[merge-anomaly] ' + kind + ' on ' + id, detail);
+}
+
 // ── Core merge logic — operates on a remote data object, no timestamp guard ───
 // Called by dropboxRestore(fromSync=true) AND by the offline-reconnect path.
 // Returns true if any state changed (so caller knows whether to push back to Dropbox).
@@ -8424,6 +8443,28 @@ function mergeRemoteData(data) {
       if (checkedAt > uncheckedAt) mergedDoneIds.add(id);
     }
   });
+
+  // ── Merge-anomaly detection — both devices changed the same task ──────────
+  // A real conflict = local AND remote each carry an op on the same task that is
+  // (a) newer than the last sync read and (b) not just the other side's echo
+  // (pushed ops come back with identical timestamps — those are excluded).
+  // Text edits aren't detectable (no per-edit timestamp) — done state + zones only.
+  const _anomalySince = localStorage.getItem('last_sync_read') || '';
+  if (_anomalySince) {
+    allEverTouched.forEach(id => {
+      const lc = localCheckedMap.get(id),   rc = remoteCheckedMap.get(id);
+      const lu = localUncheckedMap.get(id), ru = remoteUncheckedMap.get(id);
+      const localNew  = (lc && lc > _anomalySince && lc !== rc) || (lu && lu > _anomalySince && lu !== ru);
+      const remoteNew = (rc && rc > _anomalySince && rc !== lc) || (ru && ru > _anomalySince && ru !== lu);
+      if (localNew && remoteNew) _logMergeAnomaly('done-state', id, { lc, rc, lu, ru });
+    });
+    localZoneMap.forEach((lz, id) => {
+      const rz = remoteZoneMap.get(id);
+      if (rz && lz.at && rz.at && lz.at !== rz.at && lz.at > _anomalySince && rz.at > _anomalySince) {
+        _logMergeAnomaly('zone', id, { local: lz.zone + ' @ ' + lz.at, remote: rz.zone + ' @ ' + rz.at });
+      }
+    });
+  }
 
   // ── Habits: union merge with remote order preserved ─────────────────────
   const remoteHabits      = Array.isArray(data.habits)            ? data.habits            : [];

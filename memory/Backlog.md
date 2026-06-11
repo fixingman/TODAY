@@ -27,7 +27,7 @@
 
 **Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months behavioural data + #1 learnings + #3 extraction done). Detail ↓
 
-**Parked:** idle companion artwork · sync merge-anomaly counter · AI prompt trimming · Trello checklist write-back. Detail ↓
+**Parked:** idle companion artwork · AI prompt trimming · Trello checklist write-back. Detail ↓ (Merge-anomaly counter shipped v2.17.101 — count shows in Connections → Dropbox.)
 
 ---
 
@@ -63,7 +63,6 @@
 ## Parked / Someday
 
 - **Idle companion artwork** — higher-resolution creatures, consistency across the 7. Or reduce to one perfect creature. Revisit if they start mattering.
-- **Sync merge-anomaly counter** — cheap local log when both devices changed the same task; tells us whether the unhandled 1% of conflicts is real. Build before WEEK consumes the data.
 - **AI system-prompt trimming** — cost is <$0.01/day; only if token cost ever matters. Safe cuts: action-type descriptions, energy-awareness sub-bullets (~110 tokens). Never cut: task/habit lists with IDs, JSON rules, personality block.
 - **Trello checklist write-back** — bidirectional checklist editing. Today read-only badge (v2.17.58). Build only if editing is actually wanted.
 
