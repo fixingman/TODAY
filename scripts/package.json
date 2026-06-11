@@ -1,0 +1,8 @@
+{
+  "name": "today-scripts",
+  "private": true,
+  "description": "Dev-only tooling for TODAY — not part of the app",
+  "dependencies": {
+    "puppeteer-core": "^23.0.0"
+  }
+}

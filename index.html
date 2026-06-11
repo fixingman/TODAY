@@ -3200,12 +3200,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.99';
+const APP_VERSION   = '2.17.100';
 const DEV_HOURS     = '210h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.100': 'Fix: a startup crash slipped into the previous build — caught by our new automatic pre-release test.',
   '2.17.99': 'The input bar now shows it can ask the assistant too — hint in the placeholder, a glow on ✦ while you type, and a one-time tip.',
   '2.17.98': 'Fix: the evening triage bar got its floating shadow back.',
   '2.17.97': 'Fix: the logo no longer shifts during the opening animation on mobile.',
@@ -6810,6 +6811,8 @@ function handleBarKey(e) {
   }
 }
 
+let _aiPanelOpen = false; // declared here (not in the AI module) — init() needs it via _updateBarPlaceholder()
+
 // Input bar placeholder advertises the ✦ ask path once AI is connected —
 // the type-then-✦ flow is otherwise invisible (Backlog: input bar discoverability)
 function _updateBarPlaceholder() {
@@ -9494,7 +9497,8 @@ if ('serviceWorker' in navigator && canRegisterSW) {
 // Key: stored in localStorage, proxied through /.netlify/functions/ai-assist.
 // ══════════════════════════════════════════════════════════════════════════
 
-let _aiPanelOpen = false;
+// _aiPanelOpen is declared above handleBarSubmit — init() reads it via
+// _updateBarPlaceholder() before this module is reached.
 let _aiLoadedOnce = false; // prevent re-fetching if panel is toggled quickly
 let _aiReqSeq = 0; // monotonic request id — late responses from superseded requests are dropped (BUG-029b)
 let _aiThread = []; // in-session conversation history, cleared on panel close

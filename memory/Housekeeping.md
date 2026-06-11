@@ -150,6 +150,7 @@ After `str_replace`, the new content is known. No need to re-read the result unl
 
 ### Before Committing
 - [ ] Run syntax check: `node -e "const fs=require('fs');const c=fs.readFileSync('index.html','utf8');const s=c.slice(c.indexOf('<script>')+8,c.lastIndexOf('</script>'));try{new Function(s);console.log('OK')}catch(e){console.log('ERROR:',e.message)}"`
+- [ ] **Run smoke test** (any change touching index.html/sw.js/assets): `node scripts/smoke-test.mjs` — boots the app headless, splash dismisses, add+check a task, zero uncaught errors. ~10s. First-time setup: `cd scripts && npm install`. Caught a real boot-killing TDZ crash on its first ever run (v2.17.99 dev).
 - [ ] No console.log debugging left
 - [ ] No hardcoded test values (like 10s idle timer)
 - [ ] Version numbers match across files

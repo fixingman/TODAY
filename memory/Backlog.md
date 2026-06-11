@@ -17,7 +17,7 @@
 |---|------|--------|-------|
 | 1 | **Morning nudge — impressions week → iterate** | Shipped v2.17.73, collecting | Costs nothing, decides the AI-presence direction. Can collects real-morning impressions; then tune prompt/voice. Detail ↓ |
 | 2 | **Promote poem to a daily moment** | Not started | Highest delight-per-effort. Corpus built (66); today it's buried in About. Candidate: first open of the day, shown once, quietly. Original plan foresaw this promotion. Corpus growth continues in parallel — detail ↓ |
-| 3 | **Smoke-test script + module extraction** | Not started | Do **before** push/Todoist/WEEK. Headless boot/add/splash check runnable pre-push; extract more `assets/*.js` modules (poems.js proved the pattern). One session, pays on every session after. |
+| 3 | **Smoke-test script + module extraction** | Smoke test ✅ v2.17.100 | `scripts/smoke-test.mjs` — headless boot/splash/add/check, fails on uncaught errors; in the pre-commit routine (`Housekeeping.md`). Caught a boot-killing TDZ crash on first run. **Remaining:** module extraction (more `assets/*.js`; poems.js proved the pattern). |
 | 4 | **Input bar discoverability** | ✅ Shipped v2.17.99 | Placeholder hint when AI connected, ✦ glow while typing, one-time tip in panel. Awaiting verification on device. |
 | 5 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing, nothing else — marks day boundaries without chasing tasks. Needs server infra; after #3. Detail ↓ |
 | 6 | **WAAPI migration of remaining infinite animations** | Opportunistic | `.ai-badge`, `.done-star`, `errorPulse` → WAAPI, then **delete** the `_forceRepaint` suppress/restore machinery. Fold into the next session touching wake/repaint. |
