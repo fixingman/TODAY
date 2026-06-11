@@ -228,14 +228,10 @@
     }
     .focus-timer-fill.paused    { background: var(--accent-timer-paused); }
     /* Completed — fill turns accent (main CTA colour), pulses gently, clickable to restart */
+    /* Pulse is WAAPI-driven (see _pulseComplete) — survives _onWake repaint passes (BUG-028) */
     .focus-timer-fill.complete  {
       background: var(--accent);
-      animation: timerCompletePulse 1.8s ease-in-out infinite;
       cursor: pointer;
-    }
-    @keyframes timerCompletePulse {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.65; }
     }
 
     .focus-timer-time {
@@ -3178,12 +3174,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.93';
+const APP_VERSION   = '2.17.94';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.94': 'Fix: the completed focus bar no longer flashes when you come back to the window.',
   '2.17.93': 'Fix: asking the assistant from the input bar no longer gets its answer replaced moments later.',
   '2.17.92': 'Fix: the morning message now appears on every device, not just the first one you open.',
   '2.17.91': 'Fix: dragging Trello cards and habits on mobile no longer selects text along the way.',
@@ -8055,8 +8052,9 @@ window._onWake = function() {
   // Selectors for infinite animations that must be suppressed during each
   // display:none/block cycle but restored as soon as all passes are done.
   // .config-panel.open is excluded — it stays suppressed until next user-open (BUG-023).
+  // .complete is absent: the completed-bar pulse is WAAPI-driven (BUG-028) and
+  // survives display toggles — suppressing it would only reintroduce the flash.
   const _resumeAfterRepaint = [
-    '.complete',
     '.ai-badge',
     '.done-star',
     '#errorIndicator.open',
@@ -10988,6 +10986,22 @@ function _aiClearBadge() {
   const timeEl   = timerEl.querySelector('#focusTime');
   const pausedEl = timerEl.querySelector('#focusPaused');
 
+  // BUG-028 (final): the completed-bar pulse is driven by the Web Animations API,
+  // not a CSS animation. CSS animations restart from keyframe 0 on every
+  // display:none/block repaint pass in _onWake — a visible jump whenever the bar
+  // was mid-pulse. A WAAPI timeline is unaffected by display toggles, so the
+  // pulse needs no suppress/restore at wake (and cannot flash).
+  function _pulseComplete(el, on) {
+    if (!el) return;
+    if (el._pulseAnim) { el._pulseAnim.cancel(); el._pulseAnim = null; }
+    if (on && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      el._pulseAnim = el.animate(
+        [{ opacity: 1 }, { opacity: 0.65 }, { opacity: 1 }],
+        { duration: 1800, easing: 'ease-in-out', iterations: Infinity }
+      );
+    }
+  }
+
   // Click on timer bar to restart when complete
   timerEl.addEventListener('click', function(e) {
     if (!uiTaskId) return;
@@ -10996,6 +11010,7 @@ function _aiClearBadge() {
       // Timer complete — restart session
       e.stopPropagation(); // don't bubble to task click handler
       fillEl.classList.remove('complete');
+      _pulseComplete(fillEl, false);
       timeEl.classList.remove('complete');
       timerEl.classList.remove('complete');
       st.rem       = TOTAL;
@@ -11036,6 +11051,7 @@ function _aiClearBadge() {
     // Do NOT overwrite "again?" with fmt(0)="00:00" here. (BUG-025 extension)
     if (st.rem === 0 && !st.running) {
       fillEl.classList.add('complete');
+      _pulseComplete(fillEl, true);
       timeEl.classList.add('complete');
       timerEl.classList.add('complete');
       timeEl.textContent = 'again?';
@@ -11061,6 +11077,7 @@ function _aiClearBadge() {
 
     // Strip complete state — timerEl is reused; prior .complete bleeds into new session (BUG-022)
     fillEl.classList.remove('complete');
+    _pulseComplete(fillEl, false);
     timeEl.classList.remove('complete');
     timerEl.classList.remove('complete');
     // If the previous session completed (rem=0), clear state so syncDisplay shows fresh 25:00.
@@ -11170,6 +11187,7 @@ function _aiClearBadge() {
         clearState(closingTaskId);
         fillEl.style.transform = 'scaleX(0)';
         fillEl.classList.remove('complete');
+        _pulseComplete(fillEl, false);
         timeEl.textContent = fmt(TOTAL);
         timeEl.classList.remove('complete');
         setPaused(false);
@@ -11294,6 +11312,7 @@ function _aiClearBadge() {
       setProgress(1, uiTaskEl);
       setPaused(false);
       fillEl.classList.add('complete');
+      _pulseComplete(fillEl, true);
       timeEl.classList.add('complete');
       timerEl.classList.add('complete'); // cursor: pointer
       timeEl.textContent = 'again?';
@@ -11432,6 +11451,7 @@ function _aiClearBadge() {
       if (st.rem <= 0) {
         // Timer complete — one click restarts the session and logs the new one
         fillEl.classList.remove('complete');
+        _pulseComplete(fillEl, false);
         timeEl.classList.remove('complete');
         st.rem       = TOTAL;
         st.running   = true;
@@ -11751,6 +11771,7 @@ function _aiClearBadge() {
             this.textContent = 'Breathe';
             // Clear complete state from main UI — otherwise fill pulsates on restore (BUG-022)
             fillEl.classList.remove('complete');
+            _pulseComplete(fillEl, false);
             timeEl.classList.remove('complete');
             timerEl.classList.remove('complete');
             if (pipBarEl) pipBarEl.classList.remove('complete');
