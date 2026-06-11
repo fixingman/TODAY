@@ -1104,7 +1104,7 @@
     align-items: center;
     gap: var(--space-3);
     z-index: var(--z-modal);
-    box-shadow: var(--shadow-panel);
+    box-shadow: var(--shadow-triage);
     max-width: 90vw;
     cursor: pointer;
   }
@@ -1800,7 +1800,7 @@
   }
 
   .info-stat-label {
-    font-size: 10px;
+    font-size: var(--text-xs);
     color: var(--muted);
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -3185,12 +3185,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.97';
+const APP_VERSION   = '2.17.98';
 const DEV_HOURS     = '210h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.98': 'Fix: the evening triage bar got its floating shadow back.',
   '2.17.97': 'Fix: the logo no longer shifts during the opening animation on mobile.',
   '2.17.96': 'Polish: title and buttons sit at the same height on the mobile app.',
   '2.17.95': 'The AI provider label in Connections now reads “Gemini Flash” — no version number that goes stale.',
