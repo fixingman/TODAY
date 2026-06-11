@@ -1743,6 +1743,11 @@
     display: none;
   }
 
+  /* AI ask state — text in the bar that ✦ would send to the assistant */
+  .add-ai-btn.ask {
+    box-shadow: inset 0 0 0 1px var(--accent-glow);
+  }
+
   /* AI active state — panel open */
   .add-ai-btn.active {
     background: var(--surface2);
@@ -2702,6 +2707,15 @@
 
 
 
+  /* One-time discoverability tip — shown on first panel open only */
+  .ai-bar-tip {
+    margin-top: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--muted);
+    opacity: var(--opacity-muted);
+    letter-spacing: 0.02em;
+  }
+
   /* Natural language input row — shown after first chip interaction or typing */
   .ai-nl-row {
     display: flex;
@@ -3026,6 +3040,7 @@
         onkeydown="if(event.key==='Enter')_aiAskFromPanel()" />
       <button class="ai-nl-btn" onclick="_aiAskFromPanel()">→</button>
     </div>
+    <div class="ai-bar-tip" id="aiBarTip" style="display:none">tip — next time, type in the bar below and tap ✦ to ask directly</div>
   </div>
 </div>
 
@@ -3185,12 +3200,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.98';
+const APP_VERSION   = '2.17.99';
 const DEV_HOURS     = '210h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.99': 'The input bar now shows it can ask the assistant too — hint in the placeholder, a glow on ✦ while you type, and a one-time tip.',
   '2.17.98': 'Fix: the evening triage bar got its floating shadow back.',
   '2.17.97': 'Fix: the logo no longer shifts during the opening animation on mobile.',
   '2.17.96': 'Polish: title and buttons sit at the same height on the mobile app.',
@@ -4749,6 +4765,7 @@ function init() {
   renderManual();
   renderSoon();
   renderPast();
+  _updateBarPlaceholder();
   _cleanupDeletedIds();   // Remove invalid deleted_ids that match zone tasks
   _cleanupHabitEvents();  // Purge habit_events older than 30 days
   updateStats();
@@ -6793,6 +6810,16 @@ function handleBarKey(e) {
   }
 }
 
+// Input bar placeholder advertises the ✦ ask path once AI is connected —
+// the type-then-✦ flow is otherwise invisible (Backlog: input bar discoverability)
+function _updateBarPlaceholder() {
+  const input = document.getElementById('newTask');
+  if (!input || _aiPanelOpen) return;
+  input.placeholder = _aiIsConfigured()
+    ? 'Add a task — or ask ✦ anything'
+    : "What's on your mind?";
+}
+
 function handleBarSubmit() {
   const input = document.getElementById('newTask');
   const text  = (input?.value || '').trim();
@@ -7170,6 +7197,13 @@ function toggleClearBtn() {
   const input = document.getElementById('newTask');
   const btn   = document.getElementById('clearTaskBtn');
   if (btn) btn.style.display = input.value.length > 0 ? 'block' : 'none';
+  // ✦ shifts to its ask affordance while there's text it would send to the AI
+  const ai = document.getElementById('addAiBtn');
+  if (ai) {
+    const ask = input.value.length > 0 && _aiIsConfigured() && !_aiPanelOpen;
+    ai.classList.toggle('ask', ask);
+    ai.title = ask ? 'Ask ✦' : 'Ask anything';
+  }
 }
 
 function clearTaskInput() {
@@ -9501,7 +9535,15 @@ function openAI(skipAutoLoad) {
     input._origPlaceholder = input.placeholder;
     input.placeholder = 'Ask anything…';
   }
-  
+  toggleClearBtn(); // drop the ✦ ask affordance — panel is open now
+
+  // One-time tip: the bar-then-✦ path works without opening this panel first
+  if (_aiIsConfigured() && !localStorage.getItem('ai_bar_tip_seen')) {
+    localStorage.setItem('ai_bar_tip_seen', '1');
+    const tip = document.getElementById('aiBarTip');
+    if (tip) tip.style.display = 'block';
+  }
+
   syncActiveButtons();
   _haptic('medium');
 
@@ -9541,12 +9583,10 @@ function closeAI() {
   document.body.classList.remove('ai-chat-open');
   document.getElementById('addAiBtn')?.classList.remove('active');
   
-  // Restore input placeholder
-  const input = document.getElementById('newTask');
-  if (input && input._origPlaceholder) {
-    input.placeholder = input._origPlaceholder;
-  }
-  
+  // Restore input placeholder (recomputed — AI may have been connected mid-session)
+  _updateBarPlaceholder();
+  toggleClearBtn(); // refresh ✦ ask affordance for any text left in the bar
+
   syncActiveButtons();
 }
 
@@ -10645,6 +10685,7 @@ async function saveAIKey() {
     if (input) input.value = '';
     _aiViewingProvider = null; // reset — now viewing the connected provider
     _aiRenderConfig();
+    _updateBarPlaceholder();
 
   } catch(e) {
     // Network error — remove optimistic save
@@ -10659,6 +10700,7 @@ function clearAIKey() {
   localStorage.removeItem('today_ai_key');
   _aiViewingProvider = null; // reset to show current provider state
   _aiRenderConfig();
+  _updateBarPlaceholder();
 }
 
 // Esc closes panel
