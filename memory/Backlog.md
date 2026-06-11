@@ -7,7 +7,7 @@
 
 ## ◎ North star (agreed Jun 2026)
 
-**Own the first 30 seconds of the day.** The morning is becoming TODAY's signature beat — nudge, poem, briefing. Roadmap items 1, 2, 4 all serve it; everything else supports or follows.
+**Own the first 30 seconds of the day.** The morning is becoming TODAY's signature beat — nudge, poem, briefing. Roadmap items 1 and 2 serve it directly; everything else supports or follows. (Input bar discoverability shipped v2.17.99 toward the same goal.)
 
 ---
 
@@ -17,14 +17,15 @@
 |---|------|--------|-------|
 | 1 | **Morning nudge — impressions week → iterate** | Shipped v2.17.73, collecting | Costs nothing, decides the AI-presence direction. Can collects real-morning impressions; then tune prompt/voice. Detail ↓ |
 | 2 | **Promote poem to a daily moment** | Not started | Highest delight-per-effort. Corpus built (66); today it's buried in About. Candidate: first open of the day, shown once, quietly. Original plan foresaw this promotion. Corpus growth continues in parallel — detail ↓ |
-| 3 | **Smoke-test script + module extraction** | Smoke test ✅ v2.17.100 | `scripts/smoke-test.mjs` — headless boot/splash/add/check, fails on uncaught errors; in the pre-commit routine (`Housekeeping.md`). Caught a boot-killing TDZ crash on first run. **Remaining:** module extraction (more `assets/*.js`; poems.js proved the pattern). |
-| 4 | **Input bar discoverability** | ✅ Shipped v2.17.99 | Placeholder hint when AI connected, ✦ glow while typing, one-time tip in panel. Awaiting verification on device. |
-| 5 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing, nothing else — marks day boundaries without chasing tasks. Needs server infra; after #3. Detail ↓ |
-| 6 | **WAAPI migration of remaining infinite animations** | Opportunistic | `.ai-badge`, `.done-star`, `errorPulse` → WAAPI, then **delete** the `_forceRepaint` suppress/restore machinery. Fold into the next session touching wake/repaint. |
-| 7 | **Empty/peak states audit** | Not started | First-open, everything-done, brand-new-user. "Everything done" is the app's promise fulfilled — currently just an empty list. Polish session for a quiet week. |
-| 8 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
+| 3 | **Module extraction** | Not started | Pull more code out of index.html into `assets/*.js` (poems.js proved the pattern; no build step needed). The smoke test (shipped v2.17.100, in pre-commit routine) guards the boot path during extraction. |
+| 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing, nothing else — marks day boundaries without chasing tasks. Needs server infra. Detail ↓ |
+| 5 | **WAAPI migration of remaining infinite animations** | Opportunistic | `.ai-badge`, `.done-star`, `errorPulse` → WAAPI, then **delete** the `_forceRepaint` suppress/restore machinery. Fold into the next session touching wake/repaint. |
+| 6 | **Empty/peak states audit** | Not started | First-open, everything-done, brand-new-user. "Everything done" is the app's promise fulfilled — currently just an empty list. Polish session for a quiet week. |
+| 7 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 
-**Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months behavioural data + #1 learnings + #3 foundations). Detail ↓
+**Recently shipped, awaiting device verification:** input bar discoverability (v2.17.99) — placeholder hint, ✦ glow, one-time tip.
+
+**Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months behavioural data + #1 learnings + #3 extraction done). Detail ↓
 
 **Parked:** idle companion artwork · sync merge-anomaly counter · AI prompt trimming · Trello checklist write-back. Detail ↓
 
@@ -44,7 +45,7 @@
 **Future PD unlocks (Jan 1):** cummings 2033, Frost/WCW worldwide 2034, Eliot 2036.
 **Leads:** CC-licensed living poets (verify each license), Yeats 'Innisfree' + Bridges 'London Snow' (need verified sources), more Chamberlain haiku.
 
-### 5 · Push Notifications
+### 4 · Push Notifications
 **Platform:** iOS 16.4+ (installed PWA only) + Android. Web Push API + VAPID keys.
 **Stack:** `push` listener in `sw.js`, VAPID keys in Netlify env, two new Netlify functions (store subscription + scheduled send), permission UI in Connections panel.
 **Key constraint:** iOS has no background sync — notifications must be server-sent via Netlify Scheduled Functions. The app cannot self-schedule.
@@ -73,7 +74,7 @@
 ### Watching
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| Modularization | Single file (~12K lines) + `assets/poems.js` | Roadmap #3 starts the extraction. Revisit harder if growth continues. |
+| Modularization | Single file (~12K lines) + `assets/poems.js` | Roadmap #3 (module extraction) is the plan; smoke test already guards the boot path. Revisit harder if growth continues. |
 
 ### Not implementing
 | Feature | Reason |
@@ -97,4 +98,4 @@
 
 ---
 
-*History (shipped features, fixed bugs) lives in `Changelog.md`, `archive/Changelog-archive.md`, and `archive/Bugs-archive.md` — intentionally not mirrored here. Last reorganised: v2.17.98 (Jun 2026 roadmap review).*
+*History (shipped features, fixed bugs) lives in `Changelog.md`, `archive/Changelog-archive.md`, and `archive/Bugs-archive.md` — intentionally not mirrored here. Last reorganised: v2.17.100 (Jun 2026 roadmap review).*
