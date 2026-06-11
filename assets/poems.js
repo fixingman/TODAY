@@ -375,22 +375,35 @@ const POEMS = [
     source: "'Thirteen Ways of Looking at a Blackbird' XIII, Harmonium, 1923 (Gutenberg #78743)",
   },
   {
-    text: 'Look up . . .\nFrom bleakening hills\nBlows down the light, first breath\nOf wintry wind . . . look up, and scent\nThe snow!',
-    author: 'Adelaide Crapsey',
-    season: 'winter',
-    source: "'Snow', Verse, 1915 (Gutenberg #63010)",
-  },
-  {
-    text: 'Go placidly amid the noise and the haste,\nand remember what peace there may be in silence.',
-    author: 'Max Ehrmann',
-    season: null,
-    source: "'Desiderata', 1927 (d. 1945; PD by court ruling 1975 + expiry; verified via Wikisource)",
-  },
-  {
     text: 'You are a child of the universe\nno less than the trees and the stars;\nyou have a right to be here.\nAnd whether or not it is clear to you,\nno doubt the universe is unfolding as it should.',
     author: 'Max Ehrmann',
     season: null,
     source: "'Desiderata', 1927 (d. 1945; verified via Wikisource)",
+  },
+
+  {
+    text: 'I do not know which to prefer,\nThe beauty of inflections\nOr the beauty of innuendoes,\nThe blackbird whistling\nOr just after.',
+    author: 'Wallace Stevens',
+    season: null,
+    source: "'Thirteen Ways of Looking at a Blackbird' V, Harmonium, 1923 (Gutenberg #78743)",
+  },
+  {
+    text: 'Why, who makes much of a miracle?\nAs to me I know of nothing else but miracles,\nWhether I walk the streets of Manhattan,\nOr dart my sight over the roofs of houses toward the sky.',
+    author: 'Walt Whitman',
+    season: null,
+    source: "'Miracles', Leaves of Grass (Gutenberg #1322)",
+  },
+  {
+    text: "Give me the splendid silent sun with all his beams full-dazzling,\nGive me autumnal fruit ripe and red from the orchard,\nGive me a field where the unmow'd grass grows.",
+    author: 'Walt Whitman',
+    season: 'summer',
+    source: "'Give Me the Splendid Silent Sun', Leaves of Grass (Gutenberg #1322)",
+  },
+  {
+    text: 'Stray birds of summer come to my window to sing and fly away.\nAnd yellow leaves of autumn, which have no songs,\nflutter and fall there with a sigh.',
+    author: 'Rabindranath Tagore',
+    season: 'autumn',
+    source: 'Stray Birds 1, 1916 (Gutenberg #6524)',
   },
 
   // ── US public domain (pub. pre-1931; authors d. post-1956 → still under

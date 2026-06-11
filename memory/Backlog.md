@@ -14,7 +14,7 @@
 | **AI improvements** | In progress | AI morning nudge shipped v2.17.73 (awaiting impressions). Next: input bar discoverability, deeper personality. Detail ↓ |
 | **Keyboard shortcuts (desktop)** | Not started | Keyboard-first power-user flow. Needs UX exploration first. |
 | **Idle companion artwork** | Not started | Higher-resolution creatures, more visual consistency across the 7. |
-| **Daily poem corpus growth** | Round 9 shipped (v2.17.88 — Desiderata, more Stevens/Crapsey winter; corpus 64). Taste: spare modern free verse in, rhymed/pretty out | Grow `assets/poems.js` toward ~90. Winter thinnest (3 tagged) — weight next round. No PD modern-English Rumi exists (Barks etc. copyrighted); bundling it declined on copyright grounds via curation rounds in chat. Taste signal: cut bleak/ornate/cutesy, keep clear + light + affirming. PD rule: authors d. pre-1956 = safe worldwide; Can explicitly approved US-PD-only additions (WCW, Sandburg, Frost — v2.17.82). Winter is thinnest (3 tagged) — prioritise next round. |
+| **Daily poem corpus growth** | Round 10 shipped (v2.17.89 — Stevens V, Whitman Miracles/Sun, Tagore; corpus 66). Taste: spare modern free verse in, rhymed/pretty out | Grow `assets/poems.js` toward ~90. Winter thinnest (3 tagged) — weight next round. No PD modern-English Rumi exists (Barks etc. copyrighted); bundling it declined on copyright grounds via curation rounds in chat. Taste signal: cut bleak/ornate/cutesy, keep clear + light + affirming. PD rule: authors d. pre-1956 = safe worldwide; Can explicitly approved US-PD-only additions (WCW, Sandburg, Frost — v2.17.82). Winter is thinnest (3 tagged) — prioritise next round. |
 
 **Parked (see _Deferred_ below):** AI prompt trimming · WEEK companion · Trello checklist write-back.
 
