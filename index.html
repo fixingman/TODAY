@@ -1888,7 +1888,15 @@
 
     .header { margin-bottom: var(--space-3); }
     .btn-icon { width: 32px; height: 32px; font-size: var(--text-md); }
+  }
 
+  /* Mobile PWA only — align title and buttons vertically */
+  @media (max-width: 600px) and (display-mode: standalone) {
+    .header { align-items: center; }
+    .header-actions { margin-top: 0; }
+  }
+
+  @media (max-width: 600px) {
     /* Sticky add-task bar — fixed to bottom of viewport */
     .add-task-row {
       position: fixed;
@@ -3174,12 +3182,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.95';
+const APP_VERSION   = '2.17.96';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.96': 'Polish: title and buttons sit at the same height on the mobile app.',
   '2.17.95': 'The AI provider label in Connections now reads “Gemini Flash” — no version number that goes stale.',
   '2.17.94': 'Fix: the completed focus bar no longer flashes when you come back to the window.',
   '2.17.93': 'Fix: asking the assistant from the input bar no longer gets its answer replaced moments later.',
