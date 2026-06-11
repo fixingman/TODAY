@@ -12,15 +12,22 @@
 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — see `research/Integrations.md`. |
 | **Push notifications** | Not started | Medium effort. Server-sent (iOS can't self-schedule). Detail ↓ |
 | **AI improvements** | In progress | AI morning nudge shipped v2.17.73 (awaiting impressions). Next: input bar discoverability, deeper personality. Detail ↓ |
-| **Keyboard shortcuts (desktop)** | Not started | Keyboard-first power-user flow. Needs UX exploration first. |
 | **Idle companion artwork** | Not started | Higher-resolution creatures, more visual consistency across the 7. |
-| **Daily poem corpus growth** | Round 10 shipped (v2.17.89; corpus 66) | Grow `assets/poems.js` toward ~90 via curation rounds in chat (Claude proposes verified PD candidates, Can cuts by number). Taste signal: spare modern free verse + clear/light/affirming in; rhymed-quaint, ornate, cutesy, bleak out. Seasons balanced 6/7/6/6 (W/Sp/Su/Au). PD rules: authors d. pre-1956 safe worldwide; US-PD-only (pre-1931 pub, author d. post-1956) approved by Can v2.17.82 (WCW, Sandburg, Frost); no PD modern-English Rumi exists (declined to bundle copyrighted Barks). Future PD unlocks: cummings 2033, Frost/WCW worldwide 2034, Eliot 2036. Leads: CC-licensed living poets (verify each license), Yeats 'Innisfree' + Bridges 'London Snow' (need verified sources), more Chamberlain haiku. |
+| **Daily poem corpus growth** | Round 10 shipped (v2.17.89; corpus 66) | Grow toward ~90 via curation rounds in chat. Detail ↓ |
 
 **Parked (see _Deferred_ below):** AI prompt trimming · WEEK companion · Trello checklist write-back.
 
 ---
 
 ## Details (for the items that need it)
+
+### Daily Poem Corpus Growth
+**Process:** curation rounds in chat — Claude proposes verified public-domain candidates (text checked verbatim against Gutenberg/Wikisource, never from memory), Can cuts by number. Accepted poems land in `assets/poems.js`.
+**Taste signal (established over 10 rounds):** spare modern free verse + clear/light/affirming in; rhymed-quaint, ornate, cutesy, bleak out.
+**Seasons:** balanced 6/7/6/6 (W/Sp/Su/Au) as of round 10.
+**PD rules:** authors d. pre-1956 safe worldwide; US-PD-only (pre-1931 pub, author d. post-1956) approved by Can v2.17.82 (WCW, Sandburg, Frost); no PD modern-English Rumi exists (declined to bundle copyrighted Barks).
+**Future PD unlocks (Jan 1):** cummings 2033, Frost/WCW worldwide 2034, Eliot 2036.
+**Leads for next round:** CC-licensed living poets (verify each license), Yeats 'Innisfree' + Bridges 'London Snow' (need verified sources), more Chamberlain haiku.
 
 ### Push Notifications
 **Platform:** iOS 16.4+ (installed PWA only) + Android. Web Push API + VAPID keys.
@@ -68,6 +75,7 @@ At ~700–800 static + 50–400 dynamic tokens and personal usage (10–30 calls
 ### Not implementing
 | Feature | Reason |
 |---------|--------|
+| Keyboard shortcuts (desktop) | Dropped from backlog (Can, Jun 2026). No demonstrated need — revisit only if a real workflow gap shows up. |
 | Widget / Home Screen | Needs WidgetKit (iOS) or native Android — not reachable from a PWA. Revisit only with a native wrapper. |
 | Quick capture (without opening app) | No good cross-platform path. iOS has no PWA share target; Siri needs a native app. |
 | Microsoft Notes integration | No clear user need. |
@@ -86,4 +94,4 @@ At ~700–800 static + 50–400 dynamic tokens and personal usage (10–30 calls
 
 ---
 
-*History (shipped features, fixed bugs) lives in `Changelog.md`, `archive/Changelog-archive.md`, and `archive/Bugs-archive.md` — intentionally not mirrored here. Last reorganised: v2.17.62.*
+*History (shipped features, fixed bugs) lives in `Changelog.md`, `archive/Changelog-archive.md`, and `archive/Bugs-archive.md` — intentionally not mirrored here. Last reorganised: v2.17.98.*
