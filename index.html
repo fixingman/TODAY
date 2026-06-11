@@ -3178,12 +3178,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.91';
+const APP_VERSION   = '2.17.92';
 const DEV_HOURS     = '208h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.92': 'Fix: the morning message now appears on every device, not just the first one you open.',
   '2.17.91': 'Fix: dragging Trello cards and habits on mobile no longer selects text along the way.',
   '2.17.90': 'Fix: while dragging a task on mobile, the floating card no longer grows taller than the row it mirrors.',
   '2.17.89': 'More daily poems \u2014 Whitman\u2019s miracles, the blackbird whistling, stray birds of summer.',
@@ -8831,9 +8832,20 @@ async function dropboxRestore(fromSync) {
       renderManual();
       renderTrello();
       updateStats();
+      // The stamp below makes this device skip its new-day cleanup, which is also
+      // where morning_nudge_count (local-only) gets set — so the nudge only ever
+      // appeared on the first device to open in the morning. If this restore is the
+      // device's first open of the day, do that one piece of bookkeeping here,
+      // from the restored (freshest) state.
+      if (localStorage.getItem('stat_last_visit') !== _getAppDay()) {
+        const carried = manualTasks.filter(t => !doneIds.has(t.id)).length;
+        if (carried > 0) localStorage.setItem('morning_nudge_count', carried);
+        else localStorage.removeItem('morning_nudge_count');
+      }
       // Prevent checkNewDay() from running new-day cleanup on the next tick
       // and filtering done tasks out of the state we just restored.
       localStorage.setItem('stat_last_visit', _getAppDay());
+      if (typeof checkMorningNudge === 'function') checkMorningNudge();
       // Seed rev baseline so syncDropbox doesn't immediately re-merge on top of this restore
       if (window._dbxSetRev) {
         try {
