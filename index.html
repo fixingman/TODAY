@@ -1553,14 +1553,10 @@
   }
   
   /* Breathing star on "All done" — gentle reward pulse */
+  /* Breathe animation is WAAPI (_breathe at creation site) — survives _forceRepaint */
   .done-star {
     display: inline-block;
     color: var(--accent);
-    animation: starBreath 2.4s ease-in-out infinite;
-  }
-  @keyframes starBreath {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%      { opacity: 0.6; transform: scale(0.92); }
   }
 
 
@@ -1678,11 +1674,7 @@
     background: var(--accent);
     border-radius: 50%;
     pointer-events: none;
-    animation: aiBadgeBreath 2.4s ease-in-out infinite;
-  }
-  @keyframes aiBadgeBreath {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%      { opacity: 0.5; transform: scale(0.85); }
+    /* Breathe animation is WAAPI (_breathe in _aiProactiveSuggestion) — survives _forceRepaint */
   }
 
   /* On hover: widen to fit two then three stars via sequential keyframe */
@@ -2430,20 +2422,12 @@
     align-items: center;
   }
 
+  /* Blink animation is WAAPI (_breathe + _KF_BLINK, staggered at creation site) */
   .loading-dots span {
     width: 4px;
     height: 4px;
     border-radius: 50%;
     background: var(--highlight);
-    animation: blink 1.2s infinite;
-  }
-
-  .loading-dots span:nth-child(2) { animation-delay: var(--dur-base); }
-  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-  @keyframes blink {
-    0%, 80%, 100% { opacity: 0.2; }
-    40% { opacity: 1; }
   }
 
   /* Scrollbar */
@@ -2680,10 +2664,8 @@
   .ai-suggestion-msg.thinking {
     color: var(--muted);
   }
-  .ai-suggestion-msg.thinking::after {
-    content: '…';
-    animation: blink 1.2s infinite;
-  }
+  /* Ellipsis is a real span (.ai-thinking-dots) with a WAAPI blink — ::after
+     can't be animated via WAAPI and inline suppression never reached it anyway */
 
   /* Action chips — horizontal scroll on mobile */
   .ai-chips {
@@ -2766,21 +2748,16 @@
   /* ── Accessibility: Reduced Motion ─────────────────────────────────── */
   /* Respect user preference for reduced motion — skip decorative animations */
   @media (prefers-reduced-motion: reduce) {
-    /* Disable breathing/pulse animations */
-    .focus-timer-fill.complete,
-    .done-star,
-    .ai-badge,
-    .loading-dots span,
-    .ai-suggestion-msg.thinking::after {
-      animation: none !important;
-    }
-    
+    /* Breathing/pulse animations are WAAPI — their helpers (_breathe,
+       _pulseComplete) gate on this same media query in JS, so no CSS
+       suppression needed here. */
+
     /* Reduce transition durations */
     *, *::before, *::after {
       transition-duration: 0.01ms !important;
       animation-duration: 0.01ms !important;
     }
-    
+
     /* Keep essential state indicators visible */
     .focus-timer-fill.complete { opacity: 1; }
     .loading-dots span { opacity: 0.6; }
@@ -3209,12 +3186,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.102';
+const APP_VERSION   = '2.17.103';
 const DEV_HOURS     = '210h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.103': 'Under the hood: all pulsing animations now survive sleep/wake without flashing — and the workaround code they needed is gone.',
   '2.17.102': 'The sync-conflict count gets its own line under Dropbox — no more crowding the status on small screens.',
   '2.17.101': 'Sync now keeps a quiet count of cross-device conflicts it resolves — visible in Connections, next to the Dropbox status.',
   '2.17.100': 'Fix: a startup crash slipped into the previous build — caught by our new automatic pre-release test.',
@@ -3293,6 +3271,17 @@ function safeJSON(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
   catch(e) { return fallback; }
 }
+
+// Looping animations must be WAAPI, never CSS: _forceRepaint's display toggles
+// restart CSS animations from keyframe 0 (visible flash), a WAAPI timeline is
+// unaffected (BUG-028 lesson; same pattern as _pulseComplete in the focus module).
+// No cancel handle — every caller's element is removed/innerHTML-replaced when
+// its state ends, which discards the animation with it.
+function _breathe(el, keyframes, duration, delay) {
+  if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  el.animate(keyframes, { duration, delay: delay || 0, easing: 'ease-in-out', iterations: Infinity });
+}
+const _KF_BLINK = [{ opacity: 0.2 }, { opacity: 1, offset: 0.4 }, { opacity: 0.2, offset: 0.8 }, { opacity: 0.2 }];
 
 // App day boundary — tasks / triage / streak / focus roll over at midnight.
 // Habits roll over at 3am instead (see _habitTodayISO / _habitNow) — a deliberate,
@@ -5473,6 +5462,7 @@ async function loadTrello(fromSync) {
   const hasCachedTasks = trelloTasks.length > 0;
   if (!fromSync && !hasCachedTasks) {
     emptyEl.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span> Getting your cards…';
+    emptyEl.querySelectorAll('.loading-dots span').forEach((s, i) => _breathe(s, _KF_BLINK, 1200, [0, 180, 400][i]));
     emptyEl.style.display = 'block';
     listEl.innerHTML = '';
   }
@@ -6313,6 +6303,8 @@ function renderHabits() {
     empty.classList.add('show');
   } else if (allDoneToday) {
     empty.innerHTML = '<span class="done-star">✦</span> All done';
+    _breathe(empty.querySelector('.done-star'),
+      [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0.6, transform: 'scale(0.92)' }, { opacity: 1, transform: 'scale(1)' }], 2400);
     empty.classList.add('show');
   } else {
     empty.classList.remove('show');
@@ -6789,6 +6781,8 @@ function updateManualEmptyState(animate) {
 
   if (allDone) {
     empty.innerHTML = '<span class="done-star">✦</span> All done';
+    _breathe(empty.querySelector('.done-star'),
+      [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0.6, transform: 'scale(0.92)' }, { opacity: 1, transform: 'scale(1)' }], 2400);
     if (animate) {
       empty.style.opacity = '0';
       empty.style.display = 'block';
@@ -8118,22 +8112,15 @@ window._onWake = function() {
   // Run repaint immediately, on next rAF (GPU more likely ready), and after 500ms.
   // Clicking also restores it (user-interactive paints are prioritised) — these
   // deferred passes replicate that urgency without requiring user interaction.
-  // Selectors for infinite animations that must be suppressed during each
-  // display:none/block cycle but restored as soon as all passes are done.
-  // .config-panel.open is excluded — it stays suppressed until next user-open (BUG-023).
-  // .complete is absent: the completed-bar pulse is WAAPI-driven (BUG-028) and
-  // survives display toggles — suppressing it would only reintroduce the flash.
-  const _resumeAfterRepaint = [
-    '.ai-badge',
-    '.done-star',
-    '#errorIndicator.open',
-    '.loading-dots span',
-    '.ai-suggestion-msg.thinking',
-  ];
-
-  // skipAnimSuppression: true for the slow-GPU 1500ms pass — by then animations are
-  // already restored (at 520ms), and suppressing again would cause another flash. (BUG-028b)
-  function _forceRepaint(skipAnimSuppression) {
+  // All looping animations are WAAPI (_breathe / _pulseComplete) — their timelines
+  // survive the display toggles below, so no suppress/restore machinery is needed.
+  // (BUG-028 history: CSS animations restart from keyframe 0 on every toggle;
+  // four sub-fixes of suppress/restore tuning could only move the flash, never
+  // remove it. WAAPI removed it. The machinery was deleted in v2.17.103.)
+  // The one survivor: .config-panel.open's slide-up is a ONE-SHOT CSS animation
+  // that would replay on each pass (panels visibly flash, BUG-023) — suppress it;
+  // it's restored when the user next opens a panel.
+  function _forceRepaint() {
     const appEl = document.getElementById('main-app');
     if (!appEl) return;
     // Save scroll positions of all scrollable children before display:none
@@ -8144,13 +8131,7 @@ window._onWake = function() {
     appEl.style.display = 'none';
     void appEl.offsetHeight;
     appEl.style.display = '';
-    // Suppress animations that restart on display:none/block cycle.
-    // Do NOT restore per-pass — each suppress+restore cycle is a visible flash. (BUG-028b)
-    // Restoration is handled once externally at 520ms, after all normal passes are done.
-    if (!skipAnimSuppression) {
-      ['.config-panel.open', ..._resumeAfterRepaint]
-        .forEach(sel => appEl.querySelectorAll(sel).forEach(el => { el.style.animation = 'none'; }));
-    }
+    appEl.querySelectorAll('.config-panel.open').forEach(el => { el.style.animation = 'none'; });
     scrollPositions.forEach(({ el, top }) => { el.scrollTop = top; });
     window.scrollTo(0, appScroll);
   }
@@ -8160,18 +8141,8 @@ window._onWake = function() {
     requestAnimationFrame(_forceRepaint);
   });
   setTimeout(_forceRepaint, 500);
-  // Restore infinite animations once, after the 500ms pass has settled (one rAF delay).
-  // Suppressed from t=0 through ~520ms — imperceptible on a normal tab switch.
-  // .config-panel.open stays suppressed (BUG-023 pattern). (BUG-028)
-  setTimeout(() => {
-    requestAnimationFrame(() => {
-      const _a = document.getElementById('main-app');
-      if (_a) _resumeAfterRepaint.forEach(sel => _a.querySelectorAll(sel).forEach(el => { el.style.animation = ''; }));
-    });
-  }, 520);
-  // Extra pass for slow GPU wakeup after long sleep (BUG-004). Animations are already
-  // restored at 520ms so this pass skips suppression to avoid a late flash. (BUG-028b)
-  setTimeout(() => _forceRepaint(true), 1500);
+  // Extra pass for slow GPU wakeup after long sleep (BUG-004).
+  setTimeout(_forceRepaint, 1500);
 
   // Clear single-play animation classes that may be mid-flight at sleep time.
   // Removing the class cancels cleanly; the animation will re-play on next trigger.
@@ -10056,7 +10027,12 @@ function _aiRenderResult(result) {
 
 function _aiSetThinking() {
   const el = document.getElementById('aiSuggestionMsg');
-  if (el) { el.innerHTML = ''; el.className = 'ai-suggestion-msg thinking'; }
+  if (el) {
+    // Real span instead of ::after — WAAPI can't reliably target pseudo-elements
+    el.innerHTML = '<span class="ai-thinking-dots">…</span>';
+    el.className = 'ai-suggestion-msg thinking';
+    _breathe(el.querySelector('.ai-thinking-dots'), _KF_BLINK, 1200);
+  }
 }
 
 function _aiSetMsg(html) {
@@ -10979,6 +10955,8 @@ function _aiProactiveSuggestion() {
   const badge = document.createElement('span');
   badge.className = 'ai-badge';
   btn.appendChild(badge);
+  _breathe(badge,
+    [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0.5, transform: 'scale(0.85)' }, { opacity: 1, transform: 'scale(1)' }], 2400);
   _aiProactiveBadgeShown = true;
 }
 
@@ -11510,15 +11488,16 @@ function _aiClearBadge() {
         tickFor(taskId);
       }
     });
-    // If timer completed in the background, the fill's infinite CSS animation
-    // created a GPU compositor layer while hidden. On restore that layer can
-    // render at the wrong position, masking the task list ("blank" UI). Toggling
-    // animationPlayState forces the compositor to destroy and recreate the layer
-    // at the correct position. (BUG-004 recurrence)
+    // If timer completed in the background, the fill's pulse animation created
+    // a GPU compositor layer while hidden. On restore that layer can render at
+    // the wrong position, masking the task list ("blank" UI). Pause/resume the
+    // WAAPI pulse to force the compositor to recreate the layer at the correct
+    // position. (BUG-004 recurrence; pulse is WAAPI since v2.17.94 — the old
+    // animationPlayState toggle targeted the deleted CSS animation, a no-op.)
     const fill = document.getElementById('focusFill');
-    if (fill && fill.classList.contains('complete')) {
-      fill.style.animationPlayState = 'paused';
-      requestAnimationFrame(() => { fill.style.animationPlayState = ''; });
+    if (fill && fill._pulseAnim) {
+      fill._pulseAnim.pause();
+      requestAnimationFrame(() => { if (fill._pulseAnim) fill._pulseAnim.play(); });
     }
   });
 

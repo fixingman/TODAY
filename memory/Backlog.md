@@ -19,11 +19,10 @@
 | 2 | **Promote poem to a daily moment** | Not started | Highest delight-per-effort. Corpus built (66); today it's buried in About. Candidate: first open of the day, shown once, quietly. Original plan foresaw this promotion. Corpus growth continues in parallel — detail ↓ |
 | 3 | **Module extraction** | Not started | Pull more code out of index.html into `assets/*.js` (poems.js proved the pattern; no build step needed). The smoke test (shipped v2.17.100, in pre-commit routine) guards the boot path during extraction. |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing, nothing else — marks day boundaries without chasing tasks. Needs server infra. Detail ↓ |
-| 5 | **WAAPI migration of remaining infinite animations** | Opportunistic | `.ai-badge`, `.done-star`, `errorPulse` → WAAPI, then **delete** the `_forceRepaint` suppress/restore machinery. Fold into the next session touching wake/repaint. |
-| 6 | **Empty/peak states audit** | Not started | First-open, everything-done, brand-new-user. "Everything done" is the app's promise fulfilled — currently just an empty list. Polish session for a quiet week. |
-| 7 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
+| 5 | **Empty/peak states audit** | Not started | First-open, everything-done, brand-new-user. "Everything done" is the app's promise fulfilled — currently just an empty list. Polish session for a quiet week. |
+| 6 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 
-**Awaiting device verification:** input bar discoverability (v2.17.99) · merge-anomaly counter line in Connections (v2.17.101–102).
+**Awaiting device verification:** input bar discoverability (v2.17.99) · merge-anomaly counter line in Connections (v2.17.101–102) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep (v2.17.103).
 
 **Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months behavioural data + #1 learnings + #3 extraction done). Detail ↓
 

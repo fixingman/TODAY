@@ -89,10 +89,11 @@
 26. **`_cacheElements()` must run at START of `init()`** — before any rendering
 27. **All render paths must match `taskHTML()` features** — tags, badges, session counts, etc. Three places render tasks independently: `taskHTML()` (new tasks), `renderTrello()` patch path (existing Trello tasks, every 7s), and zone renderers (SOON/PAST). When adding a feature to `taskHTML()`, also add it to the Trello patch path and zone renderers.
 28. **Every code change requires memory review** — ask: "Does this affect documented behavior?" Update relevant memory files.
+29. **Looping animations → WAAPI (`_breathe`/`_pulseComplete`), never CSS** — `_forceRepaint` display toggles restart CSS animations from keyframe 0 (visible flash, unfixable by suppression — BUG-028 ×4). CSS is fine for one-shots. See `design/Motion.md`.
 
 ## Git Rules
 
-29. **Always work on `dev` branch** — never create feature branches unless explicitly asked
+30. **Always work on `dev` branch** — never create feature branches unless explicitly asked
 
 ## Non-Delegation Zones (require extra scrutiny)
 
