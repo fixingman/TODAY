@@ -2493,8 +2493,8 @@
     .week-dot:not(:nth-last-child(-n+7)) { display: none; }
     /* Tighter panel padding — gives back ~16px per side on narrow screens */
     .config-panel { padding: var(--space-3); }
-    /* Habit row: less horizontal padding, tighter column gap */
-    .habit { padding: var(--space-2) var(--space-3); gap: var(--space-2); grid-template-columns: 18px 1fr 65px auto; }
+    /* Habit row: less padding, tighter column gap */
+    .habit { padding: var(--space-1) var(--space-2); gap: var(--space-2); grid-template-columns: 18px 1fr 65px auto; }
   }
   .week-dot {
     width: 5px; height: 5px; border-radius: 50%;
@@ -3186,12 +3186,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.103';
+const APP_VERSION   = '2.17.104';
 const DEV_HOURS     = '210h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.104': 'Habit rows sit tighter on mobile — less padding, more list on screen.',
   '2.17.103': 'Under the hood: all pulsing animations now survive sleep/wake without flashing — and the workaround code they needed is gone.',
   '2.17.102': 'The sync-conflict count gets its own line under Dropbox — no more crowding the status on small screens.',
   '2.17.101': 'Sync now keeps a quiet count of cross-device conflicts it resolves — visible in Connections, next to the Dropbox status.',
