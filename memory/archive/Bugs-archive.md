@@ -287,14 +287,24 @@ Architectural dead end: with a CSS animation, every `display:none/block` repaint
 
 **Root cause B — canvas Metal pipeline cold:** The first `fireEmberDrift` call (first task check after open) triggers iOS Metal GPU shader compilation for the Canvas 2D context — a ~100-200ms one-time stall.
 
-**Fix:** Replaced `checkDraw` (stroke-dashoffset) with `checkPop` (`transform: scale + opacity` on the svg element). Both properties are compositor-animatable — they run on the GPU thread entirely separate from JS/JIT. Also added a 2s idle canvas pre-warm (`clearRect(0,0,1,1)`) in `init()` to trigger Metal compilation before the first tap.
-
-**Verify:**
-- Open the PWA fresh on iOS (force-quit first to ensure cold start)
-- Within the first 5 seconds, check a task → checkmark should pop in crisply with no stutter
-- The animation should feel the same at 5s as at 60s
+**Fix (v2.17.71/72):** Replaced `checkDraw` (stroke-dashoffset) with `checkPop` (`transform: scale + opacity` on the svg element). Both properties are compositor-animatable — they run on the GPU thread entirely separate from JS/JIT. Also added a 2s idle canvas pre-warm (`clearRect(0,0,1,1)`) in `init()` to trigger Metal compilation before the first tap.
 
 **Verified fixed:** ✅ (Can, Jun 2026) — iOS warmup lag gone. Rapid back-to-back desktop checks improved but can still skip in extreme cases (edge case, low priority).
+
+**Re-opened Jun 2026:** Can reported checkmark still janky and slow for first ~20s on iOS cold start. WAAPI animation itself was correct; two remaining warm-up gaps were found:
+
+**Root cause C — incomplete Metal pre-warm:** `clearRect(0,0,1,1)` only warms the basic Metal clear-rect shader. `fireEmberDrift` uses `createRadialGradient` + `arc`/`fill` + `fillText` — different shader types, each compiled on first use. These compiled mid-animation (during the 150ms `checkPop` WAAPI playback), causing GPU stalls that made the animation appear janky.
+
+**Root cause D — haptic switch element lazy DOM creation:** `_iosHaptic()` created `<input type="checkbox" switch>` and appended it to `document.body` on the very first `_haptic()` call (inside the task check handler, before `svg.animate()`). The DOM append + style recalc added latency on cold first tap.
+
+**Fix (v2.17.105):** Pre-warm now runs `createRadialGradient` + `arc`+`fill` + `fillText` at off-screen coordinates (-1000,-1000) during the same 2s idle timer, so all Metal shaders `fireEmberDrift` uses are cached before first tap. Haptic switch element moved to eager creation at IIFE init time, removing the DOM append from the hot path.
+
+**Verify:**
+- Force-quit iOS PWA, reopen cold
+- Within first 5 seconds, check a task → checkmark should pop crisply with no stutter or jank
+- Animation should feel identical at 5s and at 60s
+
+**Awaiting re-verification** (Can, Jun 2026)
 
 ---
 
