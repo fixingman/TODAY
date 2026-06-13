@@ -36,7 +36,7 @@
 | 028 | Completed bar flash/pause on window return (final: WAAPI pulse) | ✅ v2.17.94 |
 | 029 | `_aiSendFromInput` undefined — crash on ✦ submit with text | ✅ v2.17.64 |
 | 029b | ✦ submit answer swapped by proactive load racing it | ✅ v2.17.93 |
-| 030 | Checkmark animation lags ~30s on iOS PWA open | ✅ v2.17.71 |
+| 030 | Checkmark animation lags ~30s on iOS PWA open | ⏳ v2.17.105 — re-opened; awaiting re-verification (incomplete Metal pre-warm + haptic lazy init) |
 | 031 | Red error dot invisible on mobile PWA (behind status bar) | ✅ v2.17.75 |
 | 032 | Splash logo shifts down before date typing starts (mobile) | ⏳ v2.17.97 |
 
