@@ -3186,12 +3186,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.104';
+const APP_VERSION   = '2.17.105';
 const DEV_HOURS     = '210h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.105': 'Fix: BUG-030 checkmark jank on iOS cold start — pre-warm now exercises radial gradient + arc + fillText Metal shaders (not just clearRect); haptic switch element created eagerly so first tap skips the DOM append. Both gaps caused GPU stalls during the first ~20s.',
   '2.17.104': 'Habit rows sit tighter on mobile — less padding, more list on screen.',
   '2.17.103': 'Under the hood: all pulsing animations now survive sleep/wake without flashing — and the workaround code they needed is gone.',
   '2.17.102': 'The sync-conflict count gets its own line under Dropbox — no more crowding the status on small screens.',
@@ -4835,11 +4836,26 @@ function init() {
   }
 
   // Pre-warm celebCanvas GPU pipeline — on iOS the first canvas draw triggers
-  // Metal shader compilation (~100-200ms stall). Fire during idle so it's done
-  // before the user's first task check. (BUG-030)
+  // Metal shader compilation per draw-op type (~100-200ms stall each). Run all
+  // three op types fireEmberDrift uses (radialGradient+arc, fillText, clearRect)
+  // at an off-screen coordinate so shaders are cached before first task check. (BUG-030)
   setTimeout(function() {
     var c = document.getElementById('celebCanvas');
-    if (c) c.getContext('2d').clearRect(0, 0, 1, 1);
+    if (!c) return;
+    var ctx = c.getContext('2d');
+    var x = -1000, y = -1000;
+    // Radial gradient + arc fill (central flash + particle glow)
+    var g = ctx.createRadialGradient(x, y, 0, x, y, 10);
+    g.addColorStop(0, '#c8f06088');
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fill();
+    // fillText (particle characters)
+    ctx.font = "bold 12px 'DM Mono', monospace";
+    ctx.fillStyle = '#c8f060';
+    ctx.fillText('✦', x, y);
+    // clearRect (per-frame clear)
+    ctx.clearRect(0, 0, c.width, c.height);
   }, 2000);
 
 }
@@ -6026,18 +6042,18 @@ function _getAudioCtx() {
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const _hasVibrate = !_isIOS && typeof navigator.vibrate === 'function';
 
-  let _sw = null; // shared switch element for iOS haptics
+  // Create switch element eagerly — avoids DOM append cost on the first haptic call,
+  // which would otherwise delay svg.animate() on iOS cold start. (BUG-030)
+  const _sw = document.createElement('input');
+  _sw.type = 'checkbox';
+  _sw.setAttribute('switch', '');
+  // Must not be display:none/visibility:hidden — needs to exist in the render tree
+  _sw.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;' +
+    'opacity:0;pointer-events:none;margin:0;padding:0;border:none;outline:none;' +
+    '-webkit-appearance:none;appearance:none;';
+  document.body.appendChild(_sw);
+
   function _iosHaptic() {
-    if (!_sw) {
-      _sw = document.createElement('input');
-      _sw.type = 'checkbox';
-      _sw.setAttribute('switch', '');
-      // Must not be display:none/visibility:hidden — needs to exist in the render tree
-      _sw.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;' +
-        'opacity:0;pointer-events:none;margin:0;padding:0;border:none;outline:none;' +
-        '-webkit-appearance:none;appearance:none;';
-      document.body.appendChild(_sw);
-    }
     _sw.click(); // toggle fires system haptic — works because we're in user gesture stack
   }
 
