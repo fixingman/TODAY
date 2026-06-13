@@ -36,13 +36,36 @@
 | 028 | Completed bar flash/pause on window return (final: WAAPI pulse) | ✅ v2.17.94 |
 | 029 | `_aiSendFromInput` undefined — crash on ✦ submit with text | ✅ v2.17.64 |
 | 029b | ✦ submit answer swapped by proactive load racing it | ✅ v2.17.93 |
-| 030 | Checkmark animation lags ~30s on iOS PWA open | ⏳ v2.17.105 — re-opened; awaiting re-verification (incomplete Metal pre-warm + haptic lazy init) |
+| 030 | Checkmark animation lags ~30s on iOS PWA open | ⏳ v2.17.105 |
 | 031 | Red error dot invisible on mobile PWA (behind status bar) | ✅ v2.17.75 |
 | 032 | Splash logo shifts down before date typing starts (mobile) | ⏳ v2.17.97 |
 
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-030: Checkmark animation lags ~30s on iOS PWA open
+
+**Status:** Fixed v2.17.105 — awaiting re-verification
+
+**Symptom:** For the first ~20s after iOS cold start, checking a task produces a janky/stuttery checkmark animation. Smooth after ~20s.
+
+**History:** Originally fixed v2.17.71/72 (stroke-dashoffset → WAAPI transform+opacity + `clearRect` pre-warm). Re-opened Jun 2026 — jank still reproducible on device.
+
+**Root cause (remaining gaps after v2.17.71/72):**
+1. Canvas pre-warm only ran `clearRect(0,0,1,1)` — warms the clear-rect Metal shader but not `createRadialGradient`, `arc`/`fill`, or `fillText`. Those compiled mid-animation on first `celebAnimate` RAF frame, causing GPU stalls during the 150ms `checkPop` WAAPI playback.
+2. `_iosHaptic()` created `<input type="checkbox" switch>` lazily on first call — DOM append + style recalc inside the task check handler, before `svg.animate()`.
+
+**Fix (v2.17.105):** Pre-warm now runs all three draw op types at off-screen coordinates (-1000,-1000). Haptic switch element created eagerly at IIFE init time.
+
+**Verify:**
+- Force-quit iOS PWA, reopen cold
+- Within first 5 seconds, check a task → checkmark pops crisply, no stutter or jank
+- Should feel identical at 5s and at 60s
+
+**Verified fixed:** ☐
 
 ---
 

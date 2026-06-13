@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.79 (next)
-- **Recent:** About ℹ emoji fix (v2.17.78), offline banner accent colour (v2.17.77), task × mobile alignment (v2.17.76)
-- **Watch for:** BUG-028 + BUG-029 + BUG-031 awaiting Can's verification · AI morning nudge awaiting real-morning impressions (W3 day-14 follow-up) · move_soon: watch it stays explicit-ask-only, never proactive
+- **Working on:** v2.17.106 (next)
+- **Recent:** BUG-030 Metal pre-warm + haptic eager init (v2.17.105), habit row mobile padding (v2.17.104), WAAPI migration + suppress/restore deleted (v2.17.103)
+- **Watch for:** BUG-030 awaiting re-verification on iOS cold start · BUG-032 awaiting verification · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---
 
