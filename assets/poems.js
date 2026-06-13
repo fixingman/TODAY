@@ -161,7 +161,7 @@ const POEMS = [
   {
     text: "Life has loveliness to sell,\nAll beautiful and splendid things,\nBlue waves whitened on a cliff,\nSoaring fire that sways and sings,\nAnd children's faces looking up\nHolding wonder like a cup.",
     author: 'Sara Teasdale',
-    season: null,
+    season: 'summer',
     source: "'Barter', 1917 (d. 1933)",
   },
   {
@@ -320,7 +320,7 @@ const POEMS = [
   {
     text: "We cannot keep the gold of yesterday;\nTo-day's dun clouds we cannot roll away.",
     author: 'Li Po',
-    season: null,
+    season: 'autumn',
     source: "'Drifting', A Lute of Jade, trans. L. Cranmer-Byng, 1909 (Gutenberg #390; d. 1945)",
   },
   {
@@ -412,13 +412,13 @@ const POEMS = [
   {
     text: 'so much depends\nupon\na red wheel\nbarrow\nglazed with rain\nwater\nbeside the white\nchickens',
     author: 'William Carlos Williams',
-    season: null,
+    season: 'spring',
     source: 'Spring and All, 1923 (d. 1963 — US PD only)',
   },
   {
     text: 'The fog comes\non little cat feet.\nIt sits looking\nover harbor and city\non silent haunches\nand then moves on.',
     author: 'Carl Sandburg',
-    season: null,
+    season: 'autumn',
     source: "'Fog', Chicago Poems, 1916 (d. 1967 — US PD only)",
   },
   {
