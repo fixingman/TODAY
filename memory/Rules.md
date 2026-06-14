@@ -43,6 +43,9 @@
 | Performance | `Performance-audit.md` |
 | Historical bugs (verified, closed) | `archive/Bugs-archive.md` |
 | Full changelog history | `archive/Changelog-archive.md` |
+| Legacy architecture doc (pre-split) | `archive/Architecture.md` |
+| Legacy design doc (pre-split) | `archive/Design.md` |
+| Legacy research doc (pre-split) | `archive/Research.md` |
 
 ---
 
