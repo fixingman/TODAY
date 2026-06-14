@@ -4637,7 +4637,8 @@ function applyNewDayCleanup() {
   // Snapshot yesterday into rolling 30-day history (before counters reset)
   const focusMinsYesterday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
   const yesterdayISO = _localISO(yesterday);
-  const habitsKeptYesterday = habitsList.filter(h =>
+  const activeHabitsYesterday = habitsList.filter(h => !h.archived);
+  const habitsKeptYesterday = activeHabitsYesterday.filter(h =>
     (habitCompletions[h.id] || []).includes(yesterdayISO)
   ).length;
   const dailyHistory = safeJSON('today_daily_history', []);
@@ -4647,7 +4648,7 @@ function applyNewDayCleanup() {
       tasksDone: doneToday,
       focusMins: focusMinsYesterday,
       habitsKept: habitsKeptYesterday,
-      habitsTotal: habitsList.length,
+      habitsTotal: activeHabitsYesterday.length,
     });
     // Keep only the last 30 days
     dailyHistory.sort((a, b) => a.date.localeCompare(b.date));

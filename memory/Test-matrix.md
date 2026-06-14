@@ -193,7 +193,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 8.3 | Failed backup | Retry on tab focus |
 | 8.4 | Rapid sync (both devices) | No data loss |
 | 8.5 | Slow network (30s) | "Saving..." shown |
-| 8.6 | **localStorage quota exceeded** | Silent fail (gap) |
+| 8.6 | **localStorage quota exceeded** | Red dot shown with clear message (fixed v2.17.70) |
 | 8.7 | **localStorage disabled** | App loads, no persist |
 
 ### 9. Destructive Operations (4 tests)
