@@ -15,10 +15,10 @@
 | `today_deleted_ids` | JSON array | `{id, at}` — explicit deletes |
 | `today_checked_ids` | JSON array | `{id, at}` — explicit checks |
 | `today_unchecked_ids` | JSON array | `{id, at}` — explicit unchecks |
-| `today_habits` | JSON array | `{id, name, created_at, focusSessions?}` |
+| `today_habits` | JSON array | `{id, name, created_at, focusSessions?, archived?}` |
 | `today_habit_completions` | JSON object | `{habitId: ['YYYY-MM-DD', ...]}` |
 | `today_habit_events` | JSON object | `{"habitId::YYYY-MM-DD": {type: 'check'|'uncheck', at: ISO}}` — LWW map preventing sync from re-checking unchecked habits (BUG-026) |
-| `today_deleted_habit_ids` | JSON array | IDs of deleted habits |
+| `today_deleted_habit_ids` | JSON array | IDs of hard-deleted habits (no current UI path — archiving uses `archived:true` on the object instead) |
 
 ### Zones (v5.0)
 

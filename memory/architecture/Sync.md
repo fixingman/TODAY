@@ -120,7 +120,7 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   trello_config: {apiKey, apiToken, boardId, todayList},
   trello_order: ['trello_id1', 'trello_id2', ...],  // v5.2
   // Habits
-  habits: [{id, name, created_at, focusSessions?}, ...],
+  habits: [{id, name, created_at, focusSessions?, archived?}, ...],
   habit_completions: {habitId: ['YYYY-MM-DD', ...]},
   habit_events: {'habitId::YYYY-MM-DD': {type: 'check'|'uncheck', at: ISO}},  // LWW map — BUG-026
   deleted_habit_ids: ['id1', ...],
