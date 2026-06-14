@@ -20,7 +20,7 @@ el.animate(
 
 Why 1.8s: slower than heartbeat, calmer than urgency, matches breathing rhythm.
 
-**Looping animations must be WAAPI (`_breathe` / `_pulseComplete`), never CSS** (rule since v2.17.103). `_forceRepaint`'s `display:none/block` wake passes restart CSS animations from keyframe 0 — a guaranteed visible flash for anything mid-pulse; BUG-028 burned four sub-fixes proving suppress/restore can't hide it. A WAAPI timeline ignores display toggles. Both helpers gate on `prefers-reduced-motion` in JS. CSS animations remain correct for **one-shots** (slide-in, pop, ripple) — `_onWake` clears their classes mid-flight. The single CSS-suppression survivor in `_forceRepaint` is `.config-panel.open` (one-shot slide-up that would replay each pass, BUG-023). `#errorIndicator`'s `errorPulse` stays CSS by exception: it sits outside `#main-app`, untouched by repaint.
+**Looping animations must be WAAPI (`_breathe` / `_pulseComplete`), never CSS** (rule since v2.17.103). `_forceRepaint`'s `display:none/block` wake passes restart CSS animations from keyframe 0 — a guaranteed visible flash for anything mid-pulse; BUG-028 burned four sub-fixes proving suppress/restore can't hide it. A WAAPI timeline ignores display toggles. Both helpers gate on `prefers-reduced-motion` in JS. CSS animations remain correct for **one-shots** (slide-in, pop, ripple) — `_onWake` clears their classes mid-flight. The single CSS-suppression survivor in `_forceRepaint` is `.config-panel.open` (one-shot slide-up that would replay each pass, BUG-023). `#errorIndicator`'s `errorPulse` stays CSS by exception: it sits outside `#main-app`, untouched by repaint. Splash animations (`splashCursorBlink`, `splashStarBreath`) converted to WAAPI in v2.17.107 — migration complete.
 
 ---
 

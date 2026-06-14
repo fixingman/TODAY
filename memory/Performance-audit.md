@@ -71,7 +71,7 @@
 
 **requestAnimationFrame count: 17** (−1 — WAAPI migration in v2.17.103 removed one CSS animation management RAF pass)
 
-**WAAPI animations: 6 `el.animate()` call sites** (up from 2 — v2.17.103 migration added `_breathe` helper covering `.ai-badge`, `.done-star`, `.loading-dots span`, `.ai-thinking-dots`; `_pulseComplete` covers the focus bar). `_breathe`/`_pulseComplete`/`_pulseAnim` helper call sites: ~27. All compositor-driven; all survive `_forceRepaint` display toggles without flashing. Handles stored for `_pulseComplete` only (needs explicit cancel on remove); `_breathe` callers rely on element removal to discard the timeline.
+**WAAPI animations: 8 `el.animate()` call sites** (v2.17.103 migration: `_breathe` covering `.ai-badge`, `.done-star`, `.loading-dots span`, `.ai-thinking-dots`; `_pulseComplete` covers the focus bar; v2.17.107 added splash cursor blink + splash star breath). `_breathe`/`_pulseComplete`/`_pulseAnim` helper call sites: ~28. All compositor-driven; all survive `_forceRepaint` display toggles without flashing. Handles stored for `_pulseComplete` only (needs explicit cancel on remove); `_breathe` callers rely on element removal to discard the timeline.
 
 ### Ticker (every 7s)
 - `syncAll()` → `_refreshSyncCache()` (2 localStorage reads) → `checkNewDay()` → `syncTrello()` → `syncDropbox()`

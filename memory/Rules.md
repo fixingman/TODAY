@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.107 (next)
-- **Recent:** habit archive-on-delete (v2.17.106), BUG-030 Metal pre-warm + haptic eager init (v2.17.105), habit row mobile padding (v2.17.104)
+- **Working on:** v2.17.108 (next)
+- **Recent:** WAAPI splash migration complete — splashCursorBlink + splashStarBreath converted (v2.17.107), habit archive-on-delete (v2.17.106)
 - **Watch for:** BUG-030 awaiting re-verification on iOS cold start · BUG-032 awaiting verification · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---

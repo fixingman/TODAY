@@ -619,16 +619,9 @@
     background: var(--accent); vertical-align: middle; margin-left: 2px; opacity: 0;
   }
   #splash-cursor.on    { opacity: 1; }
-  #splash-cursor.blink { animation: splashCursorBlink .5s step-end infinite; }
-  #splash-cursor.off   { opacity: 0; animation: none; }
-
+  #splash-cursor.off   { opacity: 0; }
 
   @keyframes splashLetterRise  { to { opacity: 1; transform: translateY(0); } }
-  @keyframes splashCursorBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-  @keyframes splashStarBreath  {
-    0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
-    50%      { transform: scale(1.08) rotate(3deg); opacity: 0.8; }
-  }
 
 
 
@@ -3186,12 +3179,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.106';
+const APP_VERSION   = '2.17.107';
 const DEV_HOURS     = '211h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.107': 'Under the hood: splash star and cursor animations converted to WAAPI — completes the looping-animation migration started in v2.17.103.',
   '2.17.106': 'Deleting a habit now archives it instead — the × button hides the habit from view but keeps all completion history in the background.',
   '2.17.105': 'Fix: BUG-030 checkmark jank on iOS cold start — pre-warm now exercises radial gradient + arc + fillText Metal shaders (not just clearRect); haptic switch element created eagerly so first tap skips the DOM append. Both gaps caused GPU stalls during the first ~20s.',
   '2.17.104': 'Habit rows sit tighter on mobile — less padding, more list on screen.',
@@ -9364,7 +9358,8 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
       if (tidx < dateStr.length) {
         dateTxt.textContent = dateStr.slice(0, ++tidx);
       } else {
-        cursor.className = 'blink';
+        cursor.className = 'on';
+        cursor.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, easing: 'step-end', iterations: Infinity });
         setTimeout(() => { cursor.className = 'off'; window._onSplashAnimDone(); }, 500);
         return; // stop rAF loop
       }
@@ -9440,7 +9435,11 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     star.style.transition='opacity .3s ease, transform .45s cubic-bezier(0.34,1.56,0.64,1)';
     star.style.opacity='1';
     star.style.transform='scale(1)';
-    star.style.animation='splashStarBreath 3.2s ease-in-out .4s infinite';
+    _breathe(star, [
+      { transform: 'scale(1) rotate(0deg)',    opacity: 1   },
+      { transform: 'scale(1.08) rotate(3deg)', opacity: 0.8 },
+      { transform: 'scale(1) rotate(0deg)',    opacity: 1   }
+    ], 3200, 400);
     cursor.className='on';
     // Capture star center after transform+opacity transitions settle (450ms/300ms) — used as burst origin
     setTimeout(() => {
