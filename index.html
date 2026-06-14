@@ -6310,12 +6310,14 @@ function renderHabits() {
   const week = _getHabitDates();
   const todayISO = _habitTodayISO();
   
+  const activeHabits = habitsList.filter(h => !h.archived);
+
   // Check if all habits are done for today
-  const allDoneToday = habitsList.length > 0 && habitsList.every(h => 
+  const allDoneToday = activeHabits.length > 0 && activeHabits.every(h =>
     (habitCompletions[h.id] || []).includes(todayISO)
   );
-  
-  if (habitsList.length === 0) {
+
+  if (activeHabits.length === 0) {
     empty.textContent = 'No habits yet';
     empty.classList.add('show');
   } else if (allDoneToday) {
@@ -6327,10 +6329,10 @@ function renderHabits() {
     empty.classList.remove('show');
   }
   
-  if (editBtn) editBtn.style.display = habitsList.length > 0 ? '' : 'none';
+  if (editBtn) editBtn.style.display = activeHabits.length > 0 ? '' : 'none';
   list.innerHTML = '';
   const CHK = `<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-  habitsList.forEach(h => {
+  activeHabits.forEach(h => {
     const ds     = new Set(habitCompletions[h.id] || []);
     const isDone = ds.has(_habitTodayISO());
     const strength = _getHabitStrength(h.id);
@@ -6428,12 +6430,12 @@ function _enterHabitEditMode() {
     input.placeholder = 'Name the habit…';
     input.addEventListener('keydown', handleHabitEditKey);
     nameDiv.replaceWith(input);
-    // Swap streak div → delete button
+    // Swap streak div → archive button
     const del       = document.createElement('button');
     del.className   = 'habit-edit-delete';
     del.textContent = '×';
-    del.title       = 'Delete';
-    del.addEventListener('click', () => deleteHabit(id));
+    del.title       = 'Archive';
+    del.addEventListener('click', () => archiveHabit(id));
     streakDiv.replaceWith(del);
   });
   // Close new-habit input if open
@@ -6584,13 +6586,10 @@ function toggleHabitDone(id) {
   }
 }
 
-function deleteHabit(id) {
-  habitsList = habitsList.filter(h => h.id !== id);
-  delete habitCompletions[id];
-  // Track deletion so other devices remove it on next sync
-  const deleted = new Set(safeJSON('today_deleted_habit_ids', []));
-  deleted.add(id);
-  localStorage.setItem('today_deleted_habit_ids', JSON.stringify([...deleted]));
+function archiveHabit(id) {
+  const h = habitsList.find(h => h.id === id);
+  if (!h) return;
+  h.archived = true;
   _saveHabits();
   renderHabits();
   if (habitEditMode) _enterHabitEditMode();
