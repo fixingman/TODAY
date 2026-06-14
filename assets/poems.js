@@ -427,4 +427,16 @@ const POEMS = [
     season: 'spring',
     source: "'The Pasture', A Boy's Will, 1913 (d. 1963 — US PD only)",
   },
+  {
+    text: 'The way a crow\nShook down on me\nThe dust of snow\nFrom a hemlock tree\n\nHas given my heart\nA change of mood\nAnd saved some part\nOf a day I had rued.',
+    author: 'Robert Frost',
+    season: 'winter',
+    source: "'Dust of Snow', New Hampshire, 1923 (d. 1963 — US PD only; verified Gutenberg #58611)",
+  },
+  {
+    text: "Nature's first green is gold,\nHer hardest hue to hold.\nHer early leaf's a flower;\nBut only so an hour.\nThen leaf subsides to leaf.\nSo Eden sank to grief,\nSo dawn goes down to day.\nNothing gold can stay.",
+    author: 'Robert Frost',
+    season: null,
+    source: "'Nothing Gold Can Stay', New Hampshire, 1923 (d. 1963 — US PD only; verified Gutenberg #58611)",
+  },
 ];
