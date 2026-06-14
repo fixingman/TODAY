@@ -439,4 +439,16 @@ const POEMS = [
     season: null,
     source: "'Nothing Gold Can Stay', New Hampshire, 1923 (d. 1963 — US PD only; verified Gutenberg #58611)",
   },
+  {
+    text: 'My candle burns at both ends;\nIt will not last the night;\nBut ah, my foes, and oh, my friends—\nIt gives a lovely light!',
+    author: 'Edna St. Vincent Millay',
+    season: null,
+    source: "'First Fig', A Few Figs from Thistles, 1920 (d. 1950 — Worldwide PD; verified Wikisource)",
+  },
+  {
+    text: 'Whirl up, sea—\nwhirl your pointed pines,\nsplash your great pines\non our rocks,\nhurl your green over us,\ncover us with your pools of fir.',
+    author: 'H.D.',
+    season: null,
+    source: "'Oread', Sea Garden, 1916 (d. 1961 — US PD only; verified Gutenberg #30276 'Some Imagist Poets', 1915)",
+  },
 ];
