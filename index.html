@@ -3179,12 +3179,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.109';
+const APP_VERSION   = '2.17.110';
 const DEV_HOURS     = '211h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.110': 'Input bar placeholder shortened for mobile — "Add a task or ask ✦".',
   '2.17.109': 'About tab: README now appears above Changelog.',
   '2.17.108': 'Habit rows on mobile: vertical padding restored — only horizontal spacing was tightened.',
   '2.17.107': 'Under the hood: splash star and cursor animations converted to WAAPI — completes the looping-animation migration started in v2.17.103.',
@@ -6844,7 +6845,7 @@ function _updateBarPlaceholder() {
   const input = document.getElementById('newTask');
   if (!input || _aiPanelOpen) return;
   input.placeholder = _aiIsConfigured()
-    ? 'Add a task — or ask ✦ anything'
+    ? 'Add a task or ask ✦'
     : "What's on your mind?";
 }
 

@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.110** | **Input bar placeholder shortened** — "Add a task — or ask ✦ anything" → "Add a task or ask ✦" — fits mobile without truncation. |
 | **2.17.109** | **About tab — README above Changelog** — swapped section order so README (poem + install + coffee) appears first, Changelog below. |
 | **2.17.108** | **Mobile habit row padding correction** — v2.17.104 tightened both vertical and horizontal padding; vertical was unwanted. Reverted vertical to `space-2` (8px), horizontal stays at `space-2` (down from `space-3`). |
 | **2.17.107** | **WAAPI splash migration — looping animation conversion complete (v2.17.103 follow-up)** — `splashCursorBlink` CSS infinite → `cursor.animate([{opacity:1},{opacity:0}], {duration:500, easing:'step-end', iterations:Infinity})` at typewriter completion. `splashStarBreath` CSS inline style → `_breathe(star, [...], 3200, 400)` at splash init. Both `@keyframes` blocks deleted + `#splash-cursor.blink` CSS rule deleted. Splash elements are dismissed before `_appReady=true` so `_onWake` never touches them — conversion is rule compliance, not a risk fix. All infinite CSS loops now WAAPI except `errorPulse` (explicit exemption: outside `#main-app`, `_forceRepaint` never reaches it, documented in Motion.md). |
