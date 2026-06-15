@@ -3179,12 +3179,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.110';
+const APP_VERSION   = '2.17.111';
 const DEV_HOURS     = '211h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.111': 'Fix: morning nudge could mention a completed task by name if a stale sync re-added it after midnight cleanup. AI prompt now also excludes tasks already in PAST.',
   '2.17.110': 'Input bar placeholder shortened for mobile — "Add a task or ask ✦".',
   '2.17.109': 'About tab: README now appears above Changelog.',
   '2.17.108': 'Habit rows on mobile: vertical padding restored — only horizontal spacing was tightened.',
@@ -3665,8 +3666,11 @@ async function _fetchMorningNudgeAI(review, carriedOver) {
     }
 
     // Pending tasks with ages — names matter, that's what makes it personal
+    // Also exclude pastTasks IDs: if a done task re-enters manualTasks via stale sync
+    // after midnight cleanup clears doneIds, pastIds catches it defensively.
+    const _pastIds = new Set(pastTasks.map(t => t.id));
     const taskLines = manualTasks
-      .filter(t => !doneIds.has(t.id))
+      .filter(t => !doneIds.has(t.id) && !_pastIds.has(t.id))
       .slice(0, 6)
       .map(t => {
         const created = _getCreatedFromId(t.id);

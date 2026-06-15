@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.111** | **Fix: morning nudge AI mentioned completed task** — `_fetchMorningNudgeAI` now filters `taskLines` against both `doneIds` AND `pastTasks` IDs. After midnight cleanup, manual IDs are cleared from `doneIds`; if a stale Dropbox backup re-adds a done task to `manualTasks` before `pastIds` is checked, the old filter would include it in the AI prompt. |
 | **2.17.110** | **Input bar placeholder shortened** — "Add a task — or ask ✦ anything" → "Add a task or ask ✦" — fits mobile without truncation. |
 | **2.17.109** | **About tab — README above Changelog** — swapped section order so README (poem + install + coffee) appears first, Changelog below. |
 | **2.17.108** | **Mobile habit row padding correction** — v2.17.104 tightened both vertical and horizontal padding; vertical was unwanted. Reverted vertical to `space-2` (8px), horizontal stays at `space-2` (down from `space-3`). |
