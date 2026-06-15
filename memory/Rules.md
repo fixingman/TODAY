@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.112 (next)
-- **Recent:** morning nudge AI stale task fix (v2.17.111), input bar placeholder shortened (v2.17.110), About tab README/Changelog reorder (v2.17.109)
+- **Working on:** v2.17.113 (next)
+- **Recent:** BUG-032 splash logo shift refix (v2.17.112), morning nudge AI stale task fix (v2.17.111), input bar placeholder shortened (v2.17.110)
 - **Watch for:** BUG-030 awaiting re-verification on iOS cold start · BUG-032 awaiting verification · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---

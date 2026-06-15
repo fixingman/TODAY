@@ -38,7 +38,7 @@
 | 029b | ✦ submit answer swapped by proactive load racing it | ✅ v2.17.93 |
 | 030 | Checkmark animation lags ~30s on iOS PWA open | ⏳ v2.17.105 |
 | 031 | Red error dot invisible on mobile PWA (behind status bar) | ✅ v2.17.75 |
-| 032 | Splash logo shifts down before date typing starts (mobile) | ⏳ v2.17.97 |
+| 032 | Splash logo shifts down before date typing starts (mobile) | ⏳ v2.17.97, refix v2.17.112 |
 
 ---
 
@@ -71,7 +71,7 @@
 
 ## BUG-032: Splash logo shifts down before date typing starts (mobile)
 
-**Status:** Fixed v2.17.97 — awaiting verification
+**Status:** Refixed v2.17.112 — awaiting verification (v2.17.97 fix was insufficient)
 
 **Symptom:** Sometimes on mobile, the TODAY logo visibly shifts down during the splash, just before the date typewriter begins. Never seen on desktop.
 
@@ -81,10 +81,12 @@
 
 **Fix (v2.17.97):** Letter-rise animation moved behind a `#splash-logo.go` gate; `startSplash` adds the class after fonts are ready, so the logo only ever renders in Syne. `_splashStarted` guard makes `startSplash` idempotent.
 
+**Recurrence + refix (v2.17.112):** v2.17.97 gated `.go` on `document.fonts.ready`, but iOS Safari is known to resolve `.ready` *before* custom fonts actually paint on cold start. So `.go` revealed the letters in the fallback font and Syne swapped in a frame later; with `#splash-logo` at `line-height: 1` and tall Syne 800 glyphs, the swap repositions glyphs *within* the (constant-height) line box — the residual downward shift. Refix: gate on the specific faces via `document.fonts.load('800 96px Syne', 'TODAY')` + `document.fonts.load('300 13px "DM Mono"', 'JANUARY')` (`FontFaceSet.load()` resolves only when those faces are truly loaded — reliable on Safari), keeping the 800ms cap + `_splashStarted` guard. Also added `<link rel="preload">` for both splash woff2 files so they fetch before first paint. No CSS/structural change — column layout height was already font-family-independent (unitless line-heights on px sizes).
+
 **Verify:**
-- Mobile PWA cold start (force-quit first, ideally after clearing cache or on slow network) → logo rises once in place, no downward jump before the date types
+- Mobile PWA cold start (force-quit first, ideally after clearing cache or on slow network), repeat a few times (intermittent) → logo appears once in Syne, rises in place, no downward jump before the date types
 - Desktop: splash unchanged
-- Slow network (DevTools throttle): splash starts at ~800ms in fallback at worst, but never double-types the date
+- Slow network (DevTools throttle): splash starts at ~800ms cap at worst, never double-types the date
 
 **Verified fixed:** ☐
 

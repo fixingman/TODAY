@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>TODAY</title>
 <link rel="manifest" href="/manifest.json">
+<link rel="preload" as="font" type="font/woff2" crossorigin
+      href="/fonts/syne/syne-v24-latin_latin-ext-800.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin
+      href="/fonts/DM%20Mono/dm-mono-v16-latin-300.woff2">
 <meta name="description" content="Your focused daily task list.">
 <meta property="og:title" content="TODAY">
 <meta property="og:description" content="Your focused daily task list.">
@@ -3179,12 +3183,13 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.111';
+const APP_VERSION   = '2.17.112';
 const DEV_HOURS     = '211h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // ⚠️ Also update memory/Changelog.md — both must stay in sync
 const CHANGELOG = {
+  '2.17.112': 'Fix: BUG-032 splash logo shift on mobile (recurrence) — the splash now waits for the specific Syne + DM Mono faces via document.fonts.load() instead of the generic fonts.ready (which iOS Safari resolves early), and preloads both woff2 files. The logo renders once in Syne with no downward jump.',
   '2.17.111': 'Fix: morning nudge could mention a completed task by name if a stale sync re-added it after midnight cleanup. AI prompt now also excludes tasks already in PAST.',
   '2.17.110': 'Input bar placeholder shortened for mobile — "Add a task or ask ✦".',
   '2.17.109': 'About tab: README now appears above Changelog.',
@@ -9458,10 +9463,19 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     }, 600);
     requestAnimationFrame(typeFrame);
   };
-  if (document.fonts && document.fonts.ready) {
-    // Cap wait at 800ms so a slow network never stalls the splash indefinitely
+  if (document.fonts && document.fonts.load) {
+    // Wait for the SPECIFIC splash faces, not the generic document.fonts.ready —
+    // iOS Safari resolves .ready before custom fonts actually paint on cold start,
+    // so .ready could reveal the logo in the fallback font and Syne would swap in a
+    // frame later, shifting the glyphs within the line box (BUG-032 recurrence).
+    // FontFaceSet.load() resolves only when those faces are truly loaded.
+    // Cap wait at 800ms so a slow network never stalls the splash indefinitely.
     const fontTimeout = setTimeout(startSplash, 800);
-    document.fonts.ready.then(() => { clearTimeout(fontTimeout); startSplash(); });
+    Promise.all([
+      document.fonts.load('800 96px Syne', 'TODAY'),        // logo
+      document.fonts.load('300 13px "DM Mono"', 'JANUARY')  // date typewriter
+    ]).then(() => { clearTimeout(fontTimeout); startSplash(); })
+      .catch(() => { /* fall through to the 800ms timeout */ });
   } else {
     setTimeout(startSplash, 500);
   }

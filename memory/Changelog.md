@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.112** | **Fix: BUG-032 splash logo shift (recurrence)** — v2.17.97 gated the logo reveal on `document.fonts.ready`, but iOS Safari resolves `.ready` before custom fonts paint on cold start, so the logo revealed in the fallback font and Syne swapped in a frame later — repositioning the glyphs within the `line-height:1` box (visible downward jump). Now gates on `document.fonts.load('800 96px Syne', 'TODAY')` + `document.fonts.load('300 13px "DM Mono"', 'JANUARY')` (resolves only when those faces are truly loaded), with the 800ms cap + `_splashStarted` idempotency kept. Also added `<link rel="preload">` for both splash woff2 files so they fetch before first paint. Column layout height was already font-family-independent (unitless line-heights on px sizes), so no structural change needed. |
 | **2.17.111** | **Fix: morning nudge AI mentioned completed task** — `_fetchMorningNudgeAI` now filters `taskLines` against both `doneIds` AND `pastTasks` IDs. After midnight cleanup, manual IDs are cleared from `doneIds`; if a stale Dropbox backup re-adds a done task to `manualTasks` before `pastIds` is checked, the old filter would include it in the AI prompt. |
 | **2.17.110** | **Input bar placeholder shortened** — "Add a task — or ask ✦ anything" → "Add a task or ask ✦" — fits mobile without truncation. |
 | **2.17.109** | **About tab — README above Changelog** — swapped section order so README (poem + install + coffee) appears first, Changelog below. |
