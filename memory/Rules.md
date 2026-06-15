@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.108 (next)
-- **Recent:** WAAPI splash migration complete — splashCursorBlink + splashStarBreath converted (v2.17.107), habit archive-on-delete (v2.17.106)
+- **Working on:** v2.17.110 (next)
+- **Recent:** About tab README/Changelog reorder (v2.17.109), mobile habit padding correction (v2.17.108), WAAPI splash migration (v2.17.107)
 - **Watch for:** BUG-030 awaiting re-verification on iOS cold start · BUG-032 awaiting verification · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---
