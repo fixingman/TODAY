@@ -1962,7 +1962,7 @@
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    padding: 8px 12px;
+    padding: var(--space-2) var(--space-3);
     color: var(--text);
     font-family: var(--font-mono);
     font-size: var(--text-lg);
@@ -1976,7 +1976,7 @@
   }
 
   .config-input:focus { border-color: var(--highlight-ui); }
-  select.config-input { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6b78' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+  select.config-input { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6b78' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right var(--space-3) center; padding-right: var(--space-8); }
   select.config-input option { background: var(--surface); color: var(--text); }
   .config-input::placeholder { color: var(--muted); }
 
@@ -2011,7 +2011,7 @@
     font-family: var(--font-display);
     font-weight: 700;
     font-size: var(--text-sm2);
-    padding: 8px 16px;
+    padding: var(--space-2) var(--space-4);
     cursor: pointer;
     letter-spacing: 0.04em;
     transition: opacity var(--dur-fast);
@@ -2026,7 +2026,7 @@
     color: var(--muted);
     font-family: var(--font-mono);
     font-size: var(--text-sm2);
-    padding: 8px 14px;
+    padding: var(--space-2) var(--space-3);
     cursor: pointer;
     transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
   }
@@ -2037,7 +2037,7 @@
   /* ── Component: Status Messages ────────────────────────────────────── */
   .status-msg {
     font-size: var(--text-sm);
-    padding: 8px 12px;
+    padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-md);
     margin-top: var(--space-3);
     display: none;
@@ -2557,7 +2557,7 @@
   .habit-input {
     flex: 1; min-width: 0; background: var(--surface2);
     border: 1px solid var(--border); border-radius: var(--radius-lg);
-    padding: 10px 14px; color: var(--text);
+    padding: var(--space-3); color: var(--text);
     font-family: var(--font-mono); font-size: var(--text-lg);
     outline: none; transition: border-color var(--dur-fast);
   }
@@ -2566,7 +2566,7 @@
   .habit-add-btn {
     background: var(--accent); border: none; border-radius: var(--radius-lg);
     color: var(--bg); font-family: var(--font-display); font-weight: 700;
-    font-size: var(--text-base); padding: 0 18px; cursor: pointer;
+    font-size: var(--text-base); padding: 0 var(--space-4); cursor: pointer;
     transition: opacity var(--dur-fast); letter-spacing: 0.04em; white-space: nowrap;
   }
   .habit-add-btn:hover { opacity: var(--opacity-hover); }
@@ -3198,6 +3198,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.120': 'Tokens audit: all hardcoded px padding in panel/tab CSS replaced with spacing tokens.',
   '2.17.119': 'Fix: tokenise habit streak and × button widths — both now var(--space-8) instead of hardcoded 28px.',
   '2.17.118': 'About: streak metric moved first (was last); separator line removed above coffee/built-in footer; Psalm 118 removed from poem corpus.',
   '2.17.117': 'Fix: habit × button in edit mode now aligns vertically with the week dots.',
