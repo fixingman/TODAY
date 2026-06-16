@@ -291,12 +291,6 @@ const POEMS = [
     source: 'old rhyme of Persian descent, quoted in How to Stop Worrying',
   },
   {
-    text: 'This is the day which the Lord hath made;\nwe will rejoice and be glad in it.',
-    author: 'Psalm 118',
-    season: null,
-    source: 'King James Version, 1611',
-  },
-  {
     text: 'Our main business is not to see\nwhat lies dimly at a distance,\nbut to do what lies clearly at hand.',
     author: 'Thomas Carlyle',
     season: null,
