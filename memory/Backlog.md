@@ -22,7 +22,7 @@
 | 5 | **Empty/peak states audit** | Not started | First-open, everything-done, brand-new-user. "Everything done" is the app's promise fulfilled — currently just an empty list. Polish session for a quiet week. |
 | 6 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 
-**Awaiting device verification:** input bar discoverability (v2.17.99) · merge-anomaly counter line in Connections (v2.17.101–102) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep (v2.17.103).
+**Awaiting device verification:** WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep (v2.17.103). *(Recurring-surface verifications now live in the dated Wallpaper Test W3 table below, not here.)*
 
 **Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months behavioural data + #1 learnings + #3 extraction done). Detail ↓
 
@@ -74,6 +74,17 @@
 |----------|---------|-----------|
 | Modularization | Single file (~12K lines) + `assets/poems.js` | Roadmap #3 (module extraction) is the plan; smoke test already guards the boot path. Revisit harder if growth continues. |
 | Sync conflict rate | Merge-anomaly counter live since v2.17.101 (Connections → Dropbox) | If the count climbs above zero in normal use, revisit conflict handling before WEEK consumes the data. Zero for months = the "unhandled 1%" was theoretical. |
+
+### Wallpaper Test — W3 follow-ups (day-14 behavioral check)
+> Every recurring surface that passes W1–W2 at ship time lands here with a due date (ship + 14d).
+> On the due date: is it still delivering, or has the user stopped reading/tapping/opening it?
+> Resolve each row — **kept** (delivering), **iterated**, or **removed** (a valid outcome).
+
+| Surface | Shipped | W3 due | Status |
+|---------|---------|--------|--------|
+| Input bar discoverability (placeholder + ✦ glow + tip) | v2.17.99 | overdue — review now | Awaiting device impressions |
+| Merge-anomaly count line (Connections → Dropbox) | v2.17.101–102 | overdue — review now | Awaiting device impressions |
+| Morning nudge AI line | v2.17.73 | collecting (Roadmap #1) | Open — a week of real-morning impressions, then tune |
 
 ### Not implementing
 | Feature | Reason |

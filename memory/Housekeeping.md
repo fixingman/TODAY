@@ -47,7 +47,7 @@ Then read Tier 2 files relevant to the task (see `Rules.md` File Guide).
 
 ### 2. Review & Update Memory Files
 **Every change should trigger a memory review.** Ask: "Does this change affect any documented behavior?"
-**If the change adds/modifies a recurring surface** (message, badge, panel, animation, AI feature): run the Wallpaper Test gates W1–W2 (`Test-matrix.md` → Design Review Gate) and note the W3 day-14 follow-up in `Backlog.md`.
+**If the change adds/modifies a recurring surface** (message, badge, panel, animation, AI feature): run the Wallpaper Test gates W1–W2 (`Test-matrix.md` → Design Review Gate). **Passing W1–W2 creates a dated row in `Backlog.md` → Watching** — `Surface | shipped vX.X.X | W3 due <ship date + 14d>` — so the day-14 check is an artifact, not something to remember. The loop only closes when that row is resolved (kept / iterated / removed).
 - Bug fix → `Bugs.md` (update status, add verification steps)
 - New rule → `Rules.md`
 - Data/localStorage change → `architecture/Data.md`
@@ -64,17 +64,37 @@ Then read Tier 2 files relevant to the task (see `Rules.md` File Guide).
 - Prototype work → `Backlog.md`
 
 ### 3. Version Bump
-- `index.html`: Update `APP_VERSION`
+- `index.html`: **`APP_VERSION` is derived** — `Object.keys(CHANGELOG)[0]`. Don't hand-type it;
+  add the new entry at the **top** of the `CHANGELOG` object and it follows automatically.
 - `index.html`: Update `DEV_HOURS` (add session time to current value)
-- `sw.js`: Update `CACHE_VERSION` to match `APP_VERSION`
+- `sw.js`: Update `CACHE_VERSION` to `today-v{newest version}` — the one value still hand-synced.
+  The smoke test asserts it matches and fails the pre-commit gate on drift, so it can't be forgotten.
 
-**Which digit → `Rules.md` § Version Bumping (vA.BB.CC).** Patch = fix/polish; minor = new feature, new UI section, new integration (reset CC to 0); major = breaking/redesign/migration. Consult the table **before** writing the new number — 2.17.x ran 103 patches (Jun 2026) because bumps were done reflexively without checking it; the daily poem should have been 2.18.0. No retroactive renumbering — the next qualifying feature rolls the minor.
+**Which digit → `Rules.md` § Version Bumping (vA.BB.CC).** Consult the table **before** writing the
+new number — 2.17.x ran 100+ patches (Jun 2026) because bumps were done reflexively without checking
+it; the daily poem should have been 2.18.0. No retroactive renumbering — the next qualifying feature
+rolls the minor.
+
+**Commit type → segment** (so the type and the bump never disagree):
+
+| Commit type | Segment | |
+|---|---|---|
+| `feat` | **BB** (minor) | new feature / UI section / integration — reset CC to 0 |
+| `fix` `refactor` `style` `chore` `docs` | **CC** (patch) | fix / polish / cleanup / docs |
+| breaking / redesign / migration | **A** (major) | reset BB and CC to 0 |
+
+**Mixed commit → the highest applicable segment wins** (a feat+fix is a minor). When in doubt,
+round up — a patch that should have been a minor is the cheaper mistake than the reverse.
 
 ### 4. Commit Format
 ```
 type: brief description (vX.X.X)
 ```
-Types: `feat`, `fix`, `docs`, `refactor`, `style`
+Types: `feat`, `fix`, `docs`, `refactor`, `style`, `chore`
+
+**Committing and pushing are human-gated** — prep the bump/changelog/doc updates automatically, but
+wait for Can to say "push." When he does, push to `dev` (per `Rules.md` § Operating Mode) without
+re-asking the branch. See `Rules.md` § Operating Mode for the full discipline-vs-gate split.
 
 ### 5. Reflect
 - What broke or was harder than expected?

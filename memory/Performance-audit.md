@@ -141,12 +141,25 @@
 ## 4. Privacy
 
 - **No analytics in app code.** No user events, task content, or identifiers sent anywhere.
-- **Netlify RUM** may be injected server-side (page-load timing only). Ad blockers prevent it.
 - **Task content never leaves the device** except via explicit Dropbox sync to user's own account.
 - Triage history stays local (50 entries max) — used only for AI hint patterns.
 - AI conversation thread cleared on panel close — not persisted beyond last 3 session summaries.
 - Trello tokens scoped to `read` only.
 - **No cookies set by app code.**
+
+### Egress table — every destination data leaves to
+
+> The audit value is destination-by-destination: what leaves, to whom, when, carrying what.
+> Everything below is user-initiated (connect a service, ask ✦) except RUM. No third destination exists.
+
+| Destination | Data sent | When | Notes |
+|---|---|---|---|
+| **Dropbox API** (`*.dropboxapi.com`) | Full backup JSON — tasks, habits, completions, zones, stats | On sync tick (7s) only if local state changed; on manual backup | User's own Dropbox account. PKCE OAuth, no app secret on client. Content never seen by us. |
+| **Trello API** (`api.trello.com`) | OAuth token + board/list IDs (outbound); receives card data | On sync tick if `dateLastActivity` changed | Token scoped `read` only. Inbound card text is the user's own Trello content. |
+| **Netlify AI proxy** (same-origin function) | Prompt text (task names, ages, streak, yesterday's review) + provider AI key | Only on an ✦ call or the daily morning-nudge fetch | Key stored in localStorage, relayed server-side to the provider; never to a third party from the client. One nudge call/day max, cached. |
+| **Netlify RUM** (server-injected) | Page-load timing only — no user content, no identifiers | Page load, if not ad-blocked | The only non-user-initiated egress. Injected server-side; ad blockers prevent it. |
+
+**Stays local, never egresses:** triage history, merge-anomaly log, AI conversation thread, daily history (`today_daily_history`), all `*_seen`/preference flags.
 
 ---
 

@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.113 (next)
-- **Recent:** BUG-032 splash logo shift refix (v2.17.112), morning nudge AI stale task fix (v2.17.111), input bar placeholder shortened (v2.17.110)
+- **Working on:** v2.17.114 (next)
+- **Recent:** version single-source + smoke-test guard, working-doc adoption from Cooked feedback (v2.17.113), BUG-032 splash logo shift refix (v2.17.112), morning nudge AI stale task fix (v2.17.111)
 - **Watch for:** BUG-030 awaiting re-verification on iOS cold start · BUG-032 awaiting verification · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---
@@ -93,6 +93,21 @@
 27. **All render paths must match `taskHTML()` features** — tags, badges, session counts, etc. Three places render tasks independently: `taskHTML()` (new tasks), `renderTrello()` patch path (existing Trello tasks, every 7s), and zone renderers (SOON/PAST). When adding a feature to `taskHTML()`, also add it to the Trello patch path and zone renderers.
 28. **Every code change requires memory review** — ask: "Does this affect documented behavior?" Update relevant memory files.
 29. **Looping animations → WAAPI (`_breathe`/`_pulseComplete`), never CSS** — `_forceRepaint` display toggles restart CSS animations from keyframe 0 (visible flash, unfixable by suppression — BUG-028 ×4). CSS is fine for one-shots. See `design/Motion.md`.
+
+## Operating Mode (how routines run)
+
+**Discipline runs automatically; commits/pushes are human-gated.** The version bump, *both*
+changelogs, and affected-doc updates are part of any code change — they run unprompted, not
+when a trigger phrase like "are you following rules md?" is spoken. A trigger phrase invokes a
+routine *on demand*; it is never the precondition for doing the right thing. Conversely,
+**committing and pushing wait for Can to say so** — but once he does, push to `dev` without
+re-asking the branch (that decision is already made). Don't ask permission to follow the rules;
+don't push without being asked.
+
+**Derive, don't duplicate.** `APP_VERSION` is derived from the newest `CHANGELOG` key
+(`Object.keys(CHANGELOG)[0]`) — only edit the changelog. `sw.js` `CACHE_VERSION` is the one
+value that genuinely can't derive (separate SW context, no build) — the smoke test asserts it
+matches, so drift fails the pre-commit gate instead of shipping a stale cache.
 
 ## Git Rules
 

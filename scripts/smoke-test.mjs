@@ -14,6 +14,25 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+// ── 0. Version-consistency guard (cheap, runs before launching Chrome) ────────
+// index.html derives APP_VERSION from the newest CHANGELOG key; sw.js CACHE_VERSION
+// is the one value that can't be derived (separate SW context, no build step). Assert
+// they match so a forgotten cache bump fails the pre-commit gate instead of shipping
+// a stale offline cache. "Derive, don't duplicate — guard what you must hand-sync."
+{
+  const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
+  const swSrc    = await readFile(join(ROOT, 'sw.js'), 'utf8');
+  const appVer   = indexSrc.match(/'(\d+\.\d+\.\d+)':/)?.[1];        // newest CHANGELOG key
+  const cacheVer = swSrc.match(/CACHE_VERSION\s*=\s*'today-v([\d.]+)'/)?.[1];
+  if (!appVer)   { console.error('✗ FAIL — could not read newest CHANGELOG version from index.html'); process.exit(1); }
+  if (!cacheVer) { console.error('✗ FAIL — could not read CACHE_VERSION from sw.js'); process.exit(1); }
+  if (appVer !== cacheVer) {
+    console.error(`✗ FAIL — version drift: index.html APP_VERSION=${appVer} but sw.js CACHE_VERSION=today-v${cacheVer}. Bump sw.js to match.`);
+    process.exit(1);
+  }
+  console.log(`  ✓ version consistent (v${appVer})`);
+}
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 let puppeteer;
@@ -57,7 +76,13 @@ try {
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 800 });
 
-  // Any uncaught exception in app code is an automatic fail
+  // Any uncaught exception in app code is an automatic fail.
+  // "Fail on any pageerror" is naive in a React/Next app (recoverable hydration warnings,
+  // 3rd-party net noise) — but it's correct HERE: single-file app, no hydration, no
+  // external scripts, and we listen to `pageerror` (uncaught exceptions) not `console`,
+  // so favicon/404/missing-Netlify-function noise can't trip it. The real white-screen
+  // net is the `waitForFunction` add-bar wait below — a fatal init error leaves the page
+  // blank and trips that timeout, which is more reliable than error-string matching.
   const pageErrors = [];
   page.on('pageerror', e => pageErrors.push(e.message));
 

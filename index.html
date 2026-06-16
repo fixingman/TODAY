@@ -3183,12 +3183,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const APP_VERSION   = '2.17.112';
-const DEV_HOURS     = '211h';
+const DEV_HOURS     = '212h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
-// ⚠️ Also update memory/Changelog.md — both must stay in sync
+// Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
+// derivation below the object). Only edit the changelog — APP_VERSION follows it,
+// so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.113': 'Under the hood: the in-app version number is now derived from the changelog (one source, no hand-syncing), and a pre-commit check guards the offline-cache version. Housekeeping/working-doc updates.',
   '2.17.112': 'Fix: BUG-032 splash logo shift on mobile (recurrence) — the splash now waits for the specific Syne + DM Mono faces via document.fonts.load() instead of the generic fonts.ready (which iOS Safari resolves early), and preloads both woff2 files. The logo renders once in Syne with no downward jump.',
   '2.17.111': 'Fix: morning nudge could mention a completed task by name if a stale sync re-added it after midnight cleanup. AI prompt now also excludes tasks already in PAST.',
   '2.17.110': 'Input bar placeholder shortened for mobile — "Add a task or ask ✦".',
@@ -3270,6 +3272,13 @@ const CHANGELOG = {
   '2.17.34': 'Delight: checkmark stroke-draw (SVG dashoffset) | streak milestone pulse at 7/14/30/60/100d | habit consecutive-run dot ripple cascade.',
   '2.17.33': 'Fix: Undo delete restores task to its original position in the list.',
 };
+
+// Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
+// keys are dotted strings (not array-index-like), so JS preserves insertion order and
+// [0] is the entry we add at the top. sw.js CACHE_VERSION can't import this (separate
+// SW context, no build step) — it's the one value still hand-synced, and the smoke
+// test asserts it matches (scripts/smoke-test.mjs). Per "derive, don't duplicate".
+const APP_VERSION = Object.keys(CHANGELOG)[0];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 // Safe JSON parsing with fallback — avoids try/catch boilerplate everywhere

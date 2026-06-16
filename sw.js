@@ -1,7 +1,10 @@
 // TODAY — Service Worker
 // Strategy: network-first for app shell, strict exclusions for all API calls
-// Version bump this string to force cache invalidation on deploy
-const CACHE_VERSION  = 'today-v2.17.112';
+// Version bump this string to force cache invalidation on deploy.
+// This is the ONE version value still hand-synced — a SW can't import APP_VERSION from
+// index.html (separate context, no build step). scripts/smoke-test.mjs asserts it matches
+// `today-v${APP_VERSION}` and fails the pre-commit gate on drift.
+const CACHE_VERSION  = 'today-v2.17.113';
 const CACHE_APP_SHELL = [
   '/',
   '/manifest.json',
