@@ -3198,6 +3198,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.121': 'This week: the highlighted "best day" dot now reflects a fuller day — tasks, focus, and habits together — instead of just most tasks. Hover it to see why.',
   '2.17.120': 'Tokens audit: all hardcoded px padding in panel/tab CSS replaced with spacing tokens.',
   '2.17.119': 'Fix: tokenise habit streak and × button widths — both now var(--space-8) instead of hardcoded 28px.',
   '2.17.118': 'About: streak metric moved first (was last); separator line removed above coffee/built-in footer; Psalm 118 removed from poem corpus.',
@@ -5047,7 +5048,15 @@ function renderInfoStats() {
     const focus = iso === _today
       ? parseInt(localStorage.getItem('stat_focus_mins_today') || '0')
       : (entry ? entry.focusMins : null);
-    _days.push({ iso, letter, tasks, focus, isToday: iso === _today });
+    // Habit data for the composite "best day" dot — live for today, snapshot for past days
+    const _activeHabits = habitsList.filter(h => !h.archived);
+    const habitsTotal = iso === _today
+      ? _activeHabits.length
+      : (entry ? (entry.habitsTotal || 0) : 0);
+    const habitsKept = iso === _today
+      ? _activeHabits.filter(h => (habitCompletions[h.id] || []).includes(_habitTodayISO())).length
+      : (entry ? (entry.habitsKept || 0) : 0);
+    _days.push({ iso, letter, tasks, focus, habitsKept, habitsTotal, isToday: iso === _today });
   }
 
   const _weekSection = document.getElementById('weekSection');
@@ -5058,13 +5067,27 @@ function renderInfoStats() {
   if (_weekGrid) {
     // Bar scale (①): height encodes tasks relative to the week's busiest day
     const _gMax = Math.max(1, ..._days.map(d => d.tasks || 0));
-    // Your day (②): a single clear standout — strictly busiest, week total ≥ 4,
-    // and not today (today already reads accent). Otherwise no dot.
+    // Your day (②): the week's best day by a composite of tasks, focus, and habits.
+    // Each dimension is normalized to the week's max so the three scales are comparable,
+    // then weighted. The bars already show task volume; the dot reflects a fuller "good day"
+    // (a balanced day can out-score a pure task-grind day). Weights are tunable.
     const _gTot = _days.reduce((s, d) => s + (d.tasks || 0), 0);
-    const _gMaxT = Math.max(..._days.map(d => d.tasks || 0));
-    const _leaders = _days.filter(d => (d.tasks || 0) === _gMaxT && _gMaxT > 0);
-    const _yourDay = (_gTot >= 4 && _leaders.length === 1 && !_leaders[0].isToday)
-      ? _leaders[0].iso : null;
+    const _maxT = Math.max(1, ..._days.map(d => d.tasks || 0));
+    const _maxF = Math.max(1, ..._days.map(d => d.focus || 0));
+    const _dayScore = d => {
+      const t = (d.tasks || 0) / _maxT;                                       // task volume
+      const f = (d.focus || 0) / _maxF;                                       // focus depth
+      const h = d.habitsTotal > 0 ? (d.habitsKept || 0) / d.habitsTotal : 0;  // habit consistency
+      return 0.4 * t + 0.35 * f + 0.25 * h;
+    };
+    // Week must have real activity; pick the single top-scoring day; today reads accent already.
+    let _yourDay = null;
+    if (_gTot >= 4) {
+      const _scored   = _days.map(d => ({ iso: d.iso, isToday: d.isToday, s: Math.round(_dayScore(d) * 1000) }));
+      const _topScore = Math.max(..._scored.map(d => d.s));
+      const _leaders  = _scored.filter(d => d.s === _topScore && d.s > 0);
+      if (_leaders.length === 1 && !_leaders[0].isToday) _yourDay = _leaders[0].iso;
+    }
 
     _weekGrid.innerHTML = _days.map(d => {
       const tStr = d.tasks === null ? '·' : String(d.tasks);
@@ -5073,12 +5096,20 @@ function renderInfoStats() {
       // Nonzero days get a small floor height so they read; zero/null = empty track
       const pct  = (d.tasks || 0) > 0 ? Math.max(14, Math.round((d.tasks / _gMax) * 100)) : 0;
       const fillCls = d.isToday ? 'week-col-bar-fill is-today' : 'week-col-bar-fill';
-      const dotCls = d.iso === _yourDay ? 'week-col-dot on' : 'week-col-dot';
+      const isWin  = d.iso === _yourDay;
+      const dotCls = isWin ? 'week-col-dot on' : 'week-col-dot';
+      let dotTitle = '';
+      if (isWin) {
+        const parts = [(d.tasks || 0) + ' done'];
+        if (d.focus) parts.push(_formatFocusTime(d.focus) + ' focused');
+        if (d.habitsTotal > 0) parts.push(d.habitsKept + '/' + d.habitsTotal + ' habits');
+        dotTitle = ' title="Your best day · ' + parts.join(' · ') + '"';
+      }
       return '<div class="week-col">' +
         '<div class="week-col-day">' + d.letter + '</div>' +
         '<div class="week-col-bar"><div class="' + fillCls + '" style="height:' + pct + '%"></div></div>' +
         '<div class="week-col-tasks ' + cls + '">' + tStr + '</div>' +
-        '<div class="' + dotCls + '"></div>' +
+        '<div class="' + dotCls + '"' + dotTitle + '></div>' +
         '<div class="week-col-focus">' + fStr + '</div>' +
         '</div>';
     }).join('');

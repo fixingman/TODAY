@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.114 (next)
-- **Recent:** version single-source + smoke-test guard, working-doc adoption from Cooked feedback (v2.17.113), BUG-032 splash logo shift refix (v2.17.112), morning nudge AI stale task fix (v2.17.111)
+- **Working on:** v2.17.122 (next)
+- **Recent:** week-grid "best day" dot → composite tasks+focus+habits metric (v2.17.121), panel/tab token audit (v2.17.119–120), About stat reorder + footer + poem cull (v2.17.118), habit archive undo snackbar + × alignment (v2.17.116–117)
 - **Watch for:** BUG-030 awaiting re-verification on iOS cold start · BUG-032 awaiting verification · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---
@@ -100,9 +100,9 @@
 changelogs, and affected-doc updates are part of any code change — they run unprompted, not
 when a trigger phrase like "are you following rules md?" is spoken. A trigger phrase invokes a
 routine *on demand*; it is never the precondition for doing the right thing. Conversely,
-**committing and pushing wait for Can to say so** — but once he does, push to `dev` without
-re-asking the branch (that decision is already made). Don't ask permission to follow the rules;
-don't push without being asked.
+**Committing waits for Can to say so — pushing to `dev` follows the commit automatically.**
+Push to `master` only when explicitly asked. Don't ask permission to follow the rules; don't
+commit without being asked.
 
 **Derive, don't duplicate.** `APP_VERSION` is derived from the newest `CHANGELOG` key
 (`Object.keys(CHANGELOG)[0]`) — only edit the changelog. `sw.js` `CACHE_VERSION` is the one

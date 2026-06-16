@@ -85,6 +85,7 @@
 | Input bar discoverability (placeholder + ✦ glow + tip) | v2.17.99 | overdue — review now | Awaiting device impressions |
 | Merge-anomaly count line (Connections → Dropbox) | v2.17.101–102 | overdue — review now | Awaiting device impressions |
 | Morning nudge AI line | v2.17.73 | collecting (Roadmap #1) | Open — a week of real-morning impressions, then tune |
+| Week-grid "best day" dot (composite tasks+focus+habits) | v2.17.121 | 2026-06-30 | Collecting — does the dot land on a day that *feels* like your best, or does the composite pick surprise you? Tune weights (0.4/0.35/0.25) or revert to a single dimension if it reads wrong. |
 
 ### Not implementing
 | Feature | Reason |
