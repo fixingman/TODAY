@@ -2524,10 +2524,11 @@
   .habit-edit-delete {
     background: none; border: none; color: var(--muted);
     font-size: var(--text-lg); cursor: pointer; padding: 0;
-    border-radius: var(--radius-md); line-height: 1;
+    width: 28px;
+    border-radius: var(--radius-md);
     transition: color var(--dur-fast);
     display: flex; align-items: center; justify-content: center;
-    height: 100%; flex-shrink: 0;
+    flex-shrink: 0;
   }
   .habit-edit-delete:hover { color: var(--danger); }
 
@@ -3192,6 +3193,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.117': 'Fix: habit × button in edit mode now aligns vertically with the week dots.',
   '2.17.116': 'Habit archive now shows an undo snackbar — same pattern as task deletion. Tap Undo within 5 seconds to restore the habit.',
   '2.17.115': 'About tab: README section spacing now consistent with other sections; button padding tokenised.',
   '2.17.114': 'About tab: dev hours and coffee button moved below the changelog.',
