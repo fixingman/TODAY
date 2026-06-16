@@ -59,3 +59,21 @@ function esc(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// Color constants for canvas / JS where CSS vars don't apply (kept in sync with :root)
+const COLOR_ACCENT = '#c8f060';
+const COLOR_BG     = '#0e0e10';
+const COLOR_MUTED  = '#6b6b78';
+const COLOR_BORDER = '#2a2a30';
+
+// Looping animations must be WAAPI, never CSS: _forceRepaint's display toggles
+// restart CSS animations from keyframe 0 (visible flash), a WAAPI timeline is
+// unaffected (BUG-028 lesson; same pattern as _pulseComplete in the focus module).
+// No cancel handle — every caller's element is removed/innerHTML-replaced when
+// its state ends, which discards the animation with it. (_pulseComplete itself stays
+// in the focus IIFE — it's a closure there, not a leaf.)
+function _breathe(el, keyframes, duration, delay) {
+  if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  el.animate(keyframes, { duration, delay: delay || 0, easing: 'ease-in-out', iterations: Infinity });
+}
+const _KF_BLINK = [{ opacity: 0.2 }, { opacity: 1, offset: 0.4 }, { opacity: 0.2, offset: 0.8 }, { opacity: 0.2 }];
