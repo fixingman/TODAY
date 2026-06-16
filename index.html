@@ -3042,6 +3042,7 @@
 
 <canvas id="celebCanvas"></canvas>
 
+<script src="assets/util.js"></script>
 <script src="assets/poems.js"></script>
 <script>
 // Always start at top — browser's auto scroll-restoration causes mid-page reloads
@@ -3198,6 +3199,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.122': 'Under the hood: shared helper functions moved into their own file (assets/util.js) — first step of splitting the single-file app into modules. No visible change.',
   '2.17.121': 'This week: the highlighted "best day" dot now reflects a fuller day — tasks, focus, and habits together — instead of just most tasks. Hover it to see why.',
   '2.17.120': 'Tokens audit: all hardcoded px padding in panel/tab CSS replaced with spacing tokens.',
   '2.17.119': 'Fix: tokenise habit streak and × button widths — both now var(--space-8) instead of hardcoded 28px.',
@@ -3297,12 +3299,6 @@ const CHANGELOG = {
 const APP_VERSION = Object.keys(CHANGELOG)[0];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-// Safe JSON parsing with fallback — avoids try/catch boilerplate everywhere
-function safeJSON(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
-  catch(e) { return fallback; }
-}
-
 // Looping animations must be WAAPI, never CSS: _forceRepaint's display toggles
 // restart CSS animations from keyframe 0 (visible flash), a WAAPI timeline is
 // unaffected (BUG-028 lesson; same pattern as _pulseComplete in the focus module).
@@ -3314,22 +3310,8 @@ function _breathe(el, keyframes, duration, delay) {
 }
 const _KF_BLINK = [{ opacity: 0.2 }, { opacity: 1, offset: 0.4 }, { opacity: 0.2, offset: 0.8 }, { opacity: 0.2 }];
 
-// App day boundary — tasks / triage / streak / focus roll over at midnight.
-// Habits roll over at 3am instead (see _habitTodayISO / _habitNow) — a deliberate,
-// consistent grace window, not the v2.12.74 lag bug (that was an *unintended*
-// mismatch where the strip refreshed on a different boundary than checking).
-function _getAppDay() {
-  return new Date().toDateString();
-}
-
-// Unified local date helper — returns YYYY-MM-DD in local timezone.
-// NEVER use toISOString().slice(0,10) for date logic — that returns UTC,
-// which diverges from local time near midnight (BUG-010). All date strings
-// stored in habits, AI memory, and moments must use this function.
-function _localISO(d) {
-  if (!d) d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
+// Pure leaf utils (safeJSON, _getAppDay, _localISO, _habitNow/_habitTodayISO,
+// _formatFocusTime, esc) now live in assets/util.js, loaded before this script.
 
 // ─── Cached DOM Elements ──────────────────────────────────────────────────────
 // Frequently queried elements cached at load — saves DOM lookups per session
@@ -4981,15 +4963,6 @@ function renderDailyPoem() {
 }
 
 // Format focus time: "Xh Ym" if >= 60 minutes, "Xm" otherwise
-function _formatFocusTime(mins) {
-  if (mins >= 60) {
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return m > 0 ? `${h}h ${m}m` : `${h}h`;
-  }
-  return `${mins}m`;
-}
-
 function renderInfoStats() {
   // Pull stats from localStorage
   const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
@@ -5962,11 +5935,6 @@ function _getAgeDays(timestamp) {
   return Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
 }
 
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
 // ─── Event delegation ────────────────────────────────────────────────────────
 document.addEventListener('click', function(e) {
   // Copy button — copies task text to clipboard, shows brief 'copied' feedback
@@ -6319,13 +6287,7 @@ function _saveHabits() {
 // strip refreshed on a different boundary than checking. This is intentional and
 // consistent — every habit-day read (_habitTodayISO + _getHabitDates) goes through
 // _habitNow(), so the strip refreshes at 3am in lockstep with check eligibility.
-const HABIT_ROLLOVER_HOURS = 3;
-function _habitNow() {
-  return new Date(Date.now() - HABIT_ROLLOVER_HOURS * 60 * 60 * 1000);
-}
-function _habitTodayISO() {
-  return _localISO(_habitNow());
-}
+// HABIT_ROLLOVER_HOURS + _habitNow() + _habitTodayISO() now live in assets/util.js.
 
 function _getHabitDates() {
   // Last 21 days ending with the current habit-day (3am-shifted, local time)

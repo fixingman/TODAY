@@ -4,8 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.122 (next)
-- **Recent:** week-grid "best day" dot → composite tasks+focus+habits metric (v2.17.121), panel/tab token audit (v2.17.119–120), About stat reorder + footer + poem cull (v2.17.118), habit archive undo snackbar + × alignment (v2.17.116–117)
+- **Working on:** v2.17.123 (next)
+- **Recent:** Roadmap #3 first module extraction → assets/util.js (v2.17.122), week-grid "best day" dot → composite metric (v2.17.121), panel/tab token audit (v2.17.119–120), About stat reorder + poem cull (v2.17.118)
+- **Module extraction in progress:** pure leaf utils now in `assets/util.js` (loaded before main `<script>`, globals shared via lexical env). Next leaf-outward: `motion.js`. See Backlog Roadmap #3.
 - **Watch for:** BUG-030 awaiting re-verification on iOS cold start · BUG-032 awaiting verification · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---
