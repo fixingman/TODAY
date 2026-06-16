@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.17.119** | **Tokenise habit streak + × button width** — `.habit-streak` and `.habit-edit-delete` both had hardcoded `width: 28px` (not on the token scale). Changed to `var(--space-8)` (32px, nearest token). Both share the same token so they stay matched when the × replaces the streak in edit mode. |
 | **2.17.118** | **About polish** — (1) Stat order swapped: Streak → Flow → Focus (was Focus → Flow → Streak). (2) Coffee/dev-hours footer: `.panel-section--flush` modifier removes `border-top` and the `.readme-actions` wrapper; layout now directly flex on the section. (3) Psalm 118 ("This is the day which the Lord hath made") removed from `assets/poems.js` (corpus now 65). |
 | **2.17.117** | **Fix: habit × alignment in edit mode** — `.habit-edit-delete` had `height: 100%` and `line-height: 1` which caused the × to sit off-centre relative to the week dots. Removed both; added `width: 28px` to match `.habit-streak` (the element it replaces). Grid's `align-items: center` now handles vertical positioning cleanly. |
 | **2.17.116** | **Habit archive undo snackbar** — archiving a habit now shows the same undo toast as task deletion. `archiveHabit` pushes a snapshot to `_archivedHabitStack` (max 10, same as `_deletedStack`) and calls `_showUndoToast` with `type='habit'`. Toast button now calls `_undoLast()` which dispatches to `_undoArchiveHabit()` or `_undoDelete()` based on `_lastUndoType`. `_undoArchiveHabit` sets `h.archived = false`, saves, re-renders, and refreshes edit mode. Timeout (5s) clears both stacks. |

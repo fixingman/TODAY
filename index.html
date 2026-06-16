@@ -2509,7 +2509,7 @@
   .week-dot.filled.is-today { outline-color: var(--accent); }
 
   .habit-streak {
-    width: 28px; flex-shrink: 0;
+    width: var(--space-8); flex-shrink: 0;
     display: flex; align-items: center; justify-content: flex-end;
     position: relative;
   }
@@ -2531,7 +2531,7 @@
   .habit-edit-delete {
     background: none; border: none; color: var(--muted);
     font-size: var(--text-lg); cursor: pointer; padding: 0;
-    width: 28px;
+    width: var(--space-8);
     border-radius: var(--radius-md);
     transition: color var(--dur-fast);
     display: flex; align-items: center; justify-content: center;
@@ -3198,6 +3198,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.119': 'Fix: tokenise habit streak and × button widths — both now var(--space-8) instead of hardcoded 28px.',
   '2.17.118': 'About: streak metric moved first (was last); separator line removed above coffee/built-in footer; Psalm 118 removed from poem corpus.',
   '2.17.117': 'Fix: habit × button in edit mode now aligns vertically with the week dots.',
   '2.17.116': 'Habit archive now shows an undo snackbar — same pattern as task deletion. Tap Undo within 5 seconds to restore the habit.',
