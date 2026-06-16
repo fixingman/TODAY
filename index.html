@@ -2919,10 +2919,6 @@
           <button id="installBtn" class="btn-install" style="display:none" onclick="installPWA()">
             <span class="install-icon">⬇</span> Install App
           </button>
-          <a id="coffeeBtn" href="https://buymeacoffee.com/today.here" target="_blank" rel="noopener" class="btn-coffee">☕ Buy me a coffee</a>
-          <div id="devHours" class="dev-hours" title="Hours spent building this with Claude">
-            <span class="dev-hours-val"></span>
-          </div>
         </div>
       </div>
     </div>
@@ -2930,6 +2926,15 @@
     <div class="panel-section">
       <div class="config-label">Changelog</div>
       <div id="changelogPanel"></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="readme-actions">
+        <a id="coffeeBtn" href="https://buymeacoffee.com/today.here" target="_blank" rel="noopener" class="btn-coffee">☕ Buy me a coffee</a>
+        <div id="devHours" class="dev-hours" title="Hours spent building this with Claude">
+          <span class="dev-hours-val"></span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -3190,6 +3195,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.114': 'About tab: dev hours and coffee button moved below the changelog.',
   '2.17.113': 'Under the hood: the in-app version number is now derived from the changelog (one source, no hand-syncing), and a pre-commit check guards the offline-cache version. Housekeeping/working-doc updates.',
   '2.17.112': 'Fix: BUG-032 splash logo shift on mobile (recurrence) — the splash now waits for the specific Syne + DM Mono faces via document.fonts.load() instead of the generic fonts.ready (which iOS Safari resolves early), and preloads both woff2 files. The logo renders once in Syne with no downward jump.',
   '2.17.111': 'Fix: morning nudge could mention a completed task by name if a stale sync re-added it after midnight cleanup. AI prompt now also excludes tasks already in PAST.',
