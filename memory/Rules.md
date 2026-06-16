@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.123 (next)
-- **Recent:** Roadmap #3 first module extraction → assets/util.js (v2.17.122), week-grid "best day" dot → composite metric (v2.17.121), panel/tab token audit (v2.17.119–120), About stat reorder + poem cull (v2.17.118)
-- **Module extraction in progress:** pure leaf utils now in `assets/util.js` (loaded before main `<script>`, globals shared via lexical env). Next leaf-outward: `motion.js`. See Backlog Roadmap #3.
+- **Working on:** v2.17.125 (next)
+- **Recent:** Roadmap #3 extractions — `util.js` (v2.17.122–123, pure utils + COLOR/_breathe), `idle.js` (v2.17.124); week-grid "best day" composite dot (v2.17.121); panel/tab token audit (v2.17.119–120)
+- **Module extraction in progress:** `assets/util.js` + `assets/idle.js` out (classic scripts before main `<script>`, globals shared via lexical env, precached in sw.js). Next risk-ascending: `sound.js`, `celebration.js`, `trello.js`, `insights.js`, `sync.js` (last — Non-Delegation). Coupled core stays inline. See Backlog Roadmap #3.
 - **Watch for:** BUG-030 awaiting re-verification on iOS cold start · BUG-032 awaiting verification · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---
