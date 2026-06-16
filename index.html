@@ -1401,7 +1401,6 @@
     align-items: center;
     gap: var(--space-3);
     flex-wrap: wrap;
-    margin-top: var(--space-2);
   }
   .dev-hours {
     display: inline-flex;
@@ -1412,7 +1411,7 @@
     color: var(--muted);
     font-family: var(--font-mono);
     font-size: var(--text-sm);
-    padding: 7px 12px;
+    padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-lg);
     letter-spacing: 0.04em;
     cursor: default;
@@ -1430,7 +1429,7 @@
     font-family: var(--font-display);
     font-weight: 700;
     font-size: var(--text-sm);
-    padding: 7px 14px;
+    padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-lg);
     text-decoration: none;
     letter-spacing: 0.04em;
@@ -2403,7 +2402,7 @@
     color: var(--muted);
     line-height: 1.7;
   }
-  #dailyPoem { margin-bottom: var(--space-5); }
+  #dailyPoem { margin-bottom: 0; }
   .poem-author {
     margin-top: var(--space-2);
     font-size: var(--text-micro);
@@ -2915,11 +2914,9 @@
           Done rests, quietly proud<br>
           Morning clears the slate
         </div>
-        <div class="readme-actions">
-          <button id="installBtn" class="btn-install" style="display:none" onclick="installPWA()">
-            <span class="install-icon">⬇</span> Install App
-          </button>
-        </div>
+        <button id="installBtn" class="btn-install" style="display:none;margin-top:var(--space-3)" onclick="installPWA()">
+          <span class="install-icon">⬇</span> Install App
+        </button>
       </div>
     </div>
 
@@ -3195,6 +3192,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.115': 'About tab: README section spacing now consistent with other sections; button padding tokenised.',
   '2.17.114': 'About tab: dev hours and coffee button moved below the changelog.',
   '2.17.113': 'Under the hood: the in-app version number is now derived from the changelog (one source, no hand-syncing), and a pre-commit check guards the offline-cache version. Housekeeping/working-doc updates.',
   '2.17.112': 'Fix: BUG-032 splash logo shift on mobile (recurrence) — the splash now waits for the specific Syne + DM Mono faces via document.fonts.load() instead of the generic fonts.ready (which iOS Safari resolves early), and preloads both woff2 files. The logo renders once in Syne with no downward jump.',
