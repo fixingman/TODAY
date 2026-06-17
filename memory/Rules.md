@@ -4,10 +4,10 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.125 (next)
-- **Recent:** Roadmap #3 extractions — `util.js` (v2.17.122–123, pure utils + COLOR/_breathe), `idle.js` (v2.17.124); week-grid "best day" composite dot (v2.17.121); panel/tab token audit (v2.17.119–120)
+- **Working on:** v2.17.127 (next)
+- **Recent:** BUG-032 third-pass refix (v2.17.126: splash logo mid-rise — corrected mechanism, font-paint/animation desync, `fonts.check()` poll); morning nudge bugs (v2.17.125: first-fire missing + mid-read AI swap); Roadmap #3 extractions — `util.js` (v2.17.122–123), `idle.js` (v2.17.124)
 - **Module extraction in progress:** `assets/util.js` + `assets/idle.js` out (classic scripts before main `<script>`, globals shared via lexical env, precached in sw.js). Next risk-ascending: `sound.js`, `celebration.js`, `trello.js`, `insights.js`, `sync.js` (last — Non-Delegation). Coupled core stays inline. See Backlog Roadmap #3.
-- **Watch for:** BUG-030 awaiting re-verification on iOS cold start · BUG-032 awaiting verification · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
+- **Watch for:** BUG-032 awaiting device verify (mobile splash logo mid-rise — third-pass refix v2.17.126) · BUG-033 awaiting morning verify (nudge missing on first open) · BUG-034 awaiting morning verify (AI swap mid-read) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---
 

@@ -604,6 +604,9 @@
   #splash-logo.go .l:nth-child(3){animation-delay:.14s}
   #splash-logo.go .l:nth-child(4){animation-delay:.18s}
   #splash-logo.go .l:nth-child(5){animation-delay:.22s}
+  /* Ceiling fallback: face still not painted — reveal statically so the logo never
+     animates while invisible (font-display:block) and pops in mid-rise (BUG-032). */
+  #splash-logo.go.instant .l { animation: none; opacity: 1; transform: none; }
 
   #splash-star {
     position: absolute; right: -0.28em; top: -0.2em;
@@ -3196,6 +3199,8 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.126': 'Fix: splash logo no longer pops in part-way through its rise on a slow first load — the animation now waits until the font is actually painted before it starts.',
+  '2.17.125': 'Fix: morning nudge now appears on first app open (not only after switching away and back) | Fix: AI nudge no longer replaces the rule-based message while you are reading it — AI text is cached and loads instantly next time.',
   '2.17.124': 'Under the hood: the idle companion (the little creature that visits when you step away) moved into its own file, assets/idle.js. No visible change.',
   '2.17.123': 'Under the hood: colour constants and animation helpers folded into assets/util.js — finishes the pure-utility extraction. No visible change.',
   '2.17.122': 'Under the hood: shared helper functions moved into their own file (assets/util.js) — first step of splitting the single-file app into modules. No visible change.',
@@ -3625,6 +3630,7 @@ function checkMorningNudge() {
   if (_aiCached) {
     nudgeEl.innerHTML = `<span class="nudge-dot"></span>${esc(_aiCached)}`;
   } else {
+    const _nudgeShownAt = Date.now();
     _fetchMorningNudgeAI(review, carriedOver).then(text => {
       if (!text) return;
       // Prune stale per-day cache keys, then store today's
@@ -3634,6 +3640,7 @@ function checkMorningNudge() {
       }
       localStorage.setItem(_aiCacheKey, text);
       if (nudgeEl.style.display === 'none') return; // dismissed while fetching
+      if (Date.now() - _nudgeShownAt > 3000) return; // user is reading — show AI next open instead
       // Gentle swap — fade out, replace, fade in
       nudgeEl.style.transition = 'opacity 200ms ease';
       nudgeEl.style.opacity = '0';
@@ -8955,10 +8962,14 @@ async function dropboxRestore(fromSync) {
       applyNewDayCleanup();
       renderManual();
       updateStats();
-      
+
       // Re-check triage now that sync and cleanup are done — init() ran too early
       // when doneIds might not have been merged yet, causing done tasks to appear
       checkTriageBar();
+      // Re-check nudge — applyNewDayCleanup() sets morning_nudge_count but init()'s
+      // checkMorningNudge() ran before cleanup (count may have been missing/stale).
+      // Mirrors what the Dropbox restore path already does at line 8700.
+      if (typeof checkMorningNudge === 'function') checkMorningNudge();
 
       // Only start ticker after baselines are seeded
       startTicker();
@@ -9188,16 +9199,18 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
 
   // Wait for fonts to be truly ready before animating — prevents swap flash
   let _splashStarted = false;
-  const startSplash = () => {
-    // Guard: the 800ms fallback timeout and fonts.ready can BOTH fire when fonts
-    // are slow — second run restarted the typewriter mid-type (BUG-032)
+  const startSplash = (animated) => {
+    // Guard: the ceiling and the font-check poll can both reach startSplash — second
+    // run would restart the typewriter mid-type (BUG-032)
     if (_splashStarted) return;
     _splashStarted = true;
     const star=document.getElementById('splash-star');
     if (!star) return;
-    // Logo letters rise only now — fonts are loaded, no fallback-font swap shift
+    // Logo letters rise only now — Syne is painted, so the rise plays from opacity:0
+    // with visible glyphs. `instant` (ceiling path) reveals statically instead, so the
+    // rise never runs invisibly and pops in mid-way once the font lands (BUG-032).
     const slogo=document.getElementById('splash-logo');
-    if (slogo) slogo.classList.add('go');
+    if (slogo) { slogo.classList.add('go'); if (!animated) slogo.classList.add('instant'); }
     star.style.transition='opacity .3s ease, transform .45s cubic-bezier(0.34,1.56,0.64,1)';
     star.style.opacity='1';
     star.style.transform='scale(1)';
@@ -9217,21 +9230,28 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     }, 600);
     requestAnimationFrame(typeFrame);
   };
-  if (document.fonts && document.fonts.load) {
-    // Wait for the SPECIFIC splash faces, not the generic document.fonts.ready —
-    // iOS Safari resolves .ready before custom fonts actually paint on cold start,
-    // so .ready could reveal the logo in the fallback font and Syne would swap in a
-    // frame later, shifting the glyphs within the line box (BUG-032 recurrence).
-    // FontFaceSet.load() resolves only when those faces are truly loaded.
-    // Cap wait at 800ms so a slow network never stalls the splash indefinitely.
-    const fontTimeout = setTimeout(startSplash, 800);
-    Promise.all([
-      document.fonts.load('800 96px Syne', 'TODAY'),        // logo
-      document.fonts.load('300 13px "DM Mono"', 'JANUARY')  // date typewriter
-    ]).then(() => { clearTimeout(fontTimeout); startSplash(); })
-      .catch(() => { /* fall through to the 800ms timeout */ });
+  if (document.fonts && document.fonts.check) {
+    // font-display:block keeps glyphs invisible until the face is painted. Adding .go
+    // (starting the rise) before Syne is painted makes the letters animate invisibly and
+    // pop in mid-rise whenever the font lands — "logo appears mid-way" (BUG-032). Poll
+    // document.fonts.check() — true only when the face is actually usable — then start the
+    // animated rise. Generous ceiling reveals the logo statically rather than stalling.
+    // (Replaced the old fonts.load()+800ms-timeout race: the blind timeout could fire
+    // before Syne was painted, adding .go too early — the leak that kept BUG-032 alive.)
+    document.fonts.load('800 96px Syne', 'TODAY');
+    document.fonts.load('300 13px "DM Mono"', 'JANUARY');
+    const _splashT0 = performance.now();
+    const _waitFonts = () => {
+      if (_splashStarted) return;
+      const ready = document.fonts.check('800 96px Syne') &&
+                    document.fonts.check('300 13px "DM Mono"');
+      if (ready) startSplash(true);
+      else if (performance.now() - _splashT0 > 2500) startSplash(false);
+      else requestAnimationFrame(_waitFonts);
+    };
+    requestAnimationFrame(_waitFonts);
   } else {
-    setTimeout(startSplash, 500);
+    setTimeout(() => startSplash(true), 500);
   }
 })();
 

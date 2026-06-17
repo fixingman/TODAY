@@ -93,8 +93,9 @@ type: brief description (vX.X.X)
 Types: `feat`, `fix`, `docs`, `refactor`, `style`, `chore`
 
 **Committing and pushing are human-gated** — prep the bump/changelog/doc updates automatically, but
-wait for Can to say "push." When he does, push to `dev` (per `Rules.md` § Operating Mode) without
-re-asking the branch. See `Rules.md` § Operating Mode for the full discipline-vs-gate split.
+wait for Can to say so. When he does, commit and immediately push to `dev` — no separate
+confirmation needed for the push. Push to `master` only when explicitly asked.
+See `Rules.md` § Operating Mode for the full discipline-vs-gate split.
 
 ### 5. Reflect
 - What broke or was harder than expected?
