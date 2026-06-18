@@ -41,6 +41,7 @@
 | 032 | Splash logo appears mid-way through splash animation (mobile) | ⏳ refix v2.17.126 — awaiting verification |
 | 033 | Morning nudge missing on first cold-start of the day | ⏳ v2.17.125 — awaiting morning verify |
 | 034 | Morning nudge AI text swaps mid-read (Tier 1→2 upgrade) | ⏳ v2.17.125 — awaiting morning verify |
+| 035 | Trello cards never age visually (omission — type guard excluded them) | ✅ v2.17.127 |
 
 ---
 

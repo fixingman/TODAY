@@ -3199,6 +3199,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.127': 'Fix: Trello cards now age visually just like manual tasks — cards 3+ days old fade to 75%, 5+ days to 55%, 7+ days to 35%. Creation date extracted from the Trello card ID (MongoDB ObjectID timestamp).',
   '2.17.126': 'Fix: splash logo no longer pops in part-way through its rise on a slow first load — the animation now waits until the font is actually painted before it starts.',
   '2.17.125': 'Fix: morning nudge now appears on first app open (not only after switching away and back) | Fix: AI nudge no longer replaces the rule-based message while you are reading it — AI text is cached and loads instantly next time.',
   '2.17.124': 'Under the hood: the idle companion (the little creature that visits when you step away) moved into its own file, assets/idle.js. No visible change.',
@@ -5767,6 +5768,19 @@ function renderTrello() {
       el.classList.toggle('done', doneIds.has(id));
       _applyDoneStyles(el, doneIds.has(id));
 
+      // Keep age-bucket in sync — patch cycle doesn't re-call taskHTML() so update here
+      const _patchBucket = (() => {
+        if (doneIds.has(id)) return '';
+        const _c = _getCreatedFromTrelloId(task.id);
+        const _d = Math.floor((Date.now() - _c) / (1000 * 60 * 60 * 24));
+        if (_d >= 7) return 'old';
+        if (_d >= 5) return 'mid';
+        if (_d >= 3) return 'young';
+        return '';
+      })();
+      if (_patchBucket) el.dataset.ageBucket = _patchBucket;
+      else delete el.dataset.ageBucket;
+
       // Move to correct position — count only task rows. When a Trello task is focused,
       // the focus timer (timerEl) + kbd hint are children of #trelloList; counting them
       // here threw off the index→sibling mapping and shuffled rows / churned the timer
@@ -5826,10 +5840,12 @@ function taskHTML(task, type) {
   const tid    = task.id; // original id - safe alphanumeric, stored in data-taskid
   const dueStr = _getDueStr(task);
 
-  // Calculate task age in days (for manual tasks only)
+  // Calculate task age in days (manual + trello)
   let ageDays = 0;
-  if (type === 'manual' && !done) {
-    const created = task.lastActive || _getCreatedFromId(task.id);
+  if (!done) {
+    const created = type === 'trello'
+      ? _getCreatedFromTrelloId(task.id)
+      : (task.lastActive || _getCreatedFromId(task.id));
     ageDays = Math.floor((Date.now() - created) / (1000 * 60 * 60 * 24));
   }
 
@@ -5892,10 +5908,10 @@ function taskHTML(task, type) {
   // Copy button — visible only in focus mode via CSS, present on all task types
   const copyBtn = `<button class="task-copy" data-taskid="${tid}" title="Copy task text">copy</button>`;
 
-  // Age bucket for CSS-based visual aging (only for undone manual tasks)
+  // Age bucket for CSS-based visual aging (undone manual + trello tasks)
   // Day 3-4: young, 5-6: mid, 7+: old. Day 0-2: no attribute (full opacity).
   let ageBucket = '';
-  if (type === 'manual' && !done) {
+  if (!done) {
     if (ageDays >= 7) ageBucket = 'old';
     else if (ageDays >= 5) ageBucket = 'mid';
     else if (ageDays >= 3) ageBucket = 'young';
@@ -5923,6 +5939,14 @@ function _getCreatedFromId(id) {
   if (!id || !id.startsWith('manual_')) return Date.now();
   const ts = parseInt(id.replace('manual_', ''));
   return isNaN(ts) ? Date.now() : ts;
+}
+
+// Extract creation timestamp from Trello task ID — Trello IDs are MongoDB ObjectIDs,
+// first 8 hex chars = Unix timestamp in seconds.
+function _getCreatedFromTrelloId(id) {
+  const raw = id && id.startsWith('trello_') ? id.slice(7) : (id || '');
+  const ts = parseInt(raw.slice(0, 8), 16);
+  return isNaN(ts) ? Date.now() : ts * 1000;
 }
 
 // Get age in days from a timestamp
