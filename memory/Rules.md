@@ -4,7 +4,7 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.132 (next)
+- **Working on:** v2.17.133 (next)
 - **Recent:** BUG-035 Trello card ageing (v2.17.127); BUG-032 splash logo mid-rise (v2.17.126); morning nudge bugs (v2.17.125); Roadmap #3 extractions `util.js`/`idle.js` (v2.17.122–124)
 - **Module extraction in progress:** `assets/util.js` + `assets/idle.js` out (classic scripts before main `<script>`, globals shared via lexical env, precached in sw.js). Next risk-ascending: `sound.js`, `celebration.js`, `trello.js`, `insights.js`, `sync.js` (last — Non-Delegation). Coupled core stays inline. See Backlog Roadmap #3.
 - **Watch for:** BUG-032 awaiting device verify (mobile splash logo mid-rise — third-pass refix v2.17.126) · BUG-033 awaiting morning verify (nudge missing on first open) · BUG-034 awaiting morning verify (AI swap mid-read) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
@@ -70,7 +70,7 @@
 ## Data Rules
 
 11. `manualTasks` and `habitsList` preserve drag order — **never re-sort**
-12. Backup schema version: **5.2** (includes trello_order)
+12. Backup schema version: **5.3** (5.2 + daily_history — week-grid per-day snapshots, union-merged by date; BUG-036)
 13. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
 14. All timestamps: ISO strings (UTC for sync ordering). **Date-only strings: use `_localISO()`** (local YYYY-MM-DD) — never `toISOString().slice(0,10)` which returns UTC and diverges near midnight (BUG-010).
 15. **State variables must be declared before functions that use them** — `let` has temporal dead zone

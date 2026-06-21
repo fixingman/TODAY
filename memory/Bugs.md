@@ -42,6 +42,7 @@
 | 033 | Morning nudge missing on first cold-start of the day | ⏳ v2.17.125 — awaiting morning verify |
 | 034 | Morning nudge AI text swaps mid-read (Tier 1→2 upgrade) | ⏳ v2.17.125 — awaiting morning verify |
 | 035 | Trello cards never age visually (omission — type guard excluded them) | ✅ v2.17.127 |
+| 036 | This Week data differs web vs mobile (daily_history local-only) | ✅ v2.17.132 |
 
 ---
 
@@ -128,6 +129,23 @@
 
 **Verify:**
 - Delete `morning_nudge_ai_<today>` from localStorage (DevTools → Application → Local Storage). Reload app before noon with undone tasks. Read the rule-based message. Wait 5+ seconds without switching away → message should NOT change. Reload → AI-cached message shows immediately, no transition.
+
+**Verified fixed:** ☐
+
+---
+
+## BUG-036: This Week data differs between web app and mobile app
+
+**Status:** Fixed v2.17.132
+
+**Symptom:** The "This Week" grid in About shows different past-day tallies (tasks/focus/habits) on the web app vs the mobile app. Today's column matches; prior days diverge.
+
+**Root cause:** The week grid reads per-day snapshots from `today_daily_history` for past days (today's column is computed live from counters, which ARE synced — hence today matches). But `today_daily_history` was **local-only**: it was never included in the Dropbox backup payload. Each device writes its own snapshot of "yesterday" in `applyNewDayCleanup()` when it first opens after midnight, and those snapshots never crossed devices — so each device accumulated its own independent week history.
+
+**Fix:** Added `daily_history` to the Dropbox backup (schema **5.2 → 5.3**) and union-merged it on both restore paths (`mergeRemoteData()` and the full-restore block) via new helper `_mergeDailyHistory(local, remote)`: union by date, on a duplicate date keep the richer snapshot (higher `tasksDone`, tiebreak `focusMins`) so each entry stays internally consistent rather than mixing fields across devices; cap 30 days. Backward compatible — no schema-version gating exists, old clients ignore the field, new clients tolerate its absence (`|| []`).
+
+**Verify:**
+- On two devices both connected to Dropbox: confirm the week grid (and `_getWeeklyStats` totals) show identical past-day values after a sync cycle. A day one device missed (was off) should appear after the other device's history syncs in.
 
 **Verified fixed:** ☐
 

@@ -3199,6 +3199,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.132': 'Fix: This Week data now matches across devices — the per-day history the week grid reads was local-only and never synced, so each device showed its own past-day tallies. Now included in the Dropbox backup and union-merged by date (backup schema 5.3).',
   '2.17.131': "Poem curation: removed Edward Thomas's 'Adlestrop' excerpt from the daily poem corpus (now 68).",
   '2.17.130': 'Fix: splash logo rise is now smooth — the letter glyphs are pre-painted one frame before the animation starts, so rasterising the font and starting the rise no longer collide on the same frame.',
   '2.17.129': 'Fix: morning nudge AI race — Tier 2 (AI text) now shows on first open instead of only on same-day re-opens. AI fetch races a 1s timeout: if AI wins, Tier 2 appears directly; if timeout wins, rule-based shows and stays (no mid-read swap). Cached days are instant.',
@@ -8043,7 +8044,7 @@ async function dropboxBackup(silent) {
 
   const now = new Date().toISOString();
   const data = {
-    version:      '5.2',
+    version:      '5.3',
     saved_at:     now,
     manual_tasks:      safeJSON('today_manual', []),
     done_ids:          safeJSON('today_done',   []),
@@ -8073,6 +8074,9 @@ async function dropboxBackup(silent) {
     triage_history:       safeJSON('today_triage_history', []),
     // Triage dismissed — synced so triage doesn't re-prompt on other devices
     triage_dismissed:     localStorage.getItem('triage_dismissed') || '',
+    // Daily history — per-day snapshots the week grid reads for past days (v5.3, BUG-036).
+    // Union-merged by date on restore so the week view matches across devices.
+    daily_history:        safeJSON('today_daily_history', []),
     // stat_last_visit intentionally excluded — it's local device state, meaningless on another device
   };
 
@@ -8140,6 +8144,23 @@ function _logMergeAnomaly(kind, id, detail) {
   log.unshift({ at: new Date().toISOString(), kind, id, detail });
   localStorage.setItem('today_merge_anomalies', JSON.stringify(log.slice(0, 50)));
   console.warn('[merge-anomaly] ' + kind + ' on ' + id, detail);
+}
+
+// ── Daily history union merge (BUG-036) — the week grid reads per-day snapshots from
+// today_daily_history, which used to be local-only, so each device snapshotted its own
+// days at midnight and the week view diverged across devices. Union by date; on a
+// duplicate date keep the richer snapshot (higher tasksDone, tiebreak focusMins) so each
+// entry stays internally consistent rather than mixing fields across devices. Cap 30 days.
+function _mergeDailyHistory(localArr, remoteArr) {
+  const byDate = new Map();
+  const _score = e => (e.tasksDone || 0) * 1000 + (e.focusMins || 0);
+  for (const e of (Array.isArray(localArr)  ? localArr  : [])) { if (e && e.date) byDate.set(e.date, e); }
+  for (const e of (Array.isArray(remoteArr) ? remoteArr : [])) {
+    if (!e || !e.date) continue;
+    const cur = byDate.get(e.date);
+    if (!cur || _score(e) > _score(cur)) byDate.set(e.date, e);
+  }
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
 }
 
 // ── Core merge logic — operates on a remote data object, no timestamp guard ───
@@ -8520,6 +8541,16 @@ function mergeRemoteData(data) {
     }
   }
 
+  // ── Daily history: union merge by date (week grid cross-device, BUG-036) ──
+  if (Array.isArray(data.daily_history)) {
+    const localDaily  = safeJSON('today_daily_history', []);
+    const mergedDaily = _mergeDailyHistory(localDaily, data.daily_history);
+    if (JSON.stringify(mergedDaily) !== JSON.stringify(localDaily)) {
+      localStorage.setItem('today_daily_history', JSON.stringify(mergedDaily));
+      _changed = true;
+    }
+  }
+
   // ── Triage dismissed: sync across devices ──
   // If remote shows triage was dismissed today (or more recently), apply it locally
   const remoteDismissed = data.triage_dismissed || '';
@@ -8677,6 +8708,12 @@ async function dropboxRestore(fromSync) {
             .slice(0, 50);
           localStorage.setItem('today_triage_history', JSON.stringify(merged));
         }
+      }
+      // Restore daily history (union by date — week grid cross-device, BUG-036)
+      if (Array.isArray(data.daily_history)) {
+        const localDaily  = safeJSON('today_daily_history', []);
+        const mergedDaily = _mergeDailyHistory(localDaily, data.daily_history);
+        localStorage.setItem('today_daily_history', JSON.stringify(mergedDaily));
       }
       // Restore memory (merge with local — union of moments, max of counters)
       if (data.memory && typeof data.memory === 'object') {
