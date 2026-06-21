@@ -177,12 +177,6 @@ const POEMS = [
     source: "'The Great Lover', 1914 (d. 1915)",
   },
   {
-    text: 'And for that minute a blackbird sang\nClose by, and round him, mistier,\nFarther and farther, all the birds\nOf Oxfordshire and Gloucestershire.',
-    author: 'Edward Thomas',
-    season: 'summer',
-    source: "'Adlestrop', written 1915 (d. 1917) — a train's unscheduled minute of stillness in late June",
-  },
-  {
     text: 'Glory be to God for dappled things—\nFor skies of couple-colour as a brinded cow;\nFor rose-moles all in stipple upon trout that swim.',
     author: 'Gerard Manley Hopkins',
     season: null,

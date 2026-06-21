@@ -3199,6 +3199,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.131': "Poem curation: removed Edward Thomas's 'Adlestrop' excerpt from the daily poem corpus (now 68).",
   '2.17.130': 'Fix: splash logo rise is now smooth — the letter glyphs are pre-painted one frame before the animation starts, so rasterising the font and starting the rise no longer collide on the same frame.',
   '2.17.129': 'Fix: morning nudge AI race — Tier 2 (AI text) now shows on first open instead of only on same-day re-opens. AI fetch races a 1s timeout: if AI wins, Tier 2 appears directly; if timeout wins, rule-based shows and stays (no mid-read swap). Cached days are instant.',
   '2.17.128': 'Fix: morning nudge now self-heals — if the count was cleared by a dismiss and the app is reopened same-day (without a new day transition), it recalculates from the live task list instead of staying blank.',
