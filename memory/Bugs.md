@@ -42,7 +42,7 @@
 | 033 | Morning nudge missing on first cold-start of the day | ⏳ v2.17.125 — awaiting morning verify |
 | 034 | Morning nudge AI text swaps mid-read (Tier 1→2 upgrade) | ⏳ v2.17.125 — awaiting morning verify |
 | 035 | Trello cards never age visually (omission — type guard excluded them) | ✅ v2.17.127 |
-| 036 | This Week data differs web vs mobile (daily_history local-only) | ✅ v2.17.132 |
+| 036 | This Week data differs web vs mobile (daily_history local-only) | ⏳ v2.17.132 — awaiting two-device verify |
 
 ---
 
@@ -136,7 +136,7 @@
 
 ## BUG-036: This Week data differs between web app and mobile app
 
-**Status:** Fixed v2.17.132
+**Status:** Fixed v2.17.132 — awaiting two-device verification
 
 **Symptom:** The "This Week" grid in About shows different past-day tallies (tasks/focus/habits) on the web app vs the mobile app. Today's column matches; prior days diverge.
 
