@@ -38,7 +38,7 @@
 | 029b | ✦ submit answer swapped by proactive load racing it | ✅ v2.17.93 |
 | 030 | Checkmark animation lags ~30s on iOS PWA open | ✅ v2.17.105 |
 | 031 | Red error dot invisible on mobile PWA (behind status bar) | ✅ v2.17.75 |
-| 032 | Splash logo appears mid-way through splash animation (mobile) | ⏳ refix v2.17.126 — awaiting verification |
+| 032 | Splash logo appears mid-way through splash animation (mobile) | ⏳ refix v2.17.130 — awaiting verification |
 | 033 | Morning nudge missing on first cold-start of the day | ⏳ v2.17.125 — awaiting morning verify |
 | 034 | Morning nudge AI text swaps mid-read (Tier 1→2 upgrade) | ⏳ v2.17.125 — awaiting morning verify |
 | 035 | Trello cards never age visually (omission — type guard excluded them) | ✅ v2.17.127 |
@@ -74,7 +74,7 @@
 
 ## BUG-032: Splash logo appears mid-way through splash animation (mobile)
 
-**Status:** Refixed v2.17.126 — awaiting verification (v2.17.97 + v2.17.112 reduced it but the root mechanism was misdiagnosed; see third-pass note below)
+**Status:** Refixed v2.17.130 — awaiting verification (four passes: v2.17.97, v2.17.112, v2.17.126, v2.17.130; see notes below)
 
 **Symptom:** Sometimes on mobile, the TODAY logo appears mid-way through the splash animation (partially improved from v2.17.97/112 which fixed the downward-shift variant). The letter-rise animation occasionally starts late or logo appears unexpectedly during the sequence. Intermittent on cold start. Never on desktop.
 
@@ -88,10 +88,12 @@
 
 **Third pass — corrected mechanism + refix (v2.17.126):** Can reported the logo still "appears mid-way through the splash animation" intermittently on mobile. Re-investigation found the earlier diagnosis was wrong: all `@font-face` rules use `font-display: block`, which renders glyphs **invisibly** (never in a fallback face) until the real font paints — so there is no fallback→Syne *position* swap. The true mechanism is a **desync between the rise animation and font paint**: the `splashLetterRise .4s` animation starts when `.go` is added, but the glyphs stay invisible until Syne paints. If Syne lands *mid-animation*, the logo appears partway through its rise (partial opacity/position) → "appears mid-way." The v2.17.112 `document.fonts.load()` gate was correct *when it won the race*, but the blind `setTimeout(startSplash, 800)` fallback could fire first on a slow cold start, adding `.go` before Syne painted — the leak that kept the bug intermittent. **Fix:** replaced the load+800ms-timeout race with a `requestAnimationFrame` poll of `document.fonts.check('800 96px Syne') && check('300 13px "DM Mono"')` — `.go` is added only on a frame where both faces are genuinely usable, so the rise always plays from `opacity:0` with visible glyphs. Generous **2500ms** ceiling (replacing 800ms) makes the leak vanishingly rare and stays under the 6s dismiss safety net; the ceiling path reveals the logo statically via a new `#splash-logo.go.instant .l { animation:none; opacity:1; transform:none }` modifier rather than stalling — so even then there's no mid-rise pop. `startSplash` now takes an `animated` flag.
 
+**Fourth pass — glyph raster pre-warm (v2.17.130):** Can reported the rise still wasn't smooth — the glyphs became visible on the *same frame* the animation starts. Root: `document.fonts.check()` confirms the *face* is loaded, but the glyph raster cache is **per-size** and the logo renders at `clamp(48px,9vw,96px)`, not the `96px` we check. So the first paint at the real rendered size landed on frame 1 of the rise → rasterisation and animation start collided (stutter). **Fix:** in `startSplash` (animated path only), paint the real `.l` letters once at `opacity:0.02` (imperceptible — only exactly `0` is compositor-skipped), force layout via `offsetWidth`, then on the next `requestAnimationFrame` revert opacity to the CSS base and add `.go`. The rise now runs on already-rasterised glyphs at the exact size. ~16ms (one frame) cost, no new assets. `instant` ceiling path unchanged (font not ready → nothing to warm). Canvas pre-warm was rejected: raster cache is keyed by element+size, so only warming the real letters at their real `clamp()` size populates the cache the rise paints from.
+
 **Verify:**
-- Mobile PWA cold start (force-quit first, ideally after clearing cache or on slow network), repeat a few times (intermittent) → logo rises once, cleanly from invisible to full, never appears partway through the rise
-- Desktop / warm cache: fast rise, unchanged
-- Slow network (DevTools throttle + disable cache): logo still rises cleanly (waits for real paint), never pops mid-rise; at worst the 2500ms ceiling reveals it statically
+- Mobile PWA cold start (force-quit first, ideally on slow network), repeat → logo rises smoothly from invisible to full; no glyph pop coinciding with the motion start
+- Desktop / warm cache: fast rise, unchanged; no perceptible delay before the rise (warm frame ≈ 16ms)
+- Slow network (DevTools throttle + disable cache): rise still clean; at worst the 2500ms ceiling reveals it statically
 
 **Verified fixed:** ☐
 

@@ -3199,6 +3199,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.130': 'Fix: splash logo rise is now smooth — the letter glyphs are pre-painted one frame before the animation starts, so rasterising the font and starting the rise no longer collide on the same frame.',
   '2.17.129': 'Fix: morning nudge AI race — Tier 2 (AI text) now shows on first open instead of only on same-day re-opens. AI fetch races a 1s timeout: if AI wins, Tier 2 appears directly; if timeout wins, rule-based shows and stays (no mid-read swap). Cached days are instant.',
   '2.17.128': 'Fix: morning nudge now self-heals — if the count was cleared by a dismiss and the app is reopened same-day (without a new day transition), it recalculates from the live task list instead of staying blank.',
   '2.17.127': 'Fix: Trello cards now age visually just like manual tasks — cards 3+ days old fade to 75%, 5+ days to 55%, 7+ days to 35%. Creation date extracted from the Trello card ID (MongoDB ObjectID timestamp).',
@@ -9245,7 +9246,22 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     // with visible glyphs. `instant` (ceiling path) reveals statically instead, so the
     // rise never runs invisibly and pops in mid-way once the font lands (BUG-032).
     const slogo=document.getElementById('splash-logo');
-    if (slogo) { slogo.classList.add('go'); if (!animated) slogo.classList.add('instant'); }
+    if (slogo && !animated) {
+      // Ceiling path: font still not painted — reveal statically (BUG-032).
+      slogo.classList.add('go', 'instant');
+    } else if (slogo) {
+      // Font is loaded, but the glyph raster cache is per-size and the logo renders at
+      // clamp(48px,9vw,96px) — the first paint at that size would otherwise land on the
+      // rise's first frame (raster + animation collide → stutter). Paint the letters once
+      // at imperceptible opacity to warm the exact raster, then start the rise next frame.
+      const letters = slogo.querySelectorAll('.l');
+      letters.forEach(l => l.style.opacity = '0.02');
+      void slogo.offsetWidth;                 // force layout so this frame paints the glyphs
+      requestAnimationFrame(() => {           // glyphs now rasterized at the right size
+        letters.forEach(l => l.style.opacity = '');  // revert to CSS base (opacity:0)
+        slogo.classList.add('go');            // rise runs on warm glyphs → smooth
+      });
+    }
     star.style.transition='opacity .3s ease, transform .45s cubic-bezier(0.34,1.56,0.64,1)';
     star.style.opacity='1';
     star.style.transform='scale(1)';
