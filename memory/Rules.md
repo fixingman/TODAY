@@ -7,7 +7,7 @@
 - **Working on:** v2.17.133 (next)
 - **Recent:** BUG-035 Trello card ageing (v2.17.127); BUG-032 splash logo mid-rise (v2.17.126); morning nudge bugs (v2.17.125); Roadmap #3 extractions `util.js`/`idle.js` (v2.17.122–124)
 - **Module extraction in progress:** `assets/util.js` + `assets/idle.js` out (classic scripts before main `<script>`, globals shared via lexical env, precached in sw.js). Next risk-ascending: `sound.js`, `celebration.js`, `trello.js`, `insights.js`, `sync.js` (last — Non-Delegation). Coupled core stays inline. See Backlog Roadmap #3.
-- **Watch for:** BUG-036 awaiting two-device verify (This Week data sync — daily_history, schema 5.3) · BUG-032 awaiting device verify (mobile splash logo mid-rise — fourth-pass refix v2.17.130) · BUG-033 awaiting morning verify (nudge missing on first open) · BUG-034 awaiting morning verify (AI swap mid-read) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
+- **Watch for:** BUG-032 awaiting device verify (mobile splash logo mid-rise — fourth-pass refix v2.17.130) · BUG-033 awaiting morning verify (nudge missing on first open) · BUG-034 awaiting morning verify (AI swap mid-read) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---
 
