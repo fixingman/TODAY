@@ -3207,6 +3207,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.134': 'Polish: reduce splash font-load ceiling from 2500ms to 2000ms — fonts are SW-cached so 2s is ample; tighter ceiling means the static fallback fires sooner on genuinely stalled loads.',
   '2.17.133': 'Fix: splash logo reveal reworked so the letters never paint mid-animation — the glyphs are forced to render in place first, then the whole logo fades and rises as one. Resolves the long-standing iOS cold-start glitch.',
   '2.17.132': 'Fix: This Week data now matches across devices — the per-day history the week grid reads was local-only and never synced, so each device showed its own past-day tallies. Now included in the Dropbox backup and union-merged by date (backup schema 5.3).',
   '2.17.131': "Poem curation: removed Edward Thomas's 'Adlestrop' excerpt from the daily poem corpus (now 68).",
@@ -9339,14 +9340,14 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     // Gate the reveal on the FontFaceSet.load() PROMISE — it resolves only when the faces
     // are truly loaded, and is more reliable on iOS Safari than fonts.check()/ready (which
     // can report ready before the glyphs paint — the core of BUG-032). Race a non-competing
-    // 2500ms ceiling so a stalled font never hangs the splash; the _splashStarted guard
+    // 2000ms ceiling so a stalled font never hangs the splash; the _splashStarted guard
     // makes a late resolve after the ceiling a no-op. startSplash then does an in-view warm
     // paint before animating, so reveal no longer depends on the API's paint timing.
     const fontsReady = Promise.all([
       document.fonts.load('800 96px Syne', 'TODAY'),
       document.fonts.load('300 13px "DM Mono"', 'JANUARY'),
     ]).then(() => 'ready');
-    const ceiling = new Promise(res => setTimeout(() => res('ceiling'), 2500));
+    const ceiling = new Promise(res => setTimeout(() => res('ceiling'), 2000));
     Promise.race([fontsReady, ceiling]).then(o => startSplash(o === 'ready'));
   } else {
     setTimeout(() => startSplash(true), 500);
