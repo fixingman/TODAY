@@ -589,14 +589,20 @@
     letter-spacing: -0.03em; line-height: 1;
     display: flex; white-space: nowrap;
     font-size: clamp(48px, 9vw, 96px);
+    /* Paint-gated: hidden until fonts are confirmed loaded AND a real in-view raster
+       has happened (startSplash flips to visible). visibility:hidden stays in layout so
+       the FontFaceSet still loads, but suppresses paint — no fallback-metrics show, and
+       the rise can't run while glyphs are still invisible (BUG-032, five passes). */
+    visibility: hidden;
   }
   #splash-logo .l {
     display: inline-block;
-    opacity: 0; transform: translateY(0.12em);
+    /* Letters are SOLID from the first painted frame — opacity:1, offset down. The rise
+       animates transform only (no opacity ramp), so a late iOS glyph raster lands on an
+       already-opaque letter and is invisible to the user (BUG-032). */
+    opacity: 1; transform: translateY(0.12em);
   }
-  /* Letters animate only after fonts are ready (.go set in startSplash) —
-     animating immediately rendered the fallback font, then the Syne swap
-     re-measured the centered flex column and visibly shifted the logo (BUG-032) */
+  /* Rise runs only after .go (set in startSplash, post font-ready + 2-frame warm). */
   #splash-logo.go .l { animation: splashLetterRise .4s var(--ease-out) forwards; }
   #splash-logo .l.a { color: var(--accent); }
   #splash-logo.go .l:nth-child(1){animation-delay:.06s}
@@ -604,9 +610,8 @@
   #splash-logo.go .l:nth-child(3){animation-delay:.14s}
   #splash-logo.go .l:nth-child(4){animation-delay:.18s}
   #splash-logo.go .l:nth-child(5){animation-delay:.22s}
-  /* Ceiling fallback: face still not painted — reveal statically so the logo never
-     animates while invisible (font-display:block) and pops in mid-rise (BUG-032). */
-  #splash-logo.go.instant .l { animation: none; opacity: 1; transform: none; }
+  /* Ceiling fallback: fonts unconfirmed — reveal statically, no rise (BUG-032). */
+  #splash-logo.go.instant .l { animation: none; transform: none; }
 
   #splash-star {
     position: absolute; right: -0.28em; top: -0.2em;
@@ -628,7 +633,10 @@
   #splash-cursor.on    { opacity: 1; }
   #splash-cursor.off   { opacity: 0; }
 
-  @keyframes splashLetterRise  { to { opacity: 1; transform: translateY(0); } }
+  /* Transform-only — explicit `from` is byte-identical to `.l` base translateY(0.12em)
+     so the rise never jumps on its first frame (the v2.17.97/112 shift variant). No
+     opacity here: the container fade (startSplash) handles the soft fade-in as one unit. */
+  @keyframes splashLetterRise  { from { transform: translateY(0.12em); } to { transform: translateY(0); } }
 
 
 
@@ -3199,6 +3207,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.133': 'Fix: splash logo reveal reworked so the letters never paint mid-animation — the glyphs are forced to render in place first, then the whole logo fades and rises as one. Resolves the long-standing iOS cold-start glitch.',
   '2.17.132': 'Fix: This Week data now matches across devices — the per-day history the week grid reads was local-only and never synced, so each device showed its own past-day tallies. Now included in the Dropbox backup and union-merged by date (backup schema 5.3).',
   '2.17.131': "Poem curation: removed Edward Thomas's 'Adlestrop' excerpt from the daily poem corpus (now 68).",
   '2.17.130': 'Fix: splash logo rise is now smooth — the letter glyphs are pre-painted one frame before the animation starts, so rasterising the font and starting the rise no longer collide on the same frame.',
@@ -9285,19 +9294,26 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     // rise never runs invisibly and pops in mid-way once the font lands (BUG-032).
     const slogo=document.getElementById('splash-logo');
     if (slogo && !animated) {
-      // Ceiling path: font still not painted — reveal statically (BUG-032).
+      // Ceiling path: fonts unconfirmed — static reveal, no rise (BUG-032).
+      slogo.style.visibility = 'visible';
       slogo.classList.add('go', 'instant');
     } else if (slogo) {
-      // Font is loaded, but the glyph raster cache is per-size and the logo renders at
-      // clamp(48px,9vw,96px) — the first paint at that size would otherwise land on the
-      // rise's first frame (raster + animation collide → stutter). Paint the letters once
-      // at imperceptible opacity to warm the exact raster, then start the rise next frame.
-      const letters = slogo.querySelectorAll('.l');
-      letters.forEach(l => l.style.opacity = '0.02');
-      void slogo.offsetWidth;                 // force layout so this frame paints the glyphs
-      requestAnimationFrame(() => {           // glyphs now rasterized at the right size
-        letters.forEach(l => l.style.opacity = '');  // revert to CSS base (opacity:0)
-        slogo.classList.add('go');            // rise runs on warm glyphs → smooth
+      // BUG-032 (5th pass). Reveal at the start position, fully opaque, and force a real
+      // in-view raster of the per-size glyphs BEFORE any motion. Then fade the WHOLE logo
+      // in as one unit (all glyphs already rastered → none can paint mid-fade) while a
+      // transform-only rise runs in parallel. No per-letter opacity ramp = no paint desync.
+      slogo.style.visibility = 'visible';     // letters paint at opacity:1, translateY(0.12em)
+      void slogo.offsetWidth;                 // flush layout/style this frame
+      requestAnimationFrame(() => {           // frame 1: visible raster queued
+        requestAnimationFrame(() => {         // frame 2: raster on screen — glyphs solid
+          slogo.style.transition = 'opacity .35s var(--ease-out)';
+          slogo.style.opacity = '0';          // already-rastered glyphs, now one transparent layer
+          void slogo.offsetWidth;             // commit the opacity:0 baseline before fading up
+          requestAnimationFrame(() => {
+            slogo.style.opacity = '1';         // container fades in as a unit
+            slogo.classList.add('go');         // transform-only rise runs alongside the fade
+          });
+        });
       });
     }
     star.style.transition='opacity .3s ease, transform .45s cubic-bezier(0.34,1.56,0.64,1)';
@@ -9319,26 +9335,19 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     }, 600);
     requestAnimationFrame(typeFrame);
   };
-  if (document.fonts && document.fonts.check) {
-    // font-display:block keeps glyphs invisible until the face is painted. Adding .go
-    // (starting the rise) before Syne is painted makes the letters animate invisibly and
-    // pop in mid-rise whenever the font lands — "logo appears mid-way" (BUG-032). Poll
-    // document.fonts.check() — true only when the face is actually usable — then start the
-    // animated rise. Generous ceiling reveals the logo statically rather than stalling.
-    // (Replaced the old fonts.load()+800ms-timeout race: the blind timeout could fire
-    // before Syne was painted, adding .go too early — the leak that kept BUG-032 alive.)
-    document.fonts.load('800 96px Syne', 'TODAY');
-    document.fonts.load('300 13px "DM Mono"', 'JANUARY');
-    const _splashT0 = performance.now();
-    const _waitFonts = () => {
-      if (_splashStarted) return;
-      const ready = document.fonts.check('800 96px Syne') &&
-                    document.fonts.check('300 13px "DM Mono"');
-      if (ready) startSplash(true);
-      else if (performance.now() - _splashT0 > 2500) startSplash(false);
-      else requestAnimationFrame(_waitFonts);
-    };
-    requestAnimationFrame(_waitFonts);
+  if (document.fonts && document.fonts.load) {
+    // Gate the reveal on the FontFaceSet.load() PROMISE — it resolves only when the faces
+    // are truly loaded, and is more reliable on iOS Safari than fonts.check()/ready (which
+    // can report ready before the glyphs paint — the core of BUG-032). Race a non-competing
+    // 2500ms ceiling so a stalled font never hangs the splash; the _splashStarted guard
+    // makes a late resolve after the ceiling a no-op. startSplash then does an in-view warm
+    // paint before animating, so reveal no longer depends on the API's paint timing.
+    const fontsReady = Promise.all([
+      document.fonts.load('800 96px Syne', 'TODAY'),
+      document.fonts.load('300 13px "DM Mono"', 'JANUARY'),
+    ]).then(() => 'ready');
+    const ceiling = new Promise(res => setTimeout(() => res('ceiling'), 2500));
+    Promise.race([fontsReady, ceiling]).then(o => startSplash(o === 'ready'));
   } else {
     setTimeout(() => startSplash(true), 500);
   }
