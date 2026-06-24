@@ -3207,6 +3207,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.135': 'Fix: task list could appear behind on morning open — when the app resumed from background on a new day, a day-cleanup backup raced the remote pull and sometimes overwrote Dropbox with stale local data before the newer remote tasks could be fetched. The cleanup backup now waits 3 seconds, giving the pull time to complete first.',
   '2.17.134': 'Polish: reduce splash font-load ceiling from 2500ms to 2000ms — fonts are SW-cached so 2s is ample; tighter ceiling means the static fallback fires sooner on genuinely stalled loads.',
   '2.17.133': 'Fix: splash logo reveal reworked so the letters never paint mid-animation — the glyphs are forced to render in place first, then the whole logo fades and rises as one. Resolves the long-standing iOS cold-start glitch.',
   '2.17.132': 'Fix: This Week data now matches across devices — the per-day history the week grid reads was local-only and never synced, so each device showed its own past-day tallies. Now included in the Dropbox backup and union-merged by date (backup schema 5.3).',
@@ -4770,9 +4771,16 @@ function applyNewDayCleanup() {
 
   localStorage.setItem('stat_last_visit', today);
 
-  // Push clean state so sync ticker doesn't restore yesterday's tasks from Dropbox
-  const tok = localStorage.getItem('dropbox_token');
-  if (tok) dropboxBackup(true);
+  // Push clean state after a short delay — gives syncDropbox time to pull remote first.
+  // Without the delay, this backup races with syncDropbox's metadata fetch on morning wake
+  // (visibilitychange path): if the upload lands before the metadata fetch returns, syncDropbox
+  // downloads mobile's own stale write and the 7s ticker sees no further rev change, leaving
+  // the task list behind until the other device writes again. 3s matches the triage grace window
+  // (same race, same fix). zoneChangedAt timestamps protect done→PAST moves independently.
+  setTimeout(() => {
+    const tok = localStorage.getItem('dropbox_token');
+    if (tok) dropboxBackup(true);
+  }, 3000);
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────

@@ -101,11 +101,11 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
 
 ---
 
-## Backup Schema (v5.2)
+## Backup Schema (v5.3)
 
 ```javascript
 {
-  version: '5.2',
+  version: '5.3',
   saved_at: 'ISO string',
   // Tasks
   manual_tasks: [{id, text, lastActive?, zone?, zoneChangedAt?}, ...],
@@ -134,7 +134,9 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   memory: {totalTasksCompleted, patterns: {...}, aiName, moments: [...]},
   // Triage (v5.1)
   triage_history: [{id, decision, at}, ...],
-  triage_dismissed: 'YYYY-MM-DD'  // synced to prevent repeat prompts
+  triage_dismissed: 'YYYY-MM-DD',  // synced to prevent repeat prompts
+  // Daily history — per-day snapshots the week grid reads for past days (v5.3, BUG-036)
+  daily_history: [{date: 'YYYY-MM-DD', tasksDone: 0, focusMins: 0, habitsKept: 0, habitsTotal: 0}]
 }
 ```
 
@@ -157,6 +159,8 @@ setTimeout(() => {
   checkTriageBar();
 }, 3000);
 ```
+
+**Same pattern — day-cleanup backup (v2.17.135):** `applyNewDayCleanup()` ends with a `dropboxBackup(true)` to push the cleaned state. On morning wake via `visibilitychange`, this backup raced `syncDropbox()`'s metadata fetch — if the upload landed first, `syncDropbox` downloaded mobile's own stale write and the ticker saw no further rev change, leaving the task list behind. Fix: 3s `setTimeout` on the cleanup backup (matches the triage grace window). `zoneChangedAt` timestamps protect the done→PAST move independently.
 
 **Why `_triageBarSilent` matters:** The 7s ticker fires `checkTriageBar()` independently. Without the flag, the ticker would show the bar during the 3s grace window (before sync settles), causing a brief flash on the second device. `_triageBarSilent` makes `checkTriageBar()` hide the bar unconditionally during that window.
 

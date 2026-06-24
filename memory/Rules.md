@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.135 (next)
-- **Recent:** splash ceiling 2500ms→2000ms (v2.17.134); BUG-032 fifth pass transform-only reveal (v2.17.133); BUG-036 This Week sync (v2.17.132); BUG-035 Trello ageing (v2.17.127)
+- **Working on:** v2.17.136 (next)
+- **Recent:** day-cleanup backup race fix (v2.17.135); splash ceiling 2000ms (v2.17.134); BUG-032 fifth pass (v2.17.133); BUG-036 daily_history sync (v2.17.132)
 - **Module extraction in progress:** `assets/util.js` + `assets/idle.js` out (classic scripts before main `<script>`, globals shared via lexical env, precached in sw.js). Next risk-ascending: `sound.js`, `celebration.js`, `trello.js`, `insights.js`, `sync.js` (last — Non-Delegation). Coupled core stays inline. See Backlog Roadmap #3.
 - **Watch for:** BUG-032 awaiting device verify (mobile splash logo mid-animation — fifth-pass refix v2.17.133, transform-only reveal + container fade) · BUG-033 awaiting morning verify (nudge missing on first open) · BUG-034 awaiting morning verify (AI swap mid-read) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
