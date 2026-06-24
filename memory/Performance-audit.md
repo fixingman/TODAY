@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.17.106 · Jun 2026  
+> v2.17.134 · Jun 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -9,18 +9,20 @@
 
 | Metric | Value | Notes |
 |---|---|---|
-| index.html size | ~516 KB (152 KB gzip) | Single HTML file — no build step |
-| `assets/poems.js` | 21 KB (7.5 KB gzip) | Daily poem corpus (corpus 70, round 10), SW-precached |
-| Lines of code | 12,196 (+95 since v2.17.98) | poems.js: 454 lines |
-| Event listeners | ~62 | Stable; grep-count method |
-| External scripts | 0 | poems.js is same-origin, SW-cached; no CDN, no analytics SDK |
+| index.html size | ~536 KB (159 KB gzip) | Single HTML file — no build step |
+| `assets/util.js` | 3.7 KB (1.9 KB gzip) | Pure utility helpers extracted v2.17.122–123; SW-precached |
+| `assets/idle.js` | 6.2 KB (2.1 KB gzip) | Idle companion IIFE extracted v2.17.124; SW-precached |
+| `assets/poems.js` | 20 KB (7.2 KB gzip) | Daily poem corpus (68 poems), SW-precached |
+| Lines of code | 12,089 index.html + 367 extracted (12,456 total) | util.js: 79 lines; idle.js: 288 lines; poems.js: 442 lines |
+| Event listeners | ~62 | index.html: 60; idle.js: 2 |
+| External scripts | 0 | All assets same-origin, SW-cached; no CDN, no analytics SDK |
 | External fonts loaded on first visit | 6 files | Self-hosted, pre-cached by SW after first load |
 | External fonts on repeat visits | 0 | All served from SW cache |
 | Google Fonts requests | 0 | Fonts are self-hosted — zero external pings |
 
 **@font-face declarations:** 9 total — 6 in main document (DM Mono ×3, Syne ×3), 2 injected into PiP window (DM Mono 300, Syne 700), 1 in offline fallback HTML in SW.
 
-**Assessment:** index.html grew 509 → 516 KB since v2.17.98. Major additions: AI bar discoverability (v2.17.99), smoke test TDZ fix (v2.17.100), merge-anomaly counter (v2.17.101), WAAPI migration machinery (v2.17.103), BUG-030 pre-warm expansion (v2.17.105), habit archive logic (v2.17.106). poems.js grew 19 → 21 KB (rounds 9–10 added 8 poems to reach corpus 70). No minification — acceptable for a single-file project. All loads after first are fully offline-capable.
+**Assessment:** index.html grew 516 → 536 KB (+20 KB) since v2.17.106, offset by 10 KB extracted to util.js + idle.js (net app footprint +10 KB). Major additions since v2.17.106: module extractions, habit archive undo, week-grid composite metric, daily_history sync (BUG-036), morning nudge reliability fixes, Trello card ageing (BUG-035), BUG-032 fifth-pass splash machinery. poems.js shrank 21 → 20 KB (corpus 70 → 68, removed Adlestrop + Psalm 118). All loads after first are fully offline-capable.
 
 ---
 
@@ -30,8 +32,8 @@
 
 | Metric | Count | Notes |
 |---|---|---|
-| `getElementById` | 193 | +1 since v2.17.98 |
-| `querySelector` | 51 | +3 since v2.17.98 |
+| `getElementById` | 193 | unchanged since v2.17.106 |
+| `querySelector` | 51 | unchanged |
 | `querySelectorAll` | 26 | unchanged |
 | **Total DOM queries** | **270** | |
 | `innerHTML =` assignments | ~45 | Most in render functions, not hot paths |
@@ -43,15 +45,14 @@
 
 | Metric | Count | Notes |
 |---|---|---|
-| `localStorage.getItem` | 82 | +2 since v2.17.98 |
-| `localStorage.setItem` | 134 | +1 since v2.17.98 |
-| Raw `JSON.parse(localStorage` | 0 outside `safeJSON()` | The single occurrence *is* the `safeJSON()` helper body |
+| `localStorage.getItem` | 81 (index.html) + 1 (util.js/safeJSON) | −1 since v2.17.106 (safeJSON moved to util.js) |
+| `localStorage.setItem` | 137 | +3 since v2.17.106 (daily_history sync, morning nudge self-heal) |
+| Raw `JSON.parse(localStorage` | 0 outside `safeJSON()` | `safeJSON()` now lives in util.js |
 | `safeJSON()` call sites | ~48 | Centralises try/catch + fallback for all reads |
 | **Quota failures** | **caught (v2.17.70)** | `localStorage.setItem` wrapped globally; quota errors route to red dot |
 
-**New keys since v2.17.98:**
-- `ai_bar_tip_seen` (v2.17.99) — local-only flag, one-time input bar tip
-- `today_merge_anomalies` (v2.17.101) — local-only, latest 50 conflict events, console.warn mirror
+**New keys since v2.17.106:**
+- `today_daily_history` — was local-only; now included in Dropbox backup payload (schema 5.3, v2.17.132). Not a new key — a newly-synced key.
 
 ### Timer Inventory
 
@@ -60,22 +61,22 @@
 | Interval | Purpose | Notes |
 |---|---|---|
 | 7s | Background sync ticker | Cleared on `visibilitychange hidden` |
-| 5s | Idle companion check | Runs continuously, renders only when idle threshold met |
+| 5s | Idle companion check | Lives in idle.js (extracted v2.17.124); renders only when idle threshold met |
 | 500ms | Trello auth poll | Only while OAuth popup open |
 | 500ms | Dropbox auth poll | Only while OAuth popup open |
 | 30min | SW update check | Runs continuously |
 
-**setInterval count: 5** (unchanged)
+**setInterval count: 5** (unchanged — idle.js owns the 5s companion interval)
 
-**setTimeout count: 66** (+2 since v2.17.98)
+**setTimeout count: 62** (−4 since v2.17.106 — splash fallback timing cleanup in BUG-032 passes)
 
-**requestAnimationFrame count: 17** (−1 — WAAPI migration in v2.17.103 removed one CSS animation management RAF pass)
+**requestAnimationFrame count: 20** (index.html: 19, idle.js: 1; +3 since v2.17.106 — BUG-032 fifth pass double-rAF warm added 2; splash cursor WAAPI path added 1)
 
-**WAAPI animations: 8 `el.animate()` call sites** (v2.17.103 migration: `_breathe` covering `.ai-badge`, `.done-star`, `.loading-dots span`, `.ai-thinking-dots`; `_pulseComplete` covers the focus bar; v2.17.107 added splash cursor blink + splash star breath). `_breathe`/`_pulseComplete`/`_pulseAnim` helper call sites: ~28. All compositor-driven; all survive `_forceRepaint` display toggles without flashing. Handles stored for `_pulseComplete` only (needs explicit cancel on remove); `_breathe` callers rely on element removal to discard the timeline.
+**WAAPI animations: 6 `el.animate()` call sites** (index.html). `_breathe`/`_pulseComplete` helpers: ~28 call sites. All compositor-driven; all survive `_forceRepaint` display toggles. Handles stored for `_pulseComplete` only; `_breathe` callers rely on element removal.
 
 ### Ticker (every 7s)
 - `syncAll()` → `_refreshSyncCache()` (2 localStorage reads) → `checkNewDay()` → `syncTrello()` → `syncDropbox()`
-- `syncTrello()`: fetches `dateLastActivity` only (~1 KB). Full card fetch only if date changed.
+- `syncTrello()`: fetches `dateLastActivity` only (~1 KB). Full card fetch only if date changed. Each Trello task now gets `_getCreatedFromTrelloId()` age-bucket calculation (O(n), n≤20; `parseInt` hex is µs-level).
 - `syncDropbox()`: fetches file metadata only (~300 B). Full download only if `rev` changed.
 - Ticker stops on `visibilitychange hidden`. On return: sync fires immediately, ticker resumes after 2s.
 
@@ -85,17 +86,18 @@
 | Initial manual task list | Full re-render (`list.innerHTML`) | Once on page load only |
 | Add manual task | Incremental — `appendChild` | No list re-render |
 | Delete manual task | Incremental — `el.remove()` | Animation first, DOM removal after 180ms |
-| Trello task list (sync) | Diff patch | Text, badge, done state, session count patched individually |
-| Habit list | Full re-render | `renderHabits` filters to `activeHabits` (one O(n) pass), then rebuilds list |
+| Trello task list (sync) | Diff patch | Text, badge, done state, session count, age-bucket patched individually |
+| Habit list | Full re-render | `renderHabits` filters to `activeHabits` (O(n) pass), then rebuilds list |
 | Section counts | `textContent` via cached `$.manualCount` | Direct, no query |
 | Empty state | `textContent` + `display` toggle | Uses cached `$.manualEmpty` |
 | Favicon | Key-gated canvas redraw | 21 possible states, redraws only on state change |
 | PiP window | Injected HTML + RAF loop | Single window reference, cleaned up on `pagehide` |
+| Week-grid (About open) | Full re-render | `_getWeeklyStats()` one O(n) habits pass per render; composite score for best-day dot |
 
 ### CSS Token Health
 | Metric | Status |
 |---|---|
-| CSS custom properties in `:root` | 114 vars (grep-line count, v2.17.106) |
+| CSS custom properties in `:root` | 114 vars (unchanged since v2.17.106) |
 | `transition: all` | 0 — all replaced with specific properties |
 | Hardcoded hex/rgba outside `:root` | 0 CSS violations — remaining hex: `<meta>` attribute, JS canvas constants, SVG `stroke` attribute, PiP `:root` literals (isolated document, intentional) |
 | Undefined-token uses | 0 — v2.17.98 audit caught `#triageBar` using nonexistent `--shadow-panel`; fixed |
@@ -110,6 +112,7 @@
 - Triage history: capped at 50 entries.
 - PAST zone: auto-purged (done: 7 days, let_go/aged: 30 days).
 - Merge anomalies: capped at 50 entries (`today_merge_anomalies`, local-only).
+- Habit archive undo: `_archivedHabitStack` (in-memory, max 10, cleared after 5s toast).
 
 ---
 
@@ -154,12 +157,12 @@
 
 | Destination | Data sent | When | Notes |
 |---|---|---|---|
-| **Dropbox API** (`*.dropboxapi.com`) | Full backup JSON — tasks, habits, completions, zones, stats | On sync tick (7s) only if local state changed; on manual backup | User's own Dropbox account. PKCE OAuth, no app secret on client. Content never seen by us. |
+| **Dropbox API** (`*.dropboxapi.com`) | Full backup JSON — tasks, habits, completions, zones, stats, daily_history (schema 5.3) | On sync tick (7s) only if local state changed; on manual backup | User's own Dropbox account. PKCE OAuth, no app secret on client. Content never seen by us. |
 | **Trello API** (`api.trello.com`) | OAuth token + board/list IDs (outbound); receives card data | On sync tick if `dateLastActivity` changed | Token scoped `read` only. Inbound card text is the user's own Trello content. |
 | **Netlify AI proxy** (same-origin function) | Prompt text (task names, ages, streak, yesterday's review) + provider AI key | Only on an ✦ call or the daily morning-nudge fetch | Key stored in localStorage, relayed server-side to the provider; never to a third party from the client. One nudge call/day max, cached. |
 | **Netlify RUM** (server-injected) | Page-load timing only — no user content, no identifiers | Page load, if not ad-blocked | The only non-user-initiated egress. Injected server-side; ad blockers prevent it. |
 
-**Stays local, never egresses:** triage history, merge-anomaly log, AI conversation thread, daily history (`today_daily_history`), all `*_seen`/preference flags.
+**Stays local, never egresses:** triage history, merge-anomaly log, AI conversation thread, daily history (`today_daily_history`) — now synced to Dropbox (schema 5.3) but does NOT leave to any other destination.
 
 ---
 
@@ -187,40 +190,52 @@
 
 | Area | Score | Notes |
 |---|---|---|
-| Load performance | ✅ Good | 516 KB single file, fonts cached, offline-capable |
+| Load performance | ✅ Good | 536 KB single file + 10 KB extracted modules, fonts cached, offline-capable |
 | Runtime performance | ✅ Good | Cached elements, cheap ticker, incremental DOM, `_onWake` debounced |
 | CSS token hygiene | ✅ Good | 114 `:root` vars, 0 CSS violations |
 | XSS protection | ✅ Good | `esc()` on all user content |
 | CSRF protection | ✅ Good | PKCE state verified |
-| Privacy | ✅ Good | No analytics, data stays local |
+| Privacy | ✅ Good | No analytics, data stays local or in user's own Dropbox |
 | Error handling | ✅ Good | `_logSyncError` routes sync/storage failures to red dot |
 | Offline support | ✅ Good | SW cache, union merge, backup-on-reconnect, offline mode UI |
 | Token hygiene | ✅ Good | Secrets server-side only |
-| Animation performance | ✅ Good | WAAPI at 6 sites (compositor-driven, survive display toggles); rAF loops exit when idle |
+| Animation performance | ✅ Good | WAAPI at 6 `el.animate()` sites (compositor-driven, survive display toggles); rAF loops exit when idle |
 | localStorage reliability | ✅ Good | Quota failures caught and surfaced (v2.17.70) |
 | CSP | ❌ Missing | Inline scripts/styles make strict CSP complex |
 
 ---
 
-## 8. Recent Changes (v2.17.99 → v2.17.106)
+## 8. Recent Changes (v2.17.107 → v2.17.134)
 
 | Feature | Version | Performance Impact |
 |---|---|---|
-| Input bar discoverability | 2.17.99 | `ai_bar_tip_seen` localStorage key (local-only, one write ever). Placeholder update on 4 events (init, key connect/clear, panel close) — `textContent` set, negligible. |
-| Smoke test + TDZ crash fix | 2.17.100 | `scripts/smoke-test.mjs` (dev-only). TDZ fix: moved `_aiPanelOpen` declaration earlier — zero runtime cost. |
-| Merge-anomaly counter | 2.17.101 | O(n²) scan over checked/unchecked maps per sync tick — bounded by 50-cap on anomaly store. Negligible in practice (conflict events are rare). `today_merge_anomalies` key, local-only. |
-| Conflict count UI | 2.17.102 | CSS layout change only. Zero runtime cost. |
-| WAAPI migration complete | 2.17.103 | **Perf win:** `_breathe` helper (4 new WAAPI sites) + `_pulseComplete` (existing). `starBreath`/`aiBadgeBreath`/`blink` CSS keyframes deleted — shorter style block. `_resumeAfterRepaint` array + 520ms restore block removed from `_onWake` — each wake sequence is ~5 operations lighter. One RAF pass eliminated. WAAPI count: 2 → 6 `el.animate()` sites. |
-| Mobile habit row padding | 2.17.104 | CSS `@media` block only. Zero runtime cost. |
-| BUG-030 canvas pre-warm expansion | 2.17.105 | Pre-warm now exercises `createRadialGradient`, `arc`/`fill`, `fillText` in addition to `clearRect` — all at off-screen coords (−1000,−1000). Haptic `<input switch>` created at IIFE init (one DOM append moved from first-tap to boot). Eliminates GPU stalls on first celebration. |
-| Habit archive | 2.17.106 | `archiveHabit()` sets a flag instead of splicing — O(1) write. `renderHabits` adds one O(n) `activeHabits` filter pass per render (n = total habit count, typically <10). `applyNewDayCleanup` snapshot uses the same filtered array. Negligible. |
+| WAAPI splash completion | 2.17.107 | `splashCursorBlink` + `splashStarBreath` CSS infinite → WAAPI (`cursor.animate`, `_breathe(star)`). Both `@keyframes` deleted. All infinite CSS loops now WAAPI except `errorPulse` (outside `#main-app`, explicitly exempt — Motion.md). |
+| APP_VERSION derivation + smoke-test SW assert | 2.17.113 | No runtime cost. Smoke test now fails pre-commit if `sw.js CACHE_VERSION` drifts from app version. |
+| Habit archive undo snackbar | 2.17.116 | `_archivedHabitStack` in-memory (max 10). One extra `localStorage.setItem` on archive (same as existing habit save path). `_undoLast()` dispatch adds one branch. Negligible. |
+| About stat order + Psalm 118 removal | 2.17.118 | poems.js: −1 poem, corpus 65→(cumulative with 2.17.131: 68). CSS stat reorder only. |
+| Week-grid composite best-day metric | 2.17.121 | `_getWeeklyStats()` now derives `habitsKept`/`habitsTotal` per day (O(n) habits pass). Extra fields on `_days` object. Runs only on About open — not a hot path. |
+| Module extraction: `util.js` + `idle.js` | 2.17.122–124 | **Architecture win:** ~367 lines moved out of index.html. SW precaches both. No behavior change. Idle companion's 5s interval now lives in idle.js. |
+| Morning nudge reliability (BUG-033/034) | 2.17.125–129 | All-or-nothing AI race (1s timeout) replaces swap-after-display. `checkMorningNudge()` self-heals from live task count. One extra `localStorage.setItem` (self-heal re-persist). Negligible. |
+| Trello card ageing (BUG-035) | 2.17.127 | `_getCreatedFromTrelloId()` called per Trello card on every 7s patch tick. `parseInt(hex.slice(0,8), 16)` is µs-level; n≤20 cards typical. One extra `dataset.ageBucket` write per card per tick. Negligible. |
+| Adlestrop removed | 2.17.131 | poems.js: −1 poem, −12 lines, −0.5 KB. |
+| BUG-036: daily_history sync | 2.17.132 | `today_daily_history` (≤30 day snapshots, ~1–2 KB) added to Dropbox backup payload. `_mergeDailyHistory(local, remote)` on restore: O(n) union, n≤30. One extra field in each backup write. Negligible per-tick cost; backup still gated on state change. Schema 5.2 → 5.3. |
+| BUG-032 fifth pass — transform-only reveal | 2.17.133 | CSS: opacity ramp removed from `.l` base + keyframe (transform-only, no opacity). `visibility:hidden` base. JS: `fonts.load()` promise + 2-rAF in-view warm before `.go`. **Net splash path: cleaner** — removes the `opacity:0.02` warm+revert cycle (v2.17.130). Double-rAF adds ~32ms before `.go`; star+typewriter start immediately. Zero ongoing cost (splash runs once). |
+| Splash ceiling tightened | 2.17.134 | 2500ms → 2000ms. SW-cached fonts load <100ms warm. Static fallback fires 500ms sooner on truly stalled loads. Zero other impact. |
 
 ---
 
-## 9. Historical Changes (v2.12.79 → v2.17.98)
+## 9. Historical Changes (v2.12.79 → v2.17.106)
 
 | Feature | Version | Impact |
 |---|---|---|
+| Input bar discoverability | 2.17.99 | `ai_bar_tip_seen` localStorage key (local-only, one write ever). Placeholder update on 4 events — `textContent` set, negligible. |
+| Smoke test + TDZ crash fix | 2.17.100 | `scripts/smoke-test.mjs` (dev-only). TDZ fix: moved `_aiPanelOpen` declaration earlier — zero runtime cost. |
+| Merge-anomaly counter | 2.17.101 | O(n²) scan over checked/unchecked maps per sync tick — bounded by 50-cap on anomaly store. Negligible in practice. `today_merge_anomalies` key, local-only. |
+| Conflict count UI | 2.17.102 | CSS layout change only. Zero runtime cost. |
+| WAAPI migration complete | 2.17.103 | **Perf win:** `_breathe` helper (4 new WAAPI sites) + `_pulseComplete` (existing). `starBreath`/`aiBadgeBreath`/`blink` CSS keyframes deleted. `_resumeAfterRepaint` array + 520ms restore block removed from `_onWake`. One RAF pass eliminated. WAAPI count: 2 → 6 `el.animate()` sites. |
+| Mobile habit row padding | 2.17.104 | CSS `@media` block only. Zero runtime cost. |
+| BUG-030 canvas pre-warm expansion | 2.17.105 | Pre-warm now exercises `createRadialGradient`, `arc`/`fill`, `fillText` at off-screen coords. Haptic `<input switch>` created at IIFE init. Eliminates GPU stalls on first celebration. |
+| Habit archive | 2.17.106 | `archiveHabit()` sets a flag — O(1) write. `renderHabits` adds one O(n) `activeHabits` filter pass per render (n < 10 typical). Negligible. |
 | Checkmark WAAPI (`checkPop`) | 2.17.71–72 | `stroke-dashoffset` → `transform+opacity`. Compositor-animated. Canvas pre-warm at 2s idle. |
 | AI morning nudge | 2.17.73 | One AI call per day max, cached in `morning_nudge_ai_<date>`; silent rule-based fallback. Prior-day keys pruned on write. |
 | Error dot safe-area offset | 2.17.75 | CSS only (`env(safe-area-inset-top)`). Zero runtime cost. |
@@ -249,4 +264,4 @@
 
 ---
 
-*Last updated: v2.17.106 · Jun 2026*
+*Last updated: v2.17.134 · Jun 2026*
