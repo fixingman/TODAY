@@ -439,4 +439,70 @@ const POEMS = [
     season: null,
     source: "'Oread', Sea Garden, 1916 (d. 1961 — US PD only; verified Gutenberg #30276 'Some Imagist Poets', 1915)",
   },
+  {
+    text: "I'M nobody! Who are you?\nAre you nobody, too?\nThen there's a pair of us—don't tell!\nThey'd banish us, you know.\n\nHow dreary to be somebody!\nHow public, like a frog\nTo tell your name the livelong day\nTo an admiring bog!",
+    author: 'Emily Dickinson',
+    season: null,
+    source: "Poems: Second Series (1891), poem I (d. 1886 — PD worldwide; verified Wikisource)",
+  },
+
+  // ── Early Irish (trans. Kuno Meyer, 1911) ────────────────────────────────
+  {
+    text: 'Ah, blackbird, thou art satisfied\nWhere thy nest is in the bush:\nHermit that clinkest no bell,\nSweet, soft, peaceful is thy note.',
+    author: 'Anonymous Irish (9th c.)',
+    season: null,
+    source: "'The Blackbird', Selections from Ancient Irish Poetry, trans. Kuno Meyer (1911), Gutenberg #32030 (Meyer d. 1919 — PD worldwide)",
+  },
+  {
+    text: 'A hedge of trees surrounds me,\nA blackbird\'s lay sings to me;\nAbove my lined booklet\nThe trilling birds chant to me.\n\nIn a grey mantle from the top of bushes\nThe cuckoo sings:\nVerily--may the Lord shield me!--\nWell do I write under the greenwood.',
+    author: 'Anonymous Irish (9th c.)',
+    season: 'spring',
+    source: "'The Scribe', Selections from Ancient Irish Poetry, trans. Kuno Meyer (1911), Gutenberg #32030 (Meyer d. 1919 — PD worldwide)",
+  },
+  {
+    text: 'My tidings for you: the stag bells,\nWinter snows, summer is gone.\n\nWind high and cold, low the sun,\nShort his course, sea running high.\n\nDeep-red the bracken, its shape all gone--\nThe wild-goose has raised his wonted cry.\n\nCold has caught the wings of birds;\nSeason of ice--these are my tidings.',
+    author: 'Anonymous Irish (9th c.)',
+    season: 'autumn',
+    source: "'Summer Is Gone', Selections from Ancient Irish Poetry, trans. Kuno Meyer (1911), Gutenberg #32030 (Meyer d. 1919 — PD worldwide)",
+  },
+
+  // ── Sappho (trans. Bliss Carman, 1902) ──────────────────────────────────
+  {
+    text: 'In the apple boughs the coolness\nMurmurs, and the grey leaves flicker\nWhere sleep wanders.\n\nIn this garden all the hot noon\nI await thy fluttering footfall\nThrough the twilight.',
+    author: 'Sappho (trans. Bliss Carman)',
+    season: 'summer',
+    source: "Sappho: One Hundred Lyrics, XVI, Bliss Carman (1902), Gutenberg #12389 (Carman d. 1929 — PD worldwide)",
+  },
+
+  // ── Chinese (trans. Arthur Waley, 1918) ─────────────────────────────────
+  {
+    text: 'Living in retirement beyond the World,\nSilently enjoying isolation,\nI pull the rope of my door tighter\nAnd stuff my window with roots and ferns.\nMy spirit is tuned to the Spring-season:\nAt the fall of the year there is autumn in my heart.\nThus imitating cosmic changes\nMy cottage becomes a Universe.',
+    author: 'Lu Yün (4th c. AD, trans. Arthur Waley)',
+    season: null,
+    source: "'The Valley Wind', A Hundred and Seventy Chinese Poems, trans. Waley (1918), Gutenberg #42290 (Waley d. 1966 — US PD only)",
+  },
+  {
+    text: 'My bed is so empty that I keep on waking up:\nAs the cold increases, the night-wind begins to blow.\nIt rustles the curtains, making a noise like the sea:\nOh that those were waves which could carry me back to you!',
+    author: 'Anonymous Chinese (6th c., trans. Arthur Waley)',
+    season: 'winter',
+    source: "'Winter Night', A Hundred and Seventy Chinese Poems, trans. Waley (1918), Gutenberg #42290 (Waley d. 1966 — US PD only)",
+  },
+  {
+    text: 'Lined coat, warm cap and easy felt slippers,\nIn the little tower, at the low window, sitting over the sunken brazier.\nBody at rest, heart at peace; no need to rise early.\nI wonder if the courtiers at the Western Capital know of these things, or not?',
+    author: 'Po Chü-i (772–846, trans. Arthur Waley)',
+    season: 'winter',
+    source: "'Ease', A Hundred and Seventy Chinese Poems, trans. Waley (1918), Gutenberg #42290 (Waley d. 1966 — US PD only)",
+  },
+  {
+    text: 'The evening river is level and motionless--\nThe spring colours just open to their full.\nSuddenly a wave carries the moon away\nAnd the tidal water comes with its freight of stars.',
+    author: 'Yang-ti (605–617, trans. Arthur Waley)',
+    season: 'spring',
+    source: "'Flowers and Moonlight on the Spring River', A Hundred and Seventy Chinese Poems, trans. Waley (1918), Gutenberg #42290 (Waley d. 1966 — US PD only)",
+  },
+  {
+    text: 'After lunch--one short nap:\nOn waking up--two cups of tea.\nRaising my head, I see the sun\'s light\nOnce again slanting to the south-west.\nThose who are happy regret the shortness of the day;\nThose who are sad tire of the year\'s sloth.\nBut those whose hearts are devoid of joy or sadness\nJust go on living, regardless of "short" or "long."',
+    author: 'Po Chü-i (772–846, trans. Arthur Waley)',
+    season: null,
+    source: "'After Lunch', A Hundred and Seventy Chinese Poems, trans. Waley (1918), Gutenberg #42290 (Waley d. 1966 — US PD only)",
+  },
 ];

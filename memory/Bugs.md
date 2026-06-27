@@ -39,37 +39,17 @@
 | 030 | Checkmark animation lags ~30s on iOS PWA open | ✅ v2.17.105 |
 | 031 | Red error dot invisible on mobile PWA (behind status bar) | ✅ v2.17.75 |
 | 032 | Splash logo appears mid-way through splash animation (mobile) | ⏳ refix v2.17.133 — awaiting verification |
-| 033 | Morning nudge missing on first cold-start of the day | ⏳ v2.17.125 — awaiting morning verify |
-| 034 | Morning nudge AI text swaps mid-read (Tier 1→2 upgrade) | ⏳ v2.17.125 — awaiting morning verify |
+| 033 | Morning nudge missing on first cold-start of the day | ✅ v2.17.125 |
+| 034 | Morning nudge AI text swaps mid-read (Tier 1→2 upgrade) | ✅ v2.17.125 |
 | 035 | Trello cards never age visually (omission — type guard excluded them) | ✅ v2.17.127 |
 | 036 | This Week data differs web vs mobile (daily_history local-only) | ✅ v2.17.132 |
+| 037 | Task list appears stale on morning open (day-cleanup backup race) | ⏳ v2.17.135 — awaiting morning verify |
+| 038 | Red dot appears on mobile when offline (SW update rejection) | ⏳ v2.17.136 — awaiting verify |
+| 039 | All-habits-done celebration never fires (archived habit check) | ⏳ v2.17.137 — awaiting verify |
 
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
-
----
-
-## BUG-030: Checkmark animation lags ~30s on iOS PWA open
-
-**Status:** Fixed v2.17.105
-
-**Symptom:** For the first ~20s after iOS cold start, checking a task produces a janky/stuttery checkmark animation. Smooth after ~20s.
-
-**History:** Originally fixed v2.17.71/72 (stroke-dashoffset → WAAPI transform+opacity + `clearRect` pre-warm). Re-opened Jun 2026 — jank still reproducible on device.
-
-**Root cause (remaining gaps after v2.17.71/72):**
-1. Canvas pre-warm only ran `clearRect(0,0,1,1)` — warms the clear-rect Metal shader but not `createRadialGradient`, `arc`/`fill`, or `fillText`. Those compiled mid-animation on first `celebAnimate` RAF frame, causing GPU stalls during the 150ms `checkPop` WAAPI playback.
-2. `_iosHaptic()` created `<input type="checkbox" switch>` lazily on first call — DOM append + style recalc inside the task check handler, before `svg.animate()`.
-
-**Fix (v2.17.105):** Pre-warm now runs all three draw op types at off-screen coordinates (-1000,-1000). Haptic switch element created eagerly at IIFE init time.
-
-**Verify:**
-- Force-quit iOS PWA, reopen cold
-- Within first 5 seconds, check a task → checkmark pops crisply, no stutter or jank
-- Should feel identical at 5s and at 60s
-
-**Verified fixed:** ✅ Jun 2026
 
 ---
 
@@ -102,52 +82,55 @@
 
 ---
 
-## BUG-033: Morning nudge missing on first cold-start of the day
+## BUG-037: Task list appears stale on morning open (day-cleanup backup race)
 
-**Status:** Fixed v2.17.125
+**Status:** Fixed v2.17.135 — awaiting morning verify
 
-**Symptom:** Cold-start the app in the morning — nudge doesn't appear. Switch away and back → nudge appears via `_onWake()`.
+**Symptom:** On morning open (app resuming from background on a new day), the task list shows yesterday's state — tasks completed on another device are missing. Doesn't self-correct during use; only resolves when the other device makes another Dropbox write.
 
-**Root cause:** `morning_nudge_count` is set by `applyNewDayCleanup()`, which runs in the sync startup block *after* `init()` has already called `checkMorningNudge()`. If the user dismissed yesterday's nudge (click removes the key), `init()`'s call finds no count and hides the nudge. `applyNewDayCleanup()` recalculates the count from current tasks but `checkMorningNudge()` is not called afterward — nudge never appears until `_onWake()` fires on next focus. Dropbox restore path already fixed this for Dropbox users (line 8700 calls `checkMorningNudge()`); local-only path and Dropbox-failed-restore fallback were missing it.
+**Root cause:** The `visibilitychange` path calls `checkNewDay()` **before** `syncDropbox()`. When `checkNewDay()` detects a new day it calls `applyNewDayCleanup()`, which fires `dropboxBackup(true)` without `await`. If that upload completes before `syncDropbox()`'s metadata fetch returns, `syncDropbox()` then downloads the device's own just-uploaded (stale) data — `lastDropboxRev` is updated to the stale rev, and the 7-second ticker sees no further rev change, leaving the task list stuck until another device writes.
 
-**Fix:** Added `if (typeof checkMorningNudge === 'function') checkMorningNudge()` after `applyNewDayCleanup()` in the sync startup block (~line 8955). Idempotent — safe even if Dropbox path already ran it.
+The `window.load` path is unaffected — it pulls Dropbox first, then calls `applyNewDayCleanup()`. `zoneChangedAt` timestamps protect done→PAST moves independently, so the delayed backup is safe.
+
+**Fix (v2.17.135):** Wrapped the cleanup `dropboxBackup(true)` call in a `setTimeout(..., 3000)`, giving `syncDropbox()` time to complete its pull first. 3s matches the existing triage grace window (`_triageBarSilent`) — same race class, same fix.
 
 **Verify:**
-- Click the nudge to dismiss it (removes `morning_nudge_count` from localStorage). Close the tab fully. Reopen the app before noon with undone tasks → nudge should appear immediately on first load, without needing to switch away and back.
+- Tomorrow morning, open mobile before touching the computer. Task list should immediately show the computer's latest tasks without needing any further interaction.
 
 **Verified fixed:** ☐
 
 ---
 
-## BUG-034: Morning nudge AI text swaps mid-read (Tier 1→2 upgrade)
+## BUG-038: Red dot appears on mobile when offline (SW update rejection)
 
-**Status:** Fixed v2.17.125
+**Status:** Fixed v2.17.136 — awaiting verify
 
-**Symptom:** User is reading the rule-based nudge message; 1–5 seconds later the text fades out and is replaced by the AI-generated version. Surprising/jarring even with the 200ms fade.
+**Symptom:** Going offline on mobile PWA triggers the red error dot. Tapping it shows a message about sw.js failing to load.
 
-**Root cause:** `checkMorningNudge()` always performs the DOM swap when the AI fetch resolves, regardless of how long the nudge has been visible. No guard on elapsed time.
+**Root cause (two gaps):**
+1. Both `reg.update()` calls (30-min interval and visibilitychange) had no `.catch()`. On iOS Safari, unhandled rejections from SW update checks can route through `window.onerror` instead of `unhandledrejection`.
+2. `window.onerror` had no network-error filter — it always showed the red dot. The `unhandledrejection` handler already had the filter (including `'Failed to update a ServiceWorker'`), but `window.onerror` didn't.
 
-**Fix:** Added `const _nudgeShownAt = Date.now()` before the async `_fetchMorningNudgeAI()` call. In the `.then()` callback, if `Date.now() - _nudgeShownAt > 3000`, the DOM swap is skipped. AI text is still written to localStorage cache — shows immediately (no swap) on the next cold start.
+**Fix (v2.17.136):** Added `.catch(() => {})` to both `reg.update()` calls. Added the same network-error string filter to `window.onerror` that already existed in `unhandledrejection`.
 
 **Verify:**
-- Delete `morning_nudge_ai_<today>` from localStorage (DevTools → Application → Local Storage). Reload app before noon with undone tasks. Read the rule-based message. Wait 5+ seconds without switching away → message should NOT change. Reload → AI-cached message shows immediately, no transition.
+- Go offline on mobile PWA. Switch away and back (triggers visibilitychange → reg.update()). Red dot should NOT appear.
 
 **Verified fixed:** ☐
 
 ---
 
-## BUG-036: This Week data differs between web app and mobile app
+## BUG-039: All-habits-done celebration never fires
 
-**Status:** Fixed v2.17.132 — verified
+**Status:** Fixed v2.17.137 — awaiting verify
 
-**Symptom:** The "This Week" grid in About shows different past-day tallies (tasks/focus/habits) on the web app vs the mobile app. Today's column matches; prior days diverge.
+**Symptom:** Completing the last habit of the day produces no glow, no extra embers, no extra haptic — just the normal single-habit celebration.
 
-**Root cause:** The week grid reads per-day snapshots from `today_daily_history` for past days (today's column is computed live from counters, which ARE synced — hence today matches). But `today_daily_history` was **local-only**: it was never included in the Dropbox backup payload. Each device writes its own snapshot of "yesterday" in `applyNewDayCleanup()` when it first opens after midnight, and those snapshots never crossed devices — so each device accumulated its own independent week history.
+**Root cause:** `toggleHabitDone()` checked `habitsList.every(h => ...)` which includes archived habits. Archived habits have no completion for today, so `allDone` was permanently `false` for any user who had ever archived a habit. Broke silently when habit archiving landed in v2.17.106.
 
-**Fix:** Added `daily_history` to the Dropbox backup (schema **5.2 → 5.3**) and union-merged it on both restore paths (`mergeRemoteData()` and the full-restore block) via new helper `_mergeDailyHistory(local, remote)`: union by date, on a duplicate date keep the richer snapshot (higher `tasksDone`, tiebreak `focusMins`) so each entry stays internally consistent rather than mixing fields across devices; cap 30 days. Backward compatible — no schema-version gating exists, old clients ignore the field, new clients tolerate its absence (`|| []`).
+**Fix (v2.17.137):** Added `const activeHabits = habitsList.filter(h => !h.archived)` before the check, then used `activeHabits` in both the length guard and `.every()`. Matches the pattern already used in `renderHabits()`.
 
 **Verify:**
-- On two devices both connected to Dropbox: confirm the week grid (and `_getWeeklyStats` totals) show identical past-day values after a sync cycle. A day one device missed (was off) should appear after the other device's history syncs in.
+- Archive at least one habit. Complete all remaining (non-archived) habits. On the last check: accent glow should pulse, extra haptic fires, 3 ember bursts from the checkbox.
 
-**Verified fixed:** ✅ Jun 2026
-
+**Verified fixed:** ☐

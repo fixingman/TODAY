@@ -2969,6 +2969,7 @@
       <div class="section-label">From Trello</div>
       <div class="section-count" id="trelloCount">0</div>
     </div>
+    <div class="morning-nudge" id="trelloNudge" style="display:none"></div>
     <div class="task-list" id="trelloList"></div>
     <div class="empty" id="trelloEmpty">Trello's not connected yet</div>
   </div>
@@ -3112,6 +3113,14 @@ function _logSyncError(source, msg) {
 })();
 
 window.onerror = function(msg, url, line, col, err) {
+  // Network errors and SW update failures are expected when offline — don't show red dot
+  const msgStr = String(msg || '');
+  if (msgStr.includes('Failed to fetch') || msgStr.includes('NetworkError')
+    || msgStr.includes('Load failed') || msgStr.includes('ERR_INTERNET')
+    || msgStr.includes('Failed to update a ServiceWorker')) {
+    console.warn('[network-onerror]', msgStr);
+    return false;
+  }
   // Check if error originates from outside the app (browser extensions, injected scripts)
   const isExternal = url && !url.includes(window.location.hostname) && !url.includes('index.html');
   const prefix = isExternal ? '[external] ' : '';
@@ -3207,6 +3216,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.138': 'Feat: Trello section now gets its own morning nudge — same two-tier pattern as the manual tasks nudge (rule-based tier 1: card count + overdue flag; AI tier 2: names the natural starting point or most pressing card). Morning-only (hides at noon), dismissible per day, AI result cached. Mirrors checkMorningNudge/renderHabits pattern exactly.',
+  '2.17.137': 'Fix: BUG-039 — all-habits-done celebration (glow + embers) never fired for users who had archived any habit. toggleHabitDone() checked habitsList.every() which includes archived habits — archived habits have no completion for today, so allDone was permanently false. Fix: filter to active (non-archived) habits before the check, matching the logic already used in renderHabits().',
+  '2.17.136': 'Fix: red error dot appeared on mobile when offline — SW update checks (every 30min and on visibility) had no .catch(), so iOS Safari could route the network rejection through window.onerror which lacked a network-error filter. Both reg.update() calls now catch silently; window.onerror now applies the same network-error filter already present in the unhandledrejection handler.',
   '2.17.135': 'Fix: task list could appear behind on morning open — when the app resumed from background on a new day, a day-cleanup backup raced the remote pull and sometimes overwrote Dropbox with stale local data before the newer remote tasks could be fetched. The cleanup backup now waits 3 seconds, giving the pull time to complete first.',
   '2.17.134': 'Polish: reduce splash font-load ceiling from 2500ms to 2000ms — fonts are SW-cached so 2s is ample; tighter ceiling means the static fallback fires sooner on genuinely stalled loads.',
   '2.17.133': 'Fix: splash logo reveal reworked so the letters never paint mid-animation — the glyphs are forced to render in place first, then the whole logo fades and rises as one. Resolves the long-standing iOS cold-start glitch.',
@@ -3353,6 +3365,7 @@ function _cacheElements() {
 
   // Misc
   $.morningNudge  = document.getElementById('morningNudge');
+  $.trelloNudge   = document.getElementById('trelloNudge');
 }
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -3676,6 +3689,108 @@ function checkMorningNudge() {
       clearTimeout(_fallbackTimer);
       _showNudge(text);
     }).catch(() => { if (!_settled) { _settled = true; clearTimeout(_fallbackTimer); _showNudge(msg); } });
+  }
+  checkTrelloNudge();
+}
+
+function checkTrelloNudge() {
+  const nudgeEl = $.trelloNudge || document.getElementById('trelloNudge');
+  if (!nudgeEl) return;
+
+  // Morning only (same noon cutoff as manual nudge)
+  const hour = new Date().getHours();
+  if (hour >= 12) {
+    nudgeEl.style.display = 'none';
+    localStorage.removeItem('trello_nudge_ai_' + _localISO());
+    return;
+  }
+
+  // Only when there are cards to show
+  const cards = (typeof trelloTasks !== 'undefined' ? trelloTasks : []);
+  if (!cards.length) { nudgeEl.style.display = 'none'; return; }
+
+  // Stay hidden if dismissed this morning
+  if (localStorage.getItem('trello_nudge_dismissed_' + _localISO())) {
+    nudgeEl.style.display = 'none';
+    return;
+  }
+
+  // Rule-based tier 1 message
+  const todayStr = _localISO();
+  const overdueCount = cards.filter(t => t.due && t.due.slice(0, 10) < todayStr).length;
+  const n = cards.length;
+  let msg = n === 1 ? '1 card in Trello today' : n + ' cards in Trello today';
+  if (overdueCount > 0) msg += ' · ' + overdueCount + ' overdue';
+
+  const _aiCacheKey = 'trello_nudge_ai_' + _localISO();
+  const _aiCached = localStorage.getItem(_aiCacheKey);
+
+  const _showNudge = (text) => {
+    nudgeEl.innerHTML = '<span class="nudge-dot"></span>' + esc(text);
+    nudgeEl.style.display = 'flex';
+    nudgeEl.onclick = () => {
+      nudgeEl.style.display = 'none';
+      localStorage.setItem('trello_nudge_dismissed_' + _localISO(), '1');
+    };
+  };
+
+  if (_aiCached) {
+    _showNudge(_aiCached);
+  } else {
+    let _settled = false;
+    const _fallbackTimer = setTimeout(() => {
+      if (_settled) return;
+      _settled = true;
+      _showNudge(msg);
+    }, 1000);
+    _fetchTrelloNudgeAI(cards).then(text => {
+      if (!text) { if (!_settled) { _settled = true; clearTimeout(_fallbackTimer); _showNudge(msg); } return; }
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('trello_nudge_ai_') && k !== _aiCacheKey) localStorage.removeItem(k);
+      }
+      localStorage.setItem(_aiCacheKey, text);
+      if (_settled) return;
+      _settled = true;
+      clearTimeout(_fallbackTimer);
+      _showNudge(text);
+    }).catch(() => { if (!_settled) { _settled = true; clearTimeout(_fallbackTimer); _showNudge(msg); } });
+  }
+}
+
+async function _fetchTrelloNudgeAI(cards) {
+  try {
+    const key = (typeof _aiGetKey === 'function') ? _aiGetKey() : null;
+    if (!key || !navigator.onLine) return null;
+
+    const todayStr = _localISO();
+    const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const cardLines = cards.slice(0, 8).map(t => {
+      const overdue = t.due && t.due.slice(0, 10) < todayStr;
+      const cl = t.checklist ? ' (' + t.checklist.done + '/' + t.checklist.total + ' checked)' : '';
+      return '"' + t.text + '"' + (overdue ? ' — overdue' : '') + cl;
+    });
+
+    const facts =
+      'Morning check-in. Today is ' + dayNames[new Date().getDay()] + '.\n' +
+      'Trello cards to work through:\n' + cardLines.join('\n');
+
+    const res = await fetch('/.netlify/functions/ai-assist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: _aiGetProvider(),
+        apiKey: key,
+        messages: [{ role: 'user', content: facts + '\n\nIf something stands out — an overdue card, a natural starting point — name it plainly. Otherwise summarise what\'s here.' }],
+        systemPrompt: 'You are the quiet companion in a minimal daily task app. One sentence only. Under 18 words. No quotes, no exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) return null;
+    return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
+  } catch (e) {
+    return null;
   }
 }
 
@@ -5837,6 +5952,7 @@ function renderTrello() {
   });
   // Re-anchor focus timer if active — Trello patch may have replaced the focused task element
   if (window._focusReanchor) window._focusReanchor();
+  if (typeof checkTrelloNudge === 'function') checkTrelloNudge();
 }
 
 function _getDueStr(task) {
@@ -6604,7 +6720,8 @@ function toggleHabitDone(id) {
     
     // ── ALL HABITS DONE celebration ──
     const todayISO = _habitTodayISO();
-    const allDone = habitsList.length > 0 && habitsList.every(h => 
+    const activeHabits = habitsList.filter(h => !h.archived);
+    const allDone = activeHabits.length > 0 && activeHabits.every(h =>
       (habitCompletions[h.id] || []).includes(todayISO)
     );
     
@@ -9372,11 +9489,11 @@ if ('serviceWorker' in navigator && canRegisterSW) {
     navigator.serviceWorker.register('/sw.js')
       .then(reg => {
         // Poll for updates every 30 minutes while app is open
-        setInterval(() => reg.update(), 30 * 60 * 1000);
-        
+        setInterval(() => reg.update().catch(() => {}), 30 * 60 * 1000);
+
         // Also check for updates when app regains focus
         document.addEventListener('visibilitychange', () => {
-          if (document.visibilityState === 'visible') reg.update();
+          if (document.visibilityState === 'visible') reg.update().catch(() => {});
         });
 
         // When a new SW is waiting (downloaded in background), activate it

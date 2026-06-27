@@ -21,6 +21,7 @@
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing, nothing else — marks day boundaries without chasing tasks. Needs server infra. Detail ↓ |
 | 5 | **Empty/peak states audit** | Not started | First-open, everything-done, brand-new-user. "Everything done" is the app's promise fulfilled — currently just an empty list. Polish session for a quiet week. |
 | 6 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
+| 7 | **About — contextual digest layer** | Not started | A periodic, in-app surface in About that changes based on day/week: Sunday recap, Monday intention, contextual hints (e.g. "you haven't focused this week"), daily moment beyond the poem. No server infra — purely local data. Distinct from #4 (push = server-sent, external); complementary to #1 (nudge = task-list one-liner) and #2 (poem = static daily). Detail ↓ |
 
 **Awaiting device verification:** WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep (v2.17.103). *(Recurring-surface verifications now live in the dated Wallpaper Test W3 table below, not here.)*
 
@@ -49,6 +50,19 @@
 **Stack:** `push` listener in `sw.js`, VAPID keys in Netlify env, two new Netlify functions (store subscription + scheduled send), permission UI in Connections panel.
 **Key constraint:** iOS has no background sync — notifications must be server-sent via Netlify Scheduled Functions. The app cannot self-schedule.
 **Scope decision (Jun 2026):** day boundaries only — 8pm triage reminder + morning briefing. No habit nudges, no task chasing.
+
+### 7 · About — Contextual Digest Layer
+**Concept:** A section in the About panel that surfaces periodic, context-aware content based on the current day and week. No push, no server — pure local data.
+**Candidate moments:**
+- **Sunday** — weekly recap: tasks done, focus time, habit streak, best day
+- **Monday morning** — intention prompt: what's carried over, what's the week's shape
+- **Daily hint** — one contextual observation (e.g. "you haven't used focus mode in 5 days", "3 tasks are ageing") — insight-gated, not repetitive
+- **Milestone** — surface quietly when streak/focus milestones happen (currently only shown at check-time)
+**Relationship to other items:**
+- **#1 (nudge):** nudge is task-list, one-liner, morning only. Digest is About panel, richer, time-of-week aware.
+- **#2 (poem):** poem is static per-day. Digest is dynamic per-context. Could live in the same About section, adjacent.
+- **#4 (push):** push notifications would eventually carry the *same content* externally. Build the in-app version first — validates the content before adding server complexity.
+**Open questions:** shown always vs shown once per period (like poem cooldown)? Can it replace the poem slot on Sundays, or always alongside?
 
 ### WEEK — standalone weekly planning companion *(gated)*
 **Vision:** a separate lightweight weekly planning tool. TODAY = focus instrument, WEEK = planning surface.

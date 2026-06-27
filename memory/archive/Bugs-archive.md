@@ -321,3 +321,45 @@ Architectural dead end: with a CSS animation, every `display:none/block` repaint
 **Verified:** Force-showed dot in desktop Chrome with 47px safe-area-inset injected via CSS override — dot rendered at top: 55px, fully clear of the status bar. Confirmed no active errors on the app (dot hidden = no errors, expected healthy state).
 
 **Verified fixed:** ✅ (Can, Jun 2026)
+
+---
+
+## BUG-033: Morning nudge missing on first cold-start of the day
+
+**Status:** Fixed v2.17.125
+
+**Symptom:** Cold-start the app in the morning — nudge doesn't appear. Switch away and back → nudge appears via `_onWake()`.
+
+**Root cause:** `morning_nudge_count` is set by `applyNewDayCleanup()`, which runs in the sync startup block *after* `init()` has already called `checkMorningNudge()`. If the user dismissed yesterday's nudge (click removes the key), `init()`'s call finds no count and hides the nudge. `applyNewDayCleanup()` recalculates the count from current tasks but `checkMorningNudge()` is not called afterward — nudge never appears until `_onWake()` fires on next focus. Dropbox restore path already fixed this for Dropbox users; local-only path and Dropbox-failed-restore fallback were missing it.
+
+**Fix:** Added `if (typeof checkMorningNudge === 'function') checkMorningNudge()` after `applyNewDayCleanup()` in the sync startup block. Idempotent — safe even if Dropbox path already ran it.
+
+**Verified fixed:** ✅ Jun 2026
+
+---
+
+## BUG-034: Morning nudge AI text swaps mid-read (Tier 1→2 upgrade)
+
+**Status:** Fixed v2.17.125
+
+**Symptom:** User is reading the rule-based nudge message; 1–5 seconds later the text fades out and is replaced by the AI-generated version. Surprising/jarring even with the 200ms fade.
+
+**Root cause:** `checkMorningNudge()` always performed the DOM swap when the AI fetch resolved, regardless of how long the nudge had been visible. No guard on elapsed time.
+
+**Fix:** Added `const _nudgeShownAt = Date.now()` before the async `_fetchMorningNudgeAI()` call. In the `.then()` callback, if `Date.now() - _nudgeShownAt > 3000`, the DOM swap is skipped. AI text is still written to localStorage cache — shows immediately (no swap) on the next cold start.
+
+**Verified fixed:** ✅ Jun 2026
+
+---
+
+## BUG-036: This Week data differs between web app and mobile app
+
+**Status:** Fixed v2.17.132
+
+**Symptom:** The "This Week" grid in About shows different past-day tallies (tasks/focus/habits) on the web app vs the mobile app. Today's column matches; prior days diverge.
+
+**Root cause:** `today_daily_history` was local-only — never included in the Dropbox backup payload. Each device writes its own snapshot of "yesterday" in `applyNewDayCleanup()` when it first opens after midnight, and those snapshots never crossed devices.
+
+**Fix:** Added `daily_history` to the Dropbox backup (schema **5.2 → 5.3**) and union-merged it on both restore paths via `_mergeDailyHistory(local, remote)`: union by date, on a duplicate keep the richer snapshot (higher `tasksDone`, tiebreak `focusMins`); cap 30 days. Backward compatible.
+
+**Verified fixed:** ✅ Jun 2026

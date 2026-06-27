@@ -4,10 +4,10 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.17.136 (next)
-- **Recent:** day-cleanup backup race fix (v2.17.135); splash ceiling 2000ms (v2.17.134); BUG-032 fifth pass (v2.17.133); BUG-036 daily_history sync (v2.17.132)
+- **Working on:** v2.17.139 (next)
+- **Recent:** Trello morning nudge (v2.17.138); BUG-039 all-habits celebration fix (v2.17.137); red dot on offline SW check fix (v2.17.136); day-cleanup backup race fix (v2.17.135)
 - **Module extraction in progress:** `assets/util.js` + `assets/idle.js` out (classic scripts before main `<script>`, globals shared via lexical env, precached in sw.js). Next risk-ascending: `sound.js`, `celebration.js`, `trello.js`, `insights.js`, `sync.js` (last — Non-Delegation). Coupled core stays inline. See Backlog Roadmap #3.
-- **Watch for:** BUG-032 awaiting device verify (mobile splash logo mid-animation — fifth-pass refix v2.17.133, transform-only reveal + container fade) · BUG-033 awaiting morning verify (nudge missing on first open) · BUG-034 awaiting morning verify (AI swap mid-read) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
+- **Watch for:** BUG-032 awaiting device verify (mobile splash logo mid-animation — fifth-pass refix v2.17.133, transform-only reveal + container fade) · BUG-037 awaiting morning verify (stale task list on morning open) · BUG-038 awaiting verify (red dot on offline — go offline on mobile, switch away and back, dot should not appear) · BUG-039 awaiting verify (all-habits celebration — archive a habit, complete remaining, last check should glow+embers) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---
 
