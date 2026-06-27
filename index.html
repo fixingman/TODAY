@@ -3216,6 +3216,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.139': 'Fix: BUG-040 — morning nudge reappeared after dismiss. Every focus-away/focus-back (visibilitychange → _onWake) re-ran checkMorningNudge(), and the v2.17.128 self-heal recalculated the carried-over count from the live task list, resurrecting the dismissed nudge. Added a per-day morning_nudge_dismissed_<date> flag (same pattern as the Trello nudge) that guards at the top of the function before self-heal runs; old flags are pruned on dismiss. Trello nudge got the same prune for parity.',
   '2.17.138': 'Feat: Trello section now gets its own morning nudge — same two-tier pattern as the manual tasks nudge (rule-based tier 1: card count + overdue flag; AI tier 2: names the natural starting point or most pressing card). Morning-only (hides at noon), dismissible per day, AI result cached. Mirrors checkMorningNudge/renderHabits pattern exactly.',
   '2.17.137': 'Fix: BUG-039 — all-habits-done celebration (glow + embers) never fired for users who had archived any habit. toggleHabitDone() checked habitsList.every() which includes archived habits — archived habits have no completion for today, so allDone was permanently false. Fix: filter to active (non-archived) habits before the check, matching the logic already used in renderHabits().',
   '2.17.136': 'Fix: red error dot appeared on mobile when offline — SW update checks (every 30min and on visibility) had no .catch(), so iOS Safari could route the network rejection through window.onerror which lacked a network-error filter. Both reg.update() calls now catch silently; window.onerror now applies the same network-error filter already present in the unhandledrejection handler.',
@@ -3601,6 +3602,15 @@ function checkMorningNudge() {
     return;
   }
   
+  // Dismissed this morning — stay hidden until tomorrow (per-day flag).
+  // Without this guard, the self-heal below recalculates carriedOver from
+  // manualTasks and resurrects a nudge the user just dismissed on every wake. (BUG-040)
+  const _dismissKey = 'morning_nudge_dismissed_' + _localISO();
+  if (localStorage.getItem(_dismissKey)) {
+    nudgeEl.style.display = 'none';
+    return;
+  }
+
   // Use stored count, but self-heal if missing — day-transition sets it once, but a
   // nudge dismiss clears it and a same-day re-open won't re-run cleanup to restore it.
   let carriedOver = parseInt(localStorage.getItem('morning_nudge_count') || '0');
@@ -3660,6 +3670,12 @@ function checkMorningNudge() {
     nudgeEl.style.display = 'flex';
     nudgeEl.onclick = () => {
       nudgeEl.style.display = 'none';
+      // Prune stale dismiss flags from prior days, then set today's. (BUG-040)
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('morning_nudge_dismissed_') && k !== _dismissKey) localStorage.removeItem(k);
+      }
+      localStorage.setItem(_dismissKey, '1');
       localStorage.removeItem('morning_nudge_count');
       localStorage.removeItem('today_day_review');
     };
@@ -3710,7 +3726,8 @@ function checkTrelloNudge() {
   if (!cards.length) { nudgeEl.style.display = 'none'; return; }
 
   // Stay hidden if dismissed this morning
-  if (localStorage.getItem('trello_nudge_dismissed_' + _localISO())) {
+  const _dismissKey = 'trello_nudge_dismissed_' + _localISO();
+  if (localStorage.getItem(_dismissKey)) {
     nudgeEl.style.display = 'none';
     return;
   }
@@ -3730,7 +3747,12 @@ function checkTrelloNudge() {
     nudgeEl.style.display = 'flex';
     nudgeEl.onclick = () => {
       nudgeEl.style.display = 'none';
-      localStorage.setItem('trello_nudge_dismissed_' + _localISO(), '1');
+      // Prune stale dismiss flags from prior days, then set today's. (BUG-040 parity)
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('trello_nudge_dismissed_') && k !== _dismissKey) localStorage.removeItem(k);
+      }
+      localStorage.setItem(_dismissKey, '1');
     };
   };
 

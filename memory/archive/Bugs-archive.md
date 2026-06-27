@@ -363,3 +363,49 @@ Architectural dead end: with a CSS animation, every `display:none/block` repaint
 **Fix:** Added `daily_history` to the Dropbox backup (schema **5.2 → 5.3**) and union-merged it on both restore paths via `_mergeDailyHistory(local, remote)`: union by date, on a duplicate keep the richer snapshot (higher `tasksDone`, tiebreak `focusMins`); cap 30 days. Backward compatible.
 
 **Verified fixed:** ✅ Jun 2026
+
+---
+
+## BUG-037: Task list appears stale on morning open (day-cleanup backup race)
+
+**Status:** Fixed v2.17.135
+
+**Symptom:** On morning open (app resuming from background on a new day), the task list shows yesterday's state — tasks completed on another device are missing. Doesn't self-correct during use; only resolves when the other device makes another Dropbox write.
+
+**Root cause:** The `visibilitychange` path calls `checkNewDay()` **before** `syncDropbox()`. When `checkNewDay()` detects a new day it calls `applyNewDayCleanup()`, which fires `dropboxBackup(true)` without `await`. If that upload completes before `syncDropbox()`'s metadata fetch returns, `syncDropbox()` then downloads the device's own just-uploaded (stale) data — `lastDropboxRev` is updated to the stale rev, and the 7-second ticker sees no further rev change, leaving the task list stuck until another device writes.
+
+The `window.load` path is unaffected — it pulls Dropbox first, then calls `applyNewDayCleanup()`. `zoneChangedAt` timestamps protect done→PAST moves independently, so the delayed backup is safe.
+
+**Fix (v2.17.135):** Wrapped the cleanup `dropboxBackup(true)` call in a `setTimeout(..., 3000)`, giving `syncDropbox()` time to complete its pull first. 3s matches the existing triage grace window (`_triageBarSilent`) — same race class, same fix.
+
+**Verified fixed:** ✅ Jun 2026
+
+---
+
+## BUG-038: Red dot appears on mobile when offline (SW update rejection)
+
+**Status:** Fixed v2.17.136
+
+**Symptom:** Going offline on mobile PWA triggers the red error dot. Tapping it shows a message about sw.js failing to load.
+
+**Root cause (two gaps):**
+1. Both `reg.update()` calls (30-min interval and visibilitychange) had no `.catch()`. On iOS Safari, unhandled rejections from SW update checks can route through `window.onerror` instead of `unhandledrejection`.
+2. `window.onerror` had no network-error filter — it always showed the red dot. The `unhandledrejection` handler already had the filter (including `'Failed to update a ServiceWorker'`), but `window.onerror` didn't.
+
+**Fix (v2.17.136):** Added `.catch(() => {})` to both `reg.update()` calls. Added the same network-error string filter to `window.onerror` that already existed in `unhandledrejection`.
+
+**Verified fixed:** ✅ Jun 2026
+
+---
+
+## BUG-039: All-habits-done celebration never fires
+
+**Status:** Fixed v2.17.137
+
+**Symptom:** Completing the last habit of the day produces no glow, no extra embers, no extra haptic — just the normal single-habit celebration.
+
+**Root cause:** `toggleHabitDone()` checked `habitsList.every(h => ...)` which includes archived habits. Archived habits have no completion for today, so `allDone` was permanently `false` for any user who had ever archived a habit. Broke silently when habit archiving landed in v2.17.106.
+
+**Fix (v2.17.137):** Added `const activeHabits = habitsList.filter(h => !h.archived)` before the check, then used `activeHabits` in both the length guard and `.every()`. Matches the pattern already used in `renderHabits()`.
+
+**Verified fixed:** ✅ Jun 2026

@@ -43,9 +43,10 @@
 | 034 | Morning nudge AI text swaps mid-read (Tier 1→2 upgrade) | ✅ v2.17.125 |
 | 035 | Trello cards never age visually (omission — type guard excluded them) | ✅ v2.17.127 |
 | 036 | This Week data differs web vs mobile (daily_history local-only) | ✅ v2.17.132 |
-| 037 | Task list appears stale on morning open (day-cleanup backup race) | ⏳ v2.17.135 — awaiting morning verify |
-| 038 | Red dot appears on mobile when offline (SW update rejection) | ⏳ v2.17.136 — awaiting verify |
-| 039 | All-habits-done celebration never fires (archived habit check) | ⏳ v2.17.137 — awaiting verify |
+| 037 | Task list appears stale on morning open (day-cleanup backup race) | ✅ v2.17.135 |
+| 038 | Red dot appears on mobile when offline (SW update rejection) | ✅ v2.17.136 |
+| 039 | All-habits-done celebration never fires (archived habit check) | ✅ v2.17.137 |
+| 040 | Morning nudge reappears after dismiss on every wake (self-heal regression) | ⏳ v2.17.139 — awaiting verify |
 
 ---
 
@@ -82,55 +83,17 @@
 
 ---
 
-## BUG-037: Task list appears stale on morning open (day-cleanup backup race)
+## BUG-040: Morning nudge reappears after dismiss on every wake
 
-**Status:** Fixed v2.17.135 — awaiting morning verify
+**Status:** Fixed v2.17.139 — awaiting verify
 
-**Symptom:** On morning open (app resuming from background on a new day), the task list shows yesterday's state — tasks completed on another device are missing. Doesn't self-correct during use; only resolves when the other device makes another Dropbox write.
+**Symptom:** Morning nudge appears, user clicks to dismiss it, and it comes back. Confirmed on desktop: every focus-away → focus-back of the window re-shows it with identical content.
 
-**Root cause:** The `visibilitychange` path calls `checkNewDay()` **before** `syncDropbox()`. When `checkNewDay()` detects a new day it calls `applyNewDayCleanup()`, which fires `dropboxBackup(true)` without `await`. If that upload completes before `syncDropbox()`'s metadata fetch returns, `syncDropbox()` then downloads the device's own just-uploaded (stale) data — `lastDropboxRev` is updated to the stale rev, and the 7-second ticker sees no further rev change, leaving the task list stuck until another device writes.
+**Root cause:** Regression from v2.17.128 (BUG-033 second pass). The dismiss handler removed `morning_nudge_count` and `today_day_review` but set no persistent dismissed flag. Each `visibilitychange` → `_onWake()` re-calls `checkMorningNudge()`, where the self-heal block (added v2.17.128) sees the count is missing, recalculates it from `manualTasks.filter(t => !doneIds.has(t.id))`, restores the key, and re-shows the nudge. The self-heal couldn't distinguish "dismissed today" from "count cleared by yesterday's dismiss."
 
-The `window.load` path is unaffected — it pulls Dropbox first, then calls `applyNewDayCleanup()`. `zoneChangedAt` timestamps protect done→PAST moves independently, so the delayed backup is safe.
-
-**Fix (v2.17.135):** Wrapped the cleanup `dropboxBackup(true)` call in a `setTimeout(..., 3000)`, giving `syncDropbox()` time to complete its pull first. 3s matches the existing triage grace window (`_triageBarSilent`) — same race class, same fix.
+**Fix (v2.17.139):** Added a per-day `morning_nudge_dismissed_<date>` flag (same pattern as the Trello nudge `trello_nudge_dismissed_<date>`). Dismiss sets it; a guard at the top of `checkMorningNudge()` returns early before self-heal runs. Per-day key, so tomorrow's nudge is unaffected and the self-heal still works across the day boundary. Old flags pruned on dismiss. Trello nudge got the same prune loop for parity.
 
 **Verify:**
-- Tomorrow morning, open mobile before touching the computer. Task list should immediately show the computer's latest tasks without needing any further interaction.
-
-**Verified fixed:** ☐
-
----
-
-## BUG-038: Red dot appears on mobile when offline (SW update rejection)
-
-**Status:** Fixed v2.17.136 — awaiting verify
-
-**Symptom:** Going offline on mobile PWA triggers the red error dot. Tapping it shows a message about sw.js failing to load.
-
-**Root cause (two gaps):**
-1. Both `reg.update()` calls (30-min interval and visibilitychange) had no `.catch()`. On iOS Safari, unhandled rejections from SW update checks can route through `window.onerror` instead of `unhandledrejection`.
-2. `window.onerror` had no network-error filter — it always showed the red dot. The `unhandledrejection` handler already had the filter (including `'Failed to update a ServiceWorker'`), but `window.onerror` didn't.
-
-**Fix (v2.17.136):** Added `.catch(() => {})` to both `reg.update()` calls. Added the same network-error string filter to `window.onerror` that already existed in `unhandledrejection`.
-
-**Verify:**
-- Go offline on mobile PWA. Switch away and back (triggers visibilitychange → reg.update()). Red dot should NOT appear.
-
-**Verified fixed:** ☐
-
----
-
-## BUG-039: All-habits-done celebration never fires
-
-**Status:** Fixed v2.17.137 — awaiting verify
-
-**Symptom:** Completing the last habit of the day produces no glow, no extra embers, no extra haptic — just the normal single-habit celebration.
-
-**Root cause:** `toggleHabitDone()` checked `habitsList.every(h => ...)` which includes archived habits. Archived habits have no completion for today, so `allDone` was permanently `false` for any user who had ever archived a habit. Broke silently when habit archiving landed in v2.17.106.
-
-**Fix (v2.17.137):** Added `const activeHabits = habitsList.filter(h => !h.archived)` before the check, then used `activeHabits` in both the length guard and `.every()`. Matches the pattern already used in `renderHabits()`.
-
-**Verify:**
-- Archive at least one habit. Complete all remaining (non-archived) habits. On the last check: accent glow should pulse, extra haptic fires, 3 ember bursts from the checkbox.
+- Before noon with carried-over tasks, nudge shows. Dismiss it. Focus away from the desktop window, then focus back — nudge stays hidden. Repeat several times. Next morning, nudge still appears (key is date-scoped).
 
 **Verified fixed:** ☐
