@@ -2189,13 +2189,9 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
     margin-bottom: var(--space-2);
-    transition: border-color var(--dur-fast);
   }
   .connection-row:last-child {
     margin-bottom: 0;
-  }
-  .connection-row:hover {
-    border-color: var(--muted);
   }
   .connection-row-info {
     display: flex;
@@ -2218,15 +2214,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  /* Telemetry line under a connection row (e.g. sync conflicts auto-resolved) */
-  .connection-row-note {
-    font-size: var(--text-micro);
-    color: var(--muted);
-    opacity: var(--opacity-muted);
-    letter-spacing: 0.04em;
-    margin-top: calc(-1 * var(--space-1));
-    padding: 0 var(--space-1) var(--space-2);
   }
   .connection-row-actions {
     display: flex;
@@ -3216,6 +3203,8 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.17.141': 'Cleanup: the Trello and Dropbox connection rows no longer highlight on hover/tap — they are status rows, not buttons, and on mobile the highlight used to stick after a tap.',
+  '2.17.140': 'Cleanup: removed the "N sync conflicts auto-resolved" line under the Dropbox connection — sync still resolves conflicts automatically, it just no longer reports a count in the UI.',
   '2.17.139': 'Fix: BUG-040 — morning nudge reappeared after dismiss. Every focus-away/focus-back (visibilitychange → _onWake) re-ran checkMorningNudge(), and the v2.17.128 self-heal recalculated the carried-over count from the live task list, resurrecting the dismissed nudge. Added a per-day morning_nudge_dismissed_<date> flag (same pattern as the Trello nudge) that guards at the top of the function before self-heal runs; old flags are pruned on dismiss. Trello nudge got the same prune for parity.',
   '2.17.138': 'Feat: Trello section now gets its own morning nudge — same two-tier pattern as the manual tasks nudge (rule-based tier 1: card count + overdue flag; AI tier 2: names the natural starting point or most pressing card). Morning-only (hides at noon), dismissible per day, AI result cached. Mirrors checkMorningNudge/renderHabits pattern exactly.',
   '2.17.137': 'Fix: BUG-039 — all-habits-done celebration (glow + embers) never fired for users who had archived any habit. toggleHabitDone() checked habitsList.every() which includes archived habits — archived habits have no completion for today, so allDone was permanently false. Fix: filter to active (non-archived) habits before the check, matching the logic already used in renderHabits().',
@@ -5381,13 +5370,6 @@ function renderConnections() {
     const mins = Math.round((Date.now() - new Date(lastActivity).getTime()) / 60000);
     backupStatus = mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.round(mins/60)}h ago`;
   }
-  // Merge-anomaly telemetry — own line below the Dropbox row (the status span
-  // is nowrap+ellipsis and shares its row with three buttons; no width to spare)
-  const _mergeAnomalies = safeJSON('today_merge_anomalies', []);
-  const anomalyNote = _mergeAnomalies.length
-    ? `<div class="connection-row-note" title="Both devices changed the same task — the newest change was kept.">${_mergeAnomalies.length} sync conflict${_mergeAnomalies.length > 1 ? 's' : ''} auto-resolved</div>`
-    : '';
-
   // Both disconnected: side-by-side cards
   if (!trelloToken && !dropboxConnected) {
     container.innerHTML = `
@@ -5479,7 +5461,7 @@ function renderConnections() {
           <button class="btn-sm" onclick="dropboxRestore()">Restore</button>
           <button class="btn-sm" onclick="dropboxDisconnect()">Forget</button>
         </div>
-      </div>${anomalyNote}`;
+      </div>`;
   } else if (dropboxExpired) {
     // Expired — show reconnect
     html += `
@@ -8290,16 +8272,12 @@ async function dropboxBackup(silent) {
   }
 }
 
-// ── Merge-anomaly log — silent telemetry, NOT an error ───────────────────────
-// Records when union merge had to discard one device's intent (a true concurrent
+// ── Merge-anomaly log — silent console breadcrumb, NOT an error ──────────────
+// Fires when union merge had to discard one device's intent (a true concurrent
 // change to the same task since the last sync read). The merge itself succeeded,
-// so this never touches the red dot — it just counts how often the theoretical
-// "unhandled 1%" of conflicts actually happens. Read: Connections → Dropbox row,
-// or localStorage `today_merge_anomalies` (latest 50). Local-only, not synced.
+// so this never touches the red dot — it's a debug-only trace of how often the
+// theoretical "unhandled 1%" of conflicts actually happens. Console-only.
 function _logMergeAnomaly(kind, id, detail) {
-  const log = safeJSON('today_merge_anomalies', []);
-  log.unshift({ at: new Date().toISOString(), kind, id, detail });
-  localStorage.setItem('today_merge_anomalies', JSON.stringify(log.slice(0, 50)));
   console.warn('[merge-anomaly] ' + kind + ' on ' + id, detail);
 }
 

@@ -47,6 +47,8 @@
 | Legacy architecture doc (pre-split) | `archive/Architecture.md` |
 | Legacy design doc (pre-split) | `archive/Design.md` |
 | Legacy research doc (pre-split) | `archive/Research.md` |
+| Legacy README (pre-archive) | `archive/README-archive.md` |
+| Legacy memory-structure doc | `archive/Structure.md` |
 
 ---
 
