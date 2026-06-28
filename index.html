@@ -1,7 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<!-- Inline background on <html> = the only value that paints on the very first frame,
+     before the inline <style> parses. Kills the white flash on iOS PWA cold start
+     (which ignores manifest background_color). Deliberate Rule 19 exception: CSS vars
+     don't exist yet at first paint, so the literal must live here. Keep in sync with --bg. -->
+<html lang="en" style="background:#0e0e10">
 <head>
 <meta charset="UTF-8">
+<meta name="color-scheme" content="dark">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>TODAY</title>
 <link rel="manifest" href="/manifest.json">
@@ -3197,6 +3202,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.18.2': 'Fix: white flash on mobile cold start — the screen briefly went white before turning dark. The dark background only existed in the stylesheet, so the very first frame (before CSS parsed) used the browser default white, and iOS PWAs ignore the manifest background color. Added a dark color-scheme hint plus a dark background on the page root so the first paint is dark.',
   '2.18.1': 'Polish: cleaner evening-review rows — dropped the empty checkbox marker in front of each task so the action buttons (now four with Done) get the full row width and stay on one line, even on phones.',
   '2.18.0': 'New: the evening review now has a Done option, alongside Keep / Soon / Let go — for tasks you actually finished but forgot to check off. Marking one Done counts it toward today\'s total instead of carrying it over. (Also fixes a rare crash when letting go of a Trello card during the review.)',
   '2.17.141': 'Cleanup: the Trello and Dropbox connection rows no longer highlight on hover/tap — they are status rows, not buttons, and on mobile the highlight used to stick after a tap.',

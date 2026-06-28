@@ -47,6 +47,7 @@
 | 038 | Red dot appears on mobile when offline (SW update rejection) | ✅ v2.17.136 |
 | 039 | All-habits-done celebration never fires (archived habit check) | ✅ v2.17.137 |
 | 040 | Morning nudge reappears after dismiss on every wake (self-heal regression) | ✅ v2.17.139 |
+| 041 | White flash before dark on mobile cold start (no pre-CSS dark canvas) | ⏳ v2.18.2 — awaiting verify |
 
 ---
 
@@ -78,5 +79,25 @@
 - Mobile PWA cold start (force-quit first, ideally on slow network), repeat → logo appears solid (font already painted) and fades+rises as one unit; glyphs never paint/appear partway through the motion
 - Desktop / warm cache: unchanged feel, no perceptible delay before the reveal
 - Slow network (DevTools throttle + disable cache): reveal still clean; at worst the 2000ms ceiling reveals it statically (no rise)
+
+**Verified fixed:** ☐
+
+---
+
+## BUG-041: White flash before dark on mobile cold start
+
+**Status:** Fixed v2.18.2 — awaiting verify
+
+**Distinct from BUG-032:** that bug is the *logo glyphs* painting mid-rise; this is the *page canvas* flashing white before the dark background paints — a separate root cause, hence a separate entry.
+
+**Symptom:** On mobile, the screen starts white, then turns dark just before the splash animation. Intermittent — only on cold start. Never on desktop / warm cache.
+
+**Root cause:** The dark background existed only as a stylesheet rule (`html, body { background: var(--bg) }`, inside the inline `<style>`). The browser's very first frame — before it parses and applies that block — used the UA default canvas, which is **white**. Nothing told it to start dark: no `<meta name="color-scheme">`, no presentational/inline background on `<html>`. iOS-only because Android Chrome bridges the gap with the manifest `background_color: #0e0e10`, but iOS Safari PWAs ignore manifest `background_color`. On warm cache the white→dark gap is sub-frame (invisible); on cold start it's long enough to see. `<meta name="theme-color">` only tints the status-bar chrome, not the canvas, so it never masked this.
+
+**Fix (v2.18.2):** (1) `<meta name="color-scheme" content="dark">` in the head — the UA paints a dark default canvas before any CSS parses. (2) Inline `style="background:#0e0e10"` on the `<html>` tag — applies on the first paint, before the stylesheet. Literal hex is a deliberate Rule 19 exception (CSS vars don't exist at first paint); documented inline, kept in sync with `--bg`.
+
+**Verify:**
+- Mobile PWA cold start (force-quit first, slow network helps): the launch goes straight to dark — no white frame before the splash. Repeat several times.
+- Desktop / warm cache: unchanged.
 
 **Verified fixed:** ☐
