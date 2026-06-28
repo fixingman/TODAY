@@ -1032,6 +1032,7 @@
     border-radius: var(--radius-sm);
     background: var(--surface2);
   }
+  .triage-task-badge.done { color: var(--accent); }
   .triage-task-badge.kept { color: var(--accent); }
   .triage-task-badge.soon { color: var(--highlight); }
   .triage-task-badge.letgo { color: var(--muted); }
@@ -1065,11 +1066,13 @@
   .triage-btn:hover {
     background: var(--border);
   }
-  .triage-btn.keep {
+  .triage-btn.keep,
+  .triage-btn.done {
     background: var(--accent-dim);
     color: var(--accent);
   }
-  .triage-btn.keep:hover {
+  .triage-btn.keep:hover,
+  .triage-btn.done:hover {
     background: var(--accent-hover);
   }
   #triageComplete {
@@ -3203,6 +3206,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.18.0': 'New: the evening review now has a Done option, alongside Keep / Soon / Let go — for tasks you actually finished but forgot to check off. Marking one Done counts it toward today\'s total instead of carrying it over. (Also fixes a rare crash when letting go of a Trello card during the review.)',
   '2.17.141': 'Cleanup: the Trello and Dropbox connection rows no longer highlight on hover/tap — they are status rows, not buttons, and on mobile the highlight used to stick after a tap.',
   '2.17.140': 'Cleanup: removed the "N sync conflicts auto-resolved" line under the Dropbox connection — sync still resolves conflicts automatically, it just no longer reports a count in the UI.',
   '2.17.139': 'Fix: BUG-040 — morning nudge reappeared after dismiss. Every focus-away/focus-back (visibilitychange → _onWake) re-ran checkMorningNudge(), and the v2.17.128 self-heal recalculated the carried-over count from the live task list, resurrecting the dismissed nudge. Added a per-day morning_nudge_dismissed_<date> flag (same pattern as the Trello nudge) that guards at the top of the function before self-heal runs; old flags are pruned on dismiss. Trello nudge got the same prune for parity.',
@@ -4086,7 +4090,7 @@ function renderTriageList() {
     
     if (decision) {
       const badgeClass = decision;
-      const badgeText = decision === 'kept' ? 'kept' : decision === 'soon' ? '↩ soon' : 'let go';
+      const badgeText = decision === 'done' ? 'done' : decision === 'kept' ? 'kept' : decision === 'soon' ? '↩ soon' : 'let go';
       return `
         <div class="triage-task decided" data-id="${t.id}">
           <div class="triage-task-row">
@@ -4098,11 +4102,14 @@ function renderTriageList() {
       `;
     }
     
-    // Trello cards only get Keep/Let go (no Soon — they live in Trello)
+    // Done = completed but never checked off. Trello cards get Done/Keep/Let go
+    // (no Soon — they live in Trello); manual tasks get the full set.
     const actions = isTrello ? `
+      <button class="triage-btn done" onclick="triageDecide('${t.id}','done')">Done</button>
       <button class="triage-btn keep" onclick="triageDecide('${t.id}','kept')">Keep</button>
       <button class="triage-btn" onclick="triageDecide('${t.id}','letgo')">Let go</button>
     ` : `
+      <button class="triage-btn done" onclick="triageDecide('${t.id}','done')">Done</button>
       <button class="triage-btn keep" onclick="triageDecide('${t.id}','kept')">Keep</button>
       <button class="triage-btn" onclick="triageDecide('${t.id}','soon')">↩ Soon</button>
       <button class="triage-btn" onclick="triageDecide('${t.id}','letgo')">Let go</button>
@@ -4163,8 +4170,21 @@ function triageApplyAll() {
 
   const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
   const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
-  let keptCount = 0, soonCount = 0, letgoCount = 0;
-  
+  let keptCount = 0, soonCount = 0, letgoCount = 0, doneCount = 0;
+
+  // "Done" in triage = completed but never checked off. Mirror a normal check's
+  // data side (doneIds + checked-id + done stat + memory) without the celebration —
+  // the summary screen is the acknowledgment. The task stays in manualTasks like
+  // 'kept' and the normal day-cleanup path moves it to PAST with status 'done'.
+  const _markDoneInTriage = (id, text) => {
+    doneIds.add(id);
+    _addCheckedId(id);
+    _removeUncheckedId(id);
+    const dt = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
+    localStorage.setItem('stat_tasks_done_today', dt + 1);
+    if (typeof _memoryOnTaskComplete === 'function') _memoryOnTaskComplete(text || '');
+  };
+
   // Track decisions for AI learning
   const hour = new Date().getHours();
   const dayOfWeek = new Date().getDay();
@@ -4192,6 +4212,9 @@ function triageApplyAll() {
     
     if (decision === 'kept') {
       keptCount++;
+    } else if (decision === 'done') {
+      doneCount++;
+      _markDoneInTriage(t.id, t.text);
     } else if (decision === 'soon') {
       soonCount++;
       t.zone = 'soon';
@@ -4228,24 +4251,34 @@ function triageApplyAll() {
     if (decision === 'kept') {
       keptCount++;
       // Trello card stays visible, no action needed
+    } else if (decision === 'done') {
+      doneCount++;
+      // Completed — counts toward today's done stats; hides locally (not deleted from Trello)
+      _markDoneInTriage(t.id, t.text || t.name);
     } else if (decision === 'letgo') {
       letgoCount++;
       // Mark as done locally — will hide from list
       // Note: doesn't delete from Trello, just hides locally
       doneIds.add(t.id);
-      _persistDone();
     }
   });
-  
-  // Remove moved manual tasks from manualTasks
-  const movedIds = undoneManual.filter(t => triageDecisions[t.id] !== 'kept').map(t => t.id);
+
+  // Persist done-state once — covers manual 'done', Trello 'done', and Trello 'letgo'
+  // (all mutate doneIds). (Replaces a call to the never-defined _persistDone().)
+  localStorage.setItem('today_done', JSON.stringify([...doneIds]));
+
+  // Remove moved manual tasks from manualTasks — 'done' and 'kept' both stay
+  // (a done task lives in manualTasks until day-cleanup moves it to PAST).
+  const movedIds = undoneManual
+    .filter(t => triageDecisions[t.id] !== 'kept' && triageDecisions[t.id] !== 'done')
+    .map(t => t.id);
   manualTasks = manualTasks.filter(t => !movedIds.includes(t.id));
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));
   if (soonCount > 0) _saveSoon();
   if (letgoCount > 0) _savePast();
-  
-  // Sync zone changes immediately
-  if (movedIds.length > 0) {
+
+  // Sync zone + done changes immediately
+  if (movedIds.length > 0 || doneCount > 0) {
     const token = localStorage.getItem('dropbox_token');
     if (token) dropboxBackup(true);
   }
