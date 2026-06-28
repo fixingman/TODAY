@@ -223,7 +223,8 @@ Deleted tasks are excluded from zone merge to prevent ghost tasks:
 | Triage close | `triageClose()` | Immediate |
 
 **v2.12.42:** Added backup calls to zone operations.  
-**v2.12.44:** Changed from `dropboxAutoSave()` (800ms debounce) to `dropboxBackup(true)` (immediate).
+**v2.12.44:** Changed from `dropboxAutoSave()` (800ms debounce) to `dropboxBackup(true)` (immediate).  
+**v2.18.0:** Triage gained a **Done** decision (task completed but never checked off). `triageApplyAll()` now fires its immediate backup on zone moves **or** any `done` decision (`movedIds.length > 0 || doneCount > 0`). Triage "Done" marks the task via the normal check path — `doneIds.add` + `_addCheckedId` — so it rides the existing "Done IDs: union with check/uncheck timestamps" merge (below) and survives a stale remote like any other check. **Also fixed here:** the Trello `letgo` branch previously called `_persistDone()`, which was **never defined** — a `ReferenceError` that aborted `triageApplyAll()` mid-run before its `today_manual`/zone persistence and the backup, so a triage that let go of a Trello card silently failed to sync. Replaced with a single `today_done` persist after both decision loops.
 
 ---
 

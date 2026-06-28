@@ -1008,13 +1008,6 @@
     gap: var(--space-3);
     margin-bottom: var(--space-2);
   }
-  .triage-task-check {
-    width: 16px;
-    height: 16px;
-    border: 1.5px solid var(--border);
-    border-radius: 3px;
-    flex-shrink: 0;
-  }
   .triage-task-text {
     flex: 1;
     font-size: var(--text-task);
@@ -1041,7 +1034,6 @@
   .triage-task-hint {
     font-size: var(--text-xs);
     color: var(--muted);
-    margin-left: 28px;
     margin-bottom: var(--space-2);
     font-style: italic;
     opacity: 0;
@@ -1050,7 +1042,6 @@
   .triage-actions {
     display: flex;
     gap: var(--space-2);
-    margin-left: 28px;
   }
   .triage-btn {
     flex: 1;
@@ -3206,6 +3197,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.18.1': 'Polish: cleaner evening-review rows — dropped the empty checkbox marker in front of each task so the action buttons (now four with Done) get the full row width and stay on one line, even on phones.',
   '2.18.0': 'New: the evening review now has a Done option, alongside Keep / Soon / Let go — for tasks you actually finished but forgot to check off. Marking one Done counts it toward today\'s total instead of carrying it over. (Also fixes a rare crash when letting go of a Trello card during the review.)',
   '2.17.141': 'Cleanup: the Trello and Dropbox connection rows no longer highlight on hover/tap — they are status rows, not buttons, and on mobile the highlight used to stick after a tap.',
   '2.17.140': 'Cleanup: removed the "N sync conflicts auto-resolved" line under the Dropbox connection — sync still resolves conflicts automatically, it just no longer reports a count in the UI.',
@@ -4094,7 +4086,6 @@ function renderTriageList() {
       return `
         <div class="triage-task decided" data-id="${t.id}">
           <div class="triage-task-row">
-            <div class="triage-task-check"></div>
             <span class="triage-task-text">${esc(t.text)}</span>
             <span class="triage-task-badge ${badgeClass}">${badgeText}</span>
           </div>
@@ -4118,7 +4109,6 @@ function renderTriageList() {
     return `
       <div class="triage-task${isTrello ? ' trello' : ''}" data-id="${t.id}">
         <div class="triage-task-row">
-          <div class="triage-task-check"></div>
           <span class="triage-task-text">${esc(t.text)}</span>
           <span class="triage-task-meta ${metaClass}">${metaText}</span>
         </div>

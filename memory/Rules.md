@@ -4,10 +4,10 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.18.1 (next)
-- **Recent:** triage "Done" action + _persistDone crash fix (v2.18.0); Connections UI trim — conflict count + row hover (v2.17.140–141); BUG-040 morning nudge dismiss-flag (v2.17.139); Trello morning nudge (v2.17.138)
+- **Working on:** v2.18.2 (next)
+- **Recent:** triage row checkbox-marker removed for button width (v2.18.1); triage "Done" action + _persistDone crash fix (v2.18.0); Connections UI trim — conflict count + row hover (v2.17.140–141); BUG-040 morning nudge dismiss-flag (v2.17.139)
 - **Module extraction in progress:** `assets/util.js` + `assets/idle.js` out (classic scripts before main `<script>`, globals shared via lexical env, precached in sw.js). Next risk-ascending: `sound.js`, `celebration.js`, `trello.js`, `insights.js`, `sync.js` (last — Non-Delegation). Coupled core stays inline. See Backlog Roadmap #3.
-- **Watch for:** BUG-032 awaiting device verify (mobile splash logo mid-animation — fifth-pass refix v2.17.133, transform-only reveal + container fade) · BUG-040 awaiting verify (morning nudge dismiss — dismiss, focus away+back, should stay hidden) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
+- **Watch for:** BUG-032 awaiting device verify (mobile splash logo mid-animation — fifth-pass refix v2.17.133, transform-only reveal + container fade) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---
 

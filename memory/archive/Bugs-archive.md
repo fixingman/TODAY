@@ -409,3 +409,17 @@ The `window.load` path is unaffected — it pulls Dropbox first, then calls `app
 **Fix (v2.17.137):** Added `const activeHabits = habitsList.filter(h => !h.archived)` before the check, then used `activeHabits` in both the length guard and `.every()`. Matches the pattern already used in `renderHabits()`.
 
 **Verified fixed:** ✅ Jun 2026
+
+---
+
+## BUG-040: Morning nudge reappears after dismiss on every wake
+
+**Status:** Fixed v2.17.139
+
+**Symptom:** Morning nudge appears, user clicks to dismiss it, and it comes back. Confirmed on desktop: every focus-away → focus-back of the window re-shows it with identical content.
+
+**Root cause:** Regression from v2.17.128 (BUG-033 second pass). The dismiss handler removed `morning_nudge_count` and `today_day_review` but set no persistent dismissed flag. Each `visibilitychange` → `_onWake()` re-calls `checkMorningNudge()`, where the self-heal block (added v2.17.128) sees the count is missing, recalculates it from `manualTasks.filter(t => !doneIds.has(t.id))`, restores the key, and re-shows the nudge. The self-heal couldn't distinguish "dismissed today" from "count cleared by yesterday's dismiss."
+
+**Fix (v2.17.139):** Added a per-day `morning_nudge_dismissed_<date>` flag (same pattern as the Trello nudge `trello_nudge_dismissed_<date>`). Dismiss sets it; a guard at the top of `checkMorningNudge()` returns early before self-heal runs. Per-day key, so tomorrow's nudge is unaffected and the self-heal still works across the day boundary. Old flags pruned on dismiss. Trello nudge got the same prune loop for parity.
+
+**Verified fixed:** ✅ Jun 2026

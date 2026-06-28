@@ -46,7 +46,7 @@
 | 037 | Task list appears stale on morning open (day-cleanup backup race) | ✅ v2.17.135 |
 | 038 | Red dot appears on mobile when offline (SW update rejection) | ✅ v2.17.136 |
 | 039 | All-habits-done celebration never fires (archived habit check) | ✅ v2.17.137 |
-| 040 | Morning nudge reappears after dismiss on every wake (self-heal regression) | ⏳ v2.17.139 — awaiting verify |
+| 040 | Morning nudge reappears after dismiss on every wake (self-heal regression) | ✅ v2.17.139 |
 
 ---
 
@@ -78,22 +78,5 @@
 - Mobile PWA cold start (force-quit first, ideally on slow network), repeat → logo appears solid (font already painted) and fades+rises as one unit; glyphs never paint/appear partway through the motion
 - Desktop / warm cache: unchanged feel, no perceptible delay before the reveal
 - Slow network (DevTools throttle + disable cache): reveal still clean; at worst the 2000ms ceiling reveals it statically (no rise)
-
-**Verified fixed:** ☐
-
----
-
-## BUG-040: Morning nudge reappears after dismiss on every wake
-
-**Status:** Fixed v2.17.139 — awaiting verify
-
-**Symptom:** Morning nudge appears, user clicks to dismiss it, and it comes back. Confirmed on desktop: every focus-away → focus-back of the window re-shows it with identical content.
-
-**Root cause:** Regression from v2.17.128 (BUG-033 second pass). The dismiss handler removed `morning_nudge_count` and `today_day_review` but set no persistent dismissed flag. Each `visibilitychange` → `_onWake()` re-calls `checkMorningNudge()`, where the self-heal block (added v2.17.128) sees the count is missing, recalculates it from `manualTasks.filter(t => !doneIds.has(t.id))`, restores the key, and re-shows the nudge. The self-heal couldn't distinguish "dismissed today" from "count cleared by yesterday's dismiss."
-
-**Fix (v2.17.139):** Added a per-day `morning_nudge_dismissed_<date>` flag (same pattern as the Trello nudge `trello_nudge_dismissed_<date>`). Dismiss sets it; a guard at the top of `checkMorningNudge()` returns early before self-heal runs. Per-day key, so tomorrow's nudge is unaffected and the self-heal still works across the day boundary. Old flags pruned on dismiss. Trello nudge got the same prune loop for parity.
-
-**Verify:**
-- Before noon with carried-over tasks, nudge shows. Dismiss it. Focus away from the desktop window, then focus back — nudge stays hidden. Repeat several times. Next morning, nudge still appears (key is date-scoped).
 
 **Verified fixed:** ☐
