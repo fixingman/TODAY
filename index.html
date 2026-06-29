@@ -3206,6 +3206,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.18.8': 'Fix: aged Trello cards now un-dim immediately after any focus session, not only after a completed pomodoro. Previously the dimming signal was only cleared when a full 25-minute session finished; closing focus early via Escape or task-switch left the card dimmed even though you had actively worked on it.',
   '2.18.7': 'Fix: white flash on cold start, second pass — the earlier fix covered iOS; on Android (Arc and other Chromium browsers) a white frame could still show in light mode before the dark app. Set the dark base background on both the page root and body and added a CSS dark color-scheme hint, so the very first frame is dark regardless of system light/dark theme.',
   '2.18.6': 'Fix: a focus-session chime could play late, out of nowhere, when you were not in focus mode — leaving a focus timer (via Escape or switching tasks) stopped its display but left the session marked running in the background, so returning to the tab later "completed" it with a sound. Closing a focus timer now fully ends the session.',
   '2.18.5': 'Housekeeping: updated the build-time counter and synced the internal design/data/sync docs to match recent releases. No change to how the app works.',
@@ -11367,16 +11368,30 @@ function _aiClearBadge() {
     // Track focus time before clearing state — always, not just on full completion.
     // _trackFocusTime guards against double-counting (st.tracked) and sub-minute sessions.
     if (closingTaskId) {
+      const _st      = getState(closingTaskId);
+      const _hadTime = _st.rem < TOTAL; // any focus time was spent
       _trackFocusTime(closingTaskId);
       // Stop the session so no "zombie" survives. closeUI tears the timer down
       // (tickHandle cleared, PiP closed) but left st.running=true here; the
       // visibilitychange correction would later "complete" that zombie with a
       // chime even though no focus UI is active. Click-outside stopped it
       // manually; Escape / task-switch / other closeUI(false) paths did not. (BUG-044)
-      const _st = getState(closingTaskId);
       _st.running   = false;
       _st.paused    = false;
       _st.wallStart = null;
+      // BUG-043: partial focus on an aged Trello card never called _logSession,
+      // so today_trello_focus stayed 0 and the card stayed dimmed. Mark as
+      // engaged (count = 1) if still unlogged — instant un-dim + patch cycle
+      // confirms within 7s. Guard: count > 0 means a completed pomodoro or
+      // _focusOnCheck already handled it; skip to avoid double-increment.
+      if (_hadTime && closingTaskId.startsWith('trello_')) {
+        const _fm = _getTrelloFocus();
+        if (!_fm[closingTaskId]) {
+          _fm[closingTaskId] = 1;
+          _setTrelloFocus(_fm);
+          if (closingTask) delete closingTask.dataset.ageBucket;
+        }
+      }
     }
 
     // Let CSS transition play (200ms) then clean up DOM classes

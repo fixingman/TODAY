@@ -4,10 +4,10 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.18.8 (next)
-- **Recent:** BUG-041 Android/Arc white-flash second pass — body+root dark base color (v2.18.7); BUG-044 zombie-focus-session chime fix (v2.18.6); housekeeping docs sync + DEV_HOURS 219h (v2.18.5); BUG-042 Trello order recency-merge + BUG-043 aged-card un-dim on focus (v2.18.4)
+- **Working on:** v2.18.9 (next)
+- **Recent:** BUG-043 second pass — partial focus session now un-dims Trello card (v2.18.8); BUG-041 Android/Arc white-flash second pass (v2.18.7); BUG-044 zombie-focus-session chime fix (v2.18.6); housekeeping docs sync + DEV_HOURS 219h (v2.18.5)
 - **Module extraction in progress:** `assets/util.js` + `assets/idle.js` out (classic scripts before main `<script>`, globals shared via lexical env, precached in sw.js). Next risk-ascending: `sound.js`, `celebration.js`, `trello.js`, `insights.js`, `sync.js` (last — Non-Delegation). Coupled core stays inline. See Backlog Roadmap #3.
-- **Watch for:** BUG-032 awaiting device verify (mobile splash logo mid-animation — fifth-pass refix v2.17.133, transform-only reveal + container fade) · BUG-041 Android/Arc second pass awaiting verify (white flash in LIGHT mode on cold start — force light mode + cold-launch to test) · BUG-043 awaiting verify (aged Trello card un-dims after a focus session) · BUG-044 awaiting verify (no delayed focus chime after Escape/task-switch then tab return) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
+- **Watch for:** BUG-032 awaiting device verify (mobile splash logo mid-animation — fifth-pass refix v2.17.133, transform-only reveal + container fade) · BUG-043 second pass awaiting verify (aged Trello card un-dims after any focus session, including partial) · BUG-044 awaiting verify (no delayed focus chime after Escape/task-switch then tab return) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---
 

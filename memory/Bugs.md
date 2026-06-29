@@ -47,9 +47,9 @@
 | 038 | Red dot appears on mobile when offline (SW update rejection) | ✅ v2.17.136 |
 | 039 | All-habits-done celebration never fires (archived habit check) | ✅ v2.17.137 |
 | 040 | Morning nudge reappears after dismiss on every wake (self-heal regression) | ✅ v2.17.139 |
-| 041 | White flash before dark on mobile cold start (no pre-CSS dark canvas) | ⏳ v2.18.7 — iOS fixed (v2.18.2); Android/Arc light-mode second pass awaiting verify |
+| 041 | White flash before dark on mobile cold start (no pre-CSS dark canvas) | ✅ v2.18.7 |
 | 042 | Trello card order scrambles across devices (remote-wins, no recency) | ✅ v2.18.4 |
-| 043 | Aged Trello card won't un-dim after a focus session (creation-only age) | ⏳ v2.18.4 — awaiting verify |
+| 043 | Aged Trello card won't un-dim after a focus session (creation-only age) | ⏳ v2.18.8 — second pass awaiting verify |
 | 044 | Delayed focus chime when not in focus mode (zombie session on closeUI) | ⏳ v2.18.6 — awaiting verify |
 
 ---
@@ -87,29 +87,6 @@
 
 ---
 
-## BUG-041: White flash before dark on mobile cold start
-
-**Status:** iOS fixed v2.18.2 (verified); Android/Arc second pass v2.18.7 — awaiting verify
-
-**Distinct from BUG-032:** that bug is the *logo glyphs* painting mid-rise; this is the *page canvas* flashing white before the dark background paints — a separate root cause, hence a separate entry.
-
-**Symptom:** On mobile, the screen starts white, then turns dark just before the splash animation. Intermittent — only on cold start. Never on desktop / warm cache.
-
-**Root cause:** The dark background existed only as a stylesheet rule (`html, body { background: var(--bg) }`, inside the inline `<style>`). The browser's very first frame — before it parses and applies that block — used the UA default canvas, which is **white**. Nothing told it to start dark: no `<meta name="color-scheme">`, no presentational/inline background on `<html>`. iOS-only because Android Chrome bridges the gap with the manifest `background_color: #0e0e10`, but iOS Safari PWAs ignore manifest `background_color`. On warm cache the white→dark gap is sub-frame (invisible); on cold start it's long enough to see. `<meta name="theme-color">` only tints the status-bar chrome, not the canvas, so it never masked this.
-
-**Fix (v2.18.2 — iOS):** (1) `<meta name="color-scheme" content="dark">` in the head — the UA paints a dark default canvas before any CSS parses. (2) Inline `style="background:#0e0e10"` on the `<html>` tag — applies on the first paint, before the stylesheet. Literal hex is a deliberate Rule 19 exception (CSS vars don't exist at first paint); documented inline, kept in sync with `--bg`.
-
-**Second pass (v2.18.7 — Android/Arc):** white frame survived on **Arc** (Chromium) on Android. Refined diagnosis: a **pre-first-paint frame** showing the browser's default canvas, which is **white in light system mode** (dark mode masked it — user's theme is dynamic, light by day). Arc didn't apply our dark signals early enough. Mitigation (additive, can't regress): `<html>` `background` → `background-color` (Chromium's pre-FCP base-color heuristic keys off it); inline `background-color:#0e0e10` on `<body>` (heuristic can read body); `color-scheme: dark` added to `:root` in CSS, not only the meta. Caveat: Arc's standalone rendering is partly browser-controlled — a residual frame would be Arc-side.
-
-**Verify:**
-- **Light-mode correlation:** force phone to light mode, cold-launch the PWA → no white frame (was white before). Dark mode → also clean.
-- Repeat several cold starts in Arc; desktop / warm cache unchanged.
-- If it persists in Arc only, try the installed PWA in Chrome to confirm it's Arc-specific.
-
-**Verified fixed:** ☐
-
----
-
 ## BUG-042: Trello card order scrambles across devices
 
 **Status:** Fixed v2.18.4 — awaiting verify
@@ -131,16 +108,18 @@
 
 ## BUG-043: Aged Trello card won't un-dim after a focus session
 
-**Status:** Fixed v2.18.4 — awaiting verify
+**Status:** Fixed v2.18.8 (second pass) — awaiting verify
 
-**Symptom:** A Trello card dimmed by age (3+ days → 75%, etc.) stays dimmed even after completing a focus session on it. Manual tasks brighten back to full opacity; Trello cards don't.
+**Symptom:** A Trello card dimmed by age (3+ days → 75%, etc.) stays dimmed even after a focus session on it. Manual tasks brighten back to full opacity; Trello cards don't.
 
-**Root cause:** The `data-age-bucket` opacity is driven by task age. For **manual** tasks age = `task.lastActive || created`, so activity (a focus session bumping `lastActive`) resets it. For **Trello** tasks age = `_getCreatedFromTrelloId(id)` — the card's **creation timestamp, immutable** — with no activity input, so a Trello card could never un-age. (Both `taskHTML` and the 7s patch path had this.)
+**Root cause:** The `data-age-bucket` opacity is driven by task age. For **manual** tasks age = `task.lastActive || created`, so activity resets it. For **Trello** tasks age = `_getCreatedFromTrelloId(id)` (creation timestamp, immutable) — so the daily-reset `today_trello_focus` map (`taskId → count`) was introduced as the activity signal. But `today_trello_focus` was only incremented in `_logSession`, which is called by `completeFor` (full 25-min pomodoro) and `_focusOnCheck` (task checked off while focusing). Closing focus via **Escape or task-switch without completing the pomodoro** — the common case — never called `_logSession`, so the count stayed 0 and the card stayed dimmed.
 
-**Fix (v2.18.4):** A Trello card with a focus session today (`_getTrelloFocus()[id] > 0` — the focus map is daily-reset in `applyNewDayCleanup`) reads as active → `ageDays = 0` / no bucket → full opacity. Applied in both `taskHTML` and the patch path. Naturally re-dims next day when the focus count resets (a card not worked on today is stale again).
+**Fix (v2.18.4 → incomplete):** Wired `today_trello_focus` into `taskHTML` and the 7s patch path to gate the age bucket. Correct logic, but the count was never set for partial focus sessions.
+
+**Fix (v2.18.8 — root cause):** `closeUI` now marks the card engaged (`today_trello_focus[id] = 1`) whenever any focus time was spent (`st.rem < TOTAL`) and the count is still 0. Guard prevents double-increment when a completed pomodoro or `_focusOnCheck` already logged the session (`count > 0` → skip). Instant visual un-dim via `delete closingTask.dataset.ageBucket`; the 7s patch cycle confirms on its next pass.
 
 **Verify:**
-- Let a Trello card age ≥3 days (dimmed). Run a focus session on it → it returns to full opacity (within the 7s patch cycle if not immediate). Next day with no focus → dimmed again.
+- Let a Trello card age ≥3 days (dimmed). Open focus, immediately Escape (< 1 min). Card should un-dim instantly. Full pomodoro path: count should be 1, not 2. Next day with no focus → dimmed again.
 
 **Verified fixed:** ☐
 

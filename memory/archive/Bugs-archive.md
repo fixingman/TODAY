@@ -423,3 +423,21 @@ The `window.load` path is unaffected — it pulls Dropbox first, then calls `app
 **Fix (v2.17.139):** Added a per-day `morning_nudge_dismissed_<date>` flag (same pattern as the Trello nudge `trello_nudge_dismissed_<date>`). Dismiss sets it; a guard at the top of `checkMorningNudge()` returns early before self-heal runs. Per-day key, so tomorrow's nudge is unaffected and the self-heal still works across the day boundary. Old flags pruned on dismiss. Trello nudge got the same prune loop for parity.
 
 **Verified fixed:** ✅ Jun 2026
+
+---
+
+## BUG-041: White flash before dark on mobile cold start
+
+**Status:** ✅ Verified fixed (v2.18.2 iOS, v2.18.7 Android/Arc)
+
+**Distinct from BUG-032:** that bug is the *logo glyphs* painting mid-rise; this is the *page canvas* flashing white before the dark background paints — a separate root cause.
+
+**Symptom:** On mobile cold start, the screen shows white for a brief moment before turning dark, just before the splash animation. Never on desktop / warm cache.
+
+**Root cause:** The dark background lived only in the stylesheet (`html, body { background: var(--bg) }`). The browser's first frame — before CSS parses — used the UA default white canvas. No `<meta name="color-scheme">` and no inline presentational background on `<html>`. iOS-only initially because Android Chrome bridges with manifest `background_color`; iOS Safari PWAs ignore it. On warm cache the gap is sub-frame; on cold start it's visible.
+
+**Fix (v2.18.2 — iOS):** Added `<meta name="color-scheme" content="dark">` (UA paints a dark canvas pre-CSS) + inline `style="background:#0e0e10"` on `<html>` (applies on frame 1 before CSS vars exist — deliberate Rule 19 exception, documented inline).
+
+**Fix (v2.18.7 — Android/Arc):** White frame survived on Arc (Chromium) in light system mode. Arc's pre-first-paint base-color heuristic was the culprit. Three additive changes: `<html>` `background` → `background-color` (the specific property Chromium's heuristic reads); inline `background-color:#0e0e10` on `<body>` (covers the body-reading variant); `color-scheme: dark` added to `:root` CSS (not only the meta).
+
+**Verified fixed:** ✅ Jun 2026 (iOS v2.18.2, Android/Arc v2.18.7)
