@@ -93,15 +93,17 @@ Fixed, centered above the input bar. 8pm–midnight when undone tasks exist.
 Slides up from bottom (same as AI panel). Full-screen backdrop.
 
 ```
-┌─────────────────────────────────────────┐
-│  3 didn't happen          [Keep all]    │
-│  ─────────────────────────────────────  │
-│  ○ Task one      [Keep] [↩ Soon] [✕]   │
-│  ○ Task two      [Keep] [↩ Soon] [✕]   │
-└─────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│  3 didn't happen                  [Keep all]      │
+│  ──────────────────────────────────────────────  │
+│  Task one   [Done] [Keep] [↩ Soon] [Let go]      │
+│  Task two   [Done] [Keep] [↩ Soon] [Let go]      │
+└──────────────────────────────────────────────────┘
 ```
 
-Backdrop tap → `triageMinimize()` → returns to callout bar.
+- **Done** (v2.18.0) = completed but never checked off → marks done (counts toward today's total via `_markDoneInTriage`), no celebration. Trello cards get `Done / Keep / Let go` (no Soon). Done + Keep carry the accent treatment; Soon + Let go are neutral.
+- The leading `○` checkbox marker was removed (v2.18.1) so the four buttons get the full row width and stay one line on phones; rows are flush to the section edge.
+- Backdrop tap → `triageMinimize()` → returns to callout bar.
 
 ### Triage Summary (v2.14.4)
 
@@ -180,14 +182,16 @@ Fixed top-right. Pulses when errors exist.
 
 ## Morning Nudge
 
-Horizontal strip below the header, shows before noon if yesterday's review exists.
+Horizontal strip below the **Your tasks** header, shows before noon if yesterday's review exists. A parallel **Trello nudge** (same `.morning-nudge` class, `#trelloNudge`) sits under the **From Trello** header (v2.17.138) — card count + overdue flag, AI names a starting point; same two-tier race and per-day dismiss.
 
 ```
-● Yesterday: 5 done, 1h focused, 2 habits · 3 carried over
+• Yesterday: 5 done, 1h focused, 2 habits · 3 carried over
 ```
 
-- Tap to dismiss, auto-clears after noon
-- Falls back to simple carried-over count if no review data
+- Two-tier: rule-based tier 1 shows in ≤1s, AI tier 2 races a 1s timeout (cached per day; no mid-read swap, BUG-034).
+- Tap to dismiss — sets a **per-day `*_dismissed_<date>` flag** so it stays hidden on every wake that day (BUG-040), not just until the next self-heal. Auto-clears after noon.
+- Falls back to simple carried-over count if no review data.
+- **Consistency (v2.18.3):** flush to the section edge (aligns with the label + task boxes — no indent); dot is neutral `--muted`, not accent (it's a passive recap, not a status light); quiet text on 0.04em tracking shared with `.section-count` / `.empty`.
 
 ---
 

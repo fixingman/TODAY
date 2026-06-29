@@ -35,7 +35,8 @@
 |---|---|---|
 | `today_trello_cache` | JSON | Cached Trello cards (local, resets on fetch) |
 | `today_trello_order` | JSON array | Trello card order IDs (synced via Dropbox) |
-| `today_trello_focus` | JSON object | `{cardId: sessionCount}` |
+| `today_trello_order_at` | string | ISO stamp of the last reorder — newer wins on merge so order doesn't get clobbered cross-device (BUG-042, v2.18.4) |
+| `today_trello_focus` | JSON object | `{cardId: sessionCount}` — daily-reset; a card with >0 reads as active (no age dimming, BUG-043) |
 | `trello_config` | JSON | API key, token, board ID, list ID |
 | `trello_token` | string | Trello OAuth token |
 | `dropbox_token` | string | Dropbox access token |
@@ -57,7 +58,7 @@
 ```javascript
 {
   text: "task text",
-  decision: "kept" | "soon" | "letgo",
+  decision: "done" | "kept" | "soon" | "letgo",  // "done" added v2.18.0
   sessions: 2,           // focus sessions on task
   ageDays: 5,            // how old when triaged
   dayOfWeek: 0,          // 0=Sunday, 6=Saturday
@@ -81,6 +82,9 @@
 | `morning_nudge_count` | string | Carried-over tasks from yesterday (set by `applyNewDayCleanup`) |
 | `today_day_review` | JSON | Yesterday's day-end stats `{done, focusMins, habits, habitsTotal, streak, kept, soon, letgo, date}` — saved at triage, consumed by morning nudge, auto-cleared after noon |
 | `morning_nudge_ai_YYYY-MM-DD` | string | Cached AI-rewritten morning nudge for that date — generated once per morning by `_fetchMorningNudgeAI`; stale keys pruned on write, today's cleared at noon (v2.17.73) |
+| `morning_nudge_dismissed_YYYY-MM-DD` | string | Per-day dismiss flag — guards `checkMorningNudge()` before the self-heal so a dismissed nudge doesn't resurrect on every wake (BUG-040, v2.17.139); stale keys pruned on dismiss |
+| `trello_nudge_ai_YYYY-MM-DD` | string | Cached AI text for the Trello-section morning nudge (`_fetchTrelloNudgeAI`, v2.17.138) — same prune/clear pattern as the morning nudge |
+| `trello_nudge_dismissed_YYYY-MM-DD` | string | Per-day dismiss flag for the Trello nudge (v2.17.138); stale keys pruned on dismiss |
 
 ### History & Reports
 

@@ -3195,13 +3195,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '213h';
+const DEV_HOURS     = '225h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.18.5': 'Housekeeping: updated the build-time counter and synced the internal design/data/sync docs to match recent releases. No change to how the app works.',
   '2.18.4': 'Fix: two Trello issues. (1) Custom card order no longer scrambles across devices — especially on a new day — because the order now carries a timestamp and the most recent reorder wins, instead of the last device to sync overwriting it. (2) An aged (dimmed) Trello card returns to full opacity once you do a focus session on it, the same as your own tasks.',
   '2.18.3': 'Design: tidied the morning/Trello nudge for consistency — it now lines up flush with the section label and tasks instead of floating slightly indented, its dot is a calm neutral grey rather than the bright accent (it is a quiet recap, not a status light), and the small print across section counts and empty states now shares one letter-spacing.',
   '2.18.2': 'Fix: white flash on mobile cold start — the screen briefly went white before turning dark. The dark background only existed in the stylesheet, so the very first frame (before CSS parsed) used the browser default white, and iOS PWAs ignore the manifest background color. Added a dark color-scheme hint plus a dark background on the page root so the first paint is dark.',

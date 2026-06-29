@@ -4,7 +4,7 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.18.5 (next)
+- **Working on:** v2.18.6 (next)
 - **Recent:** BUG-042 Trello order recency-merge + BUG-043 aged-card un-dim on focus (v2.18.4); nudge consistency pass (v2.18.3); BUG-041 white-flash-on-cold-start fix (v2.18.2); triage row checkbox-marker removed (v2.18.1)
 - **Module extraction in progress:** `assets/util.js` + `assets/idle.js` out (classic scripts before main `<script>`, globals shared via lexical env, precached in sw.js). Next risk-ascending: `sound.js`, `celebration.js`, `trello.js`, `insights.js`, `sync.js` (last — Non-Delegation). Coupled core stays inline. See Backlog Roadmap #3.
 - **Watch for:** BUG-032 awaiting device verify (mobile splash logo mid-animation — fifth-pass refix v2.17.133, transform-only reveal + container fade) · BUG-041 awaiting verify (white flash before dark on mobile cold start — should go straight to dark) · BUG-042 awaiting verify (Trello order cross-device — newest reorder wins, survives new day) · BUG-043 awaiting verify (aged Trello card un-dims after a focus session) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
