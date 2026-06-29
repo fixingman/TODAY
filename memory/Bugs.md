@@ -48,6 +48,8 @@
 | 039 | All-habits-done celebration never fires (archived habit check) | ✅ v2.17.137 |
 | 040 | Morning nudge reappears after dismiss on every wake (self-heal regression) | ✅ v2.17.139 |
 | 041 | White flash before dark on mobile cold start (no pre-CSS dark canvas) | ⏳ v2.18.2 — awaiting verify |
+| 042 | Trello card order scrambles across devices (remote-wins, no recency) | ⏳ v2.18.4 — awaiting verify |
+| 043 | Aged Trello card won't un-dim after a focus session (creation-only age) | ⏳ v2.18.4 — awaiting verify |
 
 ---
 
@@ -99,5 +101,39 @@
 **Verify:**
 - Mobile PWA cold start (force-quit first, slow network helps): the launch goes straight to dark — no white frame before the splash. Repeat several times.
 - Desktop / warm cache: unchanged.
+
+**Verified fixed:** ☐
+
+---
+
+## BUG-042: Trello card order scrambles across devices
+
+**Status:** Fixed v2.18.4 — awaiting verify
+
+**Symptom:** Custom Trello card order holds locally during the day but scrambles when a new day arrives / across two devices. Reordering on one device doesn't reliably stick on the other.
+
+**Root cause (long-standing, not a regression — unchanged since v2.12.28):** `trello_order` is written into **every** backup, and `mergeRemoteData` adopted it unconditionally ("remote wins", no recency). So any unrelated write from the other device (checking a task, etc.) re-asserted that device's possibly-stale order, overwriting a fresh local reorder. The two devices never converge on "the latest order." It surfaces hardest at the **day boundary**: `applyNewDayCleanup()` removes `today_trello_cache` (forcing a re-fetch in Trello's native order) and both devices re-fetch + re-sync at once, so the clobber lands visibly.
+
+**Fix (v2.18.4):** Added `today_trello_order_at` (ISO stamp set on reorder), carried in the payload. `mergeRemoteData` now adopts the remote order only if `remote.trello_order_at > local` **or** the device has no local order yet (bootstrap). Empty-string defaults: an untimestamped old-client backup never clobbers a timestamped local order. Full-restore path carries the stamp. Additive field — backward compatible, no schema bump. Neither `today_trello_order` nor `_at` is cleared at day rollover (order persists; re-fetch re-applies it).
+
+**Verify:**
+- Two devices, both with Dropbox + same board. Reorder cards on A → B reflects it after a sync. Reorder on B → A reflects it (newest reorder wins, not last writer). Cross a day boundary (or run `applyNewDayCleanup`) → custom order survives on both.
+
+**Verified fixed:** ☐
+
+---
+
+## BUG-043: Aged Trello card won't un-dim after a focus session
+
+**Status:** Fixed v2.18.4 — awaiting verify
+
+**Symptom:** A Trello card dimmed by age (3+ days → 75%, etc.) stays dimmed even after completing a focus session on it. Manual tasks brighten back to full opacity; Trello cards don't.
+
+**Root cause:** The `data-age-bucket` opacity is driven by task age. For **manual** tasks age = `task.lastActive || created`, so activity (a focus session bumping `lastActive`) resets it. For **Trello** tasks age = `_getCreatedFromTrelloId(id)` — the card's **creation timestamp, immutable** — with no activity input, so a Trello card could never un-age. (Both `taskHTML` and the 7s patch path had this.)
+
+**Fix (v2.18.4):** A Trello card with a focus session today (`_getTrelloFocus()[id] > 0` — the focus map is daily-reset in `applyNewDayCleanup`) reads as active → `ageDays = 0` / no bucket → full opacity. Applied in both `taskHTML` and the patch path. Naturally re-dims next day when the focus count resets (a card not worked on today is stale again).
+
+**Verify:**
+- Let a Trello card age ≥3 days (dimmed). Run a focus session on it → it returns to full opacity (within the 7s patch cycle if not immediate). Next day with no focus → dimmed again.
 
 **Verified fixed:** ☐

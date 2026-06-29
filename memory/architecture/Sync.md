@@ -119,6 +119,7 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   // Trello
   trello_config: {apiKey, apiToken, boardId, todayList},
   trello_order: ['trello_id1', 'trello_id2', ...],  // v5.2
+  trello_order_at: 'ISO',  // BUG-042 — reorder timestamp; newer wins on merge (additive, no schema bump)
   // Habits
   habits: [{id, name, created_at, focusSessions?, archived?}, ...],
   habit_completions: {habitId: ['YYYY-MM-DD', ...]},
@@ -281,7 +282,7 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 | Task list | Union by ID, remote order wins |
 | Task order | Detected via ID sequence comparison (v2.12.55) |
 | Habit list | Union by ID, remote order wins |
-| Trello order | Remote wins |
+| Trello order | Newer `trello_order_at` wins (bootstrap if local order empty) — BUG-042 |
 | Done IDs | Union with check/uncheck timestamps |
 | Deleted IDs | Union (excluded from tasks) |
 | SOON tasks | Union by ID, newer zoneChangedAt wins |
