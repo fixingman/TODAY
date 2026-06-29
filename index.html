@@ -1,9 +1,12 @@
 <!DOCTYPE html>
-<!-- Inline background on <html> = the only value that paints on the very first frame,
-     before the inline <style> parses. Kills the white flash on iOS PWA cold start
-     (which ignores manifest background_color). Deliberate Rule 19 exception: CSS vars
-     don't exist yet at first paint, so the literal must live here. Keep in sync with --bg. -->
-<html lang="en" style="background:#0e0e10">
+<!-- Inline dark background on <html> AND <body> = the base color the engine paints on
+     the very first frame, before the inline <style> parses. Kills the white flash on
+     cold start: iOS PWAs ignore manifest background_color; Arc/Chromium on Android show
+     the light-mode default (white) pre-first-paint unless overridden. Use background-color
+     (not the shorthand) — Chromium's pre-FCP base-color heuristic keys off it and can read
+     <body>. Deliberate Rule 19 exception: CSS vars don't exist yet at first paint, so the
+     literal must live here. Keep in sync with --bg. (BUG-041) -->
+<html lang="en" style="background-color:#0e0e10">
 <head>
 <meta charset="UTF-8">
 <meta name="color-scheme" content="dark">
@@ -339,6 +342,7 @@
      ============================================================ */
 
   :root {
+    color-scheme: dark;  /* UA dark hint via CSS too, not only the meta — paints a dark default canvas (BUG-041) */
 
     /* ── Color: Base palette ──────────────────────────────────── */
     --color-bg:          #0e0e10;   /* page background             */
@@ -2765,7 +2769,7 @@
   }
 </style>
 </head>
-<body>
+<body style="background-color:#0e0e10"><!-- inline base color: see <html> note (BUG-041) -->
 <!-- Error indicator (dev aid) -->
 <div id="errorIndicator" data-count="0" onclick="_toggleErrorPanel()"></div>
 <div id="errorPanel"></div>
@@ -3202,6 +3206,8 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.18.7': 'Fix: white flash on cold start, second pass — the earlier fix covered iOS; on Android (Arc and other Chromium browsers) a white frame could still show in light mode before the dark app. Set the dark base background on both the page root and body and added a CSS dark color-scheme hint, so the very first frame is dark regardless of system light/dark theme.',
+  '2.18.6': 'Fix: a focus-session chime could play late, out of nowhere, when you were not in focus mode — leaving a focus timer (via Escape or switching tasks) stopped its display but left the session marked running in the background, so returning to the tab later "completed" it with a sound. Closing a focus timer now fully ends the session.',
   '2.18.5': 'Housekeeping: updated the build-time counter and synced the internal design/data/sync docs to match recent releases. No change to how the app works.',
   '2.18.4': 'Fix: two Trello issues. (1) Custom card order no longer scrambles across devices — especially on a new day — because the order now carries a timestamp and the most recent reorder wins, instead of the last device to sync overwriting it. (2) An aged (dimmed) Trello card returns to full opacity once you do a focus session on it, the same as your own tasks.',
   '2.18.3': 'Design: tidied the morning/Trello nudge for consistency — it now lines up flush with the section label and tasks instead of floating slightly indented, its dot is a calm neutral grey rather than the bright accent (it is a quiet recap, not a status light), and the small print across section counts and empty states now shares one letter-spacing.',
@@ -11362,6 +11368,15 @@ function _aiClearBadge() {
     // _trackFocusTime guards against double-counting (st.tracked) and sub-minute sessions.
     if (closingTaskId) {
       _trackFocusTime(closingTaskId);
+      // Stop the session so no "zombie" survives. closeUI tears the timer down
+      // (tickHandle cleared, PiP closed) but left st.running=true here; the
+      // visibilitychange correction would later "complete" that zombie with a
+      // chime even though no focus UI is active. Click-outside stopped it
+      // manually; Escape / task-switch / other closeUI(false) paths did not. (BUG-044)
+      const _st = getState(closingTaskId);
+      _st.running   = false;
+      _st.paused    = false;
+      _st.wallStart = null;
     }
 
     // Let CSS transition play (200ms) then clean up DOM classes

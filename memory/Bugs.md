@@ -47,9 +47,10 @@
 | 038 | Red dot appears on mobile when offline (SW update rejection) | ✅ v2.17.136 |
 | 039 | All-habits-done celebration never fires (archived habit check) | ✅ v2.17.137 |
 | 040 | Morning nudge reappears after dismiss on every wake (self-heal regression) | ✅ v2.17.139 |
-| 041 | White flash before dark on mobile cold start (no pre-CSS dark canvas) | ⏳ v2.18.2 — awaiting verify |
-| 042 | Trello card order scrambles across devices (remote-wins, no recency) | ⏳ v2.18.4 — awaiting verify |
+| 041 | White flash before dark on mobile cold start (no pre-CSS dark canvas) | ⏳ v2.18.7 — iOS fixed (v2.18.2); Android/Arc light-mode second pass awaiting verify |
+| 042 | Trello card order scrambles across devices (remote-wins, no recency) | ✅ v2.18.4 |
 | 043 | Aged Trello card won't un-dim after a focus session (creation-only age) | ⏳ v2.18.4 — awaiting verify |
+| 044 | Delayed focus chime when not in focus mode (zombie session on closeUI) | ⏳ v2.18.6 — awaiting verify |
 
 ---
 
@@ -88,7 +89,7 @@
 
 ## BUG-041: White flash before dark on mobile cold start
 
-**Status:** Fixed v2.18.2 — awaiting verify
+**Status:** iOS fixed v2.18.2 (verified); Android/Arc second pass v2.18.7 — awaiting verify
 
 **Distinct from BUG-032:** that bug is the *logo glyphs* painting mid-rise; this is the *page canvas* flashing white before the dark background paints — a separate root cause, hence a separate entry.
 
@@ -96,11 +97,14 @@
 
 **Root cause:** The dark background existed only as a stylesheet rule (`html, body { background: var(--bg) }`, inside the inline `<style>`). The browser's very first frame — before it parses and applies that block — used the UA default canvas, which is **white**. Nothing told it to start dark: no `<meta name="color-scheme">`, no presentational/inline background on `<html>`. iOS-only because Android Chrome bridges the gap with the manifest `background_color: #0e0e10`, but iOS Safari PWAs ignore manifest `background_color`. On warm cache the white→dark gap is sub-frame (invisible); on cold start it's long enough to see. `<meta name="theme-color">` only tints the status-bar chrome, not the canvas, so it never masked this.
 
-**Fix (v2.18.2):** (1) `<meta name="color-scheme" content="dark">` in the head — the UA paints a dark default canvas before any CSS parses. (2) Inline `style="background:#0e0e10"` on the `<html>` tag — applies on the first paint, before the stylesheet. Literal hex is a deliberate Rule 19 exception (CSS vars don't exist at first paint); documented inline, kept in sync with `--bg`.
+**Fix (v2.18.2 — iOS):** (1) `<meta name="color-scheme" content="dark">` in the head — the UA paints a dark default canvas before any CSS parses. (2) Inline `style="background:#0e0e10"` on the `<html>` tag — applies on the first paint, before the stylesheet. Literal hex is a deliberate Rule 19 exception (CSS vars don't exist at first paint); documented inline, kept in sync with `--bg`.
+
+**Second pass (v2.18.7 — Android/Arc):** white frame survived on **Arc** (Chromium) on Android. Refined diagnosis: a **pre-first-paint frame** showing the browser's default canvas, which is **white in light system mode** (dark mode masked it — user's theme is dynamic, light by day). Arc didn't apply our dark signals early enough. Mitigation (additive, can't regress): `<html>` `background` → `background-color` (Chromium's pre-FCP base-color heuristic keys off it); inline `background-color:#0e0e10` on `<body>` (heuristic can read body); `color-scheme: dark` added to `:root` in CSS, not only the meta. Caveat: Arc's standalone rendering is partly browser-controlled — a residual frame would be Arc-side.
 
 **Verify:**
-- Mobile PWA cold start (force-quit first, slow network helps): the launch goes straight to dark — no white frame before the splash. Repeat several times.
-- Desktop / warm cache: unchanged.
+- **Light-mode correlation:** force phone to light mode, cold-launch the PWA → no white frame (was white before). Dark mode → also clean.
+- Repeat several cold starts in Arc; desktop / warm cache unchanged.
+- If it persists in Arc only, try the installed PWA in Chrome to confirm it's Arc-specific.
 
 **Verified fixed:** ☐
 
@@ -119,7 +123,9 @@
 **Verify:**
 - Two devices, both with Dropbox + same board. Reorder cards on A → B reflects it after a sync. Reorder on B → A reflects it (newest reorder wins, not last writer). Cross a day boundary (or run `applyNewDayCleanup`) → custom order survives on both.
 
-**Verified fixed:** ☐
+**Verified fixed:** ✅ Jun 2026
+
+**Latent follow-ups (not blocking — fix worked):** (1) `mergeRemoteData` adopts the order in-memory but doesn't rewrite `today_trello_cache`, and the cache-seed path (line ~4988) doesn't re-apply `today_trello_order` — so a freshly-adopted order can look stale for one reload until the next live fetch. (2) The "newer reorder wins" comparison uses each device's own wall clock (`new Date().toISOString()`), so significant clock skew between devices could mis-order adoption. Both are robustness hardening only; revisit if order sync ever regresses.
 
 ---
 
@@ -135,5 +141,24 @@
 
 **Verify:**
 - Let a Trello card age ≥3 days (dimmed). Run a focus session on it → it returns to full opacity (within the 7s patch cycle if not immediate). Next day with no focus → dimmed again.
+
+**Verified fixed:** ☐
+
+---
+
+## BUG-044: Delayed focus chime when not in focus mode
+
+**Status:** Fixed v2.18.6 — awaiting verify
+
+**Symptom:** On desktop, a focus-session completion chime played — delayed — while the app was not in focus mode (no timer UI showing).
+
+**Root cause:** `closeUI(false)` (focus IIFE, ~line 11341) clears the tick timer (`clearTimeout(tickHandle)`), closes PiP, and nulls `uiTaskId`/`_focusUIActive` — but does **not** set `st.running = false`. With `doResetState=false` the task state persists, leaving a **zombie session**: not ticking, no UI, but still `running` with a live `wallStart`. The click-outside handler stops the session before `closeUI` (lines 11624–11628), but **Escape** (11699), **task-switch** (11262), and line 11983 don't. Later the `visibilitychange` correction (11567–11581) iterates all running states, finds the zombie, jumps `rem` to ≤0, and calls `completeFor` → `playChime()` (11521, unconditional) — a late chime with no focus UI active.
+
+**Fix (v2.18.6):** `closeUI` now stops the closing task's session (`running=false, paused=false, wallStart=null`) right after `_trackFocusTime`, so no zombie survives any closeUI path. `continueTicking` has no callers (no intended background tick) and PiP is closed by closeUI, so after any closeUI there must be no running session — correctness fix, not a behavior change. `_trackFocusTime` (keys on `rem`/`tracked`) and resume-on-reclick (keys on `rem`, 11667) unaffected. Also fixes a latent "switch A→B leaves A running." No `_focusUIActive` guard on the chime (would mute the legitimate PiP completion chime, line 12102).
+
+**Verify:**
+- Start a focus session, press Escape (UI closes). Re-open the task → resumes at its remaining time, no double state. No completion fires.
+- Chime case (needs `rem` to cross 0 while away): temporarily lower `TOTAL` or set `st.rem` small via DevTools, start a session, Escape, switch tabs past zero, return → **no chime**. Before the fix it fired on return.
+- Regression: foreground completion (and hidden-tab pomodoro with UI open) still chimes; PiP completion still chimes.
 
 **Verified fixed:** ☐
