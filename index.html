@@ -3199,13 +3199,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '219h';
+const DEV_HOURS     = '221h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.18.11': 'Fix: manual tasks now also un-dim on any partial focus session, matching Trello cards (BUG-043 parity). Previously lastActive was only updated when a full pomodoro completed; closing focus early via Escape left the manual task still dimmed. closeUI now refreshes lastActive and removes data-age-bucket immediately for manual tasks too.',
+  '2.18.10': 'Fix: morning nudge now always shows the carried-over task count even when the AI sentence wins the tier-1/tier-2 race. Previously the AI text replaced the rule-based message entirely, silently dropping the count. Now "N carried over · " is prepended to AI text when tasks were carried over; the rule-based message (which already contains the count) is shown as-is.',
+  '2.18.9': 'Fix: PAST zone now shows all tasks instead of capping at 20. The list was sliced to 20 for performance but the count badge always showed the true total, causing a confusing mismatch. At realistic task volumes the full list renders instantly.',
   '2.18.8': 'Fix: aged Trello cards now un-dim immediately after any focus session, not only after a completed pomodoro. Previously the dimming signal was only cleared when a full 25-minute session finished; closing focus early via Escape or task-switch left the card dimmed even though you had actively worked on it.',
   '2.18.7': 'Fix: white flash on cold start, second pass — the earlier fix covered iOS; on Android (Arc and other Chromium browsers) a white frame could still show in light mode before the dark app. Set the dark base background on both the page root and body and added a CSS dark color-scheme hint, so the very first frame is dark regardless of system light/dark theme.',
   '2.18.6': 'Fix: a focus-session chime could play late, out of nowhere, when you were not in focus mode — leaving a focus timer (via Escape or switching tasks) stopped its display but left the session marked running in the background, so returning to the tab later "completed" it with a sound. Closing a focus timer now fully ends the session.',
@@ -3480,8 +3483,7 @@ function renderPast() {
   const list = document.getElementById('pastList');
   const count = document.getElementById('pastCount');
   
-  // Only show last 20 for performance
-  const visible = pastTasks.slice(0, 20);
+  const visible = pastTasks;
   
   if (visible.length === 0) {
     section.style.display = 'none';
@@ -3666,8 +3668,12 @@ function checkMorningNudge() {
   const _aiCacheKey = 'morning_nudge_ai_' + _localISO();
   const _aiCached = localStorage.getItem(_aiCacheKey);
 
-  const _showNudge = (text) => {
-    nudgeEl.innerHTML = `<span class="nudge-dot"></span>${esc(text)}`;
+  // addPrefix=true: prepend "N carried over · " before AI text so the count is
+  // always visible even when the AI sentence doesn't mention it. Rule-based msg
+  // already contains the count, so pass addPrefix=false there to avoid doubling.
+  const _showNudge = (text, addPrefix) => {
+    const prefix = (addPrefix && carriedOver > 0) ? `${carriedOver} carried over · ` : '';
+    nudgeEl.innerHTML = `<span class="nudge-dot"></span>${esc(prefix + text)}`;
     nudgeEl.style.display = 'flex';
     nudgeEl.onclick = () => {
       nudgeEl.style.display = 'none';
@@ -3683,18 +3689,18 @@ function checkMorningNudge() {
   };
 
   if (_aiCached) {
-    _showNudge(_aiCached);
+    _showNudge(_aiCached, true);
   } else {
     let _settled = false;
     // Timeout: show rule-based after 1s if AI hasn't arrived yet
     const _fallbackTimer = setTimeout(() => {
       if (_settled) return;
       _settled = true;
-      _showNudge(msg);
+      _showNudge(msg, false); // rule-based msg already contains the count
     }, 1000);
     // AI race: if it wins, show Tier 2 directly with no swap
     _fetchMorningNudgeAI(review, carriedOver).then(text => {
-      if (!text) { if (!_settled) { _settled = true; clearTimeout(_fallbackTimer); _showNudge(msg); } return; }
+      if (!text) { if (!_settled) { _settled = true; clearTimeout(_fallbackTimer); _showNudge(msg, false); } return; }
       // Cache the result (prune stale keys first)
       for (let i = localStorage.length - 1; i >= 0; i--) {
         const k = localStorage.key(i);
@@ -3704,8 +3710,8 @@ function checkMorningNudge() {
       if (_settled) return; // fallback already showed rule-based — no swap
       _settled = true;
       clearTimeout(_fallbackTimer);
-      _showNudge(text);
-    }).catch(() => { if (!_settled) { _settled = true; clearTimeout(_fallbackTimer); _showNudge(msg); } });
+      _showNudge(text, true); // AI text gets the count prefix
+    }).catch(() => { if (!_settled) { _settled = true; clearTimeout(_fallbackTimer); _showNudge(msg, false); } });
   }
   checkTrelloNudge();
 }
@@ -11379,16 +11385,25 @@ function _aiClearBadge() {
       _st.running   = false;
       _st.paused    = false;
       _st.wallStart = null;
-      // BUG-043: partial focus on an aged Trello card never called _logSession,
-      // so today_trello_focus stayed 0 and the card stayed dimmed. Mark as
-      // engaged (count = 1) if still unlogged — instant un-dim + patch cycle
-      // confirms within 7s. Guard: count > 0 means a completed pomodoro or
-      // _focusOnCheck already handled it; skip to avoid double-increment.
+      // BUG-043: partial focus on an aged card never called _logSession, so the
+      // activity signal stayed unset and the card stayed dimmed. Fix for both
+      // Trello and manual tasks — whichever completes _logSession already set
+      // the signal; the guard skips those to avoid double-work.
       if (_hadTime && closingTaskId.startsWith('trello_')) {
+        // Trello: today_trello_focus map is the activity signal (no lastActive field)
         const _fm = _getTrelloFocus();
         if (!_fm[closingTaskId]) {
           _fm[closingTaskId] = 1;
           _setTrelloFocus(_fm);
+          if (closingTask) delete closingTask.dataset.ageBucket;
+        }
+      } else if (_hadTime && closingTaskId.startsWith('manual_')) {
+        // Manual: lastActive is the activity signal — always safe to refresh;
+        // _logSession already set it for completed sessions, overwriting is harmless.
+        const _mIdx = manualTasks.findIndex(t => t.id === closingTaskId);
+        if (_mIdx !== -1) {
+          manualTasks[_mIdx].lastActive = Date.now();
+          localStorage.setItem('today_manual', JSON.stringify(manualTasks));
           if (closingTask) delete closingTask.dataset.ageBucket;
         }
       }

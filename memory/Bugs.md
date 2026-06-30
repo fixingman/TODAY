@@ -49,7 +49,7 @@
 | 040 | Morning nudge reappears after dismiss on every wake (self-heal regression) | ✅ v2.17.139 |
 | 041 | White flash before dark on mobile cold start (no pre-CSS dark canvas) | ✅ v2.18.7 |
 | 042 | Trello card order scrambles across devices (remote-wins, no recency) | ✅ v2.18.4 |
-| 043 | Aged Trello card won't un-dim after a focus session (creation-only age) | ⏳ v2.18.8 — second pass awaiting verify |
+| 043 | Aged card won't un-dim after a focus session (Trello: creation-only age; manual: lastActive) | ⏳ v2.18.11 — both types awaiting verify |
 | 044 | Delayed focus chime when not in focus mode (zombie session on closeUI) | ⏳ v2.18.6 — awaiting verify |
 
 ---

@@ -52,7 +52,11 @@ stat_focus_mins_today: number
 stat_focus_mins_alltime: number
 ```
 
-Sessions increment on completion (reaching 00:00), not on start.
+`today_trello_focus[id]` is set to 1 (engaged) on **any** partial focus session — Escape,
+task-switch, or completion. Guard: if the count is already > 0 (set by `_logSession` on a
+completed pomodoro or `_focusOnCheck`), `closeUI` skips the increment to avoid double-count.
+Full completion still increments via `_logSession`; partial-only sessions are caught by
+`closeUI`'s `_hadTime && count === 0` guard.
 
 ---
 
@@ -107,9 +111,12 @@ Not supported: Safari, Firefox (behind flag)
 
 ## Reset Behavior
 
-- `lastActive` updates on session complete
-- Removes task aging (`data-age-bucket`)
-- Task "feels fresh" after focused work
+- `lastActive` (manual tasks) and `today_trello_focus` (Trello tasks) update on **any** focus
+  engagement — partial or complete (v2.18.8/v2.18.11, BUG-043). Previously required a full
+  25-min pomodoro via `_logSession`.
+- Removes task aging (`data-age-bucket`) immediately on `closeUI`; the 7s Trello patch cycle
+  confirms it on its next pass.
+- Task "feels fresh" after any genuine engagement, not just completed sessions.
 
 ---
 
