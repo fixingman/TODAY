@@ -130,7 +130,8 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   stat_focus_mins_date: '',      // YYYY-MM-DD local — date guard prevents yesterday's total restoring after midnight
   stat_streak: '1',
   stat_streak_date: '',          // YYYY-MM-DD local — prevents double-increment across devices (BUG-020)
-  stat_tasks_done_today: '0',
+  stat_tasks_done_today:      '0',
+  stat_tasks_done_today_date: '',        // YYYY-MM-DD local — date guard prevents yesterday's total restoring after midnight (v2.18.14)
   // Memory
   memory: {totalTasksCompleted, patterns: {...}, aiName, moments: [...]},
   // Triage (v5.1)
@@ -293,13 +294,19 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 
 ### Stat Merge — Date Guards
 
-Stats use `Math.max` but two have date guards to prevent yesterday's value restoring after midnight:
+Stats use `Math.max` but three have date guards to prevent yesterday's value restoring after midnight:
 
 **`stat_focus_mins_today` / `stat_focus_mins_date`**
 - `stat_focus_mins_date` is saved to localStorage whenever minutes are earned or reset
 - Backup payload uses the stored date (never `_getAppDay()` — that was the BUG-024 root cause)
 - Fallback in backup payload is `''` (empty) not today's date — `''` fails the date guard and treats remote value as 0
 - Merge: `remoteFocusMinsToday = remoteFocusDate === _getAppDay() ? remoteFocusMins : 0`
+
+**`stat_tasks_done_today` / `stat_tasks_done_today_date`** (v2.18.14, BUG-045 — same class as BUG-024)
+- `stat_tasks_done_today_date` is saved to localStorage whenever a task is marked done (checkbox, triage) and on daily reset
+- Backup payload uses the stored date; fallback is `''` (never `_getAppDay()` — same lesson as BUG-024)
+- Merge: `remoteDoneCountToday = remoteDoneDate === _getAppDay() ? remoteDoneCount : 0`
+- Full-restore path: date-guarded same as focus minutes
 
 **`stat_streak` / `stat_streak_date`**
 - `stat_streak_date` is set to `_localISO()` whenever streak is incremented in `applyNewDayCleanup()`

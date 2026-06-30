@@ -428,6 +428,8 @@ The `window.load` path is unaffected — it pulls Dropbox first, then calls `app
 
 ## BUG-041: White flash before dark on mobile cold start
 
+> ⚠️ **Reopened — see the live `Bugs.md` entry.** v2.18.2/v2.18.7 (below) fixed the *WebView first-paint* canvas, but a white frame survived on iPhone PWA cold launch: iOS's *OS launch screen* (frame before the WebView exists). Third pass v2.18.13 added `apple-touch-startup-image`. This archived entry documents only the first two (canvas) passes.
+
 **Status:** ✅ Verified fixed (v2.18.2 iOS, v2.18.7 Android/Arc)
 
 **Distinct from BUG-032:** that bug is the *logo glyphs* painting mid-rise; this is the *page canvas* flashing white before the dark background paints — a separate root cause.

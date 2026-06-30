@@ -4,7 +4,7 @@
 // This is the ONE version value still hand-synced — a SW can't import APP_VERSION from
 // index.html (separate context, no build step). scripts/smoke-test.mjs asserts it matches
 // `today-v${APP_VERSION}` and fails the pre-commit gate on drift.
-const CACHE_VERSION  = 'today-v2.18.11';
+const CACHE_VERSION  = 'today-v2.18.14';
 const CACHE_APP_SHELL = [
   '/',
   '/manifest.json',
@@ -14,6 +14,18 @@ const CACHE_APP_SHELL = [
   '/assets/icon-192.png',
   '/assets/icon-512.png',
   '/assets/today-og.png',
+  // iOS PWA launch screens (BUG-041) — precached so they survive offline re-install
+  '/assets/splash/splash-750x1334.png',
+  '/assets/splash/splash-1242x2208.png',
+  '/assets/splash/splash-1125x2436.png',
+  '/assets/splash/splash-828x1792.png',
+  '/assets/splash/splash-1242x2688.png',
+  '/assets/splash/splash-1170x2532.png',
+  '/assets/splash/splash-1284x2778.png',
+  '/assets/splash/splash-1179x2556.png',
+  '/assets/splash/splash-1290x2796.png',
+  '/assets/splash/splash-1206x2622.png',
+  '/assets/splash/splash-1320x2868.png',
   '/fonts/DM%20Mono/dm-mono-v16-latin-300.woff2',
   '/fonts/DM%20Mono/dm-mono-v16-latin-regular.woff2',
   '/fonts/DM%20Mono/dm-mono-v16-latin-500.woff2',
