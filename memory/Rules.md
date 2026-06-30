@@ -116,6 +116,10 @@ matches, so drift fails the pre-commit gate instead of shipping a stale cache.
 
 30. **Always work on `dev` branch** — never create feature branches unless explicitly asked
 
+## Changelog Rules
+
+31. **`index.html` CHANGELOG — user-facing, max 20 entries, one sentence each.** Plain language only: no function names, CSS properties, BUG-XXX codes, or root-cause archaeology. Say what changed for the user, not how. When adding a new entry, drop the oldest one (it is already captured in `memory/Changelog.md` / `memory/archive/Changelog-archive.md`). Dev detail belongs in `memory/Changelog.md`, not here.
+
 ## Non-Delegation Zones (require extra scrutiny)
 
 These areas are error-prone — always read the relevant file and double-check logic:
