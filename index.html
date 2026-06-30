@@ -627,16 +627,16 @@
     /* Letters are SOLID from the first painted frame — opacity:1, offset down. The rise
        animates transform only (no opacity ramp), so a late iOS glyph raster lands on an
        already-opaque letter and is invisible to the user (BUG-032). */
-    opacity: 1; transform: translateY(0.12em);
+    opacity: 1; transform: translateY(0.18em);
   }
   /* Rise runs only after .go (set in startSplash, post font-ready + 2-frame warm). */
-  #splash-logo.go .l { animation: splashLetterRise .4s var(--ease-out) forwards; }
+  #splash-logo.go .l { animation: splashLetterRise .55s cubic-bezier(0.22,1,0.36,1) forwards; }
   #splash-logo .l.a { color: var(--accent); }
   #splash-logo.go .l:nth-child(1){animation-delay:.06s}
-  #splash-logo.go .l:nth-child(2){animation-delay:.10s}
-  #splash-logo.go .l:nth-child(3){animation-delay:.14s}
-  #splash-logo.go .l:nth-child(4){animation-delay:.18s}
-  #splash-logo.go .l:nth-child(5){animation-delay:.22s}
+  #splash-logo.go .l:nth-child(2){animation-delay:.13s}
+  #splash-logo.go .l:nth-child(3){animation-delay:.20s}
+  #splash-logo.go .l:nth-child(4){animation-delay:.27s}
+  #splash-logo.go .l:nth-child(5){animation-delay:.34s}
   /* Ceiling fallback: fonts unconfirmed — reveal statically, no rise (BUG-032). */
   #splash-logo.go.instant .l { animation: none; transform: none; }
 
@@ -660,10 +660,10 @@
   #splash-cursor.on    { opacity: 1; }
   #splash-cursor.off   { opacity: 0; }
 
-  /* Transform-only — explicit `from` is byte-identical to `.l` base translateY(0.12em)
+  /* Transform-only — explicit `from` is byte-identical to `.l` base translateY(0.18em)
      so the rise never jumps on its first frame (the v2.17.97/112 shift variant). No
      opacity here: the container fade (startSplash) handles the soft fade-in as one unit. */
-  @keyframes splashLetterRise  { from { transform: translateY(0.12em); } to { transform: translateY(0); } }
+  @keyframes splashLetterRise  { from { transform: translateY(0.18em); } to { transform: translateY(0); } }
 
 
 
@@ -1085,13 +1085,11 @@
   .triage-btn:hover {
     background: var(--border);
   }
-  .triage-btn.keep,
-  .triage-btn.done {
+  .triage-btn.keep {
     background: var(--accent-dim);
     color: var(--accent);
   }
-  .triage-btn.keep:hover,
-  .triage-btn.done:hover {
+  .triage-btn.keep:hover {
     background: var(--accent-hover);
   }
   #triageComplete {
@@ -3224,9 +3222,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.18.19': 'Polish: in the evening review, the Done button is now neutral (not green) and sits at the end of the options, after Let go.',
+  '2.18.18': 'Polish: the TODAY logo letters now rise more smoothly on the splash screen — a gentler, calmer reveal.',
   '2.18.17': 'Fix: focusing on a Trello card on one device now un-dims it on your other devices too — the focus activity syncs via Dropbox.',
-  '2.18.16': 'Fix: connecting Dropbox on a fresh install now automatically restores your data — you no longer need to click Restore manually.',
-  '2.18.15': 'Fix: the Trello board selector in Connections no longer blinks constantly or blocks selection — and the Dropbox buttons beside it no longer flicker as a side-effect.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4015,17 +4013,18 @@ function renderTriageList() {
       `;
     }
     
-    // Done = completed but never checked off. Trello cards get Done/Keep/Let go
-    // (no Soon — they live in Trello); manual tasks get the full set.
+    // Done = completed but never checked off; it sits last and stays neutral (not accent —
+    // Keep is the only accented option). Trello cards get Keep/Let go/Done (no Soon — they
+    // live in Trello); manual tasks get the full set (Keep/Soon/Let go/Done).
     const actions = isTrello ? `
-      <button class="triage-btn done" onclick="triageDecide('${t.id}','done')">Done</button>
       <button class="triage-btn keep" onclick="triageDecide('${t.id}','kept')">Keep</button>
       <button class="triage-btn" onclick="triageDecide('${t.id}','letgo')">Let go</button>
-    ` : `
       <button class="triage-btn done" onclick="triageDecide('${t.id}','done')">Done</button>
+    ` : `
       <button class="triage-btn keep" onclick="triageDecide('${t.id}','kept')">Keep</button>
       <button class="triage-btn" onclick="triageDecide('${t.id}','soon')">↩ Soon</button>
       <button class="triage-btn" onclick="triageDecide('${t.id}','letgo')">Let go</button>
+      <button class="triage-btn done" onclick="triageDecide('${t.id}','done')">Done</button>
     `;
     
     return `
@@ -9466,7 +9465,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
       // in-view raster of the per-size glyphs BEFORE any motion. Then fade the WHOLE logo
       // in as one unit (all glyphs already rastered → none can paint mid-fade) while a
       // transform-only rise runs in parallel. No per-letter opacity ramp = no paint desync.
-      slogo.style.visibility = 'visible';     // letters paint at opacity:1, translateY(0.12em)
+      slogo.style.visibility = 'visible';     // letters paint at opacity:1, translateY(0.18em)
       void slogo.offsetWidth;                 // flush layout/style this frame
       requestAnimationFrame(() => {           // frame 1: visible raster queued
         requestAnimationFrame(() => {         // frame 2: raster on screen — glyphs solid

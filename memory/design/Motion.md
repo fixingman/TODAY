@@ -92,6 +92,17 @@ Strict order — each step gates the next:
 - Never use `inset:0` alone on canvas — some browsers use the `width` attribute as intrinsic CSS size
 - Burst origin captured at `startSplash+600ms` (post-transition), not at dismiss time
 
+**Letter-rise tuning (`splashLetterRise`, v2.18.18):** transform-only rise, `translateY(0.18em)→0`,
+`.55s` with **inlined** `cubic-bezier(0.22,1,0.36,1)` (easeOutQuint), stagger `.07s` (delays .06→.34).
+Earlier it was `0.12em` / `.4s` / easeOutExpo `--ease-out` / `.04s` stagger — too aggressive a curve
+over too small a distance, so the slow tail crawled sub-pixel and pixel-snapped into visible steps
+("pop then stutter"). The gentler curve + larger distance keep per-frame motion above the snap floor.
+**Do NOT use the shared `--ease-out` var here** (it stays easeOutExpo for the container fade + app
+transitions) — the rise easing is inlined on purpose. **Invariant:** the keyframe `from` and the `.l`
+base `translateY` must stay byte-identical (both `0.18em`) or the rise jumps on frame 1 (v2.17.97/112
+regression). No GPU layer promotion (`will-change`/`translateZ`) — it would re-raster glyphs and
+regress BUG-032.
+
 ---
 
 ## Rules

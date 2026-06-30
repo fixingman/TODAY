@@ -38,7 +38,7 @@
 | 029b | ✦ submit answer swapped by proactive load race | ✅ v2.17.93 |
 | 030 | Checkmark animation lags ~30s on iOS PWA open | ✅ v2.17.105 |
 | 031 | Red error dot invisible on mobile PWA (behind status bar) | ✅ v2.17.75 |
-| 032 | Splash logo appears mid-animation on mobile | ⏳ v2.17.133 — awaiting verify |
+| 032 | Splash logo appears mid-animation on mobile; rise polish | ⏳ v2.17.133 raster + v2.18.18 smoother rise — awaiting verify |
 | 033 | Morning nudge missing on first cold-start | ✅ v2.17.125 |
 | 034 | Morning nudge AI text swaps mid-read | ✅ v2.17.125 |
 | 035 | Trello cards never age visually (type guard excluded them) | ✅ v2.17.127 |
@@ -64,7 +64,7 @@
 
 ## BUG-032: Splash logo appears mid-way through splash animation (mobile)
 
-**Status:** Refixed v2.17.133 — awaiting verification (five passes: v2.17.97, v2.17.112, v2.17.126, v2.17.130, v2.17.133; see notes below)
+**Status:** Raster bug resolved through v2.17.133 (glyphs no longer paint mid-animation, confirmed by Can). Rise-smoothness polish in v2.18.18 — awaiting verification. Five raster passes (v2.17.97, v2.17.112, v2.17.126, v2.17.130, v2.17.133) + one motion-design pass (v2.18.18); see notes below.
 
 **Symptom:** Sometimes on mobile, the TODAY logo appears mid-way through the splash animation (partially improved from v2.17.97/112 which fixed the downward-shift variant). The letter-rise animation occasionally starts late or logo appears unexpectedly during the sequence. Intermittent on cold start. Never on desktop.
 
@@ -82,8 +82,11 @@
 
 **Fifth pass — transform-only reveal, fix the class not the timing (v2.17.133):** Can reported glyphs STILL paint *during* the animation. Root insight: all four prior passes tried to *time* `.go` to a `document.fonts` signal, but on iOS the API reports "loaded" before WebKit rasterises the glyphs at the real rendered size (`clamp(48px,9vw,96px)`; we checked at 96px), and `font-display:block` keeps the box blank until raster lands — so the per-letter **opacity** ramp always raced the real paint. The `opacity:0.02` warm (v2.17.130) was compositor-skippable. **Fix (eliminates the class):** (1) `#splash-logo` is `visibility:hidden` until ready — stays in layout so the FontFaceSet loads, but nothing paints (also kills the v2.17.97/112 fallback-metrics shift). (2) Gate switched from the `fonts.check()` poll back to the `fonts.load()` **promise** (reliable on Safari), raced against the 2000ms ceiling via `Promise.race`; `_splashStarted` makes a late resolve a no-op. (3) `startSplash` flips to `visible` at the start position with `.l` now `opacity:1`, forces an in-view raster across two `requestAnimationFrame`s (a genuine full-opacity paint, not 0.02), THEN fades the **whole container** in as one unit (all glyphs already rastered → none can paint mid-fade) while a **transform-only** keyframe runs the staggered rise (`from translateY(0.12em)` byte-identical to `.l` base → no 1-frame jump; no opacity in the keyframe). Star/cursor/typewriter start immediately; the double-rAF gates only `.go` → no perceptible startup delay. `.instant` ceiling path drops opacity (base is 1). Option B (container fade) chosen over pure solid-slide to keep the soft feel.
 
+**Sixth pass — motion-design polish, smoother rise (v2.18.18):** With the raster bug resolved, Can reported the rise itself read as abrupt/stuttery — "letters appearing up from the bottom" not smooth. Root: the rise distance is tiny (`translateY(0.12em)` ≈ 5.8–11.5px at `clamp(48px,9vw,96px)`) but used easeOutExpo (`--ease-out`, `cubic-bezier(0.16,1,0.3,1)`) over `.4s` — that curve does ~90% of the travel in the first ~120ms then crawls the last ~1px sub-pixel for ~280ms (~0.06px/frame); non-composited text pixel-snaps each frame, so the tail rendered as 2–3 discrete steps ("pop then stutter"). The aggressive curve is built for large travel, not an 11px glyph rise. **Fix (motion design only, raster orchestration untouched):** gentler easeOutQuint **inlined** `cubic-bezier(0.22,1,0.36,1)`, distance `0.12em→0.18em`, duration `.4s→.55s`, stagger `.04s→.07s` (delays .06→.34). Larger distance + gentler tail keep per-frame motion above the pixel-snap floor for nearly the whole duration. Easing is inlined (NOT via `--ease-out`, which stays easeOutExpo for the container fade + app transitions). Base `.l` `translateY`, keyframe `from`, and the JS comment all moved to `0.18em` together (byte-identical invariant → no v2.17.97/112 first-frame jump). **GPU layer promotion (`will-change`/`translateZ`) deliberately rejected** — it re-rasters glyphs at layer creation, exactly the late-raster class the five passes fixed.
+
 **Verify:**
 - Mobile PWA cold start (force-quit first, ideally on slow network), repeat → logo appears solid (font already painted) and fades+rises as one unit; glyphs never paint/appear partway through the motion
+- Rise now reads as a calm, smooth cascade (longer wave, no clump); no visible step/stutter at the tail; no down-then-up jump on frame 1
 - Desktop / warm cache: unchanged feel, no perceptible delay before the reveal
 - Slow network (DevTools throttle + disable cache): reveal still clean; at worst the 2000ms ceiling reveals it statically (no rise)
 

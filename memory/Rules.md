@@ -4,10 +4,10 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.18.18 (next)
-- **Recent:** BUG-048 Trello focus map now syncs via Dropbox (v2.18.17); BUG-047 fresh-install auto-restore on Dropbox connect (v2.18.16); BUG-046 Trello board selector re-render loop (v2.18.15); BUG-045 done-count date guard (v2.18.14); BUG-041 ✅ verified — iOS launch-screen dark (v2.18.13); BUG-044 ✅ verified — zombie chime fix (v2.18.6)
+- **Working on:** v2.18.20 (next)
+- **Recent:** Triage Done button neutralised + moved to end of row (v2.18.19); BUG-032 splash letter-rise smoothness polish — gentler easeOutQuint, larger distance, wider stagger (v2.18.18); BUG-048 Trello focus map now syncs via Dropbox (v2.18.17); BUG-047 fresh-install auto-restore on Dropbox connect (v2.18.16); BUG-046 Trello board selector re-render loop (v2.18.15); BUG-045 done-count date guard (v2.18.14); BUG-041 ✅ verified — iOS launch-screen dark (v2.18.13); BUG-044 ✅ verified — zombie chime fix (v2.18.6)
 - **Module extraction in progress:** `assets/util.js` + `assets/idle.js` out (classic scripts before main `<script>`, globals shared via lexical env, precached in sw.js). Next risk-ascending: `sound.js`, `celebration.js`, `trello.js`, `insights.js`, `sync.js` (last — Non-Delegation). Coupled core stays inline. See Backlog Roadmap #3.
-- **Watch for:** BUG-043 un-dim + cross-device sync awaiting verify (v2.18.11 + v2.18.17) · BUG-045 done-count date guard awaiting verify (v2.18.14) · BUG-047 fresh-install auto-restore awaiting verify (v2.18.16) · BUG-048 Trello focus sync awaiting verify (v2.18.17) · BUG-032 awaiting device verify (mobile splash logo mid-animation — v2.17.133) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
+- **Watch for:** BUG-043 un-dim + cross-device sync awaiting verify (v2.18.11 + v2.18.17) · BUG-045 done-count date guard awaiting verify (v2.18.14) · BUG-047 fresh-install auto-restore awaiting verify (v2.18.16) · BUG-048 Trello focus sync awaiting verify (v2.18.17) · BUG-032 raster fixed; rise-smoothness polish awaiting device verify (v2.18.18) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---
 

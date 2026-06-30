@@ -96,12 +96,12 @@ Slides up from bottom (same as AI panel). Full-screen backdrop.
 ┌──────────────────────────────────────────────────┐
 │  3 didn't happen                  [Keep all]      │
 │  ──────────────────────────────────────────────  │
-│  Task one   [Done] [Keep] [↩ Soon] [Let go]      │
-│  Task two   [Done] [Keep] [↩ Soon] [Let go]      │
+│  Task one   [Keep] [↩ Soon] [Let go] [Done]      │
+│  Task two   [Keep] [↩ Soon] [Let go] [Done]      │
 └──────────────────────────────────────────────────┘
 ```
 
-- **Done** (v2.18.0) = completed but never checked off → marks done (counts toward today's total via `_markDoneInTriage`), no celebration. Trello cards get `Done / Keep / Let go` (no Soon). Done + Keep carry the accent treatment; Soon + Let go are neutral.
+- **Done** (v2.18.0) = completed but never checked off → marks done (counts toward today's total via `_markDoneInTriage`), no celebration. Order: `Keep / ↩ Soon / Let go / Done` (Trello cards drop Soon → `Keep / Let go / Done`). **Done sits last and is neutral as of v2.18.19** — only Keep carries the accent treatment; Soon, Let go, and Done are neutral. (Previously Done led and shared Keep's accent green; moved + neutralised so the row's positive accent points only at "Keep".)
 - The leading `○` checkbox marker was removed (v2.18.1) so the four buttons get the full row width and stay one line on phones; rows are flush to the section edge.
 - Backdrop tap → `triageMinimize()` → returns to callout bar.
 
