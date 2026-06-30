@@ -3224,27 +3224,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.18.17': 'Fix: focusing on a Trello card on one device now un-dims it on your other devices too — the focus activity syncs via Dropbox.',
+  '2.18.16': 'Fix: connecting Dropbox on a fresh install now automatically restores your data — you no longer need to click Restore manually.',
   '2.18.15': 'Fix: the Trello board selector in Connections no longer blinks constantly or blocks selection — and the Dropbox buttons beside it no longer flicker as a side-effect.',
-  '2.18.14': 'Fix: done-task count no longer inflates after midnight due to the previous day\'s sync carrying over.',
-  '2.18.13': 'Fix: cold-launching the iPhone app no longer shows a white flash — the OS launch screen is now dark. After updating, remove and re-add the app to your home screen for this to take effect.',
-  '2.18.12': 'Fix: Trello card dimming now updates every few seconds on all devices, not just when the board has recent activity.',
-  '2.18.11': 'Fix: manually-added tasks now un-dim as soon as you end any focus session on them — even a short one — matching how Trello cards already behaved.',
-  '2.18.10': 'Fix: the morning nudge always shows how many tasks carried over, even when the AI message appears.',
-  '2.18.9': 'Fix: the PAST section now shows all tasks — a previous cap of 20 hid tasks while the count badge showed the full number.',
-  '2.18.8': 'Fix: an aged Trello card un-dims as soon as you end any focus session on it, not only after a full 25-minute pomodoro.',
-  '2.18.7': 'Fix: cold-start white flash — second pass for Android and Arc browser in light mode.',
-  '2.18.6': 'Fix: closing a focus timer now fully ends the session — a chime could play unexpectedly when you returned to the tab later.',
-  '2.18.5': 'Housekeeping: no change to how the app works.',
-  '2.18.4': 'Fix: Trello card order no longer scrambles across devices on a new day; aged Trello cards now un-dim when you do a focus session on them.',
-  '2.18.3': 'Design: morning nudge aligned flush with the task list; its dot is now a calm neutral grey instead of the bright accent colour.',
-  '2.18.2': 'Fix: the app no longer flashes white before going dark on mobile cold start.',
-  '2.18.1': 'Polish: evening review rows are cleaner — action buttons span the full row width and stay on one line on phones.',
-  '2.18.0': 'New: the evening review now has a Done option for tasks you finished but forgot to check off.',
-  '2.17.141': 'Polish: connection rows no longer highlight on hover or tap.',
-  '2.17.140': 'Cleanup: removed the sync-conflict count from the Dropbox connection row.',
-  '2.17.139': 'Fix: the morning nudge no longer reappears after you dismiss it.',
-  '2.17.138': 'New: the Trello section now gets its own morning nudge — card count, any overdue items, and an AI pick for where to start.',
-  '2.17.137': 'Fix: the all-habits-done celebration now fires correctly even if you have archived habits.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4821,6 +4803,7 @@ function applyNewDayCleanup() {
   // Clear stale caches and operation logs — but NOT deleted_ids (deleted tasks stay deleted)
   localStorage.removeItem('today_trello_cache');
   localStorage.removeItem('today_trello_focus');
+  localStorage.removeItem('today_trello_focus_date');
   // deleted_ids persists — deleted tasks should never come back via sync
   localStorage.removeItem('today_unchecked_ids');
   localStorage.removeItem('today_checked_ids');
@@ -7774,7 +7757,10 @@ const _setLastLocalChange  = ()  => localStorage.setItem('last_local_change', ne
 
 // ── Deleted IDs: {id, at} — explicit delete tracking for union merge ──────────
 const _getTrelloFocus = () => safeJSON('today_trello_focus', {});
-const _setTrelloFocus = (map) => { localStorage.setItem('today_trello_focus', JSON.stringify(map)); };
+const _setTrelloFocus = (map) => {
+  localStorage.setItem('today_trello_focus', JSON.stringify(map));
+  localStorage.setItem('today_trello_focus_date', _getAppDay());
+};
 
 const _getDeletedIds = () => safeJSON('today_deleted_ids', []);
 const _addDeletedId  = (id) => {
@@ -7950,7 +7936,27 @@ async function _dropboxExchangeCode(code) {
     _setLastLocalChange();
     renderConnections();
     showStatus('Dropbox connected!', 'success');
-    dropboxAutoSave();
+    // Fresh install: no local data — try to restore from existing Dropbox backup first.
+    // Reconnect with local data: save current state (sync ticker will merge differences).
+    const _hasLocalData = manualTasks.length > 0 || habitsList.length > 0 || soonTasks.length > 0 || pastTasks.length > 0;
+    if (_hasLocalData) {
+      dropboxAutoSave();
+    } else {
+      try {
+        const _probe = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('dropbox_token')}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: DROPBOX_FILE }),
+        });
+        if (_probe.ok) {
+          await dropboxRestore(false);
+        } else {
+          dropboxAutoSave();
+        }
+      } catch(_e) {
+        dropboxAutoSave();
+      }
+    }
   } catch(e) {
     showStatus('Connection failed: ' + (e.message || 'unknown'), 'error');
   }
@@ -8169,6 +8175,8 @@ async function dropboxBackup(silent) {
     // Trello order — synced so drag order persists across devices
     trello_order:      safeJSON('today_trello_order', []),
     trello_order_at:   localStorage.getItem('today_trello_order_at') || '', // recency for merge (BUG-042)
+    today_trello_focus:      safeJSON('today_trello_focus', {}),
+    today_trello_focus_date: localStorage.getItem('today_trello_focus_date') || '',
     // Zones — SOON and PAST (v5.0)
     soon_tasks:        safeJSON('today_soon', []),
     past_tasks:        safeJSON('today_past', []),
@@ -8679,6 +8687,19 @@ function mergeRemoteData(data) {
     }
   }
 
+  // ── Trello focus map: union merge so un-dimmed cards propagate across devices ──
+  // Date-guarded — avoids yesterday's focus restoring after the other device's day-cleanup
+  const _remoteFocusMapDate = data.today_trello_focus_date || '';
+  if (_remoteFocusMapDate === _getAppDay() && data.today_trello_focus && typeof data.today_trello_focus === 'object') {
+    const _localFocusMap = safeJSON('today_trello_focus', {});
+    const _mergedFocusMap = { ..._localFocusMap };
+    let _focusMapChanged = false;
+    for (const [_fid, _fv] of Object.entries(data.today_trello_focus)) {
+      if (!_mergedFocusMap[_fid] || _fv > _mergedFocusMap[_fid]) { _mergedFocusMap[_fid] = _fv; _focusMapChanged = true; }
+    }
+    if (_focusMapChanged) { _setTrelloFocus(_mergedFocusMap); renderTrello(); _changed = true; }
+  }
+
   // ── Triage dismissed: sync across devices ──
   // If remote shows triage was dismissed today (or more recently), apply it locally
   const remoteDismissed = data.triage_dismissed || '';
@@ -8792,6 +8813,15 @@ async function dropboxRestore(fromSync) {
       if (Array.isArray(data.trello_order)) {
         localStorage.setItem('today_trello_order', JSON.stringify(data.trello_order));
         if (data.trello_order_at) localStorage.setItem('today_trello_order_at', data.trello_order_at);
+      }
+      // Trello focus map — date-guarded (daily reset), restores which cards were worked today
+      const _restoreFocusMapDate = data.today_trello_focus_date || '';
+      if (_restoreFocusMapDate === _getAppDay() && data.today_trello_focus && typeof data.today_trello_focus === 'object') {
+        localStorage.setItem('today_trello_focus', JSON.stringify(data.today_trello_focus));
+        localStorage.setItem('today_trello_focus_date', _restoreFocusMapDate);
+      } else {
+        localStorage.removeItem('today_trello_focus');
+        localStorage.removeItem('today_trello_focus_date');
       }
       // Stats (flow_rate is calculated live from visible tasks, not stored)
       // Date guard: only restore focus mins if the backup is from today,

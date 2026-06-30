@@ -93,7 +93,8 @@ dropboxAuth()
       sends code + code_verifier to /.netlify/functions/dropbox-token
       receives { access_token, refresh_token, expires_in }
       stores both in localStorage
-      calls dropboxRestore() to pull existing backup
+      if local data is empty (fresh install): probes Dropbox for existing backup → calls dropboxRestore(false) if found
+      if local data exists (reconnect): calls dropboxAutoSave() — sync ticker will merge (v2.18.16)
 ```
 
 ### Token Lifecycle

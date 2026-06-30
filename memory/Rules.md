@@ -4,10 +4,10 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.18.16 (next)
-- **Recent:** BUG-045 done-count date guard — parallel fix to BUG-024 (focus mins), `stat_tasks_done_today_date` stamp added (v2.18.14); BUG-041 third pass — iOS PWA white flash was the OS launch screen; added apple-touch-startup-image set (v2.18.13); Trello age-bucket now updates every 7 s + on wake, not only on board activity (v2.18.12); BUG-043 parity — manual tasks now also un-dim on partial focus (v2.18.11); morning nudge count always shown with AI text (v2.18.10); PAST zone uncapped (v2.18.9); BUG-043 second pass — partial focus session now un-dims Trello card (v2.18.8); BUG-041 Android/Arc white-flash second pass (v2.18.7); BUG-044 zombie-focus-session chime fix (v2.18.6)
+- **Working on:** v2.18.18 (next)
+- **Recent:** BUG-048 Trello focus map now syncs via Dropbox (v2.18.17); BUG-047 fresh-install auto-restore on Dropbox connect (v2.18.16); BUG-046 Trello board selector re-render loop (v2.18.15); BUG-045 done-count date guard (v2.18.14); BUG-041 ✅ verified — iOS launch-screen dark (v2.18.13); BUG-044 ✅ verified — zombie chime fix (v2.18.6)
 - **Module extraction in progress:** `assets/util.js` + `assets/idle.js` out (classic scripts before main `<script>`, globals shared via lexical env, precached in sw.js). Next risk-ascending: `sound.js`, `celebration.js`, `trello.js`, `insights.js`, `sync.js` (last — Non-Delegation). Coupled core stays inline. See Backlog Roadmap #3.
-- **Watch for:** BUG-041 third pass awaiting verify (iOS PWA launch-screen white flash — apple-touch-startup-image set v2.18.13; **must remove + re-add the PWA to the home screen** for iOS to pick up new launch images, else the old white frame persists) · BUG-032 awaiting device verify (mobile splash logo mid-animation — fifth-pass refix v2.17.133, transform-only reveal + container fade) · BUG-043 second pass awaiting verify (aged Trello card un-dims after any focus session, including partial) · BUG-044 awaiting verify (no delayed focus chime after Escape/task-switch then tab return) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
+- **Watch for:** BUG-043 un-dim + cross-device sync awaiting verify (v2.18.11 + v2.18.17) · BUG-045 done-count date guard awaiting verify (v2.18.14) · BUG-047 fresh-install auto-restore awaiting verify (v2.18.16) · BUG-048 Trello focus sync awaiting verify (v2.18.17) · BUG-032 awaiting device verify (mobile splash logo mid-animation — v2.17.133) · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep
 
 ---
 
@@ -118,7 +118,7 @@ matches, so drift fails the pre-commit gate instead of shipping a stale cache.
 
 ## Changelog Rules
 
-31. **`index.html` CHANGELOG — user-facing, max 20 entries, one sentence each.** Plain language only: no function names, CSS properties, BUG-XXX codes, or root-cause archaeology. Say what changed for the user, not how. When adding a new entry, drop the oldest one (it is already captured in `memory/Changelog.md` / `memory/archive/Changelog-archive.md`). Dev detail belongs in `memory/Changelog.md`, not here.
+31. **`index.html` CHANGELOG — keep exactly 3 entries (1 current + 2 history).** The About panel renders `slice(0, 1 + HISTORY_SHOWN)` where `HISTORY_SHOWN = 2` — anything beyond 3 is never shown. Plain language only: no function names, CSS properties, BUG-XXX codes, or root-cause archaeology. Say what changed for the user, not how. When adding a new entry, drop the oldest one (full history is in `memory/Changelog.md` / `memory/archive/Changelog-archive.md`). Dev detail belongs in `memory/Changelog.md`, not here.
 
 ## Non-Delegation Zones (require extra scrutiny)
 

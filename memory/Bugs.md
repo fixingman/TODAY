@@ -32,27 +32,29 @@
 | 024 | Focus minutes carry over to next day | ✅ v2.17.48 |
 | 025 | PiP "Again" lost / shows 25:00 after sleep/wake | ✅ v2.17.52 |
 | 026 | Habit re-checks itself after uncheck | ✅ v2.17.53 |
-| 027 | Trello focus timer — re-open idle 25:00 + completed bar stops pulsing | ✅ v2.17.62 |
-| 028 | Completed bar flash/pause on window return (final: WAAPI pulse) | ✅ v2.17.94 |
-| 029 | `_aiSendFromInput` undefined — crash on ✦ submit with text | ✅ v2.17.64 |
-| 029b | ✦ submit answer swapped by proactive load racing it | ✅ v2.17.93 |
+| 027 | Trello focus timer re-open: idle 25:00 + completed bar stops pulsing | ✅ v2.17.62 |
+| 028 | Completed bar flash/pause on window return | ✅ v2.17.94 |
+| 029 | `_aiSendFromInput` undefined — crash on ✦ submit | ✅ v2.17.64 |
+| 029b | ✦ submit answer swapped by proactive load race | ✅ v2.17.93 |
 | 030 | Checkmark animation lags ~30s on iOS PWA open | ✅ v2.17.105 |
 | 031 | Red error dot invisible on mobile PWA (behind status bar) | ✅ v2.17.75 |
-| 032 | Splash logo appears mid-way through splash animation (mobile) | ⏳ refix v2.17.133 — awaiting verification |
-| 033 | Morning nudge missing on first cold-start of the day | ✅ v2.17.125 |
-| 034 | Morning nudge AI text swaps mid-read (Tier 1→2 upgrade) | ✅ v2.17.125 |
-| 035 | Trello cards never age visually (omission — type guard excluded them) | ✅ v2.17.127 |
-| 036 | This Week data differs web vs mobile (daily_history local-only) | ✅ v2.17.132 |
-| 037 | Task list appears stale on morning open (day-cleanup backup race) | ✅ v2.17.135 |
-| 038 | Red dot appears on mobile when offline (SW update rejection) | ✅ v2.17.136 |
+| 032 | Splash logo appears mid-animation on mobile | ⏳ v2.17.133 — awaiting verify |
+| 033 | Morning nudge missing on first cold-start | ✅ v2.17.125 |
+| 034 | Morning nudge AI text swaps mid-read | ✅ v2.17.125 |
+| 035 | Trello cards never age visually (type guard excluded them) | ✅ v2.17.127 |
+| 036 | This Week differs web vs mobile (daily_history local-only) | ✅ v2.17.132 |
+| 037 | Task list stale on morning open (day-cleanup backup race) | ✅ v2.17.135 |
+| 038 | Red dot on mobile when offline (SW update rejection) | ✅ v2.17.136 |
 | 039 | All-habits-done celebration never fires (archived habit check) | ✅ v2.17.137 |
-| 040 | Morning nudge reappears after dismiss on every wake (self-heal regression) | ✅ v2.17.139 |
-| 041 | White flash before dark on mobile cold start (iOS OS launch screen — no startup image) | ⏳ v2.18.13 — third pass, awaiting verify |
-| 042 | Trello card order scrambles across devices (remote-wins, no recency) | ✅ v2.18.4 |
-| 043 | Aged card won't un-dim after a focus session (Trello: creation-only age; manual: lastActive) | ⏳ v2.18.11 — both types awaiting verify |
-| 044 | Delayed focus chime when not in focus mode (zombie session on closeUI) | ⏳ v2.18.6 — awaiting verify |
-| 045 | Done-task count inflated by yesterday's sync after midnight (no date guard) | ⏳ v2.18.14 — awaiting verify |
-| 046 | Trello board selector blinks constantly / Dropbox buttons flicker (renderConnections loop) | ✅ v2.18.15 |
+| 040 | Morning nudge reappears after dismiss on every wake | ✅ v2.17.139 |
+| 041 | White flash on mobile cold start (iOS OS launch screen) | ✅ v2.18.13 |
+| 042 | Trello card order scrambles across devices | ✅ v2.18.4 |
+| 043 | Aged card won't un-dim after focus session; not synced cross-device | ⏳ v2.18.11 + v2.18.17 — awaiting verify |
+| 044 | Delayed focus chime after Escape/task-switch (zombie session) | ✅ v2.18.6 |
+| 045 | Done-task count inflated by yesterday's sync after midnight | ⏳ v2.18.14 — awaiting verify |
+| 046 | Trello board selector blinks; Dropbox buttons flicker (render loop) | ✅ v2.18.15 |
+| 047 | Dropbox connect on fresh install doesn't auto-restore | ⏳ v2.18.16 — awaiting verify |
+| 048 | Trello card aging not synced between devices (focus map local-only) | ⏳ v2.18.17 — awaiting verify |
 
 ---
 
