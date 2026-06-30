@@ -52,6 +52,7 @@
 | 043 | Aged card won't un-dim after a focus session (Trello: creation-only age; manual: lastActive) | ⏳ v2.18.11 — both types awaiting verify |
 | 044 | Delayed focus chime when not in focus mode (zombie session on closeUI) | ⏳ v2.18.6 — awaiting verify |
 | 045 | Done-task count inflated by yesterday's sync after midnight (no date guard) | ⏳ v2.18.14 — awaiting verify |
+| 046 | Trello board selector blinks constantly / Dropbox buttons flicker (renderConnections loop) | ✅ v2.18.15 |
 
 ---
 

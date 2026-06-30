@@ -3224,6 +3224,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.18.15': 'Fix: the Trello board selector in Connections no longer blinks constantly or blocks selection — and the Dropbox buttons beside it no longer flicker as a side-effect.',
   '2.18.14': 'Fix: done-task count no longer inflates after midnight due to the previous day\'s sync carrying over.',
   '2.18.13': 'Fix: cold-launching the iPhone app no longer shows a white flash — the OS launch screen is now dark. After updating, remove and re-add the app to your home screen for this to take effect.',
   '2.18.12': 'Fix: Trello card dimming now updates every few seconds on all devices, not just when the board has recent activity.',
@@ -5536,8 +5537,11 @@ async function loadTrelloBoards() {
     const res = await fetch(`https://api.trello.com/1/members/me/boards?key=${TRELLO_API_KEY}&token=${token}&fields=name,id&filter=open`);
     if (!res.ok) throw new Error(res.status);
     const boards = await res.json();
-    // Render connections first to create the select element
-    renderConnections();
+    // boardSelect is already in the DOM — renderConnections() always runs before this
+    // function is called (panel-open path: renderConnections→loadTrelloBoards at line ~5459;
+    // post-auth path: renderConnections at line ~5520, then loadTrelloBoards at line ~5521).
+    // Calling renderConnections() here caused a re-render loop: renderConnections → loadTrelloBoards
+    // → renderConnections → … wiping and rebuilding the panel on every board API response.
     const sel = document.getElementById('boardSelect');
     if (!sel) return;
     sel.innerHTML = '<option value="">— select a board —</option>'
