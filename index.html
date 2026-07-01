@@ -3222,9 +3222,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.18.23': 'Fix: dismissing the Trello morning nudge on one device now dismisses it on your other devices too — no more seeing it again after you\'ve already closed it.',
+  '2.18.22': 'Fix: a Trello card that just arrived in your list no longer looks faded — cards now age from when they reach you, not when they were first created in Trello.',
   '2.18.21': 'Fix: today\'s completed-task count no longer inflates from checking and unchecking or syncing across devices — it now reflects what\'s actually done.',
-  '2.18.20': 'Polish: the daily poem in About is now headed "Read Me" instead of "README".',
-  '2.18.19': 'Polish: in the evening review, the Done button is now neutral (not green) and sits at the end of the options, after Let go.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4799,6 +4799,8 @@ function applyNewDayCleanup() {
   localStorage.removeItem('today_trello_cache');
   localStorage.removeItem('today_trello_focus');
   localStorage.removeItem('today_trello_focus_date');
+  // NOTE: do NOT clear today_trello_firstseen here — it must persist across days so cards can
+  // age from when they entered the list (BUG-049). loadTrello() prunes departed cards instead.
   // deleted_ids persists — deleted tasks should never come back via sync
   localStorage.removeItem('today_unchecked_ids');
   localStorage.removeItem('today_checked_ids');
@@ -5696,6 +5698,17 @@ async function loadTrello(fromSync) {
         };
       });
 
+    // First-seen aging (BUG-049): a card ages from when it entered YOUR list, not its Trello
+    // creation date (which made just-arrived cards look aged). Persists across days; prune cards
+    // that have left so the map stays bounded.
+    const _fs = _getTrelloFirstSeen();
+    const _fsNow = Date.now();
+    const _present = new Set(trelloTasks.map(t => t.id));
+    let _fsChanged = false;
+    for (const t of trelloTasks) if (!_fs[t.id]) { _fs[t.id] = _fsNow; _fsChanged = true; }
+    for (const id of Object.keys(_fs)) if (!_present.has(id)) { delete _fs[id]; _fsChanged = true; }
+    if (_fsChanged) _setTrelloFirstSeen(_fs);
+
     // Apply synced order if available (cards not in order list go to the end)
     const savedOrder = safeJSON('today_trello_order', []);
     if (savedOrder.length > 0) {
@@ -5869,7 +5882,7 @@ function renderTrello() {
       const _patchBucket = (() => {
         if (doneIds.has(id)) return '';
         if ((_getTrelloFocus()[task.id] || 0) > 0) return ''; // focused today — active (BUG-043)
-        const _c = _getCreatedFromTrelloId(task.id);
+        const _c = _trelloAgeBasis(task.id); // first-seen, not Trello creation date (BUG-049)
         const _d = Math.floor((Date.now() - _c) / (1000 * 60 * 60 * 24));
         if (_d >= 7) return 'old';
         if (_d >= 5) return 'mid';
@@ -5943,12 +5956,12 @@ function taskHTML(task, type) {
   let ageDays = 0;
   if (!done) {
     const created = type === 'trello'
-      ? _getCreatedFromTrelloId(task.id)
+      ? _trelloAgeBasis(task.id)   // first-seen in your list, not Trello creation date (BUG-049)
       : (task.lastActive || _getCreatedFromId(task.id));
     ageDays = Math.floor((Date.now() - created) / (1000 * 60 * 60 * 24));
-    // A Trello card focused today reads as active — no dimming. Trello age is
-    // creation-only (cards have no lastActive), so manual tasks un-age on activity
-    // but Trello can't; the daily-reset focus count is its activity signal. (BUG-043)
+    // A Trello card focused today reads as active — no dimming. Trello age is first-seen-based
+    // (cards have no lastActive), so manual tasks un-age on activity but Trello can't; the
+    // daily-reset focus count is its activity signal. (BUG-043)
     if (type === 'trello' && (_getTrelloFocus()[task.id] || 0) > 0) ageDays = 0;
   }
 
@@ -6044,13 +6057,6 @@ function _getCreatedFromId(id) {
   return isNaN(ts) ? Date.now() : ts;
 }
 
-// Extract creation timestamp from Trello task ID — Trello IDs are MongoDB ObjectIDs,
-// first 8 hex chars = Unix timestamp in seconds.
-function _getCreatedFromTrelloId(id) {
-  const raw = id && id.startsWith('trello_') ? id.slice(7) : (id || '');
-  const ts = parseInt(raw.slice(0, 8), 16);
-  return isNaN(ts) ? Date.now() : ts * 1000;
-}
 
 // Get age in days from a timestamp
 function _getAgeDays(timestamp) {
@@ -7754,6 +7760,13 @@ const _setTrelloFocus = (map) => {
   localStorage.setItem('today_trello_focus_date', _getAppDay());
 };
 
+// Trello first-seen: {trello_<id>: firstSeenMs}. Age basis so a card ages from when it entered
+// YOUR list, not its Trello creation date (BUG-049). Persists across days (NOT daily-reset like
+// focus) and syncs via MIN-merge (earliest sighting wins). Fallback "now" = treat unseen as fresh.
+const _getTrelloFirstSeen = () => safeJSON('today_trello_firstseen', {});
+const _setTrelloFirstSeen = (map) => localStorage.setItem('today_trello_firstseen', JSON.stringify(map));
+const _trelloAgeBasis = (id) => _getTrelloFirstSeen()[id] || Date.now();
+
 const _getDeletedIds = () => safeJSON('today_deleted_ids', []);
 const _addDeletedId  = (id) => {
   // Safety: Don't mark as deleted if task exists in SOON or PAST zones
@@ -8189,6 +8202,7 @@ async function dropboxBackup(silent) {
     trello_order_at:   localStorage.getItem('today_trello_order_at') || '', // recency for merge (BUG-042)
     today_trello_focus:      safeJSON('today_trello_focus', {}),
     today_trello_focus_date: localStorage.getItem('today_trello_focus_date') || '',
+    today_trello_firstseen:  safeJSON('today_trello_firstseen', {}), // MIN-merge, no date guard (BUG-049)
     // Zones — SOON and PAST (v5.0)
     soon_tasks:        safeJSON('today_soon', []),
     past_tasks:        safeJSON('today_past', []),
@@ -8209,7 +8223,9 @@ async function dropboxBackup(silent) {
     // Triage history — AI learns from past decisions
     triage_history:       safeJSON('today_triage_history', []),
     // Triage dismissed — synced so triage doesn't re-prompt on other devices
-    triage_dismissed:     localStorage.getItem('triage_dismissed') || '',
+    triage_dismissed:        localStorage.getItem('triage_dismissed') || '',
+    // Trello nudge dismissed — synced so nudge doesn't re-show on other devices (BUG-051)
+    trello_nudge_dismissed:  localStorage.getItem('trello_nudge_dismissed_' + _localISO()) || '',
     // Daily history — per-day snapshots the week grid reads for past days (v5.3, BUG-036).
     // Union-merged by date on restore so the week view matches across devices.
     daily_history:        safeJSON('today_daily_history', []),
@@ -8704,6 +8720,19 @@ function mergeRemoteData(data) {
     if (_focusMapChanged) { _setTrelloFocus(_mergedFocusMap); renderTrello(); _changed = true; }
   }
 
+  // ── Trello first-seen map: union merge, MIN timestamp wins (BUG-049) ──
+  // A card's true first-seen is the EARLIEST any device saw it. No date guard — first-seen
+  // persists across days by design (that's how the card ages).
+  if (data.today_trello_firstseen && typeof data.today_trello_firstseen === 'object') {
+    const _localFS = safeJSON('today_trello_firstseen', {});
+    const _mergedFS = { ..._localFS };
+    let _fsChg = false;
+    for (const [_id, _ts] of Object.entries(data.today_trello_firstseen)) {
+      if (!_mergedFS[_id] || _ts < _mergedFS[_id]) { _mergedFS[_id] = _ts; _fsChg = true; }
+    }
+    if (_fsChg) { _setTrelloFirstSeen(_mergedFS); renderTrello(); _changed = true; }
+  }
+
   // ── Triage dismissed: sync across devices ──
   // If remote shows triage was dismissed today (or more recently), apply it locally
   const remoteDismissed = data.triage_dismissed || '';
@@ -8717,6 +8746,14 @@ function mergeRemoteData(data) {
     const triageOverlay = document.getElementById('triageOverlay');
     if (triageBar) triageBar.classList.add('hidden');
     if (triageOverlay) triageOverlay.classList.add('hidden');
+  }
+
+  // ── Trello nudge dismissed: sync across devices (BUG-051) ──
+  const _remoteTrelloNudge = data.trello_nudge_dismissed || '';
+  const _todayISO = _localISO();
+  if (_remoteTrelloNudge === '1' && !localStorage.getItem('trello_nudge_dismissed_' + _todayISO)) {
+    localStorage.setItem('trello_nudge_dismissed_' + _todayISO, '1');
+    if ($.trelloNudge) $.trelloNudge.style.display = 'none';
   }
 
   // Full re-render if tasks were added or removed — surgical patch is not enough
@@ -8826,6 +8863,11 @@ async function dropboxRestore(fromSync) {
       } else {
         localStorage.removeItem('today_trello_focus');
         localStorage.removeItem('today_trello_focus_date');
+      }
+      // Trello first-seen map — take remote wholesale (no date guard; persists across days).
+      // The next sync tick MIN-merges any local-only entries (BUG-049).
+      if (data.today_trello_firstseen && typeof data.today_trello_firstseen === 'object') {
+        localStorage.setItem('today_trello_firstseen', JSON.stringify(data.today_trello_firstseen));
       }
       // Stats (flow_rate is calculated live from visible tasks, not stored)
       // Date guard: only restore focus mins if the backup is from today,

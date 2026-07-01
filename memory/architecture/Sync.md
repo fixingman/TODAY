@@ -122,6 +122,7 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   trello_order_at: 'ISO',  // BUG-042 — reorder timestamp; newer wins on merge (additive, no schema bump)
   today_trello_focus: {trelloCardId: 1, ...},  // v2.18.17 — focus sessions today, union-merged cross-device
   today_trello_focus_date: '',  // YYYY-MM-DD local — date guard (daily-reset; prevents yesterday's focus restoring)
+  today_trello_firstseen: {'trello_<id>': firstSeenMs, ...},  // v2.18.22 BUG-049 — when a card entered YOUR list; age basis. Union-merge MIN wins, NO date guard, persists across days (NOT daily-reset)
   // Habits
   habits: [{id, name, created_at, focusSessions?, archived?}, ...],
   habit_completions: {habitId: ['YYYY-MM-DD', ...]},
@@ -288,6 +289,7 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 | Habit list | Union by ID, remote order wins |
 | Trello order | Newer `trello_order_at` wins (bootstrap if local order empty) — BUG-042 |
 | Trello focus map | Union by card ID (max value), date-guarded — v2.18.17 |
+| Trello first-seen | Union by card ID, **MIN timestamp wins** (earliest sighting), no date guard, persists across days — v2.18.22 (BUG-049) |
 | Done IDs | Union with check/uncheck timestamps (most-recent op wins) |
 | Done-today count | NOT stored/merged — derived from checked_ids via `_doneTodayCount()` (v2.18.21) |
 | Deleted IDs | Union (excluded from tasks) |
