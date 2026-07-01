@@ -49,12 +49,13 @@
 | 040 | Morning nudge reappears after dismiss on every wake | ✅ v2.17.139 |
 | 041 | White flash on mobile cold start (iOS OS launch screen) | ✅ v2.18.13 |
 | 042 | Trello card order scrambles across devices | ✅ v2.18.4 |
-| 043 | Aged card won't un-dim after focus session; not synced cross-device | ⏳ v2.18.11 + v2.18.17 — awaiting verify |
+| 043 | Aged card won't un-dim after focus session; not synced cross-device | ✅ v2.18.11 + v2.18.17 |
 | 044 | Delayed focus chime after Escape/task-switch (zombie session) | ✅ v2.18.6 |
 | 045 | Done-task count inflated by yesterday's sync after midnight | ⏳ v2.18.14 — awaiting verify |
 | 046 | Trello board selector blinks; Dropbox buttons flicker (render loop) | ✅ v2.18.15 |
 | 047 | Dropbox connect on fresh install doesn't auto-restore | ⏳ v2.18.16 — awaiting verify |
-| 048 | Trello card aging not synced between devices (focus map local-only) | ⏳ v2.18.17 — awaiting verify |
+| 048 | Trello card aging not synced between devices (focus map local-only) | ✅ v2.18.17 |
+| 049 | Done-today count inflates from check/uncheck + cross-device Math.max | ✅ v2.18.21 — retired counter, derive from checked_ids |
 
 ---
 

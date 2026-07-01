@@ -2932,7 +2932,7 @@
     </div>
 
     <div class="panel-section">
-      <div class="config-label">README</div>
+      <div class="config-label">Read Me</div>
       <div class="panel-haiku">
         <div id="dailyPoem">
           Only today shows<br>
@@ -3222,9 +3222,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.18.21': 'Fix: today\'s completed-task count no longer inflates from checking and unchecking or syncing across devices — it now reflects what\'s actually done.',
+  '2.18.20': 'Polish: the daily poem in About is now headed "Read Me" instead of "README".',
   '2.18.19': 'Polish: in the evening review, the Done button is now neutral (not green) and sits at the end of the options, after Let go.',
-  '2.18.18': 'Polish: the TODAY logo letters now rise more smoothly on the splash screen — a gentler, calmer reveal.',
-  '2.18.17': 'Fix: focusing on a Trello card on one device now un-dims it on your other devices too — the focus activity syncs via Dropbox.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4089,11 +4089,8 @@ function triageApplyAll() {
   // 'kept' and the normal day-cleanup path moves it to PAST with status 'done'.
   const _markDoneInTriage = (id, text) => {
     doneIds.add(id);
-    _addCheckedId(id);
+    _addCheckedId(id); // done-today count derives from this (see _doneTodayCount)
     _removeUncheckedId(id);
-    const dt = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
-    localStorage.setItem('stat_tasks_done_today', dt + 1);
-    localStorage.setItem('stat_tasks_done_today_date', _getAppDay());
     if (typeof _memoryOnTaskComplete === 'function') _memoryOnTaskComplete(text || '');
   };
 
@@ -4202,7 +4199,7 @@ function triageApplyAll() {
   if (letgoCount > 0) triageParts.push(`${letgoCount} let go`);
   
   // Gather day stats for the acknowledgment line
-  const _doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
+  const _doneToday = _doneTodayCount();
   const _focusMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
   const _streak    = parseInt(localStorage.getItem('stat_streak') || '1');
   const _habitsDoneCount = habitsList.filter(h =>
@@ -4736,13 +4733,13 @@ function applyNewDayCleanup() {
 
   // ── Daily counters reset ──
 
-  // Update memory with day summary
-  const doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
+  // Snapshot yesterday into rolling 30-day history (before checked_ids is cleared below).
+  // Done count is derived from yesterday's check timestamps, not a counter (see _doneTodayCount).
+  const yesterdayISO = _localISO(yesterday);
+  const doneToday = _doneTodayCount(yesterdayISO);
   _memoryOnDaySummary(doneToday);
 
-  // Snapshot yesterday into rolling 30-day history (before counters reset)
   const focusMinsYesterday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
-  const yesterdayISO = _localISO(yesterday);
   const activeHabitsYesterday = habitsList.filter(h => !h.archived);
   const habitsKeptYesterday = activeHabitsYesterday.filter(h =>
     (habitCompletions[h.id] || []).includes(yesterdayISO)
@@ -4762,9 +4759,8 @@ function applyNewDayCleanup() {
     localStorage.setItem('today_daily_history', JSON.stringify(dailyHistory));
   }
 
-  // Reset daily counters
-  localStorage.setItem('stat_tasks_done_today',      '0');
-  localStorage.setItem('stat_tasks_done_today_date', _getAppDay());
+  // Reset daily counters. Done-today is derived from today_checked_ids (cleared below),
+  // so there's no done counter to zero here — only focus minutes.
   localStorage.setItem('stat_focus_mins_today', '0');
   localStorage.setItem('stat_focus_mins_date',  _getAppDay());
 
@@ -6783,14 +6779,11 @@ function toggleDone(taskId) {
   _setLastLocalChange();
   dropboxAutoSave();
 
-  // Track daily done for flow rate
+  // Done-today count derives from today_checked_ids (set above via _addCheckedId) — no
+  // separate counter to increment. See _doneTodayCount.
   if (doneIds.has(taskId)) {
-    const doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
-    localStorage.setItem('stat_tasks_done_today',      doneToday + 1);
-    localStorage.setItem('stat_tasks_done_today_date', _getAppDay());
-
     // Update memory with task completion
-    const task = manualTasks.find(t => t.id === taskId) || 
+    const task = manualTasks.find(t => t.id === taskId) ||
                  (trelloTasks || []).find(t => 'trello_' + t.id === taskId);
     const taskText = task?.text || task?.name || '';
     _memoryOnTaskComplete(taskText);
@@ -7827,6 +7820,26 @@ const _removeCheckedId = (id) => {
   localStorage.setItem('today_checked_ids', JSON.stringify(_getCheckedIds().filter(c => c.id !== id)));
 };
 
+// Done-today count — DERIVED from today_checked_ids rather than a monotonic counter.
+// The old stat_tasks_done_today only ever incremented (never decremented on uncheck) and
+// merged cross-device via Math.max, so check/uncheck/re-check cycles and two synced devices
+// inflated it without bound ("blew up"). checked_ids holds one {id, at} per task and merges
+// by timestamp union, so deriving the count is self-correcting and coherent across devices.
+// Counts tasks whose check timestamp is on the given local day (default today) AND whose
+// check is the *winning* op — not superseded by a later uncheck. The uncheck guard matters
+// on the sync path: mergeRemoteData persists the checked/unchecked maps as a plain union
+// (it tracks "done" separately via most-recent-wins), so a stale check entry can outlive an
+// uncheck; this mirrors that most-recent-wins logic. Retired the counter v2.18.21.
+const _doneTodayCount = (dayISO) => {
+  const day = dayISO || _localISO();
+  const unchecked = new Map(_getUncheckedIds().map(u => [u.id, u.at]));
+  return _getCheckedIds().filter(c => {
+    if (!c.at || _localISO(new Date(c.at)) !== day) return false;
+    const uAt = unchecked.get(c.id); // map value IS the uncheck timestamp string
+    return !uAt || c.at > uAt; // check is the most-recent op (ISO strings compare correctly)
+  }).length;
+};
+
 // ── UI helpers ────────────────────────────────────────────────────────────────
 function getDropboxAppKey() {
   if (DROPBOX_APP_KEY) return DROPBOX_APP_KEY;
@@ -8184,8 +8197,8 @@ async function dropboxBackup(silent) {
     stat_focus_mins_date:   localStorage.getItem('stat_focus_mins_date')  || '',
     stat_streak:            localStorage.getItem('stat_streak')            || '1',
     stat_streak_date:       localStorage.getItem('stat_streak_date')       || '',
-    stat_tasks_done_today:      localStorage.getItem('stat_tasks_done_today')      || '0',
-    stat_tasks_done_today_date: localStorage.getItem('stat_tasks_done_today_date') || '',
+    // Done-today count is no longer a stored stat — it derives from checked_ids (above),
+    // which already syncs. Retired stat_tasks_done_today / _date here v2.18.21.
     // Habits — persisted cross-device
     habits:               safeJSON('today_habits',            []),
     habit_completions:    safeJSON('today_habit_completions', {}),
@@ -8626,12 +8639,10 @@ function mergeRemoteData(data) {
   const localFocusMins  = parseInt(localStorage.getItem('stat_focus_mins_today')  || '0');
   const localStreak     = parseInt(localStorage.getItem('stat_streak')            || '1');
   const localStreakDate  = localStorage.getItem('stat_streak_date') || '';
-  const localDone       = parseInt(localStorage.getItem('stat_tasks_done_today')  || '0');
 
   const remoteFocusMins = parseInt(data.stat_focus_mins_today  || '0');
   const remoteStreak    = parseInt(data.stat_streak            || '1');
   const remoteStreakDate = data.stat_streak_date || '';
-  const remoteDoneCount = parseInt(data.stat_tasks_done_today  || '0');
 
   // Max wins — but ONLY merge focus mins if the remote data is from today.
   // Without this guard, yesterday's backed-up total (e.g. 45min) would restore
@@ -8644,10 +8655,8 @@ function mergeRemoteData(data) {
   // Adopt the remote streak date if remote has a newer/later date — this prevents
   // Device B from incrementing a streak that Device A already bumped today (BUG-020).
   const mergedStreakDate = remoteStreakDate > localStreakDate ? remoteStreakDate : localStreakDate;
-  // Done count — date-guarded parallel to focus minutes (BUG-024 class, fixed here for done count)
-  const remoteDoneDate = data.stat_tasks_done_today_date || '';
-  const remoteDoneCountToday = remoteDoneDate === _getAppDay() ? remoteDoneCount : 0;
-  const mergedDoneCount = Math.max(localDone, remoteDoneCountToday);
+  // Done count is NOT merged here — it derives from checked_ids, which merge by timestamp
+  // union below. Math.max on a monotonic counter was what inflated it (retired v2.18.21).
 
   if (mergedFocusMins !== localFocusMins) {
     localStorage.setItem('stat_focus_mins_today', String(mergedFocusMins));
@@ -8656,10 +8665,6 @@ function mergeRemoteData(data) {
   if (mergedStreak !== localStreak || mergedStreakDate !== localStreakDate) {
     localStorage.setItem('stat_streak', String(mergedStreak));
     localStorage.setItem('stat_streak_date', mergedStreakDate);
-    _changed = true;
-  }
-  if (mergedDoneCount !== localDone) {
-    localStorage.setItem('stat_tasks_done_today', String(mergedDoneCount));
     _changed = true;
   }
 
@@ -8833,14 +8838,7 @@ async function dropboxRestore(fromSync) {
       }
       if (data.stat_streak)            localStorage.setItem('stat_streak',            data.stat_streak);
       if (data.stat_streak_date)       localStorage.setItem('stat_streak_date',       data.stat_streak_date);
-      const _restoreDoneDate = data.stat_tasks_done_today_date || '';
-      if (data.stat_tasks_done_today && _restoreDoneDate === _getAppDay()) {
-        localStorage.setItem('stat_tasks_done_today',      data.stat_tasks_done_today);
-        localStorage.setItem('stat_tasks_done_today_date', _restoreDoneDate);
-      } else if (_restoreDoneDate !== _getAppDay()) {
-        localStorage.setItem('stat_tasks_done_today',      '0');
-        localStorage.setItem('stat_tasks_done_today_date', _getAppDay());
-      }
+      // Done-today count derives from checked_ids (restored above) — nothing to restore here.
       // Habits
       if (Array.isArray(data.habits)) {
         habitsList       = data.habits;
@@ -10284,7 +10282,7 @@ function _aiContext() {
 function _getWeeklyStats() {
   const m = appMemory;
   const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
-  const doneToday = parseInt(localStorage.getItem('stat_tasks_done_today') || '0');
+  const doneToday = _doneTodayCount();
 
   // Build a 7-day window: last 6 days from history + today's live counters
   const dailyHistory = safeJSON('today_daily_history', []);

@@ -132,8 +132,9 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   stat_focus_mins_date: '',      // YYYY-MM-DD local — date guard prevents yesterday's total restoring after midnight
   stat_streak: '1',
   stat_streak_date: '',          // YYYY-MM-DD local — prevents double-increment across devices (BUG-020)
-  stat_tasks_done_today:      '0',
-  stat_tasks_done_today_date: '',        // YYYY-MM-DD local — date guard prevents yesterday's total restoring after midnight (v2.18.14)
+  // NOTE: stat_tasks_done_today / _date RETIRED v2.18.21. Done-today count is no longer a
+  // stored stat — it derives from checked_ids (via _doneTodayCount()). The old monotonic
+  // counter + Math.max merge inflated it on re-checks and cross-device sync. See below.
   // Memory
   memory: {totalTasksCompleted, patterns: {...}, aiName, moments: [...]},
   // Triage (v5.1)
@@ -287,7 +288,8 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 | Habit list | Union by ID, remote order wins |
 | Trello order | Newer `trello_order_at` wins (bootstrap if local order empty) — BUG-042 |
 | Trello focus map | Union by card ID (max value), date-guarded — v2.18.17 |
-| Done IDs | Union with check/uncheck timestamps |
+| Done IDs | Union with check/uncheck timestamps (most-recent op wins) |
+| Done-today count | NOT stored/merged — derived from checked_ids via `_doneTodayCount()` (v2.18.21) |
 | Deleted IDs | Union (excluded from tasks) |
 | SOON tasks | Union by ID, newer zoneChangedAt wins |
 | PAST tasks | Union by ID, newer zoneChangedAt wins, age-based purge only (done >7d, let_go/aged >30d) — no count cap (v2.17.47) |
@@ -297,7 +299,7 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 
 ### Stat Merge — Date Guards
 
-Stats use `Math.max` but three have date guards to prevent yesterday's value restoring after midnight:
+Stats use `Math.max` but the remaining counter has a date guard to prevent yesterday's value restoring after midnight:
 
 **`stat_focus_mins_today` / `stat_focus_mins_date`**
 - `stat_focus_mins_date` is saved to localStorage whenever minutes are earned or reset
@@ -305,11 +307,11 @@ Stats use `Math.max` but three have date guards to prevent yesterday's value res
 - Fallback in backup payload is `''` (empty) not today's date — `''` fails the date guard and treats remote value as 0
 - Merge: `remoteFocusMinsToday = remoteFocusDate === _getAppDay() ? remoteFocusMins : 0`
 
-**`stat_tasks_done_today` / `stat_tasks_done_today_date`** (v2.18.14, BUG-045 — same class as BUG-024)
-- `stat_tasks_done_today_date` is saved to localStorage whenever a task is marked done (checkbox, triage) and on daily reset
-- Backup payload uses the stored date; fallback is `''` (never `_getAppDay()` — same lesson as BUG-024)
-- Merge: `remoteDoneCountToday = remoteDoneDate === _getAppDay() ? remoteDoneCount : 0`
-- Full-restore path: date-guarded same as focus minutes
+**Done-today count — DERIVED, not a stat (v2.18.21, retired the counter)**
+- `stat_tasks_done_today` / `_date` existed v2.18.14–2.18.20 (BUG-045 date guard) but the underlying counter was fundamentally broken: it only ever incremented (never decremented on uncheck) and merged cross-device via `Math.max`, so check/uncheck/re-check cycles and two synced devices inflated it without bound (Can: "the final completed task number blew up").
+- Replaced by `_doneTodayCount(dayISO?)`: counts `checked_ids` entries whose `at` is on the given local day (default today) AND whose check is the *winning* op — i.e. no `unchecked_ids` entry for that id with a later timestamp. This mirrors the `mergedDoneIds` most-recent-wins logic, because `mergeRemoteData` persists the checked/unchecked maps as a plain union (a stale check can outlive an uncheck on the sync path).
+- Self-correcting (uncheck removes the local entry / loses the timestamp race) and coherent across devices with no `Math.max`. No backup field, no merge branch, no restore branch, no daily reset — the daily boundary falls out of the date filter + the existing `checked_ids` clear in `applyNewDayCleanup()`.
+- Readers: evening triage summary, `applyNewDayCleanup` daily_history snapshot (passes `yesterdayISO`), `_getWeeklyStats`. **Gotcha found in review:** the `unchecked` map value IS the timestamp string (`.map(u => [u.id, u.at])`), so compare `c.at > uAt`, not `c.at > u.at` (the latter reads `.at` on a string → `undefined` → every uncheck wrongly zeroes the task).
 
 **`stat_streak` / `stat_streak_date`**
 - `stat_streak_date` is set to `_localISO()` whenever streak is incremented in `applyNewDayCleanup()`
