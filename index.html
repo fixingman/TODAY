@@ -1556,9 +1556,17 @@
     letter-spacing: 0.04em; /* quiet-voice tracking — also matches .habit-empty */
   }
   
-  /* Morning nudge — gentle reminder of carried-over tasks */
+  /* Morning nudge — quiet surface panel + breathing accent dot (v2.18.24).
+     Reuses shipped language rather than inventing new: same monochrome recap text as before
+     (still --muted, no per-word color emphasis — the redesign never colors the data itself),
+     just given a home (surface + accent-dim edge, like a task row) and the existing Breath
+     Pattern (_breathe, WAAPI — never CSS, see Motion.md) on the dot instead of a static bullet. */
   .morning-nudge {
-    padding: var(--space-2) 0; /* flush to section edge — aligns with the label + task boxes */
+    background: var(--surface);
+    border-left: 2px solid var(--accent-dim);
+    border-radius: var(--radius-md);
+    padding: 7px var(--space-3);
+    margin: var(--space-2) 0 var(--space-3);
     color: var(--muted);
     font-size: var(--text-xs);
     letter-spacing: 0.04em;
@@ -1575,7 +1583,8 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--muted); /* neutral bullet, not an accent status light — passive recap */
+    background: var(--accent); /* breathes via _breathe() at creation site — WAAPI, never CSS (BUG-028 lesson) */
+    flex-shrink: 0;
   }
   
   /* Breathing star on "All done" — gentle reward pulse */
@@ -3222,9 +3231,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.18.24': 'Polish: the morning nudge now has a bit more presence — a quiet home of its own with a gently breathing dot, instead of blending into the section header above it.',
   '2.18.23': 'Fix: dismissing the Trello morning nudge on one device now dismisses it on your other devices too — no more seeing it again after you\'ve already closed it.',
   '2.18.22': 'Fix: a Trello card that just arrived in your list no longer looks faded — cards now age from when they reach you, not when they were first created in Trello.',
-  '2.18.21': 'Fix: today\'s completed-task count no longer inflates from checking and unchecking or syncing across devices — it now reflects what\'s actually done.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -3572,6 +3581,7 @@ function checkMorningNudge() {
   const _showNudge = (text, addPrefix) => {
     const prefix = (addPrefix && carriedOver > 0) ? `${carriedOver} carried over · ` : '';
     nudgeEl.innerHTML = `<span class="nudge-dot"></span>${esc(prefix + text)}`;
+    _breathe(nudgeEl.querySelector('.nudge-dot'), [{ opacity: 1 }, { opacity: 0.65 }, { opacity: 1 }], 1800);
     nudgeEl.style.display = 'flex';
     nudgeEl.onclick = () => {
       nudgeEl.style.display = 'none';
@@ -3649,6 +3659,7 @@ function checkTrelloNudge() {
 
   const _showNudge = (text) => {
     nudgeEl.innerHTML = '<span class="nudge-dot"></span>' + esc(text);
+    _breathe(nudgeEl.querySelector('.nudge-dot'), [{ opacity: 1 }, { opacity: 0.65 }, { opacity: 1 }], 1800);
     nudgeEl.style.display = 'flex';
     nudgeEl.onclick = () => {
       nudgeEl.style.display = 'none';

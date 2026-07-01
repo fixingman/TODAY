@@ -191,7 +191,8 @@ Horizontal strip below the **Your tasks** header, shows before noon if yesterday
 - Two-tier: rule-based tier 1 shows in ≤1s, AI tier 2 races a 1s timeout (cached per day; no mid-read swap, BUG-034).
 - Tap to dismiss — sets a **per-day `*_dismissed_<date>` flag** so it stays hidden on every wake that day (BUG-040), not just until the next self-heal. Auto-clears after noon.
 - Falls back to simple carried-over count if no review data.
-- **Consistency (v2.18.3):** flush to the section edge (aligns with the label + task boxes — no indent); dot is neutral `--muted`, not accent (it's a passive recap, not a status light); quiet text on 0.04em tracking shared with `.section-count` / `.empty`.
+- **Consistency (v2.18.3):** quiet text on 0.04em tracking shared with `.section-count` / `.empty`.
+- **Presence redesign (v2.18.24):** was flush-to-edge, same visual weight as `.section-count` — read as a footnote, easy to miss. Now a quiet `--surface` panel with a 2px `--accent-dim` left edge (`border-radius: var(--radius-md)`, `padding: 7px var(--space-3)`) so it has a home distinct from the header above it, like a task row. Dot switched from static `--muted` to `--accent` with the existing **Breath Pattern** (`_breathe`, 1800ms WAAPI, opacity 1→0.65→1 — called fresh at each `_showNudge()` render, discarded when `innerHTML` is replaced) instead of sitting flat. The recap text itself is untouched — still `--muted`, no per-word color emphasis; the redesign changes the nudge's *frame*, not the data. Explored via a design-lab comparison (baseline + 8 directions: typography, surface, pull-quote, three compact variants, three "reuse-existing-components" variants) before landing on this mix of the short chip-strip phrasing and the plain monochrome streak-label voice.
 
 ---
 

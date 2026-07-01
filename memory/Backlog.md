@@ -109,6 +109,7 @@
 | Quick capture (without opening app) | No good cross-platform path. iOS has no PWA share target; Siri needs a native app. |
 | Microsoft Notes integration | No clear user need. |
 | Momentum integration | No public API; ICS is inbound-only to Momentum. Workflow pairing (plan in Momentum, execute in TODAY) is the answer. |
+| Calendar integration (Google/iCal) | Investigated Jul 2026. **No as an integration / agenda / time-blocker** — that's the "TODAY Planner" drift the north star rejects. The *reminders + prioritise* framing collides hardest: "remind me of calls" is per-event chasing (#4 is deliberately fenced to day-boundaries only), and "prioritise" is ranking (app has no priorities). The one philosophy-safe use is **passive, read-only timed context** — the Trello-due-date precedent (TODAY *displays* external times, never *manages* them) proves times-on-screen aren't the violation; chasing and ranking are. So the only version worth revisiting is a **private "day-shape" signal feeding the morning nudge (#1/#7)** ("busy afternoon — pick one thing"), never a pinging events panel — and only after the morning surface is validated. Meetings aren't tasks (no check/focus); the phone's calendar already out-reminds us, so a notifier version cedes our calm moat. Lightest MVP if ever: private ICS feed → one AI-summarised line via a CORS proxy, not Google OAuth. |
 
 ### Rejected approaches
 | Area | Rejected | Reason |
