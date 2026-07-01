@@ -92,3 +92,5 @@ TODAY speaks like a calm, present friend.
 | Failed to | Can't reach |
 | Clear done tasks | Tidy |
 | Good job | Nice |
+
+*This table (plus the "no exclamation marks" rule above) is mechanically checked by `scripts/design-lint.mjs` — new banned phrases should be added there too. Everything else on this page (voice fit, the Wallpaper Test, philosophy alignment) needs judgment — see the `/design-review` command.*

@@ -136,7 +136,7 @@ exports.handler = async function(event) {
       }
     }
 
-    // ── Claude Haiku ──────────────────────────────────────────────────────────
+    // ── Claude Sonnet ─────────────────────────────────────────────────────────
     else if (provider === 'claude') {
       const apiKey = process.env.ANTHROPIC_API_KEY || clientKey;
       if (!apiKey) {
@@ -155,7 +155,7 @@ exports.handler = async function(event) {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
+          model: 'claude-sonnet-5',
           max_tokens: 512,
           system: systemPrompt || '',
           messages: messages.map(m => ({ role: m.role, content: m.content })),

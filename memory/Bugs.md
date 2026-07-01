@@ -11,7 +11,7 @@
 | 003 | Red dot on network loss | ✅ v2.12.58–2.14.1 |
 | 004 | App blank after sleep/wake | ✅ v2.17.24 |
 | 005 | Trello pomodoro badge vanishing | ✅ v2.12.56–66 |
-| 006 | _onWake() consolidation | ✅ v2.17.0 |
+| 006 | `_onWake()` consolidation | ✅ v2.17.0 |
 | 007 | Triage bar flash after triage | ✅ v2.13.2–2.16.6 |
 | 008 | Drag jump-back on mobile | ✅ v2.12.72 |
 | 009 | Task aging opacity broken | ✅ v2.12.73 |
@@ -32,31 +32,31 @@
 | 024 | Focus minutes carry over to next day | ✅ v2.17.48 |
 | 025 | PiP "Again" lost / shows 25:00 after sleep/wake | ✅ v2.17.52 |
 | 026 | Habit re-checks itself after uncheck | ✅ v2.17.53 |
-| 027 | Trello focus timer re-open: idle 25:00 + completed bar stops pulsing | ✅ v2.17.62 |
+| 027 | Trello focus timer resets on re-open | ✅ v2.17.62 |
 | 028 | Completed bar flash/pause on window return | ✅ v2.17.94 |
 | 029 | `_aiSendFromInput` undefined — crash on ✦ submit | ✅ v2.17.64 |
 | 029b | ✦ submit answer swapped by proactive load race | ✅ v2.17.93 |
 | 030 | Checkmark animation lags ~30s on iOS PWA open | ✅ v2.17.105 |
-| 031 | Red error dot invisible on mobile PWA (behind status bar) | ✅ v2.17.75 |
-| 032 | Splash logo appears mid-animation on mobile; rise polish | ⏳ v2.17.133 raster + v2.18.18 smoother rise — awaiting verify |
+| 031 | Red error dot invisible on mobile PWA | ✅ v2.17.75 |
+| 032 | Splash logo appears mid-animation on mobile | ⏳ v2.18.18 |
 | 033 | Morning nudge missing on first cold-start | ✅ v2.17.125 |
 | 034 | Morning nudge AI text swaps mid-read | ✅ v2.17.125 |
-| 035 | Trello cards never age visually (type guard excluded them) | ✅ v2.17.127 |
-| 036 | This Week differs web vs mobile (daily_history local-only) | ✅ v2.17.132 |
-| 037 | Task list stale on morning open (day-cleanup backup race) | ✅ v2.17.135 |
-| 038 | Red dot on mobile when offline (SW update rejection) | ✅ v2.17.136 |
-| 039 | All-habits-done celebration never fires (archived habit check) | ✅ v2.17.137 |
-| 040 | Morning nudge reappears after dismiss on every wake | ✅ v2.17.139 |
-| 041 | White flash on mobile cold start (iOS OS launch screen) | ✅ v2.18.13 Jun 2026 |
+| 035 | Trello cards never age visually | ✅ v2.17.127 |
+| 036 | This Week differs web vs mobile | ✅ v2.17.132 |
+| 037 | Task list stale on morning open | ✅ v2.17.135 |
+| 038 | Red dot on mobile when offline | ✅ v2.17.136 |
+| 039 | All-habits-done celebration never fires | ✅ v2.17.137 |
+| 040 | Morning nudge reappears after dismiss | ✅ v2.17.139 |
+| 041 | White flash on mobile cold start | ✅ v2.18.13 |
 | 042 | Trello card order scrambles across devices | ✅ v2.18.4 |
-| 043 | Aged card won't un-dim after focus session; not synced cross-device | ✅ v2.18.11 + v2.18.17 Jun 2026 |
-| 044 | Delayed focus chime after Escape/task-switch (zombie session) | ✅ v2.18.6 Jun 2026 |
-| 045 | Done-today count inflates — midnight carry-over + check/uncheck + cross-device Math.max (counter retired, now derived from checked_ids) | ⏳ v2.18.14 date guard → v2.18.21 counter retired — awaiting verify |
-| 046 | Trello board selector blinks; Dropbox buttons flicker (render loop) | ✅ v2.18.15 |
-| 047 | Dropbox connect on fresh install doesn't auto-restore | ⏳ v2.18.16 — awaiting verify |
-| 048 | Trello card aging not synced between devices (focus map local-only) | ✅ v2.18.17 |
-| 049 | New Trello card looks aged on arrival (aged from Trello creation, not list-entry) | ⏳ v2.18.22 — awaiting verify |
-| 051 | Trello nudge dismissal not synced across devices | ⏳ v2.18.23 — awaiting verify |
+| 043 | Aged card won't un-dim after focus session | ✅ v2.18.11, v2.18.17 |
+| 044 | Delayed focus chime after Escape/task-switch | ✅ v2.18.6 |
+| 045 | Done-today count inflates | ⏳ v2.18.21 |
+| 046 | Trello board selector / Dropbox buttons flicker | ✅ v2.18.15 |
+| 047 | Dropbox connect on fresh install doesn't auto-restore | ⏳ v2.18.16 |
+| 048 | Trello card aging not synced across devices | ✅ v2.18.17 |
+| 049 | New Trello card looks aged on arrival | ⏳ v2.18.22 |
+| 051 | Trello nudge dismissal not synced across devices | ⏳ v2.18.23 |
 
 ---
 

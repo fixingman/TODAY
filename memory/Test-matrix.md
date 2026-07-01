@@ -58,6 +58,8 @@ If testing **zone** changes:
 
 A surface that fails W3 gets iterated or removed — removal is a valid outcome (`#weekNarrative`, v2.17.66).
 
+**Tooling:** `/design-review` (`.claude/commands/design-review.md`) runs this gate (W1/W2, plus voice/token/component/motion/psychology consistency) against a diff or named surface — call it for anything landing here. It's judgment-based, not a script; `scripts/design-lint.mjs` covers the mechanical half (tokens, vocabulary, emoji selectors) and should be run first so the design review isn't spent re-deriving what a linter already caught.
+
 ---
 
 ## Full Test Matrix
