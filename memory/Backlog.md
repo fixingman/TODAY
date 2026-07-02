@@ -38,12 +38,16 @@
 **Next:** collect a week of real-morning impressions → tune the prompt (more specific? quieter? ever suggest an action chip?). Then: deeper personality (weather/energy awareness beyond peak hour, richer habit-streak celebrations).
 
 ### 2 · Daily Poem Corpus Growth
-**Process:** curation rounds in chat — Claude proposes verified public-domain candidates (text checked verbatim against Gutenberg/Wikisource, never from memory), Can cuts by number. Accepted poems land in `assets/poems.js`.
-**Taste signal (10 rounds):** spare modern free verse + clear/light/affirming in; rhymed-quaint, ornate, cutesy, bleak out.
-**Seasons:** balanced 6/7/6/6 (W/Sp/Su/Au) as of round 10 (corpus 66, target ~90).
-**PD rules:** authors d. pre-1956 safe worldwide; US-PD-only (pre-1931 pub, author d. post-1956) approved by Can v2.17.82 (WCW, Sandburg, Frost); no PD modern-English Rumi exists (declined to bundle copyrighted Barks).
+**Process:** curation rounds in chat — Claude proposes candidates per the brief below, Can cuts by number. Accepted poems land in `assets/poems.js`.
+**The brief (canonical, Can's wording, 2026-07-02):**
+> Short poem (2–14 lines, fits an About-panel card), human-written, public domain (author + translator).
+> Voice: spare, concrete, present-tense; clear/light/affirming; about this day being lived — mornings, evenings, seasons, small noticed things. In: imagism, haiku, plain free verse, rhymed-lyrical if the feeling is real, if it resolves held/affirmed, mindful resolution of anxiety. Out: quaint, ornate, cutesy, preachy-uplifting, bleak-unresolved, abstraction without an image. Prefer seasons the corpus is thin on (currently summer), authors/countries/centuries not yet represented.
+> Before proposing: confirm the text verbatim against a primary source (Wikisource / Gutenberg / archive.org scan — never from model memory) and confirm PD status (author + translator death dates / publication year). Never propose an unverified text.
+**Taste signal (12 rounds):** spare modern free verse + clear/light/affirming in; rhymed-quaint, ornate, cutesy, bleak out. Round 11 nuance: rhymed-lyrical with real feeling (Innisfree, Housman) beat imagist minis (Lowell/Pound/Crapsey cut) — "rhymed" alone isn't the disqualifier, quaintness is. Round 12 nuance: melancholy-but-held is IN (Rilke 'Autumn'), vast-serene is IN (Bashō Milky Way); calm-pastoral/evening-rest pieces (Goethe, Sappho, summer moor) cut — gravity beats gentleness.
+**Seasons:** W9 / Sp12 / Su8 / Au11 / year-round 43 as of round 12 (corpus 82, target ~90; summer thinnest).
+**PD rules (updated 2026-07-02):** worldwide-only — author AND translator dead 70+ years (currently: d. pre-1956; rolls forward each year). The US-PD-only category (pre-1931 pub, author d. post-1956, approved v2.17.82) is RETIRED for new additions — no more US-rule-based picks. 11 existing corpus poems were added under it (Frost ×3, WCW, Sandburg, H.D., Waley trans. ×5) — grandfathered pending Can's decision (keep or purge). No PD modern-English Rumi exists (declined to bundle copyrighted Barks).
 **Future PD unlocks (Jan 1):** cummings 2033, Frost/WCW worldwide 2034, Eliot 2036.
-**Leads:** CC-licensed living poets (verify each license), Yeats 'Innisfree' + Bridges 'London Snow' (need verified sources), more Chamberlain haiku.
+**Leads:** CC-licensed living poets (verify each license), more Chamberlain haiku — scan FOUND: archive.org `basho-and-the-japanses-poetical-epigram`, ~100 numbered haiku, one added round 12, worth a dedicated pass; Teasdale 'February Twilight' (*Dark of the Moon* 1926 — needs verified source). Closed: Bridges 'London Snow' (37 lines — too long), Yeats 'Innisfree' (added round 11), Goethe/Sappho/Wharton explored round 12 (cut on taste, sources verified if ever revisited).
 
 ### 4 · Push Notifications
 **Platform:** iOS 16.4+ (installed PWA only) + Android. Web Push API + VAPID keys.

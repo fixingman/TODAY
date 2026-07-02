@@ -616,29 +616,18 @@
     letter-spacing: -0.03em; line-height: 1;
     display: flex; white-space: nowrap;
     font-size: clamp(48px, 9vw, 96px);
-    /* Paint-gated: hidden until fonts are confirmed loaded AND a real in-view raster
-       has happened (startSplash flips to visible). visibility:hidden stays in layout so
-       the FontFaceSet still loads, but suppresses paint — no fallback-metrics show, and
-       the rise can't run while glyphs are still invisible (BUG-032, five passes). */
+    /* Paint-gated: hidden until fonts are confirmed loaded (startSplash flips to
+       visible and fades opacity up). visibility:hidden stays in layout so the
+       FontFaceSet still loads, but suppresses paint — no fallback-metrics show.
+       No per-letter transform animation: starting a CSS transform animation on iOS
+       promotes each letter to its own compositing layer and re-rasters the glyph at
+       animation start — glyphs could repaint mid-motion no matter how the reveal was
+       timed (BUG-032, six passes). The logo reveals as ONE unit, opacity only. */
     visibility: hidden;
+    opacity: 0;
   }
-  #splash-logo .l {
-    display: inline-block;
-    /* Letters are SOLID from the first painted frame — opacity:1, offset down. The rise
-       animates transform only (no opacity ramp), so a late iOS glyph raster lands on an
-       already-opaque letter and is invisible to the user (BUG-032). */
-    opacity: 1; transform: translateY(0.18em);
-  }
-  /* Rise runs only after .go (set in startSplash, post font-ready + 2-frame warm). */
-  #splash-logo.go .l { animation: splashLetterRise .55s cubic-bezier(0.22,1,0.36,1) forwards; }
+  #splash-logo .l { display: inline-block; }
   #splash-logo .l.a { color: var(--accent); }
-  #splash-logo.go .l:nth-child(1){animation-delay:.06s}
-  #splash-logo.go .l:nth-child(2){animation-delay:.13s}
-  #splash-logo.go .l:nth-child(3){animation-delay:.20s}
-  #splash-logo.go .l:nth-child(4){animation-delay:.27s}
-  #splash-logo.go .l:nth-child(5){animation-delay:.34s}
-  /* Ceiling fallback: fonts unconfirmed — reveal statically, no rise (BUG-032). */
-  #splash-logo.go.instant .l { animation: none; transform: none; }
 
   #splash-star {
     position: absolute; right: -0.28em; top: -0.2em;
@@ -660,10 +649,6 @@
   #splash-cursor.on    { opacity: 1; }
   #splash-cursor.off   { opacity: 0; }
 
-  /* Transform-only — explicit `from` is byte-identical to `.l` base translateY(0.18em)
-     so the rise never jumps on its first frame (the v2.17.97/112 shift variant). No
-     opacity here: the container fade (startSplash) handles the soft fade-in as one unit. */
-  @keyframes splashLetterRise  { from { transform: translateY(0.18em); } to { transform: translateY(0); } }
 
 
 
@@ -3231,9 +3216,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.18.25': 'Polish: a few status messages read a little calmer, and some small icons now render consistently instead of occasionally turning into colour emoji on iPhone.',
-  '2.18.24': 'Polish: the morning nudge now has a bit more presence — a quiet home of its own with a gently breathing dot, instead of blending into the section header above it.',
-  '2.18.23': 'Fix: dismissing the Trello morning nudge on one device now dismisses it on your other devices too — no more seeing it again after you\'ve already closed it.',
+  '2.18.31': 'Marcus Aurelius joins the daily rotation twice more — on retreating into your own mind, and on getting out of bed at dawn.',
+  '2.18.30': 'Three summer poems join the daily rotation — a haiku of clouds from a summer room, and two small Greek poems about shade and cold water, twenty-three centuries old.',
+  '2.18.29': 'Two more poems join the daily rotation — Rilke\'s "Autumn" and Bashō\'s great Milky Way haiku.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -3581,7 +3566,8 @@ function checkMorningNudge() {
   const _showNudge = (text, addPrefix) => {
     const prefix = (addPrefix && carriedOver > 0) ? `${carriedOver} carried over · ` : '';
     nudgeEl.innerHTML = `<span class="nudge-dot"></span>${esc(prefix + text)}`;
-    _breathe(nudgeEl.querySelector('.nudge-dot'), [{ opacity: 1 }, { opacity: 0.65 }, { opacity: 1 }], 1800);
+    _breathe(nudgeEl.querySelector('.nudge-dot'),
+      [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0.5, transform: 'scale(0.85)' }, { opacity: 1, transform: 'scale(1)' }], 2400);
     nudgeEl.style.display = 'flex';
     nudgeEl.onclick = () => {
       nudgeEl.style.display = 'none';
@@ -3659,7 +3645,8 @@ function checkTrelloNudge() {
 
   const _showNudge = (text) => {
     nudgeEl.innerHTML = '<span class="nudge-dot"></span>' + esc(text);
-    _breathe(nudgeEl.querySelector('.nudge-dot'), [{ opacity: 1 }, { opacity: 0.65 }, { opacity: 1 }], 1800);
+    _breathe(nudgeEl.querySelector('.nudge-dot'),
+      [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0.5, transform: 'scale(0.85)' }, { opacity: 1, transform: 'scale(1)' }], 2400);
     nudgeEl.style.display = 'flex';
     nudgeEl.onclick = () => {
       nudgeEl.style.display = 'none';
@@ -9503,31 +9490,25 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     _splashStarted = true;
     const star=document.getElementById('splash-star');
     if (!star) return;
-    // Logo letters rise only now — Syne is painted, so the rise plays from opacity:0
-    // with visible glyphs. `instant` (ceiling path) reveals statically instead, so the
-    // rise never runs invisibly and pops in mid-way once the font lands (BUG-032).
+    // Logo reveal — BUG-032 (7th pass): single-unit opacity fade, no letter motion.
+    // Six passes tried to time a per-letter transform rise around iOS glyph raster;
+    // structurally unwinnable — starting a CSS transform animation promotes each letter
+    // to its own compositing layer and re-rasters the glyph at animation start, and the
+    // 2-frame opaque "warm" paint was itself a visible flash at the lowered position.
+    // Now: fonts are confirmed loaded before this runs, the logo rasters once as ONE
+    // layer, and if that raster lands a frame into the fade it lands at near-zero
+    // opacity with no motion to betray it.
     const slogo=document.getElementById('splash-logo');
     if (slogo && !animated) {
-      // Ceiling path: fonts unconfirmed — static reveal, no rise (BUG-032).
+      // Ceiling path: fonts unconfirmed — static reveal, no fade (BUG-032).
       slogo.style.visibility = 'visible';
-      slogo.classList.add('go', 'instant');
+      slogo.style.opacity = '1';
     } else if (slogo) {
-      // BUG-032 (5th pass). Reveal at the start position, fully opaque, and force a real
-      // in-view raster of the per-size glyphs BEFORE any motion. Then fade the WHOLE logo
-      // in as one unit (all glyphs already rastered → none can paint mid-fade) while a
-      // transform-only rise runs in parallel. No per-letter opacity ramp = no paint desync.
-      slogo.style.visibility = 'visible';     // letters paint at opacity:1, translateY(0.18em)
-      void slogo.offsetWidth;                 // flush layout/style this frame
-      requestAnimationFrame(() => {           // frame 1: visible raster queued
-        requestAnimationFrame(() => {         // frame 2: raster on screen — glyphs solid
-          slogo.style.transition = 'opacity .35s var(--ease-out)';
-          slogo.style.opacity = '0';          // already-rastered glyphs, now one transparent layer
-          void slogo.offsetWidth;             // commit the opacity:0 baseline before fading up
-          requestAnimationFrame(() => {
-            slogo.style.opacity = '1';         // container fades in as a unit
-            slogo.classList.add('go');         // transform-only rise runs alongside the fade
-          });
-        });
+      slogo.style.visibility = 'visible';   // still opacity:0 — nothing paints visibly
+      void slogo.offsetWidth;               // commit the opacity:0 baseline
+      requestAnimationFrame(() => {
+        slogo.style.transition = 'opacity .5s var(--ease-out)';
+        slogo.style.opacity = '1';          // whole logo fades in as one unit
       });
     }
     star.style.transition='opacity .3s ease, transform .45s cubic-bezier(0.34,1.56,0.64,1)';

@@ -493,3 +493,45 @@ The `window.load` path is unaffected — it pulls Dropbox first, then calls `app
 **Fix (v2.18.6):** `closeUI` now stops the closing task's session (`running=false, paused=false, wallStart=null`) right after `_trackFocusTime`, so no zombie survives any `closeUI` path. Correctness fix — `continueTicking` has no callers, PiP is closed by `closeUI`, so after any `closeUI` there must be no running session. `_trackFocusTime` (keys on `rem`/`tracked`) and resume-on-reclick (keys on `rem`) unaffected. Also fixed a latent "switch A→B leaves A running." No `_focusUIActive` guard on the chime (would mute the legitimate PiP completion chime).
 
 **Verified fixed:** ✅ Jun 2026
+
+---
+
+## BUG-045: Done-today count inflates across check/uncheck cycles and cross-device sync
+
+**Status:** ✅ Verified fixed (v2.18.14 date guard → v2.18.21 counter retired)
+
+**Symptom:** The completed-task count shown in the evening triage summary and weekly grid blew up over the day — inflated by check/uncheck cycles (each check incremented, uncheck never decremented) and by cross-device `Math.max` merge (two devices each contributed their total and the higher won).
+
+**Root cause:** `stat_tasks_done_today` was a monotonic increment-only counter. Three increment sites (normal checkbox, triage "done", `_focusOnCheck`) never decremented on uncheck. Cross-device merge used `Math.max(local, remote)`, so two devices that each did 3 tasks merged to 6. A date-guard was added (v2.18.14 — same class as BUG-024 focus minutes) but it only fixed midnight carry-over, not the inflation within a day.
+
+**Fix (v2.18.21 — counter retired):** Fully removed `stat_tasks_done_today`: all 3 increment sites, the daily reset, the merge branch, the restore branch, and the backup payload fields. New `_doneTodayCount(dayISO?)` derives the count from `checked_ids` — entries dated for the target day whose check timestamp is newer than any matching `unchecked_ids` entry. Self-correcting: uncheck/re-check/cross-device sync all resolve correctly because the underlying `checked_ids`/`unchecked_ids` LWW arrays are already sound. Critical subtlety: `unchecked.get(c.id)` returns the `at` *string*, not an object — guard must compare `c.at > uAt` (not `c.at > u.at` which reads `.at` on a string → `undefined` → always false).
+
+**Verified fixed:** ✅ Jul 2026
+
+---
+
+## BUG-051: Trello nudge dismissal not synced across devices
+
+**Status:** ✅ Verified fixed (v2.18.23)
+
+**Symptom:** Dismissing the Trello morning nudge on one device leaves it visible on another device — it shows again even though the user already closed it.
+
+**Root cause:** The dismissal flag (`trello_nudge_dismissed_YYYY-MM-DD`) was written to localStorage on click but never included in the Dropbox backup payload or `mergeRemoteData()`. The triage-dismissed state has the same shape and IS synced (BUG-001 fix); the nudge simply wasn't wired up the same way.
+
+**Fix (v2.18.23):** Modelled exactly on `triage_dismissed`. Added `trello_nudge_dismissed` to the backup payload (`'1'` if dismissed today, `''` otherwise). Added a merge block in `mergeRemoteData()` after the triage-dismissed block: if remote value is `'1'` and local hasn't dismissed today, sets the local key and hides `$.trelloNudge` immediately. No full-restore handling needed (same as `triage_dismissed` — the next 7s merge tick applies it on any device that didn't catch the first sync).
+
+**Verified fixed:** ✅ Jul 2026
+
+---
+
+## BUG-049: New Trello cards look aged on arrival
+
+**Status:** ✅ Verified fixed (v2.18.22)
+
+**Symptom:** A Trello card that just entered the today list rendered dimmed (opacity ≈ 0.35–0.75) as if it were days old — even a card due *today* that was just given its due date in Trello.
+
+**Root cause:** Trello card age was computed from the card's **Trello creation timestamp**, decoded from its MongoDB ObjectID via `_getCreatedFromTrelloId(id)`. A card created weeks ago in Trello but only just made relevant (due date added, moved to the right list) was therefore instantly "old" from the app's perspective.
+
+**Fix (v2.18.22):** Age basis changed to a new `today_trello_firstseen` map `{trello_<id>: firstSeenMs}` — recording when each card first entered *your* filtered list. New helpers: `_getTrelloFirstSeen`, `_setTrelloFirstSeen`, `_trelloAgeBasis(id)` (falls back to `Date.now()` = fresh if unseen). Recorded and pruned in `loadTrello()` (departed cards dropped to keep the map bounded). Both age paths updated (Rule 27): `taskHTML()` and the `renderTrello()` 7s patch path. Synced via Dropbox: MIN-merge (earliest sighting across devices wins — a card's true first-seen is the earliest any device saw it), no date guard, NOT cleared in `applyNewDayCleanup` (must persist across days for the card to age). `_getCreatedFromTrelloId` removed (dead). One-time transition: on first load post-update all current cards got `firstSeen = now` → briefly fresh, then age naturally from that day.
+
+**Verified fixed:** ✅ Jul 2026

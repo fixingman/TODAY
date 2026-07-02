@@ -20,6 +20,12 @@ el.animate(
 
 Why 1.8s: slower than heartbeat, calmer than urgency, matches breathing rhythm.
 
+**Small elements (≤ ~10px) pair opacity with scale — opacity alone doesn't read at that size.**
+A shallow luminance dip on a handful of pixels is imperceptible; the scale component is what makes
+a small breathe visible. Established treatment (done-star, AI badge, nudge dot as of v2.18.26):
+`[{ opacity: 1, transform: 'scale(1)' }, { opacity: 0.5, transform: 'scale(0.85)' }, { opacity: 1, transform: 'scale(1)' }]`, 2400ms.
+The opacity-only 1→0.65→1 / 1800ms form is for larger surfaces where luminance change has enough area to register.
+
 **Looping animations must be WAAPI (`_breathe` / `_pulseComplete`), never CSS** (rule since v2.17.103). `_forceRepaint`'s `display:none/block` wake passes restart CSS animations from keyframe 0 — a guaranteed visible flash for anything mid-pulse; BUG-028 burned four sub-fixes proving suppress/restore can't hide it. A WAAPI timeline ignores display toggles. Both helpers gate on `prefers-reduced-motion` in JS. CSS animations remain correct for **one-shots** (slide-in, pop, ripple) — `_onWake` clears their classes mid-flight. The single CSS-suppression survivor in `_forceRepaint` is `.config-panel.open` (one-shot slide-up that would replay each pass, BUG-023). `#errorIndicator`'s `errorPulse` stays CSS by exception: it sits outside `#main-app`, untouched by repaint. Splash animations (`splashCursorBlink`, `splashStarBreath`) converted to WAAPI in v2.17.107 — migration complete.
 
 ---
@@ -92,16 +98,17 @@ Strict order — each step gates the next:
 - Never use `inset:0` alone on canvas — some browsers use the `width` attribute as intrinsic CSS size
 - Burst origin captured at `startSplash+600ms` (post-transition), not at dismiss time
 
-**Letter-rise tuning (`splashLetterRise`, v2.18.18):** transform-only rise, `translateY(0.18em)→0`,
-`.55s` with **inlined** `cubic-bezier(0.22,1,0.36,1)` (easeOutQuint), stagger `.07s` (delays .06→.34).
-Earlier it was `0.12em` / `.4s` / easeOutExpo `--ease-out` / `.04s` stagger — too aggressive a curve
-over too small a distance, so the slow tail crawled sub-pixel and pixel-snapped into visible steps
-("pop then stutter"). The gentler curve + larger distance keep per-frame motion above the snap floor.
-**Do NOT use the shared `--ease-out` var here** (it stays easeOutExpo for the container fade + app
-transitions) — the rise easing is inlined on purpose. **Invariant:** the keyframe `from` and the `.l`
-base `translateY` must stay byte-identical (both `0.18em`) or the rise jumps on frame 1 (v2.17.97/112
-regression). No GPU layer promotion (`will-change`/`translateZ`) — it would re-raster glyphs and
-regress BUG-032.
+**Logo reveal = single-unit opacity fade (v2.18.27, BUG-032 seventh pass).** The staggered
+per-letter rise (`splashLetterRise`) was removed after six passes of fighting iOS glyph raster.
+**Rule: never animate per-letter transforms on text.** Starting a CSS `transform` animation on
+iOS/WebKit promotes each letter to its own compositing layer *at animation start* and re-rasters
+the glyph at that moment — so glyphs can visibly repaint mid-motion no matter how the reveal is
+timed; avoiding `will-change` does not prevent it (the animation itself promotes). Text may fade
+(opacity) or appear (typewriter), but per-glyph motion is structurally unsafe. Current model:
+`#splash-logo` base `visibility:hidden; opacity:0`; after the fonts gate, `startSplash` flips
+visibility (nothing paints — still opacity 0) and fades the whole logo to 1 over `.5s
+var(--ease-out)` — one unit, one layer, one raster. Ceiling path (fonts unconfirmed at 2000ms)
+reveals statically with no fade.
 
 ---
 

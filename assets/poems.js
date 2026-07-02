@@ -505,4 +505,66 @@ const POEMS = [
     season: null,
     source: "'After Lunch', A Hundred and Seventy Chinese Poems, trans. Waley (1918), Gutenberg #42290 (Waley d. 1966 — US PD only)",
   },
+
+  // ── Round 11 (Jul 2026) ────────────────────────────────────────────────────
+  {
+    text: "I will arise and go now, and go to Innisfree,\nAnd a small cabin build there, of clay and wattles made:\nNine bean-rows will I have there, a hive for the honey-bee,\nAnd live alone in the bee-loud glade.\n\nAnd I shall have some peace there, for peace comes dropping slow,\nDropping from the veils of the morning to where the cricket sings;\nThere midnight's all a glimmer, and noon a purple glow,\nAnd evening full of the linnet's wings.\n\nI will arise and go now, for always night and day\nI hear lake water lapping with low sounds by the shore;\nWhile I stand on the roadway, or on the pavements grey,\nI hear it in the deep heart's core.",
+    author: 'W. B. Yeats',
+    season: 'summer',
+    source: "'The Lake Isle of Innisfree' (1890), verified against en.wikisource.org (Yeats d. 1939)",
+  },
+  {
+    text: 'Loveliest of trees, the cherry now\nIs hung with bloom along the bough,\nAnd stands about the woodland ride\nWearing white for Eastertide.\n\nNow, of my threescore years and ten,\nTwenty will not come again,\nAnd take from seventy springs a score,\nIt only leaves me fifty more.\n\nAnd since to look at things in bloom\nFifty springs are little room,\nAbout the woodlands I will go\nTo see the cherry hung with snow.',
+    author: 'A. E. Housman',
+    season: 'spring',
+    source: "'A Shropshire Lad' II (1896), verified against en.wikisource.org (Housman d. 1936)",
+  },
+
+  // ── Round 12 (Jul 2026) ────────────────────────────────────────────────────
+  {
+    text: 'The leaves fall, fall as from far,\nLike distant gardens withered in the heavens;\nThey fall with slow and lingering descent.\n\nAnd in the nights the heavy Earth, too, falls\nFrom out the stars into the Solitude.\n\nThus all doth fall. This hand of mine must fall\nAnd lo! the other one:—it is the law.\nBut there is One who holds this falling\nInfinitely softly in His hands.',
+    author: 'Rainer Maria Rilke (trans. Jessie Lemont)',
+    season: 'autumn',
+    source: "'Autumn', Poems (1918) trans. Lemont, Gutenberg #38594, cross-checked vs archive.org poems00rilk scan (Rilke d. 1926, Lemont d. 1947)",
+  },
+  {
+    text: "A rough sea, and the Milky Way\nStretching across to Sado's isle.",
+    author: 'Bashō',
+    season: 'autumn',
+    source: 'Chamberlain 1902, no. 84 (archive.org basho-and-the-japanses-poetical-epigram scan)',
+  },
+
+  // ── Round 13 (Jul 2026) ────────────────────────────────────────────────────
+  {
+    text: 'A summer room where, lying down,\nI see the clouds as they go past.',
+    author: 'Yaha',
+    season: 'summer',
+    source: 'Chamberlain 1902, no. 131 (archive.org basho-and-the-japanses-poetical-epigram scan; Yaha d. 1740, Chamberlain d. 1935)',
+  },
+  {
+    text: "Sit down by this high-foliaged voiceful pine\nthat rustles her branches beneath the western breezes,\nand beside my chattering waters\nPan's pipe shall bring drowsiness down on thy enchanted eyelids.",
+    author: 'Plato (trans. J. W. Mackail)',
+    season: 'summer',
+    source: "'Beneath the Pine', Select Epigrams from the Greek Anthology (1890), Nature V, Gutenberg #2378 (Mackail d. 1945)",
+  },
+  {
+    text: 'Drink not here, traveller, from this warm pool in the brook,\nfull of mud stirred by the sheep at pasture;\nbut go a very little way over the ridge\nwhere the heifers are grazing;\nfor there by yonder pastoral stone-pine thou wilt find\nbubbling through the fountained rock\na spring colder than northern snow.',
+    author: 'Leonidas of Tarentum (trans. J. W. Mackail)',
+    season: 'summer',
+    source: "'The Roadside Pool', Select Epigrams from the Greek Anthology (1890), Nature III, Gutenberg #2378 (Mackail d. 1945)",
+  },
+
+  // ── Round 14 (Jul 2026) — Stoics, trans. Farquharson ──────────────────────
+  {
+    text: 'Men look for retreats for themselves,\nthe country, the sea-shore, the hills;\nand you yourself, too, are peculiarly accustomed to feel the same want.\nYet all this is very unlike a philosopher,\nwhen you may at any hour you please retreat into yourself.\nFor nowhere does a man retreat into more quiet or more privacy\nthan into his own mind.',
+    author: 'Marcus Aurelius (trans. A. S. L. Farquharson)',
+    season: null,
+    source: "Meditations IV.3, trans. Farquharson (1944), verified vs archive.org the-meditations-of-the-emperor-marcus-antoninus-1 scan (Farquharson d. 1942)",
+  },
+  {
+    text: "At dawn of day, when you dislike being called, have this thought ready:\n'I am called to man's labour;\nwhy then do I make a difficulty\nif I am going out to do what I was born to do\nand what I was brought into the world for?\nIs it for this that I am fashioned,\nto lie in bedclothes and keep myself warm?'",
+    author: 'Marcus Aurelius (trans. A. S. L. Farquharson)',
+    season: null,
+    source: "Meditations V.1, trans. Farquharson (1944), verified vs archive.org the-meditations-of-the-emperor-marcus-antoninus-1 scan (Farquharson d. 1942)",
+  },
 ];

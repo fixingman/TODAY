@@ -6,57 +6,57 @@
 
 | # | Description | Status |
 |---|---|---|
-| 001 | Triage dismissed cross-device | ✅ v2.12.59–60 |
-| 002 | Dropbox sync fails silently | ✅ v2.12.58–61 |
-| 003 | Red dot on network loss | ✅ v2.12.58–2.14.1 |
-| 004 | App blank after sleep/wake | ✅ v2.17.24 |
-| 005 | Trello pomodoro badge vanishing | ✅ v2.12.56–66 |
-| 006 | `_onWake()` consolidation | ✅ v2.17.0 |
-| 007 | Triage bar flash after triage | ✅ v2.13.2–2.16.6 |
-| 008 | Drag jump-back on mobile | ✅ v2.12.72 |
-| 009 | Task aging opacity broken | ✅ v2.12.73 |
-| 010 | Habits didn't roll over | ✅ v2.12.74–77 |
-| 011 | PiP ghost chime on wrong task | ✅ v2.16.9 |
-| 012 | Overdue Trello card disappears on check | ✅ v2.16.5 |
-| 013 | Focus timer jumps on restore | ✅ v2.14.9 |
-| 014 | PiP not reappearing after restore | ✅ v2.15.5–2.16.19 |
-| 015 | AI repeats same aging task | ✅ v2.15.2 |
-| 016 | AI chip labels generic | ✅ v2.15.6 |
-| 017 | Focus minutes only on full completion | ✅ v2.16.0 |
-| 018 | Phantom SOON tasks reappear | ✅ v2.17.9 |
-| 019 | Star explosion missing on mobile | ✅ v2.17.29 |
-| 020 | Streak double-counts across devices | ✅ v2.17.26 |
-| 021 | Splash explosion invisible / freezes after typewriter | ✅ v2.17.27–29 |
-| 022 | Focus fill bar pulsates during active countdown | ✅ v2.17.36 |
-| 023 | Top panels flash twice on desktop PWA restore | ✅ v2.17.37 |
-| 024 | Focus minutes carry over to next day | ✅ v2.17.48 |
-| 025 | PiP "Again" lost / shows 25:00 after sleep/wake | ✅ v2.17.52 |
-| 026 | Habit re-checks itself after uncheck | ✅ v2.17.53 |
-| 027 | Trello focus timer resets on re-open | ✅ v2.17.62 |
-| 028 | Completed bar flash/pause on window return | ✅ v2.17.94 |
-| 029 | `_aiSendFromInput` undefined — crash on ✦ submit | ✅ v2.17.64 |
-| 029b | ✦ submit answer swapped by proactive load race | ✅ v2.17.93 |
-| 030 | Checkmark animation lags ~30s on iOS PWA open | ✅ v2.17.105 |
-| 031 | Red error dot invisible on mobile PWA | ✅ v2.17.75 |
-| 032 | Splash logo appears mid-animation on mobile | ⏳ v2.18.18 |
-| 033 | Morning nudge missing on first cold-start | ✅ v2.17.125 |
-| 034 | Morning nudge AI text swaps mid-read | ✅ v2.17.125 |
-| 035 | Trello cards never age visually | ✅ v2.17.127 |
-| 036 | This Week differs web vs mobile | ✅ v2.17.132 |
-| 037 | Task list stale on morning open | ✅ v2.17.135 |
-| 038 | Red dot on mobile when offline | ✅ v2.17.136 |
-| 039 | All-habits-done celebration never fires | ✅ v2.17.137 |
-| 040 | Morning nudge reappears after dismiss | ✅ v2.17.139 |
-| 041 | White flash on mobile cold start | ✅ v2.18.13 |
-| 042 | Trello card order scrambles across devices | ✅ v2.18.4 |
-| 043 | Aged card won't un-dim after focus session | ✅ v2.18.11, v2.18.17 |
-| 044 | Delayed focus chime after Escape/task-switch | ✅ v2.18.6 |
-| 045 | Done-today count inflates | ⏳ v2.18.21 |
-| 046 | Trello board selector / Dropbox buttons flicker | ✅ v2.18.15 |
-| 047 | Dropbox connect on fresh install doesn't auto-restore | ⏳ v2.18.16 |
+| 051 | Trello nudge dismissal not synced across devices | ✅ v2.18.23 |
+| 049 | New Trello card looks aged on arrival | ✅ v2.18.22 |
 | 048 | Trello card aging not synced across devices | ✅ v2.18.17 |
-| 049 | New Trello card looks aged on arrival | ⏳ v2.18.22 |
-| 051 | Trello nudge dismissal not synced across devices | ⏳ v2.18.23 |
+| 047 | Dropbox connect on fresh install doesn't auto-restore | ⏳ v2.18.16 |
+| 046 | Trello board selector / Dropbox buttons flicker | ✅ v2.18.15 |
+| 045 | Done-today count inflates | ✅ v2.18.21 |
+| 044 | Delayed focus chime after Escape/task-switch | ✅ v2.18.6 |
+| 043 | Aged card won't un-dim after focus session | ✅ v2.18.11, v2.18.17 |
+| 042 | Trello card order scrambles across devices | ✅ v2.18.4 |
+| 041 | White flash on mobile cold start | ✅ v2.18.13 |
+| 040 | Morning nudge reappears after dismiss | ✅ v2.17.139 |
+| 039 | All-habits-done celebration never fires | ✅ v2.17.137 |
+| 038 | Red dot on mobile when offline | ✅ v2.17.136 |
+| 037 | Task list stale on morning open | ✅ v2.17.135 |
+| 036 | This Week differs web vs mobile | ✅ v2.17.132 |
+| 035 | Trello cards never age visually | ✅ v2.17.127 |
+| 034 | Morning nudge AI text swaps mid-read | ✅ v2.17.125 |
+| 033 | Morning nudge missing on first cold-start | ✅ v2.17.125 |
+| 032 | Splash logo appears mid-animation on mobile | ⏳ v2.18.27 |
+| 031 | Red error dot invisible on mobile PWA | ✅ v2.17.75 |
+| 030 | Checkmark animation lags ~30s on iOS PWA open | ✅ v2.17.105 |
+| 029b | ✦ submit answer swapped by proactive load race | ✅ v2.17.93 |
+| 029 | `_aiSendFromInput` undefined — crash on ✦ submit | ✅ v2.17.64 |
+| 028 | Completed bar flash/pause on window return | ✅ v2.17.94 |
+| 027 | Trello focus timer resets on re-open | ✅ v2.17.62 |
+| 026 | Habit re-checks itself after uncheck | ✅ v2.17.53 |
+| 025 | PiP "Again" lost / shows 25:00 after sleep/wake | ✅ v2.17.52 |
+| 024 | Focus minutes carry over to next day | ✅ v2.17.48 |
+| 023 | Top panels flash twice on desktop PWA restore | ✅ v2.17.37 |
+| 022 | Focus fill bar pulsates during active countdown | ✅ v2.17.36 |
+| 021 | Splash explosion invisible / freezes after typewriter | ✅ v2.17.27–29 |
+| 020 | Streak double-counts across devices | ✅ v2.17.26 |
+| 019 | Star explosion missing on mobile | ✅ v2.17.29 |
+| 018 | Phantom SOON tasks reappear | ✅ v2.17.9 |
+| 017 | Focus minutes only on full completion | ✅ v2.16.0 |
+| 016 | AI chip labels generic | ✅ v2.15.6 |
+| 015 | AI repeats same aging task | ✅ v2.15.2 |
+| 014 | PiP not reappearing after restore | ✅ v2.15.5–2.16.19 |
+| 013 | Focus timer jumps on restore | ✅ v2.14.9 |
+| 012 | Overdue Trello card disappears on check | ✅ v2.16.5 |
+| 011 | PiP ghost chime on wrong task | ✅ v2.16.9 |
+| 010 | Habits didn't roll over | ✅ v2.12.74–77 |
+| 009 | Task aging opacity broken | ✅ v2.12.73 |
+| 008 | Drag jump-back on mobile | ✅ v2.12.72 |
+| 007 | Triage bar flash after triage | ✅ v2.13.2–2.16.6 |
+| 006 | `_onWake()` consolidation | ✅ v2.17.0 |
+| 005 | Trello pomodoro badge vanishing | ✅ v2.12.56–66 |
+| 004 | App blank after sleep/wake | ✅ v2.17.24 |
+| 003 | Red dot on network loss | ✅ v2.12.58–2.14.1 |
+| 002 | Dropbox sync fails silently | ✅ v2.12.58–61 |
+| 001 | Triage dismissed cross-device | ✅ v2.12.59–60 |
 
 ---
 
@@ -66,7 +66,7 @@
 
 ## BUG-032: Splash logo appears mid-way through splash animation (mobile)
 
-**Status:** Raster bug resolved through v2.17.133 (glyphs no longer paint mid-animation, confirmed by Can). Rise-smoothness polish in v2.18.18 — awaiting verification. Five raster passes (v2.17.97, v2.17.112, v2.17.126, v2.17.130, v2.17.133) + one motion-design pass (v2.18.18); see notes below.
+**Status:** ⏳ v2.18.27 — per-letter rise REMOVED entirely (seventh pass), splash logo now a single-unit opacity fade. Awaiting device verify. Prior: five raster passes (v2.17.97, v2.17.112, v2.17.126, v2.17.130, v2.17.133) + one motion-design pass (v2.18.18) — Can reported "letters coming up from bottom" persisted after all six.
 
 **Symptom:** Sometimes on mobile, the TODAY logo appears mid-way through the splash animation (partially improved from v2.17.97/112 which fixed the downward-shift variant). The letter-rise animation occasionally starts late or logo appears unexpectedly during the sequence. Intermittent on cold start. Never on desktop.
 
@@ -86,31 +86,12 @@
 
 **Sixth pass — motion-design polish, smoother rise (v2.18.18):** With the raster bug resolved, Can reported the rise itself read as abrupt/stuttery — "letters appearing up from the bottom" not smooth. Root: the rise distance is tiny (`translateY(0.12em)` ≈ 5.8–11.5px at `clamp(48px,9vw,96px)`) but used easeOutExpo (`--ease-out`, `cubic-bezier(0.16,1,0.3,1)`) over `.4s` — that curve does ~90% of the travel in the first ~120ms then crawls the last ~1px sub-pixel for ~280ms (~0.06px/frame); non-composited text pixel-snaps each frame, so the tail rendered as 2–3 discrete steps ("pop then stutter"). The aggressive curve is built for large travel, not an 11px glyph rise. **Fix (motion design only, raster orchestration untouched):** gentler easeOutQuint **inlined** `cubic-bezier(0.22,1,0.36,1)`, distance `0.12em→0.18em`, duration `.4s→.55s`, stagger `.04s→.07s` (delays .06→.34). Larger distance + gentler tail keep per-frame motion above the pixel-snap floor for nearly the whole duration. Easing is inlined (NOT via `--ease-out`, which stays easeOutExpo for the container fade + app transitions). Base `.l` `translateY`, keyframe `from`, and the JS comment all moved to `0.18em` together (byte-identical invariant → no v2.17.97/112 first-frame jump). **GPU layer promotion (`will-change`/`translateZ`) deliberately rejected** — it re-rasters glyphs at layer creation, exactly the late-raster class the five passes fixed.
 
-**Verify:**
-- Mobile PWA cold start (force-quit first, ideally on slow network), repeat → logo appears solid (font already painted) and fades+rises as one unit; glyphs never paint/appear partway through the motion
-- Rise now reads as a calm, smooth cascade (longer wave, no clump); no visible step/stutter at the tail; no down-then-up jump on frame 1
-- Desktop / warm cache: unchanged feel, no perceptible delay before the reveal
-- Slow network (DevTools throttle + disable cache): reveal still clean; at worst the 2000ms ceiling reveals it statically (no rise)
-
-**Verified fixed:** ☐
-
----
-
-## BUG-045: Done-today count inflates across check/uncheck cycles and cross-device sync
-
-**Status:** ⏳ v2.18.14 (date guard) → v2.18.21 (counter retired) — awaiting verify
-
-**Symptom:** The completed-task count shown in the evening triage summary and weekly grid blew up over the day — inflated by check/uncheck cycles (each check incremented, uncheck never decremented) and by cross-device `Math.max` merge (two devices each contributed their total and the higher won).
-
-**Root cause:** `stat_tasks_done_today` was a monotonic increment-only counter. Three increment sites (normal checkbox, triage "done", `_focusOnCheck`) never decremented on uncheck. Cross-device merge used `Math.max(local, remote)`, so two devices that each did 3 tasks merged to 6. A date-guard was added (v2.18.14 — same class as BUG-024 focus minutes) but it only fixed midnight carry-over, not the inflation within a day.
-
-**Fix (v2.18.21 — counter retired):** Fully removed `stat_tasks_done_today`: all 3 increment sites, the daily reset, the merge branch, the restore branch, and the backup payload fields. New `_doneTodayCount(dayISO?)` derives the count from `checked_ids` — entries dated for the target day whose check timestamp is newer than any matching `unchecked_ids` entry. Self-correcting: uncheck/re-check/cross-device sync all resolve correctly because the underlying `checked_ids`/`unchecked_ids` LWW arrays are already sound. Critical subtlety: `unchecked.get(c.id)` returns the `at` *string*, not an object — guard must compare `c.at > uAt` (not `c.at > u.at` which reads `.at` on a string → `undefined` → always false).
+**Seventh pass — rise removed, single-unit fade (v2.18.27):** Can reported "letters coming up from bottom" persisted after all six passes. Re-analysis found the approach structurally unwinnable, not mistuned: **(1)** starting a CSS `transform` animation on iOS/WebKit promotes each `.l` letter to its own compositing layer *at animation start*, re-rastering the glyph — the exact late-paint every pass was fighting; rejecting `will-change` (pass 5) never prevented it because the animation itself promotes. **(2)** The v2.17.133 warm paint showed the logo fully opaque at the *lowered* position for ~2 frames before snapping transparent and fading in — itself a visible flash of letters sitting low, then rising. **Fix (per Can's direction, 2026-07-02):** per-letter rise deleted entirely — `splashLetterRise` keyframes, `.go .l` animation, 5 stagger delays, `.instant` modifier, double-rAF warm all removed. `#splash-logo` base: `visibility:hidden; opacity:0`. Animated path: flip visibility (still opacity 0, nothing paints), commit baseline, fade whole logo to 1 over `.5s var(--ease-out)` — one unit, one layer, one raster; a frame-late glyph raster lands at near-zero opacity with no motion to betray it. Ceiling path: static reveal (`opacity=1`, no fade). Fonts gate + 2000ms ceiling + `_splashStarted` guard unchanged. Star scale-in/breath + typewriter carry the splash's delight.
 
 **Verify:**
-- Check a task, uncheck it, re-check it → count shows 1 (not 2 or 3)
-- Two devices each check different tasks → merge shows the true combined count, not the sum of both counters
-- Evening triage summary and weekly grid numbers look correct
-- Midnight: count resets to 0 on the new day (checked_ids are cleared by `applyNewDayCleanup`)
+- iPhone PWA cold start (force-quit first, repeat ~5×, ideally once on slow network) → logo fades in softly as ONE piece: no letters rising from the bottom, no low-position flash, no glyph popping in mid-fade
+- Desktop / warm cache: soft half-second fade, no perceptible delay; typewriter/star/dismiss sequence unchanged
+- Slow network (DevTools throttle + disable cache): at worst the 2000ms ceiling shows the logo statically — still no motion artifact
 
 **Verified fixed:** ☐
 
@@ -134,39 +115,4 @@
 
 ---
 
-## BUG-049: New Trello cards look aged on arrival
-
-**Status:** ⏳ v2.18.22 — awaiting verify
-
-**Symptom:** A Trello card that just entered the today list renders dimmed (opacity ≈ 0.35–0.75) as if it were days old — even a card due *today* that was just given its due date in Trello.
-
-**Root cause:** Trello card age was computed from the card's **Trello creation timestamp**, decoded from its MongoDB ObjectID via `_getCreatedFromTrelloId(id)`. A card created weeks ago in Trello but only just made relevant (due date added, moved to the right list) was therefore instantly "old" from the app's perspective.
-
-**Fix (v2.18.22):** Age basis changed to a new `today_trello_firstseen` map `{trello_<id>: firstSeenMs}` — recording when each card first entered *your* filtered list. New helpers: `_getTrelloFirstSeen`, `_setTrelloFirstSeen`, `_trelloAgeBasis(id)` (falls back to `Date.now()` = fresh if unseen). Recorded and pruned in `loadTrello()` (departed cards dropped to keep the map bounded). Both age paths updated (Rule 27): `taskHTML()` and the `renderTrello()` 7s patch path. Synced via Dropbox: MIN-merge (earliest sighting across devices wins — a card's true first-seen is the earliest any device saw it), no date guard, NOT cleared in `applyNewDayCleanup` (must persist across days for the card to age). `_getCreatedFromTrelloId` removed (dead). One-time transition: on first load post-update all current cards get `firstSeen = now` → briefly fresh, then age naturally from that day.
-
-**Verify:**
-- Take an old Trello card and set its due date to today → it appears at full opacity on next sync, not dimmed
-- A card that has been in your list for 4 days (edit `today_trello_firstseen` in DevTools to 4 days ago) → shows mid-age dimming
-- Two devices: Device A sees a card first. Device B adopts A's earlier first-seen via MIN-merge — both dim the card identically
-- Focus un-dim still works (aged card focused today → full opacity, separate code path untouched)
-
-**Verified fixed:** ☐
-
----
-
-## BUG-051: Trello nudge dismissal not synced across devices
-
-**Status:** ⏳ v2.18.23 — awaiting verify
-
-**Symptom:** Dismissing the Trello morning nudge on one device leaves it visible on another device — it shows again even though the user already closed it.
-
-**Root cause:** The dismissal flag (`trello_nudge_dismissed_YYYY-MM-DD`) was written to localStorage on click but never included in the Dropbox backup payload or `mergeRemoteData()`. The triage-dismissed state has the same shape and IS synced (BUG-001 fix); the nudge simply wasn't wired up the same way.
-
-**Fix (v2.18.23):** Modelled exactly on `triage_dismissed`. Added `trello_nudge_dismissed` to the backup payload (`'1'` if dismissed today, `''` otherwise). Added a merge block in `mergeRemoteData()` after the triage-dismissed block: if remote value is `'1'` and local hasn't dismissed today, sets the local key and hides `$.trelloNudge` immediately. No full-restore handling needed (same as `triage_dismissed` — the next 7s merge tick applies it on any device that didn't catch the first sync).
-
-**Verify:**
-- Device A: dismiss the Trello nudge. Within ~7s, Device B's nudge disappears without any user interaction.
-- Tomorrow: both devices show the nudge again (key is date-scoped to `_localISO()`).
-
-**Verified fixed:** ☐
 
