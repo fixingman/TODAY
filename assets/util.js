@@ -77,3 +77,11 @@ function _breathe(el, keyframes, duration, delay) {
   el.animate(keyframes, { duration, delay: delay || 0, easing: 'ease-in-out', iterations: Infinity });
 }
 const _KF_BLINK = [{ opacity: 0.2 }, { opacity: 1, offset: 0.4 }, { opacity: 0.2, offset: 0.8 }, { opacity: 0.2 }];
+// Small-element breathe (Motion.md: elements ≤ ~10px pair opacity with scale — opacity
+// alone doesn't read at that size). Shared by the nudge dots and the AI badge @2400ms;
+// the done-star intentionally uses its own gentler values (0.6 / scale 0.92).
+const _KF_BREATHE_SMALL = [
+  { opacity: 1, transform: 'scale(1)' },
+  { opacity: 0.5, transform: 'scale(0.85)' },
+  { opacity: 1, transform: 'scale(1)' },
+];

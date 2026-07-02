@@ -197,9 +197,10 @@ if (!styleBlocks.length) fail('no <style> blocks found — extraction regex may 
 // standard-library property is both correct and simpler.)
 //
 // ASCII digits / # / * are `\p{Emoji}` (keycap-sequence bases) but aren't our
-// concern. 🍅 (session badges) is a documented intentional exception.
+// concern. 🍅 (session badges) and ☕ (Buy Me a Coffee CTA) are documented
+// intentional emoji exceptions — both rely on full-colour rendering.
 {
-  const EXEMPT = new Set(['🍅']);
+  const EXEMPT = new Set(['🍅', '☕']);
   const re = /\p{Emoji}/gu;
   let hits = [];
   let m;

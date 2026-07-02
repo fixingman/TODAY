@@ -2945,7 +2945,7 @@
     </div>
 
     <div class="panel-section panel-section--flush">
-      <a id="coffeeBtn" href="https://buymeacoffee.com/today.here" target="_blank" rel="noopener" class="btn-coffee">☕&#xFE0E; Buy me a coffee</a>
+      <a id="coffeeBtn" href="https://buymeacoffee.com/today.here" target="_blank" rel="noopener" class="btn-coffee">☕ Buy me a coffee</a>
       <div id="devHours" class="dev-hours" title="Hours spent building this with Claude">
         <span class="dev-hours-val"></span>
       </div>
@@ -3216,9 +3216,10 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.18.34': 'Fixed: coffee icon on the Buy Me a Coffee button was too small after an earlier emoji fix.',
+  '2.18.33': 'Fixed: Trello morning nudge was counting tasks you\'d already done.',
+  '2.18.32': 'Housekeeping: small internal tidy-up behind the breathing dots — nothing changes on screen.',
   '2.18.31': 'Marcus Aurelius joins the daily rotation twice more — on retreating into your own mind, and on getting out of bed at dawn.',
-  '2.18.30': 'Three summer poems join the daily rotation — a haiku of clouds from a summer room, and two small Greek poems about shade and cold water, twenty-three centuries old.',
-  '2.18.29': 'Two more poems join the daily rotation — Rilke\'s "Autumn" and Bashō\'s great Milky Way haiku.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -3566,8 +3567,7 @@ function checkMorningNudge() {
   const _showNudge = (text, addPrefix) => {
     const prefix = (addPrefix && carriedOver > 0) ? `${carriedOver} carried over · ` : '';
     nudgeEl.innerHTML = `<span class="nudge-dot"></span>${esc(prefix + text)}`;
-    _breathe(nudgeEl.querySelector('.nudge-dot'),
-      [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0.5, transform: 'scale(0.85)' }, { opacity: 1, transform: 'scale(1)' }], 2400);
+    _breathe(nudgeEl.querySelector('.nudge-dot'), _KF_BREATHE_SMALL, 2400);
     nudgeEl.style.display = 'flex';
     nudgeEl.onclick = () => {
       nudgeEl.style.display = 'none';
@@ -3622,8 +3622,8 @@ function checkTrelloNudge() {
     return;
   }
 
-  // Only when there are cards to show
-  const cards = (typeof trelloTasks !== 'undefined' ? trelloTasks : []);
+  // Only when there are undone cards to show
+  const cards = (typeof trelloTasks !== 'undefined' ? trelloTasks : []).filter(t => !doneIds.has(t.id));
   if (!cards.length) { nudgeEl.style.display = 'none'; return; }
 
   // Stay hidden if dismissed this morning
@@ -3645,8 +3645,7 @@ function checkTrelloNudge() {
 
   const _showNudge = (text) => {
     nudgeEl.innerHTML = '<span class="nudge-dot"></span>' + esc(text);
-    _breathe(nudgeEl.querySelector('.nudge-dot'),
-      [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0.5, transform: 'scale(0.85)' }, { opacity: 1, transform: 'scale(1)' }], 2400);
+    _breathe(nudgeEl.querySelector('.nudge-dot'), _KF_BREATHE_SMALL, 2400);
     nudgeEl.style.display = 'flex';
     nudgeEl.onclick = () => {
       nudgeEl.style.display = 'none';
@@ -11060,8 +11059,7 @@ function _aiProactiveSuggestion() {
   const badge = document.createElement('span');
   badge.className = 'ai-badge';
   btn.appendChild(badge);
-  _breathe(badge,
-    [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0.5, transform: 'scale(0.85)' }, { opacity: 1, transform: 'scale(1)' }], 2400);
+  _breathe(badge, _KF_BREATHE_SMALL, 2400);
   _aiProactiveBadgeShown = true;
 }
 
