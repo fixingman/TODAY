@@ -6,6 +6,8 @@
 
 | # | Description | Status |
 |---|---|---|
+| 053 | Morning nudge dismissal not synced across devices | ⏳ v2.18.38 |
+| 052 | Splash dismissal slow — sync bookkeeping held the gate | ⏳ v2.18.36 |
 | 051 | Trello nudge dismissal not synced across devices | ✅ v2.18.23 |
 | 049 | New Trello card looks aged on arrival | ✅ v2.18.22 |
 | 048 | Trello card aging not synced across devices | ✅ v2.18.17 |
@@ -110,6 +112,43 @@
 **Verify:**
 - Fresh PWA install (no local tasks). Connect Dropbox via OAuth. Existing tasks should appear automatically — no manual "Restore" tap needed.
 - Reconnect Dropbox on a device that already has tasks → existing local data is preserved (upload, not overwrite).
+
+**Verified fixed:** ☐
+
+---
+
+## BUG-052: Splash dismissal sometimes slow — sync bookkeeping held the gate
+
+**Status:** ⏳ v2.18.36 — awaiting device verify
+
+**Symptom:** "Sometimes it takes a long time for the explosion and dismissal of the splash screen — things felt snappier before." Reported alongside BUG-032 (same surface, different mechanism).
+
+**Root cause:** the splash dismisses on a two-flag gate (animation done + app load done). The load flag fired only after the ENTIRE startup sync chain completed serially: Trello board fetch → Dropbox token refresh (extra round-trip whenever the 4-hour token had expired — i.e. every first open of the morning) → backup download + merge → `get_metadata` rev seed → and, when local data differed from remote, an awaited full `dropboxBackup(true)` upload. The last two are bookkeeping — they don't change what's on screen — but added 1–3 awaited round-trips to the gate, up to the 6s safety cap on slow networks.
+
+**Fix (v2.18.36):** `_onAppLoadDone()` now fires right after the pull+merge+render (the point where on-screen data is correct). The rev seed and conditional push-back run *after* the gate as `deferredSyncBookkeeping`, and `startTicker()` moved after that (preserving the "ticker only after rev baseline seeded" invariant — an unseeded rev would make the first tick redundantly re-restore). Gate now waits only for what the user can see.
+
+**Verify:**
+- Cold start with Dropbox connected, >4h since last open (expired token), on cellular: splash should dismiss right after the typewriter finishes — no multi-second hang before the burst.
+- Make a change on device A, cold-start device B: B's merged state still pushes back to Dropbox (check Dropbox file timestamp) even though the splash no longer waits for it.
+- Watch for the first sync tick doing a redundant restore (it shouldn't — rev is seeded before the ticker starts).
+
+**Verified fixed:** ☐
+
+---
+
+## BUG-053: Morning nudge dismissal not synced across devices
+
+**Status:** ⏳ v2.18.38 — awaiting device verify
+
+**Symptom:** "When I dismiss the manual task nudge on computer it is not dismissed on mobile." Same class as BUG-051 (Trello nudge), but for the manual/carried-over-tasks nudge (`#morningNudge`).
+
+**Root cause:** `morning_nudge_dismissed_YYYY-MM-DD` was written to localStorage on dismiss (`checkMorningNudge`'s `_showNudge` click handler, `index.html:3578`) but — unlike its sibling `trello_nudge_dismissed`, fixed under BUG-051 — was never added to the Dropbox backup payload or `mergeRemoteData()`. The two nudges share almost identical dismiss logic (same `_dismissKey` pattern, same stale-flag pruning) but only one got the cross-device fix.
+
+**Fix (v2.18.38):** mirrored the BUG-051 fix exactly. Added `morning_nudge_dismissed` to the backup payload (`index.html:8225`, right after `trello_nudge_dismissed`) and a merge block in `mergeRemoteData()` (`index.html:8757`, right after the Trello nudge block) — if remote shows `'1'` and local hasn't dismissed yet, sets the local key and hides `$.morningNudge` immediately. No full-restore handling needed (same as BUG-051 — the next 7s merge tick applies it).
+
+**Verify:**
+- Dismiss the morning nudge on device A. Within ~7s (next sync tick) or on next open, device B's morning nudge should also be hidden for the day.
+- Confirm the Trello nudge (BUG-051) still dismisses independently — the two nudges use separate keys and should not cross-suppress each other.
 
 **Verified fixed:** ☐
 

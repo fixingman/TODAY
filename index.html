@@ -3216,10 +3216,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.18.34': 'Fixed: coffee icon on the Buy Me a Coffee button was too small after an earlier emoji fix.',
-  '2.18.33': 'Fixed: Trello morning nudge was counting tasks you\'d already done.',
-  '2.18.32': 'Housekeeping: small internal tidy-up behind the breathing dots — nothing changes on screen.',
-  '2.18.31': 'Marcus Aurelius joins the daily rotation twice more — on retreating into your own mind, and on getting out of bed at dawn.',
+  '2.18.38': 'Fixed: dismissing the morning nudge on one device left it showing on your others.',
+  '2.18.37': 'A new poem joins the daily rotation — an 11th-century Chinese verse about dawn rebuilding the world.',
+  '2.18.36': 'Snappier start: the opening screen no longer waits for background sync chores before letting you in.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -8223,6 +8222,8 @@ async function dropboxBackup(silent) {
     triage_dismissed:        localStorage.getItem('triage_dismissed') || '',
     // Trello nudge dismissed — synced so nudge doesn't re-show on other devices (BUG-051)
     trello_nudge_dismissed:  localStorage.getItem('trello_nudge_dismissed_' + _localISO()) || '',
+    // Morning nudge dismissed — synced so nudge doesn't re-show on other devices (BUG-053, same model as BUG-051)
+    morning_nudge_dismissed: localStorage.getItem('morning_nudge_dismissed_' + _localISO()) || '',
     // Daily history — per-day snapshots the week grid reads for past days (v5.3, BUG-036).
     // Union-merged by date on restore so the week view matches across devices.
     daily_history:        safeJSON('today_daily_history', []),
@@ -8753,6 +8754,13 @@ function mergeRemoteData(data) {
     if ($.trelloNudge) $.trelloNudge.style.display = 'none';
   }
 
+  // ── Morning nudge dismissed: sync across devices (BUG-053, same model as BUG-051) ──
+  const _remoteMorningNudge = data.morning_nudge_dismissed || '';
+  if (_remoteMorningNudge === '1' && !localStorage.getItem('morning_nudge_dismissed_' + _todayISO)) {
+    localStorage.setItem('morning_nudge_dismissed_' + _todayISO, '1');
+    if ($.morningNudge) $.morningNudge.style.display = 'none';
+  }
+
   // Full re-render if tasks were added or removed — surgical patch is not enough
   if (_changed) {
     renderManual();
@@ -9195,6 +9203,11 @@ async function dropboxRestore(fromSync) {
     // Defer heavy sync work to avoid blocking first interaction
     // Use setTimeout(0) to yield to the event loop after initial paint
     setTimeout(async () => {
+      // Sync bookkeeping that doesn't change what's on screen (rev seed + push-back
+      // of local-only changes) is deferred until AFTER the splash gate fires — it
+      // was adding 1–2 awaited round-trips (3 when the merged push ran) to every
+      // splash, felt as a slow "explosion". Only the pull+merge gates the splash.
+      let deferredSyncBookkeeping = null;
       try {
         const cfg = getSavedConfig();
         if (cfg.apiKey && cfg.apiToken && cfg.boardId) {
@@ -9221,18 +9234,23 @@ async function dropboxRestore(fromSync) {
                 const changed = mergeRemoteData(remoteData);
                 // Track when we last successfully pulled
                 localStorage.setItem('last_sync_read', new Date().toISOString());
-                // Seed rev so ticker doesn't re-trigger on same data
-                const meta = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
-                  method: 'POST',
-                  headers: { 'Authorization': `Bearer ${freshToken}`, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ path: DROPBOX_FILE }),
-                });
-                if (meta.ok) {
-                  const m = await meta.json();
-                  if (m && m.rev && window._dbxSetRev) window._dbxSetRev(m.rev);
-                }
-                // If local had changes that weren't in remote, push merged result
-                if (changed) await dropboxBackup(true);
+                deferredSyncBookkeeping = async () => {
+                  try {
+                    // Seed rev so ticker doesn't re-trigger on same data
+                    const meta = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
+                      method: 'POST',
+                      headers: { 'Authorization': `Bearer ${freshToken}`, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ path: DROPBOX_FILE }),
+                    });
+                    if (meta.ok) {
+                      const m = await meta.json();
+                      if (m && m.rev && window._dbxSetRev) window._dbxSetRev(m.rev);
+                    }
+                    // If local had changes that weren't in remote, push merged result
+                    // (dropboxBackup re-seeds the rev after its own write)
+                    if (changed) await dropboxBackup(true);
+                  } catch(e) { _logSyncError('Dropbox', 'Rev seed: ' + e.message); }
+                };
               }
             }
           } catch(e) { _logSyncError('Dropbox', 'Initial pull: ' + e.message); }
@@ -9254,11 +9272,14 @@ async function dropboxRestore(fromSync) {
       // Mirrors what the Dropbox restore path already does at line 8700.
       if (typeof checkMorningNudge === 'function') checkMorningNudge();
 
-      // Only start ticker after baselines are seeded
-      startTicker();
-
-      // Signal gate — app data is ready, splash can dismiss if animation also done
+      // Signal gate — what's on screen is correct, splash can dismiss if animation
+      // also done. Bookkeeping and ticker start continue below, off the gate.
       window._onAppLoadDone && window._onAppLoadDone();
+
+      if (deferredSyncBookkeeping) await deferredSyncBookkeeping();
+      // Only start ticker after baselines are seeded — an unseeded rev would make
+      // the first tick do a redundant full restore of data we just merged
+      startTicker();
     }, 0);
   });
 })();

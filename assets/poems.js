@@ -47,12 +47,6 @@ const POEMS = [
     source: 'Kokinshū tanka, trans. Chamberlain 1902 — the "blossoms" are snowflakes',
   },
   {
-    text: "A rough sea, and the Milky Way\nStretching across to Sado's isle.",
-    author: 'Bashō',
-    season: 'autumn',
-    source: 'Chamberlain 1902, no. 84 — the Milky Way is an autumn kigo',
-  },
-  {
     text: 'A stem of grass, whereon in vain\nA dragon-fly essayed to light!',
     author: 'Bashō',
     season: 'autumn',
@@ -566,5 +560,11 @@ const POEMS = [
     author: 'Marcus Aurelius (trans. A. S. L. Farquharson)',
     season: null,
     source: "Meditations V.1, trans. Farquharson (1944), verified vs archive.org the-meditations-of-the-emperor-marcus-antoninus-1 scan (Farquharson d. 1942)",
+  },
+  {
+    text: 'Sunbeams through twinkling pinewoods cast\nTheir shadows on my window screen.\nA night of clouds and rain is past\nAnd, newly blue and freshly green,\nThe Dawn rebuilds my world at last.\nAnd children\'s happy voices rouse the street.',
+    author: 'Wen T\'ung (trans. L. Cranmer-Byng)',
+    season: 'spring',
+    source: "'Morning', A Feast of Lanterns (1916), verified vs archive.org in.ernet.dli.2015.282424 scan (Cranmer-Byng d. 1945)",
   },
 ];
