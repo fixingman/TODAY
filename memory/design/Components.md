@@ -180,19 +180,19 @@ Fixed top-right. Pulses when errors exist.
 
 ---
 
-## Morning Nudge
+## Day Nudge (unified, v2.19.0)
 
-Horizontal strip below the **Your tasks** header, shows before noon if yesterday's review exists. A parallel **Trello nudge** (same `.morning-nudge` class, `#trelloNudge`) sits under the **From Trello** header (v2.17.138) — card count + overdue flag, AI names a starting point; same two-tier race and per-day dismiss.
+Single `.morning-nudge` strip (`#dayNudge`) positioned **between the SOON and Trello sections**, visible before noon. Replaces the separate `#morningNudge` (under Your tasks) and `#trelloNudge` (under From Trello) that existed through v2.18.x — Can: "two nudges were too much to concentrate and focus on."
 
 ```
-• Yesterday: 5 done, 1h focused, 2 habits · 3 carried over
+• 2 tasks still here from yesterday · 1 overdue in Trello
 ```
 
-- Two-tier: rule-based tier 1 shows in ≤1s, AI tier 2 races a 1s timeout (cached per day; no mid-read swap, BUG-034).
-- Tap to dismiss — sets a **per-day `*_dismissed_<date>` flag** so it stays hidden on every wake that day (BUG-040), not just until the next self-heal. Auto-clears after noon.
-- Falls back to simple carried-over count if no review data.
-- **Consistency (v2.18.3):** quiet text on 0.04em tracking shared with `.section-count` / `.empty`.
-- **Presence redesign (v2.18.24):** was flush-to-edge, same visual weight as `.section-count` — read as a footnote, easy to miss. Now a quiet `--surface` panel with a 2px `--accent-dim` left edge (`border-radius: var(--radius-md)`, `padding: 7px var(--space-3)`) so it has a home distinct from the header above it, like a task row. Dot switched from static `--muted` to `--accent` with the existing **Breath Pattern** (`_breathe`, 1800ms WAAPI, opacity 1→0.65→1 — called fresh at each `_showNudge()` render, discarded when `innerHTML` is replaced) instead of sitting flat. The recap text itself is untouched — still `--muted`, no per-word color emphasis; the redesign changes the nudge's *frame*, not the data. Explored via a design-lab comparison (baseline + 8 directions: typography, surface, pull-quote, three compact variants, three "reuse-existing-components" variants) before landing on this mix of the short chip-strip phrasing and the plain monochrome streak-label voice.
+- **Rule-based tier 1** — leads with what's pressing: carried-over tasks first, then overdue Trello cards (or plain card count if none overdue); max two clauses joined with ` · `. Yesterday's review only appears when nothing is pressing (no carried-over tasks, no Trello cards). Falls back to hidden if nothing to say.
+- **AI tier 2** (`_fetchDayNudgeAI`) — sees both manual tasks (with ages) and Trello cards (with overdue/checklist markers) in one prompt; asked to name the single most important thing. Same 1s race via `_raceAINudge` — cached per day, no mid-read swap (BUG-034).
+- **Dismiss** — tap sets `day_nudge_dismissed_<date>` (per-day, clears at midnight). Synced cross-device via `_DISMISS_SYNC` registry. Legacy `trello_nudge_dismissed` / `morning_nudge_dismissed` fields kept as transition rows in registry for mixed-version devices — remove once all devices ≥ v2.19.0.
+- **Presence:** same `.morning-nudge` CSS as before — `--surface` panel, 2px `--accent-dim` left edge, `radius-md`, `padding: 7px var(--space-3)`. Breathing `--accent` dot via `_breathe(_KF_BREATHE_SMALL, 2400ms)` (opacity 1→0.5 + scale 1→0.85 — small-element treatment per Motion.md).
+- Noon cutoff: `checkDayNudge()` hides element and prunes legacy AI-cache keys at `hour >= 12`.
 
 ---
 

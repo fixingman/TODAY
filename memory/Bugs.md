@@ -138,17 +138,16 @@
 
 ## BUG-053: Morning nudge dismissal not synced across devices
 
-**Status:** ⏳ v2.18.38 — awaiting device verify
+**Status:** ⏳ v2.18.38 — awaiting device verify. Note: `#morningNudge` and `#trelloNudge` merged into `#dayNudge` (v2.19.0); dismiss is now unified under `day_nudge_dismissed_` key. Verify applies to the unified nudge.
 
-**Symptom:** "When I dismiss the manual task nudge on computer it is not dismissed on mobile." Same class as BUG-051 (Trello nudge), but for the manual/carried-over-tasks nudge (`#morningNudge`).
+**Symptom:** "When I dismiss the manual task nudge on computer it is not dismissed on mobile." Same class as BUG-051 (Trello nudge), but for the manual/carried-over-tasks nudge.
 
-**Root cause:** `morning_nudge_dismissed_YYYY-MM-DD` was written to localStorage on dismiss (`checkMorningNudge`'s `_showNudge` click handler, `index.html:3578`) but — unlike its sibling `trello_nudge_dismissed`, fixed under BUG-051 — was never added to the Dropbox backup payload or `mergeRemoteData()`. The two nudges share almost identical dismiss logic (same `_dismissKey` pattern, same stale-flag pruning) but only one got the cross-device fix.
+**Root cause:** `morning_nudge_dismissed_YYYY-MM-DD` was written to localStorage on dismiss but never added to the Dropbox backup payload or `mergeRemoteData()`. The two nudges shared almost identical dismiss logic but only one got the cross-device fix (BUG-051).
 
-**Fix (v2.18.38):** mirrored the BUG-051 fix exactly. Added `morning_nudge_dismissed` to the backup payload (`index.html:8225`, right after `trello_nudge_dismissed`) and a merge block in `mergeRemoteData()` (`index.html:8757`, right after the Trello nudge block) — if remote shows `'1'` and local hasn't dismissed yet, sets the local key and hides `$.morningNudge` immediately. No full-restore handling needed (same as BUG-051 — the next 7s merge tick applies it).
+**Fix (v2.18.38):** mirrored the BUG-051 fix. Added `morning_nudge_dismissed` to backup payload and a merge block in `mergeRemoteData()`. **Superseded by v2.19.0:** both nudges merged into `#dayNudge` with a single `day_nudge_dismissed_` key; `_DISMISS_SYNC` registry handles payload + merge. Legacy field names kept as transition rows.
 
 **Verify:**
-- Dismiss the morning nudge on device A. Within ~7s (next sync tick) or on next open, device B's morning nudge should also be hidden for the day.
-- Confirm the Trello nudge (BUG-051) still dismisses independently — the two nudges use separate keys and should not cross-suppress each other.
+- Dismiss the unified `#dayNudge` on device A. Within ~7s (next sync tick) or on next open, device B's nudge should also be hidden for the day.
 
 **Verified fixed:** ☐
 
