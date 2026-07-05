@@ -11160,7 +11160,7 @@ function _meetingTeardown() {
 
 function setAIProvider(p) {
   _aiViewingProvider = p;
-  localStorage.setItem('today_ai_provider', p);
+  // Don't commit to localStorage here — only write on successful key save
   _aiRenderConfig();
   // Focus input if showing input field
   const input = document.getElementById('aiApiKey');
@@ -11259,6 +11259,9 @@ async function saveAIKey() {
 
   if (!key) { _msg('Paste your API key first', 'var(--danger)'); input?.focus(); return; }
 
+  // Capture which provider is being connected — may differ from stored provider
+  const targetProvider = _aiViewingProvider || _aiGetProvider();
+
   // Simple: just disable button during request, no text change, no interim message
   if (saveBtn) saveBtn.disabled = true;
 
@@ -11271,7 +11274,7 @@ async function saveAIKey() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        provider: _aiGetProvider(), apiKey: key,
+        provider: targetProvider, apiKey: key,
         messages: [{ role: 'user', content: 'ping' }],
         systemPrompt: 'Reply with only the word: pong',
       }),
@@ -11292,7 +11295,8 @@ async function saveAIKey() {
       return;
     }
 
-    // Success — just switch to connected state, no banner
+    // Success — commit the provider now that the key is verified
+    localStorage.setItem('today_ai_provider', targetProvider);
     if (input) input.value = '';
     _aiViewingProvider = null; // reset — now viewing the connected provider
     _aiRenderConfig();
@@ -11310,7 +11314,8 @@ async function saveAIKey() {
 
 function clearAIKey() {
   localStorage.removeItem('today_ai_key');
-  _aiViewingProvider = null; // reset to show current provider state
+  localStorage.removeItem('today_ai_provider');
+  _aiViewingProvider = null;
   _aiRenderConfig();
   _updateBarPlaceholder();
   _meetingInit();
