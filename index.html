@@ -772,6 +772,17 @@
     border-color: var(--accent);
     background: var(--accent-dim);
   }
+  .btn-icon-sunday, .btn-icon-habits { animation: icon-colour-pulse 2.4s ease-in-out infinite; }
+  @keyframes icon-colour-pulse {
+    0%, 100% { color: var(--muted); }
+    50%       { color: var(--accent); }
+  }
+  .habit-countdown {
+    font-size: var(--text-sm);
+    color: var(--muted);
+    padding: 0 var(--space-3) var(--space-2);
+    letter-spacing: 0.02em;
+  }
 
   /* Subheader */
   .subheader {
@@ -2841,6 +2852,7 @@
     <div class="config-title">◎ Habits</div>
     <div class="habit-list" id="habitList"></div>
     <div class="habit-empty" id="habitEmpty">No habits yet</div>
+    <div class="habit-countdown" id="habitCountdown" style="display:none"></div>
     <div class="habit-add-row" id="habitAddRow">
       <input class="habit-input" id="habitInput" type="text" maxlength="100"
         placeholder="Name the habit…" onkeydown="handleHabitKey(event)">
@@ -3218,9 +3230,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.21.0': 'Habit nudge — the Habits button breathes after 10pm when habits are still open; the panel shows how much time is left before the day resets.',
+  '2.20.0': 'Sunday nudge — the About button breathes on Sundays when your weekly summary is waiting inside.',
   '2.19.0': 'One morning nudge instead of two — your tasks and Trello now share a single line that leads with what matters most.',
-  '2.18.40': 'Housekeeping: more internal tidy-up behind the scenes — nothing changes on screen.',
-  '2.18.39': 'Housekeeping: internal tidy-up — nothing changes on screen.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -3629,6 +3641,29 @@ function checkDayNudge() {
       onShow: _showNudge,
     });
   }
+}
+
+function checkSundayNudge() {
+  if (new Date().getDay() !== 0) return;
+  if (localStorage.getItem('sunday_nudge_seen_' + _localISO())) return;
+  if (!safeJSON('today_daily_history', []).length) return;
+  const btn = document.getElementById('infoBtn');
+  if (btn) btn.classList.add('btn-icon-sunday');
+}
+
+function checkHabitNudge() {
+  const btn = document.getElementById('habitsBtn');
+  if (!btn) return;
+  const hour = new Date().getHours();
+  const inWindow = hour >= 22 || hour < 3;
+  if (!inWindow) { btn.classList.remove('btn-icon-habits'); return; }
+  const activeHabits = habitsList.filter(h => !h.archived);
+  if (!activeHabits.length) { btn.classList.remove('btn-icon-habits'); return; }
+  const todayISO = _habitTodayISO();
+  const allDone = activeHabits.every(h => (habitCompletions[h.id] || []).includes(todayISO));
+  if (allDone) { btn.classList.remove('btn-icon-habits'); return; }
+  if (localStorage.getItem('habit_nudge_opened_' + todayISO)) { btn.classList.remove('btn-icon-habits'); return; }
+  btn.classList.add('btn-icon-habits');
 }
 
 // Day nudge AI rewrite — one sentence with the single most important thing,
@@ -4810,6 +4845,8 @@ function init() {
   updateStats();
   checkTriageBar();
   checkDayNudge();
+  checkSundayNudge();
+  checkHabitNudge();
 
   if (saved.boardId && trelloToken) {
     setTrelloIcon(true);
@@ -4946,7 +4983,15 @@ function toggleInfo() {
   $.habitsPanel.classList.remove('open');
   syncActiveButtons();
   window.scrollTo(0, scrollY); // Restore scroll position
-  if (isOpening) { renderInfoStats(); renderDailyPoem(); }
+  if (isOpening) {
+    renderInfoStats();
+    renderDailyPoem();
+    const _ib = document.getElementById('infoBtn');
+    if (_ib && _ib.classList.contains('btn-icon-sunday')) {
+      _ib.classList.remove('btn-icon-sunday');
+      localStorage.setItem('sunday_nudge_seen_' + _localISO(), '1');
+    }
+  }
 }
 
 // ─── Daily poem ──────────────────────────────────────────────────────────────
@@ -6403,6 +6448,32 @@ function renderHabits() {
   }
   
   if (editBtn) editBtn.style.display = activeHabits.length > 0 ? '' : 'none';
+
+  // Countdown line — shown 10pm–3am when habits are incomplete
+  const _countdown = document.getElementById('habitCountdown');
+  if (_countdown) {
+    const _hour = new Date().getHours();
+    const _inWindow = _hour >= 22 || _hour < 3;
+    if (_inWindow && activeHabits.length > 0 && !allDoneToday) {
+      let _ctText;
+      if (_hour < 3) {
+        _ctText = 'before 3am';
+      } else {
+        const _reset = new Date();
+        _reset.setDate(_reset.getDate() + 1);
+        _reset.setHours(3, 0, 0, 0);
+        const _diff = _reset - new Date();
+        const _h = Math.floor(_diff / 3600000);
+        const _m = Math.floor((_diff % 3600000) / 60000);
+        _ctText = _h > 0 ? `${_h}h ${_m}m left today` : `${_m}m left today`;
+      }
+      _countdown.textContent = _ctText;
+      _countdown.style.display = '';
+    } else {
+      _countdown.style.display = 'none';
+    }
+  }
+
   list.innerHTML = '';
   const CHK = `<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   activeHabits.forEach(h => {
@@ -6446,6 +6517,11 @@ function toggleHabits() {
   if (isOpening) {
     renderHabits();
     setTimeout(() => {}, 0); // flush
+    const _hBtn = document.getElementById('habitsBtn');
+    if (_hBtn && _hBtn.classList.contains('btn-icon-habits')) {
+      _hBtn.classList.remove('btn-icon-habits');
+      localStorage.setItem('habit_nudge_opened_' + _habitTodayISO(), '1');
+    }
   }
 }
 
@@ -6616,6 +6692,7 @@ function toggleHabitDone(id) {
     );
     
     if (allDone) {
+      checkHabitNudge(); // clear button pulse immediately on completion
       // Gentle glow
       _flashAccentGlow();
       
