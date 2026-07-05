@@ -196,6 +196,37 @@ Single `.morning-nudge` strip (`#dayNudge`) positioned **between the SOON and Tr
 
 ---
 
+## Button Nudges (v2.20.0–2.21.0)
+
+Header buttons breathe (shared `icon-colour-pulse` keyframe: `color` muted→accent, 2.4s ease-in-out, colour-only — no scale, no badge) when something is waiting inside. Clears on panel open via a per-day localStorage key; never re-fires the same day.
+
+| Button | Class | When | Clear key |
+|---|---|---|---|
+| `#infoBtn` ℹ︎ | `.btn-icon-sunday` | Sundays, `today_daily_history` non-empty | `sunday_nudge_seen_<date>` |
+| `#habitsBtn` ◎ | `.btn-icon-habits` | 10pm–3am, ≥1 active habit incomplete | `habit_nudge_opened_<habitISO>` (also clears instantly when last habit checked) |
+
+Habits panel additionally shows a muted countdown line (`.habit-countdown`, rendered by `renderHabits()`): `Xh Ym left today` 10pm–midnight, then `before 3am` midnight–3am — deliberately no ticking minutes after midnight (surfaces the boundary without clock anxiety). Hidden when all done or outside the window.
+
+---
+
+## Meeting Mode (v2.22.0, desktop-only v1)
+
+Listens to a meeting through the mic; the only artifact is tasks. No transcript, no meeting history, no voice ID — fully ephemeral (state lives in module-level `_mtg`, nulled in `_meetingTeardown()`; zero meeting localStorage keys).
+
+**Entry:** mic SVG button (`#meetingBtn`, `.add-mic-btn`) in the add bar between input and ✦. Revealed by `_meetingInit()` only when: no touch support, `MediaRecorder` present, Gemini key set (`_aiGetKey() && _aiGetProvider()==='gemini'` — Anthropic has no audio input). Re-checked after AI connect/forget.
+
+**Listening (non-blocking):** `#meetingPill` fixed above the add bar — breathing accent dot (`_KF_BREATHE_SMALL`, 2400ms), elapsed `MM:SS`, `stop`. The app stays fully usable; tasks can be added mid-meeting. Can explicitly rejected the full-screen listening mockup. Mic button gets `.live` (accent) while recording; clicking it again also stops.
+
+**Pipeline:** `getUserMedia` → `MediaRecorder` webm/opus, ~60s chunks via recorder **stop/restart** (never `timeslice` — later chunks aren't independently decodable; pattern survives the v2 iOS port). Each chunk → base64 → `netlify/functions/meeting-extract.js` → Gemini 2.5 Flash (audio inline, transcribe-internally prompt, transcript never in the response) → `{actionItems:[{text,owner,mine}], updatedContext}`. Rolling context string (speaker hints, open threads, ≤150 words) carries attribution across chunks — in memory only. Chunk failure: retry once, then drop + `_logSyncError('Meeting', …)` — a lost minute beats a dead meeting.
+
+**Review:** `#meetingOverlay` (triage-overlay clone: fixed scrim, bottom sheet, slideUp). Mine pre-selected with accent border/fill; others' at 45% opacity with owner label — tap to grab/drop; Add-count updates live. Accept → `manualTasks.push` + `renderManual()` + `dropboxAutoSave()`. Empty state: "✦ Nothing for you / No clear action items came up — nice when that happens." Late in-flight chunk results re-render the open review.
+
+**Attribution without voice ID:** `today_user_name` ("Your first name…" input in the AI config section; fill-if-empty on merge, in backup payload) tells the prompt whose commitments to flag. The review tap is the final identity filter — AI optimizes recall, Can's tap is precision.
+
+**v2 (not built):** iPhone/mobile — wake lock, iOS AAC mimeType, suspension handling. Gated on v1 extraction quality (Wallpaper Test: are the chips what you'd have written down yourself?).
+
+---
+
 ## Week Summary (About panel)
 
 Lives in `#infoPanel` under "This week". Rendered by `renderInfoStats()`. Hidden entirely

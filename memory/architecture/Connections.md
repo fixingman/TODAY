@@ -160,6 +160,17 @@ Shows provider badge (Gemini/Claude) with key partially masked. Forget button re
 
 The AI panel itself (`#aiPanel`) only shows when a key is connected. If not connected, the ✦ button routes to the connections panel (`toggleAI()` → `openConfigPanel()`).
 
+### Your Name (meeting mode, v2.22.0)
+
+Below the AI key rows: a "Your first name…" input (`#meetingNameInput`, `saveMeetingName()` on change) → `today_user_name`. Used only as the attribution anchor in the meeting-extract prompt ("which action items are Can's"). In the Dropbox payload; merge is **fill-if-empty** (local non-empty value wins — a deliberate local edit shouldn't be clobbered by a stale backup).
+
+### Meeting Mode Privacy Stance (v2.22.0, deliberate)
+
+- **Nothing persisted.** Audio chunks, extracted items, and the rolling context live only in the module-level `_mtg` variable and are nulled in `_meetingTeardown()`. No meeting-related localStorage keys exist. Accepted items become ordinary manual tasks — indistinguishable from typed ones.
+- **No transcript, ever.** `meeting-extract.js` instructs Gemini to transcribe internally and return only `{actionItems, updatedContext}`; the transcript is never in the HTTP response, never rendered, never stored.
+- **No voice ID, ever.** Attribution comes from `today_user_name` + conversational content + the user's review tap. Storing a voice fingerprint was explicitly rejected — it would be the most privacy-hostile artifact the feature could create.
+- **Audio leaves the device only as in-flight chunks** to the user's own Netlify function → Gemini, using the user's own key. Same trust model as every other AI call in the app.
+
 ---
 
 ## First-Run / Onboarding
@@ -197,3 +208,4 @@ Nothing blocks task entry. The app is fully functional without any connection.
 | `last_sync_read` | `dropboxRestore()` | — |
 | `ai_api_key` | `saveAIKey()` | AI forget button |
 | `ai_provider` | `saveAIKey()` / `setAIProvider()` | AI forget button |
+| `today_user_name` | `saveMeetingName()` | clearing the name input |

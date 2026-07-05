@@ -1785,6 +1785,164 @@
     display: none;
   }
 
+  /* ── Component: Meeting Mode (v2.22.0, desktop-only) ─────────────────
+     Mic button in the add bar starts a listening session; a non-blocking
+     pill above the add bar shows dot + elapsed + stop while the whole app
+     stays usable. Review overlay clones the triage pattern. */
+  .add-mic-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    color: var(--muted);
+    width: 44px;
+    height: 44px;
+    display: none; /* revealed on desktop by _meetingInit() */
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+  }
+  .add-mic-btn:hover { color: var(--text); border-color: var(--muted); }
+  .add-mic-btn.live {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  #meetingPill {
+    position: fixed;
+    bottom: 76px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--radius-lg);
+    padding: 7px var(--space-3);
+    display: none;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    z-index: var(--z-header);
+  }
+  #meetingPill.show { display: flex; }
+  .meeting-pill-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+  .meeting-pill-time {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.08em;
+  }
+  .meeting-pill-stop {
+    background: none; border: none;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    padding: 0 0 0 var(--space-1);
+    letter-spacing: 0.05em;
+  }
+  .meeting-pill-stop:hover { color: var(--text); }
+
+  #meetingOverlay {
+    position: fixed;
+    inset: 0;
+    background: var(--color-overlay);
+    z-index: var(--z-overlay);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: var(--space-4);
+  }
+  #meetingOverlay.hidden { display: none; }
+  #meetingPanel {
+    background: var(--surface2);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    width: 100%;
+    max-width: 420px;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: var(--space-4);
+    animation: slideUp 0.25s var(--ease-out);
+  }
+  .meeting-review-title {
+    font-size: var(--text-sm);
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .meeting-review-sub {
+    font-size: var(--text-xs);
+    color: var(--muted);
+    margin-bottom: var(--space-3);
+  }
+  .meeting-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-2);
+    font-size: var(--text-task);
+    cursor: pointer;
+    transition: border-color var(--dur-fast), background var(--dur-fast), opacity var(--dur-fast);
+  }
+  .meeting-item .meeting-tick {
+    width: 15px; height: 15px; border-radius: 50%;
+    border: 1.5px solid var(--muted);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; color: var(--bg);
+  }
+  .meeting-item.selected { border-color: var(--accent); background: var(--accent-dim); }
+  .meeting-item.selected .meeting-tick { background: var(--accent); border-color: var(--accent); }
+  .meeting-item.selected .meeting-tick::after { content: '✓'; }
+  .meeting-item.other { opacity: 0.45; }
+  .meeting-item.other.selected { opacity: 1; }
+  .meeting-item .meeting-owner {
+    margin-left: auto;
+    font-size: var(--text-xs);
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .meeting-review-empty {
+    text-align: center;
+    color: var(--muted);
+    font-size: var(--text-task);
+    padding: var(--space-4) 0 var(--space-2);
+    line-height: 1.6;
+  }
+  .meeting-review-empty .done-star { color: var(--accent); }
+  .meeting-review-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+  .meeting-review-add {
+    flex: 1;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
+  .meeting-review-discard {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
+  .meeting-review-discard:hover { color: var(--text); }
+
   /* Trello config panel */
   /* ── Component: Config Panel ───────────────────────────────────────── */
   .config-panel {
@@ -2922,6 +3080,20 @@
       </div>
 
       <div class="status-msg" id="aiMsg" style="margin-top:var(--space-3)"></div>
+
+      <!-- Your name — used by meeting mode to know which action items are yours (v2.22.0) -->
+      <div id="meetingNameWrap" style="margin-top:var(--space-4)">
+        <div style="display:flex;gap:var(--space-2);align-items:center">
+          <input class="config-input" id="meetingNameInput" type="text" maxlength="60"
+            autocomplete="off" autocorrect="off" spellcheck="false"
+            placeholder="Your first name…"
+            style="flex:1"
+            onchange="saveMeetingName()" onkeydown="if(event.key==='Enter')this.blur()" />
+        </div>
+        <div style="margin-top:var(--space-2);font-size:var(--text-xs);color:var(--muted)">
+          Meeting mode uses this to spot which action items are yours. Stays on your devices.
+        </div>
+      </div>
     </div>
   </div>
 
@@ -3041,8 +3213,37 @@
       onkeydown="handleBarKey(event)" oninput="toggleClearBtn()" />
     <button id="clearTaskBtn" onclick="clearTaskInput()" class="clear-input-btn" style="display:none">×</button>
   </div>
+  <!-- Meeting mode mic (desktop-only, revealed by _meetingInit) — v2.22.0 -->
+  <button class="add-mic-btn" id="meetingBtn" onclick="toggleMeeting()" title="Meeting mode — listens and leaves behind only your tasks. Works best with speakers.">
+    <svg width="15" height="20" viewBox="0 0 15 20" fill="none">
+      <rect x="4.75" y="1" width="5.5" height="10.5" rx="2.75" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M1.5 8.5v1a6 6 0 0 0 12 0v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M7.5 15.5V19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+  </button>
   <!-- Single ✦: Enter = add task, tap = AI (or add task if AI not configured) -->
   <button class="add-ai-btn" id="addAiBtn" onclick="handleBarSubmit()" title="Ask anything">✦</button>
+</div>
+
+<!-- Meeting mode: non-blocking listening pill (v2.22.0) -->
+<div id="meetingPill" style="opacity:0">
+  <div class="meeting-pill-dot"></div>
+  <span class="meeting-pill-time" id="meetingPillTime">00:00</span>
+  <span style="color:var(--muted)">·</span>
+  <button class="meeting-pill-stop" onclick="_meetingStop()">stop</button>
+</div>
+
+<!-- Meeting mode: end-of-meeting review overlay (v2.22.0) -->
+<div id="meetingOverlay" class="hidden" style="opacity:0">
+  <div id="meetingPanel">
+    <div class="meeting-review-title">From this meeting</div>
+    <div class="meeting-review-sub" id="meetingReviewSub">Yours are selected · grab a grey one if it's actually yours</div>
+    <div id="meetingItems"></div>
+    <div class="meeting-review-actions">
+      <button class="meeting-review-add" id="meetingAddBtn" onclick="_meetingAccept()">Add tasks</button>
+      <button class="meeting-review-discard" onclick="_meetingDiscard()">Discard</button>
+    </div>
+  </div>
 </div>
 
 <!-- AI chat panel — slides up from bottom -->
@@ -3230,9 +3431,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.22.0': 'Meeting mode (desktop) — tap the mic by the add bar and TODAY listens, then offers the action items that are yours. Nothing is recorded or stored.',
   '2.21.0': 'Habit nudge — the Habits button breathes after 10pm when habits are still open; the panel shows how much time is left before the day resets.',
   '2.20.0': 'Sunday nudge — the About button breathes on Sundays when your weekly summary is waiting inside.',
-  '2.19.0': 'One morning nudge instead of two — your tasks and Trello now share a single line that leads with what matters most.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4847,6 +5048,7 @@ function init() {
   checkDayNudge();
   checkSundayNudge();
   checkHabitNudge();
+  _meetingInit();
 
   if (saved.boardId && trelloToken) {
     setTrelloIcon(true);
@@ -4965,6 +5167,8 @@ function toggleConfig() {
   if (isOpening) {
     renderConnections();
     setTimeout(_aiRenderConfig, 0);
+    const _nameInput = document.getElementById('meetingNameInput');
+    if (_nameInput) _nameInput.value = localStorage.getItem('today_user_name') || '';
   } else {
     const s = document.getElementById('statusMsg');
     const d = document.getElementById('dropboxMsg');
@@ -8252,6 +8456,8 @@ async function dropboxBackup(silent) {
     // Daily history — per-day snapshots the week grid reads for past days (v5.3, BUG-036).
     // Union-merged by date on restore so the week view matches across devices.
     daily_history:        safeJSON('today_daily_history', []),
+    // User's name — meeting mode attribution (v2.22.0). Last-write-wins on merge.
+    user_name:            localStorage.getItem('today_user_name') || '',
     // stat_last_visit intentionally excluded — it's local device state, meaningless on another device
   };
 
@@ -8769,6 +8975,13 @@ function mergeRemoteData(data) {
     const triageOverlay = document.getElementById('triageOverlay');
     if (triageBar) triageBar.classList.add('hidden');
     if (triageOverlay) triageOverlay.classList.add('hidden');
+  }
+
+  // ── User name: fill-if-empty (v2.22.0) ──
+  // Set on one device, arrives on the others. Local non-empty value wins — a
+  // deliberate local edit shouldn't be clobbered by a stale backup.
+  if (data.user_name && !localStorage.getItem('today_user_name')) {
+    localStorage.setItem('today_user_name', data.user_name);
   }
 
   // ── Per-day nudge dismissals: sync across devices (BUG-051/053) ──
@@ -9345,6 +9558,10 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     if (addBar) addBar.style.opacity = '1';
     const triageBar = document.getElementById('triageBar');
     if (triageBar) triageBar.style.opacity = '1';
+    const meetingPill = document.getElementById('meetingPill');
+    if (meetingPill) meetingPill.style.opacity = '1';
+    const meetingOverlay = document.getElementById('meetingOverlay');
+    if (meetingOverlay) meetingOverlay.style.opacity = '1';
     _splashAnimDone = true;
     _appLoadDone = true;
     // Enable wake detection after load settles (no splash path — _appReady never set otherwise)
@@ -9516,6 +9733,10 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
         const triageBar  = document.getElementById('triageBar');
         if (addTaskBar) { addTaskBar.style.transition = 'opacity 300ms ease'; addTaskBar.style.opacity = '1'; }
         if (triageBar)  { triageBar.style.transition  = 'opacity 300ms ease'; triageBar.style.opacity  = '1'; }
+        const _mtgPill = document.getElementById('meetingPill');
+        const _mtgOvl  = document.getElementById('meetingOverlay');
+        if (_mtgPill) { _mtgPill.style.transition = 'opacity 300ms ease'; _mtgPill.style.opacity = '1'; }
+        if (_mtgOvl)  { _mtgOvl.style.opacity = '1'; }
 
         setTimeout(() => { if (typeof updateStats === 'function') updateStats(); }, FADE_OUT + 30);
       }, FADE_OUT + 30);
@@ -10723,6 +10944,222 @@ function _aiExecute(action) {
   }
 }
 
+// ── Meeting mode (v2.22.0, desktop-only) ──────────────────────────────────────
+// Listens to a meeting through the mic and leaves behind only tasks. Fully
+// ephemeral: audio chunks and the rolling context live in _mtg below and are
+// nulled on teardown — nothing recorded, nothing persisted, no voice ID.
+// Gemini-only (sole provider with native audio input). ~60s chunks via recorder
+// stop/restart (not timeslice — later timeslice chunks aren't independently
+// decodable). Failed chunks retry once, then drop: a lost minute beats a dead
+// meeting. See memory/design/Components.md § Meeting Mode.
+
+const MEETING_CHUNK_MS = 60000;
+
+let _mtg = null; // { stream, recorder, items, context, seconds, timerId, chunkTimerId, live }
+
+function _meetingSupported() {
+  return !('ontouchstart' in window)
+    && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+    && typeof MediaRecorder !== 'undefined';
+}
+
+// Name field in the AI config section — meeting mode's attribution anchor
+function saveMeetingName() {
+  const input = document.getElementById('meetingNameInput');
+  if (!input) return;
+  const name = input.value.trim().slice(0, 60);
+  if (name) localStorage.setItem('today_user_name', name);
+  else localStorage.removeItem('today_user_name');
+  _setLastLocalChange();
+  dropboxAutoSave();
+}
+
+// Reveal the mic button on desktop when Gemini is configured — called from init()
+// and after AI config changes.
+function _meetingInit() {
+  const btn = document.getElementById('meetingBtn');
+  if (!btn) return;
+  const ok = _meetingSupported() && _aiGetKey() && _aiGetProvider() === 'gemini';
+  btn.style.display = ok ? 'flex' : 'none';
+}
+
+function toggleMeeting() {
+  if (_mtg && _mtg.live) { _meetingStop(); return; }
+  _meetingStart();
+}
+
+async function _meetingStart() {
+  if (_mtg) return;
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    _logSyncError('Meeting', 'Mic access declined — enable it in the browser site settings');
+    return;
+  }
+
+  _mtg = { stream, recorder: null, items: [], context: '', seconds: 0, timerId: null, chunkTimerId: null, live: true };
+
+  document.getElementById('meetingBtn')?.classList.add('live');
+  const pill = document.getElementById('meetingPill');
+  const time = document.getElementById('meetingPillTime');
+  if (time) time.textContent = '00:00';
+  if (pill) {
+    pill.classList.add('show');
+    _breathe(pill.querySelector('.meeting-pill-dot'), _KF_BREATHE_SMALL, 2400);
+  }
+
+  _mtg.timerId = setInterval(() => {
+    if (!_mtg) return;
+    _mtg.seconds++;
+    const t = document.getElementById('meetingPillTime');
+    if (t) t.textContent =
+      String(Math.floor(_mtg.seconds / 60)).padStart(2, '0') + ':' +
+      String(_mtg.seconds % 60).padStart(2, '0');
+  }, 1000);
+
+  _meetingRecordChunk();
+}
+
+// One self-contained ~60s recording; onstop ships it and starts the next.
+function _meetingRecordChunk() {
+  if (!_mtg || !_mtg.live) return;
+  const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+    ? 'audio/webm;codecs=opus'
+    : (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : ''); // mp4 = v2 iOS path
+  const rec = new MediaRecorder(_mtg.stream, mime ? { mimeType: mime } : undefined);
+  const parts = [];
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) parts.push(e.data); };
+  rec.onstop = () => {
+    const wasLive = _mtg && _mtg.live;
+    if (parts.length) _meetingSendChunk(new Blob(parts, { type: rec.mimeType || 'audio/webm' }));
+    if (wasLive) _meetingRecordChunk();
+  };
+  rec.start();
+  _mtg.recorder = rec;
+  _mtg.chunkTimerId = setTimeout(() => {
+    if (_mtg && _mtg.recorder === rec && rec.state === 'recording') rec.stop();
+  }, MEETING_CHUNK_MS);
+}
+
+async function _meetingSendChunk(blob, isRetry) {
+  // Capture state refs — the meeting may end while this chunk is in flight;
+  // results still merge (final chunk resolves the review list late but correctly).
+  const state = _mtg;
+  if (!state) return;
+  try {
+    const b64 = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result).split(',')[1] || '');
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+    const res = await fetch('/.netlify/functions/meeting-extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: _aiGetKey(),
+        audioChunk: b64,
+        mimeType: blob.type || 'audio/webm',
+        userName: localStorage.getItem('today_user_name') || '',
+        rollingContext: state.context,
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    if (typeof data.updatedContext === 'string') state.context = data.updatedContext;
+    (data.actionItems || []).forEach(item => {
+      // Dedupe on normalized text — the prompt asks Gemini not to repeat, this backstops it
+      const norm = item.text.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+      if (!state.items.some(x => x.norm === norm)) {
+        state.items.push({ text: item.text, owner: item.owner, mine: item.mine, norm });
+      }
+    });
+    // Meeting already ended and review is open → refresh it with late results
+    if (!state.live && !document.getElementById('meetingOverlay').classList.contains('hidden')) {
+      _meetingRenderReview(state);
+    }
+  } catch (e) {
+    if (!isRetry) { _meetingSendChunk(blob, true); return; }
+    _logSyncError('Meeting', 'Chunk dropped — ' + (e.message || 'network').slice(0, 60));
+  }
+}
+
+function _meetingStop() {
+  if (!_mtg) return;
+  _mtg.live = false;
+  clearTimeout(_mtg.chunkTimerId);
+  clearInterval(_mtg.timerId);
+  if (_mtg.recorder && _mtg.recorder.state === 'recording') _mtg.recorder.stop(); // flushes final chunk
+  _mtg.stream.getTracks().forEach(t => t.stop());
+
+  document.getElementById('meetingBtn')?.classList.remove('live');
+  document.getElementById('meetingPill')?.classList.remove('show');
+
+  _meetingRenderReview(_mtg);
+  const ovl = document.getElementById('meetingOverlay');
+  if (ovl) { ovl.style.animation = ''; ovl.classList.remove('hidden'); }
+}
+
+function _meetingRenderReview(state) {
+  const list = document.getElementById('meetingItems');
+  const sub  = document.getElementById('meetingReviewSub');
+  const add  = document.getElementById('meetingAddBtn');
+  if (!list) return;
+
+  if (!state.items.length) {
+    if (sub) sub.style.display = 'none';
+    list.innerHTML =
+      '<div class="meeting-review-empty"><span class="done-star">✦</span> Nothing for you<br>' +
+      'No clear action items came up — nice when that happens.</div>';
+    if (add) add.style.display = 'none';
+    return;
+  }
+
+  if (sub) sub.style.display = '';
+  if (add) add.style.display = '';
+  // Mine first (pre-selected), others greyed below
+  const sorted = [...state.items].sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0));
+  list.innerHTML = sorted.map((item, i) => `
+    <div class="meeting-item${item.mine ? ' selected' : ' other'}" data-idx="${i}" onclick="this.classList.toggle('selected');_meetingUpdateCount()">
+      <div class="meeting-tick"></div>
+      <span>${esc(item.text)}</span>
+      ${item.mine || !item.owner ? '' : '<span class="meeting-owner">' + esc(item.owner) + '</span>'}
+    </div>`).join('');
+  _meetingUpdateCount();
+}
+
+function _meetingUpdateCount() {
+  const n = document.querySelectorAll('#meetingItems .meeting-item.selected').length;
+  const btn = document.getElementById('meetingAddBtn');
+  if (btn) btn.textContent = n === 0 ? 'Add none' : 'Add ' + n + ' task' + (n === 1 ? '' : 's');
+}
+
+function _meetingAccept() {
+  const picked = [...document.querySelectorAll('#meetingItems .meeting-item.selected span:not(.meeting-owner)')]
+    .map(el => el.textContent.trim()).filter(Boolean);
+  picked.forEach((text, i) => {
+    manualTasks.push({ id: 'manual_' + (Date.now() + i), text });
+  });
+  if (picked.length) {
+    localStorage.setItem('today_manual', JSON.stringify(manualTasks));
+    renderManual();
+    _setLastLocalChange();
+    dropboxAutoSave();
+  }
+  _meetingTeardown();
+}
+
+function _meetingDiscard() { _meetingTeardown(); }
+
+// Ephemerality guarantee: audio, items, and rolling context all die here.
+function _meetingTeardown() {
+  document.getElementById('meetingOverlay')?.classList.add('hidden');
+  const list = document.getElementById('meetingItems');
+  if (list) list.innerHTML = '';
+  _mtg = null;
+}
+
 // ── Config panel ──────────────────────────────────────────────────────────────
 
 function setAIProvider(p) {
@@ -10864,6 +11301,7 @@ async function saveAIKey() {
     _aiViewingProvider = null; // reset — now viewing the connected provider
     _aiRenderConfig();
     _updateBarPlaceholder();
+    _meetingInit();
 
   } catch(e) {
     // Network error — remove optimistic save
@@ -10879,6 +11317,7 @@ function clearAIKey() {
   _aiViewingProvider = null; // reset to show current provider state
   _aiRenderConfig();
   _updateBarPlaceholder();
+  _meetingInit();
 }
 
 // Esc closes panel
