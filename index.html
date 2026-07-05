@@ -2963,13 +2963,16 @@
     <div class="task-list zone-list" id="soonList" style="display:none"></div>
   </div>
 
+  <!-- Unified morning nudge (v2.19.0) — one surface for carried-over tasks,
+       Trello cards, and yesterday's review; leads with what matters most -->
+  <div class="morning-nudge" id="dayNudge" style="display:none"></div>
+
   <!-- Trello section -->
   <div class="section" id="trelloSection">
     <div class="section-header">
       <div class="section-label">From Trello</div>
       <div class="section-count" id="trelloCount">0</div>
     </div>
-    <div class="morning-nudge" id="trelloNudge" style="display:none"></div>
     <div class="task-list" id="trelloList"></div>
     <div class="empty" id="trelloEmpty">Trello's not connected yet</div>
   </div>
@@ -2980,7 +2983,6 @@
       <div class="section-label">Your tasks</div>
       <div class="section-count" id="manualCount">0</div>
     </div>
-    <div class="morning-nudge" id="morningNudge" style="display:none"></div>
     <div class="task-list" id="manualList"></div>
     <div class="empty" id="manualEmpty" style="display:none">A clean slate</div>
   </div>
@@ -3216,9 +3218,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.18.38': 'Fixed: dismissing the morning nudge on one device left it showing on your others.',
-  '2.18.37': 'A new poem joins the daily rotation — an 11th-century Chinese verse about dawn rebuilding the world.',
-  '2.18.36': 'Snappier start: the opening screen no longer waits for background sync chores before letting you in.',
+  '2.19.0': 'One morning nudge instead of two — your tasks and Trello now share a single line that leads with what matters most.',
+  '2.18.40': 'Housekeeping: more internal tidy-up behind the scenes — nothing changes on screen.',
+  '2.18.39': 'Housekeeping: internal tidy-up — nothing changes on screen.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -3261,8 +3263,7 @@ function _cacheElements() {
   $.addAiBtn      = document.getElementById('addAiBtn');
 
   // Misc
-  $.morningNudge  = document.getElementById('morningNudge');
-  $.trelloNudge   = document.getElementById('trelloNudge');
+  $.dayNudge      = document.getElementById('dayNudge');
 }
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -3483,24 +3484,63 @@ function moveToPast(id, status = 'let_go') {
 }
 
 // Morning nudge — yesterday's reflection + carried-over tasks
-function checkMorningNudge() {
-  const nudgeEl = $.morningNudge || document.getElementById('morningNudge');
+// Shared two-tier nudge race (v2.17.129 pattern, extracted v2.18.39 — it had drifted
+// into two copies, the same sibling-drift that produced BUG-051/053): race the AI fetch
+// against a 1s rule-based fallback; never swap content mid-read (BUG-034). The AI result
+// is cached (stale days pruned) even when the fallback already showed — it becomes
+// tomorrow's instant path. onShow(text, isAI): isAI=true only for AI text (the morning
+// nudge maps it to addPrefix; the Trello nudge ignores it).
+// Extract the one-sentence text from an ai-assist response: error guard, trim,
+// strip wrapping quotes. For plain-text responses only — _fetchTriageHints
+// expects JSON content and does its own parsing.
+function _parseAIText(data) {
+  if (data.error) return null;
+  return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
+}
+
+function _raceAINudge({ cacheKey, cachePrefix, fetchPromise, fallbackMsg, onShow }) {
+  let settled = false;
+  const settle = (text, isAI) => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    onShow(text, isAI);
+  };
+  const timer = setTimeout(() => settle(fallbackMsg, false), 1000);
+  fetchPromise.then(text => {
+    if (!text) { settle(fallbackMsg, false); return; }
+    _pruneLS(cachePrefix, cacheKey);
+    localStorage.setItem(cacheKey, text);
+    settle(text, true);
+  }).catch(() => settle(fallbackMsg, false));
+}
+
+// Unified morning nudge (v2.19.0) — one surface between SOON and Trello,
+// replacing the separate manual + Trello nudges. Two nudges competed for the
+// same morning attention; one line that leads with what matters most doesn't.
+function checkDayNudge() {
+  const nudgeEl = $.dayNudge || document.getElementById('dayNudge');
   if (!nudgeEl) return;
-  
+
   // Only show in morning hours (before noon)
   const hour = new Date().getHours();
   if (hour >= 12) {
     nudgeEl.style.display = 'none';
     localStorage.removeItem('morning_nudge_count');
     localStorage.removeItem('today_day_review');
-    localStorage.removeItem('morning_nudge_ai_' + _localISO());
+    localStorage.removeItem('day_nudge_ai_' + _localISO());
+    // Legacy pre-2.19.0 keys — one-time sweep, no-op afterwards
+    _pruneLS('morning_nudge_ai_', '');
+    _pruneLS('trello_nudge_ai_', '');
+    _pruneLS('morning_nudge_dismissed_', '');
+    _pruneLS('trello_nudge_dismissed_', '');
     return;
   }
-  
+
   // Dismissed this morning — stay hidden until tomorrow (per-day flag).
   // Without this guard, the self-heal below recalculates carriedOver from
   // manualTasks and resurrects a nudge the user just dismissed on every wake. (BUG-040)
-  const _dismissKey = 'morning_nudge_dismissed_' + _localISO();
+  const _dismissKey = 'day_nudge_dismissed_' + _localISO();
   if (localStorage.getItem(_dismissKey)) {
     nudgeEl.style.display = 'none';
     return;
@@ -3513,43 +3553,45 @@ function checkMorningNudge() {
     carriedOver = manualTasks.filter(t => !doneIds.has(t.id)).length;
     if (carriedOver > 0) localStorage.setItem('morning_nudge_count', carriedOver);
   }
+
+  // Trello: undone cards + overdue count
+  const cards = (typeof trelloTasks !== 'undefined' ? trelloTasks : []).filter(t => !doneIds.has(t.id));
+  const todayStr = _localISO();
+  const overdueCount = cards.filter(t => t.due && t.due.slice(0, 10) < todayStr).length;
+
   const review = (() => {
     try { return safeJSON('today_day_review', null); }
     catch(e) { return null; }
   })();
-  
+
   // Only show review if it's from yesterday (not stale)
   const isReviewFresh = review && review.date && review.date !== _localISO();
-  
-  if (!isReviewFresh && carriedOver === 0) {
+
+  if (carriedOver === 0 && cards.length === 0 && !isReviewFresh) {
     nudgeEl.style.display = 'none';
     return;
   }
-  
-  // Build the nudge message
-  let msg = '';
-  
-  if (isReviewFresh) {
-    // Yesterday's reflection — contextual, warm
-    const parts = [];
-    if (review.done > 0) parts.push(`${review.done} done`);
-    if (review.focusMins >= 5) parts.push(_formatFocusTime(review.focusMins) + ' focused');
-    if (review.habits > 0) parts.push(`${review.habits} habit${review.habits > 1 ? 's' : ''}`);
-    
-    if (parts.length > 0) {
-      msg = `Yesterday: ${parts.join(', ')}`;
-      if (carriedOver > 0) {
-        msg += ` · ${carriedOver} carried over`;
-      }
-    } else if (carriedOver > 0) {
-      msg = `${carriedOver} task${carriedOver === 1 ? '' : 's'} carried over from yesterday`;
-    }
-  } else if (carriedOver > 0) {
-    const plural = carriedOver === 1 ? '' : 's';
-    const verb = carriedOver === 1 ? 'is' : 'are';
-    msg = `${carriedOver} task${plural} ${verb} still here from yesterday`;
+
+  // Rule-based tier 1 — surface only what's important: pressing things first
+  // (carried-over tasks, overdue cards), at most two clauses. Yesterday's
+  // reflection only appears when nothing is pressing.
+  const parts = [];
+  if (carriedOver > 0) {
+    parts.push(`${carriedOver} task${carriedOver === 1 ? '' : 's'} still here from yesterday`);
   }
-  
+  if (overdueCount > 0) {
+    parts.push(`${overdueCount} overdue in Trello`);
+  } else if (cards.length > 0) {
+    parts.push(`${cards.length} card${cards.length === 1 ? '' : 's'} in Trello today`);
+  }
+  let msg = parts.slice(0, 2).join(' · ');
+  if (!msg && isReviewFresh) {
+    const yp = [];
+    if (review.done > 0) yp.push(`${review.done} done`);
+    if (review.focusMins >= 5) yp.push(_formatFocusTime(review.focusMins) + ' focused');
+    if (review.habits > 0) yp.push(`${review.habits} habit${review.habits > 1 ? 's' : ''}`);
+    if (yp.length) msg = `Yesterday: ${yp.join(', ')}`;
+  }
   if (!msg) { nudgeEl.style.display = 'none'; return; }
 
   // ── AI-or-rule race (v2.17.129) ──
@@ -3557,24 +3599,17 @@ function checkMorningNudge() {
   // If not cached, race the AI fetch against a 1s timeout. AI wins → show Tier 2 from
   // the start. Timeout wins → show rule-based and never swap mid-display (BUG-034).
   // No content is ever replaced while the user is reading.
-  const _aiCacheKey = 'morning_nudge_ai_' + _localISO();
+  const _aiCacheKey = 'day_nudge_ai_' + _localISO();
   const _aiCached = localStorage.getItem(_aiCacheKey);
 
-  // addPrefix=true: prepend "N carried over · " before AI text so the count is
-  // always visible even when the AI sentence doesn't mention it. Rule-based msg
-  // already contains the count, so pass addPrefix=false there to avoid doubling.
-  const _showNudge = (text, addPrefix) => {
-    const prefix = (addPrefix && carriedOver > 0) ? `${carriedOver} carried over · ` : '';
-    nudgeEl.innerHTML = `<span class="nudge-dot"></span>${esc(prefix + text)}`;
+  const _showNudge = (text) => {
+    nudgeEl.innerHTML = `<span class="nudge-dot"></span>${esc(text)}`;
     _breathe(nudgeEl.querySelector('.nudge-dot'), _KF_BREATHE_SMALL, 2400);
     nudgeEl.style.display = 'flex';
     nudgeEl.onclick = () => {
       nudgeEl.style.display = 'none';
       // Prune stale dismiss flags from prior days, then set today's. (BUG-040)
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('morning_nudge_dismissed_') && k !== _dismissKey) localStorage.removeItem(k);
-      }
+      _pruneLS('day_nudge_dismissed_', _dismissKey);
       localStorage.setItem(_dismissKey, '1');
       localStorage.removeItem('morning_nudge_count');
       localStorage.removeItem('today_day_review');
@@ -3582,150 +3617,31 @@ function checkMorningNudge() {
   };
 
   if (_aiCached) {
-    _showNudge(_aiCached, true);
-  } else {
-    let _settled = false;
-    // Timeout: show rule-based after 1s if AI hasn't arrived yet
-    const _fallbackTimer = setTimeout(() => {
-      if (_settled) return;
-      _settled = true;
-      _showNudge(msg, false); // rule-based msg already contains the count
-    }, 1000);
-    // AI race: if it wins, show Tier 2 directly with no swap
-    _fetchMorningNudgeAI(review, carriedOver).then(text => {
-      if (!text) { if (!_settled) { _settled = true; clearTimeout(_fallbackTimer); _showNudge(msg, false); } return; }
-      // Cache the result (prune stale keys first)
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('morning_nudge_ai_') && k !== _aiCacheKey) localStorage.removeItem(k);
-      }
-      localStorage.setItem(_aiCacheKey, text);
-      if (_settled) return; // fallback already showed rule-based — no swap
-      _settled = true;
-      clearTimeout(_fallbackTimer);
-      _showNudge(text, true); // AI text gets the count prefix
-    }).catch(() => { if (!_settled) { _settled = true; clearTimeout(_fallbackTimer); _showNudge(msg, false); } });
-  }
-  checkTrelloNudge();
-}
-
-function checkTrelloNudge() {
-  const nudgeEl = $.trelloNudge || document.getElementById('trelloNudge');
-  if (!nudgeEl) return;
-
-  // Morning only (same noon cutoff as manual nudge)
-  const hour = new Date().getHours();
-  if (hour >= 12) {
-    nudgeEl.style.display = 'none';
-    localStorage.removeItem('trello_nudge_ai_' + _localISO());
-    return;
-  }
-
-  // Only when there are undone cards to show
-  const cards = (typeof trelloTasks !== 'undefined' ? trelloTasks : []).filter(t => !doneIds.has(t.id));
-  if (!cards.length) { nudgeEl.style.display = 'none'; return; }
-
-  // Stay hidden if dismissed this morning
-  const _dismissKey = 'trello_nudge_dismissed_' + _localISO();
-  if (localStorage.getItem(_dismissKey)) {
-    nudgeEl.style.display = 'none';
-    return;
-  }
-
-  // Rule-based tier 1 message
-  const todayStr = _localISO();
-  const overdueCount = cards.filter(t => t.due && t.due.slice(0, 10) < todayStr).length;
-  const n = cards.length;
-  let msg = n === 1 ? '1 card in Trello today' : n + ' cards in Trello today';
-  if (overdueCount > 0) msg += ' · ' + overdueCount + ' overdue';
-
-  const _aiCacheKey = 'trello_nudge_ai_' + _localISO();
-  const _aiCached = localStorage.getItem(_aiCacheKey);
-
-  const _showNudge = (text) => {
-    nudgeEl.innerHTML = '<span class="nudge-dot"></span>' + esc(text);
-    _breathe(nudgeEl.querySelector('.nudge-dot'), _KF_BREATHE_SMALL, 2400);
-    nudgeEl.style.display = 'flex';
-    nudgeEl.onclick = () => {
-      nudgeEl.style.display = 'none';
-      // Prune stale dismiss flags from prior days, then set today's. (BUG-040 parity)
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('trello_nudge_dismissed_') && k !== _dismissKey) localStorage.removeItem(k);
-      }
-      localStorage.setItem(_dismissKey, '1');
-    };
-  };
-
-  if (_aiCached) {
     _showNudge(_aiCached);
   } else {
-    let _settled = false;
-    const _fallbackTimer = setTimeout(() => {
-      if (_settled) return;
-      _settled = true;
-      _showNudge(msg);
-    }, 1000);
-    _fetchTrelloNudgeAI(cards).then(text => {
-      if (!text) { if (!_settled) { _settled = true; clearTimeout(_fallbackTimer); _showNudge(msg); } return; }
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('trello_nudge_ai_') && k !== _aiCacheKey) localStorage.removeItem(k);
-      }
-      localStorage.setItem(_aiCacheKey, text);
-      if (_settled) return;
-      _settled = true;
-      clearTimeout(_fallbackTimer);
-      _showNudge(text);
-    }).catch(() => { if (!_settled) { _settled = true; clearTimeout(_fallbackTimer); _showNudge(msg); } });
+    _raceAINudge({
+      cacheKey: _aiCacheKey,
+      cachePrefix: 'day_nudge_ai_',
+      fetchPromise: _fetchDayNudgeAI(review, carriedOver, cards),
+      fallbackMsg: msg,
+      // Single-arg — the old "N carried over · " prefix on AI text is gone;
+      // the AI sees the counts in its facts and mentions what matters itself.
+      onShow: _showNudge,
+    });
   }
 }
 
-async function _fetchTrelloNudgeAI(cards) {
-  try {
-    const key = (typeof _aiGetKey === 'function') ? _aiGetKey() : null;
-    if (!key || !navigator.onLine) return null;
-
-    const todayStr = _localISO();
-    const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    const cardLines = cards.slice(0, 8).map(t => {
-      const overdue = t.due && t.due.slice(0, 10) < todayStr;
-      const cl = t.checklist ? ' (' + t.checklist.done + '/' + t.checklist.total + ' checked)' : '';
-      return '"' + t.text + '"' + (overdue ? ' — overdue' : '') + cl;
-    });
-
-    const facts =
-      'Morning check-in. Today is ' + dayNames[new Date().getDay()] + '.\n' +
-      'Trello cards to work through:\n' + cardLines.join('\n');
-
-    const res = await fetch('/.netlify/functions/ai-assist', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        provider: _aiGetProvider(),
-        apiKey: key,
-        messages: [{ role: 'user', content: facts + '\n\nIf something stands out — an overdue card, a natural starting point — name it plainly. Otherwise summarise what\'s here.' }],
-        systemPrompt: 'You are the quiet companion in a minimal daily task app. One sentence only. Under 18 words. No quotes, no exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
-      }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (data.error) return null;
-    return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
-  } catch (e) {
-    return null;
-  }
-}
-
-// Morning nudge AI rewrite — one sentence with something worth noticing.
+// Day nudge AI rewrite — one sentence with the single most important thing,
+// seeing both manual tasks and Trello cards (v2.19.0 merged the two fetchers).
 // Mirrors _fetchWeekReflection: silent null on any failure (rule-based stays).
-async function _fetchMorningNudgeAI(review, carriedOver) {
+async function _fetchDayNudgeAI(review, carriedOver, cards) {
   try {
     const key = (typeof _aiGetKey === 'function') ? _aiGetKey() : null;
     if (!key || !navigator.onLine) return null;
 
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const streak = parseInt(localStorage.getItem('stat_streak') || '1');
+    const todayStr = _localISO();
 
     // Yesterday line from the day review (may be absent)
     let yLine = 'no record of yesterday';
@@ -3750,11 +3666,20 @@ async function _fetchMorningNudgeAI(review, carriedOver) {
         return '"' + t.text + '"' + (age >= 2 ? ' (' + age + ' days old)' : '');
       });
 
-    const facts =
+    // Trello cards with overdue/checklist markers
+    const cardLines = (cards || []).slice(0, 8).map(t => {
+      const overdue = t.due && t.due.slice(0, 10) < todayStr;
+      const cl = t.checklist ? ' (' + t.checklist.done + '/' + t.checklist.total + ' checked)' : '';
+      return '"' + t.text + '"' + (overdue ? ' — overdue' : '') + cl;
+    });
+
+    let facts =
       'Morning check-in. Today is ' + dayNames[new Date().getDay()] + '. Streak: day ' + streak + '.\n' +
       'Yesterday: ' + yLine + '.\n' +
-      (carriedOver > 0 ? carriedOver + ' task(s) carried over from yesterday.\n' : '') +
-      (taskLines.length ? 'Waiting today:\n' + taskLines.join('\n') : 'The list is empty.');
+      (carriedOver > 0 ? carriedOver + ' task(s) carried over from yesterday.\n' : '');
+    if (taskLines.length) facts += 'Waiting today:\n' + taskLines.join('\n') + '\n';
+    if (cardLines.length) facts += 'Trello cards:\n' + cardLines.join('\n') + '\n';
+    if (!taskLines.length && !cardLines.length) facts += 'The list is empty.';
 
     const res = await fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
@@ -3762,17 +3687,24 @@ async function _fetchMorningNudgeAI(review, carriedOver) {
       body: JSON.stringify({
         provider: _aiGetProvider(),
         apiKey: key,
-        messages: [{ role: 'user', content: facts + '\n\nIf something non-obvious is worth noticing — an aging task, a pattern, a gentle nudge — say that, naming the task naturally. Otherwise state the morning plainly.' }],
+        messages: [{ role: 'user', content: facts + '\n\nName the one thing most worth noticing this morning — an overdue card, an aging task, a natural starting point — naming it plainly. Otherwise state the morning plainly.' }],
         systemPrompt: 'You are the quiet companion in a minimal daily task app. One sentence only. Under 18 words. No quotes, no exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
       }),
     });
     if (!res.ok) return null;
-    const data = await res.json();
-    if (data.error) return null;
-    return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
+    return _parseAIText(await res.json());
   } catch (e) {
     return null;
   }
+}
+
+// Undone (not checked-off) tasks, both sources — the pair every triage/nudge
+// count needs. Reads the live manualTasks/trelloTasks/doneIds globals.
+function _undoneTasks() {
+  return {
+    manual: manualTasks.filter(t => !doneIds.has(t.id)),
+    trello: (trelloTasks || []).filter(t => !doneIds.has(t.id)),
+  };
 }
 
 // Evening triage (per-task)
@@ -3790,8 +3722,7 @@ function checkTriageBar() {
     bar.classList.add('hidden');
     const overlay = $.triageOverlay || document.getElementById('triageOverlay');
     if (overlay && !overlay.classList.contains('hidden')) {
-      const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
-      const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
+      const { manual: undoneManual, trello: undoneTrello } = _undoneTasks();
       const totalUndone = undoneManual.length + undoneTrello.length;
       renderTriageList();
       const titleEl = $.triageTitle || document.getElementById('triageTitle');
@@ -3809,8 +3740,7 @@ function checkTriageBar() {
   
   // Normal bar visibility: 8pm–midnight, undone tasks, not dismissed today
   const hour = new Date().getHours();
-  const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
-  const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
+  const { manual: undoneManual, trello: undoneTrello } = _undoneTasks();
   const totalUndone = undoneManual.length + undoneTrello.length;
   const inTriageWindow = hour >= 20;
 
@@ -3838,8 +3768,7 @@ function triageExpand() {
   _triageHints = {}; // Reset AI hints
   _triageActive = true; // Lock bar hidden while triage is in progress
   
-  const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
-  const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
+  const { manual: undoneManual, trello: undoneTrello } = _undoneTasks();
   const totalUndone = undoneManual.length + undoneTrello.length;
   
   // Hide bar, show overlay
@@ -3968,8 +3897,7 @@ Hint guidelines:
 }
 
 function renderTriageList() {
-  const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
-  const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
+  const { manual: undoneManual, trello: undoneTrello } = _undoneTasks();
   const allUndone = [
     ...undoneManual.map(t => ({ ...t, source: 'manual' })),
     ...undoneTrello.map(t => ({ ...t, text: t.text || t.name, source: 'trello' }))
@@ -4048,8 +3976,7 @@ function triageDecide(id, decision) {
   triageDecisions[id] = decision;
   _haptic('light');
   
-  const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
-  const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
+  const { manual: undoneManual, trello: undoneTrello } = _undoneTasks();
   const allUndone = [...undoneManual, ...undoneTrello];
   const remaining = allUndone.filter(t => !triageDecisions[t.id]).length;
   
@@ -4062,8 +3989,7 @@ function triageDecide(id, decision) {
 }
 
 function triageKeepAll() {
-  const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
-  const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
+  const { manual: undoneManual, trello: undoneTrello } = _undoneTasks();
   undoneManual.forEach(t => triageDecisions[t.id] = 'kept');
   undoneTrello.forEach(t => triageDecisions[t.id] = 'kept');
   triageApplyAll();
@@ -4075,8 +4001,7 @@ function triageApplyAll() {
   triageDismissedToday = true;
   localStorage.setItem('triage_dismissed', _getAppDay());
 
-  const undoneManual = manualTasks.filter(t => !doneIds.has(t.id));
-  const undoneTrello = (trelloTasks || []).filter(t => !doneIds.has(t.id));
+  const { manual: undoneManual, trello: undoneTrello } = _undoneTasks();
   let keptCount = 0, soonCount = 0, letgoCount = 0, doneCount = 0;
 
   // "Done" in triage = completed but never checked off. Mirror a normal check's
@@ -4884,7 +4809,7 @@ function init() {
   _cleanupHabitEvents();  // Purge habit_events older than 30 days
   updateStats();
   checkTriageBar();
-  checkMorningNudge();
+  checkDayNudge();
 
   if (saved.boardId && trelloToken) {
     setTrelloIcon(true);
@@ -5251,9 +5176,7 @@ async function _fetchWeekReflection(stats) {
       }),
     });
     if (!res.ok) return null;
-    const data = await res.json();
-    if (data.error) return null;
-    return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
+    return _parseAIText(await res.json());
   } catch (e) {
     return null;
   }
@@ -5912,7 +5835,7 @@ function renderTrello() {
   });
   // Re-anchor focus timer if active — Trello patch may have replaced the focused task element
   if (window._focusReanchor) window._focusReanchor();
-  if (typeof checkTrelloNudge === 'function') checkTrelloNudge();
+  if (typeof checkDayNudge === 'function') checkDayNudge();
 }
 
 function _getDueStr(task) {
@@ -6631,6 +6554,16 @@ function addHabit() {
   document.getElementById('habitNewBtn').classList.remove('active');
 }
 
+// Brief neutral opacity pulse on a checkbox — the uncheck acknowledgement
+// (Rule 9: uncheck is neutral, no celebration). One-shot, so CSS transition
+// is fine here (Rule 29 applies to looping animations only). Shared by the
+// habit and task uncheck paths.
+function _pulseCheck(check) {
+  check.style.transition = 'opacity 80ms ease';
+  check.style.opacity = '0.4';
+  setTimeout(() => { check.style.opacity = ''; check.style.transition = ''; }, 160);
+}
+
 function toggleHabitDone(id) {
   if (!habitCompletions[id]) habitCompletions[id] = [];
   const today   = _habitTodayISO();
@@ -6730,9 +6663,7 @@ function toggleHabitDone(id) {
   } else {
     // Uncheck: brief neutral pulse on the checkbox
     if (check) {
-      check.style.transition = 'opacity 80ms ease';
-      check.style.opacity = '0.4';
-      setTimeout(() => { check.style.opacity = ''; check.style.transition = ''; }, 160);
+      _pulseCheck(check);
     }
   }
 }
@@ -6822,9 +6753,7 @@ function toggleDone(taskId) {
     if (!isNowDone) {
       const check = el.querySelector('.task-check');
       if (check) {
-        check.style.transition = 'opacity 80ms ease';
-        check.style.opacity = '0.4';
-        setTimeout(() => { check.style.opacity = ''; check.style.transition = ''; }, 160);
+        _pulseCheck(check);
       }
     }
     
@@ -8143,7 +8072,7 @@ window._onWake = function() {
 
   // Check morning nudge — only called in init() normally, so returning users
   // after overnight don't see it without this. Nudge has its own hour < 12 guard.
-  if (typeof checkMorningNudge === 'function') checkMorningNudge();
+  if (typeof checkDayNudge === 'function') checkDayNudge();
 
   // Triage silent window — prevents ticker showing bar before sync settles. (BUG-001)
   _triageBarSilent = true;
@@ -8175,6 +8104,26 @@ window.addEventListener('focus', () => {
   // Unified wake handler — repaint, focus cleanup, triage, pending backup
   if (window._onWake) window._onWake();
 });
+
+// ── Per-day dismissable surfaces (sync registry) ──────────────────────────────
+// One row drives BOTH the backup payload field and the mergeRemoteData block —
+// BUG-051 and BUG-053 each happened because one of those two touchpoints was
+// forgotten for one nudge. A new dismissable surface (e.g. a future digest card)
+// is one row here; payload and merge follow automatically.
+// Model: localStorage key `<prefix>YYYY-MM-DD` (local day, _localISO), value '1';
+// payload carries '1' if dismissed today else ''. No full-restore handling needed —
+// the next 7s merge tick applies it (BUG-051 decision).
+// Triage dismissal is intentionally NOT here: different model (single key holding
+// the app-day string, plus the triageDismissedToday global and two elements) —
+// migrating it would be a backup-schema change with no user payoff.
+const _DISMISS_SYNC = [
+  { field: 'day_nudge_dismissed', prefix: 'day_nudge_dismissed_', el: 'dayNudge' }, // v2.19.0 unified nudge
+  // Legacy fields (pre-2.19.0 devices): their dismiss hides the unified nudge here,
+  // and our payload carries today's value back under the old names so their two
+  // nudges hide too. Remove once all devices are past 2.19.0.
+  { field: 'trello_nudge_dismissed',  prefix: 'day_nudge_dismissed_', el: 'dayNudge' }, // BUG-051
+  { field: 'morning_nudge_dismissed', prefix: 'day_nudge_dismissed_', el: 'dayNudge' }, // BUG-053
+];
 
 // ── Backup ────────────────────────────────────────────────────────────────────
 async function dropboxBackup(silent) {
@@ -8220,10 +8169,9 @@ async function dropboxBackup(silent) {
     triage_history:       safeJSON('today_triage_history', []),
     // Triage dismissed — synced so triage doesn't re-prompt on other devices
     triage_dismissed:        localStorage.getItem('triage_dismissed') || '',
-    // Trello nudge dismissed — synced so nudge doesn't re-show on other devices (BUG-051)
-    trello_nudge_dismissed:  localStorage.getItem('trello_nudge_dismissed_' + _localISO()) || '',
-    // Morning nudge dismissed — synced so nudge doesn't re-show on other devices (BUG-053, same model as BUG-051)
-    morning_nudge_dismissed: localStorage.getItem('morning_nudge_dismissed_' + _localISO()) || '',
+    // Per-day nudge dismiss flags (BUG-051/053) — fields driven by _DISMISS_SYNC,
+    // the same registry that applies them in mergeRemoteData
+    ...Object.fromEntries(_DISMISS_SYNC.map(d => [d.field, localStorage.getItem(d.prefix + _localISO()) || ''])),
     // Daily history — per-day snapshots the week grid reads for past days (v5.3, BUG-036).
     // Union-merged by date on restore so the week view matches across devices.
     daily_history:        safeJSON('today_daily_history', []),
@@ -8746,20 +8694,16 @@ function mergeRemoteData(data) {
     if (triageOverlay) triageOverlay.classList.add('hidden');
   }
 
-  // ── Trello nudge dismissed: sync across devices (BUG-051) ──
-  const _remoteTrelloNudge = data.trello_nudge_dismissed || '';
+  // ── Per-day nudge dismissals: sync across devices (BUG-051/053) ──
+  // Driven by _DISMISS_SYNC — the same registry that puts these fields in the
+  // backup payload, so payload and merge can't drift apart per surface again.
   const _todayISO = _localISO();
-  if (_remoteTrelloNudge === '1' && !localStorage.getItem('trello_nudge_dismissed_' + _todayISO)) {
-    localStorage.setItem('trello_nudge_dismissed_' + _todayISO, '1');
-    if ($.trelloNudge) $.trelloNudge.style.display = 'none';
-  }
-
-  // ── Morning nudge dismissed: sync across devices (BUG-053, same model as BUG-051) ──
-  const _remoteMorningNudge = data.morning_nudge_dismissed || '';
-  if (_remoteMorningNudge === '1' && !localStorage.getItem('morning_nudge_dismissed_' + _todayISO)) {
-    localStorage.setItem('morning_nudge_dismissed_' + _todayISO, '1');
-    if ($.morningNudge) $.morningNudge.style.display = 'none';
-  }
+  _DISMISS_SYNC.forEach(d => {
+    if ((data[d.field] || '') === '1' && !localStorage.getItem(d.prefix + _todayISO)) {
+      localStorage.setItem(d.prefix + _todayISO, '1');
+      if ($[d.el]) $[d.el].style.display = 'none';
+    }
+  });
 
   // Full re-render if tasks were added or removed — surgical patch is not enough
   if (_changed) {
@@ -8990,7 +8934,7 @@ async function dropboxRestore(fromSync) {
       // Prevent checkNewDay() from running new-day cleanup on the next tick
       // and filtering done tasks out of the state we just restored.
       localStorage.setItem('stat_last_visit', _getAppDay());
-      if (typeof checkMorningNudge === 'function') checkMorningNudge();
+      if (typeof checkDayNudge === 'function') checkDayNudge();
       // Seed rev baseline so syncDropbox doesn't immediately re-merge on top of this restore
       if (window._dbxSetRev) {
         try {
@@ -9268,9 +9212,9 @@ async function dropboxRestore(fromSync) {
       // when doneIds might not have been merged yet, causing done tasks to appear
       checkTriageBar();
       // Re-check nudge — applyNewDayCleanup() sets morning_nudge_count but init()'s
-      // checkMorningNudge() ran before cleanup (count may have been missing/stale).
+      // checkDayNudge() ran before cleanup (count may have been missing/stale).
       // Mirrors what the Dropbox restore path already does at line 8700.
-      if (typeof checkMorningNudge === 'function') checkMorningNudge();
+      if (typeof checkDayNudge === 'function') checkDayNudge();
 
       // Signal gate — what's on screen is correct, splash can dismiss if animation
       // also done. Bookkeeping and ticker start continue below, off the gate.

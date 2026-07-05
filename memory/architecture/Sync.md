@@ -297,6 +297,7 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 | PAST tasks | Union by ID, newer zoneChangedAt wins, age-based purge only (done >7d, let_go/aged >30d) — no count cap (v2.17.47) |
 | Stats | Max wins |
 | Triage dismissed | If remote = today, apply locally |
+| Nudge dismissal (unified day nudge) | If remote = `'1'` and local key unset for today, set + hide element. Payload field AND merge block are both driven by the `_DISMISS_SYNC` registry (v2.18.40) — new per-day dismissable surface = one registry row (BUG-051/053 lesson). v2.19.0 merged the two nudges into one `dayNudge` (`day_nudge_dismissed`); the legacy `trello_nudge_dismissed`/`morning_nudge_dismissed` fields remain as registry rows mapped to the new key for pre-2.19.0 devices — remove once all devices updated |
 | Memory | Merge patterns, max of counters, union of moments |
 
 ### Stat Merge — Date Guards

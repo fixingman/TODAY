@@ -267,6 +267,12 @@ const POEMS = [
     source: 'Rubáiyát, trans. FitzGerald (Gutenberg #246) — quoted in How to Stop Worrying, "don\'t saw sawdust"',
   },
   {
+    text: 'Awake! for Morning in the Bowl of Night\nHas flung the Stone that puts the Stars to Flight:\nAnd Lo! the Hunter of the East has caught\nThe Sultan\'s Turret in a Noose of Light.',
+    author: 'Omar Khayyám',
+    season: null,
+    source: "Rubáiyát I, trans. FitzGerald (1st ed. 1859), Gutenberg #246 (FitzGerald d. 1883)",
+  },
+  {
     text: 'Two men look out through the same bars:\nOne sees the mud, and one the stars.',
     author: 'Frederick Langbridge',
     season: null,
@@ -566,5 +572,27 @@ const POEMS = [
     author: 'Wen T\'ung (trans. L. Cranmer-Byng)',
     season: 'spring',
     source: "'Morning', A Feast of Lanterns (1916), verified vs archive.org in.ernet.dli.2015.282424 scan (Cranmer-Byng d. 1945)",
+  },
+
+  // ── Round 16 (Jul 2026) ────────────────────────────────────────────────────
+  {
+    text: 'Thanks for today,\nplease for tomorrow.',
+    author: 'Mother Askani',
+    season: null,
+    source: 'original',
+  },
+
+  // ── Round 17 (Jul 2026) — Seneca via Aubrey Stewart ───────────────────────
+  {
+    text: 'We do not receive a short life,\nbut we make it a short one,\nand we are not poor in days,\nbut wasteful of them.',
+    author: 'Seneca (trans. Aubrey Stewart)',
+    season: null,
+    source: "'On the Shortness of Life' I, trans. Aubrey Stewart (1889), Bohn's Classical Library (Stewart d. 1918) — needs scan verify vs archive.org",
+  },
+  {
+    text: 'Why do you hesitate,\nwhy do you stand back?\nUnless you seize it, it will have fled;\nand even if you do seize it,\nit will still fly.',
+    author: 'Seneca (trans. Aubrey Stewart)',
+    season: null,
+    source: "'On the Shortness of Life', trans. Aubrey Stewart (1889), Bohn's Classical Library (Stewart d. 1918) — needs scan verify vs archive.org",
   },
 ];

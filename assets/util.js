@@ -44,6 +44,16 @@ function _habitTodayISO() {
   return _localISO(_habitNow());
 }
 
+// Remove all localStorage keys with a given prefix except one — used by the
+// per-day nudge dismiss/AI-cache keys (`<prefix>YYYY-MM-DD`) to drop stale days
+// when writing today's (BUG-040). Backward iteration: removeItem shifts indices.
+function _pruneLS(prefix, exceptKey) {
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(prefix) && k !== exceptKey) localStorage.removeItem(k);
+  }
+}
+
 // Minutes → compact "Hh Mm" / "Hh" / "Mm"
 function _formatFocusTime(mins) {
   if (mins >= 60) {
