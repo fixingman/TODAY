@@ -1915,6 +1915,16 @@
     line-height: 1.6;
   }
   .meeting-review-empty .done-star { color: var(--accent); }
+  /* Slim banner shown above items (or centred alone) while final chunk is processing */
+  .meeting-processing-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    padding-bottom: var(--space-3);
+  }
   .meeting-review-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
   .meeting-review-add {
     flex: 1;
@@ -11083,9 +11093,6 @@ function _meetingRecordChunk() {
     if (parts.length) {
       const send = _meetingSendChunk(new Blob(parts, { type: _mtg?.mime || rec.mimeType || 'audio/webm' }));
       if (!wasLive) {
-        // Final chunk: re-render the review after it resolves so the last minute's items appear.
-        // _meetingStop already rendered with a loader (no items) or prior-chunk items; this pass
-        // replaces loader with real results or the empty state.
         send.then(() => {
           const ovl = document.getElementById('meetingOverlay');
           if (_mtg && !_mtg.live && ovl && !ovl.classList.contains('hidden')) {
@@ -11094,11 +11101,16 @@ function _meetingRecordChunk() {
           }
         });
       }
+    } else if (!wasLive) {
+      // No audio in final chunk (stopped right as a new chunk started) — clear banner immediately
+      if (_mtg) _mtg.processingFinalChunk = false;
+      _meetingRenderReview(_mtg);
     }
     if (wasLive) _meetingRecordChunk();
   };
   rec.start();
   _mtg.recorder = rec;
+  _mtg.chunkStartedAt = Date.now(); // used at stop time to compute final chunk duration
   _mtg.chunkTimerId = setTimeout(() => {
     if (_mtg && _mtg.recorder === rec && rec.state === 'recording') rec.stop();
   }, MEETING_CHUNK_MS);
@@ -11166,8 +11178,8 @@ function _meetingStop() {
   document.getElementById('meetingBtn')?.classList.remove('live');
   document.getElementById('meetingPill')?.classList.remove('show');
 
-  // Mark final chunk in-flight so the review shows a loader instead of the empty state.
-  // onstop's promise chain clears this flag before re-rendering with real results.
+  // Snapshot how long the final chunk is so the review can show "Digesting last X min…"
+  _mtg.finalChunkSecs = Math.round((Date.now() - (_mtg.chunkStartedAt || _mtg.startedAt)) / 1000);
   _mtg.processingFinalChunk = true;
   // Render immediately — shows prior-chunk items if any, or loader if none yet.
   _meetingRenderReview(_mtg);
@@ -11181,17 +11193,26 @@ function _meetingRenderReview(state) {
   const add  = document.getElementById('meetingAddBtn');
   if (!list) return;
 
+  // Processing banner — shown while final chunk is in flight, whether or not there are prior items
+  let banner = '';
+  if (state.processingFinalChunk) {
+    const secs = state.finalChunkSecs || 0;
+    const mins = Math.max(1, Math.round(secs / 60));
+    const label = mins === 1 ? '1 min' : mins + ' min';
+    banner = `<div class="meeting-processing-banner"><span class="loading-dots"><span></span><span></span><span></span></span> Digesting last ${label}…</div>`;
+  }
+
   if (!state.items.length) {
     if (sub) sub.style.display = 'none';
     if (add) add.style.display = 'none';
-    if (state.processingFinalChunk) {
-      list.innerHTML = '<div class="meeting-review-empty"><span class="loading-dots"><span></span><span></span><span></span></span></div>';
-      list.querySelectorAll('.loading-dots span').forEach((s, i) => _breathe(s, _KF_BLINK, 1200, [0, 180, 400][i]));
+    if (banner) {
+      list.innerHTML = '<div class="meeting-review-empty">' + banner + '</div>';
     } else {
       list.innerHTML =
         '<div class="meeting-review-empty"><span class="done-star">✦</span> Nothing for you<br>' +
         'No clear action items came up — nice when that happens.</div>';
     }
+    list.querySelectorAll('.loading-dots span').forEach((s, i) => _breathe(s, _KF_BLINK, 1200, [0, 180, 400][i]));
     return;
   }
 
@@ -11199,12 +11220,13 @@ function _meetingRenderReview(state) {
   if (add) add.style.display = '';
   // Mine first (pre-selected), others greyed below
   const sorted = [...state.items].sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0));
-  list.innerHTML = sorted.map((item, i) => `
+  list.innerHTML = banner + sorted.map((item, i) => `
     <div class="meeting-item${item.mine ? ' selected' : ' other'}" data-idx="${i}" onclick="this.classList.toggle('selected');_meetingUpdateCount()">
       <div class="meeting-tick"></div>
       <span>${esc(item.text)}</span>
       ${item.mine || !item.owner ? '' : '<span class="meeting-owner">' + esc(item.owner) + '</span>'}
     </div>`).join('');
+  list.querySelectorAll('.loading-dots span').forEach((s, i) => _breathe(s, _KF_BLINK, 1200, [0, 180, 400][i]));
   _meetingUpdateCount();
 }
 
