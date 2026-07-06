@@ -2775,6 +2775,10 @@
     border-color: var(--accent);
     background: var(--accent-dim);
   }
+  .ai-provider-btn.has-key { border-color: var(--accent-dim); }
+  .ai-provider-btn.has-key::after { content: ' ·'; color: var(--accent); }
+  #aiDefaultRow { margin-top: var(--space-3); display: flex; align-items: center; gap: var(--space-3); }
+  #aiDefaultRow .ai-default-label { font-size: var(--text-sm); color: var(--muted); flex-shrink: 0; }
   .ai-provider-badge {
     display: inline-block;
     font-size: var(--text-micro);
@@ -3075,6 +3079,13 @@
           <button class="btn-ghost" id="aiClearBtn" onclick="clearAIKey()">Forget</button>
           <span id="aiConnectedStatus" style="color:var(--accent);font-size:var(--text-sm)">Connected</span>
         </div>
+      </div>
+
+      <!-- Default selector — only when both providers are connected -->
+      <div id="aiDefaultRow" style="display:none">
+        <span class="ai-default-label">Default</span>
+        <button class="ai-provider-btn" id="aiDefaultGemini" onclick="setDefaultProvider('gemini')">Gemini Flash</button>
+        <button class="ai-provider-btn" id="aiDefaultClaude" onclick="setDefaultProvider('claude')">Claude Sonnet</button>
       </div>
 
       <div class="status-msg" id="aiMsg" style="margin-top:var(--space-3)"></div>
@@ -3427,8 +3438,8 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.22.2': 'Fix — meeting mode: double-start race (mic leak), WAAPI animation accumulation, null deref in final-chunk re-render, final-chunk items missing from review, MIME re-detected per chunk, timer drift in background tabs.',
   '2.22.1': 'Polish — Soon and Past section headers cleaned up; habit countdown sits inline with the header; AI provider switching fixed so switching tabs no longer falsely shows a connected state.',
-  '2.22.0': 'Meeting mode (desktop) — tap the mic by the add bar and TODAY listens, then offers the action items that are yours. Nothing is recorded or stored.',
   '2.21.0': 'Habit nudge — the Habits button breathes after 10pm when habits are still open; the panel shows how much time is left before the day resets.',
 };
 
@@ -4955,8 +4966,18 @@ function applyNewDayCleanup() {
   // NOTE: do NOT clear today_trello_firstseen here — it must persist across days so cards can
   // age from when they entered the list (BUG-049). loadTrello() prunes departed cards instead.
   // deleted_ids persists — deleted tasks should never come back via sync
+  //
+  // Preserve any check/uncheck ops that already carry today's date — these happen when the
+  // user works past midnight and the app detects the day change late (e.g. at 1 AM). Without
+  // this guard, clearing checked_ids wipes those post-midnight entries and today's live count
+  // drops to 0 (BUG-036 continuation).
+  const _newDayISO = _localISO();
+  const _todayChecks   = _getCheckedIds().filter(c => c.at && _localISO(new Date(c.at)) === _newDayISO);
+  const _todayUnchecks = _getUncheckedIds().filter(u => u.at && _localISO(new Date(u.at)) === _newDayISO);
   localStorage.removeItem('today_unchecked_ids');
   localStorage.removeItem('today_checked_ids');
+  if (_todayChecks.length)   localStorage.setItem('today_checked_ids',   JSON.stringify(_todayChecks));
+  if (_todayUnchecks.length) localStorage.setItem('today_unchecked_ids', JSON.stringify(_todayUnchecks));
   
   // Reset triage dismissed flag
   localStorage.removeItem('triage_dismissed');
@@ -9890,11 +9911,23 @@ let _aiReqSeq = 0; // monotonic request id — late responses from superseded re
 let _aiThread = []; // in-session conversation history, cleared on panel close
 
 function _aiGetProvider() { return localStorage.getItem('today_ai_provider') || AI_DEFAULT_PROVIDER; }
-function _aiGetKey()      { return localStorage.getItem('today_ai_key') || ''; }
+function _aiGetKey(provider) {
+  const p = provider || _aiGetProvider();
+  return localStorage.getItem('today_ai_key_' + p) || '';
+}
 function _aiIsConfigured(){ return !!_aiGetKey(); }
 
-// Seed provider from build constant on first visit
+// Seed provider + migrate legacy single-slot key on first visit
 (function _aiInit() {
+  // Migrate old today_ai_key → today_ai_key_<provider>
+  const legacyKey = localStorage.getItem('today_ai_key');
+  if (legacyKey) {
+    const p = localStorage.getItem('today_ai_provider') || AI_BUILD_PROVIDER;
+    if (!localStorage.getItem('today_ai_key_' + p)) {
+      localStorage.setItem('today_ai_key_' + p, legacyKey);
+    }
+    localStorage.removeItem('today_ai_key');
+  }
   if (!localStorage.getItem('today_ai_provider')) {
     localStorage.setItem('today_ai_provider', AI_BUILD_PROVIDER);
   }
@@ -10951,7 +10984,8 @@ function _aiExecute(action) {
 
 const MEETING_CHUNK_MS = 60000;
 
-let _mtg = null; // { stream, recorder, items, context, seconds, timerId, chunkTimerId, live }
+let _mtg = null;          // { stream, recorder, items, context, startedAt, timerId, chunkTimerId, live, mime, dotAnim }
+let _meetingStarting = false; // blocks double-start during the getUserMedia await window
 
 function _meetingSupported() {
   return !('ontouchstart' in window)
@@ -10975,7 +11009,7 @@ function saveMeetingName() {
 function _meetingInit() {
   const btn = document.getElementById('meetingBtn');
   if (!btn) return;
-  const ok = _meetingSupported() && _aiGetKey() && _aiGetProvider() === 'gemini';
+  const ok = _meetingSupported() && !!_aiGetKey('gemini');
   btn.style.display = ok ? 'flex' : 'none';
 }
 
@@ -10985,16 +11019,27 @@ function toggleMeeting() {
 }
 
 async function _meetingStart() {
-  if (_mtg) return;
+  // _meetingStarting covers the getUserMedia await window where _mtg is still null —
+  // without it a second tap opens a parallel stream that is never released.
+  if (_mtg || _meetingStarting) return;
+  _meetingStarting = true;
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (e) {
+    _meetingStarting = false;
     _logSyncError('Meeting', 'Mic access declined — enable it in the browser site settings');
     return;
   }
+  _meetingStarting = false;
 
-  _mtg = { stream, recorder: null, items: [], context: '', seconds: 0, timerId: null, chunkTimerId: null, live: true };
+  // Detect MIME once per session — codec support cannot change mid-meeting
+  const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+    ? 'audio/webm;codecs=opus'
+    : (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : ''); // mp4 = v2 iOS path
+
+  _mtg = { stream, recorder: null, items: [], context: '', startedAt: Date.now(),
+           timerId: null, chunkTimerId: null, live: true, mime, dotAnim: null };
 
   document.getElementById('meetingBtn')?.classList.add('live');
   const pill = document.getElementById('meetingPill');
@@ -11002,16 +11047,19 @@ async function _meetingStart() {
   if (time) time.textContent = '00:00';
   if (pill) {
     pill.classList.add('show');
-    _breathe(pill.querySelector('.meeting-pill-dot'), _KF_BREATHE_SMALL, 2400);
+    // Store the animation handle so _meetingTeardown can cancel it — the pill element
+    // is reused across sessions and _breathe stacks a new animation each call otherwise.
+    _mtg.dotAnim = _breathe(pill.querySelector('.meeting-pill-dot'), _KF_BREATHE_SMALL, 2400);
   }
 
+  // Wall-clock elapsed — immune to background-tab interval throttling
   _mtg.timerId = setInterval(() => {
     if (!_mtg) return;
-    _mtg.seconds++;
+    const elapsed = Math.floor((Date.now() - _mtg.startedAt) / 1000);
     const t = document.getElementById('meetingPillTime');
     if (t) t.textContent =
-      String(Math.floor(_mtg.seconds / 60)).padStart(2, '0') + ':' +
-      String(_mtg.seconds % 60).padStart(2, '0');
+      String(Math.floor(elapsed / 60)).padStart(2, '0') + ':' +
+      String(elapsed % 60).padStart(2, '0');
   }, 1000);
 
   _meetingRecordChunk();
@@ -11020,15 +11068,25 @@ async function _meetingStart() {
 // One self-contained ~60s recording; onstop ships it and starts the next.
 function _meetingRecordChunk() {
   if (!_mtg || !_mtg.live) return;
-  const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-    ? 'audio/webm;codecs=opus'
-    : (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : ''); // mp4 = v2 iOS path
-  const rec = new MediaRecorder(_mtg.stream, mime ? { mimeType: mime } : undefined);
+  const rec = new MediaRecorder(_mtg.stream, _mtg.mime ? { mimeType: _mtg.mime } : undefined);
   const parts = [];
   rec.ondataavailable = (e) => { if (e.data && e.data.size) parts.push(e.data); };
   rec.onstop = () => {
     const wasLive = _mtg && _mtg.live;
-    if (parts.length) _meetingSendChunk(new Blob(parts, { type: rec.mimeType || 'audio/webm' }));
+    if (parts.length) {
+      const send = _meetingSendChunk(new Blob(parts, { type: _mtg?.mime || rec.mimeType || 'audio/webm' }));
+      if (!wasLive) {
+        // Final chunk: re-render the review after it resolves so the last minute's items appear.
+        // _meetingStop already rendered with prior-chunk items for immediate feedback; this pass
+        // updates with anything the final chunk extracted.
+        send.then(() => {
+          const ovl = document.getElementById('meetingOverlay');
+          if (_mtg && !_mtg.live && ovl && !ovl.classList.contains('hidden')) {
+            _meetingRenderReview(_mtg);
+          }
+        });
+      }
+    }
     if (wasLive) _meetingRecordChunk();
   };
   rec.start();
@@ -11039,8 +11097,7 @@ function _meetingRecordChunk() {
 }
 
 async function _meetingSendChunk(blob, isRetry) {
-  // Capture state refs — the meeting may end while this chunk is in flight;
-  // results still merge (final chunk resolves the review list late but correctly).
+  // Capture state at call time — meeting may end while this chunk is in flight
   const state = _mtg;
   if (!state) return;
   try {
@@ -11054,7 +11111,7 @@ async function _meetingSendChunk(blob, isRetry) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        apiKey: _aiGetKey(),
+        apiKey: _aiGetKey('gemini'),
         audioChunk: b64,
         mimeType: blob.type || 'audio/webm',
         userName: localStorage.getItem('today_user_name') || '',
@@ -11071,10 +11128,7 @@ async function _meetingSendChunk(blob, isRetry) {
         state.items.push({ text: item.text, owner: item.owner, mine: item.mine, norm });
       }
     });
-    // Meeting already ended and review is open → refresh it with late results
-    if (!state.live && !document.getElementById('meetingOverlay').classList.contains('hidden')) {
-      _meetingRenderReview(state);
-    }
+    // Re-render for the final chunk is handled by the onstop promise chain above.
   } catch (e) {
     if (!isRetry) { _meetingSendChunk(blob, true); return; }
     _logSyncError('Meeting', 'Chunk dropped — ' + (e.message || 'network').slice(0, 60));
@@ -11086,12 +11140,14 @@ function _meetingStop() {
   _mtg.live = false;
   clearTimeout(_mtg.chunkTimerId);
   clearInterval(_mtg.timerId);
-  if (_mtg.recorder && _mtg.recorder.state === 'recording') _mtg.recorder.stop(); // flushes final chunk
+  if (_mtg.recorder && _mtg.recorder.state === 'recording') _mtg.recorder.stop(); // flushes final chunk via onstop
   _mtg.stream.getTracks().forEach(t => t.stop());
 
   document.getElementById('meetingBtn')?.classList.remove('live');
   document.getElementById('meetingPill')?.classList.remove('show');
 
+  // Render immediately with items from all completed chunks — onstop will re-render
+  // after the final chunk resolves (see _meetingRecordChunk onstop promise chain).
   _meetingRenderReview(_mtg);
   const ovl = document.getElementById('meetingOverlay');
   if (ovl) { ovl.style.animation = ''; ovl.classList.remove('hidden'); }
@@ -11150,6 +11206,7 @@ function _meetingDiscard() { _meetingTeardown(); }
 
 // Ephemerality guarantee: audio, items, and rolling context all die here.
 function _meetingTeardown() {
+  _mtg?.dotAnim?.cancel(); // stop the breathing animation before releasing the reference
   document.getElementById('meetingOverlay')?.classList.add('hidden');
   const list = document.getElementById('meetingItems');
   if (list) list.innerHTML = '';
@@ -11171,19 +11228,21 @@ function setAIProvider(p) {
 }
 
 function _aiRenderConfig() {
-  const provider = _aiGetProvider();
-  const key      = _aiGetKey();
-  const hasKey   = key && key.length > 0;
-
-  // Track which provider user is viewing (may differ from stored provider when switching)
-  const viewingProvider = _aiViewingProvider || provider;
+  const defaultProvider = _aiGetProvider();
+  const viewingProvider = _aiViewingProvider || defaultProvider;
   const isViewingGemini = viewingProvider === 'gemini';
-  
-  // Connected to the provider we're viewing?
-  const isConnectedToViewing = hasKey && (provider === viewingProvider);
 
-  document.getElementById('aiProviderGemini')?.classList.toggle('active', isViewingGemini);
-  document.getElementById('aiProviderClaude')?.classList.toggle('active', !isViewingGemini);
+  const hasGemini = !!_aiGetKey('gemini');
+  const hasClaude = !!_aiGetKey('claude');
+  const bothConnected = hasGemini && hasClaude;
+  const isConnectedToViewing = isViewingGemini ? hasGemini : hasClaude;
+
+  const geminiBtn = document.getElementById('aiProviderGemini');
+  const claudeBtn = document.getElementById('aiProviderClaude');
+  geminiBtn?.classList.toggle('active', isViewingGemini);
+  claudeBtn?.classList.toggle('active', !isViewingGemini);
+  geminiBtn?.classList.toggle('has-key', hasGemini);
+  claudeBtn?.classList.toggle('has-key', hasClaude);
 
   const inputWrap     = document.getElementById('aiKeyInputWrap');
   const connectedWrap = document.getElementById('aiConnectedWrap');
@@ -11191,39 +11250,35 @@ function _aiRenderConfig() {
   const statusLine    = document.getElementById('aiStatusLine');
   const saveBtn       = document.getElementById('aiSaveBtn');
   const keyLink       = document.getElementById('aiKeyLink');
+  const defaultRow    = document.getElementById('aiDefaultRow');
 
-  // Update link for the provider being viewed
   if (keyLink) {
     keyLink.href = isViewingGemini ? 'https://aistudio.google.com/apikey' : 'https://platform.claude.com/login';
     keyLink.textContent = isViewingGemini ? 'Get free key →' : 'Get key →';
   }
 
   if (isConnectedToViewing) {
-    // ── Connected state: hide input row, show connected row ──
     if (inputWrap) inputWrap.style.display = 'none';
     if (connectedWrap) connectedWrap.style.display = '';
   } else {
-    // ── Disconnected or switching provider: show input row ──
     if (inputWrap) inputWrap.style.display = '';
     if (connectedWrap) connectedWrap.style.display = 'none';
-    if (input && !input.matches(':focus')) {
-      input.placeholder = 'Paste your key…';
-      input.value = '';
-    }
+    if (input && !input.matches(':focus')) { input.value = ''; }
     if (statusLine) {
       statusLine.textContent = isViewingGemini ? 'Free tier — no credit card needed' : 'Paid API';
     }
-    if (saveBtn) {
-      saveBtn.disabled = !input?.value?.trim();
-    }
+    if (saveBtn) { saveBtn.disabled = !input?.value?.trim(); }
   }
-  
-  // Clear any lingering error/success message
+
+  // Default selector — only when both providers have keys
+  if (defaultRow) {
+    defaultRow.style.display = bothConnected ? '' : 'none';
+    document.getElementById('aiDefaultGemini')?.classList.toggle('active', defaultProvider === 'gemini');
+    document.getElementById('aiDefaultClaude')?.classList.toggle('active', defaultProvider === 'claude');
+  }
+
   const msgEl = document.getElementById('aiMsg');
-  if (msgEl) {
-    msgEl.textContent = '';
-    msgEl.style.display = 'none';
-  }
+  if (msgEl) { msgEl.textContent = ''; msgEl.style.display = 'none'; }
 }
 
 // Enable/disable Connect button based on input
@@ -11262,12 +11317,10 @@ async function saveAIKey() {
   // Capture which provider is being connected — may differ from stored provider
   const targetProvider = _aiViewingProvider || _aiGetProvider();
 
-  // Simple: just disable button during request, no text change, no interim message
   if (saveBtn) saveBtn.disabled = true;
 
-  // Save key BEFORE the async test — if page reloads mid-validation
-  // (e.g. SW update) the key survives. Delete it on failure.
-  localStorage.setItem('today_ai_key', key);
+  const storageKey = 'today_ai_key_' + targetProvider;
+  localStorage.setItem(storageKey, key);
 
   try {
     const res = await fetch('/.netlify/functions/ai-assist', {
@@ -11281,8 +11334,7 @@ async function saveAIKey() {
     });
 
     if (!res.ok) {
-      // Validation failed — remove the key we optimistically saved
-      localStorage.removeItem('today_ai_key');
+      localStorage.removeItem(storageKey);
       const err = await res.text();
       const isHtml = err.includes('<!DOCTYPE') || err.includes('<html');
       const msg = isHtml ? 'Function not deployed — redeploy site'
@@ -11295,17 +11347,19 @@ async function saveAIKey() {
       return;
     }
 
-    // Success — commit the provider now that the key is verified
-    localStorage.setItem('today_ai_provider', targetProvider);
+    // Set as default only if the other provider has no key (first key wins default)
+    const otherProvider = targetProvider === 'gemini' ? 'claude' : 'gemini';
+    if (!_aiGetKey(otherProvider)) {
+      localStorage.setItem('today_ai_provider', targetProvider);
+    }
     if (input) input.value = '';
-    _aiViewingProvider = null; // reset — now viewing the connected provider
+    _aiViewingProvider = null;
     _aiRenderConfig();
     _updateBarPlaceholder();
     _meetingInit();
 
   } catch(e) {
-    // Network error — remove optimistic save
-    localStorage.removeItem('today_ai_key');
+    localStorage.removeItem(storageKey);
     _msg('Can\'t reach the server — check your connection', 'var(--danger)');
   } finally {
     if (saveBtn) saveBtn.disabled = false;
@@ -11313,9 +11367,22 @@ async function saveAIKey() {
 }
 
 function clearAIKey() {
-  localStorage.removeItem('today_ai_key');
-  localStorage.removeItem('today_ai_provider');
+  const provider = _aiViewingProvider || _aiGetProvider();
+  localStorage.removeItem('today_ai_key_' + provider);
+  // If we just cleared the default, switch default to the other provider if it has a key
+  const other = provider === 'gemini' ? 'claude' : 'gemini';
+  if (_aiGetProvider() === provider) {
+    if (_aiGetKey(other)) localStorage.setItem('today_ai_provider', other);
+    else localStorage.removeItem('today_ai_provider');
+  }
   _aiViewingProvider = null;
+  _aiRenderConfig();
+  _updateBarPlaceholder();
+  _meetingInit();
+}
+
+function setDefaultProvider(p) {
+  localStorage.setItem('today_ai_provider', p);
   _aiRenderConfig();
   _updateBarPlaceholder();
   _meetingInit();
