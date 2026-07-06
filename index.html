@@ -2764,6 +2764,50 @@
   }
   .connection-row-actions .ai-key-input:focus { border-color: var(--muted); }
   .connection-row-actions .ai-key-input::placeholder { color: var(--muted); opacity: 0.7; }
+  /* Name chips — multi-alias input in AI config */
+  .name-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    align-items: center;
+    margin-top: var(--space-2);
+    min-height: 28px;
+  }
+  .name-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 3px var(--space-2);
+    border: 1px solid var(--accent-dim);
+    border-radius: var(--radius-md);
+    background: var(--accent-dim);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text);
+    letter-spacing: 0.04em;
+  }
+  .name-chip-remove {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0 0 0 var(--space-1);
+    font-size: var(--text-sm);
+    line-height: 1;
+  }
+  .name-chip-remove:hover { color: var(--text); }
+  #meetingNameInput {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    letter-spacing: 0.04em;
+    padding: 3px 0;
+    min-width: 80px;
+  }
+  #meetingNameInput::placeholder { color: var(--muted); opacity: 0.7; }
   #aiPanel {
     position: fixed !important;
     left: 0 !important;
@@ -3015,14 +3059,12 @@
       <!-- Provider rows rendered by _aiRenderConfig() -->
       <div id="aiProviderRows" style="margin-top:var(--space-3)"></div>
 
-      <!-- Your name — used by meeting mode to know which action items are yours (v2.22.0) -->
-      <div id="meetingNameWrap" style="margin-top:var(--space-4);display:flex;align-items:center;gap:var(--space-3)">
-        <span style="font-size:var(--text-sm);color:var(--muted);flex-shrink:0">Your name</span>
-        <input class="config-input" id="meetingNameInput" type="text" maxlength="60"
-          autocomplete="off" autocorrect="off" spellcheck="false"
-          placeholder="First name…"
-          style="flex:1"
-          onchange="saveMeetingName()" onkeydown="if(event.key==='Enter')this.blur()" />
+      <!-- Your name(s) — used by meeting mode to know which action items are yours (v2.22.0) -->
+      <div id="meetingNameWrap" style="margin-top:var(--space-4)">
+        <span style="font-size:var(--text-sm);color:var(--muted)">Your name</span>
+        <div class="name-chip-list" id="nameChipList">
+          <!-- chips + inline input rendered by renderMeetingNames() -->
+        </div>
       </div>
     </div>
   </div>
@@ -5104,8 +5146,7 @@ function toggleConfig() {
   if (isOpening) {
     renderConnections();
     setTimeout(_aiRenderConfig, 0);
-    const _nameInput = document.getElementById('meetingNameInput');
-    if (_nameInput) _nameInput.value = localStorage.getItem('today_user_name') || '';
+    renderMeetingNames();
   } else {
     const s = document.getElementById('statusMsg');
     const d = document.getElementById('dropboxMsg');
@@ -8393,8 +8434,9 @@ async function dropboxBackup(silent) {
     // Daily history — per-day snapshots the week grid reads for past days (v5.3, BUG-036).
     // Union-merged by date on restore so the week view matches across devices.
     daily_history:        safeJSON('today_daily_history', []),
-    // User's name — meeting mode attribution (v2.22.0). Last-write-wins on merge.
-    user_name:            localStorage.getItem('today_user_name') || '',
+    // User's name(s) — meeting mode attribution. Primary name in user_name for compat; full list in user_names.
+    user_name:            _getUserNames()[0] || '',
+    user_names:           _getUserNames(),
     // stat_last_visit intentionally excluded — it's local device state, meaningless on another device
   };
 
@@ -8914,11 +8956,16 @@ function mergeRemoteData(data) {
     if (triageOverlay) triageOverlay.classList.add('hidden');
   }
 
-  // ── User name: fill-if-empty (v2.22.0) ──
-  // Set on one device, arrives on the others. Local non-empty value wins — a
-  // deliberate local edit shouldn't be clobbered by a stale backup.
-  if (data.user_name && !localStorage.getItem('today_user_name')) {
-    localStorage.setItem('today_user_name', data.user_name);
+  // ── User names: fill-if-empty — local non-empty wins ──
+  if (!localStorage.getItem('today_user_names')) {
+    // Accept full list from backup, fall back to legacy single-name field
+    const incoming = Array.isArray(data.user_names) && data.user_names.length
+      ? data.user_names
+      : (data.user_name ? [data.user_name] : []);
+    if (incoming.length) {
+      localStorage.setItem('today_user_names', JSON.stringify(incoming));
+      localStorage.setItem('today_user_name', incoming[0]);
+    }
   }
 
   // ── Per-day nudge dismissals: sync across devices (BUG-051/053) ──
@@ -10913,16 +10960,56 @@ function _meetingSupported() {
     && typeof MediaRecorder !== 'undefined';
 }
 
-// Name field in the AI config section — meeting mode's attribution anchor
-function saveMeetingName() {
-  const input = document.getElementById('meetingNameInput');
-  if (!input) return;
-  const name = input.value.trim().slice(0, 60);
-  if (name) localStorage.setItem('today_user_name', name);
+// Multi-name store — migration: single today_user_name → today_user_names array
+function _getUserNames() {
+  const stored = localStorage.getItem('today_user_names');
+  if (stored) { try { return JSON.parse(stored); } catch(_) {} }
+  // Migrate legacy single-name key
+  const legacy = localStorage.getItem('today_user_name');
+  return legacy ? [legacy] : [];
+}
+function _saveUserNames(names) {
+  if (names.length) localStorage.setItem('today_user_names', JSON.stringify(names));
+  else localStorage.removeItem('today_user_names');
+  // Keep today_user_name in sync for backup payload backward compat
+  if (names.length) localStorage.setItem('today_user_name', names[0]);
   else localStorage.removeItem('today_user_name');
   _setLastLocalChange();
   dropboxAutoSave();
 }
+function renderMeetingNames() {
+  const list = document.getElementById('nameChipList');
+  if (!list) return;
+  const names = _getUserNames();
+  list.innerHTML = names.map((n, i) =>
+    `<span class="name-chip">${esc(n)}<button class="name-chip-remove" onclick="removeMeetingName(${i})" aria-label="Remove">×</button></span>`
+  ).join('') +
+  `<input id="meetingNameInput" type="text" maxlength="60"
+    autocomplete="off" autocorrect="off" spellcheck="false"
+    placeholder="${names.length ? 'Add another…' : 'First name…'}"
+    onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();addMeetingName()}"
+    onblur="addMeetingName()" />`;
+}
+function addMeetingName() {
+  const input = document.getElementById('meetingNameInput');
+  if (!input) return;
+  const name = input.value.replace(/,/g, '').trim().slice(0, 60);
+  if (!name) return;
+  const names = _getUserNames();
+  if (!names.includes(name)) { names.push(name); _saveUserNames(names); }
+  input.value = '';
+  renderMeetingNames();
+  // Restore focus to the new input element after re-render
+  document.getElementById('meetingNameInput')?.focus();
+}
+function removeMeetingName(idx) {
+  const names = _getUserNames();
+  names.splice(idx, 1);
+  _saveUserNames(names);
+  renderMeetingNames();
+}
+// Keep old name for any stray callers (panel-open handler)
+function saveMeetingName() { addMeetingName(); }
 
 // Reveal the mic button on desktop when Gemini is configured — called from init()
 // and after AI config changes.
@@ -11034,7 +11121,7 @@ async function _meetingSendChunk(blob, isRetry) {
         apiKey: _aiGetKey('gemini'),
         audioChunk: b64,
         mimeType: blob.type || 'audio/webm',
-        userName: localStorage.getItem('today_user_name') || '',
+        userName: _getUserNames().join(', '),
         rollingContext: state.context,
       }),
     });
