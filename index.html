@@ -10949,7 +10949,7 @@ function _aiExecute(action) {
 // decodable). Failed chunks retry once, then drop: a lost minute beats a dead
 // meeting. See memory/design/Components.md § Meeting Mode.
 
-const MEETING_CHUNK_MS = 180000; // 3-min chunks — ~20 API calls/hour vs 60
+const MEETING_CHUNK_MS = 360000; // 6-min chunks — ~10 API calls/hour
 
 let _mtg = null;          // { stream, recorder, items, context, startedAt, timerId, chunkTimerId, live, mime, dotAnim }
 let _meetingStarting = false; // blocks double-start during the getUserMedia await window
@@ -11150,7 +11150,8 @@ async function _meetingSendChunk(blob, retryCount = 0) {
       // Non-quota first failure: retry once immediately
       return _meetingSendChunk(blob, 1);
     }
-    _logSyncError('Meeting', 'Chunk dropped — ' + msg.slice(0, 60));
+    const label = _isQuota(msg) ? 'Quota limit hit — ' : 'Chunk dropped — ';
+    _logSyncError('Meeting', label + msg.slice(0, 120));
   }
 }
 

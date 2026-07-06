@@ -95,12 +95,26 @@ exports.handler = async function(event) {
       let errorMsg = `Gemini API error (${res.status})`;
       try {
         const errData = JSON.parse(rawText);
-        errorMsg = errData?.error?.message || errorMsg;
-      } catch (e) {
-        if (rawText.includes('<!DOCTYPE') || rawText.includes('<html')) {
+        const geminiMsg = errData?.error?.message || '';
+        const status   = errData?.error?.status || '';
+        if (res.status === 429 || status === 'RESOURCE_EXHAUSTED') {
+          // Extract the specific quota metric name from Gemini's error details if present
+          const details = errData?.error?.details || [];
+          const metaDetail = details.find(d => d['@type']?.includes('QuotaFailure'));
+          const violation = metaDetail?.violations?.[0]?.quotaMetric || '';
+          // e.g. "generate_content_free_tier_input_token_count" → "free-tier input token count"
+          const metricHint = violation
+            ? ' (' + violation.replace(/generate_content_/i, '').replace(/_/g, ' ') + ')'
+            : '';
+          errorMsg = `Quota exceeded${metricHint} — ${geminiMsg || 'check your plan and billing'}`;
+        } else if (geminiMsg) {
+          errorMsg = res.status === 401 || res.status === 403
+            ? 'Invalid API key — ' + geminiMsg
+            : geminiMsg;
+        } else if (rawText.includes('<!DOCTYPE') || rawText.includes('<html')) {
           errorMsg = 'Invalid API key or model not available';
         }
-      }
+      } catch (e) { /* keep default errorMsg */ }
       return _json(res.status, { error: errorMsg });
     }
 
