@@ -3082,17 +3082,13 @@
 <div class="status-msg" id="aiMsg" style="margin-top:var(--space-3)"></div>
 
       <!-- Your name — used by meeting mode to know which action items are yours (v2.22.0) -->
-      <div id="meetingNameWrap" style="margin-top:var(--space-4)">
-        <div style="display:flex;gap:var(--space-2);align-items:center">
-          <input class="config-input" id="meetingNameInput" type="text" maxlength="60"
-            autocomplete="off" autocorrect="off" spellcheck="false"
-            placeholder="Your first name…"
-            style="flex:1"
-            onchange="saveMeetingName()" onkeydown="if(event.key==='Enter')this.blur()" />
-        </div>
-        <div style="margin-top:var(--space-2);font-size:var(--text-xs);color:var(--muted)">
-          Meeting mode uses this to spot which action items are yours. Stays on your devices.
-        </div>
+      <div id="meetingNameWrap" style="margin-top:var(--space-4);display:flex;align-items:center;gap:var(--space-3)">
+        <span style="font-size:var(--text-sm);color:var(--muted);flex-shrink:0">Your name</span>
+        <input class="config-input" id="meetingNameInput" type="text" maxlength="60"
+          autocomplete="off" autocorrect="off" spellcheck="false"
+          placeholder="First name…"
+          style="flex:1"
+          onchange="saveMeetingName()" onkeydown="if(event.key==='Enter')this.blur()" />
       </div>
     </div>
   </div>
