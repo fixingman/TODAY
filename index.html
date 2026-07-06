@@ -1864,6 +1864,7 @@
     overflow-y: auto;
     padding: var(--space-4);
     animation: slideUp 0.25s var(--ease-out);
+    box-shadow: var(--shadow-triage);
   }
   .meeting-review-title {
     font-size: var(--text-sm);
@@ -1936,7 +1937,10 @@
     padding: var(--space-2);
     border-radius: var(--radius-md);
     cursor: pointer;
+    transition: background var(--dur-fast);
   }
+  .meeting-review-add:hover:not([disabled]) { background: var(--accent-hover); }
+  .meeting-review-add[disabled] { opacity: var(--opacity-dim); cursor: default; }
   .meeting-review-discard {
     background: none;
     border: 1px solid var(--border);
@@ -1946,8 +1950,9 @@
     padding: var(--space-2) var(--space-4);
     border-radius: var(--radius-md);
     cursor: pointer;
+    transition: color var(--dur-fast), border-color var(--dur-fast);
   }
-  .meeting-review-discard:hover { color: var(--text); }
+  .meeting-review-discard:hover { color: var(--text); border-color: var(--muted); }
 
   /* Trello config panel */
   /* ── Component: Config Panel ───────────────────────────────────────── */
@@ -11232,7 +11237,10 @@ function _meetingRenderReview(state) {
 function _meetingUpdateCount() {
   const n = document.querySelectorAll('#meetingItems .meeting-item.selected').length;
   const btn = document.getElementById('meetingAddBtn');
-  if (btn) btn.textContent = n === 0 ? 'Add none' : 'Add ' + n + ' task' + (n === 1 ? '' : 's');
+  if (btn) {
+    btn.textContent = n === 0 ? 'Add tasks' : 'Add ' + n + ' task' + (n === 1 ? '' : 's');
+    btn.disabled = n === 0;
+  }
 }
 
 function _meetingAccept() {
