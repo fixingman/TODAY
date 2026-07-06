@@ -2748,48 +2748,22 @@
   .habit-add-btn:hover { opacity: var(--opacity-hover); }
 
   /* ── AI Assistant ─────────────────────────────────────────────────────── */
-  /* Provider selector in Connections panel */
-  .ai-provider-row {
-    display: flex;
-    gap: var(--space-2);
-    margin-bottom: var(--space-3);
-    margin-top: var(--space-3);
-  }
-  .ai-provider-btn {
-    flex: 1;
-    padding: var(--space-2) var(--space-3);
+  /* Key input inside a connection-row-actions — compact inline entry */
+  .connection-row-actions .ai-key-input {
+    width: 140px;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    padding: 5px var(--space-2);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    background: none;
-    color: var(--muted);
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    letter-spacing: 0.06em;
-    cursor: pointer;
-    transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
-    text-align: center;
+    background: var(--bg-input, var(--bg));
+    color: var(--text);
+    letter-spacing: 0.04em;
+    outline: none;
+    transition: border-color var(--dur-fast);
   }
-  .ai-provider-btn:hover { color: var(--text); border-color: var(--muted); }
-  .ai-provider-btn.active {
-    color: var(--accent);
-    border-color: var(--accent);
-    background: var(--accent-dim);
-  }
-  .ai-provider-btn.has-key { border-color: var(--accent-dim); }
-  .ai-provider-btn.is-default::before { content: '✓ '; color: var(--accent); }
-  .ai-provider-badge {
-    display: inline-block;
-    font-size: var(--text-micro);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--accent);
-    border: 1px solid var(--accent-focus-border);
-    border-radius: var(--radius-sm);
-    padding: 1px 4px;
-    margin-left: var(--space-1);
-    vertical-align: middle;
-    opacity: var(--opacity-strong);
-  }
+  .connection-row-actions .ai-key-input:focus { border-color: var(--muted); }
+  .connection-row-actions .ai-key-input::placeholder { color: var(--muted); opacity: 0.7; }
   #aiPanel {
     position: fixed !important;
     left: 0 !important;
@@ -3037,49 +3011,9 @@
     <!-- AI Assistant section -->
     <div class="panel-section" id="aiConfigSection">
       <div class="config-title">✦ AI Assistant</div>
-      <div class="config-hint">
-        Pick a provider and paste your API key. Your key is stored locally and sent only to your own Netlify function — never to a third party.
-      </div>
 
-      <!-- Provider selector -->
-      <div class="ai-provider-row" style="margin-top:var(--space-3)">
-        <button class="ai-provider-btn" id="aiProviderGemini" onclick="setAIProvider('gemini')">
-          Gemini Flash <span class="ai-provider-badge">free</span>
-        </button>
-        <button class="ai-provider-btn" id="aiProviderClaude" onclick="setAIProvider('claude')">
-          Claude Sonnet
-        </button>
-      </div>
-
-      <!-- Key input row: input + connect button inline -->
-      <div id="aiKeyInputWrap" style="margin-top:var(--space-4)">
-        <div style="display:flex;gap:var(--space-2);align-items:stretch">
-          <input class="config-input" id="aiApiKey" autocomplete="off" autocorrect="off"
-            autocapitalize="off" spellcheck="false" type="password"
-            placeholder="Paste your key…"
-            style="flex:1"
-            oninput="_aiUpdateConnectBtn()"
-            onkeydown="if(event.key==='Enter')saveAIKey()" />
-          <button class="btn-primary" id="aiSaveBtn" onclick="saveAIKey()" disabled style="flex-shrink:0">Connect</button>
-        </div>
-        <div style="margin-top:var(--space-2);font-size:var(--text-xs);color:var(--muted)">
-          <span id="aiStatusLine">Free tier — no credit card needed</span>
-          <a id="aiKeyLink" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener"
-            style="color:var(--highlight-ui);text-decoration:none;letter-spacing:0.04em;margin-left:var(--space-2)">
-            Get free key →
-          </a>
-        </div>
-      </div>
-
-      <!-- Connected state -->
-      <div id="aiConnectedWrap" style="display:none;margin-top:var(--space-4)">
-        <div style="display:flex;gap:var(--space-3);align-items:center">
-          <button class="btn-ghost" id="aiClearBtn" onclick="clearAIKey()">Forget</button>
-          <span id="aiConnectedStatus" style="color:var(--accent);font-size:var(--text-sm)">Connected</span>
-        </div>
-      </div>
-
-<div class="status-msg" id="aiMsg" style="margin-top:var(--space-3)"></div>
+      <!-- Provider rows rendered by _aiRenderConfig() -->
+      <div id="aiProviderRows" style="margin-top:var(--space-3)"></div>
 
       <!-- Your name — used by meeting mode to know which action items are yours (v2.22.0) -->
       <div id="meetingNameWrap" style="margin-top:var(--space-4);display:flex;align-items:center;gap:var(--space-3)">
@@ -3478,7 +3412,6 @@ let trelloTasks = [];
 let trelloConnected = false; // cached — avoids localStorage reads in render hot path
 let manualTasks = safeJSON('today_manual', []);
 let doneIds     = new Set(safeJSON('today_done', []));
-let _aiViewingProvider = null; // Track which provider tab user is viewing
 
 // ─── Zones: Soon & Past (prototype) ──────────────────────────────────────────
 let soonTasks = safeJSON('today_soon', []);
@@ -11202,83 +11135,63 @@ function _meetingTeardown() {
 
 // ── Config panel ──────────────────────────────────────────────────────────────
 
-function setAIProvider(p) {
-  _aiViewingProvider = p;
-  // When both providers have keys, tab click also promotes this one to default
-  if (_aiGetKey('gemini') && _aiGetKey('claude')) {
-    localStorage.setItem('today_ai_provider', p);
-  }
-  _aiRenderConfig();
-  // Focus input if showing input field
-  const input = document.getElementById('aiApiKey');
-  const inputWrap = document.getElementById('aiKeyInputWrap');
-  if (input && inputWrap && inputWrap.style.display !== 'none') {
-    input.focus();
-  }
-}
-
 function _aiRenderConfig() {
-  const defaultProvider = _aiGetProvider();
-  const viewingProvider = _aiViewingProvider || defaultProvider;
-  const isViewingGemini = viewingProvider === 'gemini';
+  const container = document.getElementById('aiProviderRows');
+  if (!container) return;
 
+  const defaultProvider = _aiGetProvider();
   const hasGemini = !!_aiGetKey('gemini');
   const hasClaude = !!_aiGetKey('claude');
   const bothConnected = hasGemini && hasClaude;
-  const isConnectedToViewing = isViewingGemini ? hasGemini : hasClaude;
 
-  const geminiBtn = document.getElementById('aiProviderGemini');
-  const claudeBtn = document.getElementById('aiProviderClaude');
-  geminiBtn?.classList.toggle('active', isViewingGemini);
-  claudeBtn?.classList.toggle('active', !isViewingGemini);
-  geminiBtn?.classList.toggle('has-key', hasGemini);
-  claudeBtn?.classList.toggle('has-key', hasClaude);
-  // Show ✓ on the default tab only when both are connected
-  geminiBtn?.classList.toggle('is-default', bothConnected && defaultProvider === 'gemini');
-  claudeBtn?.classList.toggle('is-default', bothConnected && defaultProvider === 'claude');
+  function _providerRow(id, label, hint, keyLink, keyLinkText, hasKey) {
+    const isDefault = bothConnected && defaultProvider === id;
+    const defaultBtn = bothConnected
+      ? `<button class="btn-sm${isDefault ? ' primary' : ''}" onclick="setDefaultProvider('${id}')">${isDefault ? '✓ ' : ''}Default</button>`
+      : '';
 
-  const inputWrap     = document.getElementById('aiKeyInputWrap');
-  const connectedWrap = document.getElementById('aiConnectedWrap');
-  const input         = document.getElementById('aiApiKey');
-  const statusLine    = document.getElementById('aiStatusLine');
-  const saveBtn       = document.getElementById('aiSaveBtn');
-  const keyLink       = document.getElementById('aiKeyLink');
-
-  if (keyLink) {
-    keyLink.href = isViewingGemini ? 'https://aistudio.google.com/apikey' : 'https://platform.claude.com/login';
-    keyLink.textContent = isViewingGemini ? 'Get free key →' : 'Get key →';
-  }
-
-  if (isConnectedToViewing) {
-    if (inputWrap) inputWrap.style.display = 'none';
-    if (connectedWrap) connectedWrap.style.display = '';
-  } else {
-    if (inputWrap) inputWrap.style.display = '';
-    if (connectedWrap) connectedWrap.style.display = 'none';
-    if (input && !input.matches(':focus')) { input.value = ''; }
-    if (statusLine) {
-      statusLine.textContent = isViewingGemini ? 'Free tier — no credit card needed' : 'Paid API';
+    if (hasKey) {
+      return `<div class="connection-row">
+        <div class="connection-row-info">
+          <span class="connection-row-title">${label}</span>
+          <span class="connection-row-status" style="color:var(--accent)">Connected</span>
+        </div>
+        <div class="connection-row-actions">
+          <button class="btn-sm" onclick="clearAIKey('${id}')">Forget</button>
+          ${defaultBtn}
+        </div>
+      </div>`;
     }
-    if (saveBtn) { saveBtn.disabled = !input?.value?.trim(); }
+    return `<div class="connection-row">
+      <div class="connection-row-info">
+        <span class="connection-row-title">${label}</span>
+        <span class="connection-row-status"><a href="${keyLink}" target="_blank" rel="noopener" style="color:var(--highlight-ui);text-decoration:none">${keyLinkText}</a></span>
+      </div>
+      <div class="connection-row-actions">
+        <input class="ai-key-input" id="aiKey_${id}" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Paste key…"
+          oninput="_aiUpdateConnectBtn('${id}')"
+          onkeydown="if(event.key==='Enter')saveAIKey('${id}')" />
+        <button class="btn-sm primary" id="aiConnect_${id}" onclick="saveAIKey('${id}')" disabled>Connect</button>
+      </div>
+      <div id="aiMsg_${id}" class="status-msg" style="display:none;margin-top:var(--space-2);width:100%"></div>
+    </div>`;
   }
 
-  const msgEl = document.getElementById('aiMsg');
-  if (msgEl) { msgEl.textContent = ''; msgEl.style.display = 'none'; }
+  container.innerHTML =
+    _providerRow('gemini', 'Gemini Flash', 'Free tier', 'https://aistudio.google.com/apikey', 'Get free key →', hasGemini) +
+    _providerRow('claude', 'Claude Sonnet', 'Paid API', 'https://platform.claude.com/login', 'Get key →', hasClaude);
 }
 
-// Enable/disable Connect button based on input
-function _aiUpdateConnectBtn() {
-  const input = document.getElementById('aiApiKey');
-  const saveBtn = document.getElementById('aiSaveBtn');
-  if (saveBtn) {
-    saveBtn.disabled = !input?.value?.trim();
-  }
+function _aiUpdateConnectBtn(provider) {
+  const input = document.getElementById('aiKey_' + provider);
+  const btn   = document.getElementById('aiConnect_' + provider);
+  if (btn) btn.disabled = !input?.value?.trim();
 }
 
-async function saveAIKey() {
-  const input   = document.getElementById('aiApiKey');
-  const saveBtn = document.getElementById('aiSaveBtn');
-  const msgEl   = document.getElementById('aiMsg');
+async function saveAIKey(provider) {
+  const input   = document.getElementById('aiKey_' + provider);
+  const saveBtn = document.getElementById('aiConnect_' + provider);
+  const msgEl   = document.getElementById('aiMsg_' + provider);
   // Strip non-printable / non-ASCII characters — pasting from some apps
   // includes smart quotes or zero-width spaces that break HTTP headers
   const key     = (input?.value || '').replace(/[^\x20-\x7E]/g, '').trim();
@@ -11288,10 +11201,8 @@ async function saveAIKey() {
 
   function _msg(text, colour) {
     if (!msgEl) return;
-    // .status-msg is display:none until error/success class is added
-    const isError   = colour.includes('danger');
-    const isSuccess = colour.includes('accent');
-    msgEl.className   = 'status-msg' + (isError ? ' error' : isSuccess ? ' success' : ' error');
+    const isError = colour.includes('danger');
+    msgEl.className   = 'status-msg' + (isError ? ' error' : ' success');
     msgEl.textContent = text;
     msgEl.style.color = colour;
     msgEl.style.display = text ? '' : 'none';
@@ -11299,12 +11210,9 @@ async function saveAIKey() {
 
   if (!key) { _msg('Paste your API key first', 'var(--danger)'); input?.focus(); return; }
 
-  // Capture which provider is being connected — may differ from stored provider
-  const targetProvider = _aiViewingProvider || _aiGetProvider();
-
   if (saveBtn) saveBtn.disabled = true;
 
-  const storageKey = 'today_ai_key_' + targetProvider;
+  const storageKey = 'today_ai_key_' + provider;
   localStorage.setItem(storageKey, key);
 
   try {
@@ -11312,7 +11220,7 @@ async function saveAIKey() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        provider: targetProvider, apiKey: key,
+        provider, apiKey: key,
         messages: [{ role: 'user', content: 'ping' }],
         systemPrompt: 'Reply with only the word: pong',
       }),
@@ -11328,17 +11236,16 @@ async function saveAIKey() {
         : err.includes('quota') ? 'Quota exceeded — try later'
         : 'Can\'t connect — ' + err.slice(0, 50);
       _msg(msg, 'var(--danger)');
+      if (saveBtn) saveBtn.disabled = false;
       input?.select(); input?.focus();
       return;
     }
 
     // Set as default only if the other provider has no key (first key wins default)
-    const otherProvider = targetProvider === 'gemini' ? 'claude' : 'gemini';
+    const otherProvider = provider === 'gemini' ? 'claude' : 'gemini';
     if (!_aiGetKey(otherProvider)) {
-      localStorage.setItem('today_ai_provider', targetProvider);
+      localStorage.setItem('today_ai_provider', provider);
     }
-    if (input) input.value = '';
-    _aiViewingProvider = null;
     _aiRenderConfig();
     _updateBarPlaceholder();
     _meetingInit();
@@ -11346,13 +11253,11 @@ async function saveAIKey() {
   } catch(e) {
     localStorage.removeItem(storageKey);
     _msg('Can\'t reach the server — check your connection', 'var(--danger)');
-  } finally {
     if (saveBtn) saveBtn.disabled = false;
   }
 }
 
-function clearAIKey() {
-  const provider = _aiViewingProvider || _aiGetProvider();
+function clearAIKey(provider) {
   localStorage.removeItem('today_ai_key_' + provider);
   // If we just cleared the default, switch default to the other provider if it has a key
   const other = provider === 'gemini' ? 'claude' : 'gemini';
@@ -11360,7 +11265,6 @@ function clearAIKey() {
     if (_aiGetKey(other)) localStorage.setItem('today_ai_provider', other);
     else localStorage.removeItem('today_ai_provider');
   }
-  _aiViewingProvider = null;
   _aiRenderConfig();
   _updateBarPlaceholder();
   _meetingInit();
