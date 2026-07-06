@@ -1841,8 +1841,9 @@
     cursor: pointer;
     padding: 0 0 0 var(--space-1);
     letter-spacing: 0.05em;
+    transition: color var(--dur-fast);
   }
-  .meeting-pill-stop:hover { color: var(--text); }
+  .meeting-pill-stop:hover { color: var(--danger); }
 
   #meetingOverlay {
     position: fixed;
@@ -3210,7 +3211,7 @@
   <div class="meeting-pill-dot"></div>
   <span class="meeting-pill-time" id="meetingPillTime">00:00</span>
   <span style="color:var(--muted)">·</span>
-  <button class="meeting-pill-stop" onclick="_meetingStop()">stop</button>
+  <button class="meeting-pill-stop" onclick="_meetingStop()" title="Stop recording">×</button>
 </div>
 
 <!-- Meeting mode: end-of-meeting review overlay (v2.22.0) -->
