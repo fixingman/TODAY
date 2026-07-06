@@ -10949,7 +10949,7 @@ function _aiExecute(action) {
 // decodable). Failed chunks retry once, then drop: a lost minute beats a dead
 // meeting. See memory/design/Components.md § Meeting Mode.
 
-const MEETING_CHUNK_MS = 60000;
+const MEETING_CHUNK_MS = 180000; // 3-min chunks — ~20 API calls/hour vs 60
 
 let _mtg = null;          // { stream, recorder, items, context, startedAt, timerId, chunkTimerId, live, mime, dotAnim }
 let _meetingStarting = false; // blocks double-start during the getUserMedia await window
@@ -11104,10 +11104,11 @@ function _meetingRecordChunk() {
   }, MEETING_CHUNK_MS);
 }
 
-async function _meetingSendChunk(blob, isRetry) {
+async function _meetingSendChunk(blob, retryCount = 0) {
   // Capture state at call time — meeting may end while this chunk is in flight
   const state = _mtg;
   if (!state) return;
+  const _isQuota = (msg) => /quota|rate.?limit|resource.?exhausted|429/i.test(msg);
   try {
     const b64 = await new Promise((resolve, reject) => {
       const r = new FileReader();
@@ -11138,8 +11139,19 @@ async function _meetingSendChunk(blob, isRetry) {
     });
     // Re-render for the final chunk is handled by the onstop promise chain above.
   } catch (e) {
-    if (!isRetry) { _meetingSendChunk(blob, true); return; }
-    _logSyncError('Meeting', 'Chunk dropped — ' + (e.message || 'network').slice(0, 60));
+    const msg = e.message || 'network';
+    if (_isQuota(msg) && retryCount < 3) {
+      // Quota errors: back off exponentially (30s → 60s → 120s) then drop silently.
+      // No red dot — quota exhaustion mid-meeting is expected on free tier and not actionable.
+      await new Promise(r => setTimeout(r, 30000 * Math.pow(2, retryCount)));
+      return _meetingSendChunk(blob, retryCount + 1);
+    }
+    if (retryCount === 0) {
+      // Non-quota first failure: retry once immediately
+      return _meetingSendChunk(blob, 1);
+    }
+    // Permanent non-quota failure only surfaces a red dot — quota failures drop silently above
+    if (!_isQuota(msg)) _logSyncError('Meeting', 'Chunk dropped — ' + msg.slice(0, 60));
   }
 }
 
