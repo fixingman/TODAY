@@ -1812,9 +1812,8 @@
     left: 50%;
     transform: translateX(-50%);
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-left: 2px solid var(--accent);
-    border-radius: var(--radius-lg);
+    border: 1px solid var(--accent-dim);
+    border-radius: var(--radius-full);
     padding: 7px var(--space-3);
     display: none;
     align-items: center;
@@ -1840,7 +1839,7 @@
     font-size: var(--text-sm);
     cursor: pointer;
     padding: 0 0 0 var(--space-1);
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     transition: color var(--dur-fast);
   }
   .meeting-pill-stop:hover { color: var(--danger); }
@@ -2767,7 +2766,7 @@
     padding: 5px var(--space-2);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    background: var(--bg-input, var(--bg));
+    background: var(--surface);
     color: var(--text);
     letter-spacing: 0.04em;
     outline: none;
@@ -3210,7 +3209,6 @@
 <div id="meetingPill" style="opacity:0">
   <div class="meeting-pill-dot"></div>
   <span class="meeting-pill-time" id="meetingPillTime">00:00</span>
-  <span style="color:var(--muted)">·</span>
   <button class="meeting-pill-stop" onclick="_meetingStop()" title="Stop recording">×</button>
 </div>
 
