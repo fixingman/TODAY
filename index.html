@@ -11150,8 +11150,7 @@ async function _meetingSendChunk(blob, retryCount = 0) {
       // Non-quota first failure: retry once immediately
       return _meetingSendChunk(blob, 1);
     }
-    // Permanent non-quota failure only surfaces a red dot — quota failures drop silently above
-    if (!_isQuota(msg)) _logSyncError('Meeting', 'Chunk dropped — ' + msg.slice(0, 60));
+    _logSyncError('Meeting', 'Chunk dropped — ' + msg.slice(0, 60));
   }
 }
 
