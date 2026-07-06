@@ -2776,9 +2776,7 @@
     background: var(--accent-dim);
   }
   .ai-provider-btn.has-key { border-color: var(--accent-dim); }
-  .ai-provider-btn.has-key::after { content: ' ·'; color: var(--accent); }
-  #aiDefaultRow { margin-top: var(--space-3); display: flex; align-items: center; gap: var(--space-3); }
-  #aiDefaultRow .ai-default-label { font-size: var(--text-sm); color: var(--muted); flex-shrink: 0; }
+  .ai-provider-btn.is-default::before { content: '✓ '; color: var(--accent); }
   .ai-provider-badge {
     display: inline-block;
     font-size: var(--text-micro);
@@ -3081,14 +3079,7 @@
         </div>
       </div>
 
-      <!-- Default selector — only when both providers are connected -->
-      <div id="aiDefaultRow" style="display:none">
-        <span class="ai-default-label">Default</span>
-        <button class="ai-provider-btn" id="aiDefaultGemini" onclick="setDefaultProvider('gemini')">Gemini Flash</button>
-        <button class="ai-provider-btn" id="aiDefaultClaude" onclick="setDefaultProvider('claude')">Claude Sonnet</button>
-      </div>
-
-      <div class="status-msg" id="aiMsg" style="margin-top:var(--space-3)"></div>
+<div class="status-msg" id="aiMsg" style="margin-top:var(--space-3)"></div>
 
       <!-- Your name — used by meeting mode to know which action items are yours (v2.22.0) -->
       <div id="meetingNameWrap" style="margin-top:var(--space-4)">
@@ -5538,7 +5529,7 @@ function renderConnections() {
           <span class="connection-row-status">${esc(boardName)} → ${esc(listName)}</span>
         </div>
         <div class="connection-row-actions">
-          <button class="btn-sm primary" onclick="loadTrello()">Refresh</button>
+          <button class="btn-sm" onclick="loadTrello()">Refresh</button>
           <button class="btn-sm" onclick="clearTrello()">Forget</button>
         </div>
       </div>`;
@@ -11217,7 +11208,10 @@ function _meetingTeardown() {
 
 function setAIProvider(p) {
   _aiViewingProvider = p;
-  // Don't commit to localStorage here — only write on successful key save
+  // When both providers have keys, tab click also promotes this one to default
+  if (_aiGetKey('gemini') && _aiGetKey('claude')) {
+    localStorage.setItem('today_ai_provider', p);
+  }
   _aiRenderConfig();
   // Focus input if showing input field
   const input = document.getElementById('aiApiKey');
@@ -11243,6 +11237,9 @@ function _aiRenderConfig() {
   claudeBtn?.classList.toggle('active', !isViewingGemini);
   geminiBtn?.classList.toggle('has-key', hasGemini);
   claudeBtn?.classList.toggle('has-key', hasClaude);
+  // Show ✓ on the default tab only when both are connected
+  geminiBtn?.classList.toggle('is-default', bothConnected && defaultProvider === 'gemini');
+  claudeBtn?.classList.toggle('is-default', bothConnected && defaultProvider === 'claude');
 
   const inputWrap     = document.getElementById('aiKeyInputWrap');
   const connectedWrap = document.getElementById('aiConnectedWrap');
@@ -11250,7 +11247,6 @@ function _aiRenderConfig() {
   const statusLine    = document.getElementById('aiStatusLine');
   const saveBtn       = document.getElementById('aiSaveBtn');
   const keyLink       = document.getElementById('aiKeyLink');
-  const defaultRow    = document.getElementById('aiDefaultRow');
 
   if (keyLink) {
     keyLink.href = isViewingGemini ? 'https://aistudio.google.com/apikey' : 'https://platform.claude.com/login';
@@ -11268,13 +11264,6 @@ function _aiRenderConfig() {
       statusLine.textContent = isViewingGemini ? 'Free tier — no credit card needed' : 'Paid API';
     }
     if (saveBtn) { saveBtn.disabled = !input?.value?.trim(); }
-  }
-
-  // Default selector — only when both providers have keys
-  if (defaultRow) {
-    defaultRow.style.display = bothConnected ? '' : 'none';
-    document.getElementById('aiDefaultGemini')?.classList.toggle('active', defaultProvider === 'gemini');
-    document.getElementById('aiDefaultClaude')?.classList.toggle('active', defaultProvider === 'claude');
   }
 
   const msgEl = document.getElementById('aiMsg');
