@@ -2405,6 +2405,7 @@
     letter-spacing: 0.04em;
     white-space: nowrap;
   }
+  .connection-row-title.connected { color: var(--accent); }
   .connection-row-status {
     font-size: var(--text-xs);
     color: var(--muted);
@@ -2695,6 +2696,19 @@
     .config-panel { padding: var(--space-3); }
     /* Habit row: less padding, tighter column gap */
     .habit { padding: var(--space-2); gap: var(--space-2); grid-template-columns: 18px 1fr 65px auto; }
+    /* Tighter section dividers — reclaims vertical space across 3–4 boundaries */
+    .panel-section { margin-top: var(--space-3); padding-top: var(--space-3); }
+    .config-title { margin-bottom: var(--space-3); }
+    /* Stack AI provider rows — name + link on top, input + button below.
+       Prevents horizontal clip on narrow screens where the inline layout
+       crushes the service name and hides the "Get free key →" link entirely. */
+    .connection-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--space-2);
+    }
+    .connection-row-actions { width: 100%; }
+    .connection-row-actions .ai-key-input { flex: 1; }
   }
   .week-dot {
     width: 5px; height: 5px; border-radius: 50%;
@@ -3075,17 +3089,17 @@
 
     <!-- AI Assistant section -->
     <div class="panel-section" id="aiConfigSection">
-      <div class="config-label">✦ AI</div>
+      <div class="config-title">✦&#xFE0E; AI ASSISTANT</div>
 
       <!-- Provider rows rendered by _aiRenderConfig() -->
       <div id="aiProviderRows" style="margin-top:var(--space-3)"></div>
+    </div>
 
-      <!-- Your name(s) — used by meeting mode to know which action items are yours (v2.22.0) -->
-      <div id="meetingNameWrap" style="margin-top:var(--space-4)">
-        <div class="config-label">Your name</div>
-        <div class="name-chip-list" id="nameChipList">
-          <!-- chips + inline input rendered by renderMeetingNames() -->
-        </div>
+    <!-- Your name(s) — used by meeting mode to know which action items are yours (v2.22.0) -->
+    <div class="panel-section" id="meetingNameWrap">
+      <div class="config-label">Your name</div>
+      <div class="name-chip-list" id="nameChipList">
+        <!-- chips + inline input rendered by renderMeetingNames() -->
       </div>
     </div>
   </div>
@@ -3262,6 +3276,7 @@
 <script src="assets/util.js"></script>
 <script src="assets/poems.js"></script>
 <script src="assets/idle.js"></script>
+<script src="assets/sound.js"></script>
 <script>
 // Always start at top — browser's auto scroll-restoration causes mid-page reloads
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -3414,16 +3429,17 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '225h';
+const DEV_HOURS     = '227h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.23.0': 'Polish — meeting mode: longer chunks, quota error detail, wait banner while the last segment processes, pill and review panel design pass. AI config: two clean provider rows, name aliases for better attribution, connections panel design pass. Morning nudge: star instead of card panel; AI sentence and yesterday\'s review now sync across devices.',
-  '2.22.2': 'Fix — meeting mode: double-start race (mic leak), WAAPI animation accumulation, null deref in final-chunk re-render, final-chunk items missing from review, MIME re-detected per chunk, timer drift in background tabs.',
-  '2.22.1': 'Polish — Soon and Past section headers cleaned up; habit countdown sits inline with the header; AI provider switching fixed so switching tabs no longer falsely shows a connected state.',
+  '2.23.6': 'Fix — long-gone tasks could reappear in your list after sync. Tasks that leave the Past section now stay gone, and deletions are remembered for 180 days instead of 30.',
+  '2.23.5': 'Polish — connected services now show their name in accent green; no text label needed. Disconnected services look normal, not dimmed.',
+  '2.23.4': 'Polish — Connections panel is less cramped on mobile: AI provider rows now stack (name and link above, key input and button below) and section spacing is tighter.',
+  '2.23.3': 'Polish — "Your name" gets its own divider section in the Connections panel, consistent with how sections are separated throughout the app.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -3515,26 +3531,35 @@ function _ageSoon() {
 // Purge old items from PAST zone
 // - done items: 7 days
 // - let_go/aged items: 30 days
+// Returns tombstone entries {id, at} for the purged items — callers must persist them
+// into deleted_ids (BUG-054: a purged task is in no list, so without a tombstone any
+// device still holding it in manual_tasks resurrects it into TODAY on merge).
+// Callers persist differently: applyNewDayCleanup appends to localStorage directly;
+// mergeRemoteData injects into mergedDeletedMap BEFORE its own deleted_ids persist
+// (a direct write here would be clobbered by that persist).
 function _purgePast() {
   const now = Date.now();
   const DAY_MS = 24 * 60 * 60 * 1000;
   const DONE_DAYS = 7;
   const LETGO_DAYS = 30;
-  
-  const before = pastTasks.length;
+  const nowISO = new Date(now).toISOString();
+
+  const purgedEntries = [];
   pastTasks = pastTasks.filter(t => {
     if (!t.zoneChangedAt) return true; // Keep items without timestamp (legacy)
     const age = (now - new Date(t.zoneChangedAt).getTime()) / DAY_MS;
-    if (t.status === 'done') return age < DONE_DAYS;
-    if (t.status === 'let_go' || t.status === 'aged') return age < LETGO_DAYS;
-    return true; // Keep unknown statuses
+    let keep = true;
+    if (t.status === 'done') keep = age < DONE_DAYS;
+    else if (t.status === 'let_go' || t.status === 'aged') keep = age < LETGO_DAYS;
+    if (!keep) purgedEntries.push({ id: t.id, at: nowISO });
+    return keep;
   });
-  
-  const purged = before - pastTasks.length;
-  if (purged > 0) {
+
+  if (purgedEntries.length > 0) {
     _savePast();
-    console.log(`[TODAY] Purged ${purged} old items from PAST`);
+    console.log(`[TODAY] Purged ${purgedEntries.length} old items from PAST`);
   }
+  return purgedEntries;
 }
 
 function toggleZone(zone) {
@@ -4947,7 +4972,8 @@ function applyNewDayCleanup() {
   localStorage.removeItem('today_trello_focus_date');
   // NOTE: do NOT clear today_trello_firstseen here — it must persist across days so cards can
   // age from when they entered the list (BUG-049). loadTrello() prunes departed cards instead.
-  // deleted_ids persists — deleted tasks should never come back via sync
+  // deleted_ids persists for 180 days (_cleanupDeletedIds TTL) — deleted and
+  // PAST-purged tasks must not come back via sync within that window (BUG-054)
   //
   // Preserve any check/uncheck ops that already carry today's date — these happen when the
   // user works past midnight and the app detects the day change late (e.g. at 1 AM). Without
@@ -4993,8 +5019,14 @@ function applyNewDayCleanup() {
   // Age old SOON items → PAST (30+ days)
   _ageSoon();
   
-  // Purge old items from PAST (done: 7 days, let_go/aged: 30 days)
-  _purgePast();
+  // Purge old items from PAST (done: 7 days, let_go/aged: 30 days) and tombstone
+  // them in deleted_ids so stale devices can't resurrect them via merge (BUG-054)
+  const _purgedTombs = _purgePast();
+  if (_purgedTombs.length > 0) {
+    const _purgedSet = new Set(_purgedTombs.map(p => p.id));
+    const _tombs = _getDeletedIds().filter(d => !_purgedSet.has(d.id)).concat(_purgedTombs);
+    localStorage.setItem('today_deleted_ids', JSON.stringify(_tombs));
+  }
 
   localStorage.setItem('stat_last_visit', today);
 
@@ -5515,7 +5547,7 @@ function renderConnections() {
     html += `
       <div class="connection-row">
         <div class="connection-row-info">
-          <span class="connection-row-title">Trello</span>
+          <span class="connection-row-title connected">Trello</span>
           <span class="connection-row-status">${esc(boardName)} → ${esc(listName)}</span>
         </div>
         <div class="connection-row-actions">
@@ -5564,8 +5596,8 @@ function renderConnections() {
     html += `
       <div class="connection-row">
         <div class="connection-row-info">
-          <span class="connection-row-title">Dropbox</span>
-          <span class="connection-row-status">${backupStatus ? 'Saved ' + backupStatus : 'Connected'}</span>
+          <span class="connection-row-title connected">Dropbox</span>
+          <span class="connection-row-status">${backupStatus ? 'Saved ' + backupStatus : ''}</span>
         </div>
         <div class="connection-row-actions">
           <button class="btn-sm" onclick="dropboxBackup()">Save</button>
@@ -6309,217 +6341,7 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// ─── Sound design language ────────────────────────────────────────────────────
-// All sine wave. Family of 5 sounds, each a gesture:
-//   start      — snappy rising chirp. Intention. 520→680 Hz, 150ms.
-//   resume     — ascending chirp, start's quieter sibling. 500→600 Hz, 120ms.
-//   complete   — warm two-step fall. Task done. 600→480→380 Hz, 240ms.
-//   habitDone  — heavier three-step fall. Habit done. 520→400→300 Hz, 320ms.
-//   chime      — low organic growl + wobble. Session end. Two osc, ~1.4s.
-
-// Persistent AudioContext — created once on first user gesture, kept alive.
-// A context created during a user interaction survives background tabs.
-// Creating a fresh context when the tab is hidden always fails.
-let _sharedAudioCtx = null;
-
-function _getAudioCtx() {
-  try {
-    if (!_sharedAudioCtx || _sharedAudioCtx.state === 'closed') {
-      _sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    return _sharedAudioCtx;
-  } catch(e) { return null; }
-}
-
-// ─── Haptic feedback ─────────────────────────────────────────────────────────
-// Unified haptic helper. Works on:
-//   Android Chrome  — navigator.vibrate() with differentiated patterns
-//   iOS Safari 17.4+ — <input type=checkbox switch> trick (system haptic tap)
-//   Desktop / unsupported — silent no-op, zero cost
-//
-// Presets and their Android vibration patterns (iOS always fires one system tap):
-//   success   — [40, 60, 80]   double rising pulse — task/habit check, session end
-//   warning   — [30, 40, 30]   sharp double        — delete
-//   heavy     — [65]           single firm press   — long-press drag activate
-//   selection — [12]           tiny tick           — drag row snaps to new slot
-//   medium    — [40]           standard tap        — fallback
-//
-// Rules (from web-haptics design guide):
-//   - Supplement visuals, never replace them. UI works fully without haptics.
-//   - Fire at the exact instant the visual change occurs.
-//   - Don't overuse — reserve for meaningful moments.
-(function() {
-  const PATTERNS = {
-    success:   [40, 60, 80],
-    warning:   [30, 40, 30],
-    heavy:     [65],
-    selection: [12],
-    medium:    [40],
-  };
-
-  // iOS: Use <input type=checkbox switch> trick — WebKit fires a system haptic when
-  // the switch toggles. MUST be called synchronously within a user gesture handler.
-  // _haptic() is always called synchronously from click/touch handlers so this works.
-  // The element must be "visible" to the browser (not display:none) — opacity:0 is fine.
-  //
-  // Android: navigator.vibrate() with differentiated patterns.
-  // Desktop: silent no-op.
-  const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const _hasVibrate = !_isIOS && typeof navigator.vibrate === 'function';
-
-  // Create switch element eagerly — avoids DOM append cost on the first haptic call,
-  // which would otherwise delay svg.animate() on iOS cold start. (BUG-030)
-  const _sw = document.createElement('input');
-  _sw.type = 'checkbox';
-  _sw.setAttribute('switch', '');
-  // Must not be display:none/visibility:hidden — needs to exist in the render tree
-  _sw.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;' +
-    'opacity:0;pointer-events:none;margin:0;padding:0;border:none;outline:none;' +
-    '-webkit-appearance:none;appearance:none;';
-  document.body.appendChild(_sw);
-
-  function _iosHaptic() {
-    _sw.click(); // toggle fires system haptic — works because we're in user gesture stack
-  }
-
-  window._haptic = function(preset) {
-    if (_isIOS) {
-      _iosHaptic();
-    } else if (_hasVibrate) {
-      navigator.vibrate(PATTERNS[preset] || PATTERNS.medium);
-    }
-  };
-})();
-
-// Call this on any user gesture to warm up the context while the tab is active.
-function _primeAudio() {
-  const ctx = _getAudioCtx();
-  if (ctx && ctx.state === 'suspended') ctx.resume().catch(function(){});
-}
-
-// Pre-warm AudioContext on the very first user interaction with the page —
-// before the task list is visible. This avoids a 200-600ms main-thread block
-// on mobile when the user first taps a task (cold AudioContext creation).
-// We use pointerdown on the splash screen since that's the first touch.
-(function _preWarmAudio() {
-  function _warm() {
-    _getAudioCtx(); // creates context
-    _primeAudio();  // calls resume() — hardware init happens now, not on first task tap
-    document.removeEventListener('pointerdown', _warm);
-    document.removeEventListener('touchstart', _warm);
-  }
-  document.addEventListener('pointerdown', _warm, { once: true, passive: true });
-  document.addEventListener('touchstart', _warm, { once: true, passive: true });
-})();
-
-function _withCtx(fn) {
-  try {
-    const ctx = _getAudioCtx();
-    if (!ctx) return;
-    // Always resume if suspended — but don't wait for the promise.
-    // Playing immediately after resume() in a user gesture works because
-    // the browser queues the audio and plays it once resumed (same frame).
-    // Waiting for .then() caused noticeable delay after long focus sessions.
-    if (ctx.state === 'suspended') ctx.resume().catch(function(){});
-    fn(ctx);
-  } catch(e) {}
-}
-
-// Start — snappy ascending chirp. Plays on fresh session start and reset.
-function playStartSound() {
-  _withCtx(function(ctx) {
-    const osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'sine';
-    const t = ctx.currentTime;
-    osc.frequency.setValueAtTime(520, t);
-    osc.frequency.exponentialRampToValueAtTime(680, t + 0.06);
-    gain.gain.setValueAtTime(0.001, t);
-    gain.gain.exponentialRampToValueAtTime(0.20, t + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-    osc.start(t); osc.stop(t + 0.15);
-  });
-}
-
-// Resume — gentle rising nudge. Softer sibling of start.
-function playResumeSound() {
-  _withCtx(function(ctx) {
-    const osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'sine';
-    const t = ctx.currentTime;
-    // Same ascending shape as start (520→680) but shorter rise, lower ceiling.
-    // Clearly in the "action" family — not closure territory.
-    osc.frequency.setValueAtTime(500, t);
-    osc.frequency.exponentialRampToValueAtTime(600, t + 0.05);
-    gain.gain.setValueAtTime(0.001, t);
-    gain.gain.exponentialRampToValueAtTime(0.15, t + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.10);
-    osc.start(t); osc.stop(t + 0.12);
-  });
-}
-
-// Complete — warm descending two-step. Task done.
-function playCompleteSound() {
-  _withCtx(function(ctx) {
-    const osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'sine';
-    const t = ctx.currentTime;
-    osc.frequency.setValueAtTime(600, t);
-    osc.frequency.exponentialRampToValueAtTime(480, t + 0.09);
-    osc.frequency.exponentialRampToValueAtTime(380, t + 0.20);
-    gain.gain.setValueAtTime(0.001, t);
-    gain.gain.exponentialRampToValueAtTime(0.22, t + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.12, t + 0.10);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-    osc.start(t); osc.stop(t + 0.24);
-  });
-}
-
-// Habit done — heavier sibling of complete. Same descending gesture, more body:
-// starts lower (520 Hz vs 600), three steps instead of two (520→400→300 Hz),
-// slightly longer tail (320ms vs 240ms), marginally fuller gain (0.16 vs 0.13).
-// The extra step and lower floor give it more gravity — a habit earns it.
-function playHabitDoneSound() {
-  _withCtx(function(ctx) {
-    const osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'sine';
-    const t = ctx.currentTime;
-    osc.frequency.setValueAtTime(520, t);
-    osc.frequency.exponentialRampToValueAtTime(400, t + 0.10);
-    osc.frequency.exponentialRampToValueAtTime(300, t + 0.26);
-    gain.gain.setValueAtTime(0.001, t);
-    gain.gain.exponentialRampToValueAtTime(0.26, t + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.13, t + 0.12);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.30);
-    osc.start(t); osc.stop(t + 0.32);
-  });
-}
-
-// Chime — same sine family as start/resume/complete. Three notes ascending
-// then one settling back — done, done, done, rest. Belongs to the same sound package.
-function playChime() {
-  _withCtx(function(ctx) {
-    function note(freq, startT, vol, dur) {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination);
-      o.type = 'sine';
-      o.frequency.setValueAtTime(freq, startT);
-      g.gain.setValueAtTime(0.001, startT);
-      g.gain.exponentialRampToValueAtTime(vol, startT + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.001, startT + dur);
-      o.start(startT); o.stop(startT + dur + 0.05);
-    }
-    const t = ctx.currentTime;
-    note(520, t,        0.17, 0.18); // same as start — familiar
-    note(600, t + 0.14, 0.15, 0.18); // step up
-    note(680, t + 0.28, 0.15, 0.22); // peak — same ceiling as start
-    note(520, t + 0.50, 0.12, 0.55); // settle back down, long fade — done
-  });
-}
+// ─── Sound + haptics ── moved to assets/sound.js (self-contained, browser APIs only).
 
 // ── Accent glow flash — subtle visual reward for "all done" moment ──
 function _flashAccentGlow() {
@@ -7990,15 +7812,23 @@ const _cleanupDeletedIds = () => {
     ...pastTasks.map(t => t.id)
   ]);
   const deleted = _getDeletedIds();
-  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-  
-  // Remove entries that: (1) match zone tasks, OR (2) are older than 30 days
-  const cleaned = deleted.filter(d => {
+  // 180-day TTL — long enough that any realistically-offline device syncs first
+  // (BUG-054: the old 30-day TTL let stale devices resurrect deleted tasks).
+  // Entries ride every backup payload, so they can't persist forever.
+  const cutoff = Date.now() - (180 * 24 * 60 * 60 * 1000);
+
+  // Remove entries that: (1) match zone tasks, OR (2) are older than 180 days
+  let cleaned = deleted.filter(d => {
     if (zoneIds.has(d.id)) return false; // in a zone — shouldn't be in deleted
-    if (d.at && new Date(d.at).getTime() < thirtyDaysAgo) return false; // too old
+    if (d.at && new Date(d.at).getTime() < cutoff) return false; // too old
     return true;
   });
-  
+
+  // Backstop against pathological growth: keep only the newest 2000 tombstones
+  if (cleaned.length > 2000) {
+    cleaned = cleaned.sort((a, b) => (b.at || '').localeCompare(a.at || '')).slice(0, 2000);
+  }
+
   if (cleaned.length !== deleted.length) {
     console.log('[TODAY] Cleaned', deleted.length - cleaned.length, 'stale deleted_ids');
     localStorage.setItem('today_deleted_ids', JSON.stringify(cleaned));
@@ -8619,6 +8449,9 @@ function mergeRemoteData(data) {
   const mergedTasks = orderedTasks.filter(t => {
     const deletedAt = mergedDeletedMap.get(t.id);
     if (!deletedAt) return true;
+    // A pull-back to TODAY newer than the tombstone wins — protects a task pulled
+    // from PAST on one device racing another device's purge tombstone (BUG-054)
+    if (t.zoneChangedAt && t.zoneChangedAt > deletedAt) return true;
     const taskCreatedAt = t.id.startsWith('manual_')
       ? new Date(parseInt(t.id.replace('manual_', ''))).toISOString()
       : null;
@@ -8789,7 +8622,7 @@ function mergeRemoteData(data) {
   soonTasks = [...soonMap.values()];
   localStorage.setItem('today_soon', JSON.stringify(soonTasks));
   
-  // Merge PAST: union by ID, most recent zoneChangedAt wins, keep last 100, exclude deleted and pulled-back
+  // Merge PAST: union by ID, most recent zoneChangedAt wins, exclude deleted and pulled-back
   const pastMap = new Map();
   pastTasks.forEach(t => {
     if (!mergedDeletedMap.has(t.id)) pastMap.set(t.id, t);
@@ -8822,7 +8655,12 @@ function mergeRemoteData(data) {
   // so items expired locally don't get resurrected from remote on every sync
   pastTasks = [...pastMap.values()]
     .sort((a, b) => (b.zoneChangedAt || '').localeCompare(a.zoneChangedAt || ''));
-  _purgePast();
+  // Tombstone purged items via mergedDeletedMap — NOT a direct localStorage write,
+  // which the merged-log persist below would clobber (BUG-054). The map write also
+  // puts them in the next backup payload via _getDeletedIds().
+  _purgePast().forEach(p => {
+    if (!mergedDeletedMap.has(p.id)) mergedDeletedMap.set(p.id, p.at);
+  });
   // _purgePast() calls _savePast() internally when items are removed;
   // save unconditionally here to cover the no-purge path
   localStorage.setItem('today_past', JSON.stringify(pastTasks));
@@ -11312,8 +11150,7 @@ function _aiRenderConfig() {
     if (hasKey) {
       return `<div class="connection-row">
         <div class="connection-row-info">
-          <span class="connection-row-title">${label}</span>
-          <span class="connection-row-status connected">Connected</span>
+          <span class="connection-row-title connected">${label}</span>
         </div>
         <div class="connection-row-actions">
           ${defaultBtn}

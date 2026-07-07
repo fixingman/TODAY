@@ -6,6 +6,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 054 | Phantom old tasks resurrect in TODAY list via sync merge | ⏳ v2.23.6 |
 | 053 | Morning nudge dismissal not synced across devices | ✅ v2.18.38 |
 | 052 | Splash dismissal slow — sync bookkeeping held the gate | ✅ v2.18.36 |
 | 051 | Trello nudge dismissal not synced across devices | ✅ v2.18.23 |
@@ -63,6 +64,26 @@
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-054: Phantom old tasks resurrect in TODAY list via sync merge
+
+**Status:** ⏳ v2.23.6 — awaiting verify
+
+**Symptom:** (2026-07-07) Old tasks Can had completed long ago reappeared in the manual TODAY list, unchecked — some with pomodoro icons (`focusSessions` lives on the task object) and aged styling (age derives from the `manual_<timestamp>` ID). No unusual device involved; localhost dev copy ruled out (inspected: no Dropbox token, empty state).
+
+**Root cause (two holes, same class as BUG-018):** `mergeRemoteData` union-merges `manual_tasks`; a task is protected from resurrection only while tombstoned in `deleted_ids` or present in a local SOON/PAST zone. (1) `_purgePast()` dropped PAST items (done: 7d, let_go/aged: 30d) with **no tombstone** — once purged, any device whose state still carried the task in `manual_tasks` (e.g. hadn't synced in a couple of weeks) resurrected it as `localOnly` and pushed it to every device. (2) `_cleanupDeletedIds()` pruned tombstones after **30 days**, contradicting the "deleted tasks should never come back via sync" invariant — explicit deletions also lost protection.
+
+**Fix (v2.23.6):** `_purgePast()` now returns `{id, at}` tombstones for purged items; `applyNewDayCleanup` appends them to `today_deleted_ids`, and `mergeRemoteData` injects them into `mergedDeletedMap` *before* its merged-log persist (a direct localStorage write there would be clobbered). Tombstone TTL 30 → 180 days with a newest-2000 backstop. Hardening: merge filter also keeps a task whose `zoneChangedAt` is newer than its tombstone (pull-back racing a purge). Stale "keep last 100" comment on the PAST merge removed (no cap exists).
+
+**Known residual:** a device still holding pre-fix state can resurrect once more until it syncs the new tombstones; deleting the phantoms (as Can did) tombstones them for 180 days.
+
+**Verify:**
+- No phantom reappearance over the following weeks of normal multi-device use.
+- Console check on any device: complete a task, let it roll to PAST, simulate age (edit `zoneChangedAt` to 8 days ago), reload → task purges AND its ID appears in `today_deleted_ids`.
+
+**Verified fixed:** ☐
 
 ---
 
