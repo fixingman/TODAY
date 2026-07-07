@@ -215,11 +215,16 @@ Listens to a meeting through the mic; the only artifact is tasks. No transcript,
 
 **Entry:** mic SVG button (`#meetingBtn`, `.add-mic-btn`) in the add bar between input and ✦. Revealed by `_meetingInit()` only when: no touch support, `MediaRecorder` present, Gemini key set (`_aiGetKey() && _aiGetProvider()==='gemini'` — Anthropic has no audio input). Re-checked after AI connect/forget.
 
-**Listening (non-blocking):** `#meetingPill` fixed above the add bar — breathing accent dot (`_KF_BREATHE_SMALL`, 2400ms), elapsed `MM:SS`, `stop`. The app stays fully usable; tasks can be added mid-meeting. Can explicitly rejected the full-screen listening mockup. Mic button gets `.live` (accent) while recording; clicking it again also stops.
+**Listening (non-blocking):** `#meetingPill` fixed above the add bar — breathing **red** dot (`--danger`, `_KF_BREATHE_SMALL`, 2400ms; red = universal recording signal), elapsed `MM:SS`, `stop` button (labelled "stop" not "×" — × reads as delete in this app). The app stays fully usable; tasks can be added mid-meeting. Can explicitly rejected the full-screen listening mockup. Mic button gets `.live` (accent) while recording; clicking it again also stops.
 
 **Pipeline:** `getUserMedia` → `MediaRecorder` webm/opus, ~60s chunks via recorder **stop/restart** (never `timeslice` — later chunks aren't independently decodable; pattern survives the v2 iOS port). Each chunk → base64 → `netlify/functions/meeting-extract.js` → Gemini 2.5 Flash (audio inline, transcribe-internally prompt, transcript never in the response) → `{actionItems:[{text,owner,mine}], updatedContext}`. Rolling context string (speaker hints, open threads, ≤150 words) carries attribution across chunks — in memory only. Chunk failure: retry once, then drop + `_logSyncError('Meeting', …)` — a lost minute beats a dead meeting.
 
-**Review:** `#meetingOverlay` (triage-overlay clone: fixed scrim, bottom sheet, slideUp). Mine pre-selected with accent border/fill; others' at 45% opacity with owner label — tap to grab/drop; Add-count updates live. Accept → `manualTasks.push` + `renderManual()` + `dropboxAutoSave()`. Empty state: "✦ Nothing for you / No clear action items came up — nice when that happens." Late in-flight chunk results re-render the open review.
+**Review panel (v2.23.7):** `#meetingOverlay` (fixed scrim, bottom sheet, slideUp). Three states rendered by `_meetingRenderReview()`:
+- **State 1 — digesting, no prior items:** title "Digesting…" (white 15px), sub hidden, Add disabled; centred focal loader (5px dots + "last X min" below).
+- **State 2 — digesting + prior items showing:** title "From your call", sub visible; inset strip `.meeting-processing-strip` ("Still digesting last X min") above items.
+- **State 3 — review ready:** title "From your call", sub visible; thin `--border` rule separates header from items.
+- **Empty result:** "✦ Nothing for you / No clear action items came up." Title: "From your call".
+Header: `.meeting-eyebrow` ("Meeting", 9px muted caps) + `.meeting-review-title` (15px white, state-driven) + `.meeting-review-sub` (muted xs, conditional). Mine pre-selected with accent border/fill; others at 45% opacity with owner label — tap to grab/drop; Add-count updates live. Accept → `manualTasks.push` + `renderManual()` + `dropboxAutoSave()`.
 
 **Attribution without voice ID:** `today_user_name` ("Your first name…" input in the AI config section; fill-if-empty on merge, in backup payload) tells the prompt whose commitments to flag. The review tap is the final identity filter — AI optimizes recall, Can's tap is precision.
 

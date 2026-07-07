@@ -1828,7 +1828,7 @@
   #meetingPill.show { display: flex; }
   .meeting-pill-dot {
     width: 7px; height: 7px; border-radius: 50%;
-    background: var(--accent);
+    background: var(--danger);
     flex-shrink: 0;
   }
   .meeting-pill-time {
@@ -1870,16 +1870,28 @@
     animation: slideUp var(--dur-slow) var(--ease-out);
     box-shadow: var(--shadow-triage);
   }
-  .meeting-review-title {
-    font-size: var(--text-sm);
+  .meeting-panel-head { margin-bottom: var(--space-3); }
+  .meeting-eyebrow {
+    font-size: var(--text-xs);
     color: var(--muted);
-    letter-spacing: 0.08em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+  }
+  .meeting-review-title {
+    font-size: 15px;
+    color: var(--text);
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    margin-bottom: 3px;
   }
   .meeting-review-sub {
     font-size: var(--text-xs);
     color: var(--muted);
+  }
+  .meeting-review-rule {
+    height: 1px;
+    background: var(--border);
     margin-bottom: var(--space-3);
   }
   .meeting-item {
@@ -1920,15 +1932,33 @@
     line-height: 1.6;
   }
   .meeting-review-empty .done-star { color: var(--accent); }
-  /* Slim banner shown above items (or centred alone) while final chunk is processing */
-  .meeting-processing-banner {
+  /* State 1 — centred focal loader while digesting with no prior items */
+  .meeting-processing-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-5) 0 var(--space-4);
+  }
+  .meeting-processing-center .loading-dots span { width: 5px; height: 5px; }
+  .meeting-processing-label {
+    font-size: var(--text-xs);
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+  /* State 2 — inset strip above prior items while still digesting */
+  .meeting-processing-strip {
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    padding: 7px var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+    margin-bottom: var(--space-2);
     font-size: var(--text-xs);
     color: var(--muted);
     letter-spacing: 0.04em;
-    padding-bottom: var(--space-3);
   }
   .meeting-review-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
   .meeting-review-add {
@@ -3234,14 +3264,17 @@
 <div id="meetingPill" style="opacity:0">
   <div class="meeting-pill-dot"></div>
   <span class="meeting-pill-time" id="meetingPillTime">00:00</span>
-  <button class="meeting-pill-stop" onclick="_meetingStop()" title="Stop recording">×</button>
+  <button class="meeting-pill-stop" onclick="_meetingStop()" title="Stop recording">stop</button>
 </div>
 
 <!-- Meeting mode: end-of-meeting review overlay (v2.22.0) -->
 <div id="meetingOverlay" class="hidden" style="opacity:0">
   <div id="meetingPanel">
-    <div class="meeting-review-title">From this meeting</div>
-    <div class="meeting-review-sub" id="meetingReviewSub">Yours are selected · grab a grey one if it's actually yours</div>
+    <div class="meeting-panel-head">
+      <div class="meeting-eyebrow">Meeting</div>
+      <div class="meeting-review-title" id="meetingReviewTitle">From your call</div>
+      <div class="meeting-review-sub" id="meetingReviewSub">Yours are pre-selected · tap others to grab them</div>
+    </div>
     <div id="meetingItems"></div>
     <div class="meeting-review-actions">
       <button class="meeting-review-add" id="meetingAddBtn" onclick="_meetingAccept()">Add tasks</button>
@@ -3429,13 +3462,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '227h';
+const DEV_HOURS     = '228h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.23.7': 'Polish — meeting review panel redesigned: clearer header hierarchy, digesting state is a calm focal moment, processing strip sits cleanly above any prior items. Recording dot is now red (universal recording signal); stop button labelled "stop" instead of ×.',
   '2.23.6': 'Fix — long-gone tasks could reappear in your list after sync. Tasks that leave the Past section now stay gone, and deletions are remembered for 180 days instead of 30.',
   '2.23.5': 'Polish — connected services now show their name in accent green; no text label needed. Disconnected services look normal, not dimmed.',
   '2.23.4': 'Polish — Connections panel is less cramped on mobile: AI provider rows now stack (name and link above, key input and button below) and section spacing is tighter.',
@@ -11053,25 +11087,27 @@ function _meetingStop() {
 }
 
 function _meetingRenderReview(state) {
-  const list = document.getElementById('meetingItems');
-  const sub  = document.getElementById('meetingReviewSub');
-  const add  = document.getElementById('meetingAddBtn');
+  const list  = document.getElementById('meetingItems');
+  const title = document.getElementById('meetingReviewTitle');
+  const sub   = document.getElementById('meetingReviewSub');
+  const add   = document.getElementById('meetingAddBtn');
   if (!list) return;
 
-  // Processing banner — shown while final chunk is in flight, whether or not there are prior items
-  let banner = '';
-  if (state.processingFinalChunk) {
-    const secs = state.finalChunkSecs || 0;
-    const mins = Math.max(1, Math.round(secs / 60));
-    const label = mins === 1 ? '1 min' : mins + ' min';
-    banner = `<div class="meeting-processing-banner"><span class="loading-dots"><span></span><span></span><span></span></span> Digesting last ${label}…</div>`;
-  }
+  const processing = state.processingFinalChunk;
+  const secs = state.finalChunkSecs || 0;
+  const mins = Math.max(1, Math.round(secs / 60));
+  const label = mins === 1 ? '1 min' : mins + ' min';
 
   if (!state.items.length) {
+    // State 1 — digesting with no prior items, or empty result
+    if (title) title.textContent = processing ? 'Digesting…' : 'From your call';
     if (sub) sub.style.display = 'none';
-    if (add) add.style.display = 'none';
-    if (banner) {
-      list.innerHTML = '<div class="meeting-review-empty">' + banner + '</div>';
+    if (add) add.disabled = true;
+    if (processing) {
+      list.innerHTML = `<div class="meeting-processing-center">
+        <span class="loading-dots"><span></span><span></span><span></span></span>
+        <span class="meeting-processing-label">last ${label}</span>
+      </div>`;
     } else {
       list.innerHTML =
         '<div class="meeting-review-empty"><span class="done-star">✦</span> Nothing for you<br>' +
@@ -11081,16 +11117,30 @@ function _meetingRenderReview(state) {
     return;
   }
 
+  // Items exist — states 2 and 3
+  if (title) title.textContent = 'From your call';
   if (sub) sub.style.display = '';
-  if (add) add.style.display = '';
-  // Mine first (pre-selected), others greyed below
+  if (add) { add.style.display = ''; add.disabled = false; }
+
   const sorted = [...state.items].sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0));
-  list.innerHTML = banner + sorted.map((item, i) => `
+  const itemsHTML = sorted.map((item, i) => `
     <div class="meeting-item${item.mine ? ' selected' : ' other'}" data-idx="${i}" onclick="this.classList.toggle('selected');_meetingUpdateCount()">
       <div class="meeting-tick"></div>
       <span>${esc(item.text)}</span>
       ${item.mine || !item.owner ? '' : '<span class="meeting-owner">' + esc(item.owner) + '</span>'}
     </div>`).join('');
+
+  if (processing) {
+    // State 2 — inset strip above prior items
+    list.innerHTML = `<div class="meeting-processing-strip">
+      <span class="loading-dots"><span></span><span></span><span></span></span>
+      Still digesting last ${label}
+    </div>` + itemsHTML;
+  } else {
+    // State 3 — rule then items
+    list.innerHTML = '<div class="meeting-review-rule"></div>' + itemsHTML;
+  }
+
   list.querySelectorAll('.loading-dots span').forEach((s, i) => _breathe(s, _KF_BLINK, 1200, [0, 180, 400][i]));
   _meetingUpdateCount();
 }
