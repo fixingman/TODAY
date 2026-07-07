@@ -324,6 +324,36 @@ Architectural dead end: with a CSS animation, every `display:none/block` repaint
 
 ---
 
+## BUG-032: Splash logo appears mid-way through splash animation (mobile)
+
+**Status:** ✅ Verified fixed v2.18.27 — verified 2026-07-08
+
+**Symptom:** Sometimes on mobile, the TODAY logo appears mid-way through the splash animation. The letter-rise animation occasionally starts late or logo appears unexpectedly during the sequence. Intermittent on cold start. Never on desktop.
+
+**Root cause (two parts):**
+1. The logo letters' rise animation started immediately from page render (CSS `animation-delay` from .06s), but the typewriter waits for `document.fonts.ready`. On mobile cold starts Syne isn't loaded yet, so the logo rendered in the fallback font; when Syne arrived the swap changed the logo block's metrics, and `#splash` (`justify-content: center`) re-centered the column — a visible shift right before typing starts. Desktop has fonts cached → never reproduces.
+2. `startSplash` could fire twice when fonts take >800ms: the fallback timeout fires it, then `fonts.ready.then()` fires it again — restarting the star transition and double-running the typewriter rAF loop.
+
+**Fix (v2.17.97):** Letter-rise animation moved behind a `#splash-logo.go` gate; `startSplash` adds the class after fonts are ready. `_splashStarted` guard makes `startSplash` idempotent.
+
+**Recurrence + refix (v2.17.112):** v2.17.97 gated `.go` on `document.fonts.ready`, but iOS Safari resolves `.ready` *before* custom fonts actually paint on cold start. Refix: gate on specific faces via `document.fonts.load('800 96px Syne', 'TODAY')` + `document.fonts.load('300 13px "DM Mono"', 'JANUARY')` (FontFaceSet.load() resolves only when truly loaded — reliable on Safari). Also added `<link rel="preload">` for both splash woff2 files.
+
+**Third pass (v2.17.126):** True mechanism found: all `@font-face` use `font-display: block` (no fallback swap) — the issue was desync between the rise animation start and font paint. If Syne lands mid-animation, logo appears partway through its rise. The `setTimeout(startSplash, 800)` fallback could fire before Syne painted. **Fix:** replaced with an rAF poll of `document.fonts.check()` — `.go` only added on a frame where both faces are usable. 2500ms ceiling with `.instant` static-reveal modifier.
+
+**Fourth pass (v2.17.130):** `document.fonts.check()` confirms face loaded but glyph raster cache is per-size; logo renders at `clamp(48px,9vw,96px)`, not the 96px checked. First paint at real size collided with animation start. **Fix:** paint `.l` letters at `opacity:0.02`, force layout, then next rAF revert + add `.go` — rise runs on already-rasterised glyphs.
+
+**Fifth pass (v2.17.133):** `opacity:0.02` warm was compositor-skippable. Root insight: per-letter opacity ramp always raced real paint on iOS. **Fix:** `#splash-logo` → `visibility:hidden` (no paint, stays in layout); gate → `fonts.load()` promise raced against 2000ms ceiling; double-rAF forces full-opacity raster before fading whole container in as one unit. Transform-only keyframe runs staggered rise.
+
+**Sixth pass (v2.18.18):** Rise itself abrupt/stuttery — `translateY(0.12em)` over easeOutExpo did 90% travel in 120ms, then ~1px pixel-snap tail. **Fix:** gentler easeOutQuint inlined `cubic-bezier(0.22,1,0.36,1)`, distance `0.12em→0.18em`, duration `.4s→.55s`, stagger `.04s→.07s`.
+
+**Seventh pass — final fix (v2.18.27):** "letters coming up from bottom" persisted. Approach structurally unwinnable: CSS `transform` animation on iOS/WebKit promotes each `.l` to its own compositing layer at animation start → glyph re-raster mid-motion (the exact problem every pass was fighting). Also the v2.17.133 warm paint showed the logo fully opaque at the lowered position for ~2 frames — visible flash. **Fix (per Can's direction):** per-letter rise deleted entirely. `#splash-logo` base: `visibility:hidden; opacity:0`. Animated path: flip visibility, commit baseline, fade whole logo to 1 over `.5s var(--ease-out)` — one unit, one layer, one raster. Ceiling path: static reveal. Fonts gate + 2000ms ceiling + `_splashStarted` guard unchanged.
+
+**Motion.md rule added:** never use per-letter CSS transform animations on text — the animation itself promotes each element to a compositing layer and forces a re-raster mid-motion on iOS/WebKit.
+
+**Verified fixed:** ✅ 2026-07-08 — iPhone PWA cold start confirmed: logo fades as single unit, no letter rise, no pop.
+
+---
+
 ## BUG-033: Morning nudge missing on first cold-start of the day
 
 **Status:** Fixed v2.17.125

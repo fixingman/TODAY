@@ -1376,19 +1376,19 @@
   }
 
   .task-meta {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin-top: var(--space-2);
-    flex-wrap: wrap;
+    display: inline;
+    margin-left: var(--space-2);
   }
 
   .badge {
+    display: inline-block;
+    vertical-align: middle;
     font-size: var(--text-xs);
     letter-spacing: 0.06em;
     padding: 2px 7px;
     border-radius: var(--radius-sm);
     font-family: var(--font-mono);
+    margin-left: var(--space-1);
   }
 
   .badge.due {
@@ -1961,6 +1961,7 @@
     letter-spacing: 0.04em;
   }
   .meeting-review-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+  .meeting-review-actions.no-add .meeting-review-discard { flex: 1; }
   .meeting-review-add {
     flex: 1;
     background: var(--accent-dim);
@@ -6103,8 +6104,8 @@ function renderTrello() {
         if (metaEl.innerHTML !== newBadge) metaEl.innerHTML = newBadge;
         if (!newBadge) metaEl.remove();
       } else if (newBadge) {
-        const body = el.querySelector('.task-body');
-        if (body) body.insertAdjacentHTML('beforeend', `<div class="task-meta">${newBadge}</div>`);
+        const textEl2 = el.querySelector('.task-text');
+        if (textEl2) textEl2.insertAdjacentHTML('beforeend', `<span class="task-meta">${newBadge}</span>`);
       }
 
       el.classList.toggle('done', doneIds.has(id));
@@ -6274,8 +6275,7 @@ function taskHTML(task, type) {
         </svg>
       </div>
       <div class="task-body">
-        <div class="task-text">${taskTextHTML}${sessionBadge}</div>
-        ${badges ? `<div class="task-meta">${badges}</div>` : ''}
+        <div class="task-text">${taskTextHTML}${sessionBadge}${badges ? `<span class="task-meta">${badges}</span>` : ''}</div>
       </div>
       ${deleteBtn}
       ${copyBtn}
@@ -11098,20 +11098,20 @@ function _meetingRenderReview(state) {
   const mins = Math.max(1, Math.round(secs / 60));
   const label = mins === 1 ? '1 min' : mins + ' min';
 
+  const actions = document.querySelector('.meeting-review-actions');
   if (!state.items.length) {
     // State 1 — digesting with no prior items, or empty result
     if (title) title.textContent = processing ? 'Digesting…' : 'From your call';
     if (sub) sub.style.display = 'none';
-    if (add) add.disabled = true;
+    if (add) add.style.display = 'none';
+    if (actions) actions.classList.add('no-add');
     if (processing) {
       list.innerHTML = `<div class="meeting-processing-center">
         <span class="loading-dots"><span></span><span></span><span></span></span>
         <span class="meeting-processing-label">last ${label}</span>
       </div>`;
     } else {
-      list.innerHTML =
-        '<div class="meeting-review-empty"><span class="done-star">✦</span> Nothing for you<br>' +
-        'No clear action items came up — nice when that happens.</div>';
+      list.innerHTML = '<div class="meeting-review-empty">Nothing came up</div>';
     }
     list.querySelectorAll('.loading-dots span').forEach((s, i) => _breathe(s, _KF_BLINK, 1200, [0, 180, 400][i]));
     return;
@@ -11121,6 +11121,7 @@ function _meetingRenderReview(state) {
   if (title) title.textContent = 'From your call';
   if (sub) sub.style.display = '';
   if (add) { add.style.display = ''; add.disabled = false; }
+  if (actions) actions.classList.remove('no-add');
 
   const sorted = [...state.items].sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0));
   const itemsHTML = sorted.map((item, i) => `

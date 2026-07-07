@@ -223,7 +223,7 @@ Listens to a meeting through the mic; the only artifact is tasks. No transcript,
 - **State 1 — digesting, no prior items:** title "Digesting…" (white 15px), sub hidden, Add disabled; centred focal loader (5px dots + "last X min" below).
 - **State 2 — digesting + prior items showing:** title "From your call", sub visible; inset strip `.meeting-processing-strip` ("Still digesting last X min") above items.
 - **State 3 — review ready:** title "From your call", sub visible; thin `--border` rule separates header from items.
-- **Empty result:** "✦ Nothing for you / No clear action items came up." Title: "From your call".
+- **Empty result:** "Nothing came up" (no star prefix). Title: "From your call".
 Header: `.meeting-eyebrow` ("Meeting", 9px muted caps) + `.meeting-review-title` (15px white, state-driven) + `.meeting-review-sub` (muted xs, conditional). Mine pre-selected with accent border/fill; others at 45% opacity with owner label — tap to grab/drop; Add-count updates live. Accept → `manualTasks.push` + `renderManual()` + `dropboxAutoSave()`.
 
 **Attribution without voice ID:** `today_user_name` ("Your first name…" input in the AI config section; fill-if-empty on merge, in backup payload) tells the prompt whose commitments to flag. The review tap is the final identity filter — AI optimizes recall, Can's tap is precision.
