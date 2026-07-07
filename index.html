@@ -789,7 +789,7 @@
   .habit-countdown {
     font-size: var(--text-sm);
     color: var(--muted);
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
   }
 
   /* Subheader */
@@ -1472,7 +1472,7 @@
     font-family: var(--font-display);
     font-weight: 700;
     font-size: var(--text-sm);
-    padding: 7px 14px;
+    padding: var(--space-2) var(--space-3);
     border: none;
     border-radius: var(--radius-lg);
     cursor: pointer;
@@ -1556,29 +1556,31 @@
      just given a home (surface + accent-dim edge, like a task row) and the existing Breath
      Pattern (_breathe, WAAPI — never CSS, see Motion.md) on the dot instead of a static bullet. */
   .morning-nudge {
-    background: var(--surface);
-    border-left: 2px solid var(--accent-dim);
-    border-radius: var(--radius-md);
-    padding: 7px var(--space-3);
+    padding: var(--space-1) 0;
     margin: var(--space-2) 0 var(--space-3);
     color: var(--muted);
     font-size: var(--text-xs);
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: 7px;
     cursor: pointer;
+    overflow: hidden;
+    white-space: nowrap;
     transition: color var(--dur-fast) ease;
   }
-  .morning-nudge:hover {
-    color: var(--text);
-  }
-  .morning-nudge .nudge-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--accent); /* breathes via _breathe() at creation site — WAAPI, never CSS (BUG-028 lesson) */
+  .morning-nudge:hover { color: var(--text); }
+  .morning-nudge .nudge-star {
+    font-size: 9px;
+    color: var(--accent); /* breathes via _breathe() at creation site — WAAPI, never CSS (BUG-028 lesson) */
     flex-shrink: 0;
+    line-height: 1;
+    display: inline-block;
+  }
+  .morning-nudge .nudge-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
   
   /* Breathing star on "All done" — gentle reward pulse */
@@ -2032,7 +2034,7 @@
   .week-col-tasks { font-size: var(--text-md); color: var(--text); font-variant-numeric: tabular-nums; }
   .week-col-tasks.is-today { color: var(--accent); }
   .week-col-tasks.zero { color: var(--muted); opacity: var(--opacity-dim); }
-  .week-col-focus { font-size: var(--text-micro); color: var(--muted); }
+  .week-col-focus { font-size: var(--text-micro); color: var(--muted); letter-spacing: 0.04em; }
   .week-col-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--accent); opacity: 0; }
   .week-col-dot.on { opacity: var(--opacity-soft); }
 
@@ -2043,7 +2045,7 @@
     border-radius: var(--radius-md);
     background: var(--accent-focus-bg);
   }
-  .sunday-label { font-size: var(--text-micro); color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 3px; }
+  .sunday-label { font-size: var(--text-micro); color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 3px; }
   .sunday-summary { font-size: var(--text-base); color: var(--text); line-height: 1.5; }
   .sunday-summary.loading { color: var(--muted); font-style: italic; }
 
@@ -2410,6 +2412,8 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .connection-row-status.connected { color: var(--accent); }
+  .connection-row-status.error { color: var(--danger); }
   .connection-row-actions {
     display: flex;
     gap: var(--space-2);
@@ -2425,7 +2429,7 @@
     color: var(--muted);
     cursor: pointer;
     letter-spacing: 0.04em;
-    transition: border-color var(--dur-fast), color var(--dur-fast);
+    transition: border-color var(--dur-fast), color var(--dur-fast), background var(--dur-fast);
   }
   .connection-row-actions .btn-sm:hover {
     border-color: var(--muted);
@@ -3071,14 +3075,14 @@
 
     <!-- AI Assistant section -->
     <div class="panel-section" id="aiConfigSection">
-      <div class="config-title">✦ AI Assistant</div>
+      <div class="config-label">✦ AI</div>
 
       <!-- Provider rows rendered by _aiRenderConfig() -->
       <div id="aiProviderRows" style="margin-top:var(--space-3)"></div>
 
       <!-- Your name(s) — used by meeting mode to know which action items are yours (v2.22.0) -->
       <div id="meetingNameWrap" style="margin-top:var(--space-4)">
-        <span style="font-size:var(--text-sm);color:var(--muted)">Your name</span>
+        <div class="config-label">Your name</div>
         <div class="name-chip-list" id="nameChipList">
           <!-- chips + inline input rendered by renderMeetingNames() -->
         </div>
@@ -3417,9 +3421,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.23.0': 'Polish — meeting mode: longer chunks, quota error detail, wait banner while the last segment processes, pill and review panel design pass. AI config: two clean provider rows, name aliases for better attribution, connections panel design pass. Morning nudge: star instead of card panel; AI sentence and yesterday\'s review now sync across devices.',
   '2.22.2': 'Fix — meeting mode: double-start race (mic leak), WAAPI animation accumulation, null deref in final-chunk re-render, final-chunk items missing from review, MIME re-detected per chunk, timer drift in background tabs.',
   '2.22.1': 'Polish — Soon and Past section headers cleaned up; habit countdown sits inline with the header; AI provider switching fixed so switching tabs no longer falsely shows a connected state.',
-  '2.21.0': 'Habit nudge — the Habits button breathes after 10pm when habits are still open; the panel shows how much time is left before the day resets.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -3801,8 +3805,8 @@ function checkDayNudge() {
   const _aiCached = localStorage.getItem(_aiCacheKey);
 
   const _showNudge = (text) => {
-    nudgeEl.innerHTML = `<span class="nudge-dot"></span>${esc(text)}`;
-    _breathe(nudgeEl.querySelector('.nudge-dot'), _KF_BREATHE_SMALL, 2400);
+    nudgeEl.innerHTML = `<span class="nudge-star">✦</span><span class="nudge-text">${esc(text)}</span>`;
+    _breathe(nudgeEl.querySelector('.nudge-star'), _KF_BREATHE_SMALL, 2400);
     nudgeEl.style.display = 'flex';
     nudgeEl.onclick = () => {
       nudgeEl.style.display = 'none';
@@ -3895,7 +3899,7 @@ async function _fetchDayNudgeAI(review, carriedOver, cards) {
     });
 
     let facts =
-      'Morning check-in. Today is ' + dayNames[new Date().getDay()] + '. Streak: day ' + streak + '.\n' +
+      'Morning check-in. Today is ' + dayNames[new Date().getDay()] + '.\n' +
       'Yesterday: ' + yLine + '.\n' +
       (carriedOver > 0 ? carriedOver + ' task(s) carried over from yesterday.\n' : '');
     if (taskLines.length) facts += 'Waiting today:\n' + taskLines.join('\n') + '\n';
@@ -5575,7 +5579,7 @@ function renderConnections() {
       <div class="connection-row">
         <div class="connection-row-info">
           <span class="connection-row-title">Dropbox</span>
-          <span class="connection-row-status" style="color:var(--danger)">Session expired</span>
+          <span class="connection-row-status error">Session expired</span>
         </div>
         <div class="connection-row-actions">
           <button class="btn-sm primary" onclick="dropboxAuth()">Reconnect</button>
@@ -8447,6 +8451,10 @@ async function dropboxBackup(silent) {
     // Per-day nudge dismiss flags (BUG-051/053) — fields driven by _DISMISS_SYNC,
     // the same registry that applies them in mergeRemoteData
     ...Object.fromEntries(_DISMISS_SYNC.map(d => [d.field, localStorage.getItem(d.prefix + _localISO()) || ''])),
+    // Day review + AI nudge — sync so morning nudge shows consistently across devices.
+    // Fill-if-empty on merge: first device to compute wins for the day.
+    day_review:   safeJSON('today_day_review', null),
+    day_nudge_ai: localStorage.getItem('day_nudge_ai_' + _localISO()) || '',
     // Daily history — per-day snapshots the week grid reads for past days (v5.3, BUG-036).
     // Union-merged by date on restore so the week view matches across devices.
     daily_history:        safeJSON('today_daily_history', []),
@@ -8994,6 +9002,16 @@ function mergeRemoteData(data) {
       if ($[d.el]) $[d.el].style.display = 'none';
     }
   });
+
+  // ── Day review + AI nudge: fill-if-empty — morning nudge cross-device consistency ──
+  if (data.day_review && !localStorage.getItem('today_day_review')) {
+    localStorage.setItem('today_day_review', JSON.stringify(data.day_review));
+  }
+  const _aiNudgeKey = 'day_nudge_ai_' + _todayISO;
+  if (data.day_nudge_ai && !localStorage.getItem(_aiNudgeKey)) {
+    localStorage.setItem(_aiNudgeKey, data.day_nudge_ai);
+    if (typeof checkDayNudge === 'function') checkDayNudge();
+  }
 
   // Full re-render if tasks were added or removed — surgical patch is not enough
   if (_changed) {
@@ -11145,7 +11163,10 @@ async function _meetingSendChunk(blob, retryCount = 0) {
         rollingContext: state.context,
       }),
     });
-    const data = await res.json();
+    const rawText = await res.text();
+    let data;
+    try { data = JSON.parse(rawText); }
+    catch (_) { throw new Error(rawText.replace(/<[^>]+>/g, '').trim().slice(0, 120) || `HTTP ${res.status}`); }
     if (data.error) throw new Error(data.error);
     if (typeof data.updatedContext === 'string') state.context = data.updatedContext;
     (data.actionItems || []).forEach(item => {
@@ -11292,11 +11313,11 @@ function _aiRenderConfig() {
       return `<div class="connection-row">
         <div class="connection-row-info">
           <span class="connection-row-title">${label}</span>
-          <span class="connection-row-status" style="color:var(--accent)">Connected</span>
+          <span class="connection-row-status connected">Connected</span>
         </div>
         <div class="connection-row-actions">
-          <button class="btn-sm" onclick="clearAIKey('${id}')">Forget</button>
           ${defaultBtn}
+          <button class="btn-sm" onclick="clearAIKey('${id}')">Forget</button>
         </div>
       </div>`;
     }

@@ -535,3 +535,31 @@ The `window.load` path is unaffected — it pulls Dropbox first, then calls `app
 **Fix (v2.18.22):** Age basis changed to a new `today_trello_firstseen` map `{trello_<id>: firstSeenMs}` — recording when each card first entered *your* filtered list. New helpers: `_getTrelloFirstSeen`, `_setTrelloFirstSeen`, `_trelloAgeBasis(id)` (falls back to `Date.now()` = fresh if unseen). Recorded and pruned in `loadTrello()` (departed cards dropped to keep the map bounded). Both age paths updated (Rule 27): `taskHTML()` and the `renderTrello()` 7s patch path. Synced via Dropbox: MIN-merge (earliest sighting across devices wins — a card's true first-seen is the earliest any device saw it), no date guard, NOT cleared in `applyNewDayCleanup` (must persist across days for the card to age). `_getCreatedFromTrelloId` removed (dead). One-time transition: on first load post-update all current cards got `firstSeen = now` → briefly fresh, then age naturally from that day.
 
 **Verified fixed:** ✅ Jul 2026
+
+## BUG-052: Splash dismissal sometimes slow — sync bookkeeping held the gate
+
+**Status:** ✅ Verified fixed (v2.18.36)
+
+**Symptom:** "Sometimes it takes a long time for the explosion and dismissal of the splash screen — things felt snappier before." Reported alongside BUG-032 (same surface, different mechanism).
+
+**Root cause:** the splash dismisses on a two-flag gate (animation done + app load done). The load flag fired only after the ENTIRE startup sync chain completed serially: Trello board fetch → Dropbox token refresh (extra round-trip whenever the 4-hour token had expired — i.e. every first open of the morning) → backup download + merge → `get_metadata` rev seed → and, when local data differed from remote, an awaited full `dropboxBackup(true)` upload. The last two are bookkeeping — they don't change what's on screen — but added 1–3 awaited round-trips to the gate, up to the 6s safety cap on slow networks.
+
+**Fix (v2.18.36):** `_onAppLoadDone()` now fires right after the pull+merge+render (the point where on-screen data is correct). The rev seed and conditional push-back run *after* the gate as `deferredSyncBookkeeping`, and `startTicker()` moved after that (preserving the "ticker only after rev baseline seeded" invariant — an unseeded rev would make the first tick redundantly re-restore). Gate now waits only for what the user can see.
+
+**Verified fixed:** ✅ Jul 2026
+
+---
+
+## BUG-053: Morning nudge dismissal not synced across devices
+
+**Status:** ✅ Verified fixed (v2.18.38; unified under v2.19.0)
+
+**Symptom:** "When I dismiss the manual task nudge on computer it is not dismissed on mobile." Same class as BUG-051 (Trello nudge), but for the manual/carried-over-tasks nudge.
+
+**Root cause:** `morning_nudge_dismissed_YYYY-MM-DD` was written to localStorage on dismiss but never added to the Dropbox backup payload or `mergeRemoteData()`. The two nudges shared almost identical dismiss logic but only one got the cross-device fix (BUG-051).
+
+**Fix (v2.18.38):** mirrored the BUG-051 fix. Added `morning_nudge_dismissed` to backup payload and a merge block in `mergeRemoteData()`. **Superseded by v2.19.0:** both nudges merged into `#dayNudge` with a single `day_nudge_dismissed_` key; `_DISMISS_SYNC` registry handles payload + merge. Legacy field names kept as transition rows.
+
+**Verified fixed:** ✅ Jul 2026
+
+---
