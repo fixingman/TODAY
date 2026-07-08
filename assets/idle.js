@@ -215,9 +215,9 @@
     `;
     document.body.appendChild(idleCompanion);
     
-    // Fade in
+    // Fade in — guard against hideCompanion() racing the rAF (tab backgrounded)
     requestAnimationFrame(() => {
-      idleCompanion.style.opacity = '0.6';
+      if (idleCompanion) idleCompanion.style.opacity = '0.6';
     });
     
     // Start animation

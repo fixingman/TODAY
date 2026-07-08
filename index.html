@@ -1848,6 +1848,44 @@
   }
   .meeting-pill-stop:hover { color: var(--danger); }
 
+  /* ── Voice note pill (v2.24.0) — mobile quick-capture ── */
+  #voicePill {
+    position: fixed;
+    bottom: 76px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface);
+    border: 1px solid var(--accent-dim);
+    border-radius: var(--radius-full);
+    padding: 7px var(--space-3);
+    display: none;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    z-index: var(--z-header);
+    white-space: nowrap;
+  }
+  #voicePill.show { display: flex; }
+  .voice-pill-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--danger); flex-shrink: 0;
+  }
+  .voice-pill-time {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.08em;
+    min-width: 2.2ch;
+  }
+  .voice-pill-cap { color: var(--danger); font-variant-numeric: tabular-nums; letter-spacing: 0.06em; display: none; }
+  .voice-pill-cap.visible { display: inline; }
+  .voice-pill-stop {
+    background: none; border: none; color: var(--muted);
+    font-family: var(--font-mono); font-size: var(--text-sm);
+    cursor: pointer; padding: 0 0 0 var(--space-1);
+    letter-spacing: 0.06em; transition: color var(--dur-fast);
+  }
+  .voice-pill-stop:hover { color: var(--danger); }
+
   #meetingOverlay {
     position: fixed;
     inset: 0;
@@ -2740,6 +2778,28 @@
     }
     .connection-row-actions { width: 100%; }
     .connection-row-actions .ai-key-input { flex: 1; }
+    /* Connected rows: stay as a single row — name left, check + forget right */
+    .connection-row.connected {
+      flex-direction: row;
+      align-items: center;
+    }
+    .connection-row.connected .connection-row-actions {
+      width: auto;
+      align-items: center;
+    }
+    /* Hide secondary actions (Refresh, Save, Restore, Default) on mobile */
+    .connection-row.connected .connection-row-actions .btn-sm:not(.btn-forget) {
+      display: none;
+    }
+    /* Show connected checkmark and push Forget to the right */
+    .conn-check {
+      display: inline-block;
+      color: var(--accent);
+      font-size: var(--text-sm);
+      flex-shrink: 0;
+      margin: 0 var(--space-1);
+    }
+    .btn-forget { margin-left: var(--space-1); }
   }
   .week-dot {
     width: 5px; height: 5px; border-radius: 50%;
@@ -2813,6 +2873,12 @@
   }
   .habit-add-btn:hover { opacity: var(--opacity-hover); }
 
+  /* AI section: no top divider — it follows the connections container directly */
+  #aiConfigSection { border-top: none; padding-top: var(--space-3); margin-top: var(--space-4); }
+
+  /* Connected check — mobile-only indicator */
+  .conn-check { display: none; }
+
   /* ── AI Assistant ─────────────────────────────────────────────────────── */
   /* Key input inside a connection-row-actions — compact inline entry */
   .connection-row-actions .ai-key-input {
@@ -2831,12 +2897,34 @@
   .connection-row-actions .ai-key-input:focus { border-color: var(--muted); }
   .connection-row-actions .ai-key-input::placeholder { color: var(--muted); opacity: 0.7; }
   /* Name chips — multi-alias input in AI config */
+  /* Your name card — B2: title + hint inline, chip list below */
+  .name-card {
+    margin-top: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+  }
+  .name-card-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .name-card-title {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: 0.04em;
+  }
+  .name-card-hint { font-size: var(--text-xs); color: var(--muted); }
+
   .name-chip-list {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
     align-items: center;
-    margin-top: var(--space-2);
     min-height: 28px;
   }
   .name-chip {
@@ -3127,8 +3215,11 @@
     </div>
 
     <!-- Your name(s) — used by meeting mode to know which action items are yours (v2.22.0) -->
-    <div class="panel-section" id="meetingNameWrap">
-      <div class="config-label">Your name</div>
+    <div class="name-card" id="meetingNameWrap">
+      <div class="name-card-header">
+        <span class="name-card-title">Your name</span>
+        <span class="name-card-hint">for meeting attribution</span>
+      </div>
       <div class="name-chip-list" id="nameChipList">
         <!-- chips + inline input rendered by renderMeetingNames() -->
       </div>
@@ -3249,6 +3340,14 @@
       onkeydown="handleBarKey(event)" oninput="toggleClearBtn()" />
     <button id="clearTaskBtn" onclick="clearTaskInput()" class="clear-input-btn" style="display:none">×</button>
   </div>
+  <!-- Voice note mic (mobile-only, revealed by _voiceNoteInit) — v2.24.0 -->
+  <button class="add-mic-btn" id="voiceNoteBtn" onclick="toggleVoiceNote()" title="Voice note — speak a task">
+    <svg width="15" height="20" viewBox="0 0 15 20" fill="none">
+      <rect x="4.75" y="1" width="5.5" height="10.5" rx="2.75" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M1.5 8.5v1a6 6 0 0 0 12 0v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M7.5 15.5V19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+  </button>
   <!-- Meeting mode mic (desktop-only, revealed by _meetingInit) — v2.22.0 -->
   <button class="add-mic-btn" id="meetingBtn" onclick="toggleMeeting()" title="Meeting mode — listens and leaves behind only your tasks. Works best with speakers.">
     <svg width="15" height="20" viewBox="0 0 15 20" fill="none">
@@ -3259,6 +3358,14 @@
   </button>
   <!-- Single ✦: Enter = add task, tap = AI (or add task if AI not configured) -->
   <button class="add-ai-btn" id="addAiBtn" onclick="handleBarSubmit()" title="Ask anything">✦</button>
+</div>
+
+<!-- Voice note: recording pill (v2.24.0) -->
+<div id="voicePill" style="opacity:0">
+  <div class="voice-pill-dot"></div>
+  <span class="voice-pill-time" id="voicePillTime">0:00</span>
+  <span class="voice-pill-cap" id="voicePillCap"></span>
+  <button class="voice-pill-stop" onclick="_voiceNoteStop()">stop</button>
 </div>
 
 <!-- Meeting mode: non-blocking listening pill (v2.22.0) -->
@@ -3463,13 +3570,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '228h';
+const DEV_HOURS     = '229h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.24.0': 'New — voice note on mobile: tap the mic in the add bar, speak a task (up to 90 seconds), and it drops into the input ready to edit and submit.',
   '2.23.7': 'Polish — meeting review panel redesigned: clearer header hierarchy, digesting state is a calm focal moment, processing strip sits cleanly above any prior items. Recording dot is now red (universal recording signal); stop button labelled "stop" instead of ×.',
   '2.23.6': 'Fix — long-gone tasks could reappear in your list after sync. Tasks that leave the Past section now stay gone, and deletions are remembered for 180 days instead of 30.',
   '2.23.5': 'Polish — connected services now show their name in accent green; no text label needed. Disconnected services look normal, not dimmed.',
@@ -5115,6 +5223,7 @@ function init() {
   checkSundayNudge();
   checkHabitNudge();
   _meetingInit();
+  _voiceNoteInit();
 
   if (saved.boardId && trelloToken) {
     setTrelloIcon(true);
@@ -5580,14 +5689,15 @@ function renderConnections() {
     const boardName = _getTrelloBoardName() || 'Board';
     const listName = trelloConfig.todayList || 'Due today';
     html += `
-      <div class="connection-row">
+      <div class="connection-row connected">
         <div class="connection-row-info">
           <span class="connection-row-title connected">Trello</span>
           <span class="connection-row-status">${esc(boardName)} → ${esc(listName)}</span>
         </div>
+        <span class="conn-check">✓</span>
         <div class="connection-row-actions">
           <button class="btn-sm" onclick="loadTrello()">Refresh</button>
-          <button class="btn-sm" onclick="clearTrello()">Forget</button>
+          <button class="btn-sm btn-forget" onclick="clearTrello()">Forget</button>
         </div>
       </div>`;
   } else if (trelloToken) {
@@ -5629,15 +5739,16 @@ function renderConnections() {
   if (dropboxConnected) {
     // Connected — compact row
     html += `
-      <div class="connection-row">
+      <div class="connection-row connected">
         <div class="connection-row-info">
           <span class="connection-row-title connected">Dropbox</span>
           <span class="connection-row-status">${backupStatus ? 'Saved ' + backupStatus : ''}</span>
         </div>
+        <span class="conn-check">✓</span>
         <div class="connection-row-actions">
           <button class="btn-sm" onclick="dropboxBackup()">Save</button>
           <button class="btn-sm" onclick="dropboxRestore()">Restore</button>
-          <button class="btn-sm" onclick="dropboxDisconnect()">Forget</button>
+          <button class="btn-sm btn-forget" onclick="dropboxDisconnect()">Forget</button>
         </div>
       </div>`;
   } else if (dropboxExpired) {
@@ -11181,6 +11292,125 @@ function _meetingTeardown() {
   _mtg = null;
 }
 
+// ── Voice note (v2.24.0, mobile-only) ─────────────────────────────────────────
+const _VN_CAP_SECS = 90;
+let _vn = null;
+let _vnStarting = false;
+
+function _voiceNoteSupported() {
+  return ('ontouchstart' in window)
+    && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+    && typeof MediaRecorder !== 'undefined'
+    && !!_aiGetKey('gemini');
+}
+
+function _voiceNoteInit() {
+  const btn = document.getElementById('voiceNoteBtn');
+  if (!btn) return;
+  btn.style.display = _voiceNoteSupported() ? 'flex' : 'none';
+}
+
+function toggleVoiceNote() {
+  if (_vn) { _voiceNoteStop(); return; }
+  _voiceNoteStart();
+}
+
+async function _voiceNoteStart() {
+  if (_vn || _vnStarting) return;
+  _vnStarting = true;
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    _vnStarting = false;
+    return;
+  }
+
+  const mimeType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : 'audio/webm';
+  const recorder = new MediaRecorder(stream, { mimeType });
+  const chunks = [];
+  recorder.addEventListener('dataavailable', e => { if (e.data.size > 0) chunks.push(e.data); });
+  recorder.addEventListener('stop', () => {
+    stream.getTracks().forEach(t => t.stop());
+    const blob = new Blob(chunks, { type: mimeType });
+    _voiceNoteSend(blob, mimeType);
+    _vn = null;
+    const pill = document.getElementById('voicePill');
+    if (pill) { pill.classList.remove('show'); pill.style.opacity = '0'; }
+    document.getElementById('voiceNoteBtn')?.classList.remove('live');
+  });
+
+  recorder.start();
+  const startedAt = Date.now();
+  _vnStarting = false;
+
+  // Timer + 90s cap
+  let capShown = false;
+  const timerId = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+    const remaining = _VN_CAP_SECS - elapsed;
+    const m = Math.floor(elapsed / 60);
+    const s = elapsed % 60;
+    const timeEl = document.getElementById('voicePillTime');
+    if (timeEl) timeEl.textContent = m + ':' + String(s).padStart(2, '0');
+    if (remaining <= 10 && !capShown) {
+      capShown = true;
+      const capEl = document.getElementById('voicePillCap');
+      if (capEl) { capEl.textContent = remaining + 's'; capEl.classList.add('visible'); }
+    }
+    if (remaining <= 0) { _voiceNoteStop(); }
+  }, 1000);
+
+  _vn = { recorder, timerId, mimeType };
+
+  const pill = document.getElementById('voicePill');
+  if (pill) {
+    const timeEl = document.getElementById('voicePillTime');
+    if (timeEl) timeEl.textContent = '0:00';
+    const capEl = document.getElementById('voicePillCap');
+    if (capEl) { capEl.textContent = ''; capEl.classList.remove('visible'); }
+    pill.classList.add('show');
+    requestAnimationFrame(() => { pill.style.opacity = '1'; });
+  }
+  document.getElementById('voiceNoteBtn')?.classList.add('live');
+}
+
+function _voiceNoteStop() {
+  if (!_vn) return;
+  clearInterval(_vn.timerId);
+  _vn.recorder.stop();
+  // Pill hide + state clear happen in the 'stop' event handler
+}
+
+async function _voiceNoteSend(blob, mimeType) {
+  const input = document.getElementById('newTask');
+  if (!input) return;
+
+  // Show "…" while transcribing
+  const prev = input.value;
+  input.value = '…';
+  input.disabled = true;
+
+  const reader = new FileReader();
+  reader.onload = async function() {
+    const base64 = reader.result.split(',')[1];
+    try {
+      const res = await fetch('/.netlify/functions/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audioData: base64, mimeType, apiKey: _aiGetKey('gemini') }),
+      });
+      const data = await res.json();
+      input.value = data.text || prev;
+    } catch (e) {
+      input.value = prev;
+    }
+    input.disabled = false;
+    input.focus();
+  };
+  reader.readAsDataURL(blob);
+}
+
 // ── Config panel ──────────────────────────────────────────────────────────────
 
 function _aiRenderConfig() {
@@ -11199,13 +11429,14 @@ function _aiRenderConfig() {
       : '';
 
     if (hasKey) {
-      return `<div class="connection-row">
+      return `<div class="connection-row connected">
         <div class="connection-row-info">
           <span class="connection-row-title connected">${label}</span>
         </div>
+        <span class="conn-check">✓</span>
         <div class="connection-row-actions">
           ${defaultBtn}
-          <button class="btn-sm" onclick="clearAIKey('${id}')">Forget</button>
+          <button class="btn-sm btn-forget" onclick="clearAIKey('${id}')">Forget</button>
         </div>
       </div>`;
     }
@@ -11296,6 +11527,7 @@ async function saveAIKey(provider) {
     _aiRenderConfig();
     _updateBarPlaceholder();
     _meetingInit();
+    _voiceNoteInit();
 
   } catch(e) {
     localStorage.removeItem(storageKey);
@@ -11315,6 +11547,7 @@ function clearAIKey(provider) {
   _aiRenderConfig();
   _updateBarPlaceholder();
   _meetingInit();
+  _voiceNoteInit();
 }
 
 function setDefaultProvider(p) {
@@ -11322,6 +11555,7 @@ function setDefaultProvider(p) {
   _aiRenderConfig();
   _updateBarPlaceholder();
   _meetingInit();
+  _voiceNoteInit();
 }
 
 // Esc closes panel
