@@ -7,7 +7,7 @@
 // MUST load inside <body>: the haptic IIFE appends its switch element to
 // document.body at parse time.
 //
-// What stays in index.html: _flashAccentGlow (visual, → future celebration.js).
+// What stays in index.html: nothing visual — _flashAccentGlow moved to assets/celebration.js.
 
 // ─── Sound design language ────────────────────────────────────────────────────
 // All sine wave. Family of 5 sounds, each a gesture:

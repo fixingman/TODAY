@@ -3452,6 +3452,7 @@
 <script src="assets/poems.js"></script>
 <script src="assets/idle.js"></script>
 <script src="assets/sound.js"></script>
+<script src="assets/celebration.js"></script>
 <script>
 // Always start at top — browser's auto scroll-restoration causes mid-page reloads
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -3604,13 +3605,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '232h';
+const DEV_HOURS     = '233h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.25.3': 'Refactor — celebration effects (ember drift + accent glow) extracted to assets/celebration.js.',
   '2.25.2': 'Polish — triage bar, morning nudge, and all config panels now fade in and out instead of snapping.',
   '2.25.1': 'Polish — meeting pill, voice pill, and review overlay now fade in and out (300ms) instead of snapping.',
   '2.25.0': 'New — the About icon glows when a fresh version lands. Open it and the CURRENT badge breathes a few times to greet you, then rests.',
@@ -6570,41 +6572,7 @@ document.addEventListener('click', function(e) {
 
 // ─── Sound + haptics ── moved to assets/sound.js (self-contained, browser APIs only).
 
-// ── Accent glow flash — subtle visual reward for "all done" moment ──
-function _flashAccentGlow() {
-  const existing = document.getElementById('accentGlowOverlay');
-  if (existing) existing.remove();
-  
-  const overlay = document.createElement('div');
-  overlay.id = 'accentGlowOverlay';
-  overlay.style.cssText = `
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 9999;
-    background: radial-gradient(ellipse at center, var(--accent) 0%, transparent 70%);
-    opacity: 0;
-    animation: accentGlowPulse 1.2s ease-out forwards;
-  `;
-  document.body.appendChild(overlay);
-  
-  // Add keyframes if not already present
-  if (!document.getElementById('accentGlowStyles')) {
-    const style = document.createElement('style');
-    style.id = 'accentGlowStyles';
-    style.textContent = `
-      @keyframes accentGlowPulse {
-        0% { opacity: 0; transform: scale(0.8); }
-        15% { opacity: 0.15; transform: scale(1); }
-        100% { opacity: 0; transform: scale(1.2); }
-      }
-    `;
-    document.head.appendChild(style);
-  }
-  
-  // Clean up after animation
-  setTimeout(() => overlay.remove(), 1300);
-}
+// ── Accent glow flash + ember drift ── moved to assets/celebration.js.
 
 // ─── Habits ───────────────────────────────────────────────────────────────────
 let habitsList        = safeJSON('today_habits', []);
@@ -7869,131 +7837,7 @@ function updateFavicon(pct, isEmpty) {
   if (link) link.href = dataURL;
 }
 
-// ─── Celebration — Ember drift (M) ───────────────────────────────────────────
-(function() {
-  const celebCanvas = document.getElementById('celebCanvas');
-  const celebCtx    = celebCanvas.getContext('2d');
-  let celebParticles = [];
-  let celebFrame     = null;
-  const CHARS = '01∆◊×+−░▒·~⌁⊕⊗'.split('');
-  const CELEB_MAX_PARTICLES = 60; // hard cap — back-to-back checks won't stack up
-  const isMobileDevice = window.matchMedia('(hover: none)').matches;
-
-  function resizeCeleb() {
-    celebCanvas.width  = window.innerWidth;
-    celebCanvas.height = window.innerHeight;
-  }
-  resizeCeleb();
-  window.addEventListener('resize', resizeCeleb);
-
-  let celebFrameCount = 0;
-  const CELEB_MAX_FRAMES = 300; // 5s at 60fps — hard stop
-  function celebAnimate() {
-    celebCtx.clearRect(0, 0, celebCanvas.width, celebCanvas.height);
-    celebParticles = celebParticles.filter(p => p.life > 0);
-    celebParticles.forEach(p => { p.update(); p.draw(celebCtx); });
-    celebFrameCount++;
-    if (celebParticles.length > 0 && celebFrameCount < CELEB_MAX_FRAMES) {
-      celebFrame = requestAnimationFrame(celebAnimate);
-    } else {
-      cancelAnimationFrame(celebFrame);
-      celebFrame = null;
-      celebFrameCount = 0;
-      celebCtx.clearRect(0, 0, celebCanvas.width, celebCanvas.height);
-    }
-  }
-  function celebStart() { if (!celebFrame) celebFrame = requestAnimationFrame(celebAnimate); }
-
-  function spawnFragment(fx, fy, fvx, fvy, char, size, depth) {
-    if (celebParticles.length >= CELEB_MAX_PARTICLES) return; // hard cap
-    const trail = [];
-    celebParticles.push({
-      x: fx, y: fy,
-      vx: fvx + (Math.random()-0.5)*1.5,
-      vy: fvy + (Math.random()-0.5)*1.5,
-      char, size, depth,
-      color: depth === 0 ? COLOR_ACCENT : (Math.random() > 0.5 ? COLOR_ACCENT + 'bb' : COLOR_MUTED),
-      rot: (Math.random()-0.5)*0.4, charAngle: 0,
-      life: 0.8 + Math.random()*0.5, maxLife: 1.3,
-      trail, trailTimer: 0, fragmented: false,
-      update() {
-        this.x += this.vx; this.y += this.vy;
-        this.vx *= 0.95; this.vy = this.vy * 0.95 + 0.03;
-        this.charAngle += this.rot;
-        this.life -= 0.022;
-        this.trailTimer++;
-        if (this.trailTimer % 2 === 0) {
-          this.trail.push({ x: this.x, y: this.y });
-          if (this.trail.length > 8) this.trail.shift();
-        }
-        if (!isMobileDevice && !this.fragmented && depth < 2 && this.life < this.maxLife * 0.5) {
-          this.fragmented = true;
-          const frags = 2 + Math.floor(Math.random()*2);
-          for (let f = 0; f < frags; f++) {
-            spawnFragment(
-              this.x, this.y,
-              this.vx * 0.6 + (Math.random()-0.5)*2,
-              this.vy * 0.6 + (Math.random()-0.5)*2,
-              CHARS[Math.floor(Math.random()*CHARS.length)],
-              this.size * 0.6, depth + 1
-            );
-          }
-        }
-      },
-      draw(ctx) {
-        const alpha = Math.max(0, this.life / this.maxLife);
-        // Heat glow trail — skipped on mobile (too GPU intensive)
-        if (!isMobileDevice) {
-          this.trail.forEach((tp, ti) => {
-            const ta = (ti / this.trail.length) * alpha * 0.4;
-            const tr = (ti / this.trail.length) * this.size * 0.8;
-            const g  = ctx.createRadialGradient(tp.x, tp.y, 0, tp.x, tp.y, tr);
-            g.addColorStop(0, COLOR_ACCENT + Math.round(ta*120).toString(16).padStart(2,'0'));
-            g.addColorStop(1, 'transparent');
-            ctx.fillStyle = g;
-            ctx.beginPath(); ctx.arc(tp.x, tp.y, tr, 0, Math.PI*2); ctx.fill();
-          });
-        }
-        // Char
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.translate(this.x, this.y); ctx.rotate(this.charAngle);
-        ctx.fillStyle = this.color;
-        ctx.font = `bold ${this.size}px 'DM Mono', monospace`;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(this.char, 0, 0);
-        ctx.restore(); ctx.globalAlpha = 1;
-      }
-    });
-  }
-
-  window.fireEmberDrift = function(cx, cy) {
-    const count = 14;
-    // Central flash
-    celebParticles.push({
-      x: cx, y: cy, r: 2, life: 1, maxLife: 1,
-      update() { this.r += 3; this.life -= 0.08; },
-      draw(ctx) {
-        const g = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.r);
-        g.addColorStop(0, COLOR_ACCENT + Math.round(Math.max(0,this.life)*180).toString(16).padStart(2,'0'));
-        g.addColorStop(1, 'transparent');
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
-      }
-    });
-    for (let i = 0; i < count; i++) {
-      const angle = (i / count) * Math.PI*2 + (Math.random()-0.5)*0.3;
-      const speed = 2.5 + Math.random()*4;
-      spawnFragment(
-        cx, cy,
-        Math.cos(angle)*speed, Math.sin(angle)*speed,
-        CHARS[Math.floor(Math.random()*CHARS.length)],
-        11 + Math.random()*6, 0
-      );
-    }
-    celebStart();
-  };
-})();
+// ─── Celebration — ember drift + accent glow ── moved to assets/celebration.js.
 
 // ─── Idle Companion ── moved to assets/idle.js (self-contained IIFE).
 
