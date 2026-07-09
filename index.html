@@ -11249,18 +11249,17 @@ async function _meetingSendChunk(blob, retryCount = 0) {
     // Re-render for the final chunk is handled by the onstop promise chain above.
   } catch (e) {
     const msg = e.message || 'network';
-    if (_isQuota(msg) && retryCount < 3) {
-      // Quota errors: back off exponentially (30s → 60s → 120s) then drop silently.
-      // No red dot — quota exhaustion mid-meeting is expected on free tier and not actionable.
-      await new Promise(r => setTimeout(r, 30000 * Math.pow(2, retryCount)));
-      return _meetingSendChunk(blob, retryCount + 1);
+    if (_isQuota(msg)) {
+      // Quota exceeded — show red dot immediately and bail. Retrying after 30s won't help
+      // and leaves the user staring at "Digesting…" with no explanation.
+      _logSyncError('Meeting', 'Quota exceeded — ' + msg.slice(0, 100));
+      return; // send.then() fires → processingFinalChunk clears → overlay resolves
     }
     if (retryCount === 0) {
       // Non-quota first failure: retry once immediately
       return _meetingSendChunk(blob, 1);
     }
-    const label = _isQuota(msg) ? 'Quota limit hit — ' : 'Chunk dropped — ';
-    _logSyncError('Meeting', label + msg.slice(0, 120));
+    _logSyncError('Meeting', 'Chunk dropped — ' + msg.slice(0, 120));
   }
 }
 
