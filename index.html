@@ -1129,12 +1129,19 @@
     box-shadow: var(--shadow-triage);
     max-width: 90vw;
     cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--dur-slow) var(--ease-out);
+    pointer-events: none;
   }
   #triageBar:hover {
     border-color: var(--accent);
   }
   #triageBar.hidden {
     display: none;
+  }
+  #triageBar.visible {
+    opacity: 1;
+    pointer-events: auto;
   }
   .triage-msg {
     font-size: var(--text-sm2);
@@ -1561,14 +1568,18 @@
     color: var(--muted);
     font-size: var(--text-xs);
     letter-spacing: 0.05em;
-    display: flex;
+    display: none;
     align-items: center;
     gap: 7px;
     cursor: pointer;
     overflow: hidden;
     white-space: nowrap;
-    transition: color var(--dur-fast) ease;
+    transition: color var(--dur-fast) ease, opacity var(--dur-slow) var(--ease-out);
+    opacity: 0;
+    pointer-events: none;
   }
+  .morning-nudge.show { display: flex; }
+  .morning-nudge.show.visible { opacity: 1; pointer-events: auto; }
   .morning-nudge:hover { color: var(--text); }
   .morning-nudge .nudge-star {
     font-size: 9px;
@@ -3288,7 +3299,7 @@
 
   <!-- Unified morning nudge (v2.19.0) — one surface for carried-over tasks,
        Trello cards, and yesterday's review; leads with what matters most -->
-  <div class="morning-nudge" id="dayNudge" style="display:none"></div>
+  <div class="morning-nudge" id="dayNudge"></div>
 
   <!-- Trello section -->
   <div class="section" id="trelloSection">
@@ -3338,7 +3349,7 @@
 </div>
 
 <!-- Triage trigger bar (minimized state) -->
-<div id="triageBar" class="hidden" style="opacity:0" onclick="triageExpand()">
+<div id="triageBar" class="hidden" onclick="triageExpand()">
   <span class="triage-msg"><span id="triageCount">0</span> didn't happen</span>
   <button class="triage-btn primary">Review</button>
 </div>
@@ -3581,13 +3592,14 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '231h';
+const DEV_HOURS     = '232h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.25.2': 'Polish — triage bar, morning nudge, and all config panels now fade in and out instead of snapping.',
   '2.25.1': 'Polish — meeting pill, voice pill, and review overlay now fade in and out (300ms) instead of snapping.',
   '2.25.0': 'New — the About icon glows when a fresh version lands. Open it and the CURRENT badge breathes a few times to greet you, then rests.',
   '2.24.0': 'New — voice note on mobile: tap the mic in the add bar, speak a task (up to 90 seconds), and it drops into the input ready to edit and submit.',
@@ -3908,7 +3920,7 @@ function checkDayNudge() {
   // Only show in morning hours (before noon)
   const hour = new Date().getHours();
   if (hour >= 12) {
-    nudgeEl.style.display = 'none';
+    nudgeEl.classList.remove('visible', 'show');
     localStorage.removeItem('morning_nudge_count');
     localStorage.removeItem('today_day_review');
     localStorage.removeItem('day_nudge_ai_' + _localISO());
@@ -3925,7 +3937,7 @@ function checkDayNudge() {
   // manualTasks and resurrects a nudge the user just dismissed on every wake. (BUG-040)
   const _dismissKey = 'day_nudge_dismissed_' + _localISO();
   if (localStorage.getItem(_dismissKey)) {
-    nudgeEl.style.display = 'none';
+    nudgeEl.classList.remove('visible', 'show');
     return;
   }
 
@@ -3951,7 +3963,7 @@ function checkDayNudge() {
   const isReviewFresh = review && review.date && review.date !== _localISO();
 
   if (carriedOver === 0 && cards.length === 0 && !isReviewFresh) {
-    nudgeEl.style.display = 'none';
+    nudgeEl.classList.remove('visible', 'show');
     return;
   }
 
@@ -3975,7 +3987,7 @@ function checkDayNudge() {
     if (review.habits > 0) yp.push(`${review.habits} habit${review.habits > 1 ? 's' : ''}`);
     if (yp.length) msg = `Yesterday: ${yp.join(', ')}`;
   }
-  if (!msg) { nudgeEl.style.display = 'none'; return; }
+  if (!msg) { nudgeEl.classList.remove('visible', 'show'); return; }
 
   // ── AI-or-rule race (v2.17.129) ──
   // If AI text is cached for today, show it directly — no rule-based flash, no swap.
@@ -3988,9 +4000,13 @@ function checkDayNudge() {
   const _showNudge = (text) => {
     nudgeEl.innerHTML = `<span class="nudge-star">✦</span><span class="nudge-text">${esc(text)}</span>`;
     _breathe(nudgeEl.querySelector('.nudge-star'), _KF_BREATHE_SMALL, 2400);
-    nudgeEl.style.display = 'flex';
+    if (!nudgeEl.classList.contains('show')) {
+      nudgeEl.classList.add('show');
+      requestAnimationFrame(() => nudgeEl.classList.add('visible'));
+    }
     nudgeEl.onclick = () => {
-      nudgeEl.style.display = 'none';
+      nudgeEl.classList.remove('visible');
+      setTimeout(() => nudgeEl.classList.remove('show'), 300);
       // Prune stale dismiss flags from prior days, then set today's. (BUG-040)
       _pruneLS('day_nudge_dismissed_', _dismissKey);
       localStorage.setItem(_dismissKey, '1');
@@ -4132,7 +4148,7 @@ function checkTriageBar() {
   
   // Triage overlay is open — bar stays hidden unconditionally (BUG-007)
   if (_triageActive) {
-    bar.classList.add('hidden');
+    bar.classList.remove('visible'); bar.classList.add('hidden');
     const overlay = $.triageOverlay || document.getElementById('triageOverlay');
     if (overlay && !overlay.classList.contains('hidden')) {
       const { manual: undoneManual, trello: undoneTrello } = _undoneTasks();
@@ -4147,7 +4163,7 @@ function checkTriageBar() {
   
   // Wake grace window — sync may not have completed yet. (BUG-001)
   if (_triageBarSilent) {
-    bar.classList.add('hidden');
+    bar.classList.remove('visible'); bar.classList.add('hidden');
     return;
   }
   
@@ -4161,16 +4177,19 @@ function checkTriageBar() {
     // Show bar — update count whether first appearance or already showing
     const countEl = $.triageCount || document.getElementById('triageCount');
     if (countEl) countEl.textContent = totalUndone;
-    bar.classList.remove('hidden');
-    bar.style.display = '';
+    if (!bar.classList.contains('visible')) {
+      bar.classList.remove('hidden');
+      bar.style.display = '';
+      requestAnimationFrame(() => bar.classList.add('visible'));
+    }
     _triageBarShown = true;
   } else if (_triageBarShown && inTriageWindow && !triageDismissedToday && totalUndone === 0) {
     // All tasks gone while bar was showing — triage no longer needed, hide it
-    bar.classList.add('hidden');
+    bar.classList.remove('visible'); bar.classList.add('hidden');
     _triageBarShown = false;
   } else if (!inTriageWindow || triageDismissedToday) {
     // Outside window or dismissed — hide and reset
-    bar.classList.add('hidden');
+    bar.classList.remove('visible'); bar.classList.add('hidden');
     _triageBarShown = false;
   }
   // If none of the above: bar state unchanged — mutations don't hide it
@@ -4186,7 +4205,7 @@ function triageExpand() {
   
   // Hide bar, show overlay
   const bar = $.triageBar || document.getElementById('triageBar');
-  if (bar) bar.classList.add('hidden');
+  if (bar) { bar.classList.remove('visible'); bar.classList.add('hidden'); }
   const titleEl = $.triageTitle || document.getElementById('triageTitle');
   if (titleEl) titleEl.textContent = `${totalUndone} didn't happen`;
   document.getElementById('triageComplete').classList.add('hidden');
@@ -4635,7 +4654,8 @@ function triageMinimize() {
   }
   _triageActive = false; // Allow bar to show again
   document.getElementById('triageOverlay').classList.add('hidden');
-  document.getElementById('triageBar').classList.remove('hidden');
+  const _tbMin = document.getElementById('triageBar');
+  if (_tbMin) { _tbMin.classList.remove('hidden'); requestAnimationFrame(() => _tbMin.classList.add('visible')); }
 }
 
 function triageClose() {
@@ -4643,7 +4663,11 @@ function triageClose() {
   triageDismissedToday = true;
   localStorage.setItem('triage_dismissed', _getAppDay());
   document.getElementById('triageOverlay').classList.add('hidden');
-  document.getElementById('triageBar').classList.add('hidden');
+  const _tbClose = document.getElementById('triageBar');
+  if (_tbClose) {
+    _tbClose.classList.remove('visible');
+    setTimeout(() => _tbClose.classList.add('hidden'), 300);
+  }
   
   // Sync triage dismissed state to other devices
   const token = localStorage.getItem('dropbox_token');
@@ -5354,8 +5378,16 @@ function toggleConfig() {
   const scrollY = window.scrollY; // Preserve scroll position
   const configPanel = $.configPanel;
   const isOpening = !configPanel.classList.contains('open');
-  if (isOpening) configPanel.style.animation = ''; // clear repaint suppression so fadeIn plays (BUG-023)
-  configPanel.classList.toggle('open');
+  if (isOpening) {
+    configPanel.style.animation = ''; // clear repaint suppression so fadeIn plays (BUG-023)
+    configPanel.classList.add('open');
+  } else {
+    configPanel.style.display = 'block';
+    configPanel.classList.remove('open');
+    configPanel.style.animation = `fadeOut var(--dur-base) var(--ease-std) forwards`;
+    configPanel.style.pointerEvents = 'none';
+    setTimeout(() => { configPanel.style.display = ''; configPanel.style.animation = ''; configPanel.style.pointerEvents = ''; }, 180);
+  }
   $.infoPanel.classList.remove('open');
   $.habitsPanel.classList.remove('open');
   syncActiveButtons();
@@ -5376,8 +5408,16 @@ function toggleInfo() {
   const scrollY = window.scrollY; // Preserve scroll position
   const panel = $.infoPanel;
   const isOpening = !panel.classList.contains('open');
-  if (isOpening) panel.style.animation = ''; // clear repaint suppression so fadeIn plays (BUG-023)
-  panel.classList.toggle('open');
+  if (isOpening) {
+    panel.style.animation = ''; // clear repaint suppression so fadeIn plays (BUG-023)
+    panel.classList.add('open');
+  } else {
+    panel.style.display = 'block';
+    panel.classList.remove('open');
+    panel.style.animation = `fadeOut var(--dur-base) var(--ease-std) forwards`;
+    panel.style.pointerEvents = 'none';
+    setTimeout(() => { panel.style.display = ''; panel.style.animation = ''; panel.style.pointerEvents = ''; }, 180);
+  }
   $.configPanel.classList.remove('open');
   $.habitsPanel.classList.remove('open');
   syncActiveButtons();
@@ -6715,8 +6755,16 @@ function toggleHabits() {
   const scrollY = window.scrollY; // Preserve scroll position
   const panel = document.getElementById('habitsPanel');
   const isOpening = !panel.classList.contains('open');
-  if (isOpening) panel.style.animation = ''; // clear repaint suppression so fadeIn plays (BUG-023)
-  panel.classList.toggle('open');
+  if (isOpening) {
+    panel.style.animation = ''; // clear repaint suppression so fadeIn plays (BUG-023)
+    panel.classList.add('open');
+  } else {
+    panel.style.display = 'block';
+    panel.classList.remove('open');
+    panel.style.animation = `fadeOut var(--dur-base) var(--ease-std) forwards`;
+    panel.style.pointerEvents = 'none';
+    setTimeout(() => { panel.style.display = ''; panel.style.animation = ''; panel.style.pointerEvents = ''; }, 180);
+  }
   $.configPanel.classList.remove('open');
   document.getElementById('infoPanel').classList.remove('open');
   syncActiveButtons();
@@ -8997,7 +9045,7 @@ function mergeRemoteData(data) {
     // Hide triage bar AND overlay if showing
     const triageBar = document.getElementById('triageBar');
     const triageOverlay = document.getElementById('triageOverlay');
-    if (triageBar) triageBar.classList.add('hidden');
+    if (triageBar) { triageBar.classList.remove('visible'); triageBar.classList.add('hidden'); }
     if (triageOverlay) triageOverlay.classList.add('hidden');
   }
 
@@ -9020,7 +9068,7 @@ function mergeRemoteData(data) {
   _DISMISS_SYNC.forEach(d => {
     if ((data[d.field] || '') === '1' && !localStorage.getItem(d.prefix + _todayISO)) {
       localStorage.setItem(d.prefix + _todayISO, '1');
-      if ($[d.el]) $[d.el].style.display = 'none';
+      if ($[d.el]) $[d.el].classList.remove('visible', 'show');
     }
   });
 
@@ -9596,7 +9644,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     const addBar = document.getElementById('addTaskBar');
     if (addBar) addBar.style.opacity = '1';
     const triageBar = document.getElementById('triageBar');
-    if (triageBar) triageBar.style.opacity = '1';
+    if (triageBar) triageBar.classList.add('visible');
     const meetingPill = document.getElementById('meetingPill');
     if (meetingPill) meetingPill.classList.add('visible');
     const meetingOverlay = document.getElementById('meetingOverlay');
@@ -9771,7 +9819,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
         const addTaskBar = document.getElementById('addTaskBar');
         const triageBar  = document.getElementById('triageBar');
         if (addTaskBar) { addTaskBar.style.transition = 'opacity 300ms ease'; addTaskBar.style.opacity = '1'; }
-        if (triageBar)  { triageBar.style.transition  = 'opacity 300ms ease'; triageBar.style.opacity  = '1'; }
+        if (triageBar)  triageBar.classList.add('visible');
         const _mtgPill = document.getElementById('meetingPill');
         const _mtgOvl  = document.getElementById('meetingOverlay');
         if (_mtgPill) _mtgPill.classList.add('visible');
