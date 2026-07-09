@@ -2218,6 +2218,11 @@
       pointer-events: none;
     }
     
+    /* Pills: lift above add bar + safe area so they never overlap the input */
+    #voicePill, #meetingPill {
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+    }
+
     /* When keyboard is open: position above keyboard, remove bottom fill */
     .add-task-row.keyboard-open {
       /* Position set by JS via visualViewport */
@@ -11505,7 +11510,6 @@ async function _voiceNoteSend(blob, mimeType) {
       input.value = prev;
     }
     input.disabled = false;
-    input.focus();
   };
   reader.readAsDataURL(blob);
 }
