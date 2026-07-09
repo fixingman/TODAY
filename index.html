@@ -1829,7 +1829,7 @@
     background: var(--surface);
     border: 1px solid var(--accent-dim);
     border-radius: var(--radius-full);
-    padding: 7px var(--space-3);
+    padding: var(--space-2) var(--space-3);
     display: none;
     align-items: center;
     gap: var(--space-2);
@@ -1842,7 +1842,7 @@
   #meetingPill.show { display: flex; }
   #meetingPill.show.visible { opacity: 1; pointer-events: auto; }
   .meeting-pill-dot {
-    width: 7px; height: 7px; border-radius: 50%;
+    width: var(--space-2); height: var(--space-2); border-radius: 50%;
     background: var(--danger);
     flex-shrink: 0;
   }
@@ -1872,7 +1872,7 @@
     background: var(--surface);
     border: 1px solid var(--accent-dim);
     border-radius: var(--radius-full);
-    padding: 7px var(--space-3);
+    padding: var(--space-2) var(--space-3);
     display: none;
     align-items: center;
     gap: var(--space-2);
@@ -1886,7 +1886,7 @@
   #voicePill.show { display: flex; }
   #voicePill.show.visible { opacity: 1; pointer-events: auto; }
   .voice-pill-dot {
-    width: 7px; height: 7px; border-radius: 50%;
+    width: var(--space-2); height: var(--space-2); border-radius: 50%;
     background: var(--danger); flex-shrink: 0;
   }
   .voice-pill-time {
