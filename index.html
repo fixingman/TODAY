@@ -3365,7 +3365,7 @@
     <input class="add-task-input" id="newTask" maxlength="500" type="text"
       placeholder="What's on your mind?"
       onkeydown="handleBarKey(event)" oninput="toggleClearBtn()" />
-    <button id="clearTaskBtn" onclick="clearTaskInput()" class="clear-input-btn" style="display:none">×</button>
+    <button id="clearTaskBtn" onclick="clearTaskInput()" onpointerdown="event.preventDefault()" class="clear-input-btn" style="display:none">×</button>
   </div>
   <!-- Voice note mic (mobile-only, revealed by _voiceNoteInit) — v2.24.0 -->
   <button class="add-mic-btn" id="voiceNoteBtn" onclick="toggleVoiceNote()" title="Voice note — speak a task">
@@ -11510,6 +11510,7 @@ async function _voiceNoteSend(blob, mimeType) {
       input.value = prev;
     }
     input.disabled = false;
+    toggleClearBtn();
   };
   reader.readAsDataURL(blob);
 }
