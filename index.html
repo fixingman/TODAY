@@ -5394,12 +5394,7 @@ function toggleConfig() {
     configPanel.style.animation = ''; // clear repaint suppression so fadeIn plays (BUG-023)
     configPanel.classList.add('open');
   } else {
-    configPanel.style.display = 'block';
-    configPanel.style.opacity = '1';
     configPanel.classList.remove('open');
-    configPanel.style.transition = `opacity var(--dur-base) var(--ease-out)`;
-    requestAnimationFrame(() => { configPanel.style.opacity = '0'; });
-    setTimeout(() => { configPanel.style.display = ''; configPanel.style.transition = ''; configPanel.style.opacity = ''; }, 180);
   }
   $.infoPanel.classList.remove('open');
   $.habitsPanel.classList.remove('open');
@@ -5425,12 +5420,7 @@ function toggleInfo() {
     panel.style.animation = ''; // clear repaint suppression so fadeIn plays (BUG-023)
     panel.classList.add('open');
   } else {
-    panel.style.display = 'block';
-    panel.style.opacity = '1';
     panel.classList.remove('open');
-    panel.style.transition = `opacity var(--dur-base) var(--ease-out)`;
-    requestAnimationFrame(() => { panel.style.opacity = '0'; });
-    setTimeout(() => { panel.style.display = ''; panel.style.transition = ''; panel.style.opacity = ''; }, 180);
   }
   $.configPanel.classList.remove('open');
   $.habitsPanel.classList.remove('open');
@@ -6773,12 +6763,7 @@ function toggleHabits() {
     panel.style.animation = ''; // clear repaint suppression so fadeIn plays (BUG-023)
     panel.classList.add('open');
   } else {
-    panel.style.display = 'block';
-    panel.style.opacity = '1';
     panel.classList.remove('open');
-    panel.style.transition = `opacity var(--dur-base) var(--ease-out)`;
-    requestAnimationFrame(() => { panel.style.opacity = '0'; });
-    setTimeout(() => { panel.style.display = ''; panel.style.transition = ''; panel.style.opacity = ''; }, 180);
   }
   $.configPanel.classList.remove('open');
   document.getElementById('infoPanel').classList.remove('open');
