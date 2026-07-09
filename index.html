@@ -5383,10 +5383,11 @@ function toggleConfig() {
     configPanel.classList.add('open');
   } else {
     configPanel.style.display = 'block';
+    configPanel.style.opacity = '1';
     configPanel.classList.remove('open');
-    configPanel.style.animation = `fadeOut var(--dur-base) var(--ease-std) forwards`;
-    configPanel.style.pointerEvents = 'none';
-    setTimeout(() => { configPanel.style.display = ''; configPanel.style.animation = ''; configPanel.style.pointerEvents = ''; }, 180);
+    configPanel.style.transition = `opacity var(--dur-base) var(--ease-out)`;
+    requestAnimationFrame(() => { configPanel.style.opacity = '0'; });
+    setTimeout(() => { configPanel.style.display = ''; configPanel.style.transition = ''; configPanel.style.opacity = ''; }, 180);
   }
   $.infoPanel.classList.remove('open');
   $.habitsPanel.classList.remove('open');
@@ -5413,10 +5414,11 @@ function toggleInfo() {
     panel.classList.add('open');
   } else {
     panel.style.display = 'block';
+    panel.style.opacity = '1';
     panel.classList.remove('open');
-    panel.style.animation = `fadeOut var(--dur-base) var(--ease-std) forwards`;
-    panel.style.pointerEvents = 'none';
-    setTimeout(() => { panel.style.display = ''; panel.style.animation = ''; panel.style.pointerEvents = ''; }, 180);
+    panel.style.transition = `opacity var(--dur-base) var(--ease-out)`;
+    requestAnimationFrame(() => { panel.style.opacity = '0'; });
+    setTimeout(() => { panel.style.display = ''; panel.style.transition = ''; panel.style.opacity = ''; }, 180);
   }
   $.configPanel.classList.remove('open');
   $.habitsPanel.classList.remove('open');
@@ -6760,10 +6762,11 @@ function toggleHabits() {
     panel.classList.add('open');
   } else {
     panel.style.display = 'block';
+    panel.style.opacity = '1';
     panel.classList.remove('open');
-    panel.style.animation = `fadeOut var(--dur-base) var(--ease-std) forwards`;
-    panel.style.pointerEvents = 'none';
-    setTimeout(() => { panel.style.display = ''; panel.style.animation = ''; panel.style.pointerEvents = ''; }, 180);
+    panel.style.transition = `opacity var(--dur-base) var(--ease-out)`;
+    requestAnimationFrame(() => { panel.style.opacity = '0'; });
+    setTimeout(() => { panel.style.display = ''; panel.style.transition = ''; panel.style.opacity = ''; }, 180);
   }
   $.configPanel.classList.remove('open');
   document.getElementById('infoPanel').classList.remove('open');
