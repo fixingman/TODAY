@@ -13,7 +13,7 @@
 | 050 | — not assigned — | — |
 | 049 | New Trello card looks aged on arrival | ✅ v2.18.22 |
 | 048 | Trello card aging not synced across devices | ✅ v2.18.17 |
-| 047 | Dropbox connect on fresh install doesn't auto-restore | ⏳ v2.18.16 |
+| 047 | Dropbox connect on fresh install doesn't auto-restore | ✅ v2.18.16 |
 | 046 | Trello board selector / Dropbox buttons flicker | ✅ v2.18.15 |
 | 045 | Done-today count inflates | ✅ v2.18.21 |
 | 044 | Delayed focus chime after Escape/task-switch | ✅ v2.18.6 |
@@ -88,21 +88,6 @@
 
 ---
 
-## BUG-047: Dropbox connect on fresh install doesn't auto-restore
-
-**Status:** ⏳ v2.18.16 — awaiting verify
-
-**Symptom:** Installing the PWA on a new device, connecting Dropbox via OAuth, and finding the task list empty — even though a backup exists on Dropbox. The existing data was silently overwritten by the fresh install's empty state.
-
-**Root cause:** `_dropboxExchangeCode()` (called after OAuth completes) unconditionally called `dropboxAutoSave()` — writing the device's current (empty) state to Dropbox immediately after receiving the token. The backup was overwritten before the user had a chance to restore.
-
-**Fix (v2.18.16):** `_dropboxExchangeCode()` now detects a fresh install: if `manualTasks`, `habitsList`, `soonTasks`, and `pastTasks` are all empty, it probes Dropbox via `get_metadata` to check whether a backup file exists. If it does → `dropboxRestore(false)` (silent restore). If the probe fails or no file exists → falls back to `dropboxAutoSave()` as before. Reconnect on a device that already has local data also falls back to save.
-
-**Verify:**
-- Fresh PWA install (no local tasks). Connect Dropbox via OAuth. Existing tasks should appear automatically — no manual "Restore" tap needed.
-- Reconnect Dropbox on a device that already has tasks → existing local data is preserved (upload, not overwrite).
-
-**Verified fixed:** ☐
 
 
 
