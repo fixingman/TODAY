@@ -3142,7 +3142,7 @@
 </head>
 <body style="background-color:#0e0e10"><!-- inline base color: see <html> note (BUG-041) -->
 <!-- Error indicator (dev aid) -->
-<div id="errorIndicator" data-count="0" onclick="_toggleErrorPanel()"></div>
+<div id="errorIndicator" data-count="0" onclick="_toggleErrorPanel()" title="Errors — tap to view, tap again to clear"></div>
 <div id="errorPanel"></div>
 <!-- SVG noise filter for focus mode depth effect -->
 <svg style="position:absolute;width:0;height:0;pointer-events:none" aria-hidden="true">
@@ -3387,7 +3387,7 @@
   <div class="voice-pill-dot"></div>
   <span class="voice-pill-time" id="voicePillTime">0:00</span>
   <span class="voice-pill-cap" id="voicePillCap"></span>
-  <button class="voice-pill-stop" onclick="_voiceNoteStop()">stop</button>
+  <button class="voice-pill-stop" onclick="_voiceNoteStop()" title="Stop recording">stop</button>
 </div>
 
 <!-- Meeting mode: non-blocking listening pill (v2.22.0) -->
