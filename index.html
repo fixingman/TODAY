@@ -3610,6 +3610,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.25.6': 'Fix — double offline message in Connections panel: Trello board fetch is now skipped when offline.',
   '2.25.5': 'Fix — Gemini and Claude buttons now correctly disable when offline (were re-rendered after the offline pass).',
   '2.25.4': 'Polish — meeting review: all items start unselected, in meeting order. Owner shown as hint. Tap what you want.',
   '2.25.3': 'Refactor — celebration effects (ember drift + accent glow) extracted to assets/celebration.js.',
@@ -5863,8 +5864,8 @@ function renderConnections() {
 
   container.innerHTML = html;
 
-  // If Trello needs board loading, do it now
-  if (trelloToken && !trelloHasBoard) {
+  // If Trello needs board loading, do it now — skip when offline (avoids a second error message alongside the offline banner)
+  if (trelloToken && !trelloHasBoard && navigator.onLine) {
     loadTrelloBoards();
   }
 
