@@ -3610,6 +3610,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.25.5': 'Fix — Gemini and Claude buttons now correctly disable when offline (were re-rendered after the offline pass).',
   '2.25.4': 'Polish — meeting review: all items start unselected, in meeting order. Owner shown as hint. Tap what you want.',
   '2.25.3': 'Refactor — celebration effects (ember drift + accent glow) extracted to assets/celebration.js.',
   '2.25.2': 'Polish — triage bar, morning nudge, and all config panels now fade in and out instead of snapping.',
@@ -11395,6 +11396,10 @@ function _aiRenderConfig() {
   container.innerHTML =
     _providerRow('gemini', 'Gemini Flash', 'Free tier', 'https://aistudio.google.com/apikey', 'Get free key →', hasGemini) +
     _providerRow('claude', 'Claude Sonnet', 'Paid API', 'https://platform.claude.com/login', 'Get key →', hasClaude);
+
+  // Re-apply offline state — buttons are freshly rendered so _applyOfflinePanel's
+  // earlier pass over the panel won't have reached them yet.
+  _applyOfflinePanel();
 }
 
 function _aiUpdateConnectBtn(provider) {
