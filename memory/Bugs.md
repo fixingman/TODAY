@@ -6,7 +6,7 @@
 
 | # | Description | Status |
 |---|---|---|
-| 054 | Phantom old tasks resurrect in TODAY list via sync merge | ⏳ v2.23.6 |
+| 054 | Phantom old tasks resurrect in TODAY list via sync merge | ✅ v2.23.6 |
 | 053 | Morning nudge dismissal not synced across devices | ✅ v2.18.38 |
 | 052 | Splash dismissal slow — sync bookkeeping held the gate | ✅ v2.18.36 |
 | 051 | Trello nudge dismissal not synced across devices | ✅ v2.18.23 |
@@ -70,7 +70,7 @@
 
 ## BUG-054: Phantom old tasks resurrect in TODAY list via sync merge
 
-**Status:** ⏳ v2.23.6 — awaiting verify
+**Status:** ✅ v2.23.6 — verified 2026-07-11
 
 **Symptom:** (2026-07-07) Old tasks Can had completed long ago reappeared in the manual TODAY list, unchecked — some with pomodoro icons (`focusSessions` lives on the task object) and aged styling (age derives from the `manual_<timestamp>` ID). No unusual device involved; localhost dev copy ruled out (inspected: no Dropbox token, empty state).
 
@@ -84,7 +84,7 @@
 - No phantom reappearance over the following weeks of normal multi-device use.
 - Console check on any device: complete a task, let it roll to PAST, simulate age (edit `zoneChangedAt` to 8 days ago), reload → task purges AND its ID appears in `today_deleted_ids`.
 
-**Verified fixed:** ☐
+**Verified fixed:** ✅ 2026-07-11 — no phantom reappearance over ~2 weeks of normal multi-device use.
 
 ---
 
