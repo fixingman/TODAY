@@ -5450,8 +5450,8 @@ function _versionBadgeBreathe() {
   const badge = document.querySelector('#changelogPanel .version-badge');
   if (!badge || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const anim = badge.animate(
-    [{ opacity: 1 }, { opacity: 0.35 }, { opacity: 1 }],
-    { duration: 2400, easing: 'ease-in-out', iterations: Infinity }
+    [{ opacity: 1 }, { opacity: 0.65 }, { opacity: 1 }],
+    { duration: 1800, easing: 'ease-in-out', iterations: Infinity }
   );
   const io = new IntersectionObserver(entries => {
     if (!entries.some(e => e.isIntersecting)) return;
