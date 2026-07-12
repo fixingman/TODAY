@@ -6,6 +6,20 @@
 
 ---
 
+## BUG-054: Phantom old tasks resurrect in TODAY list via sync merge
+
+**Status:** ✅ Verified fixed (v2.23.6; verified 2026-07-11)
+
+**Symptom:** Old tasks completed long ago reappeared in the manual TODAY list, unchecked — some with pomodoro icons and aged styling. No unusual device involved; localhost dev copy ruled out.
+
+**Root cause (two holes, same class as BUG-018):** `mergeRemoteData` union-merges `manual_tasks`; a task is protected from resurrection only while tombstoned in `deleted_ids` or present in a local SOON/PAST zone. (1) `_purgePast()` dropped PAST items (done: 7d, let_go/aged: 30d) with no tombstone — once purged, any device whose state still carried the task could resurrect it. (2) `_cleanupDeletedIds()` pruned tombstones after 30 days, so explicit deletions also lost protection.
+
+**Fix (v2.23.6):** `_purgePast()` now returns `{id, at}` tombstones; `applyNewDayCleanup` appends them to `today_deleted_ids`, `mergeRemoteData` injects them into `mergedDeletedMap` before its merged-log persist. Tombstone TTL 30 → 180 days + newest-2000 backstop. Merge filter hardened: `zoneChangedAt > deletedAt` keeps a legitimate pull-back racing a purge tombstone.
+
+**Verified fixed:** ✅ 2026-07-11 — no phantom reappearance over ~2 weeks of normal multi-device use.
+
+---
+
 ## BUG-053: Morning nudge dismissal not synced across devices
 
 **Status:** ✅ Verified fixed (v2.18.38; unified under v2.19.0)
