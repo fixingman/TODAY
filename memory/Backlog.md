@@ -113,8 +113,8 @@
 
 | Surface | Shipped | W3 due | Status |
 |---------|---------|--------|--------|
-| Input bar discoverability (placeholder + ✦ glow + tip) | v2.17.99 | overdue — review now | Awaiting device impressions |
-| Merge-anomaly count line (Connections → Dropbox) | v2.17.101–102 | overdue — review now | Awaiting device impressions |
+| Input bar discoverability (placeholder + ✦ glow + tip) | v2.17.99 | overdue — review now | ✅ Closed — single-user app, no first-timer data possible. Passive hints (placeholder, glow) are low cost and non-intrusive; kept as-is. |
+| Merge-anomaly count line (Connections → Dropbox) | v2.17.101–102 | overdue — review now | ✅ Closed — anomaly tracking is console-only; no count line was ever rendered in the UI. Nothing to keep or remove. |
 | Morning nudge AI line | v2.17.73 | collecting (Roadmap #1) | Open — a week of real-morning impressions, then tune |
 | Week-grid "best day" dot (composite tasks+focus+habits) | v2.17.121 | 2026-06-30 | Collecting — does the dot land on a day that *feels* like your best, or does the composite pick surprise you? Tune weights (0.4/0.35/0.25) or revert to a single dimension if it reads wrong. |
 | Unified day nudge (#dayNudge — one line instead of two) | v2.19.0 | 2026-07-19 | ✅ Kept — surfaces the right thing each morning (verified 2026-07-07). |
