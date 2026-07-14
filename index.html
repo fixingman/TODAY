@@ -479,6 +479,9 @@
     --z-splash:  500;
     --z-overlay: 999;
 
+    /* ── Layout ──────────────────────────────────────────────── */
+    --sec-sticky-top: 0px; /* set by ResizeObserver in init() to sticky-header height */
+
     /* ── Opacity scale ───────────────────────────────────────── */
     --opacity-dim:          0.25;  /* done state, secondary badges     */
     --opacity-mid:          0.50;  /* focused session count            */
@@ -707,7 +710,7 @@
     /* No top padding — sticky header sits directly above */
     padding: 0 var(--space-6) 0;
     padding-bottom: 72px; /* space for fixed bottom bar */
-    overflow-x: hidden;
+    overflow-x: clip; /* clip (not hidden) — doesn't create a scroll container, so position:sticky works inside */
   }
 
   /* ── Component: Header ─────────────────────────────────────────────── */
@@ -874,7 +877,11 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-3);
+    position: sticky;
+    top: var(--sec-sticky-top, 0px);
+    z-index: 9; /* below --z-header (10), above task content */
+    background: var(--bg);
   }
 
   .section-label {
@@ -1589,7 +1596,7 @@
   }
   .empty .empty-poem {
     font-weight: 300; font-size: var(--text-base);
-    line-height: 1.8; letter-spacing: normal;
+    line-height: 1.8; letter-spacing: 0;
   }
   @media (max-width: 600px) {
     .empty .empty-poem { font-size: var(--text-sm2); line-height: 1.7; }
@@ -2861,6 +2868,9 @@
     .connection-row.connected .connection-row-actions .btn-sm:not(.btn-forget) {
       display: none;
     }
+    /* Name card: stack title + hint vertically on narrow screens */
+    .name-card-header { flex-direction: column; gap: var(--space-1); }
+    #meetingNameInput { min-width: 0; flex: 1; }
     /* Show connected checkmark and push Forget to the right */
     .conn-check {
       display: inline-block;
@@ -3221,7 +3231,7 @@
     </div>
   </div>
 </div>
-<!-- Sticky header: outside .app so overflow:hidden on .app doesn't break sticky -->
+<!-- Sticky header: outside .app (predates overflow:clip; kept outside for z-index isolation) -->
 <div class="sticky-header" id="sticky-header" style="opacity:0">
   <div class="sticky-header-inner">
     <div class="header">
@@ -3293,7 +3303,7 @@
     <div class="name-card" id="meetingNameWrap">
       <div class="name-card-header">
         <span class="name-card-title">Your name</span>
-        <span class="name-card-hint">used in meeting mode to spot your tasks</span>
+        <span class="name-card-hint">spots your tasks in meetings</span>
       </div>
       <div class="name-chip-list" id="nameChipList">
         <!-- chips + inline input rendered by renderMeetingNames() -->
@@ -3653,9 +3663,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.27.0': 'New — unfinished items in Past can return to Soon with one tap, keeping their history instead of starting over as a copy. The morning poem no longer nudges the logo as it appears, the morning line now reads the same on every device, and your name in Connections now syncs across devices too.',
   '2.26.0': 'New — the day\'s poem greets you once each morning as the app opens, and lingers quietly when your list is empty or everything is done.',
   '2.25.10': 'Fix — long meetings no longer lose chunks: recording is now sized so every six-minute piece reaches the AI safely.',
-  '2.25.9': 'Polish — the CURRENT badge finishes its last breath fully instead of stopping short.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -3837,6 +3847,11 @@ function renderPast() {
     const textHTML = tagMatch
       ? `<span class="task-tag">${esc(tagMatch[1].toLowerCase())}</span>${esc(tagMatch[2])}`
       : esc(t.text);
+    // Done items keep the static badge — PAST is acknowledgment. Only the
+    // unfinished (aged/let_go) get a quiet way back to SOON (Roadmap #8).
+    const badge = t.status === 'done'
+      ? `<span class="zone-badge">${t.status}</span>`
+      : `<button class="zone-badge pull-btn" onclick="reviveFromPast('${t.id}')" title="Back to soon">&#x21a9;&#xFE0E; soon</button>`;
     return `
       <div class="task ${statusClass}" data-id="${t.id}">
         <div class="task-check past-check">
@@ -3845,7 +3860,7 @@ function renderPast() {
         <div class="task-body">
           <div class="task-text">${textHTML}</div>
         </div>
-        <span class="zone-badge">${t.status || 'past'}</span>
+        ${badge}
       </div>
     `;
   }).join('');
@@ -3871,6 +3886,37 @@ function pullFromSoon(id) {
   updateStats();
   _haptic('light');
   
+  // Sync zone change immediately
+  const token = localStorage.getItem('dropbox_token');
+  if (token) dropboxBackup(true);
+}
+
+// Revive an aged/let-go item from PAST back to SOON — same task ID, so age basis,
+// session counts, and insight history survive (Roadmap #8: replaces Can's manual
+// copy-text → new task → move-to-soon ritual, which reset all of that).
+// Done items stay put — PAST is acknowledgment; only the unfinished get a way back.
+function reviveFromPast(id) {
+  const task = pastTasks.find(t => t.id === id);
+  if (!task || task.status === 'done') return;
+
+  // Remove from PAST
+  pastTasks = pastTasks.filter(t => t.id !== id);
+  _savePast();
+
+  // Return to SOON — fresh zoneChangedAt is what wins the merge against
+  // other devices still holding the task in their PAST list
+  delete task.status;
+  task.zone = 'soon';
+  task.zoneChangedAt = new Date().toISOString();
+  task.revived = (task.revived || 0) + 1; // context signal for future nudge/insights
+  soonTasks.unshift(task);
+  _saveSoon();
+
+  renderPast();
+  renderSoon();
+  updateStats();
+  _haptic('light');
+
   // Sync zone change immediately
   const token = localStorage.getItem('dropbox_token');
   if (token) dropboxBackup(true);
@@ -5280,7 +5326,16 @@ function applyNewDayCleanup() {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 function init() {
   _cacheElements();  // cache frequently queried DOM elements FIRST
-  
+
+  // Keep section-header sticky offset in sync with the sticky-header height
+  const _stickyHdr = document.getElementById('sticky-header');
+  if (_stickyHdr) {
+    const _updateSecTop = () =>
+      document.documentElement.style.setProperty('--sec-sticky-top', _stickyHdr.offsetHeight + 'px');
+    _updateSecTop();
+    new ResizeObserver(_updateSecTop).observe(_stickyHdr);
+  }
+
   // Clear stale focus mode state — browser may restore .focusing class from cache
   // but JS state is reset on reload, leaving app visually stuck in focus mode
   const mainApp = document.getElementById('main-app');
@@ -5907,6 +5962,7 @@ function renderConnections() {
   }
 
   _applyOfflinePanel();
+  renderMeetingNames();
 }
 
 // Helper to get board name from cache or config
@@ -8419,6 +8475,7 @@ async function dropboxBackup(silent) {
     // User's name(s) — meeting mode attribution. Primary name in user_name for compat; full list in user_names.
     user_name:            _getUserNames()[0] || '',
     user_names:           _getUserNames(),
+    user_names_at:        localStorage.getItem('user_names_at') || '',
     // stat_last_visit intentionally excluded — it's local device state, meaningless on another device
   };
 
@@ -8724,14 +8781,22 @@ function mergeRemoteData(data) {
   // Merge SOON: union by ID, most recent zoneChangedAt wins, exclude deleted and pulled-back
   // Also exclude tasks already in PAST — completed/aged tasks in PAST won't be in deleted_ids
   // but must not reappear in SOON when remote backup still has them in soon_tasks. (phantom task bug)
-  const pastIds = new Set(pastTasks.map(t => t.id));
+  // Timestamp-aware since v2.27.0: a PAST→SOON revive on another device carries a fresh
+  // zoneChangedAt — provably newer than our PAST entry, so it must pass this guard.
+  // No/older remote timestamp keeps the original phantom-task protection.
+  const localPastAt = new Map(pastTasks.map(t => [t.id, t.zoneChangedAt || '']));
+  const _stillPast = (t) => {
+    const pastAt = localPastAt.get(t.id);
+    if (pastAt === undefined) return false;                 // not in local PAST
+    return !t.zoneChangedAt || t.zoneChangedAt <= pastAt;   // revive must be provably newer
+  };
   const soonMap = new Map();
   soonTasks.forEach(t => {
-    if (!mergedDeletedMap.has(t.id) && !pastIds.has(t.id)) soonMap.set(t.id, t);
+    if (!mergedDeletedMap.has(t.id) && !_stillPast(t)) soonMap.set(t.id, t);
   });
   remoteSoon.forEach(t => {
     if (mergedDeletedMap.has(t.id)) return; // Skip deleted tasks
-    if (pastIds.has(t.id)) return; // Skip tasks already in PAST (completed/aged)
+    if (_stillPast(t)) return; // In local PAST and not a provably-newer revive
     // Skip if task was pulled back to TODAY more recently
     const inToday = mergedTasksMap.get(t.id);
     if (inToday && inToday.zoneChangedAt && (!t.zoneChangedAt || inToday.zoneChangedAt > t.zoneChangedAt)) return;
@@ -8946,15 +9011,20 @@ function mergeRemoteData(data) {
     if (triageOverlay) triageOverlay.classList.add('hidden');
   }
 
-  // ── User names: fill-if-empty — local non-empty wins ──
-  if (!localStorage.getItem('today_user_names')) {
-    // Accept full list from backup, fall back to legacy single-name field
-    const incoming = Array.isArray(data.user_names) && data.user_names.length
-      ? data.user_names
-      : (data.user_name ? [data.user_name] : []);
-    if (incoming.length) {
-      localStorage.setItem('today_user_names', JSON.stringify(incoming));
-      localStorage.setItem('today_user_name', incoming[0]);
+  // ── User names: last-write-wins via user_names_at timestamp ──
+  // Remote wins if its timestamp is strictly newer; fallback fill-if-empty for
+  // old backups that predate the timestamp field (user_names_at = '').
+  const _remoteNamesAt = data.user_names_at || '';
+  const _localNamesAt  = localStorage.getItem('user_names_at') || '';
+  const _incomingNames = Array.isArray(data.user_names) && data.user_names.length
+    ? data.user_names
+    : (data.user_name ? [data.user_name] : []);
+  if ((_remoteNamesAt && _remoteNamesAt > _localNamesAt) ||
+      (!_remoteNamesAt && !localStorage.getItem('today_user_names'))) {
+    if (_incomingNames.length) {
+      localStorage.setItem('today_user_names', JSON.stringify(_incomingNames));
+      localStorage.setItem('today_user_name', _incomingNames[0]);
+      if (_remoteNamesAt) localStorage.setItem('user_names_at', _remoteNamesAt);
     }
   }
 
@@ -8969,12 +9039,17 @@ function mergeRemoteData(data) {
     }
   });
 
-  // ── Day review + AI nudge: fill-if-empty — morning nudge cross-device consistency ──
+  // ── Day review + AI nudge ─────────────────────────────────────────────────
+  // day_review: fill-if-empty (local is the authoritative current-session record)
   if (data.day_review && !localStorage.getItem('today_day_review')) {
     localStorage.setItem('today_day_review', JSON.stringify(data.day_review));
   }
+  // day_nudge_ai: remote always wins — first device to open the app generates
+  // the line and pushes it; all other devices should show the same sentence.
+  // Fill-if-empty caused each device to independently generate and keep its own
+  // AI line, making the nudge differ across PWA instances on the same day.
   const _aiNudgeKey = 'day_nudge_ai_' + _todayISO;
-  if (data.day_nudge_ai && !localStorage.getItem(_aiNudgeKey)) {
+  if (data.day_nudge_ai) {
     localStorage.setItem(_aiNudgeKey, data.day_nudge_ai);
     if (typeof checkDayNudge === 'function') checkDayNudge();
   }
@@ -9562,7 +9637,20 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
   // before the 6s anim-stall safety fires, so the hold isn't mistaken for a stall.
   const _showPoemCoda = localStorage.getItem('poem_splash_date') !== _localISO()
     && typeof _poemOfTheDay === 'function' && !!_poemOfTheDay();
-  if (_showPoemCoda) _splashPoemHold = true;
+  if (_showPoemCoda) {
+    _splashPoemHold = true;
+    // Pre-populate poem content now so #splash-inner's margin:auto 0 centres
+    // the full height (logo + date + poem) from frame one. The poem fades in
+    // later via opacity only — no layout shift, no logo jerk.
+    // (localStorage key is still written at fade-in so an interrupted open
+    // doesn't burn the day's coda.)
+    const _codaPoem = _poemOfTheDay();
+    const _codaEl   = document.getElementById('splash-poem');
+    if (_codaPoem && _codaEl) {
+      _codaEl.querySelector('.splash-poem-text').innerHTML = _codaPoem.text.split('\n').map(esc).join('<br>');
+      _codaEl.querySelector('.poem-author').textContent    = _codaPoem.author;
+    }
+  }
 
   const CHARS = '01∆◊×+−░▒·~⌁⊕⊗'.split('');
 
@@ -9689,10 +9777,9 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
   function _runPoemCoda() {
     const splashEl = document.getElementById('splash');
     const poemEl   = document.getElementById('splash-poem');
-    const poem     = _poemOfTheDay();
-    if (!splashEl || !poemEl || !poem) { window._onSplashAnimDone(); return; }
-    poemEl.querySelector('.splash-poem-text').innerHTML = poem.text.split('\n').map(esc).join('<br>');
-    poemEl.querySelector('.poem-author').textContent = poem.author;
+    if (!splashEl || !poemEl || !poemEl.querySelector('.splash-poem-text').innerHTML) { window._onSplashAnimDone(); return; }
+    const poem = _poemOfTheDay();
+    if (!poem) { window._onSplashAnimDone(); return; }
     localStorage.setItem('poem_splash_date', _localISO());
     let holdTimer = null;
     const finish = () => {
@@ -11015,6 +11102,7 @@ function _saveUserNames(names) {
   // Keep today_user_name in sync for backup payload backward compat
   if (names.length) localStorage.setItem('today_user_name', names[0]);
   else localStorage.removeItem('today_user_name');
+  localStorage.setItem('user_names_at', new Date().toISOString());
   _setLastLocalChange();
   dropboxAutoSave();
 }

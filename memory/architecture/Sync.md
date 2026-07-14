@@ -216,6 +216,19 @@ Deleted tasks are excluded from zone merge to prevent ghost tasks:
 - When merging PAST: skip tasks in `mergedDeletedMap`
 - AI `delete_task` action now calls `_addDeletedId()` for proper sync
 
+### Revive from PAST → SOON (v2.27.0, Roadmap #8)
+`reviveFromPast(id)` moves an `aged`/`let_go` task (never `done`) back to SOON with its
+original ID — clears `status`, sets fresh `zoneChangedAt`, increments a `revived` counter
+(future nudge/insight signal), immediate `dropboxBackup(true)`.
+
+**Merge guard change:** the SOON merge's phantom-task guard ("skip remote soon entries that
+exist in local PAST") became timestamp-aware — `_stillPast(t)`: a remote SOON entry passes
+only if its `zoneChangedAt` is **strictly newer** than the local PAST entry's. A revive on
+device A carries a fresh timestamp, so it survives the merge on device B (whose local PAST
+still holds the task); a stale remote `soon_tasks` entry with an older/missing timestamp is
+still blocked (original phantom-task protection). The existing PAST-merge cleanup then
+removes B's local PAST copy ("now in SOON with newer timestamp" loop).
+
 ### Zone Operations Trigger Backup (v2.12.44)
 
 **Critical:** All zone operations trigger `dropboxBackup(true)` **immediately** (no debounce):
@@ -225,6 +238,7 @@ Deleted tasks are excluded from zone merge to prevent ghost tasks:
 | Pull from SOON | `pullFromSoon()` | Immediate |
 | Move to SOON | `moveToSoon()` | Immediate |
 | Move to PAST | `moveToPast()` | Immediate |
+| Revive from PAST | `reviveFromPast()` | Immediate |
 | Triage decisions | `triageApplyAll()` | Immediate |
 | Triage close | `triageClose()` | Immediate |
 

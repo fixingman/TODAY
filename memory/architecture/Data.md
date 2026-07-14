@@ -24,10 +24,11 @@
 
 | Key | Type | Description |
 |---|---|---|
-| `today_soon` | JSON array | SOON tasks: `{id, text, zone: 'soon', zoneChangedAt}` |
+| `today_soon` | JSON array | SOON tasks: `{id, text, zone: 'soon', zoneChangedAt, revived?}` |
 | `today_past` | JSON array | PAST tasks: `{id, text, zone: 'past', status, zoneChangedAt}` |
 
 **Zone status values:** `done`, `let_go`, `aged`
+**`revived`** (v2.27.0): count of PAST→SOON revives on this task — set by `reviveFromPast()`, rides the task object through all zones/merges. Future nudge/insight signal.
 
 ### Integrations
 

@@ -15,17 +15,18 @@
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 1 | **Morning nudge — impressions week → iterate** | Shipped v2.17.73, collecting | Costs nothing, decides the AI-presence direction. Can collects real-morning impressions; then tune prompt/voice. Detail ↓ |
-| 2 | **Promote poem to a daily moment** | Shipped v2.26.0 | Solution A+C (mock review 2026-07-13): splash coda — day's poem fades in under the typewriter date once per day, tap skips — plus clean-slate echo (empty list + all-done states show the same poem). Yeats/Housman 14-liners cut for the coda (corpus 91→89). Verify on real devices; About panel poem stays. Corpus growth continues — detail ↓ |
-| 3 | **Module extraction** | In progress | **Done:** `util.js` (v2.17.122 leaf utils; v2.17.123 folded in COLOR consts + `_breathe`/`_KF_BLINK` — pure extraction complete), `idle.js` (v2.17.124 idle companion), `sound.js` (v2.23.1 sound+haptic ~212 — must load in `<body>`, haptic IIFE appends to `document.body` at parse), `celebration.js` (v2.25.3 ember drift IIFE + `_flashAccentGlow` ~155 lines; depends on COLOR_ACCENT/MUTED from util.js and `#celebCanvas` in HTML). **Next, risk-ascending:** `trello.js` (Trello API ~174, Rule 27 patch path), `insights.js` (AI memory/observations ~384), then `sync.js` (Dropbox+live sync ~510 — Non-Delegation, extra scrutiny). **Ceiling:** classic-script extraction keeps globals shared — fine for these cohesive feature modules (~11K file), but the coupled core (`_onWake`, focus IIFE incl. `_pulseComplete`, render/actions/habits + `$`) needs ES modules + a build step (breaks Rule 24) → separate decision; leave inline. Per-step procedure + couplings in the plan. |
-| 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing, nothing else — marks day boundaries without chasing tasks. Needs server infra. Detail ↓ |
-| 5 | **Empty/peak states audit** | Not started | First-open, everything-done, brand-new-user. "Everything done" is the app's promise fulfilled — currently just an empty list. Polish session for a quiet week. |
+| 1 | **Morning nudge — iterate** | Verdict pending (Can) | 4 weeks collected (plan said one). Three questions decide the iteration — detail ↓ |
+| 2 | **Poem corpus growth** | Ongoing | Splash coda + echo shipped v2.26.0. Corpus growth continues — detail ↓ |
+| 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration.js. **Next, risk-ascending:** `trello.js` (~174 lines, Rule 27 patch path), `insights.js` (~384), `sync.js` (~510, Non-Delegation). **Ceiling:** coupled core (`_onWake`, focus IIFE, render/actions/habits + `$`) stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
+| 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
+| 5 | **First-run experience** | Narrowed (Jul 2026) | Empty morning + everything-done covered by the v2.26.0 poem echo. Remaining scope: brand-new-user first open only. Fold into a quiet week. |
 | 6 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
-| 7 | **About — contextual digest layer** | Not started | A periodic, in-app surface in About that changes based on day/week: Sunday recap, Monday intention, contextual hints (e.g. "you haven't focused this week"), daily moment beyond the poem. No server infra — purely local data. Distinct from #4 (push = server-sent, external); complementary to #1 (nudge = task-list one-liner) and #2 (poem = static daily). Detail ↓ |
+| 7 | **About — contextual digest layer** | Next up (Jul 2026 review) | The next morning-beat move: poem → nudge → list is the daily rhythm; digest adds the weekly one (Sunday recap, Monday intention). Validates content before #4 carries it externally — build 7 before 4. Detail ↓ |
+| 8 | **Revive from PAST → SOON** | Shipped v2.27.0 | Hover `↩︎ soon` on aged/let-go PAST rows — same ID, `revived` counter, timestamp-aware merge guard. Verify on real devices. |
 
-**Awaiting device verification:** WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep (v2.17.103). *(Recurring-surface verifications now live in the dated Wallpaper Test W3 table below, not here.)*
+**Awaiting device verification:** WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep.
 
-**Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months behavioural data + #1 learnings + #3 extraction done). Detail ↓
+**Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months data + #1 learnings + #3 done). Detail ↓
 
 **Parked:** idle companion artwork · AI prompt trimming · Trello checklist write-back. Detail ↓
 
@@ -33,68 +34,82 @@
 
 ## Details
 
-### 1 · AI Improvements / Morning Nudge
-**Done so far (v2.13.0–2.17.73):** morning briefings, day-end review, stale-task awareness, behavioral insights, break_down/move_soon/reflect actions, 7-day suggestion cooldowns, Dropbox-synced suggestion history, deterministic chips for aging tasks, conversation memory, AI morning nudge (one-sentence observation over the rule-based line; insight-gated, cached per day, silent fallback).
-**Next:** collect a week of real-morning impressions → tune the prompt (more specific? quieter? ever suggest an action chip?). Then: deeper personality (weather/energy awareness beyond peak hour, richer habit-streak celebrations).
+### 1 · Morning Nudge
+**Verdict pending — three questions for Can (Jul 2026):**
+1. Still read it, or do eyes slide over it? (W1 behavioural symptom)
+2. Ever wrong — naming something that isn't the thing that matters?
+3. Ever acted on — did it make you focus a task or move one to Soon?
+
+**Iteration paths by answer:**
+- Eyes slide → the *shape* is wallpaper, not the words ("X waiting N days" converges every morning). Fix is input variety: feed day-shape context (first-open time, weekday, habits state) so lines differ structurally, not just lexically. **Strongest candidate input (Jul 2026): read-only calendar busy/free shape** — "three meetings before noon" vs "clear day" makes lines differ from real context (the W2 escape the nudge lacks). Google Calendar read-only is client-side feasible (PKCE, same pattern as Dropbox — no server, no event content beyond busy/free). Reach for this before the action-chip experiment. Never an events panel — see Not-implementing table.
+- Sometimes wrong → tighten facts: it currently sees the first 6 tasks in drag order, not the oldest 6.
+- Never acted on → the action-chip question (focus / move to Soon attached to the line) — real feature step, own mock round.
+
+**Parked idea (Jul 2026):** the nudge and poem both fire on first open but don't know about each other. On mornings with nothing insight-worthy, the nudge could stay silent and let the poem be the morning — its escape-1 gate can be stricter now that the poem covers "the morning has an opening moment."
+
+**Later:** deeper personality (weather/energy awareness beyond peak hour, richer habit-streak celebrations).
 
 ### 2 · Daily Poem Corpus Growth
-**Process:** curation rounds in chat — Claude proposes candidates per the brief below, Can cuts by number. Accepted poems land in `assets/poems.js`.
-**The brief (canonical, Can's wording, 2026-07-02; search-process additions 2026-07-03):**
-> Short poem (2–11 lines, fits the splash coda without reading like a commitment), human-written, public domain (author + translator).
-> Voice: spare, concrete, present-tense; clear/light/affirming; about this day being lived — mornings, evenings, seasons, small noticed things. In: imagism, haiku, plain free verse, rhymed-lyrical if the feeling is real, if it resolves held/affirmed, mindful resolution of anxiety. Out: quaint, ornate, cutesy, preachy-uplifting, bleak-unresolved, abstraction without an image. Prefer seasons the corpus is thin on (currently summer), authors/countries/centuries not yet represented.
-> **The app-moment test:** this is a poem for the moment before you look at your task list — not a poem read alone in an anthology. It sits beside undone tasks; ambiguous or bittersweet weight that would land fine in a poetry collection can read wrong there. "Resolves held/affirmed" means: would this still feel right *not beside* a task list? If a candidate depends on being read in isolation, cut it.
-> **The corpus-fit test:** does this candidate sit comfortably next to Bashō and Marcus Aurelius in tone? The existing 86 poems are now the style reference, not just a season/PD counter — use them to judge new candidates, not only the adjective list above.
-> Before proposing: confirm the text verbatim against a primary source (Wikisource / Gutenberg / archive.org scan — never from model memory) and confirm PD status (author + translator death dates / publication year). Never propose an unverified text.
-> **Search process:** search by source, not theme. Query named PD anthologies/translators directly — `"[anthology or translator name]" site:gutenberg.org OR site:en.wikisource.org OR site:archive.org` — verification-first, not discovery-then-verify. Region/theme-first searches (Turkish, Sufi, South American, African, Scandinavian, Egyptian) burned four rounds with zero adds — the PD-translation bottleneck decides, not the poet's country. Country/region is a **tiebreaker only**: when two candidates tie on the brief and corpus-fit tests, prefer the one from a country not yet represented.
-**Taste signal (15 rounds):** spare modern free verse + clear/light/affirming in; rhymed-quaint, ornate, cutesy, bleak out. Round 11 nuance: rhymed-lyrical with real feeling (Innisfree, Housman) beat imagist minis — "rhymed" alone isn't the disqualifier, quaintness is. Round 12 nuance: melancholy-but-held is IN (Rilke 'Autumn'), vast-serene is IN (Bashō Milky Way); calm-pastoral cut — gravity beats gentleness. Round 14 nuance: Casaubon/Higginson cut 4/4 on diction; Farquharson 1944 (modern-English, Oxford scholarly) passed — prose works when it's compressed Stoic reflection, not diary. Round 15 nuance (first round under the app-moment/corpus-fit tests): Wen T'ung 'Morning' passed both tests cleanly (literal pre-task-list dawn moment, sits beside Farquharson's dawn Meditations entry); Po Chü-i 'Rain at Dawn' — same anthology/translator, previously a candidate — re-cut on the app-moment test (mood without a turn toward affirmed/held); Heine (Bowring translation) searched specifically to test the country-tiebreaker rule, failed corpus-fit (near-uniformly bleak/romantic) — confirms the tiebreaker shouldn't override the brief tests just to diversify geography.
-**Seasons:** W9 / Sp11 / Su10 / Au10 / year-round 49, corpus 89, target ~95. (2026-07-13: Yeats 'Innisfree' Su + Housman 'Loveliest of trees' Sp removed — 14-liners read as a commitment, not a breath, in the v2.26.0 splash coda; length ceiling for new candidates effectively ~11 lines now.)
-**PD rules (updated 2026-07-02):** worldwide-only — author AND translator dead 70+ years (currently: d. pre-1956; rolls forward each year). The US-PD-only category is RETIRED for new additions. 11 existing poems grandfathered pending Can's decision (keep or purge): Frost ×3, WCW, Sandburg, H.D., Waley trans. ×5.
-**Future PD unlocks (Jan 1):** cummings 2033, Frost/WCW worldwide 2034, Eliot 2036.
-**Country balance:** China is now the most-represented country (Li Po ×2, Tu Fu, Yang-ti, Po Chü-i, Lu Yün, Wen T'ung, anon 6th c.) — next rounds should actively apply the tiebreaker rule against further Chinese picks unless nothing else ties.
-**Productive anthology found:** Cranmer-Byng, *A Feast of Lanterns* (1916, archive.org `in.ernet.dli.2015.282424`, d.1945) — companion to *A Lute of Jade* (already used for Li Po/Tu Fu). Contains Wen T'ung, Ou-yang Hsiu, Yuan Mei, Liu Tzu-hui — one used, rest available if China stops being deprioritized by the tiebreaker.
-**Parked — round 15 remaining candidates (verified, ready to propose; re-run through the app-moment/corpus-fit tests before next use):**
-- Ou-yang Hsiu 'Bell Hill' (1007–1072 AD, Cranmer-Byng trans.) — 4 lines, year-round, pure landscape (Mackail-epigram precedent) — passed both new tests, held back this round only by the China tiebreaker, not a quality cut
-- Blake 'Eternity' (Notebook c.1793, Wikisource) — already in corpus, do not re-propose
-- Hardy 'In Time of The Breaking of Nations' (1916, Wikisource) — 12 lines, year-round, anxiety → perspective through ordinary life continuing — not yet re-tested against app-moment/corpus-fit
-- Dickinson 'To make a prairie' (c.1896, Wikisource) — 5 lines, year-round, joy/reverie — not yet re-tested
-- Wordsworth 'My Heart Leaps Up' (1802, Wikisource) — 9 lines, year-round — corpus already has the 4-line excerpt, full version not needed (Can's call 2026-07-03)
-- Edward Thomas 'Adlestrop' (1917, Gutenberg #22423) — 16 lines, summer — over 11-line limit, skip
-**Prose explored 2026-07-03:** Whitman *Specimen Days* and Thoreau *Walden* entries read well but run 8–10 sentences — too long for the card. Prose works at Marcus Aurelius length (2–5 compressed sentences). Whitman/Thoreau remain available if short enough entries are found. Muir *First Summer in Sierra* (d.1914, PD worldwide) = all summer, but entries tend rapturous rather than spare — worth a targeted pass. Garnett-translated Chekhov nature prose (d.1946, PD worldwide) not yet searched.
-**Leads:** Chamberlain 1902 scan (archive.org) — ~100 haiku, productive; Teasdale 'February Twilight' (*Dark of the Moon* 1926 — needs verified source scan); Aubrey Stewart (d.1918) trans. of Seneca's *Minor Dialogues* incl. *On the Shortness of Life* — worldwide PD, on Standard Ebooks; two entries added round 17 (needs scan verify vs archive.org). Closed: London Snow (too long), Turkish/Sufi (no worldwide-PD English, brief-fit failures), Poe (short poems trend anguished rather than the corpus's settled gravity — skip).
+**Process:** curation rounds in chat — Claude proposes verified candidates, Can cuts by number. Accepted poems land in `assets/poems.js`.
+
+**The brief:**
+> 2–11 lines. Human-written, worldwide public domain (author AND translator d. pre-1956; rolls forward each year). Voice: spare, concrete, present-tense, clear/light/affirming — mornings, evenings, seasons, small noticed things. In: imagism, haiku, plain free verse, rhymed-lyrical if the feeling is real and resolves held/affirmed. Out: quaint, ornate, cutesy, preachy, bleak-unresolved, abstraction without an image.
+> **App-moment test:** would this still feel right beside an undone task list? If it depends on being read in isolation, cut it.
+> **Corpus-fit test:** does it sit comfortably next to Bashō and Marcus Aurelius in tone? The existing corpus is the style reference, not just a checklist.
+> **PD check:** verify text verbatim against Wikisource / Gutenberg / archive.org — never from memory. Confirm death dates for author and translator.
+> **Search process:** search by named PD anthology or translator, not by theme or region (`"[name]" site:gutenberg.org OR site:en.wikisource.org OR site:archive.org`). Region is a tiebreaker only — when two candidates tie on quality, prefer the one from a country not yet represented.
+
+**Taste signal:** spare/clear/affirming in; quaint, ornate, bleak out. Rhyme is fine if the feeling is real — quaintness disqualifies, not rhyme. Melancholy-but-held is IN (Rilke 'Autumn'); calm-pastoral cut — gravity beats gentleness. Compressed Stoic prose works (Farquharson); diary-length doesn't. A poem that passes the brief but feels wrong beside a task list: cut on app-moment test.
+
+**Seasons:** W9 / Sp11 / Su10 / Au10 / year-round 49 — corpus 89, target ~95.
+
+**PD notes:** US-PD-only retired. 11 grandfathered poems pending Can's decision (keep or purge): Frost ×3, WCW, Sandburg, H.D., Waley trans. ×5. Future unlocks: cummings 2033, Frost/WCW worldwide 2034, Eliot 2036.
+
+**Country balance:** China is most-represented (Li Po ×2, Tu Fu, Yang-ti, Po Chü-i, Lu Yün, Wen T'ung, anon 6th c.) — apply tiebreaker against further Chinese picks.
+
+**Parked candidates (verified; re-run through app-moment/corpus-fit before proposing):**
+- Ou-yang Hsiu 'Bell Hill' (Cranmer-Byng trans.) — 4 lines, year-round — passed both tests, held by China tiebreaker only
+- Hardy 'In Time of The Breaking of Nations' (Wikisource) — 12 lines, year-round — not yet re-tested
+- Dickinson 'To make a prairie' (Wikisource) — 5 lines, year-round — not yet re-tested
+- Wordsworth 'My Heart Leaps Up' — 4-line excerpt already in corpus; full version not needed
+- Edward Thomas 'Adlestrop' — 16 lines, over limit, skip
+
+**Active leads:**
+- Chamberlain 1902 (archive.org) — ~100 haiku, productive
+- Teasdale 'February Twilight' (*Dark of the Moon* 1926) — needs source scan
+- Aubrey Stewart (d.1918) trans. Seneca *Minor Dialogues* — worldwide PD, Standard Ebooks; two entries from round 17 need archive.org verify
+- Cranmer-Byng *A Feast of Lanterns* (archive.org `in.ernet.dli.2015.282424`) — Ou-yang Hsiu, Yuan Mei, Liu Tzu-hui available when China tiebreaker lifts
+- Prose at Marcus Aurelius length (2–5 sentences) works; Whitman/Thoreau too long but short entries worth seeking; Muir *First Summer* (d.1914) worth a targeted pass; Garnett-trans. Chekhov nature prose not yet searched
+- Closed: London Snow (too long), Turkish/Sufi (no worldwide-PD English), Poe (anguished), Egyptian/African/Scandinavian (PD-translation bottleneck)
 
 ### 4 · Push Notifications
 **Platform:** iOS 16.4+ (installed PWA only) + Android. Web Push API + VAPID keys.
 **Stack:** `push` listener in `sw.js`, VAPID keys in Netlify env, two new Netlify functions (store subscription + scheduled send), permission UI in Connections panel.
 **Key constraint:** iOS has no background sync — notifications must be server-sent via Netlify Scheduled Functions. The app cannot self-schedule.
-**Scope decision (Jun 2026):** day boundaries only — 8pm triage reminder + morning briefing. No habit nudges, no task chasing.
+**Scope:** day boundaries only — 8pm triage reminder + morning briefing. No habit nudges, no task chasing.
 
 ### 7 · About — Contextual Digest Layer
-**Concept:** A section in the About panel that surfaces periodic, context-aware content based on the current day and week. No push, no server — pure local data.
-**Candidate moments:**
-- **Sunday** — weekly recap: tasks done, focus time, habit streak, best day
-- **Monday morning** — intention prompt: what's carried over, what's the week's shape
-- **Daily hint** — one contextual observation (e.g. "you haven't used focus mode in 5 days", "3 tasks are ageing") — insight-gated, not repetitive
-- **Milestone** — surface quietly when streak/focus milestones happen (currently only shown at check-time)
-**Relationship to other items:**
-- **#1 (nudge):** nudge is task-list, one-liner, morning only. Digest is About panel, richer, time-of-week aware.
-- **#2 (poem):** poem is static per-day. Digest is dynamic per-context. Could live in the same About section, adjacent.
-- **#4 (push):** push notifications would eventually carry the *same content* externally. Build the in-app version first — validates the content before adding server complexity.
-**Open questions:** shown always vs shown once per period (like poem cooldown)? Can it replace the poem slot on Sundays, or always alongside?
+**Concept:** Periodic, context-aware content in About based on day/week. No push, no server — pure local data.
+**Candidate moments:** Sunday weekly recap · Monday intention prompt · Daily contextual hint (insight-gated) · Milestone surfaces (streak/focus)
+**Key relationships:** nudge (#1) is task-list one-liner, morning only; digest is About panel, richer, time-of-week aware. Push (#4) would carry the same content externally — build in-app first. Poem (#2) is static per-day; digest is dynamic per-context.
+**Candidate first brick (Jul 2026, from Dia browser research):** after dismissal, the day's nudge line lives quietly in About until midnight. Dia's Morning Brief insight: people return to the morning framing all day — TODAY's nudge is dismiss-once-and-gone. Tiny build (AI line already cached per-day in `day_nudge_ai`), and it makes About the home of "today's context" — exactly what the digest layer needs. **Sequence after the #1 verdict** — if eyes slide over the nudge, persisting it just gives wallpaper a second home. Dia validates the #7 thesis overall (their Monday Brief is their most-praised feature); their aggregation/extraction model itself stays rejected (external-tool sprawl).
+**Entry point — repurpose ✦ empty-tap into the brief (Jul 2026):** Can reports he almost never uses the ✦ ask path — the manual formulate-a-question entry failed its own Wallpaper Test while the passive AI surfaces (nudge, triage hints, chips, Sunday reflection) carry all the value. Instead of removing it: **empty-tap ✦ → today's brief** (day's nudge line, day shape, poem echo — composed, not conversational); text + ✦ still asks the AI, so Rule 7's route survives underneath. ✦ keeps meaning "AI presence," payoff flips from "type a question" to "here's what I'd tell you right now" — Dia's return-to-the-brief insight on a button we already own. Means #7 needs no new surface: the unused button becomes the door to the digest layer. Same gate: after the #1 verdict (the brief's main ingredient is the nudge line). Notification testing (the original prompt for this) stays out — dev harness, not user value; use a `?test=notif` query param when #4 nears.
+
+### 8 · Revive from PAST → SOON *(shipped v2.27.0 — see Changelog.md / Sync.md)*
+**Remaining:** real-device verify. Future: surface the `revived` counter to nudge/insights ("this one came back twice"). Philosophy guard held: no bulk revive, done items stay put.
 
 ### WEEK — standalone weekly planning companion *(gated)*
-**Vision:** a separate lightweight weekly planning tool. TODAY = focus instrument, WEEK = planning surface.
-**Differentiator:** predictive AI from observed behaviour — no manual energy ratings. WEEK learns what this user does Monday mornings, when they focus vs coast, what they defer.
-**Feeds on TODAY data:** focus sessions, completion times, habit patterns, peak hour (`today_daily_history` accumulating since v2.17.55).
-**Lesson (v2.17.59→66):** rule-based weekday-rhythm phrases became wallpaper and were removed; the aggregation logic is reusable but output must be AI-generated.
+**Vision:** separate lightweight weekly planning tool. TODAY = focus instrument, WEEK = planning surface. Predictive AI from observed behaviour — no manual energy ratings.
+**Feeds on:** `today_daily_history` (focus sessions, completion times, habit patterns, peak hour — accumulating since v2.17.55).
 **Revisit:** ~autumn 2026, with 3+ months of data.
 
 ---
 
 ## Parked / Someday
 
-- **Idle companion artwork** — higher-resolution creatures, consistency across the 7. Or reduce to one perfect creature. Revisit if they start mattering.
-- **AI system-prompt trimming** — cost is <$0.01/day; only if token cost ever matters. Safe cuts: action-type descriptions, energy-awareness sub-bullets (~110 tokens). Never cut: task/habit lists with IDs, JSON rules, personality block.
-- **Trello checklist write-back** — bidirectional checklist editing. Today read-only badge (v2.17.58). Build only if editing is actually wanted.
+- **Idle companion artwork** — higher-resolution creatures, consistency across the 7. Revisit if they start mattering.
+- **AI system-prompt trimming** — cost is <$0.01/day; only if token cost ever matters. Never cut: task/habit lists with IDs, JSON rules, personality block.
+- **Trello checklist write-back** — build only if editing is actually wanted.
 
 ---
 
@@ -103,31 +118,28 @@
 ### Watching
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| Modularization | Single file (~12K lines) + `assets/poems.js` | Roadmap #3 (module extraction) is the plan; smoke test already guards the boot path. Revisit harder if growth continues. |
-| Sync conflict rate | Merge-anomaly counter live since v2.17.101 (Connections → Dropbox) | If the count climbs above zero in normal use, revisit conflict handling before WEEK consumes the data. Zero for months = the "unhandled 1%" was theoretical. |
+| Modularization | Single file (~12K lines) + `assets/poems.js` | Roadmap #3 is the plan; smoke test guards the boot path. Revisit harder if growth continues. |
+| Sync conflict rate | Merge-anomaly counter live (Connections → Dropbox) | If count climbs above zero in normal use, revisit conflict handling before WEEK consumes the data. |
 
 ### Wallpaper Test — W3 follow-ups (day-14 behavioral check)
-> Every recurring surface that passes W1–W2 at ship time lands here with a due date (ship + 14d).
-> On the due date: is it still delivering, or has the user stopped reading/tapping/opening it?
-> Resolve each row — **kept** (delivering), **iterated**, or **removed** (a valid outcome).
+> Resolve each row — **kept** (delivering), **iterated**, or **removed**.
 
 | Surface | Shipped | W3 due | Status |
 |---------|---------|--------|--------|
-| Input bar discoverability (placeholder + ✦ glow + tip) | v2.17.99 | overdue — review now | ✅ Closed — single-user app, no first-timer data possible. Passive hints (placeholder, glow) are low cost and non-intrusive; kept as-is. |
-| Merge-anomaly count line (Connections → Dropbox) | v2.17.101–102 | overdue — review now | ✅ Closed — anomaly tracking is console-only; no count line was ever rendered in the UI. Nothing to keep or remove. |
-| Morning nudge AI line | v2.17.73 | collecting (Roadmap #1) | Open — a week of real-morning impressions, then tune |
-| Week-grid "best day" dot (composite tasks+focus+habits) | v2.17.121 | 2026-06-30 | Collecting — does the dot land on a day that *feels* like your best, or does the composite pick surprise you? Tune weights (0.4/0.35/0.25) or revert to a single dimension if it reads wrong. |
-| Unified day nudge (#dayNudge — one line instead of two) | v2.19.0 | 2026-07-19 | ✅ Kept — surfaces the right thing each morning (verified 2026-07-07). |
+| Morning nudge AI line | v2.17.73 | verdict pending | Open — 4 weeks collected; three questions in Roadmap #1 detail decide the iteration |
+| Week-grid "best day" dot | v2.17.121 | 2026-06-30 — **overdue** | Open — does the dot land on a day that feels like your best? Keep / retune weights / revert to single dimension — one call from Can closes it. |
+| Poem splash coda + clean-slate echo | v2.26.0 | 2026-07-28 | Open — gift or gate? Does the echo add warmth or become invisible after the first week? |
 
 ### Not implementing
 | Feature | Reason |
 |---------|--------|
-| Keyboard shortcuts (desktop) | Dropped from backlog (Can, Jun 2026). No demonstrated need — revisit only if a real workflow gap shows up. |
-| Widget / Home Screen | Needs WidgetKit (iOS) or native Android — not reachable from a PWA. Revisit only with a native wrapper. |
+| Keyboard shortcuts (desktop) | No demonstrated need — revisit only if a real workflow gap shows up. |
+| Widget / Home Screen | Needs WidgetKit / native Android — not reachable from a PWA. |
 | Quick capture (without opening app) | No good cross-platform path. iOS has no PWA share target; Siri needs a native app. |
 | Microsoft Notes integration | No clear user need. |
-| Momentum integration | No public API; ICS is inbound-only to Momentum. Workflow pairing (plan in Momentum, execute in TODAY) is the answer. |
-| Calendar integration (Google/iCal) | Investigated Jul 2026. **No as an integration / agenda / time-blocker** — that's the "TODAY Planner" drift the north star rejects. The *reminders + prioritise* framing collides hardest: "remind me of calls" is per-event chasing (#4 is deliberately fenced to day-boundaries only), and "prioritise" is ranking (app has no priorities). The one philosophy-safe use is **passive, read-only timed context** — the Trello-due-date precedent (TODAY *displays* external times, never *manages* them) proves times-on-screen aren't the violation; chasing and ranking are. So the only version worth revisiting is a **private "day-shape" signal feeding the morning nudge (#1/#7)** ("busy afternoon — pick one thing"), never a pinging events panel — and only after the morning surface is validated. Meetings aren't tasks (no check/focus); the phone's calendar already out-reminds us, so a notifier version cedes our calm moat. Lightest MVP if ever: private ICS feed → one AI-summarised line via a CORS proxy, not Google OAuth. |
+| Momentum integration | No public API; ICS is inbound-only. |
+| Calendar integration (as agenda) | Not as an agenda/time-blocker — that's planner drift. The read-only day-shape signal version is now a conditional candidate in Roadmap #1's iteration paths (Jul 2026) — gated on the #1 verdict. Never a pinging events panel. |
+| Slack / Gmail / stream extraction | Their native unit is a message stream, not a task — turning streams into tasks needs an AI extraction layer (Dia's whole company). Wrong trust model (TODAY reads nothing you didn't type or put on a board), needs server-side token storage (breaks the client-only posture), and renders other people's demands into the calm list — the exact chasing mechanic this table exists to block. Task-unit integrations (Trello, Todoist #6) remain the open lane. |
 
 ### Rejected approaches
 | Area | Rejected | Reason |
@@ -142,4 +154,4 @@
 
 ---
 
-*History (shipped features, fixed bugs) lives in `Changelog.md`, `archive/Changelog-archive.md`, and `archive/Bugs-archive.md` — intentionally not mirrored here. Last reorganised: v2.17.102 (Jun 2026 roadmap review).*
+*History (shipped features, fixed bugs) lives in `Changelog.md`, `archive/Changelog-archive.md`, and `archive/Bugs-archive.md` — intentionally not mirrored here.*
