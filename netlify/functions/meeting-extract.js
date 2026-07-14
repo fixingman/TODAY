@@ -1,7 +1,7 @@
 // netlify/functions/meeting-extract.js
 // Meeting mode audio → action items, for TODAY (v2.22.0).
 // Gemini-only: it is the sole supported provider with native audio input.
-// Receives one ~60s audio chunk per call plus the rolling context from previous
+// Receives one ~6-min audio chunk per call plus the rolling context from previous
 // chunks; returns extracted action items and an updated context. The transcript
 // itself is produced inside Gemini and never included in the response — the
 // meeting leaves behind only tasks (privacy stance: see memory/architecture/Connections.md).

@@ -603,11 +603,19 @@
   /* ── Splash screen ── */
   #splash {
     position: fixed; inset: 0; z-index: var(--z-splash);
-    display: flex; flex-direction: column;
-    align-items: flex-start; justify-content: center;
+    display: flex;
     padding: 0 clamp(20px, 6vw, 80px);
     background: var(--bg);
     pointer-events: all;
+    overflow-y: auto;
+  }
+  /* margin:auto centres when content fits and allows scroll when it doesn't —
+     justify-content:center on the flex parent clips overflow at the top invisibly
+     (matters on the poem-coda morning when a long poem exceeds a phone viewport) */
+  #splash-inner {
+    margin: auto 0;
+    padding: 32px 0 calc(32px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; align-items: flex-start;
   }
 
   #splash-logo {
@@ -648,6 +656,23 @@
   }
   #splash-cursor.on    { opacity: 1; }
   #splash-cursor.off   { opacity: 0; }
+
+  /* Poem coda — the day's poem under the date, first open of the day only */
+  #splash-poem {
+    margin-top: clamp(28px, 5vh, 48px);
+    max-width: min(78vw, 440px);
+    opacity: 0;
+    transition: opacity 900ms ease-in-out;
+  }
+  #splash-poem.visible { opacity: 1; }
+  #splash-poem .splash-poem-text {
+    font-weight: 300; font-size: clamp(12px, 1.6vw, 14px);
+    line-height: 1.8; color: var(--muted);
+  }
+  @media (max-width: 600px) {
+    #splash-poem { max-width: 86vw; margin-top: 24px; }
+    #splash-poem .splash-poem-text { font-size: var(--text-sm2); line-height: 1.7; }
+  }
 
 
 
@@ -1556,6 +1581,19 @@
     font-size: var(--text-sm2);
     letter-spacing: 0.04em; /* quiet-voice tracking — also matches .habit-empty */
   }
+  /* Clean-slate echo — the morning's poem re-surfaces in the calm states
+     (empty list, everything done). Same poem as the splash coda: that's the point. */
+  .empty .echo-star {
+    display: block; font-size: var(--text-lg);
+    color: var(--accent); margin-bottom: var(--space-3);
+  }
+  .empty .empty-poem {
+    font-weight: 300; font-size: var(--text-base);
+    line-height: 1.8; letter-spacing: normal;
+  }
+  @media (max-width: 600px) {
+    .empty .empty-poem { font-size: var(--text-sm2); line-height: 1.7; }
+  }
   
   /* Morning nudge — quiet surface panel + breathing accent dot (v2.18.24).
      Reuses shipped language rather than inventing new: same monochrome recap text as before
@@ -1984,7 +2022,7 @@
   .meeting-item.selected .meeting-tick::after { content: '✓'; }
   .meeting-item .meeting-owner {
     margin-left: auto;
-    font-size: var(--text-xs);
+    font-size: var(--text-sm);
     color: var(--muted);
     flex-shrink: 0;
     padding-top: 2px;
@@ -2944,11 +2982,10 @@
     margin-bottom: var(--space-3);
   }
   .name-card-title {
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    color: var(--text);
-    letter-spacing: 0.04em;
+    font-size: var(--text-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
   }
   .name-card-hint { font-size: var(--text-xs); color: var(--muted); }
 
@@ -2978,7 +3015,7 @@
     color: var(--muted);
     cursor: pointer;
     padding: 0 0 0 var(--space-1);
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     line-height: 1;
   }
   .name-chip-remove:hover { color: var(--text); }
@@ -3166,17 +3203,23 @@
 <!-- Breathe overlay for focus mode pause animation -->
 <div id="breatheOverlay"></div>
 <div id="splash">
-  <div id="splash-logo">
-    <span class="l">T</span><span class="l">O</span>
-    <span class="l a">D</span><span class="l a">A</span><span class="l a">Y</span>
-    <div id="splash-star">
-      <svg viewBox="0 0 40 40" fill="none">
-        <path d="M20 2 L22.4 17.6 L38 20 L22.4 22.4 L20 38 L17.6 22.4 L2 20 L17.6 17.6 Z" fill="var(--accent)" opacity=".95"/>
-        <path d="M20 8 L21.6 18.4 L32 20 L21.6 21.6 L20 32 L18.4 21.6 L8 20 L18.4 18.4 Z" fill="white" opacity=".18"/>
-      </svg>
+  <div id="splash-inner">
+    <div id="splash-logo">
+      <span class="l">T</span><span class="l">O</span>
+      <span class="l a">D</span><span class="l a">A</span><span class="l a">Y</span>
+      <div id="splash-star">
+        <svg viewBox="0 0 40 40" fill="none">
+          <path d="M20 2 L22.4 17.6 L38 20 L22.4 22.4 L20 38 L17.6 22.4 L2 20 L17.6 17.6 Z" fill="var(--accent)" opacity=".95"/>
+          <path d="M20 8 L21.6 18.4 L32 20 L21.6 21.6 L20 32 L18.4 21.6 L8 20 L18.4 18.4 Z" fill="white" opacity=".18"/>
+        </svg>
+      </div>
+    </div>
+    <div id="splash-date-wrap"><span id="splash-date"></span><span id="splash-cursor"></span></div>
+    <div id="splash-poem">
+      <div class="splash-poem-text"></div>
+      <div class="poem-author"></div>
     </div>
   </div>
-  <div id="splash-date-wrap"><span id="splash-date"></span><span id="splash-cursor"></span></div>
 </div>
 <!-- Sticky header: outside .app so overflow:hidden on .app doesn't break sticky -->
 <div class="sticky-header" id="sticky-header" style="opacity:0">
@@ -3250,7 +3293,7 @@
     <div class="name-card" id="meetingNameWrap">
       <div class="name-card-header">
         <span class="name-card-title">Your name</span>
-        <span class="name-card-hint">for meeting attribution</span>
+        <span class="name-card-hint">used in meeting mode to spot your tasks</span>
       </div>
       <div class="name-chip-list" id="nameChipList">
         <!-- chips + inline input rendered by renderMeetingNames() -->
@@ -3610,20 +3653,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.25.7': 'Polish — CURRENT badge pulses opacity only on new version; no scale change.',
-  '2.25.6': 'Fix — Trello fetch errors are silenced when offline; the offline banner already explains the situation.',
-  '2.25.5': 'Fix — Gemini and Claude buttons now correctly disable when offline (were re-rendered after the offline pass).',
-  '2.25.4': 'Polish — meeting review: all items start unselected, in meeting order. Owner shown as hint. Tap what you want.',
-  '2.25.3': 'Refactor — celebration effects (ember drift + accent glow) extracted to assets/celebration.js.',
-  '2.25.2': 'Polish — triage bar, morning nudge, and all config panels now fade in and out instead of snapping.',
-  '2.25.1': 'Polish — meeting pill, voice pill, and review overlay now fade in and out (300ms) instead of snapping.',
-  '2.25.0': 'New — the About icon glows when a fresh version lands. Open it and the CURRENT badge breathes a few times to greet you, then rests.',
-  '2.24.0': 'New — voice note on mobile: tap the mic in the add bar, speak a task (up to 90 seconds), and it drops into the input ready to edit and submit.',
-  '2.23.7': 'Polish — meeting review panel redesigned: clearer header hierarchy, digesting state is a calm focal moment, processing strip sits cleanly above any prior items. Recording dot is now red (universal recording signal); stop button labelled "stop" instead of ×.',
-  '2.23.6': 'Fix — long-gone tasks could reappear in your list after sync. Tasks that leave the Past section now stay gone, and deletions are remembered for 180 days instead of 30.',
-  '2.23.5': 'Polish — connected services now show their name in accent green; no text label needed. Disconnected services look normal, not dimmed.',
-  '2.23.4': 'Polish — Connections panel is less cramped on mobile: AI provider rows now stack (name and link above, key input and button below) and section spacing is tighter.',
-  '2.23.3': 'Polish — "Your name" gets its own divider section in the Connections panel, consistent with how sections are separated throughout the app.',
+  '2.26.0': 'New — the day\'s poem greets you once each morning as the app opens, and lingers quietly when your list is empty or everything is done.',
+  '2.25.10': 'Fix — long meetings no longer lose chunks: recording is now sized so every six-minute piece reaches the AI safely.',
+  '2.25.9': 'Polish — the CURRENT badge finishes its last breath fully instead of stopping short.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5449,14 +5481,15 @@ function toggleInfo() {
 function _versionBadgeBreathe() {
   const badge = document.querySelector('#changelogPanel .version-badge');
   if (!badge || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const anim = badge.animate(
-    [{ opacity: 1 }, { opacity: 0.65 }, { opacity: 1 }],
-    { duration: 1800, easing: 'ease-in-out', iterations: Infinity }
-  );
+  // Start only when visible; finite iterations end on the opacity-1 keyframe,
+  // so the breath settles naturally instead of being cancelled mid-cycle.
   const io = new IntersectionObserver(entries => {
     if (!entries.some(e => e.isIntersecting)) return;
     io.disconnect();
-    setTimeout(() => anim.cancel(), 3 * 2400);
+    badge.animate(
+      [{ opacity: 1 }, { opacity: 0.65 }, { opacity: 1 }],
+      { duration: 1800, easing: 'ease-in-out', iterations: 3 }
+    );
   }, { threshold: 0.9 });
   io.observe(badge);
 }
@@ -7167,13 +7200,25 @@ function addManual() {
   _aiAnalyzeTask(task.id, task.text);
 }
 
+// Clean-slate echo (Roadmap #2) — the calm states re-surface the morning's poem,
+// the same one the splash coda showed. Falls back to the plain lines if the corpus
+// is missing.
+function _poemEchoHTML() {
+  const poem = (typeof _poemOfTheDay === 'function') ? _poemOfTheDay() : null;
+  if (!poem) return null;
+  return '<div class="empty-poem">' + poem.text.split('\n').map(esc).join('<br>') + '</div>'
+    + '<div class="poem-author">' + esc(poem.author) + '</div>';
+}
+
 function updateManualEmptyState(animate) {
   const empty = $.manualEmpty || document.getElementById('manualEmpty');
   if (!empty) return;
 
   const total = manualTasks.length;
   if (total === 0) {
-    empty.textContent = 'Nothing added yet';
+    const echo = _poemEchoHTML();
+    if (echo) empty.innerHTML = echo;
+    else empty.textContent = 'Nothing added yet';
     empty.style.display = 'block';
     return;
   }
@@ -7182,7 +7227,10 @@ function updateManualEmptyState(animate) {
   const allDone   = doneCount === total;
 
   if (allDone) {
-    empty.innerHTML = '<span class="done-star">✦</span> All done';
+    const echo = _poemEchoHTML();
+    empty.innerHTML = echo
+      ? '<span class="done-star echo-star">✦</span>' + echo
+      : '<span class="done-star">✦</span> All done';
     _breathe(empty.querySelector('.done-star'),
       [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0.6, transform: 'scale(0.92)' }, { opacity: 1, transform: 'scale(1)' }], 2400);
     if (animate) {
@@ -9463,6 +9511,7 @@ init();
 // Two-flag gate: splash dismisses only when both animation AND init/load are done
 let _splashAnimDone = false;
 let _appLoadDone    = false;
+let _splashPoemHold = false; // poem coda is holding the splash deliberately — not a stall
 function _tryDismissSplash() {
   if (_splashAnimDone && _appLoadDone) window._doSplashDismiss && window._doSplashDismiss();
 }
@@ -9470,7 +9519,9 @@ window._onSplashAnimDone = function() { _splashAnimDone = true; _tryDismissSplas
 window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplash(); };
 // Safety: if load chain stalls (network hang, token refresh, etc.) dismiss splash anyway
 setTimeout(() => { if (!_appLoadDone)    window._onAppLoadDone    && window._onAppLoadDone();    }, 6000);
-setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onSplashAnimDone(); }, 6000);
+setTimeout(() => { if (!_splashAnimDone && !_splashPoemHold) window._onSplashAnimDone && window._onSplashAnimDone(); }, 6000);
+// Poem-coda ceiling: typewriter + fade + longest reading hold stays well under this
+setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onSplashAnimDone(); }, 18000);
 
 // ─── Splash screen ────────────────────────────────────────────────────────────
 (function() {
@@ -9505,6 +9556,13 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     return;
   }
   localStorage.setItem(splashKey, Date.now().toString());
+
+  // Poem coda (Roadmap #2) — the day's poem joins the splash once per day, on the
+  // first splash after midnight (Rule 16 day boundary via _localISO). Decided here,
+  // before the 6s anim-stall safety fires, so the hold isn't mistaken for a stall.
+  const _showPoemCoda = localStorage.getItem('poem_splash_date') !== _localISO()
+    && typeof _poemOfTheDay === 'function' && !!_poemOfTheDay();
+  if (_showPoemCoda) _splashPoemHold = true;
 
   const CHARS = '01∆◊×+−░▒·~⌁⊕⊗'.split('');
 
@@ -9615,18 +9673,48 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
       } else {
         cursor.className = 'on';
         cursor.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, easing: 'step-end', iterations: Infinity });
-        setTimeout(() => { cursor.className = 'off'; window._onSplashAnimDone(); }, 500);
+        setTimeout(() => {
+          cursor.className = 'off';
+          if (_splashPoemHold) _runPoemCoda(); else window._onSplashAnimDone();
+        }, 500);
         return; // stop rAF loop
       }
     }
     requestAnimationFrame(typeFrame);
   }
 
+  // Poem coda — fade the day's poem in under the date, hold for a read, then hand
+  // back to the normal dismiss gate. Tap anywhere skips the hold. The day is marked
+  // shown at fade-in (not at decision time) so an early bail doesn't burn the day.
+  function _runPoemCoda() {
+    const splashEl = document.getElementById('splash');
+    const poemEl   = document.getElementById('splash-poem');
+    const poem     = _poemOfTheDay();
+    if (!splashEl || !poemEl || !poem) { window._onSplashAnimDone(); return; }
+    poemEl.querySelector('.splash-poem-text').innerHTML = poem.text.split('\n').map(esc).join('<br>');
+    poemEl.querySelector('.poem-author').textContent = poem.author;
+    localStorage.setItem('poem_splash_date', _localISO());
+    let holdTimer = null;
+    const finish = () => {
+      clearTimeout(holdTimer);
+      splashEl.removeEventListener('click', finish);
+      window._onSplashAnimDone();
+    };
+    setTimeout(() => {
+      poemEl.classList.add('visible');
+      // Reading hold scales with poem length: 2 lines ≈ 5.2s, 9 lines ≈ 9.4s (capped)
+      const lines = poem.text.split('\n').length;
+      holdTimer = setTimeout(finish, Math.min(4000 + lines * 600, 9500));
+      splashEl.addEventListener('click', finish);
+    }, 700);
+  }
+
   // Transition: typewriter done → burst → 180ms → fade splash (explosion plays over it) → reveal app
   window._doSplashDismiss = function(){
     const logo     = document.getElementById('splash-logo');
     const dateWrap = document.getElementById('splash-date-wrap');
-    [logo, dateWrap].forEach(el => {
+    const poemEl   = document.getElementById('splash-poem');
+    [logo, dateWrap, poemEl].forEach(el => {
       if (!el) return;
       el.style.transition = 'opacity 600ms cubic-bezier(0.4,0,0.2,1)';
       el.style.opacity = '0';
@@ -10896,14 +10984,15 @@ function _aiExecute(action) {
 // Listens to a meeting through the mic and leaves behind only tasks. Fully
 // ephemeral: audio chunks and the rolling context live in _mtg below and are
 // nulled on teardown — nothing recorded, nothing persisted, no voice ID.
-// Gemini-only (sole provider with native audio input). ~60s chunks via recorder
+// Gemini-only (sole provider with native audio input). 6-min chunks via recorder
 // stop/restart (not timeslice — later timeslice chunks aren't independently
-// decodable). Failed chunks retry once, then drop: a lost minute beats a dead
+// decodable). Failed chunks retry once, then drop: a lost chunk beats a dead
 // meeting. See memory/design/Components.md § Meeting Mode.
 
 const MEETING_CHUNK_MS = 360000; // 6-min chunks — ~10 API calls/hour
 
-let _mtg = null;          // { stream, recorder, items, context, startedAt, timerId, chunkTimerId, live, mime, dotAnim }
+let _mtg = null;          // { stream, recorder, items, context, startedAt, timerId, chunkTimerId,
+                          //   chunkStartedAt, finalChunkSecs, processingFinalChunk, live, mime, dotAnim }
 let _meetingStarting = false; // blocks double-start during the getUserMedia await window
 
 function _meetingSupported() {
@@ -11025,10 +11114,14 @@ async function _meetingStart() {
   _meetingRecordChunk();
 }
 
-// One self-contained ~60s recording; onstop ships it and starts the next.
+// One self-contained recording of MEETING_CHUNK_MS; onstop ships it and starts the next.
 function _meetingRecordChunk() {
   if (!_mtg || !_mtg.live) return;
-  const rec = new MediaRecorder(_mtg.stream, _mtg.mime ? { mimeType: _mtg.mime } : undefined);
+  // 32 kbps opus is plenty for speech and keeps a 6-min chunk (~1.4MB raw, ~1.9MB
+  // base64) safely under Netlify's 6MB function-body limit — the browser default
+  // (~128 kbps) would push a full chunk past it and drop 6 minutes at a time.
+  const rec = new MediaRecorder(_mtg.stream,
+    { audioBitsPerSecond: 32000, ...(_mtg.mime ? { mimeType: _mtg.mime } : {}) });
   const parts = [];
   rec.ondataavailable = (e) => { if (e.data && e.data.size) parts.push(e.data); };
   rec.onstop = () => {
@@ -11044,9 +11137,10 @@ function _meetingRecordChunk() {
           }
         });
       }
-    } else if (!wasLive) {
-      // No audio in final chunk (stopped right as a new chunk started) — clear banner immediately
-      if (_mtg) _mtg.processingFinalChunk = false;
+    } else if (!wasLive && _mtg) {
+      // No audio in final chunk (stopped right as a new chunk started) — clear banner immediately.
+      // _mtg guard: a quick Discard can null it before this onstop fires.
+      _mtg.processingFinalChunk = false;
       _meetingRenderReview(_mtg);
     }
     if (wasLive) _meetingRecordChunk();
@@ -11059,9 +11153,11 @@ function _meetingRecordChunk() {
   }, MEETING_CHUNK_MS);
 }
 
-async function _meetingSendChunk(blob, retryCount = 0) {
-  // Capture state at call time — meeting may end while this chunk is in flight
-  const state = _mtg;
+async function _meetingSendChunk(blob, retryCount = 0, priorState = null) {
+  // Capture state at call time — meeting may end while this chunk is in flight.
+  // Retries reuse the original capture so a chunk from a discarded meeting can
+  // never write into a new one started in the meantime.
+  const state = priorState || _mtg;
   if (!state) return;
   const _isQuota = (msg) => /quota|rate.?limit|resource.?exhausted|429/i.test(msg);
   try {
@@ -11106,7 +11202,7 @@ async function _meetingSendChunk(blob, retryCount = 0) {
     }
     if (retryCount === 0) {
       // Non-quota first failure: retry once immediately
-      return _meetingSendChunk(blob, 1);
+      return _meetingSendChunk(blob, 1, state);
     }
     _logSyncError('Meeting', 'Chunk dropped — ' + msg.slice(0, 120));
   }

@@ -506,20 +506,6 @@ const POEMS = [
     source: "'After Lunch', A Hundred and Seventy Chinese Poems, trans. Waley (1918), Gutenberg #42290 (Waley d. 1966 — US PD only)",
   },
 
-  // ── Round 11 (Jul 2026) ────────────────────────────────────────────────────
-  {
-    text: "I will arise and go now, and go to Innisfree,\nAnd a small cabin build there, of clay and wattles made:\nNine bean-rows will I have there, a hive for the honey-bee,\nAnd live alone in the bee-loud glade.\n\nAnd I shall have some peace there, for peace comes dropping slow,\nDropping from the veils of the morning to where the cricket sings;\nThere midnight's all a glimmer, and noon a purple glow,\nAnd evening full of the linnet's wings.\n\nI will arise and go now, for always night and day\nI hear lake water lapping with low sounds by the shore;\nWhile I stand on the roadway, or on the pavements grey,\nI hear it in the deep heart's core.",
-    author: 'W. B. Yeats',
-    season: 'summer',
-    source: "'The Lake Isle of Innisfree' (1890), verified against en.wikisource.org (Yeats d. 1939)",
-  },
-  {
-    text: 'Loveliest of trees, the cherry now\nIs hung with bloom along the bough,\nAnd stands about the woodland ride\nWearing white for Eastertide.\n\nNow, of my threescore years and ten,\nTwenty will not come again,\nAnd take from seventy springs a score,\nIt only leaves me fifty more.\n\nAnd since to look at things in bloom\nFifty springs are little room,\nAbout the woodlands I will go\nTo see the cherry hung with snow.',
-    author: 'A. E. Housman',
-    season: 'spring',
-    source: "'A Shropshire Lad' II (1896), verified against en.wikisource.org (Housman d. 1936)",
-  },
-
   // ── Round 12 (Jul 2026) ────────────────────────────────────────────────────
   {
     text: 'The leaves fall, fall as from far,\nLike distant gardens withered in the heavens;\nThey fall with slow and lingering descent.\n\nAnd in the nights the heavy Earth, too, falls\nFrom out the stars into the Solitude.\n\nThus all doth fall. This hand of mine must fall\nAnd lo! the other one:—it is the law.\nBut there is One who holds this falling\nInfinitely softly in His hands.',

@@ -218,14 +218,14 @@ Listens to a meeting through the mic; the only artifact is tasks. No transcript,
 
 **Listening (non-blocking):** `#meetingPill` fixed above the add bar — breathing **red** dot (`--danger`, `_KF_BREATHE_SMALL`, 2400ms; red = universal recording signal), elapsed `MM:SS`, `stop` button (labelled "stop" not "×" — × reads as delete in this app). The app stays fully usable; tasks can be added mid-meeting. Can explicitly rejected the full-screen listening mockup. Mic button gets `.live` (accent) while recording; clicking it again also stops.
 
-**Pipeline:** `getUserMedia` → `MediaRecorder` webm/opus, ~60s chunks via recorder **stop/restart** (never `timeslice` — later chunks aren't independently decodable; pattern survives the v2 iOS port). Each chunk → base64 → `netlify/functions/meeting-extract.js` → Gemini 2.5 Flash (audio inline, transcribe-internally prompt, transcript never in the response) → `{actionItems:[{text,owner,mine}], updatedContext}`. Rolling context string (speaker hints, open threads, ≤150 words) carries attribution across chunks — in memory only. Chunk failure: retry once, then drop + `_logSyncError('Meeting', …)` — a lost minute beats a dead meeting.
+**Pipeline:** `getUserMedia` → `MediaRecorder` webm/opus at **32 kbps** (`audioBitsPerSecond: 32000` — speech-adequate; keeps a 6-min chunk ~1.9MB base64, under Netlify's 6MB body limit — browser default ~128 kbps would blow it), 6-min chunks (`MEETING_CHUNK_MS`, v2.23.0 — was 60s) via recorder **stop/restart** (never `timeslice` — later chunks aren't independently decodable; pattern survives the v2 iOS port). Each chunk → base64 → `netlify/functions/meeting-extract.js` → Gemini 2.5 Flash (audio inline, transcribe-internally prompt, transcript never in the response) → `{actionItems:[{text,owner,mine}], updatedContext}`. Rolling context string (speaker hints, open threads, ≤150 words) carries attribution across chunks — in memory only. Chunk failure: retry once (retries reuse the originally captured `_mtg` so a discarded meeting's chunk can't write into a new one), then drop + `_logSyncError('Meeting', …)` — a lost chunk beats a dead meeting.
 
 **Review panel (v2.23.7):** `#meetingOverlay` (fixed scrim, bottom sheet, slideUp). Three states rendered by `_meetingRenderReview()`:
 - **State 1 — digesting, no prior items:** title "Digesting…" (white 15px), sub hidden, Add disabled; centred focal loader (5px dots + "last X min" below).
 - **State 2 — digesting + prior items showing:** title "From your call", sub visible; inset strip `.meeting-processing-strip` ("Still digesting last X min") above items.
 - **State 3 — review ready:** title "From your call", sub visible; thin `--border` rule separates header from items.
 - **Empty result:** "Nothing came up" (no star prefix). Title: "From your call".
-Header: `.meeting-eyebrow` ("Meeting", 9px muted caps) + `.meeting-review-title` (15px white, state-driven) + `.meeting-review-sub` (muted xs, conditional). Mine pre-selected with accent border/fill; others at 45% opacity with owner label — tap to grab/drop; Add-count updates live. Accept → `manualTasks.push` + `renderManual()` + `dropboxAutoSave()`.
+Header: `.meeting-eyebrow` ("Meeting", 9px muted caps) + `.meeting-review-title` (15px white, state-driven) + `.meeting-review-sub` (muted xs, conditional). All items start unselected, in meeting order (v2.25.4 — name-matching attribution was too unreliable to drive pre-selection); owner shown as a muted hint label. Tap to select; Add-count updates live. Accept → `manualTasks.push` + `renderManual()` + `dropboxAutoSave()`.
 
 **Attribution without voice ID:** `today_user_name` ("Your first name…" input in the AI config section; fill-if-empty on merge, in backup payload) tells the prompt whose commitments to flag. The review tap is the final identity filter — AI optimizes recall, Can's tap is precision.
 
@@ -258,10 +258,16 @@ until `today_daily_history` has any data (`_hasData` guard).
 
 ## Empty States
 
-| State | Message |
+Since v2.26.0 the calm states echo the day's poem (same `_poemOfTheDay()` the splash coda
+and About panel show — the echo re-surfaces the morning's poem, that's the point):
+
+| State | Content |
 |-------|---------|
-| No tasks added | "Nothing added yet" |
-| All done | "✦ Clear" (with breathing animation) |
+| No tasks added | The day's poem + author (`.empty-poem` + `.poem-author`); fallback "Nothing added yet" if corpus missing |
+| All done | Breathing ✦ (`.done-star.echo-star`, block-level above the poem) + the day's poem; fallback "✦ All done" |
+
+Built by `_poemEchoHTML()` inside `updateManualEmptyState()`. Poem text is `esc()`-escaped,
+`\n` → `<br>`. Type: `--text-base`, weight 300, line-height 1.8 (`--text-sm2`/1.7 ≤600px).
 
 ---
 
@@ -281,8 +287,18 @@ Full-screen overlay (`z-index: 500`, `pointer-events: all`) shown on cold app op
 
 **Animation:** Typewriter date string at 38–66ms per character, then 500ms cursor hold, then dismiss.
 
+**Poem coda (v2.26.0, Roadmap #2):** on the day's **first** splash (`poem_splash_date` in
+localStorage vs `_localISO()`), after the cursor hold the day's poem (`_poemOfTheDay()`)
+fades in under the date (`#splash-poem`, 900ms opacity) and holds for a read —
+`min(4000 + lines×600, 9500)`ms, tap anywhere skips. Only then does `_onSplashAnimDone()`
+fire. The key is written at fade-in, not at decision time, so an early bail doesn't burn
+the day. `_splashPoemHold` tells the 6s anim-stall safety this is deliberate; an 18s
+ceiling still backstops the whole coda. Splash content sits in `#splash-inner`
+(`margin:auto 0` + `overflow-y:auto` on `#splash`) so a long poem scrolls on a phone
+instead of clipping at the top — `justify-content:center` would clip invisibly.
+
 **Gate system:** Two parallel signals must both fire before dismiss:
-- `_splashAnimDone` — set by the 500ms cursor timeout
+- `_splashAnimDone` — set by the 500ms cursor timeout (or by the poem coda finishing)
 - `_appLoadDone` — set after Dropbox pull + local render completes
 
 **Skip logic (`splash_shown_at` in localStorage):**
@@ -290,4 +306,4 @@ Full-screen overlay (`z-index: 500`, `pointer-events: all`) shown on cold app op
 - Splash was shown more than 30 minutes ago → show (genuine desktop close + reopen)
 - localStorage cleared → always show
 
-This 30-minute window replaced an earlier date-key approach (`splash_shown_date`) which was once-per-day and blocked desktop PWA close + reopen from seeing the splash.
+This 30-minute window replaced an earlier date-key approach (`splash_shown_date`) which was once-per-day and blocked desktop PWA close + reopen from seeing the splash. (The poem coda's `poem_splash_date` is a separate, deliberately once-per-day key — the poem is a morning moment; the splash itself still follows the 30-minute rule.)
