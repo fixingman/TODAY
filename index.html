@@ -877,6 +877,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
+    padding-top: var(--space-4);    /* clears the 10px ::after gradient on .sticky-header */
     padding-bottom: var(--space-3);
     position: sticky;
     top: var(--sec-sticky-top, 0px);
@@ -3663,9 +3664,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.27.1': 'Fix — section headers (Soon, Trello, Your tasks, Past) now stay pinned just below the top bar while you scroll, instead of drifting off or appearing in the wrong spot.',
   '2.27.0': 'New — unfinished items in Past can return to Soon with one tap, keeping their history instead of starting over as a copy. The morning poem no longer nudges the logo as it appears, the morning line now reads the same on every device, and your name in Connections now syncs across devices too.',
   '2.26.0': 'New — the day\'s poem greets you once each morning as the app opens, and lingers quietly when your list is empty or everything is done.',
-  '2.25.10': 'Fix — long meetings no longer lose chunks: recording is now sized so every six-minute piece reaches the AI safely.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5327,13 +5328,18 @@ function applyNewDayCleanup() {
 function init() {
   _cacheElements();  // cache frequently queried DOM elements FIRST
 
-  // Keep section-header sticky offset in sync with the sticky-header height
+  // Keep section-header sticky offset in sync with the visible bottom of the sticky-header.
+  // Uses getBoundingClientRect().bottom (not offsetHeight) so the offset tracks to 0 when
+  // the sticky-header scrolls off — section headers then pin to the top instead of floating.
   const _stickyHdr = document.getElementById('sticky-header');
   if (_stickyHdr) {
-    const _updateSecTop = () =>
-      document.documentElement.style.setProperty('--sec-sticky-top', _stickyHdr.offsetHeight + 'px');
+    const _updateSecTop = () => {
+      const bottom = _stickyHdr.getBoundingClientRect().bottom;
+      document.documentElement.style.setProperty('--sec-sticky-top', Math.max(0, bottom) + 'px');
+    };
     _updateSecTop();
     new ResizeObserver(_updateSecTop).observe(_stickyHdr);
+    window.addEventListener('scroll', _updateSecTop, { passive: true });
   }
 
   // Clear stale focus mode state — browser may restore .focusing class from cache
@@ -9876,17 +9882,26 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
       // Ceiling path: fonts unconfirmed — static reveal, no fade (BUG-032).
       slogo.style.visibility = 'visible';
       slogo.style.opacity = '1';
+      // Star immediate on ceiling path (no logo fade to sync with)
+      star.style.transition='opacity .3s ease, transform .45s cubic-bezier(0.34,1.56,0.64,1)';
+      star.style.opacity='1';
+      star.style.transform='scale(1)';
     } else if (slogo) {
       slogo.style.visibility = 'visible';   // still opacity:0 — nothing paints visibly
       void slogo.offsetWidth;               // commit the opacity:0 baseline
       requestAnimationFrame(() => {
         slogo.style.transition = 'opacity .5s var(--ease-out)';
         slogo.style.opacity = '1';          // whole logo fades in as one unit
+        // Star starts in the same frame as the logo fade — iOS composites it
+        // inside the logo's opacity layer rather than promoting it independently.
+        // When star was set outside this rAF, WebKit created its compositing
+        // layer before the logo's opacity:0 baseline was established, causing the
+        // star's white inner path to briefly flash visible (BUG-041 second pass).
+        star.style.transition='opacity .3s ease, transform .45s cubic-bezier(0.34,1.56,0.64,1)';
+        star.style.opacity='1';
+        star.style.transform='scale(1)';
       });
     }
-    star.style.transition='opacity .3s ease, transform .45s cubic-bezier(0.34,1.56,0.64,1)';
-    star.style.opacity='1';
-    star.style.transform='scale(1)';
     _breathe(star, [
       { transform: 'scale(1) rotate(0deg)',    opacity: 1   },
       { transform: 'scale(1.08) rotate(3deg)', opacity: 0.8 },

@@ -10,7 +10,7 @@
 | 053 | Morning nudge dismissal not synced across devices | ✅ v2.18.38 |
 | 052 | Splash dismissal slow — sync bookkeeping held the gate | ✅ v2.18.36 |
 | 051 | Trello nudge dismissal not synced across devices | ✅ v2.18.23 |
-| 050 | — not assigned — | — |
+| 050 | Sticky section headers broken — too low / snap to mid-page on deep scroll | ⏳ v2.27.1 |
 | 049 | New Trello card looks aged on arrival | ✅ v2.18.22 |
 | 048 | Trello card aging not synced across devices | ✅ v2.18.17 |
 | 047 | Dropbox connect on fresh install doesn't auto-restore | ✅ v2.18.16 |
@@ -19,7 +19,7 @@
 | 044 | Delayed focus chime after Escape/task-switch | ✅ v2.18.6 |
 | 043 | Aged card won't un-dim after focus session | ✅ v2.18.11, v2.18.17 |
 | 042 | Trello card order scrambles across devices | ✅ v2.18.4 |
-| 041 | White flash on mobile cold start | ✅ v2.18.13 |
+| 041 | White flash / splash logo from top on mobile (second pass) | ⏳ v2.27.0 |
 | 040 | Morning nudge reappears after dismiss | ✅ v2.17.139 |
 | 039 | All-habits-done celebration never fires | ✅ v2.17.137 |
 | 038 | Red dot on mobile when offline | ✅ v2.17.136 |
@@ -67,6 +67,30 @@
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
 
 ---
+
+## BUG-050: Sticky section headers broken — too low / snap to mid-page on deep scroll
+
+**Symptom:** Section headers (Soon, Trello tasks, Your tasks, Past) stick at `top: var(--sec-sticky-top)`, which is set to the sticky-header's height (~150px on mobile). Two failure modes: (1) "sticks too low" — on first scroll, section headers appeared floating far below their correct position. (2) "snaps to middle of the page" — after scrolling deeper, the main sticky-header (logo + progress bar) would exit the viewport, and section headers then appeared at their fixed offset in empty space.
+
+**Root cause:** `--sec-sticky-top` was set to `sticky-header.offsetHeight` (a static measurement). When the sticky-header scrolled off screen on deep scroll (expected, intentional behavior), section headers kept their `top: offsetHeight` offset, floating in empty space — "too low" at first encounter, "mid-page snap" deeper.
+
+**Fix (v2.27.1):** Replaced static `offsetHeight` measurement with a scroll-aware `getBoundingClientRect().bottom`. A `window.scroll` listener updates `--sec-sticky-top = Math.max(0, sticky-header.getBoundingClientRect().bottom)` on every frame, so section headers track the visible bottom of the sticky-header and fall back to `top: 0` once it has scrolled away. ResizeObserver retained to handle header height changes (e.g. font load).
+
+**Verify:** On iOS PWA, scroll to the bottom of a long task list. The TODAY logo + progress bar should remain pinned at the top at all times. Section headers should be immediately below it when they become sticky, never floating in empty space.
+
+---
+
+## BUG-041: White flash / splash logo from top on mobile (second pass)
+
+**Symptom:** Brief white flash at the very beginning of the splash animation, and the logo / star appears to come from the top of the screen rather than fading in at its final centered position. Reported after v2.27.0 on iOS PWA.
+
+**Root cause (second pass — v2.27.0 fix):** The `#splash-star` element's `opacity` and `transform` CSS transitions were set *outside* the `requestAnimationFrame` callback that queues the logo's opacity fade. iOS WebKit immediately promotes the star to its own compositing layer when a `transform` transition starts. Because this happened one frame before the logo's `opacity: 0 → 1` baseline was committed, the star composited *independently* — its own `opacity: 0 → 1` ran at full brightness without being multiplied by the parent logo's `opacity: 0`. The star has a `fill="white"` inner path (`opacity=".18"` in SVG), and at `transform: scale(0.3)` (initial state, top-right corner of logo) this briefly flashed white against the dark background. That flash + the growing transform from small to large read as "something white coming from the top."
+
+**First pass (v2.18.13):** Fixed the pre-web-content cold-start white frame (system launch image → WebView transition). Different symptom, same bug family.
+
+**Fix (v2.27.0 second pass):** Moved the star's `transition`/`opacity`/`transform` assignments inside the `requestAnimationFrame` callback alongside the logo's opacity transition. Both transitions now start in the same frame, so iOS composites them together under the logo's `opacity: 0` baseline. Ceiling path (no animation) keeps immediate star reveal.
+
+**Verify:** Open app on iOS PWA from cold start (or after clearing the day's splash cache). No white flash, no logo/star appearing from the top — smooth single-unit fade from black.
 
 ---
 
