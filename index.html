@@ -401,6 +401,7 @@
     --color-muted-dim:   rgba(107,107,120,0.12); /* muted bg tint  */
     --color-bg-glass:    rgba(14,14,16,0.92);    /* sticky header frosted bg */
     --color-overlay:     rgba(0,0,0,0.6);        /* modal backdrop */
+    --color-overlay-dim: rgba(0,0,0,0.45);       /* lighter backdrop (AI panel) */
     --color-breathe:     rgba(22,26,20,0.88);    /* focus breathe rest */
     --color-breathe-active: rgba(28,34,24,0.92); /* focus breathe active */
     --shadow-float:      0 8px 24px rgba(0,0,0,0.4); /* floating element shadow */
@@ -1905,6 +1906,55 @@
   }
   #meetingPill.show { display: flex; }
   #meetingPill.show.visible { opacity: 1; pointer-events: auto; }
+
+  #meetingNamePrompt {
+    position: fixed;
+    bottom: 76px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(320px, calc(100vw - 32px));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-2) var(--space-3);
+    display: none;
+    align-items: center;
+    gap: var(--space-2);
+    z-index: var(--z-header);
+    opacity: 0;
+    transition: opacity var(--dur-slow) var(--ease-out);
+    pointer-events: none;
+  }
+  #meetingNamePrompt.show { display: flex; }
+  #meetingNamePrompt.show.visible { opacity: 1; pointer-events: auto; }
+  .meeting-name-prompt-label {
+    font-size: var(--text-xs);
+    color: var(--muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  #meetingNamePromptInput {
+    flex: 1;
+    min-width: 0;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+  }
+  .meeting-name-prompt-start {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    padding: var(--space-1) var(--space-2);
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
   .meeting-pill-dot {
     width: var(--space-2); height: var(--space-2); border-radius: 50%;
     background: var(--danger);
@@ -2295,7 +2345,7 @@
     }
     
     /* Pills: lift above add bar + safe area so they never overlap the input */
-    #voicePill, #meetingPill {
+    #voicePill, #meetingPill, #meetingNamePrompt {
       bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
     }
 
@@ -3095,7 +3145,7 @@
     position: fixed;
     inset: 0;
     z-index: 89;
-    background: rgba(0, 0, 0, 0.45);
+    background: var(--color-overlay-dim);
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--dur-mid) ease-out;
@@ -3383,7 +3433,7 @@
     <div class="name-card" id="meetingNameWrap">
       <div class="name-card-header">
         <span class="name-card-title">Your name</span>
-        <span class="name-card-hint">spots your tasks in meetings</span>
+        <span class="name-card-hint">edit or add names for meeting attribution</span>
       </div>
       <div class="name-chip-list" id="nameChipList">
         <!-- chips + inline input rendered by renderMeetingNames() -->
@@ -3538,6 +3588,16 @@
   <div class="meeting-pill-dot"></div>
   <span class="meeting-pill-time" id="meetingPillTime">00:00</span>
   <button class="meeting-pill-stop" onclick="_meetingStop()" title="Stop recording">stop</button>
+</div>
+
+<!-- Meeting mode: first-use name prompt — shown when no name is set and mic is tapped -->
+<div id="meetingNamePrompt">
+  <span class="meeting-name-prompt-label">your name</span>
+  <input id="meetingNamePromptInput" type="text" maxlength="60"
+    autocomplete="off" autocorrect="off" spellcheck="false"
+    placeholder="First name…"
+    onkeydown="_meetingNamePromptKey(event)" />
+  <button class="meeting-name-prompt-start" onclick="_meetingNamePromptSubmit()">start →</button>
 </div>
 
 <!-- Meeting mode: end-of-meeting review overlay (v2.22.0) -->
@@ -3744,9 +3804,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.31.0': 'New — first time you tap the meeting mic with no name set, a quick prompt appears right there: type your name and the meeting starts. Manage names in Connections as before.',
   '2.30.1': 'Fix — tasks you completed today stay done when you open the app on a second device for the first time that day.',
   '2.30.0': 'New — About now surfaces a week reflection on Sunday and a Monday intention on Monday. ✦ brief is purely daily: nudge, day shape, poem — same shape every day.',
-  '2.29.1': 'Poem — Seneca on imagined fear, from the Moral Letters (Letter XIII).',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -11411,6 +11471,35 @@ function _meetingInit() {
 
 function toggleMeeting() {
   if (_mtg && _mtg.live) { _meetingStop(); return; }
+  if (!_getUserNames().length) { _meetingNamePromptShow(); return; }
+  _meetingStart();
+}
+function _meetingNamePromptShow() {
+  const el = document.getElementById('meetingNamePrompt');
+  if (!el) return;
+  el.classList.add('show');
+  requestAnimationFrame(() => el.classList.add('visible'));
+  setTimeout(() => document.getElementById('meetingNamePromptInput')?.focus(), 50);
+}
+function _meetingNamePromptHide() {
+  const el = document.getElementById('meetingNamePrompt');
+  if (!el) return;
+  el.classList.remove('visible');
+  setTimeout(() => el.classList.remove('show'), 300);
+}
+function _meetingNamePromptKey(e) {
+  if (e.key === 'Enter') { e.preventDefault(); _meetingNamePromptSubmit(); }
+  if (e.key === 'Escape') { e.preventDefault(); _meetingNamePromptHide(); }
+}
+function _meetingNamePromptSubmit() {
+  const input = document.getElementById('meetingNamePromptInput');
+  const name = (input?.value || '').trim().slice(0, 60);
+  if (name) {
+    const names = _getUserNames();
+    if (!names.includes(name)) { names.push(name); _saveUserNames(names); renderMeetingNames(); }
+  }
+  if (input) input.value = '';
+  _meetingNamePromptHide();
   _meetingStart();
 }
 
