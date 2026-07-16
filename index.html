@@ -1907,6 +1907,8 @@
   #meetingPill.show { display: flex; }
   #meetingPill.show.visible { opacity: 1; pointer-events: auto; }
 
+  /* Sibling of #meetingPill — same shell (surface, accent-dim border, full radius),
+     appears in the same spot; only the contents differ (input instead of timer) */
   #meetingNamePrompt {
     position: fixed;
     bottom: 76px;
@@ -1914,12 +1916,13 @@
     transform: translateX(-50%);
     width: min(320px, calc(100vw - 32px));
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    border: 1px solid var(--accent-dim);
+    border-radius: var(--radius-full);
     padding: var(--space-2) var(--space-3);
     display: none;
     align-items: center;
     gap: var(--space-2);
+    font-size: var(--text-sm);
     z-index: var(--z-header);
     opacity: 0;
     transition: opacity var(--dur-slow) var(--ease-out);
@@ -1927,12 +1930,6 @@
   }
   #meetingNamePrompt.show { display: flex; }
   #meetingNamePrompt.show.visible { opacity: 1; pointer-events: auto; }
-  .meeting-name-prompt-label {
-    font-size: var(--text-xs);
-    color: var(--muted);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
   #meetingNamePromptInput {
     flex: 1;
     min-width: 0;
@@ -1941,19 +1938,21 @@
     outline: none;
     color: var(--text);
     font-family: var(--font-mono);
-    font-size: var(--text-md);
+    font-size: var(--text-sm);
+    padding: 0 0 0 var(--space-1);
   }
   .meeting-name-prompt-start {
-    background: none;
-    border: none;
+    background: none; border: none;
     color: var(--accent);
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     cursor: pointer;
-    padding: var(--space-1) var(--space-2);
+    padding: 0 var(--space-1);
+    letter-spacing: 0.06em;
+    transition: color var(--dur-fast);
     flex-shrink: 0;
-    line-height: 1;
   }
+  .meeting-name-prompt-start:hover { color: var(--accent-check-hover); }
 
   .meeting-pill-dot {
     width: var(--space-2); height: var(--space-2); border-radius: 50%;
@@ -3592,12 +3591,11 @@
 
 <!-- Meeting mode: first-use name prompt — shown when no name is set and mic is tapped -->
 <div id="meetingNamePrompt">
-  <span class="meeting-name-prompt-label">your name</span>
   <input id="meetingNamePromptInput" type="text" maxlength="60"
     autocomplete="off" autocorrect="off" spellcheck="false"
-    placeholder="First name…"
+    placeholder="Your first name — to spot your tasks"
     onkeydown="_meetingNamePromptKey(event)" />
-  <button class="meeting-name-prompt-start" onclick="_meetingNamePromptSubmit()">start →</button>
+  <button class="meeting-name-prompt-start" onclick="_meetingNamePromptSubmit()">start</button>
 </div>
 
 <!-- Meeting mode: end-of-meeting review overlay (v2.22.0) -->
@@ -3804,9 +3802,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.31.2': 'Polish — the name prompt now looks like the meeting pill it belongs to: same rounded shape, quieter, one clear ask.',
   '2.31.1': 'Polish — the name card hint in Connections reads plainly again and wraps comfortably on small screens.',
   '2.31.0': 'New — first time you tap the meeting mic with no name set, a quick prompt appears right there: type your name and the meeting starts. Manage names in Connections as before.',
-  '2.30.1': 'Fix — tasks you completed today stay done when you open the app on a second device for the first time that day.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
