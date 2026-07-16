@@ -198,6 +198,7 @@
     
     idleCompanion = document.createElement('div');
     idleCompanion.id = 'idleCompanion';
+    idleCompanion.setAttribute('aria-hidden', 'true');
     idleCompanion.style.cssText = `
       position: fixed;
       bottom: 100px;

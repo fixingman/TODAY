@@ -10,7 +10,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="color-scheme" content="dark">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>TODAY</title>
 <link rel="manifest" href="/manifest.json">
 <link rel="preload" as="font" type="font/woff2" crossorigin
@@ -958,6 +958,10 @@
   #pastList .task.aged {
     opacity: var(--opacity-label);
   }
+  #pastList .task.let-go:hover,
+  #pastList .task.aged:hover {
+    opacity: var(--opacity-hover);
+  }
   .task .zone-badge {
     font-size: var(--text-xs);
     padding: var(--space-1) var(--space-2);
@@ -984,13 +988,17 @@
     border-color: var(--border);
   }
   @media (hover: none) {
-    .task .zone-badge.pull-btn { 
-      opacity: var(--opacity-dim); 
+    .task .zone-badge.pull-btn {
+      opacity: var(--opacity-dim);
     }
-    .task .zone-badge.pull-btn:active { 
+    .task .zone-badge.pull-btn:active {
       opacity: 1;
       color: var(--text);
       border-color: var(--border);
+    }
+    #pastList .task.let-go:active,
+    #pastList .task.aged:active {
+      opacity: var(--opacity-hover);
     }
   }
 
@@ -1220,6 +1228,7 @@
     border: 1px solid transparent;
     transition: background var(--dur-fast), border-color var(--dur-fast);
     cursor: default;
+    touch-action: manipulation;
   }
 
   @keyframes fadeIn {
@@ -1603,40 +1612,39 @@
     .empty .empty-poem { font-size: var(--text-sm2); line-height: 1.7; }
   }
   
-  /* Morning nudge — quiet surface panel + breathing accent dot (v2.18.24).
-     Reuses shipped language rather than inventing new: same monochrome recap text as before
-     (still --muted, no per-word color emphasis — the redesign never colors the data itself),
-     just given a home (surface + accent-dim edge, like a task row) and the existing Breath
-     Pattern (_breathe, WAAPI — never CSS, see Motion.md) on the dot instead of a static bullet. */
+  /* Morning nudge — surface card with breathing accent star (v2.28.1 redesign).
+     Elevated from footnote to section-level: surface background, readable color, wrapping text.
+     Task-row hover pattern (border reveals on hover). Star pins to first line when text wraps. */
   .morning-nudge {
-    padding: var(--space-1) 0;
-    margin: var(--space-2) 0 var(--space-3);
-    color: var(--muted);
-    font-size: var(--text-xs);
-    letter-spacing: 0.05em;
+    padding: var(--space-3) var(--space-4);
+    margin: var(--space-1) 0 var(--space-4);
+    background: var(--surface);
+    border: 1px solid transparent;
+    border-radius: var(--radius-lg);
+    color: var(--text);
+    font-size: var(--text-sm2);
+    letter-spacing: 0.02em;
+    line-height: 1.55;
     display: none;
-    align-items: center;
-    gap: 7px;
+    align-items: flex-start;
+    gap: var(--space-3);
     cursor: pointer;
-    overflow: hidden;
-    white-space: nowrap;
-    transition: color var(--dur-fast) ease, opacity var(--dur-slow) var(--ease-out);
+    transition: border-color var(--dur-fast), opacity var(--dur-slow) var(--ease-out);
     opacity: 0;
     pointer-events: none;
   }
   .morning-nudge.show { display: flex; }
   .morning-nudge.show.visible { opacity: 1; pointer-events: auto; }
-  .morning-nudge:hover { color: var(--text); }
+  .morning-nudge:hover { border-color: var(--border); }
   .morning-nudge .nudge-star {
-    font-size: 9px;
+    font-size: 11px;
     color: var(--accent); /* breathes via _breathe() at creation site — WAAPI, never CSS (BUG-028 lesson) */
     flex-shrink: 0;
     line-height: 1;
+    margin-top: 2px; /* optical alignment with first line of text */
     display: inline-block;
   }
   .morning-nudge .nudge-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
     min-width: 0;
   }
   
@@ -1715,6 +1723,7 @@
     /* Same height as button (11+1+line-height≈20+1+11 = 44px) */
     height: 44px;
     box-sizing: border-box;
+    touch-action: manipulation;
   }
 
   .add-task-input::placeholder { color: var(--muted); }
@@ -1750,6 +1759,7 @@
     overflow: visible;
     white-space: nowrap;
     position: relative;
+    touch-action: manipulation;
   }
 
   /* AI suggestion indicator — breathing dot */
@@ -1842,7 +1852,7 @@
     display: none;
   }
 
-  /* ── Component: Meeting Mode (v2.22.0, desktop-only) ─────────────────
+  /* ── Component: Meeting Mode (v2.22.0 desktop, v2.28.0 mobile) ───────
      Mic button in the add bar starts a listening session; a non-blocking
      pill above the add bar shows dot + elapsed + stop while the whole app
      stays usable. Review overlay clones the triage pattern. */
@@ -1853,12 +1863,13 @@
     color: var(--muted);
     width: 44px;
     height: 44px;
-    display: none; /* revealed on desktop by _meetingInit() */
+    display: none; /* revealed by _meetingInit() / _voiceNoteInit() when supported */
     align-items: center;
     justify-content: center;
     cursor: pointer;
     flex-shrink: 0;
     transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+    touch-action: manipulation;
   }
   .add-mic-btn:hover { color: var(--text); border-color: var(--muted); }
   .add-mic-btn.live {
@@ -2043,6 +2054,13 @@
     line-height: 1.6;
   }
   .meeting-review-empty .done-star { color: var(--accent); }
+  /* Suspend-end note — honesty, not alarm: muted, never --danger */
+  .meeting-suspend-note {
+    color: var(--muted);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+    padding: var(--space-2) 0 var(--space-3);
+  }
   /* State 1 — centred focal loader while digesting with no prior items */
   .meeting-processing-center {
     display: flex;
@@ -3130,7 +3148,45 @@
   }
   .ai-chip.primary:hover { background: var(--accent-hover); }
 
-
+  /* Daily brief — composed view shown on empty ✦ tap */
+  .brief-container { display: flex; flex-direction: column; gap: var(--space-4); }
+  .brief-nudge {
+    font-size: var(--text-md);
+    color: var(--text);
+    line-height: 1.65;
+  }
+  .brief-shape {
+    font-size: var(--text-sm);
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+  .brief-week {
+    font-size: var(--text-sm2);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .brief-week-label {
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: var(--text-xs);
+    margin-right: var(--space-2);
+    vertical-align: middle;
+  }
+  .brief-poem {
+    font-size: var(--text-sm);
+    color: var(--muted);
+    line-height: 1.7;
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border);
+  }
+  .brief-poem-author {
+    margin-top: var(--space-2);
+    font-size: var(--text-micro);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
 
   /* One-time discoverability tip — shown on first panel open only */
   .ai-bar-tip {
@@ -3213,7 +3269,7 @@
 </svg>
 <!-- Breathe overlay for focus mode pause animation -->
 <div id="breatheOverlay"></div>
-<div id="splash">
+<div id="splash" aria-hidden="true">
   <div id="splash-inner">
     <div id="splash-logo">
       <span class="l">T</span><span class="l">O</span>
@@ -3233,7 +3289,7 @@
   </div>
 </div>
 <!-- Sticky header: outside .app (predates overflow:clip; kept outside for z-index isolation) -->
-<div class="sticky-header" id="sticky-header" style="opacity:0">
+<div class="sticky-header" id="sticky-header" role="banner" style="opacity:0">
   <div class="sticky-header-inner">
     <div class="header">
       <div class="header-left">
@@ -3259,7 +3315,7 @@
 </div>
 
 <!-- AI panel: reads your day, presents concrete action chips -->
-<div class="app" id="main-app" style="opacity:0">
+<div class="app" id="main-app" role="main" style="opacity:0">
 
   <!-- Habits panel -->
   <div class="config-panel" id="habitsPanel">
@@ -3419,7 +3475,7 @@
 </div>
 
 <!-- Add task bar: outside .app so transforms on .section don't break position:fixed -->
-<div class="add-task-row" id="addTaskBar" style="opacity:0">
+<div class="add-task-row" id="addTaskBar" role="form" aria-label="Add task" style="opacity:0">
   <div style="position:relative;flex:1;min-width:0;">
     <input class="add-task-input" id="newTask" maxlength="500" type="text"
       placeholder="What's on your mind?"
@@ -3434,7 +3490,7 @@
       <path d="M7.5 15.5V19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
   </button>
-  <!-- Meeting mode mic (desktop-only, revealed by _meetingInit) — v2.22.0 -->
+  <!-- Meeting mode mic (revealed by _meetingInit when supported) — v2.22.0/v2.28.0 -->
   <button class="add-mic-btn" id="meetingBtn" onclick="toggleMeeting()" title="Meeting mode — listens and leaves behind only your tasks. Works best with speakers.">
     <svg width="15" height="20" viewBox="0 0 15 20" fill="none">
       <rect x="4.75" y="1" width="5.5" height="10.5" rx="2.75" stroke="currentColor" stroke-width="1.5"/>
@@ -3493,12 +3549,12 @@
   </div>
 </div>
 
-<div id="undoToast">
+<div id="undoToast" role="status" aria-live="polite">
   <span id="undoMsg">Task removed</span>
   <button onclick="_undoLast()">Undo</button>
 </div>
 
-<canvas id="celebCanvas"></canvas>
+<canvas id="celebCanvas" aria-hidden="true"></canvas>
 
 <script src="assets/util.js"></script>
 <script src="assets/poems.js"></script>
@@ -3657,16 +3713,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '233h';
+const DEV_HOURS     = '235h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.27.1': 'Fix — section headers (Soon, Trello, Your tasks, Past) now stay pinned just below the top bar while you scroll, instead of drifting off or appearing in the wrong spot.',
-  '2.27.0': 'New — unfinished items in Past can return to Soon with one tap, keeping their history instead of starting over as a copy. The morning poem no longer nudges the logo as it appears, the morning line now reads the same on every device, and your name in Connections now syncs across devices too.',
-  '2.26.0': 'New — the day\'s poem greets you once each morning as the app opens, and lingers quietly when your list is empty or everything is done.',
+  '2.29.0': 'New — tap ✦ with nothing typed to open your daily brief: this morning\'s observation, how the day is going, the day\'s poem, and on Sunday or Monday a reflection on the week.',
+  '2.28.1': 'Fix — tasks that had been sitting in Past for a very long time now clear out as expected.',
+  '2.28.0': 'New — meeting mode now works on your phone: keeps the screen awake while listening, and tells you honestly what was captured if the screen locks.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -3773,11 +3829,12 @@ function _purgePast() {
 
   const purgedEntries = [];
   pastTasks = pastTasks.filter(t => {
-    if (!t.zoneChangedAt) return true; // Keep items without timestamp (legacy)
+    if (!t.zoneChangedAt) { purgedEntries.push({ id: t.id, at: nowISO }); return false; }
     const age = (now - new Date(t.zoneChangedAt).getTime()) / DAY_MS;
     let keep = true;
     if (t.status === 'done') keep = age < DONE_DAYS;
     else if (t.status === 'let_go' || t.status === 'aged') keep = age < LETGO_DAYS;
+    else keep = age < LETGO_DAYS;
     if (!keep) purgedEntries.push({ id: t.id, at: nowISO });
     return keep;
   });
@@ -4177,17 +4234,23 @@ async function _fetchDayNudgeAI(review, carriedOver, cards) {
       if (yp.length) yLine = yp.join(', ');
     }
 
-    // Pending tasks with ages — names matter, that's what makes it personal
+    // Pending tasks with rich signals — drag order, sessions, revived flag, age.
+    // Numbered so the AI knows position is intentional (user-set drag order).
     // Also exclude pastTasks IDs: if a done task re-enters manualTasks via stale sync
     // after midnight cleanup clears doneIds, pastIds catches it defensively.
     const _pastIds = new Set(pastTasks.map(t => t.id));
     const taskLines = manualTasks
       .filter(t => !doneIds.has(t.id) && !_pastIds.has(t.id))
       .slice(0, 6)
-      .map(t => {
+      .map((t, i) => {
         const created = _getCreatedFromId(t.id);
         const age = created ? Math.floor((Date.now() - created) / 86400000) : 0;
-        return '"' + t.text + '"' + (age >= 2 ? ' (' + age + ' days old)' : '');
+        const sessions = parseInt(t.focusSessions) || 0;
+        const signals = [];
+        if (age >= 2) signals.push(age + 'd old');
+        if (sessions > 0) signals.push(sessions + ' focus session' + (sessions > 1 ? 's' : ''));
+        if (t.revived) signals.push('revived from past');
+        return (i + 1) + '. "' + t.text + '"' + (signals.length ? ' (' + signals.join(', ') + ')' : '');
       });
 
     // Trello cards with overdue/checklist markers
@@ -4197,13 +4260,26 @@ async function _fetchDayNudgeAI(review, carriedOver, cards) {
       return '"' + t.text + '"' + (overdue ? ' — overdue' : '') + cl;
     });
 
+    // Work pattern context — peak hour, focus history, past suggestion outcomes
+    const patternCtx = (typeof _memoryForAI === 'function') ? _memoryForAI() : '';
+
     let facts =
       'Morning check-in. Today is ' + dayNames[new Date().getDay()] + '.\n' +
       'Yesterday: ' + yLine + '.\n' +
       (carriedOver > 0 ? carriedOver + ' task(s) carried over from yesterday.\n' : '');
-    if (taskLines.length) facts += 'Waiting today:\n' + taskLines.join('\n') + '\n';
+    if (patternCtx) facts += 'About this person: ' + patternCtx + '\n';
+    if (taskLines.length) facts +=
+      'Tasks (numbered in the order the user arranged them — position reflects their intent):\n' +
+      taskLines.join('\n') + '\n';
     if (cardLines.length) facts += 'Trello cards:\n' + cardLines.join('\n') + '\n';
     if (!taskLines.length && !cardLines.length) facts += 'The list is empty.';
+
+    const instruction =
+      'Name the one thing most worth noticing this morning. ' +
+      'Read all signals together: tasks with focus sessions are being actively worked; ' +
+      'position 1 is where the user put their priority; a revived task was deliberately brought back; ' +
+      'age alone is not importance — a new task can matter more than an old one. ' +
+      'Name it plainly. If nothing stands out, state the morning simply.';
 
     const res = await fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
@@ -4211,8 +4287,8 @@ async function _fetchDayNudgeAI(review, carriedOver, cards) {
       body: JSON.stringify({
         provider: _aiGetProvider(),
         apiKey: key,
-        messages: [{ role: 'user', content: facts + '\n\nName the one thing most worth noticing this morning — an overdue card, an aging task, a natural starting point — naming it plainly. Otherwise state the morning plainly.' }],
-        systemPrompt: 'You are the quiet companion in a minimal daily task app. One sentence only. Under 18 words. No quotes, no exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
+        messages: [{ role: 'user', content: facts + '\n\n' + instruction }],
+        systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. No quotes, no exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
       }),
     });
     if (!res.ok) return null;
@@ -4801,6 +4877,8 @@ let appMemory = (() => {
       suggestionCooldowns: {},    // { taskId: 'YYYY-MM-DD' } — last suggested date
       // AI suggestion history — what was suggested and what action was taken
       suggestionHistory: [],      // [{ taskId, taskText, suggested: 'YYYY-MM-DD', action: 'break_down'|'move_soon'|'dismiss'|... }]
+      // Recent completed task texts — rolling 30-day window for type summarization
+      recentCompletedTasks: [],   // [{ text, date }]
       // Meta
       firstSeen: _localISO(),
       totalTasksCompleted: 0,
@@ -4814,6 +4892,7 @@ let appMemory = (() => {
   preferences: { peakHour: null, dragKeywords: [] },
   suggestionCooldowns: {},
   suggestionHistory: [],
+  recentCompletedTasks: [],
   firstSeen: _localISO(),
   totalTasksCompleted: 0,
   totalDaysActive: 0,
@@ -4824,9 +4903,10 @@ if (!appMemory.aiName) {
   appMemory.aiName = _pickAIName();
   localStorage.setItem('today_memory', JSON.stringify(appMemory));
 }
-if (!appMemory.suggestionCooldowns) appMemory.suggestionCooldowns = {};
-if (!appMemory.suggestionHistory)   appMemory.suggestionHistory = [];
-if (!appMemory.recentConversations) appMemory.recentConversations = [];
+if (!appMemory.suggestionCooldowns)    appMemory.suggestionCooldowns = {};
+if (!appMemory.suggestionHistory)      appMemory.suggestionHistory = [];
+if (!appMemory.recentConversations)    appMemory.recentConversations = [];
+if (!appMemory.recentCompletedTasks)   appMemory.recentCompletedTasks = [];
 if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
 if (appMemory.patterns.dayStartCount === undefined) appMemory.patterns.dayStartCount = null;
 if (appMemory.patterns.dayStartDate  === undefined) appMemory.patterns.dayStartDate  = null;
@@ -4859,6 +4939,16 @@ function _memoryOnTaskComplete(taskText) {
   }
   
   appMemory.totalTasksCompleted++;
+
+  // Rolling 30-day completed task list for type summarization
+  if (taskText) {
+    const thirtyAgo = new Date(); thirtyAgo.setDate(thirtyAgo.getDate() - 30);
+    appMemory.recentCompletedTasks = (appMemory.recentCompletedTasks || [])
+      .filter(e => new Date(e.date) >= thirtyAgo)
+      .slice(-49);
+    appMemory.recentCompletedTasks.push({ text: taskText, date: _localISO() });
+  }
+
   _saveMemory();
 }
 
@@ -4975,6 +5065,22 @@ function _memoryForAI() {
   if (recentConvos.length > 0) {
     const convoLines = recentConvos.map(c => `[${c.date}] "${c.message}"`);
     lines.push(`Recent conversations:\n${convoLines.join('\n')}`);
+  }
+
+  // Task type themes from recent completions
+  const recentDone = (m.recentCompletedTasks || []);
+  if (recentDone.length >= 3) {
+    const stopWords = new Set(['the','and','for','this','that','with','from','have','will','your',
+      'been','they','what','when','then','than','just','into','over','also','some','such','each',
+      'only','more','most','much','very','its','our','can','all','any','are','about','task']);
+    const freq = {};
+    for (const { text } of recentDone) {
+      for (const w of (text || '').toLowerCase().split(/\s+/)) {
+        if (w.length > 3 && !stopWords.has(w)) freq[w] = (freq[w] || 0) + 1;
+      }
+    }
+    const top = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([w]) => w);
+    if (top.length > 0) lines.push('Recent task themes: ' + top.join(', ') + '.');
   }
 
   return lines.length > 0 ? lines.join(' ') : '';
@@ -5329,17 +5435,25 @@ function init() {
   _cacheElements();  // cache frequently queried DOM elements FIRST
 
   // Keep section-header sticky offset in sync with the visible bottom of the sticky-header.
-  // Uses getBoundingClientRect().bottom (not offsetHeight) so the offset tracks to 0 when
-  // the sticky-header scrolls off — section headers then pin to the top instead of floating.
+  // Computed from scrollY, never measured from the element: iOS moves sticky elements on
+  // the compositor thread, so getBoundingClientRect() oscillates a few px behind the real
+  // position during scroll — feeding that into the var made section headers jitter (BUG-050).
+  // Geometry: the header (top:0, first child of body, body = 100vh) stays pinned while
+  // scrollY ≤ bodyHeight − headerHeight, then its bottom recedes as bodyHeight − scrollY.
   const _stickyHdr = document.getElementById('sticky-header');
   if (_stickyHdr) {
     const _updateSecTop = () => {
-      const bottom = _stickyHdr.getBoundingClientRect().bottom;
-      document.documentElement.style.setProperty('--sec-sticky-top', Math.max(0, bottom) + 'px');
+      const h = _stickyHdr.offsetHeight;
+      const bottom = Math.max(0, Math.min(h, document.body.offsetHeight - window.scrollY));
+      document.documentElement.style.setProperty('--sec-sticky-top', bottom + 'px');
     };
     _updateSecTop();
     new ResizeObserver(_updateSecTop).observe(_stickyHdr);
-    window.addEventListener('scroll', _updateSecTop, { passive: true });
+    let _secTopRaf = 0;
+    window.addEventListener('scroll', () => {
+      if (_secTopRaf) return; // coalesce to one update per frame
+      _secTopRaf = requestAnimationFrame(() => { _secTopRaf = 0; _updateSecTop(); });
+    }, { passive: true });
   }
 
   // Clear stale focus mode state — browser may restore .focusing class from cache
@@ -5771,14 +5885,16 @@ async function _fetchWeekReflection(stats) {
     if (stats.wF >= 5) parts.push(_formatFocusTime(stats.wF) + ' focused');
     if (stats.wHT > 0) parts.push(stats.wHK + '/' + stats.wHT + ' habits kept');
     const summary = parts.length > 0 ? parts.join(', ') : 'a quiet week';
+    const recentNames = (appMemory.recentCompletedTasks || []).slice(-15).map(e => e.text).filter(Boolean);
+    const taskCtx = recentNames.length > 0 ? ' Tasks included: ' + recentNames.join(', ') + '.' : '';
     const res = await fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         provider: _aiGetProvider(),
         apiKey: key,
-        messages: [{ role: 'user', content: 'This week: ' + summary + '. One sentence — warm and honest, like a friend noticing what I did. Not a motivational poster.' }],
-        systemPrompt: 'One sentence only. No quotes. Under 15 words. Plain, warm, grounded.',
+        messages: [{ role: 'user', content: 'This week: ' + summary + '.' + taskCtx + ' One sentence — warm and honest, like a friend noticing what I did. Not a motivational poster.' }],
+        systemPrompt: 'One sentence only. No quotes. Under 20 words. Plain, warm, grounded.',
       }),
     });
     if (!res.ok) return null;
@@ -5786,6 +5902,112 @@ async function _fetchWeekReflection(stats) {
   } catch (e) {
     return null;
   }
+}
+
+async function _fetchMondayIntention() {
+  try {
+    const key = _aiGetKey ? _aiGetKey() : null;
+    if (!key || !navigator.onLine) return null;
+    const recentNames = (appMemory.recentCompletedTasks || []).slice(-15).map(e => e.text).filter(Boolean);
+    const waiting = manualTasks.slice(0, 5).map((t, i) => (i + 1) + '. "' + t.text + '"');
+    let ctx = '';
+    if (recentNames.length > 0) ctx += 'Last week\'s work: ' + recentNames.join(', ') + '. ';
+    if (waiting.length > 0) ctx += 'Waiting this week: ' + waiting.join(', ') + '.';
+    if (!ctx) ctx = 'Fresh week.';
+    const res = await fetch('/.netlify/functions/ai-assist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: _aiGetProvider(),
+        apiKey: key,
+        messages: [{ role: 'user', content: ctx + ' One sentence for Monday — what most deserves attention this week.' }],
+        systemPrompt: 'One sentence only. No quotes. Under 20 words. Plain, warm, grounded.',
+      }),
+    });
+    if (!res.ok) return null;
+    return _parseAIText(await res.json());
+  } catch (e) {
+    return null;
+  }
+}
+
+// Daily brief — composed view: nudge + day shape + poem + Sunday/Monday layer
+async function _showDailyBrief() {
+  openAI(true);
+  _aiSetThinking();
+  _aiSetChips([]);
+
+  const day = new Date().getDay();
+  const isSunday  = day === 0;
+  const isMonday  = day === 1;
+  const today = _localISO();
+
+  // Gather pieces (all fast/local except the conditional week fetch)
+  const nudge    = localStorage.getItem('day_nudge_ai_' + today) || '';
+  const doneCount = doneIds.size;
+  const focusMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+  const poem = _poemOfTheDay();
+
+  // Sunday/Monday AI content
+  let weekText = '';
+  let weekLabel = '';
+  if (isSunday) {
+    weekLabel = 'This week';
+    const cacheKey = 'week_reflection_' + today;
+    weekText = localStorage.getItem(cacheKey) || '';
+    if (!weekText) {
+      const _history = safeJSON('today_daily_history', []);
+      if (_history.length > 0) {
+        const _days = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(); d.setDate(d.getDate() - i);
+          const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+          const entry = _history.find(e => e.date === iso);
+          const tasks = iso === today ? [...manualTasks, ...(trelloTasks || [])].filter(t => doneIds.has(t.id)).length : (entry ? entry.tasksDone : null);
+          const focus = iso === today ? focusMins : (entry ? entry.focusMins : null);
+          _days.push({ tasks, focus });
+        }
+        const _week = _days.filter(d => d.tasks !== null);
+        const _snap7 = _history.slice(-7);
+        const wT  = _week.reduce((s, d) => s + (d.tasks || 0), 0);
+        const wF  = _week.reduce((s, d) => s + (d.focus || 0), 0);
+        const wHK = _snap7.reduce((s, e) => s + (e.habitsKept  || 0), 0);
+        const wHT = _snap7.reduce((s, e) => s + (e.habitsTotal || 0), 0);
+        weekText = await _fetchWeekReflection({ wT, wF, wHK, wHT }) || '';
+        if (weekText) localStorage.setItem(cacheKey, weekText);
+      }
+    }
+  } else if (isMonday) {
+    weekLabel = 'This week';
+    const cacheKey = 'monday_intention_' + today;
+    weekText = localStorage.getItem(cacheKey) || '';
+    if (!weekText) {
+      weekText = await _fetchMondayIntention() || '';
+      if (weekText) localStorage.setItem(cacheKey, weekText);
+    }
+  }
+
+  // Build HTML
+  const parts = [];
+  if (nudge)     parts.push('<div class="brief-nudge">' + esc(nudge) + '</div>');
+  const shapeParts = [];
+  if (doneCount > 0)  shapeParts.push(doneCount + ' done');
+  if (focusMins >= 5) shapeParts.push(_formatFocusTime(focusMins) + ' focused');
+  if (shapeParts.length > 0) parts.push('<div class="brief-shape">' + shapeParts.join(' · ') + '</div>');
+  if (weekText) parts.push('<div class="brief-week"><span class="brief-week-label">' + esc(weekLabel) + '</span> ' + esc(weekText) + '</div>');
+  if (poem) {
+    const pLines = poem.text.split('\n').map(esc).join('<br>');
+    parts.push('<div class="brief-poem">' + pLines + '<div class="brief-poem-author">' + esc(poem.author) + '</div></div>');
+  }
+
+  if (parts.length === 0) {
+    // Nothing to show — fall back to proactive suggestions
+    _aiLoadedOnce = false;
+    _aiLoad();
+    return;
+  }
+  _aiSetMsg('<div class="brief-container">' + parts.join('') + '</div>');
+  _aiSetChips([]);
 }
 
 // ─── Connections Panel Rendering ──────────────────────────────────────────────
@@ -7358,8 +7580,8 @@ function handleBarSubmit() {
       if (!_aiPanelOpen) openAI(true); // skip auto-load — we send our own request next
       _aiSendFromInput(text);
     } else {
-      // Empty → open/close AI panel to browse suggestions
-      toggleAI();
+      // Empty → show daily brief (or close if already open)
+      if (_aiPanelOpen) { closeAI(); } else { _showDailyBrief(); }
     }
   } else {
     // Not configured: add as task if text, else nudge to Connections
@@ -9436,11 +9658,18 @@ async function dropboxRestore(fromSync) {
       setTimeout(() => { _wakeSyncSilent = false; }, 3000);
       // Unified wake handler — repaint, focus cleanup, triage, pending backup
       if (window._onWake) window._onWake();
+      // Live meeting: verify the recorder survived suspension (iOS kills it on
+      // screen lock). Direct call, not via _onWake — that path is debounced and
+      // _appReady-gated; this check must run on every return to visible.
+      if (typeof _meetingHealthCheck === 'function') _meetingHealthCheck();
       // Start ticker
       wakeTimer = setTimeout(() => { startTicker(); }, 2000);
     } else {
       clearTimeout(wakeTimer);
       stopTicker();
+      // Mark when a live meeting went hidden — if iOS kills the mic during
+      // suspension, the honest note reports time kept up to this moment.
+      if (typeof _mtg !== 'undefined' && _mtg && _mtg.live) _mtg.hiddenAt = Date.now();
     }
   });
 
@@ -9667,6 +9896,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
   // as the intrinsic CSS size, making the display box innerWidth*dpr px wide instead of
   // innerWidth px, which doubles/triples all drawing coordinates and breaks burst placement.
   splashCanvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:600;';
+  splashCanvas.setAttribute('aria-hidden', 'true');
   document.body.appendChild(splashCanvas);
   const sctx = splashCanvas.getContext('2d');
   let spp = [], srf = null;
@@ -11082,25 +11312,29 @@ function _aiExecute(action) {
   }
 }
 
-// ── Meeting mode (v2.22.0, desktop-only) ──────────────────────────────────────
+// ── Meeting mode (v2.22.0 desktop, v2.28.0 mobile) ────────────────────────────
 // Listens to a meeting through the mic and leaves behind only tasks. Fully
 // ephemeral: audio chunks and the rolling context live in _mtg below and are
 // nulled on teardown — nothing recorded, nothing persisted, no voice ID.
-// Gemini-only (sole provider with native audio input). 6-min chunks via recorder
+// Gemini-only (sole provider with native audio input). Chunks via recorder
 // stop/restart (not timeslice — later timeslice chunks aren't independently
 // decodable). Failed chunks retry once, then drop: a lost chunk beats a dead
-// meeting. See memory/design/Components.md § Meeting Mode.
+// meeting. Mobile contract: wake lock keeps the screen on while listening;
+// if it locks anyway, the meeting ends with an honest note of what was kept.
+// See memory/design/Components.md § Meeting Mode.
 
-const MEETING_CHUNK_MS = 360000; // 6-min chunks — ~10 API calls/hour
+const MEETING_CHUNK_MS = 360000; // 6-min chunks — ~10 API calls/hour (webm path)
 
 let _mtg = null;          // { stream, recorder, items, context, startedAt, timerId, chunkTimerId,
-                          //   chunkStartedAt, finalChunkSecs, processingFinalChunk, live, mime, dotAnim }
+                          //   chunkStartedAt, chunkMs, finalChunkSecs, processingFinalChunk, live,
+                          //   mime, dotAnim, wakeLock, hiddenAt, suspendNote }
 let _meetingStarting = false; // blocks double-start during the getUserMedia await window
 
 function _meetingSupported() {
-  return !('ontouchstart' in window)
-    && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
-    && typeof MediaRecorder !== 'undefined';
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+    && typeof MediaRecorder !== 'undefined'
+    && (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        || MediaRecorder.isTypeSupported('audio/mp4'));
 }
 
 // Multi-name store — migration: single today_user_name → today_user_names array
@@ -11155,8 +11389,8 @@ function removeMeetingName(idx) {
 // Keep old name for any stray callers (panel-open handler)
 function saveMeetingName() { addMeetingName(); }
 
-// Reveal the mic button on desktop when Gemini is configured — called from init()
-// and after AI config changes.
+// Reveal the mic button when recording is supported and Gemini is configured —
+// called from init() and after AI config changes.
 function _meetingInit() {
   const btn = document.getElementById('meetingBtn');
   if (!btn) return;
@@ -11187,10 +11421,17 @@ async function _meetingStart() {
   // Detect MIME once per session — codec support cannot change mid-meeting
   const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
     ? 'audio/webm;codecs=opus'
-    : (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : ''); // mp4 = v2 iOS path
+    : (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : ''); // mp4 = iOS path
+
+  // iOS ignores audioBitsPerSecond for AAC — real output can hit ~192 kbps, which
+  // would put a 6-min chunk (~8.6MB → ~11.8MB base64) past Netlify's 6MB limit.
+  // 2-min mp4 chunks stay safe at worst case (~2.9MB → ~4MB base64).
+  const chunkMs = mime === 'audio/mp4' ? 120000 : MEETING_CHUNK_MS;
 
   _mtg = { stream, recorder: null, items: [], context: '', startedAt: Date.now(),
-           timerId: null, chunkTimerId: null, live: true, mime, dotAnim: null };
+           timerId: null, chunkTimerId: null, live: true, mime, chunkMs, dotAnim: null,
+           wakeLock: null, hiddenAt: null, suspendNote: null };
+  _meetingWakeLock(); // keep the screen on while listening (no-op where unsupported)
 
   document.getElementById('meetingBtn')?.classList.add('live');
   const pill = document.getElementById('meetingPill');
@@ -11220,6 +11461,9 @@ async function _meetingStart() {
 // One self-contained recording of MEETING_CHUNK_MS; onstop ships it and starts the next.
 function _meetingRecordChunk() {
   if (!_mtg || !_mtg.live) return;
+  // iOS may fire a stalled recorder's onstop before visibilitychange on resume —
+  // constructing a MediaRecorder on a dead stream throws. End honestly instead.
+  if (_mtg.stream.getAudioTracks().some(t => t.readyState === 'ended')) { _meetingSuspendEnd(); return; }
   // 32 kbps opus is plenty for speech and keeps a 6-min chunk (~1.4MB raw, ~1.9MB
   // base64) safely under Netlify's 6MB function-body limit — the browser default
   // (~128 kbps) would push a full chunk past it and drop 6 minutes at a time.
@@ -11246,14 +11490,59 @@ function _meetingRecordChunk() {
       _mtg.processingFinalChunk = false;
       _meetingRenderReview(_mtg);
     }
-    if (wasLive) _meetingRecordChunk();
+    // Identity guard (same pattern as the chunk timer below): a suspended recorder's
+    // late onstop must not restart when _meetingHealthCheck already started a fresh
+    // one — two recorders on one stream, the orphan never ships. Its partial parts
+    // above still ship (real captured audio); only the restart is fenced.
+    if (wasLive && _mtg && _mtg.recorder === rec) _meetingRecordChunk();
   };
+  // Route recorder errors through the same resume policy — no second error path.
+  rec.onerror = () => { if (_mtg && _mtg.live && _mtg.recorder === rec) _meetingHealthCheck(); };
   rec.start();
   _mtg.recorder = rec;
   _mtg.chunkStartedAt = Date.now(); // used at stop time to compute final chunk duration
   _mtg.chunkTimerId = setTimeout(() => {
     if (_mtg && _mtg.recorder === rec && rec.state === 'recording') rec.stop();
-  }, MEETING_CHUNK_MS);
+  }, _mtg.chunkMs);
+}
+
+// Screen Wake Lock — best effort. Absence (old iOS, desktop browsers without it)
+// is normal, not an error: the meeting still works, the screen just may dim.
+async function _meetingWakeLock() {
+  if (!_mtg || !navigator.wakeLock) return;
+  try { _mtg.wakeLock = await navigator.wakeLock.request('screen'); } catch (_) {}
+}
+
+// Resume policy — called on visibilitychange→visible and recorder.onerror.
+// iOS suspends the PWA on screen lock/backgrounding and silently kills the
+// recorder; without this check a meeting looks live while capturing nothing.
+function _meetingHealthCheck() {
+  if (!_mtg || !_mtg.live) return;
+  _meetingWakeLock(); // auto-released on hide; request only succeeds while visible
+  const tracks = _mtg.stream.getAudioTracks();
+  if (!tracks.length || tracks.some(t => t.readyState === 'ended')) {
+    _meetingSuspendEnd(); // mic is gone — end honestly with what was kept
+    return;
+  }
+  // Tracks alive ('muted' counts — iOS unmutes on foreground). Check the recorder:
+  const rec = _mtg.recorder;
+  if (rec && rec.state === 'recording') return; // survived a brief app switch
+  if (rec && rec.state === 'paused') { rec.stop(); return; } // onstop ships partial + restarts
+  // inactive or missing — restart the chunk cycle (audio during suspension is lost)
+  clearTimeout(_mtg.chunkTimerId);
+  _meetingRecordChunk();
+}
+
+// The honest end: the OS killed the mic while we were suspended. Report what was
+// actually kept — the dangerous failure is a user believing an hour was captured
+// when only the pre-lock minutes were.
+function _meetingSuspendEnd() {
+  if (!_mtg || !_mtg.live) return;
+  const mins = Math.round(((_mtg.hiddenAt || Date.now()) - _mtg.startedAt) / 60000);
+  _mtg.suspendNote = mins >= 1
+    ? 'Listening stopped when the screen locked — kept the first ' + mins + ' min'
+    : 'Listening stopped when the screen locked — only the first moments were kept';
+  _meetingStop();
 }
 
 async function _meetingSendChunk(blob, retryCount = 0, priorState = null) {
@@ -11262,6 +11551,12 @@ async function _meetingSendChunk(blob, retryCount = 0, priorState = null) {
   // never write into a new one started in the meantime.
   const state = priorState || _mtg;
   if (!state) return;
+  // Belt-and-braces for the iOS AAC path: 4.3MB × 1.37 (base64) ≈ 5.9MB, the edge
+  // of Netlify's body limit. A larger blob would 502 twice and waste the retry.
+  if (blob.size > 4300000) {
+    _logSyncError('Meeting', 'Chunk too large to send — dropped');
+    return;
+  }
   const _isQuota = (msg) => /quota|rate.?limit|resource.?exhausted|429/i.test(msg);
   try {
     const b64 = await new Promise((resolve, reject) => {
@@ -11316,6 +11611,8 @@ function _meetingStop() {
   _mtg.live = false;
   clearTimeout(_mtg.chunkTimerId);
   clearInterval(_mtg.timerId);
+  _mtg.wakeLock?.release().catch(() => {});
+  _mtg.wakeLock = null;
   if (_mtg.recorder && _mtg.recorder.state === 'recording') _mtg.recorder.stop(); // flushes final chunk via onstop
   _mtg.stream.getTracks().forEach(t => t.stop());
 
@@ -11327,7 +11624,10 @@ function _meetingStop() {
   }
 
   // Snapshot how long the final chunk is so the review can show "Digesting last X min…"
-  _mtg.finalChunkSecs = Math.round((Date.now() - (_mtg.chunkStartedAt || _mtg.startedAt)) / 1000);
+  // On a suspend-end, measure to when the app was hidden — not now — so the
+  // digesting label doesn't count minutes of suspended silence.
+  const _stopRef = (_mtg.suspendNote && _mtg.hiddenAt) ? _mtg.hiddenAt : Date.now();
+  _mtg.finalChunkSecs = Math.max(0, Math.round((_stopRef - (_mtg.chunkStartedAt || _mtg.startedAt)) / 1000));
   _mtg.processingFinalChunk = true;
   // Render immediately — shows prior-chunk items if any, or loader if none yet.
   _meetingRenderReview(_mtg);
@@ -11347,6 +11647,10 @@ function _meetingRenderReview(state) {
   const mins = Math.max(1, Math.round(secs / 60));
   const label = mins === 1 ? '1 min' : mins + ' min';
 
+  // Suspend-end note — honesty about what was captured, shown in every state
+  const note = state.suspendNote
+    ? `<div class="meeting-suspend-note">${esc(state.suspendNote)}</div>` : '';
+
   const actions = document.querySelector('.meeting-review-actions');
   if (!state.items.length) {
     // State 1 — digesting with no prior items, or empty result
@@ -11355,12 +11659,12 @@ function _meetingRenderReview(state) {
     if (add) add.style.display = 'none';
     if (actions) actions.classList.add('no-add');
     if (processing) {
-      list.innerHTML = `<div class="meeting-processing-center">
+      list.innerHTML = note + `<div class="meeting-processing-center">
         <span class="loading-dots"><span></span><span></span><span></span></span>
         <span class="meeting-processing-label">last ${label}</span>
       </div>`;
     } else {
-      list.innerHTML = '<div class="meeting-review-empty">Nothing came up</div>';
+      list.innerHTML = note + '<div class="meeting-review-empty">Nothing came up</div>';
     }
     list.querySelectorAll('.loading-dots span').forEach((s, i) => _breathe(s, _KF_BLINK, 1200, [0, 180, 400][i]));
     return;
@@ -11381,13 +11685,13 @@ function _meetingRenderReview(state) {
 
   if (processing) {
     // State 2 — inset strip above prior items
-    list.innerHTML = `<div class="meeting-processing-strip">
+    list.innerHTML = note + `<div class="meeting-processing-strip">
       <span class="loading-dots"><span></span><span></span><span></span></span>
       Still digesting last ${label}
     </div>` + itemsHTML;
   } else {
     // State 3 — rule then items
-    list.innerHTML = '<div class="meeting-review-rule"></div>' + itemsHTML;
+    list.innerHTML = note + '<div class="meeting-review-rule"></div>' + itemsHTML;
   }
 
   list.querySelectorAll('.loading-dots span').forEach((s, i) => _breathe(s, _KF_BLINK, 1200, [0, 180, 400][i]));
@@ -11423,6 +11727,7 @@ function _meetingDiscard() { _meetingTeardown(); }
 // Ephemerality guarantee: audio, items, and rolling context all die here.
 function _meetingTeardown() {
   _mtg?.dotAnim?.cancel(); // stop the breathing animation before releasing the reference
+  _mtg?.wakeLock?.release().catch(() => {}); // defensive — normally released in _meetingStop
   const _ovl = document.getElementById('meetingOverlay');
   if (_ovl) {
     _ovl.classList.remove('visible');
@@ -12041,6 +12346,8 @@ function _aiClearBadge() {
 
   const timerEl = document.createElement('div');
   timerEl.className = 'focus-timer';
+  timerEl.setAttribute('role', 'complementary');
+  timerEl.setAttribute('aria-label', 'Focus timer');
   timerEl.innerHTML =
     '<div class="focus-timer-inner">' +
       '<div class="focus-timer-fill" id="focusFill"></div>' +

@@ -10,7 +10,7 @@
 | 053 | Morning nudge dismissal not synced across devices | ✅ v2.18.38 |
 | 052 | Splash dismissal slow — sync bookkeeping held the gate | ✅ v2.18.36 |
 | 051 | Trello nudge dismissal not synced across devices | ✅ v2.18.23 |
-| 050 | Sticky section headers broken — too low / snap to mid-page on deep scroll | ⏳ v2.27.1 |
+| 050 | Sticky section headers broken — too low / mid-page snap, then mobile jitter | ⏳ v2.27.3 |
 | 049 | New Trello card looks aged on arrival | ✅ v2.18.22 |
 | 048 | Trello card aging not synced across devices | ✅ v2.18.17 |
 | 047 | Dropbox connect on fresh install doesn't auto-restore | ✅ v2.18.16 |
@@ -74,9 +74,11 @@
 
 **Root cause:** `--sec-sticky-top` was set to `sticky-header.offsetHeight` (a static measurement). When the sticky-header scrolled off screen on deep scroll (expected, intentional behavior), section headers kept their `top: offsetHeight` offset, floating in empty space — "too low" at first encounter, "mid-page snap" deeper.
 
-**Fix (v2.27.1):** Replaced static `offsetHeight` measurement with a scroll-aware `getBoundingClientRect().bottom`. A `window.scroll` listener updates `--sec-sticky-top = Math.max(0, sticky-header.getBoundingClientRect().bottom)` on every frame, so section headers track the visible bottom of the sticky-header and fall back to `top: 0` once it has scrolled away. ResizeObserver retained to handle header height changes (e.g. font load).
+**Fix (v2.27.1):** Replaced static `offsetHeight` measurement with a scroll-aware `getBoundingClientRect().bottom` so section headers track the visible bottom of the sticky-header and fall back to `top: 0` once it has scrolled away.
 
-**Verify:** On iOS PWA, scroll to the bottom of a long task list. The TODAY logo + progress bar should remain pinned at the top at all times. Section headers should be immediately below it when they become sticky, never floating in empty space.
+**Second pass (v2.27.3) — mobile jitter:** the v2.27.1 rect measurement shook section headers a few px during mobile scroll. iOS moves sticky elements on the compositor thread; `getBoundingClientRect()` on a stuck element reads a few px behind the real position mid-scroll, so the var oscillated. Fix: compute analytically from `scrollY` — `max(0, min(headerHeight, body.offsetHeight − scrollY))` (header is body's first child; body is 100vh, so the header stays pinned until `scrollY > bodyHeight − headerHeight`, then its bottom recedes as `bodyHeight − scrollY`) — with rAF-coalesced scroll updates. While pinned the value is constant → zero style churn; during departure it follows scroll position smoothly. Desktop was never affected (main-thread scrolling keeps rects in sync).
+
+**Verify:** On iOS PWA with a long list: (1) section headers pin just below the logo header with no trembling during scroll; (2) as the logo header departs on deep scroll, section headers ride its bottom edge up and settle pinned at the very top; (3) never floating mid-page.
 
 ---
 

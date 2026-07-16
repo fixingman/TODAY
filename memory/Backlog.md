@@ -21,8 +21,9 @@
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 5 | **First-run experience** | Narrowed (Jul 2026) | Empty morning + everything-done covered by the v2.26.0 poem echo. Remaining scope: brand-new-user first open only. Fold into a quiet week. |
 | 6 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
-| 7 | **About — contextual digest layer** | Next up (Jul 2026 review) | The next morning-beat move: poem → nudge → list is the daily rhythm; digest adds the weekly one (Sunday recap, Monday intention). Validates content before #4 carries it externally — build 7 before 4. Detail ↓ |
+| 7 | **About — contextual digest layer** | Shipped v2.29.0 | Empty ✦ → daily brief (nudge + day shape + poem + Sunday/Monday layer). Task type summarization also ships as the data layer. W3 verdict due 2026-07-30. Detail ↓ |
 | 8 | **Revive from PAST → SOON** | Shipped v2.27.0 | Hover `↩︎ soon` on aged/let-go PAST rows — same ID, `revived` counter, timestamp-aware merge guard. Verify on real devices. |
+| 9 | **Meeting mode v2 — mobile + language** | Language shipped v2.27.2; mobile shipped v2.28.0 | In-room meetings on iOS PWA (phone calls impossible — iOS never exposes call audio, even to native apps). Awaiting real-device verify. Detail ↓ |
 
 **Awaiting device verification:** WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep.
 
@@ -98,6 +99,20 @@
 ### 8 · Revive from PAST → SOON *(shipped v2.27.0 — see Changelog.md / Sync.md)*
 **Remaining:** real-device verify. Future: surface the `revived` counter to nudge/insights ("this one came back twice"). Philosophy guard held: no bulk revive, done items stay put.
 
+### 9 · Meeting mode v2 — mobile + language *(agreed Jul 2026)*
+**Scope boundary first:** phone-call recording is impossible from any app on iOS — the OS never exposes call audio (only Apple's own 18.1+ built-in recorder). Mobile meeting mode = in-room/speakerphone capture through the mic. Don't revisit this; it's an OS wall, not a PWA limitation.
+
+**Mobile build (the v2 sketched in Components.md § Meeting Mode):**
+1. Gate: `_meetingSupported()` currently excludes all touch devices (`!('ontouchstart' in window)`) — replace with a capability check.
+2. MIME: iOS MediaRecorder produces `audio/mp4` (AAC), not webm/opus. Plumbing mostly exists (`_mtg.mime` per-meeting); re-verify the 32 kbps bitrate keeps a 6-min AAC chunk under Netlify's 6MB body limit.
+3. **Suspension is the real design work:** iOS kills the recorder the moment the screen locks or the app backgrounds. Screen Wake Lock API (iOS 16.4+) keeps the screen on, but the contract is *phone on the table, screen on, app foreground for the whole meeting*. The dangerous failure is silent partial capture (user thinks they got an hour, got 10 min) — on resume, detect the dead recorder and say honestly what was captured. UX for this failure state is the bulk of the work.
+
+**Language — shipped v2.27.2:** one prompt line in `netlify/functions/meeting-extract.js` ("phrase each item in the language spoken in the meeting — do not translate to English"). Auto-detect, no setting. Name attribution already worked cross-language. Verify with a real non-English meeting.
+
+**Mobile — shipped v2.28.0:** capability-only gate, 2-min iOS AAC chunks (+ 4.3MB size guard), onstop identity guard, Screen Wake Lock, suspension health-check state machine, honest-note UI on lock. Awaiting real-device verify on iPhone PWA.
+
+**Gate (unchanged from Components.md):** v1 extraction quality — Wallpaper Test: are the chips what you'd have written down yourself? Mobile multiplies the surface; confirm the extraction earns it first.
+
 ### WEEK — standalone weekly planning companion *(gated)*
 **Vision:** separate lightweight weekly planning tool. TODAY = focus instrument, WEEK = planning surface. Predictive AI from observed behaviour — no manual energy ratings.
 **Feeds on:** `today_daily_history` (focus sessions, completion times, habit patterns, peak hour — accumulating since v2.17.55).
@@ -127,7 +142,7 @@
 | Surface | Shipped | W3 due | Status |
 |---------|---------|--------|--------|
 | Morning nudge AI line | v2.17.73 | verdict pending | Open — 4 weeks collected; three questions in Roadmap #1 detail decide the iteration |
-| Week-grid "best day" dot | v2.17.121 | 2026-06-30 — **overdue** | Open — does the dot land on a day that feels like your best? Keep / retune weights / revert to single dimension — one call from Can closes it. |
+| Week-grid "best day" dot | v2.17.121 | 2026-06-30 | ✅ Kept — dot lands correctly, works well (verified 2026-07-15) |
 | Poem splash coda + clean-slate echo | v2.26.0 | 2026-07-28 | Open — gift or gate? Does the echo add warmth or become invisible after the first week? |
 
 ### Not implementing

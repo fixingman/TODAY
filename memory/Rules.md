@@ -4,10 +4,10 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.27.1 — fix BUG-050: sticky section headers (body height → min-height so sticky-header range spans full page)
+- **Working on:** v2.29.0 — Roadmap #7 daily brief (empty ✦ → brief) + task type summarization; Roadmap #9 complete (language v2.27.2 + mobile v2.28.0)
 - **Recent:** Feature v2.27.0 — PAST revive (↩ soon on aged/let-go rows, `revived` counter, `_stillPast` merge guard). Feature v2.26.0 — poem splash coda (once/day) + empty/all-done poem echo; corpus 91→89 (14-liners cut); coda pre-populates to avoid logo jerk; morning nudge cross-device fix (remote wins). Fix v2.25.10 — meeting chunking (bitrate, retry pinning, discard crash). Fix v2.25.6 — Trello fetch errors silenced offline. Fix v2.25.5 — Gemini/Claude CTAs disable correctly offline. Fix v2.25.4 — meeting review all items unselected, chronological order. Refactor v2.25.3 — celebration.js extracted (ember drift + _flashAccentGlow; Roadmap #3 fourth module). Polish v2.25.2 — triage bar/nudge/config panels fade in; pill colours + tokens; mobile pill safe-area; voice note clear-btn + no-focus fix; meeting review task style; quota error immediate surface. Polish v2.25.1 — meeting + voice pills + overlay fade. Polish v2.23.7 — meeting review redesign. Fix v2.23.6 — BUG-054 ✅ phantom task resurrection via sync merge (verified 2026-07-11). v2.23.5 accent name; v2.23.4 mobile connections; v2.23.3 Your name divider; v2.23.2 AI ASSISTANT header; v2.23.1 sound.js extraction. Feature v2.22.0 — Meeting mode (desktop-only v1). Feature v2.21.0 — habit nudge + countdown. Feature v2.20.0 — Sunday nudge. Feature v2.19.0 — unified morning nudge.
 - **Module extraction (Roadmap #3):** Done: `util.js`, `idle.js`, `sound.js`, `celebration.js`. Next risk-ascending: `trello.js`, `insights.js`, `sync.js` (Non-Delegation). Coupled core stays inline.
-- **Watch for:** BUG-050 ⏳ sticky section headers (too low / mid-page snap); fix shipped v2.27.1 (scroll-aware getBoundingClientRect().bottom instead of static offsetHeight), awaiting real-device verify · BUG-041 ⏳ second pass — star compositing white flash + logo from top on iOS PWA splash; fix shipped v2.27.0 (star animation moved into rAF with logo), awaiting real-device verify · BUG-032 ✅ verified 2026-07-08 · BUG-047 ✅ verified 2026-07-08 · BUG-054 ✅ verified 2026-07-11 · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep · Partial-focus un-aging (BUG-043 design) — watching whether the partial-un-age rule feels wrong in practice
+- **Watch for:** BUG-050 ⏳ sticky section headers (mid-page snap v2.27.1, mobile jitter v2.27.3 — offset now computed from scrollY, never rect-measured mid-scroll), awaiting real-device verify · BUG-041 ⏳ second pass — star compositing white flash + logo from top on iOS PWA splash; fix shipped v2.27.0 (star animation moved into rAF with logo), awaiting real-device verify · v2.28.0 ⏳ meeting mode mobile — wake lock + suspension UX; awaiting real-device verify on iPhone PWA · BUG-032 ✅ verified 2026-07-08 · BUG-047 ✅ verified 2026-07-08 · BUG-054 ✅ verified 2026-07-11 · WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep · Partial-focus un-aging (BUG-043 design) — watching whether the partial-un-age rule feels wrong in practice
 
 ---
 
@@ -30,6 +30,7 @@
 | Animation/motion | `design/Motion.md` |
 | UI components | `design/Components.md` |
 | Design philosophy/voice | `design/Philosophy.md` |
+| Product thinking / feature evaluation | `design/ProductThinking.md` |
 | Data/localStorage | `architecture/Data.md` |
 | Sync/backup | `architecture/Sync.md` |
 | Connections panel / auth flows | `architecture/Connections.md` |

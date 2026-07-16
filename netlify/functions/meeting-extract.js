@@ -58,6 +58,7 @@ exports.handler = async function(event) {
     `- "mine" is true when the item belongs to ${name}: explicitly assigned to them by name, or self-committed by the speaker others address as ${name}.\n` +
     `- "owner" is the first name of whoever owns the item, or "" if unclear.\n` +
     `- Phrase each item as a short imperative task (max 12 words), the way ${name} would write it in a todo list.\n` +
+    `- Phrase each item in the language spoken in the meeting — do not translate to English.\n` +
     `- Do not repeat items already listed in the prior context.\n` +
     `- updatedContext: carry forward the prior context, appending this segment's speaker hints (who is who) and any open threads, max 150 words total. Plain text, no transcript.\n` +
     `Reply ONLY with JSON: {"actionItems":[{"text":"...","owner":"...","mine":true}],"updatedContext":"..."}\n` +

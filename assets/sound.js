@@ -73,6 +73,8 @@ function _getAudioCtx() {
   const _sw = document.createElement('input');
   _sw.type = 'checkbox';
   _sw.setAttribute('switch', '');
+  _sw.setAttribute('aria-hidden', 'true');
+  _sw.setAttribute('tabindex', '-1');
   // Must not be display:none/visibility:hidden — needs to exist in the render tree
   _sw.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;' +
     'opacity:0;pointer-events:none;margin:0;padding:0;border:none;outline:none;' +
