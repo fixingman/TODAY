@@ -3744,9 +3744,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.30.1': 'Fix — tasks you completed today stay done when you open the app on a second device for the first time that day.',
   '2.30.0': 'New — About now surfaces a week reflection on Sunday and a Monday intention on Monday. ✦ brief is purely daily: nudge, day shape, poem — same shape every day.',
   '2.29.1': 'Poem — Seneca on imagined fear, from the Moral Letters (Letter XIII).',
-  '2.29.0': 'New — tap ✦ with nothing typed to open your daily brief: this morning\'s observation, how the day is going, the day\'s poem.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5370,8 +5370,17 @@ function applyNewDayCleanup() {
     _saveMemory();
   }
 
-  // Move done manual tasks to PAST (zone model)
-  const doneTasks = manualTasks.filter(t => doneIds.has(t.id));
+  // Move done manual tasks to PAST (zone model).
+  // Guard: tasks checked *today* (by timestamp) stay done in TODAY — this protects
+  // cross-device sessions where the second device opens after midnight but the work
+  // was done on the first device earlier the same calendar day (BUG-055).
+  const _newDayISO2 = _localISO();
+  const _checkedTodayIds = new Set(
+    _getCheckedIds()
+      .filter(c => c.at && _localISO(new Date(c.at)) === _newDayISO2)
+      .map(c => c.id)
+  );
+  const doneTasks = manualTasks.filter(t => doneIds.has(t.id) && !_checkedTodayIds.has(t.id));
   doneTasks.forEach(t => {
     t.zone = 'past';
     t.status = 'done';
@@ -5380,13 +5389,13 @@ function applyNewDayCleanup() {
   });
   if (doneTasks.length > 0) _savePast();
 
-  // Remove done tasks from TODAY
-  manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
+  // Remove graduated tasks from TODAY (today-checked tasks remain)
+  manualTasks = manualTasks.filter(t => !doneIds.has(t.id) || _checkedTodayIds.has(t.id));
   localStorage.setItem('today_manual', JSON.stringify(manualTasks));
 
-  // Clear only manual done IDs — Trello done IDs are preserved
+  // Clear only manual done IDs that graduated — today-checked IDs are kept
   for (const id of [...doneIds]) {
-    if (id.startsWith('manual_')) doneIds.delete(id);
+    if (id.startsWith('manual_') && !_checkedTodayIds.has(id)) doneIds.delete(id);
   }
   localStorage.setItem('today_done', JSON.stringify([...doneIds]));
 
