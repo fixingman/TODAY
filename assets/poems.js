@@ -568,6 +568,14 @@ const POEMS = [
     source: 'original',
   },
 
+  // ── Round 18 (Jul 2026) — Seneca via Gummere ───────────────────────────────
+  {
+    text: 'There are more things, Lucilius, likely to frighten us\nthan there are to crush us;\nwe suffer more often in imagination than in reality.',
+    author: 'Seneca (trans. Richard Mott Gummere)',
+    season: null,
+    source: "Moral Letters to Lucilius, Letter XIII §4, trans. Richard Mott Gummere (1917), Loeb Classical Library vol. 1 (Gummere d. 1922) — verified vs en.wikisource.org/wiki/Moral_letters_to_Lucilius/Letter_13",
+  },
+
   // ── Round 17 (Jul 2026) — Seneca via Aubrey Stewart ───────────────────────
   {
     text: 'We do not receive a short life,\nbut we make it a short one,\nand we are not poor in days,\nbut wasteful of them.',

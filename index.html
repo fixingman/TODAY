@@ -996,6 +996,13 @@
       color: var(--text);
       border-color: var(--border);
     }
+    /* PAST rows are already dimmed to 0.40 at the row level — the button
+       inside must be fully opaque relative to the row, otherwise the stacked
+       opacity (~0.10) makes it nearly invisible on touch devices. */
+    #pastList .task.let-go .zone-badge.pull-btn,
+    #pastList .task.aged .zone-badge.pull-btn {
+      opacity: 1;
+    }
     #pastList .task.let-go:active,
     #pastList .task.aged:active {
       opacity: var(--opacity-hover);
@@ -3083,18 +3090,34 @@
     animation: none;
   }
   
+  /* Backdrop — dims page behind the panel; tap to close */
+  #aiBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 89;
+    background: rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-mid) ease-out;
+  }
+  #aiBackdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   /* Chat container — slides up from bottom */
   .ai-panel-body {
     max-width: 680px;
     margin: 0 auto;
     padding: var(--space-5);
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 80px); /* Space for input bar */
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-5));
     background: var(--surface);
     border: 1px solid var(--border);
     border-bottom: none;
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     max-height: 45vh;
     overflow-y: auto;
+    overscroll-behavior: none;
     transform: translateY(100%);
     opacity: 0;
     transition: transform var(--dur-slow) var(--ease-spring), opacity var(--dur-mid) ease-out;
@@ -3534,6 +3557,7 @@
 </div>
 
 <!-- AI chat panel — slides up from bottom -->
+<div id="aiBackdrop" onclick="closeAI()"></div>
 <div class="config-panel" id="aiPanel">
   <div class="ai-panel-body">
     <div class="ai-suggestion-msg" id="aiSuggestionMsg"></div>
@@ -3720,9 +3744,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.29.0': 'New — tap ✦ with nothing typed to open your daily brief: this morning\'s observation, how the day is going, the day\'s poem, and on Sunday or Monday a reflection on the week.',
-  '2.28.1': 'Fix — tasks that had been sitting in Past for a very long time now clear out as expected.',
-  '2.28.0': 'New — meeting mode now works on your phone: keeps the screen awake while listening, and tells you honestly what was captured if the screen locks.',
+  '2.30.0': 'New — About now surfaces a week reflection on Sunday and a Monday intention on Monday. ✦ brief is purely daily: nudge, day shape, poem — same shape every day.',
+  '2.29.1': 'Poem — Seneca on imagined fear, from the Moral Letters (Letter XIII).',
+  '2.29.0': 'New — tap ✦ with nothing typed to open your daily brief: this morning\'s observation, how the day is going, the day\'s poem.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4165,6 +4189,16 @@ function checkDayNudge() {
       localStorage.removeItem('morning_nudge_count');
       localStorage.removeItem('today_day_review');
     };
+    // Light the ✦ badge once when the brief is ready — discoverability signal
+    if (_aiIsConfigured() && !_aiPanelOpen) {
+      const _btn = document.getElementById('addAiBtn');
+      if (_btn && !_btn.querySelector('.ai-badge')) {
+        const _badge = document.createElement('span');
+        _badge.className = 'ai-badge';
+        _btn.appendChild(_badge);
+        _breathe(_badge, _KF_BREATHE_SMALL, 2400);
+      }
+    }
   };
 
   if (_aiCached) {
@@ -4190,7 +4224,8 @@ function checkVersionNudge() {
 }
 
 function checkSundayNudge() {
-  if (new Date().getDay() !== 0) return;
+  const _day = new Date().getDay();
+  if (_day !== 0 && _day !== 1) return;  // Sunday or Monday only
   if (localStorage.getItem('sunday_nudge_seen_' + _localISO())) return;
   if (!safeJSON('today_daily_history', []).length) return;
   const btn = document.getElementById('infoBtn');
@@ -5832,41 +5867,48 @@ function renderInfoStats() {
   // ── Pattern-based week reflection (below grid) ─────────────────────────────
   // ── Sunday AI reflection (above stats) ─────────────────────────────────────
   const _sundayBlock = document.getElementById('sundayBlock');
+  const _isMon = new Date().getDay() === 1;
   if (_sundayBlock) {
-    if (_isSun && _history.length > 0) {
+    if ((_isSun || _isMon) && _history.length > 0) {
+      const _weekLabel = _isSun ? 'This week' : 'New week';
+      const _cacheKey  = _isSun ? 'week_reflection_' + _today : 'monday_intention_' + _today;
+
+      // Week stats (needed for Sunday reflection + fallback; harmless to compute on Monday)
       const _week  = _days.filter(d => d.tasks !== null);
       const _wT    = _week.reduce((s, d) => s + (d.tasks || 0), 0);
       const _wF    = _week.reduce((s, d) => s + (d.focus || 0), 0);
       const _snap7 = _history.slice(-7);
       const _wHK   = _snap7.reduce((s, e) => s + (e.habitsKept  || 0), 0);
       const _wHT   = _snap7.reduce((s, e) => s + (e.habitsTotal || 0), 0);
-      _sundayBlock.style.display = '';
 
-      // Check cache — regenerate once per day
-      const _cacheKey = 'week_reflection_' + _today;
-      const _cached   = localStorage.getItem(_cacheKey);
+      _sundayBlock.style.display = '';
+      const _cached = localStorage.getItem(_cacheKey);
       if (_cached) {
         _sundayBlock.innerHTML =
-          '<div class="sunday-label">This week</div>' +
+          '<div class="sunday-label">' + _weekLabel + '</div>' +
           '<div class="sunday-summary">' + _cached + '</div>';
       } else {
-        // Show loading state, then fetch AI reflection
         _sundayBlock.innerHTML =
-          '<div class="sunday-label">This week</div>' +
+          '<div class="sunday-label">' + _weekLabel + '</div>' +
           '<div class="sunday-summary loading">reflecting…</div>';
-        _fetchWeekReflection({ wT: _wT, wF: _wF, wHK: _wHK, wHT: _wHT }).then(text => {
+        const _fetcher = _isSun
+          ? _fetchWeekReflection({ wT: _wT, wF: _wF, wHK: _wHK, wHT: _wHT })
+          : _fetchMondayIntention();
+        _fetcher.then(text => {
           if (text) {
             localStorage.setItem(_cacheKey, text);
             const el = _sundayBlock.querySelector('.sunday-summary');
             if (el) { el.textContent = text; el.classList.remove('loading'); }
-          } else {
-            // Fallback: rule-based summary
+          } else if (_isSun) {
+            // Fallback: rule-based summary for Sunday only
             const _fStr = _wF > 0 ? ' ' + _formatFocusTime(_wF) + ' of focus.' : '';
             const _hStr = _wHT > 0 ? ' ' + _wHK + '/' + _wHT + ' habits.' : '';
             const fb = _wT + ' task' + (_wT !== 1 ? 's' : '') + ' done.' + _fStr + _hStr;
             localStorage.setItem(_cacheKey, fb);
             const el = _sundayBlock.querySelector('.sunday-summary');
             if (el) { el.textContent = fb; el.classList.remove('loading'); }
+          } else {
+            _sundayBlock.style.display = 'none';
           }
         });
       }
@@ -5931,61 +5973,19 @@ async function _fetchMondayIntention() {
   }
 }
 
-// Daily brief — composed view: nudge + day shape + poem + Sunday/Monday layer
-async function _showDailyBrief() {
+// Daily brief — composed view: nudge + day shape + poem (purely daily)
+function _showDailyBrief() {
   openAI(true);
   _aiSetThinking();
   _aiSetChips([]);
 
-  const day = new Date().getDay();
-  const isSunday  = day === 0;
-  const isMonday  = day === 1;
   const today = _localISO();
 
-  // Gather pieces (all fast/local except the conditional week fetch)
+  // Gather pieces (all fast/local)
   const nudge    = localStorage.getItem('day_nudge_ai_' + today) || '';
   const doneCount = doneIds.size;
   const focusMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
   const poem = _poemOfTheDay();
-
-  // Sunday/Monday AI content
-  let weekText = '';
-  let weekLabel = '';
-  if (isSunday) {
-    weekLabel = 'This week';
-    const cacheKey = 'week_reflection_' + today;
-    weekText = localStorage.getItem(cacheKey) || '';
-    if (!weekText) {
-      const _history = safeJSON('today_daily_history', []);
-      if (_history.length > 0) {
-        const _days = [];
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date(); d.setDate(d.getDate() - i);
-          const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-          const entry = _history.find(e => e.date === iso);
-          const tasks = iso === today ? [...manualTasks, ...(trelloTasks || [])].filter(t => doneIds.has(t.id)).length : (entry ? entry.tasksDone : null);
-          const focus = iso === today ? focusMins : (entry ? entry.focusMins : null);
-          _days.push({ tasks, focus });
-        }
-        const _week = _days.filter(d => d.tasks !== null);
-        const _snap7 = _history.slice(-7);
-        const wT  = _week.reduce((s, d) => s + (d.tasks || 0), 0);
-        const wF  = _week.reduce((s, d) => s + (d.focus || 0), 0);
-        const wHK = _snap7.reduce((s, e) => s + (e.habitsKept  || 0), 0);
-        const wHT = _snap7.reduce((s, e) => s + (e.habitsTotal || 0), 0);
-        weekText = await _fetchWeekReflection({ wT, wF, wHK, wHT }) || '';
-        if (weekText) localStorage.setItem(cacheKey, weekText);
-      }
-    }
-  } else if (isMonday) {
-    weekLabel = 'This week';
-    const cacheKey = 'monday_intention_' + today;
-    weekText = localStorage.getItem(cacheKey) || '';
-    if (!weekText) {
-      weekText = await _fetchMondayIntention() || '';
-      if (weekText) localStorage.setItem(cacheKey, weekText);
-    }
-  }
 
   // Build HTML
   const parts = [];
@@ -5994,7 +5994,6 @@ async function _showDailyBrief() {
   if (doneCount > 0)  shapeParts.push(doneCount + ' done');
   if (focusMins >= 5) shapeParts.push(_formatFocusTime(focusMins) + ' focused');
   if (shapeParts.length > 0) parts.push('<div class="brief-shape">' + shapeParts.join(' · ') + '</div>');
-  if (weekText) parts.push('<div class="brief-week"><span class="brief-week-label">' + esc(weekLabel) + '</span> ' + esc(weekText) + '</div>');
   if (poem) {
     const pLines = poem.text.split('\n').map(esc).join('<br>');
     parts.push('<div class="brief-poem">' + pLines + '<div class="brief-poem-author">' + esc(poem.author) + '</div></div>');
@@ -10288,6 +10287,7 @@ function openAI(skipAutoLoad) {
   _aiPanelOpen = true;
   _aiClearBadge(); // Clear proactive badge when panel opens
   panel.classList.add('open');
+  document.getElementById('aiBackdrop')?.classList.add('open');
   document.body.classList.add('ai-chat-open');
   document.getElementById('addAiBtn')?.classList.add('active');
   
@@ -10342,6 +10342,7 @@ function closeAI() {
   _aiPanelOpen = false;
   _aiThread = [];
   document.getElementById('aiPanel')?.classList.remove('open');
+  document.getElementById('aiBackdrop')?.classList.remove('open');
   document.body.classList.remove('ai-chat-open');
   document.getElementById('addAiBtn')?.classList.remove('active');
   
