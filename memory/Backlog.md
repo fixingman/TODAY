@@ -7,7 +7,7 @@
 
 ## ◎ North star (agreed Jun 2026)
 
-**Own the first 30 seconds of the day.** The morning is becoming TODAY's signature beat — nudge, poem, briefing. Roadmap items 1 and 2 serve it directly; everything else supports or follows.
+**Own the first 30 seconds of the day.** The morning is becoming TODAY's signature beat — nudge, poem, briefing. Roadmap items 1 and 2 serve it directly; everything else supports or follows. How intelligence and personalization serve this → `design/Personalization.md`.
 
 ---
 

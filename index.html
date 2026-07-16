@@ -881,7 +881,7 @@
     padding-top: var(--space-4);    /* clears the 10px ::after gradient on .sticky-header */
     padding-bottom: var(--space-3);
     position: sticky;
-    top: var(--sec-sticky-top, 0px);
+    top: max(var(--sec-sticky-top, 0px), env(safe-area-inset-top, 0px));
     z-index: 9; /* below --z-header (10), above task content */
     background: var(--bg);
   }
@@ -3802,12 +3802,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.31.6': 'Fix — section headers (Soon, Past, etc.) no longer slip behind the iOS status bar when the main header has scrolled away.',
   '2.31.5': 'Polish — daily brief text is easier to read: poem body uses full text colour, stats and author lines are slightly larger.',
   '2.31.4': 'Polish — poem author line in the daily brief is no longer faint: removed the extra opacity layer that was making it harder to read.',
-  '2.31.3': 'Fix — on mobile, only one mic button shows: meeting mode when available, voice note otherwise.',
-  '2.31.2': 'Polish — the name prompt now looks like the meeting pill it belongs to: same rounded shape, quieter, one clear ask.',
-  '2.31.1': 'Polish — the name card hint in Connections reads plainly again and wraps comfortably on small screens.',
-  '2.31.0': 'New — first time you tap the meeting mic with no name set, a quick prompt appears right there: type your name and the meeting starts. Manage names in Connections as before.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

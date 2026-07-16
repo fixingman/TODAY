@@ -54,6 +54,7 @@ Know the walls before proposing a path. When you hit a wall, don't ignore it and
 - Calendar as agenda panel — planner drift, never; calendar as passive day-shape nudge input — open (Backlog §1)
 - Single-file, no build step (Rule 24) — extraction ceiling, module queue exists for a reason
 - Manual task order must not be re-sorted (Rule 11) — it's intent-encoded by drag
+- No preference knobs — personalization is observed behavior + opt-in connections, never settings (see `design/Personalization.md`)
 
 **When a request hits a wall:**  
 Name the constraint and the reason, then redirect: "That hits the no-labels rule — the deeper issue is that categorization creates overhead. What you're actually missing is a way for the AI to distinguish importance from age. That's solvable without labels..."

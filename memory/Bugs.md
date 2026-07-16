@@ -11,7 +11,7 @@
 | 053 | Morning nudge dismissal not synced across devices | ✅ v2.18.38 |
 | 052 | Splash dismissal slow — sync bookkeeping held the gate | ✅ v2.18.36 |
 | 051 | Trello nudge dismissal not synced across devices | ✅ v2.18.23 |
-| 050 | Sticky section headers broken — too low / mid-page snap, then mobile jitter | ⏳ v2.27.3 |
+| 050 | Sticky section headers broken — too low / mid-page snap, then mobile jitter, then iOS safe area | ⏳ v2.31.6 |
 | 049 | New Trello card looks aged on arrival | ✅ v2.18.22 |
 | 048 | Trello card aging not synced across devices | ✅ v2.18.17 |
 | 047 | Dropbox connect on fresh install doesn't auto-restore | ✅ v2.18.16 |
@@ -89,7 +89,9 @@
 
 **Second pass (v2.27.3) — mobile jitter:** the v2.27.1 rect measurement shook section headers a few px during mobile scroll. iOS moves sticky elements on the compositor thread; `getBoundingClientRect()` on a stuck element reads a few px behind the real position mid-scroll, so the var oscillated. Fix: compute analytically from `scrollY` — `max(0, min(headerHeight, body.offsetHeight − scrollY))` (header is body's first child; body is 100vh, so the header stays pinned until `scrollY > bodyHeight − headerHeight`, then its bottom recedes as `bodyHeight − scrollY`) — with rAF-coalesced scroll updates. While pinned the value is constant → zero style churn; during departure it follows scroll position smoothly. Desktop was never affected (main-thread scrolling keeps rects in sync).
 
-**Verify:** On iOS PWA with a long list: (1) section headers pin just below the logo header with no trembling during scroll; (2) as the logo header departs on deep scroll, section headers ride its bottom edge up and settle pinned at the very top; (3) never floating mid-page.
+**Third pass (v2.31.6) — iOS safe area:** `--sec-sticky-top` correctly reaches 0 when the main header scrolls away, but on iOS PWA the viewport extends under the status bar (~47–59px). With `top: 0`, section headers sit behind the status bar, appearing clipped. Fix: `.section-header { top: max(var(--sec-sticky-top, 0px), env(safe-area-inset-top, 0px)); }` — the `max()` CSS function floors the sticky offset at the safe area inset. Desktop: `env(safe-area-inset-top, 0px)` is 0, no effect. No JS change.
+
+**Verify:** On iOS PWA with a long list: (1) section headers pin just below the logo header with no trembling during scroll; (2) as the logo header departs, section headers ride its bottom edge and settle at the safe area top (below the status bar, not behind it); (3) never floating mid-page; (4) desktop unaffected.
 
 ---
 
