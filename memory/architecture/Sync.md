@@ -47,7 +47,7 @@ All wake-related UI logic is consolidated into `window._onWake()`, defined in gl
 Three handlers remain in their own closures — not merged, they need private variables: SW update check, timer wall-clock correction, PiP show/hide.
 
 **`_onWake()` sequence:**
-1. `_forceRepaint()` × 5 passes (immediately, rAF, rAF+rAF, 500ms, 1500ms) — BUG-004
+1. `_forceRepaint()` × 7 passes (immediately, rAF, rAF+rAF, 500ms, 1500ms, 3000ms, 5000ms) — BUG-004/BUG-056. The extra 3s/5s passes target GPU compositor stalls after long Mac sleep where the GPU is slower to wake than the earlier passes' ceiling. Each is a one-time cost; no-ops when GPU is already ready.
 2. Each repaint pass suppresses persistent CSS animations so they don't restart on `display:none/block` cycle:
    - `.config-panel.open` → `fadeIn` (BUG-023), cleared on next user-open
    - `.complete` → `timerCompletePulse` (BUG-025)

@@ -160,9 +160,13 @@ Shows provider badge (Gemini/Claude) with key partially masked. Forget button re
 
 The AI panel itself (`#aiPanel`) only shows when a key is connected. If not connected, the ✦ button routes to the connections panel (`toggleAI()` → `openConfigPanel()`).
 
-### Your Name (meeting mode, v2.22.0)
+### Your Name (meeting mode, v2.22.0 + v2.31.0 inline capture)
 
-Below the AI key rows: a "Your first name…" input (`#meetingNameInput`, `saveMeetingName()` on change) → `today_user_name`. Used only as the attribution anchor in the meeting-extract prompt ("which action items are Can's"). In the Dropbox payload; merge is **fill-if-empty** (local non-empty value wins — a deliberate local edit shouldn't be clobbered by a stale backup).
+**Connections panel:** Below the AI key rows, a "Your first name…" input (`#meetingNameInput`, `saveMeetingName()` on change) persists the name between meetings. Used as the attribution anchor in the meeting-extract prompt ("which action items are Can's").
+
+**Inline capture (v2.31.0):** On the first mic tap ever (no name set), `#meetingNamePrompt` appears above the add bar — a focused name input that starts the meeting on submit, skips if empty, or dismisses on Escape. Captures identity at point of need rather than requiring Connections setup upfront.
+
+**Storage:** `user_names` (JSON array of known first names, allows multiple) + `user_names_at` (ISO timestamp). LWW-merged via timestamp on Dropbox sync — a newer write from any device wins. In the Dropbox payload.
 
 ### Meeting Mode Privacy Stance (v2.22.0, deliberate)
 
@@ -208,4 +212,5 @@ Nothing blocks task entry. The app is fully functional without any connection.
 | `last_sync_read` | `dropboxRestore()` | — |
 | `ai_api_key` | `saveAIKey()` | AI forget button |
 | `ai_provider` | `saveAIKey()` / `setAIProvider()` | AI forget button |
-| `today_user_name` | `saveMeetingName()` | clearing the name input |
+| `user_names` | `saveMeetingName()` / inline name prompt | clearing the name input |
+| `user_names_at` | `saveMeetingName()` / inline name prompt | clearing the name input |

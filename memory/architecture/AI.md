@@ -177,7 +177,7 @@ Falls back to simple carried-over count if no review exists. Auto-clears after n
 - **Context sent:** weekday, streak, yesterday's review line, carried-over count, up to 6 pending task names with ages (≥2 days shown).
 - **Insight gate (in prompt):** "If something non-obvious is worth noticing — an aging task, a pattern, a gentle nudge — say that, naming the task naturally. Otherwise state the morning plainly."
 - **Voice:** one sentence, under 18 words, no quotes/exclamations/emoji. Same system-prompt style as the Sunday reflection.
-- **Cache:** `morning_nudge_ai_YYYY-MM-DD` — one generation per day. Stale keys pruned on write; today's key cleared at noon alongside the other nudge keys.
+- **Cache:** `day_nudge_ai_<date>` — one generation per day (unified from `morning_nudge_ai_*` and `trello_nudge_ai_*` in v2.19.0). Stale keys pruned on write; today's key cleared at noon. Also read by the daily brief (✦ empty-tap).
 - **Guards:** dismissed-while-fetching → response discarded. No key / offline / API error → silent null, rule-based message stays (mirrors `_fetchWeekReflection`).
 
 ---
@@ -193,6 +193,30 @@ On Sundays, `#sundayBlock` appears above the stat tiles in the About panel. Show
 **Entry point:** `_fetchWeekReflection({wT, wF, wHK, wHT})` via `/.netlify/functions/ai-assist`.
 
 System prompt: *"One sentence only. No quotes. Under 15 words. Plain, warm, grounded."*
+
+---
+
+## Monday Intention (v2.30.0)
+
+On Mondays, the same `#sundayBlock` slot shows an AI-generated intention prompt instead of the Sunday reflection. Different label ("New week") and different prompt framing — forward-looking rather than retrospective.
+
+**Cache:** stored as `monday_intention_<date>` in localStorage, regenerated once per day.
+
+**Fallback:** none — block is hidden if no AI key or offline (unlike Sunday which has a rule-based fallback).
+
+---
+
+## Daily Brief — ✦ Empty-Tap (v2.31.x)
+
+When the user taps ✦ with an empty input, `_showDailyBrief()` fires instead of the conversational AI path. Reframes the button from "ask me something" to "here's what I'd tell you right now."
+
+**Content:**
+1. The cached day nudge line (`day_nudge_ai_<date>`) — the same AI sentence the nudge strip showed in the morning, now re-surfaced as a composed statement.
+2. Today's poem (`_poemOfTheDay()`) — re-surfaces the morning's splash poem mid-day.
+
+**Fallback:** if no nudge cache AND no poem corpus, falls through to the standard proactive AI suggestion.
+
+**Non-empty ✦ tap:** still invokes the AI conversationally — the brief only triggers when `input.value.trim() === ''`.
 
 ---
 

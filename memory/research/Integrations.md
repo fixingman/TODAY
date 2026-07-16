@@ -92,7 +92,7 @@ Alternative to Dropbox for users without Dropbox account.
 - Pay-per-token (~$0.000015/call — ~5x Haiku, negligible at personal scale)
 - Noticeably warmer, more contextual responses
 - Better at reflective outputs (reflect, break_down, observations)
-- Model: `claude-sonnet-4-5`
+- Model: `claude-sonnet-4-6`
 - For maintainer's deploy
 
 ### Proxy Architecture

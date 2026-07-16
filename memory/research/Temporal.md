@@ -59,6 +59,18 @@
 | PAST (done) | 7 days | Purged |
 | PAST (let_go/aged) | 30 days | Purged |
 
+### Revive from PAST → SOON (v2.27.0)
+
+PAST is not a one-way destination for `aged` and `let_go` tasks (done stays — done is acknowledgment, not limbo).
+
+Hovering a `let_go`/`aged` PAST row shows an `↩ soon` button. Tap → `reviveFromPast(id)`:
+- Keeps the original ID (no duplicate)
+- Sets fresh `zoneChangedAt` (sync-safe: this timestamp is what lets a revive on device A survive a merge on device B whose local PAST still holds the task)
+- Increments a `revived` counter on the task object (future nudge/insight signal: "this one came back twice")
+- Immediate `dropboxBackup(true)`
+
+**Merge guard:** the SOON merge's phantom-task guard became timestamp-aware (`_stillPast(t)`) — a remote SOON entry only passes if its `zoneChangedAt` is strictly newer than the local PAST entry's. Stale remote `soon_tasks` entries (no revive timestamp) are still blocked.
+
 ### Data Model
 ```javascript
 {
@@ -67,6 +79,7 @@
   zone: 'today',           // 'today' | 'soon' | 'past'
   zoneChangedAt: 'ISO',    // when moved to current zone
   status: 'done',          // for PAST: 'done' | 'let_go' | 'aged'
+  revived: 2,              // optional — count of PAST→SOON revives (v2.27.0)
 }
 ```
 

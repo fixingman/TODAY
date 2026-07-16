@@ -30,6 +30,13 @@
 **Zone status values:** `done`, `let_go`, `aged`
 **`revived`** (v2.27.0): count of PAST→SOON revives on this task — set by `reviveFromPast()`, rides the task object through all zones/merges. Future nudge/insight signal.
 
+### Meeting
+
+| Key | Type | Description |
+|---|---|---|
+| `user_names` | JSON array | First names used for meeting attribution (multi-name, captured inline at first mic tap since v2.31.0). LWW-merged via `user_names_at`. |
+| `user_names_at` | string | ISO timestamp of the last `user_names` write — newer wins on merge. |
+
 ### Integrations
 
 | Key | Type | Description |
@@ -82,10 +89,8 @@
 | `stat_focus_mins_alltime` | string | Lifetime focus minutes |
 | `morning_nudge_count` | string | Carried-over tasks from yesterday (set by `applyNewDayCleanup`) |
 | `today_day_review` | JSON | Yesterday's day-end stats `{done, focusMins, habits, habitsTotal, streak, kept, soon, letgo, date}` — saved at triage, consumed by morning nudge, auto-cleared after noon |
-| `morning_nudge_ai_YYYY-MM-DD` | string | Cached AI-rewritten morning nudge for that date — generated once per morning by `_fetchMorningNudgeAI`; stale keys pruned on write, today's cleared at noon (v2.17.73) |
-| `morning_nudge_dismissed_YYYY-MM-DD` | string | Per-day dismiss flag — guards `checkMorningNudge()` before the self-heal so a dismissed nudge doesn't resurrect on every wake (BUG-040, v2.17.139); stale keys pruned on dismiss |
-| `trello_nudge_ai_YYYY-MM-DD` | string | Cached AI text for the Trello-section morning nudge (`_fetchTrelloNudgeAI`, v2.17.138) — same prune/clear pattern as the morning nudge |
-| `trello_nudge_dismissed_YYYY-MM-DD` | string | Per-day dismiss flag for the Trello nudge (v2.17.138); stale keys pruned on dismiss |
+| `day_nudge_ai_<date>` | string | Cached AI day nudge line (`_fetchDayNudgeAI`); one per day; read by both the nudge strip and the daily brief (✦ empty-tap). Stale keys pruned on write, cleared at noon (v2.19.0 — unified from the separate `morning_nudge_ai_*` and `trello_nudge_ai_*` keys) |
+| `day_nudge_dismissed_<date>` | string | Per-day dismiss flag for the unified day nudge — synced via `_DISMISS_SYNC` registry (v2.19.0). Legacy keys `morning_nudge_dismissed_*` and `trello_nudge_dismissed_*` remain as registry alias rows for pre-2.19.0 devices |
 
 ### History & Reports
 
@@ -93,6 +98,9 @@
 |---|---|---|
 | `today_daily_history` | JSON array | Rolling 30-day snapshot `{date, tasksDone, focusMins, habitsKept, habitsTotal}` — one entry per day, written at midnight in `applyNewDayCleanup`, used by the About weekly grid and the Sunday AI reflection (v2.17.55) |
 | `week_reflection_YYYY-MM-DD` | string | Cached AI-generated Sunday reflection for that date — regenerated at most once per day; falls back to rule-based summary if no AI key (v2.17.56) |
+| `monday_intention_<date>` | string | Cached AI-generated Monday intention prompt for that date — `#sundayBlock` shows this on Mondays instead of the Sunday reflection; no rule-based fallback (v2.30.0) |
+| `poem_splash_date` | string | YYYY-MM-DD — date the splash poem coda was last shown. Written at fade-in. Once-per-day gate — a second splash the same day skips the poem. Local only, not synced (v2.26.0) |
+| `sunday_nudge_seen_<date>` | string | Per-date flag set when the About panel is opened on Sunday/Monday while the AI nudge block is visible; clears the pulse on `#infoBtn`. Extended to Monday nudge in v2.30.0 |
 
 **Note:** Flow rate is calculated live using research-based diminishing returns formula: `100 × (1 - 0.8^done)`. First task = 20% (quick win), 5 tasks ≈ 67% (good day). Based on Endowed Progress Effect (Nunes & Dreze 2006) and Goal Gradient Hypothesis (Kivetz et al. 2006). Not stored.
 
@@ -121,26 +129,29 @@
 
 ## Backup Schema
 
-**Version: 5.2**
+**Version: 5.3** (authoritative schema in `architecture/Sync.md`)
 
 ```javascript
 {
-  version: '5.2',
+  version: '5.3',
   manual: [...],
   habits: [...],
   habitCompletions: {...},
   habit_events: {...},         // v2.17.53 — LWW map for uncheck protection (BUG-026)
   done: [...],
-  deleted: [...],
-  checked: [...],
+  deleted: [...],              // {id, at} — 180d TTL, ≤2000 entries (BUG-054, v2.23.6)
+  checked: [...],              // {id, at} — timestamped; drives _doneTodayCount (v2.18.21)
   unchecked: [...],
   deletedHabits: [...],
   trelloFocus: {...},
   trello_order: [...],         // v5.2 — Trello card order
-  memory: {...},               // v4.0 addition
+  memory: {...},               // v4.0; includes recentCompletedTasks rolling 30-day (v2.29.0)
   soon_tasks: [...],           // v5.0 — SOON zone
   past_tasks: [...],           // v5.0 — PAST zone
   triage_history: [...],       // v5.1 — AI triage learning
+  daily_history: [...],        // v5.3 — per-day snapshots for week grid (BUG-036)
+  user_names: [...],           // v2.31.0 — meeting attribution names, LWW via user_names_at
+  user_names_at: 'ISO string', // v2.31.0 — timestamp for user_names LWW merge
   stat_focus_mins_date: '',    // v2.17.44 — date guard for focus minutes sync
   stat_streak_date: '',        // BUG-020 — prevents double-count on multi-device
   exportedAt: 'ISO string'

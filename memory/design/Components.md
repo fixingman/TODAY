@@ -271,6 +271,24 @@ Built by `_poemEchoHTML()` inside `updateManualEmptyState()`. Poem text is `esc(
 
 ---
 
+## Daily Brief (v2.31.x)
+
+Triggered by tapping ✦ with an empty input. The same ✦ button, rerouted — "here's what I'd tell you right now" instead of "ask me something."
+
+**Two-part content:**
+1. **AI nudge line** — the day's cached nudge sentence (`day_nudge_ai_<date>`) read back as a composed statement, not a conversational reply. Cached per day; same sentence the nudge strip shows.
+2. **Today's poem** — `_poemOfTheDay()`, same corpus as the splash coda and empty-state echo. Re-surfaces the morning's poem mid-day.
+
+**Fallback:** if no nudge cache AND no poem corpus, falls through to the standard proactive AI suggestion path.
+
+**Entry condition:** `input.value.trim() === ''` at ✦ tap. Non-empty input still invokes the AI conversationally.
+
+**Rendered by:** `_showDailyBrief()` inside the AI panel (`#aiPanel`).
+
+**Wallpaper Test:** W3 verdict due 2026-07-30. Watching for: does the poem add to the moment after the nudge, or feel like filler? (Shape line removed v2.31.8 — brief is now nudge + poem only.)
+
+---
+
 ## Idle Companion
 
 Bottom-right corner, 60% opacity, `--font-mono`. Appears after 45s idle.
