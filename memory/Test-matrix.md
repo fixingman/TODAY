@@ -77,13 +77,13 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 1.7 | XSS: `<script>` | Escaped, no execution |
 | 1.8 | Empty input | Rejected |
 | 1.9 | Long text (500+) | Wraps |
-| 1.10 | Delete last → empty | "A clean slate" |
-| 1.11 | Check all → done | "✦ All done" |
+| 1.10 | Delete last task → empty list | Day's poem appears (not static "A clean slate" — v2.26.0) |
+| 1.11 | Check all tasks done | ✦ star above day's poem (not static "✦ All done" text — v2.26.0) |
 | 1.12 | Shift+D | Clears done tasks |
 | 1.13 | Rapid check/uncheck | No glitch |
 | 1.14 | 100 tasks | All render |
 
-### 2. Zones (15 tests)
+### 2. Zones (17 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -106,7 +106,6 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 2.12 | **SYNC: Missing zoneChangedAt** | Graceful fallback (no crash) |
 | 2.13 | **SYNC: Schema v5.0 vs v5.1** | Backward compatible |
 | 2.14 | **SYNC: Race condition triage** | Last zoneChangedAt wins |
-| 2.15 | **SYNC: PAST limit 100** | Only 100 most recent kept |
 | 2.16 | Triage summary (5+ done) | Shows "Solid day" + stats |
 | 2.17 | Triage summary (0 done) | Shows "All sorted" |
 | 2.18 | Triage summary saves review | `today_day_review` in localStorage |
@@ -128,7 +127,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 3.11 | **Habit 3am rollover** — check habit at 1am | Counts for yesterday's date, not today's |
 | 3.12 | **Habit 3am rollover** — open at 3:01am | Habit strip shows today fresh, yesterday's check preserved as past dot |
 
-### 4. Done/Check State (6 tests)
+### 4. Done/Check State (7 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -138,6 +137,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 4.4 | Trello card checked | Syncs via done_ids |
 | 4.5 | Manual task checked | Persists across sync |
 | 4.6 | **SYNC: Check/uncheck rapid toggle** | Final state correct |
+| 4.7 | **BUG-055: Second-device first-open** — tasks checked on device A today, device B opens for first time | Done tasks stay in TODAY, not moved to PAST (fix v2.30.1 — `today_checked_ids` timestamps distinguish today vs yesterday) |
 
 ### 5. Stats & Memory (13 tests)
 
@@ -207,6 +207,47 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 9.3 | Clear localStorage | B maintains data |
 | 9.4 | AI delete_task | Tracked in deleted_ids |
 
+### 10. Meeting Mode (8 tests)
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 10.1 | First mic tap — no name set | `#meetingNamePrompt` appears above add bar; meeting does not start yet |
+| 10.2 | Name prompt — submit a name | Name saved, Connections chip updated, meeting starts, prompt hides |
+| 10.3 | Name prompt — submit empty | Meeting starts without a name (user chose to proceed) |
+| 10.4 | Name prompt — Escape | Prompt dismisses, no meeting starts |
+| 10.5 | Meeting start → stop | Pill appears with elapsed time and red recording dot; stopping shows review panel |
+| 10.6 | Review panel — items listed | "From your call" title; items in chronological order with owner hint labels |
+| 10.7 | Review panel — auto-select | Items where `mine: true` start pre-selected; others start unticked; tapping toggles |
+| 10.8 | Accept selected items | Selected items added to task list; sync fires; review panel closes |
+
+### 11. Poem & Daily Brief (6 tests)
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 11.1 | Splash — first open of the day | After typewriter, day's poem fades in below the date; holds 4–9.5s; tap skips |
+| 11.2 | Splash — second open same day | Poem coda skipped; splash dismisses normally |
+| 11.3 | Empty task list | Day's poem displayed (clean-slate echo — not static text) |
+| 11.4 | All tasks done | ✦ star above day's poem (done echo) |
+| 11.5 | ✦ empty tap (no text in input) | Daily brief opens: AI nudge line + today's poem |
+| 11.6 | ✦ empty tap — no nudge cache, no poem | Falls through to proactive AI suggestions |
+
+### 12. PAST Revive (3 tests)
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 12.1 | Aged or let-go task in PAST — hover | ↩ soon button appears on the row |
+| 12.2 | Click ↩ soon | Task moves to SOON with same ID; `zoneChangedAt` refreshed; `revived` counter increments |
+| 12.3 | Done task in PAST — hover | No ↩ soon button (done stays — PAST is acknowledgment) |
+
+### 13. About — Sunday/Monday Layer (4 tests)
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 13.1 | Open About on Sunday (AI key set) | `#sundayBlock` shows "This week" label + AI-generated reflection; cached in `week_reflection_<date>` |
+| 13.2 | Open About on Monday (AI key set) | `#sundayBlock` shows "New week" label + AI intention prompt; cached in `monday_intention_<date>` |
+| 13.3 | Open About on Sunday — no AI key / offline | Sunday block hidden (no fallback for Monday intention; Sunday has rule-based fallback) |
+| 13.4 | Open About Tuesday–Saturday | No Sunday/Monday block shown |
+
 ---
 
 ## Test Summary
@@ -214,15 +255,19 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | Category | Count | Critical |
 |----------|-------|----------|
 | Manual Tasks | 14 | 5 |
-| Zones | 15 | 8 |
+| Zones | 17 | 8 |
 | Habits | 12 | 5 |
-| Done State | 6 | 3 |
+| Done State | 7 | 4 |
 | Stats/Memory | 13 | 5 |
 | Trello | 8 | 3 |
 | Focus | 11 | 4 |
 | Network | 7 | 4 |
 | Destructive | 4 | 2 |
-| **Total** | **90** | **39** |
+| Meeting Mode | 8 | 4 |
+| Poem & Daily Brief | 6 | 3 |
+| PAST Revive | 3 | 2 |
+| About Sunday/Monday | 4 | 2 |
+| **Total** | **114** | **51** |
 
 ---
 
@@ -252,4 +297,4 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 
 ---
 
-*Last updated: v2.17.73*
+*Last updated: v2.32.0 · Jul 2026*
