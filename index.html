@@ -3257,7 +3257,7 @@
     font-size: var(--text-micro);
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    opacity: 0.6;
+    color: var(--muted);
   }
 
   /* One-time discoverability tip — shown on first panel open only */
@@ -3802,6 +3802,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.31.4': 'Polish — poem author line in the daily brief is no longer faint: removed the extra opacity layer that was making it harder to read.',
   '2.31.3': 'Fix — on mobile, only one mic button shows: meeting mode when available, voice note otherwise.',
   '2.31.2': 'Polish — the name prompt now looks like the meeting pill it belongs to: same rounded shape, quieter, one clear ask.',
   '2.31.1': 'Polish — the name card hint in Connections reads plainly again and wraps comfortably on small screens.',
