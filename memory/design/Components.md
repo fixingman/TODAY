@@ -225,7 +225,7 @@ Listens to a meeting through the mic; the only artifact is tasks. No transcript,
 - **State 2 — digesting + prior items showing:** title "From your call", sub visible; inset strip `.meeting-processing-strip` ("Still digesting last X min") above items.
 - **State 3 — review ready:** title "From your call", sub visible; thin `--border` rule separates header from items.
 - **Empty result:** "Nothing came up" (no star prefix). Title: "From your call".
-Header: `.meeting-eyebrow` ("Meeting", 9px muted caps) + `.meeting-review-title` (15px white, state-driven) + `.meeting-review-sub` (muted xs, conditional). All items start unselected, in meeting order (v2.25.4 — name-matching attribution was too unreliable to drive pre-selection); owner shown as a muted hint label. Tap to select; Add-count updates live. Accept → `manualTasks.push` + `renderManual()` + `dropboxAutoSave()`.
+Header: `.meeting-eyebrow` ("Meeting", 9px muted caps) + `.meeting-review-title` (15px white, state-driven) + `.meeting-review-sub` (muted xs, conditional). Items with `mine: true` start pre-selected (v2.32.0 — reliable once names captured at tap via v2.31.0; was unselected in v2.25.4 when name was often missing). Owner shown as muted hint label. Tap to toggle; Add-count updates live. Accept → `manualTasks.push` + `renderManual()` + `dropboxAutoSave()`.
 
 **Attribution without voice ID:** `today_user_name` ("Your first name…" input in the AI config section; fill-if-empty on merge, in backup payload) tells the prompt whose commitments to flag. The review tap is the final identity filter — AI optimizes recall, Can's tap is precision.
 

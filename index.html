@@ -671,7 +671,7 @@
   #splash-poem.visible { opacity: 1; }
   #splash-poem .splash-poem-text {
     font-weight: 300; font-size: clamp(12px, 1.6vw, 14px);
-    line-height: 1.8; color: var(--muted);
+    line-height: 1.8; color: var(--text);
   }
   @media (max-width: 600px) {
     #splash-poem { max-width: 86vw; margin-top: 24px; }
@@ -2834,7 +2834,7 @@
     font-size: var(--text-micro);
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    opacity: 0.7;
+    color: var(--muted);
   }
 
   /* ── Component: Loading Dots ────────────────────────────────────────── */
@@ -3227,12 +3227,7 @@
     color: var(--text);
     line-height: 1.65;
   }
-  .brief-shape {
-    font-size: var(--text-sm2);
-    color: var(--muted);
-    letter-spacing: 0.03em;
-  }
-  .brief-week {
+.brief-week {
     font-size: var(--text-sm2);
     color: var(--text);
     line-height: 1.6;
@@ -3795,16 +3790,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '235h';
+const DEV_HOURS     = '238h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.31.6': 'Fix — section headers (Soon, Past, etc.) no longer slip behind the iOS status bar when the main header has scrolled away.',
-  '2.31.5': 'Polish — daily brief text is easier to read: poem body uses full text colour, stats and author lines are slightly larger.',
-  '2.31.4': 'Polish — poem author line in the daily brief is no longer faint: removed the extra opacity layer that was making it harder to read.',
+  '2.32.0': 'New — after a meeting, your tasks are pre-selected in the review panel. You can still tap to adjust before adding.',
+  '2.31.9': 'Fix — app no longer goes blank after a long computer sleep. Two extra repaint passes now cover the 3–5 seconds Mac GPUs can take to fully wake up.',
+  '2.31.8': 'Polish — the daily brief (✦) now shows just the morning insight and the poem. The done count and focus time were already visible in the list.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -6051,17 +6046,11 @@ function _showDailyBrief() {
 
   // Gather pieces (all fast/local)
   const nudge    = localStorage.getItem('day_nudge_ai_' + today) || '';
-  const doneCount = doneIds.size;
-  const focusMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
   const poem = _poemOfTheDay();
 
   // Build HTML
   const parts = [];
-  if (nudge)     parts.push('<div class="brief-nudge">' + esc(nudge) + '</div>');
-  const shapeParts = [];
-  if (doneCount > 0)  shapeParts.push(doneCount + ' done');
-  if (focusMins >= 5) shapeParts.push(_formatFocusTime(focusMins) + ' focused');
-  if (shapeParts.length > 0) parts.push('<div class="brief-shape">' + shapeParts.join(' · ') + '</div>');
+  if (nudge) parts.push('<div class="brief-nudge">' + esc(nudge) + '</div>');
   if (poem) {
     const pLines = poem.text.split('\n').map(esc).join('<br>');
     parts.push('<div class="brief-poem">' + pLines + '<div class="brief-poem-author">' + esc(poem.author) + '</div></div>');
@@ -8622,8 +8611,11 @@ window._onWake = function() {
     requestAnimationFrame(_forceRepaint);
   });
   setTimeout(_forceRepaint, 500);
-  // Extra pass for slow GPU wakeup after long sleep (BUG-004).
+  // Extra passes for slow GPU wakeup after long sleep (BUG-004).
+  // Mac GPU re-init can take 3–5s after hours of sleep; 1500ms wasn't enough.
   setTimeout(_forceRepaint, 1500);
+  setTimeout(_forceRepaint, 3000);
+  setTimeout(_forceRepaint, 5000);
 
   // Clear single-play animation classes that may be mid-flight at sleep time.
   // Removing the class cancels cleanly; the animation will re-play on next trigger.
@@ -11775,7 +11767,7 @@ function _meetingRenderReview(state) {
   if (actions) actions.classList.remove('no-add');
 
   const itemsHTML = state.items.map((item, i) => `
-    <div class="meeting-item" data-idx="${i}" onclick="this.classList.toggle('selected');_meetingUpdateCount()">
+    <div class="meeting-item${item.mine ? ' selected' : ''}" data-idx="${i}" onclick="this.classList.toggle('selected');_meetingUpdateCount()">
       <div class="meeting-tick"></div>
       <span>${esc(item.text)}</span>
       ${item.owner ? '<span class="meeting-owner">' + esc(item.owner) + '</span>' : ''}

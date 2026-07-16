@@ -6,6 +6,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 056 | BUG-004 recurrence — blank app after long Mac sleep (GPU wakeup too slow for 1500ms repaint ceiling) | ⏳ v2.31.9 |
 | 055 | Done tasks from today wiped on second-device first-open | ⏳ v2.30.1 |
 | 054 | Phantom old tasks resurrect in TODAY list via sync merge | ✅ v2.23.6 |
 | 053 | Morning nudge dismissal not synced across devices | ✅ v2.18.38 |

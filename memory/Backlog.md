@@ -144,6 +144,7 @@
 | Morning nudge AI line | v2.17.73 | verdict pending | Open — 4 weeks collected; three questions in Roadmap #1 detail decide the iteration |
 | Week-grid "best day" dot | v2.17.121 | 2026-06-30 | ✅ Kept — dot lands correctly, works well (verified 2026-07-15) |
 | Poem splash coda + clean-slate echo | v2.26.0 | 2026-07-28 | Open — gift or gate? Does the echo add warmth or become invisible after the first week? |
+| Daily brief (✦ → nudge + poem) | v2.32.0 | 2026-07-30 | Open — brief iterated to nudge+poem only (shape line removed v2.31.8). Does the poem add to the moment or feel like filler after the nudge? |
 
 ### Not implementing
 | Feature | Reason |
