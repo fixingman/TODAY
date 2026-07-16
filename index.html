@@ -3802,6 +3802,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.31.3': 'Fix — on mobile, only one mic button shows: meeting mode when available, voice note otherwise.',
   '2.31.2': 'Polish — the name prompt now looks like the meeting pill it belongs to: same rounded shape, quieter, one clear ask.',
   '2.31.1': 'Polish — the name card hint in Connections reads plainly again and wraps comfortably on small screens.',
   '2.31.0': 'New — first time you tap the meeting mic with no name set, a quick prompt appears right there: type your name and the meeting starts. Manage names in Connections as before.',
@@ -11852,7 +11853,9 @@ function _voiceNoteSupported() {
 function _voiceNoteInit() {
   const btn = document.getElementById('voiceNoteBtn');
   if (!btn) return;
-  btn.style.display = _voiceNoteSupported() ? 'flex' : 'none';
+  // Hide voice note when meeting mode is also available — avoid two mic CTAs on mobile
+  const meetingAvailable = _meetingSupported() && !!_aiGetKey('gemini');
+  btn.style.display = (_voiceNoteSupported() && !meetingAvailable) ? 'flex' : 'none';
 }
 
 function toggleVoiceNote() {
