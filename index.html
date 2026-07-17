@@ -482,6 +482,7 @@
 
     /* ── Layout ──────────────────────────────────────────────── */
     --sec-sticky-top: 0px; /* set by ResizeObserver in init() to sticky-header height */
+    --hdr-h: 150px; /* sticky-header height for the scroll-driven departure animation — kept current by the same ResizeObserver */
 
     /* ── Opacity scale ───────────────────────────────────────── */
     --opacity-dim:          0.25;  /* done state, secondary badges     */
@@ -886,6 +887,29 @@
     background: var(--bg);
   }
 
+  /* BUG-050 fourth pass — jitter-free departure tracking where supported.
+     The JS scroll listener runs on the main thread, which on iOS lags the
+     compositor-thread scroll by ≥1 frame; feeding a lagged value into the
+     sticky `top` made section headers tremble while the sticky-header departs.
+     A scroll-driven animation is sampled from the scroll offset inside the same
+     rendering update that paints the scroll — no lag, by construction.
+     Departure window: the sticky-header (sticky in body, body = 100% viewport)
+     starts leaving at scrollY = bodyHeight − headerHeight, gone at bodyHeight.
+     Not a time-looping animation (Motion.md WAAPI rule): progress is derived
+     from scroll position, so _forceRepaint's display toggle re-samples it at
+     the current offset instead of restarting it — no flash. */
+  @supports (animation-timeline: scroll()) {
+    .section-header {
+      animation: sec-hdr-depart linear both;
+      animation-timeline: scroll(root);
+      animation-range: calc(100dvh - var(--hdr-h, 150px)) 100dvh;
+    }
+  }
+  @keyframes sec-hdr-depart {
+    from { top: max(var(--hdr-h, 150px), env(safe-area-inset-top, 0px)); }
+    to   { top: env(safe-area-inset-top, 0px); }
+  }
+
   .section-label {
     font-size: var(--text-xs);
     letter-spacing: 0.14em;
@@ -1020,6 +1044,7 @@
     align-items: flex-end;
     justify-content: center;
     padding: var(--space-4);
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
   }
   #triageOverlay.hidden {
     display: none;
@@ -2021,6 +2046,7 @@
     align-items: flex-end;
     justify-content: center;
     padding: var(--space-4);
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
     opacity: 0;
     transition: opacity var(--dur-slow) var(--ease-out);
   }
@@ -2314,13 +2340,12 @@
     /* Sticky add-task bar — fixed to bottom of viewport */
     .add-task-row {
       position: fixed;
-      bottom: 0;
+      bottom: env(safe-area-inset-bottom, 0px);
       left: 0;
       right: 0;
       z-index: var(--z-header);
       margin: 0;
       padding: var(--space-3) var(--space-4);
-      padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0));
       background: var(--bg);
       /* Solid bg, no blur needed on mobile */
     }
@@ -3755,16 +3780,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '238h';
+const DEV_HOURS     = '239h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.32.2': 'Fix — the star and mic buttons at the bottom of the screen now sit fully above the home indicator on iPhone. The triage and meeting review panels do the same.',
+  '2.32.1': 'Fix — section labels no longer tremble while the header scrolls away on mobile. The browser now moves them in step with your finger instead of catching up a moment later.',
   '2.32.0': 'New — after a meeting, your tasks are pre-selected in the review panel. You can still tap to adjust before adding.',
-  '2.31.9': 'Fix — app no longer goes blank after a long computer sleep. Two extra repaint passes now cover the 3–5 seconds Mac GPUs can take to fully wake up.',
-  '2.31.8': 'Polish — the daily brief (✦) now shows just the morning insight and the poem. The done count and focus time were already visible in the list.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5507,18 +5532,41 @@ function init() {
   // scrollY ≤ bodyHeight − headerHeight, then its bottom recedes as bodyHeight − scrollY.
   const _stickyHdr = document.getElementById('sticky-header');
   if (_stickyHdr) {
+    let _secTopLast, _hdrHLast;
     const _updateSecTop = () => {
       const h = _stickyHdr.offsetHeight;
-      const bottom = Math.max(0, Math.min(h, document.body.offsetHeight - window.scrollY));
-      document.documentElement.style.setProperty('--sec-sticky-top', bottom + 'px');
+      // --hdr-h feeds the CSS scroll-driven animation (keyframes + range).
+      if (h !== _hdrHLast) {
+        _hdrHLast = h;
+        document.documentElement.style.setProperty('--hdr-h', h + 'px');
+      }
+      // Fallback model (browsers without scroll-driven animations): two constant
+      // states — h while the sticky-header is pinned, 0 once it starts departing
+      // (the CSS max() clamps 0 up to the safe-area inset). Continuous tracking of
+      // the departing header's bottom edge is what jittered (main thread lags iOS
+      // compositor scrolling); a constant can't jitter, and the single crossing
+      // write lands while the section header sits hidden behind the departing
+      // header's opaque backdrop — revealed in place as it slides away.
+      const next = window.scrollY > document.body.offsetHeight - h ? 0 : h;
+      if (next !== _secTopLast) {
+        _secTopLast = next;
+        document.documentElement.style.setProperty('--sec-sticky-top', next + 'px');
+      }
     };
     _updateSecTop();
     new ResizeObserver(_updateSecTop).observe(_stickyHdr);
-    let _secTopRaf = 0;
-    window.addEventListener('scroll', () => {
-      if (_secTopRaf) return; // coalesce to one update per frame
-      _secTopRaf = requestAnimationFrame(() => { _secTopRaf = 0; _updateSecTop(); });
-    }, { passive: true });
+    // BUG-050 fourth pass: when scroll-driven animations are supported, the CSS
+    // animation on .section-header owns `top` (fill: both overrides the base rule)
+    // and is sampled compositor-synchronously — the per-scroll JS update below is
+    // the *source* of the iOS jitter (main thread lags compositor scrolling), so
+    // don't attach it at all on those browsers.
+    if (!(window.CSS && CSS.supports && CSS.supports('animation-timeline: scroll()'))) {
+      let _secTopRaf = 0;
+      window.addEventListener('scroll', () => {
+        if (_secTopRaf) return; // coalesce to one update per frame
+        _secTopRaf = requestAnimationFrame(() => { _secTopRaf = 0; _updateSecTop(); });
+      }, { passive: true });
+    }
   }
 
   // Clear stale focus mode state — browser may restore .focusing class from cache
@@ -9194,6 +9242,7 @@ function mergeRemoteData(data) {
   if (mergedFocusMins !== localFocusMins) {
     localStorage.setItem('stat_focus_mins_today', String(mergedFocusMins));
     _changed = true;
+    if ($.infoPanel && $.infoPanel.classList.contains('open')) renderInfoStats();
   }
   if (mergedStreak !== localStreak || mergedStreakDate !== localStreakDate) {
     localStorage.setItem('stat_streak', String(mergedStreak));
@@ -10125,6 +10174,18 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     _splashStarted = true;
     const star=document.getElementById('splash-star');
     if (!star) return;
+    // BUG-041 (third symptom): pin the auto-centered column before anything becomes
+    // visible. On iOS PWA cold start the viewport can settle (grow under the status
+    // bar) a few frames after first paint; #splash is fixed inset:0, so the growth
+    // re-centers #splash-inner's margin:auto — the logo slid DOWN mid-fade ("letters
+    // coming down"). Freezing the resolved position as an explicit margin makes later
+    // viewport growth a no-op. Guard t>0 keeps the long-poem overflow case (margin
+    // collapsed to 0, content scrolls) untouched.
+    const _sInner = document.getElementById('splash-inner');
+    if (_sInner) {
+      const t = _sInner.getBoundingClientRect().top;
+      if (t > 0) { _sInner.style.marginTop = t + 'px'; _sInner.style.marginBottom = 'auto'; }
+    }
     // Logo reveal — BUG-032 (7th pass): single-unit opacity fade, no letter motion.
     // Six passes tried to time a per-letter transform rise around iOS glyph raster;
     // structurally unwinnable — starting a CSS transform animation promotes each letter

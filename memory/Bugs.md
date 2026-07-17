@@ -7,12 +7,12 @@
 | # | Description | Status |
 |---|---|---|
 | 056 | BUG-004 recurrence — blank app after long Mac sleep (GPU wakeup too slow for 1500ms repaint ceiling) | ⏳ v2.31.9 |
-| 055 | Done tasks from today wiped on second-device first-open | ⏳ v2.30.1 |
+| 055 | Done tasks from today wiped on second-device first-open | ✅ v2.30.1 |
 | 054 | Phantom old tasks resurrect in TODAY list via sync merge | ✅ v2.23.6 |
 | 053 | Morning nudge dismissal not synced across devices | ✅ v2.18.38 |
 | 052 | Splash dismissal slow — sync bookkeeping held the gate | ✅ v2.18.36 |
 | 051 | Trello nudge dismissal not synced across devices | ✅ v2.18.23 |
-| 050 | Sticky section headers broken — too low / mid-page snap, then mobile jitter, then iOS safe area | ⏳ v2.31.6 |
+| 050 | Sticky section headers broken — too low / mid-page snap, then mobile jitter, then iOS safe area, then residual jitter | ⏳ v2.32.1 |
 | 049 | New Trello card looks aged on arrival | ✅ v2.18.22 |
 | 048 | Trello card aging not synced across devices | ✅ v2.18.17 |
 | 047 | Dropbox connect on fresh install doesn't auto-restore | ✅ v2.18.16 |
@@ -70,16 +70,6 @@
 
 ---
 
-## BUG-055: Done tasks from today wiped on second-device first-open
-
-**Symptom:** Tasks checked off on computer (after midnight) disappear from the main list and appear in PAST when the phone is opened for the first time that day. Done count drops.
-
-**Root cause:** `applyNewDayCleanup()` guards on `stat_last_visit` (device-local). A phone that last opened yesterday correctly fires cleanup. After Dropbox restore pulls today's done tasks, the cleanup treats them all as "yesterday's done tasks" and graduates them to PAST — it has no way to distinguish tasks done today from tasks done yesterday.
-
-**Fix (v2.30.1):** Before graduating done tasks to PAST, build `_checkedTodayIds` from `_getCheckedIds()` entries whose `at` timestamp falls on today's local date. Tasks in that set stay in `manualTasks` and keep their `doneIds` entry. `today_checked_ids` is already synced via Dropbox (since v2.18.21), so the second device has the timestamps it needs after restore.
-
----
-
 ## BUG-050: Sticky section headers broken — too low / snap to mid-page on deep scroll
 
 **Symptom:** Section headers (Soon, Trello tasks, Your tasks, Past) stick at `top: var(--sec-sticky-top)`, which is set to the sticky-header's height (~150px on mobile). Two failure modes: (1) "sticks too low" — on first scroll, section headers appeared floating far below their correct position. (2) "snaps to middle of the page" — after scrolling deeper, the main sticky-header (logo + progress bar) would exit the viewport, and section headers then appeared at their fixed offset in empty space.
@@ -94,6 +84,10 @@
 
 **Verify:** On iOS PWA with a long list: (1) section headers pin just below the logo header with no trembling during scroll; (2) as the logo header departs, section headers ride its bottom edge and settle at the safe area top (below the status bar, not behind it); (3) never floating mid-page; (4) desktop unaffected.
 
+**Fourth pass (v2.32.1) — scroll-driven animation:** Third pass verified on mobile — safe-area fix landed, but jitter persisted (reduced, not gone). Root cause of the residual jitter: *any* JS-driven update is structurally too late. iOS scrolls on the compositor thread; scroll events + rAF callbacks run on the main thread ≥1 frame behind, so the `--sec-sticky-top` value the compositor uses to position the stuck headers always describes where the scroll *was*, not where it is — the headers chase the finger through the whole departure window. (The v2.31.6 `max()` clamp is why it got "less jittery": values below the ~47px safe-area inset became constant, silencing the last third of the window.) Fix: CSS scroll-driven animation — `@supports (animation-timeline: scroll())` gives `.section-header` a `sec-hdr-depart` animation on `scroll(root)` with `animation-range: calc(100dvh − var(--hdr-h)) → 100dvh` (the exact departure window: sticky-header is sticky in body, body = 100% viewport), animating `top` from header height down to the safe-area inset. The browser samples progress from the scroll offset inside the same rendering update that paints the scroll — no lag by construction. `--hdr-h` is published by the existing ResizeObserver (resize-only writes). The per-scroll JS listener is not attached at all on supporting browsers (iOS 26+ / Chrome 115+). **Fallback for older browsers replaced too:** instead of the v2.27.3 continuous tracking (which is the jitter), `--sec-sticky-top` now snaps between two constants — header height while pinned, 0 at departure start (`max()` clamps to safe area). A constant can't jitter; the crossing write lands while the section header is hidden behind the departing sticky-header's 92%-opaque blurred backdrop, so it's revealed in place as the header slides away rather than visibly jumping. Tradeoff: old browsers lose the smooth edge-riding during the ~150px departure window — invisible in practice because the header covers it. Not a Motion.md WAAPI-rule violation: progress derives from scroll position, so `_forceRepaint`'s display toggle re-samples rather than restarts it — no flash.
+
+**Verify (fourth pass):** On iOS 26+ PWA with a long list, scroll slowly and with momentum through the header's departure — section labels should ride its bottom edge with zero trembling, then sit at the safe-area top. Desktop unchanged.
+
 ---
 
 ## BUG-041: White flash / splash logo from top on mobile (second pass)
@@ -107,6 +101,10 @@
 **Fix (v2.27.0 second pass):** Moved the star's `transition`/`opacity`/`transform` assignments inside the `requestAnimationFrame` callback alongside the logo's opacity transition. Both transitions now start in the same frame, so iOS composites them together under the logo's `opacity: 0` baseline. Ceiling path (no animation) keeps immediate star reveal.
 
 **Verify:** Open app on iOS PWA from cold start (or after clearing the day's splash cache). No white flash, no logo/star appearing from the top — smooth single-unit fade from black.
+
+**Third pass (v2.32.1) — persists on iPhone 14 Pro after PWA re-add (2026-07-17).** Two symptoms reported: (a) brief white flash in light mode only, (b) logo letters appear to come down from above during the reveal. 14 Pro (393×852@3x) IS in the startup-image list and the PWA was re-added, so the launch-image path should now be active — (a) needs a fresh light-mode cold-start test. For (b): the reveal code has no letter motion (single-unit opacity fade since v2.18.27), so visible downward motion can only come from the whole column moving mid-fade. Mechanism: `#splash` is `fixed; inset: 0` and `#splash-inner` centers via `margin: auto 0` — on iOS PWA cold start the viewport settles (grows under the status bar) a few frames after first paint, and since fonts are SW-cached the fade starts inside that window; the growth re-centers the column downward by half the delta, mid-fade. Fix: `startSplash` now pins the column — reads `#splash-inner`'s resolved `rect.top` before anything becomes visible and freezes it as an explicit `margin-top` (+ `margin-bottom: auto`), making later viewport growth a no-op. `t > 0` guard preserves the long-poem overflow case (margin collapses to 0, content scrolls). If letters still move after this, the remaining suspect is the OS launch-frame→WebView handoff itself, which no in-page code can reach.
+
+**Verify (third pass):** iPhone 14 Pro, light mode, cold start (swipe app away first): (a) no white flash; (b) TODAY letters fade in with zero vertical motion.
 
 ---
 

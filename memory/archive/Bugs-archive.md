@@ -6,6 +6,18 @@
 
 ---
 
+## BUG-055: Done tasks from today wiped on second-device first-open
+
+**Status:** ✅ Verified fixed (v2.30.1; verified 2026-07-17)
+
+**Symptom:** Tasks checked off on computer (after midnight) disappear from the main list and appear in PAST when the phone is opened for the first time that day. Done count drops.
+
+**Root cause:** `applyNewDayCleanup()` guards on `stat_last_visit` (device-local). A phone that last opened yesterday correctly fires cleanup. After Dropbox restore pulls today's done tasks, the cleanup treats them all as "yesterday's done tasks" and graduates them to PAST — it has no way to distinguish tasks done today from tasks done yesterday.
+
+**Fix (v2.30.1):** Before graduating done tasks to PAST, build `_checkedTodayIds` from `_getCheckedIds()` entries whose `at` timestamp falls on today's local date. Tasks in that set stay in `manualTasks` and keep their `doneIds` entry. `today_checked_ids` is already synced via Dropbox (since v2.18.21), so the second device has the timestamps it needs after restore.
+
+---
+
 ## BUG-054: Phantom old tasks resurrect in TODAY list via sync merge
 
 **Status:** ✅ Verified fixed (v2.23.6; verified 2026-07-11)

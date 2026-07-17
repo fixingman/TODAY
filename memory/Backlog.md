@@ -125,6 +125,7 @@
 - **Idle companion artwork** — higher-resolution creatures, consistency across the 7. Revisit if they start mattering.
 - **AI system-prompt trimming** — cost is <$0.01/day; only if token cost ever matters. Never cut: task/habit lists with IDs, JSON rules, personality block.
 - **Trello checklist write-back** — build only if editing is actually wanted.
+- **Proactive suggestion chips — discovery** (Jul 2026): Can reports chips feel not very useful in practice. The ✦ fallback (afternoon / no-nudge state) currently falls through to `_aiLoad()` which shows chips. Question: does the fallback have a better default (poem-only? empty panel? nothing)? Gate on Roadmap #1 verdict — if the nudge iteration changes what ✦ surfaces, revisit whether the no-nudge fallback needs chips at all.
 
 ---
 
