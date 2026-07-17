@@ -4104,6 +4104,8 @@ function _raceAINudge({ cacheKey, cachePrefix, fetchPromise, fallbackMsg, onShow
   }).catch(() => settle(fallbackMsg, false));
 }
 
+let _aiBadgeShown = false;
+
 // Unified morning nudge (v2.19.0) — one surface between SOON and Trello,
 // replacing the separate manual + Trello nudges. Two nudges competed for the
 // same morning attention; one line that leads with what matters most doesn't.
@@ -12257,7 +12259,6 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
 // Shows contextual suggestions without user opening the AI panel
 // ══════════════════════════════════════════════════════════════════════════
 
-let _aiBadgeShown = false;
 let _aiProactiveDismissedThisSession = false;
 
 function _aiProactiveSuggestion() {
