@@ -17,7 +17,7 @@
 |---|------|--------|-------|
 | 1 | **Morning nudge — iterate** | ✅ Verdict in (2026-07-18): kept + one iteration | Read every time (W1 passes) · never wrong but task references were paraphrased → v2.32.3 makes it quote task text verbatim · reflection (not action) is the delivered value. Detail ↓ |
 | 2 | **Poem corpus growth** | Ongoing | Splash coda + echo shipped v2.26.0. Corpus growth continues — detail ↓ |
-| 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration/trello.js (trello v2.33.5, 487 lines — design-lint Rule 27 check now spans both files). **Next, risk-ascending:** `insights.js` (~384), `sync.js` (~510, Non-Delegation). **Ceiling:** coupled core (`_onWake`, focus IIFE, render/actions/habits + `$`) stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
+| 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration/trello/insights.js (insights v2.33.10, ~415 lines — first module that owns its state and runs at eval; must load after util.js). **Next:** `sync.js` (~510, Non-Delegation). **Ceiling:** coupled core (`_onWake`, focus IIFE, render/actions/habits + `$`) stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 5 | **First-run experience** | Narrowed (Jul 2026) | Empty morning + everything-done covered by the v2.26.0 poem echo. Remaining scope: brand-new-user first open only. Fold into a quiet week. |
 | 6 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
