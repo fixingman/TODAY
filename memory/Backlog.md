@@ -22,10 +22,10 @@
 | 5 | **First-run experience** | Narrowed (Jul 2026) | Empty morning + everything-done covered by the v2.26.0 poem echo. Remaining scope: brand-new-user first open only. Fold into a quiet week. |
 | 6 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 | 7 | **About — contextual digest layer** | Brief v2.29.0 · first brick v2.33.0 | Empty ✦ → daily brief (nudge + poem, all day since v2.33.0). Nudge line persists in About until midnight (v2.33.0). W3: brief 2026-07-30, Today block 2026-08-01. Detail ↓ |
-| 8 | **Revive from PAST → SOON** | Shipped v2.27.0 | Hover `↩︎ soon` on aged/let-go PAST rows — same ID, `revived` counter, timestamp-aware merge guard. Verify on real devices. |
-| 9 | **Meeting mode v2 — mobile + language** | Language shipped v2.27.2; mobile shipped v2.28.0 | In-room meetings on iOS PWA (phone calls impossible — iOS never exposes call audio, even to native apps). Awaiting real-device verify. Detail ↓ |
+| 8 | **Revive from PAST → SOON** | ✅ Shipped v2.27.0, verified 2026-07-18 | Hover `↩︎ soon` on aged/let-go PAST rows — same ID, `revived` counter, timestamp-aware merge guard. |
+| 9 | **Meeting mode v2 — mobile + language** | Language ✅ verified 2026-07-18; mobile shipped v2.28.0 | In-room meetings on iOS PWA (phone calls impossible — iOS never exposes call audio, even to native apps). Mobile awaiting real-device verify. Detail ↓ |
 
-**Awaiting device verification:** canonical list lives in `Rules.md` → Watch for (BUG-056 long-sleep blank, BUG-050 fourth pass, BUG-041 splash, v2.28.0 meeting mobile, v2.32.0 auto-select quality).
+**Awaiting device verification:** canonical list lives in `Rules.md` → Watch for.
 
 **Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months data + #1 learnings + #3 done). Detail ↓
 
@@ -36,16 +36,11 @@
 ## Details
 
 ### 1 · Morning Nudge
-**Verdict (2026-07-18): kept, one iteration shipped.**
-1. *Still read it?* — Yes, every time; the container UI helped. **W1 passes — "eyes slide" path not triggered.** Consequence: calendar day-shape input loses its trigger — stays a Not-implementing conditional, no longer queued.
-2. *Ever wrong?* — Not that Can recalls, but task references were sometimes hard to map back to the list — the nudge *paraphrased* tasks (root cause: system prompt said "No quotes", banning verbatim task text). **Fixed v2.32.3:** instruction now requires quoting a task's exact words; system prompt narrowed to "never wrap your reply in quotation marks."
-3. *Ever acted on?* — Reflects, doesn't solely act. Reflection is the delivered value — a nudge, not a button. **Action-chip experiment not triggered** (consistent with panel chips feeling not-useful — see Parked).
+**Verdict (2026-07-18): kept, one iteration shipped (v2.32.3).** W1 passes — read every time. Reflection is the value, not action. Calendar day-shape and action-chip paths untriggered. Verbatim task quoting fixed. Full verdict detail → `Changelog.md` v2.32.3.
 
-**Unblocked by the verdict:** #7's "first brick" (persist the day's nudge line in About until midnight) — Can demonstrably reads and reflects on the line, so a second home for it isn't wallpaper. Small build when wanted. Chips discovery (Parked) can also now proceed on its own merits.
+**Watch:** W3 verbatim-quote check ongoing — does "call the bank" inline feel like pointing, not a template?
 
-**Watch:** does the verbatim-quote iteration read naturally? A fragment like "call the bank" inline should feel like pointing, not like a template.
-
-**Parked idea (Jul 2026):** the nudge and poem both fire on first open but don't know about each other. On mornings with nothing insight-worthy, the nudge could stay silent and let the poem be the morning — its escape-1 gate can be stricter now that the poem covers "the morning has an opening moment."
+**Parked idea:** on mornings with nothing insight-worthy, the nudge could stay silent and let the poem be the morning — gate can be stricter now that the poem covers "the opening moment."
 
 **Later:** deeper personality (weather/energy awareness beyond peak hour, richer habit-streak celebrations).
 
@@ -69,18 +64,15 @@
 
 **Parked candidates (verified; re-run through app-moment/corpus-fit before proposing):**
 - Ou-yang Hsiu 'Bell Hill' (Cranmer-Byng trans.) — 4 lines, year-round — passed both tests, held by China tiebreaker only
-- Hardy 'In Time of The Breaking of Nations' (Wikisource) — 12 lines — **rejected**: over 11-line limit
-- Wordsworth 'My Heart Leaps Up' — 4-line excerpt already in corpus; full version not needed
-- Edward Thomas 'Adlestrop' — 16 lines, over limit, skip
-- Yeats 'He Wishes for the Cloths of Heaven' — 8 lines, year-round — deferred; note: only love poem / direct-address "you", different register from rest of corpus
-- Landor 'Dying Speech of an Old Philosopher' — 4 lines, year-round — deferred; needs Gutenberg confirm
+- Yeats 'He Wishes for the Cloths of Heaven' — 8 lines, year-round — note: only love poem / direct-address "you", different register from rest of corpus
+- Landor 'Dying Speech of an Old Philosopher' — 4 lines, year-round — needs Gutenberg confirm
+- Moritake (1472–1549) — 'Fall'n flow'r returning to the branch, — / Behold! it is a butterfly.' — spring, Chamberlain 1902 no. 48
+- Hokushi (died 1718) — 'I am burnt out. Nevertheless, / The flow'rs have duly bloom'd and faded.' — spring, Chamberlain 1902 no. 132
 
 **Active leads:**
-- Chamberlain 1902 (archive.org) — ~100 haiku, productive
-- Teasdale 'February Twilight' (*Dark of the Moon* 1926) — needs source scan
-- Aubrey Stewart (d.1918) trans. Seneca *Minor Dialogues* — worldwide PD, Standard Ebooks; two entries from round 17 need archive.org verify
+- Chamberlain 1902 (archive.org/details/basho-and-the-japanses-poetical-epigram) — productive; identifier confirmed
 - Cranmer-Byng *A Feast of Lanterns* (archive.org `in.ernet.dli.2015.282424`) — Ou-yang Hsiu, Yuan Mei, Liu Tzu-hui available when China tiebreaker lifts
-- Prose at Marcus Aurelius length (2–5 sentences) works; Whitman/Thoreau too long but short entries worth seeking; Muir *First Summer* (d.1914) worth a targeted pass; Garnett-trans. Chekhov nature prose not yet searched
+- Prose at Marcus Aurelius length (2–5 sentences) works; Muir *First Summer* (d.1914) worth a targeted pass; Garnett-trans. Chekhov nature prose not yet searched
 - Closed: London Snow (too long), Turkish/Sufi (no worldwide-PD English), Poe (anguished), Egyptian/African/Scandinavian (PD-translation bottleneck)
 
 ### 4 · Push Notifications
@@ -96,13 +88,13 @@
 **First brick — shipped v2.33.0 (from Dia browser research; #1 verdict in 2026-07-18):** the day's nudge line lives in About until midnight (`#todayNudgeBlock`, quiet sibling of the Sunday block above the stat tiles) — and the noon cache-delete is gone, so the ✦ brief shows nudge+poem all day too. The #1 verdict cleared the wallpaper concern: Can reads and reflects on the line every morning, so a second home is earned. About is becoming the home of "today's context" — exactly what the digest layer needs. W3 due 2026-08-01. Dia validates the #7 thesis overall (their Monday Brief is their most-praised feature); their aggregation/extraction model itself stays rejected (external-tool sprawl).
 **Entry point — shipped (v2.29.0, iterated v2.31.8):** empty-tap ✦ → today's brief (nudge + poem; shape line removed v2.31.8 as always-redundant, Sunday/Monday layer moved to About v2.30.0). Text + ✦ still asks the AI — Rule 7's route survives underneath. Rationale (kept for the record): Can almost never used the manual ask path; the passive surfaces carry the value, so the unused button became the door to the digest layer (Dia's return-to-the-brief insight). W3 verdict due 2026-07-30. **Afternoon state:** since v2.33.0 the nudge cache survives past noon, so the brief shows nudge+poem all day; the chips fallback now fires only when generation genuinely failed (no key / offline / API error) — a much smaller surface (see Parked discovery). Notification testing stays out — dev harness, not user value; use a `?test=notif` query param when #4 nears.
 
-### 8 · Revive from PAST → SOON *(shipped v2.27.0 — see Changelog.md / Sync.md)*
-**Remaining:** real-device verify. Future: surface the `revived` counter to nudge/insights ("this one came back twice"). Philosophy guard held: no bulk revive, done items stay put.
+### 8 · Revive from PAST → SOON *(shipped v2.27.0, ✅ verified 2026-07-18)*
+Future: surface `revived` counter to nudge/insights. No bulk revive, done items stay put.
 
 ### 9 · Meeting mode v2 — mobile + language *(agreed Jul 2026)*
 **Scope boundary first:** phone-call recording is impossible from any app on iOS — the OS never exposes call audio (only Apple's own 18.1+ built-in recorder). Mobile meeting mode = in-room/speakerphone capture through the mic. Don't revisit this; it's an OS wall, not a PWA limitation.
 
-**Language — shipped v2.27.2:** one prompt line in `netlify/functions/meeting-extract.js` ("phrase each item in the language spoken in the meeting — do not translate to English"). Auto-detect, no setting. Name attribution already worked cross-language. Verify with a real non-English meeting.
+**Language — shipped v2.27.2, ✅ verified with a real non-English meeting 2026-07-18:** one prompt line in `netlify/functions/meeting-extract.js` ("phrase each item in the language spoken in the meeting — do not translate to English"). Auto-detect, no setting. Name attribution already worked cross-language.
 
 **Mobile — shipped v2.28.0:** capability-only gate, 2-min iOS AAC chunks (+ 4.3MB size guard), onstop identity guard, Screen Wake Lock, suspension health-check state machine, honest-note UI on lock (silent partial capture was the dangerous failure — the contract is *phone on the table, screen on, app foreground*). Awaiting real-device verify on iPhone PWA. Implementation detail → Changelog v2.28.0.
 
