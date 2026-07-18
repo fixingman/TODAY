@@ -891,16 +891,13 @@
     background: var(--bg);
   }
 
-  /* BUG-050 fifth pass — no continuous tracking, on any browser.
-     Fourth pass tried a scroll-driven animation of `top`; but `top` is a layout
-     property — WebKit samples it on the main thread one frame behind the
-     compositor scroll (same lag as a JS listener), and `fill: both` kept it
-     under animation control through the whole scroll. Removed. The universal
-     behavior is now the constant snap: --sec-sticky-top is header height while
-     the sticky-header is pinned, 0 once it starts departing (max() clamps to
-     the safe-area inset). Constants can't jitter; the single crossing write
-     lands while the section header is hidden behind the departing header's
-     backdrop, so it's revealed in place as the header slides away. */
+  /* BUG-050 sixth pass — continuous tracking via scroll math, no jitter.
+     Previous passes tried getBoundingClientRect() (iOS compositor lag) and
+     scroll-driven animation of `top` (layout property, main-thread lag). The
+     solution: Math.min(h, Math.max(0, bodyH − scrollY)) — pure arithmetic from
+     scroll position, matches the sticky-header's visible bottom during departure
+     without reading from the compositor. Constants saturate the formula outside
+     the departure zone, so writes only fire during the ~h-pixel crossing. */
 
   /* Status-bar scrim (BUG-050 fifth pass) — once the sticky-header departs,
      section headers pin below the status bar (safe-area clamp), leaving the
@@ -3819,10 +3816,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.33.8': 'Fix — section headers now glide into place as the logo header departs, no more snap.',
   '2.33.7': 'Poems — two new additions: Ransetsu on a clear New Year\'s morning, and Seibu\'s dawn opening like a flower.',
   '2.33.6': 'Poems — three new additions: Dickinson on imagining a prairie, Teasdale watching an evening star, and Epictetus on wishing for what is.',
-  '2.33.5': 'Maintenance — internal reorganization of the Trello code. Nothing changes in how the app works.',
-  '2.33.4': 'Polish — the task input gently responds when you hover over it on desktop, matching the other controls.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5572,15 +5568,14 @@ function init() {
     let _secTopLast;
     const _updateSecTop = () => {
       const h = _stickyHdr.offsetHeight;
-      // Two constant states only (BUG-050 fifth pass) — h while the sticky-header
-      // is pinned, 0 once it starts departing (the CSS max() clamps 0 up to the
-      // safe-area inset). Continuous tracking of the departing header's bottom
-      // edge is what jittered (main thread lags iOS compositor scrolling); a
-      // constant can't jitter, and the single crossing write lands while the
-      // section header sits hidden behind the departing header's backdrop —
-      // revealed in place as it slides away. The safe-area strip above it is
-      // covered by #statusBarScrim.
-      const next = window.scrollY > document.body.offsetHeight - h ? 0 : h;
+      // Continuous tracking via scroll math (BUG-050 sixth pass) — avoids the
+      // jitter of getBoundingClientRect() (iOS compositor lag) while eliminating
+      // the two-constant snap. Geometry: sticky-header's visible bottom =
+      // bodyHeight − scrollY, clamped to [0, h]. During departure (scrollY
+      // between bodyH−h and bodyH) this tracks the logo edge exactly; outside
+      // that window it saturates to h (pinned) or 0 (gone). Safe-area strip
+      // above is covered by #statusBarScrim.
+      const next = Math.min(h, Math.max(0, document.body.offsetHeight - window.scrollY));
       if (next !== _secTopLast) {
         _secTopLast = next;
         document.documentElement.style.setProperty('--sec-sticky-top', next + 'px');
