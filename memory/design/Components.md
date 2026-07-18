@@ -192,7 +192,18 @@ Single `.morning-nudge` strip (`#dayNudge`) positioned **between the SOON and Tr
 - **AI tier 2** (`_fetchDayNudgeAI`) — sees both manual tasks (with ages) and Trello cards (with overdue/checklist markers) in one prompt; asked to name the single most important thing. Same 1s race via `_raceAINudge` — cached per day, no mid-read swap (BUG-034).
 - **Dismiss** — tap sets `day_nudge_dismissed_<date>` (per-day, clears at midnight). Synced cross-device via `_DISMISS_SYNC` registry. Legacy `trello_nudge_dismissed` / `morning_nudge_dismissed` fields kept as transition rows in registry for mixed-version devices — remove once all devices ≥ v2.19.0.
 - **Presence:** same `.morning-nudge` CSS as before — `--surface` panel, 2px `--accent-dim` left edge, `radius-md`, `padding: 7px var(--space-3)`. Breathing `--accent` dot via `_breathe(_KF_BREATHE_SMALL, 2400ms)` (opacity 1→0.5 + scale 1→0.85 — small-element treatment per Motion.md).
-- Noon cutoff: `checkDayNudge()` hides element and prunes legacy AI-cache keys at `hour >= 12`.
+- Noon cutoff: `checkDayNudge()` hides the strip at `hour >= 12`. Since v2.33.0 the cached AI line (`day_nudge_ai_<date>`) survives past noon — it lives on in About's Today block and the ✦ brief until the dated key expires at midnight.
+
+---
+
+## Today Block (About panel, v2.33.0)
+
+`#todayNudgeBlock` — the day's nudge line resurfaced above the stat tiles, the Roadmap #7 "first brick" (Dia's return-to-the-brief insight). The morning strip is dismiss-once-and-gone; this is the line's quiet second home until midnight.
+
+- **Shell:** sibling of `#sundayBlock` — same padding/radius/margins, but plain `--border` (no accent tint) and a muted "Today" label (`.week-label` overridden to `--muted`). Reference, not announcement.
+- **Rendered by:** `renderInfoStats()` from `localStorage['day_nudge_ai_<today>']`; hidden when no line exists (no AI key, generation failed, or new day). Escaped via `esc()`.
+- **Live sync:** `mergeRemoteData` re-renders About when the panel is open and a remote nudge line lands (same pattern as the focus-tile live update).
+- **Wallpaper Test:** W1 via freshness (line is AI-generated from fresh context daily — W2 escape 2). W3 due 2026-08-01: does Can actually glance at it during the day? Removal is fine if never revisited.
 
 ---
 
@@ -279,7 +290,7 @@ Triggered by tapping ✦ with an empty input. The same ✦ button, rerouted — 
 1. **AI nudge line** — the day's cached nudge sentence (`day_nudge_ai_<date>`) read back as a composed statement, not a conversational reply. Cached per day; same sentence the nudge strip shows.
 2. **Today's poem** — `_poemOfTheDay()`, same corpus as the splash coda and empty-state echo. Re-surfaces the morning's poem mid-day.
 
-**Fallback:** if no nudge cache AND no poem corpus, falls through to the standard proactive AI suggestion path.
+**Fallback:** if the nudge cache is empty, falls through to the standard proactive AI suggestion path. Since v2.33.0 the cache survives past noon, so this only happens when generation genuinely failed (no key / offline / API error).
 
 **Entry condition:** `input.value.trim() === ''` at ✦ tap. Non-empty input still invokes the AI conversationally.
 

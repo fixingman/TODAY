@@ -2281,6 +2281,15 @@
     border-radius: var(--radius-md);
     background: var(--accent-focus-bg);
   }
+  /* Sibling of #sundayBlock — same shell, quieter: the day's nudge line resurfaced.
+     Plain border, no tint, muted label — reference, not announcement. */
+  #todayNudgeBlock {
+    margin-bottom: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+  #todayNudgeBlock .week-label { color: var(--muted); }
   .week-label { font-size: var(--text-micro); color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 3px; }
   .week-summary { font-size: var(--text-base); color: var(--text); line-height: 1.5; }
   .week-summary.loading { color: var(--muted); font-style: italic; }
@@ -3430,6 +3439,8 @@
     <div class="config-title">ℹ&#xFE0E; About</div>
 
     <div id="sundayBlock" style="display:none"></div>
+    <!-- Day's nudge line, quiet second home after the morning strip is dismissed (v2.33.0) -->
+    <div id="todayNudgeBlock" style="display:none"></div>
     <div id="infoStats"></div>
 
     <div class="panel-section" id="weekSection" style="display:none">
@@ -3787,9 +3798,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.33.0': 'New — the morning note now stays with you all day. After you dismiss it, it lives quietly at the top of About until midnight, and the star button shows it any time.',
+  '2.32.3': 'Polish — when the morning note points to a task, it now uses the task\'s own words instead of describing it, so you can spot it in the list at a glance.',
   '2.32.2': 'Fix — the star and mic buttons at the bottom of the screen now sit fully above the home indicator on iPhone. The triage and meeting review panels do the same.',
-  '2.32.1': 'Fix — section labels no longer tremble while the header scrolls away on mobile. The browser now moves them in step with your finger instead of catching up a moment later.',
-  '2.32.0': 'New — after a meeting, your tasks are pre-selected in the review panel. You can still tap to adjust before adding.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4144,7 +4155,9 @@ function checkDayNudge() {
     nudgeEl.classList.remove('visible', 'show');
     localStorage.removeItem('morning_nudge_count');
     localStorage.removeItem('today_day_review');
-    localStorage.removeItem('day_nudge_ai_' + _localISO());
+    // day_nudge_ai_<date> deliberately NOT cleared here (v2.33.0): the line lives
+    // in About until midnight and feeds the ✦ brief all day. The dated key
+    // self-expires at day change; _pruneLS on next write clears stragglers.
     // Legacy pre-2.19.0 keys — one-time sweep, no-op afterwards
     _pruneLS('morning_nudge_ai_', '');
     _pruneLS('trello_nudge_ai_', '');
@@ -4360,7 +4373,9 @@ async function _fetchDayNudgeAI(review, carriedOver, cards) {
       'Read all signals together: tasks with focus sessions are being actively worked; ' +
       'position 1 is where the user put their priority; a revived task was deliberately brought back; ' +
       'age alone is not importance — a new task can matter more than an old one. ' +
-      'Name it plainly. If nothing stands out, state the morning simply.';
+      'Name it plainly. When you point to a specific task, use its exact words from the list ' +
+      '(a short verbatim fragment is fine) so the user can spot it at a glance — never paraphrase ' +
+      'or describe a task in different words. If nothing stands out, state the morning simply.';
 
     const res = await fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
@@ -4369,7 +4384,7 @@ async function _fetchDayNudgeAI(review, carriedOver, cards) {
         provider: _aiGetProvider(),
         apiKey: key,
         messages: [{ role: 'user', content: facts + '\n\n' + instruction }],
-        systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. No quotes, no exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
+        systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Never wrap your reply in quotation marks; quoting a task\'s own words inline is good. No exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
       }),
     });
     if (!res.ok) return null;
@@ -5992,6 +6007,23 @@ function renderInfoStats() {
       }
     } else {
       _sundayBlock.style.display = 'none';
+    }
+  }
+
+  // ── Today's nudge line (above stats) — quiet second home (v2.33.0) ─────────
+  // The morning strip is dismiss-once-and-gone; the line itself stays cached
+  // until midnight (dated key). Re-surfaced here for the reflect-during-the-day
+  // pattern the Roadmap #1 verdict confirmed. Hidden when no line exists.
+  const _nudgeBlock = document.getElementById('todayNudgeBlock');
+  if (_nudgeBlock) {
+    const _dayLine = localStorage.getItem('day_nudge_ai_' + _today) || '';
+    if (_dayLine) {
+      _nudgeBlock.innerHTML =
+        '<div class="week-label">Today</div>' +
+        '<div class="week-summary">' + esc(_dayLine) + '</div>';
+      _nudgeBlock.style.display = '';
+    } else {
+      _nudgeBlock.style.display = 'none';
     }
   }
 }
@@ -9355,6 +9387,8 @@ function mergeRemoteData(data) {
   if (data.day_nudge_ai) {
     localStorage.setItem(_aiNudgeKey, data.day_nudge_ai);
     if (typeof checkDayNudge === 'function') checkDayNudge();
+    // About's Today block shows this line — refresh live if the panel is open
+    if ($.infoPanel && $.infoPanel.classList.contains('open')) renderInfoStats();
   }
 
   // Full re-render if tasks were added or removed — surgical patch is not enough

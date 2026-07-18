@@ -15,17 +15,17 @@
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 1 | **Morning nudge — iterate** | Verdict pending (Can) | 4 weeks collected (plan said one). Three questions decide the iteration — detail ↓ |
+| 1 | **Morning nudge — iterate** | ✅ Verdict in (2026-07-18): kept + one iteration | Read every time (W1 passes) · never wrong but task references were paraphrased → v2.32.3 makes it quote task text verbatim · reflection (not action) is the delivered value. Detail ↓ |
 | 2 | **Poem corpus growth** | Ongoing | Splash coda + echo shipped v2.26.0. Corpus growth continues — detail ↓ |
 | 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration.js. **Next, risk-ascending:** `trello.js` (~174 lines, Rule 27 patch path), `insights.js` (~384), `sync.js` (~510, Non-Delegation). **Ceiling:** coupled core (`_onWake`, focus IIFE, render/actions/habits + `$`) stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 5 | **First-run experience** | Narrowed (Jul 2026) | Empty morning + everything-done covered by the v2.26.0 poem echo. Remaining scope: brand-new-user first open only. Fold into a quiet week. |
 | 6 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
-| 7 | **About — contextual digest layer** | Shipped v2.29.0 | Empty ✦ → daily brief (nudge + day shape + poem + Sunday/Monday layer). Task type summarization also ships as the data layer. W3 verdict due 2026-07-30. Detail ↓ |
+| 7 | **About — contextual digest layer** | Brief v2.29.0 · first brick v2.33.0 | Empty ✦ → daily brief (nudge + poem, all day since v2.33.0). Nudge line persists in About until midnight (v2.33.0). W3: brief 2026-07-30, Today block 2026-08-01. Detail ↓ |
 | 8 | **Revive from PAST → SOON** | Shipped v2.27.0 | Hover `↩︎ soon` on aged/let-go PAST rows — same ID, `revived` counter, timestamp-aware merge guard. Verify on real devices. |
 | 9 | **Meeting mode v2 — mobile + language** | Language shipped v2.27.2; mobile shipped v2.28.0 | In-room meetings on iOS PWA (phone calls impossible — iOS never exposes call audio, even to native apps). Awaiting real-device verify. Detail ↓ |
 
-**Awaiting device verification:** WAAPI wake behaviour — watch for BUG-004 recurrence after long sleep.
+**Awaiting device verification:** canonical list lives in `Rules.md` → Watch for (BUG-056 long-sleep blank, BUG-050 fourth pass, BUG-041 splash, v2.28.0 meeting mobile, v2.32.0 auto-select quality).
 
 **Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months data + #1 learnings + #3 done). Detail ↓
 
@@ -36,15 +36,14 @@
 ## Details
 
 ### 1 · Morning Nudge
-**Verdict pending — three questions for Can (Jul 2026):**
-1. Still read it, or do eyes slide over it? (W1 behavioural symptom)
-2. Ever wrong — naming something that isn't the thing that matters?
-3. Ever acted on — did it make you focus a task or move one to Soon?
+**Verdict (2026-07-18): kept, one iteration shipped.**
+1. *Still read it?* — Yes, every time; the container UI helped. **W1 passes — "eyes slide" path not triggered.** Consequence: calendar day-shape input loses its trigger — stays a Not-implementing conditional, no longer queued.
+2. *Ever wrong?* — Not that Can recalls, but task references were sometimes hard to map back to the list — the nudge *paraphrased* tasks (root cause: system prompt said "No quotes", banning verbatim task text). **Fixed v2.32.3:** instruction now requires quoting a task's exact words; system prompt narrowed to "never wrap your reply in quotation marks."
+3. *Ever acted on?* — Reflects, doesn't solely act. Reflection is the delivered value — a nudge, not a button. **Action-chip experiment not triggered** (consistent with panel chips feeling not-useful — see Parked).
 
-**Iteration paths by answer:**
-- Eyes slide → the *shape* is wallpaper, not the words ("X waiting N days" converges every morning). Fix is input variety: feed day-shape context (first-open time, weekday, habits state) so lines differ structurally, not just lexically. **Strongest candidate input (Jul 2026): read-only calendar busy/free shape** — "three meetings before noon" vs "clear day" makes lines differ from real context (the W2 escape the nudge lacks). Google Calendar read-only is client-side feasible (PKCE, same pattern as Dropbox — no server, no event content beyond busy/free). Reach for this before the action-chip experiment. Never an events panel — see Not-implementing table.
-- Sometimes wrong → tighten facts: it currently sees the first 6 tasks in drag order, not the oldest 6.
-- Never acted on → the action-chip question (focus / move to Soon attached to the line) — real feature step, own mock round.
+**Unblocked by the verdict:** #7's "first brick" (persist the day's nudge line in About until midnight) — Can demonstrably reads and reflects on the line, so a second home for it isn't wallpaper. Small build when wanted. Chips discovery (Parked) can also now proceed on its own merits.
+
+**Watch:** does the verbatim-quote iteration read naturally? A fragment like "call the bank" inline should feel like pointing, not like a template.
 
 **Parked idea (Jul 2026):** the nudge and poem both fire on first open but don't know about each other. On mornings with nothing insight-worthy, the nudge could stay silent and let the poem be the morning — its escape-1 gate can be stricter now that the poem covers "the morning has an opening moment."
 
@@ -62,7 +61,7 @@
 
 **Taste signal:** spare/clear/affirming in; quaint, ornate, bleak out. Rhyme is fine if the feeling is real — quaintness disqualifies, not rhyme. Melancholy-but-held is IN (Rilke 'Autumn'); calm-pastoral cut — gravity beats gentleness. Compressed Stoic prose works (Farquharson); diary-length doesn't. A poem that passes the brief but feels wrong beside a task list: cut on app-moment test.
 
-**Seasons:** W9 / Sp11 / Su10 / Au10 / year-round 49 — corpus 89, target ~95.
+**Seasons:** W9 / Sp11 / Su10 / Au10 / year-round 50 — corpus 90 (Seneca added v2.29.1, round 18), target ~95.
 
 **PD notes:** US-PD-only retired. 11 grandfathered poems pending Can's decision (keep or purge): Frost ×3, WCW, Sandburg, H.D., Waley trans. ×5. Future unlocks: cummings 2033, Frost/WCW worldwide 2034, Eliot 2036.
 
@@ -93,8 +92,8 @@
 **Concept:** Periodic, context-aware content in About based on day/week. No push, no server — pure local data.
 **Candidate moments:** Sunday weekly recap · Monday intention prompt · Daily contextual hint (insight-gated) · Milestone surfaces (streak/focus)
 **Key relationships:** nudge (#1) is task-list one-liner, morning only; digest is About panel, richer, time-of-week aware. Push (#4) would carry the same content externally — build in-app first. Poem (#2) is static per-day; digest is dynamic per-context.
-**Candidate first brick (Jul 2026, from Dia browser research):** after dismissal, the day's nudge line lives quietly in About until midnight. Dia's Morning Brief insight: people return to the morning framing all day — TODAY's nudge is dismiss-once-and-gone. Tiny build (AI line already cached per-day in `day_nudge_ai`), and it makes About the home of "today's context" — exactly what the digest layer needs. **Sequence after the #1 verdict** — if eyes slide over the nudge, persisting it just gives wallpaper a second home. Dia validates the #7 thesis overall (their Monday Brief is their most-praised feature); their aggregation/extraction model itself stays rejected (external-tool sprawl).
-**Entry point — repurpose ✦ empty-tap into the brief (Jul 2026):** Can reports he almost never uses the ✦ ask path — the manual formulate-a-question entry failed its own Wallpaper Test while the passive AI surfaces (nudge, triage hints, chips, Sunday reflection) carry all the value. Instead of removing it: **empty-tap ✦ → today's brief** (day's nudge line, day shape, poem echo — composed, not conversational); text + ✦ still asks the AI, so Rule 7's route survives underneath. ✦ keeps meaning "AI presence," payoff flips from "type a question" to "here's what I'd tell you right now" — Dia's return-to-the-brief insight on a button we already own. Means #7 needs no new surface: the unused button becomes the door to the digest layer. Same gate: after the #1 verdict (the brief's main ingredient is the nudge line). Notification testing (the original prompt for this) stays out — dev harness, not user value; use a `?test=notif` query param when #4 nears.
+**First brick — shipped v2.33.0 (from Dia browser research; #1 verdict in 2026-07-18):** the day's nudge line lives in About until midnight (`#todayNudgeBlock`, quiet sibling of the Sunday block above the stat tiles) — and the noon cache-delete is gone, so the ✦ brief shows nudge+poem all day too. The #1 verdict cleared the wallpaper concern: Can reads and reflects on the line every morning, so a second home is earned. About is becoming the home of "today's context" — exactly what the digest layer needs. W3 due 2026-08-01. Dia validates the #7 thesis overall (their Monday Brief is their most-praised feature); their aggregation/extraction model itself stays rejected (external-tool sprawl).
+**Entry point — shipped (v2.29.0, iterated v2.31.8):** empty-tap ✦ → today's brief (nudge + poem; shape line removed v2.31.8 as always-redundant, Sunday/Monday layer moved to About v2.30.0). Text + ✦ still asks the AI — Rule 7's route survives underneath. Rationale (kept for the record): Can almost never used the manual ask path; the passive surfaces carry the value, so the unused button became the door to the digest layer (Dia's return-to-the-brief insight). W3 verdict due 2026-07-30. **Afternoon state:** since v2.33.0 the nudge cache survives past noon, so the brief shows nudge+poem all day; the chips fallback now fires only when generation genuinely failed (no key / offline / API error) — a much smaller surface (see Parked discovery). Notification testing stays out — dev harness, not user value; use a `?test=notif` query param when #4 nears.
 
 ### 8 · Revive from PAST → SOON *(shipped v2.27.0 — see Changelog.md / Sync.md)*
 **Remaining:** real-device verify. Future: surface the `revived` counter to nudge/insights ("this one came back twice"). Philosophy guard held: no bulk revive, done items stay put.
@@ -102,14 +101,9 @@
 ### 9 · Meeting mode v2 — mobile + language *(agreed Jul 2026)*
 **Scope boundary first:** phone-call recording is impossible from any app on iOS — the OS never exposes call audio (only Apple's own 18.1+ built-in recorder). Mobile meeting mode = in-room/speakerphone capture through the mic. Don't revisit this; it's an OS wall, not a PWA limitation.
 
-**Mobile build (the v2 sketched in Components.md § Meeting Mode):**
-1. Gate: `_meetingSupported()` currently excludes all touch devices (`!('ontouchstart' in window)`) — replace with a capability check.
-2. MIME: iOS MediaRecorder produces `audio/mp4` (AAC), not webm/opus. Plumbing mostly exists (`_mtg.mime` per-meeting); re-verify the 32 kbps bitrate keeps a 6-min AAC chunk under Netlify's 6MB body limit.
-3. **Suspension is the real design work:** iOS kills the recorder the moment the screen locks or the app backgrounds. Screen Wake Lock API (iOS 16.4+) keeps the screen on, but the contract is *phone on the table, screen on, app foreground for the whole meeting*. The dangerous failure is silent partial capture (user thinks they got an hour, got 10 min) — on resume, detect the dead recorder and say honestly what was captured. UX for this failure state is the bulk of the work.
-
 **Language — shipped v2.27.2:** one prompt line in `netlify/functions/meeting-extract.js` ("phrase each item in the language spoken in the meeting — do not translate to English"). Auto-detect, no setting. Name attribution already worked cross-language. Verify with a real non-English meeting.
 
-**Mobile — shipped v2.28.0:** capability-only gate, 2-min iOS AAC chunks (+ 4.3MB size guard), onstop identity guard, Screen Wake Lock, suspension health-check state machine, honest-note UI on lock. Awaiting real-device verify on iPhone PWA.
+**Mobile — shipped v2.28.0:** capability-only gate, 2-min iOS AAC chunks (+ 4.3MB size guard), onstop identity guard, Screen Wake Lock, suspension health-check state machine, honest-note UI on lock (silent partial capture was the dangerous failure — the contract is *phone on the table, screen on, app foreground*). Awaiting real-device verify on iPhone PWA. Implementation detail → Changelog v2.28.0.
 
 **Gate (unchanged from Components.md):** v1 extraction quality — Wallpaper Test: are the chips what you'd have written down yourself? Mobile multiplies the surface; confirm the extraction earns it first.
 
@@ -125,7 +119,7 @@
 - **Idle companion artwork** — higher-resolution creatures, consistency across the 7. Revisit if they start mattering.
 - **AI system-prompt trimming** — cost is <$0.01/day; only if token cost ever matters. Never cut: task/habit lists with IDs, JSON rules, personality block.
 - **Trello checklist write-back** — build only if editing is actually wanted.
-- **Proactive suggestion chips — discovery** (Jul 2026): Can reports chips feel not very useful in practice. The ✦ fallback (afternoon / no-nudge state) currently falls through to `_aiLoad()` which shows chips. Question: does the fallback have a better default (poem-only? empty panel? nothing)? Gate on Roadmap #1 verdict — if the nudge iteration changes what ✦ surfaces, revisit whether the no-nudge fallback needs chips at all.
+- **Proactive suggestion chips — discovery** (Jul 2026): Can reports chips feel not very useful in practice. Since v2.33.0 the ✦ brief has the nudge all day, so the chips fallback only fires when generation genuinely failed (no key / offline / API error) — the surface shrank from "every afternoon" to "error states only". Remaining question: in that rare state, is poem-only or nothing better than chips? Low urgency now; fold into a quiet session.
 
 ---
 
@@ -142,10 +136,11 @@
 
 | Surface | Shipped | W3 due | Status |
 |---------|---------|--------|--------|
-| Morning nudge AI line | v2.17.73 | verdict pending | Open — 4 weeks collected; three questions in Roadmap #1 detail decide the iteration |
+| Morning nudge AI line | v2.17.73 | verdict 2026-07-18 | ✅ Kept + iterated — read every time; task references now verbatim (v2.32.3). Detail in Roadmap #1 |
 | Week-grid "best day" dot | v2.17.121 | 2026-06-30 | ✅ Kept — dot lands correctly, works well (verified 2026-07-15) |
 | Poem splash coda + clean-slate echo | v2.26.0 | 2026-07-28 | Open — gift or gate? Does the echo add warmth or become invisible after the first week? |
-| Daily brief (✦ → nudge + poem) | v2.32.0 | 2026-07-30 | Open — brief iterated to nudge+poem only (shape line removed v2.31.8). Does the poem add to the moment or feel like filler after the nudge? |
+| Daily brief (✦ → nudge + poem) | v2.29.0 | 2026-07-30 | Open — brief iterated to nudge+poem only (shape line removed v2.31.8). Does the poem add to the moment or feel like filler after the nudge? |
+| Today block in About (nudge second home) | v2.33.0 | 2026-08-01 | Open — do you actually glance at it during the day, or does the morning read cover it? Removal is fine if it's never revisited |
 
 ### Not implementing
 | Feature | Reason |
@@ -155,7 +150,7 @@
 | Quick capture (without opening app) | No good cross-platform path. iOS has no PWA share target; Siri needs a native app. |
 | Microsoft Notes integration | No clear user need. |
 | Momentum integration | No public API; ICS is inbound-only. |
-| Calendar integration (as agenda) | Not as an agenda/time-blocker — that's planner drift. The read-only day-shape signal version is now a conditional candidate in Roadmap #1's iteration paths (Jul 2026) — gated on the #1 verdict. Never a pinging events panel. |
+| Calendar integration (as agenda) | Not as an agenda/time-blocker — that's planner drift. The read-only day-shape signal version was a conditional candidate for Roadmap #1's "eyes slide" path — the #1 verdict (2026-07-18) did not trigger it (nudge is read every time). Revisit only if a future W-check finds the nudge going stale. Never a pinging events panel. |
 | Slack / Gmail / stream extraction | Their native unit is a message stream, not a task — turning streams into tasks needs an AI extraction layer (Dia's whole company). Wrong trust model (TODAY reads nothing you didn't type or put on a board), needs server-side token storage (breaks the client-only posture), and renders other people's demands into the calm list — the exact chasing mechanic this table exists to block. Task-unit integrations (Trello, Todoist #6) remain the open lane. |
 
 ### Rejected approaches

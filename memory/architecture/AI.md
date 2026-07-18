@@ -176,8 +176,8 @@ Falls back to simple carried-over count if no review exists. Auto-clears after n
 
 - **Context sent:** weekday, streak, yesterday's review line, carried-over count, up to 6 pending task names with ages (≥2 days shown).
 - **Insight gate (in prompt):** "If something non-obvious is worth noticing — an aging task, a pattern, a gentle nudge — say that, naming the task naturally. Otherwise state the morning plainly."
-- **Voice:** one sentence, under 18 words, no quotes/exclamations/emoji. Same system-prompt style as the Sunday reflection.
-- **Cache:** `day_nudge_ai_<date>` — one generation per day (unified from `morning_nudge_ai_*` and `trello_nudge_ai_*` in v2.19.0). Stale keys pruned on write; today's key cleared at noon. Also read by the daily brief (✦ empty-tap).
+- **Voice:** one or two sentences, under 30 words, no exclamations/emoji. **Task references are verbatim (v2.32.3):** the instruction requires quoting a task's exact words when pointing at it (Can's #1-verdict finding — paraphrased references forced him to re-scan the list). The old blanket "No quotes" rule (which banned verbatim task text as a side effect) is narrowed to "never wrap your reply in quotation marks."
+- **Cache:** `day_nudge_ai_<date>` — one generation per day (unified from `morning_nudge_ai_*` and `trello_nudge_ai_*` in v2.19.0). Stale keys pruned on write. **Lives until midnight (v2.33.0):** the noon delete is gone — the line persists in About's `#todayNudgeBlock` (quiet sibling of the Sunday block, rendered by `renderInfoStats()`) and feeds the ✦ daily brief all day. The dated key self-expires at day change. The nudge *strip* still hides after noon; only the cached line survives.
 - **Guards:** dismissed-while-fetching → response discarded. No key / offline / API error → silent null, rule-based message stays (mirrors `_fetchWeekReflection`).
 
 ---
