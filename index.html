@@ -1762,6 +1762,9 @@
   }
 
   .add-task-input::placeholder { color: var(--muted); }
+  /* Hover: border lifts to muted — the neutral-control hover convention
+     (.btn-icon, .add-mic-btn, .btn-ghost). Focus keeps the accent (below wins). */
+  .add-task-input:hover { border-color: var(--muted); }
   .add-task-input:focus { border-color: var(--accent); }
   
   /* When AI panel is open, input bar transforms into chat mode */
@@ -3816,9 +3819,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.33.4': 'Polish — the task input gently responds when you hover over it on desktop, matching the other controls.',
   '2.33.3': 'Fix — another pass on the trembling section labels during scroll on iPhone. The layout container was quietly holding them back a frame; it no longer does.',
   '2.33.2': 'Fix — tapping the input bar no longer zooms the page in on iPhone. Text fields are now sized so iOS leaves the layout alone.',
-  '2.33.1': 'Fix — section labels no longer tremble during scroll on mobile, and content no longer peeks through under the status bar after the header scrolls away.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
