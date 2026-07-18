@@ -62,16 +62,11 @@
 
 **Country balance:** China is most-represented (Li Po ×2, Tu Fu, Yang-ti, Po Chü-i, Lu Yün, Wen T'ung, anon 6th c.) — apply tiebreaker against further Chinese picks.
 
-**Parked candidates (verified; re-run through app-moment/corpus-fit before proposing):**
-- Ou-yang Hsiu 'Bell Hill' (Cranmer-Byng trans.) — 4 lines, year-round — passed both tests, held by China tiebreaker only
-- Yeats 'He Wishes for the Cloths of Heaven' — 8 lines, year-round — note: only love poem / direct-address "you", different register from rest of corpus
-- Landor 'Dying Speech of an Old Philosopher' — 4 lines, year-round — needs Gutenberg confirm
-- Moritake (1472–1549) — 'Fall'n flow'r returning to the branch, — / Behold! it is a butterfly.' — spring, Chamberlain 1902 no. 48
-- Hokushi (died 1718) — 'I am burnt out. Nevertheless, / The flow'rs have duly bloom'd and faded.' — spring, Chamberlain 1902 no. 132
+**Curation rule (2026-07-18): a cut is final.** Candidates Can didn't pick are dead — never re-proposed, no parked list. Each round proposes fresh finds only. (Not-picked, for the record so they aren't re-found: Ou-yang Hsiu 'Bell Hill', Yeats 'Cloths of Heaven', Landor 'Dying Speech', Moritake butterfly, Hokushi 'burnt out'.)
 
 **Active leads:**
 - Chamberlain 1902 (archive.org/details/basho-and-the-japanses-poetical-epigram) — productive; identifier confirmed
-- Cranmer-Byng *A Feast of Lanterns* (archive.org `in.ernet.dli.2015.282424`) — Ou-yang Hsiu, Yuan Mei, Liu Tzu-hui available when China tiebreaker lifts
+- Cranmer-Byng *A Feast of Lanterns* (archive.org `in.ernet.dli.2015.282424`) — Yuan Mei, Liu Tzu-hui unproposed, available when China tiebreaker lifts
 - Prose at Marcus Aurelius length (2–5 sentences) works; Muir *First Summer* (d.1914) worth a targeted pass; Garnett-trans. Chekhov nature prose not yet searched
 - Closed: London Snow (too long), Turkish/Sufi (no worldwide-PD English), Poe (anguished), Egyptian/African/Scandinavian (PD-translation bottleneck)
 
