@@ -86,6 +86,27 @@
 
 ---
 
+## BUG-050: Sticky section headers — too low / mid-page snap / mobile jitter / iOS safe area / departure snap
+
+**Status:** ✅ Verified fixed (v2.27.1 → v2.33.8, seven passes; verified on device 2026-07-18)
+
+**Symptom (evolving across passes):** Section headers (Soon, Trello, Your tasks, Past) stick at `top: var(--sec-sticky-top)`. Initially: floated too low / snapped to mid-page once the logo header scrolled off. Then: few-px jitter during mobile scroll. Then: clipped behind the iOS status bar. Then: residual jitter at any scroll speed. Finally: a visible snap-apart between logo header and section headers at the departure moment, worse at fast scroll.
+
+**The seven passes — each one's lesson:**
+1. **v2.27.1** — replaced static `offsetHeight` with `getBoundingClientRect().bottom` tracking. *Fixed mid-page float; introduced jitter.*
+2. **v2.27.3** — rect reads jitter on iOS (compositor scrolls ahead of main thread); switched to analytic `scrollY` math with rAF-coalesced updates. *Reduced but didn't eliminate.*
+3. **v2.31.6** — `top: max(var(--sec-sticky-top), env(safe-area-inset-top))` floors the offset at the iOS safe area. *Fixed status-bar clipping.*
+4. **v2.32.1** — CSS scroll-driven animation of `top`. *Failed: `top` is a layout property — WebKit samples it main-thread, one frame behind, the same lag it claimed to eliminate.*
+5. **v2.33.1** — animation deleted; two-constant snap (`h` pinned ↔ `0` departed) + `#statusBarScrim` covers the safe-area strip. *Constants can't jitter, but jitter persisted anyway.*
+6. **v2.33.3** — the real jitter cause: `.app`'s `overflow-x: clip`. On iOS WebKit ANY overflow clipping on an ancestor demotes sticky descendants to main-thread positioning. Removed; `html { overflow-x: hidden }` keeps horizontal protection (root-level doesn't demote — the smooth body-child logo header was the tell). *Jitter gone; the two-constant snap became visible at fast scroll.*
+7. **v2.33.8** — final: `Math.min(h, Math.max(0, document.body.offsetHeight − window.scrollY))`. During departure this is exactly the logo header's visible bottom by geometry (header is body's first child, body = 100vh); outside it saturates to the constants. Continuous tracking without compositor reads. *Verified: snappiness good.*
+
+**Companion polish (v2.33.9):** `.section-header::after` fade gradient (10px, `--bg` → transparent) — same softening as `.sticky-header::after`, so tasks dissolve under pinned labels instead of clipping at a hard edge.
+
+**Durable lessons:** (a) never feed `getBoundingClientRect()` of a sticky element into layout during iOS scroll; (b) scroll-driven animations only help for compositor properties (transform/opacity), not `top`; (c) any ancestor overflow clipping demotes iOS sticky — Rules.md Rule 1; (d) pure scroll arithmetic is the only lag-free source for a sticky offset.
+
+---
+
 ## BUG-049: New Trello cards look aged on arrival
 
 **Status:** ✅ Verified fixed (v2.18.22)
