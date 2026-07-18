@@ -227,10 +227,13 @@ if (!styleBlocks.length) fail('no <style> blocks found — extraction regex may 
 // (badges, session count, age bucket). This is a heuristic marker check, not
 // real parity verification — WARN, not FAIL, since it can't see intent.
 {
+  // renderTrello() lives in assets/trello.js since v2.33.5 (Roadmap #3 extraction);
+  // taskHTML() stays in index.html — the parity check spans both files.
+  const trelloSrc = await readFile(join(ROOT, 'assets', 'trello.js'), 'utf8');
   const taskHTMLMatch = src.match(/function taskHTML\([\s\S]*?\n\}/);
-  const renderTrelloMatch = src.match(/function renderTrello\([\s\S]*?\n\}/);
+  const renderTrelloMatch = trelloSrc.match(/function renderTrello\([\s\S]*?\n\}/);
   if (!taskHTMLMatch || !renderTrelloMatch) {
-    warn('could not locate taskHTML() and/or renderTrello() for Rule 27 parity check — functions may have been renamed');
+    warn('could not locate taskHTML() (index.html) and/or renderTrello() (assets/trello.js) for Rule 27 parity check — functions may have been renamed or moved');
   } else {
     const markers = ['session-count', 'badge due', 'badge checklist', 'age-bucket'];
     const missing = markers.filter(mk =>
