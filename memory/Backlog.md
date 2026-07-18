@@ -61,7 +61,7 @@
 
 **Taste signal:** spare/clear/affirming in; quaint, ornate, bleak out. Rhyme is fine if the feeling is real — quaintness disqualifies, not rhyme. Melancholy-but-held is IN (Rilke 'Autumn'); calm-pastoral cut — gravity beats gentleness. Compressed Stoic prose works (Farquharson); diary-length doesn't. A poem that passes the brief but feels wrong beside a task list: cut on app-moment test.
 
-**Seasons:** W9 / Sp11 / Su10 / Au10 / year-round 50 — corpus 90 (Seneca added v2.29.1, round 18), target ~95.
+**Seasons:** W11 / Sp11 / Su10 / Au10 / year-round 53 — corpus 95 (round 20: Ransetsu, Seibu — v2.33.7; target reached), new target ~100.
 
 **PD notes:** US-PD-only retired. 11 grandfathered poems pending Can's decision (keep or purge): Frost ×3, WCW, Sandburg, H.D., Waley trans. ×5. Future unlocks: cummings 2033, Frost/WCW worldwide 2034, Eliot 2036.
 
@@ -69,10 +69,11 @@
 
 **Parked candidates (verified; re-run through app-moment/corpus-fit before proposing):**
 - Ou-yang Hsiu 'Bell Hill' (Cranmer-Byng trans.) — 4 lines, year-round — passed both tests, held by China tiebreaker only
-- Hardy 'In Time of The Breaking of Nations' (Wikisource) — 12 lines, year-round — not yet re-tested
-- Dickinson 'To make a prairie' (Wikisource) — 5 lines, year-round — not yet re-tested
+- Hardy 'In Time of The Breaking of Nations' (Wikisource) — 12 lines — **rejected**: over 11-line limit
 - Wordsworth 'My Heart Leaps Up' — 4-line excerpt already in corpus; full version not needed
 - Edward Thomas 'Adlestrop' — 16 lines, over limit, skip
+- Yeats 'He Wishes for the Cloths of Heaven' — 8 lines, year-round — deferred; note: only love poem / direct-address "you", different register from rest of corpus
+- Landor 'Dying Speech of an Old Philosopher' — 4 lines, year-round — deferred; needs Gutenberg confirm
 
 **Active leads:**
 - Chamberlain 1902 (archive.org) — ~100 haiku, productive

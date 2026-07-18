@@ -581,12 +581,46 @@ const POEMS = [
     text: 'We do not receive a short life,\nbut we make it a short one,\nand we are not poor in days,\nbut wasteful of them.',
     author: 'Seneca (trans. Aubrey Stewart)',
     season: null,
-    source: "'On the Shortness of Life' I, trans. Aubrey Stewart (1889), Bohn's Classical Library (Stewart d. 1918) — needs scan verify vs archive.org",
+    source: "'On the Shortness of Life' I.1, trans. Aubrey Stewart (1889), Bohn's Classical Library (Stewart d. 1918) — verified vs archive.org/details/seneca-dialogues-aubrey-stewart",
   },
   {
     text: 'Why do you hesitate,\nwhy do you stand back?\nUnless you seize it, it will have fled;\nand even if you do seize it,\nit will still fly.',
     author: 'Seneca (trans. Aubrey Stewart)',
     season: null,
-    source: "'On the Shortness of Life', trans. Aubrey Stewart (1889), Bohn's Classical Library (Stewart d. 1918) — needs scan verify vs archive.org",
+    source: "'On the Shortness of Life', trans. Aubrey Stewart (1889), Bohn's Classical Library (Stewart d. 1918) — verified vs archive.org/details/seneca-dialogues-aubrey-stewart; 'says he,' (Seneca citing Virgil, narrative aside) omitted editorially",
+  },
+
+  // ── Round 20 (Jul 2026) — Chamberlain 1902 ───────────────────────────────
+  {
+    text: 'Aye! New Year\'s day, with a clear sky,\nAnd conversation among the sparrows!',
+    author: 'Ransetsu',
+    season: 'winter',
+    source: 'Chamberlain 1902, no. 103 (archive.org/details/basho-and-the-japanses-poetical-epigram; Ransetsu d. 1707, Chamberlain d. 1935)',
+  },
+  {
+    text: 'The daylight dawns, and, like a flower,\nOpen the gates of Paradise.',
+    author: 'Seibu',
+    season: null,
+    source: 'Chamberlain 1902, no. 64 — poet\'s death song (archive.org/details/basho-and-the-japanses-poetical-epigram; Seibu d. 1678, Chamberlain d. 1935)',
+  },
+
+  // ── Round 19 (Jul 2026) ────────────────────────────────────────────────────
+  {
+    text: 'To make a prairie it takes a clover and one bee,\nOne clover, and a bee,\nAnd revery.\nThe revery alone will do,\nIf bees are few.',
+    author: 'Emily Dickinson',
+    season: null,
+    source: "'To Make a Prairie', Poems (1896), Wikisource (d. 1886 — PD worldwide)",
+  },
+  {
+    text: 'I stood beside a hill\nSmooth with new-laid snow,\nA single star looked out\nFrom the cold evening glow.\n\nThere was no other creature\nThat saw what I could see—\nI stood and watched the evening star\nAs long as it watched me.',
+    author: 'Sara Teasdale',
+    season: 'winter',
+    source: "'February Twilight', Dark of the Moon (1926) (d. 1933 — PD worldwide) — verified verbatim vs archive.org/details/darkofmoon0000sara",
+  },
+  {
+    text: 'Seek not that the things which happen should happen as you wish;\nbut wish the things which happen to be as they are,\nand you will have a tranquil flow of life.',
+    author: 'Epictetus (trans. George Long)',
+    season: null,
+    source: "Encheiridion §8, trans. George Long (d. 1879), Gutenberg #10661 — verified verbatim",
   },
 ];
