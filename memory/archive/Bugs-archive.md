@@ -6,6 +6,18 @@
 
 ---
 
+## BUG-056: BUG-004 recurrence — blank app after long Mac sleep
+
+**Status:** ✅ Verified fixed (v2.31.9; verified 2026-07-18)
+
+**Symptom:** App renders blank (white) after the Mac wakes from a long sleep; a click restores it. Same symptom family as BUG-004 (fixed v2.17.24 with deferred repaint passes on wake).
+
+**Root cause:** `_onWake()`'s repaint passes topped out at 1500ms, but Mac GPU re-initialization after hours of sleep can take 3–5 seconds. The user's click restored the UI because pointer events get higher paint priority — the deferred passes just missed the window. No other code implicated: `_clearStaleFocusing` and the `fill._pulseAnim` toggle are both correct when no focus session is active.
+
+**Fix (v2.31.9):** Two additional `_forceRepaint` calls at 3000ms and 5000ms in `_onWake()` (passes: 0, 120, 400, 900, 1500, 3000, 5000ms).
+
+---
+
 ## BUG-055: Done tasks from today wiped on second-device first-open
 
 **Status:** ✅ Verified fixed (v2.30.1; verified 2026-07-17)
