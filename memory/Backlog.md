@@ -46,11 +46,11 @@
 
 **Taste signal:** spare/clear/affirming in; quaint, ornate, bleak out. Rhyme is fine if the feeling is real — quaintness disqualifies, not rhyme. Melancholy-but-held is IN (Rilke 'Autumn'); calm-pastoral cut — gravity beats gentleness. Compressed Stoic prose works (Farquharson); diary-length doesn't. A poem that passes the brief but feels wrong beside a task list: cut on app-moment test.
 
-**Seasons:** W11 / Sp11 / Su10 / Au10 / year-round 53 — corpus 95 (round 20: Ransetsu, Seibu — v2.33.7; target reached), new target ~100.
+**Seasons:** W9 / Sp11 / Su10 / Au9 / year-round 50 — corpus 89 (grandfather cherry-pick v2.35.3), target ~100. Winter and autumn now the thin seasons — steer future rounds there.
 
-**PD notes:** US-PD-only retired. 11 grandfathered poems pending Can's decision (keep or purge): Frost ×3, WCW, Sandburg, H.D., Waley trans. ×5. Future unlocks: cummings 2033, Frost/WCW worldwide 2034, Eliot 2036.
+**PD notes:** US-PD-only category **closed** (2026-07-19 cherry-pick, v2.35.3): five kept permanently (Frost ×3, Yang-ti, Po Chü-i 'After Lunch'), six purged. Worldwide PD is the bar for all future poems. Future unlocks: cummings 2033, Frost/WCW worldwide 2034, Eliot 2036.
 
-**Country balance:** China is most-represented (Li Po ×2, Tu Fu, Yang-ti, Po Chü-i, Lu Yün, Wen T'ung, anon 6th c.) — apply tiebreaker against further Chinese picks.
+**Country balance:** China still most-represented (Li Po ×2, Tu Fu, Yang-ti, Po Chü-i, Wen T'ung) but eased by the purge (−3) — tiebreaker softens to a lean, not a wall.
 
 **Curation rule (2026-07-18): a cut is final.** Candidates Can didn't pick are dead — never re-proposed, no parked list. Each round proposes fresh finds only. (Not-picked, for the record so they aren't re-found: Ou-yang Hsiu 'Bell Hill', Yeats 'Cloths of Heaven', Landor 'Dying Speech', Moritake butterfly, Hokushi 'burnt out'.)
 
@@ -93,6 +93,7 @@
 | Item | From | What it is | Unpark when / gate |
 |------|------|------------|--------------------|
 | **Skip-reason on letgo** | Landscape.md (Momentum) | One-tap reason picker on letgo — *not relevant / no energy / lost interest / replaced*. Low friction, high AI-context leverage | Can prioritizes — buildable as-is |
+| **Season moments** | Weather discussion 2026-07-19 | Date-derived nature awareness in nudge/Noticed — first day of a season, solstices, year's shortest day. ~6 appearances/year = Wallpaper escape 1 by construction; same register as the season-tagged poems. Zero new data, no consent question — the honest version of weather awareness | Wordsmithing pass in a quiet session — approved 2026-07-19 |
 | **Nudge: silent-morning gate** | #1 verdict | Mornings with nothing insight-worthy: nudge stays silent, poem is the morning | Gate can tighten now that the poem owns the opening moment |
 | **"How did today feel?" emoji** | Landscape.md (Momentum) | Once daily after triage, optional 5-point | Psychology.md check first — closest of the candidates to mood-tracking |
 | **Weather awareness** | #1 deeper-personality (energy/habit parts shipped v2.35.0) | Weather-aware nudge/suggestions | Needs geolocation + weather API = new Connections data-boundary row. Decide deliberately if ever |

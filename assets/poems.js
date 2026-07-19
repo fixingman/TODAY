@@ -395,20 +395,11 @@ const POEMS = [
   },
 
   // ── US public domain (pub. pre-1931; authors d. post-1956 → still under
-  //    copyright in life+70 countries until the 2030s. Can approved inclusion
-  //    knowing this — app is US-hosted.) ──────────────────────────────────────
-  {
-    text: 'so much depends\nupon\na red wheel\nbarrow\nglazed with rain\nwater\nbeside the white\nchickens',
-    author: 'William Carlos Williams',
-    season: 'spring',
-    source: 'Spring and All, 1923 (d. 1963 — US PD only)',
-  },
-  {
-    text: 'The fog comes\non little cat feet.\nIt sits looking\nover harbor and city\non silent haunches\nand then moves on.',
-    author: 'Carl Sandburg',
-    season: 'autumn',
-    source: "'Fog', Chicago Poems, 1916 (d. 1967 — US PD only)",
-  },
+  //    copyright in life+70 countries until the 2030s. App is US-hosted.
+  //    Cherry-pick decision 2026-07-19: these five kept permanently (Frost ×3,
+  //    Yang-ti, Po Chü-i 'After Lunch'); six purged (WCW, Sandburg, H.D.,
+  //    Lu Yün, 'Winter Night', 'Ease'). Category closed — no new US-PD-only
+  //    additions; worldwide PD is the bar for all future poems. ──────────────
   {
     text: "I'm going out to clean the pasture spring;\nI'll only stop to rake the leaves away\n(And wait to watch the water clear, I may):\nI sha'n't be gone long.—You come too.",
     author: 'Robert Frost',
@@ -432,12 +423,6 @@ const POEMS = [
     author: 'Edna St. Vincent Millay',
     season: null,
     source: "'First Fig', A Few Figs from Thistles, 1920 (d. 1950 — Worldwide PD; verified Wikisource)",
-  },
-  {
-    text: 'Whirl up, sea—\nwhirl your pointed pines,\nsplash your great pines\non our rocks,\nhurl your green over us,\ncover us with your pools of fir.',
-    author: 'H.D.',
-    season: null,
-    source: "'Oread', Sea Garden, 1916 (d. 1961 — US PD only; verified Gutenberg #30276 'Some Imagist Poets', 1915)",
   },
   {
     text: "I'M nobody! Who are you?\nAre you nobody, too?\nThen there's a pair of us—don't tell!\nThey'd banish us, you know.\n\nHow dreary to be somebody!\nHow public, like a frog\nTo tell your name the livelong day\nTo an admiring bog!",
@@ -475,24 +460,6 @@ const POEMS = [
   },
 
   // ── Chinese (trans. Arthur Waley, 1918) ─────────────────────────────────
-  {
-    text: 'Living in retirement beyond the World,\nSilently enjoying isolation,\nI pull the rope of my door tighter\nAnd stuff my window with roots and ferns.\nMy spirit is tuned to the Spring-season:\nAt the fall of the year there is autumn in my heart.\nThus imitating cosmic changes\nMy cottage becomes a Universe.',
-    author: 'Lu Yün (4th c. AD, trans. Arthur Waley)',
-    season: null,
-    source: "'The Valley Wind', A Hundred and Seventy Chinese Poems, trans. Waley (1918), Gutenberg #42290 (Waley d. 1966 — US PD only)",
-  },
-  {
-    text: 'My bed is so empty that I keep on waking up:\nAs the cold increases, the night-wind begins to blow.\nIt rustles the curtains, making a noise like the sea:\nOh that those were waves which could carry me back to you!',
-    author: 'Anonymous Chinese (6th c., trans. Arthur Waley)',
-    season: 'winter',
-    source: "'Winter Night', A Hundred and Seventy Chinese Poems, trans. Waley (1918), Gutenberg #42290 (Waley d. 1966 — US PD only)",
-  },
-  {
-    text: 'Lined coat, warm cap and easy felt slippers,\nIn the little tower, at the low window, sitting over the sunken brazier.\nBody at rest, heart at peace; no need to rise early.\nI wonder if the courtiers at the Western Capital know of these things, or not?',
-    author: 'Po Chü-i (772–846, trans. Arthur Waley)',
-    season: 'winter',
-    source: "'Ease', A Hundred and Seventy Chinese Poems, trans. Waley (1918), Gutenberg #42290 (Waley d. 1966 — US PD only)",
-  },
   {
     text: 'The evening river is level and motionless--\nThe spring colours just open to their full.\nSuddenly a wave carries the moon away\nAnd the tidal water comes with its freight of stars.',
     author: 'Yang-ti (605–617, trans. Arthur Waley)',
