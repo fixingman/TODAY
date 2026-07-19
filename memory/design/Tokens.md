@@ -119,6 +119,8 @@ Self-hosted under `/fonts/`, pre-cached by service worker.
 
 **Note:** Triage summary headline uses Syne at 28px (hardcoded — no token at that scale).
 
+**Poem typography (v2.35.5):** all four poem surfaces (`.splash-poem-text`, `.panel-haiku`, `.brief-poem`, `.empty-poem`) get `text-wrap: pretty` (progressive enhancement) plus the `_poemHTML()` nbsp widow guard — an authored line that wraps never strands a single word. New poem surfaces must use `_poemHTML()`, not raw `split('\n')`.
+
 ---
 
 ## Spacing
@@ -207,6 +209,8 @@ Scale is numeric, 4px base:
 | Value | Element | Reason |
 |---|---|---|
 | `0` | `body::before` noise texture | Below all content |
+| `5` | `#statusBarScrim` (v2.33.1) | Above content (1), below section headers (9) and glass header (10) — covers the iOS safe-area strip |
+| `9` | `.section-header` sticky | One below the glass header it slides under |
 | `50` | Idle companion | Between header and modal |
 | `90` | `#aiPanel` | Below modal (100), above header (10) |
 | `600` | Splash canvas (star burst) | Above splash overlay (500); burst fires on top of the splash |

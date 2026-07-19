@@ -55,12 +55,16 @@ Run ProductThinking's "what already exists?" reflex against this table before ad
 | `suggestionHistory` / `suggestionCooldowns` | `appMemory` | AI remembers what it suggested and what the user did |
 | `today_daily_history` (30-day per-day snapshots) | localStorage | weekly stats, week grid, future WEEK companion |
 | `user_names` | localStorage | meeting attribution — the only *declared* personal data |
+| `task.revived` (v2.27.0, sync-merged) | task objects | strongest importance signal to nudge + proactive AI (v2.35.2) — "the choice was theirs, already made" |
+| `appMemory.noticed` (v2.35.0, device-local) | `appMemory` | show-once bookkeeping for the Noticed block — deliberately not sync-merged |
 
 ---
 
-## Gated candidates (not roadmap items)
+## Resolved candidates (how the gates played out, 2026-07)
 
-- **Calendar busy/free day-shape** — the strongest fresh-input candidate for the nudge (`Backlog.md` §1). Gated on the Roadmap #1 verdict. Read-only, busy/free shape only, never an events panel.
-- **Surfacing learned patterns** ("what TODAY has noticed" — peak hour, themes, best streak). Connections shows what TODAY *sees*; nothing shows what it *has learned*. Honest tension: done well it's a trust/delight surface; done carelessly it reads as surveillance. Gated on the #1 verdict **plus** a Wallpaper Test design — a static "your peak hour is 2pm" line becomes wallpaper in three readings. If built, it lives in About (the reflective surface), never as a nudge.
+Both original gated candidates resolved with the Roadmap #1 verdict (2026-07-18: nudge kept, read every time):
 
-Sequencing rule inherited from `Backlog.md`: everything above waits for the Roadmap #1 verdict. Building more intelligence before the north-star surface itself has a verdict repeats the wallpaper mistake.
+- **Surfacing learned patterns** → **shipped v2.35.0 as the Noticed block** (About). The surveillance tension was answered by design, not softened wording: **delta-gating** — each line appears once when something *changes* (milestone crossed, peak hour moved, theme emerged), then never again; empty means hidden. A fact restated is surveillance; a change noticed once is attention. That principle — *state deltas, never facts* — is the reusable lesson for any future "what TODAY knows" surface. W3 verdict due 2026-08-02.
+- **Calendar busy/free day-shape** — **untriggered.** It was the escape hatch for a stale nudge; the verdict found the nudge isn't stale. Stays in `Backlog.md`'s Not-implementing table as a conditional; revisit only if a future W-check finds the nudge going flat.
+
+Current sequencing gate: the **W3 verdict season** (poem coda Jul 28 · brief Jul 30 · Today block Aug 1 · Noticed Aug 2). Four intelligence surfaces await behavioral verdicts — building a fifth before hearing how these four landed repeats the wallpaper mistake the #1 gate existed to prevent.

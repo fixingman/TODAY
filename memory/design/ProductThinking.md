@@ -40,7 +40,7 @@ User asks for X → "What are you trying to do when you want X?" → Find the re
 **Example (TODAY, Jul 2026):**  
 Request: "Can AI summarize the type of tasks I do? Can we auto-label them?"  
 Real need: "The morning nudge surfaces the oldest task, not the most important one."  
-Answer: Pass session counts, drag order, and revived flag to the AI — not labels. Labels are a philosophy breach; better signals solve the same problem inside the walls.
+Answer: Pass session counts, drag order, and revived flag to the AI — not labels. Labels are a philosophy breach; better signals solve the same problem inside the walls. *(The revived-flag half shipped v2.35.2 — the worked example became real.)*
 
 ---
 

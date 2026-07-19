@@ -104,6 +104,7 @@ Slides up from bottom (same as AI panel). Full-screen backdrop.
 - **Done** (v2.18.0) = completed but never checked off → marks done (counts toward today's total via `_markDoneInTriage`), no celebration. Order: `Keep / ↩ Soon / Let go / Done` (Trello cards drop Soon → `Keep / Let go / Done`). **Done sits last and is neutral as of v2.18.19** — only Keep carries the accent treatment; Soon, Let go, and Done are neutral. (Previously Done led and shared Keep's accent green; moved + neutralised so the row's positive accent points only at "Keep".)
 - The leading `○` checkbox marker was removed (v2.18.1) so the four buttons get the full row width and stay one line on phones; rows are flush to the section edge.
 - Backdrop tap → `triageMinimize()` → returns to callout bar.
+- **Entrances (v2.36.0):** the evening callout bar (8pm–midnight, proactive) *and* an explicit ✦ request ("triage", "move these to soon", "I'll do these later" → `open_triage` action → `triageExpand()`). The hour gate governs when the app invites triage, not when it obliges a request — capability vs. invitation.
 
 ### Triage Summary (v2.14.4)
 
@@ -204,6 +205,17 @@ Single `.morning-nudge` strip (`#dayNudge`) positioned **between the SOON and Tr
 - **Rendered by:** `renderInfoStats()` from `localStorage['day_nudge_ai_<today>']`; hidden when no line exists (no AI key, generation failed, or new day). Escaped via `esc()`.
 - **Live sync:** `mergeRemoteData` re-renders About when the panel is open and a remote nudge line lands (same pattern as the focus-tile live update).
 - **Wallpaper Test:** W1 via freshness (line is AI-generated from fresh context daily — W2 escape 2). W3 due 2026-08-01: does Can actually glance at it during the day? Removal is fine if never revisited.
+
+---
+
+## Noticed Block (About panel, v2.35.0)
+
+`#noticedBlock` — what TODAY has learned, surfaced as **deltas, never facts** (Personalization.md G3, resolved). Four line types from `_noticedLines()` in `insights.js`, max 2 shown: habit milestone crossings (7/14/30/50/100), best-streak proximity, peak hour established/moved, theme of the week.
+
+- **Shell:** `#todayNudgeBlock`'s quiet shell — plain `--border`, muted "Noticed" label. Same register as Today block: reference, not announcement.
+- **Delta-gating is the design:** each line fires once when something *changes* (show-once bookkeeping in `appMemory.noticed`, device-local), then never again. Empty → block hidden. Silence weeks are correct, not broken.
+- **Day cache:** `noticed_lines_<date>` (`_pruneLS`-cleaned) keeps the day's lines visible on re-open so they don't vanish between morning and evening.
+- **Wallpaper Test:** W1 by construction (a line exists only when something changed); W2 escapes 1+2+3. W3 due 2026-08-02: does a line land as "it knows me" or as noise?
 
 ---
 
