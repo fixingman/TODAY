@@ -3841,9 +3841,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.35.2': 'The AI now knows when a task was brought back from the past — a quiet signal of what matters, never a chase.',
   '2.35.1': 'The AI now ties suggestions to your rhythm by name — "you usually peak around 2pm, the report fits there."',
   '2.35.0': 'About — a quiet Noticed line when something changes: a habit milestone, your peak hour settling, a streak closing in on your best, a theme in the week\'s tasks.',
-  '2.34.0': 'First open — the screen starts quieter: no Trello section until you connect one, and a small hello where your first task will go.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -10199,7 +10199,7 @@ function _aiContext() {
   const pendingWithAge = pending.map(t => {
     const created = t.lastActive || _getCreatedFromId(t.id);
     const ageDays = Math.floor((Date.now() - created) / (1000 * 60 * 60 * 24));
-    return { id: t.id, text: t.text, ageDays };
+    return { id: t.id, text: t.text, ageDays, revived: t.revived || 0 };
   });
   
   // Find aging tasks (3+ days old)
@@ -10230,7 +10230,7 @@ function _aiContext() {
     isFirstOpenToday,
     streak,
     tasks: {
-      pending:      pendingWithAge.map(t => ({ id: t.id, text: t.text })),
+      pending:      pendingWithAge.map(t => ({ id: t.id, text: t.text, revived: t.revived })),
       pendingWithAge,
       aging:        agingTasks,
       done:         done.map(t => ({ id: t.id, text: t.text })),
@@ -10324,10 +10324,10 @@ function _aiSystemPrompt(ctx) {
 
   // Build task lists with IDs for action payloads
   const overdueList = overdueTasks.map(t => `"${t.text}" [${t.id}]`).join(', ');
-  const pendingList = regularTasks.map(t => `"${t.text}" [${t.id}]`).join(', ');
+  const pendingList = regularTasks.map(t => `"${t.text}" [${t.id}]${t.revived ? ' (brought back from past)' : ''}`).join(', ');
   const habitList = pendingHabits.map(h => `"${h.name}" [${h.id}]`).join(', ');
   const doneList = ctx.tasks.done.map(t => `"${t.text}"`).join(', ');
-  const agingList = agingTasks.map(t => `"${t.text}" [${t.id}] (${t.ageDays} days)`).join(', ');
+  const agingList = agingTasks.map(t => `"${t.text}" [${t.id}] (${t.ageDays} days)${t.revived ? ' (brought back from past)' : ''}`).join(', ');
   
   // Get memory context and AI name
   const memoryContext = _memoryForAI();
@@ -10408,6 +10408,7 @@ Message guidelines:
 - Find one true thing to notice. Say that. You don't need to solve anything.
 - When inviting focus, NAME the task — "the report has been sitting" → chip: "Start focus". Never vague.
 - If energy context is available, let it shape which task you surface — and tie the suggestion to their rhythm explicitly, hour included ("you usually peak around 2pm — the report fits there"). Their rhythm is observed, not assigned: "usually", never "should".
+- A task marked "brought back from past" was deliberately rescued — that's the strongest importance signal here; prefer it when choosing what to surface. But the choice was theirs, already made — acknowledge it at most once ("you brought this back"), never chase it ("you brought this back, so…"). Observed, not assigned.
 - If they've done a lot today, just acknowledge it — no action needed.
 - Sometimes the right response is an observation with no action. That's fine.
 - Conversational questions ("how are you?", "I'm tired") → respond warmly, dismiss only, no task chips.

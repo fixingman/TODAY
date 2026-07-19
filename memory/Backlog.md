@@ -94,14 +94,13 @@
 |------|------|------------|--------------------|
 | **Skip-reason on letgo** | Landscape.md (Momentum) | One-tap reason picker on letgo — *not relevant / no energy / lost interest / replaced*. Low friction, high AI-context leverage | Can prioritizes — buildable as-is |
 | **Nudge: silent-morning gate** | #1 verdict | Mornings with nothing insight-worthy: nudge stays silent, poem is the morning | Gate can tighten now that the poem owns the opening moment |
-| **Surface `revived` counter** | #8 | Feed revive history to nudge/insights. No bulk revive, done items stay put | A nudge/insights iteration picks it up |
 | **"How did today feel?" emoji** | Landscape.md (Momentum) | Once daily after triage, optional 5-point | Psychology.md check first — closest of the candidates to mood-tracking |
 | **Weather awareness** | #1 deeper-personality (energy/habit parts shipped v2.35.0) | Weather-aware nudge/suggestions | Needs geolocation + weather API = new Connections data-boundary row. Decide deliberately if ever |
 | **Idle companion artwork** | — | Higher-resolution creatures, consistency across the 7 | If they start mattering |
 | **AI system-prompt trimming** | — | Cost <$0.01/day. Never cut: task/habit lists with IDs, JSON rules, personality block | Only if token cost ever matters |
 | **Trello checklist write-back** | — | Write checklist state back to Trello | Only if editing is actually wanted |
 
-*(Learned patterns left this list → shipped v2.35.0; energy-aware suggestions → shipped v2.35.1.)*
+*(Left this list 2026-07-19: learned patterns → v2.35.0, energy-aware suggestions → v2.35.1, revived counter to AI → v2.35.2.)*
 
 ---
 
