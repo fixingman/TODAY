@@ -93,6 +93,11 @@
 - **Nudge: silent-morning gate** (from #1) — on mornings with nothing insight-worthy, stay silent and let the poem be the morning. Gate can be stricter now that the poem owns the opening moment.
 - **Nudge: deeper personality** (from #1) — weather/energy awareness beyond peak hour, richer habit-streak celebrations.
 - **Surface `revived` counter** (from #8) — feed revive history to nudge/insights. No bulk revive, done items stay put.
+- **Candidates from tier-2 mining (2026-07-19, Can to cut):**
+  - *Surfacing learned patterns* ("what TODAY has noticed" — peak hour, themes, best streak; Personalization.md G3). Was gated on the #1 verdict — **now un-gated**. Still needs a Wallpaper design first (a static "your peak hour is 2pm" is wallpaper in three readings). If built, lives in About → natural #7 brick.
+  - *Skip-reason on letgo* (Landscape.md, from Momentum) — one-tap reason picker on letgo (*not relevant / no energy / lost interest / replaced*). Low friction, high AI-context leverage. Landscape claimed "tracked in Backlog" — it wasn't; restored here.
+  - *Energy-aware AI suggestions* (Landscape.md) — tighten the system prompt to tie suggestions to `peakHour` explicitly ("save the report for 2pm"). Prompt-only change, smallest item on this list. Same stale-claim restore.
+  - *"How did today feel?" emoji* (Landscape.md, Momentum's 5-point) — once daily after triage, optional. Philosophy caveat: closest of the four to mood-tracking; needs a Psychology.md check before building.
 - **AI system-prompt trimming** — cost is <$0.01/day; only if token cost ever matters. Never cut: task/habit lists with IDs, JSON rules, personality block.
 - **Trello checklist write-back** — build only if editing is actually wanted.
 - **Proactive suggestion chips — discovery** (Jul 2026): Can reports chips feel not very useful in practice. Since v2.33.0 the ✦ brief has the nudge all day, so the chips fallback only fires when generation genuinely failed (no key / offline / API error) — the surface shrank from "every afternoon" to "error states only". Remaining question: in that rare state, is poem-only or nothing better than chips? Low urgency now; fold into a quiet session.
