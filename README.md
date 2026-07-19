@@ -1,8 +1,8 @@
 # ✦ TODAY
 
-A minimal daily task manager built around one question: *what actually matters today?*
+A daily task app built around one question: *what actually matters today?*
 
-No due dates. No priorities. No ranking system. Just today's list, a focus timer, and a quiet companion that notices your patterns over time.
+Most task apps have the same bug: they remember everything, and opening them feels like being told off. TODAY is a list that ends. One day, one screen. In the evening it asks — once, gently — what didn't happen: keep it, park it, or let it go. Tomorrow starts clean. The empty state is the reward, not the failure.
 
 **[today-here.netlify.app](https://today-here.netlify.app)**
 
@@ -10,42 +10,51 @@ No due dates. No priorities. No ranking system. Just today's list, a focus timer
 
 ## What it does
 
-- Add tasks for today, check them off as you go
-- Drag to reorder tasks, Trello cards, and habits — desktop and mobile
-- **Zones** — SOON for deferred tasks, PAST for completed/let-go tasks
-- **Evening triage** — review undone tasks each night; keep, defer, or let go
-- **Morning nudge** — gentle reminder of tasks that carried over from yesterday
-- Track daily habits with a 21-day history strip and habit strength score
-- AI assistant (optional) — powered by Gemini Flash (free) or Claude Sonnet. Notices patterns, suggests focus, never lectures.
-- Daily poem — a human-written, public-domain poem in the About panel, rotating by day and season
-- Pull in cards from a Trello board so you don't re-enter work tasks
-- Focus mode — click any task to start a 25-minute Pomodoro with a Picture-in-Picture timer
+**The day**
+- Add tasks for today, check them off, drag to reorder — desktop and mobile
+- **Evening triage** — review what didn't happen: keep, move to soon, or let go. Ask ✦ to open it any time ("help me go through what's left")
+- **Zones** — SOON holds deferred tasks, PAST holds the finished and the let-go. Parked tasks quietly age away if you never reach for them; anything you bring back from PAST is treated as important *because you rescued it*
+- **Morning nudge** — one AI line about what carried over, quoting your tasks verbatim. Read it, dismiss it, done
+- **Focus mode** — tap any task for a 25-minute timer with Picture-in-Picture; sessions count toward the task
+- **Habits** — daily checks with a 21-day strip and a strength score. Streaks are acknowledgment, never pressure
+
+**The companion (optional AI — Gemini free tier or Claude)**
+- **✦ ask anything** — type in the task bar and tap ✦: add steps, break a task down, park things, start focus, open triage
+- **✦ daily brief** — tap ✦ empty: this morning's nudge and the day's poem, all day
+- **About digest** — the day's line, a weekly reflection on Sundays, an intention on Mondays, and a "Noticed" block that surfaces what TODAY has learned (peak hour, streak proximity, recurring themes) — only when something changes, never as filler
+- **Meeting mode** — record an in-room meeting (desktop or iPhone), get action items extracted in the meeting's own language, with your items pre-selected
+- The AI observes, it never coaches: "usually", never "should"
+
+**The frame**
+- **Daily poem** — human-written, worldwide public domain, rotating by day and season (90+ poems, Bashō to Dickinson); greets you on the day's first open
+- Pull in cards from a Trello board (read-only) so work tasks aren't re-typed
 - Idle companions — small creatures that wander the screen when you step away
-- Sync across devices via your own Dropbox — no account, no server
-- Installs as a desktop or mobile app (PWA) — no App Store needed
-- Works offline after the first load
+- Sync across devices via **your own Dropbox** — no account, no server-side data
+- Installs as a desktop or mobile app (PWA), works offline after first load
 
 ---
 
 ## What it deliberately doesn't do
 
 - No due dates — urgency lives in your head, not the app
-- No priorities or ranking — a flat list forces honest reckoning
+- No priorities, projects, or labels — a flat list forces honest reckoning
+- No history to audit — PAST fades out on its own schedule
 - No notifications by default — you come to it, it doesn't chase you
-- No gamification — streaks are acknowledgment, not pressure
+- No gamification — no points, no guilt mechanics
 - No cloud account — your data stays in your browser and your Dropbox
 
 ---
 
 ## Stack
 
-Single HTML file. No framework, no build step, no bundler.
+No framework, no build step, no bundler. Vanilla JS + CSS.
 
-- Vanilla JS + CSS
-- Service worker for offline support and background updates
-- `manifest.json` for PWA installation
-- Two Netlify Functions for Dropbox OAuth token exchange
+- `index.html` — the app (~13K lines), plus small classic-script modules in `/assets/`: `util`, `poems`, `idle`, `sound`, `celebration`, `trello`, `insights`
+- `sw.js` — service worker: offline support, background updates
+- `manifest.json` — PWA installation
+- Five Netlify Functions: Dropbox OAuth (`dropbox-token`, `dropbox-refresh`), AI proxy (`ai-assist`), meeting extraction (`meeting-extract`), voice transcription (`transcribe`)
 - Fonts self-hosted (Syne + DM Mono)
+- `scripts/` — headless smoke test and design lint, run as a pre-commit gate
 
 ---
 
@@ -91,27 +100,25 @@ DROPBOX_CLIENT_SECRET = your app secret
 
 Redeploy after adding the env vars.
 
-When you open the app, go to **✦ Connections** in the top bar and enter your App key to connect Dropbox.
+When you open the app, go to **✧ Connections** in the top bar and enter your App key to connect Dropbox.
 
 ### 3. Connect Trello (optional)
 
 Trello pulls in cards from a board and list of your choice. Read-only.
 
 1. Get your Trello API key at [trello.com/power-ups/admin](https://trello.com/power-ups/admin)
-2. Open `index.html` and replace the `TRELLO_API_KEY` constant near the top of the `<script>` block with your own key
-3. In the app, open **✦ Connections** in the top bar and follow the Trello connect flow
+2. Open `index.html` and replace the `TRELLO_API_KEY` constant with your own key
+3. In the app, open **✧ Connections** and follow the Trello connect flow
 
-### 4. Enable AI Assistant (optional)
-
-The AI assistant notices patterns in your day and suggests what to focus on next. Powered by Gemini Flash (free) or Claude Sonnet.
+### 4. Enable the AI companion (optional)
 
 1. Get an API key:
-   - **Gemini (free):** [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+   - **Gemini (free tier):** [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
    - **Claude:** [console.anthropic.com/keys](https://console.anthropic.com/keys) (paid)
-2. In the app, open **✦ Connections** → AI Assistant
+2. In the app, open **✧ Connections** → AI Assistant
 3. Select your provider, paste your key, and click Connect
 
-Your key is stored locally in your browser and sent only through your own Netlify function (`/.netlify/functions/ai-assist`) — never to any third party.
+Your key is stored locally in your browser and sent only through your own Netlify function — never to any third party. Meeting mode and voice notes need a Gemini key (audio transcription).
 
 ---
 
@@ -119,7 +126,7 @@ Your key is stored locally in your browser and sent only through your own Netlif
 
 Each device stores state in `localStorage`. Dropbox holds a single JSON backup file (`/today-backup.json`). On startup and every 7 seconds the app does a cheap metadata check — a full sync only happens if the file actually changed.
 
-Concurrent edits are handled with union merge: tasks and habits added on two devices offline both survive. Deletes and check/uncheck operations carry timestamps so the most recent intent wins. Backup schema version `5.2`.
+Concurrent edits are handled with union merge: tasks and habits added on two devices offline both survive. Deletes, check/uncheck operations, and zone moves carry timestamps so the most recent intent wins; purged tasks leave tombstones so stale devices can't resurrect them. Backup schema version `5.3`.
 
 ---
 
@@ -127,14 +134,13 @@ Concurrent edits are handled with union merge: tasks and habits added on two dev
 
 No build step. Open `index.html` in a browser — or better, deploy a preview branch to Netlify since absolute paths (`/fonts/`, `/.netlify/functions/`) don't resolve from `file:///`.
 
-Fonts are in `/fonts/`. Icons and social images are in `/assets/`. The service worker is `sw.js`. Netlify functions are in `/netlify/functions/`.
-
 Documentation lives in `/memory/`. Start with `Rules.md` — it has a file guide for what to read based on your task.
 
 When making changes:
-- Bump `APP_VERSION` and `DEV_HOURS` in `index.html`
-- Update `sw.js` cache version to match `APP_VERSION`
-- Add a row to `memory/Changelog.md` and to the `CHANGELOG` object in `index.html`
+- Add the new version as the **top entry of the `CHANGELOG` object** in `index.html` — `APP_VERSION` is derived from it, never edited directly
+- Update the `CACHE_VERSION` in `sw.js` to match (the one hand-synced value; the smoke test fails on drift)
+- Mirror the entry into `memory/Changelog.md`
+- Run `node scripts/smoke-test.mjs` and `node scripts/design-lint.mjs` (both also run pre-commit)
 
 ---
 
