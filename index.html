@@ -2880,6 +2880,10 @@
     line-height: 1.7;
   }
   #dailyPoem { margin-bottom: 0; }
+  /* Poem typography — avoid orphan words when an authored line wraps on narrow
+     screens. Progressive enhancement (Safari 26+/Chrome 117+); the _poemHTML
+     nbsp widow guard covers every engine deterministically. */
+  .splash-poem-text, .panel-haiku, .brief-poem, .empty-poem { text-wrap: pretty; }
   .poem-author {
     margin-top: var(--space-2);
     font-size: var(--text-micro);
@@ -3841,9 +3845,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.35.5': 'Poems wrap more gracefully on small screens — no more lone words stranded on their own line.',
   '2.35.4': 'Three poems — two spare haiku, one Dickinson — added for winter and autumn mornings.',
   '2.35.3': 'Poems — the corpus tightened by six: a careful re-reading let go of pieces that never quite sat right beside the day.',
-  '2.35.2': 'The AI now knows when a task was brought back from the past — a quiet signal of what matters, never a chase.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5442,11 +5446,24 @@ function _poemOfTheDay() {
   return pool[days % pool.length];
 }
 
+// Poem text → HTML with a widow guard: the last two words of each authored line
+// are tied with a non-breaking space, so when a line wraps on a narrow screen it
+// never strands a single orphan word. The author's line breaks stay untouched —
+// this only governs how a too-long line is allowed to break. text-wrap: pretty
+// (CSS, where supported) smooths the remaining raggedness.
+function _poemHTML(text) {
+  return text.split('\n').map(line => {
+    const e = esc(line);
+    const i = e.lastIndexOf(' ');
+    return i > 0 ? e.slice(0, i) + '\u00A0' + e.slice(i + 1) : e;
+  }).join('<br>');
+}
+
 function renderDailyPoem() {
   const el = document.getElementById('dailyPoem');
   const poem = _poemOfTheDay();
   if (!el || !poem) return; // corpus missing — static haiku in the markup stays
-  el.innerHTML = poem.text.split('\n').map(esc).join('<br>')
+  el.innerHTML = _poemHTML(poem.text)
     + `<div class="poem-author">${esc(poem.author)}</div>`;
 }
 
@@ -5742,8 +5759,7 @@ function _showDailyBrief() {
   const parts = [];
   if (nudge) parts.push('<div class="brief-nudge">' + esc(nudge) + '</div>');
   if (poem) {
-    const pLines = poem.text.split('\n').map(esc).join('<br>');
-    parts.push('<div class="brief-poem">' + pLines + '<div class="brief-poem-author">' + esc(poem.author) + '</div></div>');
+    parts.push('<div class="brief-poem">' + _poemHTML(poem.text) + '<div class="brief-poem-author">' + esc(poem.author) + '</div></div>');
   }
 
   if (parts.length === 0 || !nudge) {
@@ -6776,7 +6792,7 @@ function addManual() {
 function _poemEchoHTML() {
   const poem = (typeof _poemOfTheDay === 'function') ? _poemOfTheDay() : null;
   if (!poem) return null;
-  return '<div class="empty-poem">' + poem.text.split('\n').map(esc).join('<br>') + '</div>'
+  return '<div class="empty-poem">' + _poemHTML(poem.text) + '</div>'
     + '<div class="poem-author">' + esc(poem.author) + '</div>';
 }
 
@@ -9185,7 +9201,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     const _codaPoem = _poemOfTheDay();
     const _codaEl   = document.getElementById('splash-poem');
     if (_codaPoem && _codaEl) {
-      _codaEl.querySelector('.splash-poem-text').innerHTML = _codaPoem.text.split('\n').map(esc).join('<br>');
+      _codaEl.querySelector('.splash-poem-text').innerHTML = _poemHTML(_codaPoem.text);
       _codaEl.querySelector('.poem-author').textContent    = _codaPoem.author;
     }
   }
