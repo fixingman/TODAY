@@ -48,7 +48,7 @@
 
 **Seasons:** W9 / Sp11 / Su10 / Au9 / year-round 50 — corpus 89 (grandfather cherry-pick v2.35.3), target ~100. Winter and autumn now the thin seasons — steer future rounds there.
 
-**PD notes:** US-PD-only category **closed** (2026-07-19 cherry-pick, v2.35.3): five kept permanently (Frost ×3, Yang-ti, Po Chü-i 'After Lunch'), six purged. Worldwide PD is the bar for all future poems. Future unlocks: cummings 2033, Frost/WCW worldwide 2034, Eliot 2036.
+**PD notes:** US-PD-only category **closed** (2026-07-19 cherry-pick, v2.35.3): five kept permanently (Frost ×3, Yang-ti, Po Chü-i 'After Lunch'), six purged. Worldwide PD is the bar for all future poems. Future unlocks: Milne 2027 (d. Jan 1956 — misses the cutoff by a month; taste caveat: his verse is the canonical "cutesy" the brief excludes — only a very quiet hum could survive corpus-fit), cummings 2033, Frost/WCW worldwide 2034, Eliot 2036.
 
 **Country balance:** China still most-represented (Li Po ×2, Tu Fu, Yang-ti, Po Chü-i, Wen T'ung) but eased by the purge (−3) — tiebreaker softens to a lean, not a wall.
 
