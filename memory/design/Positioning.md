@@ -1,33 +1,38 @@
 # Positioning
 
-> **How TODAY is described to someone who doesn't use it yet.** Distilled from the pitch exercise 2026-07-20 (full text in that session; this doc keeps the reusable kernel). Philosophy.md governs the voice *inside* the app; this governs how we talk *about* it — README intro, changelog lines, any future landing page.
+> **How TODAY is described to someone who doesn't use it yet.** Distilled from the pitch exercise 2026-07-20. Philosophy.md governs the voice *inside* the app; this governs how we talk *about* it — README intro, changelog lines, any future landing page.
+>
+> **The register:** warm and certain, never loud. TODAY doesn't convert people — it describes itself honestly and lets the right person recognize it. If a sentence would sound at home in an ad, rewrite it until it sounds like a friend explaining why they kept something.
 
 ## The wedge
 
-**Task apps make you feel worse.** They remember everything and forgive nothing — the list grows, badges pile up, opening them feels like being told off. The wedge is not "better task management"; it is **task management that doesn't accumulate guilt**. Sell the emotional mechanics (relief, forgiveness, calm); use features only as evidence.
+**Task apps make people feel worse, and everyone already knows it.** They remember everything and forgive nothing — the list grows, the badges accuse, opening them feels like being told off. We never argue "better task management." We name that feeling, plainly, and offer the alternative: **a task app that doesn't keep score against you.**
 
-**The one line most products can't say:** *the empty state is the reward, not the failure.* It inverts the category's core failure and is true by construction (triage ritual, poem echo on a cleared list). Lead with it.
+Sell relief, forgiveness, calm. Features exist to make those believable — never the other way around.
+
+**The one line no one else can say:** *the empty state is the reward, not the failure.* True by construction (evening triage, the poem waiting on a cleared list). Lead with it.
 
 **The identity sentence:** *TODAY is a list that ends.*
 
-## The four beats (ceiling: four — past that it's a brochure)
+## The four beats (four is the ceiling — a fifth must evict one)
 
-1. **It has taste about time.** No due dates / priorities / projects / history to audit. Parked things age away — the app forgets on your behalf. Rescued things are important *because you rescued them*.
-2. **It becomes yours.** Not generic: learns your rhythm (peak hour, themes, streaks), surfaces it only on change, "usually" never "should", never shames. Day-seven app ≠ day-one app — the anti-demo: most apps peak in the demo and go stale; TODAY starts quiet and deepens.
-3. **It's simple, not plain.** One screen, no settings maze — but the poem, the idle creatures, the quiet completion moment. Delight lives in details *because* the surface is calm. (Delight described at length stops sounding delightful — keep this beat shortest.)
-4. **Your data never touches our servers.** Your device, your Dropbox, your AI key. No account. "Nothing for us to leak."
+1. **It has taste about time.** No due dates, no priorities, no projects, no history to audit. What you park quietly fades if you never reach for it — the app forgets on your behalf, the way a good assistant would. What you bring back, it treats as important for the only reason that matters: you came back for it.
+2. **It becomes yours.** It learns your actual rhythm — the 2pm peak, the word that keeps showing up, the streak you're close to — and mentions these things the way a considerate friend would: rarely, warmly, only when something changed. "Usually," never "should." The app you have on day seven isn't the app you installed — most apps peak in the demo; this one starts quiet and grows into you.
+3. **It's simple, not plain.** One screen, nothing to configure — and then a real poem on the day's first open, small creatures wandering while you're away, a quiet moment when everything's done. The calm surface is what lets the small things land. *(Keep this beat shortest — delight explained at length stops being delightful.)*
+4. **Your data stays yours.** Your device, your Dropbox, your AI key. No account, no server, nothing for anyone to leak. Said once, factually — privacy pitched hard sounds like a company with something to prove.
 
-## Boundaries stated proudly, not apologetically
+## Boundaries, said with a smile
 
-- Not for teams, not for Gantt charts — "for one person who wants to do what matters today and then be left alone."
-- Honest positioning builds more trust than broad positioning.
+Not for teams, not for timelines — *"for one person who wants to do what matters today and then be left alone."* Saying who it's not for is how the right person knows it's for them. Never apologize for the walls; they're the product.
 
 ## The proof moment
 
-Every pitch ends by naming a *felt* moment, not a feature: *"the evening you tap 'let it go' on a task that's been haunting you for a month — and nothing bad happens. That feeling is the product."* When writing new copy, ask: what's the moment this feature makes someone feel? If there isn't one, it doesn't belong in the pitch.
+Every pitch ends on something *felt*, not something listed: *"the evening you tap 'let it go' on a task that's been haunting you for a month — and nothing bad happens. That feeling is the product."*
+
+Test for any new copy: what moment does this make someone feel? No moment, no place in the pitch.
 
 ## Placement rules (from the revision round)
 
-- **No-shame** belongs in the core pitch, not the detail — it's the wedge itself.
-- **Learns-you** and **grows-over-time** are one promise from two angles — never split them into separate beats.
-- Adding a fifth beat requires removing one.
+- **No-shame** lives in the core pitch, not the details — it *is* the wedge.
+- **Learns-you** and **grows-over-time** are one promise seen from two angles — never split into separate beats.
+- Distinctness comes from specifics (Bashō, the 2pm peak, the creatures) — never from superlatives. "First," "best," and "revolutionary" are banned; a named detail persuades more than any of them.
