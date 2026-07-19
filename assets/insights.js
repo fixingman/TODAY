@@ -431,3 +431,88 @@ function _pickObservationToMention(observations) {
   
   return null;
 }
+
+// ─── Noticed — surfacing learned patterns (v2.35.0, Personalization.md G3) ────
+// Lines for the About "Noticed" block. Delta-gated, never fact-stated: each
+// line appears ONCE when something changes (milestone crossed, peak moved,
+// theme emerged), then never again — appearing at all carries the information
+// (Wallpaper escape 1); content derives from fresh data (escape 2); nothing
+// new → empty array → the block doesn't render (escape 3). Show-once
+// bookkeeping lives in appMemory.noticed (device-local is acceptable: the
+// merge path doesn't sync it, worst case a line shows once per device).
+function _noticedLines() {
+  if (!appMemory.noticed) appMemory.noticed = {};
+  const n = appMemory.noticed;
+  const lines = [];
+  let dirty = false;
+  const todayISO = _localISO();
+  const _hr12 = h => (h > 12 ? h - 12 : h) + (h >= 12 ? 'pm' : 'am');
+
+  // 1 · Habit streak milestone — once per habit per milestone
+  if (typeof habitsList !== 'undefined' && typeof habitCompletions !== 'undefined') {
+    if (!n.habitMilestones) n.habitMilestones = {};
+    const yesterdayISO = _localISO(new Date(Date.now() - 864e5));
+    for (const h of habitsList) {
+      if (h.archived) continue;
+      const done = new Set(habitCompletions[h.id] || []);
+      // Run of consecutive days ending today or yesterday
+      let run = 0;
+      let d = done.has(todayISO) ? todayISO : (done.has(yesterdayISO) ? yesterdayISO : null);
+      while (d && done.has(d)) { run++; d = _localISO(new Date(new Date(d + 'T12:00').getTime() - 864e5)); }
+      const crossed = [100, 50, 30, 14, 7].find(m => run >= m);
+      if (crossed && (n.habitMilestones[h.id] || 0) < crossed) {
+        n.habitMilestones[h.id] = crossed;
+        dirty = true;
+        lines.push(h.name + ' — ' + crossed + ' days now.');
+      }
+    }
+  }
+
+  // 2 · Best-streak proximity — once per day, only when close (1–2 away, 5+)
+  const streak = parseInt(localStorage.getItem('stat_streak') || '1');
+  const best = appMemory.patterns.bestStreak || 0;
+  if (streak >= 5 && best - streak >= 1 && best - streak <= 2 && n.streakProxDate !== todayISO) {
+    n.streakProxDate = todayISO;
+    dirty = true;
+    lines.push('Day ' + streak + '. Your best is ' + best + '.');
+  }
+
+  // 3 · Peak hour established or moved — only at first solid signal or a shift
+  const peak = appMemory.preferences.peakHour;
+  const signal = Object.values(appMemory.patterns.completionsByHour || {}).reduce((a, b) => a + b, 0);
+  if (peak !== null && signal >= 30 && n.peakShown !== peak) {
+    const first = n.peakShown === undefined;
+    n.peakShown = peak;
+    dirty = true;
+    lines.push(first
+      ? 'Most things get done around ' + _hr12(peak) + '.'
+      : 'Your peak moved — around ' + _hr12(peak) + ' lately.');
+  }
+
+  // 4 · Theme of the week — a word recurring in this week's completions, once/week
+  const recent = appMemory.recentCompletedTasks || [];
+  if (recent.length >= 3) {
+    const weekAgo = new Date(Date.now() - 7 * 864e5);
+    const stop = new Set(['the','and','for','this','that','with','from','have','will','your',
+      'been','they','what','when','then','than','just','into','over','also','some','such',
+      'each','only','more','most','much','very','about','task','call','send','make']);
+    const freq = {};
+    for (const { text, date } of recent) {
+      if (new Date(date) < weekAgo) continue;
+      for (const w of (text || '').toLowerCase().split(/\s+/)) {
+        if (w.length > 3 && !stop.has(w)) freq[w] = (freq[w] || 0) + 1;
+      }
+    }
+    const top = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
+    const weekKey = todayISO.slice(0, 8) + Math.ceil(new Date().getDate() / 7);
+    if (top && top[1] >= 3 && n.themeWord !== top[0] && n.themeWeek !== weekKey) {
+      n.themeWord = top[0];
+      n.themeWeek = weekKey;
+      dirty = true;
+      lines.push('“' + top[0] + '” keeps coming up this week.');
+    }
+  }
+
+  if (dirty) _saveMemory();
+  return lines.slice(0, 2);
+}

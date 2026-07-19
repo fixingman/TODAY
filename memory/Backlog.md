@@ -68,7 +68,7 @@
 
 ### 7 · About — Contextual Digest Layer
 **Concept:** Periodic, context-aware content in About based on day/week. No push, no server — pure local data.
-**Candidate moments:** Sunday weekly recap · Monday intention prompt · Daily contextual hint (insight-gated) · Milestone surfaces (streak/focus) · **Learned patterns** ("what TODAY has noticed" — peak hour, themes, best streak; Personalization.md G3, un-gated by the #1 verdict; needs a Wallpaper-proof design — a static line is wallpaper in three readings)
+**Candidate moments:** Sunday weekly recap · Monday intention prompt · Daily contextual hint (insight-gated) · ~~Learned patterns~~ → **shipped v2.35.0 as the Noticed block** (delta-gated lines: habit milestones, streak proximity, peak hour shifts, weekly themes; W3 due 2026-08-02)
 **Open question (from chips discovery, Jul 2026):** the ✦ brief's chips fallback now fires only on genuine failure (no key / offline / API error) — in that rare state, is poem-only or nothing better than chips? Fold into the first #7 brick after the W3 verdicts.
 **Key relationships:** nudge (#1) is task-list one-liner, morning only; digest is About panel, richer, time-of-week aware. Push (#4) would carry the same content externally — build in-app first. Poem (#2) is static per-day; digest is dynamic per-context.
 **Shipped so far:** ✦ brief (v2.29.0) and Today block in About (v2.33.0) — nudge+poem available all day. Implementation history → `Changelog.md`. About is becoming the home of "today's context" — exactly what the digest layer needs; Dia's Monday Brief validates the thesis (their aggregation/extraction model stays rejected — external-tool sprawl).
@@ -92,7 +92,7 @@
 
 - **Idle companion artwork** — higher-resolution creatures, consistency across the 7. Revisit if they start mattering.
 - **Nudge: silent-morning gate** (from #1) — on mornings with nothing insight-worthy, stay silent and let the poem be the morning. Gate can be stricter now that the poem owns the opening moment.
-- **Nudge: deeper personality** (from #1) — weather/energy awareness beyond peak hour, richer habit-streak celebrations.
+- **Weather awareness** (from #1's deeper-personality idea; energy/habit parts shipped in v2.35.0 Noticed) — needs geolocation + a weather API: a new Connections data-boundary row, not a quiet addition. Decide deliberately if ever.
 - **Surface `revived` counter** (from #8) — feed revive history to nudge/insights. No bulk revive, done items stay put.
 - **Candidates from tier-2 mining (2026-07-19, Can to cut):** *(learned patterns promoted to #7 candidate moments)*
   - *Skip-reason on letgo* (Landscape.md, from Momentum) — one-tap reason picker on letgo (*not relevant / no energy / lost interest / replaced*). Low friction, high AI-context leverage. Landscape claimed "tracked in Backlog" — it wasn't; restored here.
@@ -121,6 +121,7 @@
 | Poem splash coda + clean-slate echo | v2.26.0 | 2026-07-28 | Open — gift or gate? Does the echo add warmth or become invisible after the first week? |
 | Daily brief (✦ → nudge + poem) | v2.29.0 | 2026-07-30 | Open — brief iterated to nudge+poem only (shape line removed v2.31.8). Does the poem add to the moment or feel like filler after the nudge? |
 | Today block in About (nudge second home) | v2.33.0 | 2026-08-01 | Open — do you actually glance at it during the day, or does the morning read cover it? Removal is fine if it's never revisited |
+| Noticed block in About (learned patterns) | v2.35.0 | 2026-08-02 | Open — when a line appears, does it land as "it knows me" or as noise? Delta-gating means rare appearances; silence weeks are correct, not broken |
 
 ### Not implementing
 | Feature | Reason |
