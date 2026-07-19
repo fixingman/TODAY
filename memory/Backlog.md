@@ -15,7 +15,7 @@
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 2 | **Poem corpus growth** | Ongoing | Corpus 95, target ~100. A cut is final — detail ↓ |
+| 2 | **Poem corpus growth** | Ongoing | Corpus 92, target ~100. A cut is final — detail ↓ |
 | 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration/trello/insights.js (insights v2.33.10, ~415 lines — first module that owns its state and runs at eval; must load after util.js). **Next:** `sync.js` (~510, Non-Delegation) — needs a risk discussion before touching. **Ceiling:** coupled core (`_onWake`, focus IIFE, render/actions/habits + `$`) stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 6 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
@@ -46,13 +46,13 @@
 
 **Taste signal:** spare/clear/affirming in; quaint, ornate, bleak out. Rhyme is fine if the feeling is real — quaintness disqualifies, not rhyme. Melancholy-but-held is IN (Rilke 'Autumn'); calm-pastoral cut — gravity beats gentleness. Compressed Stoic prose works (Farquharson); diary-length doesn't. A poem that passes the brief but feels wrong beside a task list: cut on app-moment test.
 
-**Seasons:** W9 / Sp11 / Su10 / Au9 / year-round 50 — corpus 89 (grandfather cherry-pick v2.35.3), target ~100. Winter and autumn now the thin seasons — steer future rounds there.
+**Seasons:** W10 / Sp11 / Su10 / Au11 / year-round 50 — corpus 92 (cherry-pick v2.35.3, round 21 v2.35.4), target ~100. Winter and autumn closing the gap — continue steering there.
 
 **PD notes:** US-PD-only category **closed** (2026-07-19 cherry-pick, v2.35.3): five kept permanently (Frost ×3, Yang-ti, Po Chü-i 'After Lunch'), six purged. Worldwide PD is the bar for all future poems. Future unlocks: Milne 2027 (d. Jan 1956 — misses the cutoff by a month; taste caveat: his verse is the canonical "cutesy" the brief excludes — only a very quiet hum could survive corpus-fit), cummings 2033, Frost/WCW worldwide 2034, Eliot 2036.
 
 **Country balance:** China still most-represented (Li Po ×2, Tu Fu, Yang-ti, Po Chü-i, Wen T'ung) but eased by the purge (−3) — tiebreaker softens to a lean, not a wall.
 
-**Curation rule (2026-07-18): a cut is final.** Candidates Can didn't pick are dead — never re-proposed, no parked list. Each round proposes fresh finds only. (Not-picked, for the record so they aren't re-found: Ou-yang Hsiu 'Bell Hill', Yeats 'Cloths of Heaven', Landor 'Dying Speech', Moritake butterfly, Hokushi 'burnt out'.)
+**Curation rule (2026-07-18): a cut is final.** Candidates Can didn't pick are dead — never re-proposed, no parked list. Each round proposes fresh finds only. (Not-picked, for the record so they aren't re-found: Ou-yang Hsiu 'Bell Hill', Yeats 'Cloths of Heaven', Landor 'Dying Speech', Moritake butterfly, Hokushi 'burnt out', Dickinson 'The Snow' (20 lines — exceeds limit).)
 
 **Active leads:**
 - Chamberlain 1902 (archive.org/details/basho-and-the-japanses-poetical-epigram) — productive; identifier confirmed

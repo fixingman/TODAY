@@ -571,6 +571,26 @@ const POEMS = [
     source: 'Chamberlain 1902, no. 64 — poet\'s death song (archive.org/details/basho-and-the-japanses-poetical-epigram; Seibu d. 1678, Chamberlain d. 1935)',
   },
 
+  // ── Round 21 (Jul 2026) — Chamberlain 1902 + Dickinson ───────────────────
+  {
+    text: 'The end of autumn, and some rooks\nAre perched upon a withered branch.',
+    author: 'Bashō',
+    season: 'autumn',
+    source: 'Chamberlain 1902, no. 37 (archive.org basho-and-the-japanses-poetical-epigram; Bashō d. 1694, Chamberlain d. 1935)',
+  },
+  {
+    text: 'A single river, stretching far\nAcross the moorland swathed in snow.',
+    author: 'Bonchō',
+    season: 'winter',
+    source: "Chamberlain 1902, no. 1 (archive.org basho-and-the-japanses-poetical-epigram; Bonchō d. 1714, Chamberlain d. 1935 — '[swathed]' is Chamberlain's supplied word)",
+  },
+  {
+    text: "The morns are meeker than they were,\nThe nuts are getting brown;\nThe berry's cheek is plumper,\nThe rose is out of town.\n\nThe maple wears a gayer scarf,\nThe field a scarlet gown.\nLest I should be old-fashioned,\nI'll put a trinket on.",
+    author: 'Emily Dickinson',
+    season: 'autumn',
+    source: "'Autumn', Poems (1890), Wikisource (d. 1886 — PD worldwide)",
+  },
+
   // ── Round 19 (Jul 2026) ────────────────────────────────────────────────────
   {
     text: 'To make a prairie it takes a clover and one bee,\nOne clover, and a bee,\nAnd revery.\nThe revery alone will do,\nIf bees are few.',
