@@ -7,7 +7,7 @@
 
 ## ◎ North star (agreed Jun 2026)
 
-**Own the first 30 seconds of the day.** The morning is becoming TODAY's signature beat — nudge, poem, briefing. Roadmap items 1 and 2 serve it directly; everything else supports or follows. How intelligence and personalization serve this → `design/Personalization.md`.
+**Own the first 30 seconds of the day.** The morning is TODAY's signature beat — nudge (verdict 2026-07-18: kept, read every time), poem (#2), briefing (#7); everything else supports or follows. How intelligence and personalization serve this → `design/Personalization.md`.
 
 ---
 
@@ -15,34 +15,24 @@
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 1 | **Morning nudge — iterate** | ✅ Verdict in (2026-07-18): kept + one iteration | Read every time (W1 passes) · never wrong but task references were paraphrased → v2.32.3 makes it quote task text verbatim · reflection (not action) is the delivered value. Detail ↓ |
-| 2 | **Poem corpus growth** | Ongoing | Splash coda + echo shipped v2.26.0. Corpus growth continues — detail ↓ |
-| 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration/trello/insights.js (insights v2.33.10, ~415 lines — first module that owns its state and runs at eval; must load after util.js). **Next:** `sync.js` (~510, Non-Delegation). **Ceiling:** coupled core (`_onWake`, focus IIFE, render/actions/habits + `$`) stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
+| 2 | **Poem corpus growth** | Ongoing | Corpus 95, target ~100. A cut is final — detail ↓ |
+| 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration/trello/insights.js (insights v2.33.10, ~415 lines — first module that owns its state and runs at eval; must load after util.js). **Next:** `sync.js` (~510, Non-Delegation) — needs a risk discussion before touching. **Ceiling:** coupled core (`_onWake`, focus IIFE, render/actions/habits + `$`) stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
-| 5 | **First-run experience** | ✅ Shipped v2.34.0 | Blank slate ≠ clean slate: unconnected Trello section hidden (discovery lives in ✧), poem echo replaced by a one-time pointer line until the first completion. Hard to verify on a used device — watch for reports instead. |
 | 6 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
-| 7 | **About — contextual digest layer** | Brief v2.29.0 · first brick v2.33.0 | Empty ✦ → daily brief (nudge + poem, all day since v2.33.0). Nudge line persists in About until midnight (v2.33.0). W3: brief 2026-07-30, Today block 2026-08-01. Detail ↓ |
-| 8 | **Revive from PAST → SOON** | ✅ Shipped v2.27.0, verified 2026-07-18 | Hover `↩︎ soon` on aged/let-go PAST rows — same ID, `revived` counter, timestamp-aware merge guard. |
-| 9 | **Meeting mode v2 — mobile + language** | Language ✅ verified 2026-07-18; mobile shipped v2.28.0 | In-room meetings on iOS PWA (phone calls impossible — iOS never exposes call audio, even to native apps). Mobile awaiting real-device verify. Detail ↓ |
+| 7 | **About — contextual digest layer** | In progress | Brief (v2.29.0) + Today block (v2.33.0) shipped; next bricks gated on W3 verdicts: brief 2026-07-30, Today block 2026-08-01. Detail ↓ |
+| 9 | **Meeting mode v2** | Mobile awaiting device verify | Language ✅ done. In-room meetings on iOS PWA — detail ↓ |
+
+*Shipped & closed (2026-07-18): #1 morning nudge (verdict: kept, verbatim quotes v2.32.3), #5 first-run (v2.34.0), #8 PAST revive (v2.27.0). History in `Changelog.md`; numbers stay retired.*
 
 **Awaiting device verification:** canonical list lives in `Rules.md` → Watch for.
 
-**Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months data + #1 learnings + #3 done). Detail ↓
+**Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months data + #3 done; #1's learnings landed with the 2026-07-18 verdict). Detail ↓
 
 **Parked:** idle companion artwork · AI prompt trimming · Trello checklist write-back. Detail ↓
 
 ---
 
 ## Details
-
-### 1 · Morning Nudge
-**Verdict (2026-07-18): kept, one iteration shipped (v2.32.3).** W1 passes — read every time. Reflection is the value, not action. Calendar day-shape and action-chip paths untriggered. Verbatim task quoting fixed. Full verdict detail → `Changelog.md` v2.32.3.
-
-**Watch:** W3 verbatim-quote check ongoing — does "call the bank" inline feel like pointing, not a template?
-
-**Parked idea:** on mornings with nothing insight-worthy, the nudge could stay silent and let the poem be the morning — gate can be stricter now that the poem covers "the opening moment."
-
-**Later:** deeper personality (weather/energy awareness beyond peak hour, richer habit-streak celebrations).
 
 ### 2 · Daily Poem Corpus Growth
 **Process:** curation rounds in chat — Claude proposes verified candidates, Can cuts by number. Accepted poems land in `assets/poems.js`.
@@ -80,18 +70,13 @@
 **Concept:** Periodic, context-aware content in About based on day/week. No push, no server — pure local data.
 **Candidate moments:** Sunday weekly recap · Monday intention prompt · Daily contextual hint (insight-gated) · Milestone surfaces (streak/focus)
 **Key relationships:** nudge (#1) is task-list one-liner, morning only; digest is About panel, richer, time-of-week aware. Push (#4) would carry the same content externally — build in-app first. Poem (#2) is static per-day; digest is dynamic per-context.
-**First brick — shipped v2.33.0 (from Dia browser research; #1 verdict in 2026-07-18):** the day's nudge line lives in About until midnight (`#todayNudgeBlock`, quiet sibling of the Sunday block above the stat tiles) — and the noon cache-delete is gone, so the ✦ brief shows nudge+poem all day too. The #1 verdict cleared the wallpaper concern: Can reads and reflects on the line every morning, so a second home is earned. About is becoming the home of "today's context" — exactly what the digest layer needs. W3 due 2026-08-01. Dia validates the #7 thesis overall (their Monday Brief is their most-praised feature); their aggregation/extraction model itself stays rejected (external-tool sprawl).
-**Entry point — shipped (v2.29.0, iterated v2.31.8):** empty-tap ✦ → today's brief (nudge + poem; shape line removed v2.31.8 as always-redundant, Sunday/Monday layer moved to About v2.30.0). Text + ✦ still asks the AI — Rule 7's route survives underneath. Rationale (kept for the record): Can almost never used the manual ask path; the passive surfaces carry the value, so the unused button became the door to the digest layer (Dia's return-to-the-brief insight). W3 verdict due 2026-07-30. **Afternoon state:** since v2.33.0 the nudge cache survives past noon, so the brief shows nudge+poem all day; the chips fallback now fires only when generation genuinely failed (no key / offline / API error) — a much smaller surface (see Parked discovery). Notification testing stays out — dev harness, not user value; use a `?test=notif` query param when #4 nears.
+**Shipped so far:** ✦ brief (v2.29.0) and Today block in About (v2.33.0) — nudge+poem available all day. Implementation history → `Changelog.md`. About is becoming the home of "today's context" — exactly what the digest layer needs; Dia's Monday Brief validates the thesis (their aggregation/extraction model stays rejected — external-tool sprawl).
+**Next bricks gated on the two W3 verdicts** (brief 2026-07-30, Today block 2026-08-01): if both earn their place, the candidate moments above are the menu. Notification testing stays out — dev harness, not user value; use a `?test=notif` query param when #4 nears.
 
-### 8 · Revive from PAST → SOON *(shipped v2.27.0, ✅ verified 2026-07-18)*
-Future: surface `revived` counter to nudge/insights. No bulk revive, done items stay put.
+### 9 · Meeting mode v2 — mobile
+**Scope boundary (permanent):** phone-call recording is impossible from any app on iOS — the OS never exposes call audio (only Apple's own 18.1+ built-in recorder). Mobile meeting mode = in-room/speakerphone capture through the mic. Don't revisit this; it's an OS wall, not a PWA limitation.
 
-### 9 · Meeting mode v2 — mobile + language *(agreed Jul 2026)*
-**Scope boundary first:** phone-call recording is impossible from any app on iOS — the OS never exposes call audio (only Apple's own 18.1+ built-in recorder). Mobile meeting mode = in-room/speakerphone capture through the mic. Don't revisit this; it's an OS wall, not a PWA limitation.
-
-**Language — shipped v2.27.2, ✅ verified with a real non-English meeting 2026-07-18:** one prompt line in `netlify/functions/meeting-extract.js` ("phrase each item in the language spoken in the meeting — do not translate to English"). Auto-detect, no setting. Name attribution already worked cross-language.
-
-**Mobile — shipped v2.28.0:** capability-only gate, 2-min iOS AAC chunks (+ 4.3MB size guard), onstop identity guard, Screen Wake Lock, suspension health-check state machine, honest-note UI on lock (silent partial capture was the dangerous failure — the contract is *phone on the table, screen on, app foreground*). Awaiting real-device verify on iPhone PWA. Implementation detail → Changelog v2.28.0.
+**Open:** mobile (v2.28.0) awaiting real-device verify — a real in-room meeting on iPhone PWA (contract: phone on the table, screen on, app foreground). Implementation → `Changelog.md` v2.28.0.
 
 **Gate (unchanged from Components.md):** v1 extraction quality — Wallpaper Test: are the chips what you'd have written down yourself? Mobile multiplies the surface; confirm the extraction earns it first.
 
@@ -105,6 +90,9 @@ Future: surface `revived` counter to nudge/insights. No bulk revive, done items 
 ## Parked / Someday
 
 - **Idle companion artwork** — higher-resolution creatures, consistency across the 7. Revisit if they start mattering.
+- **Nudge: silent-morning gate** (from #1) — on mornings with nothing insight-worthy, stay silent and let the poem be the morning. Gate can be stricter now that the poem owns the opening moment.
+- **Nudge: deeper personality** (from #1) — weather/energy awareness beyond peak hour, richer habit-streak celebrations.
+- **Surface `revived` counter** (from #8) — feed revive history to nudge/insights. No bulk revive, done items stay put.
 - **AI system-prompt trimming** — cost is <$0.01/day; only if token cost ever matters. Never cut: task/habit lists with IDs, JSON rules, personality block.
 - **Trello checklist write-back** — build only if editing is actually wanted.
 - **Proactive suggestion chips — discovery** (Jul 2026): Can reports chips feel not very useful in practice. Since v2.33.0 the ✦ brief has the nudge all day, so the chips fallback only fires when generation genuinely failed (no key / offline / API error) — the surface shrank from "every afternoon" to "error states only". Remaining question: in that rare state, is poem-only or nothing better than chips? Low urgency now; fold into a quiet session.
@@ -124,7 +112,7 @@ Future: surface `revived` counter to nudge/insights. No bulk revive, done items 
 
 | Surface | Shipped | W3 due | Status |
 |---------|---------|--------|--------|
-| Morning nudge AI line | v2.17.73 | verdict 2026-07-18 | ✅ Kept + iterated — read every time; task references now verbatim (v2.32.3). Detail in Roadmap #1 |
+| Morning nudge AI line | v2.17.73 | verdict 2026-07-18 | ✅ Kept + iterated — read every time; task references now verbatim (v2.32.3). Detail → `Changelog.md` v2.32.3 |
 | Week-grid "best day" dot | v2.17.121 | 2026-06-30 | ✅ Kept — dot lands correctly, works well (verified 2026-07-15) |
 | Poem splash coda + clean-slate echo | v2.26.0 | 2026-07-28 | Open — gift or gate? Does the echo add warmth or become invisible after the first week? |
 | Daily brief (✦ → nudge + poem) | v2.29.0 | 2026-07-30 | Open — brief iterated to nudge+poem only (shape line removed v2.31.8). Does the poem add to the moment or feel like filler after the nudge? |
