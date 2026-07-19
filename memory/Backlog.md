@@ -19,7 +19,7 @@
 | 2 | **Poem corpus growth** | Ongoing | Splash coda + echo shipped v2.26.0. Corpus growth continues — detail ↓ |
 | 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration/trello/insights.js (insights v2.33.10, ~415 lines — first module that owns its state and runs at eval; must load after util.js). **Next:** `sync.js` (~510, Non-Delegation). **Ceiling:** coupled core (`_onWake`, focus IIFE, render/actions/habits + `$`) stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
-| 5 | **First-run experience** | Narrowed (Jul 2026) | Empty morning + everything-done covered by the v2.26.0 poem echo. Remaining scope: brand-new-user first open only. Fold into a quiet week. |
+| 5 | **First-run experience** | ✅ Shipped v2.34.0 | Blank slate ≠ clean slate: unconnected Trello section hidden (discovery lives in ✧), poem echo replaced by a one-time pointer line until the first completion. Hard to verify on a used device — watch for reports instead. |
 | 6 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 | 7 | **About — contextual digest layer** | Brief v2.29.0 · first brick v2.33.0 | Empty ✦ → daily brief (nudge + poem, all day since v2.33.0). Nudge line persists in About until midnight (v2.33.0). W3: brief 2026-07-30, Today block 2026-08-01. Detail ↓ |
 | 8 | **Revive from PAST → SOON** | ✅ Shipped v2.27.0, verified 2026-07-18 | Hover `↩︎ soon` on aged/let-go PAST rows — same ID, `revived` counter, timestamp-aware merge guard. |

@@ -177,6 +177,8 @@ async function loadTrello(fromSync) {
   // If trelloTasks already populated from cache, treat like a sync load.
   const hasCachedTasks = trelloTasks.length > 0;
   if (!fromSync && !hasCachedTasks) {
+    // Section is hidden while empty (v2.34.0) — reveal it for the loading state
+    document.getElementById('trelloSection').style.display = '';
     emptyEl.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span> Getting your cards…';
     emptyEl.querySelectorAll('.loading-dots span').forEach((s, i) => _breathe(s, _KF_BLINK, 1200, [0, 180, 400][i]));
     emptyEl.style.display = 'block';
@@ -360,27 +362,12 @@ function renderTrello() {
   document.getElementById('trelloCount').textContent = trelloTasks.length;
 
   if (trelloTasks.length === 0) {
-    // If connected but no tasks, hide entire section
-    if (trelloConnected) {
-      section.style.display = 'none';
-      return;
-    }
-    // Not connected — show section with "not connected" message
-    section.style.display = '';
-    // Fade out any remaining tasks before clearing
-    const existing = list.querySelectorAll('.task');
-    if (existing.length > 0) {
-      existing.forEach(el => el.classList.add('removing'));
-      setTimeout(() => {
-        list.innerHTML = '';
-        empty.textContent = 'Trello\'s not connected yet';
-        empty.style.display = 'block';
-      }, 200);
-    } else {
-      list.innerHTML = '';
-      empty.textContent = 'Trello\'s not connected yet';
-      empty.style.display = 'block';
-    }
+    // No tasks — hide the entire section, connected or not (v2.34.0 first-run:
+    // a third-party brand shouldn't be the first thing on a fresh screen;
+    // Trello discovery lives in the ✧ Connections panel).
+    section.style.display = 'none';
+    list.innerHTML = '';
+    empty.style.display = 'none';
     return;
   }
 
