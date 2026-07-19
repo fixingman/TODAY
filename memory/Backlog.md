@@ -96,7 +96,6 @@
 - **Surface `revived` counter** (from #8) — feed revive history to nudge/insights. No bulk revive, done items stay put.
 - **Candidates from tier-2 mining (2026-07-19, Can to cut):** *(learned patterns promoted to #7 candidate moments)*
   - *Skip-reason on letgo* (Landscape.md, from Momentum) — one-tap reason picker on letgo (*not relevant / no energy / lost interest / replaced*). Low friction, high AI-context leverage. Landscape claimed "tracked in Backlog" — it wasn't; restored here.
-  - *Energy-aware AI suggestions* (Landscape.md) — tighten the system prompt to tie suggestions to `peakHour` explicitly ("save the report for 2pm"). Prompt-only change, smallest item on this list. Same stale-claim restore.
   - *"How did today feel?" emoji* (Landscape.md, Momentum's 5-point) — once daily after triage, optional. Philosophy caveat: closest of the four to mood-tracking; needs a Psychology.md check before building.
 - **AI system-prompt trimming** — cost is <$0.01/day; only if token cost ever matters. Never cut: task/habit lists with IDs, JSON rules, personality block.
 - **Trello checklist write-back** — build only if editing is actually wanted.

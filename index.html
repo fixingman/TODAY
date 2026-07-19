@@ -3841,9 +3841,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.35.1': 'The AI now ties suggestions to your rhythm by name — "you usually peak around 2pm, the report fits there."',
   '2.35.0': 'About — a quiet Noticed line when something changes: a habit milestone, your peak hour settling, a streak closing in on your best, a theme in the week\'s tasks.',
   '2.34.0': 'First open — the screen starts quieter: no Trello section until you connect one, and a small hello where your first task will go.',
-  '2.33.10': 'Maintenance — internal reorganization of the memory code. Nothing changes in how the app works.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -10345,9 +10345,9 @@ function _aiSystemPrompt(ctx) {
   
   let energyContext = '';
   if (isPeakTime) {
-    energyContext = `RIGHT NOW is their peak productivity time (around ${peakHour > 12 ? peakHour - 12 : peakHour}${peakHour >= 12 ? 'pm' : 'am'}). Good moment for demanding tasks.`;
+    energyContext = `RIGHT NOW is their peak productivity time (around ${peakHour > 12 ? peakHour - 12 : peakHour}${peakHour >= 12 ? 'pm' : 'am'}). Good moment for demanding tasks — when surfacing one, name the hour ("this is usually your hour").`;
   } else if (isPrePeak) {
-    energyContext = `They usually peak around ${peakHour > 12 ? peakHour - 12 : peakHour}${peakHour >= 12 ? 'pm' : 'am'} — still warming up. Light tasks are fine.`;
+    energyContext = `They usually peak around ${peakHour > 12 ? peakHour - 12 : peakHour}${peakHour >= 12 ? 'pm' : 'am'} — still warming up. Light tasks fit now; if a demanding task is waiting, it's natural to point it at that hour ("the report might sit better around ${peakHour > 12 ? peakHour - 12 : peakHour}${peakHour >= 12 ? 'pm' : 'am'}").`;
   } else if (isPostPeak) {
     energyContext = `Past their usual peak (${peakHour > 12 ? peakHour - 12 : peakHour}${peakHour >= 12 ? 'pm' : 'am'}). Winding down — admin or easy tasks fit this energy.`;
   } else if (ctx.timeOfDay === 'morning') {
@@ -10407,7 +10407,7 @@ Reply ONLY with raw JSON (no markdown, no code fences):
 Message guidelines:
 - Find one true thing to notice. Say that. You don't need to solve anything.
 - When inviting focus, NAME the task — "the report has been sitting" → chip: "Start focus". Never vague.
-- If energy context is available, let it shape which task you surface. Name it, tie it to this moment.
+- If energy context is available, let it shape which task you surface — and tie the suggestion to their rhythm explicitly, hour included ("you usually peak around 2pm — the report fits there"). Their rhythm is observed, not assigned: "usually", never "should".
 - If they've done a lot today, just acknowledge it — no action needed.
 - Sometimes the right response is an observation with no action. That's fine.
 - Conversational questions ("how are you?", "I'm tired") → respond warmly, dismiss only, no task chips.
