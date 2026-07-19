@@ -40,6 +40,7 @@
 | Design philosophy/voice | `design/Philosophy.md` |
 | Product thinking / feature evaluation | `design/ProductThinking.md` |
 | Personalization / intelligence strategy | `design/Personalization.md` |
+| Outward-facing copy / pitch / README voice | `design/Positioning.md` |
 | Data/localStorage | `architecture/Data.md` |
 | Sync/backup | `architecture/Sync.md` |
 | Connections panel / auth flows | `architecture/Connections.md` |
