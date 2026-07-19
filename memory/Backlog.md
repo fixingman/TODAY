@@ -112,9 +112,12 @@
 |----------|---------|-----------|
 | Modularization | Single file (~12K lines) + `assets/poems.js` | Roadmap #3 is the plan; smoke test guards the boot path. Revisit harder if growth continues. |
 | Sync conflict rate | Merge-anomaly counter live (Connections → Dropbox) | If count climbs above zero in normal use, revisit conflict handling before WEEK consumes the data. |
+| Dated AI-cache sync | 2 instances hand-plumbed (nudge v2.27.0b, weekly block v2.36.1/BUG-057) | **Rule of three:** the next AI-generated daily text must trigger a registry (à la `_DISMISS_SYNC`) instead of a third hand-plumbing — same payload + remote-wins-merge pattern each time. |
+| open_triage second use | Shipped v2.36.0 from Can's own request | Does he reach for it again unprompted? A capability used only on request day is a shelf feature — if unused by ~mid-Aug, ask why (forgot it exists / evening bar covers it) before adding discoverability. |
 
 ### Wallpaper Test — W3 follow-ups (day-14 behavioral check)
 > Resolve each row — **kept** (delivering), **iterated**, or **removed**.
+> **Pre-registration (2026-07-20):** in the week before each verdict, note a one-word observation each time the surface is used or skipped — verdicts from evidence, not recall. The criteria in each row were written before looking; judge against those, not against how the surface feels on verdict day.
 
 | Surface | Shipped | W3 due | Status |
 |---------|---------|--------|--------|

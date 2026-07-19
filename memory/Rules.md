@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.33.10 on dev (master at v2.33.9). Next candidates: first-run experience (#5, quiet-week item), poem round 21 (corpus 95 of ~100, fresh finds only — a cut is final), sync.js extraction (#3 last module — needs risk discussion first, Non-Delegation ceiling). #7 next bricks gated on W3 verdicts (Jul 30 / Aug 1).
-- **Recent (2026-07-18, big day):** Fix v2.33.8 + polish v2.33.9 — BUG-050 closed after seven passes (continuous scroll-math tracking + section-header fade gradient), archived. Refactor v2.33.10 — insights.js extracted (sixth module; owns appMemory, runs at eval, loads after util.js). Poems v2.33.6–7 — rounds 19–20, corpus 90→95, target reached, new target ~100. Refactor v2.33.5 — trello.js extracted. Six device verifies: BUG-050, trello.js, meeting language, PAST revive (#8 closed), safe-area CTAs, insights on dev. Script error closed as install one-off; partial-focus un-aging kept.
+- **Working on:** v2.36.1 on dev (master at v2.35.4). W3 verdict season next (Jul 28–Aug 2, four surfaces — pre-registration note in Backlog Watching). Next build candidates: season moments (approved, wordsmithing-only), poem rounds toward ~100 (corpus 92), sync.js extraction (#3 last module — needs risk discussion first).
+- **Recent (2026-07-20):** Poems v2.35.4 (round 21: Bashō rooks, Bonchō snow river, Dickinson 'Autumn' — 89→92) + v2.35.5 (orphan-word guard: `_poemHTML()` nbsp tie + `text-wrap: pretty` on all four surfaces). Feature v2.36.0 — `open_triage` AI action (intent family, explicit-ask-only, no hour gate: capability vs. invitation). Fix v2.36.1 — BUG-057 About weekly block synced (day_nudge_ai pattern), awaiting device verify. Docs: README rewritten, Positioning.md created (pitch kernel + register rules), design-doc drift pass (Personalization gates resolved, Noticed documented, z-index literals, poem typography). Parked: silent-morning gate reframed as sparse-context AI gate (first-run face, W3-season decision).
 - **Module extraction (Roadmap #3):** Done: `util.js`, `idle.js`, `sound.js`, `celebration.js`, `trello.js` (v2.33.5), `insights.js` (v2.33.10 — owns `appMemory`, runs at eval, must load after util.js). Next: `sync.js` (~510, Non-Delegation). Coupled core stays inline.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
   - v2.33.10 insights.js — verified on dev 2026-07-18; **re-confirm on master after next master push** (About stats, peak hour, streak — appMemory surviving the module move)
@@ -14,7 +14,10 @@
   - v2.28.0 meeting mode mobile — real in-room meeting on iPhone PWA (phone on table, screen on)
   - v2.32.0 meeting auto-select — are the pre-selected items actually yours, over the next few real meetings?
   - v2.32.3 nudge verbatim task quotes — do morning nudges keep reading like they point at your list, not a template?
-  - v2.33.0 Today block in About — renders ✅ confirmed 2026-07-19; W3 behavioral verdict still due 2026-08-01 (glanced at during the day, or does the morning read cover it?) (also W3s: poem coda 2026-07-28, daily brief 2026-07-30 — table in Backlog.md)
+  - v2.33.0 Today block in About — renders ✅ confirmed 2026-07-19; W3 behavioral verdict still due 2026-08-01 (glanced at during the day, or does the morning read cover it?) (also W3s: poem coda 2026-07-28, daily brief 2026-07-30, Noticed 2026-08-02 — table in Backlog.md)
+  - v2.36.1 BUG-057 weekly-block sync — on a Sunday or Monday, About's This week / New week line should read identically on both devices after ~10s of sync
+  - v2.36.0 open_triage — ask ✦ "help me go through what's left" (any phrasing, any hour) → chip → sorting overlay opens; single named task should route to move_soon instead
+  - v2.35.5 poem orphan guard — longest-line poems (Rilke 'Autumn', Irish 'My tidings') on iPhone: no single word alone on a wrapped line
   - **Closed 2026-07-18:** "Script error at :0:0" never recurred after fresh-install day → install one-off, no BUG-057 (057 stays the next free slot) · Partial-focus un-aging (BUG-043 design) — rule feels right in practice, kept
 
 ---
