@@ -14,7 +14,7 @@
   - v2.28.0 meeting mode mobile — real in-room meeting on iPhone PWA (phone on table, screen on)
   - v2.32.0 meeting auto-select — are the pre-selected items actually yours, over the next few real meetings?
   - v2.32.3 nudge verbatim task quotes — do morning nudges keep reading like they point at your list, not a template?
-  - v2.33.0 Today block in About — W3 due 2026-08-01 (also W3s: poem coda 2026-07-28, daily brief 2026-07-30 — table in Backlog.md)
+  - v2.33.0 Today block in About — renders ✅ confirmed 2026-07-19; W3 behavioral verdict still due 2026-08-01 (glanced at during the day, or does the morning read cover it?) (also W3s: poem coda 2026-07-28, daily brief 2026-07-30 — table in Backlog.md)
   - **Closed 2026-07-18:** "Script error at :0:0" never recurred after fresh-install day → install one-off, no BUG-057 (057 stays the next free slot) · Partial-focus un-aging (BUG-043 design) — rule feels right in practice, kept
 
 ---
