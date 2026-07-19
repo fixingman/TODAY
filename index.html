@@ -3845,9 +3845,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.36.1': 'The weekly reflection in About now reads the same on every device — one thought per week, shared.',
   '2.36.0': 'Ask ✦ to sort your day — "help me go through what\'s left" or "move these to soon" now opens the review, whenever you ask.',
   '2.35.5': 'Poems wrap more gracefully on small screens — no more lone words stranded on their own line.',
-  '2.35.4': 'Three poems — two spare haiku, one Dickinson — added for winter and autumn mornings.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -8013,6 +8013,10 @@ async function dropboxBackup(silent) {
     // Fill-if-empty on merge: first device to compute wins for the day.
     day_review:   safeJSON('today_day_review', null),
     day_nudge_ai: localStorage.getItem('day_nudge_ai_' + _localISO()) || '',
+    // Sunday reflection / Monday intention in About — same cross-device story as
+    // day_nudge_ai (BUG-057): without sync each device generates its own AI text
+    week_reflection:  localStorage.getItem('week_reflection_'  + _localISO()) || '',
+    monday_intention: localStorage.getItem('monday_intention_' + _localISO()) || '',
     // Daily history — per-day snapshots the week grid reads for past days (v5.3, BUG-036).
     // Union-merged by date on restore so the week view matches across devices.
     daily_history:        safeJSON('today_daily_history', []),
@@ -8600,6 +8604,19 @@ function mergeRemoteData(data) {
     // About's Today block shows this line — refresh live if the panel is open
     if ($.infoPanel && $.infoPanel.classList.contains('open')) renderInfoStats();
   }
+  // Sunday reflection / Monday intention: remote always wins, same reasoning as
+  // day_nudge_ai — one device's generated text becomes the day's text everywhere
+  // (BUG-057: About's This week / New week block differed between devices).
+  let _weekBlockSynced = false;
+  if (data.week_reflection && data.week_reflection !== localStorage.getItem('week_reflection_' + _todayISO)) {
+    localStorage.setItem('week_reflection_' + _todayISO, data.week_reflection);
+    _weekBlockSynced = true;
+  }
+  if (data.monday_intention && data.monday_intention !== localStorage.getItem('monday_intention_' + _todayISO)) {
+    localStorage.setItem('monday_intention_' + _todayISO, data.monday_intention);
+    _weekBlockSynced = true;
+  }
+  if (_weekBlockSynced && $.infoPanel && $.infoPanel.classList.contains('open')) renderInfoStats();
 
   // Full re-render if tasks were added or removed — surgical patch is not enough
   if (_changed) {
