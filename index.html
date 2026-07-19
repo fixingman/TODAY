@@ -3845,9 +3845,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.36.0': 'Ask ✦ to sort your day — "help me go through what\'s left" or "move these to soon" now opens the review, whenever you ask.',
   '2.35.5': 'Poems wrap more gracefully on small screens — no more lone words stranded on their own line.',
   '2.35.4': 'Three poems — two spare haiku, one Dickinson — added for winter and autumn mornings.',
-  '2.35.3': 'Poems — the corpus tightened by six: a careful re-reading let go of pieces that never quite sat right beside the day.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -10436,6 +10436,7 @@ Available actions (use only what genuinely fits — fewer is better):
   check_habit  { "id": "exact-id" }      — remind to mark a habit done
   add_task     { "text": "task text" }   — add something (empty state only)
   move_soon    { "id": "exact-id" }      — park a task to Soon. ONLY when they explicitly ask to park/move/defer it — never suggest it yourself. Works for manual tasks only (ids starting "manual_"), not trello cards.
+  open_triage  {}                        — open the sorting flow where they decide each remaining task (done / keep / soon / let go). Use when they ask to go through, sort, park, or defer what's left as a whole — "triage", "review my tasks", "move things to soon", "I'll do these later". If they name ONE specific task, use move_soon instead. ONLY on their explicit ask — never suggest sorting yourself.
   reflect      {}                        — use rarely, only when you have a specific pattern observation worth sharing
   dismiss      {}                        — close
 
@@ -10614,6 +10615,20 @@ function _aiExecute(action) {
       updateStats();
       dropboxAutoSave();
       closeAI();
+      return;
+    }
+    case 'open_triage': {
+      // User asked to sort what's left ("triage", "move these to soon", "do
+      // the rest later"). User-initiated, so no evening gate — the 8pm window
+      // governs when the app *invites* triage, not when it obliges a request.
+      const { manual: _tm, trello: _tt } = _undoneTasks();
+      if (_tm.length + _tt.length === 0) {
+        _aiSetMsg('Nothing waiting — the list is already clear.');
+        _aiSetChips([{ label: 'Close', type: 'dismiss' }]);
+        return;
+      }
+      closeAI();
+      setTimeout(triageExpand, 150);
       return;
     }
     case 'reflect': {
