@@ -3845,6 +3845,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.36.4': 'Monday\'s "New week" note now only looks at what\'s waiting — not at tasks you\'ve already finished.',
   '2.36.3': 'The "Noticed" section in About now shows the same observation on every device.',
   '2.36.2': 'The "Noticed" theme now looks at what your tasks say, not how you file them — tags no longer count as themes.',
   '2.36.1': 'The weekly reflection in About now reads the same on every device — one thought per week, shared.',
@@ -5721,12 +5722,8 @@ async function _fetchMondayIntention() {
   try {
     const key = _aiGetKey ? _aiGetKey() : null;
     if (!key || !navigator.onLine) return null;
-    const recentNames = (appMemory.recentCompletedTasks || []).slice(-15).map(e => e.text).filter(Boolean);
     const waiting = manualTasks.slice(0, 5).map((t, i) => (i + 1) + '. "' + t.text + '"');
-    let ctx = '';
-    if (recentNames.length > 0) ctx += 'Last week\'s work: ' + recentNames.join(', ') + '. ';
-    if (waiting.length > 0) ctx += 'Waiting this week: ' + waiting.join(', ') + '.';
-    if (!ctx) ctx = 'Fresh week.';
+    const ctx = waiting.length > 0 ? 'Waiting this week: ' + waiting.join(', ') + '.' : 'Fresh week, nothing waiting yet.';
     const res = await fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
