@@ -3845,6 +3845,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.36.5': 'Cards you worked on no longer go back to looking old after a refresh — focus is remembered across sync.',
   '2.36.4': 'Monday\'s "New week" note now only looks at what\'s waiting — not at tasks you\'ve already finished.',
   '2.36.3': 'The "Noticed" section in About now shows the same observation on every device.',
   '2.36.2': 'The "Noticed" theme now looks at what your tasks say, not how you file them — tags no longer count as themes.',
@@ -8163,7 +8164,15 @@ function mergeRemoteData(data) {
   // Build task map for latest data (remote text/fields win on conflict)
   const taskDataMap = new Map();
   manualTasks.forEach(t => taskDataMap.set(t.id, t));
-  remoteTasks.forEach(t => taskDataMap.set(t.id, { ...taskDataMap.get(t.id), ...t }));
+  remoteTasks.forEach(t => {
+    const local = taskDataMap.get(t.id);
+    const merged = { ...local, ...t };
+    // lastActive: local focus session may not have reached Dropbox yet — keep the newer value
+    if (local && local.lastActive && (!merged.lastActive || local.lastActive > merged.lastActive)) {
+      merged.lastActive = local.lastActive;
+    }
+    taskDataMap.set(t.id, merged);
+  });
   
   // Preserve remote order, then append local-only tasks
   // EXCLUDE any tasks that exist in LOCAL zones MORE RECENTLY than their manualTasks version
