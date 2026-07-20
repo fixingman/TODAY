@@ -129,7 +129,7 @@
 | Poem splash coda + clean-slate echo | v2.26.0 | 2026-07-28 | Open — gift or gate? Does the echo add warmth or become invisible after the first week? |
 | Daily brief (✦ → nudge + poem) | v2.29.0 | 2026-07-30 | Open — brief iterated to nudge+poem only (shape line removed v2.31.8). Does the poem add to the moment or feel like filler after the nudge? |
 | Today block in About (nudge second home) | v2.33.0 | 2026-08-01 | Open — do you actually glance at it during the day, or does the morning read cover it? Removal is fine if it's never revisited |
-| Noticed block in About (learned patterns) | v2.35.0 | 2026-08-02 | Open — when a line appears, does it land as "it knows me" or as noise? Delta-gating means rare appearances; silence weeks are correct, not broken |
+| Noticed block in About (learned patterns) | v2.35.0 | 2026-08-02 | Open — when a line appears, does it land as "it knows me" or as noise? Delta-gating means rare appearances; silence weeks are correct, not broken. **Note (2026-07-21):** three blocks appeared on Sunday (This week + Today + Noticed) — felt like a lot, but acceptable given how rarely Noticed fires. Decision: keep as-is; only revisit if three-block Sundays become frequent. |
 
 ### Not implementing
 | Feature | Reason |
