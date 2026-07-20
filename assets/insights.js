@@ -446,8 +446,8 @@ function _pickObservationToMention(observations) {
 // theme emerged), then never again — appearing at all carries the information
 // (Wallpaper escape 1); content derives from fresh data (escape 2); nothing
 // new → empty array → the block doesn't render (escape 3). Show-once
-// bookkeeping lives in appMemory.noticed (device-local is acceptable: the
-// merge path doesn't sync it, worst case a line shows once per device).
+// bookkeeping lives in appMemory.noticed; synced via mergeRemoteData so
+// show-once state is shared across devices (v2.36.3).
 function _noticedLines() {
   if (!appMemory.noticed) appMemory.noticed = {};
   const n = appMemory.noticed;

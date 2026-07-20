@@ -3845,6 +3845,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.36.3': 'The "Noticed" section in About now shows the same observation on every device.',
   '2.36.2': 'The "Noticed" theme now looks at what your tasks say, not how you file them — tags no longer count as themes.',
   '2.36.1': 'The weekly reflection in About now reads the same on every device — one thought per week, shared.',
   '2.36.0': 'Ask ✦ to sort your day — "help me go through what\'s left" or "move these to soon" now opens the review, whenever you ask.',
@@ -8827,6 +8828,21 @@ async function dropboxRestore(fromSync) {
           }
         }
         if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
+        // Merge recentCompletedTasks (union by text+date, 30-day window)
+        if (Array.isArray(remote.recentCompletedTasks)) {
+          const cutoff = new Date(Date.now() - 30 * 864e5);
+          const existingRCT = new Set((appMemory.recentCompletedTasks || []).map(e => e.text + e.date));
+          for (const entry of remote.recentCompletedTasks) {
+            if (!existingRCT.has(entry.text + entry.date) && new Date(entry.date) > cutoff) {
+              appMemory.recentCompletedTasks.push(entry);
+            }
+          }
+          appMemory.recentCompletedTasks.sort((a, b) => a.date < b.date ? -1 : 1);
+        }
+        // Merge noticed bookkeeping — remote wins so show-once state is shared across devices
+        if (remote.noticed && typeof remote.noticed === 'object') {
+          appMemory.noticed = { ...(appMemory.noticed || {}), ...remote.noticed };
+        }
         _saveMemory();
       }
       // stat_last_visit intentionally NOT restored — it's local device state.
