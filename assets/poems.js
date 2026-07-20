@@ -610,4 +610,12 @@ const POEMS = [
     season: null,
     source: "Encheiridion §8, trans. George Long (d. 1879), Gutenberg #10661 — verified verbatim",
   },
+
+  // ── Round 22 (Jul 2026) — Publilius Syrus ────────────────────────────────
+  {
+    text: 'It is an unhappy lot which finds no enemies.\nIt is an unhappy lot which an enemy does not envy.',
+    author: 'Publilius Syrus (trans. Darius Lyman)',
+    season: null,
+    source: "The Moral Sayings of Publius Syrus, A Roman Slave, trans. Darius Lyman (1856), maxims 499–500, Wikisource (Lyman d. 1884 — PD worldwide) — verified verbatim",
+  },
 ];
