@@ -3845,6 +3845,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.36.8': 'Poem splash now breathes with the poem — longer poems get more time, up to 8 seconds.',
   '2.36.7': 'New poem: Publilius Syrus — two lines on what it means to have enemies.',
   '2.36.6': 'Morning nudge no longer echoes task one — it only speaks when it has something to say beyond what you can already see.',
   '2.36.5': 'Cards you worked on no longer go back to looking old after a refresh — focus is remembered across sync.',
@@ -9386,9 +9387,9 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     };
     setTimeout(() => {
       poemEl.classList.add('visible');
-      // Reading hold scales with poem length: 2 lines ≈ 5.2s, 9 lines ≈ 9.4s (capped)
-      const lines = poem.text.split('\n').length;
-      holdTimer = setTimeout(finish, Math.min(4000 + lines * 600, 9500));
+      // Reading hold scales with word count: floor 5s, ~200ms/word, ceiling 8s
+      const words = poem.text.split(/\s+/).filter(Boolean).length;
+      holdTimer = setTimeout(finish, Math.min(Math.max(5000, words * 200), 8000));
       splashEl.addEventListener('click', finish);
     }, 700);
   }
