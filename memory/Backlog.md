@@ -115,6 +115,7 @@
 | Dated AI-cache sync | 2 instances hand-plumbed (nudge v2.27.0b, weekly block v2.36.1/BUG-057) | **Rule of three:** the next AI-generated daily text must trigger a registry (à la `_DISMISS_SYNC`) instead of a third hand-plumbing — same payload + remote-wins-merge pattern each time. |
 | open_triage second use | Shipped v2.36.0 from Can's own request | Does he reach for it again unprompted? A capability used only on request day is a shelf feature — if unused by ~mid-Aug, ask why (forgot it exists / evening bar covers it) before adding discoverability. |
 | Monday intention prompt | v2.36.1, BUG-057 | Prompt draws from recent *completed* tasks (30-day rolling) + current pending (top 5) — can surface old/finished work on Monday morning in a confusing way. Watch for "where did that come from?" moments; if it recurs, narrow the context window or separate past vs. present framing. |
+| Meeting `mine` attribution | Fixed v2.36.x — tightened to proper-noun-only + default-false | Two failure modes confirmed in real use: "Can" matched as auxiliary verb, and other people's tasks marked mine. If false negatives start (own tasks not caught), prompt has swung too conservative — tune back toward explicit self-commitment signals. |
 
 ### Wallpaper Test — W3 follow-ups (day-14 behavioral check)
 > Resolve each row — **kept** (delivering), **iterated**, or **removed**.
