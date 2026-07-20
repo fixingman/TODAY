@@ -87,6 +87,14 @@ function _saveMemory() {
   localStorage.setItem('today_memory', JSON.stringify(appMemory));
 }
 
+// Strip the "tag: " prefix before keyword-mining task text (same pattern
+// taskHTML renders as a tag chip). A tag is how the user files a task, not
+// what it's about — leaving it in guarantees noise like «"today:" keeps
+// coming up this week» for anyone who tags consistently.
+function _stripTag(text) {
+  return (text || '').replace(/^[a-z0-9]{1,12}:\s+/i, '');
+}
+
 // Update memory when a task is completed
 function _memoryOnTaskComplete(taskText) {
   const hour = new Date().getHours();
@@ -102,7 +110,7 @@ function _memoryOnTaskComplete(taskText) {
   appMemory.preferences.peakHour = peakHour;
   
   // Track keywords (simple word extraction)
-  const words = (taskText || '').toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  const words = _stripTag(taskText).toLowerCase().split(/\s+/).filter(w => w.length > 3);
   for (const word of words) {
     if (!appMemory.patterns.taskKeywords[word]) {
       appMemory.patterns.taskKeywords[word] = { completed: 0 };
@@ -247,7 +255,7 @@ function _memoryForAI() {
       'only','more','most','much','very','its','our','can','all','any','are','about','task']);
     const freq = {};
     for (const { text } of recentDone) {
-      for (const w of (text || '').toLowerCase().split(/\s+/)) {
+      for (const w of _stripTag(text).toLowerCase().split(/\s+/)) {
         if (w.length > 3 && !stopWords.has(w)) freq[w] = (freq[w] || 0) + 1;
       }
     }
@@ -499,7 +507,7 @@ function _noticedLines() {
     const freq = {};
     for (const { text, date } of recent) {
       if (new Date(date) < weekAgo) continue;
-      for (const w of (text || '').toLowerCase().split(/\s+/)) {
+      for (const w of _stripTag(text).toLowerCase().split(/\s+/)) {
         if (w.length > 3 && !stop.has(w)) freq[w] = (freq[w] || 0) + 1;
       }
     }
