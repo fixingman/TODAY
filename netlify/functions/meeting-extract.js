@@ -55,7 +55,8 @@ exports.handler = async function(event) {
     `Transcribe it internally (do NOT output the transcript) and extract concrete action items.\n` +
     `Rules:\n` +
     `- An action item is a specific commitment or assignment ("send X", "book Y", "follow up with Z"), not a discussion topic.\n` +
-    `- "mine" is true when the item belongs to ${name}: explicitly assigned to them by name, or self-committed by the speaker others address as ${name}.\n` +
+    `- "mine" is true ONLY when the item clearly belongs to ${name}: explicitly assigned to them by name as a person, or self-committed by the speaker others address as ${name} by name. Treat ${name} as a proper noun — do not match it as a common word or auxiliary verb.\n` +
+    `- "mine" is false when the item is assigned to any other named person, or when ownership is unclear. Default to false when uncertain.\n` +
     `- "owner" is the first name of whoever owns the item, or "" if unclear.\n` +
     `- Phrase each item as a short imperative task (max 12 words), the way ${name} would write it in a todo list.\n` +
     `- Phrase each item in the language spoken in the meeting — do not translate to English.\n` +
