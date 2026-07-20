@@ -10982,6 +10982,7 @@ async function _meetingSendChunk(blob, retryCount = 0, priorState = null) {
         mimeType: blob.type || 'audio/webm',
         userName: _getUserNames().join(', '),
         rollingContext: state.context,
+        capturedMine: state.items.filter(x => x.mine).map(x => x.text),
       }),
     });
     const rawText = await res.text();

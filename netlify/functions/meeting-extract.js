@@ -33,7 +33,7 @@ exports.handler = async function(event) {
     return _json(400, { error: 'Invalid JSON in request body' });
   }
 
-  const { audioChunk, mimeType, userName, rollingContext, apiKey: rawClientKey } = body;
+  const { audioChunk, mimeType, userName, rollingContext, capturedMine, apiKey: rawClientKey } = body;
   if (!audioChunk || typeof audioChunk !== 'string') {
     return _json(400, { error: 'Missing audioChunk (base64)' });
   }
@@ -49,6 +49,9 @@ exports.handler = async function(event) {
 
   const name = (userName || '').slice(0, 60).trim() || 'the user';
   const context = (rollingContext || '').slice(0, 4000);
+  const alreadyCaptured = Array.isArray(capturedMine) && capturedMine.length
+    ? capturedMine.slice(0, 20).map(t => '- ' + String(t).slice(0, 100)).join('\n')
+    : '';
 
   const systemPrompt =
     `You are listening to one segment of a live meeting on behalf of ${name}. ` +
@@ -60,7 +63,8 @@ exports.handler = async function(event) {
     `- "owner" is the first name of whoever owns the item, or "" if unclear.\n` +
     `- Phrase each item as a short imperative task (max 12 words), the way ${name} would write it in a todo list.\n` +
     `- Phrase each item in the language spoken in the meeting — do not translate to English.\n` +
-    `- Do not repeat items already listed in the prior context.\n` +
+    `- Do not repeat items already listed in the prior context or in the already-captured list below.\n` +
+    (alreadyCaptured ? `Already captured tasks for ${name} — do not re-add these or close variations:\n${alreadyCaptured}\n` : '') +
     `- updatedContext: carry forward the prior context, appending this segment's speaker hints (who is who) and any open threads, max 150 words total. Plain text, no transcript.\n` +
     `Reply ONLY with JSON: {"actionItems":[{"text":"...","owner":"...","mine":true}],"updatedContext":"..."}\n` +
     `If the segment contains no action items, reply {"actionItems":[],"updatedContext":"..."}.`;
