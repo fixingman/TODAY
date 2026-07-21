@@ -618,4 +618,24 @@ const POEMS = [
     season: null,
     source: "The Moral Sayings of Publius Syrus, A Roman Slave, trans. Darius Lyman (1856), maxims 499–500, Wikisource (Lyman d. 1884 — PD worldwide) — verified verbatim",
   },
+
+  // ── Round 23 (Jul 2026) — Sara Teasdale, Stars To-night ──────────────────
+  {
+    text: 'Stars over snow,\nAnd in the west a planet\nSwinging below a star—\nLook for a lovely thing and you will find it,\nIt is not far—\nIt never will be far.',
+    author: 'Sara Teasdale',
+    season: 'winter',
+    source: "'Night', Stars To-night (1930) (d. 1933 — PD worldwide) — verified verbatim vs archive.org/details/starstonightvers0000sara",
+  },
+  {
+    text: 'Snow-dust driven over the snow\nIn glittering light,\n\nLow hills, far as the eye can go,\nWhite on white;\n\nBlue as a blue jay, shadows run\nDue north from every tree—\n\nChipmunk, do you like the sun,\nThe blowing snow and me?',
+    author: 'Sara Teasdale',
+    season: 'winter',
+    source: "'Winter Noon', Stars To-night (1930) (d. 1933 — PD worldwide) — verified verbatim vs archive.org/details/starstonightvers0000sara",
+  },
+  {
+    text: 'Evening, and all the birds\nIn a chorus of shimmering sound\nAre easing their hearts of joy\nFor miles around.\n\nThe air is still and sweet,\nThe few first stars are white,—\nOh let me like the birds\nSing before night.',
+    author: 'Sara Teasdale',
+    season: 'summer',
+    source: "'Summer Evening', Stars To-night (1930) (d. 1933 — PD worldwide) — verified verbatim vs archive.org/details/starstonightvers0000sara",
+  },
 ];

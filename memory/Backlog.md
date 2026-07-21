@@ -46,7 +46,7 @@
 
 **Taste signal:** spare/clear/affirming in; quaint, ornate, bleak out. Rhyme is fine if the feeling is real — quaintness disqualifies, not rhyme. Melancholy-but-held is IN (Rilke 'Autumn'); calm-pastoral cut — gravity beats gentleness. Compressed Stoic prose works (Farquharson); diary-length doesn't. A poem that passes the brief but feels wrong beside a task list: cut on app-moment test.
 
-**Seasons:** W10 / Sp11 / Su10 / Au11 / year-round 51 — corpus 93 (cherry-pick v2.35.3, round 21 v2.35.4, round 22 v2.36.7), target ~100. Winter and autumn closing the gap — continue steering there.
+**Seasons:** W12 / Sp11 / Su11 / Au11 / year-round 51 — corpus 96 (cherry-pick v2.35.3, round 21 v2.35.4, round 22 v2.36.7, round 23 v2.37.1 — Teasdale ×3), target ~100. Four to go; spring is now the thinnest seasonal gap alongside summer/autumn. Poet notes: Crapsey cut entirely (cinquains consistently death-adjacent); Teasdale rich — 'A June Day' (summer, verified, user passed this round) still available in *Stars To-night* if summer needs one more.
 
 **PD notes:** US-PD-only category **closed** (2026-07-19 cherry-pick, v2.35.3): five kept permanently (Frost ×3, Yang-ti, Po Chü-i 'After Lunch'), six purged. Worldwide PD is the bar for all future poems. Future unlocks: Milne 2027 (d. Jan 1956 — misses the cutoff by a month; taste caveat: his verse is the canonical "cutesy" the brief excludes — only a very quiet hum could survive corpus-fit), cummings 2033, Frost/WCW worldwide 2034, Eliot 2036.
 

@@ -17,11 +17,11 @@
 | `assets/celebration.js` | 6.1 KB | 2.2 KB | Ember drift + glow extracted v2.25.3 (Roadmap #3); SW-precached |
 | `assets/trello.js` | 20.9 KB | 7.0 KB | Trello integration extracted v2.33.x (Roadmap #3); SW-precached |
 | `assets/insights.js` | 20.5 KB | 6.7 KB | AI memory + pattern learning extracted v2.33.10 (Roadmap #3); SW-precached |
-| `assets/poems.js` | 32.0 KB | 10.9 KB | Daily poem corpus (92 poems); SW-precached |
+| `assets/poems.js` | 33.9 KB | 11.4 KB | Daily poem corpus (96 poems); SW-precached |
 | **Total JS** | **655 KB** | **193 KB** | index.html + 8 extracted modules |
 
 **Lines of code:** 12,895 index.html + 2,153 extracted (15,048 total)  
-— util.js: 97 · idle.js: 289 · sound.js: 224 · celebration.js: 163 · trello.js: 474 · insights.js: 526 · poems.js: 613
+— util.js: 97 · idle.js: 289 · sound.js: 224 · celebration.js: 163 · trello.js: 474 · insights.js: 526 · poems.js: 641
 
 **External scripts:** 0. All assets same-origin, SW-cached; no CDN, no analytics SDK.  
 **External fonts on first visit:** 6 files (self-hosted, pre-cached by SW). Zero Google Fonts pings.  
@@ -205,7 +205,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.37.0)
+## 8. Changes since last audit (v2.32.0 → v2.37.1)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -222,6 +222,7 @@
 | Poem corpus growth | v2.36.7 | poems.js grew ~0.5 KB (92 → 93 poems, Publilius Syrus). SW-precached. |
 | Poem splash word-count timing | v2.36.8 | `poem.text.split(/\s+/).length` on each morning open — O(n) over poem words (~80 max). Negligible. |
 | Pinch-to-zoom lock | v2.36.9 | Viewport meta change only. Zero runtime cost. |
+| Poem corpus round 23 | v2.37.1 | poems.js +3 Teasdale poems (93 → 96), ~1 KB. SW-precached. Negligible. |
 | Season moments (Noticed) | v2.37.0 | One object lookup + string compare in `_noticedLines()` per About open. `noticed.seasonDate` scalar rides the existing noticed merge. Negligible. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
@@ -229,4 +230,4 @@
 
 ---
 
-*Last updated: v2.37.0 · Jul 2026*
+*Last updated: v2.37.1 · Jul 2026*
