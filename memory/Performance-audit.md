@@ -205,7 +205,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.36.9)
+## 8. Changes since last audit (v2.32.0 → v2.37.0)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -222,10 +222,11 @@
 | Poem corpus growth | v2.36.7 | poems.js grew ~0.5 KB (92 → 93 poems, Publilius Syrus). SW-precached. |
 | Poem splash word-count timing | v2.36.8 | `poem.text.split(/\s+/).length` on each morning open — O(n) over poem words (~80 max). Negligible. |
 | Pinch-to-zoom lock | v2.36.9 | Viewport meta change only. Zero runtime cost. |
+| Season moments (Noticed) | v2.37.0 | One object lookup + string compare in `_noticedLines()` per About open. `noticed.seasonDate` scalar rides the existing noticed merge. Negligible. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.36.9 · Jul 2026*
+*Last updated: v2.37.0 · Jul 2026*

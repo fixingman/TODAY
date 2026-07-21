@@ -456,6 +456,26 @@ function _noticedLines() {
   const todayISO = _localISO();
   const _hr12 = h => (h > 12 ? h - 12 : h) + (h >= 12 ? 'pm' : 'am');
 
+  // 0 · Season moment — fixed calendar dates, ~6/year (v2.37.0, Backlog: Season
+  // moments). Meteorological season starts (Scandinavia convention) + solstices.
+  // Solstices pinned to the 21st — off by a day in some years; fine for a quiet
+  // line. Wallpaper escape 1 by construction: rare, and each date shows once
+  // (seasonDate synced via noticed merge, so once across devices).
+  const SEASON_MOMENTS = {
+    '03-01': 'First day of spring.',
+    '06-01': 'First day of summer.',
+    '06-21': 'Midsummer — the year’s longest day.',
+    '09-01': 'First day of autumn.',
+    '12-01': 'First day of winter.',
+    '12-21': 'The year’s shortest day. The light turns back tomorrow.',
+  };
+  const seasonLine = SEASON_MOMENTS[todayISO.slice(5)];
+  if (seasonLine && n.seasonDate !== todayISO) {
+    n.seasonDate = todayISO;
+    dirty = true;
+    lines.push(seasonLine);
+  }
+
   // 1 · Habit streak milestone — once per habit per milestone
   if (typeof habitsList !== 'undefined' && typeof habitCompletions !== 'undefined') {
     if (!n.habitMilestones) n.habitMilestones = {};
