@@ -174,7 +174,7 @@
 | Issue | Severity | Notes |
 |---|---|---|
 | No CSP header | Low | Personal tool, inline scripts/styles |
-| Pinch-to-zoom disabled | Accessibility tradeoff | `user-scalable=no` locks zoom to prevent layout breakage (v2.36.9). Also blocks iOS accessibility zoom gesture. Fine for a personal tool; if audience grows, add a Connections toggle to re-enable — see Backlog Parked. |
+| Pinch-to-zoom disabled | Accessibility tradeoff | `user-scalable=no` locks zoom to prevent layout breakage (v2.36.9). Also blocks iOS accessibility zoom gesture. Fine for a personal tool; if needed, a toggle to re-enable (surface TBD, not Connections) — see Backlog Parked. |
 | `localStorage` quota failures | Low | Writes wrapped globally; quota errors route to red dot (v2.17.70) |
 | Focus mode not on touch devices | By design | Timer UI is pointer-interaction dependent |
 | 9 `@font-face` declarations | Low | 2 in PiP block duplicate main doc; loaded in isolated window, no waste |
