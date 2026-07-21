@@ -7,7 +7,7 @@
 | # | Description | Status |
 |---|---|---|
 | 059 | Task card age reset by sync after focus — card re-dims on refresh | ✅ v2.36.5 |
-| 058 | Noticed block in About shows different content between devices | ⏳ v2.36.3 |
+| 058 | Noticed block in About shows different content between devices | ✅ v2.36.3 |
 | 057 | About "This week" / "New week" AI text differs between devices (cache never synced) | ⏳ v2.36.1 |
 | 056 | BUG-004 recurrence — blank app after long Mac sleep (GPU wakeup too slow for 1500ms repaint ceiling) | ✅ v2.31.9 |
 | 055 | Done tasks from today wiped on second-device first-open | ✅ v2.30.1 |
