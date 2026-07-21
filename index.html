@@ -2136,13 +2136,6 @@
   }
   .meeting-item.selected .meeting-tick { background: var(--accent); border-color: var(--accent); }
   .meeting-item.selected .meeting-tick::after { content: '✓'; }
-  .meeting-item .meeting-owner {
-    margin-left: auto;
-    font-size: var(--text-sm);
-    color: var(--muted);
-    flex-shrink: 0;
-    padding-top: 2px;
-  }
   .meeting-review-empty {
     text-align: center;
     color: var(--muted);
@@ -3646,7 +3639,7 @@
     <div class="meeting-panel-head">
       <div class="meeting-eyebrow">Meeting</div>
       <div class="meeting-review-title" id="meetingReviewTitle">From your call</div>
-      <div class="meeting-review-sub" id="meetingReviewSub">Yours are pre-selected · tap others to grab them</div>
+      <div class="meeting-review-sub" id="meetingReviewSub">Tap to leave one out</div>
     </div>
     <div id="meetingItems"></div>
     <div class="meeting-review-actions">
@@ -3845,6 +3838,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.37.2': 'Meeting mode now only ever leaves behind your own tasks — items meant for someone else in the room no longer show up at all.',
   '2.37.1': 'Three new poems by Sara Teasdale — stars over snow, a bright winter noon, and birds singing a summer evening down.',
   '2.37.0': 'TODAY now marks the turning of the seasons — six quiet notes a year in Noticed: each season\'s first day, midsummer, and the year\'s shortest day.',
   '2.36.9':'Pinch-to-zoom locked on mobile — it was breaking the layout.',
@@ -10998,7 +10992,7 @@ async function _meetingSendChunk(blob, retryCount = 0, priorState = null) {
         mimeType: blob.type || 'audio/webm',
         userName: _getUserNames().join(', '),
         rollingContext: state.context,
-        capturedMine: state.items.filter(x => x.mine).map(x => x.text),
+        capturedMine: state.items.map(x => x.text),
       }),
     });
     const rawText = await res.text();
@@ -11008,10 +11002,12 @@ async function _meetingSendChunk(blob, retryCount = 0, priorState = null) {
     if (data.error) throw new Error(data.error);
     if (typeof data.updatedContext === 'string') state.context = data.updatedContext;
     (data.actionItems || []).forEach(item => {
+      if (!item.mine) return; // clearly someone else's item — the mic button promises
+                                // "only your tasks"; don't clutter the review with them
       // Dedupe on normalized text — the prompt asks Gemini not to repeat, this backstops it
       const norm = item.text.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
       if (!state.items.some(x => x.norm === norm)) {
-        state.items.push({ text: item.text, owner: item.owner, mine: item.mine, norm });
+        state.items.push({ text: item.text, norm });
       }
     });
     // Re-render for the final chunk is handled by the onstop promise chain above.
@@ -11102,10 +11098,9 @@ function _meetingRenderReview(state) {
   if (actions) actions.classList.remove('no-add');
 
   const itemsHTML = state.items.map((item, i) => `
-    <div class="meeting-item${item.mine ? ' selected' : ''}" data-idx="${i}" onclick="this.classList.toggle('selected');_meetingUpdateCount()">
+    <div class="meeting-item selected" data-idx="${i}" onclick="this.classList.toggle('selected');_meetingUpdateCount()">
       <div class="meeting-tick"></div>
       <span>${esc(item.text)}</span>
-      ${item.owner ? '<span class="meeting-owner">' + esc(item.owner) + '</span>' : ''}
     </div>`).join('');
 
   if (processing) {
@@ -11133,7 +11128,7 @@ function _meetingUpdateCount() {
 }
 
 function _meetingAccept() {
-  const picked = [...document.querySelectorAll('#meetingItems .meeting-item.selected span:not(.meeting-owner)')]
+  const picked = [...document.querySelectorAll('#meetingItems .meeting-item.selected span')]
     .map(el => el.textContent.trim()).filter(Boolean);
   picked.forEach((text, i) => {
     manualTasks.push({ id: 'manual_' + (Date.now() + i), text });
