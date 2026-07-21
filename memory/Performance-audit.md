@@ -205,7 +205,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.37.2)
+## 8. Changes since last audit (v2.32.0 → v2.37.3)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -223,7 +223,8 @@
 | Poem splash word-count timing | v2.36.8 | `poem.text.split(/\s+/).length` on each morning open — O(n) over poem words (~80 max). Negligible. |
 | Pinch-to-zoom lock | v2.36.9 | Viewport meta change only. Zero runtime cost. |
 | Poem corpus round 23 | v2.37.1 | poems.js +3 Teasdale poems (93 → 96), ~1 KB. SW-precached. Negligible. |
-| Meeting mode: filter non-mine items at capture | v2.37.2 | One extra `if` guard per extracted item, client-side. Removed dead `.meeting-owner` CSS/render/selector code — net negative line count. Negligible. |
+| Meeting mode: filter non-mine items at capture | v2.37.2 | One extra `if` guard per extracted item, client-side. Removed dead `.meeting-owner` CSS/render/selector code — net negative line count. Negligible. **Reverted v2.37.3 — see below.** |
+| Meeting mode: v2.37.2 approach reverted, attribution fixed server-side | v2.37.3 | Client-side filter/CSS restored (net code change ~0). Server: one array `.split(',')` on name once per request, one string comparison per item. Negligible. |
 | Season moments (Noticed) | v2.37.0 | One object lookup + string compare in `_noticedLines()` per About open. `noticed.seasonDate` scalar rides the existing noticed merge. Negligible. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
@@ -231,4 +232,4 @@
 
 ---
 
-*Last updated: v2.37.2 · Jul 2026*
+*Last updated: v2.37.3 · Jul 2026*

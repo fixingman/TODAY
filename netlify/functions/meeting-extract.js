@@ -58,9 +58,9 @@ exports.handler = async function(event) {
     `Transcribe it internally (do NOT output the transcript) and extract concrete action items.\n` +
     `Rules:\n` +
     `- An action item is a specific commitment or assignment ("send X", "book Y", "follow up with Z"), not a discussion topic.\n` +
-    `- "mine" is true ONLY when the item clearly belongs to ${name}: explicitly assigned to them by name as a person, or self-committed by the speaker others address as ${name} by name. Treat ${name} as a proper noun — do not match it as a common word or auxiliary verb.\n` +
-    `- "mine" is false when the item is assigned to any other named person, or when ownership is unclear. Default to false when uncertain.\n` +
-    `- "owner" is the first name of whoever owns the item, or "" if unclear.\n` +
+    `- "mine" is true when the item is explicitly assigned to ${name} by name, OR when it is a first-person self-commitment ("I'll...", "I will...", "let me...", "I need to...") and no other person is named as the one who owns it. ${name} is often never spoken aloud in their own meeting — an unnamed "I'll send that" belongs to ${name} by default, it is not automatically unclear. Treat ${name} as a proper noun — do not match it as a common word or auxiliary verb.\n` +
+    `- "mine" is false ONLY when a different, specifically named person is the clear owner ("Sam will send it", "can you handle that, Priya?").\n` +
+    `- "owner" is the first name of whoever owns the item, or "" if it's ${name}'s own unnamed self-commitment. If owner is "" or equals ${name}, mine MUST be true — never emit owner="" or owner="${name}" together with mine:false.\n` +
     `- Phrase each item as a short imperative task (max 12 words), the way ${name} would write it in a todo list.\n` +
     `- Phrase each item in the language spoken in the meeting — do not translate to English.\n` +
     `- Do not repeat items already listed in the prior context or in the already-captured list below.\n` +
@@ -146,14 +146,22 @@ exports.handler = async function(event) {
     }
 
     const items = Array.isArray(parsed.actionItems) ? parsed.actionItems : [];
+    // Safety net for a real inconsistency seen in practice: the model sometimes
+    // returns owner === name (or "") alongside mine:false. Don't trust the two
+    // fields to agree on their own — force it here rather than only in the prompt.
+    const nameTokens = name.split(',').map(n => n.trim().toLowerCase()).filter(Boolean);
     return _json(200, {
       actionItems: items
         .filter(i => i && typeof i.text === 'string' && i.text.trim())
-        .map(i => ({
-          text: i.text.trim().slice(0, 200),
-          owner: (typeof i.owner === 'string' ? i.owner : '').slice(0, 40),
-          mine: !!i.mine,
-        })),
+        .map(i => {
+          const owner = (typeof i.owner === 'string' ? i.owner : '').slice(0, 40);
+          const ownerIsMe = !owner.trim() || nameTokens.includes(owner.trim().toLowerCase());
+          return {
+            text: i.text.trim().slice(0, 200),
+            owner,
+            mine: ownerIsMe ? true : !!i.mine,
+          };
+        }),
       updatedContext: (typeof parsed.updatedContext === 'string' ? parsed.updatedContext : context).slice(0, 4000),
     });
   } catch (e) {
