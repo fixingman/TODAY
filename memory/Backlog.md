@@ -92,6 +92,7 @@
 
 | Item | From | What it is | Unpark when / gate |
 |------|------|------------|--------------------|
+| **Poem share** | W3 pre-reg 2026-07-21 | "Sharable" — user wants to share the daily poem. Could be a copy-to-clipboard or native share sheet on the splash or in About. Low friction: one tap, poem text + author + app name. No server needed. | When the poem earns its W3 verdict (2026-07-30) — don't build sharing for a surface that might get cut. |
 | **Pinch-to-zoom accessibility toggle** | v2.36.9 zoom lock | `user-scalable=no` prevents layout breakage but also disables iOS accessibility zoom. If needed, a toggle that swaps the viewport meta to `maximum-scale=5, user-scalable=yes` would re-enable it. Not in Connections — surface TBD. Not needed now. |
 | **Skip-reason on letgo** | Landscape.md (Momentum) | One-tap reason picker on letgo — *not relevant / no energy / lost interest / replaced*. Low friction, high AI-context leverage | Can prioritizes — buildable as-is |
 | **Season moments** | Weather discussion 2026-07-19 | Date-derived nature awareness in nudge/Noticed — first day of a season, solstices, year's shortest day. ~6 appearances/year = Wallpaper escape 1 by construction; same register as the season-tagged poems. Zero new data, no consent question — the honest version of weather awareness | Wordsmithing pass in a quiet session — approved 2026-07-19 |
@@ -128,7 +129,7 @@
 | Morning nudge AI line | v2.17.73 | verdict 2026-07-18 | ✅ Kept + iterated — read every time; task references now verbatim (v2.32.3). Detail → `Changelog.md` v2.32.3 |
 | Week-grid "best day" dot | v2.17.121 | 2026-06-30 | ✅ Kept — dot lands correctly, works well (verified 2026-07-15) |
 | Poem splash coda + clean-slate echo | v2.26.0 | 2026-07-28 | ✅ **Kept + iterated (2026-07-21, early verdict).** Coda never became wallpaper. Second-home behaviour confirmed (goes to About to finish reading). Timing fix shipped v2.36.8: word-count-aware duration, floor 5s, ceiling 8s — longer poems breathe, About remains the re-read home. |
-| Daily brief (✦ → nudge + poem) | v2.29.0 | 2026-07-30 | Open — brief iterated to nudge+poem only (shape line removed v2.31.8). Does the poem add to the moment or feel like filler after the nudge? |
+| Daily brief (✦ → nudge + poem) | v2.29.0 | 2026-07-30 | **Pre-reg (2026-07-21):** "nice / stressed to read it all / reflective / sharable." Timing stress already addressed (v2.36.8). Reflective + sharable = poem is landing, not filler. "Sharable" is a new signal — see Parked. |
 | Today block in About (nudge second home) | v2.33.0 | 2026-08-01 | Open — do you actually glance at it during the day, or does the morning read cover it? Removal is fine if it's never revisited |
 | Noticed block in About (learned patterns) | v2.35.0 | 2026-08-02 | Open — when a line appears, does it land as "it knows me" or as noise? Delta-gating means rare appearances; silence weeks are correct, not broken. **Note (2026-07-21):** three blocks appeared on Sunday (This week + Today + Noticed) — felt like a lot, but acceptable given how rarely Noticed fires. Decision: keep as-is; only revisit if three-block Sundays become frequent. |
 
