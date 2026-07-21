@@ -151,7 +151,7 @@
 
 | Destination | Data sent | When | Notes |
 |---|---|---|---|
-| **Dropbox API** | Full backup JSON — tasks, habits, zones, stats, appMemory (incl. noticed + recentCompletedTasks), checked_ids, AI day-cache, week_reflection, monday_intention, deleted_ids (schema 5.3) | On sync tick only if state changed; on manual backup | User's own account. PKCE. Content never seen by us. |
+| **Dropbox API** | Full backup JSON — tasks, habits, zones, stats, appMemory (incl. noticed + recentCompletedTasks + meetingAttribution counters), checked_ids, AI day-cache, week_reflection, monday_intention, deleted_ids (schema 5.3) | On sync tick only if state changed; on manual backup | User's own account. PKCE. Content never seen by us. |
 | **Trello API** | OAuth token + board/list IDs; receives card data | On tick if `dateLastActivity` changed | `read` scope only. |
 | **Netlify AI proxy** | Prompt (task names, ages, patterns from appMemory) + provider key | On ✦ call, daily nudge, week reflection, monday intention, meeting chunk | One nudge/day max, cached. Key never sent to provider from client directly. |
 | **Netlify meeting-extract** | Base64 audio chunk (~6min) + userName + rolling context + captured mine items | Per audio chunk during meeting mode | Gemini only. Transcript produced inside Gemini, never returned. Tasks only. |
@@ -205,7 +205,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.37.3)
+## 8. Changes since last audit (v2.32.0 → v2.37.4)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -224,7 +224,8 @@
 | Pinch-to-zoom lock | v2.36.9 | Viewport meta change only. Zero runtime cost. |
 | Poem corpus round 23 | v2.37.1 | poems.js +3 Teasdale poems (93 → 96), ~1 KB. SW-precached. Negligible. |
 | Meeting mode: filter non-mine items at capture | v2.37.2 | One extra `if` guard per extracted item, client-side. Removed dead `.meeting-owner` CSS/render/selector code — net negative line count. Negligible. **Reverted v2.37.3 — see below.** |
-| Meeting mode: v2.37.2 approach reverted, attribution fixed server-side | v2.37.3 | Client-side filter/CSS restored (net code change ~0). Server: one array `.split(',')` on name once per request, one string comparison per item. Negligible. |
+| Meeting mode: v2.37.2 approach reverted, attribution fixed server-side | v2.37.3 | Client-side filter/CSS restored (net code change ~0). Server: one array `.split(',')` on name once per request, one string comparison per item. Negligible. **Refined v2.37.4 — see below.** |
+| Meeting mode: speaker-tracked attribution + accuracy counters | v2.37.4 | Prompt-only refinement (speaker-turn tracking instead of blanket unnamed-defaults-to-me) — no runtime cost change. New `appMemory.meetingAttribution`: 4 integer counters, updated once per `_meetingAccept()` call (bounded — meetings are infrequent), merged max-wins on sync like the other lifetime counters. No new localStorage key — rides inside the existing `today_memory` blob already in the Dropbox payload. Negligible. |
 | Season moments (Noticed) | v2.37.0 | One object lookup + string compare in `_noticedLines()` per About open. `noticed.seasonDate` scalar rides the existing noticed merge. Negligible. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
@@ -232,4 +233,4 @@
 
 ---
 
-*Last updated: v2.37.3 · Jul 2026*
+*Last updated: v2.37.4 · Jul 2026*

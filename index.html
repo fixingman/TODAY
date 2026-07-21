@@ -3845,6 +3845,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.37.4': 'Meeting mode now tracks who was actually speaking for self-commitments — and quietly measures its own accuracy over time.',
   '2.37.3': 'Meeting mode attribution fixed at the source — unnamed things you said you\'d do are now caught correctly, and a task with your name on it is never left unchecked by mistake. (Reverts v2.37.2\'s approach — hiding items was the wrong fix.)',
   '2.37.2': 'Meeting mode now only ever leaves behind your own tasks — items meant for someone else in the room no longer show up at all.',
   '2.37.1': 'Three new poems by Sara Teasdale — stars over snow, a bright winter noon, and birds singing a summer evening down.',
@@ -8821,6 +8822,13 @@ async function dropboxRestore(fromSync) {
         appMemory.patterns.bestStreak = Math.max(appMemory.patterns.bestStreak, remote.patterns?.bestStreak || 0);
         appMemory.totalTasksCompleted = Math.max(appMemory.totalTasksCompleted, remote.totalTasksCompleted || 0);
         appMemory.totalDaysActive = Math.max(appMemory.totalDaysActive, remote.totalDaysActive || 0);
+        if (remote.meetingAttribution) {
+          const ma = appMemory.meetingAttribution, rma = remote.meetingAttribution;
+          ma.mineShown      = Math.max(ma.mineShown,      rma.mineShown      || 0);
+          ma.mineKept       = Math.max(ma.mineKept,       rma.mineKept       || 0);
+          ma.othersShown    = Math.max(ma.othersShown,    rma.othersShown    || 0);
+          ma.othersSelected = Math.max(ma.othersSelected, rma.othersSelected || 0);
+        }
         // Union of moments (dedupe by type+date)
         const existingKeys = new Set(appMemory.moments.map(m => m.type + m.date));
         for (const moment of (remote.moments || [])) {
@@ -11135,6 +11143,19 @@ function _meetingUpdateCount() {
 }
 
 function _meetingAccept() {
+  // Attribution accuracy signal — compares what the model called mine/others
+  // against what the user actually kept selected at the end of review.
+  if (typeof _memoryOnMeetingAttribution === 'function') {
+    const stats = { mineShown: 0, mineKept: 0, othersShown: 0, othersSelected: 0 };
+    document.querySelectorAll('#meetingItems .meeting-item').forEach(el => {
+      const item = state.items[+el.dataset.idx];
+      if (!item) return;
+      const selected = el.classList.contains('selected');
+      if (item.mine) { stats.mineShown++; if (selected) stats.mineKept++; }
+      else { stats.othersShown++; if (selected) stats.othersSelected++; }
+    });
+    _memoryOnMeetingAttribution(stats);
+  }
   const picked = [...document.querySelectorAll('#meetingItems .meeting-item.selected span:not(.meeting-owner)')]
     .map(el => el.textContent.trim()).filter(Boolean);
   picked.forEach((text, i) => {

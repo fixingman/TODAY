@@ -82,6 +82,25 @@ if (!appMemory.recentCompletedTasks)   appMemory.recentCompletedTasks = [];
 if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
 if (appMemory.patterns.dayStartCount === undefined) appMemory.patterns.dayStartCount = null;
 if (appMemory.patterns.dayStartDate  === undefined) appMemory.patterns.dayStartDate  = null;
+if (!appMemory.meetingAttribution) appMemory.meetingAttribution = {
+  mineShown: 0, mineKept: 0, othersShown: 0, othersSelected: 0,
+};
+
+// Cumulative accuracy counters for meeting mode's mine/others attribution — not
+// a user-facing surface, just numbers to answer "am I getting the right tasks?"
+// when asked. mineKept/mineShown ≈ precision (of what it called yours, how much
+// you kept); othersSelected/othersShown ≈ recall of misses (how often you had to
+// promote an "others" item back to your own). Synced max-wins like the other
+// lifetime counters in this object (focusMinutesTotal, bestStreak, etc.) — see
+// mergeRemoteData.
+function _memoryOnMeetingAttribution(stats) {
+  const m = appMemory.meetingAttribution;
+  m.mineShown      += stats.mineShown;
+  m.mineKept       += stats.mineKept;
+  m.othersShown    += stats.othersShown;
+  m.othersSelected += stats.othersSelected;
+  _saveMemory();
+}
 
 function _saveMemory() {
   localStorage.setItem('today_memory', JSON.stringify(appMemory));

@@ -170,7 +170,7 @@ The AI panel itself (`#aiPanel`) only shows when a key is connected. If not conn
 
 ### Meeting Mode Privacy Stance (v2.22.0, deliberate)
 
-- **Nothing persisted.** Audio chunks, extracted items, and the rolling context live only in the module-level `_mtg` variable and are nulled in `_meetingTeardown()`. No meeting-related localStorage keys exist. Accepted items become ordinary manual tasks — indistinguishable from typed ones.
+- **Nothing persisted, except four numbers.** Audio chunks, extracted items, and the rolling context live only in the module-level `_mtg` variable and are nulled in `_meetingTeardown()`. Accepted items become ordinary manual tasks — indistinguishable from typed ones. **Deliberate exception (v2.37.4):** `appMemory.meetingAttribution` keeps four cumulative integer counters (items shown as mine and kept, items shown as others' and reclaimed) so attribution accuracy can be checked over time — no item text, no owner names, no transcript. This is the one meeting-related thing that survives `_meetingTeardown()`.
 - **No transcript, ever.** `meeting-extract.js` instructs Gemini to transcribe internally and return only `{actionItems, updatedContext}`; the transcript is never in the HTTP response, never rendered, never stored.
 - **No voice ID, ever.** Attribution comes from `today_user_name` + conversational content + the user's review tap. Storing a voice fingerprint was explicitly rejected — it would be the most privacy-hostile artifact the feature could create.
 - **Audio leaves the device only as in-flight chunks** to the user's own Netlify function → Gemini, using the user's own key. Same trust model as every other AI call in the app.

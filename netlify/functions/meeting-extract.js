@@ -58,9 +58,11 @@ exports.handler = async function(event) {
     `Transcribe it internally (do NOT output the transcript) and extract concrete action items.\n` +
     `Rules:\n` +
     `- An action item is a specific commitment or assignment ("send X", "book Y", "follow up with Z"), not a discussion topic.\n` +
-    `- "mine" is true when the item is explicitly assigned to ${name} by name, OR when it is a first-person self-commitment ("I'll...", "I will...", "let me...", "I need to...") and no other person is named as the one who owns it. ${name} is often never spoken aloud in their own meeting — an unnamed "I'll send that" belongs to ${name} by default, it is not automatically unclear. Treat ${name} as a proper noun — do not match it as a common word or auxiliary verb.\n` +
-    `- "mine" is false ONLY when a different, specifically named person is the clear owner ("Sam will send it", "can you handle that, Priya?").\n` +
-    `- "owner" is the first name of whoever owns the item, or "" if it's ${name}'s own unnamed self-commitment. If owner is "" or equals ${name}, mine MUST be true — never emit owner="" or owner="${name}" together with mine:false.\n` +
+    `- A self-commitment ("I'll...", "I will...", "let me...", "I need to...") belongs to WHOEVER IS SPEAKING that line — track speaker turns across the segment (and the rolling context's speaker hints) even when names are never stated at that exact moment. If the conversation reveals that speaker's name elsewhere (someone greets them, addresses them, or they introduce themselves), tag "owner" with that real name — do not assume every unnamed "I'll..." is ${name} just because it's unnamed. Meetings have more than one voice, and more than one person says "I'll handle it" about their own task.\n` +
+    `- Only fall back to assuming a self-commitment is ${name}'s when the speaker truly cannot be distinguished from ${name} by voice or context (e.g. a single-speaker segment, or ${name} is the only participant whose turns are ever identifiable). This is the last resort, not the default.\n` +
+    `- "mine" is true when the item is explicitly assigned to ${name} by name, OR the self-commitment above resolves to ${name} (by identified speaker, or by the last-resort fallback). ${name} is often never spoken aloud in their own meeting — being unnamed does not by itself make an item ${name}'s. Treat ${name} as a proper noun — do not match it as a common word or auxiliary verb.\n` +
+    `- "mine" is false when a different, identifiable speaker or named person is the clear owner — whether assigned to them by someone else ("Sam will send it") or self-committed by them ("I'll send it," said by Sam).\n` +
+    `- "owner" is the first name of whoever owns the item (the assignee, or the speaker who self-committed) — filled in whenever the conversation makes that name knowable, even if it isn't ${name}. Leave owner "" only when no name is knowable at all, in which case mine follows the last-resort fallback above. If owner is "" or equals ${name}, mine MUST be true; if owner is any other name, mine MUST be false — never let the two fields disagree.\n` +
     `- Phrase each item as a short imperative task (max 12 words), the way ${name} would write it in a todo list.\n` +
     `- Phrase each item in the language spoken in the meeting — do not translate to English.\n` +
     `- Do not repeat items already listed in the prior context or in the already-captured list below.\n` +
@@ -159,7 +161,10 @@ exports.handler = async function(event) {
           return {
             text: i.text.trim().slice(0, 200),
             owner,
-            mine: ownerIsMe ? true : !!i.mine,
+            // owner is the ground truth for "mine" — the model's raw boolean is never
+            // trusted on its own, in either direction. A named other-person owner
+            // forces mine:false even if the model said true, and vice versa.
+            mine: ownerIsMe,
           };
         }),
       updatedContext: (typeof parsed.updatedContext === 'string' ? parsed.updatedContext : context).slice(0, 4000),
