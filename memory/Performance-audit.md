@@ -205,7 +205,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.36.4)
+## 8. Changes since last audit (v2.32.0 → v2.36.9)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -217,11 +217,15 @@
 | _stripTag() keyword fix | v2.36.2 | Regex replace on task text at 3 keyword-mining sites. O(1) per call. Negligible. |
 | BUG-058: Noticed block sync | v2.36.3 | `recentCompletedTasks` and `noticed` now union-merged in `mergeRemoteData`. O(n) over remote entries on each sync merge. Bounded by 30-day window (~50 entries max). Negligible. |
 | Monday intention fix | v2.36.4 | Removed `recentCompletedTasks` from `_fetchMondayIntention` prompt — shorter AI call, less context sent to Netlify. Marginal improvement. |
+| BUG-059: task card age reset by sync | v2.36.5 | `mergeRemoteData` task data map now keeps max `lastActive` instead of blind remote-wins. One extra comparison per task per sync merge. Negligible. |
+| Morning nudge prompt reframe | v2.36.6 | Prompt-only change. No runtime cost. |
+| Poem corpus growth | v2.36.7 | poems.js grew ~0.5 KB (92 → 93 poems, Publilius Syrus). SW-precached. |
+| Poem splash word-count timing | v2.36.8 | `poem.text.split(/\s+/).length` on each morning open — O(n) over poem words (~80 max). Negligible. |
+| Pinch-to-zoom lock | v2.36.9 | Viewport meta change only. Zero runtime cost. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
-| Poem corpus growth | v2.35.4 | poems.js grew 31 KB → 32 KB (89 → 92 poems). SW-precached. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.36.4 · Jul 2026*
+*Last updated: v2.36.9 · Jul 2026*

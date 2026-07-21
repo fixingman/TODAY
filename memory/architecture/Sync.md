@@ -298,7 +298,7 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 
 | Data Type | Resolution |
 |-----------|------------|
-| Task list | Union by ID, remote order wins |
+| Task list | Union by ID, remote order wins; per-field: remote wins except `lastActive` (max wins — BUG-059) |
 | Task order | Detected via ID sequence comparison (v2.12.55) |
 | Habit list | Union by ID, remote order wins |
 | Trello order | Newer `trello_order_at` wins (bootstrap if local order empty) — BUG-042 |
