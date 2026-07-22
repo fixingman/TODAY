@@ -3845,9 +3845,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.37.8': 'The Sunday and habit badges now catch up properly on a fresh device too, instead of sometimes staying dark until the next reopen.',
   '2.37.7': 'Fixed: an old Trello task you\'d already finished could show up as active again the first time you connected a new device.',
   '2.37.6': 'The morning nudge now reads your list right before it shows itself, not several minutes earlier — so it won\'t mention something you already checked off.',
-  '2.37.5': 'Housekeeping — a changelog note read a little too much like an engineering log. Tidied.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -8884,6 +8884,11 @@ async function dropboxRestore(fromSync) {
       // and filtering done tasks out of the state we just restored.
       localStorage.setItem('stat_last_visit', _getAppDay());
       if (typeof checkDayNudge === 'function') checkDayNudge();
+      // Re-check Sunday/habit badges too — same "init() ran before sync landed"
+      // gap as the nudge: both read Dropbox-synced state (today_daily_history,
+      // habitsList/habitCompletions) that's empty on a fresh device until now.
+      if (typeof checkSundayNudge === 'function') checkSundayNudge();
+      if (typeof checkHabitNudge === 'function') checkHabitNudge();
       // Seed rev baseline so syncDropbox doesn't immediately re-merge on top of this restore
       if (window._dbxSetRev) {
         try {
@@ -9175,6 +9180,11 @@ async function dropboxRestore(fromSync) {
       // checkDayNudge() ran before cleanup (count may have been missing/stale).
       // Mirrors what the Dropbox restore path already does at line 8700.
       if (typeof checkDayNudge === 'function') checkDayNudge();
+      // Same fix, same reason, for the Sunday/habit badges — both read
+      // Dropbox-synced state (today_daily_history, habitsList/habitCompletions)
+      // that init()'s early call couldn't have seen yet on a fresh device.
+      if (typeof checkSundayNudge === 'function') checkSundayNudge();
+      if (typeof checkHabitNudge === 'function') checkHabitNudge();
 
       // Signal gate — what's on screen is correct, splash can dismiss if animation
       // also done. Bookkeeping and ticker start continue below, off the gate.
