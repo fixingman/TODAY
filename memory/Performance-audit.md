@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.36.4 · Jul 2026  
+> v2.37.6 · Jul 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -205,7 +205,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.37.4)
+## 8. Changes since last audit (v2.32.0 → v2.37.6)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -227,10 +227,12 @@
 | Meeting mode: v2.37.2 approach reverted, attribution fixed server-side | v2.37.3 | Client-side filter/CSS restored (net code change ~0). Server: one array `.split(',')` on name once per request, one string comparison per item. Negligible. **Refined v2.37.4 — see below.** |
 | Meeting mode: speaker-tracked attribution + accuracy counters | v2.37.4 | Prompt-only refinement (speaker-turn tracking instead of blanket unnamed-defaults-to-me) — no runtime cost change. New `appMemory.meetingAttribution`: 4 integer counters, updated once per `_meetingAccept()` call (bounded — meetings are infrequent), merged max-wins on sync like the other lifetime counters. No new localStorage key — rides inside the existing `today_memory` blob already in the Dropbox payload. Negligible. |
 | Season moments (Noticed) | v2.37.0 | One object lookup + string compare in `_noticedLines()` per About open. `noticed.seasonDate` scalar rides the existing noticed merge. Negligible. |
+| Housekeeping: CHANGELOG trim + voice fix (Rule 31) | v2.37.5 | Docs/copy only, no runtime change. |
+| Morning nudge staleness fix | v2.37.6 | `checkDayNudge()` gains one boolean param; one existing call site restricted. No new timers, no new network calls — just moves *when* the existing generation is permitted to fire. Negligible. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.37.4 · Jul 2026*
+*Last updated: v2.37.6 · Jul 2026*

@@ -3845,9 +3845,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.37.6': 'The morning nudge now reads your list right before it shows itself, not several minutes earlier — so it won\'t mention something you already checked off.',
   '2.37.5': 'Housekeeping — a changelog note read a little too much like an engineering log. Tidied.',
   '2.37.4': 'Meeting mode now tracks who was actually speaking for self-commitments — and quietly measures its own accuracy over time.',
-  '2.37.3': 'Meeting mode attribution fixed at the source — unnamed things you said you\'d do are now caught correctly, and a task with your name on it is never left unchecked by mistake.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4192,7 +4192,7 @@ let _aiBadgeShown = false;
 // Unified morning nudge (v2.19.0) — one surface between SOON and Trello,
 // replacing the separate manual + Trello nudges. Two nudges competed for the
 // same morning attention; one line that leads with what matters most doesn't.
-function checkDayNudge() {
+function checkDayNudge(allowGenerate = true) {
   const nudgeEl = $.dayNudge || document.getElementById('dayNudge');
   if (!nudgeEl) return;
 
@@ -4309,7 +4309,7 @@ function checkDayNudge() {
 
   if (_aiCached) {
     _showNudge(_aiCached);
-  } else {
+  } else if (allowGenerate) {
     _raceAINudge({
       cacheKey: _aiCacheKey,
       cachePrefix: 'day_nudge_ai_',
@@ -4320,6 +4320,11 @@ function checkDayNudge() {
       onShow: _showNudge,
     });
   }
+  // else: no cache yet and generation isn't allowed at this call site (init(),
+  // which runs before the Dropbox sync pull lands) — do nothing and let the
+  // post-sync re-check (window 'load' handler, after mergeRemoteData) be the
+  // one that generates, so the AI sees the freshest cross-device task list
+  // instead of whatever this device had before syncing.
 }
 
 function checkVersionNudge() {
@@ -5238,7 +5243,11 @@ function init() {
   _cleanupHabitEvents();  // Purge habit_events older than 30 days
   updateStats();
   checkTriageBar();
-  checkDayNudge();
+  // allowGenerate: false — this runs before the Dropbox sync pull lands (see comment
+  // above), so a fresh cross-device snapshot isn't available yet. Show whatever's
+  // already cached, but don't generate for the first time from stale data; the
+  // post-sync re-check (window 'load' handler) owns that.
+  checkDayNudge(false);
   checkSundayNudge();
   checkHabitNudge();
   checkVersionNudge();
