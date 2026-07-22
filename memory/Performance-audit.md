@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.38.0 · Jul 2026  
+> v2.38.1 · Jul 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -205,7 +205,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.38.0)
+## 8. Changes since last audit (v2.32.0 → v2.38.1)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -233,10 +233,11 @@
 | BUG-061: Sunday/habit badge re-check after merge | v2.37.8 | Two existing functions (`checkSundayNudge`/`checkHabitNudge`) now also called at the two post-merge points `checkDayNudge()` already uses. Both are cheap early-return checks (array length / gate hour). Negligible. |
 | Theme-of-week stop-word expansion | v2.37.9 | 11 words added to a `Set` literal in `_noticedLines()`. Zero runtime cost. |
 | Noticed: revived-task + focus-milestone signals | v2.38.0 | Revived check: O(n) scan over manualTasks+trelloTasks (≤50 typical) + one `checkedIds.find` per revived task, only on About open. Focus milestone: one division + array `.find()`. Both bounded, negligible. |
+| Proactive observation tuning: yesterday_win priority + day-shape state gate | v2.38.1 | Priority string change (zero cost). New `dayShapeState` field: one string compare per evaluation, replacing an unconditional push. Net negative work. Negligible. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.38.0 · Jul 2026*
+*Last updated: v2.38.1 · Jul 2026*

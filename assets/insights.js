@@ -81,6 +81,7 @@ if (!appMemory.recentConversations)    appMemory.recentConversations = [];
 if (!appMemory.recentCompletedTasks)   appMemory.recentCompletedTasks = [];
 if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
 if (appMemory.patterns.dayStartCount === undefined) appMemory.patterns.dayStartCount = null;
+if (appMemory.patterns.dayShapeState === undefined) appMemory.patterns.dayShapeState = null;
 if (appMemory.patterns.dayStartDate  === undefined) appMemory.patterns.dayStartDate  = null;
 if (!appMemory.meetingAttribution) appMemory.meetingAttribution = {
   mineShown: 0, mineKept: 0, othersShown: 0, othersSelected: 0,
@@ -372,18 +373,25 @@ function _getProactiveObservations(ctx) {
   const yesterdayStr = _localISO(yesterday);
   
   for (const moment of recentMoments) {
-    // Big clear yesterday
+    // Big clear yesterday — already rare by construction (needs the 5+-in-a-day
+    // moment AND falls on the one eligible calendar day), so it's high priority
+    // rather than medium: a genuinely sparse signal shouldn't also lose a coin flip.
     if (moment.type === 'big_clear' && moment.date === yesterdayStr) {
       observations.push({
         type: 'yesterday_win',
-        priority: 'medium',
+        priority: 'high',
         text: `You cleared ${moment.count} things yesterday.`
       });
     }
   }
-  
+
   // ── EMERGENT VS PLANNED INSIGHT ──
-  
+  // Unlike big_clear (a one-time event), this reads a standing behavioral state —
+  // once someone's real habit settles into reactive or intentional, the threshold
+  // can stay crossed for weeks. Gate on a state CHANGE (same mechanism as the
+  // Noticed peak-hour signal: n.peakShown !== peak) so it's mentioned once when
+  // the pattern first emerges or flips, not on a 20%-per-day lottery against the
+  // same fact for as long as the habit holds.
   const lateAdditions = m.patterns.lateAdditions || [];
   if (lateAdditions.length >= 10) {
     // Calculate average hour of addition
@@ -394,18 +402,26 @@ function _getProactiveObservations(ctx) {
 
     if (latePct >= 60 && avgHour >= 15) {
       // Consistent pattern: tasks added late in the day
-      observations.push({
-        type: 'reactive_pattern',
-        priority: 'low',
-        text: `A lot of your tasks get added in the afternoon. Reactive day, or just how you plan?`
-      });
+      if (m.patterns.dayShapeState !== 'reactive') {
+        m.patterns.dayShapeState = 'reactive';
+        _saveMemory();
+        observations.push({
+          type: 'reactive_pattern',
+          priority: 'low',
+          text: `A lot of your tasks get added in the afternoon. Reactive day, or just how you plan?`
+        });
+      }
     } else if (latePct <= 30 && avgHour <= 11) {
       // Consistent pattern: intentional morning planner
-      observations.push({
-        type: 'intentional_pattern',
-        priority: 'low',
-        text: `You tend to add tasks in the morning. Good instinct — plans made early tend to stick.`
-      });
+      if (m.patterns.dayShapeState !== 'intentional') {
+        m.patterns.dayShapeState = 'intentional';
+        _saveMemory();
+        observations.push({
+          type: 'intentional_pattern',
+          priority: 'low',
+          text: `You tend to add tasks in the morning. Good instinct — plans made early tend to stick.`
+        });
+      }
     }
   }
 
