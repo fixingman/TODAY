@@ -11,6 +11,7 @@
 3. **Explicit deletes** — tracked with timestamps
 4. **Last-write-wins** — for simple values (stats)
 5. **No conflicts** — merge is deterministic
+6. **`init()` runs before sync lands — anything reading synced state there needs a post-merge re-check.** `init()` executes synchronously on load; the Dropbox restore + `mergeRemoteData()` that actually populates fresh cross-device state happens later, in the async `window 'load'` handler. Any `init()`-time function that reads a variable `mergeRemoteData()` reassigns (`doneIds`, `habitsList`/`habitCompletions`, `today_daily_history`, etc.) sees stale or empty data on a genuinely fresh device — and won't self-correct later unless something explicitly re-runs it, because the normal 7s ticker often gates its own re-fetch on a *different* signal (e.g. Trello's `dateLastActivity`, which may never change even though local completion state did). Confirmed four times so far: triage bar (fixed pre-BUG-060), morning nudge (v2.37.6), Trello done-state (BUG-060, v2.37.7), Sunday/habit badges (BUG-061, v2.37.8). **The fix pattern is always the same:** call the function again from the two spots already doing this re-check — right after `mergeRemoteData()` in the Dropbox-restore path, and right after it in the primary cold-start `window 'load'` handler (search either file for `checkDayNudge === 'function'` to find both call sites and mirror them). Before shipping any new `init()`-time check, ask whether it reads state that `mergeRemoteData()` touches — if so, it needs this too.
 
 ---
 

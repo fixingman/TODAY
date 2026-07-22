@@ -158,6 +158,7 @@ These areas are error-prone — always read the relevant file and double-check l
 | Sync merge logic | Union merge + deleted_ids is subtle | `architecture/Sync.md` |
 | Data schema changes | Breaking changes affect backups | `architecture/Data.md` |
 | Delete operations | `deleted_ids` must persist across days | Rule 11, Data.md |
+| Any `init()`-time check reading synced state | Runs before `mergeRemoteData()` lands — stale/empty on a fresh device, four confirmed instances (triage, nudge, Trello BUG-060, Sunday/habit BUG-061) | Sync.md Design Principle 6 |
 | Day boundary logic | Tasks vs habits use different cutoffs | Rule 16 |
 | Zone operations | Must trigger `dropboxBackup(true)` | Sync.md |
 | Trello patch path | Must mirror `taskHTML()` features (tags, badges, sessions) | Rule 27 |
