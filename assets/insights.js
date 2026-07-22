@@ -542,7 +542,8 @@ function _noticedLines() {
     const weekAgo = new Date(Date.now() - 7 * 864e5);
     const stop = new Set(['the','and','for','this','that','with','from','have','will','your',
       'been','they','what','when','then','than','just','into','over','also','some','such',
-      'each','only','more','most','much','very','about','task','call','send','make']);
+      'each','only','more','most','much','very','about','task','call','send','make',
+      'take','get','keep','give','need','want','check','look','come','done','going']);
     const freq = {};
     for (const { text, date } of recent) {
       if (new Date(date) < weekAgo) continue;
