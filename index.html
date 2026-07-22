@@ -2079,12 +2079,16 @@
     width: 100%;
     max-width: 420px;
     max-height: 70vh;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
     padding: var(--space-4);
     animation: slideUp var(--dur-slow) var(--ease-out);
     box-shadow: var(--shadow-triage);
   }
-  .meeting-panel-head { margin-bottom: var(--space-2); }
+  /* Head + actions stay put; only #meetingItems scrolls (min-height:0 is what
+     lets a flex child actually shrink below its content size and scroll). */
+  .meeting-panel-head { margin-bottom: var(--space-2); flex-shrink: 0; }
+  #meetingItems { overflow-y: auto; min-height: 0; }
   .meeting-eyebrow {
     font-size: var(--text-xs);
     color: var(--muted);
@@ -2186,7 +2190,7 @@
     color: var(--muted);
     letter-spacing: 0.04em;
   }
-  .meeting-review-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+  .meeting-review-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); flex-shrink: 0; }
   .meeting-review-actions.no-add .meeting-review-discard { flex: 1; }
   .meeting-review-add {
     flex: 1;
@@ -3845,9 +3849,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.38.2': 'Fixed: tapping "Add tasks" after a meeting sometimes did nothing. The meeting review panel also keeps its header in place now while you scroll a long list.',
   '2.38.1': 'Two AI observations tuned: clearing a big day is noticed more reliably, and the "you tend to add tasks late/early" pattern won\'t repeat itself once it\'s already been said.',
   '2.38.0': 'Noticed can now catch two more things: finishing a task you deliberately brought back, and crossing a round number of hours in total focus.',
-  '2.37.9': 'The "Noticed" theme of the week is a little pickier now — plain verbs like "take" or "get" won\'t be mistaken for a real theme anymore.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -11156,10 +11160,10 @@ function _meetingUpdateCount() {
 function _meetingAccept() {
   // Attribution accuracy signal — compares what the model called mine/others
   // against what the user actually kept selected at the end of review.
-  if (typeof _memoryOnMeetingAttribution === 'function') {
+  if (typeof _memoryOnMeetingAttribution === 'function' && _mtg) {
     const stats = { mineShown: 0, mineKept: 0, othersShown: 0, othersSelected: 0 };
     document.querySelectorAll('#meetingItems .meeting-item').forEach(el => {
-      const item = state.items[+el.dataset.idx];
+      const item = _mtg.items[+el.dataset.idx];
       if (!item) return;
       const selected = el.classList.contains('selected');
       if (item.mine) { stats.mineShown++; if (selected) stats.mineKept++; }
