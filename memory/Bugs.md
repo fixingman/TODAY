@@ -6,6 +6,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 060 | Completed Trello card (overdue) reappears as active on a fresh device connect | ⏳ v2.37.7 |
 | 059 | Task card age reset by sync after focus — card re-dims on refresh | ✅ v2.36.5 |
 | 058 | Noticed block in About shows different content between devices | ✅ v2.36.3 |
 | 057 | About "This week" / "New week" AI text differs between devices (cache never synced) | ⏳ v2.36.1 |
@@ -70,6 +71,22 @@
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-060: Completed Trello card reappears as active on a fresh device connect
+
+**Symptom:** Can connected TODAY on a new desktop PWA; an old Trello task — already completed in TODAY, with a due date well in the past — showed up on the list as if still active.
+
+**Root cause:** `loadTrello()` fires from `init()` (`index.html:5269`), which runs before the Dropbox restore lands. On a genuinely fresh device, `doneIds` (`index.html:3900`) is still an empty `Set` at that moment — nothing has restored `today_checked_ids` yet. The Trello fetch's own done-filter (`assets/trello.js`) checks `doneIds.has(id)`, finds nothing, and the overdue card passes the "overdue, not done → show" branch. It gets cached to `today_trello_cache` and rendered as active.
+
+This would normally self-correct within one 7-second ticker cycle, except it can't: `syncTrello()` only re-fetches Trello when the board's own `dateLastActivity` changes, and that gets *seeded* to the current value right at load (`index.html:9115`), before the Dropbox merge even runs. Since the task was only ever completed inside TODAY — the actual Trello card was never archived or moved on the real board — `dateLastActivity` never changes again. The phantom card is stuck showing until something else happens to touch that board, or the user manually clicks Refresh.
+
+Same bug class as `checkTriageBar()`/`checkDayNudge()` needing a post-merge re-check (see the `window 'load'` handler's existing "init() ran too early" comments) — `loadTrello()` had just never been given the same treatment.
+
+**Fix (v2.37.7):** new `_reconcileTrelloAfterMerge()` in `trello.js`, called right after `mergeRemoteData()` in the load handler. Re-filters the already-loaded `trelloTasks` against the now-correct `doneIds`, using the identical done+grace-window rule `loadTrello()` itself uses (done, but checked today → still show; done and not checked today → hide). No extra Trello API call — purely a local re-filter of what's already in memory.
+
+**Verify:** On a device where a Trello task was completed in TODAY (but never archived on the actual Trello board) and has a due date in the past, do a fresh PWA install / fresh Dropbox+Trello connect on a new device. The card should not appear, even momentarily.
 
 ---
 

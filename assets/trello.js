@@ -352,6 +352,38 @@ async function loadTrello(fromSync) {
   }
 }
 
+// ─── Reconcile after a Dropbox merge (fresh-device fix) ────────────────────────
+// loadTrello() fires from init(), which runs before Dropbox restore lands — on a
+// brand-new device doneIds is still empty at that point, so an old card that was
+// completed in TODAY (but never archived/moved on the real Trello board) passes
+// the "overdue, not done" filter and shows as active. Normally the 7s ticker
+// would catch this on its next Trello re-fetch, but syncTrello() only re-fetches
+// when the board's own dateLastActivity changes — and it never does, because the
+// completion only ever happened in TODAY, not on the actual card. Same bug class
+// as checkTriageBar()/checkDayNudge() needing a post-merge re-check (see the
+// window 'load' handler) — loadTrello() just never got one. Re-filters what's
+// already loaded against the now-correct doneIds; no extra Trello API call.
+function _reconcileTrelloAfterMerge() {
+  if (!trelloTasks.length) return;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const checkedIds = safeJSON('today_checked_ids', []);
+  const stillActive = trelloTasks.filter(t => {
+    if (!doneIds.has(t.id)) return true; // not done — keep, same as loadTrello()
+    // Done — same grace window as loadTrello(): show only if checked today.
+    const entry = checkedIds.find(e => e.id === t.id);
+    if (entry && entry.at) {
+      const checkedDate = new Date(entry.at); checkedDate.setHours(0, 0, 0, 0);
+      if (checkedDate.getTime() === today.getTime()) return true;
+    }
+    return false;
+  });
+  if (stillActive.length !== trelloTasks.length) {
+    trelloTasks = stillActive;
+    renderTrello();
+    updateStats();
+  }
+}
+
 // ─── Render ───────────────────────────────────────────────────────────────────
 function renderTrello() {
   const section = document.getElementById('trelloSection');

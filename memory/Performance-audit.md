@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.37.6 · Jul 2026  
+> v2.37.7 · Jul 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -205,7 +205,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.37.6)
+## 8. Changes since last audit (v2.32.0 → v2.37.7)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -229,10 +229,11 @@
 | Season moments (Noticed) | v2.37.0 | One object lookup + string compare in `_noticedLines()` per About open. `noticed.seasonDate` scalar rides the existing noticed merge. Negligible. |
 | Housekeeping: CHANGELOG trim + voice fix (Rule 31) | v2.37.5 | Docs/copy only, no runtime change. |
 | Morning nudge staleness fix | v2.37.6 | `checkDayNudge()` gains one boolean param; one existing call site restricted. No new timers, no new network calls — just moves *when* the existing generation is permitted to fire. Negligible. |
+| BUG-060: Trello done-state reconciliation after merge | v2.37.7 | One new function, called once per initial Dropbox merge (cold start only) — O(n) filter over `trelloTasks` (≤20 cards typical) against a Set lookup. No extra Trello API call. Negligible. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.37.6 · Jul 2026*
+*Last updated: v2.37.7 · Jul 2026*
