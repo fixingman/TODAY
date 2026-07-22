@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.37.9 · Jul 2026  
+> v2.38.0 · Jul 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -112,7 +112,7 @@
 
 ### Memory — changes since v2.32.0
 
-- **`appMemory.noticed`** (v2.35.0): show-once bookkeeping for Noticed block — `habitMilestones`, `streakProxDate`, `peakShown`, `themeWord`, `themeWeek`. Small object, bounded by number of observable signal types (currently 4). Now Dropbox-synced (v2.36.3).
+- **`appMemory.noticed`** (v2.35.0): show-once bookkeeping for Noticed block — `habitMilestones`, `streakProxDate`, `peakShown`, `themeWord`/`themeWeek`, `seasonDate`, `revivedDone`, `focusMilestone`. Small object, bounded by number of observable signal types (7 as of v2.38.0). Now Dropbox-synced (v2.36.3).
 - **`appMemory.recentCompletedTasks`** (v2.29.0, now synced v2.36.3): rolling 30-day, entries bounded by 30-day filter on write. Now union-merged in `mergeRemoteData` across devices.
 - All existing memory bounds unchanged from v2.32.0.
 
@@ -205,7 +205,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.37.9)
+## 8. Changes since last audit (v2.32.0 → v2.38.0)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -232,10 +232,11 @@
 | BUG-060: Trello done-state reconciliation after merge | v2.37.7 | One new function, called once per initial Dropbox merge (cold start only) — O(n) filter over `trelloTasks` (≤20 cards typical) against a Set lookup. No extra Trello API call. Negligible. |
 | BUG-061: Sunday/habit badge re-check after merge | v2.37.8 | Two existing functions (`checkSundayNudge`/`checkHabitNudge`) now also called at the two post-merge points `checkDayNudge()` already uses. Both are cheap early-return checks (array length / gate hour). Negligible. |
 | Theme-of-week stop-word expansion | v2.37.9 | 11 words added to a `Set` literal in `_noticedLines()`. Zero runtime cost. |
+| Noticed: revived-task + focus-milestone signals | v2.38.0 | Revived check: O(n) scan over manualTasks+trelloTasks (≤50 typical) + one `checkedIds.find` per revived task, only on About open. Focus milestone: one division + array `.find()`. Both bounded, negligible. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.37.9 · Jul 2026*
+*Last updated: v2.38.0 · Jul 2026*

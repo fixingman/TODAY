@@ -49,8 +49,8 @@ Run ProductThinking's "what already exists?" reflex against this table before ad
 |---|---|---|
 | `completionsByHour` → `peakHour` | `appMemory.patterns` / `.preferences` | energy-rhythm lines, proactive observations |
 | `taskKeywords` (added count, avg days to complete) | `appMemory.patterns` | drag-keyword awareness |
-| `focusMinutesTotal`, `bestStreak`, `moments` | `appMemory` | milestone observations |
-| `dayStartCount` / `lateAdditions` | `appMemory.patterns` | planned-vs-emergent insight |
+| `focusMinutesTotal`, `bestStreak`, `moments` | `appMemory` | milestone observations; `focusMinutesTotal` also feeds a Noticed total-focus-hours milestone (v2.38.0) |
+| `dayStartCount` / `lateAdditions` | `appMemory.patterns` | planned-vs-emergent insight (proactive `reactive_pattern` observation only — considered for Noticed v2.38.0, dropped as a near-duplicate of that existing observation) |
 | `recentCompletedTasks` (30-day rolling, v2.29.0) | `appMemory` | keyword themes in `_memoryForAI()`, Sunday/Monday prompts |
 | `suggestionHistory` / `suggestionCooldowns` | `appMemory` | AI remembers what it suggested and what the user did |
 | `today_daily_history` (30-day per-day snapshots) | localStorage | weekly stats, week grid, future WEEK companion |

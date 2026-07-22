@@ -561,6 +561,37 @@ function _noticedLines() {
     }
   }
 
+  // 5 · Revived task finished — a task deliberately brought back got done today.
+  // Extends v2.35.2's nudge signal ("the choice was theirs, already made") into
+  // a one-time Noticed moment — rare by construction (needs a revive AND a same-
+  // day completion), never restates once shown.
+  if (typeof manualTasks !== 'undefined' && typeof doneIds !== 'undefined') {
+    if (!n.revivedDone) n.revivedDone = {};
+    const checkedIds = safeJSON('today_checked_ids', []);
+    const allTasks = [...manualTasks, ...(typeof trelloTasks !== 'undefined' ? trelloTasks : [])];
+    for (const t of allTasks) {
+      if (!t.revived || !doneIds.has(t.id) || n.revivedDone[t.id]) continue;
+      const entry = checkedIds.find(e => e.id === t.id);
+      if (!entry || !entry.at || _localISO(new Date(entry.at)) !== todayISO) continue;
+      n.revivedDone[t.id] = true;
+      dirty = true;
+      lines.push('Brought back, and finished — “' + _stripTag(t.text).slice(0, 40) + '”.');
+      break; // at most one per day — keep it rare
+    }
+  }
+
+  // 6 · Total focus milestone — crossed a round number of lifetime focus hours,
+  // once per threshold. Parallel structure to the habit-streak milestone above;
+  // distinct from _memoryForAI()'s "you've focused for X+ hours" line, which
+  // restates every AI call and is never shown verbatim to the user.
+  const focusHoursTotal = Math.floor((appMemory.patterns.focusMinutesTotal || 0) / 60);
+  const focusCrossed = [100, 50, 25, 10].find(m => focusHoursTotal >= m);
+  if (focusCrossed && (n.focusMilestone || 0) < focusCrossed) {
+    n.focusMilestone = focusCrossed;
+    dirty = true;
+    lines.push(focusCrossed + ' hours of focus, total.');
+  }
+
   if (dirty) _saveMemory();
   return lines.slice(0, 2);
 }
