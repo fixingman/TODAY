@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.38.2 · Jul 2026  
+> v2.38.3 · Jul 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -205,7 +205,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.38.2)
+## 8. Changes since last audit (v2.32.0 → v2.38.3)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -235,10 +235,11 @@
 | Noticed: revived-task + focus-milestone signals | v2.38.0 | Revived check: O(n) scan over manualTasks+trelloTasks (≤50 typical) + one `checkedIds.find` per revived task, only on About open. Focus milestone: one division + array `.find()`. Both bounded, negligible. |
 | Proactive observation tuning: yesterday_win priority + day-shape state gate | v2.38.1 | Priority string change (zero cost). New `dayShapeState` field: one string compare per evaluation, replacing an unconditional push. Net negative work. Negligible. |
 | Fix: meeting accept ReferenceError + sticky panel head | v2.38.2 | `_mtg` swap is a variable-name fix, zero cost change. Sticky head: `display:flex` on the panel replaces `overflow-y:auto`, one new `overflow-y:auto` on `#meetingItems` — same total scroll work, just scoped to one element instead of the whole panel. Negligible. |
+| Fix: top-task hover shadow (z-index) | v2.38.3 | One `z-index` property added to an existing `:hover` rule. Zero runtime cost. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.38.2 · Jul 2026*
+*Last updated: v2.38.3 · Jul 2026*

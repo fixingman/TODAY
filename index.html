@@ -1322,6 +1322,13 @@
   .task:hover {
     background: var(--surface);
     border-color: var(--border);
+    /* .section-header::after's fade gradient (z 9) always overlaps the top ~10px
+       of whatever sits directly beneath it, by design — tasks are meant to
+       dissolve under the pinned label rather than clip at a hard edge. At rest
+       the hover-less background blends into it invisibly; --surface's contrast
+       on hover made that permanent overlap read as a shadow. Paint the hovered
+       task above the gradient instead of touching the gradient itself. */
+    z-index: 10;
   }
   /* Applied only on insertion, removed on animationend — fill-mode:backwards prevents opacity:1 fill */
   .task-new { animation: fadeIn var(--dur-slow) var(--ease-std) backwards; }
@@ -3849,9 +3856,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.38.3': 'Fixed a faint shadow that appeared over the top task when hovering it — a rendering quirk, nothing about scrolling changed.',
   '2.38.2': 'Fixed: tapping "Add tasks" after a meeting sometimes did nothing. The meeting review panel also keeps its header in place now while you scroll a long list.',
   '2.38.1': 'Two AI observations tuned: clearing a big day is noticed more reliably, and the "you tend to add tasks late/early" pattern won\'t repeat itself once it\'s already been said.',
-  '2.38.0': 'Noticed can now catch two more things: finishing a task you deliberately brought back, and crossing a round number of hours in total focus.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
