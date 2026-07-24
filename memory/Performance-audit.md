@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.38.5 · Jul 2026  
+> v2.38.6 · Jul 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -205,7 +205,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.38.5)
+## 8. Changes since last audit (v2.32.0 → v2.38.6)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -238,10 +238,11 @@
 | Fix: top-task hover shadow (z-index) | v2.38.3 | One `z-index` property added to an existing `:hover` rule. Zero runtime cost. |
 | Fix: morning nudge cross-call-site re-render | v2.38.4 | Two new module-level booleans, checked/set once per `checkDayNudge()` call. Net effect: fewer AI fetches (duplicate races now blocked), not more. Negligible. |
 | Perf: sync kickoff moved off window.load | v2.38.5 | No new work added — same fetches, same internal sequence, just triggered earlier (after init() instead of after window.load). Expected effect: shorter time-to-ready on cold start, since sync now overlaps more of the splash window instead of starting after it. |
+| Morning nudge prompt: remove position-as-priority contradiction | v2.38.6 | Prompt-only change. No runtime cost. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.38.5 · Jul 2026*
+*Last updated: v2.38.6 · Jul 2026*

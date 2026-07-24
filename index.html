@@ -3856,9 +3856,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.38.6': 'Morning nudge stops defaulting to your top task — it now looks for something genuinely stuck (worked on a few times but still not done) or a real deadline, and stays quiet otherwise.',
   '2.38.5': 'Background sync now starts the moment the app opens instead of waiting on the whole page to finish loading — so it has more time to be ready by the time you land.',
   '2.38.4': 'Fixed the morning note sometimes changing its mind a second after it appeared — it now settles on one message and stays there.',
-  '2.38.3': 'Fixed a faint shadow that appeared over the top task when hovering it — a rendering quirk, nothing about scrolling changed.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4444,17 +4444,19 @@ async function _fetchDayNudgeAI(review, carriedOver, cards) {
       (carriedOver > 0 ? carriedOver + ' task(s) carried over from yesterday.\n' : '');
     if (patternCtx) facts += 'About this person: ' + patternCtx + '\n';
     if (taskLines.length) facts +=
-      'Tasks (numbered in the order the user arranged them — position reflects their intent):\n' +
+      'Tasks, in the order the user arranged them:\n' +
       taskLines.join('\n') + '\n';
     if (cardLines.length) facts += 'Trello cards:\n' + cardLines.join('\n') + '\n';
     if (!taskLines.length && !cardLines.length) facts += 'The list is empty.';
 
     const instruction =
       'Say something the user could not see just by looking at their list. ' +
-      'Read all signals together: tasks with focus sessions are being actively worked; ' +
-      'position 1 is where the user put their priority; a revived task was deliberately brought back; ' +
-      'age alone is not importance — a new task can matter more than an old one. ' +
-      'Only mention a task when you have a real reason beyond its position — do not echo the top item just because it is first; the user can already see that. ' +
+      'Look for a task that is stuck, not just old: several focus sessions spent on it but still not done is the ' +
+      'strongest signal something is genuinely hard — far more telling than age alone. ' +
+      'A revived task was deliberately brought back — that is real intent, worth naming. ' +
+      'An overdue Trello card is a real deadline signal. ' +
+      'Position in the list is the order the user arranged things — sequence, not importance; never treat first place as a reason on its own. ' +
+      'Only mention a task when one of the signals above gives you a real reason — do not default to the top item when nothing stands out. ' +
       'When you do point to a specific task, use its exact words from the list ' +
       '(a short verbatim fragment is fine) so the user can spot it at a glance — never paraphrase ' +
       'or describe a task in different words. If nothing stands out, state the morning simply — a count, the day, a quiet note.';
