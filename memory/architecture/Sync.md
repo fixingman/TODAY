@@ -27,13 +27,25 @@
 ### Sync Flow
 
 ```
-1. On load: fetch remote, merge with local (behind splash)
+1. On load: fetch remote, merge with local (behind splash) — kicks off right
+   after init(), not gated on window.load (v2.38.5, see below)
 2. On mutation: debounced save (800ms), retry with exponential backoff on failure
 3. On tab return / PWA focus: immediate sync (wake errors silenced for 3s)
 4. Every 7s: background sync check (rev comparison, skipped if _pendingBackup)
 5. On reconnect ('online' event): full pull + merge + push
 6. On disconnect ('offline' event): stop ticker
 ```
+
+### Cold-Start Sync Timing (v2.38.5)
+
+The Trello `dateLastActivity` check + Dropbox pull/merge block used to be gated on `window.addEventListener('load', ...)`. That's a much coarser gate than the splash animation itself needs: `window.load` waits for *every* subresource on the page — both self-hosted fonts, both icon PNGs, the OG-image meta tag's image, all 11 `apple-touch-startup-image` launch-screen PNGs — while the splash animation only waits on the two fonts (`document.fonts.load()` raced against a 2000ms ceiling). Sync sat idle in that gap even after everything the splash actually needed was already ready.
+
+Fixed by removing the `window.load` wrapper — the sync block now runs as a plain statement right after `init();` is called, still wrapped in the same `setTimeout(0)` yield the code already used to avoid blocking first paint. Two things make this safe rather than a re-introduction of a load-order race (both traced before shipping, not assumed):
+
+- **`init()` is fully synchronous.** No matter how early the async sync block is triggered, its `await`ed continuations can't run until `init()` — including `checkDayNudge(false)`'s pre-sync call — has already returned. Removing the `window.load` gate doesn't change this; JS's own execution model already guarantees it.
+- **`startTicker()`'s rev-seed-before-first-tick ordering is untouched.** `startTicker()` is called from *inside the same async function* that was moved (after the rev-seed step in `deferredSyncBookkeeping`), so that internal sequence — pull+merge → nudge/triage re-checks → `_onAppLoadDone()` → rev-seed → `startTicker()` — travels with the block as one unit. Only *when the whole block begins* changed, not the order of anything inside it.
+
+Splash dismissal (`_appLoadDone`) already only depended on sync *finishing*, never on when it started — so this change can only shorten cold-start time-to-ready, never lengthen it or introduce a new race.
 
 ### Wake Sequence — `window._onWake()` (v2.17.0, updated v2.17.50)
 
