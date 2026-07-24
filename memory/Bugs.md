@@ -131,6 +131,10 @@ Same bug class as `checkTriageBar()`/`checkDayNudge()` needing a post-merge re-c
 
 **Verify (third pass):** iPhone 14 Pro, light mode, cold start (swipe app away first): (a) no white flash; (b) TODAY letters fade in with zero vertical motion.
 
+**Fourth pass (2026-07-22) — white flash only persists, letters-motion (b) confirmed fixed.** Reported again on iPhone 14 Pro after the third-pass fix shipped. Investigation this pass ruled out every explanation reachable from app code: (1) all 11 `apple-touch-startup-image` PNGs sampled at (14,14,16) RGB — correctly dark, matches `--bg`, not a color mismatch; (2) 14 Pro's exact spec (393×852@3x) confirmed present in the startup-image media-query list (`splash-1179x2556.png`) — not a missing-device gap; (3) user confirmed running the latest deployed version — not a stale-cache/SW issue; (4) `<head>` order checked — no `<script>` before `<style>`, font `preload` hints are non-blocking, inline `background-color` on `<html>` is already the first thing set — no render-blocking resource widening the flash window. Light/dark system-appearance mode was asked but not confirmed by the user this pass.
+
+With those four theories closed, what remains is exactly what the third pass already named: the gap between iOS's static launch image ending and the WebView's first painted frame — a handoff that happens before any in-page HTML/CSS/JS runs, with no hook available from web content. Treating this as a probable **iOS platform limitation** rather than an open app-code bug unless new evidence reopens a lead — e.g. confirmation of light-vs-dark mode correlation, or the flash appearing even on a warm/backgrounded reopen rather than only true cold start (which would point back at in-page code instead of the OS handoff).
+
 ---
 
 
