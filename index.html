@@ -3856,9 +3856,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.38.5': 'Background sync now starts the moment the app opens instead of waiting on the whole page to finish loading — so it has more time to be ready by the time you land.',
   '2.38.4': 'Fixed the morning note sometimes changing its mind a second after it appeared — it now settles on one message and stays there.',
   '2.38.3': 'Fixed a faint shadow that appeared over the top task when hovering it — a rendering quirk, nothing about scrolling changed.',
-  '2.38.2': 'Fixed: tapping "Add tasks" after a meeting sometimes did nothing. The meeting review panel also keeps its header in place now while you scroll a long list.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -9132,8 +9132,14 @@ async function dropboxRestore(fromSync) {
     _applyOfflinePanel();
   }, { capture: true });
 
-  // Seed baselines before starting ticker so first tick has something to compare
-  window.addEventListener('load', () => {
+  // Seed baselines before starting ticker so first tick has something to compare.
+  // Was gated on window.load — but load waits for every subresource (icons, OG
+  // image, all splash launch-screens), while the splash animation itself only
+  // waits on fonts. That gap meant sync started later than it needed to, eating
+  // into overlap with splash time instead of running fully in its shadow. Fires
+  // right after init() instead — init() is synchronous, so this still can't run
+  // before init() finishes; only the "wait for window.load" gate is removed.
+  {
     // Defer heavy sync work to avoid blocking first interaction
     // Use setTimeout(0) to yield to the event loop after initial paint
     setTimeout(async () => {
@@ -9224,7 +9230,7 @@ async function dropboxRestore(fromSync) {
       // the first tick do a redundant full restore of data we just merged
       startTicker();
     }, 0);
-  });
+  }
 })();
 
 // ─── Start ────────────────────────────────────────────────────────────────────
