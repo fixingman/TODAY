@@ -3856,9 +3856,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.38.4': 'Fixed the morning note sometimes changing its mind a second after it appeared — it now settles on one message and stays there.',
   '2.38.3': 'Fixed a faint shadow that appeared over the top task when hovering it — a rendering quirk, nothing about scrolling changed.',
   '2.38.2': 'Fixed: tapping "Add tasks" after a meeting sometimes did nothing. The meeting review panel also keeps its header in place now while you scroll a long list.',
-  '2.38.1': 'Two AI observations tuned: clearing a big day is noticed more reliably, and the "you tend to add tasks late/early" pattern won\'t repeat itself once it\'s already been said.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4199,6 +4199,17 @@ function _raceAINudge({ cacheKey, cachePrefix, fetchPromise, fallbackMsg, onShow
 }
 
 let _aiBadgeShown = false;
+// Session-level guards (not per-race) — checkDayNudge() has multiple call sites
+// (init, wake, Dropbox restore, the post-sync load handler). _raceAINudge()'s own
+// "settled" flag only prevents a swap WITHIN one call's race; it can't stop a
+// LATER, separate call from finding a freshly-written cache and re-rendering with
+// different text once the first race's fetch resolves after its own timeout
+// already displayed the fallback — the actual mechanism behind the reported
+// "shows a note, then swaps a second later" bug. _nudgeRendered blocks any further
+// render once one has happened this page load; _nudgeRacing stops a second call
+// site from starting its own parallel race while one is already in flight.
+let _nudgeRendered = false;
+let _nudgeRacing   = false;
 
 // Unified morning nudge (v2.19.0) — one surface between SOON and Trello,
 // replacing the separate manual + Trello nudges. Two nudges competed for the
@@ -4290,6 +4301,7 @@ function checkDayNudge(allowGenerate = true) {
   const _aiCached = localStorage.getItem(_aiCacheKey);
 
   const _showNudge = (text) => {
+    _nudgeRendered = true;
     nudgeEl.innerHTML = `<span class="nudge-star">✦</span><span class="nudge-text">${esc(text)}</span>`;
     _breathe(nudgeEl.querySelector('.nudge-star'), _KF_BREATHE_SMALL, 2400);
     if (!nudgeEl.classList.contains('show')) {
@@ -4318,9 +4330,15 @@ function checkDayNudge(allowGenerate = true) {
     }
   };
 
+  // Once shown once this page load, no further call site may render again —
+  // otherwise a later call finding a freshly-cached (different) value re-renders
+  // over content the user already saw. See the _nudgeRendered declaration above.
+  if (_nudgeRendered) return;
+
   if (_aiCached) {
     _showNudge(_aiCached);
-  } else if (allowGenerate) {
+  } else if (allowGenerate && !_nudgeRacing) {
+    _nudgeRacing = true;
     _raceAINudge({
       cacheKey: _aiCacheKey,
       cachePrefix: 'day_nudge_ai_',
