@@ -114,14 +114,15 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
 
 ---
 
-## Backup Schema (v5.3)
+## Backup Schema (v5.4)
 
 ```javascript
 {
-  version: '5.3',
+  version: '5.4',
   saved_at: 'ISO string',
   // Tasks
   manual_tasks: [{id, text, lastActive?, zone?, zoneChangedAt?}, ...],
+  manual_order_at: 'ISO',  // v5.4 — manual reorder timestamp; newer wins on merge (drag jump-back fix). Mirrors trello_order_at. Absent in older backups → '' → remote order wins (prior behavior)
   done_ids: ['id1', 'id2', ...],
   deleted_ids: [{id, at}, ...],
   checked_ids: [{id, at}, ...],
@@ -284,6 +285,14 @@ if (!_changed && manualTasks.length === mergedTasks.length) {
 ```
 
 When `_changed` is true, `renderManual()` is called to update the UI.
+
+### Recency-Aware Manual Order — drag jump-back (v2.38.7)
+
+**Symptom:** drag a manual task to reorder, and ~1 second later it snaps back to its old position — most visible on a warm refresh (reopened within 30 min, so the splash is skipped and the app is interactive instantly).
+
+**Root cause:** `mergeRemoteData()` ordered manual tasks **remote-order-wins** with no recency guard. `_pendingBackup` prevents the 7s ticker from clobbering a fresh drag, but the **initial load pull** and the **reconnect pull** don't check that flag. On a warm refresh the initial Dropbox pull is still in flight while the user drags; it resolves carrying the pre-drag order and `mergeRemoteData` applies it over the drag. Trello order had a recency guard since BUG-042; manual order never did. (v2.38.5's earlier sync kickoff shifted when the initial pull lands, which is why this surfaced then — but the missing guard was the actual flaw, present long before.)
+
+**Fix:** mirror BUG-042 for manual order. `today_manual_order_at` (ISO) is stamped on every manual reorder (drop handler + touch `_saveOrder`) and synced as `manual_order_at` (schema 5.4). In `mergeRemoteData`, order basis is chosen by recency: remote wins by default, but a strictly-newer local reorder stamp keeps the local sequence for shared tasks (remote-only additions still append at the end; local-only additions still append after that; all the zone/delete filters are unchanged). When remote wins, the device adopts the remote stamp so the next merge compares correctly. Ties → remote wins. Absent stamp (old backup) → `''` → remote wins = exact prior behavior, so no migration needed.
 
 ---
 

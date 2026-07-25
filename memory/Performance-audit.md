@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.38.6 · Jul 2026  
+> v2.38.7 · Jul 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -62,6 +62,7 @@
 | `noticed_lines_<date>` | Day-cache for Noticed block lines — keeps them visible on re-open (v2.35.0); pruned by `_pruneLS` | Local |
 | `week_reflection_<date>` | Sunday reflection (AI-generated, cached per day) | Dropbox-synced (BUG-057, v2.36.1) |
 | `monday_intention_<date>` | Monday intention (AI-generated, cached per day) | Dropbox-synced (BUG-057, v2.36.1) |
+| `today_manual_order_at` | ISO stamp of last manual reorder — recency-aware merge, prevents drag jump-back (v2.38.7) | Dropbox-synced (`manual_order_at`, schema 5.4) |
 
 ### Timer Inventory
 
@@ -151,7 +152,7 @@
 
 | Destination | Data sent | When | Notes |
 |---|---|---|---|
-| **Dropbox API** | Full backup JSON — tasks, habits, zones, stats, appMemory (incl. noticed + recentCompletedTasks + meetingAttribution counters), checked_ids, AI day-cache, week_reflection, monday_intention, deleted_ids (schema 5.3) | On sync tick only if state changed; on manual backup | User's own account. PKCE. Content never seen by us. |
+| **Dropbox API** | Full backup JSON — tasks, habits, zones, stats, appMemory (incl. noticed + recentCompletedTasks + meetingAttribution counters), checked_ids, AI day-cache, week_reflection, monday_intention, deleted_ids, manual_order_at (schema 5.4) | On sync tick only if state changed; on manual backup | User's own account. PKCE. Content never seen by us. |
 | **Trello API** | OAuth token + board/list IDs; receives card data | On tick if `dateLastActivity` changed | `read` scope only. |
 | **Netlify AI proxy** | Prompt (task names, ages, patterns from appMemory) + provider key | On ✦ call, daily nudge, week reflection, monday intention, meeting chunk | One nudge/day max, cached. Key never sent to provider from client directly. |
 | **Netlify meeting-extract** | Base64 audio chunk (~6min) + userName + rolling context + captured mine items | Per audio chunk during meeting mode | Gemini only. Transcript produced inside Gemini, never returned. Tasks only. |
@@ -205,7 +206,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.38.6)
+## 8. Changes since last audit (v2.32.0 → v2.38.7)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -239,10 +240,11 @@
 | Fix: morning nudge cross-call-site re-render | v2.38.4 | Two new module-level booleans, checked/set once per `checkDayNudge()` call. Net effect: fewer AI fetches (duplicate races now blocked), not more. Negligible. |
 | Perf: sync kickoff moved off window.load | v2.38.5 | No new work added — same fetches, same internal sequence, just triggered earlier (after init() instead of after window.load). Expected effect: shorter time-to-ready on cold start, since sync now overlaps more of the splash window instead of starting after it. |
 | Morning nudge prompt: remove position-as-priority contradiction | v2.38.6 | Prompt-only change. No runtime cost. |
+| Fix: recency-aware manual order merge (drag jump-back) | v2.38.7 | One extra `localStorage.setItem` per manual reorder, two string comparisons + at most one array rebuild per merge (bounded by task count, ≤~30 typical). New `manual_order_at` field in backup payload (schema 5.4). Negligible. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.38.6 · Jul 2026*
+*Last updated: v2.38.7 · Jul 2026*
