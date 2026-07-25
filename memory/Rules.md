@@ -4,21 +4,18 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.36.1 on dev (master at v2.35.4). W3 verdict season next (Jul 28–Aug 2, four surfaces — pre-registration note in Backlog Watching). Next build candidates: season moments (approved, wordsmithing-only), poem rounds toward ~100 (corpus 92), sync.js extraction (#3 last module — needs risk discussion first).
-- **Recent (2026-07-20):** Poems v2.35.4 (round 21: Bashō rooks, Bonchō snow river, Dickinson 'Autumn' — 89→92) + v2.35.5 (orphan-word guard: `_poemHTML()` nbsp tie + `text-wrap: pretty` on all four surfaces). Feature v2.36.0 — `open_triage` AI action (intent family, explicit-ask-only, no hour gate: capability vs. invitation). Fix v2.36.1 — BUG-057 About weekly block synced (day_nudge_ai pattern), awaiting device verify. Docs: README rewritten, Positioning.md created (pitch kernel + register rules), design-doc drift pass (Personalization gates resolved, Noticed documented, z-index literals, poem typography). Parked: silent-morning gate reframed as sparse-context AI gate (first-run face, W3-season decision).
+- **Working on:** v2.38.7 — dev and master in sync. W3 verdict season is now (poem coda ✅ kept early; daily brief 2026-07-30, Today block 2026-08-01, Noticed 2026-08-02 — Backlog Watching). Next build candidates: poem rounds toward ~100 (corpus 96, spring/summer thinnest), sync.js extraction (#3 last module — needs risk discussion first).
+- **Recent (2026-07-22 → 07-24):** Big fix arc, mostly the `init()`-runs-before-sync bug family (now a named Sync.md Design Principle 6 + Rules.md Non-Delegation row): BUG-060 (Trello done card resurfaces on fresh device), BUG-061 (Sunday/habit badges silent on fresh device), morning nudge generation-timing (v2.37.6) + cross-call-site re-render (v2.38.4), drag jump-back (v2.38.7, recency-aware manual order merge, schema 5.4). Meeting mode: speaker-tracked attribution + accuracy counters (v2.37.4), accept-button ReferenceError + sticky panel head (v2.38.2). Nudge prompt de-contradicted (v2.38.6 — position-as-priority removed, ranks stuck-task signal). Noticed expanded to 7 signals (v2.38.0) + two AI observations tuned (v2.38.1). Poems round 23 (Teasdale ×3, 93→96). Season moments shipped (v2.37.0). Perf: sync kickoff moved off `window.load` (v2.38.5).
 - **Module extraction (Roadmap #3):** Done: `util.js`, `idle.js`, `sound.js`, `celebration.js`, `trello.js` (v2.33.5), `insights.js` (v2.33.10 — owns `appMemory`, runs at eval, must load after util.js). Next: `sync.js` (~510, Non-Delegation). Coupled core stays inline.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
-  - v2.33.10 insights.js — verified on dev 2026-07-18; **re-confirm on master after next master push** (About stats, peak hour, streak — appMemory surviving the module move)
-  - Horizontal paint overflow — `.app`'s `overflow-x: clip` was removed in v2.33.3 (BUG-050); its old job was containing content inside the app column. Watch: while **dragging a task to reorder** or during the **check-off celebration**, does anything visibly spill outside the column edges (desktop margins most visible)? If never seen, close after a quiet week or two
-  - BUG-041 iOS PWA splash — third pass v2.32.1 (column pin). Verify: iPhone light mode, cold start (swipe app away first) — no white flash, letters fade in without vertical motion
-  - v2.28.0 meeting mode mobile — real in-room meeting on iPhone PWA (phone on table, screen on)
-  - v2.32.0 meeting auto-select — are the pre-selected items actually yours, over the next few real meetings?
-  - v2.32.3 nudge verbatim task quotes — do morning nudges keep reading like they point at your list, not a template?
-  - v2.33.0 Today block in About — renders ✅ confirmed 2026-07-19; W3 behavioral verdict still due 2026-08-01 (glanced at during the day, or does the morning read cover it?) (also W3s: poem coda 2026-07-28, daily brief 2026-07-30, Noticed 2026-08-02 — table in Backlog.md)
-  - v2.36.1 BUG-057 weekly-block sync — on a Sunday or Monday, About's This week / New week line should read identically on both devices after ~10s of sync
-  - v2.36.0 open_triage — ask ✦ "help me go through what's left" (any phrasing, any hour) → chip → sorting overlay opens; single named task should route to move_soon instead
-  - v2.35.5 poem orphan guard — longest-line poems (Rilke 'Autumn', Irish 'My tidings') on iPhone: no single word alone on a wrapped line
-  - **Closed 2026-07-18:** "Script error at :0:0" never recurred after fresh-install day → install one-off, no BUG-057 (057 stays the next free slot) · Partial-focus un-aging (BUG-043 design) — rule feels right in practice, kept
+  - **BUG-041 iOS PWA splash — fourth pass (2026-07-22):** white flash only; four app-code theories ruled out, likely OS launch-frame→WebView handoff (platform limitation). Reopen only if light/dark correlation or warm-reopen recurrence turns up. Detail in Bugs.md.
+  - **Meeting attribution accuracy — ask Can:** after a few real meetings, ask "how's meeting attribution doing?" and read `appMemory.meetingAttribution` (`mineKept/mineShown` precision, `othersSelected/othersShown` recall).
+  - **Drag jump-back (BUG, v2.38.7)** — verify: on a warm refresh, drag a manual task immediately; should NOT snap back ~1s later.
+  - **Morning nudge quality (v2.38.6)** — does it now surface a genuinely stuck/revived/overdue task, and go quiet (not default to top) when nothing stands out?
+  - **Noticed 7-signal expansion (v2.38.0, Aug 2 verdict)** — if it still reads as noise with 7 signals, don't add an 8th; ask whether Noticed needs a different shape.
+  - BUG-057 weekly-block sync (v2.36.1) — on a Sunday/Monday, About's This week / New week should read identically on both devices after ~10s.
+  - v2.28.0 meeting mode mobile — real in-room meeting on iPhone PWA (phone on table, screen on).
+  - Horizontal paint overflow — `.app`'s `overflow-x: clip` removed v2.33.3 (BUG-050): during drag-reorder or check-off celebration, does content spill outside the column? If never seen, close after a quiet week.
 
 ---
 

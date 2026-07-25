@@ -32,6 +32,17 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     process.exit(1);
   }
   console.log(`  ✓ version consistent (v${appVer})`);
+
+  // CHANGELOG entry-count guard (Rule 31): the About panel renders slice(0, 1 +
+  // HISTORY_SHOWN) with HISTORY_SHOWN=2, so anything past 3 entries is never shown
+  // and is pure drift. This crept back twice in one session by hand — pin it here.
+  const cgBlock = indexSrc.match(/const CHANGELOG = \{[\s\S]*?\n\};/)?.[0] || '';
+  const cgCount = (cgBlock.match(/^\s*'\d+\.\d+\.\d+':/gm) || []).length;
+  if (cgCount !== 3) {
+    console.error(`✗ FAIL — index.html CHANGELOG has ${cgCount} entries, must be exactly 3 (Rule 31: 1 current + 2 history; About renders slice(0,3)). Trim the oldest — full history lives in memory/Changelog.md.`);
+    process.exit(1);
+  }
+  console.log(`  ✓ CHANGELOG entry count (3)`);
 }
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
