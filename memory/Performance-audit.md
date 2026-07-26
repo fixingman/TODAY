@@ -184,6 +184,7 @@
 | `renderTrello()` runs every 7s tick unconditionally | Low | v2.18.12 — diff-patch bounds cost (≤20 cards). Only item in history that adds baseline per-tick work. Revisit if Trello card counts grow much larger than ~20. |
 | BUG-004 repaint ceiling | Low | Extended to 5000ms (v2.31.9). If a very long sleep still leaves GPU unready past 5s, a 7th pass or a fallback `click` simulation may be needed. |
 | index.html growth | Watch | 556 KB now; extraction (Roadmap #3) offsets feature growth. Next extraction candidate: sync.js (~510 lines) — needs risk discussion (Non-Delegation ceiling). |
+| BUG-041: iOS PWA splash white flash | Platform limitation | Closed 2026-07-24 after a fourth investigation pass ruled out every app-code explanation: splash launch-image colors correct (RGB 14,14,16, matches `--bg`), iPhone 14 Pro's exact spec present in the `apple-touch-startup-image` list, latest build confirmed running, no render-blocking `<head>` resource. What remains is the gap between iOS's static launch image ending and the WebView's first painted frame — a handoff with no hook available from web content. Reopen only if light/dark-mode correlation is confirmed, or the flash appears on a warm/backgrounded reopen (not just true cold start) — either would point back at in-page code. Full four-pass history → `archive/Bugs-archive.md`. |
 
 ---
 
