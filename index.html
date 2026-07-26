@@ -3856,9 +3856,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.38.8': 'Fixed the morning note showing yesterday\'s count and an already-finished task when the app was left open overnight — it now catches up properly at midnight.',
   '2.38.7': 'Fixed a task you just dragged snapping back to its old spot a second later — your reorder now wins over sync instead of the other way around.',
   '2.38.6': 'Morning nudge stops defaulting to your top task — it now looks for something genuinely stuck (worked on a few times but still not done) or a real deadline, and stays quiet otherwise.',
-  '2.38.5': 'Background sync now starts the moment the app opens instead of waiting on the whole page to finish loading — so it has more time to be ready by the time you land.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -9037,6 +9037,15 @@ async function dropboxRestore(fromSync) {
     renderManual();
     loadTrello();
     updateStats();
+    // Refresh the nudge banner too — a tab left open across midnight (common desktop
+    // usage) would otherwise keep showing yesterday's cached AI text (wrong counts,
+    // tasks that were completed before midnight described as still pending) until a
+    // full reload. The banner's own cache key is date-scoped and would naturally
+    // regenerate — but _nudgeRendered (v2.38.4, blocks re-render once shown per page
+    // load) doesn't know a genuine day boundary just passed, so it must be reset here.
+    _nudgeRendered = false;
+    _nudgeRacing   = false;
+    if (typeof checkDayNudge === 'function') checkDayNudge();
   }
 
   // Cached values read once per sync cycle — avoids repeated localStorage access

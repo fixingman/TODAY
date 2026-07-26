@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.38.7 · Jul 2026  
+> v2.38.8 · Jul 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -206,7 +206,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.38.7)
+## 8. Changes since last audit (v2.32.0 → v2.38.8)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -241,10 +241,11 @@
 | Perf: sync kickoff moved off window.load | v2.38.5 | No new work added — same fetches, same internal sequence, just triggered earlier (after init() instead of after window.load). Expected effect: shorter time-to-ready on cold start, since sync now overlaps more of the splash window instead of starting after it. |
 | Morning nudge prompt: remove position-as-priority contradiction | v2.38.6 | Prompt-only change. No runtime cost. |
 | Fix: recency-aware manual order merge (drag jump-back) | v2.38.7 | One extra `localStorage.setItem` per manual reorder, two string comparisons + at most one array rebuild per merge (bounded by task count, ≤~30 typical). New `manual_order_at` field in backup payload (schema 5.4). Negligible. |
+| Fix: nudge banner refresh on day rollover | v2.38.8 | `checkNewDay()` now also calls `checkDayNudge()` once per day boundary (ticker tick or wake) — same cost as any other checkDayNudge() call site, already accounted for. Negligible. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.38.7 · Jul 2026*
+*Last updated: v2.38.8 · Jul 2026*

@@ -12,6 +12,7 @@
   - **Meeting attribution accuracy — ask Can:** after a few real meetings, ask "how's meeting attribution doing?" and read `appMemory.meetingAttribution` (`mineKept/mineShown` precision, `othersSelected/othersShown` recall).
   - **Drag jump-back (BUG, v2.38.7)** — verify: on a warm refresh, drag a manual task immediately; should NOT snap back ~1s later.
   - **Morning nudge quality (v2.38.6)** — does it now surface a genuinely stuck/revived/overdue task, and go quiet (not default to top) when nothing stands out?
+  - **Nudge day-rollover refresh (v2.38.8)** — verify: leave a tab open across midnight (or check right after wake past midnight); the nudge banner should show fresh content for the new day, not yesterday's cached text/count.
   - **Noticed 7-signal expansion (v2.38.0, Aug 2 verdict)** — if it still reads as noise with 7 signals, don't add an 8th; ask whether Noticed needs a different shape.
   - BUG-057 weekly-block sync (v2.36.1) — on a Sunday/Monday, About's This week / New week should read identically on both devices after ~10s.
   - v2.28.0 meeting mode mobile — real in-room meeting on iPhone PWA (phone on table, screen on).
