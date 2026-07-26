@@ -26,7 +26,7 @@
 | 044 | Delayed focus chime after Escape/task-switch | ✅ v2.18.6 |
 | 043 | Aged card won't un-dim after focus session | ✅ v2.18.11, v2.18.17 |
 | 042 | Trello card order scrambles across devices | ✅ v2.18.4 |
-| 041 | White flash / splash logo from top on mobile (second pass) | 🚫 Closed 2026-07-24 — platform limitation, see Performance-audit.md Known Issues |
+| 041 | White flash / splash logo from top on mobile (second pass) | 🚫 Closed |
 | 040 | Morning nudge reappears after dismiss | ✅ v2.17.139 |
 | 039 | All-habits-done celebration never fires | ✅ v2.17.137 |
 | 038 | Red dot on mobile when offline | ✅ v2.17.136 |
