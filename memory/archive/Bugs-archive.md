@@ -6,6 +6,18 @@
 
 ---
 
+## BUG-057: About weekly block differs between devices
+
+**Symptom:** The "This week" (Sunday) / "New week" (Monday) AI text in About shows different sentences on different devices. Reported 2026-07-20 (a Monday).
+
+**Root cause:** `week_reflection_<date>` / `monday_intention_<date>` were device-local localStorage caches — never in the Dropbox backup payload, never merged. Each device called the AI independently and kept its own text. Identical disease to the pre-v2.27.0 morning nudge (and BUG-036's week-grid divergence before it).
+
+**Fix (v2.36.1):** Mirror of the `day_nudge_ai` pattern: both keys added to the backup payload (today's date), merged remote-always-wins in `mergeRemoteData` — first device to push Dropbox owns the day's text; both devices converge on it. About re-renders live if the panel is open when the merge lands.
+
+**Verify:** On a Sunday or Monday, open About on both devices (let sync settle ~10s) — the weekly block should read identically. The device that opened *second* may briefly show its own text before the merge swaps it.
+
+---
+
 ## BUG-056: BUG-004 recurrence — blank app after long Mac sleep
 
 **Status:** ✅ Verified fixed (v2.31.9; verified 2026-07-18)

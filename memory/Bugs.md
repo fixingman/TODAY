@@ -10,7 +10,7 @@
 | 060 | Completed Trello card (overdue) reappears as active on a fresh device connect | ⏳ v2.37.7 |
 | 059 | Task card age reset by sync after focus — card re-dims on refresh | ✅ v2.36.5 |
 | 058 | Noticed block in About shows different content between devices | ✅ v2.36.3 |
-| 057 | About "This week" / "New week" AI text differs between devices (cache never synced) | ⏳ v2.36.1 |
+| 057 | About "This week" / "New week" AI text differs between devices (cache never synced) | ✅ v2.36.1 |
 | 056 | BUG-004 recurrence — blank app after long Mac sleep (GPU wakeup too slow for 1500ms repaint ceiling) | ✅ v2.31.9 |
 | 055 | Done tasks from today wiped on second-device first-open | ✅ v2.30.1 |
 | 054 | Phantom old tasks resurrect in TODAY list via sync merge | ✅ v2.23.6 |
@@ -100,18 +100,6 @@ Same bug class as `checkTriageBar()`/`checkDayNudge()` needing a post-merge re-c
 **Fix (v2.37.7):** new `_reconcileTrelloAfterMerge()` in `trello.js`, called right after `mergeRemoteData()` in the load handler. Re-filters the already-loaded `trelloTasks` against the now-correct `doneIds`, using the identical done+grace-window rule `loadTrello()` itself uses (done, but checked today → still show; done and not checked today → hide). No extra Trello API call — purely a local re-filter of what's already in memory.
 
 **Verify:** On a device where a Trello task was completed in TODAY (but never archived on the actual Trello board) and has a due date in the past, do a fresh PWA install / fresh Dropbox+Trello connect on a new device. The card should not appear, even momentarily.
-
----
-
-## BUG-057: About weekly block differs between devices
-
-**Symptom:** The "This week" (Sunday) / "New week" (Monday) AI text in About shows different sentences on different devices. Reported 2026-07-20 (a Monday).
-
-**Root cause:** `week_reflection_<date>` / `monday_intention_<date>` were device-local localStorage caches — never in the Dropbox backup payload, never merged. Each device called the AI independently and kept its own text. Identical disease to the pre-v2.27.0 morning nudge (and BUG-036's week-grid divergence before it).
-
-**Fix (v2.36.1):** Mirror of the `day_nudge_ai` pattern: both keys added to the backup payload (today's date), merged remote-always-wins in `mergeRemoteData` — first device to push Dropbox owns the day's text; both devices converge on it. About re-renders live if the panel is open when the merge lands.
-
-**Verify:** On a Sunday or Monday, open About on both devices (let sync settle ~10s) — the weekly block should read identically. The device that opened *second* may briefly show its own text before the merge swaps it.
 
 ---
 
