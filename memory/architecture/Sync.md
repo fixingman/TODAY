@@ -151,7 +151,9 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   // stored stat — it derives from checked_ids (via _doneTodayCount()). The old monotonic
   // counter + Math.max merge inflated it on re-checks and cross-device sync. See below.
   // Memory
-  memory: {totalTasksCompleted, patterns: {...}, aiName, moments: [...]},
+  memory: {totalTasksCompleted, patterns: {...}, aiName, moments: [...],
+    noticed: {...},       // Noticed show-once bookkeeping — travels in the blob but NOT merged (device-local, v2.39.3)
+    noticedDates: {...}}, // Noticed cross-device same-day dates — IS merged, earliest-date-wins (v2.39.4). See below.
   // Triage (v5.1)
   triage_history: [{id, decision, at}, ...],
   triage_dismissed: 'YYYY-MM-DD',  // synced to prevent repeat prompts
@@ -161,6 +163,15 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
 ```
 
 **Zone status values:** `done`, `let_go`, `aged`
+
+### Noticed: two sync-adjacent fields with opposite merge rules (v2.39.3 + v2.39.4)
+
+`appMemory.noticed` and `appMemory.noticedDates` both ride inside the same `memory` blob, but only one is actually merged on read — a deliberate split, not an oversight:
+
+- **`appMemory.noticed`** — "have I shown THIS device this Noticed line yet." **Not merged** (`mergeRemoteData` skips it entirely, reverting BUG-058's v2.36.3 sync). It still travels in the outgoing/incoming blob since it's one object with everything else in `appMemory`, but the incoming value is simply never read into local state.
+- **`appMemory.noticedDates`** — "when did this signal-occurrence first fire, on any device," keyed per-occurrence (e.g. `'peak:14'`, `'habit:<id>:30'` — the key encodes the *value* being gated on, so a later occurrence of the same signal type gets a fresh key rather than being blocked by a stale one). **Is merged**, earliest-date-wins per key (`mergeRemoteData` in `index.html`).
+
+Why the split is safe: `noticedDates` only ever carries a date string per key, never the shown text or which device saw it — so merging it can't reintroduce BUG-058's actual failure mode (two devices showing *different content* for the same pattern). It only answers "is today still within the window where any device may show this," which `_noticedEligible()`/`_noticedStamp()` (`assets/insights.js`) check against before a signal is allowed to fire locally. Net effect: a signal shows on every device that opens About on the same calendar day it first fired anywhere, then goes quiet — not "once ever, on one device" (v2.39.3 alone) and not "once ever, shared across all devices" (the BUG-058 bug this whole area was built to avoid repeating).
 
 ### Triage Dismissed Sync (v2.12.60 + v2.14.0)
 

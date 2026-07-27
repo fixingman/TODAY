@@ -480,15 +480,32 @@ function _pickObservationToMention(observations) {
 // line appears ONCE when something changes (milestone crossed, peak moved,
 // theme emerged), then never again — appearing at all carries the information
 // (Wallpaper escape 1); content derives from fresh data (escape 2); nothing
-// new → empty array → the block doesn't render (escape 3). Show-once
-// bookkeeping lives in appMemory.noticed — deliberately device-local, NOT
-// synced via mergeRemoteData (reverted BUG-058's sync, v2.39.3): syncing it
-// meant "shown once" became "shown once across all devices combined," so
-// whichever device opened About first silently consumed the notification for
-// every other device too. The underlying DATA each signal reads (habit
-// completions, focus minutes, peak hour, week-theme text) is still fully
-// synced, so any two devices that DO show a signal always show identical
-// content — only the "have I shown you this yet" gate is per-device.
+// new → empty array → the block doesn't render (escape 3).
+//
+// Two separate gates, on purpose:
+// - appMemory.noticed (`n`) — "have I shown THIS device this yet." Device-
+//   local, NOT synced (reverted BUG-058's sync, v2.39.3): syncing this meant
+//   "shown once" became "shown once across all devices combined," so
+//   whichever device opened About first silently consumed the notification
+//   for every other device too.
+// - appMemory.noticedDates — "when did this first fire, on ANY device."
+//   Synced (v2.39.4), earliest-date-wins per key. Gives every device its own
+//   honest chance to show a signal, but only within the SAME calendar day it
+//   first fired anywhere — a device opened days later stays quiet instead of
+//   resurfacing something stale. See _noticedEligible below.
+//
+// The underlying DATA each signal reads (habit completions, focus minutes,
+// peak hour, week-theme text) is fully synced regardless, so any two devices
+// that DO show a signal always show identical content.
+function _noticedEligible(key, todayISO) {
+  if (!appMemory.noticedDates) appMemory.noticedDates = {};
+  const d = appMemory.noticedDates[key];
+  return !d || d === todayISO;
+}
+function _noticedStamp(key, todayISO) {
+  if (!appMemory.noticedDates) appMemory.noticedDates = {};
+  if (!appMemory.noticedDates[key]) appMemory.noticedDates[key] = todayISO;
+}
 function _noticedLines() {
   if (!appMemory.noticed) appMemory.noticed = {};
   const n = appMemory.noticed;
@@ -500,8 +517,7 @@ function _noticedLines() {
   // 0 · Season moment — fixed calendar dates, ~6/year (v2.37.0, Backlog: Season
   // moments). Meteorological season starts (Scandinavia convention) + solstices.
   // Solstices pinned to the 21st — off by a day in some years; fine for a quiet
-  // line. Wallpaper escape 1 by construction: rare, and each date shows once
-  // (seasonDate synced via noticed merge, so once across devices).
+  // line. Wallpaper escape 1 by construction: rare, and each date shows once.
   const SEASON_MOMENTS = {
     '03-01': 'First day of spring.',
     '06-01': 'First day of summer.',
@@ -512,9 +528,13 @@ function _noticedLines() {
   };
   const seasonLine = SEASON_MOMENTS[todayISO.slice(5)];
   if (seasonLine && n.seasonDate !== todayISO) {
-    n.seasonDate = todayISO;
-    dirty = true;
-    lines.push(seasonLine);
+    const seasonElig = 'season:' + todayISO;
+    if (_noticedEligible(seasonElig, todayISO)) {
+      n.seasonDate = todayISO;
+      dirty = true;
+      _noticedStamp(seasonElig, todayISO);
+      lines.push(seasonLine);
+    }
   }
 
   // 1 · Habit streak milestone — once per habit per milestone
@@ -530,9 +550,13 @@ function _noticedLines() {
       while (d && done.has(d)) { run++; d = _localISO(new Date(new Date(d + 'T12:00').getTime() - 864e5)); }
       const crossed = [100, 50, 30, 14, 7].find(m => run >= m);
       if (crossed && (n.habitMilestones[h.id] || 0) < crossed) {
-        n.habitMilestones[h.id] = crossed;
-        dirty = true;
-        lines.push(h.name + ' — ' + crossed + ' days now.');
+        const habitElig = 'habit:' + h.id + ':' + crossed;
+        if (_noticedEligible(habitElig, todayISO)) {
+          n.habitMilestones[h.id] = crossed;
+          dirty = true;
+          _noticedStamp(habitElig, todayISO);
+          lines.push(h.name + ' — ' + crossed + ' days now.');
+        }
       }
     }
   }
@@ -541,21 +565,29 @@ function _noticedLines() {
   const streak = parseInt(localStorage.getItem('stat_streak') || '1');
   const best = appMemory.patterns.bestStreak || 0;
   if (streak >= 5 && best - streak >= 1 && best - streak <= 2 && n.streakProxDate !== todayISO) {
-    n.streakProxDate = todayISO;
-    dirty = true;
-    lines.push('Day ' + streak + '. Your best is ' + best + '.');
+    const streakElig = 'streakProx:' + todayISO;
+    if (_noticedEligible(streakElig, todayISO)) {
+      n.streakProxDate = todayISO;
+      dirty = true;
+      _noticedStamp(streakElig, todayISO);
+      lines.push('Day ' + streak + '. Your best is ' + best + '.');
+    }
   }
 
   // 3 · Peak hour established or moved — only at first solid signal or a shift
   const peak = appMemory.preferences.peakHour;
   const signal = Object.values(appMemory.patterns.completionsByHour || {}).reduce((a, b) => a + b, 0);
   if (peak !== null && signal >= 30 && n.peakShown !== peak) {
-    const first = n.peakShown === undefined;
-    n.peakShown = peak;
-    dirty = true;
-    lines.push(first
-      ? 'Most things get done around ' + _hr12(peak) + '.'
-      : 'Your peak moved — around ' + _hr12(peak) + ' lately.');
+    const peakElig = 'peak:' + peak;
+    if (_noticedEligible(peakElig, todayISO)) {
+      const first = n.peakShown === undefined;
+      n.peakShown = peak;
+      dirty = true;
+      _noticedStamp(peakElig, todayISO);
+      lines.push(first
+        ? 'Most things get done around ' + _hr12(peak) + '.'
+        : 'Your peak moved — around ' + _hr12(peak) + ' lately.');
+    }
   }
 
   // 4 · Theme of the week — AI-crafted observation from what was actually
@@ -568,9 +600,13 @@ function _noticedLines() {
   const weekKey = todayISO.slice(0, 8) + Math.ceil(new Date().getDate() / 7);
   const themeText = localStorage.getItem('week_theme_ai_' + weekKey);
   if (themeText && n.themeWeek !== weekKey) {
-    n.themeWeek = weekKey;
-    dirty = true;
-    lines.push(themeText);
+    const themeElig = 'theme:' + weekKey;
+    if (_noticedEligible(themeElig, todayISO)) {
+      n.themeWeek = weekKey;
+      dirty = true;
+      _noticedStamp(themeElig, todayISO);
+      lines.push(themeText);
+    }
   }
 
   // 5 · Revived task finished — a task deliberately brought back got done today.
@@ -585,8 +621,11 @@ function _noticedLines() {
       if (!t.revived || !doneIds.has(t.id) || n.revivedDone[t.id]) continue;
       const entry = checkedIds.find(e => e.id === t.id);
       if (!entry || !entry.at || _localISO(new Date(entry.at)) !== todayISO) continue;
+      const revivedElig = 'revived:' + t.id;
+      if (!_noticedEligible(revivedElig, todayISO)) continue;
       n.revivedDone[t.id] = true;
       dirty = true;
+      _noticedStamp(revivedElig, todayISO);
       lines.push('Brought back, and finished — “' + _stripTag(t.text).slice(0, 40) + '”.');
       break; // at most one per day — keep it rare
     }
@@ -599,9 +638,13 @@ function _noticedLines() {
   const focusHoursTotal = Math.floor((appMemory.patterns.focusMinutesTotal || 0) / 60);
   const focusCrossed = [100, 50, 25, 10].find(m => focusHoursTotal >= m);
   if (focusCrossed && (n.focusMilestone || 0) < focusCrossed) {
-    n.focusMilestone = focusCrossed;
-    dirty = true;
-    lines.push(focusCrossed + ' hours of focus, total.');
+    const focusElig = 'focus:' + focusCrossed;
+    if (_noticedEligible(focusElig, todayISO)) {
+      n.focusMilestone = focusCrossed;
+      dirty = true;
+      _noticedStamp(focusElig, todayISO);
+      lines.push(focusCrossed + ' hours of focus, total.');
+    }
   }
 
   if (dirty) _saveMemory();

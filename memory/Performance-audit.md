@@ -117,6 +117,7 @@
 ### Memory — changes since v2.32.0
 
 - **`appMemory.noticed`** (v2.35.0): show-once bookkeeping for Noticed block — `habitMilestones`, `streakProxDate`, `peakShown`, `themeWeek` (v2.39.0: theme-of-week is now AI-generated, keyed only by week, not a stored word), `seasonDate`, `revivedDone`, `focusMilestone`. Small object, bounded by number of observable signal types (7 as of v2.38.0). Synced v2.36.3 (BUG-058) → **reverted to device-local v2.39.3**: syncing meant "shown once" became "shown once across all devices combined," so one device's About-open silently consumed the notification for every other device too. The underlying data each signal reads stays fully synced, so two devices that do show a signal always show identical content — only the "have I shown you this yet" gate is per-device now.
+- **`appMemory.noticedDates`** (v2.39.4): narrower companion field, IS synced (earliest-date-wins) — records only *when* each signal-occurrence first fired anywhere, keyed per-occurrence (e.g. `peak:14`), never the shown content. Restores same-day cross-device visibility without reintroducing BUG-058's content-divergence problem. Bounded the same way as `noticed` — a handful of keys.
 - **`appMemory.recentCompletedTasks`** (v2.29.0, now synced v2.36.3): rolling 30-day, entries bounded by 30-day filter on write. Now union-merged in `mergeRemoteData` across devices.
 - All existing memory bounds unchanged from v2.32.0.
 
@@ -155,7 +156,7 @@
 
 | Destination | Data sent | When | Notes |
 |---|---|---|---|
-| **Dropbox API** | Full backup JSON — tasks, habits, zones, stats, appMemory (incl. noticed + recentCompletedTasks + meetingAttribution counters), checked_ids, AI day-cache, week_reflection, monday_intention, week_theme_ai, deleted_ids, manual_order_at (schema 5.4) | On sync tick only if state changed; on manual backup | User's own account. PKCE. Content never seen by us. |
+| **Dropbox API** | Full backup JSON — tasks, habits, zones, stats, appMemory (incl. noticed + noticedDates + recentCompletedTasks + meetingAttribution counters), checked_ids, AI day-cache, week_reflection, monday_intention, week_theme_ai, deleted_ids, manual_order_at (schema 5.4) | On sync tick only if state changed; on manual backup | User's own account. PKCE. Content never seen by us. |
 | **Trello API** | OAuth token + board/list IDs; receives card data | On tick if `dateLastActivity` changed | `read` scope only. |
 | **Netlify AI proxy** | Prompt (task names, ages, patterns from appMemory) + provider key | On ✦ call, daily nudge, week reflection, monday intention, meeting chunk | One nudge/day max, cached. Key never sent to provider from client directly. |
 | **Netlify meeting-extract** | Base64 audio chunk (~6min) + userName + rolling context + captured mine items | Per audio chunk during meeting mode | Gemini only. Transcript produced inside Gemini, never returned. Tasks only. |
@@ -163,7 +164,7 @@
 
 **Stays local, never egresses (beyond Dropbox):** triage history, AI conversation thread, poem splash date, Sunday/Monday nudge seen flags, noticed_lines day-cache.
 
-**New since v2.32.0:** `week_reflection` and `monday_intention` added to Dropbox payload (BUG-057, v2.36.1). `recentCompletedTasks` included in memory merge (BUG-058, v2.36.3); `appMemory.noticed` was too, but that part was reverted v2.39.3 — it's device-local again (still travels in the whole-appMemory backup blob, just no longer applied on read). `capturedMine` items sent to meeting-extract to prevent duplicate task capture.
+**New since v2.32.0:** `week_reflection` and `monday_intention` added to Dropbox payload (BUG-057, v2.36.1). `recentCompletedTasks` included in memory merge (BUG-058, v2.36.3); `appMemory.noticed` was too, but that part was reverted v2.39.3 — it's device-local again (still travels in the whole-appMemory backup blob, just no longer applied on read). `appMemory.noticedDates` (v2.39.4) — a narrower, date-only sibling field — IS merged, so a Noticed signal that fired on one device can still show on another the same day. `capturedMine` items sent to meeting-extract to prevent duplicate task capture.
 
 ---
 
@@ -210,7 +211,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.39.3)
+## 8. Changes since last audit (v2.32.0 → v2.39.4)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -250,10 +251,11 @@
 | Fix: nudge staleness guard (done-count stamp) | v2.39.1 | One `localStorage.setItem` on generation, one `getItem` + integer comparison on every cache read. Negligible. New `day_nudge_done_count_<date>` local key. |
 | Fix: Dropbox token-refresh non-JSON response crash | v2.39.2 | Swapped one `res.json()` call for `res.text()` + guarded `JSON.parse()` — same one fetch, no extra network cost. Negligible. |
 | Fix: appMemory.noticed sync reverted to device-local | v2.39.3 | Removed one `Object.spread` merge step per sync (`mergeRemoteData`). Net negative work — nothing added. `remote.noticed` still arrives in the payload but is simply unused now. |
+| Feature: Noticed cross-device same-day visibility (`appMemory.noticedDates`) | v2.39.4 | One new merge loop per sync over `remote.noticedDates` keys (bounded by signal-occurrence count, small — a handful of keys at most). Two tiny helper calls (`_noticedEligible`/`_noticedStamp`, object lookup + string compare) added per signal check in `_noticedLines()`, ×7. Negligible. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.39.3 · Jul 2026*
+*Last updated: v2.39.4 · Jul 2026*

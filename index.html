@@ -3856,9 +3856,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.39.4': 'Noticed now also shows up on your other devices the same day it first appears on one — not just its own device, forever.',
   '2.39.3': 'Noticed now gives each of your devices its own honest chance to show something — seeing it on one PWA no longer silently skips it on another.',
   '2.39.2': 'Fixed a confusing error message when Dropbox\'s connection hiccupped during a token refresh — it now says what actually happened and correctly flags Dropbox as needing reconnection if it truly fails.',
-  '2.39.1': 'Fixed the morning note occasionally mentioning a task you\'d already finished — it now double-checks before showing you anything.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -9047,6 +9047,24 @@ async function dropboxRestore(fromSync) {
         // this yet" gate is local now, so each device gets its own honest chance.
         // (`remote.noticed` still travels in the backup payload as part of the
         // whole appMemory blob — harmless, just unused on the reading side.)
+        //
+        // appMemory.noticedDates (v2.39.4) is the deliberately narrower thing
+        // that IS synced: not the actual shown content, just "date this signal
+        // first fired, on any device," keyed per-occurrence (e.g. 'peak:14',
+        // 'habit:abc123:30' — see _noticedEligible in insights.js). Earliest
+        // date wins per key, so it reflects when the signal FIRST happened
+        // anywhere, not the most recent write. This is what lets a signal
+        // that already fired on one device today still show on a second
+        // device opened later the same day, without resurfacing something
+        // that first fired on a prior day.
+        if (remote.noticedDates && typeof remote.noticedDates === 'object') {
+          if (!appMemory.noticedDates) appMemory.noticedDates = {};
+          for (const key of Object.keys(remote.noticedDates)) {
+            const remoteDate = remote.noticedDates[key];
+            const localDate = appMemory.noticedDates[key];
+            if (!localDate || remoteDate < localDate) appMemory.noticedDates[key] = remoteDate;
+          }
+        }
         _saveMemory();
       }
       // stat_last_visit intentionally NOT restored — it's local device state.
