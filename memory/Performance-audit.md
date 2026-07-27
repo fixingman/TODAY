@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.39.2 · Jul 2026  
+> v2.39.3 · Jul 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -116,7 +116,7 @@
 
 ### Memory — changes since v2.32.0
 
-- **`appMemory.noticed`** (v2.35.0): show-once bookkeeping for Noticed block — `habitMilestones`, `streakProxDate`, `peakShown`, `themeWeek` (v2.39.0: theme-of-week is now AI-generated, keyed only by week, not a stored word), `seasonDate`, `revivedDone`, `focusMilestone`. Small object, bounded by number of observable signal types (7 as of v2.38.0). Now Dropbox-synced (v2.36.3).
+- **`appMemory.noticed`** (v2.35.0): show-once bookkeeping for Noticed block — `habitMilestones`, `streakProxDate`, `peakShown`, `themeWeek` (v2.39.0: theme-of-week is now AI-generated, keyed only by week, not a stored word), `seasonDate`, `revivedDone`, `focusMilestone`. Small object, bounded by number of observable signal types (7 as of v2.38.0). Synced v2.36.3 (BUG-058) → **reverted to device-local v2.39.3**: syncing meant "shown once" became "shown once across all devices combined," so one device's About-open silently consumed the notification for every other device too. The underlying data each signal reads stays fully synced, so two devices that do show a signal always show identical content — only the "have I shown you this yet" gate is per-device now.
 - **`appMemory.recentCompletedTasks`** (v2.29.0, now synced v2.36.3): rolling 30-day, entries bounded by 30-day filter on write. Now union-merged in `mergeRemoteData` across devices.
 - All existing memory bounds unchanged from v2.32.0.
 
@@ -163,7 +163,7 @@
 
 **Stays local, never egresses (beyond Dropbox):** triage history, AI conversation thread, poem splash date, Sunday/Monday nudge seen flags, noticed_lines day-cache.
 
-**New since v2.32.0:** `week_reflection` and `monday_intention` added to Dropbox payload (BUG-057, v2.36.1). `appMemory.noticed` and `recentCompletedTasks` now included in memory merge (BUG-058, v2.36.3). `capturedMine` items sent to meeting-extract to prevent duplicate task capture.
+**New since v2.32.0:** `week_reflection` and `monday_intention` added to Dropbox payload (BUG-057, v2.36.1). `recentCompletedTasks` included in memory merge (BUG-058, v2.36.3); `appMemory.noticed` was too, but that part was reverted v2.39.3 — it's device-local again (still travels in the whole-appMemory backup blob, just no longer applied on read). `capturedMine` items sent to meeting-extract to prevent duplicate task capture.
 
 ---
 
@@ -210,7 +210,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.39.2)
+## 8. Changes since last audit (v2.32.0 → v2.39.3)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -249,10 +249,11 @@
 | Feature: AI-crafted week theme replaces keyword count | v2.39.0 | One new AI call (`_fetchWeekThemeAI`), once per calendar week, gated by a negative-cache flag so a no-pattern week never retries. Removed: a per-render word-frequency loop over up to ~50 completed-task texts (bounded, was already negligible). Net: less per-render local compute, one small network call per week instead. New `week_theme_ai` field in Dropbox payload. |
 | Fix: nudge staleness guard (done-count stamp) | v2.39.1 | One `localStorage.setItem` on generation, one `getItem` + integer comparison on every cache read. Negligible. New `day_nudge_done_count_<date>` local key. |
 | Fix: Dropbox token-refresh non-JSON response crash | v2.39.2 | Swapped one `res.json()` call for `res.text()` + guarded `JSON.parse()` — same one fetch, no extra network cost. Negligible. |
+| Fix: appMemory.noticed sync reverted to device-local | v2.39.3 | Removed one `Object.spread` merge step per sync (`mergeRemoteData`). Net negative work — nothing added. `remote.noticed` still arrives in the payload but is simply unused now. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.39.2 · Jul 2026*
+*Last updated: v2.39.3 · Jul 2026*

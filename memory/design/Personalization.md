@@ -56,7 +56,7 @@ Run ProductThinking's "what already exists?" reflex against this table before ad
 | `today_daily_history` (30-day per-day snapshots) | localStorage | weekly stats, week grid, future WEEK companion |
 | `user_names` | localStorage | meeting attribution — the only *declared* personal data |
 | `task.revived` (v2.27.0, sync-merged) | task objects | strongest importance signal to nudge + proactive AI (v2.35.2) — "the choice was theirs, already made" |
-| `appMemory.noticed` (v2.35.0, device-local) | `appMemory` | show-once bookkeeping for the Noticed block — deliberately not sync-merged |
+| `appMemory.noticed` (v2.35.0, device-local) | `appMemory` | show-once bookkeeping for the Noticed block — deliberately not sync-merged. (Synced v2.36.3/BUG-058, then reverted back to device-local v2.39.3: syncing made "shown once" mean "shown once across all devices combined," so one device's About-open silently consumed the notification for every other device. The signal *data* itself — habit completions, focus minutes, peak hour, week-theme text — stays fully synced, so this never risks two devices showing different content, only whether each gets its own honest chance to show it at all.) |
 
 ---
 

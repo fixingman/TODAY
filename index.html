@@ -3856,9 +3856,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.39.3': 'Noticed now gives each of your devices its own honest chance to show something — seeing it on one PWA no longer silently skips it on another.',
   '2.39.2': 'Fixed a confusing error message when Dropbox\'s connection hiccupped during a token refresh — it now says what actually happened and correctly flags Dropbox as needing reconnection if it truly fails.',
   '2.39.1': 'Fixed the morning note occasionally mentioning a task you\'d already finished — it now double-checks before showing you anything.',
-  '2.39.0': 'Noticed\'s "theme of the week" is properly written now — instead of just spotting a repeated word, it looks at what you actually finished and names a real pattern, once a week.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -9032,10 +9032,21 @@ async function dropboxRestore(fromSync) {
           }
           appMemory.recentCompletedTasks.sort((a, b) => a.date < b.date ? -1 : 1);
         }
-        // Merge noticed bookkeeping — remote wins so show-once state is shared across devices
-        if (remote.noticed && typeof remote.noticed === 'object') {
-          appMemory.noticed = { ...(appMemory.noticed || {}), ...remote.noticed };
-        }
+        // appMemory.noticed (show-once bookkeeping for the Noticed block) is
+        // deliberately NOT merged from remote (reverts the BUG-058 sync, v2.36.3).
+        // BUG-058 made it synced specifically because two devices could show
+        // DIFFERENT, contradictory observations for the same underlying pattern —
+        // a real problem. But the side effect: "shown once" became "shown once
+        // across all devices combined," so whichever device opens About first
+        // silently consumes the notification for every other device too, even
+        // though their own user never actually saw it there. The underlying DATA
+        // that feeds each signal (habit completions, focus minutes, peak hour,
+        // the week-theme AI text, recentCompletedTasks below) is still fully
+        // synced, so two devices that DO show a signal always show identical
+        // content — no divergence risk reintroduced. Only the "have I shown you
+        // this yet" gate is local now, so each device gets its own honest chance.
+        // (`remote.noticed` still travels in the backup payload as part of the
+        // whole appMemory blob — harmless, just unused on the reading side.)
         _saveMemory();
       }
       // stat_last_visit intentionally NOT restored — it's local device state.

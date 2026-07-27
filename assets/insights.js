@@ -481,8 +481,14 @@ function _pickObservationToMention(observations) {
 // theme emerged), then never again — appearing at all carries the information
 // (Wallpaper escape 1); content derives from fresh data (escape 2); nothing
 // new → empty array → the block doesn't render (escape 3). Show-once
-// bookkeeping lives in appMemory.noticed; synced via mergeRemoteData so
-// show-once state is shared across devices (v2.36.3).
+// bookkeeping lives in appMemory.noticed — deliberately device-local, NOT
+// synced via mergeRemoteData (reverted BUG-058's sync, v2.39.3): syncing it
+// meant "shown once" became "shown once across all devices combined," so
+// whichever device opened About first silently consumed the notification for
+// every other device too. The underlying DATA each signal reads (habit
+// completions, focus minutes, peak hour, week-theme text) is still fully
+// synced, so any two devices that DO show a signal always show identical
+// content — only the "have I shown you this yet" gate is per-device.
 function _noticedLines() {
   if (!appMemory.noticed) appMemory.noticed = {};
   const n = appMemory.noticed;
