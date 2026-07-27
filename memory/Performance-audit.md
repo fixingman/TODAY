@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.39.0 · Jul 2026  
+> v2.39.1 · Jul 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -65,6 +65,7 @@
 | `today_manual_order_at` | ISO stamp of last manual reorder — recency-aware merge, prevents drag jump-back (v2.38.7) | Dropbox-synced (`manual_order_at`, schema 5.4) |
 | `week_theme_ai_<weekKey>` | Noticed's week-theme AI text, cached once/week (v2.39.0) | Dropbox-synced (`week_theme_ai`) |
 | `week_theme_tried_<weekKey>` | Negative-cache flag — a week with no genuine pattern doesn't retry the AI call on every open (v2.39.0) | Local |
+| `day_nudge_done_count_<date>` | `doneIds.size` stamped at nudge-generation time — staleness guard, detects a task finished after generation but before the banner was seen (v2.39.1) | Local |
 
 ### Timer Inventory
 
@@ -209,7 +210,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.39.0)
+## 8. Changes since last audit (v2.32.0 → v2.39.1)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -246,10 +247,11 @@
 | Fix: recency-aware manual order merge (drag jump-back) | v2.38.7 | One extra `localStorage.setItem` per manual reorder, two string comparisons + at most one array rebuild per merge (bounded by task count, ≤~30 typical). New `manual_order_at` field in backup payload (schema 5.4). Negligible. |
 | Fix: nudge banner refresh on day rollover | v2.38.8 | `checkNewDay()` now also calls `checkDayNudge()` once per day boundary (ticker tick or wake) — same cost as any other checkDayNudge() call site, already accounted for. Negligible. |
 | Feature: AI-crafted week theme replaces keyword count | v2.39.0 | One new AI call (`_fetchWeekThemeAI`), once per calendar week, gated by a negative-cache flag so a no-pattern week never retries. Removed: a per-render word-frequency loop over up to ~50 completed-task texts (bounded, was already negligible). Net: less per-render local compute, one small network call per week instead. New `week_theme_ai` field in Dropbox payload. |
+| Fix: nudge staleness guard (done-count stamp) | v2.39.1 | One `localStorage.setItem` on generation, one `getItem` + integer comparison on every cache read. Negligible. New `day_nudge_done_count_<date>` local key. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.39.0 · Jul 2026*
+*Last updated: v2.39.1 · Jul 2026*
