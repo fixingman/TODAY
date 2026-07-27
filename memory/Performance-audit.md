@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.38.8 · Jul 2026  
+> v2.39.0 · Jul 2026  
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -63,6 +63,8 @@
 | `week_reflection_<date>` | Sunday reflection (AI-generated, cached per day) | Dropbox-synced (BUG-057, v2.36.1) |
 | `monday_intention_<date>` | Monday intention (AI-generated, cached per day) | Dropbox-synced (BUG-057, v2.36.1) |
 | `today_manual_order_at` | ISO stamp of last manual reorder — recency-aware merge, prevents drag jump-back (v2.38.7) | Dropbox-synced (`manual_order_at`, schema 5.4) |
+| `week_theme_ai_<weekKey>` | Noticed's week-theme AI text, cached once/week (v2.39.0) | Dropbox-synced (`week_theme_ai`) |
+| `week_theme_tried_<weekKey>` | Negative-cache flag — a week with no genuine pattern doesn't retry the AI call on every open (v2.39.0) | Local |
 
 ### Timer Inventory
 
@@ -113,7 +115,7 @@
 
 ### Memory — changes since v2.32.0
 
-- **`appMemory.noticed`** (v2.35.0): show-once bookkeeping for Noticed block — `habitMilestones`, `streakProxDate`, `peakShown`, `themeWord`/`themeWeek`, `seasonDate`, `revivedDone`, `focusMilestone`. Small object, bounded by number of observable signal types (7 as of v2.38.0). Now Dropbox-synced (v2.36.3).
+- **`appMemory.noticed`** (v2.35.0): show-once bookkeeping for Noticed block — `habitMilestones`, `streakProxDate`, `peakShown`, `themeWeek` (v2.39.0: theme-of-week is now AI-generated, keyed only by week, not a stored word), `seasonDate`, `revivedDone`, `focusMilestone`. Small object, bounded by number of observable signal types (7 as of v2.38.0). Now Dropbox-synced (v2.36.3).
 - **`appMemory.recentCompletedTasks`** (v2.29.0, now synced v2.36.3): rolling 30-day, entries bounded by 30-day filter on write. Now union-merged in `mergeRemoteData` across devices.
 - All existing memory bounds unchanged from v2.32.0.
 
@@ -152,7 +154,7 @@
 
 | Destination | Data sent | When | Notes |
 |---|---|---|---|
-| **Dropbox API** | Full backup JSON — tasks, habits, zones, stats, appMemory (incl. noticed + recentCompletedTasks + meetingAttribution counters), checked_ids, AI day-cache, week_reflection, monday_intention, deleted_ids, manual_order_at (schema 5.4) | On sync tick only if state changed; on manual backup | User's own account. PKCE. Content never seen by us. |
+| **Dropbox API** | Full backup JSON — tasks, habits, zones, stats, appMemory (incl. noticed + recentCompletedTasks + meetingAttribution counters), checked_ids, AI day-cache, week_reflection, monday_intention, week_theme_ai, deleted_ids, manual_order_at (schema 5.4) | On sync tick only if state changed; on manual backup | User's own account. PKCE. Content never seen by us. |
 | **Trello API** | OAuth token + board/list IDs; receives card data | On tick if `dateLastActivity` changed | `read` scope only. |
 | **Netlify AI proxy** | Prompt (task names, ages, patterns from appMemory) + provider key | On ✦ call, daily nudge, week reflection, monday intention, meeting chunk | One nudge/day max, cached. Key never sent to provider from client directly. |
 | **Netlify meeting-extract** | Base64 audio chunk (~6min) + userName + rolling context + captured mine items | Per audio chunk during meeting mode | Gemini only. Transcript produced inside Gemini, never returned. Tasks only. |
@@ -207,7 +209,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.38.8)
+## 8. Changes since last audit (v2.32.0 → v2.39.0)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -243,10 +245,11 @@
 | Morning nudge prompt: remove position-as-priority contradiction | v2.38.6 | Prompt-only change. No runtime cost. |
 | Fix: recency-aware manual order merge (drag jump-back) | v2.38.7 | One extra `localStorage.setItem` per manual reorder, two string comparisons + at most one array rebuild per merge (bounded by task count, ≤~30 typical). New `manual_order_at` field in backup payload (schema 5.4). Negligible. |
 | Fix: nudge banner refresh on day rollover | v2.38.8 | `checkNewDay()` now also calls `checkDayNudge()` once per day boundary (ticker tick or wake) — same cost as any other checkDayNudge() call site, already accounted for. Negligible. |
+| Feature: AI-crafted week theme replaces keyword count | v2.39.0 | One new AI call (`_fetchWeekThemeAI`), once per calendar week, gated by a negative-cache flag so a no-pattern week never retries. Removed: a per-render word-frequency loop over up to ~50 completed-task texts (bounded, was already negligible). Net: less per-render local compute, one small network call per week instead. New `week_theme_ai` field in Dropbox payload. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.38.8 · Jul 2026*
+*Last updated: v2.39.0 · Jul 2026*

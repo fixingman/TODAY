@@ -552,29 +552,19 @@ function _noticedLines() {
       : 'Your peak moved — around ' + _hr12(peak) + ' lately.');
   }
 
-  // 4 · Theme of the week — a word recurring in this week's completions, once/week
-  const recent = appMemory.recentCompletedTasks || [];
-  if (recent.length >= 3) {
-    const weekAgo = new Date(Date.now() - 7 * 864e5);
-    const stop = new Set(['the','and','for','this','that','with','from','have','will','your',
-      'been','they','what','when','then','than','just','into','over','also','some','such',
-      'each','only','more','most','much','very','about','task','call','send','make',
-      'take','get','keep','give','need','want','check','look','come','done','going']);
-    const freq = {};
-    for (const { text, date } of recent) {
-      if (new Date(date) < weekAgo) continue;
-      for (const w of _stripTag(text).toLowerCase().split(/\s+/)) {
-        if (w.length > 3 && !stop.has(w)) freq[w] = (freq[w] || 0) + 1;
-      }
-    }
-    const top = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
-    const weekKey = todayISO.slice(0, 8) + Math.ceil(new Date().getDate() / 7);
-    if (top && top[1] >= 3 && n.themeWord !== top[0] && n.themeWeek !== weekKey) {
-      n.themeWord = top[0];
-      n.themeWeek = weekKey;
-      dirty = true;
-      lines.push('“' + top[0] + '” keeps coming up this week.');
-    }
+  // 4 · Theme of the week — AI-crafted observation from what was actually
+  // completed, once/week (v2.39.0). Replaces a deterministic keyword-frequency
+  // count ("'cleanup' keeps coming up") that read as a stat, not an insight —
+  // the word alone never carried a story no matter how good the stopword list
+  // got. The AI call itself (_fetchWeekThemeAI, index.html) and its cache/sync
+  // wiring live in renderInfoStats() — this just reads the cached result and
+  // delta-gates it, same as every other Noticed signal.
+  const weekKey = todayISO.slice(0, 8) + Math.ceil(new Date().getDate() / 7);
+  const themeText = localStorage.getItem('week_theme_ai_' + weekKey);
+  if (themeText && n.themeWeek !== weekKey) {
+    n.themeWeek = weekKey;
+    dirty = true;
+    lines.push(themeText);
   }
 
   // 5 · Revived task finished — a task deliberately brought back got done today.

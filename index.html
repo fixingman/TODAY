@@ -3856,9 +3856,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.39.0': 'Noticed\'s "theme of the week" is properly written now — instead of just spotting a repeated word, it looks at what you actually finished and names a real pattern, once a week.',
   '2.38.8': 'Fixed the morning note showing yesterday\'s count and an already-finished task when the app was left open overnight — it now catches up properly at midnight.',
   '2.38.7': 'Fixed a task you just dragged snapping back to its old spot a second later — your reorder now wins over sync instead of the other way around.',
-  '2.38.6': 'Morning nudge stops defaulting to your top task — it now looks for something genuinely stuck (worked on a few times but still not done) or a real deadline, and stays quiet otherwise.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5687,6 +5687,28 @@ function renderInfoStats() {
     }
   }
 
+  // ── Week theme for Noticed (v2.39.0) — once/week AI generation, same
+  // fetch-cache-live-update shape as the Sunday reflection block above. A
+  // negative-cache flag ("tried") stops every subsequent About-open from
+  // re-firing the AI call for a week that genuinely has no pattern — that's
+  // the common case by design, not something to keep retrying.
+  {
+    const _weekKey = _today.slice(0, 8) + Math.ceil(new Date().getDate() / 7);
+    const _themeKey = 'week_theme_ai_' + _weekKey;
+    const _themeTriedKey = 'week_theme_tried_' + _weekKey;
+    if (!localStorage.getItem(_themeKey) && !localStorage.getItem(_themeTriedKey) && _history.length > 0) {
+      _pruneLS('week_theme_tried_', _themeTriedKey);
+      localStorage.setItem(_themeTriedKey, '1');
+      _fetchWeekThemeAI().then(text => {
+        if (text) {
+          _pruneLS('week_theme_ai_', _themeKey);
+          localStorage.setItem(_themeKey, text);
+          if ($.infoPanel && $.infoPanel.classList.contains('open')) renderInfoStats();
+        }
+      });
+    }
+  }
+
   // ── Today's nudge line (above stats) — quiet second home (v2.33.0) ─────────
   // The morning strip is dismiss-once-and-gone; the line itself stays cached
   // until midnight (dated key). Re-surfaced here for the reflect-during-the-day
@@ -5752,6 +5774,49 @@ async function _fetchWeekReflection(stats) {
     });
     if (!res.ok) return null;
     return _parseAIText(await res.json());
+  } catch (e) {
+    return null;
+  }
+}
+
+// Week theme for Noticed (v2.39.0) — replaces the old deterministic keyword-
+// frequency signal. That version just counted repeated words ("'cleanup' keeps
+// coming up") — a stat, not an observation. This asks the model to read the
+// actual completed-task texts and name a genuine pattern if one exists, grounded
+// in what was really done, never a fabricated specific. If nothing genuine
+// stands out, it returns null and the caller shows nothing — silence is correct
+// for a week with no real shape, not a forced insight.
+async function _fetchWeekThemeAI() {
+  try {
+    const key = _aiGetKey ? _aiGetKey() : null;
+    if (!key || !navigator.onLine) return null;
+    const weekAgo = new Date(Date.now() - 7 * 864e5);
+    const recent = (appMemory.recentCompletedTasks || [])
+      .filter(e => new Date(e.date) >= weekAgo)
+      .map(e => _stripTag(e.text))
+      .filter(Boolean)
+      .slice(-20);
+    if (recent.length < 3) return null; // not enough completed this week to look for a pattern
+    const taskList = recent.map(t => '"' + t + '"').join(', ');
+    const res = await fetch('/.netlify/functions/ai-assist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: _aiGetProvider(),
+        apiKey: key,
+        messages: [{ role: 'user', content:
+          'Completed this week: ' + taskList + '. ' +
+          'Look for a genuine pattern in what actually got done — not a repeated word, a real shape to the week ' +
+          '(a lot of small admin, a cluster around one thing, a run of things finally getting done). ' +
+          'Ground it only in the real tasks above, never invent specifics that are not there. ' +
+          'If nothing genuine stands out, reply with exactly: none.' }],
+        systemPrompt: 'One sentence only, under 20 words. No quotes. Plain, warm, observational — noticing, not evaluating. Never a judgment or a to-do.',
+      }),
+    });
+    if (!res.ok) return null;
+    const text = _parseAIText(await res.json());
+    if (!text || /^none\.?$/i.test(text.trim())) return null;
+    return text;
   } catch (e) {
     return null;
   }
@@ -8060,6 +8125,10 @@ async function dropboxBackup(silent) {
     // day_nudge_ai (BUG-057): without sync each device generates its own AI text
     week_reflection:  localStorage.getItem('week_reflection_'  + _localISO()) || '',
     monday_intention: localStorage.getItem('monday_intention_' + _localISO()) || '',
+    // Week theme for Noticed (v2.39.0) — same cross-device story, keyed per calendar
+    // week rather than per day (Sunday/Monday-only surfaces use _localISO(); this
+    // one needs to stay stable across all 7 days of the week it was generated in).
+    week_theme_ai: localStorage.getItem('week_theme_ai_' + (_localISO().slice(0, 8) + Math.ceil(new Date().getDate() / 7))) || '',
     // Daily history — per-day snapshots the week grid reads for past days (v5.3, BUG-036).
     // Union-merged by date on restore so the week view matches across devices.
     daily_history:        safeJSON('today_daily_history', []),
@@ -8682,6 +8751,14 @@ function mergeRemoteData(data) {
   }
   if (data.monday_intention && data.monday_intention !== localStorage.getItem('monday_intention_' + _todayISO)) {
     localStorage.setItem('monday_intention_' + _todayISO, data.monday_intention);
+    _weekBlockSynced = true;
+  }
+  // Week theme for Noticed (v2.39.0) — same remote-always-wins reasoning, keyed
+  // per calendar week (see the backup-payload comment for why the key differs
+  // from week_reflection/monday_intention's per-day key).
+  const _curWeekKey = _todayISO.slice(0, 8) + Math.ceil(new Date().getDate() / 7);
+  if (data.week_theme_ai && data.week_theme_ai !== localStorage.getItem('week_theme_ai_' + _curWeekKey)) {
+    localStorage.setItem('week_theme_ai_' + _curWeekKey, data.week_theme_ai);
     _weekBlockSynced = true;
   }
   if (_weekBlockSynced && $.infoPanel && $.infoPanel.classList.contains('open')) renderInfoStats();
