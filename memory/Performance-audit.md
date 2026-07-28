@@ -211,7 +211,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.40.8)
+## 8. Changes since last audit (v2.32.0 → v2.41.0)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -255,10 +255,12 @@
 | Feature: poem share | v2.40.0 | One button, one click handler (`_shareDailyPoem`). No network, no server, no share-count storage — `navigator.share()` or clipboard write on demand only. Negligible. |
 | Fix: habit/focus milestone ceiling | v2.40.0 | Swapped a bounded `.find()` over a fixed array for one `Math.floor` division past the top tier — same or fewer ops per check. Negligible. |
 | Fix: BUG-060 reconcile extended to two more merge sites | v2.40.1 | `_reconcileTrelloAfterMerge()` is a pure local read (bounded by `trelloTasks.length`, typically <20) with no network call — adding it to two more call sites is the same negligible cost as the one it already ran at, just paid more often (every ~7s tick when Dropbox's rev changes, versus once at cold start). |
+| Poem share design iteration (color/weight, hover-reveal, `.task-copy` mirroring, click feedback) | v2.40.2–v2.40.8 | Pure CSS/small-DOM-handler changes throughout — no new network calls, no new storage keys, no measurable runtime cost at any point in the arc. Negligible. |
+| Removed: ✦ Daily brief | v2.41.0 | Net negative work — one function (`_showDailyBrief()`) and its supporting CSS deleted outright, not replaced with anything heavier. Empty ✦ tap now runs the AI panel's pre-existing `_aiLoad()` path, already paid for elsewhere. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.40.8 · Jul 2026*
+*Last updated: v2.41.0 · Jul 2026*

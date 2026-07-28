@@ -308,21 +308,11 @@ Built by `_poemEchoHTML()` inside `updateManualEmptyState()`. Poem text is `esc(
 
 ---
 
-## Daily Brief (v2.31.x)
+## Daily Brief (v2.31.x, removed v2.41.0)
 
-Triggered by tapping ✦ with an empty input. The same ✦ button, rerouted — "here's what I'd tell you right now" instead of "ask me something."
+Was triggered by tapping ✦ with an empty input — the same button rerouted to "here's what I'd tell you right now" (nudge line + today's poem) instead of "ask me something." `_showDailyBrief()`, gone; empty ✦ tap now just opens the AI panel plainly (`openAI()`), same as any other open — `_aiLoad()`'s existing proactive-suggestions default runs, nothing composed specially.
 
-**Two-part content:**
-1. **AI nudge line** — the day's cached nudge sentence (`day_nudge_ai_<date>`) read back as a composed statement, not a conversational reply. Cached per day; same sentence the nudge strip shows.
-2. **Today's poem** — `_poemOfTheDay()`, same corpus as the splash coda and empty-state echo. Re-surfaces the morning's poem mid-day.
-
-**Fallback:** if the nudge cache is empty, falls through to the standard proactive AI suggestion path. Since v2.33.0 the cache survives past noon, so this only happens when generation genuinely failed (no key / offline / API error).
-
-**Entry condition:** `input.value.trim() === ''` at ✦ tap. Non-empty input still invokes the AI conversationally.
-
-**Rendered by:** `_showDailyBrief()` inside the AI panel (`#aiPanel`).
-
-**Wallpaper Test:** W3 verdict due 2026-07-30. Watching for: does the poem add to the moment after the nudge, or feel like filler? (Shape line removed v2.31.8 — brief is now nudge + poem only.)
+**Why removed, ahead of its own 2026-07-30 W3 due date:** two separate problems, surfaced the same day (2026-07-28). First, a placement/discoverability one — `#addAiBtn`'s stated identity is "Ask anything" (task entry / AI assistant); revealing a completely different feature only on an *empty* tap of that same control had no discoverable connection to what the button says it does ("doesn't really belong under that CTA"). Second, a content one — About's Today block (nudge) and Read Me (poem) already surface the identical underlying data, all day, through an honest and predictable path. Given both, the choice was between two real fixes — give the brief its own honest entry point, or accept it's redundant and cut it — and the redundancy won: fixing discoverability would only have made a duplicate surface easier to find, not a valuable one worth keeping. Same reasoning pattern as `Philosophy.md`'s week-narrative-lines removal (v2.17.66) — removal is a valid, sometimes correct outcome of a Wallpaper Test question, not just something to reach for when a feature is broken.
 
 ---
 
