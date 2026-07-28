@@ -16,7 +16,7 @@
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 2 | **Poem corpus growth** | Ongoing | Corpus 92, target ~100. A cut is final — detail ↓ |
-| 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration/trello/insights.js (insights v2.33.10, ~415 lines — first module that owns its state and runs at eval; must load after util.js). **Next:** `sync.js` (~510, Non-Delegation) — needs a risk discussion before touching. **Ceiling:** coupled core (`_onWake`, focus IIFE, render/actions/habits + `$`) stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
+| 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration/trello/insights/error-monitor.js (error-monitor v2.41.1, ~130 lines, seventh — dev-aid error logging, no Non-Delegation concerns, every external call site runtime-only). **Next:** `sync.js` (~510, Non-Delegation) — needs a risk discussion before touching. **Ceiling:** coupled core (`_onWake`, focus IIFE, render/actions/habits + `$`) stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 6 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 | 7 | **About — contextual digest layer** | In progress | Today block (v2.33.0) shipped; ✦'s Daily brief (v2.29.0) removed v2.40.9 — redundant with About, not fixed (W3 verdict, 2026-07-28). Next bricks gated on the Today block W3 verdict, 2026-08-01, and Noticed's, 2026-08-02. Detail ↓ |

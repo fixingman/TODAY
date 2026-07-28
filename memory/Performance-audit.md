@@ -17,11 +17,12 @@
 | `assets/celebration.js` | 6.1 KB | 2.2 KB | Ember drift + glow extracted v2.25.3 (Roadmap #3); SW-precached |
 | `assets/trello.js` | 20.9 KB | 7.0 KB | Trello integration extracted v2.33.x (Roadmap #3); SW-precached |
 | `assets/insights.js` | 20.5 KB | 6.7 KB | AI memory + pattern learning extracted v2.33.10 (Roadmap #3); SW-precached |
+| `assets/error-monitor.js` | 6.0 KB | 2.1 KB | Error logging + red dot/panel extracted v2.41.1 (Roadmap #3, seventh module); SW-precached |
 | `assets/poems.js` | 33.9 KB | 11.4 KB | Daily poem corpus (96 poems); SW-precached |
-| **Total JS** | **655 KB** | **193 KB** | index.html + 8 extracted modules |
+| **Total JS** | **661 KB** | **195 KB** | index.html + 8 extracted modules |
 
-**Lines of code:** 12,895 index.html + 2,153 extracted (15,048 total)  
-— util.js: 97 · idle.js: 289 · sound.js: 224 · celebration.js: 163 · trello.js: 474 · insights.js: 526 · poems.js: 641
+**Lines of code:** 13,109 index.html + 2,559 extracted (15,668 total)  
+— util.js: 97 · idle.js: 289 · sound.js: 224 · celebration.js: 163 · trello.js: 474 · insights.js: 526 · error-monitor.js: 145 · poems.js: 641
 
 **External scripts:** 0. All assets same-origin, SW-cached; no CDN, no analytics SDK.  
 **External fonts on first visit:** 6 files (self-hosted, pre-cached by SW). Zero Google Fonts pings.  
@@ -211,7 +212,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.41.0)
+## 8. Changes since last audit (v2.32.0 → v2.41.1)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -257,10 +258,11 @@
 | Fix: BUG-060 reconcile extended to two more merge sites | v2.40.1 | `_reconcileTrelloAfterMerge()` is a pure local read (bounded by `trelloTasks.length`, typically <20) with no network call — adding it to two more call sites is the same negligible cost as the one it already ran at, just paid more often (every ~7s tick when Dropbox's rev changes, versus once at cold start). |
 | Poem share design iteration (color/weight, hover-reveal, `.task-copy` mirroring, click feedback) | v2.40.2–v2.40.8 | Pure CSS/small-DOM-handler changes throughout — no new network calls, no new storage keys, no measurable runtime cost at any point in the arc. Negligible. |
 | Removed: ✦ Daily brief | v2.41.0 | Net negative work — one function (`_showDailyBrief()`) and its supporting CSS deleted outright, not replaced with anything heavier. Empty ✦ tap now runs the AI panel's pre-existing `_aiLoad()` path, already paid for elsewhere. |
+| Roadmap #3: `error-monitor.js` extracted (seventh module) | v2.41.1 | ~6 KB moved out of `index.html` into an SW-precached file. Zero runtime cost change — same functions, same call sites, only the physical file boundary moved. First extraction with no Non-Delegation concerns at all (dev-aid only, no sync/merge logic). |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.41.0 · Jul 2026*
+*Last updated: v2.41.1 · Jul 2026*
