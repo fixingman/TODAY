@@ -211,7 +211,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.39.4)
+## 8. Changes since last audit (v2.32.0 → v2.40.0)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -252,10 +252,12 @@
 | Fix: Dropbox token-refresh non-JSON response crash | v2.39.2 | Swapped one `res.json()` call for `res.text()` + guarded `JSON.parse()` — same one fetch, no extra network cost. Negligible. |
 | Fix: appMemory.noticed sync reverted to device-local | v2.39.3 | Removed one `Object.spread` merge step per sync (`mergeRemoteData`). Net negative work — nothing added. `remote.noticed` still arrives in the payload but is simply unused now. |
 | Feature: Noticed cross-device same-day visibility (`appMemory.noticedDates`) | v2.39.4 | One new merge loop per sync over `remote.noticedDates` keys (bounded by signal-occurrence count, small — a handful of keys at most). Two tiny helper calls (`_noticedEligible`/`_noticedStamp`, object lookup + string compare) added per signal check in `_noticedLines()`, ×7. Negligible. |
+| Feature: poem share | v2.40.0 | One button, one click handler (`_shareDailyPoem`). No network, no server, no share-count storage — `navigator.share()` or clipboard write on demand only. Negligible. |
+| Fix: habit/focus milestone ceiling | v2.40.0 | Swapped a bounded `.find()` over a fixed array for one `Math.floor` division past the top tier — same or fewer ops per check. Negligible. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.39.4 · Jul 2026*
+*Last updated: v2.40.0 · Jul 2026*

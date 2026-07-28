@@ -1584,6 +1584,21 @@
   .btn-install:active { opacity: 1; transform: translateY(0); }
   .install-icon { font-size: 1.1em; }
 
+  .btn-poem-share {
+    display: inline-block;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: var(--text-sm);
+    padding: 0;
+    margin-top: var(--space-2);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color var(--dur-fast);
+  }
+  .btn-poem-share:hover { color: var(--text); }
+
   /* ── Drag-to-reorder — row-level cue, no extra element ── */
   /* Grab cursor + subtle left accent line on hover for all draggable rows */
   #manualList .task:not(.done):hover,
@@ -3513,6 +3528,7 @@
           Done rests, quietly proud<br>
           Morning clears the slate
         </div>
+        <button id="poemShareBtn" class="btn-poem-share" onclick="_shareDailyPoem()">Share this poem</button>
         <button id="installBtn" class="btn-install" style="display:none;margin-top:var(--space-3)" onclick="installPWA()">
           <span class="install-icon">⬇&#xFE0E;</span> Install App
         </button>
@@ -3856,9 +3872,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.40.0': 'Added a quiet way to share the day\'s poem. Also fixed habit and focus milestones going silent forever once you passed their highest tier.',
   '2.39.4': 'Noticed now also shows up on your other devices the same day it first appears on one — not just its own device, forever.',
   '2.39.3': 'Noticed now gives each of your devices its own honest chance to show something — seeing it on one PWA no longer silently skips it on another.',
-  '2.39.2': 'Fixed a confusing error message when Dropbox\'s connection hiccupped during a token refresh — it now says what actually happened and correctly flags Dropbox as needing reconnection if it truly fails.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5530,6 +5546,51 @@ function renderDailyPoem() {
   if (!el || !poem) return; // corpus missing — static haiku in the markup stays
   el.innerHTML = _poemHTML(poem.text)
     + `<div class="poem-author">${esc(poem.author)}</div>`;
+}
+
+// Poem share (Backlog: Poem share) — one tap, no server, no share-count
+// tracking. Native share sheet where available; clipboard copy otherwise,
+// reusing the same fallback chain as the task-copy button.
+function _shareDailyPoem() {
+  const poem = _poemOfTheDay();
+  if (!poem) return;
+  const text = poem.text + '\n— ' + poem.author + '\n\nRead daily on TODAY — today-here.netlify.app';
+  const btn = document.getElementById('poemShareBtn');
+  function _showCopied() {
+    if (!btn) return;
+    const prev = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(() => { btn.textContent = prev; }, 1800);
+  }
+  if (navigator.share) {
+    navigator.share({ text }).catch(() => {}); // user cancelled — no error to show
+    return;
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(_showCopied).catch(() => {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        _showCopied();
+      } catch (e2) {}
+    });
+  } else {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      _showCopied();
+    } catch (e2) {}
+  }
 }
 
 // Format focus time: "Xh Ym" if >= 60 minutes, "Xm" otherwise

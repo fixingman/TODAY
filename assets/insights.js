@@ -548,7 +548,11 @@ function _noticedLines() {
       let run = 0;
       let d = done.has(todayISO) ? todayISO : (done.has(yesterdayISO) ? yesterdayISO : null);
       while (d && done.has(d)) { run++; d = _localISO(new Date(new Date(d + 'T12:00').getTime() - 864e5)); }
-      const crossed = [100, 50, 30, 14, 7].find(m => run >= m);
+      // Past 100 days, keep noticing every 50 — a fixed list would otherwise
+      // go silent forever once its top rung is passed (v2.40.0).
+      const crossed = run >= 100
+        ? Math.floor(run / 50) * 50
+        : [50, 30, 14, 7].find(m => run >= m);
       if (crossed && (n.habitMilestones[h.id] || 0) < crossed) {
         const habitElig = 'habit:' + h.id + ':' + crossed;
         if (_noticedEligible(habitElig, todayISO)) {
@@ -636,7 +640,11 @@ function _noticedLines() {
   // distinct from _memoryForAI()'s "you've focused for X+ hours" line, which
   // restates every AI call and is never shown verbatim to the user.
   const focusHoursTotal = Math.floor((appMemory.patterns.focusMinutesTotal || 0) / 60);
-  const focusCrossed = [100, 50, 25, 10].find(m => focusHoursTotal >= m);
+  // Past 100 hours, keep noticing every 100 — a fixed list would otherwise
+  // go silent forever once its top rung is passed (v2.40.0).
+  const focusCrossed = focusHoursTotal >= 100
+    ? Math.floor(focusHoursTotal / 100) * 100
+    : [50, 25, 10].find(m => focusHoursTotal >= m);
   if (focusCrossed && (n.focusMilestone || 0) < focusCrossed) {
     const focusElig = 'focus:' + focusCrossed;
     if (_noticedEligible(focusElig, todayISO)) {
