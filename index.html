@@ -1588,16 +1588,16 @@
     display: inline-block;
     background: none;
     border: none;
-    color: var(--muted);
+    color: var(--highlight-ui);
     font-size: var(--text-sm);
     padding: 0;
     margin-top: var(--space-2);
     cursor: pointer;
-    text-decoration: underline;
+    text-decoration: none;
     text-underline-offset: 2px;
     transition: color var(--dur-fast);
   }
-  .btn-poem-share:hover { color: var(--text); }
+  .btn-poem-share:hover { text-decoration: underline; }
 
   /* ── Drag-to-reorder — row-level cue, no extra element ── */
   /* Grab cursor + subtle left accent line on hover for all draggable rows */
@@ -3872,9 +3872,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.40.1': 'Fixed a completed Trello card sometimes staying visible as active on another device — it could linger through normal daily sync, not just a fresh install.',
   '2.40.0': 'Added a quiet way to share the day\'s poem. Also fixed habit and focus milestones going silent forever once you passed their highest tier.',
   '2.39.4': 'Noticed now also shows up on your other devices the same day it first appears on one — not just its own device, forever.',
-  '2.39.3': 'Noticed now gives each of your devices its own honest chance to show something — seeing it on one PWA no longer silently skips it on another.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -8946,6 +8946,13 @@ async function dropboxRestore(fromSync) {
       // where every device rewrites the file every 7s even when nothing changed.
       const changed = mergeRemoteData(data);
       if (changed) dropboxAutoSave();
+      // Re-check Trello cards against the now-merged doneIds (BUG-060, extended):
+      // a task completed only inside TODAY (never archived on the real Trello
+      // board) never changes the board's dateLastActivity, so syncTrello() never
+      // re-fetches to pick up the completion — this periodic Dropbox merge is the
+      // only thing that ever learns about it, and nothing else in the 7s tick
+      // re-filters trelloTasks against the corrected doneIds without this call.
+      if (typeof _reconcileTrelloAfterMerge === 'function') _reconcileTrelloAfterMerge();
 
     } else {
       // Manual restore — full overwrite, exactly what the user expects
@@ -8959,6 +8966,11 @@ async function dropboxRestore(fromSync) {
       localStorage.setItem('today_deleted_ids',   JSON.stringify(Array.isArray(data.deleted_ids)   ? data.deleted_ids   : []));
       localStorage.setItem('today_unchecked_ids', JSON.stringify(Array.isArray(data.unchecked_ids) ? data.unchecked_ids : []));
       localStorage.setItem('today_checked_ids',   JSON.stringify(Array.isArray(data.checked_ids)   ? data.checked_ids   : []));
+      // Manual restore doesn't go through mergeRemoteData() — doneIds/checked_ids
+      // above are a wholesale overwrite instead — but trelloTasks (already in
+      // memory from before the restore) is never touched by this branch either
+      // way, so it needs the same post-merge reconcile (BUG-060, extended).
+      if (typeof _reconcileTrelloAfterMerge === 'function') _reconcileTrelloAfterMerge();
       if (data.trello_config)         localStorage.setItem('trello_config',         JSON.stringify(data.trello_config));
       // Trello order — full restore takes remote wholesale, including its reorder stamp (BUG-042)
       if (Array.isArray(data.trello_order)) {
