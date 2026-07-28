@@ -212,7 +212,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.41.1)
+## 8. Changes since last audit (v2.32.0 → v2.42.0)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -259,10 +259,11 @@
 | Poem share design iteration (color/weight, hover-reveal, `.task-copy` mirroring, click feedback) | v2.40.2–v2.40.8 | Pure CSS/small-DOM-handler changes throughout — no new network calls, no new storage keys, no measurable runtime cost at any point in the arc. Negligible. |
 | Removed: ✦ Daily brief | v2.41.0 | Net negative work — one function (`_showDailyBrief()`) and its supporting CSS deleted outright, not replaced with anything heavier. Empty ✦ tap now runs the AI panel's pre-existing `_aiLoad()` path, already paid for elsewhere. |
 | Roadmap #3: `error-monitor.js` extracted (seventh module) | v2.41.1 | ~6 KB moved out of `index.html` into an SW-precached file. Zero runtime cost change — same functions, same call sites, only the physical file boundary moved. First extraction with no Non-Delegation concerns at all (dev-aid only, no sync/merge logic). |
+| Feature: two-tap poem share on touch | v2.42.0 | One new function (`_onPoemTap`), one `matchMedia` check per tap, one document-level click listener (bounded — fires on every click app-wide, but does only a cheap `classList.contains`/`.contains()` check unless a poem is actively revealed). Negligible. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.41.1 · Jul 2026*
+*Last updated: v2.42.0 · Jul 2026*
