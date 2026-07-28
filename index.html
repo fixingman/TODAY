@@ -1588,8 +1588,10 @@
     display: inline-block;
     background: none;
     border: none;
-    color: var(--highlight-ui);
-    font-size: var(--text-sm);
+    color: var(--muted);
+    font-size: var(--text-micro);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
     padding: 0;
     margin-top: var(--space-2);
     cursor: pointer;
@@ -1597,7 +1599,7 @@
     text-underline-offset: 2px;
     transition: color var(--dur-fast);
   }
-  .btn-poem-share:hover { text-decoration: underline; }
+  .btn-poem-share:hover { color: var(--text); text-decoration: underline; }
 
   /* ── Drag-to-reorder — row-level cue, no extra element ── */
   /* Grab cursor + subtle left accent line on hover for all draggable rows */
@@ -3872,9 +3874,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.40.2': 'Toned down the poem share button — it was competing with the poem instead of sitting quietly beside it. Its shared link is now clickable wherever you paste it.',
   '2.40.1': 'Fixed a completed Trello card sometimes staying visible as active on another device — it could linger through normal daily sync, not just a fresh install.',
   '2.40.0': 'Added a quiet way to share the day\'s poem. Also fixed habit and focus milestones going silent forever once you passed their highest tier.',
-  '2.39.4': 'Noticed now also shows up on your other devices the same day it first appears on one — not just its own device, forever.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5554,7 +5556,7 @@ function renderDailyPoem() {
 function _shareDailyPoem() {
   const poem = _poemOfTheDay();
   if (!poem) return;
-  const text = poem.text + '\n— ' + poem.author + '\n\nRead daily on TODAY — today-here.netlify.app';
+  const text = poem.text + '\n— ' + poem.author + '\n\nRead daily on TODAY — https://today-here.netlify.app';
   const btn = document.getElementById('poemShareBtn');
   function _showCopied() {
     if (!btn) return;
