@@ -211,7 +211,7 @@
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.40.7)
+## 8. Changes since last audit (v2.32.0 → v2.40.8)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -261,4 +261,4 @@
 
 ---
 
-*Last updated: v2.40.7 · Jul 2026*
+*Last updated: v2.40.8 · Jul 2026*
