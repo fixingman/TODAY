@@ -1584,18 +1584,17 @@
   .btn-install:active { opacity: 1; transform: translateY(0); }
   .install-icon { font-size: 1.1em; }
 
-  /* poem-block wraps the poem text + share button (installBtn stays outside,
-     a separate sibling) so hovering the poem itself — not the whole panel,
-     which also contains the unrelated install button — is what triggers both
-     the accent line and the share reveal below. */
-  .poem-block {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-  }
-  .poem-block #dailyPoem { align-self: stretch; }
+  /* Always visible, in normal document flow — deliberately simple after three
+     rounds of over-engineering (hover-reveal + accent line + corner overlay)
+     each introduced a new regression: a disproportionately long accent line
+     against multi-line poem text, layout space still reserved by the hidden
+     button leaving a gap before the next divider, positioning inconsistent
+     with the rest of the panel, and the native share-sheet anchor landing in
+     the wrong place once the trigger button moved out of normal flow. */
   .btn-poem-share {
-    align-self: flex-end;
+    display: block;
+    width: fit-content;
+    margin: var(--space-2) auto 0;
     background: none;
     border: 1px solid transparent;
     border-radius: var(--radius-md);
@@ -1604,40 +1603,11 @@
     font-family: var(--font-mono);
     letter-spacing: 0.06em;
     padding: 2px var(--space-2);
-    margin-top: var(--space-2);
     cursor: pointer;
-    transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+    transition: color var(--dur-fast), border-color var(--dur-fast);
   }
   .btn-poem-share:hover { color: var(--text); border-color: var(--border); }
   .btn-poem-share.copied { color: var(--accent); border-color: var(--accent); }
-
-  /* Desktop-only: hidden until the poem itself is engaged with — same corner-
-     label typography and parent-hover coupling as .task-copy (reveal in
-     response to hovering the content, not a floating button on its own), but
-     positioned bottom-right in normal flow rather than absolute top-right
-     overlaying text. A task row is short and single-line-safe for an overlay;
-     a poem wraps across multiple lines, so an absolute top-right button risks
-     sitting on top of the first line — and bottom-right places the option
-     where your eye actually lands after finishing reading, not before.
-     Touch has no hover to signal "considering this", so it stays always-visible
-     there (quiet styling already keeps it from competing). */
-  @media (hover: hover) {
-    .poem-block::before {
-      content: '';
-      position: absolute; left: -12px; top: 8%; bottom: 8%;
-      width: 2px; border-radius: 1px;
-      background: var(--border);
-      opacity: 0; transition: opacity var(--dur-fast);
-    }
-    .poem-block:hover::before { opacity: 1; }
-    .btn-poem-share { opacity: 0; pointer-events: none; }
-    .poem-block:hover .btn-poem-share { opacity: var(--opacity-copy); pointer-events: all; }
-    .poem-block:hover .btn-poem-share:hover { opacity: 1; }
-    /* Stays visible for its full confirmation window even if the mouse leaves
-       before the timeout — two-class selector outweighs the plain opacity:0
-       default above regardless of current :hover state. */
-    .btn-poem-share.copied { opacity: 1; pointer-events: none; }
-  }
 
   /* ── Drag-to-reorder — row-level cue, no extra element ── */
   /* Grab cursor + subtle left accent line on hover for all draggable rows */
@@ -3563,14 +3533,12 @@
     <div class="panel-section">
       <div class="config-label">Read Me</div>
       <div class="panel-haiku">
-        <div class="poem-block">
-          <div id="dailyPoem">
-            Only today shows<br>
-            Done rests, quietly proud<br>
-            Morning clears the slate
-          </div>
-          <button id="poemShareBtn" class="btn-poem-share" onclick="_shareDailyPoem()">share</button>
+        <div id="dailyPoem">
+          Only today shows<br>
+          Done rests, quietly proud<br>
+          Morning clears the slate
         </div>
+        <button id="poemShareBtn" class="btn-poem-share" onclick="_shareDailyPoem()">share</button>
         <button id="installBtn" class="btn-install" style="display:none;margin-top:var(--space-3)" onclick="installPWA()">
           <span class="install-icon">⬇&#xFE0E;</span> Install App
         </button>
@@ -3914,9 +3882,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.40.5': 'Simplified poem share back to a plain, centered link beneath the poem — the last few versions\' corner styling had drifted from the rest of the app and put the share sheet in the wrong spot.',
   '2.40.4': 'Poem share now matches the app\'s existing copy-button feel — a small corner label after the poem, with the same subtle highlight other lists use on hover.',
   '2.40.3': 'The poem share link now stays out of sight until you hover the poem itself — on desktop, it no longer sits there as a permanent button.',
-  '2.40.2': 'Toned down the poem share button — it was competing with the poem instead of sitting quietly beside it. Its shared link is now clickable wherever you paste it.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
