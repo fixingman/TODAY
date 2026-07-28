@@ -1584,30 +1584,36 @@
   .btn-install:active { opacity: 1; transform: translateY(0); }
   .install-icon { font-size: 1.1em; }
 
-  /* Always visible, in normal document flow — deliberately simple after three
-     rounds of over-engineering (hover-reveal + accent line + corner overlay)
-     each introduced a new regression: a disproportionately long accent line
-     against multi-line poem text, layout space still reserved by the hidden
-     button leaving a gap before the next divider, positioning inconsistent
-     with the rest of the panel, and the native share-sheet anchor landing in
-     the wrong place once the trigger button moved out of normal flow. */
+  /* Simplified .task-copy reference, per spec: whole poem is the click target
+     (no separate hit-testing needed, no bounding box / card chrome — the poem
+     isn't draggable like a task, so it doesn't need one), text itself
+     highlights on hover instead of a background+border box, and the label
+     sits top-right exactly like .task-copy. The gutter is a permanent
+     padding, not something that appears only while hovering, so nothing
+     shifts when the label reveals/hides. */
+  .poem-block { position: relative; padding-right: 44px; }
+  .poem-block #dailyPoem,
+  .poem-block .poem-author { transition: color var(--dur-fast); }
   .btn-poem-share {
-    display: block;
-    width: fit-content;
-    margin: var(--space-2) auto 0;
-    background: none;
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
+    position: absolute;
+    top: 0;
+    right: 0;
     color: var(--muted);
     font-size: var(--text-xs);
     font-family: var(--font-mono);
     letter-spacing: 0.06em;
     padding: 2px var(--space-2);
-    cursor: pointer;
-    transition: color var(--dur-fast), border-color var(--dur-fast);
   }
-  .btn-poem-share:hover { color: var(--text); border-color: var(--border); }
-  .btn-poem-share.copied { color: var(--accent); border-color: var(--accent); }
+  .btn-poem-share.copied { color: var(--accent); }
+
+  @media (hover: hover) {
+    .poem-block { cursor: pointer; }
+    .poem-block:hover #dailyPoem,
+    .poem-block:hover .poem-author { color: var(--text); }
+    .btn-poem-share { opacity: 0; transition: opacity var(--dur-fast), color var(--dur-fast); }
+    .poem-block:hover .btn-poem-share { opacity: 1; }
+    .btn-poem-share.copied { opacity: 1; }
+  }
 
   /* ── Drag-to-reorder — row-level cue, no extra element ── */
   /* Grab cursor + subtle left accent line on hover for all draggable rows */
@@ -3533,12 +3539,16 @@
     <div class="panel-section">
       <div class="config-label">Read Me</div>
       <div class="panel-haiku">
-        <div id="dailyPoem">
-          Only today shows<br>
-          Done rests, quietly proud<br>
-          Morning clears the slate
+        <div class="poem-block" role="button" tabindex="0" title="Share this poem"
+             onclick="_shareDailyPoem()"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();_shareDailyPoem();}">
+          <div id="dailyPoem">
+            Only today shows<br>
+            Done rests, quietly proud<br>
+            Morning clears the slate
+          </div>
+          <span id="poemShareBtn" class="btn-poem-share">share</span>
         </div>
-        <button id="poemShareBtn" class="btn-poem-share" onclick="_shareDailyPoem()">share</button>
         <button id="installBtn" class="btn-install" style="display:none;margin-top:var(--space-3)" onclick="installPWA()">
           <span class="install-icon">⬇&#xFE0E;</span> Install App
         </button>
@@ -3882,9 +3892,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.40.6': 'Poem share redone once more: the whole poem is now the share target, its text brightens on hover, and the label sits top-right like a task\'s copy button.',
   '2.40.5': 'Simplified poem share back to a plain, centered link beneath the poem — the last few versions\' corner styling had drifted from the rest of the app and put the share sheet in the wrong spot.',
   '2.40.4': 'Poem share now matches the app\'s existing copy-button feel — a small corner label after the poem, with the same subtle highlight other lists use on hover.',
-  '2.40.3': 'The poem share link now stays out of sight until you hover the poem itself — on desktop, it no longer sits there as a permanent button.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
