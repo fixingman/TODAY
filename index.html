@@ -1492,6 +1492,7 @@
   .task-meta {
     display: inline-block;
     margin-left: var(--space-2);
+    margin-top: var(--space-1);
   }
 
   .badge {
@@ -3770,9 +3771,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.42.2': 'Trello cards: the checklist count no longer gets crowded out by an invisible focus-session marker, and now has clearer spacing when it wraps. Focus sessions moved to the end.',
   '2.42.1': 'Fixed a Trello card\'s checklist count landing flush against the edge with no spacing when it wrapped to its own line on a phone.',
   '2.42.0': 'On phones/tablets, tapping the poem now shows the share option first — tap again to actually share. No more surprise share sheets from just glancing at it.',
-  '2.41.1': 'Internal housekeeping — moved some error-logging code into its own file. No visible changes.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -6192,7 +6193,7 @@ function taskHTML(task, type) {
         </svg>
       </div>
       <div class="task-body">
-        <div class="task-text">${taskTextHTML}${sessionBadge}${badges ? `<span class="task-meta">${badges}</span>` : ''}</div>
+        <div class="task-text">${taskTextHTML}${badges ? `<span class="task-meta">${badges}</span>` : ''}${sessionBadge}</div>
       </div>
       ${deleteBtn}
       ${copyBtn}

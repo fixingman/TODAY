@@ -432,12 +432,23 @@ function renderTrello() {
     const _link = safeUrl
       ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="Open in Trello">↗&#xFE0E;</a>`
       : '';
-    // Include session badge in text comparison so patch doesn't destroy it (BUG-005)
+    // Include session badge in text comparison so patch doesn't destroy it (BUG-005).
+    // Due/checklist badges (task-meta) are built into the same string, in the
+    // same order taskHTML() uses (text+link, then task-meta, then session
+    // last) — a single full-replace comparison, rather than patching task-meta
+    // separately, so the two render paths can't silently drift out of order
+    // with each other (Rule 27) the way they did when this was two patches.
     const _focusCount = _getTrelloFocus()[id] || 0;
     const _sessionBadge = _focusCount > 0
       ? `<span class="session-count has-sessions">${_focusCount} 🍅</span>`
       : `<span class="session-count"></span>`;
-    const newText = _textPart + _link + _sessionBadge;
+    const dueStr = _getDueStr(task);
+    const _clBadge = task.checklist
+      ? `<span class="badge checklist">${task.checklist.done}/${task.checklist.total} ✓</span>`
+      : '';
+    const newBadge = `${dueStr ? `<span class="badge due">due ${esc(dueStr)}</span>` : ''}${_clBadge}`;
+    const newMeta = newBadge ? `<span class="task-meta">${newBadge}</span>` : '';
+    const newText = _textPart + _link + newMeta + _sessionBadge;
 
     let el = list.querySelector(`.task[data-taskid="${CSS.escape(id)}"]`);
 
@@ -445,21 +456,6 @@ function renderTrello() {
       // Existing task — patch content silently, no flash
       const textEl = el.querySelector('.task-text');
       if (textEl && textEl.innerHTML !== newText) textEl.innerHTML = newText;
-
-      // Patch due + checklist badges silently
-      const dueStr = _getDueStr(task);
-      const metaEl = el.querySelector('.task-meta');
-      const _clBadge = task.checklist
-        ? `<span class="badge checklist">${task.checklist.done}/${task.checklist.total} ✓</span>`
-        : '';
-      const newBadge = `${dueStr ? `<span class="badge due">due ${esc(dueStr)}</span>` : ''}${_clBadge}`;
-      if (metaEl) {
-        if (metaEl.innerHTML !== newBadge) metaEl.innerHTML = newBadge;
-        if (!newBadge) metaEl.remove();
-      } else if (newBadge) {
-        const textEl2 = el.querySelector('.task-text');
-        if (textEl2) textEl2.insertAdjacentHTML('beforeend', `<span class="task-meta">${newBadge}</span>`);
-      }
 
       el.classList.toggle('done', doneIds.has(id));
       _applyDoneStyles(el, doneIds.has(id));
