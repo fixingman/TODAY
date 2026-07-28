@@ -1585,34 +1585,43 @@
   .install-icon { font-size: 1.1em; }
 
   /* Simplified .task-copy reference, per spec: whole poem is the click target
-     (no separate hit-testing needed, no bounding box / card chrome — the poem
-     isn't draggable like a task, so it doesn't need one), text itself
-     highlights on hover instead of a background+border box, and the label
-     sits top-right exactly like .task-copy. The gutter is a permanent
-     padding, not something that appears only while hovering, so nothing
-     shifts when the label reveals/hides. */
+     (no bounding box / card chrome — the poem isn't draggable like a task, so
+     it doesn't need one), text itself highlights on hover instead of a
+     background+border box, and the label is .task-copy's own component —
+     identical properties and states, same tokens, not just a similar-looking
+     approximation. The gutter is a permanent padding, not something that
+     appears only while hovering, so nothing shifts when the label reveals. */
   .poem-block { position: relative; padding-right: 44px; }
   .poem-block #dailyPoem,
   .poem-block .poem-author { transition: color var(--dur-fast); }
   .btn-poem-share {
+    display: block;
     position: absolute;
-    top: 0;
-    right: 0;
+    top: var(--space-2);
+    right: var(--space-2);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
     color: var(--muted);
     font-size: var(--text-xs);
     font-family: var(--font-mono);
     letter-spacing: 0.06em;
     padding: 2px var(--space-2);
+    cursor: pointer;
+    white-space: nowrap;
+    line-height: 1.6;
+    transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
   }
-  .btn-poem-share.copied { color: var(--accent); }
+  .btn-poem-share.copied { color: var(--accent); border-color: var(--accent); }
 
   @media (hover: hover) {
     .poem-block { cursor: pointer; }
     .poem-block:hover #dailyPoem,
     .poem-block:hover .poem-author { color: var(--text); }
-    .btn-poem-share { opacity: 0; transition: opacity var(--dur-fast), color var(--dur-fast); }
-    .poem-block:hover .btn-poem-share { opacity: 1; }
-    .btn-poem-share.copied { opacity: 1; }
+    .btn-poem-share { opacity: 0; pointer-events: none; }
+    .poem-block:hover .btn-poem-share { opacity: var(--opacity-copy); pointer-events: all; }
+    .poem-block:hover .btn-poem-share:hover { opacity: 1; color: var(--text); border-color: var(--border); }
+    .btn-poem-share.copied { opacity: 1; pointer-events: none; }
   }
 
   /* ── Drag-to-reorder — row-level cue, no extra element ── */
@@ -3547,7 +3556,7 @@
             Done rests, quietly proud<br>
             Morning clears the slate
           </div>
-          <span id="poemShareBtn" class="btn-poem-share">share</span>
+          <span id="poemShareBtn" class="btn-poem-share" tabindex="-1">share</span>
         </div>
         <button id="installBtn" class="btn-install" style="display:none;margin-top:var(--space-3)" onclick="installPWA()">
           <span class="install-icon">⬇&#xFE0E;</span> Install App
@@ -3892,9 +3901,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.40.7': 'Poem share\'s label now uses the exact same styling and hover states as a task\'s copy button, and the share sheet should open closer to where you actually clicked.',
   '2.40.6': 'Poem share redone once more: the whole poem is now the share target, its text brightens on hover, and the label sits top-right like a task\'s copy button.',
   '2.40.5': 'Simplified poem share back to a plain, centered link beneath the poem — the last few versions\' corner styling had drifted from the rest of the app and put the share sheet in the wrong spot.',
-  '2.40.4': 'Poem share now matches the app\'s existing copy-button feel — a small corner label after the poem, with the same subtle highlight other lists use on hover.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5576,6 +5585,12 @@ function _shareDailyPoem() {
   if (!poem) return;
   const text = poem.text + '\n— ' + poem.author + '\n\nRead daily on TODAY — https://today-here.netlify.app';
   const btn = document.getElementById('poemShareBtn');
+  // Clicking anywhere on the poem triggers this, but the click point can be
+  // anywhere across a multi-line block — some browsers anchor the native
+  // share sheet near document.activeElement rather than the exact cursor
+  // position, so focusing the small corner label first biases that anchor
+  // toward a small, predictable point instead of the whole poem's bounding box.
+  if (btn) btn.focus({ preventScroll: true });
   function _showCopied() {
     if (!btn) return;
     btn.textContent = 'copied';
