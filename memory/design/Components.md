@@ -219,6 +219,16 @@ Single `.morning-nudge` strip (`#dayNudge`) positioned **between the SOON and Tr
 
 ---
 
+## Poem Share (About panel, v2.40.0, hover-reveal v2.40.3)
+
+`#poemShareBtn` — a quiet action next to the poem in `.panel-haiku`, not a CTA. Shipped as a text-only fallback link (v2.40.0), then iterated twice on Can's real-use feedback:
+
+- **v2.40.2 — color/weight:** first version borrowed the app's one existing text-link convention (`.config-hint a` — `var(--highlight-ui)`, hover-underline), which is right for essential navigational links but read as loud next to a contemplative poem. Restyled to match `.poem-author` instead (`var(--text-micro)`, `var(--muted)`, uppercase, letter-spaced) — the element it sits directly beneath, so it reads as part of the poem's own metadata rather than a competing button.
+- **v2.40.3 — visibility, the deeper fix:** toning down the color wasn't enough — "still feels out of place." The real issue was never styling: a share affordance being *permanently visible* reframes the poem from something you're reading into something you could be sending, independent of how quiet it looks. Mirrors `.task-copy`'s existing pattern exactly — `display: none`/`opacity: 0` at rest, revealed only on parent hover, inside `@media (hover: hover)` (desktop only). `.btn-poem-share` now sits at `opacity: 0` at rest, `var(--opacity-copy)` (0.45) on `.panel-haiku:hover`, `1` on the button's own hover. Touch devices (no hover signal for "considering this") keep the always-visible v2.40.2 styling rather than losing the feature entirely — `navigator.share()` is primarily mobile-native, so full parity with `.task-copy`'s touch-invisible behavior would have cost more than it protected.
+- **General principle, not poem-specific:** for any secondary action attached to content meant to be experienced rather than managed (read, watched, listened to — not administered), default to hidden-until-engaged on hover-capable devices. Visibility of an action is itself part of what a surface communicates, separate from the action's own visual weight.
+
+---
+
 ## Button Nudges (v2.20.0–2.21.0)
 
 Header buttons breathe (shared `icon-colour-pulse` keyframe: `color` muted→accent, 2.4s ease-in-out, colour-only — no scale, no badge) when something is waiting inside. Clears on panel open via a per-day localStorage key; never re-fires the same day.

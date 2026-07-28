@@ -1601,6 +1601,17 @@
   }
   .btn-poem-share:hover { color: var(--text); text-decoration: underline; }
 
+  /* Desktop-only: hidden until the poem itself is engaged with, same pattern as
+     .task-copy — a share affordance shouldn't be permanently visible next to
+     something meant to be read quietly, not managed as shareable content.
+     Touch has no hover to signal "considering this", so it stays always-visible
+     there (quiet styling already keeps it from competing). */
+  @media (hover: hover) {
+    .btn-poem-share { opacity: 0; pointer-events: none; transition: opacity var(--dur-fast), color var(--dur-fast); }
+    .panel-haiku:hover .btn-poem-share { opacity: var(--opacity-copy); pointer-events: all; }
+    .panel-haiku:hover .btn-poem-share:hover { opacity: 1; }
+  }
+
   /* ── Drag-to-reorder — row-level cue, no extra element ── */
   /* Grab cursor + subtle left accent line on hover for all draggable rows */
   #manualList .task:not(.done):hover,
@@ -3874,9 +3885,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.40.3': 'The poem share link now stays out of sight until you hover the poem itself — on desktop, it no longer sits there as a permanent button.',
   '2.40.2': 'Toned down the poem share button — it was competing with the poem instead of sitting quietly beside it. Its shared link is now clickable wherever you paste it.',
   '2.40.1': 'Fixed a completed Trello card sometimes staying visible as active on another device — it could linger through normal daily sync, not just a fresh install.',
-  '2.40.0': 'Added a quiet way to share the day\'s poem. Also fixed habit and focus milestones going silent forever once you passed their highest tier.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
