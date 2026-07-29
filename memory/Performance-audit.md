@@ -124,12 +124,14 @@
 
 ---
 
-## 3. Security — unchanged since v2.32.0
+## 3. Security — re-audited 2026-07-29 (v2.42.2), not just re-asserted
+
+Previously flagged "unchanged since v2.32.0" without being re-checked against everything shipped since — many versions had landed (Noticed sync, poem share, meeting mode, error-monitor extraction, Trello template reorder). Re-verified every claim below against current code rather than trusting the old note.
 
 ### XSS
-- `esc()` escapes `&`, `<`, `>`, `"` before any user content enters `innerHTML`.
-- `task.url` validated with `/^https?:\/\//i` — prevents `javascript:` URLs.
-- No `eval()`, no `new Function()`, no dynamic script injection.
+- `esc()` escapes `&`, `<`, `>`, `"` before any user content enters `innerHTML`. Swept every `.innerHTML =` assignment in `index.html` (42 sites) and all `assets/*.js` modules (9 sites) — every site rendering genuinely free-text content (task text, tags, meeting attendee names, AI-extracted meeting items, Trello board/list names, poem author, error-panel messages, PiP task title) routes through `esc()`. Sites interpolating raw, unescaped values are all internal IDs (task/habit/Trello card IDs) or numeric values — not attacker-controllable free text. A handful of `${task.text}` interpolations without `esc()` exist only in AI *prompt-building* strings (plain text sent to the AI backend, never rendered as HTML) — a different category (prompt injection into the user's own AI conversation about their own tasks, not a DOM/XSS vector), not a gap in this check.
+- `task.url` validated with `/^https?:\/\//i` (`index.html:6123`) — confirmed still anchored at the start of the string, still prevents `javascript:` URLs.
+- No `eval()`, no `new Function()`, no dynamic script injection anywhere in `index.html` or `assets/*.js` — confirmed via direct search, zero matches.
 
 ### CSRF / OAuth
 - Dropbox PKCE: `state` in `sessionStorage`, verified on callback, cleared after exchange.
@@ -145,7 +147,7 @@
 
 ---
 
-## 4. Privacy — changes since v2.32.0
+## 4. Privacy — re-audited 2026-07-29 (v2.42.2); changes since v2.32.0
 
 - No analytics in app code. No user events, task content, or identifiers sent anywhere.
 - Task content never leaves the device except via explicit Dropbox sync to user's own account.
@@ -162,6 +164,7 @@
 | **Netlify AI proxy** | Prompt (task names, ages, patterns from appMemory) + provider key | On ✦ call, daily nudge, week reflection, monday intention, meeting chunk | One nudge/day max, cached. Key never sent to provider from client directly. |
 | **Netlify meeting-extract** | Base64 audio chunk (~6min) + userName + rolling context + captured mine items | Per audio chunk during meeting mode | Gemini only. Transcript produced inside Gemini, never returned. Tasks only. |
 | **Netlify RUM** (server-injected) | Page-load timing only — no user content | Page load, if not ad-blocked | Only non-user-initiated egress. Ad blockers prevent it. |
+| **OS share sheet / clipboard** (poem share, v2.40.0) | The day's poem text + author + app URL | Only when the user explicitly taps to share/copy the poem | Not a fixed server destination — user picks the recipient (Messages, Mail, Notes, etc.) via the OS, or it's copied to the local clipboard. No task/personal data involved, only the public poem text. Listed here for completeness, not because it's a new risk. |
 
 **Stays local, never egresses (beyond Dropbox):** triage history, AI conversation thread, poem splash date, Sunday/Monday nudge seen flags, noticed_lines day-cache.
 
