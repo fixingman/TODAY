@@ -193,7 +193,7 @@ Single `.morning-nudge` strip (`#dayNudge`) positioned **between the SOON and Tr
 - **AI tier 2** (`_fetchDayNudgeAI`) — sees both manual tasks (with ages) and Trello cards (with overdue/checklist markers) in one prompt; asked to name the single most important thing. Same 1s race via `_raceAINudge` — cached per day, no mid-read swap (BUG-034).
 - **Dismiss** — tap sets `day_nudge_dismissed_<date>` (per-day, clears at midnight). Synced cross-device via `_DISMISS_SYNC` registry. Legacy `trello_nudge_dismissed` / `morning_nudge_dismissed` fields kept as transition rows in registry for mixed-version devices — remove once all devices ≥ v2.19.0.
 - **Presence:** same `.morning-nudge` CSS as before — `--surface` panel, 2px `--accent-dim` left edge, `radius-md`, `padding: 7px var(--space-3)`. Breathing `--accent` dot via `_breathe(_KF_BREATHE_SMALL, 2400ms)` (opacity 1→0.5 + scale 1→0.85 — small-element treatment per Motion.md).
-- Noon cutoff: `checkDayNudge()` hides the strip at `hour >= 12`. Since v2.33.0 the cached AI line (`day_nudge_ai_<date>`) survives past noon — it lives on in About's Today block and the ✦ brief until the dated key expires at midnight.
+- Noon cutoff: `checkDayNudge()` hides the strip at `hour >= 12`. Since v2.33.0 the cached AI line (`day_nudge_ai_<date>`) survives past noon — it lives on in About's Today block until the dated key expires at midnight. (The ✦ brief also used to read this cache — removed v2.41.0, see the Daily Brief section below.)
 
 ---
 

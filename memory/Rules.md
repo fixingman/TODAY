@@ -9,12 +9,11 @@
 - **Module extraction (Roadmap #3):** Done: `util.js`, `idle.js`, `sound.js`, `celebration.js`, `trello.js` (v2.33.5), `insights.js` (v2.33.10 — owns `appMemory`, runs at eval, must load after util.js). Next: `sync.js` (~510, Non-Delegation). Coupled core stays inline.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
   - **Meeting attribution accuracy — ask Can:** after a few real meetings, ask "how's meeting attribution doing?" and read `appMemory.meetingAttribution` (`mineKept/mineShown` precision, `othersSelected/othersShown` recall).
-  - **Drag jump-back (BUG, v2.38.7)** — verify: on a warm refresh, drag a manual task immediately; should NOT snap back ~1s later.
+  - **Drag jump-back (BUG, v2.38.7)** — verify: on a warm refresh, drag a manual task immediately; should NOT snap back ~1s later. (2026-07-29: "seems fine so far" per Can — positive check-in, keep watching lightly rather than closing outright.)
   - **Morning nudge quality (v2.38.6)** — does it now surface a genuinely stuck/revived/overdue task, and go quiet (not default to top) when nothing stands out?
   - **Nudge day-rollover refresh (v2.38.8)** — verify: leave a tab open across midnight (or check right after wake past midnight); the nudge banner should show fresh content for the new day, not yesterday's cached text/count.
   - **Noticed 7-signal expansion (v2.38.0, Aug 2 verdict)** — if it still reads as noise with 7 signals, don't add an 8th; ask whether Noticed needs a different shape.
   - v2.28.0 meeting mode mobile — real in-room meeting on iPhone PWA (phone on table, screen on).
-  - Horizontal paint overflow — `.app`'s `overflow-x: clip` removed v2.33.3 (BUG-050): during drag-reorder or check-off celebration, does content spill outside the column? If never seen, close after a quiet week.
 
 ---
 
