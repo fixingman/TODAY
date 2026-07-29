@@ -3771,9 +3771,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.42.3': 'The morning nudge on your task list now catches up to the real insight if it had to show a plain fallback first — no more getting stuck on "N tasks carried over" for the rest of the day.',
   '2.42.2': 'Trello cards: the checklist count no longer gets crowded out by an invisible focus-session marker, and now has clearer spacing when it wraps. Focus sessions moved to the end.',
   '2.42.1': 'Fixed a Trello card\'s checklist count landing flush against the edge with no spacing when it wrapped to its own line on a phone.',
-  '2.42.0': 'On phones/tablets, tapping the poem now shows the share option first — tap again to actually share. No more surprise share sheets from just glancing at it.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4125,6 +4125,22 @@ let _aiBadgeShown = false;
 // site from starting its own parallel race while one is already in flight.
 let _nudgeRendered = false;
 let _nudgeRacing   = false;
+// Tracks whether the CURRENTLY shown nudge is the generic rule-based fallback
+// (true) or the real AI line (false). Diagnosed 2026-07-29: the AI nudge was
+// generating and caching correctly every day (About's Today block, which
+// reads the same cache with no race, proved this) but the task-list nudge
+// almost never showed it — a cold Netlify+LLM round trip routinely takes
+// longer than the 1s race window, the fallback wins by default, and
+// _nudgeRendered then blocks the rest of that page load from ever checking
+// again, even after the real line finishes generating moments later and
+// sits unused in the same cache About reads fine. _nudgeIsFallback lets
+// exactly one upgrade through — fallback shown → AI text later becomes
+// available → next natural re-check (wake, a later sync tick) shows it —
+// without reopening the door BUG-034 closed (an AI answer is never allowed
+// to replace another AI answer, or fire twice; only a plain fallback may be
+// upgraded, once, and only from a genuinely later call, never a same-instant
+// swap while still mid-read).
+let _nudgeIsFallback = false;
 
 // Unified morning nudge (v2.19.0) — one surface between SOON and Trello,
 // replacing the separate manual + Trello nudges. Two nudges competed for the
@@ -4215,8 +4231,9 @@ function checkDayNudge(allowGenerate = true) {
   const _aiCacheKey = 'day_nudge_ai_' + _localISO();
   const _aiCached = localStorage.getItem(_aiCacheKey);
 
-  const _showNudge = (text) => {
+  const _showNudge = (text, isAI) => {
     _nudgeRendered = true;
+    _nudgeIsFallback = !isAI;
     nudgeEl.innerHTML = `<span class="nudge-star">✦</span><span class="nudge-text">${esc(text)}</span>`;
     _breathe(nudgeEl.querySelector('.nudge-star'), _KF_BREATHE_SMALL, 2400);
     if (!nudgeEl.classList.contains('show')) {
@@ -4245,10 +4262,11 @@ function checkDayNudge(allowGenerate = true) {
     }
   };
 
-  // Once shown once this page load, no further call site may render again —
+  // Once the real AI line has shown, no further call site may render again —
   // otherwise a later call finding a freshly-cached (different) value re-renders
-  // over content the user already saw. See the _nudgeRendered declaration above.
-  if (_nudgeRendered) return;
+  // over content the user already saw. If what's showing is only the plain
+  // fallback, though, let a later call site check again — see _nudgeIsFallback.
+  if (_nudgeRendered && !_nudgeIsFallback) return;
 
   // Staleness guard: day_nudge_ai_<date> is cached once and never revalidated
   // for the rest of the day — if the AI's sentence mentions a task and the user
@@ -4272,7 +4290,7 @@ function checkDayNudge(allowGenerate = true) {
   }
 
   if (_cacheValid) {
-    _showNudge(_aiCached);
+    _showNudge(_aiCached, true);
   } else if (allowGenerate && !_nudgeRacing) {
     _nudgeRacing = true;
     _raceAINudge({
@@ -9180,6 +9198,7 @@ async function dropboxRestore(fromSync) {
     // load) doesn't know a genuine day boundary just passed, so it must be reset here.
     _nudgeRendered = false;
     _nudgeRacing   = false;
+    _nudgeIsFallback = false;
     if (typeof checkDayNudge === 'function') checkDayNudge();
   }
 

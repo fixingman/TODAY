@@ -215,7 +215,7 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.42.2)
+## 8. Changes since last audit (v2.32.0 → v2.42.3)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -264,10 +264,11 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 | Roadmap #3: `error-monitor.js` extracted (seventh module) | v2.41.1 | ~6 KB moved out of `index.html` into an SW-precached file. Zero runtime cost change — same functions, same call sites, only the physical file boundary moved. First extraction with no Non-Delegation concerns at all (dev-aid only, no sync/merge logic). |
 | Feature: two-tap poem share on touch | v2.42.0 | One new function (`_onPoemTap`), one `matchMedia` check per tap, one document-level click listener (bounded — fires on every click app-wide, but does only a cheap `classList.contains`/`.contains()` check unless a poem is actively revealed). Negligible. |
 | Fix: Trello checklist/session badge order + spacing | v2.42.1–v2.42.2 | Pure CSS property swap (`inline`→`inline-block`, one `margin-top`) plus a template string reorder in both `taskHTML()` and `renderTrello()`'s patch path. Same string-building cost either way — zero net change. |
+| Fix: Day Nudge fallback→AI upgrade | v2.42.3 | One new boolean flag (`_nudgeIsFallback`) and one changed condition in an existing guard — no new network calls, no new storage keys, no additional AI generation (reuses the exact same cached response that was already being generated and discarded). Negligible. |
 | Meeting attribution tightening | v2.36.x | Prompt-only changes to meeting-extract.js. No runtime cost change. |
 | Meeting dedup (capturedMine) | v2.36.x | `state.items.filter(x => x.mine)` sent per chunk — O(n) filter over accumulated mine items (bounded by meeting length, typically <20). Negligible. |
 | OG image update | v2.36.x | Static asset, no runtime impact. |
 
 ---
 
-*Last updated: v2.42.2 · Jul 2026*
+*Last updated: v2.42.3 · Jul 2026*
