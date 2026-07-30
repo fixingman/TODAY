@@ -115,7 +115,38 @@
 
 | Key | Type | Description |
 |---|---|---|
-| `today_memory` | JSON | `{totalTasksCompleted, patterns: {...}}` |
+| `today_memory` | JSON | `appMemory` object — see schema below |
+
+**`appMemory` schema:**
+```javascript
+{
+  aiName: string,                    // AI companion name, picked once
+  totalTasksCompleted: number,
+  totalDaysActive: number,
+  firstSeen: 'YYYY-MM-DD',
+  patterns: {
+    completionsByHour: {},           // { "9": 12, ... } — tasks completed per hour
+    taskKeywords: {},                // { word: { completed: N } }
+    focusMinutesTotal: number,       // lifetime focus minutes
+    bestStreak: number,
+    lateAdditions: number[],         // hours tasks were added reactively (rolling 50)
+    taskLifespanSamples: number[],   // days from creation to done, rolling 20 (v2.43.4)
+    dayStartCount: number|null,      // undone tasks at day start
+    dayStartDate: 'YYYY-MM-DD'|null,
+    dayShapeState: any,
+  },
+  preferences: {
+    peakHour: number|null,           // hour with most completions
+    dragKeywords: string[],
+  },
+  moments: [],                       // [{ type, value, date }] — milestones, big clears (last 20)
+  suggestionCooldowns: {},           // { taskId: 'YYYY-MM-DD' } — 7-day cooldown
+  suggestionHistory: [],             // [{ taskId, taskText, suggested, action }] (last 50)
+  recentConversations: [],           // [{ date, message }] (last 3)
+  recentCompletedTasks: [],          // [{ text, date }] — rolling 30-day (last 50)
+  meetingAttribution: { mineShown, mineKept, othersShown, othersSelected },
+}
+```
 
 ---
 

@@ -166,19 +166,35 @@ Displays for 3s then auto-closes. Saves `today_day_review` to localStorage for m
 
 ## Morning Reflection (v2.13.1) + AI Morning Nudge (v2.17.73)
 
-Morning nudge (before noon) shows yesterday's review if available:
+Morning nudge strip (before noon) shows yesterday's review if available. Falls back to simple carried-over count. Auto-clears after noon. Tap to dismiss.
 
-> Yesterday: 5 done, 1h focused, 2 habits · 3 carried over
+**AI line** (`_fetchDayNudgeAI`) fires once per day, cached as `day_nudge_ai_<date>`.
 
-Falls back to simple carried-over count if no review exists. Auto-clears after noon. Tap to dismiss.
+### Facts sent to the AI (v2.43.x)
 
-**AI upgrade (v2.17.73):** the rule-based line renders instantly, then `_fetchMorningNudgeAI(review, carriedOver)` fires one background call and swaps the text in place (200ms fade) when the response arrives.
+| Block | Content |
+|---|---|
+| Today's tasks | Up to 6 undone manual tasks — text, age, focus sessions, revived flag (drag order preserved) |
+| Trello cards | Up to 8 undone cards — text, overdue marker, checklist progress |
+| Soon tasks | Up to 6 deferred tasks — text, days-in-soon, total age, focus sessions before deferral, returned-from-past flag |
+| Yesterday | Review line: done count, focus time, habits kept |
+| Pattern context | Full `_memoryForAI()` output (see section below) |
 
-- **Context sent:** weekday, streak, yesterday's review line, carried-over count, up to 6 pending task names with ages (≥2 days shown).
-- **Insight gate (in prompt):** "If something non-obvious is worth noticing — an aging task, a pattern, a gentle nudge — say that, naming the task naturally. Otherwise state the morning plainly."
-- **Voice:** one or two sentences, under 30 words, no exclamations/emoji. **Task references are verbatim (v2.32.3):** the instruction requires quoting a task's exact words when pointing at it (Can's #1-verdict finding — paraphrased references forced him to re-scan the list). The old blanket "No quotes" rule (which banned verbatim task text as a side effect) is narrowed to "never wrap your reply in quotation marks."
-- **Cache:** `day_nudge_ai_<date>` — one generation per day (unified from `morning_nudge_ai_*` and `trello_nudge_ai_*` in v2.19.0). Stale keys pruned on write. **Lives until midnight (v2.33.0):** the noon delete is gone — the line persists in About's `#todayNudgeBlock` (quiet sibling of the Sunday block, rendered by `renderInfoStats()`) and feeds the ✦ daily brief all day. The dated key self-expires at day change. The nudge *strip* still hides after noon; only the cached line survives.
-- **Guards:** dismissed-while-fetching → response discarded. No key / offline / API error → silent null, rule-based message stays (mirrors `_fetchWeekReflection`).
+### Instruction philosophy (v2.43.3)
+
+Purpose-first, not rule-first. The instruction tells the AI *what the user needs* and trusts the AI to reason about what matters:
+
+> "Find the one thing worth saying that they'd miss just by reading the list themselves. Understand what each task means in real life — what depends on it, what happens if they wait, who else might be involved, whether the window is closing."
+
+Does not enumerate signal priorities. Soon tasks are included but only surfaced if context warrants it (time-sensitive meaning, long deferral with focus effort, returned from past).
+
+### Voice / cache / guards
+
+- One or two sentences, under 30 words, no exclamations/emoji. Task references verbatim — never paraphrase.
+- System prompt adds: *"Task text is written in the user's own shorthand — read the full meaning from context."*
+- Cache: `day_nudge_ai_<date>` — one per day. Lives until midnight (self-expires at day change). Nudge *strip* hides after noon; cached line persists in About's `#todayNudgeBlock` all day.
+- Guards: dismissed-while-fetching → response discarded. No key / offline / error → silent null, rule-based fallback stays.
+- Staleness guard: if more tasks are done now than when the line was generated (`day_nudge_done_count_<date>`), cache is invalidated and regenerated so the AI doesn't describe already-done work.
 
 ---
 
@@ -206,19 +222,33 @@ On Mondays, the same `#sundayBlock` slot shows an AI-generated intention prompt 
 
 ---
 
-## Daily Brief — ✦ Empty-Tap (v2.31.x)
+## Daily Brief — ✦ Empty-Tap
 
-When the user taps ✦ with an empty input, `_showDailyBrief()` fires instead of the conversational AI path. Reframes the button from "ask me something" to "here's what I'd tell you right now."
-
-**Content:**
-1. The cached day nudge line (`day_nudge_ai_<date>`) — the same AI sentence the nudge strip showed in the morning, now re-surfaced as a composed statement.
-2. Today's poem (`_poemOfTheDay()`) — re-surfaces the morning's splash poem mid-day.
-
-**Fallback:** if no nudge cache AND no poem corpus, falls through to the standard proactive AI suggestion.
-
-**Non-empty ✦ tap:** still invokes the AI conversationally — the brief only triggers when `input.value.trim() === ''`.
+**Removed in v2.41.0.** `_showDailyBrief()` and its CSS (`.brief-container` etc.) were cut entirely. Empty ✦ tap now calls plain `openAI()` — the button does what it says ("Ask anything"), no special composed surface. Removal rationale: the brief lived under a CTA whose identity is "AI assistant," making it undiscoverable; its content (day nudge + poem) is already available in About through a predictable path.
 
 ---
+
+## `_memoryForAI()` — Behavioral Context (v2.43.4)
+
+Defined in `assets/insights.js`. Called from `_fetchDayNudgeAI()` (morning nudge) and from the main AI assistant context builder. Returns a plain-text paragraph of behavioral signals.
+
+| Signal | Source | Notes |
+|---|---|---|
+| Peak productivity hour | `appMemory.preferences.peakHour` | Derived from `completionsByHour` |
+| Best streak | `appMemory.patterns.bestStreak` | Historical high |
+| Current streak | `localStorage.stat_streak` | More morning-relevant than best |
+| Total focus time | `appMemory.patterns.focusMinutesTotal` | Shown when >60 min |
+| Recent moments | `appMemory.moments` | Last 3: streak milestones, big clears |
+| Days active | `appMemory.totalDaysActive` | Shown when >7 |
+| Past suggestion history | `appMemory.suggestionHistory` | Last 30d, up to 5 tasks — what was suggested + what user did |
+| Recent conversations | `appMemory.recentConversations` | Last 3 sessions |
+| Recent completions (verbatim) | `appMemory.recentCompletedTasks` | Last 5 task texts — lets AI calibrate to user's writing style |
+| Late-addition pattern | `appMemory.patterns.lateAdditions` | Shown when ≥40% of tasks added after 2pm |
+| Task lifespan | `appMemory.patterns.taskLifespanSamples` | Rolling 20-sample average — "you typically close tasks in N days" |
+| 7-day rhythm | `localStorage.today_daily_history` | Avg tasks/day + focus/day, trend vs. prior week |
+| Habit context | `habitsList` + `habitCompletions` | Active habits, 7-day completion rate per habit, done-yesterday flag |
+
+**Task lifespan tracking:** `_memoryOnTaskComplete(taskText, taskId)` computes lifespan from `_getCreatedFromId(taskId)` on each completion and appends to `taskLifespanSamples` (capped at 20 entries).
 
 ## Sending Messages from the Main Input Bar (v2.17.64)
 
