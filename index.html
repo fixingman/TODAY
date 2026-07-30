@@ -3771,9 +3771,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.42.4': 'Focus sessions that complete just after midnight now record correctly — the first post-midnight session was being wiped by the daily reset that fired a few seconds later.',
   '2.42.3': 'The morning nudge on your task list now catches up to the real insight if it had to show a plain fallback first — no more getting stuck on "N tasks carried over" for the rest of the day.',
   '2.42.2': 'Trello cards: the checklist count no longer gets crowded out by an invisible focus-session marker, and now has clearer spacing when it wraps. Focus sessions moved to the end.',
-  '2.42.1': 'Fixed a Trello card\'s checklist count landing flush against the edge with no spacing when it wrapped to its own line on a phone.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5023,7 +5023,15 @@ function applyNewDayCleanup() {
   const doneToday = _doneTodayCount(yesterdayISO);
   _memoryOnDaySummary(doneToday);
 
-  const focusMinsYesterday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+  // If a focus session already ran after midnight (BUG-063), completeFor() wrote a
+  // snapshot of the pre-midnight total and reset the counter; use that snapshot
+  // so yesterday's history entry reflects actual yesterday work, not post-midnight mins.
+  const _focusMinsDate = localStorage.getItem('stat_focus_mins_date') || '';
+  const _midnightSnapshot = parseInt(localStorage.getItem('stat_focus_mins_yesterday_snapshot') || '0');
+  const focusMinsYesterday = _focusMinsDate === _getAppDay()
+    ? _midnightSnapshot
+    : parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+  localStorage.removeItem('stat_focus_mins_yesterday_snapshot');
   const activeHabitsYesterday = habitsList.filter(h => !h.archived);
   const habitsKeptYesterday = activeHabitsYesterday.filter(h =>
     (habitCompletions[h.id] || []).includes(yesterdayISO)
@@ -5045,8 +5053,12 @@ function applyNewDayCleanup() {
 
   // Reset daily counters. Done-today is derived from today_checked_ids (cleared below),
   // so there's no done counter to zero here — only focus minutes.
-  localStorage.setItem('stat_focus_mins_today', '0');
-  localStorage.setItem('stat_focus_mins_date',  _getAppDay());
+  // Guard: if date is already today a post-midnight session recorded before cleanup ran —
+  // don't wipe those minutes (BUG-063).
+  if (_focusMinsDate !== _getAppDay()) {
+    localStorage.setItem('stat_focus_mins_today', '0');
+    localStorage.setItem('stat_focus_mins_date',  _getAppDay());
+  }
 
   // Snapshot planned task count at day start — carried-over undone tasks.
   // Used for emergent vs planned insight: how many tasks started the day planned
@@ -5090,8 +5102,11 @@ function applyNewDayCleanup() {
 
   // Clear stale caches and operation logs — but NOT deleted_ids (deleted tasks stay deleted)
   localStorage.removeItem('today_trello_cache');
-  localStorage.removeItem('today_trello_focus');
-  localStorage.removeItem('today_trello_focus_date');
+  // Guard: if a post-midnight session already wrote the focus map for today, don't clear it (BUG-063).
+  if ((localStorage.getItem('today_trello_focus_date') || '') !== _getAppDay()) {
+    localStorage.removeItem('today_trello_focus');
+    localStorage.removeItem('today_trello_focus_date');
+  }
   // NOTE: do NOT clear today_trello_firstseen here — it must persist across days so cards can
   // age from when they entered the list (BUG-049). loadTrello() prunes departed cards instead.
   // deleted_ids persists for 180 days (_cleanupDeletedIds TTL) — deleted and
@@ -12196,8 +12211,16 @@ function _aiClearBadge() {
     // Mark as tracked
     st.tracked = true;
     
-    // Add to today's focus minutes
-    const prevMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+    // Add to today's focus minutes.
+    // Guard: if stat_focus_mins_date is from a previous day, a day boundary was
+    // crossed mid-session. Snapshot the pre-midnight total for cleanup to use as
+    // yesterday's history, then start fresh for today. (BUG-063)
+    const _tfDate = localStorage.getItem('stat_focus_mins_date') || '';
+    if (_tfDate && _tfDate !== _getAppDay()) {
+      const _preMidnightMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+      if (_preMidnightMins > 0) localStorage.setItem('stat_focus_mins_yesterday_snapshot', _preMidnightMins);
+    }
+    const prevMins = _tfDate === _getAppDay() ? parseInt(localStorage.getItem('stat_focus_mins_today') || '0') : 0;
     localStorage.setItem('stat_focus_mins_today', prevMins + timeSpentMins);
     localStorage.setItem('stat_focus_mins_date', _getAppDay());
     
@@ -12410,8 +12433,14 @@ function _aiClearBadge() {
       timeEl.textContent = 'again?';
     }
 
-    // Track full 25 minutes for completed session
-    const prevMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+    // Track full 25 minutes for completed session.
+    // Same day-boundary guard as _trackFocusTime (BUG-063).
+    const _cfDate = localStorage.getItem('stat_focus_mins_date') || '';
+    if (_cfDate && _cfDate !== _getAppDay()) {
+      const _preMidnightMins = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
+      if (_preMidnightMins > 0) localStorage.setItem('stat_focus_mins_yesterday_snapshot', _preMidnightMins);
+    }
+    const prevMins = _cfDate === _getAppDay() ? parseInt(localStorage.getItem('stat_focus_mins_today') || '0') : 0;
     localStorage.setItem('stat_focus_mins_today', prevMins + 25);
     localStorage.setItem('stat_focus_mins_date', _getAppDay());
     
