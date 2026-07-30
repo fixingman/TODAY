@@ -498,5 +498,7 @@ function renderTrello() {
   });
   // Re-anchor focus timer if active — Trello patch may have replaced the focused task element
   if (window._focusReanchor) window._focusReanchor();
+  // Restore a persisted focus session — Trello tasks aren't available during renderManual()
+  if (window._tryRestoreFocusSession) window._tryRestoreFocusSession();
   if (typeof checkDayNudge === 'function') checkDayNudge();
 }
