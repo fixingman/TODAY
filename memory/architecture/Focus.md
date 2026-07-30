@@ -109,6 +109,23 @@ Not supported: Safari, Firefox (behind flag)
 
 ---
 
+## Session Persistence (v2.43.0)
+
+Focus sessions now survive iOS killing the PWA while backgrounded. Every tick writes
+`today_focus_session = { taskId, rem, savedAt, paused }` to localStorage. On reload,
+`_tryRestoreFocusSession()` (called from `renderManual()` and `renderTrello()`) checks:
+
+- **Task gone or done** → clear key, ignore
+- **Session would have already completed** (`Date.now() - savedAt > rem * 1000`) → call
+  `_recordFocusComplete(taskId)` silently (no chime, no UI) — stats + 🍅 badge updated
+- **Time still remaining** → restore timer state, call `openUI()`, resume ticking
+
+`_saveSession()` is also called in `start()` and `pause()` so the state is valid from the
+first second. `closeUI(true)` and `_recordFocusComplete()` both remove the key so stale state
+can't resurrect after a deliberate end.
+
+---
+
 ## Reset Behavior
 
 - `lastActive` (manual tasks) and `today_trello_focus` (Trello tasks) update on **any** focus

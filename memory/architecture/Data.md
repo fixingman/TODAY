@@ -85,6 +85,8 @@
 | `stat_last_visit` | string | Last date app opened |
 | `stat_tasks_done_today` | string | Tasks completed today (for memory/AI) |
 | `stat_focus_mins_today` | string | Focus minutes today |
+| `today_focus_session` | JSON object | `{taskId, rem, savedAt, paused}` — in-flight focus session; written every tick; cleared on complete/close; read by `_tryRestoreFocusSession()` on reload (v2.43.0) |
+| `stat_focus_mins_yesterday_snapshot` | string | Transient: pre-midnight focus minutes saved by `completeFor()` when it detects a day boundary; consumed and removed by `applyNewDayCleanup()` (BUG-063) |
 | `stat_focus_mins_date` | string | `_getAppDay()` string — date those minutes were earned; used as a guard on sync merge so yesterday's minutes are never restored as today's (BUG-024) |
 | `stat_focus_mins_alltime` | string | Lifetime focus minutes |
 | `morning_nudge_count` | string | Carried-over tasks from yesterday (set by `applyNewDayCleanup`) |
