@@ -3771,6 +3771,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.43.1': 'Triage counter now reads "N didn't happen" throughout — matches the opening label instead of switching to "N left" mid-sort.',
   '2.43.0': 'Focus sessions now survive iOS closing the app in the background — the timer re-opens with the time you had left, or quietly records the full session if it already finished while you were away.',
   '2.42.4': 'Focus sessions that complete just after midnight now record correctly — the first post-midnight session was being wiped by the daily reset that fired a few seconds later.',
   '2.42.3': 'The morning nudge on your task list now catches up to the real insight if it had to show a plain fallback first — no more getting stuck on "N tasks carried over" for the rest of the day.',
@@ -4705,10 +4706,10 @@ function renderTriageList() {
     `;
   }).join('');
   
-  // Update title with remaining count
+  // Update title with remaining count — keep "didn't happen" framing consistent
   const remaining = allUndone.filter(t => !triageDecisions[t.id]).length;
   if (remaining > 0) {
-    document.getElementById('triageTitle').textContent = `${remaining} left`;
+    document.getElementById('triageTitle').textContent = `${remaining} didn't happen`;
   }
 }
 
