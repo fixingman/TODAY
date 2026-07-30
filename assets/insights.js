@@ -37,6 +37,7 @@ let appMemory = (() => {
         taskKeywords: {},         // { "email": { added: 5, avgDaysToComplete: 2.3 }, ... }
         focusMinutesTotal: 0,     // lifetime focus minutes
         bestStreak: 0,            // highest streak achieved
+        taskLifespanSamples: [],  // rolling last-20 completed task ages (days)
       },
       // Moments worth remembering
       moments: [],                // [{ type: 'streak_milestone', value: 7, date: '2024-03-10' }, ...]
@@ -80,6 +81,7 @@ if (!appMemory.suggestionHistory)      appMemory.suggestionHistory = [];
 if (!appMemory.recentConversations)    appMemory.recentConversations = [];
 if (!appMemory.recentCompletedTasks)   appMemory.recentCompletedTasks = [];
 if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
+if (!appMemory.patterns.taskLifespanSamples) appMemory.patterns.taskLifespanSamples = [];
 if (appMemory.patterns.dayStartCount === undefined) appMemory.patterns.dayStartCount = null;
 if (appMemory.patterns.dayShapeState === undefined) appMemory.patterns.dayShapeState = null;
 if (appMemory.patterns.dayStartDate  === undefined) appMemory.patterns.dayStartDate  = null;
@@ -116,7 +118,7 @@ function _stripTag(text) {
 }
 
 // Update memory when a task is completed
-function _memoryOnTaskComplete(taskText) {
+function _memoryOnTaskComplete(taskText, taskId) {
   const hour = new Date().getHours();
   
   // Track completions by hour
@@ -139,6 +141,17 @@ function _memoryOnTaskComplete(taskText) {
   }
   
   appMemory.totalTasksCompleted++;
+
+  // Record task lifespan — days from creation to completion
+  if (taskId && typeof _getCreatedFromId === 'function') {
+    const created = _getCreatedFromId(taskId);
+    const lifespanDays = Math.floor((Date.now() - created) / 86400000);
+    if (lifespanDays >= 0 && lifespanDays <= 365) {
+      appMemory.patterns.taskLifespanSamples.push(lifespanDays);
+      if (appMemory.patterns.taskLifespanSamples.length > 20)
+        appMemory.patterns.taskLifespanSamples = appMemory.patterns.taskLifespanSamples.slice(-20);
+    }
+  }
 
   // Rolling 30-day completed task list for type summarization
   if (taskText) {
@@ -272,6 +285,74 @@ function _memoryForAI() {
   if (recentDone.length >= 3) {
     const examples = recentDone.slice(-5).map(e => '"' + _stripTag(e.text) + '"');
     lines.push('Recent completed tasks (shows how this person writes): ' + examples.join(', ') + '.');
+  }
+
+
+  // Current streak
+  const currentStreak = parseInt(
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('stat_streak') : null) || '1'
+  );
+  if (currentStreak > 1) {
+    lines.push(`Current streak: ${currentStreak} day${currentStreak === 1 ? '' : 's'}.`);
+  }
+
+  // Late-addition pattern — when tasks tend to get added reactively
+  const lateAdds = m.patterns.lateAdditions || [];
+  if (lateAdds.length >= 10) {
+    const avgHour = Math.round(lateAdds.reduce((a, b) => a + b, 0) / lateAdds.length);
+    const latePct = Math.round(lateAdds.filter(h => h >= 14).length / lateAdds.length * 100);
+    if (latePct >= 40) {
+      const period = avgHour < 12 ? 'morning' : avgHour < 17 ? 'afternoon' : 'evening';
+      lines.push(`You tend to add tasks in the ${period} (${latePct}% after 2pm).`);
+    }
+  }
+
+  // Task lifespan — how long tasks typically take from creation to done
+  const lifespanSamples = m.patterns.taskLifespanSamples || [];
+  if (lifespanSamples.length >= 5) {
+    const avg = Math.round(lifespanSamples.reduce((a, b) => a + b, 0) / lifespanSamples.length);
+    if (avg === 0) lines.push('You typically complete tasks the same day you add them.');
+    else if (avg <= 2) lines.push(`You typically close tasks within a day or two.`);
+    else lines.push(`You typically take about ${avg} days to complete a task.`);
+  }
+
+  // Daily history — last 7 days rhythm and trend
+  const dailyHistory = (typeof safeJSON === 'function') ? safeJSON('today_daily_history', []) : [];
+  const last7 = dailyHistory.slice(-7);
+  if (last7.length >= 3) {
+    const avgTasks = (last7.reduce((s, e) => s + (e.tasksDone || 0), 0) / last7.length).toFixed(1);
+    const avgFocus = Math.round(last7.reduce((s, e) => s + (e.focusMins || 0), 0) / last7.length);
+    const prev7 = dailyHistory.slice(-14, -7);
+    let trend = '';
+    if (prev7.length >= 3) {
+      const prevAvg = prev7.reduce((s, e) => s + (e.tasksDone || 0), 0) / prev7.length;
+      const diff = parseFloat(avgTasks) - prevAvg;
+      if (diff > 0.5) trend = ', more than the week before';
+      else if (diff < -0.5) trend = ', less than the week before';
+    }
+    const focusLine = avgFocus >= 5 ? ` and ${avgFocus} min focus` : '';
+    lines.push(`Last 7 days: ${avgTasks} tasks/day average${focusLine}${trend}.`);
+  }
+
+  // Habit context — which habits exist, weekly rate, yesterday status
+  if (typeof habitsList !== 'undefined' && typeof habitCompletions !== 'undefined') {
+    const activeHabits = habitsList.filter(h => !h.archived);
+    if (activeHabits.length > 0) {
+      const todayISO = _localISO();
+      const yesterdayISO = _localISO(new Date(Date.now() - 864e5));
+      const last7Dates = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - i); return _localISO(d);
+      });
+      const habitSummaries = activeHabits.map(h => {
+        const done = new Set(habitCompletions[h.id] || []);
+        const weekCount = last7Dates.filter(d => done.has(d)).length;
+        const doneYest = done.has(yesterdayISO) ? ', done yesterday' : '';
+        return `"${h.name}": ${weekCount}/7 this week${doneYest}`;
+      });
+      lines.push('Habits:
+' + habitSummaries.join('
+'));
+    }
   }
 
   return lines.length > 0 ? lines.join(' ') : '';

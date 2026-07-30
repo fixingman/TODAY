@@ -3771,6 +3771,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.43.4': 'Morning nudge context expanded — AI now sees habit completion rates, 7-day rhythm, task lifespan, and when you tend to add tasks reactively.',
   '2.43.3': 'Morning nudge prompt rewritten — purpose-first, reads what tasks mean in real life, and uses your recent completions to understand how you write.',
   '2.43.2': 'Morning nudge now sees your Soon list and reads task text for time-sensitivity — dates, events, or phrases like "before X" in any task are signals even without due dates.',
   '2.43.1': 'Triage counter now reads "N didn't happen" throughout — matches the opening label instead of switching to "N left" mid-sort.',
@@ -4770,7 +4771,7 @@ function triageApplyAll() {
     doneIds.add(id);
     _addCheckedId(id); // done-today count derives from this (see _doneTodayCount)
     _removeUncheckedId(id);
-    if (typeof _memoryOnTaskComplete === 'function') _memoryOnTaskComplete(text || '');
+    if (typeof _memoryOnTaskComplete === 'function') _memoryOnTaskComplete(text || '', id);
   };
 
   // Track decisions for AI learning
@@ -6795,7 +6796,7 @@ function toggleDone(taskId) {
     const task = manualTasks.find(t => t.id === taskId) ||
                  (trelloTasks || []).find(t => 'trello_' + t.id === taskId);
     const taskText = task?.text || task?.name || '';
-    _memoryOnTaskComplete(taskText);
+    _memoryOnTaskComplete(taskText, task?.id);
   }
 
   const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
