@@ -3771,6 +3771,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.43.2': 'Morning nudge now sees your Soon list and reads task text for time-sensitivity — dates, events, or phrases like "before X" in any task are signals even without due dates.',
   '2.43.1': 'Triage counter now reads "N didn't happen" throughout — matches the opening label instead of switching to "N left" mid-sort.',
   '2.43.0': 'Focus sessions now survive iOS closing the app in the background — the timer re-opens with the time you had left, or quietly records the full session if it already finished while you were away.',
   '2.42.4': 'Focus sessions that complete just after midnight now record correctly — the first post-midnight session was being wiped by the daily reset that fired a few seconds later.',
@@ -4393,6 +4394,22 @@ async function _fetchDayNudgeAI(review, carriedOver, cards) {
       return '"' + t.text + '"' + (overdue ? ' — overdue' : '') + cl;
     });
 
+    // Soon tasks — deferred items the AI can surface if context warrants it
+    const soonLines = (typeof soonTasks !== 'undefined' ? soonTasks : [])
+      .slice(0, 6)
+      .map(t => {
+        const created = _getCreatedFromId(t.id);
+        const totalAgeDays = created ? Math.floor((Date.now() - created) / 86400000) : 0;
+        const soonSince = t.zoneChangedAt ? Math.floor((Date.now() - new Date(t.zoneChangedAt).getTime()) / 86400000) : null;
+        const sessions = parseInt(t.focusSessions) || 0;
+        const signals = [];
+        if (soonSince !== null) signals.push(soonSince + 'd in soon');
+        if (totalAgeDays > soonSince + 2) signals.push(totalAgeDays + 'd old total');
+        if (sessions > 0) signals.push(sessions + ' focus session' + (sessions > 1 ? 's' : '') + ' before deferral');
+        if (t.returnedFrom === 'past') signals.push('returned from past');
+        return '"' + t.text + '"' + (signals.length ? ' (' + signals.join(', ') + ')' : '');
+      });
+
     // Work pattern context — peak hour, focus history, past suggestion outcomes
     const patternCtx = (typeof _memoryForAI === 'function') ? _memoryForAI() : '';
 
@@ -4406,14 +4423,22 @@ async function _fetchDayNudgeAI(review, carriedOver, cards) {
       taskLines.join('\n') + '\n';
     if (cardLines.length) facts += 'Trello cards:\n' + cardLines.join('\n') + '\n';
     if (!taskLines.length && !cardLines.length) facts += 'The list is empty.';
+    if (soonLines.length) facts += 'Soon (deferred tasks, not today\'s list):\n' + soonLines.join('\n') + '\n';
 
     const instruction =
       'Say something the user could not see just by looking at their list. ' +
-      'Look for a task that is stuck, not just old: several focus sessions spent on it but still not done is the ' +
+      'For any task — today or soon — understand what it implies, not just what words it contains. ' +
+      'Some tasks are inherently time-bound by nature (bookings, preparation, coordination, things that expire or lose relevance) ' +
+      'even if they carry no date or deadline language. Read the full sentence and ask what it means in real life — ' +
+      'what depends on it, when the window closes, who else is involved. ' +
+      'A task like that which has been sitting a long time is worth a gentle flag. ' +
+      'Look for a task that is stuck, not just old: focus sessions spent on it but still not done is the ' +
       'strongest signal something is genuinely hard — far more telling than age alone. ' +
-      'A revived task was deliberately brought back — that is real intent, worth naming. ' +
+      'A revived task or one returned from past was deliberately brought back — that is real intent. ' +
       'An overdue Trello card is a real deadline signal. ' +
-      'Position in the list is the order the user arranged things — sequence, not importance; never treat first place as a reason on its own. ' +
+      'A Soon task is one the user deliberately deferred, not abandoned — only surface one if its text ' +
+      'or signals give a clear reason (time-sensitive language, long deferral with prior focus effort, returned from past). ' +
+      'Position in the today list is the order the user arranged things — sequence, not importance; never treat first place as a reason on its own. ' +
       'Only mention a task when one of the signals above gives you a real reason — do not default to the top item when nothing stands out. ' +
       'When you do point to a specific task, use its exact words from the list ' +
       '(a short verbatim fragment is fine) so the user can spot it at a glance — never paraphrase ' +
