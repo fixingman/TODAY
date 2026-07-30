@@ -475,7 +475,7 @@
 
     /* ── Z-index scale ───────────────────────────────────────── */
     --z-base:    1;
-    --z-header:  10;
+    --z-header:  11;
     --z-modal:   100;
     --z-splash:  500;
     --z-overlay: 999;
@@ -887,7 +887,7 @@
     padding-bottom: var(--space-3);
     position: sticky;
     top: max(var(--sec-sticky-top, 0px), env(safe-area-inset-top, 0px));
-    z-index: 9; /* below --z-header (10), above task content */
+    z-index: 9; /* below --z-header (11), above task content */
     background: var(--bg);
   }
 
@@ -1328,7 +1328,7 @@
        the hover-less background blends into it invisibly; --surface's contrast
        on hover made that permanent overlap read as a shadow. Paint the hovered
        task above the gradient instead of touching the gradient itself. */
-    z-index: 10;
+    z-index: 10; /* above section-header gradient (9), below sticky-header (11) */
   }
   /* Applied only on insertion, removed on animationend — fill-mode:backwards prevents opacity:1 fill */
   .task-new { animation: fadeIn var(--dur-slow) var(--ease-std) backwards; }
