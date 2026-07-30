@@ -267,20 +267,11 @@ function _memoryForAI() {
     lines.push(`Recent conversations:\n${convoLines.join('\n')}`);
   }
 
-  // Task type themes from recent completions
+  // Recent completed task examples — lets the AI calibrate to the user's writing style
   const recentDone = (m.recentCompletedTasks || []);
   if (recentDone.length >= 3) {
-    const stopWords = new Set(['the','and','for','this','that','with','from','have','will','your',
-      'been','they','what','when','then','than','just','into','over','also','some','such','each',
-      'only','more','most','much','very','its','our','can','all','any','are','about','task']);
-    const freq = {};
-    for (const { text } of recentDone) {
-      for (const w of _stripTag(text).toLowerCase().split(/\s+/)) {
-        if (w.length > 3 && !stopWords.has(w)) freq[w] = (freq[w] || 0) + 1;
-      }
-    }
-    const top = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([w]) => w);
-    if (top.length > 0) lines.push('Recent task themes: ' + top.join(', ') + '.');
+    const examples = recentDone.slice(-5).map(e => '"' + _stripTag(e.text) + '"');
+    lines.push('Recent completed tasks (shows how this person writes): ' + examples.join(', ') + '.');
   }
 
   return lines.length > 0 ? lines.join(' ') : '';

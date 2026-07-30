@@ -3771,6 +3771,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.43.3': 'Morning nudge prompt rewritten — purpose-first, reads what tasks mean in real life, and uses your recent completions to understand how you write.',
   '2.43.2': 'Morning nudge now sees your Soon list and reads task text for time-sensitivity — dates, events, or phrases like "before X" in any task are signals even without due dates.',
   '2.43.1': 'Triage counter now reads "N didn't happen" throughout — matches the opening label instead of switching to "N left" mid-sort.',
   '2.43.0': 'Focus sessions now survive iOS closing the app in the background — the timer re-opens with the time you had left, or quietly records the full session if it already finished while you were away.',
@@ -4426,23 +4427,14 @@ async function _fetchDayNudgeAI(review, carriedOver, cards) {
     if (soonLines.length) facts += 'Soon (deferred tasks, not today\'s list):\n' + soonLines.join('\n') + '\n';
 
     const instruction =
-      'Say something the user could not see just by looking at their list. ' +
-      'For any task — today or soon — understand what it implies, not just what words it contains. ' +
-      'Some tasks are inherently time-bound by nature (bookings, preparation, coordination, things that expire or lose relevance) ' +
-      'even if they carry no date or deadline language. Read the full sentence and ask what it means in real life — ' +
-      'what depends on it, when the window closes, who else is involved. ' +
-      'A task like that which has been sitting a long time is worth a gentle flag. ' +
-      'Look for a task that is stuck, not just old: focus sessions spent on it but still not done is the ' +
-      'strongest signal something is genuinely hard — far more telling than age alone. ' +
-      'A revived task or one returned from past was deliberately brought back — that is real intent. ' +
-      'An overdue Trello card is a real deadline signal. ' +
-      'A Soon task is one the user deliberately deferred, not abandoned — only surface one if its text ' +
-      'or signals give a clear reason (time-sensitive language, long deferral with prior focus effort, returned from past). ' +
-      'Position in the today list is the order the user arranged things — sequence, not importance; never treat first place as a reason on its own. ' +
-      'Only mention a task when one of the signals above gives you a real reason — do not default to the top item when nothing stands out. ' +
-      'When you do point to a specific task, use its exact words from the list ' +
-      '(a short verbatim fragment is fine) so the user can spot it at a glance — never paraphrase ' +
-      'or describe a task in different words. If nothing stands out, state the morning simply — a count, the day, a quiet note.';
+      'The person is starting their morning. You have their full picture — today\'s tasks and Trello cards, ' +
+      'what they\'ve deferred to Soon, yesterday\'s work, their patterns, and examples of how they tend to write tasks. ' +
+      'Find the one thing worth saying that they\'d miss just by reading the list themselves. ' +
+      'Understand what each task means in real life — what depends on it, what happens if they wait, ' +
+      'who else might be involved, whether the window is closing — not just what the words say on the surface. ' +
+      'When you name a task, use a short fragment of its exact words so the person can spot it at a glance. ' +
+      'The list order is the user\'s own arrangement, not importance. ' +
+      'When nothing stands out, a simple quiet morning note is the right answer.';
 
     const res = await fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
@@ -4451,7 +4443,7 @@ async function _fetchDayNudgeAI(review, carriedOver, cards) {
         provider: _aiGetProvider(),
         apiKey: key,
         messages: [{ role: 'user', content: facts + '\n\n' + instruction }],
-        systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Never wrap your reply in quotation marks; quoting a task\'s own words inline is good. No exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
+        systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Task text is written in the user\'s own shorthand — read the full meaning from context, not just the literal words. Never wrap your reply in quotation marks; quoting a task\'s own words inline is good. No exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
       }),
     });
     if (!res.ok) return null;
