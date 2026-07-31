@@ -33,9 +33,17 @@ Mental checklist after **any code change** — verify before moving on:
 - [ ] **Visual intact** — No broken layout, correct colors
 
 If testing **focus mode** changes:
+- [ ] Run `node scripts/focus-test.mjs` first — it covers the lifecycle automatically
+      (cold-start restore, escape leaves no session, switch keeps the timer anchored,
+      rapid A→B→A, render during a live session). The checks below are the ones it
+      cannot reach.
 - [ ] Timer counts down
 - [ ] PiP opens on tab leave, closes on return
 - [ ] Pause/resume works
+- [ ] Complete a session, dismiss, re-click the task → fresh 25:00, not a frozen 00:00
+      (BUG-027 — needs `taskStates` internals, not automatable)
+- [ ] Complete a session, then start a different task → no `.complete` styling bleeds
+      into the new session's bar (BUG-022/028 — same reason)
 
 If testing **zone** changes:
 - [ ] Triage bar appears 8pm–midnight
