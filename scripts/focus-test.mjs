@@ -25,6 +25,9 @@
 // Section 2 re-checks after a reload, because persisted state is where BUG-065 hid.
 // Section 3 covers focus-minute accounting — arithmetic, not a state invariant,
 //           so it is deliberately kept separate rather than bent into the model.
+// Section 4 covers cross-device sync: a value adopted from another device must arrive
+//           stamped as today's and survive the cleanup that runs after the restore.
+//           mergeRemoteData() takes a plain object, so no Dropbox or network needed.
 //
 // Run from repo root:  node scripts/focus-test.mjs      (~40s)
 // Run when a diff touches the focus IIFE, trello.js, or the renderers.
@@ -34,6 +37,7 @@
 // Teeth, verified by reverting each real fix independently — all four produce exit 1:
 //   BUG-065 clear-session-on-every-close · BUG-065 _restoreAttempted latch
 //   BUG-065 focusGen teardown guard      · BUG-063 day-boundary guard
+//   BUG-066 merge stamps stat_focus_mins_date
 //
 // Not reachable headless: PiP close (a fifth exit path). Not covered: .complete
 // bleed (BUG-022/028) and frozen 00:00 on re-open (BUG-027) — both need taskStates
@@ -272,6 +276,66 @@ try {
   if (boundary.date !== boundary.expectDate)
     await fail('focus-minutes date guard did not roll to today (BUG-063)', boundary);
   ok('post-midnight completion preserves yesterday (BUG-063)');
+
+  // ── 4. Cross-device sync ──────────────────────────────────────────────────
+  // A different axis: everything above is single-device. mergeRemoteData() takes a
+  // plain object, so another device can be simulated with no Dropbox and no network.
+  //
+  // Invariant: a value adopted from another device must arrive STAMPED as today's,
+  // and survive applyNewDayCleanup — which by design runs AFTER the restore. Merging
+  // a value without its date guard is what made desktop's minutes read 0 on mobile
+  // (BUG-066): cleanup saw a stale date, banked them as yesterday's and zeroed today.
+  const syncCase = ({ localMins, localDate, remoteMins, remoteDate, runCleanup }) =>
+    page.evaluate((o) => {
+      const today = new Date().toDateString();
+      const yest  = new Date(Date.now() - 864e5).toDateString();
+      const d = (k) => k === 'today' ? today : yest;
+      localStorage.setItem('stat_focus_mins_today', String(o.localMins));
+      localStorage.setItem('stat_focus_mins_date',  d(o.localDate));
+      localStorage.setItem('stat_last_visit',       o.runCleanup ? yest : today);
+      localStorage.setItem('today_daily_history',   '[]');
+      localStorage.removeItem('stat_focus_mins_yesterday_snapshot');
+      mergeRemoteData({ version: '5.4', manual_tasks: [], done_ids: [], deleted_ids: [],
+        checked_ids: [], unchecked_ids: [], habits: [], habit_completions: {},
+        soon_tasks: [], past_tasks: [], stat_streak: '1', stat_streak_date: '',
+        stat_focus_mins_today: String(o.remoteMins), stat_focus_mins_date: d(o.remoteDate) });
+      if (o.runCleanup) applyNewDayCleanup();
+      const hist = JSON.parse(localStorage.getItem('today_daily_history') || '[]');
+      return { mins: parseInt(localStorage.getItem('stat_focus_mins_today') || '0'),
+               date: localStorage.getItem('stat_focus_mins_date'),
+               yesterday: hist.length ? hist[0].focusMins : null,
+               today: new Date().toDateString() };
+    }, { localMins, localDate, remoteMins, remoteDate, runCleanup });
+
+  // Desktop earned 50 today; mobile opens later the same day (its first open).
+  let r = await syncCase({ localMins: 0, localDate: 'yesterday',
+                           remoteMins: 50, remoteDate: 'today', runCleanup: true });
+  if (r.mins !== 50)
+    await fail("another device's focus minutes were wiped by the cleanup that runs " +
+               'after restore (BUG-066)', r);
+  if (r.date !== r.today)
+    await fail('merged focus minutes were not stamped with today (BUG-066)', r);
+  ok("another device's focus minutes survive the post-restore cleanup");
+
+  // Same, but this device still holds unbanked minutes from yesterday — stamping
+  // today's date must not cost yesterday its history entry.
+  r = await syncCase({ localMins: 40, localDate: 'yesterday',
+                       remoteMins: 50, remoteDate: 'today', runCleanup: true });
+  if (r.mins !== 50)      await fail('merged minutes lost with unbanked local minutes present', r);
+  if (r.yesterday !== 40) await fail("yesterday's unbanked minutes lost from history (BUG-066)", r);
+  ok('stamping today does not cost yesterday its history');
+
+  // Local ahead of remote — max must still win, no clobber.
+  r = await syncCase({ localMins: 60, localDate: 'today',
+                       remoteMins: 50, remoteDate: 'today', runCleanup: false });
+  if (r.mins !== 60) await fail('a lower remote value clobbered a higher local one', r);
+  ok('local minutes are not clobbered by a lower remote value');
+
+  // BUG-024 — remote holding YESTERDAY's total must never restore as today's.
+  r = await syncCase({ localMins: 0, localDate: 'today',
+                       remoteMins: 45, remoteDate: 'yesterday', runCleanup: false });
+  if (r.mins !== 0) await fail("remote's yesterday total restored as today's (BUG-024)", r);
+  ok("remote's yesterday total never restores as today (BUG-024)");
 
   if (pageErrors.length) await fail('uncaught page errors', pageErrors);
   ok('no uncaught page errors');

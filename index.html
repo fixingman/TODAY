@@ -3771,9 +3771,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.43.8': 'Focus minutes earned on one device now show up on your others the same day, instead of reading zero until tomorrow.',
   '2.43.7': 'Fixed focus mode re-opening by itself after you left it, and the timer bar being torn loose when switching tasks quickly.',
   '2.43.6': 'Trello cards now stay un-aged after you focus on them, the same way your own tasks do. Before, the dimming came back the next day at a heavier level than before you did the work.',
-  '2.43.5': 'Morning nudge prompt rebalanced — lifetime totals no longer crowd out today\'s actual list, and the context blocks no longer run into each other.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -8709,7 +8709,21 @@ function mergeRemoteData(data) {
   // union below. Math.max on a monotonic counter was what inflated it (retired v2.18.21).
 
   if (mergedFocusMins !== localFocusMins) {
+    // Stamp the date guard alongside the value (BUG-066). mergedFocusMins only differs
+    // from local when remote's date-gated today-value won, so the merged number IS
+    // today's. Without the stamp, applyNewDayCleanup — which by design runs AFTER the
+    // Dropbox restore (see init(), "clean the freshest data") — reads a stale date,
+    // banks the other device's minutes into YESTERDAY's history and zeroes the counter.
+    // Symptom: work a focus session on desktop, open mobile later the same day, see 0.
+    const localFocusDate = localStorage.getItem('stat_focus_mins_date') || '';
+    if (localFocusDate && localFocusDate !== _getAppDay() && localFocusMins > 0) {
+      // Local counter was still on yesterday and cleanup hadn't banked it yet. Hand it
+      // to the snapshot cleanup consumes — same channel BUG-063 established — so
+      // stamping today's date below doesn't cost yesterday its history entry.
+      localStorage.setItem('stat_focus_mins_yesterday_snapshot', String(localFocusMins));
+    }
     localStorage.setItem('stat_focus_mins_today', String(mergedFocusMins));
+    localStorage.setItem('stat_focus_mins_date', _getAppDay());
     _changed = true;
     if ($.infoPanel && $.infoPanel.classList.contains('open')) renderInfoStats();
   }
