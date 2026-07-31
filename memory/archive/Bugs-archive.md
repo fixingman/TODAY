@@ -6,6 +6,23 @@
 
 ---
 
+## BUG-063: Focus sessions completing just after midnight are not recorded
+
+**Symptom:** Can's report — focus time completed shortly after midnight "does not record till 1am." A pomodoro finished in the minutes after the day rolled over showed no focus minutes at all.
+
+**Root cause:** A race between the focus-completion write and the daily reset, both driven by the same 7-second ticker. `completeFor()` (or `_trackFocusTime()`) would add 25 minutes to `stat_focus_mins_today`; then, within the same ticker window, `applyNewDayCleanup()` would fire, snapshot the running total as *yesterday's* focus for the history entry, and reset the counter to 0 — discarding the session that had just landed. The window was small but real, and it caught exactly the sessions that straddled the boundary.
+
+**Fix (v2.42.4), three-pronged:**
+1. `completeFor()` and `_trackFocusTime()` now compare `stat_focus_mins_date` against `_getAppDay()` *before* incrementing. If the date has flipped, they snapshot the pre-midnight total into `stat_focus_mins_yesterday_snapshot` and start today from 0.
+2. `applyNewDayCleanup()` consumes that snapshot for yesterday's `today_daily_history` entry when `stat_focus_mins_date` is already today, and skips resetting the counter — preserving the post-midnight session.
+3. The Trello focus map (`today_trello_focus`) got the same guard via `today_trello_focus_date`, so 🍅 session badges earned after midnight survive the clear too.
+
+**Related:** the shared recording path was later factored into `_recordFocusComplete()` (v2.43.0) specifically to avoid duplicating this day-boundary guard across call sites.
+
+**Verified fixed:** ✅ 2026-07-31 (Can, real device)
+
+---
+
 ## BUG-060: Completed Trello card reappears as active — persists through normal daily sync
 
 **Symptom:** Can connected TODAY on a new desktop PWA; an old Trello task — already completed in TODAY, with a due date well in the past — showed up on the list as if still active.

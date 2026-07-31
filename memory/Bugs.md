@@ -15,7 +15,7 @@
 | # | Description | Status |
 |---|---|---|
 | 064 | Focusing a Trello card masked its age for one day, then it returned dimmed one tier worse — focus never moved the age basis | ⏳ v2.43.6  |
-| 063 | Focus sessions completing just after midnight wiped by daily reset race — stat_focus_mins_today reset to 0 before completeFor could persist | ⏳ v2.42.4  |
+| 063 | Focus sessions completing just after midnight wiped by daily reset race — stat_focus_mins_today reset to 0 before completeFor could persist | ✅ v2.42.4  |
 | 062 | Native share-sheet popover opens far from the poem's click point, not fixable from page DOM | 🚫 Rejected  |
 | 061 | Sunday/habit badges silently fail to show on a fresh device (same root cause as BUG-060) | ⏳ v2.37.8  |
 | 060 | Completed Trello card (overdue) reappears as active — persists through normal daily sync, not just fresh device | ✅ v2.40.1  |
