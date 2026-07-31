@@ -203,11 +203,16 @@ function _memoryOnDaySummary(tasksCompleted) {
   }
 }
 
-// Get memory summary for AI context
-function _memoryForAI() {
+// Get memory summary for AI context.
+// scope 'nudge' omits lifetime trophies (best streak, total focus, moments, days
+// active) — they can't change what's said about *today*, and at ~40% of the block
+// they crowded out the actual list (v2.43.5). The conversational assistant still
+// gets everything: there, "your best streak was 14" is legitimate color.
+function _memoryForAI(scope) {
   const m = appMemory;
   const lines = [];
-  
+  const lifetime = scope !== 'nudge';
+
   // Peak productivity hour
   if (m.preferences.peakHour !== null) {
     const h = m.preferences.peakHour;
@@ -216,18 +221,18 @@ function _memoryForAI() {
   }
   
   // Best streak
-  if (m.patterns.bestStreak > 3) {
+  if (lifetime && m.patterns.bestStreak > 3) {
     lines.push(`Your best streak was ${m.patterns.bestStreak} days.`);
   }
-  
+
   // Total focus time
-  if (m.patterns.focusMinutesTotal > 60) {
+  if (lifetime && m.patterns.focusMinutesTotal > 60) {
     const hours = Math.round(m.patterns.focusMinutesTotal / 60);
     lines.push(`You've focused for ${hours}+ hours total.`);
   }
-  
+
   // Recent moments
-  const recentMoments = m.moments.slice(-3);
+  const recentMoments = lifetime ? m.moments.slice(-3) : [];
   for (const moment of recentMoments) {
     if (moment.type === 'streak_milestone') {
       lines.push(`You hit a ${moment.value}-day streak on ${moment.date}.`);
@@ -237,7 +242,7 @@ function _memoryForAI() {
   }
   
   // Days active
-  if (m.totalDaysActive > 7) {
+  if (lifetime && m.totalDaysActive > 7) {
     lines.push(`You've used TODAY for ${m.totalDaysActive} days.`);
   }
   
@@ -349,13 +354,14 @@ function _memoryForAI() {
         const doneYest = done.has(yesterdayISO) ? ', done yesterday' : '';
         return `"${h.name}": ${weekCount}/7 this week${doneYest}`;
       });
-      lines.push('Habits:
-' + habitSummaries.join('
-'));
+      lines.push('Habits:\n' + habitSummaries.join('\n'));
     }
   }
 
-  return lines.length > 0 ? lines.join(' ') : '';
+  // Newline-joined: several entries are themselves multi-line (past suggestions,
+  // conversations, habits) and a space join welded each one's tail to the next
+  // entry's heading.
+  return lines.length > 0 ? lines.join('\n') : '';
 }
 
 // Generate proactive observations — things the AI should notice and speak about
