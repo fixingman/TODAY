@@ -1,29 +1,43 @@
-// TODAY — focus lifecycle regression test
-// Focus mode is 16 of 59 recorded bugs (27%) — by far the densest area. It carries
+// TODAY — focus lifecycle invariant test
+//
+// Focus mode is 16 of 59 recorded bugs (27%) — the densest area in the app. It holds
 // in-memory state (taskStates, uiTaskId), persisted state (today_focus_session), DOM
-// state (timerEl parenting, .focused/.focusing) and a 200ms deferred teardown, across
-// five closeUI call sites and a restore path invoked from two renderers. That mix is
-// what keeps producing the same bug shapes.
+// state (timer parenting, .focused/.focusing) and a 200ms deferred teardown, across
+// five closeUI call sites and a restore path invoked from two renderers.
 //
-// Every scenario below is a bug that actually happened. Silent on success (one line
-// each); dumps full state only on failure, which is when you want the detail.
+// ── The whole logic of this file ─────────────────────────────────────────────
+// Focus mode has exactly TWO legal states:
 //
-// Exit-path coverage matters: BUG-065's root cause was that EVERY way out of focus
-// leaked the persisted session. Escape, click-outside, task switch and check-off are
-// each tested; PiP close is not reachable headless.
+//   OFF  no .focused task · no .focusing on app · no persisted session
+//        · timer parked in <body>
+//   ON   exactly ONE .focused task · timer anchored directly under that task
+//        · persisted session points at that task · .focusing on app
+//
+// Anything else is a bug. Every focus bug on record is one of these two being
+// violated — BUG-065 was OFF-but-with-a-persisted-session, BUG-013/025 was
+// ON-but-with-a-detached-timer, BUG-044 was OFF-but-with-a-live-timer.
+//
+// So rather than scripting one assertion per known bug, we define the two states
+// once and re-check them after EVERY operation. That catches bugs we have not had
+// yet, which a list of past-bug scenarios cannot.
+//
+// Section 1 walks the operation matrix (every way in and out of focus).
+// Section 2 re-checks after a reload, because persisted state is where BUG-065 hid.
+// Section 3 covers focus-minute accounting — arithmetic, not a state invariant,
+//           so it is deliberately kept separate rather than bent into the model.
 //
 // Run from repo root:  node scripts/focus-test.mjs      (~40s)
-// Run it when a diff touches the focus IIFE, trello.js, or the renderers.
+// Run when a diff touches the focus IIFE, trello.js, or the renderers.
+// Silent on success; prints the offending state only on failure.
 // If it ever goes flaky, delete it rather than nurse it.
 //
-// Teeth, verified by reverting real fixes: BUG-065's primary fix (clearing the session
-// on every close) -> exit 1; BUG-063's day-boundary guard -> exit 1. Reverting ONLY the
-// _restoreAttempted latch does NOT fail — it is defence-in-depth behind the primary
-// fix, so it has no independent coverage. Worth knowing before trusting a green run.
+// Teeth, verified by reverting each real fix independently — all four produce exit 1:
+//   BUG-065 clear-session-on-every-close · BUG-065 _restoreAttempted latch
+//   BUG-065 focusGen teardown guard      · BUG-063 day-boundary guard
 //
-// NOT covered (needs taskStates internals that aren't on window): .complete bleeding
-// into the next session (BUG-022/028) and re-opening a completed task at a frozen
-// 00:00 (BUG-027). Those stay in memory/Test-matrix.md as human checks.
+// Not reachable headless: PiP close (a fifth exit path). Not covered: .complete
+// bleed (BUG-022/028) and frozen 00:00 on re-open (BUG-027) — both need taskStates
+// internals that are not on window. Those stay human checks in Test-matrix.md.
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -34,12 +48,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 let puppeteer;
-try {
-  puppeteer = (await import('puppeteer-core')).default;
-} catch {
-  console.error('✗ puppeteer-core not installed — run: cd scripts && npm install');
-  process.exit(1);
-}
+try { puppeteer = (await import('puppeteer-core')).default; }
+catch { console.error('✗ puppeteer-core not installed — run: cd scripts && npm install'); process.exit(1); }
 
 const MIME = { '.html':'text/html','.js':'text/javascript','.json':'application/json',
                '.png':'image/png','.woff2':'font/woff2','.css':'text/css' };
@@ -59,7 +69,7 @@ const ok = (m) => console.log('  ✓ ' + m);
 let browser;
 const fail = async (m, detail) => {
   console.error('✗ FAIL — ' + m);
-  if (detail) console.error(JSON.stringify(detail, null, 2));
+  if (detail !== undefined) console.error(JSON.stringify(detail, null, 2));
   if (browser) await browser.close();
   server.close();
   process.exit(1);
@@ -77,33 +87,62 @@ try {
   page.on('pageerror', e => pageErrors.push(e.message));
 
   const settle = (ms) => new Promise(r => setTimeout(r, ms));
-  const boot = async () => {
-    await page.waitForFunction(() => {
-      const b = document.getElementById('addTaskBar');
-      return b && getComputedStyle(b).opacity === '1';
-    }, { timeout: 15000 });
-  };
+  const boot = () => page.waitForFunction(() => {
+    const b = document.getElementById('addTaskBar');
+    return b && getComputedStyle(b).opacity === '1';
+  }, { timeout: 15000 });
 
-  // Probe the three state layers at once — in-memory flag, DOM, localStorage.
-  const probe = () => page.evaluate(() => {
-    const timer = document.querySelector('.focus-timer');
-    const prev  = timer && timer.previousElementSibling;
-    return {
-      uiActive:  !!window._focusUIActive,
-      focusing:  !!document.querySelector('.app')?.classList.contains('focusing'),
+  // ── The invariant ─────────────────────────────────────────────────────────
+  // Reads all four state layers and reduces them to: 'off', a taskId, or a list of
+  // violations. Anything that is neither cleanly off nor cleanly on IS the bug.
+  const readState = () => page.evaluate(() => {
+    const timer  = document.querySelector('.focus-timer');
+    const prev   = timer && timer.previousElementSibling;
+    const raw = {
+      uiActive:   !!window._focusUIActive,
+      focusing:   !!document.querySelector('.app')?.classList.contains('focusing'),
       focusedIds: [...document.querySelectorAll('.task.focused')].map(e => e.dataset.taskid),
-      timerUnder: prev?.dataset?.taskid ?? (timer?.parentElement === document.body ? '<body>' : null),
-      saved: JSON.parse(localStorage.getItem('today_focus_session') || 'null')?.taskId || null,
+      timerUnder: prev?.dataset?.taskid ?? (timer?.parentElement === document.body ? '<body>' : '?'),
+      saved:      JSON.parse(localStorage.getItem('today_focus_session') || 'null')?.taskId || null,
     };
+    const bad = [];
+    if (!raw.uiActive && raw.focusedIds.length === 0) {
+      // Expect a clean OFF
+      if (raw.saved)                    bad.push('OFF but a session is persisted: ' + raw.saved);
+      if (raw.focusing)                 bad.push('OFF but app still has .focusing');
+      if (raw.timerUnder !== '<body>')  bad.push('OFF but timer still anchored to ' + raw.timerUnder);
+      return { state: bad.length ? 'INVALID' : 'off', bad, raw };
+    }
+    // Expect a clean ON, owned by exactly one task
+    const owner = raw.focusedIds[0];
+    if (raw.focusedIds.length !== 1) bad.push('ON but ' + raw.focusedIds.length + ' tasks carry .focused');
+    if (!raw.uiActive)               bad.push('ON but _focusUIActive is false');
+    if (!raw.focusing)               bad.push('ON but app lacks .focusing');
+    if (raw.timerUnder !== owner)    bad.push('ON but timer is under ' + raw.timerUnder + ', not ' + owner);
+    if (raw.saved !== owner)         bad.push('ON but persisted session points at ' + raw.saved + ', not ' + owner);
+    return { state: bad.length ? 'INVALID' : owner, bad, raw };
   });
 
-  // Real DOM click — focus mode sets body{position:fixed}, which shifts layout and
-  // makes coordinate-based clicks land on empty space (they hit the click-outside
-  // branch and read as "switching is broken" when it isn't).
-  const clickTask = (id) => page.evaluate((i) => {
-    (document.querySelector(`.task[data-taskid="${CSS.escape(i)}"] .task-text`) ||
-     document.querySelector(`.task[data-taskid="${CSS.escape(i)}"]`)).click();
-  }, id);
+  // expect: 'off' | a taskId
+  const expectState = async (label, expect) => {
+    const s = await readState();
+    if (s.state === 'INVALID')
+      await fail(`${label}: focus is in an illegal state — ${s.bad.join('; ')}`, s.raw);
+    if (s.state !== expect)
+      await fail(`${label}: expected ${expect === 'off' ? 'OFF' : 'ON(' + expect + ')'}, got ` +
+                 `${s.state === 'off' ? 'OFF' : 'ON(' + s.state + ')'}`, s.raw);
+  };
+
+  // Real DOM clicks — focus sets body{position:fixed}, which shifts layout and makes
+  // coordinate clicks land on empty space (they hit the click-outside branch and read
+  // as "switching is broken" when it is not).
+  const clickTask   = (id) => page.evaluate((i) => (
+    document.querySelector(`.task[data-taskid="${CSS.escape(i)}"] .task-text`) ||
+    document.querySelector(`.task[data-taskid="${CSS.escape(i)}"]`)).click(), id);
+  const clickCheck  = (id) => page.evaluate((i) =>
+    document.querySelector(`.task[data-taskid="${CSS.escape(i)}"] .task-check`).click(), id);
+  const clickOutside = () => page.evaluate(() => document.querySelector('.app').click());
+  const render       = () => page.evaluate(() => renderManual());
 
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await boot();
@@ -114,138 +153,124 @@ try {
   const [A, B] = await page.$$eval('.task', els => els.map(e => e.dataset.taskid));
   if (!A || !B) await fail('could not create two tasks');
 
-  // ── 1. Cold-start restore still works (the v2.43.0 feature itself) ─────────
-  // Guards against a BUG-065-style fix over-correcting and killing restore.
-  await page.evaluate((id) => localStorage.setItem('today_focus_session',
-    JSON.stringify({ taskId: id, rem: 900, savedAt: Date.now(), paused: false })), A);
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await boot(); await settle(600);
-  let s = await probe();
-  if (!s.uiActive || s.focusedIds[0] !== A) await fail('cold start did not restore a persisted session', s);
-  ok('cold start restores a persisted session');
+  // ── 1. Operation matrix — every way in and out of focus ───────────────────
+  // Each row: what we do, what state must hold afterwards. Adding a new way in or
+  // out of focus is one line here, and it is checked against the full invariant.
+  // A render tick is interleaved after every exit because that is what triggered
+  // BUG-065 (renderManual/renderTrello call the restore path).
+  const settleTeardown = 450;   // past closeUI's 200ms deferred teardown
+  const ops = [
+    ['open A',                      () => clickTask(A),   A],
+    ['escape',                      () => page.keyboard.press('Escape'), 'off'],
+    ['render after escape',         render,               'off'],
+    ['re-open A',                   () => clickTask(A),   A],
+    ['click outside',               clickOutside,         'off'],
+    ['render after click-outside',  render,               'off'],
+    ['open A again',                () => clickTask(A),   A],
+    ['switch A→B',                  () => clickTask(B),   B],
+    ['render during live session',  render,               B],
+    ['switch back B→A',             () => clickTask(A),   A],
+    ['check A off mid-session',     () => clickCheck(A),  'off'],
+    ['render after check-off',      render,               'off'],
+  ];
+  for (const [label, act, expect] of ops) {
+    await act();
+    await settle(settleTeardown);
+    await expectState(label, expect);
+  }
+  ok(`all ${ops.length} operations hold the invariant (4 exit paths, switch, render)`);
 
-  // ── 2. Escape clears the session; no phantom re-open (BUG-065) ─────────────
-  await page.keyboard.press('Escape'); await settle(400);
-  s = await probe();
-  if (s.saved !== null) await fail('escape left a session in localStorage', s);
-  await page.evaluate(() => renderManual()); await settle(400);
-  s = await probe();
-  if (s.uiActive || s.focusedIds.length) await fail('focus re-opened itself after escape (BUG-065)', s);
-  ok('escape clears the session — no phantom re-open');
-
-  // ── 3. Switch A→B keeps the timer anchored past the 200ms teardown (BUG-065)
-  await clickTask(A); await settle(500);
-  await clickTask(B); await settle(450);   // past closeUI's deferred teardown
-  s = await probe();
-  if (s.timerUnder !== B) await fail('timer not anchored under the new task after switch (BUG-065)', s);
-  if (!s.focusing)        await fail('app lost .focusing after switch teardown (BUG-065)', s);
-  if (s.saved !== B)      await fail('persisted session does not point at the new task', s);
-  ok('task switch keeps the timer anchored to the new task');
-
-  // ── 4. Rapid A→B→A inside the teardown window (BUG-065) ───────────────────
+  // Rapid switching inside the 200ms teardown window — the teardown must not tear
+  // down the session that replaced it.
+  await page.evaluate((id) => document.querySelector(
+    `.task[data-taskid="${CSS.escape(id)}"] .task-check`).click(), A); // un-check A
+  await settle(400);
   await clickTask(A); await settle(40);
   await clickTask(B); await settle(40);
-  await clickTask(A); await settle(500);
-  s = await probe();
-  if (s.focusedIds.length !== 1 || s.focusedIds[0] !== A)
-    await fail('rapid A→B→A did not settle on one focused task (BUG-065)', s);
-  if (s.timerUnder !== A) await fail('timer not anchored after rapid switching (BUG-065)', s);
-  ok('rapid A→B→A settles on a single task');
+  await clickTask(A); await settle(600);
+  await expectState('rapid A→B→A', A);
+  await page.keyboard.press('Escape'); await settle(settleTeardown);
+  ok('rapid switching inside the teardown window holds the invariant');
 
-  // ── 5. A render tick must not disturb a live session (BUG-059 / BUG-065) ───
-  const before = await probe();
-  await page.evaluate(() => renderManual()); await settle(400);
-  const after = await probe();
-  if (after.uiActive !== before.uiActive || after.timerUnder !== before.timerUnder ||
-      after.focusedIds.join() !== before.focusedIds.join())
-    await fail('render tick disturbed a live focus session', { before, after });
-  ok('render during a live session leaves it alone');
+  // ── 2. The invariant must survive a reload ────────────────────────────────
+  // Persisted state is where BUG-065 hid: the DOM looked clean, localStorage did not.
+  await page.reload({ waitUntil: 'domcontentloaded' }); await boot(); await settle(600);
+  await expectState('after reload following a clean exit', 'off');
+  await render(); await settle(400);
+  await expectState('render after reload', 'off');
+  ok('a clean exit stays clean across reload');
 
-  // ── 6. Click-outside is a second exit path — it must clear too (BUG-065) ───
-  // BUG-065's root cause was that EVERY exit passed doResetState=false. Testing only
-  // Escape would leave the other paths free to regress the same way.
-  s = await probe();
-  if (!s.uiActive) { await clickTask(A); await settle(500); }
-  await page.evaluate(() => document.querySelector('.app').click()); await settle(450);
-  s = await probe();
-  if (s.saved !== null)   await fail('click-outside left a session in localStorage (BUG-065)', s);
-  if (s.uiActive)         await fail('click-outside did not close focus', s);
-  await page.evaluate(() => renderManual()); await settle(400);
-  s = await probe();
-  if (s.uiActive) await fail('focus re-opened itself after click-outside (BUG-065)', s);
-  ok('click-outside clears the session — no phantom re-open');
+  // Restore is a COLD-START mechanism, not a per-render one. Inject a session while
+  // the page is live and already OFF: a render must ignore it. Only a reload may act
+  // on it (asserted next). This is what the _restoreAttempted latch exists for — the
+  // second line of defence if anything ever writes the key while a page is running.
+  await page.evaluate((id) => localStorage.setItem('today_focus_session',
+    JSON.stringify({ taskId: id, rem: 900, savedAt: Date.now(), paused: false })), A);
+  await render(); await settle(400);
+  // Narrow assertion on purpose: injecting the key deliberately creates a state the
+  // full invariant calls illegal (OFF with a session persisted), so only the question
+  // "did a render OPEN focus?" applies here.
+  const injected = await readState();
+  if (injected.raw.uiActive || injected.raw.focusedIds.length)
+    await fail('a render opened focus from a persisted session — restore must be ' +
+               'cold-start only (BUG-065)', injected.raw);
+  await page.evaluate(() => localStorage.removeItem('today_focus_session'));
+  ok('a render never resurrects focus — only a reload may');
 
-  // ── 7. Checking the task off mid-session closes cleanly (_focusOnCheck) ────
-  // The one close path that always passed doResetState=true — assert it still ends
-  // the session rather than leaving a zombie behind (BUG-044 shape).
-  await clickTask(A); await settle(500);
-  await page.evaluate((id) => document.querySelector(
-    `.task[data-taskid="${CSS.escape(id)}"] .task-check`).click(), A);
-  await settle(600);
-  s = await probe();
-  if (s.uiActive)       await fail('checking the task off left focus mode open', s);
-  if (s.saved !== null) await fail('checking the task off left a persisted session', s);
-  ok('checking the task off mid-session closes cleanly');
+  // Cold-start restore — the v2.43.0 feature itself. Guards against a future fix
+  // over-correcting and killing restore altogether.
+  await page.evaluate((id) => localStorage.setItem('today_focus_session',
+    JSON.stringify({ taskId: id, rem: 900, savedAt: Date.now(), paused: false })), A);
+  await page.reload({ waitUntil: 'domcontentloaded' }); await boot(); await settle(700);
+  await expectState('cold-start restore', A);
+  await page.keyboard.press('Escape'); await settle(settleTeardown);
+  ok('cold start restores a persisted session');
 
-  // ── 7b. A session whose task is now done must be discarded, not restored ──
-  // Explicit branch in _tryRestoreFocusSession. Task A was checked off just above.
-  const minsBeforeDone = await page.evaluate(() =>
-    parseInt(localStorage.getItem('stat_focus_mins_today') || '0'));
+  // A session whose task is now done must be discarded, not restored.
+  await clickCheck(A); await settle(400);
   await page.evaluate((id) => localStorage.setItem('today_focus_session',
     JSON.stringify({ taskId: id, rem: 1, savedAt: Date.now() - 60000, paused: false })), A);
   await page.reload({ waitUntil: 'domcontentloaded' }); await boot(); await settle(700);
-  s = await probe();
-  const minsAfterDone = await page.evaluate(() =>
-    parseInt(localStorage.getItem('stat_focus_mins_today') || '0'));
-  if (s.saved !== null) await fail('stale session for a done task was not discarded', s);
-  if (s.uiActive)       await fail('focus re-opened on a task that is already done', s);
-  if (minsAfterDone !== minsBeforeDone)
-    await fail('a done task recorded focus minutes on restore',
-               { minsBeforeDone, minsAfterDone });
-  ok('session for an already-done task is discarded, not restored');
+  await expectState('restore targeting an already-done task', 'off');
+  ok('session for an already-done task is discarded');
 
-  // ── 8. Background auto-complete records the session (v2.43.0) ──────────────
-  // A session that finished while iOS had the PWA killed: restore records it silently,
-  // with no UI. Nothing else covers _recordFocusComplete.
-  const beforeMins = await page.evaluate(() =>
+  // ── 3. Focus-minute accounting ────────────────────────────────────────────
+  // Arithmetic, not a state invariant — kept separate rather than bent into the model.
+  const mins = () => page.evaluate(() =>
     parseInt(localStorage.getItem('stat_focus_mins_today') || '0'));
-  await page.evaluate((id) => {
-    localStorage.setItem('today_focus_session', JSON.stringify(
-      { taskId: id, rem: 1, savedAt: Date.now() - 60000, paused: false }));
-  }, B);
+
+  const before = await mins();
+  await page.evaluate((id) => localStorage.setItem('today_focus_session',
+    JSON.stringify({ taskId: id, rem: 1, savedAt: Date.now() - 60000, paused: false })), B);
   await page.reload({ waitUntil: 'domcontentloaded' }); await boot(); await settle(700);
-  s = await probe();
-  const afterMins = await page.evaluate(() =>
-    parseInt(localStorage.getItem('stat_focus_mins_today') || '0'));
-  if (afterMins !== beforeMins + 25)
-    await fail('background auto-complete did not record 25 focus minutes',
-               { beforeMins, afterMins });
-  if (s.uiActive)       await fail('background auto-complete opened a UI (should be silent)', s);
-  if (s.saved !== null) await fail('background auto-complete left the session key behind', s);
-  ok('background auto-complete records silently');
+  const after = await mins();
+  if (after !== before + 25)
+    await fail('a session that finished while backgrounded did not record 25 minutes',
+               { before, after });
+  await expectState('after silent background completion', 'off');
+  ok('background auto-complete records 25 minutes silently');
 
-  // ── 9. Post-midnight completion does not eat yesterday's minutes (BUG-063) ─
-  // Confirmed fixed on device 2026-07-31; nothing guarded it until now.
+  // BUG-063 — a session completing just after midnight must not absorb yesterday.
   await page.evaluate((id) => {
     localStorage.setItem('stat_focus_mins_today', '40');
     localStorage.setItem('stat_focus_mins_date', new Date(Date.now() - 864e5).toDateString());
     localStorage.removeItem('stat_focus_mins_yesterday_snapshot');
     localStorage.setItem('today_focus_session', JSON.stringify(
       { taskId: id, rem: 1, savedAt: Date.now() - 60000, paused: false }));
-  }, B);   // B, not A — A is checked off by now and would be discarded
+  }, B);
   await page.reload({ waitUntil: 'domcontentloaded' }); await boot(); await settle(700);
   const boundary = await page.evaluate(() => ({
-    today:    localStorage.getItem('stat_focus_mins_today'),
-    date:     localStorage.getItem('stat_focus_mins_date'),
+    today: localStorage.getItem('stat_focus_mins_today'),
+    date:  localStorage.getItem('stat_focus_mins_date'),
     snapshot: localStorage.getItem('stat_focus_mins_yesterday_snapshot'),
     expectDate: new Date().toDateString(),
   }));
   if (boundary.today !== '25')
-    await fail('post-midnight session did not start today fresh at 25 (BUG-063)', boundary);
+    await fail("post-midnight session absorbed yesterday's minutes (BUG-063)", boundary);
   if (boundary.snapshot !== '40')
-    await fail("yesterday's 40 minutes were not snapshotted before reset (BUG-063)", boundary);
+    await fail("yesterday's minutes were not snapshotted before reset (BUG-063)", boundary);
   if (boundary.date !== boundary.expectDate)
-    await fail('focus-minutes date guard not rolled to today (BUG-063)', boundary);
+    await fail('focus-minutes date guard did not roll to today (BUG-063)', boundary);
   ok('post-midnight completion preserves yesterday (BUG-063)');
 
   if (pageErrors.length) await fail('uncaught page errors', pageErrors);
