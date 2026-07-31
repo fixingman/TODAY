@@ -164,11 +164,11 @@
 
 ## Backup Schema
 
-**Version: 5.3** (authoritative schema in `architecture/Sync.md`)
+**Version: 5.4** (authoritative schema in `architecture/Sync.md`)
 
 ```javascript
 {
-  version: '5.3',
+  version: '5.4',
   manual: [...],
   habits: [...],
   habitCompletions: {...},
@@ -179,6 +179,8 @@
   unchecked: [...],
   deletedHabits: [...],
   trelloFocus: {...},
+  today_trello_firstseen: {...},   // MIN-merge — earliest sighting wins (BUG-049)
+  today_trello_lastactive: {...},  // MAX-merge — newest activity wins (BUG-064, v2.43.6)
   trello_order: [...],         // v5.2 — Trello card order
   memory: {...},               // v4.0; includes recentCompletedTasks rolling 30-day (v2.29.0)
   soon_tasks: [...],           // v5.0 — SOON zone

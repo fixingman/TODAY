@@ -95,7 +95,7 @@ Status symbols used throughout:
 ## Data Rules
 
 11. `manualTasks` and `habitsList` preserve drag order — **never re-sort**
-12. Backup schema version: **5.3** (5.2 + daily_history — week-grid per-day snapshots, union-merged by date; BUG-036)
+12. Backup schema version: **5.4** (5.3 + `manual_order_at` — recency-aware manual order merge, drag jump-back fix, v2.38.7). Additive keys that need no bump: `trello_order_at` (BUG-042), `today_trello_lastactive` (BUG-064)
 13. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
 14. All timestamps: ISO strings (UTC for sync ordering). **Date-only strings: use `_localISO()`** (local YYYY-MM-DD) — never `toISOString().slice(0,10)` which returns UTC and diverges near midnight (BUG-010).
 15. **State variables must be declared before functions that use them** — `let` has temporal dead zone
@@ -151,6 +151,7 @@ These areas are error-prone — always read the relevant file and double-check l
 | Zone | Why | Reference |
 |------|-----|-----------|
 | Sync merge logic | Union merge + deleted_ids is subtle | `architecture/Sync.md` |
+| Writing a new kind of value into an existing synced map | Its merge rule encodes its meaning (MIN/MAX/union/LWW). A mismatched write works locally then silently reverts on sync — needs its own key instead (BUG-064; also `habit_events`, `noticedDates`) | Sync.md |
 | Data schema changes | Breaking changes affect backups | `architecture/Data.md` |
 | Delete operations | `deleted_ids` must persist across days | Rule 11, Data.md |
 | Any `init()`-time check reading synced state | Runs before `mergeRemoteData()` lands — stale/empty on a fresh device, four confirmed instances (triage, nudge, Trello BUG-060, Sunday/habit BUG-061) | Sync.md Design Principle 6 |

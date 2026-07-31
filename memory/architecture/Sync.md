@@ -139,6 +139,7 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   today_trello_focus: {trelloCardId: 1, ...},  // v2.18.17 — focus sessions today, union-merged cross-device
   today_trello_focus_date: '',  // YYYY-MM-DD local — date guard (daily-reset; prevents yesterday's focus restoring)
   today_trello_firstseen: {'trello_<id>': firstSeenMs, ...},  // v2.18.22 BUG-049 — when a card entered YOUR list; age basis. Union-merge MIN wins, NO date guard, persists across days (NOT daily-reset)
+  today_trello_lastactive: {'trello_<id>': ms, ...},  // v2.43.6 BUG-064 — last focus activity per card; the Trello analogue of manual `lastActive`. Union-merge MAX wins (opposite of firstseen), NO date guard, persists across days. Additive, no schema bump
   // Habits
   habits: [{id, name, created_at, focusSessions?, archived?}, ...],
   habit_completions: {habitId: ['YYYY-MM-DD', ...]},
@@ -174,6 +175,17 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
 - **`appMemory.noticedDates`** — "when did this signal-occurrence first fire, on any device," keyed per-occurrence (e.g. `'peak:14'`, `'habit:<id>:30'` — the key encodes the *value* being gated on, so a later occurrence of the same signal type gets a fresh key rather than being blocked by a stale one). **Is merged**, earliest-date-wins per key (`mergeRemoteData` in `index.html`).
 
 Why the split is safe: `noticedDates` only ever carries a date string per key, never the shown text or which device saw it — so merging it can't reintroduce BUG-058's actual failure mode (two devices showing *different content* for the same pattern). It only answers "is today still within the window where any device may show this," which `_noticedEligible()`/`_noticedStamp()` (`assets/insights.js`) check against before a signal is allowed to fire locally. Net effect: a signal shows on every device that opens About on the same calendar day it first fired anywhere, then goes quiet — not "once ever, on one device" (v2.39.3 alone) and not "once ever, shared across all devices" (the BUG-058 bug this whole area was built to avoid repeating).
+
+### Trello aging: two maps with opposite merge rules (v2.43.6, BUG-064)
+
+A Trello card's age basis is `lastactive || firstseen || now` — mirroring the manual path's `task.lastActive || created`. The two maps look interchangeable and are not:
+
+- **`today_trello_firstseen`** — "when did this card first enter MY list, on any device." **MIN-merges** (earliest sighting wins). That *is* its meaning: a card is as old as the first time any device saw it.
+- **`today_trello_lastactive`** — "when was this card last worked on, on any device." **MAX-merges** (newest activity wins), matching how manual tasks already reconcile `lastActive` in `mergeRemoteData()`.
+
+**Why not one key.** The obvious fix for BUG-064 was to push `firstseen` forward on focus. It fails silently in exactly the way that is hardest to catch: correct locally, then reverted on the next sync by any device still holding the older timestamp — because MIN-merge is doing precisely what it was designed to do. The bug would present as "the un-aging works, then randomly undoes itself," which reads like a race and is not one.
+
+**Generalised:** a synced map's merge rule encodes its semantics. Before writing a new kind of value into an existing synced key, check what its merge rule *means* — MIN (earliest wins), MAX (newest wins), union (any device's presence wins), LWW (last writer wins). If the new value wants a different rule, it needs its own key. Compare `habit_events` (LWW, BUG-026) and the `noticed`/`noticedDates` split below — same lesson, three separate times.
 
 ### Triage Dismissed Sync (v2.12.60 + v2.14.0)
 
