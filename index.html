@@ -3771,9 +3771,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.43.6': 'Trello cards now stay un-aged after you focus on them, the same way your own tasks do. Before, the dimming came back the next day at a heavier level than before you did the work.',
   '2.43.5': 'Morning nudge prompt rebalanced — lifetime totals no longer crowd out today\'s actual list, and the context blocks no longer run into each other.',
   '2.43.4': 'Morning nudge context expanded — AI now sees habit completion rates, 7-day rhythm, task lifespan, and when you tend to add tasks reactively.',
-  '2.43.3': 'Morning nudge prompt rewritten — purpose-first, reads what tasks mean in real life, and uses your recent completions to understand how you write.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5122,8 +5122,9 @@ function applyNewDayCleanup() {
     localStorage.removeItem('today_trello_focus');
     localStorage.removeItem('today_trello_focus_date');
   }
-  // NOTE: do NOT clear today_trello_firstseen here — it must persist across days so cards can
-  // age from when they entered the list (BUG-049). loadTrello() prunes departed cards instead.
+  // NOTE: do NOT clear today_trello_firstseen or today_trello_lastactive here — both must
+  // persist across days so cards age from when they entered the list (BUG-049) and stay un-aged
+  // after real activity (BUG-064). loadTrello() prunes departed cards from both instead.
   // deleted_ids persists for 180 days (_cleanupDeletedIds TTL) — deleted and
   // PAST-purged tasks must not come back via sync within that window (BUG-054)
   //
@@ -7675,7 +7676,24 @@ const _setTrelloFocus = (map) => {
 // focus) and syncs via MIN-merge (earliest sighting wins). Fallback "now" = treat unseen as fresh.
 const _getTrelloFirstSeen = () => safeJSON('today_trello_firstseen', {});
 const _setTrelloFirstSeen = (map) => localStorage.setItem('today_trello_firstseen', JSON.stringify(map));
-const _trelloAgeBasis = (id) => _getTrelloFirstSeen()[id] || Date.now();
+// Trello last-active: {trello_<id>: ms}. The Trello analogue of a manual task's
+// `lastActive` field — focus activity pushes it forward so the card genuinely un-ages
+// (BUG-064). Kept SEPARATE from first-seen on purpose: first-seen MIN-merges (earliest
+// sighting wins, that's its meaning), so writing activity into it would be reverted by
+// any device still holding the older timestamp. This map MAX-merges instead, matching
+// how manual tasks already reconcile `lastActive` in mergeRemoteData().
+const _getTrelloLastActive = () => safeJSON('today_trello_lastactive', {});
+const _setTrelloLastActive = (map) => localStorage.setItem('today_trello_lastactive', JSON.stringify(map));
+const _markTrelloActive = (id) => {
+  const m = _getTrelloLastActive();
+  m[id] = Date.now();
+  _setTrelloLastActive(m);
+};
+
+// Age basis mirrors the manual path (`task.lastActive || created`): activity first,
+// else when the card entered your list, else treat as fresh.
+const _trelloAgeBasis = (id) =>
+  _getTrelloLastActive()[id] || _getTrelloFirstSeen()[id] || Date.now();
 
 const _getDeletedIds = () => safeJSON('today_deleted_ids', []);
 const _addDeletedId  = (id) => {
@@ -8160,6 +8178,7 @@ async function dropboxBackup(silent) {
     today_trello_focus:      safeJSON('today_trello_focus', {}),
     today_trello_focus_date: localStorage.getItem('today_trello_focus_date') || '',
     today_trello_firstseen:  safeJSON('today_trello_firstseen', {}), // MIN-merge, no date guard (BUG-049)
+    today_trello_lastactive: safeJSON('today_trello_lastactive', {}), // MAX-merge, no date guard (BUG-064)
     // Zones — SOON and PAST (v5.0)
     soon_tasks:        safeJSON('today_soon', []),
     past_tasks:        safeJSON('today_past', []),
@@ -8749,6 +8768,19 @@ function mergeRemoteData(data) {
     if (_fsChg) { _setTrelloFirstSeen(_mergedFS); renderTrello(); _changed = true; }
   }
 
+  // ── Trello last-active: MAX-merge (BUG-064) ──
+  // Mirror image of first-seen above: the newest activity on ANY device un-ages the card,
+  // so a focus session on the phone doesn't get undone by the laptop's older value.
+  if (data.today_trello_lastactive && typeof data.today_trello_lastactive === 'object') {
+    const _localLA = _getTrelloLastActive();
+    const _mergedLA = { ..._localLA };
+    let _laChg = false;
+    for (const [_id, _ts] of Object.entries(data.today_trello_lastactive)) {
+      if (!_mergedLA[_id] || _ts > _mergedLA[_id]) { _mergedLA[_id] = _ts; _laChg = true; }
+    }
+    if (_laChg) { _setTrelloLastActive(_mergedLA); renderTrello(); _changed = true; }
+  }
+
   // ── Triage dismissed: sync across devices ──
   // If remote shows triage was dismissed today (or more recently), apply it locally
   const remoteDismissed = data.triage_dismissed || '';
@@ -8957,6 +8989,10 @@ async function dropboxRestore(fromSync) {
       // The next sync tick MIN-merges any local-only entries (BUG-049).
       if (data.today_trello_firstseen && typeof data.today_trello_firstseen === 'object') {
         localStorage.setItem('today_trello_firstseen', JSON.stringify(data.today_trello_firstseen));
+      }
+      // Same treatment for last-active; next sync tick MAX-merges local-only entries (BUG-064).
+      if (data.today_trello_lastactive && typeof data.today_trello_lastactive === 'object') {
+        localStorage.setItem('today_trello_lastactive', JSON.stringify(data.today_trello_lastactive));
       }
       // Stats (flow_rate is calculated live from visible tasks, not stored)
       // Date guard: only restore focus mins if the backup is from today,
@@ -12338,6 +12374,7 @@ function _aiClearBadge() {
           _setTrelloFocus(_fm);
           if (closingTask) delete closingTask.dataset.ageBucket;
         }
+        _markTrelloActive(closingTaskId); // persistent un-age (BUG-064)
       } else if (_hadTime && closingTaskId.startsWith('manual_')) {
         // Manual: lastActive is the activity signal — always safe to refresh;
         // _logSession already set it for completed sessions, overwriting is harmless.
@@ -12562,6 +12599,7 @@ function _aiClearBadge() {
     const focusMap = _getTrelloFocus();
     focusMap[taskId] = (focusMap[taskId] || 0) + 1;
     _setTrelloFocus(focusMap);
+    _markTrelloActive(taskId); // persistent un-age (BUG-064)
     const taskDom = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
     const badge = taskDom ? taskDom.querySelector('.session-count') : null;
     if (badge) { badge.textContent = focusMap[taskId] + ' 🍅'; badge.classList.add('has-sessions'); }

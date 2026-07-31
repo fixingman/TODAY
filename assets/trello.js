@@ -278,6 +278,13 @@ async function loadTrello(fromSync) {
     for (const id of Object.keys(_fs)) if (!_present.has(id)) { delete _fs[id]; _fsChanged = true; }
     if (_fsChanged) _setTrelloFirstSeen(_fs);
 
+    // Same pruning for the last-active map so it stays bounded (BUG-064). Not seeded here —
+    // absence just means "no activity yet", and the age basis falls back to first-seen.
+    const _la = _getTrelloLastActive();
+    let _laChanged = false;
+    for (const id of Object.keys(_la)) if (!_present.has(id)) { delete _la[id]; _laChanged = true; }
+    if (_laChanged) _setTrelloLastActive(_la);
+
     // Apply synced order if available (cards not in order list go to the end)
     const savedOrder = safeJSON('today_trello_order', []);
     if (savedOrder.length > 0) {

@@ -14,6 +14,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 064 | Focusing a Trello card masked its age for one day, then it returned dimmed one tier worse — focus never moved the age basis | ⏳ v2.43.6  |
 | 063 | Focus sessions completing just after midnight wiped by daily reset race — stat_focus_mins_today reset to 0 before completeFor could persist | ⏳ v2.42.4  |
 | 062 | Native share-sheet popover opens far from the poem's click point, not fixable from page DOM | 🚫 Rejected  |
 | 061 | Sunday/habit badges silently fail to show on a fresh device (same root cause as BUG-060) | ⏳ v2.37.8  |
@@ -94,6 +95,22 @@
 **Fix (v2.37.8):** added `checkSundayNudge()` and `checkHabitNudge()` calls alongside the existing `checkDayNudge()` re-check, at both post-merge points (Dropbox restore path and the primary cold-start load handler).
 
 **Verify:** On a Sunday, Monday, or during 10pm–3am with real synced habit/week data, do a fresh PWA install / fresh Dropbox connect on a new device. The relevant badge should appear once sync settles, not require a manual refresh or reopen.
+
+---
+
+## BUG-064: Focusing a Trello card un-ages it for one day, then it returns dimmed worse
+
+**Symptom:** An aged Trello card brightens after a focus session, but is dimmed again the next day — and at a heavier tier than before the work. Can's report: "it feels like it might be broken... not sure to which level."
+
+**Investigation (before any change):** The level is whatever the untouched first-seen date implies, which is always at least the tier it was at before, because the underlying clock never stopped. Measured with the real `taskHTML()` age logic: a card first seen 6 days ago reads `mid`; focus it, it reads clean; next morning it reads `old`. Doing the work costs a dimming tier.
+
+**Root cause:** The two task types un-aged by different mechanisms. A manual task's basis is `task.lastActive || created`, and focus sets `lastActive = Date.now()` — the basis genuinely moves. A Trello card's basis is `_getTrelloFirstSeen()[id]`, which never moves; instead `taskHTML()` carried a display override (`if (focusCount > 0) ageDays = 0`) fed by `today_trello_focus`, a map wiped every midnight. Focus was therefore a 24-hour cosmetic mask, not an age reset. Out of scope for BUG-043, which addressed a card staying dimmed *while* being worked on; the override's own comment concedes "manual tasks un-age on activity but Trello can't."
+
+**Fix (v2.43.6):** New `today_trello_lastactive` map (`{trello_<id>: ms}`) pushed forward at both focus sites, making the basis `lastActive || firstSeen || now` — structurally identical to the manual path. Deliberately a separate key rather than writing into `today_trello_firstseen`: first-seen MIN-merges across devices (earliest sighting wins, that is its meaning), so activity written there would be reverted by any device holding an older timestamp. The new map MAX-merges, mirroring how manual `lastActive` already reconciles in `mergeRemoteData()`. Added to backup payload, merge path and full-restore; pruned alongside first-seen; excluded from the midnight clear. BUG-043's override left in place — now only fires when `lastactive` is also set, and preserves that fix's partial-session contract.
+
+**Adjacent:** BUG-059 (age reset clobbered by sync) fixed the *sync* half of Trello aging; this is the *day-boundary* half. No migration needed — an empty map falls through to first-seen.
+
+**Status:** ⏳ Fix shipped v2.43.6 — awaiting real-device verification. **What to check:** focus an aged Trello card, then look at it the next day. It should read as fresh (no dimming), not return at a heavier tier.
 
 ---
 

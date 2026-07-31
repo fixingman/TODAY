@@ -44,6 +44,8 @@
 | `today_trello_cache` | JSON | Cached Trello cards (local, resets on fetch) |
 | `today_trello_order` | JSON array | Trello card order IDs (synced via Dropbox) |
 | `today_trello_order_at` | string | ISO stamp of the last reorder — newer wins on merge so order doesn't get clobbered cross-device (BUG-042, v2.18.4) |
+| `today_trello_lastactive` | JSON object | `{trello_<id>: ms}` — last focus activity per card. Trello's analogue of a manual task's `lastActive`; age basis is `lastactive \|\| firstseen \|\| now`. **MAX-merges** (newest activity wins), unlike `firstseen`'s MIN-merge — persists across days, pruned when a card leaves the list (BUG-064, v2.43.6) |
+| `today_trello_firstseen` | JSON object | `{trello_<id>: ms}` — when the card first entered YOUR list; age basis fallback. **MIN-merges** (earliest sighting wins). Persists across days, never cleared at midnight (BUG-049) |
 | `today_trello_focus` | JSON object | `{cardId: sessionCount}` — daily-reset; a card with >0 reads as active (no age dimming, BUG-043) |
 | `trello_config` | JSON | API key, token, board ID, list ID |
 | `trello_token` | string | Trello OAuth token |
