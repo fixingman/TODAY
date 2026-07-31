@@ -3771,9 +3771,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.43.7': 'Fixed focus mode re-opening by itself after you left it, and the timer bar being torn loose when switching tasks quickly.',
   '2.43.6': 'Trello cards now stay un-aged after you focus on them, the same way your own tasks do. Before, the dimming came back the next day at a heavier level than before you did the work.',
   '2.43.5': 'Morning nudge prompt rebalanced — lifetime totals no longer crowd out today\'s actual list, and the context blocks no longer run into each other.',
-  '2.43.4': 'Morning nudge context expanded — AI now sees habit completion rates, 7-day rhythm, task lifespan, and when you tend to add tasks reactively.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -12066,13 +12066,19 @@ function _aiClearBadge() {
   // If localStorage has a persisted session: re-open the timer with remaining
   // time, or silently record the full 25 min if it would already have completed.
   window._tryRestoreFocusSession = function() {
-    if (uiTaskId) return; // session already active — don't restore twice
+    // One decision per page load. renderManual()/renderTrello() call this on every
+    // render (7s sync tick included) — without this gate, leaving focus by any route
+    // that is not "check the task off" leaves a session in localStorage and the very
+    // next render silently re-opens focus mode on it. (BUG-065)
+    if (_restoreAttempted) return;
+    if (uiTaskId) { _restoreAttempted = true; return; } // session already active
     const saved = safeJSON('today_focus_session', null);
-    if (!saved || !saved.taskId) return;
+    if (!saved || !saved.taskId) { _restoreAttempted = true; return; }
 
     const { taskId, rem, savedAt, paused } = saved;
     const taskEl = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
     if (!taskEl) return; // task not in DOM yet (Trello may not be loaded) — retry later
+    _restoreAttempted = true; // element found: this is the one real attempt
 
     if (taskEl.classList.contains('done')) {
       localStorage.removeItem('today_focus_session');
@@ -12203,6 +12209,13 @@ function _aiClearBadge() {
   let uiTaskEl = null;
   let uiTaskId = null;
   let tickHandle = null;
+  // Generation counter — bumped by every openUI and closeUI. closeUI defers its DOM
+  // teardown by 200ms (CSS transition); if a newer session opened in that window, the
+  // stale teardown must not rip the timer out from under it. (BUG-065)
+  let focusGen = 0;
+  // Cold-start only: _tryRestoreFocusSession exists for "iOS killed the PWA", not for
+  // every render. Without this it re-opens focus on any render after you leave. (BUG-065)
+  let _restoreAttempted = false;
 
   function fmt(sec) {
     return String(Math.floor(sec / 60)).padStart(2,'0') + ':' + String(sec % 60).padStart(2,'0');
@@ -12242,6 +12255,9 @@ function _aiClearBadge() {
   function openUI(taskEl, taskId) {
     // If showing a different task's UI, close it first (no state change)
     if (uiTaskEl && uiTaskEl !== taskEl) closeUI(false);
+    // Bump AFTER that close so its pending 200ms teardown sees a newer generation
+    // and leaves this session's timer chrome alone. (BUG-065)
+    focusGen++;
 
     uiTaskEl = taskEl;
     uiTaskId = taskId;
@@ -12387,18 +12403,31 @@ function _aiClearBadge() {
       }
     }
 
+    // The persisted session means "a focus session is in flight". ANY close ends it —
+    // this used to be gated behind doResetState, but every user-facing exit (Escape,
+    // click-outside, task switch, PiP close) passes false, so the key survived and the
+    // next render restored it. Cleared synchronously: the 200ms window below is exactly
+    // when a render can fire. (BUG-065)
+    localStorage.removeItem('today_focus_session');
+
     // Let CSS transition play (200ms) then clean up DOM classes
+    const myGen = ++focusGen;
     setTimeout(() => {
-      appEl.classList.remove('focusing');
-      if (closingTask) {
+      // Release the task we closed — but never strip .focused off whatever is active
+      // now (A -> B -> A inside 200ms would otherwise unstyle the live task).
+      if (closingTask && closingTask !== uiTaskEl) {
         closingTask.classList.remove('focused');
         if (doResetState) closingTask.style.removeProperty('--progress');
       }
+      // Superseded by a newer open/close? The shared timer chrome now belongs to that
+      // session — leave it alone rather than reparenting it to <body>. (BUG-065)
+      if (myGen !== focusGen) return;
+
+      appEl.classList.remove('focusing');
       document.body.appendChild(timerEl);
 
       if (doResetState && closingTaskId) {
         clearState(closingTaskId);
-        localStorage.removeItem('today_focus_session');
         fillEl.style.transform = 'scaleX(0)';
         fillEl.classList.remove('complete');
         _pulseComplete(fillEl, false);
@@ -12716,6 +12745,10 @@ function _aiClearBadge() {
       clearTimeout(tickHandle);
       st.running = false; // temporarily so tickFor doesn't double-fire
       openUI(focusEl, taskId);
+      // openUI's internal close cleared the persisted session; re-assert it here so a
+      // re-opened paused task still survives an iOS kill. tickFor overwrites this a
+      // moment later in the auto-resume branch, which is harmless. (BUG-065)
+      _saveSession(taskId, st);
       if (!st.paused && st.rem > 0) {
         // Was running (or should be) — auto-resume
         st.running   = true;
