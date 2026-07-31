@@ -6,6 +6,24 @@
 
 ---
 
+## BUG-065: Focus mode re-opens itself after you leave it; timer torn loose on fast switch
+
+**Symptom:** Can's report — switching focus between tasks quickly breaks things; focus comes back to a task after leaving it; "focus component leftovers stay on the screen." Suspected sync.
+
+**Investigation (reproduced before any edit):** Not Dropbox sync and not the Trello focus map — but the 7-second sync tick was the trigger, since it drives `renderTrello()`/`renderManual()`.
+
+**Root cause:** `closeUI(doResetState)` cleared `today_focus_session` only when `doResetState` was true. Every user-facing exit passes **false** — Escape, click-outside, task switch (inside `openUI`), PiP close; only `_focusOnCheck` passed true. So any exit short of completing a task left a live-looking session in localStorage, and `_tryRestoreFocusSession()` (wired into both renderers by v2.43.0) re-opened focus on it at the next render. Its only guard was `if (uiTaskId) return`, which passes once the UI is closed. Self-perpetuating: the restored session re-saves every tick. Reproduced with no switching at all — focus, Escape, `renderManual()` → focus open again.
+
+**Second fault (older, latent):** `closeUI` defers DOM teardown 200ms for the CSS transition; `openUI` calls `closeUI(false)` synchronously when switching. The stale teardown then fired after the new session was live, running `document.body.appendChild(timerEl)` and `appEl.classList.remove('focusing')` — reparenting the timer out from under the active task. Predates v2.43.0 and used to self-heal via `_focusReanchor()`; v2.43.0 made the window destructive.
+
+**Fix (v2.43.7):** (1) clear `today_focus_session` synchronously on every close, ungated; (2) `_restoreAttempted` latch makes restore cold-start-only, deliberately not set when the task element is absent so the Trello-not-yet-loaded retry survives; (3) `focusGen` counter lets the deferred teardown detect supersession and skip the shared timer chrome, while still releasing its own task and never stripping `.focused` from whatever is live (A→B→A within 200ms).
+
+**Lesson:** v2.43.0 added a persisted key and a restore path, but did not audit who *clears* the key. The clearing was gated behind a flag that every real exit path sets to false — so the feature worked only on the one path that was tested (session completes).
+
+**Verified fixed:** ✅ 2026-07-31 (Can, real device) — same day as the regression shipped.
+
+---
+
 ## BUG-063: Focus sessions completing just after midnight are not recorded
 
 **Symptom:** Can's report — focus time completed shortly after midnight "does not record till 1am." A pomodoro finished in the minutes after the day rolled over showed no focus minutes at all.
