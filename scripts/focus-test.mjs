@@ -8,9 +8,18 @@
 // Every scenario below is a bug that actually happened. Silent on success (one line
 // each); dumps full state only on failure, which is when you want the detail.
 //
-// Run from repo root:  node scripts/focus-test.mjs      (~25s)
+// Exit-path coverage matters: BUG-065's root cause was that EVERY way out of focus
+// leaked the persisted session. Escape, click-outside, task switch and check-off are
+// each tested; PiP close is not reachable headless.
+//
+// Run from repo root:  node scripts/focus-test.mjs      (~40s)
 // Run it when a diff touches the focus IIFE, trello.js, or the renderers.
 // If it ever goes flaky, delete it rather than nurse it.
+//
+// Teeth, verified by reverting real fixes: BUG-065's primary fix (clearing the session
+// on every close) -> exit 1; BUG-063's day-boundary guard -> exit 1. Reverting ONLY the
+// _restoreAttempted latch does NOT fail — it is defence-in-depth behind the primary
+// fix, so it has no independent coverage. Worth knowing before trusting a green run.
 //
 // NOT covered (needs taskStates internals that aren't on window): .complete bleeding
 // into the next session (BUG-022/028) and re-opening a completed task at a frozen
@@ -151,6 +160,93 @@ try {
       after.focusedIds.join() !== before.focusedIds.join())
     await fail('render tick disturbed a live focus session', { before, after });
   ok('render during a live session leaves it alone');
+
+  // ── 6. Click-outside is a second exit path — it must clear too (BUG-065) ───
+  // BUG-065's root cause was that EVERY exit passed doResetState=false. Testing only
+  // Escape would leave the other paths free to regress the same way.
+  s = await probe();
+  if (!s.uiActive) { await clickTask(A); await settle(500); }
+  await page.evaluate(() => document.querySelector('.app').click()); await settle(450);
+  s = await probe();
+  if (s.saved !== null)   await fail('click-outside left a session in localStorage (BUG-065)', s);
+  if (s.uiActive)         await fail('click-outside did not close focus', s);
+  await page.evaluate(() => renderManual()); await settle(400);
+  s = await probe();
+  if (s.uiActive) await fail('focus re-opened itself after click-outside (BUG-065)', s);
+  ok('click-outside clears the session — no phantom re-open');
+
+  // ── 7. Checking the task off mid-session closes cleanly (_focusOnCheck) ────
+  // The one close path that always passed doResetState=true — assert it still ends
+  // the session rather than leaving a zombie behind (BUG-044 shape).
+  await clickTask(A); await settle(500);
+  await page.evaluate((id) => document.querySelector(
+    `.task[data-taskid="${CSS.escape(id)}"] .task-check`).click(), A);
+  await settle(600);
+  s = await probe();
+  if (s.uiActive)       await fail('checking the task off left focus mode open', s);
+  if (s.saved !== null) await fail('checking the task off left a persisted session', s);
+  ok('checking the task off mid-session closes cleanly');
+
+  // ── 7b. A session whose task is now done must be discarded, not restored ──
+  // Explicit branch in _tryRestoreFocusSession. Task A was checked off just above.
+  const minsBeforeDone = await page.evaluate(() =>
+    parseInt(localStorage.getItem('stat_focus_mins_today') || '0'));
+  await page.evaluate((id) => localStorage.setItem('today_focus_session',
+    JSON.stringify({ taskId: id, rem: 1, savedAt: Date.now() - 60000, paused: false })), A);
+  await page.reload({ waitUntil: 'domcontentloaded' }); await boot(); await settle(700);
+  s = await probe();
+  const minsAfterDone = await page.evaluate(() =>
+    parseInt(localStorage.getItem('stat_focus_mins_today') || '0'));
+  if (s.saved !== null) await fail('stale session for a done task was not discarded', s);
+  if (s.uiActive)       await fail('focus re-opened on a task that is already done', s);
+  if (minsAfterDone !== minsBeforeDone)
+    await fail('a done task recorded focus minutes on restore',
+               { minsBeforeDone, minsAfterDone });
+  ok('session for an already-done task is discarded, not restored');
+
+  // ── 8. Background auto-complete records the session (v2.43.0) ──────────────
+  // A session that finished while iOS had the PWA killed: restore records it silently,
+  // with no UI. Nothing else covers _recordFocusComplete.
+  const beforeMins = await page.evaluate(() =>
+    parseInt(localStorage.getItem('stat_focus_mins_today') || '0'));
+  await page.evaluate((id) => {
+    localStorage.setItem('today_focus_session', JSON.stringify(
+      { taskId: id, rem: 1, savedAt: Date.now() - 60000, paused: false }));
+  }, B);
+  await page.reload({ waitUntil: 'domcontentloaded' }); await boot(); await settle(700);
+  s = await probe();
+  const afterMins = await page.evaluate(() =>
+    parseInt(localStorage.getItem('stat_focus_mins_today') || '0'));
+  if (afterMins !== beforeMins + 25)
+    await fail('background auto-complete did not record 25 focus minutes',
+               { beforeMins, afterMins });
+  if (s.uiActive)       await fail('background auto-complete opened a UI (should be silent)', s);
+  if (s.saved !== null) await fail('background auto-complete left the session key behind', s);
+  ok('background auto-complete records silently');
+
+  // ── 9. Post-midnight completion does not eat yesterday's minutes (BUG-063) ─
+  // Confirmed fixed on device 2026-07-31; nothing guarded it until now.
+  await page.evaluate((id) => {
+    localStorage.setItem('stat_focus_mins_today', '40');
+    localStorage.setItem('stat_focus_mins_date', new Date(Date.now() - 864e5).toDateString());
+    localStorage.removeItem('stat_focus_mins_yesterday_snapshot');
+    localStorage.setItem('today_focus_session', JSON.stringify(
+      { taskId: id, rem: 1, savedAt: Date.now() - 60000, paused: false }));
+  }, B);   // B, not A — A is checked off by now and would be discarded
+  await page.reload({ waitUntil: 'domcontentloaded' }); await boot(); await settle(700);
+  const boundary = await page.evaluate(() => ({
+    today:    localStorage.getItem('stat_focus_mins_today'),
+    date:     localStorage.getItem('stat_focus_mins_date'),
+    snapshot: localStorage.getItem('stat_focus_mins_yesterday_snapshot'),
+    expectDate: new Date().toDateString(),
+  }));
+  if (boundary.today !== '25')
+    await fail('post-midnight session did not start today fresh at 25 (BUG-063)', boundary);
+  if (boundary.snapshot !== '40')
+    await fail("yesterday's 40 minutes were not snapshotted before reset (BUG-063)", boundary);
+  if (boundary.date !== boundary.expectDate)
+    await fail('focus-minutes date guard not rolled to today (BUG-063)', boundary);
+  ok('post-midnight completion preserves yesterday (BUG-063)');
 
   if (pageErrors.length) await fail('uncaught page errors', pageErrors);
   ok('no uncaught page errors');
