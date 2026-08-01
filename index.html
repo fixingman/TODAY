@@ -2000,14 +2000,6 @@
   }
   .add-mic-btn:hover { color: var(--text); border-color: var(--muted); }
 
-  /* Pop-out recorder — a secondary control, so it stays out of the way until the bar
-     is hovered, the same two-stage reveal .task-copy uses. Desktop-only by nature:
-     Document PiP does not exist on Safari or iOS, and _meetingInit() never reveals
-     the button there, so no touch fallback is needed. */
-  #meetingPipBtn { opacity: 0; transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast); }
-  #addTaskBar:hover #meetingPipBtn { opacity: var(--opacity-copy); }
-  #addTaskBar:hover #meetingPipBtn:hover { opacity: 1; }
-  #meetingPipBtn.live { opacity: 1; color: var(--accent); border-color: var(--accent); }
   .add-mic-btn.live {
     color: var(--accent);
     border-color: var(--accent);
@@ -3687,16 +3679,6 @@
       <path d="M7.5 15.5V19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
   </button>
-  <!-- Meeting capture pop-out — revealed by _meetingInit() only where Document
-       PiP exists (Chrome/Edge desktop). Lets capture be started while another app
-       owns focus, e.g. mid screen-share. (v2.44.0) -->
-  <button class="add-mic-btn" id="meetingPipBtn" onclick="_meetingPipOpen()"
-          title="Pop out the recorder — start or stop a meeting without bringing TODAY forward">
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-      <rect x="1" y="2.5" width="13" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/>
-      <rect x="7" y="7" width="6" height="4.5" rx="1" fill="currentColor"/>
-    </svg>
-  </button>
   <!-- Single ✦: Enter = add task, tap = AI (or add task if AI not configured) -->
   <button class="add-ai-btn" id="addAiBtn" onclick="handleBarSubmit()" title="Ask anything">✦</button>
 </div>
@@ -3804,7 +3786,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.44.0': 'Meeting recorder can now pop out into a small floating window, so you can start or stop it mid screen-share without bringing your task list into view.',
+  '2.44.0': 'Start a meeting recording and switch to your call — a small floating timer follows you out, so you can stop it without bringing your task list back into view.',
   '2.43.9': 'Trello cards fit on one line more often on mobile, and the checklist count and session marker no longer split across two lines.',
   '2.43.8': 'Focus minutes earned on one device now show up on your others the same day, instead of reading zero until tomorrow.',
 };
@@ -11153,12 +11135,6 @@ function _meetingInit() {
   if (!btn) return;
   const ok = _meetingSupported() && !!_aiGetKey('gemini');
   btn.style.display = ok ? 'flex' : 'none';
-  // The pop-out recorder rides the same gate — no point offering to float a control
-  // for a mode that is not available — plus Document PiP support (v2.44.0).
-  const pipBtn = document.getElementById('meetingPipBtn');
-  if (pipBtn) {
-    pipBtn.style.display = (ok && 'documentPictureInPicture' in window) ? 'flex' : 'none';
-  }
 }
 
 function toggleMeeting() {
@@ -11168,13 +11144,23 @@ function toggleMeeting() {
 }
 
 // ── Meeting capture PiP (v2.44.0) ─────────────────────────────────────────────
-// A floating record control, so capture can be started or stopped while another app
-// owns focus — the screen-share case, where bringing TODAY forward would put the task
-// list on someone else's monitor. The window renders ONLY a dot, elapsed time and one
-// button: it is safe to be *seen*, which is what matters, since a shared screen hides
-// nothing. Deliberately does not open meeting links — that needed window.open() from a
-// PiP document, and dropping it removes the one fragile dependency.
-// Chrome/Edge desktop only; _meetingInit() reveals the opener button nowhere else.
+// A floating record control that follows you out of the tab, so a running capture can
+// be stopped — or just watched — while another app owns focus. The screen-share case:
+// bringing TODAY forward would put the task list on someone else's monitor.
+//
+// NO manual opener button. One was built and removed the same day: to press it you had
+// to be looking at TODAY, and if you are already there the mic icon does the same job
+// in fewer steps. A pop-out only earns its place if it arrives without you going to
+// get it — so it is opened automatically on tab-leave while a capture is live.
+//
+// Best-effort by nature: requestWindow() needs transient user activation, so the open
+// rides the activation from the click that started the capture. Tap record then switch
+// to the call and it lands; linger in TODAY first and it may not (same caveat the focus
+// timer PiP carries). Immediate attempt plus a short retry, exactly as focus does.
+//
+// The window renders ONLY a dot, elapsed time and one button: it is safe to be *seen*,
+// which is the point — a fully shared screen hides nothing anyway.
+// Chrome/Edge desktop only (Document PiP).
 let _mtgPipWin = null;
 
 async function _meetingPipOpen() {
@@ -11232,8 +11218,6 @@ async function _meetingPipOpen() {
 
   _mtgPipWin.addEventListener('pagehide', () => { _mtgPipWin = null; });
 
-  const opener = document.getElementById('meetingPipBtn');
-  if (opener) opener.classList.add('live');
   _meetingPipSync();
 }
 
@@ -11261,10 +11245,21 @@ function _meetingPipSync() {
   }
 }
 
+// Automatic trigger — the only reason this feature earns its place. Mirrors the focus
+// timer's approach: try at once, then retry shortly after, since activation may lapse.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) return;
+  if (!(typeof _mtg !== 'undefined' && _mtg && _mtg.live)) return;
+  if (_mtgPipWin && !_mtgPipWin.closed) return;
+  _meetingPipOpen();
+  setTimeout(() => {
+    if (document.hidden && _mtg && _mtg.live && (!_mtgPipWin || _mtgPipWin.closed)) _meetingPipOpen();
+  }, 300);
+});
+
 function _meetingPipClose() {
   if (_mtgPipWin && !_mtgPipWin.closed) _mtgPipWin.close();
   _mtgPipWin = null;
-  document.getElementById('meetingPipBtn')?.classList.remove('live');
 }
 
 function _meetingNamePromptShow() {
@@ -11504,6 +11499,10 @@ async function _meetingSendChunk(blob, retryCount = 0, priorState = null) {
 function _meetingStop() {
   if (!_mtg) return;
   _mtg.live = false;
+  // Capture has ended, so the floating control has no job left — the review that
+  // follows happens in TODAY. Closed here rather than in _meetingTeardown(), which
+  // only runs once the review is accepted or discarded. (v2.44.0)
+  _meetingPipClose();
   clearTimeout(_mtg.chunkTimerId);
   clearInterval(_mtg.timerId);
   _mtg.wakeLock?.release().catch(() => {});
@@ -11634,9 +11633,7 @@ function _meetingDiscard() { _meetingTeardown(); }
 
 // Ephemerality guarantee: audio, items, and rolling context all die here.
 function _meetingTeardown() {
-  // Leave the PiP open — it returns to idle so the next meeting can be started from
-  // it without bringing TODAY forward again, which is the whole point. (v2.44.0)
-  setTimeout(_meetingPipSync, 0);
+  _meetingPipClose(); // defensive — normally already closed by _meetingStop()
   _mtg?.dotAnim?.cancel(); // stop the breathing animation before releasing the reference
   _mtg?.wakeLock?.release().catch(() => {}); // defensive — normally released in _meetingStop
   const _ovl = document.getElementById('meetingOverlay');
