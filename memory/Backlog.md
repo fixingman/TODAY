@@ -138,6 +138,7 @@
 ### Not implementing
 | Feature | Reason |
 |---------|--------|
+| Truncating task text (ellipsis / line-clamp) | **Rejected 2026-08-01.** Proposed as the only way to guarantee a Trello card fits one row on mobile with both badges (v2.43.9). Can: "we don't need to do truncating, that should be against our design rules, and affordability." The task text *is* the content you act on — hiding its tail to win a row trades legibility and affordance for tidiness. Row count is cosmetic; the title is the product's primary content. Wrapping is the correct behaviour; the v2.43.9 work (reclaim dead width, keep the badge pair atomic) is where this ends. Do not re-propose clamping as a "tidiness" fix. |
 | Keyboard shortcuts (desktop) | No demonstrated need — revisit only if a real workflow gap shows up. |
 | Widget / Home Screen | Needs WidgetKit / native Android — not reachable from a PWA. |
 | Quick capture (without opening app) | No good cross-platform path. iOS has no PWA share target; Siri needs a native app. |
