@@ -1999,6 +1999,15 @@
     touch-action: manipulation;
   }
   .add-mic-btn:hover { color: var(--text); border-color: var(--muted); }
+
+  /* Pop-out recorder — a secondary control, so it stays out of the way until the bar
+     is hovered, the same two-stage reveal .task-copy uses. Desktop-only by nature:
+     Document PiP does not exist on Safari or iOS, and _meetingInit() never reveals
+     the button there, so no touch fallback is needed. */
+  #meetingPipBtn { opacity: 0; transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast); }
+  #addTaskBar:hover #meetingPipBtn { opacity: var(--opacity-copy); }
+  #addTaskBar:hover #meetingPipBtn:hover { opacity: 1; }
+  #meetingPipBtn.live { opacity: 1; color: var(--accent); border-color: var(--accent); }
   .add-mic-btn.live {
     color: var(--accent);
     border-color: var(--accent);
@@ -3678,6 +3687,16 @@
       <path d="M7.5 15.5V19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
   </button>
+  <!-- Meeting capture pop-out — revealed by _meetingInit() only where Document
+       PiP exists (Chrome/Edge desktop). Lets capture be started while another app
+       owns focus, e.g. mid screen-share. (v2.44.0) -->
+  <button class="add-mic-btn" id="meetingPipBtn" onclick="_meetingPipOpen()"
+          title="Pop out the recorder — start or stop a meeting without bringing TODAY forward">
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <rect x="1" y="2.5" width="13" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/>
+      <rect x="7" y="7" width="6" height="4.5" rx="1" fill="currentColor"/>
+    </svg>
+  </button>
   <!-- Single ✦: Enter = add task, tap = AI (or add task if AI not configured) -->
   <button class="add-ai-btn" id="addAiBtn" onclick="handleBarSubmit()" title="Ask anything">✦</button>
 </div>
@@ -3785,9 +3804,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.44.0': 'Meeting recorder can now pop out into a small floating window, so you can start or stop it mid screen-share without bringing your task list into view.',
   '2.43.9': 'Trello cards fit on one line more often on mobile, and the checklist count and session marker no longer split across two lines.',
   '2.43.8': 'Focus minutes earned on one device now show up on your others the same day, instead of reading zero until tomorrow.',
-  '2.43.7': 'Fixed focus mode re-opening by itself after you left it, and the timer bar being torn loose when switching tasks quickly.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -11134,6 +11153,12 @@ function _meetingInit() {
   if (!btn) return;
   const ok = _meetingSupported() && !!_aiGetKey('gemini');
   btn.style.display = ok ? 'flex' : 'none';
+  // The pop-out recorder rides the same gate — no point offering to float a control
+  // for a mode that is not available — plus Document PiP support (v2.44.0).
+  const pipBtn = document.getElementById('meetingPipBtn');
+  if (pipBtn) {
+    pipBtn.style.display = (ok && 'documentPictureInPicture' in window) ? 'flex' : 'none';
+  }
 }
 
 function toggleMeeting() {
@@ -11141,6 +11166,107 @@ function toggleMeeting() {
   if (!_getUserNames().length) { _meetingNamePromptShow(); return; }
   _meetingStart();
 }
+
+// ── Meeting capture PiP (v2.44.0) ─────────────────────────────────────────────
+// A floating record control, so capture can be started or stopped while another app
+// owns focus — the screen-share case, where bringing TODAY forward would put the task
+// list on someone else's monitor. The window renders ONLY a dot, elapsed time and one
+// button: it is safe to be *seen*, which is what matters, since a shared screen hides
+// nothing. Deliberately does not open meeting links — that needed window.open() from a
+// PiP document, and dropping it removes the one fragile dependency.
+// Chrome/Edge desktop only; _meetingInit() reveals the opener button nowhere else.
+let _mtgPipWin = null;
+
+async function _meetingPipOpen() {
+  if (!('documentPictureInPicture' in window)) return;
+  if (_mtgPipWin && !_mtgPipWin.closed) { _mtgPipWin.focus(); return; }
+  try {
+    _mtgPipWin = await documentPictureInPicture.requestWindow({
+      width: 240, height: 78, disallowReturnToOpener: true,
+    });
+  } catch (e) { _mtgPipWin = null; return; }
+
+  const baseUrl = window.location.origin;
+  // PiP documents inherit no styles from the opener, so tokens are re-declared here —
+  // same approach as the focus timer PiP.
+  _mtgPipWin.document.body.innerHTML =
+    '<style>' +
+    ':root{--pip-bg:#0e0e10;--pip-accent:#c8f060;--pip-text:#e8e8ec;--pip-muted:rgba(255,255,255,0.50);' +
+    '--pip-btn-bg:rgba(200,240,96,0.15);--pip-btn-border:rgba(200,240,96,0.30);--pip-btn-hover-bg:rgba(200,240,96,0.25);}' +
+    '*{box-sizing:border-box;margin:0;padding:0;}' +
+    '@font-face{font-family:"DM Mono";src:url("' + baseUrl + '/fonts/DM%20Mono/dm-mono-v16-latin-300.woff2") format("woff2");font-weight:300;}' +
+    'html,body{width:100%;height:100%;background:var(--pip-bg);overflow:hidden;' +
+    'font-family:"DM Mono",ui-monospace,monospace;color:var(--pip-text);}' +
+    '.mp{display:flex;align-items:center;gap:10px;height:100%;padding:0 14px;}' +
+    '.mp-dot{width:8px;height:8px;border-radius:50%;background:var(--pip-muted);flex-shrink:0;}' +
+    '.mp-dot.live{background:var(--pip-accent);}' +
+    '.mp-time{font-size:15px;letter-spacing:0.04em;flex:1;color:var(--pip-muted);}' +
+    '.mp-time.live{color:var(--pip-text);}' +
+    '.mp-btn{font-family:inherit;font-size:11px;letter-spacing:0.06em;padding:5px 11px;border-radius:6px;' +
+    'background:var(--pip-btn-bg);border:1px solid var(--pip-btn-border);color:var(--pip-accent);cursor:pointer;' +
+    'transition:background 140ms;}' +
+    '.mp-btn:hover{background:var(--pip-btn-hover-bg);}' +
+    '.mp-note{position:absolute;left:14px;right:14px;bottom:6px;font-size:9px;letter-spacing:0.04em;' +
+    'color:var(--pip-muted);text-align:center;}' +
+    '</style>' +
+    '<div class="mp">' +
+      '<div class="mp-dot" id="mpDot"></div>' +
+      '<span class="mp-time" id="mpTime">00:00</span>' +
+      '<button class="mp-btn" id="mpBtn">record</button>' +
+    '</div>' +
+    '<div class="mp-note" id="mpNote"></div>';
+
+  _mtgPipWin.document.title = 'TODAY';
+
+  _mtgPipWin.document.getElementById('mpBtn').addEventListener('click', () => {
+    // The first-use name prompt lives in the opener and would be invisible from here,
+    // so surface the reason instead of appearing to do nothing.
+    if (typeof _getUserNames === 'function' && !_getUserNames().length && !(_mtg && _mtg.live)) {
+      const note = _mtgPipWin.document.getElementById('mpNote');
+      if (note) note.textContent = 'set your name in TODAY first';
+      return;
+    }
+    toggleMeeting();
+    setTimeout(_meetingPipSync, 80); // let _meetingStart's await settle
+  });
+
+  _mtgPipWin.addEventListener('pagehide', () => { _mtgPipWin = null; });
+
+  const opener = document.getElementById('meetingPipBtn');
+  if (opener) opener.classList.add('live');
+  _meetingPipSync();
+}
+
+// Mirrors _mtg into the PiP. Called from the meeting tick (already wall-clock based,
+// so it stays accurate while the tab is backgrounded) and right after any toggle.
+function _meetingPipSync() {
+  if (!_mtgPipWin || _mtgPipWin.closed) return;
+  const d = _mtgPipWin.document;
+  const dot = d.getElementById('mpDot');
+  const time = d.getElementById('mpTime');
+  const btn = d.getElementById('mpBtn');
+  const note = d.getElementById('mpNote');
+  if (!dot || !time || !btn) return;
+  const live = !!(typeof _mtg !== 'undefined' && _mtg && _mtg.live);
+  dot.classList.toggle('live', live);
+  time.classList.toggle('live', live);
+  btn.textContent = live ? 'stop' : 'record';
+  if (live) {
+    const el = Math.floor((Date.now() - _mtg.startedAt) / 1000);
+    time.textContent = String(Math.floor(el / 60)).padStart(2, '0') + ':' +
+                       String(el % 60).padStart(2, '0');
+    if (note) note.textContent = '';
+  } else {
+    time.textContent = '00:00';
+  }
+}
+
+function _meetingPipClose() {
+  if (_mtgPipWin && !_mtgPipWin.closed) _mtgPipWin.close();
+  _mtgPipWin = null;
+  document.getElementById('meetingPipBtn')?.classList.remove('live');
+}
+
 function _meetingNamePromptShow() {
   const el = document.getElementById('meetingNamePrompt');
   if (!el) return;
@@ -11220,6 +11346,7 @@ async function _meetingStart() {
     if (t) t.textContent =
       String(Math.floor(elapsed / 60)).padStart(2, '0') + ':' +
       String(elapsed % 60).padStart(2, '0');
+    _meetingPipSync(); // keep the floating recorder in step (v2.44.0)
   }, 1000);
 
   _meetingRecordChunk();
@@ -11507,6 +11634,9 @@ function _meetingDiscard() { _meetingTeardown(); }
 
 // Ephemerality guarantee: audio, items, and rolling context all die here.
 function _meetingTeardown() {
+  // Leave the PiP open — it returns to idle so the next meeting can be started from
+  // it without bringing TODAY forward again, which is the whole point. (v2.44.0)
+  setTimeout(_meetingPipSync, 0);
   _mtg?.dotAnim?.cancel(); // stop the breathing animation before releasing the reference
   _mtg?.wakeLock?.release().catch(() => {}); // defensive — normally released in _meetingStop
   const _ovl = document.getElementById('meetingOverlay');

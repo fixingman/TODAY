@@ -34,7 +34,7 @@
 
 | Key | Type | Description |
 |---|---|---|
-| `user_names` | JSON array | First names used for meeting attribution (multi-name, captured inline at first mic tap since v2.31.0). LWW-merged via `user_names_at`. |
+| `today_user_names` | JSON array | First names used for meeting attribution (multi-name, captured inline at first mic tap since v2.31.0). LWW-merged via `user_names_at`. (Key is `today_user_names` — the backup payload field is `user_names`; do not confuse them.) |
 | `user_names_at` | string | ISO timestamp of the last `user_names` write — newer wins on merge. |
 
 ### Integrations
