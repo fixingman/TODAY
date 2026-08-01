@@ -455,7 +455,9 @@ function renderTrello() {
       : '';
     const newBadge = `${dueStr ? `<span class="badge due">due ${esc(dueStr)}</span>` : ''}${_clBadge}`;
     const newMeta = newBadge ? `<span class="task-meta">${newBadge}</span>` : '';
-    const newText = _textPart + _link + newMeta + _sessionBadge;
+    // Wrapped in .task-tail to mirror taskHTML() exactly (Rule 27) — the wrapper is
+    // what keeps the badge pair from splitting across a line break on mobile.
+    const newText = _textPart + _link + '<span class="task-tail">' + newMeta + _sessionBadge + '</span>';
 
     let el = list.querySelector(`.task[data-taskid="${CSS.escape(id)}"]`);
 

@@ -1495,6 +1495,20 @@
     margin-top: var(--space-1);
   }
 
+  /* Checklist/due badges and the session count travel together. Without this the
+     line can break BETWEEN them, orphaning "2 🍅" onto its own row while the
+     checklist stays behind — worse than moving both. nowrap makes the pair one
+     atomic unit: it fits on the title's line, or it moves to the next line whole. */
+  .task-tail { white-space: nowrap; }
+
+  /* The 32px right padding on .task-text exists solely to keep text clear of
+     .task-copy, which is position:absolute and lives entirely inside
+     @media (hover: hover). On touch that button can never render, so the padding
+     is dead space — ~10 characters of a 375px row. Reclaim it. */
+  @media (hover: none) {
+    .task-text { padding-right: 0; }
+  }
+
   .badge {
     display: inline-block;
     vertical-align: middle;
@@ -3771,9 +3785,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.43.9': 'Trello cards fit on one line more often on mobile, and the checklist count and session marker no longer split across two lines.',
   '2.43.8': 'Focus minutes earned on one device now show up on your others the same day, instead of reading zero until tomorrow.',
   '2.43.7': 'Fixed focus mode re-opening by itself after you left it, and the timer bar being torn loose when switching tasks quickly.',
-  '2.43.6': 'Trello cards now stay un-aged after you focus on them, the same way your own tasks do. Before, the dimming came back the next day at a heavier level than before you did the work.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -6244,7 +6258,7 @@ function taskHTML(task, type) {
         </svg>
       </div>
       <div class="task-body">
-        <div class="task-text">${taskTextHTML}${badges ? `<span class="task-meta">${badges}</span>` : ''}${sessionBadge}</div>
+        <div class="task-text">${taskTextHTML}<span class="task-tail">${badges ? `<span class="task-meta">${badges}</span>` : ''}${sessionBadge}</span></div>
       </div>
       ${deleteBtn}
       ${copyBtn}
