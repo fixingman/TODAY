@@ -315,25 +315,34 @@
       color: var(--muted);
       font-family: var(--font-mono);
     }
-    .focus-ai-btn {
-      display: inline;
+    .focus-ai-timer-btn {
+      position: absolute;
+      left: var(--space-4);
+      top: 50%;
+      transform: translateY(-50%);
       background: none;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 1px var(--space-2);
-      margin-left: var(--space-3);
-      font-size: var(--text-xs);
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
       color: var(--muted);
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      letter-spacing: 0.06em;
+      padding: 2px var(--space-2);
       cursor: pointer;
+      opacity: var(--opacity-label);
+      transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+      white-space: nowrap;
+      line-height: 1.6;
       pointer-events: auto;
-      opacity: var(--opacity-muted);
-      transition: opacity var(--dur-mid) ease, color var(--dur-mid) ease, border-color var(--dur-mid) ease;
-      vertical-align: baseline;
-      letter-spacing: 0.04em;
     }
-    .focus-ai-btn:hover { opacity: 1; color: var(--text); border-color: var(--text); }
+    .focus-ai-timer-btn:hover { opacity: 1; color: var(--text); border-color: var(--border); }
+    /* Hide when paused label is visible (they share left position) */
+    #focusPaused.show ~ .focus-ai-timer-btn { opacity: 0; pointer-events: none; }
+    /* Hide when session is complete — bar turns into restart prompt */
+    .focus-timer.complete .focus-ai-timer-btn { opacity: 0; pointer-events: none; }
+    /* Dim while AI is fetching or showing answer */
+    .focus-timer.ai-active .focus-ai-timer-btn { opacity: 0.06; pointer-events: none; }
     .focus-kbd-hint.ai-active .focus-kbd-hints { opacity: 0.08; transition: opacity var(--dur-mid) ease; }
-    .focus-kbd-hint.ai-active .focus-ai-btn   { opacity: 0.08; }
     .focus-ai-q {
       display: none;
       margin-top: var(--space-3);
@@ -1529,7 +1538,6 @@
   .task-meta {
     display: inline-block;
     margin-left: var(--space-2);
-    margin-top: var(--space-1);
   }
 
   /* Checklist/due badges and the session count travel together. Without this the
@@ -3823,9 +3831,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.45.5': 'The ✦ ask button now lives in the timer bar, left-aligned, matching the copy button style. The question appears below. AI timeout extended.',
+  '2.45.4': 'Fixed: Trello task titles and checkboxes now line up correctly on desktop — they were slightly offset when a checklist badge appeared on the same line.',
   '2.45.3': 'Focus question button sits inline with the keyboard hints, styled as a small bordered pill. Tapping it now reliably returns a question.',
-  '2.45.1': 'Fixed: the ✦ focus question button was nearly invisible — now the same weight as the keyboard hints beside it.',
-  '2.45.0': 'Tap ✦ ask while focused on a task to get a single question from your quiet companion — something to sit with before the clock starts.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -12343,13 +12351,13 @@ function _aiClearBadge() {
   kbdHint.className = 'focus-kbd-hint';
   kbdHint.innerHTML =
     '<span class="focus-kbd-hints"><kbd>space</kbd> breathe &nbsp;&nbsp; <kbd>esc</kbd> rest</span>' +
-    '<button class="focus-ai-btn" aria-label="Ask for a focus question">✦ ask</button>' +
     '<div class="focus-ai-q"></div>';
-  const focusAIBtn = kbdHint.querySelector('.focus-ai-btn');
+  let focusAIBtn;  // assigned after timerEl is created (button lives in the timer bar)
   const focusAIQ   = kbdHint.querySelector('.focus-ai-q');
 
   function _focusResetAI() {
     kbdHint.classList.remove('ai-active');
+    timerEl.classList.remove('ai-active');
     focusAIQ.classList.remove('show', 'loading');
     focusAIQ.textContent = '';
   }
@@ -12361,11 +12369,12 @@ function _aiClearBadge() {
     if (!taskText) return;
 
     kbdHint.classList.add('ai-active');
+    timerEl.classList.add('ai-active');
     focusAIQ.textContent = 'thinking…';
     focusAIQ.classList.add('show', 'loading');
 
     const _focusCtrl = new AbortController();
-    setTimeout(() => _focusCtrl.abort(), 15000);
+    const _focusAbortTimer = setTimeout(() => _focusCtrl.abort(), 25000);
     try {
       const key      = _aiGetKey();
       const provider = _aiGetProvider();
@@ -12383,6 +12392,7 @@ function _aiClearBadge() {
           systemPrompt: 'You are the quiet companion in a minimal daily task app. The user is starting a 25-minute focus session. Ask them one question — the kind a thoughtful friend asks before they disappear into work. Read the task text for its real meaning, not just the words. Surface a challenge behind it, or what done-enough looks like right now. One question only. Under 20 words. No preamble, no quotation marks, no emoji, no exclamation marks. Just the question.'
         })
       });
+      clearTimeout(_focusAbortTimer);
       if (!res.ok) { _focusResetAI(); return; }
       const data = await res.json();
       const q = _parseAIText(data)?.trim();
@@ -12397,10 +12407,6 @@ function _aiClearBadge() {
     }
   }
 
-  focusAIBtn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    _focusAskAI();
-  });
   focusAIQ.addEventListener('click', function(e) {
     e.stopPropagation();
     _focusResetAI();
@@ -12416,9 +12422,15 @@ function _aiClearBadge() {
     '<div class="focus-timer-inner">' +
       '<div class="focus-timer-fill" id="focusFill"></div>' +
       '<span class="focus-timer-paused" id="focusPaused">paused</span>' +
+      '<button class="focus-ai-timer-btn" aria-label="Ask for a focus question">✦ ask</button>' +
       '<span class="focus-timer-time" id="focusTime">25:00</span>' +
     '</div>';
   document.body.appendChild(timerEl);
+  focusAIBtn = timerEl.querySelector('.focus-ai-timer-btn');
+  focusAIBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    _focusAskAI();
+  });
 
   const fillEl   = timerEl.querySelector('#focusFill');
   const timeEl   = timerEl.querySelector('#focusTime');
