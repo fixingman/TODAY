@@ -311,6 +311,36 @@
       color: var(--muted);
       font-family: var(--font-mono);
     }
+    .focus-ai-btn {
+      background: none;
+      border: none;
+      padding: 0 0 0 var(--space-3);
+      font-size: var(--text-xs);
+      color: var(--muted);
+      cursor: pointer;
+      pointer-events: auto;
+      opacity: var(--opacity-label);
+      transition: opacity var(--dur-mid) ease;
+      vertical-align: baseline;
+      letter-spacing: 0.04em;
+    }
+    .focus-ai-btn:hover { opacity: var(--opacity-strong); }
+    .focus-kbd-hint.ai-active .focus-kbd-hints { opacity: 0.2; transition: opacity var(--dur-mid) ease; }
+    .focus-kbd-hint.ai-active .focus-ai-btn   { opacity: 0.2; }
+    .focus-ai-q {
+      display: none;
+      margin-top: var(--space-3);
+      font-size: var(--text-sm);
+      color: var(--text);
+      opacity: var(--opacity-strong);
+      white-space: normal;
+      line-height: 1.45;
+      letter-spacing: 0;
+      cursor: pointer;
+      transition: opacity var(--dur-mid) ease;
+    }
+    .focus-ai-q.show { display: block; }
+    .focus-ai-q.loading { opacity: var(--opacity-subtle); font-size: var(--text-xs); letter-spacing: 0.04em; color: var(--muted); }
 
   } /* end @media (hover: hover) */
 </style>
@@ -3786,9 +3816,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.45.0': 'Tap ✦ while focused on a task to get a single question from your quiet companion — something to sit with before the clock starts.',
   '2.44.1': 'Fixed: leaving a focus session no longer jumps the task to the top of the screen.',
   '2.44.0': 'Start a meeting recording and switch to your call — a small floating timer follows you out, so you can stop it without bringing your task list back into view.',
-  '2.43.9': 'Trello cards fit on one line more often on mobile, and the checklist count and session marker no longer split across two lines.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -12304,7 +12334,66 @@ function _aiClearBadge() {
   // ── DOM: kbd hint + timer block ───────────────────────────────────────────
   const kbdHint = document.createElement('div');
   kbdHint.className = 'focus-kbd-hint';
-  kbdHint.innerHTML = '<kbd>space</kbd> breathe &nbsp;&nbsp; <kbd>esc</kbd> rest';
+  kbdHint.innerHTML =
+    '<span class="focus-kbd-hints"><kbd>space</kbd> breathe &nbsp;&nbsp; <kbd>esc</kbd> rest</span>' +
+    '<button class="focus-ai-btn" aria-label="Ask for a focus question">✦</button>' +
+    '<div class="focus-ai-q"></div>';
+  const focusAIBtn = kbdHint.querySelector('.focus-ai-btn');
+  const focusAIQ   = kbdHint.querySelector('.focus-ai-q');
+
+  function _focusResetAI() {
+    kbdHint.classList.remove('ai-active');
+    focusAIQ.classList.remove('show', 'loading');
+    focusAIQ.textContent = '';
+  }
+
+  async function _focusAskAI() {
+    if (!_aiIsConfigured()) return;
+    if (kbdHint.classList.contains('ai-active')) { _focusResetAI(); return; }
+    const taskText = (uiTaskEl && uiTaskEl.querySelector('.task-text')?.textContent?.trim()) || '';
+    if (!taskText) return;
+
+    kbdHint.classList.add('ai-active');
+    focusAIQ.textContent = 'thinking…';
+    focusAIQ.classList.add('show', 'loading');
+
+    try {
+      const key      = _aiGetKey();
+      const provider = _aiGetProvider();
+      const res = await fetch('/.netlify/functions/ai-assist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key, provider,
+          messages: [{
+            role: 'user',
+            content: 'Task: ' + taskText
+          }],
+          system: 'You are the quiet companion in a minimal daily task app. The user is starting a 25-minute focus session. Ask them one question — the kind a thoughtful friend asks before they disappear into work. Read the task text for its real meaning, not just the words. Surface a challenge behind it, or what done-enough looks like right now. One question only. Under 20 words. No preamble, no quotation marks, no emoji, no exclamation marks. Just the question.'
+        })
+      });
+      const data = await res.json();
+      const q = _parseAIText(data)?.trim();
+      if (q) {
+        focusAIQ.classList.remove('loading');
+        focusAIQ.textContent = q;
+      } else {
+        _focusResetAI();
+      }
+    } catch (_) {
+      _focusResetAI();
+    }
+  }
+
+  focusAIBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    _focusAskAI();
+  });
+  focusAIQ.addEventListener('click', function(e) {
+    e.stopPropagation();
+    _focusResetAI();
+  });
+
   document.body.appendChild(kbdHint);
 
   const timerEl = document.createElement('div');
@@ -12509,6 +12598,7 @@ function _aiClearBadge() {
     clearTimeout(tickHandle);
     timerEl.classList.remove('open');
     kbdHint.classList.remove('show');
+    _focusResetAI();
     _updateBreatheOverlay(false); // Clear breathe overlay
     
     // Close PiP widget if open
