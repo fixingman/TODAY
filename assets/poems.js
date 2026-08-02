@@ -29,12 +29,6 @@ const POEMS = [
     source: 'Chamberlain 1902 (rendered as one line in the original)',
   },
   {
-    text: 'Granted this dewdrop world is but\nA dewdrop world,—this granted, yet…',
-    author: 'Issa',
-    season: null,
-    source: 'Chamberlain 1902, no. 39',
-  },
-  {
     text: 'But for its voice, the heron were\nA line of snow, and nothing more.',
     author: 'Sōkan',
     season: 'winter',

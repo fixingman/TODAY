@@ -865,3 +865,15 @@ Architectural dead end: with a CSS animation, every `display:none/block` repaint
 **Root cause:** `triageDismissedToday` was a local boolean — not read from localStorage on wake. Other device's dismissal was in Dropbox backup but the local flag was never refreshed.
 
 **Fix:** On `visibilitychange` and `window.focus`, re-read `triage_dismissed` from localStorage after sync settles (3s delay). `mergeRemoteData` applies remote dismissal. `_triageBarSilent` prevents bar showing during the grace window.
+
+## BUG-064: Focusing a Trello card un-ages it for one day, then it returns dimmed worse
+
+**Status:** ✅ Verified fixed (v2.43.6)
+
+**Symptom:** An aged Trello card brightens after a focus session, but is dimmed again the next day — and at a heavier tier than before the work. Can: "it feels like it might be broken... not sure to which level."
+
+**Root cause:** The two task types un-aged by different mechanisms. A manual task's basis is `task.lastActive || created`, and focus sets `lastActive = Date.now()` — the basis genuinely moves. A Trello card's basis is `_getTrelloFirstSeen()[id]`, which never moves; instead `taskHTML()` carried a display override (`if (focusCount > 0) ageDays = 0`) fed by `today_trello_focus` — a map wiped every midnight. Focus was a 24-hour cosmetic mask, not an age reset.
+
+**Fix:** New `today_trello_lastactive` map MAX-merging across devices, pushed forward at both focus sites — making the Trello age basis structurally identical to the manual path. BUG-043's override left in place, now harmless.
+
+**Adjacent:** BUG-059 fixed the sync half of Trello aging; this is the day-boundary half.

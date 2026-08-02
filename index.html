@@ -3786,9 +3786,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.44.1': 'Fixed: leaving a focus session no longer jumps the task to the top of the screen.',
   '2.44.0': 'Start a meeting recording and switch to your call — a small floating timer follows you out, so you can stop it without bringing your task list back into view.',
   '2.43.9': 'Trello cards fit on one line more often on mobile, and the checklist count and session marker no longer split across two lines.',
-  '2.43.8': 'Focus minutes earned on one device now show up on your others the same day, instead of reading zero until tomorrow.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4547,7 +4547,9 @@ function triageExpand() {
   const titleEl = $.triageTitle || document.getElementById('triageTitle');
   if (titleEl) titleEl.textContent = `${totalUndone} didn't happen`;
   document.getElementById('triageComplete').classList.add('hidden');
-  
+  const triageHdrReset = document.querySelector('.triage-header');
+  if (triageHdrReset) triageHdrReset.style.display = '';
+
   renderTriageList();
   const overlay = $.triageOverlay || document.getElementById('triageOverlay');
   if (overlay) overlay.classList.remove('hidden');
@@ -4920,6 +4922,8 @@ function triageApplyAll() {
   
   document.getElementById('triageList').innerHTML = '';
   document.getElementById('triageComplete').classList.remove('hidden');
+  const triageHdr = document.querySelector('.triage-header');
+  if (triageHdr) triageHdr.style.display = 'none';
   
   const msgEl = document.querySelector('.triage-complete-msg');
   if (msgEl) msgEl.textContent = headline + '.';
@@ -12458,6 +12462,8 @@ function _aiClearBadge() {
     document.body.style.left = '0';
     document.body.style.right = '0';
     document.body.dataset.scrollY = scrollY;
+    // Save task's viewport Y so closeUI can restore it exactly even if renderManual reorders
+    document.body.dataset.focusTaskTop = taskEl.getBoundingClientRect().top;
   }
 
   // ── Track actual focus time spent (not just completed sessions) ────────────
@@ -12515,6 +12521,13 @@ function _aiClearBadge() {
     document.body.style.left = '';
     document.body.style.right = '';
     window.scrollTo(0, scrollY);
+    // If renderManual reordered tasks during focus, the task's DOM position shifted.
+    // Correct by the exact drift so it lands at the same viewport Y as when focus opened.
+    const _savedTaskTop = parseFloat(document.body.dataset.focusTaskTop || '-1');
+    if (_savedTaskTop >= 0 && uiTaskEl) {
+      const _drift = uiTaskEl.getBoundingClientRect().top - _savedTaskTop;
+      if (Math.abs(_drift) > 2) window.scrollTo(0, scrollY + _drift);
+    }
 
     const closingTask   = uiTaskEl;
     const closingTaskId = uiTaskId;

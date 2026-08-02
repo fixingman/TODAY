@@ -14,9 +14,10 @@
 
 | # | Description | Status |
 |---|---|---|
+| 067 | Focused task jumps to top of viewport after focus ends — renderManual reorder during focus shifts DOM offset, saved scrollY no longer places task correctly | ⏳ v2.44.1  |
 | 066 | Focus minutes from another device read 0 on the second device — merge adopted the value without stamping its date guard, so the post-restore cleanup banked them as yesterday's | ⏳ v2.43.8  |
 | 065 | Focus mode re-opened itself after leaving it; timer bar torn loose on fast task switch (regression from v2.43.0) | ✅ v2.43.7  |
-| 064 | Focusing a Trello card masked its age for one day, then it returned dimmed one tier worse — focus never moved the age basis | ⏳ v2.43.6  |
+| 064 | Focusing a Trello card masked its age for one day, then it returned dimmed one tier worse — focus never moved the age basis | ✅ v2.43.6  |
 | 063 | Focus sessions completing just after midnight wiped by daily reset race — stat_focus_mins_today reset to 0 before completeFor could persist | ✅ v2.42.4  |
 | 062 | Native share-sheet popover opens far from the poem's click point, not fixable from page DOM | 🚫 Rejected  |
 | 061 | Sunday/habit badges silently fail to show on a fresh device (same root cause as BUG-060) | ⏳ v2.37.8  |
@@ -39,7 +40,7 @@
 | 044 | Delayed focus chime after Escape/task-switch | ✅ v2.18.6  |
 | 043 | Aged card won't un-dim after focus session | ✅ v2.18.11, v2.18.17  |
 | 042 | Trello card order scrambles across devices | ✅ v2.18.4  |
-| 041 | White flash / splash logo from top on mobile (second pass) | 🚫 Closed  |
+| 041 | White flash / splash logo from top on mobile (second pass) | ✅ v2.17.29  |
 | 040 | Morning nudge reappears after dismiss | ✅ v2.17.139  |
 | 039 | All-habits-done celebration never fires | ✅ v2.17.137  |
 | 038 | Red dot on mobile when offline | ✅ v2.17.136  |
@@ -100,6 +101,20 @@
 
 ---
 
+## BUG-062: Native share-sheet popover doesn't open near the click point
+
+**Symptom:** Poem share (`_shareDailyPoem()`, `navigator.share()`) opens the OS/browser share sheet many pixels away from where the user actually clicked — reported across every trigger structure tried during the poem-share feature's iteration (v2.40.0 button, v2.40.4 corner overlay, v2.40.6/v2.40.7 whole-poem click target), with no change in position across any of them.
+
+**Investigation:** v2.40.7 hypothesized the popover anchors to `document.activeElement` rather than literal cursor coordinates, and added a `.focus()` call on the small corner label immediately before invoking `navigator.share()`, to bias the anchor toward a small predictable element instead of the whole poem's bounding box. Can's direct real-device test after that fix: "share sheet pop up is behaving exactly like before fix. nothing looks changed." Falsified.
+
+**Root cause:** Unknown from our side, and very likely outside our control — `navigator.share()`'s spec gives web pages no API to influence the popover's on-screen position; it's entirely rendered and positioned by the browser/OS. The fact that its position hasn't moved across several structurally very different DOM approaches (different element types, positions, click targets) is itself strong evidence this is fixed OS/browser chrome behavior, not something responsive to page structure, focus state, or element geometry.
+
+**Fix:** None. The disproven `.focus()` call and its supporting `tabindex="-1"` were removed (v2.40.8) rather than left as dead code implying an effect that doesn't exist.
+
+**Status:** Closed as a platform limitation, not a bug in our code — mirrors BUG-041's precedent (iOS splash white-flash) for issues ruled out of app-code control after direct investigation. Revisit only if a future browser API (e.g. a hypothetical `ShareData.anchor`) offers real control.
+
+---
+
 ## BUG-066: Focus minutes from another device read 0, and overwrite yesterday's history
 
 **Symptom:** Can worked a focus session on desktop PWA; opened mobile PWA later the same day; focus minutes showed 0.
@@ -116,32 +131,12 @@
 
 ---
 
-## BUG-064: Focusing a Trello card un-ages it for one day, then it returns dimmed worse
+## BUG-067: Focused task jumps to top of viewport after focus ends
 
-**Symptom:** An aged Trello card brightens after a focus session, but is dimmed again the next day — and at a heavier tier than before the work. Can's report: "it feels like it might be broken... not sure to which level."
+**Symptom:** A task that was mid-list and centered during a focus session appears at the very top of the viewport (almost out of view) once focus closes. Can: "when i came back when focus was over, the task moved to the top of the view, and almost out of viewport on the scroll list."
 
-**Investigation (before any change):** The level is whatever the untouched first-seen date implies, which is always at least the tier it was at before, because the underlying clock never stopped. Measured with the real `taskHTML()` age logic: a card first seen 6 days ago reads `mid`; focus it, it reads clean; next morning it reads `old`. Doing the work costs a dimming tier.
+**Root cause:** Focus mode locks scroll by setting `position:fixed; top:-${scrollY}px` on `body`, saving `scrollY` at lock time. While focus is active, `visibilitychange` on tab return fires `syncDropbox()` → `mergeRemoteData()` → `renderManual()`, which rebuilds the task list. If `renderManual()` reorders tasks (e.g. the focused task's `lastActive` was just updated to `Date.now()`, moving it toward the top), the task's document offset changes. On close, `closeUI` restores `scrollY` correctly — but the task is now at a different offset in the rebuilt DOM. At the original `scrollY`, the task now sits near the top edge rather than at center.
 
-**Root cause:** The two task types un-aged by different mechanisms. A manual task's basis is `task.lastActive || created`, and focus sets `lastActive = Date.now()` — the basis genuinely moves. A Trello card's basis is `_getTrelloFirstSeen()[id]`, which never moves; instead `taskHTML()` carried a display override (`if (focusCount > 0) ageDays = 0`) fed by `today_trello_focus`, a map wiped every midnight. Focus was therefore a 24-hour cosmetic mask, not an age reset. Out of scope for BUG-043, which addressed a card staying dimmed *while* being worked on; the override's own comment concedes "manual tasks un-age on activity but Trello can't."
+**Fix (v2.44.1):** `openUI` saves the task's viewport Y (`getBoundingClientRect().top`) into `dataset.focusTaskTop` at lock time, after any nudge scroll. `closeUI` compares this saved Y to the task's actual viewport Y after scroll restoration. If the task drifted more than 2px, `window.scrollTo` is called a second time to compensate by exactly the delta — restoring the task to the same visual row it occupied when focus started. No change when the DOM didn't move (delta ≈ 0).
 
-**Fix (v2.43.6):** New `today_trello_lastactive` map (`{trello_<id>: ms}`) pushed forward at both focus sites, making the basis `lastActive || firstSeen || now` — structurally identical to the manual path. Deliberately a separate key rather than writing into `today_trello_firstseen`: first-seen MIN-merges across devices (earliest sighting wins, that is its meaning), so activity written there would be reverted by any device holding an older timestamp. The new map MAX-merges, mirroring how manual `lastActive` already reconciles in `mergeRemoteData()`. Added to backup payload, merge path and full-restore; pruned alongside first-seen; excluded from the midnight clear. BUG-043's override left in place — now only fires when `lastactive` is also set, and preserves that fix's partial-session contract.
-
-**Adjacent:** BUG-059 (age reset clobbered by sync) fixed the *sync* half of Trello aging; this is the *day-boundary* half. No migration needed — an empty map falls through to first-seen.
-
-**Status:** ⏳ Fix shipped v2.43.6 — awaiting real-device verification. **What to check:** focus an aged Trello card, then look at it the next day. It should read as fresh (no dimming), not return at a heavier tier.
-
----
-
-## BUG-062: Native share-sheet popover doesn't open near the click point
-
-**Symptom:** Poem share (`_shareDailyPoem()`, `navigator.share()`) opens the OS/browser share sheet many pixels away from where the user actually clicked — reported across every trigger structure tried during the poem-share feature's iteration (v2.40.0 button, v2.40.4 corner overlay, v2.40.6/v2.40.7 whole-poem click target), with no change in position across any of them.
-
-**Investigation:** v2.40.7 hypothesized the popover anchors to `document.activeElement` rather than literal cursor coordinates, and added a `.focus()` call on the small corner label immediately before invoking `navigator.share()`, to bias the anchor toward a small predictable element instead of the whole poem's bounding box. Can's direct real-device test after that fix: "share sheet pop up is behaving exactly like before fix. nothing looks changed." Falsified.
-
-**Root cause:** Unknown from our side, and very likely outside our control — `navigator.share()`'s spec gives web pages no API to influence the popover's on-screen position; it's entirely rendered and positioned by the browser/OS. The fact that its position hasn't moved across several structurally very different DOM approaches (different element types, positions, click targets) is itself strong evidence this is fixed OS/browser chrome behavior, not something responsive to page structure, focus state, or element geometry.
-
-**Fix:** None. The disproven `.focus()` call and its supporting `tabindex="-1"` were removed (v2.40.8) rather than left as dead code implying an effect that doesn't exist.
-
-**Status:** Closed as a platform limitation, not a bug in our code — mirrors BUG-041's precedent (iOS splash white-flash) for issues ruled out of app-code control after direct investigation. Revisit only if a future browser API (e.g. a hypothetical `ShareData.anchor`) offers real control.
-
----
+**Status:** ⏳ Fix shipped v2.44.1 — awaiting real-device verification. **What to check:** start focus on a mid-list task, switch tabs (trigger a Dropbox sync), return and exit focus. Task should be in the same place on screen, not near the top.
