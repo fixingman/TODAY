@@ -315,6 +315,7 @@
       color: var(--muted);
       font-family: var(--font-mono);
     }
+    /* Idle: small button on left of timer bar */
     .focus-ai-timer-btn {
       position: absolute;
       left: var(--space-4);
@@ -336,27 +337,46 @@
       pointer-events: auto;
     }
     .focus-ai-timer-btn:hover { opacity: 1; color: var(--text); border-color: var(--border); }
-    /* Hide when paused label is visible (they share left position) */
+    /* Hide when paused text is showing (they share the left position) */
     #focusPaused.show ~ .focus-ai-timer-btn { opacity: 0; pointer-events: none; }
     /* Hide when session is complete — bar turns into restart prompt */
-    .focus-timer.complete .focus-ai-timer-btn { opacity: 0; pointer-events: none; }
-    /* Dim while AI is fetching or showing answer */
-    .focus-timer.ai-active .focus-ai-timer-btn { opacity: 0.06; pointer-events: none; }
-    .focus-kbd-hint.ai-active .focus-kbd-hints { opacity: 0.08; transition: opacity var(--dur-mid) ease; }
-    .focus-ai-q {
-      display: none;
-      margin-top: var(--space-3);
-      font-size: var(--text-sm);
-      color: var(--text);
-      opacity: 1;
-      white-space: normal;
-      line-height: 1.45;
-      letter-spacing: 0;
-      cursor: pointer;
-      transition: opacity var(--dur-mid) ease;
+    .focus-timer.complete .focus-ai-timer-btn { display: none; }
+
+    /* ai-active: bar expands, button becomes the text content */
+    .focus-timer.ai-active {
+      max-height: 80px;
     }
-    .focus-ai-q.show { display: block; }
-    .focus-ai-q.loading { opacity: var(--opacity-muted); font-size: var(--text-xs); letter-spacing: 0.04em; color: var(--muted); }
+    .focus-timer.ai-active .focus-timer-inner {
+      height: auto;
+      min-height: 34px;
+      padding: var(--space-3) var(--space-4);
+      display: flex;
+      align-items: center;
+    }
+    .focus-timer.ai-active .focus-timer-fill,
+    .focus-timer.ai-active .focus-timer-time,
+    .focus-timer.ai-active #focusPaused { opacity: 0; pointer-events: none; }
+    .focus-timer.ai-active .focus-ai-timer-btn {
+      position: static;
+      transform: none;
+      white-space: normal;
+      font-size: var(--text-sm);
+      letter-spacing: 0;
+      color: var(--text);
+      border: none;
+      padding: 0;
+      opacity: 1;
+      line-height: 1.45;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    .focus-timer.ai-active .focus-ai-timer-btn:hover { opacity: var(--opacity-soft); }
+    .focus-timer.ai-active .focus-ai-timer-btn.loading {
+      color: var(--muted);
+      font-size: var(--text-xs);
+      letter-spacing: 0.04em;
+      cursor: default;
+    }
 
   } /* end @media (hover: hover) */
 </style>
@@ -3831,9 +3851,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.45.5': 'The ✦ ask button now lives in the timer bar, left-aligned, matching the copy button style. The question appears below. AI timeout extended.',
+  '2.45.6': 'Tap ✦ ask in the timer bar — the bar expands and shows the question right there. Tap to dismiss.',
+  '2.45.5': 'The ✦ ask button now lives in the timer bar, left-aligned, matching the copy button style. AI timeout extended.',
   '2.45.4': 'Fixed: Trello task titles and checkboxes now line up correctly on desktop — they were slightly offset when a checklist badge appeared on the same line.',
-  '2.45.3': 'Focus question button sits inline with the keyboard hints, styled as a small bordered pill. Tapping it now reliably returns a question.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -12349,29 +12369,23 @@ function _aiClearBadge() {
   // ── DOM: kbd hint + timer block ───────────────────────────────────────────
   const kbdHint = document.createElement('div');
   kbdHint.className = 'focus-kbd-hint';
-  kbdHint.innerHTML =
-    '<span class="focus-kbd-hints"><kbd>space</kbd> breathe &nbsp;&nbsp; <kbd>esc</kbd> rest</span>' +
-    '<div class="focus-ai-q"></div>';
+  kbdHint.innerHTML = '<span class="focus-kbd-hints"><kbd>space</kbd> breathe &nbsp;&nbsp; <kbd>esc</kbd> rest</span>';
   let focusAIBtn;  // assigned after timerEl is created (button lives in the timer bar)
-  const focusAIQ   = kbdHint.querySelector('.focus-ai-q');
 
   function _focusResetAI() {
-    kbdHint.classList.remove('ai-active');
     timerEl.classList.remove('ai-active');
-    focusAIQ.classList.remove('show', 'loading');
-    focusAIQ.textContent = '';
+    if (focusAIBtn) { focusAIBtn.classList.remove('loading'); focusAIBtn.textContent = '\u2726 ask'; }
   }
 
   async function _focusAskAI() {
     if (!_aiIsConfigured()) return;
-    if (kbdHint.classList.contains('ai-active')) { _focusResetAI(); return; }
+    if (timerEl.classList.contains('ai-active')) { _focusResetAI(); return; }
     const taskText = (uiTaskEl && uiTaskEl.querySelector('.task-text')?.textContent?.trim()) || '';
     if (!taskText) return;
 
-    kbdHint.classList.add('ai-active');
     timerEl.classList.add('ai-active');
-    focusAIQ.textContent = 'thinking…';
-    focusAIQ.classList.add('show', 'loading');
+    focusAIBtn.textContent = 'thinking…';
+    focusAIBtn.classList.add('loading');
 
     const _focusCtrl = new AbortController();
     const _focusAbortTimer = setTimeout(() => _focusCtrl.abort(), 25000);
@@ -12397,8 +12411,8 @@ function _aiClearBadge() {
       const data = await res.json();
       const q = _parseAIText(data)?.trim();
       if (q) {
-        focusAIQ.classList.remove('loading');
-        focusAIQ.textContent = q;
+        focusAIBtn.classList.remove('loading');
+        focusAIBtn.textContent = q;
       } else {
         _focusResetAI();
       }
@@ -12406,11 +12420,6 @@ function _aiClearBadge() {
       _focusResetAI();
     }
   }
-
-  focusAIQ.addEventListener('click', function(e) {
-    e.stopPropagation();
-    _focusResetAI();
-  });
 
   document.body.appendChild(kbdHint);
 
