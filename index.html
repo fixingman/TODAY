@@ -300,7 +300,11 @@
     }
     .focus-kbd-hint.show { 
       display: block;
-      opacity: var(--opacity-label); 
+      opacity: 1; /* container at 1 — each child owns its own opacity */
+    }
+    .focus-kbd-hints {
+      display: block;
+      opacity: var(--opacity-label); /* 0.40 — same effective weight as before */
     }
     .focus-kbd-hint kbd {
       display: inline-block;
@@ -312,27 +316,29 @@
       font-family: var(--font-mono);
     }
     .focus-ai-btn {
+      display: block;
       background: none;
       border: none;
-      padding: 0 0 0 var(--space-3);
+      padding: 0;
+      margin-top: var(--space-2);
       font-size: var(--text-xs);
       color: var(--muted);
       cursor: pointer;
       pointer-events: auto;
-      opacity: 1;
-      transition: color var(--dur-mid) ease;
-      vertical-align: baseline;
+      opacity: var(--opacity-muted);
+      transition: opacity var(--dur-mid) ease, color var(--dur-mid) ease;
       letter-spacing: 0.04em;
+      width: 100%;
     }
-    .focus-ai-btn:hover { color: var(--text); }
-    .focus-kbd-hint.ai-active .focus-kbd-hints { opacity: 0.2; transition: opacity var(--dur-mid) ease; }
-    .focus-kbd-hint.ai-active .focus-ai-btn   { opacity: 0.2; }
+    .focus-ai-btn:hover { opacity: 1; color: var(--text); }
+    .focus-kbd-hint.ai-active .focus-kbd-hints { opacity: 0.08; transition: opacity var(--dur-mid) ease; }
+    .focus-kbd-hint.ai-active .focus-ai-btn   { opacity: 0.08; }
     .focus-ai-q {
       display: none;
       margin-top: var(--space-3);
       font-size: var(--text-sm);
       color: var(--text);
-      opacity: var(--opacity-strong);
+      opacity: 1;
       white-space: normal;
       line-height: 1.45;
       letter-spacing: 0;
@@ -340,7 +346,7 @@
       transition: opacity var(--dur-mid) ease;
     }
     .focus-ai-q.show { display: block; }
-    .focus-ai-q.loading { opacity: var(--opacity-subtle); font-size: var(--text-xs); letter-spacing: 0.04em; color: var(--muted); }
+    .focus-ai-q.loading { opacity: var(--opacity-muted); font-size: var(--text-xs); letter-spacing: 0.04em; color: var(--muted); }
 
   } /* end @media (hover: hover) */
 </style>
@@ -3816,9 +3822,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.45.2': 'The focus question button now reads ✦ ask, sits on its own line below the keyboard hints, and is noticeably more visible. The question and thinking state are now fully legible.',
   '2.45.1': 'Fixed: the ✦ focus question button was nearly invisible — now the same weight as the keyboard hints beside it.',
-  '2.45.0': 'Tap ✦ while focused on a task to get a single question from your quiet companion — something to sit with before the clock starts.',
-  '2.44.1': 'Fixed: leaving a focus session no longer jumps the task to the top of the screen.',
+  '2.45.0': 'Tap ✦ ask while focused on a task to get a single question from your quiet companion — something to sit with before the clock starts.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -12336,7 +12342,7 @@ function _aiClearBadge() {
   kbdHint.className = 'focus-kbd-hint';
   kbdHint.innerHTML =
     '<span class="focus-kbd-hints"><kbd>space</kbd> breathe &nbsp;&nbsp; <kbd>esc</kbd> rest</span>' +
-    '<button class="focus-ai-btn" aria-label="Ask for a focus question">✦</button>' +
+    '<button class="focus-ai-btn" aria-label="Ask for a focus question">✦ ask</button>' +
     '<div class="focus-ai-q"></div>';
   const focusAIBtn = kbdHint.querySelector('.focus-ai-btn');
   const focusAIQ   = kbdHint.querySelector('.focus-ai-q');
@@ -12369,7 +12375,7 @@ function _aiClearBadge() {
             role: 'user',
             content: 'Task: ' + taskText
           }],
-          system: 'You are the quiet companion in a minimal daily task app. The user is starting a 25-minute focus session. Ask them one question — the kind a thoughtful friend asks before they disappear into work. Read the task text for its real meaning, not just the words. Surface a challenge behind it, or what done-enough looks like right now. One question only. Under 20 words. No preamble, no quotation marks, no emoji, no exclamation marks. Just the question.'
+          systemPrompt: 'You are the quiet companion in a minimal daily task app. The user is starting a 25-minute focus session. Ask them one question — the kind a thoughtful friend asks before they disappear into work. Read the task text for its real meaning, not just the words. Surface a challenge behind it, or what done-enough looks like right now. One question only. Under 20 words. No preamble, no quotation marks, no emoji, no exclamation marks. Just the question.'
         })
       });
       const data = await res.json();
