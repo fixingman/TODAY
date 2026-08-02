@@ -1225,6 +1225,7 @@
   }
   .triage-btn {
     flex: 1;
+    font-family: var(--font-mono);
     font-size: var(--text-xs);
     padding: var(--space-2);
     border-radius: var(--radius-md);
@@ -3851,9 +3852,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.45.7': 'Fixed: triage buttons (Review, Keep, Let go, Done) now use the correct DM Mono font — they were falling back to browser native.',
   '2.45.6': 'Tap ✦ ask in the timer bar — the bar expands and shows the question right there. Tap to dismiss.',
   '2.45.5': 'The ✦ ask button now lives in the timer bar, left-aligned, matching the copy button style. AI timeout extended.',
-  '2.45.4': 'Fixed: Trello task titles and checkboxes now line up correctly on desktop — they were slightly offset when a checklist badge appeared on the same line.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
