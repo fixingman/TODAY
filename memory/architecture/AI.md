@@ -250,6 +250,16 @@ Defined in `assets/insights.js`. Called from `_fetchDayNudgeAI()` (morning nudge
 
 **Task lifespan tracking:** `_memoryOnTaskComplete(taskText, taskId)` computes lifespan from `_getCreatedFromId(taskId)` on each completion and appends to `taskLifespanSamples` (capped at 20 entries).
 
+## Focus Companion Question (v2.45.0)
+
+`_focusAIFetch(taskText)` — called when the user taps ✦ in focus mode. Sends a ~40-word prompt with only the task text (no `_memoryForAI()`). The model returns one short question — either naming a challenge behind the task or asking what "done enough" looks like for this session. Response is stripped of any preface ("what question…") before display.
+
+Sits outside the main `_aiThread`/`_aiCall` stack — a one-shot fetch with its own element (`.focus-ai-q`) and state flag (`ai-active` class on `.focus-kbd-hint`). Reset by `closeUI`. Silent fail when AI is not configured.
+
+See `architecture/Focus.md` → Companion Question for UI/state details and the opacity gotcha (v2.45.1).
+
+---
+
 ## Sending Messages from the Main Input Bar (v2.17.64)
 
 `_aiSendFromInput(text)` — companion to `_aiAskFromPanel`. Called when the user types text in the main task input bar and submits to AI (✦ tap with text, or Enter while AI panel is open).

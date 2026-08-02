@@ -137,6 +137,20 @@ can't resurrect after a deliberate end.
 
 ---
 
+## Companion Question (v2.45.0)
+
+A `✦` button sits at the end of the `space breathe / esc rest` hint line inside `.focus-kbd-hint`. Tapping it asks the AI for a single question to sit with before the clock takes over.
+
+**Trigger:** click `.focus-ai-btn` → dims the hint text (`ai-active` class on `.focus-kbd-hint`) → fetches via `_focusAIFetch(taskText)` → shows the question in `.focus-ai-q`. Tapping the question dismisses it and restores the hints.
+
+**Prompt shape:** ~40 words, task text only, no appMemory. The model is asked to produce one short question that either names a challenge behind the task or asks what "done enough" looks like for this session. Preface text (asking "what question…") is stripped from the response before display.
+
+**State:** question state is per-session, not persisted. `closeUI` resets it (question removed, `ai-active` cleared). Silent fail if AI not configured.
+
+**Opacity note (BUG-045 / v2.45.1):** `.focus-ai-btn` must be `opacity: 1` — it lives inside `.focus-kbd-hint.show` which is already at `opacity: var(--opacity-label)` (0.40). Double-stacking with another `--opacity-label` produces ~16% effective opacity, making the button invisible. The button matches `<kbd>` item weight at `opacity: 1`. Hover shifts `color` to `var(--text)` rather than changing opacity (which would fight the stacking context).
+
+---
+
 ## Gotcha: timer DOM lives inside the task's list (BUG-027)
 
 `openUI()` does `taskEl.after(timerEl); timerEl.after(kbdHint)`, so the shared `timerEl` +
