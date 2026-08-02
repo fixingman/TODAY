@@ -319,12 +319,12 @@
       color: var(--muted);
       cursor: pointer;
       pointer-events: auto;
-      opacity: var(--opacity-label);
-      transition: opacity var(--dur-mid) ease;
+      opacity: 1;
+      transition: color var(--dur-mid) ease;
       vertical-align: baseline;
       letter-spacing: 0.04em;
     }
-    .focus-ai-btn:hover { opacity: var(--opacity-strong); }
+    .focus-ai-btn:hover { color: var(--text); }
     .focus-kbd-hint.ai-active .focus-kbd-hints { opacity: 0.2; transition: opacity var(--dur-mid) ease; }
     .focus-kbd-hint.ai-active .focus-ai-btn   { opacity: 0.2; }
     .focus-ai-q {
@@ -3816,9 +3816,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.45.1': 'Fixed: the ✦ focus question button was nearly invisible — now the same weight as the keyboard hints beside it.',
   '2.45.0': 'Tap ✦ while focused on a task to get a single question from your quiet companion — something to sit with before the clock starts.',
   '2.44.1': 'Fixed: leaving a focus session no longer jumps the task to the top of the screen.',
-  '2.44.0': 'Start a meeting recording and switch to your call — a small floating timer follows you out, so you can stop it without bringing your task list back into view.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
