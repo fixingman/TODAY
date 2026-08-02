@@ -342,38 +342,30 @@
     /* Hide when session is complete — bar turns into restart prompt */
     .focus-timer.complete .focus-ai-timer-btn { display: none; }
 
-    /* ai-active: bar expands, button becomes the text content */
-    .focus-timer.ai-active {
-      max-height: 80px;
-    }
-    .focus-timer.ai-active .focus-timer-inner {
-      height: auto;
-      min-height: 34px;
-      padding: var(--space-3) var(--space-4);
-      display: flex;
-      align-items: center;
-    }
+    /* ai-active: bar stays exactly 34px — fill/time/paused fade, button spans full width */
     .focus-timer.ai-active .focus-timer-fill,
     .focus-timer.ai-active .focus-timer-time,
     .focus-timer.ai-active #focusPaused { opacity: 0; pointer-events: none; }
     .focus-timer.ai-active .focus-ai-timer-btn {
-      position: static;
-      transform: none;
-      white-space: normal;
-      font-size: var(--text-sm);
+      left: var(--space-4);
+      right: var(--space-4);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: left;
+      font-size: var(--text-xs);
       letter-spacing: 0;
       color: var(--text);
+      opacity: var(--opacity-strong);
       border: none;
       padding: 0;
-      opacity: 1;
-      line-height: 1.45;
       pointer-events: auto;
       cursor: pointer;
     }
-    .focus-timer.ai-active .focus-ai-timer-btn:hover { opacity: var(--opacity-soft); }
+    .focus-timer.ai-active .focus-ai-timer-btn:hover { opacity: 1; }
     .focus-timer.ai-active .focus-ai-timer-btn.loading {
       color: var(--muted);
-      font-size: var(--text-xs);
+      opacity: var(--opacity-label);
       letter-spacing: 0.04em;
       cursor: default;
     }
@@ -3852,9 +3844,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.45.8': 'Focus question: timer bar stays the same size. Answer appears inline on one line, left-aligned.',
   '2.45.7': 'Fixed: triage buttons (Review, Keep, Let go, Done) now use the correct DM Mono font — they were falling back to browser native.',
   '2.45.6': 'Tap ✦ ask in the timer bar — the bar expands and shows the question right there. Tap to dismiss.',
-  '2.45.5': 'The ✦ ask button now lives in the timer bar, left-aligned, matching the copy button style. AI timeout extended.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -12404,7 +12396,7 @@ function _aiClearBadge() {
             role: 'user',
             content: 'Task: ' + taskText
           }],
-          systemPrompt: 'You are the quiet companion in a minimal daily task app. The user is starting a 25-minute focus session. Ask them one question — the kind a thoughtful friend asks before they disappear into work. Read the task text for its real meaning, not just the words. Surface a challenge behind it, or what done-enough looks like right now. One question only. Under 20 words. No preamble, no quotation marks, no emoji, no exclamation marks. Just the question.'
+          systemPrompt: 'You are the quiet companion in a minimal daily task app. The user is starting a 25-minute focus session. Ask them one question — the kind a thoughtful friend asks before they disappear into work. Read the task text for its real meaning, not just the words. Surface a challenge behind it, or what done-enough looks like right now. One question only. Under 18 words. No preamble, no quotation marks, no emoji, no exclamation marks. Just the question.'
         })
       });
       clearTimeout(_focusAbortTimer);
