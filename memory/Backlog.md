@@ -81,6 +81,30 @@
 
 **Open:** mobile (v2.28.0) awaiting real-device verify — a real in-room meeting on iPhone PWA (contract: phone on the table, screen on, app foreground). Implementation → `Changelog.md` v2.28.0.
 
+**Calendar-triggered capture — proposed 2026-08-02, not started.** Can's problem, verbatim: "i cant leverage mic rec function fully because i forget to click the button every time almost, or mid meeting when i share my screen or so." v2.44.0's auto-PiP does not solve it — it follows a capture you already started, so you still had to think of TODAY beforehand.
+
+**Governing principle if this is built: the calendar is INPUT, never OUTPUT.** TODAY reads it to decide *when* to offer something and never renders it back — no agenda, no event list, no "next up". The moment a feature would show the calendar, it is planner drift (see Not implementing). Write this down before any code exists; every future calendar idea will push on it.
+
+**MVP shape:** read-only Google Calendar → the existing v2.44.0 pill appears at meeting start carrying **the join link and a record button**. Nothing else. No auto-record, no calendar data near the AI, nothing displayed. Small because the PiP window and its open/sync/close machinery already exist; the new parts are auth plus a scheduler.
+
+**Why the link matters more than the record button** (Can's insight): a pill offering only *record* pays rent only on meetings you want to capture. One carrying the join link pays rent on *every* meeting — he routinely hunts for links. That is the Wallpaper Test passing on its own, with record riding along free. Also solves both halves of the original problem: the pill's presence at meeting start *is* the reminder, and pressing an already-floating pill never brings TODAY forward mid-share.
+
+**"Which meetings should prompt?" — resolved.** Wrong question. The wallpaper cost is how much a surface *demands*, not how often it appears. A prompt demands accept/dismiss and rots with repetition; a control that is merely *present* demands nothing. So: all meetings, because presence is cheap where a prompt is expensive.
+
+**Notifications are not an alternative** — Can keeps them off system-wide, so the pill would be his only signal at that moment. Separately, a notification tells you about a meeting; the pill puts the control under your cursor.
+
+**Open questions before building:** (1) can a link be opened *from* a PiP document — dropped in v2.44.0 as fragile, now load-bearing, cheap to verify; (2) needs a clean no-link state (Zoom/Teams/no conferencing — Can: links "could be missing always"); (3) **speakers vs headphones** — on headphones the mic hears only Can, not the other participants, which would gut extraction regardless of trigger; this may be the real blocker and is unanswered.
+
+**Auth:** OAuth, not `.ics`. Verified 2026-08-01: Google's ICS endpoint sends no CORS header (browser fetch fails; `curl -I` shows no `access-control-allow-origin`), so a thin Netlify proxy is forced either way — URL in the POST body, not a query string, so it stays out of access logs; `ai-assist` already carries the AI key so there is no new trust boundary. The deciding factor for OAuth is attendees, which ICS will not reliably give. Cost: calendar read is a *sensitive* scope, so an unverified personal app sits in testing mode with refresh tokens expiring every 7 days.
+
+**Deferred, all still good, none needed for the MVP:** attendee names → attribution (below), day-shape into the morning nudge (the original Roadmap #1 "eyes slide" candidate, arriving by the back door), auto-record every meeting, rolling buffer.
+
+**Auto-record is a posture decision, not a technical one.** It fully solves forgetting, but recording by default changes Can's position toward the other people in the room, and "the audio is ephemeral" does not change the act. Legally constrained in some jurisdictions. Not to be slipped in inside an implementation.
+
+**Attendee names → closed-set attribution (deferred, high value).** Today attribution matches speech against a list Can typed — *open-vocabulary* recognition, which is why it has burned through four failure modes and why it fails on non-Western names and mispronunciation (Can: "not everyone has western names... people mispronounce each others name"). Calendar attendees turn it into *closed-set disambiguation*: not "was a name said?" but "which of these five is this garbled token nearest to?" The right consumer is the AI, not a string matcher — hand it the attendee list and "Shantano" against `Shantanu Desai` is trivial reasoning. Would also retire the manual name entry in Connections, which is doing a job it was never going to do well.
+
+**Transcription engine bake-off — requested 2026-08-02, not started.** Capture and extraction are **separable layers**: what grabs the audio is independent of what turns it into tasks, so the engine can be swapped later without redoing capture. Evaluate **Gemini (current) vs Whisper vs Deepgram** on the same real recordings and ship the winner. Judge on: task-extraction quality against the #9 gate ("are the chips what you'd have written down yourself?"), accuracy on non-Western names and accented speech, cost per hour, latency, and whether audio leaves the client. Best run *after* a few real meetings exist to test against — and note it is downstream of the gate: if the chips are not worth having, a better engine will not save them.
+
 **Gate (unchanged from Components.md):** v1 extraction quality — Wallpaper Test: are the chips what you'd have written down yourself? Mobile multiplies the surface; confirm the extraction earns it first.
 
 ### WEEK — standalone weekly planning companion *(gated)*
@@ -146,7 +170,7 @@
 | Quick capture (without opening app) | No good cross-platform path. iOS has no PWA share target; Siri needs a native app. |
 | Microsoft Notes integration | No clear user need. |
 | Momentum integration | No public API; ICS is inbound-only. |
-| Calendar integration (as agenda) | Not as an agenda/time-blocker — that's planner drift. The read-only day-shape signal version was a conditional candidate for Roadmap #1's "eyes slide" path — the #1 verdict (2026-07-18) did not trigger it (nudge is read every time). Revisit only if a future W-check finds the nudge going stale. Never a pinging events panel. |
+| Calendar integration (as agenda) | **Still rejected as a *displayed* surface** — see Roadmap #9's calendar-triggered capture, which reads the calendar as INPUT only and never renders it. That distinction is the whole line: input to decide when to offer something, never output. Not as an agenda/time-blocker — that's planner drift. The read-only day-shape signal version was a conditional candidate for Roadmap #1's "eyes slide" path — the #1 verdict (2026-07-18) did not trigger it (nudge is read every time). Revisit only if a future W-check finds the nudge going stale. Never a pinging events panel. |
 | Slack / Gmail / stream extraction | Their native unit is a message stream, not a task — turning streams into tasks needs an AI extraction layer (Dia's whole company). Wrong trust model (TODAY reads nothing you didn't type or put on a board), needs server-side token storage (breaks the client-only posture), and renders other people's demands into the calm list — the exact chasing mechanic this table exists to block. Task-unit integrations (Trello, Todoist #6) remain the open lane. |
 
 ### Rejected approaches
