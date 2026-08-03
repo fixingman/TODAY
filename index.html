@@ -3879,9 +3879,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.48.1': 'Memory panel data quality: lifespan now reads as same-day / about a day / N days instead of decimals; streak no longer duplicates when current equals personal-best; keyword noise (trailing colons, stop words, short words) filtered from the "often works on" line.',
-  '2.48.0': 'Memory abstraction: today now generates observations from your behavioral data, surfaces them as pending inferences in the Memory panel for you to confirm or dismiss. Confirmed patterns are injected into AI context (morning nudge, focus companion, triage hints).',
-  '2.47.0': 'Memory panel opens from ✦ in the task bar — what today has learned about you, organized by type, inspectable and clearable.',
+  '2.48.2': 'Sunday recap and Monday intention now know you — confirmed memory patterns flow into both so the reflection and the week-ahead line speak to how you actually work, not just what you did.',
+  '2.48.1': 'Memory panel data quality: lifespan now reads as same-day / about a day / N days instead of decimals; streak no longer duplicates when current equals personal-best; keyword noise filtered from the "often works on" line.',
+  '2.48.0': 'Memory abstraction: today now generates observations from your behavioral data, surfaces them as pending inferences in the Memory panel for you to confirm or dismiss. Confirmed patterns are injected into AI context.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -6320,15 +6320,19 @@ async function _fetchWeekReflection(stats) {
     if (stats.wHT > 0) parts.push(stats.wHK + '/' + stats.wHT + ' habits kept');
     const summary = parts.length > 0 ? parts.join(', ') : 'a quiet week';
     const recentNames = (appMemory.recentCompletedTasks || []).slice(-15).map(e => e.text).filter(Boolean);
-    const taskCtx = recentNames.length > 0 ? ' Tasks included: ' + recentNames.join(', ') + '.' : '';
+    const taskCtx = recentNames.length > 0 ? ' Tasks this week: ' + recentNames.join(', ') + '.' : '';
+    const memCtx = typeof _memoryForAI === 'function' ? _memoryForAI('weekly') : '';
+    const userContent = (memCtx ? 'About this person:\n' + memCtx + '\n\n' : '') +
+      'This week: ' + summary + '.' + taskCtx +
+      ' One sentence — warm and honest, like a friend who knows them noticing what they did this week. Not a motivational poster.';
     const res = await fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         provider: _aiGetProvider(),
         apiKey: key,
-        messages: [{ role: 'user', content: 'This week: ' + summary + '.' + taskCtx + ' One sentence — warm and honest, like a friend noticing what I did. Not a motivational poster.' }],
-        systemPrompt: 'One sentence only. No quotes. Under 20 words. Plain, warm, grounded.',
+        messages: [{ role: 'user', content: userContent }],
+        systemPrompt: 'One sentence only. No quotes. Under 20 words. Plain, warm, grounded. Use what you know about the person to make it specific, not generic.',
       }),
     });
     if (!res.ok) return null;
@@ -6387,14 +6391,17 @@ async function _fetchMondayIntention() {
     if (!key || !navigator.onLine) return null;
     const waiting = manualTasks.slice(0, 5).map((t, i) => (i + 1) + '. "' + t.text + '"');
     const ctx = waiting.length > 0 ? 'Waiting this week: ' + waiting.join(', ') + '.' : 'Fresh week, nothing waiting yet.';
+    const memCtx = typeof _memoryForAI === 'function' ? _memoryForAI('weekly') : '';
+    const userContent = (memCtx ? 'About this person:\n' + memCtx + '\n\n' : '') +
+      ctx + ' One sentence for Monday — what most deserves attention this week, given what you know about how they work.';
     const res = await fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         provider: _aiGetProvider(),
         apiKey: key,
-        messages: [{ role: 'user', content: ctx + ' One sentence for Monday — what most deserves attention this week.' }],
-        systemPrompt: 'One sentence only. No quotes. Under 20 words. Plain, warm, grounded.',
+        messages: [{ role: 'user', content: userContent }],
+        systemPrompt: 'One sentence only. No quotes. Under 20 words. Plain, warm, grounded. Use what you know about how this person works to make the recommendation specific, not generic.',
       }),
     });
     if (!res.ok) return null;
