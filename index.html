@@ -3844,9 +3844,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.45.9': 'Fixed: Trello cards due today now show as urgent in the morning nudge — they were missing the signal that told the AI they mattered today.',
   '2.45.8': 'Focus question: timer bar stays the same size. Answer appears inline on one line, left-aligned.',
   '2.45.7': 'Fixed: triage buttons (Review, Keep, Let go, Done) now use the correct DM Mono font — they were falling back to browser native.',
-  '2.45.6': 'Tap ✦ ask in the timer bar — the bar expands and shows the question right there. Tap to dismiss.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4458,11 +4458,12 @@ async function _fetchDayNudgeAI(review, carriedOver, cards) {
         return (i + 1) + '. "' + t.text + '"' + (signals.length ? ' (' + signals.join(', ') + ')' : '');
       });
 
-    // Trello cards with overdue/checklist markers
+    // Trello cards with due-date and checklist markers
     const cardLines = (cards || []).slice(0, 8).map(t => {
-      const overdue = t.due && t.due.slice(0, 10) < todayStr;
+      const dueDate = t.due && t.due.slice(0, 10);
+      const dueSignal = dueDate === todayStr ? ' — due today' : (dueDate && dueDate < todayStr ? ' — overdue' : '');
       const cl = t.checklist ? ' (' + t.checklist.done + '/' + t.checklist.total + ' checked)' : '';
-      return '"' + t.text + '"' + (overdue ? ' — overdue' : '') + cl;
+      return '"' + t.text + '"' + dueSignal + cl;
     });
 
     // Soon tasks — deferred items the AI can surface if context warrants it

@@ -14,14 +14,14 @@
 
 | # | Description | Status |
 |---|---|---|
-| 067 | Focused task jumps to top of viewport after focus ends — renderManual reorder during focus shifts DOM offset, saved scrollY no longer places task correctly | ⏳ v2.44.1  |
-| 066 | Focus minutes from another device read 0 on the second device — merge adopted the value without stamping its date guard, so the post-restore cleanup banked them as yesterday's | ✅ v2.43.8  |
-| 065 | Focus mode re-opened itself after leaving it; timer bar torn loose on fast task switch (regression from v2.43.0) | ✅ v2.43.7  |
-| 064 | Focusing a Trello card masked its age for one day, then it returned dimmed one tier worse — focus never moved the age basis | ✅ v2.43.6  |
-| 063 | Focus sessions completing just after midnight wiped by daily reset race — stat_focus_mins_today reset to 0 before completeFor could persist | ✅ v2.42.4  |
+| 067 | Focused task jumps near top of viewport after focus ends | ⏳ v2.44.1  |
+| 066 | Focus minutes from another device read 0 on second-device open | ✅ v2.43.8  |
+| 065 | Focus mode re-opened after leaving; timer bar torn loose on fast task switch | ✅ v2.43.7  |
+| 064 | Focused Trello card un-ages for one day then returns at a heavier dim tier | ✅ v2.43.6  |
+| 063 | Focus sessions near midnight wiped by new-day reset race | ✅ v2.42.4  |
 | 062 | Native share-sheet popover opens far from the poem's click point, not fixable from page DOM | 🚫 Rejected  |
 | 061 | Sunday/habit badges silently fail to show on a fresh device (same root cause as BUG-060) | ⏳ v2.37.8  |
-| 060 | Completed Trello card (overdue) reappears as active — persists through normal daily sync, not just fresh device | ✅ v2.40.1  |
+| 060 | Completed Trello card reappears as active after daily sync | ✅ v2.40.1  |
 | 059 | Task card age reset by sync after focus — card re-dims on refresh | ✅ v2.36.5  |
 | 058 | Noticed block in About shows different content between devices | ✅ v2.36.3  |
 | 057 | About "This week" / "New week" AI text differs between devices (cache never synced) | ✅ v2.36.1  |
