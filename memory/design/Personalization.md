@@ -69,3 +69,39 @@ Both original gated candidates resolved with the Roadmap #1 verdict (2026-07-18:
 - **Calendar busy/free day-shape** — **untriggered.** It was the escape hatch for a stale nudge; the verdict found the nudge isn't stale. Stays in `Backlog.md`'s Not-implementing table as a conditional; revisit only if a future W-check finds the nudge going flat.
 
 Current sequencing gate: the **W3 verdict season** (poem coda Jul 28 · brief Jul 30 · Today block Aug 1 · Noticed Aug 2). Four intelligence surfaces await behavioral verdicts — building a fifth before hearing how these four landed repeats the wallpaper mistake the #1 gate existed to prevent.
+
+---
+
+## App memory design — research-grounded principles (2026-08)
+
+> From a research pass across production AI memory systems (ChatGPT, Claude, Mem.ai), user modeling academia, PKM tool communities, and privacy/consent literature. These principles should govern any new memory work before touching `appMemory`.
+
+### Hard constraint
+Memory must be **inspectable and clearable by the user.** Not just deletable in bulk — individual inferences should be viewable and revocable. The Connections panel is the right home: every memory row names what it stores and offers a real disconnect. Opt-in with visible payoff; never opt-out with invisible benefit. Deletion must trace through derived data, not just clear the source entry.
+
+### Abstraction over storage
+Don't store behavior — store conclusions. Completion timestamps, focus session counts, and task keywords are inputs. Memory is what you derive from them: *"tends to finish tasks before noon," "focus clusters Tue/Wed," "breaks projects into ≤30-min chunks."* The transformation step is the design. Storing more raw history degrades quality — expanding preference context from 5 to 25 examples dropped LLM accuracy from 61% to 59% in controlled research. The existing `peakHour` inference from `completionsByHour` is the right pattern to extend.
+
+### Four memory types — store, update, and surface differently
+
+| Type | What it holds | Update rate |
+|---|---|---|
+| **Semantic** | Stable identity traits — "is a morning person," "prefers short tasks" | Slow — months |
+| **Episodic** | Specific recent state — "had three bad focus sessions last week" | Fast — days |
+| **Procedural** | Behavioral habits — "breaks projects into ≤30-min chunks," "avoids admin after 3pm" | Medium — weeks |
+| **Meta** | System's own confidence and data coverage — "I only have 5 days of evening data" | Continuous |
+
+Conflating types produces systems too cautious about small things or overconfident about important ones. Meta memory is underrated — saying "I don't have enough data on X yet" is a feature, not a failure.
+
+### Three temporal scales, different inertia
+- **This week** — high plasticity, updates fast. Episodic state.
+- **This month** — medium inertia, rolling average. Procedural patterns.
+- **Stable identity** — very slow, resists transient noise. Semantic traits.
+
+If a week looks wildly different from the medium window, surface that as a signal rather than immediately updating the long-window model. Don't let a burned-out week erase 6 months of healthy patterns (catastrophic forgetting).
+
+### Trust architecture: AI proposes, user confirms
+Fully automatic inference erodes trust when it's wrong — users have no mental model for why and no path to contest. The pattern that works: **AI generates candidate inferences from behavioral data → surfaces them visibly as hypotheses → user ratifies or rejects.** This converts implicit signal to explicit, authoritative memory without bypassing the user's agency. Connects directly to the *Noticed* block pattern: delta-gated, once on change, user can always inspect.
+
+### Personalization backfire effect
+When users feel surveilled rather than served, personalization *reduces* engagement — measurably, in controlled research. The shift from "helpful" to "creepy" is not predictable from outside; opt-in with visible payoff is safer than opt-out with invisible benefit. Show the user what the system knows and what it did with that knowledge.

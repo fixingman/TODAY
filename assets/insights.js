@@ -52,6 +52,8 @@ let appMemory = (() => {
       suggestionHistory: [],      // [{ taskId, taskText, suggested: 'YYYY-MM-DD', action: 'break_down'|'move_soon'|'dismiss'|... }]
       // Recent completed task texts — rolling 30-day window for type summarization
       recentCompletedTasks: [],   // [{ text, date }]
+      // Typed memory slots — AI-proposed, user-confirmed inferences
+      memory: { semantic: [], episodic: [], procedural: [] },
       // Meta
       firstSeen: _localISO(),
       totalTasksCompleted: 0,
@@ -66,6 +68,7 @@ let appMemory = (() => {
   suggestionCooldowns: {},
   suggestionHistory: [],
   recentCompletedTasks: [],
+  memory: { semantic: [], episodic: [], procedural: [] },
   firstSeen: _localISO(),
   totalTasksCompleted: 0,
   totalDaysActive: 0,
@@ -88,6 +91,10 @@ if (appMemory.patterns.dayStartDate  === undefined) appMemory.patterns.dayStartD
 if (!appMemory.meetingAttribution) appMemory.meetingAttribution = {
   mineShown: 0, mineKept: 0, othersShown: 0, othersSelected: 0,
 };
+if (!appMemory.memory) appMemory.memory = { semantic: [], episodic: [], procedural: [] };
+if (!appMemory.memory.semantic)   appMemory.memory.semantic = [];
+if (!appMemory.memory.episodic)   appMemory.memory.episodic = [];
+if (!appMemory.memory.procedural) appMemory.memory.procedural = [];
 
 // Cumulative accuracy counters for meeting mode's mine/others attribution — not
 // a user-facing surface, just numbers to answer "am I getting the right tasks?"
@@ -356,6 +363,14 @@ function _memoryForAI(scope) {
       });
       lines.push('Habits:\n' + habitSummaries.join('\n'));
     }
+  }
+
+  // Confirmed AI-proposed inferences (Step 5) — user has ratified these via Memory panel
+  const confirmed = ['semantic', 'procedural', 'episodic'].flatMap(t =>
+    (m.memory?.[t] || []).filter(i => i.status === 'confirmed').map(i => i.text)
+  );
+  if (confirmed.length > 0) {
+    lines.push(`Confirmed patterns (ratified by user):\n${confirmed.map(t => `- ${t}`).join('\n')}`);
   }
 
   // Newline-joined: several entries are themselves multi-line (past suggestions,

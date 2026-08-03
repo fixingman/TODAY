@@ -1923,12 +1923,11 @@
     opacity: 0.6;
   }
 
-  /* ✦ submit button — same height as input, accent fill */
-  .add-ai-btn {
-    background: var(--accent);
+  /* ✦ memory button — opens Memory panel */
+  .memory-btn {
+    background: none;
     border: none;
-    border-radius: var(--radius-lg);
-    color: var(--bg);
+    color: var(--muted);
     font-size: var(--text-lg);
     width: 44px;
     height: 44px;
@@ -1937,104 +1936,12 @@
     justify-content: center;
     cursor: pointer;
     flex-shrink: 0;
-    transition: width var(--dur-fast) var(--ease-out), opacity var(--dur-fast), background var(--dur-fast);
-    line-height: 1;
-    box-sizing: border-box;
-    overflow: visible;
-    white-space: nowrap;
-    position: relative;
+    opacity: var(--opacity-label);
+    transition: opacity var(--dur-fast), color var(--dur-fast);
     touch-action: manipulation;
   }
-
-  /* AI suggestion indicator — breathing dot */
-  .add-ai-btn .ai-badge {
-    position: absolute;
-    top: -2px;
-    right: -2px;
-    width: 8px;
-    height: 8px;
-    background: var(--accent);
-    border-radius: 50%;
-    pointer-events: none;
-    /* Breathe animation is WAAPI (_breathe in _aiProactiveSuggestion) — survives _forceRepaint */
-  }
-
-  /* On hover: widen to fit two then three stars via sequential keyframe */
-  /* Hover: ✦ → ✦✦✦ in 180ms — Feedback motion type */
-  .add-ai-btn {
-    position: relative;
-    overflow: hidden;
-  }
-  .add-ai-btn:hover {
-    opacity: 1;
-    width: 72px; /* room for ✦✦✦ */
-  }
-  .add-ai-btn:active {
-    opacity: 0.7;
-    transform: scale(0.96);
-  }
-  
-  /* Expanding stars on hover — fade in at staggered delays */
-  .add-ai-btn::before,
-  .add-ai-btn::after {
-    content: '✦';
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: 0;
-    font-size: inherit;
-    transition: opacity var(--dur-fast) ease-out;
-    pointer-events: none;
-  }
-  .add-ai-btn::before {
-    left: 8px;
-  }
-  .add-ai-btn::after {
-    right: 8px;
-  }
-  .add-ai-btn:hover::before {
-    opacity: 1;
-    transition-delay: 60ms;
-  }
-  .add-ai-btn:hover::after {
-    opacity: 1;
-    transition-delay: 120ms;
-  }
-
-  /* AI offline state — no connectivity */
-  .add-ai-btn.offline {
-    background: var(--surface2);
-    color: var(--muted);
-    box-shadow: inset 0 0 0 1px var(--border);
-    cursor: not-allowed;
-    pointer-events: none;
-  }
-  .add-ai-btn.offline::before,
-  .add-ai-btn.offline::after {
-    display: none;
-  }
-  .add-ai-btn.offline .ai-badge {
-    display: none;
-  }
-
-  /* AI ask state — text in the bar that ✦ would send to the assistant */
-  .add-ai-btn.ask {
-    box-shadow: inset 0 0 0 1px var(--accent-glow);
-  }
-
-  /* AI active state — panel open */
-  .add-ai-btn.active {
-    background: var(--surface2);
-    color: var(--accent);
-    box-shadow: inset 0 0 0 1px var(--accent);
-  }
-  .add-ai-btn.active::before,
-  .add-ai-btn.active::after {
-    display: none;
-  }
-  .add-ai-btn.active .ai-badge {
-    display: none;
-  }
+  .memory-btn:hover { opacity: 1; color: var(--text); }
+  .memory-btn.active { opacity: 1; color: var(--accent); }
 
   /* ── Component: Meeting Mode (v2.22.0 desktop, v2.28.0 mobile) ───────
      Mic button in the add bar starts a listening session; a non-blocking
@@ -2565,14 +2472,7 @@
       font-size: var(--text-lg);
     }
 
-    /* Mobile: single star only, no hover expansion */
-    .add-ai-btn {
-      width: 44px !important;
-    }
-    .add-ai-btn::before,
-    .add-ai-btn::after {
-      display: none !important;
-    }
+    /* Mobile: memory button — no changes needed */
   }
 
   .config-field {
@@ -3312,6 +3212,130 @@
     min-width: 80px;
   }
   #meetingNameInput::placeholder { color: var(--muted); opacity: 0.7; }
+
+  /* ── Memory panel ────────────────────────────────────────────────────── */
+  #memoryPanel {
+    padding: var(--space-5) var(--space-4) var(--space-4);
+  }
+  .memory-intro {
+    color: var(--muted);
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+    margin-bottom: var(--space-5);
+    opacity: var(--opacity-label);
+  }
+  .memory-type-block {
+    margin-bottom: var(--space-5);
+  }
+  .memory-type-header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+  .memory-type-name {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.08em;
+    color: var(--text);
+    opacity: var(--opacity-label);
+    text-transform: uppercase;
+  }
+  .memory-type-desc {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted);
+    opacity: var(--opacity-label);
+  }
+  .memory-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .memory-item:last-child { border-bottom: none; }
+  .memory-item-text {
+    flex: 1;
+    font-size: var(--text-sm);
+    color: var(--text);
+    opacity: var(--opacity-strong);
+    line-height: 1.5;
+  }
+  .memory-item-forget {
+    background: none;
+    border: none;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0 var(--space-1);
+    opacity: 0;
+    transition: opacity var(--dur-fast);
+    flex-shrink: 0;
+    align-self: center;
+  }
+  .memory-item:hover .memory-item-forget { opacity: var(--opacity-label); }
+  .memory-item-forget:hover { opacity: 1 !important; color: var(--danger); }
+  .memory-empty {
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    color: var(--muted);
+    opacity: var(--opacity-label);
+    padding: var(--space-1) 0;
+    letter-spacing: 0.04em;
+  }
+  .memory-pending {
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    color: var(--muted);
+    opacity: var(--opacity-label);
+    padding: var(--space-1) 0;
+    letter-spacing: 0.04em;
+    font-style: italic;
+  }
+  .memory-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border);
+  }
+  .memory-clear-btn {
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    opacity: var(--opacity-label);
+  }
+  .memory-clear-btn:hover { opacity: 1; color: var(--danger); }
+  .memory-conn-link {
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    opacity: var(--opacity-label);
+    cursor: pointer;
+  }
+  .memory-conn-link:hover { opacity: 1; }
+  .memory-item-pending .memory-item-text { font-style: italic; }
+  .memory-item-actions { display: flex; gap: var(--space-1); flex-shrink: 0; align-self: center; }
+  .memory-item-confirm, .memory-item-dismiss {
+    background: none; border: none; font-family: var(--font-mono);
+    font-size: var(--text-xs); cursor: pointer; padding: 0 var(--space-1);
+    color: var(--muted); opacity: var(--opacity-label);
+    transition: color var(--dur-fast), opacity var(--dur-fast);
+  }
+  .memory-item-confirm:hover { opacity: 1; color: var(--accent); }
+  .memory-item-dismiss:hover { opacity: 1; color: var(--danger); }
+  .memory-abstracting {
+    font-size: var(--text-xs); font-family: var(--font-mono);
+    color: var(--muted); opacity: var(--opacity-label);
+    padding: var(--space-3) 0 0; letter-spacing: 0.04em;
+  }
+
   #aiPanel {
     position: fixed !important;
     left: 0 !important;
@@ -3737,7 +3761,7 @@
     </svg>
   </button>
   <!-- Single ✦: Enter = add task, tap = AI (or add task if AI not configured) -->
-  <button class="add-ai-btn" id="addAiBtn" onclick="handleBarSubmit()" title="Ask anything">✦</button>
+  <button class="memory-btn" id="addAiBtn" onclick="toggleMemory()" title="Memory">✦</button>
 </div>
 
 <!-- Voice note: recording pill (v2.24.0) -->
@@ -3797,6 +3821,16 @@
   </div>
 </div>
 
+
+<div class="config-panel" id="memoryPanel">
+  <div class="config-title">✦&#xFE0E; Memory</div>
+  <div class="memory-intro">what today has learned about you</div>
+  <div id="memoryContent"></div>
+  <div class="memory-footer">
+    <button class="btn-ghost memory-clear-btn" onclick="_memoryClearAll()">clear all memory</button>
+    <span class="memory-conn-link" onclick="toggleConfig(); toggleMemory()">Connections →</span>
+  </div>
+</div>
 <div id="undoToast" role="status" aria-live="polite">
   <span id="undoMsg">Task removed</span>
   <button onclick="_undoLast()">Undo</button>
@@ -3843,6 +3877,8 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.48.0': 'Memory abstraction: today now generates observations from your behavioral data, surfaces them as pending inferences in the Memory panel for you to confirm or dismiss. Confirmed patterns are injected into AI context (morning nudge, focus companion, triage hints).',
+  '2.47.0': 'Memory panel opens from ✦ in the task bar — what today has learned about you, organized by type, inspectable and clearable.',
   '2.46.1': 'Focus companion question now reads the task history — sessions, age, revived, deferred. The question shifts to fit.',
   '2.46.0': 'Focus progress bar now stays visible while the AI question loads and shows — you can always see how much time remains.',
   '2.45.9': 'Fixed: Trello cards due today now show as urgent in the morning nudge — they were missing the signal that told the AI they mattered today.',
@@ -3877,6 +3913,7 @@ function _cacheElements() {
   $.configPanel   = document.getElementById('configPanel');
   $.habitsPanel   = document.getElementById('habitsPanel');
   $.infoPanel     = document.getElementById('infoPanel');
+  $.memoryPanel   = document.getElementById('memoryPanel');
   
   // Triage
   $.triageBar     = document.getElementById('triageBar');
@@ -5367,12 +5404,6 @@ function init() {
     renderTrello();
   }
 
-  // Set AI button tooltip with assistant name + offline state
-  const aiBtn = document.getElementById('addAiBtn');
-  if (aiBtn) {
-    if (appMemory.aiName) aiBtn.title = `Ask ${appMemory.aiName}`;
-    if (!navigator.onLine) { aiBtn.classList.add('offline'); aiBtn.textContent = '✧'; }
-  }
   _applyOfflinePanel();
 
   // Version and AI config
@@ -5447,11 +5478,12 @@ function syncActiveButtons() {
   const habitsOpen = $.habitsPanel.classList.contains('open');
   const configOpen = $.configPanel.classList.contains('open');
   const infoOpen   = $.infoPanel.classList.contains('open');
+  const memoryOpen = $.memoryPanel?.classList.contains('open');
   document.getElementById('habitsBtn').classList.toggle('active', habitsOpen);
   document.getElementById('trelloBtn').classList.toggle('active', configOpen);
   document.getElementById('infoBtn').classList.toggle('active',   infoOpen);
-  // addAiBtn in the input bar: active when in AI mode
-  if ($.addAiBtn) $.addAiBtn.classList.toggle('active', _aiPanelOpen);
+  if ($.addAiBtn) $.addAiBtn.classList.toggle('active', memoryOpen);
+
 }
 
 function toggleConfig() {
@@ -5507,6 +5539,328 @@ function toggleInfo() {
       localStorage.setItem('today_seen_version', APP_VERSION);
       _versionBadgeBreathe();
     }
+  }
+}
+
+
+// ── Memory Panel ─────────────────────────────────────────────────────────────
+
+function toggleMemory() {
+  const scrollY = window.scrollY;
+  const panel = $.memoryPanel;
+  const isOpening = !panel.classList.contains('open');
+  if (isOpening) {
+    panel.style.animation = '';
+    panel.classList.add('open');
+  } else {
+    panel.classList.remove('open');
+  }
+  $.configPanel.classList.remove('open');
+  $.habitsPanel.classList.remove('open');
+  $.infoPanel.classList.remove('open');
+  syncActiveButtons();
+  window.scrollTo(0, scrollY);
+  if (isOpening) { renderMemoryPanel(); _memoryAbstract(); }
+}
+
+function renderMemoryPanel() {
+  const el = document.getElementById('memoryContent');
+  if (!el) return;
+  const m = appMemory;
+  if (!m) { el.innerHTML = '<div class="memory-empty">no data yet</div>'; return; }
+
+  function typeBlock(name, desc, items, pendingNote) {
+    const rows = items.length
+      ? items.map(item => item.pending
+          ? `<div class="memory-item memory-item-pending">` +
+            `<span class="memory-item-text">${item.text}</span>` +
+            `<span class="memory-item-actions">` +
+            `<button class="memory-item-confirm" onclick="_memoryConfirm('${item.confirmKey}')" title="keep">✓</button>` +
+            `<button class="memory-item-dismiss" onclick="_memoryDismiss('${item.dismissKey}')">✕</button>` +
+            `</span></div>`
+          : `<div class="memory-item">` +
+            `<span class="memory-item-text">${item.text}</span>` +
+            (item.forgetKey
+              ? `<button class="memory-item-forget" onclick="_memoryForget('${item.forgetKey}')">forget</button>`
+              : '') +
+            `</div>`
+        ).join('')
+      : pendingNote
+        ? `<div class="memory-pending">${pendingNote}</div>`
+        : `<div class="memory-empty">nothing here yet</div>`;
+    return `<div class="memory-type-block">` +
+      `<div class="memory-type-header">` +
+      `<span class="memory-type-name">${name}</span>` +
+      `<span class="memory-type-desc">${desc}</span>` +
+      `</div>${rows}</div>`;
+  }
+
+  // ── SEMANTIC: stable identity traits ──────────────────────────────────────
+  const semanticItems = [];
+  const peakHour = m.preferences?.peakHour;
+  if (peakHour !== null && peakHour !== undefined) {
+    const h = parseInt(peakHour);
+    const period = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+    const label = h === 0 ? 'midnight' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`;
+    semanticItems.push({ text: `tends to get most done around ${label} — a ${period} person` });
+  }
+  const samples = m.patterns?.taskLifespanSamples || [];
+  if (samples.length >= 5) {
+    const avg = (samples.reduce((a, b) => a + b, 0) / samples.length).toFixed(1);
+    semanticItems.push({ text: `tasks typically close in about ${avg} day${avg === '1.0' ? '' : 's'}` });
+  }
+  // AI-confirmed semantic inferences (Step 4, stored in m.memory?.semantic)
+  (m.memory?.semantic || []).filter(i => i.status === 'confirmed').forEach(i => {
+    semanticItems.push({ text: i.text, forgetKey: `semantic:${i.id}` });
+  });
+  (m.memory?.semantic || []).filter(i => i.status === 'pending').forEach(i => {
+    semanticItems.push({ text: i.text, pending: true, confirmKey: `semantic:${i.id}`, dismissKey: `semantic:${i.id}` });
+  });
+
+  // ── EPISODIC: what has been happening lately ──────────────────────────────
+  const episodicItems = [];
+  const recent = (m.recentCompletedTasks || []);
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+  const weekAgoISO = weekAgo.toISOString().slice(0, 10);
+  const thisWeek = recent.filter(e => e.date >= weekAgoISO);
+  if (thisWeek.length > 0) {
+    episodicItems.push({ text: `completed ${thisWeek.length} task${thisWeek.length === 1 ? '' : 's'} in the last 7 days` });
+  }
+  const streak = parseInt(localStorage.getItem('stat_streak') || '0');
+  if (streak >= 2) {
+    episodicItems.push({ text: `on a ${streak}-day streak` });
+  }
+  (m.memory?.episodic || []).filter(i => i.status === 'confirmed').forEach(i => {
+    episodicItems.push({ text: i.text, forgetKey: `episodic:${i.id}` });
+  });
+  (m.memory?.episodic || []).filter(i => i.status === 'pending').forEach(i => {
+    episodicItems.push({ text: i.text, pending: true, confirmKey: `episodic:${i.id}`, dismissKey: `episodic:${i.id}` });
+  });
+
+  // ── PROCEDURAL: how you tend to work ─────────────────────────────────────
+  const proceduralItems = [];
+  const lateAdds = (m.patterns?.lateAdditions || []);
+  const dayStart = m.patterns?.dayStartCount;
+  if (lateAdds.length >= 5 && dayStart !== null && dayStart !== undefined) {
+    const recentLate = lateAdds.slice(-20);
+    const avgLate = recentLate.reduce((a, b) => a + b, 0) / recentLate.length;
+    if (avgLate >= 11) {
+      proceduralItems.push({ text: `tends to add tasks reactively — most additions happen after the day starts` });
+    } else {
+      proceduralItems.push({ text: `mostly plans ahead — tasks are usually set before the day begins` });
+    }
+  }
+  const keywords = m.patterns?.taskKeywords || {};
+  const topWords = Object.entries(keywords)
+    .filter(([w, d]) => d.completed >= 3 && w.length > 3)
+    .sort(([, a], [, b]) => b.completed - a.completed)
+    .slice(0, 3)
+    .map(([w]) => w);
+  if (topWords.length >= 2) {
+    proceduralItems.push({ text: `often works on: ${topWords.join(', ')}` });
+  }
+  if ((m.patterns?.focusMinutesTotal || 0) > 0) {
+    const hrs = (m.patterns.focusMinutesTotal / 60).toFixed(1);
+    proceduralItems.push({ text: `${hrs} hours of deep focus logged across all sessions` });
+  }
+  (m.memory?.procedural || []).filter(i => i.status === 'confirmed').forEach(i => {
+    proceduralItems.push({ text: i.text, forgetKey: `procedural:${i.id}` });
+  });
+  (m.memory?.procedural || []).filter(i => i.status === 'pending').forEach(i => {
+    proceduralItems.push({ text: i.text, pending: true, confirmKey: `procedural:${i.id}`, dismissKey: `procedural:${i.id}` });
+  });
+
+  // ── META: what today knows it knows ───────────────────────────────────────
+  const metaItems = [];
+  if (m.firstSeen) {
+    const since = new Date(m.firstSeen);
+    const days = Math.round((Date.now() - since.getTime()) / 86400000);
+    metaItems.push({ text: `tracking since ${m.firstSeen} — ${days} day${days === 1 ? '' : 's'} of data` });
+  }
+  if (m.totalTasksCompleted > 0) {
+    metaItems.push({ text: `${m.totalTasksCompleted} tasks completed total` });
+  }
+  const coverageNotes = [];
+  if ((m.patterns?.focusMinutesTotal || 0) === 0) coverageNotes.push('no focus session data yet');
+  if (!peakHour) coverageNotes.push('not enough completion data for timing patterns');
+  if (coverageNotes.length) {
+    metaItems.push({ text: `gaps: ${coverageNotes.join(' · ')}` });
+  }
+
+  el.innerHTML =
+    typeBlock('SEMANTIC', '— stable things today has concluded about you', semanticItems,
+      'needs more data to form stable conclusions') +
+    typeBlock('EPISODIC', '— what has been happening lately', episodicItems,
+      'no recent activity to report') +
+    typeBlock('PROCEDURAL', '— how you tend to work', proceduralItems,
+      'patterns will appear after more activity') +
+    typeBlock('META', '— what today has seen and how confident it is', metaItems);
+}
+
+function _memoryForget(key) {
+  if (!appMemory?.memory) return;
+  const [type, id] = key.split(':');
+  if (appMemory.memory[type]) {
+    appMemory.memory[type] = appMemory.memory[type].filter(i => i.id !== id);
+    _saveMemory();
+    renderMemoryPanel();
+  }
+}
+
+function _memoryClearAll() {
+  if (!confirm('Clear all of today\'s memory about you? This cannot be undone.')) return;
+  if (appMemory) {
+    appMemory.preferences = { peakHour: null, dragKeywords: [] };
+    appMemory.patterns = {
+      completionsByHour: {}, taskKeywords: {}, focusMinutesTotal: appMemory.patterns?.focusMinutesTotal || 0,
+      bestStreak: 0, taskLifespanSamples: [], lateAdditions: [],
+      dayStartCount: null, dayStartDate: null, dayShapeState: null,
+    };
+    appMemory.memory = { semantic: [], episodic: [], procedural: [] };
+    appMemory.recentCompletedTasks = [];
+    appMemory.moments = [];
+    appMemory.suggestionHistory = [];
+    _saveMemory();
+  }
+  renderMemoryPanel();
+}
+
+function _memoryConfirm(key) {
+  if (!appMemory?.memory) return;
+  const [type, id] = key.split(':');
+  const slot = appMemory.memory[type];
+  if (!slot) return;
+  const item = slot.find(i => i.id === id);
+  if (item) { item.status = 'confirmed'; _saveMemory(); renderMemoryPanel(); }
+}
+
+function _memoryDismiss(key) {
+  if (!appMemory?.memory) return;
+  const [type, id] = key.split(':');
+  const slot = appMemory.memory[type];
+  if (!slot) return;
+  appMemory.memory[type] = slot.filter(i => i.id !== id);
+  _saveMemory();
+  renderMemoryPanel();
+}
+
+async function _memoryAbstract() {
+  if (!_aiIsConfigured() || !navigator.onLine) return;
+  const m = appMemory;
+
+  // Let user clear pending items before generating more
+  const hasPending = ['semantic', 'episodic', 'procedural'].some(t =>
+    (m.memory?.[t] || []).some(i => i.status === 'pending')
+  );
+  if (hasPending) return;
+
+  // Throttle: once per day
+  if (m.memory?._lastAbstractDate === _localISO()) return;
+
+  // Require minimum signal
+  if ((m.totalTasksCompleted || 0) < 5) return;
+
+  const el = document.getElementById('memoryContent');
+  if (el) {
+    const note = document.createElement('div');
+    note.className = 'memory-abstracting';
+    note.textContent = 'noticing…';
+    el.appendChild(note);
+  }
+
+  try {
+    const completionHours = Object.entries(m.patterns?.completionsByHour || {})
+      .sort(([, a], [, b]) => b - a).slice(0, 3)
+      .map(([h, c]) => `${h}:00 (${c})`).join(', ');
+
+    const lifespanSamples = (m.patterns?.taskLifespanSamples || []).slice(-10);
+    const avgLifespan = lifespanSamples.length >= 3
+      ? (lifespanSamples.reduce((a, b) => a + b, 0) / lifespanSamples.length).toFixed(1) : null;
+
+    const lateAdds = m.patterns?.lateAdditions || [];
+    const lateAddPct = lateAdds.length >= 5
+      ? Math.round(lateAdds.filter(h => h >= 14).length / lateAdds.length * 100) : null;
+
+    const topKeywords = Object.entries(m.patterns?.taskKeywords || {})
+      .filter(([w, d]) => d.completed >= 2 && w.length > 3)
+      .sort(([, a], [, b]) => b.completed - a.completed).slice(0, 5)
+      .map(([w, d]) => `${w} (${d.completed} done, avg ${(d.avgDaysToComplete || 0).toFixed(1)}d)`);
+
+    const dailyHistory = (typeof safeJSON === 'function') ? safeJSON('today_daily_history', []) : [];
+    const byDow = {};
+    dailyHistory.slice(-14).forEach(e => {
+      const dow = new Date(e.date).getDay();
+      if (!byDow[dow]) byDow[dow] = [];
+      byDow[dow].push(e.tasksDone || 0);
+    });
+    const dowNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dowPattern = Object.entries(byDow)
+      .filter(([, vals]) => vals.length >= 2)
+      .map(([d, vals]) => `${dowNames[d]}: avg ${(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)}`)
+      .join(', ');
+
+    const alreadyConfirmed = ['semantic', 'episodic', 'procedural'].flatMap(t =>
+      (m.memory?.[t] || []).filter(i => i.status === 'confirmed').map(i => i.text)
+    );
+
+    const dataLines = [
+      completionHours ? `Most active hours: ${completionHours}` : null,
+      avgLifespan !== null ? `Avg task lifespan: ${avgLifespan} days (${lifespanSamples.length} samples)` : null,
+      lateAddPct !== null ? `Tasks added after 2pm: ${lateAddPct}% (${lateAdds.length} obs)` : null,
+      topKeywords.length ? `Frequent task types: ${topKeywords.join(', ')}` : null,
+      (m.patterns?.focusMinutesTotal || 0) > 0 ? `Total focus: ${Math.round(m.patterns.focusMinutesTotal)} min` : null,
+      m.totalTasksCompleted ? `Total completed: ${m.totalTasksCompleted}` : null,
+      dowPattern ? `Day-of-week pattern: ${dowPattern}` : null,
+      alreadyConfirmed.length ? `Already confirmed: ${alreadyConfirmed.join('; ')}` : null,
+    ].filter(Boolean).join('\n');
+
+    const systemPrompt = 'Analyze user data and return ONLY a valid JSON array. No prose, no code fences. The array may be empty. Each item: {"type":"semantic"|"episodic"|"procedural","text":"..."}.';
+    const userMsg = `Productivity app behavioral data:\n${dataLines}\n\nGenerate 1–2 observations a rule-based system would miss — cross-cutting patterns, correlations, or surprises. type=semantic for stable traits, episodic for recent patterns, procedural for work habits. Text ≤10 words, lowercase, no period, describes the person. Skip thin data. Avoid restating confirmed list. Return [] if nothing new.`;
+
+    const key = _aiGetKey();
+    const provider = _aiGetProvider();
+    const res = await fetch('/.netlify/functions/ai-assist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, apiKey: key, messages: [{ role: 'user', content: userMsg }], systemPrompt }),
+    });
+    if (!res.ok) return;
+
+    const data = await res.json();
+    const raw = _parseAIText(data)?.trim();
+    if (!raw) return;
+
+    const jsonMatch = raw.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return;
+
+    let inferences;
+    try { inferences = JSON.parse(jsonMatch[0]); } catch (_e) { return; }
+    if (!Array.isArray(inferences)) return;
+
+    const validTypes = ['semantic', 'episodic', 'procedural'];
+    let added = 0;
+    for (const inf of inferences) {
+      if (!validTypes.includes(inf.type) || typeof inf.text !== 'string' || !inf.text.trim()) continue;
+      const slot = m.memory[inf.type];
+      const textLower = inf.text.toLowerCase();
+      if (slot.some(i => i.text.toLowerCase().startsWith(textLower.slice(0, 8)))) continue;
+      slot.push({
+        id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        text: inf.text.trim(),
+        type: inf.type,
+        confidence: 0.7,
+        source: 'ai_abstract',
+        addedAt: _localISO(),
+        status: 'pending',
+      });
+      added++;
+    }
+    m.memory._lastAbstractDate = _localISO();
+    _saveMemory();
+  } catch (_e) {
+    // silent fail
+  } finally {
+    renderMemoryPanel();
   }
 }
 
@@ -7079,21 +7433,7 @@ function updateManualEmptyState(animate) {
 // ✦ tap → AI if configured (with or without text); task if not configured.
 function handleBarKey(e) {
   if (e.key === 'Escape' && _aiPanelOpen) { closeAI(); return; }
-  if (e.key === 'Enter') {
-    // If AI panel is open and configured, send to AI instead of adding task
-    if (_aiPanelOpen && _aiIsConfigured()) {
-      const input = document.getElementById('newTask');
-      const text = (input?.value || '').trim();
-      if (text) {
-        input.value = '';
-        toggleClearBtn();
-        _aiSendFromInput(text);
-      }
-      e.preventDefault();
-      return;
-    }
-    addManual();
-  }
+  if (e.key === 'Enter') addManual();
 }
 
 let _aiPanelOpen = false; // declared here (not in the AI module) — init() needs it via _updateBarPlaceholder()
@@ -7102,45 +7442,9 @@ let _aiPanelOpen = false; // declared here (not in the AI module) — init() nee
 // the type-then-✦ flow is otherwise invisible (Backlog: input bar discoverability)
 function _updateBarPlaceholder() {
   const input = document.getElementById('newTask');
-  if (!input || _aiPanelOpen) return;
-  input.placeholder = _aiIsConfigured()
-    ? 'Add a task or ask ✦'
-    : "What's on your mind?";
+  if (input) input.placeholder = "What's on your mind?";
 }
 
-function handleBarSubmit() {
-  const input = document.getElementById('newTask');
-  const text  = (input?.value || '').trim();
-
-  if (_aiIsConfigured()) {
-    if (text) {
-      // Text present → send to AI immediately, clear field
-      input.value = '';
-      toggleClearBtn();
-      if (!_aiPanelOpen) openAI(true); // skip auto-load — we send our own request next
-      _aiSendFromInput(text);
-    } else {
-      // Empty → open the AI panel itself (or close if already open). Used to
-      // show a special "daily brief" (nudge + poem) here instead — retired
-      // (Backlog W3 verdict, 2026-07-28): revealing an unrelated feature only
-      // on an empty tap of a button labeled "Ask anything" had no discoverable
-      // connection to what the button says it does, and About already covers
-      // the same ground (nudge, poem) through its own honest, predictable path.
-      if (_aiPanelOpen) { closeAI(); } else { openAI(); }
-    }
-  } else {
-    // Not configured: add as task if text, else nudge to Connections
-    if (text) {
-      addManual();
-    } else {
-      toggleConfig();
-      setTimeout(() => {
-        document.getElementById('aiConfigSection')
-          ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 350);
-    }
-  }
-}
 
 // ── Desktop shortcut: Shift+; → focus add input ───────────────────────────
 // Mirrors the ':' key press (Shift+; on US layout). Only fires when no input
@@ -7496,13 +7800,6 @@ function toggleClearBtn() {
   const input = document.getElementById('newTask');
   const btn   = document.getElementById('clearTaskBtn');
   if (btn) btn.style.display = input.value.length > 0 ? 'block' : 'none';
-  // ✦ shifts to its ask affordance while there's text it would send to the AI
-  const ai = document.getElementById('addAiBtn');
-  if (ai) {
-    const ask = input.value.length > 0 && _aiIsConfigured() && !_aiPanelOpen;
-    ai.classList.toggle('ask', ask);
-    ai.title = ask ? 'Ask ✦' : 'Ask anything';
-  }
 }
 
 function clearTaskInput() {
@@ -12174,35 +12471,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
 
 let _aiProactiveDismissedThisSession = false;
 
-function _aiProactiveSuggestion() {
-  // Don't show if AI not configured
-  if (!_aiIsConfigured()) return;
-  
-  // Don't show if user dismissed this session
-  if (_aiProactiveDismissedThisSession) return;
-  
-  // Don't show if AI panel is open
-  if (_aiPanelOpen) return;
-  
-  // Don't show if badge already showing
-  if (_aiBadgeShown) return;
-  
-  // Count done manual tasks
-  const doneManualCount = manualTasks.filter(t => doneIds.has(t.id)).length;
-  
-  // Trigger: ≥3 done tasks
-  if (doneManualCount < 3) return;
-  
-  // Show badge on ✦ button
-  const btn = document.getElementById('addAiBtn');
-  if (!btn || btn.querySelector('.ai-badge')) return;
-  
-  const badge = document.createElement('span');
-  badge.className = 'ai-badge';
-  btn.appendChild(badge);
-  _breathe(badge, _KF_BREATHE_SMALL, 2400);
-  _aiBadgeShown = true;
-}
+function _aiProactiveSuggestion() { /* disabled — addAiBtn repurposed as Memory */ }
 
 function _aiClearBadge() {
   const badge = document.querySelector('.add-ai-btn .ai-badge');
