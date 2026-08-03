@@ -12735,7 +12735,7 @@ function _aiClearBadge() {
     focusAIBtn.textContent = 'thinking…';
     focusAIBtn.classList.add('loading');
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      _thinkAnim = focusAIBtn.animate([{ opacity: 0.2 }, { opacity: 0.65 }, { opacity: 0.2 }], { duration: 2000, easing: 'ease-in-out', iterations: Infinity });
+      _thinkAnim = focusAIBtn.animate([{ opacity: 0.25 }, { opacity: 0.65 }, { opacity: 0.25 }], { duration: 2400, easing: 'ease-in-out', iterations: Infinity });
     }
 
     const _focusCtrl = new AbortController();
