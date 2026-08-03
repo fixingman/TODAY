@@ -3669,6 +3669,17 @@
     </div>
   </div>
 
+  <!-- Memory panel -->
+  <div class="config-panel" id="memoryPanel">
+    <div class="config-title">✦&#xFE0E; Memory</div>
+    <div class="memory-intro">what today has learned about you</div>
+    <div id="memoryContent"></div>
+    <div class="memory-footer">
+      <button class="btn-ghost memory-clear-btn" onclick="_memoryClearAll()">clear all memory</button>
+      <span class="memory-conn-link" onclick="toggleConfig(); toggleMemory()">Connections →</span>
+    </div>
+  </div>
+
   <!-- SOON section (collapsed by default) -->
   <div class="section zone-section" id="soonSection" style="display:none">
     <div class="section-header zone-header" onclick="toggleZone('soon')">
@@ -3818,17 +3829,6 @@
       <button class="ai-nl-btn" onclick="_aiAskFromPanel()">→</button>
     </div>
     <div class="ai-bar-tip" id="aiBarTip" style="display:none">tip — next time, type in the bar below and tap ✦ to ask directly</div>
-  </div>
-</div>
-
-
-<div class="config-panel" id="memoryPanel">
-  <div class="config-title">✦&#xFE0E; Memory</div>
-  <div class="memory-intro">what today has learned about you</div>
-  <div id="memoryContent"></div>
-  <div class="memory-footer">
-    <button class="btn-ghost memory-clear-btn" onclick="_memoryClearAll()">clear all memory</button>
-    <span class="memory-conn-link" onclick="toggleConfig(); toggleMemory()">Connections →</span>
   </div>
 </div>
 <div id="undoToast" role="status" aria-live="polite">
@@ -5609,6 +5609,8 @@ function renderMemoryPanel() {
     const avg = (samples.reduce((a, b) => a + b, 0) / samples.length).toFixed(1);
     semanticItems.push({ text: `tasks typically close in about ${avg} day${avg === '1.0' ? '' : 's'}` });
   }
+  const best = m.patterns?.bestStreak || 0;
+  if (best >= 3) semanticItems.push({ text: `longest streak: ${best} day${best === 1 ? '' : 's'}` });
   // AI-confirmed semantic inferences (Step 4, stored in m.memory?.semantic)
   (m.memory?.semantic || []).filter(i => i.status === 'confirmed').forEach(i => {
     semanticItems.push({ text: i.text, forgetKey: `semantic:${i.id}` });
@@ -5803,6 +5805,8 @@ async function _memoryAbstract() {
       (m.memory?.[t] || []).filter(i => i.status === 'confirmed').map(i => i.text)
     );
 
+    const recentTexts = (m.recentCompletedTasks || []).slice(-10).map(e => e.text).filter(Boolean);
+
     const dataLines = [
       completionHours ? `Most active hours: ${completionHours}` : null,
       avgLifespan !== null ? `Avg task lifespan: ${avgLifespan} days (${lifespanSamples.length} samples)` : null,
@@ -5811,11 +5815,12 @@ async function _memoryAbstract() {
       (m.patterns?.focusMinutesTotal || 0) > 0 ? `Total focus: ${Math.round(m.patterns.focusMinutesTotal)} min` : null,
       m.totalTasksCompleted ? `Total completed: ${m.totalTasksCompleted}` : null,
       dowPattern ? `Day-of-week pattern: ${dowPattern}` : null,
+      recentTexts.length ? `Recent completed tasks (last 10): ${recentTexts.join(' · ')}` : null,
       alreadyConfirmed.length ? `Already confirmed: ${alreadyConfirmed.join('; ')}` : null,
     ].filter(Boolean).join('\n');
 
     const systemPrompt = 'Analyze user data and return ONLY a valid JSON array. No prose, no code fences. The array may be empty. Each item: {"type":"semantic"|"episodic"|"procedural","text":"..."}.';
-    const userMsg = `Productivity app behavioral data:\n${dataLines}\n\nGenerate 1–2 observations a rule-based system would miss — cross-cutting patterns, correlations, or surprises. type=semantic for stable traits, episodic for recent patterns, procedural for work habits. Text ≤10 words, lowercase, no period, describes the person. Skip thin data. Avoid restating confirmed list. Return [] if nothing new.`;
+    const userMsg = `Productivity app behavioral data:\n${dataLines}\n\nGenerate 1–2 observations a rule-based system would miss — cross-cutting patterns, correlations, or surprises. type=semantic for stable traits, episodic for recent patterns (days), procedural for work habits (weeks). If recent tasks look unusually different from the keyword patterns, surface that as an episodic signal rather than updating the long-term model. Text ≤10 words, lowercase, no period, describes the person. Skip thin data. Avoid restating confirmed list. Return [] if nothing new.`;
 
     const key = _aiGetKey();
     const provider = _aiGetProvider();
