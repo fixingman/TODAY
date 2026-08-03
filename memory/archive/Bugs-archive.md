@@ -877,3 +877,17 @@ Architectural dead end: with a CSS animation, every `display:none/block` repaint
 **Fix:** New `today_trello_lastactive` map MAX-merging across devices, pushed forward at both focus sites — making the Trello age basis structurally identical to the manual path. BUG-043's override left in place, now harmless.
 
 **Adjacent:** BUG-059 fixed the sync half of Trello aging; this is the day-boundary half.
+
+## BUG-066: Focus minutes from another device read 0, and overwrite yesterday's history
+
+**Status:** ✅ Verified fixed (v2.43.8)
+
+**Symptom:** Can worked a focus session on desktop PWA; opened mobile PWA later the same day; focus minutes showed 0.
+
+**Root cause:** `mergeRemoteData()` adopted the remote `stat_focus_mins_today` but never wrote `stat_focus_mins_date` with it. `applyNewDayCleanup()` runs *after* the Dropbox restore by explicit design (`init()` — "so we always clean the freshest data"), so it read a stale date, concluded the just-merged minutes were yesterday's, wrote them into `today_daily_history` as yesterday's entry, and zeroed today's counter. Two harms from one omission.
+
+**Not a regression.** The merge never stamped that date. Before BUG-063 (v2.42.4) the cleanup reset unconditionally and wiped harder; that fix added the right shape of guard but cannot help when nothing writes the date it reads.
+
+**Fix (v2.43.8):** stamp `stat_focus_mins_date = _getAppDay()` whenever the merge adopts a value — safe because `mergedFocusMins` only differs from local when remote's date-gated today-value won, so the merged number is definitionally today's. Plus: if the local counter was still on yesterday with unbanked minutes, hand them to `stat_focus_mins_yesterday_snapshot` (the channel BUG-063 established) so stamping today does not cost yesterday its history entry.
+
+**Lesson:** a synced value and its date guard are one unit. Writing the value without the guard leaves the next reader — here a cleanup that deliberately runs afterwards — to infer the wrong day. Sibling of the BUG-064 lesson in `Sync.md`: merge semantics are part of a key's meaning.

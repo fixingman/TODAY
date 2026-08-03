@@ -15,7 +15,7 @@
 | # | Description | Status |
 |---|---|---|
 | 067 | Focused task jumps to top of viewport after focus ends — renderManual reorder during focus shifts DOM offset, saved scrollY no longer places task correctly | ⏳ v2.44.1  |
-| 066 | Focus minutes from another device read 0 on the second device — merge adopted the value without stamping its date guard, so the post-restore cleanup banked them as yesterday's | ⏳ v2.43.8  |
+| 066 | Focus minutes from another device read 0 on the second device — merge adopted the value without stamping its date guard, so the post-restore cleanup banked them as yesterday's | ✅ v2.43.8  |
 | 065 | Focus mode re-opened itself after leaving it; timer bar torn loose on fast task switch (regression from v2.43.0) | ✅ v2.43.7  |
 | 064 | Focusing a Trello card masked its age for one day, then it returned dimmed one tier worse — focus never moved the age basis | ✅ v2.43.6  |
 | 063 | Focus sessions completing just after midnight wiped by daily reset race — stat_focus_mins_today reset to 0 before completeFor could persist | ✅ v2.42.4  |
@@ -112,22 +112,6 @@
 **Fix:** None. The disproven `.focus()` call and its supporting `tabindex="-1"` were removed (v2.40.8) rather than left as dead code implying an effect that doesn't exist.
 
 **Status:** Closed as a platform limitation, not a bug in our code — mirrors BUG-041's precedent (iOS splash white-flash) for issues ruled out of app-code control after direct investigation. Revisit only if a future browser API (e.g. a hypothetical `ShareData.anchor`) offers real control.
-
----
-
-## BUG-066: Focus minutes from another device read 0, and overwrite yesterday's history
-
-**Symptom:** Can worked a focus session on desktop PWA; opened mobile PWA later the same day; focus minutes showed 0.
-
-**Root cause:** `mergeRemoteData()` adopted the remote `stat_focus_mins_today` but never wrote `stat_focus_mins_date` with it. `applyNewDayCleanup()` runs *after* the Dropbox restore by explicit design (`init()` — "so we always clean the freshest data"), so it read a stale date, concluded the just-merged minutes were yesterday's, wrote them into `today_daily_history` as yesterday's entry, and zeroed today's counter. Two harms from one omission.
-
-**Not a regression.** The merge never stamped that date. Before BUG-063 (v2.42.4) the cleanup reset unconditionally and wiped harder; that fix added the right shape of guard but cannot help when nothing writes the date it reads.
-
-**Fix (v2.43.8):** stamp `stat_focus_mins_date = _getAppDay()` whenever the merge adopts a value — safe because `mergedFocusMins` only differs from local when remote's date-gated today-value won, so the merged number is definitionally today's. Plus: if the local counter was still on yesterday with unbanked minutes, hand them to `stat_focus_mins_yesterday_snapshot` (the channel BUG-063 established) so stamping today does not cost yesterday its history entry.
-
-**Lesson:** a synced value and its date guard are one unit. Writing the value without the guard leaves the next reader — here a cleanup that deliberately runs afterwards — to infer the wrong day. Sibling of the BUG-064 lesson in `Sync.md`: merge semantics are part of a key's meaning.
-
-**Status:** ⏳ Fix shipped v2.43.8 — awaiting real-device verification. **What to check:** run a focus session on one device, then open the other later the same day — the minutes should match. Covered by `scripts/focus-test.mjs` section 4.
 
 ---
 
