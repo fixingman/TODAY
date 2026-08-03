@@ -12697,7 +12697,14 @@ function _aiClearBadge() {
 
   function _focusResetAI() {
     timerEl.classList.remove('ai-active');
-    if (focusAIBtn) { focusAIBtn.classList.remove('loading'); focusAIBtn.textContent = '\u2726 ask'; }
+    if (focusAIBtn) {
+      if (focusAIBtn._breatheAnim) { focusAIBtn._breatheAnim.cancel(); focusAIBtn._breatheAnim = null; }
+      focusAIBtn.classList.remove('loading');
+      focusAIBtn.textContent = '\u2726\ufe0e ask';
+      // Block hover for one frame so dismissing insight doesn't leave btn in hover state
+      focusAIBtn.style.pointerEvents = 'none';
+      requestAnimationFrame(() => { if (focusAIBtn) focusAIBtn.style.pointerEvents = ''; });
+    }
   }
 
   async function _focusAskAI() {
@@ -12724,8 +12731,9 @@ function _aiClearBadge() {
     if (_deferred)      _ctx.push('was deferred to Soon, then returned to today');
 
     timerEl.classList.add('ai-active');
-    focusAIBtn.textContent = 'thinking…';
+    focusAIBtn.textContent = '✦︎ ask';
     focusAIBtn.classList.add('loading');
+    focusAIBtn._breatheAnim = _breathe(focusAIBtn, _KF_BLINK, 1200);
 
     const _focusCtrl = new AbortController();
     const _focusAbortTimer = setTimeout(() => _focusCtrl.abort(), 25000);
