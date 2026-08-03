@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.46.0** | **Fix: focus progress fill stays visible during AI question states.** Removed `.focus-timer-fill` from the `.focus-timer.ai-active` fade rule — only `.focus-timer-time` and `#focusPaused` fade out. The fill continues animating behind the answer text (it's `position: absolute` at z-index below the button). |
 | **2.45.9** | **Fix: Trello cards due today now carry a signal in the morning nudge prompt.** `dueDate < todayStr` only matched overdue (past) cards. A card due today (`dueDate === todayStr`) got no marker — the AI saw just the card name with no urgency signal. Added `dueDate === todayStr ? ' — due today'` branch so same-day deadlines are explicitly flagged. |
 | **2.45.8** | **Fix: focus timer bar no longer changes height when AI question is active.** Removed `max-height: 80px` / `height: auto` expansion from `.focus-timer.ai-active`. Button stays `position: absolute` in all states — in ai-active: `left: var(--space-4); right: var(--space-4)` (spans full bar), `white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left`. Bar remains exactly 34px. AI prompt shortened from 20→18 words. |
 | **2.45.7** | **Fix: triage buttons now render in DM Mono.** `.triage-btn` had no explicit `font-family` — browsers don't inherit font-family onto `<button>` elements from the body, so they fell back to system UI. Added `font-family: var(--font-mono)` to `.triage-btn`. Affects all triage actions (Review, Keep, Let go, Done, Soon). |

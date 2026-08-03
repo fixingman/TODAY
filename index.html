@@ -342,8 +342,7 @@
     /* Hide when session is complete — bar turns into restart prompt */
     .focus-timer.complete .focus-ai-timer-btn { display: none; }
 
-    /* ai-active: bar stays exactly 34px — fill/time/paused fade, button spans full width */
-    .focus-timer.ai-active .focus-timer-fill,
+    /* ai-active: bar stays exactly 34px — time/paused fade, fill keeps showing progress */
     .focus-timer.ai-active .focus-timer-time,
     .focus-timer.ai-active #focusPaused { opacity: 0; pointer-events: none; }
     .focus-timer.ai-active .focus-ai-timer-btn {
@@ -3844,9 +3843,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.46.0': 'Focus progress bar now stays visible while the AI question loads and shows — you can always see how much time remains.',
   '2.45.9': 'Fixed: Trello cards due today now show as urgent in the morning nudge — they were missing the signal that told the AI they mattered today.',
   '2.45.8': 'Focus question: timer bar stays the same size. Answer appears inline on one line, left-aligned.',
-  '2.45.7': 'Fixed: triage buttons (Review, Keep, Let go, Done) now use the correct DM Mono font — they were falling back to browser native.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
