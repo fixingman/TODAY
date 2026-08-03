@@ -3320,6 +3320,7 @@
     cursor: pointer;
   }
   .memory-conn-link:hover { opacity: 1; }
+  .memory-confirm-msg { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text); opacity: var(--opacity-strong); }
   .memory-item-pending .memory-item-text { font-style: italic; }
   .memory-item-actions { display: flex; gap: var(--space-1); flex-shrink: 0; align-self: center; }
   .memory-item-confirm, .memory-item-dismiss {
@@ -3674,10 +3675,7 @@
     <div class="config-title">✦&#xFE0E; Memory</div>
     <div class="memory-intro">what today has learned about you</div>
     <div id="memoryContent"></div>
-    <div class="memory-footer">
-      <button class="btn-ghost memory-clear-btn" onclick="_memoryClearAll()">clear all memory</button>
-      <span class="memory-conn-link" onclick="toggleConfig(); toggleMemory()">Connections →</span>
-    </div>
+    <div id="memoryFooter"></div>
   </div>
 
   <!-- SOON section (collapsed by default) -->
@@ -5498,6 +5496,7 @@ function toggleConfig() {
   }
   $.infoPanel.classList.remove('open');
   $.habitsPanel.classList.remove('open');
+  $.memoryPanel?.classList.remove('open');
   syncActiveButtons();
   window.scrollTo(0, scrollY); // Restore scroll position
   if (isOpening) {
@@ -5524,6 +5523,7 @@ function toggleInfo() {
   }
   $.configPanel.classList.remove('open');
   $.habitsPanel.classList.remove('open');
+  $.memoryPanel?.classList.remove('open');
   syncActiveButtons();
   window.scrollTo(0, scrollY); // Restore scroll position
   if (isOpening) {
@@ -5697,20 +5697,48 @@ function renderMemoryPanel() {
     typeBlock('PROCEDURAL', '— how you tend to work', proceduralItems,
       'patterns will appear after more activity') +
     typeBlock('META', '— what today has seen and how confident it is', metaItems);
+
+  const footer = document.getElementById('memoryFooter');
+  if (footer) footer.innerHTML = _memoryClearPending
+    ? `<div class="memory-footer">` +
+      `<span class="memory-confirm-msg">erase everything?</span>` +
+      `<span style="display:flex;gap:var(--space-3)">` +
+      `<button class="btn-ghost memory-clear-btn" style="opacity:1;color:var(--danger)" onclick="_memoryClearConfirm()">yes, clear</button>` +
+      `<button class="btn-ghost memory-conn-link" onclick="_memoryClearCancel()">cancel</button>` +
+      `</span></div>`
+    : `<div class="memory-footer">` +
+      `<button class="btn-ghost memory-clear-btn" onclick="_memoryClearRequest()">clear all memory</button>` +
+      `<span class="memory-conn-link" onclick="_memoryGoToConnections()">Connections →</span>` +
+      `</div>`;
 }
 
-function _memoryForget(key) {
-  if (!appMemory?.memory) return;
-  const [type, id] = key.split(':');
-  if (appMemory.memory[type]) {
-    appMemory.memory[type] = appMemory.memory[type].filter(i => i.id !== id);
-    _saveMemory();
-    renderMemoryPanel();
-  }
+let _memoryClearPending = false;
+
+function _memoryGoToConnections() {
+  $.memoryPanel.classList.remove('open');
+  syncActiveButtons();
+  if (!$.configPanel.classList.contains('open')) toggleConfig();
 }
 
-function _memoryClearAll() {
-  if (!confirm('Clear all of today\'s memory about you? This cannot be undone.')) return;
+function _memoryClearRequest() {
+  _memoryClearPending = true;
+  const footer = document.getElementById('memoryFooter');
+  if (footer) footer.innerHTML =
+    `<div class="memory-footer">` +
+    `<span class="memory-confirm-msg">erase everything?</span>` +
+    `<span style="display:flex;gap:var(--space-3)">` +
+    `<button class="btn-ghost memory-clear-btn" style="opacity:1;color:var(--danger)" onclick="_memoryClearConfirm()">yes, clear</button>` +
+    `<button class="btn-ghost memory-conn-link" onclick="_memoryClearCancel()">cancel</button>` +
+    `</span></div>`;
+}
+
+function _memoryClearCancel() {
+  _memoryClearPending = false;
+  renderMemoryPanel();
+}
+
+function _memoryClearConfirm() {
+  _memoryClearPending = false;
   if (appMemory) {
     appMemory.preferences = { peakHour: null, dragKeywords: [] };
     appMemory.patterns = {
@@ -5726,6 +5754,18 @@ function _memoryClearAll() {
   }
   renderMemoryPanel();
 }
+
+function _memoryForget(key) {
+  if (!appMemory?.memory) return;
+  const [type, id] = key.split(':');
+  if (appMemory.memory[type]) {
+    appMemory.memory[type] = appMemory.memory[type].filter(i => i.id !== id);
+    _saveMemory();
+    renderMemoryPanel();
+  }
+}
+
+function _memoryClearAll() { _memoryClearRequest(); } // kept for any legacy callers
 
 function _memoryConfirm(key) {
   if (!appMemory?.memory) return;
@@ -6945,6 +6985,7 @@ function toggleHabits() {
   }
   $.configPanel.classList.remove('open');
   document.getElementById('infoPanel').classList.remove('open');
+  $.memoryPanel?.classList.remove('open');
   syncActiveButtons();
   window.scrollTo(0, scrollY); // Restore scroll position
   if (isOpening) {
