@@ -3223,7 +3223,14 @@
     opacity: var(--opacity-label);
   }
   .memory-type-block {
-    margin-bottom: var(--space-5);
+    padding-bottom: var(--space-4);
+    margin-bottom: var(--space-4);
+    border-bottom: 1px solid var(--border);
+  }
+  .memory-type-block:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
   }
   .memory-type-header {
     display: flex;
@@ -3250,9 +3257,7 @@
     align-items: flex-start;
     gap: var(--space-2);
     padding: var(--space-1) 0;
-    border-bottom: 1px solid var(--border);
   }
-  .memory-item:last-child { border-bottom: none; }
   .memory-item-text {
     flex: 1;
     font-size: var(--text-sm2);
