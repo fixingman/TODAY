@@ -139,7 +139,10 @@ function _memoryOnTaskComplete(taskText, taskId) {
   appMemory.preferences.peakHour = peakHour;
   
   // Track keywords (simple word extraction)
-  const words = _stripTag(taskText).toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  const _kStopWords = new Set(['about','after','also','back','been','before','call','check','done','from','have','into','just','make','more','need','send','some','take','than','that','them','then','they','this','were','what','when','will','with','your']);
+  const words = _stripTag(taskText).toLowerCase().split(/\s+/)
+    .map(w => w.replace(/[^a-z]/g, ''))
+    .filter(w => w.length >= 5 && !_kStopWords.has(w));
   for (const word of words) {
     if (!appMemory.patterns.taskKeywords[word]) {
       appMemory.patterns.taskKeywords[word] = { completed: 0 };

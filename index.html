@@ -3874,9 +3874,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.48.1': 'Memory panel data quality: lifespan now reads as same-day / about a day / N days instead of decimals; streak no longer duplicates when current equals personal-best; keyword noise (trailing colons, stop words, short words) filtered from the "often works on" line.',
   '2.48.0': 'Memory abstraction: today now generates observations from your behavioral data, surfaces them as pending inferences in the Memory panel for you to confirm or dismiss. Confirmed patterns are injected into AI context (morning nudge, focus companion, triage hints).',
   '2.47.0': 'Memory panel opens from ✦ in the task bar — what today has learned about you, organized by type, inspectable and clearable.',
-  '2.46.1': 'Focus companion question now reads the task history — sessions, age, revived, deferred. The question shifts to fit.',
   '2.46.0': 'Focus progress bar now stays visible while the AI question loads and shows — you can always see how much time remains.',
   '2.45.9': 'Fixed: Trello cards due today now show as urgent in the morning nudge — they were missing the signal that told the AI they mattered today.',
 };
@@ -5605,11 +5605,16 @@ function renderMemoryPanel() {
   }
   const samples = m.patterns?.taskLifespanSamples || [];
   if (samples.length >= 5) {
-    const avg = (samples.reduce((a, b) => a + b, 0) / samples.length).toFixed(1);
-    semanticItems.push({ text: `tasks typically close in about ${avg} day${avg === '1.0' ? '' : 's'}` });
+    const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+    let lifespanText;
+    if (avg < 0.5) lifespanText = 'most tasks close the same day';
+    else if (avg < 1.5) lifespanText = 'tasks typically take about a day to close';
+    else lifespanText = `tasks typically close in about ${Math.round(avg)} day${Math.round(avg) === 1 ? '' : 's'}`;
+    semanticItems.push({ text: lifespanText });
   }
   const best = m.patterns?.bestStreak || 0;
-  if (best >= 3) semanticItems.push({ text: `longest streak: ${best} day${best === 1 ? '' : 's'}` });
+  const _curStreak = parseInt(localStorage.getItem('stat_streak') || '0');
+  if (best >= 3 && best > _curStreak) semanticItems.push({ text: `longest streak: ${best} day${best === 1 ? '' : 's'}` });
   // AI-confirmed semantic inferences (Step 4, stored in m.memory?.semantic)
   (m.memory?.semantic || []).filter(i => i.status === 'confirmed').forEach(i => {
     semanticItems.push({ text: i.text, forgetKey: `semantic:${i.id}` });
@@ -5652,8 +5657,10 @@ function renderMemoryPanel() {
     }
   }
   const keywords = m.patterns?.taskKeywords || {};
+  const _memStopWords = new Set(['about','after','also','back','been','before','call','check','done','from','have','into','just','make','more','need','send','some','take','than','that','them','then','they','this','were','what','when','will','with','your']);
   const topWords = Object.entries(keywords)
-    .filter(([w, d]) => d.completed >= 3 && w.length > 3)
+    .map(([w, d]) => [w.replace(/[^a-z]/g, ''), d])
+    .filter(([w, d]) => d.completed >= 3 && w.length >= 5 && !_memStopWords.has(w))
     .sort(([, a], [, b]) => b.completed - a.completed)
     .slice(0, 3)
     .map(([w]) => w);
