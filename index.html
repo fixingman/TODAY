@@ -3843,9 +3843,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.46.1': 'Focus companion question now reads the task history — sessions, age, revived, deferred. The question shifts to fit.',
   '2.46.0': 'Focus progress bar now stays visible while the AI question loads and shows — you can always see how much time remains.',
   '2.45.9': 'Fixed: Trello cards due today now show as urgent in the morning nudge — they were missing the signal that told the AI they mattered today.',
-  '2.45.8': 'Focus question: timer bar stays the same size. Answer appears inline on one line, left-aligned.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -12376,6 +12376,23 @@ function _aiClearBadge() {
     const taskText = (uiTaskEl && uiTaskEl.querySelector('.task-text')?.textContent?.trim()) || '';
     if (!taskText) return;
 
+    // Gather task history signals to shape the coaching question
+    const _taskObj = (typeof manualTasks !== 'undefined' && manualTasks.find(t => t.id === uiTaskId)) || null;
+    const _sessions = _taskObj
+      ? (parseInt(_taskObj.focusSessions) || 0)
+      : (typeof _getTrelloFocus === 'function' ? (_getTrelloFocus()[uiTaskId] || 0) : 0);
+    const _ageDays = _taskObj && typeof _getCreatedFromId === 'function'
+      ? Math.floor((Date.now() - (_taskObj.lastActive || _getCreatedFromId(uiTaskId))) / 86400000)
+      : 0;
+    const _revived  = !!(_taskObj && _taskObj.revived);
+    const _deferred = !!(_taskObj && _taskObj.zoneChangedAt);
+
+    const _ctx = [];
+    if (_sessions > 0) _ctx.push(_sessions + ' previous focus session' + (_sessions > 1 ? 's' : '') + ' on this task');
+    if (_ageDays >= 3)  _ctx.push(_ageDays + ' days old');
+    if (_revived)       _ctx.push('revived from past — the person let it go and came back');
+    if (_deferred)      _ctx.push('was deferred to Soon, then returned to today');
+
     timerEl.classList.add('ai-active');
     focusAIBtn.textContent = 'thinking…';
     focusAIBtn.classList.add('loading');
@@ -12394,9 +12411,9 @@ function _aiClearBadge() {
           apiKey: key,
           messages: [{
             role: 'user',
-            content: 'Task: ' + taskText
+            content: 'Task: "' + taskText + '"' + (_ctx.length ? '\nContext: ' + _ctx.join(', ') + '.' : '')
           }],
-          systemPrompt: 'You are the quiet companion in a minimal daily task app. The user is starting a 25-minute focus session. Ask them one question — the kind a thoughtful friend asks before they disappear into work. Read the task text for its real meaning, not just the words. Surface a challenge behind it, or what done-enough looks like right now. One question only. Under 18 words. No preamble, no quotation marks, no emoji, no exclamation marks. Just the question.'
+          systemPrompt: `You are the quiet companion in a minimal daily task app. The user is about to start a 25-minute focus session. Ask one question — the kind a thoughtful friend asks before they disappear into work. Not a coach, not a prompt. A moment of honest noticing. Let the context shape the question: first session — what does done-enough look like for this sitting? Multiple sessions — be curious about what's actually in the way, not nagging, just noticing. Revived task — they came back to it, what feels different now? Long-standing or deferred — gentle, not guilty, still on your mind? Read the task for its real meaning. One question only. Under 18 words. No preamble, no quotation marks, no emoji, no exclamation marks. Just the question.`
         })
       });
       clearTimeout(_focusAbortTimer);
