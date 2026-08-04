@@ -15,7 +15,7 @@
 | # | Description | Status |
 |---|---|---|
 | 068 | Trello card 🍅 session count resets every morning | ✅ v2.48.4  |
-| 067 | Focused task jumps near top of viewport after focus ends | ⏳ v2.44.1  |
+| 067 | Focused task jumps near top of viewport after focus ends | ✅ v2.44.1  |
 | 066 | Focus minutes from another device read 0 on second-device open | ✅ v2.43.8  |
 | 065 | Focus mode re-opened after leaving; timer bar torn loose on fast task switch | ✅ v2.43.7  |
 | 064 | Focused Trello card un-ages for one day then returns at a heavier dim tier | ✅ v2.43.6  |
@@ -128,12 +128,3 @@
 
 ---
 
-## BUG-067: Focused task jumps to top of viewport after focus ends
-
-**Symptom:** A task that was mid-list and centered during a focus session appears at the very top of the viewport (almost out of view) once focus closes. Can: "when i came back when focus was over, the task moved to the top of the view, and almost out of viewport on the scroll list."
-
-**Root cause:** Focus mode locks scroll by setting `position:fixed; top:-${scrollY}px` on `body`, saving `scrollY` at lock time. While focus is active, `visibilitychange` on tab return fires `syncDropbox()` → `mergeRemoteData()` → `renderManual()`, which rebuilds the task list. If `renderManual()` reorders tasks (e.g. the focused task's `lastActive` was just updated to `Date.now()`, moving it toward the top), the task's document offset changes. On close, `closeUI` restores `scrollY` correctly — but the task is now at a different offset in the rebuilt DOM. At the original `scrollY`, the task now sits near the top edge rather than at center.
-
-**Fix (v2.44.1):** `openUI` saves the task's viewport Y (`getBoundingClientRect().top`) into `dataset.focusTaskTop` at lock time, after any nudge scroll. `closeUI` compares this saved Y to the task's actual viewport Y after scroll restoration. If the task drifted more than 2px, `window.scrollTo` is called a second time to compensate by exactly the delta — restoring the task to the same visual row it occupied when focus started. No change when the DOM didn't move (delta ≈ 0).
-
-**Status:** ⏳ Fix shipped v2.44.1 — awaiting real-device verification. **What to check:** start focus on a mid-list task, switch tabs (trigger a Dropbox sync), return and exit focus. Task should be in the same place on screen, not near the top.

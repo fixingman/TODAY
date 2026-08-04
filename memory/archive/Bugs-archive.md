@@ -903,3 +903,15 @@ Architectural dead end: with a CSS animation, every `display:none/block` repaint
 **Fix (v2.43.8):** stamp `stat_focus_mins_date = _getAppDay()` whenever the merge adopts a value — safe because `mergedFocusMins` only differs from local when remote's date-gated today-value won, so the merged number is definitionally today's. Plus: if the local counter was still on yesterday with unbanked minutes, hand them to `stat_focus_mins_yesterday_snapshot` (the channel BUG-063 established) so stamping today does not cost yesterday its history entry.
 
 **Lesson:** a synced value and its date guard are one unit. Writing the value without the guard leaves the next reader — here a cleanup that deliberately runs afterwards — to infer the wrong day. Sibling of the BUG-064 lesson in `Sync.md`: merge semantics are part of a key's meaning.
+
+---
+
+## BUG-067: Focused task jumps to top of viewport after focus ends
+
+**Status:** ✅ Verified fixed (v2.44.1)
+
+**Symptom:** A task that was mid-list and centered during a focus session appears at the very top of the viewport (almost out of view) once focus closes. Can: "when i came back when focus was over, the task moved to the top of the view, and almost out of viewport on the scroll list."
+
+**Root cause:** Focus mode locks scroll by setting `position:fixed; top:-${scrollY}px` on `body`, saving `scrollY` at lock time. While focus is active, `visibilitychange` on tab return fires `syncDropbox()` → `mergeRemoteData()` → `renderManual()`, which rebuilds the task list. If `renderManual()` reorders tasks (e.g. the focused task's `lastActive` was just updated to `Date.now()`, moving it toward the top), the task's document offset changes. On close, `closeUI` restores `scrollY` correctly — but the task is now at a different offset in the rebuilt DOM. At the original `scrollY`, the task now sits near the top edge rather than at center.
+
+**Fix (v2.44.1):** `openUI` saves the task's viewport Y (`getBoundingClientRect().top`) into `dataset.focusTaskTop` at lock time, after any nudge scroll. `closeUI` compares this saved Y to the task's actual viewport Y after scroll restoration. If the task drifted more than 2px, `window.scrollTo` is called a second time to compensate by exactly the delta — restoring the task to the same visual row it occupied when focus started. No change when the DOM didn't move (delta ≈ 0).
