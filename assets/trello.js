@@ -285,6 +285,12 @@ async function loadTrello(fromSync) {
     for (const id of Object.keys(_la)) if (!_present.has(id)) { delete _la[id]; _laChanged = true; }
     if (_laChanged) _setTrelloLastActive(_la);
 
+    // Same pruning for the lifetime focus-total map so departed cards don't accumulate.
+    const _ft = _getTrelloFocusTotal();
+    let _ftChanged = false;
+    for (const id of Object.keys(_ft)) if (!_present.has(id)) { delete _ft[id]; _ftChanged = true; }
+    if (_ftChanged) _setTrelloFocusTotal(_ft);
+
     // Apply synced order if available (cards not in order list go to the end)
     const savedOrder = safeJSON('today_trello_order', []);
     if (savedOrder.length > 0) {

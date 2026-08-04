@@ -3879,9 +3879,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.48.4': 'Fix: Trello card 🍅 sessions now persist across days (BUG-068). Previously the session count reset every morning; now a lifetime total accumulates per card, syncs cross-device via MAX-merge, and is pruned when a card leaves the board.',
   '2.48.3': 'Fix: focus ask button — "thinking…" text restored during loading; pulse animation now breathes gently (0.2–0.65 opacity, 2 s) and is cancelled before the question text appears, so neither the question nor the reset button inherit the loading animation.',
   '2.48.2': 'Sunday recap and Monday intention now know you — confirmed memory patterns flow into both so the reflection and the week-ahead line speak to how you actually work, not just what you did.',
-  '2.48.1': 'Memory panel data quality: lifespan now reads as same-day / about a day / N days instead of decimals; streak no longer duplicates when current equals personal-best; keyword noise filtered from the "often works on" line.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4667,7 +4667,7 @@ async function _fetchTriageHints(tasks) {
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   
   // Read once before map — not inside the loop (was reading N times per render)
-  const focusData = safeJSON('today_trello_focus', {});
+  const focusData = safeJSON('today_trello_focus_total', {});
 
   const taskContexts = tasks.map(t => {
     const created = t.lastActive || t.createdAt || _getCreatedFromId(t.id);
@@ -4772,7 +4772,7 @@ function renderTriageList() {
   const list = document.getElementById('triageList');
   
   // Read once before map — not inside the loop (was reading N times per render)
-  const focusData = safeJSON('today_trello_focus', {});
+  const focusData = safeJSON('today_trello_focus_total', {});
 
   list.innerHTML = allUndone.map(t => {
     const decision = triageDecisions[t.id];
@@ -4885,7 +4885,7 @@ function triageApplyAll() {
   // Track decisions for AI learning
   const hour = new Date().getHours();
   const dayOfWeek = new Date().getDay();
-  const focusData = safeJSON('today_trello_focus', {});
+  const focusData = safeJSON('today_trello_focus_total', {});
   
   // Process manual tasks
   undoneManual.forEach(t => {
@@ -6705,7 +6705,7 @@ function taskHTML(task, type) {
     : '';
 
   const sessions = type === 'trello'
-    ? (_getTrelloFocus()[task.id] || 0)
+    ? (_getTrelloFocusTotal()[task.id] || 0)
     : (parseInt(task.focusSessions) || 0);
   const sessionBadge = sessions > 0
     ? `<span class="session-count has-sessions">${sessions} 🍅</span>`
@@ -8105,6 +8105,11 @@ const _setTrelloFocus = (map) => {
   localStorage.setItem('today_trello_focus', JSON.stringify(map));
   localStorage.setItem('today_trello_focus_date', _getAppDay());
 };
+// Lifetime session totals per Trello card — persists across days, never date-wiped.
+// The daily focus map (_getTrelloFocus) handles the activity/un-dim signal (BUG-043/064);
+// this total map is the display count and AI context source.
+const _getTrelloFocusTotal = () => safeJSON('today_trello_focus_total', {});
+const _setTrelloFocusTotal = (map) => localStorage.setItem('today_trello_focus_total', JSON.stringify(map));
 
 // Trello first-seen: {trello_<id>: firstSeenMs}. Age basis so a card ages from when it entered
 // YOUR list, not its Trello creation date (BUG-049). Persists across days (NOT daily-reset like
@@ -8610,8 +8615,9 @@ async function dropboxBackup(silent) {
     // Trello order — synced so drag order persists across devices
     trello_order:      safeJSON('today_trello_order', []),
     trello_order_at:   localStorage.getItem('today_trello_order_at') || '', // recency for merge (BUG-042)
-    today_trello_focus:      safeJSON('today_trello_focus', {}),
-    today_trello_focus_date: localStorage.getItem('today_trello_focus_date') || '',
+    today_trello_focus:       safeJSON('today_trello_focus', {}),
+    today_trello_focus_date:  localStorage.getItem('today_trello_focus_date') || '',
+    today_trello_focus_total: safeJSON('today_trello_focus_total', {}), // MAX-merge, no date guard
     today_trello_firstseen:  safeJSON('today_trello_firstseen', {}), // MIN-merge, no date guard (BUG-049)
     today_trello_lastactive: safeJSON('today_trello_lastactive', {}), // MAX-merge, no date guard (BUG-064)
     // Zones — SOON and PAST (v5.0)
@@ -9230,6 +9236,18 @@ function mergeRemoteData(data) {
     if (_laChg) { _setTrelloLastActive(_mergedLA); renderTrello(); _changed = true; }
   }
 
+  // ── Trello focus total: MAX-merge, no date guard ──
+  // Lifetime session counts persist across days — highest count on any device wins.
+  if (data.today_trello_focus_total && typeof data.today_trello_focus_total === 'object') {
+    const _localFT = _getTrelloFocusTotal();
+    const _mergedFT = { ..._localFT };
+    let _ftChg = false;
+    for (const [_id, _cnt] of Object.entries(data.today_trello_focus_total)) {
+      if (!_mergedFT[_id] || _cnt > _mergedFT[_id]) { _mergedFT[_id] = _cnt; _ftChg = true; }
+    }
+    if (_ftChg) { _setTrelloFocusTotal(_mergedFT); renderTrello(); _changed = true; }
+  }
+
   // ── Triage dismissed: sync across devices ──
   // If remote shows triage was dismissed today (or more recently), apply it locally
   const remoteDismissed = data.triage_dismissed || '';
@@ -9442,6 +9460,10 @@ async function dropboxRestore(fromSync) {
       // Same treatment for last-active; next sync tick MAX-merges local-only entries (BUG-064).
       if (data.today_trello_lastactive && typeof data.today_trello_lastactive === 'object') {
         localStorage.setItem('today_trello_lastactive', JSON.stringify(data.today_trello_lastactive));
+      }
+      // Lifetime Trello focus totals — take remote wholesale; next sync tick MAX-merges local-only.
+      if (data.today_trello_focus_total && typeof data.today_trello_focus_total === 'object') {
+        localStorage.setItem('today_trello_focus_total', JSON.stringify(data.today_trello_focus_total));
       }
       // Stats (flow_rate is calculated live from visible tasks, not stored)
       // Date guard: only restore focus mins if the backup is from today,
@@ -13267,14 +13289,17 @@ function _aiClearBadge() {
       if (badge) { badge.textContent = manualTasks[manualIdx].focusSessions + ' 🍅'; badge.classList.add('has-sessions'); }
       return;
     }
-    // Trello task
+    // Trello task — write to daily map (activity/un-dim signal) AND total map (display)
     const focusMap = _getTrelloFocus();
     focusMap[taskId] = (focusMap[taskId] || 0) + 1;
     _setTrelloFocus(focusMap);
+    const totalMap = _getTrelloFocusTotal();
+    totalMap[taskId] = (totalMap[taskId] || 0) + 1;
+    _setTrelloFocusTotal(totalMap);
     _markTrelloActive(taskId); // persistent un-age (BUG-064)
     const taskDom = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
     const badge = taskDom ? taskDom.querySelector('.session-count') : null;
-    if (badge) { badge.textContent = focusMap[taskId] + ' 🍅'; badge.classList.add('has-sessions'); }
+    if (badge) { badge.textContent = totalMap[taskId] + ' 🍅'; badge.classList.add('has-sessions'); }
   }
 
   // ── Tab visibility correction ─────────────────────────────────────────────

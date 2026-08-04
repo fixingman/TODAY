@@ -878,6 +878,18 @@ Architectural dead end: with a CSS animation, every `display:none/block` repaint
 
 **Adjacent:** BUG-059 fixed the sync half of Trello aging; this is the day-boundary half.
 
+## BUG-068: Trello card 🍅 session count resets every morning
+
+**Status:** ✅ Fixed (v2.48.4)
+
+**Symptom:** 🍅 tomato badge on a Trello card showed sessions worked today but reset to zero the next morning. Manual tasks accumulated sessions indefinitely; Trello cards did not.
+
+**Root cause:** `today_trello_focus` served two roles — (1) daily activity signal for un-dimming aged cards (BUG-043/064), and (2) display count. Day-rollover logic at `applyNewDayCleanup()` wiped the whole map each morning to reset the activity signal, discarding the display count along with it.
+
+**Fix (v2.48.4):** Added `today_trello_focus_total` — a permanent per-card lifetime counter. `_logSession()` now writes to both maps. All display reads (badge, triage AI context, triage panel) switch to the total. The daily map continues its existing role as the un-dim signal only. Syncs cross-device via MAX-merge (same pattern as `today_trello_lastactive`). Pruned in `loadTrello()` when cards leave the board (same pattern as `today_trello_firstseen`/`today_trello_lastactive`).
+
+---
+
 ## BUG-066: Focus minutes from another device read 0, and overwrite yesterday's history
 
 **Status:** ✅ Verified fixed (v2.43.8)
