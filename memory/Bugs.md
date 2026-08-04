@@ -14,6 +14,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 068 | Trello card 🍅 session count resets every morning | ✅ v2.48.4  |
 | 067 | Focused task jumps near top of viewport after focus ends | ⏳ v2.44.1  |
 | 066 | Focus minutes from another device read 0 on second-device open | ✅ v2.43.8  |
 | 065 | Focus mode re-opened after leaving; timer bar torn loose on fast task switch | ✅ v2.43.7  |
@@ -112,6 +113,18 @@
 **Fix:** None. The disproven `.focus()` call and its supporting `tabindex="-1"` were removed (v2.40.8) rather than left as dead code implying an effect that doesn't exist.
 
 **Status:** Closed as a platform limitation, not a bug in our code — mirrors BUG-041's precedent (iOS splash white-flash) for issues ruled out of app-code control after direct investigation. Revisit only if a future browser API (e.g. a hypothetical `ShareData.anchor`) offers real control.
+
+---
+
+## BUG-068: Trello card 🍅 session count resets every morning
+
+**Status:** ✅ Fixed (v2.48.4)
+
+**Symptom:** 🍅 badge on a Trello card showed sessions worked today but reset to zero the next morning. Manual tasks accumulated sessions indefinitely; Trello cards did not.
+
+**Root cause:** `today_trello_focus` served two roles — (1) daily activity signal for un-dimming aged cards (BUG-043/064), and (2) display count. Day-rollover wipe at `applyNewDayCleanup()` cleared the whole map to reset the signal, discarding the display count with it.
+
+**Fix (v2.48.4):** Added `today_trello_focus_total` — a permanent per-card lifetime counter. `_logSession()` writes to both maps. All display reads (badge, triage AI context, triage panel) use the total. Daily map keeps its un-dim role unchanged. Syncs via MAX-merge, no date guard. Pruned in `loadTrello()` when cards leave the board.
 
 ---
 
