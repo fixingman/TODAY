@@ -915,3 +915,27 @@ Architectural dead end: with a CSS animation, every `display:none/block` repaint
 **Root cause:** Focus mode locks scroll by setting `position:fixed; top:-${scrollY}px` on `body`, saving `scrollY` at lock time. While focus is active, `visibilitychange` on tab return fires `syncDropbox()` → `mergeRemoteData()` → `renderManual()`, which rebuilds the task list. If `renderManual()` reorders tasks (e.g. the focused task's `lastActive` was just updated to `Date.now()`, moving it toward the top), the task's document offset changes. On close, `closeUI` restores `scrollY` correctly — but the task is now at a different offset in the rebuilt DOM. At the original `scrollY`, the task now sits near the top edge rather than at center.
 
 **Fix (v2.44.1):** `openUI` saves the task's viewport Y (`getBoundingClientRect().top`) into `dataset.focusTaskTop` at lock time, after any nudge scroll. `closeUI` compares this saved Y to the task's actual viewport Y after scroll restoration. If the task drifted more than 2px, `window.scrollTo` is called a second time to compensate by exactly the delta — restoring the task to the same visual row it occupied when focus started. No change when the DOM didn't move (delta ≈ 0).
+
+---
+
+## BUG-062: Native share-sheet popover doesn't open near the click point
+
+**Status:** 🚫 Rejected (platform limitation)
+
+**Symptom:** Poem share (`_shareDailyPoem()`, `navigator.share()`) opens the OS/browser share sheet many pixels away from where the user actually clicked — reported across every trigger structure tried during the poem-share feature's iteration (v2.40.0 button, v2.40.4 corner overlay, v2.40.6/v2.40.7 whole-poem click target), with no change in position across any of them.
+
+**Investigation:** v2.40.7 hypothesized the popover anchors to `document.activeElement` rather than literal cursor coordinates, and added a `.focus()` call on the small corner label immediately before invoking `navigator.share()`, to bias the anchor toward a small predictable element instead of the whole poem's bounding box. Can's direct real-device test after that fix: "share sheet pop up is behaving exactly like before fix. nothing looks changed." Falsified.
+
+**Root cause:** Outside our control — `navigator.share()`'s spec gives web pages no API to influence the popover's on-screen position; it's entirely rendered and positioned by the browser/OS. The fact that its position hasn't moved across several structurally very different DOM approaches is strong evidence this is fixed OS/browser chrome behavior. The disproven `.focus()` call and its `tabindex="-1"` were removed (v2.40.8). Revisit only if a future browser API offers real position control.
+
+---
+
+## BUG-068: Trello card 🍅 session count resets every morning
+
+**Status:** ✅ Verified fixed (v2.48.4)
+
+**Symptom:** 🍅 badge on a Trello card showed sessions worked today but reset to zero the next morning. Manual tasks accumulated sessions indefinitely; Trello cards did not.
+
+**Root cause:** `today_trello_focus` served two roles — (1) daily activity signal for un-dimming aged cards (BUG-043/064), and (2) display count. Day-rollover wipe at `applyNewDayCleanup()` cleared the whole map to reset the signal, discarding the display count with it.
+
+**Fix (v2.48.4):** Added `today_trello_focus_total` — a permanent per-card lifetime counter. `_logSession()` writes to both maps. All display reads (badge, triage AI context, triage panel) use the total. Daily map keeps its un-dim role unchanged. Syncs via MAX-merge, no date guard. Pruned in `loadTrello()` when cards leave the board.

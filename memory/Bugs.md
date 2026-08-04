@@ -102,29 +102,3 @@
 
 ---
 
-## BUG-062: Native share-sheet popover doesn't open near the click point
-
-**Symptom:** Poem share (`_shareDailyPoem()`, `navigator.share()`) opens the OS/browser share sheet many pixels away from where the user actually clicked — reported across every trigger structure tried during the poem-share feature's iteration (v2.40.0 button, v2.40.4 corner overlay, v2.40.6/v2.40.7 whole-poem click target), with no change in position across any of them.
-
-**Investigation:** v2.40.7 hypothesized the popover anchors to `document.activeElement` rather than literal cursor coordinates, and added a `.focus()` call on the small corner label immediately before invoking `navigator.share()`, to bias the anchor toward a small predictable element instead of the whole poem's bounding box. Can's direct real-device test after that fix: "share sheet pop up is behaving exactly like before fix. nothing looks changed." Falsified.
-
-**Root cause:** Unknown from our side, and very likely outside our control — `navigator.share()`'s spec gives web pages no API to influence the popover's on-screen position; it's entirely rendered and positioned by the browser/OS. The fact that its position hasn't moved across several structurally very different DOM approaches (different element types, positions, click targets) is itself strong evidence this is fixed OS/browser chrome behavior, not something responsive to page structure, focus state, or element geometry.
-
-**Fix:** None. The disproven `.focus()` call and its supporting `tabindex="-1"` were removed (v2.40.8) rather than left as dead code implying an effect that doesn't exist.
-
-**Status:** Closed as a platform limitation, not a bug in our code — mirrors BUG-041's precedent (iOS splash white-flash) for issues ruled out of app-code control after direct investigation. Revisit only if a future browser API (e.g. a hypothetical `ShareData.anchor`) offers real control.
-
----
-
-## BUG-068: Trello card 🍅 session count resets every morning
-
-**Status:** ✅ Fixed (v2.48.4)
-
-**Symptom:** 🍅 badge on a Trello card showed sessions worked today but reset to zero the next morning. Manual tasks accumulated sessions indefinitely; Trello cards did not.
-
-**Root cause:** `today_trello_focus` served two roles — (1) daily activity signal for un-dimming aged cards (BUG-043/064), and (2) display count. Day-rollover wipe at `applyNewDayCleanup()` cleared the whole map to reset the signal, discarding the display count with it.
-
-**Fix (v2.48.4):** Added `today_trello_focus_total` — a permanent per-card lifetime counter. `_logSession()` writes to both maps. All display reads (badge, triage AI context, triage panel) use the total. Daily map keeps its un-dim role unchanged. Syncs via MAX-merge, no date guard. Pruned in `loadTrello()` when cards leave the board.
-
----
-
