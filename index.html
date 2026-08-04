@@ -1676,7 +1676,7 @@
      identical properties and states, same tokens, not just a similar-looking
      approximation. The gutter is a permanent padding, not something that
      appears only while hovering, so nothing shifts when the label reveals. */
-  .poem-block { position: relative; padding-right: 44px; }
+  .poem-block { position: relative; padding-right: 64px; }
   .poem-block #dailyPoem,
   .poem-block .poem-author { transition: color var(--dur-fast); }
   .btn-poem-share {
@@ -3865,9 +3865,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.49.1': 'Fix: poem text and share button no longer overlap on narrow mobile screens.',
   '2.49.0': 'Memory panel now opens from the TODAY logo — click the heading to see what today has learned about you. The ✦ button in the input bar is gone; the logo glows accent green when the panel is open.',
   '2.48.4': 'Fix: Trello card 🍅 sessions now persist across days (BUG-068). Previously the session count reset every morning; now a lifetime total accumulates per card, syncs cross-device via MAX-merge, and is pruned when a card leaves the board.',
-  '2.48.3': 'Fix: focus ask button — "thinking…" text restored during loading; pulse animation now breathes gently (0.2–0.65 opacity, 2 s) and is cancelled before the question text appears, so neither the question nor the reset button inherit the loading animation.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
