@@ -3312,15 +3312,12 @@
   }
   .memory-conn-link:hover { opacity: 1; }
   .memory-confirm-msg { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text); opacity: var(--opacity-strong); }
-  .memory-item-pending .memory-item-text { font-style: italic; }
-  .memory-item-actions { display: flex; gap: var(--space-1); flex-shrink: 0; align-self: center; }
-  .memory-item-confirm, .memory-item-dismiss {
+  .memory-item-dismiss {
     background: none; border: none; font-family: var(--font-mono);
     font-size: var(--text-xs); cursor: pointer; padding: 0 var(--space-1);
     color: var(--muted); opacity: var(--opacity-label);
     transition: color var(--dur-fast), opacity var(--dur-fast);
   }
-  .memory-item-confirm:hover { opacity: 1; color: var(--accent); }
   .memory-item-dismiss:hover { opacity: 1; color: var(--danger); }
   .memory-abstracting {
     font-size: var(--text-xs); font-family: var(--font-mono);
@@ -3865,9 +3862,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.51.0': 'Memory panel now shows focus and habit correlations — how many tasks you complete on focus days vs without, and on days when all habits are done vs missed. AI inferences auto-confirm without a review step and now look for the same cross-variable patterns.',
   '2.50.0': 'Memory panel now shows richer insights — best day this week, daily average, day-of-week pattern, completion rate, and up to five recurring keywords instead of three.',
   '2.49.1': 'Fix: poem text and share button no longer overlap on narrow mobile screens.',
-  '2.49.0': 'Memory panel now opens from the TODAY logo — click the heading to see what today has learned about you. The ✦ button in the input bar is gone; the logo glows accent green when the panel is open.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5560,17 +5557,10 @@ function renderMemoryPanel() {
 
   function typeBlock(name, desc, items, pendingNote) {
     const rows = items.length
-      ? items.map(item => item.pending
-          ? `<div class="memory-item memory-item-pending">` +
+      ? items.map(item => `<div class="memory-item">` +
             `<span class="memory-item-text">${item.text}</span>` +
-            `<span class="memory-item-actions">` +
-            `<button class="memory-item-confirm" onclick="_memoryConfirm('${item.confirmKey}')" title="keep">✓</button>` +
-            `<button class="memory-item-dismiss" onclick="_memoryDismiss('${item.dismissKey}')">✕</button>` +
-            `</span></div>`
-          : `<div class="memory-item">` +
-            `<span class="memory-item-text">${item.text}</span>` +
-            (item.forgetKey
-              ? `<button class="memory-item-forget" onclick="_memoryForget('${item.forgetKey}')">forget</button>`
+            (item.forgetKey || item.dismissKey
+              ? `<button class="memory-item-forget" onclick="_memoryDismiss('${item.dismissKey || item.forgetKey}')">forget</button>`
               : '') +
             `</div>`
         ).join('')
@@ -5635,7 +5625,7 @@ function renderMemoryPanel() {
     semanticItems.push({ text: i.text, forgetKey: `semantic:${i.id}` });
   });
   (m.memory?.semantic || []).filter(i => i.status === 'pending').forEach(i => {
-    semanticItems.push({ text: i.text, pending: true, confirmKey: `semantic:${i.id}`, dismissKey: `semantic:${i.id}` });
+    semanticItems.push({ text: i.text, dismissKey: `semantic:${i.id}` });
   });
 
   // ── EPISODIC: what has been happening lately ──────────────────────────────
@@ -5663,11 +5653,19 @@ function renderMemoryPanel() {
     const avg = activeDays.reduce((s, e) => s + e.tasksDone, 0) / activeDays.length;
     episodicItems.push({ text: `averaging ${avg.toFixed(1)} tasks on active days this week` });
   }
+  // Focus correlation: tasks done on focus days vs non-focus days
+  const _focusDays = allDailyHistory.filter(e => (e.focusMins || 0) > 0);
+  const _noFocusDays = allDailyHistory.filter(e => (e.focusMins || 0) === 0 && e.tasksDone > 0);
+  if (_focusDays.length >= 5 && _noFocusDays.length >= 5) {
+    const _fAvg = (_focusDays.reduce((s, e) => s + e.tasksDone, 0) / _focusDays.length).toFixed(1);
+    const _nfAvg = (_noFocusDays.reduce((s, e) => s + e.tasksDone, 0) / _noFocusDays.length).toFixed(1);
+    episodicItems.push({ text: `focus days: ${_fAvg} tasks done on average vs ${_nfAvg} without` });
+  }
   (m.memory?.episodic || []).filter(i => i.status === 'confirmed').forEach(i => {
     episodicItems.push({ text: i.text, forgetKey: `episodic:${i.id}` });
   });
   (m.memory?.episodic || []).filter(i => i.status === 'pending').forEach(i => {
-    episodicItems.push({ text: i.text, pending: true, confirmKey: `episodic:${i.id}`, dismissKey: `episodic:${i.id}` });
+    episodicItems.push({ text: i.text, dismissKey: `episodic:${i.id}` });
   });
 
   // ── PROCEDURAL: how you tend to work ─────────────────────────────────────
@@ -5702,6 +5700,17 @@ function renderMemoryPanel() {
     const rate = Math.round((totalDone / totalAdded) * 100);
     proceduralItems.push({ text: `completes ${rate}% of tasks added — ${totalDone} done of ${totalAdded} added` });
   }
+  // Habit cross-variable: tasks done on full-habit days vs partial/missed days
+  const _habitDays = allDailyHistory.filter(e => e.habitsTotal > 0);
+  if (_habitDays.length >= 7) {
+    const _fullHabitDays = _habitDays.filter(e => e.habitsKept >= e.habitsTotal);
+    const _partialHabitDays = _habitDays.filter(e => e.habitsKept < e.habitsTotal);
+    if (_fullHabitDays.length >= 3 && _partialHabitDays.length >= 3) {
+      const _fhAvg = (_fullHabitDays.reduce((s, e) => s + e.tasksDone, 0) / _fullHabitDays.length).toFixed(1);
+      const _phAvg = (_partialHabitDays.reduce((s, e) => s + e.tasksDone, 0) / _partialHabitDays.length).toFixed(1);
+      proceduralItems.push({ text: `all habits done: ${_fhAvg} tasks avg vs ${_phAvg} on days with missed habits` });
+    }
+  }
   if ((m.patterns?.focusMinutesTotal || 0) > 0) {
     const hrs = (m.patterns.focusMinutesTotal / 60).toFixed(1);
     proceduralItems.push({ text: `${hrs} hours of deep focus logged across all sessions` });
@@ -5710,7 +5719,7 @@ function renderMemoryPanel() {
     proceduralItems.push({ text: i.text, forgetKey: `procedural:${i.id}` });
   });
   (m.memory?.procedural || []).filter(i => i.status === 'pending').forEach(i => {
-    proceduralItems.push({ text: i.text, pending: true, confirmKey: `procedural:${i.id}`, dismissKey: `procedural:${i.id}` });
+    proceduralItems.push({ text: i.text, dismissKey: `procedural:${i.id}` });
   });
 
   // ── META: what today knows it knows ───────────────────────────────────────
@@ -5834,12 +5843,6 @@ async function _memoryAbstract() {
   if (!_aiIsConfigured() || !navigator.onLine) return;
   const m = appMemory;
 
-  // Let user clear pending items before generating more
-  const hasPending = ['semantic', 'episodic', 'procedural'].some(t =>
-    (m.memory?.[t] || []).some(i => i.status === 'pending')
-  );
-  if (hasPending) return;
-
   // Throttle: once per day
   if (m.memory?._lastAbstractDate === _localISO()) return;
 
@@ -5868,9 +5871,10 @@ async function _memoryAbstract() {
       .map(([w, d]) => `${w} (${d.completed} done, avg ${(d.avgDaysToComplete || 0).toFixed(1)}d)`);
 
     const dailyHistory = (typeof safeJSON === 'function') ? safeJSON('today_daily_history', []) : [];
+    const _parseDowAbs = iso => { const [y, mo, d] = iso.split('-').map(Number); return new Date(y, mo - 1, d).getDay(); };
     const byDow = {};
     dailyHistory.slice(-14).forEach(e => {
-      const dow = new Date(e.date).getDay();
+      const dow = _parseDowAbs(e.date);
       if (!byDow[dow]) byDow[dow] = [];
       byDow[dow].push(e.tasksDone || 0);
     });
@@ -5879,6 +5883,38 @@ async function _memoryAbstract() {
       .filter(([, vals]) => vals.length >= 2)
       .map(([d, vals]) => `${dowNames[d]}: avg ${(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)}`)
       .join(', ');
+
+    // Focus correlation: days with focus sessions vs days without
+    const focusDays = dailyHistory.filter(e => (e.focusMins || 0) > 0);
+    const noFocusDays = dailyHistory.filter(e => (e.focusMins || 0) === 0 && e.tasksDone > 0);
+    let focusCorrelation = null;
+    if (focusDays.length >= 5 && noFocusDays.length >= 5) {
+      const focusAvg = (focusDays.reduce((s, e) => s + e.tasksDone, 0) / focusDays.length).toFixed(1);
+      const noFocusAvg = (noFocusDays.reduce((s, e) => s + e.tasksDone, 0) / noFocusDays.length).toFixed(1);
+      focusCorrelation = `Focus session days avg ${focusAvg} tasks done vs ${noFocusAvg} tasks on non-focus days (${focusDays.length} vs ${noFocusDays.length} days)`;
+    }
+
+    // Habit cross-variable: tasks done on days when all habits completed vs not
+    const habitDays = dailyHistory.filter(e => e.habitsTotal > 0);
+    let habitCorrelation = null;
+    if (habitDays.length >= 7) {
+      const fullHabitDays = habitDays.filter(e => e.habitsKept >= e.habitsTotal);
+      const partialHabitDays = habitDays.filter(e => e.habitsKept < e.habitsTotal);
+      if (fullHabitDays.length >= 3 && partialHabitDays.length >= 3) {
+        const fullAvg = (fullHabitDays.reduce((s, e) => s + e.tasksDone, 0) / fullHabitDays.length).toFixed(1);
+        const partialAvg = (partialHabitDays.reduce((s, e) => s + e.tasksDone, 0) / partialHabitDays.length).toFixed(1);
+        habitCorrelation = `Days with all habits completed avg ${fullAvg} tasks done vs ${partialAvg} tasks on days with missed habits (${fullHabitDays.length} vs ${partialHabitDays.length} days)`;
+      }
+    }
+
+    // Completion rate: tasksAdded vs tasksDone ratio from daily_history
+    const rateHistory = dailyHistory.filter(e => e.tasksAdded > 0);
+    let completionRate = null;
+    if (rateHistory.length >= 5) {
+      const totalAdded = rateHistory.reduce((s, e) => s + e.tasksAdded, 0);
+      const totalDone = rateHistory.reduce((s, e) => s + e.tasksDone, 0);
+      completionRate = `Completes ${Math.round(totalDone / totalAdded * 100)}% of tasks added (${totalDone} done of ${totalAdded} added over ${rateHistory.length} days)`;
+    }
 
     const alreadyConfirmed = ['semantic', 'episodic', 'procedural'].flatMap(t =>
       (m.memory?.[t] || []).filter(i => i.status === 'confirmed').map(i => i.text)
@@ -5894,12 +5930,15 @@ async function _memoryAbstract() {
       (m.patterns?.focusMinutesTotal || 0) > 0 ? `Total focus: ${Math.round(m.patterns.focusMinutesTotal)} min` : null,
       m.totalTasksCompleted ? `Total completed: ${m.totalTasksCompleted}` : null,
       dowPattern ? `Day-of-week pattern: ${dowPattern}` : null,
+      focusCorrelation,
+      habitCorrelation,
+      completionRate,
       recentTexts.length ? `Recent completed tasks (last 10): ${recentTexts.join(' · ')}` : null,
       alreadyConfirmed.length ? `Already confirmed: ${alreadyConfirmed.join('; ')}` : null,
     ].filter(Boolean).join('\n');
 
     const systemPrompt = 'Analyze user data and return ONLY a valid JSON array. No prose, no code fences. The array may be empty. Each item: {"type":"semantic"|"episodic"|"procedural","text":"..."}.';
-    const userMsg = `Productivity app behavioral data:\n${dataLines}\n\nGenerate 1–2 observations a rule-based system would miss — cross-cutting patterns, correlations, or surprises. type=semantic for stable traits, episodic for recent patterns (days), procedural for work habits (weeks). If recent tasks look unusually different from the keyword patterns, surface that as an episodic signal rather than updating the long-term model. Text ≤10 words, lowercase, no period, describes the person. Skip thin data. Avoid restating confirmed list. Return [] if nothing new.`;
+    const userMsg = `Productivity app behavioral data:\n${dataLines}\n\nGenerate 2–3 observations a rule-based system would miss — look especially for cross-variable correlations (focus vs output, habits vs tasks, time-of-day vs lifespan) and surprises. type=semantic for stable traits, episodic for recent patterns (last few days), procedural for recurring work habits (weeks). If recent tasks look unusually different from the keyword patterns, surface that as episodic. Text ≤15 words, lowercase, no period, surfaces a pattern useful for deciding what to work on or when to start. Skip thin data. Avoid restating confirmed list. Return [] if nothing new.`;
 
     const key = _aiGetKey();
     const provider = _aiGetProvider();
@@ -5935,7 +5974,7 @@ async function _memoryAbstract() {
         confidence: 0.7,
         source: 'ai_abstract',
         addedAt: _localISO(),
-        status: 'pending',
+        status: 'confirmed',
       });
       added++;
     }
