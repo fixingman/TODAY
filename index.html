@@ -3865,9 +3865,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.50.0': 'Memory panel now shows richer insights — best day this week, daily average, day-of-week pattern, completion rate, and up to five recurring keywords instead of three.',
   '2.49.1': 'Fix: poem text and share button no longer overlap on narrow mobile screens.',
   '2.49.0': 'Memory panel now opens from the TODAY logo — click the heading to see what today has learned about you. The ✦ button in the input bar is gone; the logo glows accent green when the panel is open.',
-  '2.48.4': 'Fix: Trello card 🍅 sessions now persist across days (BUG-068). Previously the session count reset every morning; now a lifetime total accumulates per card, syncs cross-device via MAX-merge, and is pruned when a card leaves the board.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5156,6 +5156,7 @@ function applyNewDayCleanup() {
     dailyHistory.push({
       date: yesterdayISO,
       tasksDone: doneToday,
+      tasksAdded: appMemory?.patterns?.tasksAddedToday || 0,
       focusMins: focusMinsYesterday,
       habitsKept: habitsKeptYesterday,
       habitsTotal: activeHabitsYesterday.length,
@@ -5583,6 +5584,13 @@ function renderMemoryPanel() {
       `</div>${rows}</div>`;
   }
 
+  const _dowNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const _parseDowLocal = iso => { const [y,mo,d] = iso.split('-').map(Number); return new Date(y, mo-1, d).getDay(); };
+  const allDailyHistory = safeJSON('today_daily_history', []);
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+  const weekAgoISO = weekAgo.toISOString().slice(0, 10);
+  const weekHistory = allDailyHistory.filter(e => e.date >= weekAgoISO);
+
   // ── SEMANTIC: stable identity traits ──────────────────────────────────────
   const semanticItems = [];
   const peakHour = m.preferences?.peakHour;
@@ -5604,7 +5612,25 @@ function renderMemoryPanel() {
   const best = m.patterns?.bestStreak || 0;
   const _curStreak = parseInt(localStorage.getItem('stat_streak') || '0');
   if (best >= 3 && best > _curStreak) semanticItems.push({ text: `longest streak: ${best} day${best === 1 ? '' : 's'}` });
-  // AI-confirmed semantic inferences (Step 4, stored in m.memory?.semantic)
+  // Day-of-week preference from all history (need >= 14 entries, >= 3 days with 2+ samples each)
+  if (allDailyHistory.length >= 14) {
+    const byDow = {};
+    allDailyHistory.forEach(e => {
+      const dow = _parseDowLocal(e.date);
+      if (!byDow[dow]) byDow[dow] = [];
+      byDow[dow].push(e.tasksDone);
+    });
+    const dowAvgs = Object.entries(byDow)
+      .filter(([, vals]) => vals.length >= 2)
+      .map(([dow, vals]) => [parseInt(dow), vals.reduce((s, v) => s + v, 0) / vals.length]);
+    if (dowAvgs.length >= 3) {
+      const [bestDow, bestAvg] = dowAvgs.sort(([, a], [, b]) => b - a)[0];
+      const secondAvg = dowAvgs[1][1];
+      if (bestAvg >= 2 && bestAvg > secondAvg * 1.2) {
+        semanticItems.push({ text: `most productive on ${_dowNames[bestDow]}s` });
+      }
+    }
+  }
   (m.memory?.semantic || []).filter(i => i.status === 'confirmed').forEach(i => {
     semanticItems.push({ text: i.text, forgetKey: `semantic:${i.id}` });
   });
@@ -5615,8 +5641,6 @@ function renderMemoryPanel() {
   // ── EPISODIC: what has been happening lately ──────────────────────────────
   const episodicItems = [];
   const recent = (m.recentCompletedTasks || []);
-  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-  const weekAgoISO = weekAgo.toISOString().slice(0, 10);
   const thisWeek = recent.filter(e => e.date >= weekAgoISO);
   if (thisWeek.length > 0) {
     episodicItems.push({ text: `completed ${thisWeek.length} task${thisWeek.length === 1 ? '' : 's'} in the last 7 days` });
@@ -5624,6 +5648,20 @@ function renderMemoryPanel() {
   const streak = parseInt(localStorage.getItem('stat_streak') || '0');
   if (streak >= 2) {
     episodicItems.push({ text: `on a ${streak}-day streak` });
+  }
+  // Best day this week
+  if (weekHistory.length >= 2) {
+    const bestDay = weekHistory.reduce((a, b) => b.tasksDone > a.tasksDone ? b : a);
+    if (bestDay.tasksDone >= 3) {
+      const dayName = _dowNames[_parseDowLocal(bestDay.date)];
+      episodicItems.push({ text: `best day this week: ${dayName} (${bestDay.tasksDone} tasks)` });
+    }
+  }
+  // Average tasks on active days this week
+  const activeDays = weekHistory.filter(e => e.tasksDone > 0);
+  if (activeDays.length >= 3) {
+    const avg = activeDays.reduce((s, e) => s + e.tasksDone, 0) / activeDays.length;
+    episodicItems.push({ text: `averaging ${avg.toFixed(1)} tasks on active days this week` });
   }
   (m.memory?.episodic || []).filter(i => i.status === 'confirmed').forEach(i => {
     episodicItems.push({ text: i.text, forgetKey: `episodic:${i.id}` });
@@ -5651,10 +5689,18 @@ function renderMemoryPanel() {
     .map(([w, d]) => [w.replace(/[^a-z]/g, ''), d])
     .filter(([w, d]) => d.completed >= 3 && w.length >= 5 && !_memStopWords.has(w))
     .sort(([, a], [, b]) => b.completed - a.completed)
-    .slice(0, 3)
+    .slice(0, 5)
     .map(([w]) => w);
   if (topWords.length >= 2) {
     proceduralItems.push({ text: `often works on: ${topWords.join(', ')}` });
+  }
+  // Completion rate from daily history entries that have tasksAdded tracked
+  const rateHistory = allDailyHistory.filter(e => e.tasksAdded > 0);
+  if (rateHistory.length >= 5) {
+    const totalAdded = rateHistory.reduce((s, e) => s + e.tasksAdded, 0);
+    const totalDone  = rateHistory.reduce((s, e) => s + e.tasksDone,  0);
+    const rate = Math.round((totalDone / totalAdded) * 100);
+    proceduralItems.push({ text: `completes ${rate}% of tasks added — ${totalDone} done of ${totalAdded} added` });
   }
   if ((m.patterns?.focusMinutesTotal || 0) > 0) {
     const hrs = (m.patterns.focusMinutesTotal / 60).toFixed(1);
@@ -5741,7 +5787,7 @@ function _memoryClearConfirm() {
     appMemory.preferences = { peakHour: null, dragKeywords: [] };
     appMemory.patterns = {
       completionsByHour: {}, taskKeywords: {}, focusMinutesTotal: appMemory.patterns?.focusMinutesTotal || 0,
-      bestStreak: 0, taskLifespanSamples: [], lateAdditions: [],
+      bestStreak: 0, taskLifespanSamples: [], lateAdditions: [], tasksAddedToday: 0,
       dayStartCount: null, dayStartDate: null, dayShapeState: null,
     };
     appMemory.memory = { semantic: [], episodic: [], procedural: [] };
@@ -7380,12 +7426,15 @@ function addManual() {
   // Track reactive (mid-day) additions for emergent vs planned insight
   // Only track additions after the first hour of the day (≥8am) to exclude morning planning
   const addHour = new Date().getHours();
-  if (appMemory?.patterns && addHour >= 8) {
-    if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
-    appMemory.patterns.lateAdditions.push(addHour);
-    // Keep last 50 additions only
-    if (appMemory.patterns.lateAdditions.length > 50) {
-      appMemory.patterns.lateAdditions = appMemory.patterns.lateAdditions.slice(-50);
+  if (appMemory?.patterns) {
+    appMemory.patterns.tasksAddedToday = (appMemory.patterns.tasksAddedToday || 0) + 1;
+    if (addHour >= 8) {
+      if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
+      appMemory.patterns.lateAdditions.push(addHour);
+      // Keep last 50 additions only
+      if (appMemory.patterns.lateAdditions.length > 50) {
+        appMemory.patterns.lateAdditions = appMemory.patterns.lateAdditions.slice(-50);
+      }
     }
     _saveMemory();
   }
