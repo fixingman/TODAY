@@ -176,6 +176,21 @@ function _memoryOnTaskComplete(taskText, taskId) {
 }
 
 // Update memory when focus session completes
+// Update memory when a task is let go at triage — captures deferred vocabulary
+function _memoryOnTaskLetgo(taskText) {
+  if (!taskText) return;
+  const _kStopWords = new Set(['about','after','also','back','been','before','call','check','done','from','have','into','just','make','more','need','send','some','take','than','that','them','then','they','this','were','what','when','will','with','your']);
+  const words = _stripTag(taskText).toLowerCase().split(/\s+/)
+    .map(w => w.replace(/[^a-z]/g, ''))
+    .filter(w => w.length >= 5 && !_kStopWords.has(w));
+  if (!words.length) return;
+  if (!appMemory.preferences.dragKeywords) appMemory.preferences.dragKeywords = [];
+  appMemory.preferences.dragKeywords.push(...words);
+  if (appMemory.preferences.dragKeywords.length > 100)
+    appMemory.preferences.dragKeywords = appMemory.preferences.dragKeywords.slice(-100);
+  _saveMemory();
+}
+
 function _memoryOnFocusComplete(minutes) {
   appMemory.patterns.focusMinutesTotal += minutes;
   _saveMemory();

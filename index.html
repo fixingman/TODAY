@@ -3862,8 +3862,8 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.52.0': 'Memory panel: peak-hour insight now shows your full productive window (e.g. "9am–11am"). Days-active ratio added to Meta. Deferred vocabulary (what you tend to let go at triage) now tracked. Focus-day correlation moved to Procedural.',
   '2.51.0': 'Memory panel now shows focus and habit correlations — how many tasks you complete on focus days vs without, and on days when all habits are done vs missed. AI inferences auto-confirm without a review step and now look for the same cross-variable patterns.',
-  '2.50.0': 'Memory panel now shows richer insights — best day this week, daily average, day-of-week pattern, completion rate, and up to five recurring keywords instead of three.',
   '2.49.1': 'Fix: poem text and share button no longer overlap on narrow mobile screens.',
 };
 
@@ -4902,13 +4902,14 @@ function triageApplyAll() {
       soonTasks.unshift(t);
     } else if (decision === 'letgo') {
       letgoCount++;
+      _memoryOnTaskLetgo(t.text);
       t.zone = 'past';
       t.status = 'let_go';
       t.zoneChangedAt = new Date().toISOString();
       pastTasks.unshift(t);
     }
   });
-  
+
   // Process Trello tasks (keep or letgo only — no soon)
   undoneTrello.forEach(t => {
     const decision = triageDecisions[t.id];
@@ -5585,10 +5586,28 @@ function renderMemoryPanel() {
   const semanticItems = [];
   const peakHour = m.preferences?.peakHour;
   if (peakHour !== null && peakHour !== undefined) {
-    const h = parseInt(peakHour);
-    const period = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
-    const label = h === 0 ? 'midnight' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`;
-    semanticItems.push({ text: `tends to get most done around ${label} — a ${period} person` });
+    const _fmtH = h => h === 0 ? 'midnight' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h-12}pm`;
+    const _hourCounts = m.patterns?.completionsByHour || {};
+    const _peakCount = _hourCounts[String(peakHour)] || 1;
+    const _thresh = _peakCount * 0.5;
+    const _activeHours = Object.entries(_hourCounts)
+      .filter(([, c]) => c >= _thresh).map(([h]) => parseInt(h)).sort((a, b) => a - b);
+    const _runs = []; let _run = [_activeHours[0]];
+    for (let i = 1; i < _activeHours.length; i++) {
+      if (_activeHours[i] - _activeHours[i-1] <= 1) { _run.push(_activeHours[i]); }
+      else { _runs.push(_run); _run = [_activeHours[i]]; }
+    }
+    _runs.push(_run);
+    const _peakRun = _runs.find(r => r.includes(parseInt(peakHour))) || [parseInt(peakHour)];
+    if (_peakRun.length >= 2) {
+      const _s = _peakRun[0], _e = _peakRun[_peakRun.length - 1];
+      const _period = _s < 12 ? 'morning' : _s < 17 ? 'afternoon' : 'evening';
+      semanticItems.push({ text: `most productive between ${_fmtH(_s)}–${_fmtH(_e)} — a ${_period} person` });
+    } else {
+      const h = parseInt(peakHour);
+      const period = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+      semanticItems.push({ text: `tends to get most done around ${_fmtH(h)} — a ${period} person` });
+    }
   }
   const samples = m.patterns?.taskLifespanSamples || [];
   if (samples.length >= 5) {
@@ -5654,13 +5673,6 @@ function renderMemoryPanel() {
     episodicItems.push({ text: `averaging ${avg.toFixed(1)} tasks on active days this week` });
   }
   // Focus correlation: tasks done on focus days vs non-focus days
-  const _focusDays = allDailyHistory.filter(e => (e.focusMins || 0) > 0);
-  const _noFocusDays = allDailyHistory.filter(e => (e.focusMins || 0) === 0 && e.tasksDone > 0);
-  if (_focusDays.length >= 5 && _noFocusDays.length >= 5) {
-    const _fAvg = (_focusDays.reduce((s, e) => s + e.tasksDone, 0) / _focusDays.length).toFixed(1);
-    const _nfAvg = (_noFocusDays.reduce((s, e) => s + e.tasksDone, 0) / _noFocusDays.length).toFixed(1);
-    episodicItems.push({ text: `focus days: ${_fAvg} tasks done on average vs ${_nfAvg} without` });
-  }
   (m.memory?.episodic || []).filter(i => i.status === 'confirmed').forEach(i => {
     episodicItems.push({ text: i.text, forgetKey: `episodic:${i.id}` });
   });
@@ -5711,9 +5723,27 @@ function renderMemoryPanel() {
       proceduralItems.push({ text: `all habits done: ${_fhAvg} tasks avg vs ${_phAvg} on days with missed habits` });
     }
   }
-  if ((m.patterns?.focusMinutesTotal || 0) > 0) {
-    const hrs = (m.patterns.focusMinutesTotal / 60).toFixed(1);
-    proceduralItems.push({ text: `${hrs} hours of deep focus logged across all sessions` });
+  // Focus cross-variable: tasks done on focus days vs days without a session (all-time pattern)
+  const _focusDays = allDailyHistory.filter(e => (e.focusMins || 0) > 0);
+  const _noFocusDays = allDailyHistory.filter(e => (e.focusMins || 0) === 0 && e.tasksDone > 0);
+  if (_focusDays.length >= 5 && _noFocusDays.length >= 5) {
+    const _fAvg = (_focusDays.reduce((s, e) => s + e.tasksDone, 0) / _focusDays.length).toFixed(1);
+    const _nfAvg = (_noFocusDays.reduce((s, e) => s + e.tasksDone, 0) / _noFocusDays.length).toFixed(1);
+    proceduralItems.push({ text: `focus days average ${_fAvg} tasks done vs ${_nfAvg} without a session` });
+  }
+  // Deferred vocabulary: words that keep getting let go at triage
+  const _deferWords = m.preferences?.dragKeywords || [];
+  if (_deferWords.length >= 10) {
+    const _wCounts = {};
+    _deferWords.forEach(w => { _wCounts[w] = (_wCounts[w] || 0) + 1; });
+    const _topDefer = Object.entries(_wCounts)
+      .filter(([, c]) => c >= 2)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 4)
+      .map(([w]) => w);
+    if (_topDefer.length >= 2) {
+      proceduralItems.push({ text: `tends to defer: ${_topDefer.join(', ')}` });
+    }
   }
   (m.memory?.procedural || []).filter(i => i.status === 'confirmed').forEach(i => {
     proceduralItems.push({ text: i.text, forgetKey: `procedural:${i.id}` });
@@ -5725,12 +5755,19 @@ function renderMemoryPanel() {
   // ── META: what today knows it knows ───────────────────────────────────────
   const metaItems = [];
   if (m.firstSeen) {
-    const since = new Date(m.firstSeen);
-    const days = Math.round((Date.now() - since.getTime()) / 86400000);
-    metaItems.push({ text: `tracking since ${m.firstSeen} — ${days} day${days === 1 ? '' : 's'} of data` });
+    const _calDays = Math.round((Date.now() - new Date(m.firstSeen).getTime()) / 86400000);
+    const _activeDays = m.totalDaysActive || 0;
+    const _dayStr = _activeDays > 0 && _calDays > 0
+      ? `active on ${_activeDays} of ${_calDays} day${_calDays === 1 ? '' : 's'}`
+      : `${_calDays} day${_calDays === 1 ? '' : 's'} of data`;
+    metaItems.push({ text: `tracking since ${m.firstSeen} — ${_dayStr}` });
   }
   if (m.totalTasksCompleted > 0) {
     metaItems.push({ text: `${m.totalTasksCompleted} tasks completed total` });
+  }
+  if ((m.patterns?.focusMinutesTotal || 0) > 0) {
+    const hrs = (m.patterns.focusMinutesTotal / 60).toFixed(1);
+    metaItems.push({ text: `${hrs} hours of deep focus logged across all sessions` });
   }
   const coverageNotes = [];
   if ((m.patterns?.focusMinutesTotal || 0) === 0) coverageNotes.push('no focus session data yet');
