@@ -3862,9 +3862,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.53.0': 'Focus companion: ✦ ask question now draws on your behavioral memory — peak hour, confirmed patterns, time of day, and sessions done today — so the question fits who you are, not just what the task says.',
   '2.52.1': 'Fix: Trello 🍅 session badge now correctly shows lifetime count — it was resetting to zero each morning after the original fix didn\'t update the Trello patch path.',
   '2.52.0': 'Memory panel: peak-hour insight now shows your full productive window (e.g. "9am–11am"). Days-active ratio added to Meta. Deferred vocabulary (what you tend to let go at triage) now tracked. Focus-day correlation moved to Procedural.',
-  '2.51.0': 'Memory panel now shows focus and habit correlations — how many tasks you complete on focus days vs without, and on days when all habits are done vs missed. AI inferences auto-confirm without a review step and now look for the same cross-variable patterns.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -12858,6 +12858,19 @@ function _aiClearBadge() {
     if (_revived)       _ctx.push('revived from past — the person let it go and came back');
     if (_deferred)      _ctx.push('was deferred to Soon, then returned to today');
 
+    const _hour = new Date().getHours();
+    _ctx.push(_hour < 5 ? 'late night' : _hour < 12 ? 'morning' : _hour < 17 ? 'afternoon' : _hour < 22 ? 'evening' : 'late night');
+    const _peakH = appMemory?.preferences?.peakHour;
+    if (_peakH != null && Math.abs(_hour - _peakH) <= 1) _ctx.push('their peak productive hour');
+    const _sToday = Math.floor(parseInt(localStorage.getItem('stat_focus_mins_today') || '0') / 25);
+    if (_sToday === 1) _ctx.push('1 other focus session today');
+    else if (_sToday >= 2) _ctx.push(_sToday + ' focus sessions done today');
+
+    const _inferences = ['semantic', 'episodic', 'procedural']
+      .flatMap(t => (appMemory?.memory?.[t] || []).filter(i => i.status === 'confirmed').map(i => i.text))
+      .slice(0, 4);
+    const _inferCtx = _inferences.length ? '\n\nWhat we know about this person: ' + _inferences.join('. ') + '.' : '';
+
     timerEl.classList.add('ai-active');
     focusAIBtn.textContent = 'thinking…';
     focusAIBtn.classList.add('loading');
@@ -12881,7 +12894,7 @@ function _aiClearBadge() {
             role: 'user',
             content: 'Task: "' + taskText + '"' + (_ctx.length ? '\nContext: ' + _ctx.join(', ') + '.' : '')
           }],
-          systemPrompt: `You are the quiet companion in a minimal daily task app. The user is about to start a 25-minute focus session. Ask one question — the kind a thoughtful friend asks before they disappear into work. Not a coach, not a prompt. A moment of honest noticing. Let the context shape the question: first session — what does done-enough look like for this sitting? Multiple sessions — be curious about what's actually in the way, not nagging, just noticing. Revived task — they came back to it, what feels different now? Long-standing or deferred — gentle, not guilty, still on your mind? Read the task for its real meaning. One question only. Under 18 words. No preamble, no quotation marks, no emoji, no exclamation marks. Just the question.`
+          systemPrompt: `You are the quiet companion in a minimal daily task app. The user is about to start a 25-minute focus session. Ask one question — the kind a thoughtful friend asks before they disappear into work. Not a coach, not a prompt. A moment of honest noticing. Let the context shape the question: first session — what does done-enough look like for this sitting? Multiple sessions — be curious about what's actually in the way, not nagging, just noticing. Revived task — they came back to it, what feels different now? Long-standing or deferred — gentle, not guilty, still on your mind? Peak hour — lean into the momentum. Multiple sessions today — acknowledge the sustained effort quietly. Use person context (if given) to ask something that fits who they are, not just what the task says. One question only. Under 18 words. No preamble, no quotation marks, no emoji, no exclamation marks. Just the question.` + _inferCtx
         })
       });
       clearTimeout(_focusAbortTimer);
