@@ -451,7 +451,7 @@ function renderTrello() {
     // last) — a single full-replace comparison, rather than patching task-meta
     // separately, so the two render paths can't silently drift out of order
     // with each other (Rule 27) the way they did when this was two patches.
-    const _focusCount = _getTrelloFocus()[id] || 0;
+    const _focusCount = _getTrelloFocusTotal()[id] || 0;
     const _sessionBadge = _focusCount > 0
       ? `<span class="session-count has-sessions">${_focusCount} 🍅</span>`
       : `<span class="session-count"></span>`;

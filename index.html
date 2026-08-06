@@ -3862,9 +3862,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.52.1': 'Fix: Trello 🍅 session badge now correctly shows lifetime count — it was resetting to zero each morning after the original fix didn\'t update the Trello patch path.',
   '2.52.0': 'Memory panel: peak-hour insight now shows your full productive window (e.g. "9am–11am"). Days-active ratio added to Meta. Deferred vocabulary (what you tend to let go at triage) now tracked. Focus-day correlation moved to Procedural.',
   '2.51.0': 'Memory panel now shows focus and habit correlations — how many tasks you complete on focus days vs without, and on days when all habits are done vs missed. AI inferences auto-confirm without a review step and now look for the same cross-variable patterns.',
-  '2.49.1': 'Fix: poem text and share button no longer overlap on narrow mobile screens.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -12845,7 +12845,7 @@ function _aiClearBadge() {
     const _taskObj = (typeof manualTasks !== 'undefined' && manualTasks.find(t => t.id === uiTaskId)) || null;
     const _sessions = _taskObj
       ? (parseInt(_taskObj.focusSessions) || 0)
-      : (typeof _getTrelloFocus === 'function' ? (_getTrelloFocus()[uiTaskId] || 0) : 0);
+      : (typeof _getTrelloFocusTotal === 'function' ? (_getTrelloFocusTotal()[uiTaskId] || 0) : 0);
     const _ageDays = _taskObj && typeof _getCreatedFromId === 'function'
       ? Math.floor((Date.now() - (_taskObj.lastActive || _getCreatedFromId(uiTaskId))) / 86400000)
       : 0;
