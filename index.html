@@ -1242,6 +1242,27 @@
   .triage-btn.keep:hover {
     background: var(--accent-hover);
   }
+  .triage-reason-row {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    animation: fadeIn var(--dur-base) var(--ease-std) forwards;
+  }
+  .triage-reason-btn {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+  }
+  .triage-reason-btn:hover {
+    background: var(--surface2);
+    color: var(--text);
+  }
   #triageComplete {
     display: flex;
     flex-direction: column;
@@ -3855,16 +3876,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '247h';
+const DEV_HOURS     = '248h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.54.0': 'Triage: letting go a task now asks why — not relevant, no energy, lost interest, or replaced. One tap. Stored in memory so patterns become visible over time.',
   '2.53.0': 'Focus companion: ✦ ask question now draws on your behavioral memory — peak hour, confirmed patterns, time of day, and sessions done today — so the question fits who you are, not just what the task says.',
   '2.52.1': 'Fix: Trello 🍅 session badge now correctly shows lifetime count — it was resetting to zero each morning after the original fix didn\'t update the Trello patch path.',
-  '2.52.0': 'Memory panel: peak-hour insight now shows your full productive window (e.g. "9am–11am"). Days-active ratio added to Meta. Deferred vocabulary (what you tend to let go at triage) now tracked. Focus-day correlation moved to Procedural.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4792,12 +4813,12 @@ function renderTriageList() {
     // live in Trello); manual tasks get the full set (Keep/Soon/Let go/Done).
     const actions = isTrello ? `
       <button class="triage-btn keep" onclick="triageDecide('${t.id}','kept')">Keep</button>
-      <button class="triage-btn" onclick="triageDecide('${t.id}','letgo')">Let go</button>
+      <button class="triage-btn" onclick="triageShowReason('${t.id}')">Let go</button>
       <button class="triage-btn done" onclick="triageDecide('${t.id}','done')">Done</button>
     ` : `
       <button class="triage-btn keep" onclick="triageDecide('${t.id}','kept')">Keep</button>
       <button class="triage-btn" onclick="triageDecide('${t.id}','soon')">↩&#xFE0E; Soon</button>
-      <button class="triage-btn" onclick="triageDecide('${t.id}','letgo')">Let go</button>
+      <button class="triage-btn" onclick="triageShowReason('${t.id}')">Let go</button>
       <button class="triage-btn done" onclick="triageDecide('${t.id}','done')">Done</button>
     `;
     
@@ -4822,8 +4843,27 @@ function renderTriageList() {
   }
 }
 
-function triageDecide(id, decision) {
+function triageShowReason(id) {
+  const card = document.querySelector(`.triage-task[data-id="${id}"]`);
+  if (!card) { triageDecide(id, 'letgo'); return; }
+  const actionsEl = card.querySelector('.triage-actions');
+  if (!actionsEl) { triageDecide(id, 'letgo'); return; }
+  const reasons = [
+    ['not_relevant',  'not relevant'],
+    ['no_energy',     'no energy'],
+    ['lost_interest', 'lost interest'],
+    ['replaced',      'replaced'],
+  ];
+  actionsEl.innerHTML = `<div class="triage-reason-row">${
+    reasons.map(([key, label]) =>
+      `<button class="triage-reason-btn" onclick="triageDecide('${id}','letgo','${key}')">${label}</button>`
+    ).join('')
+  }</div>`;
+}
+
+function triageDecide(id, decision, reason = '') {
   triageDecisions[id] = decision;
+  if (decision === 'letgo') triageDecisions[id + '_reason'] = reason;
   _haptic('light');
   
   const { manual: undoneManual, trello: undoneTrello } = _undoneTasks();
@@ -4879,6 +4919,7 @@ function triageApplyAll() {
     const ageDays = _getAgeDays(created);
     const sessions = focusData[t.id] || 0;
     
+    const _letgoReason = decision === 'letgo' ? (triageDecisions[t.id + '_reason'] || '') : '';
     // Save to triage history
     _saveTriageHistory({
       text: t.text,
@@ -4887,9 +4928,10 @@ function triageApplyAll() {
       ageDays: ageDays,
       dayOfWeek: dayOfWeek,
       hour: hour,
-      ts: new Date().toISOString()
+      ts: new Date().toISOString(),
+      ...(decision === 'letgo' && _letgoReason && { reason: _letgoReason })
     });
-    
+
     if (decision === 'kept') {
       keptCount++;
     } else if (decision === 'done') {
@@ -4902,7 +4944,7 @@ function triageApplyAll() {
       soonTasks.unshift(t);
     } else if (decision === 'letgo') {
       letgoCount++;
-      _memoryOnTaskLetgo(t.text);
+      _memoryOnTaskLetgo(t.text, _letgoReason);
       t.zone = 'past';
       t.status = 'let_go';
       t.zoneChangedAt = new Date().toISOString();
@@ -4917,6 +4959,7 @@ function triageApplyAll() {
     
     const sessions = focusData[t.id] || 0;
     
+    const _tLetgoReason = decision === 'letgo' ? (triageDecisions[t.id + '_reason'] || '') : '';
     // Save to triage history (source: trello)
     _saveTriageHistory({
       text: t.text || t.name,
@@ -4926,9 +4969,10 @@ function triageApplyAll() {
       dayOfWeek: dayOfWeek,
       hour: hour,
       source: 'trello',
-      ts: new Date().toISOString()
+      ts: new Date().toISOString(),
+      ...(decision === 'letgo' && _tLetgoReason && { reason: _tLetgoReason })
     });
-    
+
     if (decision === 'kept') {
       keptCount++;
       // Trello card stays visible, no action needed
@@ -4938,6 +4982,7 @@ function triageApplyAll() {
       _markDoneInTriage(t.id, t.text || t.name);
     } else if (decision === 'letgo') {
       letgoCount++;
+      if (_tLetgoReason) _memoryOnTaskLetgo(t.text || t.name, _tLetgoReason);
       // Mark as done locally — will hide from list
       // Note: doesn't delete from Trello, just hides locally
       doneIds.add(t.id);
@@ -5743,6 +5788,16 @@ function renderMemoryPanel() {
       .map(([w]) => w);
     if (_topDefer.length >= 2) {
       proceduralItems.push({ text: `tends to defer: ${_topDefer.join(', ')}` });
+    }
+  }
+  const _lr = m.patterns?.letgoReasons || {};
+  const _lrTotal = Object.values(_lr).reduce((s, v) => s + v, 0);
+  if (_lrTotal >= 8) {
+    const _lrTop = Object.entries(_lr).sort(([,a],[,b]) => b - a)[0];
+    const _lrLabels = { not_relevant: 'not relevant', no_energy: 'no energy', lost_interest: 'lost interest', replaced: 'replaced' };
+    const _lrPct = Math.round((_lrTop[1] / _lrTotal) * 100);
+    if (_lrPct >= 35) {
+      proceduralItems.push({ text: `most let-go decisions: ${_lrLabels[_lrTop[0]] || _lrTop[0]} (${_lrPct}%)` });
     }
   }
   (m.memory?.procedural || []).filter(i => i.status === 'confirmed').forEach(i => {

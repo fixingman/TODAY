@@ -38,6 +38,7 @@ let appMemory = (() => {
         focusMinutesTotal: 0,     // lifetime focus minutes
         bestStreak: 0,            // highest streak achieved
         taskLifespanSamples: [],  // rolling last-20 completed task ages (days)
+        letgoReasons: {},         // { not_relevant: N, no_energy: N, lost_interest: N, replaced: N }
       },
       // Moments worth remembering
       moments: [],                // [{ type: 'streak_milestone', value: 7, date: '2024-03-10' }, ...]
@@ -85,6 +86,7 @@ if (!appMemory.recentConversations)    appMemory.recentConversations = [];
 if (!appMemory.recentCompletedTasks)   appMemory.recentCompletedTasks = [];
 if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
 if (!appMemory.patterns.taskLifespanSamples) appMemory.patterns.taskLifespanSamples = [];
+if (!appMemory.patterns.letgoReasons) appMemory.patterns.letgoReasons = {};
 if (appMemory.patterns.dayStartCount === undefined) appMemory.patterns.dayStartCount = null;
 if (appMemory.patterns.dayShapeState === undefined) appMemory.patterns.dayShapeState = null;
 if (appMemory.patterns.dayStartDate  === undefined) appMemory.patterns.dayStartDate  = null;
@@ -177,8 +179,12 @@ function _memoryOnTaskComplete(taskText, taskId) {
 
 // Update memory when focus session completes
 // Update memory when a task is let go at triage — captures deferred vocabulary
-function _memoryOnTaskLetgo(taskText) {
+function _memoryOnTaskLetgo(taskText, reason) {
   if (!taskText) return;
+  if (reason) {
+    if (!appMemory.patterns.letgoReasons) appMemory.patterns.letgoReasons = {};
+    appMemory.patterns.letgoReasons[reason] = (appMemory.patterns.letgoReasons[reason] || 0) + 1;
+  }
   const _kStopWords = new Set(['about','after','also','back','been','before','call','check','done','from','have','into','just','make','more','need','send','some','take','than','that','them','then','they','this','were','what','when','will','with','your']);
   const words = _stripTag(taskText).toLowerCase().split(/\s+/)
     .map(w => w.replace(/[^a-z]/g, ''))
