@@ -3893,9 +3893,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.56.1': 'Splash: poem lines now drift away gently — each line lingers before fading, so the coda evaporates rather than snapping out.',
   '2.56.0': 'Splash: the logo fades out letter-group by letter-group — TO first, then DAY — then each line of the poem coda disappears one by one before the screen clears. Still under 20 seconds total.',
   '2.55.0': 'Deleting a task from the list now also captures why — same four reasons as triage, shown as a quick row in the undo toast. Input bar auto-focuses on desktop so the cursor is ready when you open the app.',
-  '2.54.0': 'Triage: letting go a task now asks why — not relevant, no energy, lost interest, or replaced. One tap. Stored in memory so patterns become visible over time.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -10399,9 +10399,9 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     const poemTextEl = poemEl?.querySelector('.splash-poem-text');
     const authorEl   = poemEl?.querySelector('.poem-author');
 
-    const _fade = (el, dur) => {
+    const _fade = (el, dur, ease = 'ease') => {
       if (!el) return;
-      el.style.transition = `opacity ${dur}ms ease`;
+      el.style.transition = `opacity ${dur}ms ${ease}`;
       el.style.opacity = '0';
     };
 
@@ -10423,8 +10423,8 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
       codaEls = [...poemTextEl.querySelectorAll('.splash-coda-line')].filter(el => el.textContent.trim());
       if (authorEl) codaEls.push(authorEl);
     }
-    const STAGGER = 100, CODA_DUR = 200;
-    codaEls.forEach((el, i) => setTimeout(() => _fade(el, CODA_DUR), 300 + i * STAGGER));
+    const STAGGER = 250, CODA_DUR = 700;
+    codaEls.forEach((el, i) => setTimeout(() => _fade(el, CODA_DUR, 'cubic-bezier(0,0,0.2,1)'), 300 + i * STAGGER));
 
     // 4. Splash overlay fades after all coda lines have started fading
     const overlayDelay = codaEls.length
