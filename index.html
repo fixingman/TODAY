@@ -2634,7 +2634,7 @@
     opacity: 1;
     pointer-events: auto;
   }
-  #undoToast button {
+  #undoToast .undo-main button {
     background: none;
     border: none;
     color: var(--accent);
@@ -2646,7 +2646,7 @@
     border-radius: var(--radius-sm);
     transition: background var(--dur-fast);
   }
-  #undoToast button:hover {
+  #undoToast .undo-main button:hover {
     background: var(--accent-dim);
   }
 
@@ -3896,9 +3896,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.58.1': 'Fix: delete reason chips in the undo toast were invisible as pill buttons — a CSS specificity collision made them look like plain links. They now appear correctly.',
   '2.58.0': 'Past → Soon: tapping ↩ soon now shows why first — still relevant, new context, too hasty, or came up again. The reason travels with the task.',
   '2.57.1': 'Splash safety ceiling lowered from 18s to 17s — the poem coda fits comfortably, and the extra second was just wasted wait.',
-  '2.57.0': 'Focus ✦ ask button is hidden until AI is connected — no dead button, no mystery. Your name only appears in Connections once both AI keys are saved.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
