@@ -3886,16 +3886,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '249h';
+const DEV_HOURS     = '250h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.56.0': 'Splash: the logo fades out letter-group by letter-group — TO first, then DAY — then each line of the poem coda disappears one by one before the screen clears. Still under 20 seconds total.',
   '2.55.0': 'Deleting a task from the list now also captures why — same four reasons as triage, shown as a quick row in the undo toast. Input bar auto-focuses on desktop so the cursor is ready when you open the app.',
   '2.54.0': 'Triage: letting go a task now asks why — not relevant, no energy, lost interest, or replaced. One tap. Stored in memory so patterns become visible over time.',
-  '2.53.0': 'Focus companion: ✦ ask question now draws on your behavioral memory — peak hour, confirmed patterns, time of day, and sessions done today — so the question fits who you are, not just what the task says.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -10393,17 +10393,43 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
 
   // Transition: typewriter done → burst → 180ms → fade splash (explosion plays over it) → reveal app
   window._doSplashDismiss = function(){
-    const logo     = document.getElementById('splash-logo');
-    const dateWrap = document.getElementById('splash-date-wrap');
-    const poemEl   = document.getElementById('splash-poem');
-    [logo, dateWrap, poemEl].forEach(el => {
-      if (!el) return;
-      el.style.transition = 'opacity 600ms cubic-bezier(0.4,0,0.2,1)';
-      el.style.opacity = '0';
-    });
+    const logo       = document.getElementById('splash-logo');
+    const dateWrap   = document.getElementById('splash-date-wrap');
+    const poemEl     = document.getElementById('splash-poem');
+    const poemTextEl = poemEl?.querySelector('.splash-poem-text');
+    const authorEl   = poemEl?.querySelector('.poem-author');
 
-    // Burst from star — use position captured at startSplash time (stable, post-transition)
-    sBurst(_burstX, _burstY);
+    const _fade = (el, dur) => {
+      if (!el) return;
+      el.style.transition = `opacity ${dur}ms ease`;
+      el.style.opacity = '0';
+    };
+
+    // 1. "TO" fades first (non-accent .l spans)
+    (logo ? [...logo.querySelectorAll('.l:not(.a)')] : []).forEach(el => _fade(el, 250));
+
+    // 2. "DAY" + date row fade 150ms later; star bursts at 300ms total
+    setTimeout(() => {
+      (logo ? [...logo.querySelectorAll('.l.a')] : []).forEach(el => _fade(el, 250));
+      setTimeout(() => _fade(dateWrap, 200), 50);
+      setTimeout(() => sBurst(_burstX, _burstY), 150);
+    }, 150);
+
+    // 3. Coda lines staggered from 300ms — wrap each line in a span so they fade individually
+    let codaEls = [];
+    if (poemTextEl?.innerHTML.trim()) {
+      const rawLines = poemTextEl.innerHTML.split('<br>');
+      poemTextEl.innerHTML = rawLines.map(l => `<span class="splash-coda-line">${l}</span>`).join('<br>');
+      codaEls = [...poemTextEl.querySelectorAll('.splash-coda-line')].filter(el => el.textContent.trim());
+      if (authorEl) codaEls.push(authorEl);
+    }
+    const STAGGER = 100, CODA_DUR = 200;
+    codaEls.forEach((el, i) => setTimeout(() => _fade(el, CODA_DUR), 300 + i * STAGGER));
+
+    // 4. Splash overlay fades after all coda lines have started fading
+    const overlayDelay = codaEls.length
+      ? 300 + (codaEls.length - 1) * STAGGER + CODA_DUR
+      : 420;
 
     setTimeout(() => {
       const splash  = document.getElementById('splash');
@@ -10452,7 +10478,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
           }, FADE_OUT + 80);
         }
       }, FADE_OUT + 30);
-    }, 180);
+    }, overlayDelay);
   };
 
   // Wait for fonts to be truly ready before animating — prevents swap flash
