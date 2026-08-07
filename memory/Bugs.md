@@ -8,6 +8,7 @@
 |-------|---------|
 | ✅ `vX.X.X`  | Fixed and verified by Can on real device |
 | ⏳ `vX.X.X`  | Fix shipped — awaiting real-device verification |
+| ⚠️ Stale     | Fix shipped long ago, never verified, condition may no longer be reproducible |
 | 🚫 Rejected  | Not a fixable app bug (platform limitation, won't fix) |
 
 ## Status Summary
@@ -21,7 +22,7 @@
 | 064 | Focused Trello card un-ages for one day then returns at a heavier dim tier | ✅ v2.43.6  |
 | 063 | Focus sessions near midnight wiped by new-day reset race | ✅ v2.42.4  |
 | 062 | Native share-sheet popover opens far from the poem's click point, not fixable from page DOM | 🚫 Rejected  |
-| 061 | Sunday/habit badges silently fail to show on a fresh device (same root cause as BUG-060) | ⏳ v2.37.8  |
+| 061 | Sunday/habit badges silently fail to show on a fresh device (same root cause as BUG-060) | ⚠️ Stale  |
 | 060 | Completed Trello card reappears as active after daily sync | ✅ v2.40.1  |
 | 059 | Task card age reset by sync after focus — card re-dims on refresh | ✅ v2.36.5  |
 | 058 | Noticed block in About shows different content between devices | ✅ v2.36.3  |
@@ -87,18 +88,6 @@
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
-
----
-
-## BUG-061: Sunday/habit badges silently fail to show on a fresh device
-
-**Symptom:** Found by audit after BUG-060, not yet reported in the wild. On a genuinely fresh device, the week-reflection badge (Sun/Mon) and the habits-button badge (10pm–3am) can silently fail to light up even when real, synced data exists that should trigger them.
-
-**Root cause:** Same family as BUG-060. `checkSundayNudge()` reads `today_daily_history` and `checkHabitNudge()` reads `habitsList`/`habitCompletions` — both genuinely Dropbox-synced (backup payload + merge logic in `mergeRemoteData`), both module-level variables initialized once from local (pre-sync) `localStorage` at script-parse time. Both functions are called only from `init()` (`index.html:5251-5252`), which runs before the Dropbox restore lands — so on a fresh device they read empty/stale local state and simply return early (`if (!...length) return`), no badge. Unlike BUG-060, this is a false negative (something that should show, doesn't) rather than a false positive (something that shouldn't show, does) — same architectural gap, softer symptom. Neither function was ever added to the post-merge re-check pattern already established for `checkTriageBar()`/`checkDayNudge()`.
-
-**Fix (v2.37.8):** added `checkSundayNudge()` and `checkHabitNudge()` calls alongside the existing `checkDayNudge()` re-check, at both post-merge points (Dropbox restore path and the primary cold-start load handler).
-
-**Verify:** On a Sunday, Monday, or during 10pm–3am with real synced habit/week data, do a fresh PWA install / fresh Dropbox connect on a new device. The relevant badge should appear once sync settles, not require a manual refresh or reopen.
 
 ---
 
