@@ -1266,6 +1266,8 @@
     color: var(--text);
   }
   .past-revive-reasons { margin-top: var(--space-2); }
+  #undoReasonRow.triage-reason-row { gap: var(--space-1); }
+  #undoReasonRow .triage-reason-btn { padding: 2px var(--space-2); }
   #triageComplete {
     display: flex;
     flex-direction: column;
@@ -2610,12 +2612,13 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-3);
     font-size: var(--text-sm2);
     color: var(--text);
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
     gap: var(--space-2);
     box-shadow: var(--shadow-panel-sm);
     opacity: 0;
@@ -2627,7 +2630,6 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    width: 100%;
   }
   #undoToast.show {
     transform: translateX(-50%) translateY(0);
