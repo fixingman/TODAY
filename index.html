@@ -3628,7 +3628,7 @@
     </div>
 
     <!-- Your name(s) — used by meeting mode to know which action items are yours (v2.22.0) -->
-    <div class="name-card" id="meetingNameWrap">
+    <div class="name-card" id="meetingNameWrap" style="display:none">
       <div class="name-card-header">
         <span class="name-card-title">Your name</span>
         <span class="name-card-hint">Spots your tasks in meetings</span>
@@ -3893,9 +3893,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.57.0': 'Focus ✦ ask now shows a setup hint when AI isn\'t connected — tap it again to jump to Connections. Your name only appears in Connections once both AI keys are saved.',
   '2.56.1': 'Splash: poem lines now drift away gently — each line lingers before fading, so the coda evaporates rather than snapping out.',
   '2.56.0': 'Splash: the logo fades out letter-group by letter-group — TO first, then DAY — then each line of the poem coda disappears one by one before the screen clears. Still under 20 seconds total.',
-  '2.55.0': 'Deleting a task from the list now also captures why — same four reasons as triage, shown as a quick row in the undo toast. Input bar auto-focuses on desktop so the cursor is ready when you open the app.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -12496,6 +12496,10 @@ function _aiRenderConfig() {
     _providerRow('gemini', 'Gemini Flash', 'Free tier', 'https://aistudio.google.com/apikey', 'Get free key →', hasGemini) +
     _providerRow('claude', 'Claude Sonnet', 'Paid API', 'https://platform.claude.com/login', 'Get key →', hasClaude);
 
+  // Show "Your name" card only once both AI keys are saved
+  const nameWrap = document.getElementById('meetingNameWrap');
+  if (nameWrap) nameWrap.style.display = bothConnected ? '' : 'none';
+
   // Re-apply offline state — buttons are freshly rendered so _applyOfflinePanel's
   // earlier pass over the panel won't have reached them yet.
   _applyOfflinePanel();
@@ -12960,6 +12964,7 @@ function _aiClearBadge() {
     if (_thinkAnim) { _thinkAnim.cancel(); _thinkAnim = null; }
     timerEl.classList.remove('ai-active');
     if (focusAIBtn) {
+      focusAIBtn.removeAttribute('data-hint');
       focusAIBtn.classList.remove('loading');
       focusAIBtn.textContent = '\u2726\ufe0e ask';
       // Block hover for one frame so dismissing insight doesn't leave btn in hover state
@@ -12969,7 +12974,18 @@ function _aiClearBadge() {
   }
 
   async function _focusAskAI() {
-    if (!_aiIsConfigured()) return;
+    // If hint is already showing \u2014 second tap opens connections
+    if (focusAIBtn && focusAIBtn.dataset.hint) {
+      _focusResetAI();
+      if (typeof toggleConfig === 'function') toggleConfig();
+      return;
+    }
+    if (!_aiIsConfigured()) {
+      timerEl.classList.add('ai-active');
+      focusAIBtn.dataset.hint = '1';
+      focusAIBtn.textContent = 'AI key needed \u2014 tap to set up \u2192';
+      return;
+    }
     if (timerEl.classList.contains('ai-active')) { _focusResetAI(); return; }
     const taskText = (uiTaskEl && uiTaskEl.querySelector('.task-text')?.textContent?.trim()) || '';
     if (!taskText) return;
