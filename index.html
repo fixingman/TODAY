@@ -3895,9 +3895,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.57.1': 'Splash safety ceiling lowered from 18s to 17s — the poem coda fits comfortably, and the extra second was just wasted wait.',
   '2.57.0': 'Focus ✦ ask button is hidden until AI is connected — no dead button, no mystery. Your name only appears in Connections once both AI keys are saved.',
   '2.56.1': 'Splash: poem lines now drift away gently — each line lingers before fading, so the coda evaporates rather than snapping out.',
-  '2.56.0': 'Splash: the logo fades out letter-group by letter-group — TO first, then DAY — then each line of the poem coda disappears one by one before the screen clears. Still under 20 seconds total.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -10188,7 +10188,7 @@ window._onAppLoadDone    = function() { _appLoadDone    = true; _tryDismissSplas
 setTimeout(() => { if (!_appLoadDone)    window._onAppLoadDone    && window._onAppLoadDone();    }, 6000);
 setTimeout(() => { if (!_splashAnimDone && !_splashPoemHold) window._onSplashAnimDone && window._onSplashAnimDone(); }, 6000);
 // Poem-coda ceiling: typewriter + fade + longest reading hold stays well under this
-setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onSplashAnimDone(); }, 18000);
+setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onSplashAnimDone(); }, 17000);
 
 // ─── Splash screen ────────────────────────────────────────────────────────────
 (function() {
