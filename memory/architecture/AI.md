@@ -139,6 +139,38 @@ Available in handlers but not offered by AI (kept for edge cases):
 
 ---
 
+## Focus Companion (`_focusAskAI`)
+
+A separate AI surface that lives inside the focus timer bar. Triggered by the ✦ ask button (dynamically created inside the focus IIFE). Returns a single question under 18 words that the user reads before starting a 25-minute session.
+
+**Does NOT use** `_memoryForAI()` or the main AI panel's context object — it builds its own `_ctx` array.
+
+### Signals sent (as `_ctx` array in user message)
+
+| Signal | Source | When |
+|---|---|---|
+| Previous sessions on task | `manualTask.focusSessions` or `_getTrelloFocusTotal()[id]` | sessions > 0 |
+| Task age | `_getCreatedFromId(id)` or `lastActive` | ageDays >= 3 |
+| Revived | `manualTask.revived` | true |
+| Deferred | `manualTask.zoneChangedAt` | truthy |
+| Time of day | `new Date().getHours()` | always — morning/afternoon/evening/late night |
+| Peak hour match | `appMemory.preferences.peakHour ± 1h` | when peak hour is set |
+| Today's sessions | `stat_focus_mins_today ÷ 25` | count ≥ 1 |
+
+### Behavioral inferences (appended to system prompt)
+
+Up to 4 confirmed inferences from `appMemory.memory` (semantic + episodic + procedural, `status === 'confirmed'`) are appended as `\n\nWhat we know about this person: ...` — added v2.53.0.
+
+### System prompt character
+
+"Quiet companion" — not a coach. One question, honest noticing. Adapts tone by context: first session → done-enough framing; multiple sessions → curious about what's in the way; revived → what changed; deferred → gentle check-in; peak hour → lean into momentum; many sessions today → acknowledge sustained effort. Never offers advice or exclamation marks.
+
+### Note on orphaned AI panel
+
+`toggleAI()`, `openAI()`, `_aiSendFromInput()` exist but are unreachable since v2.49.0 removed the ✦ button from the input bar. The `#aiPanel` DOM element exists but has no trigger. The TODAY logo opens the Memory panel (`toggleMemory()`). These functions are dead code — left in place to avoid regressions if any edge path references them.
+
+---
+
 ## Day-End Review (v2.14.4)
 
 Triage summary shows contextual acknowledgment after all decisions are made. Headline uses Syne display font at 28px with full stop. Single adaptive sub-line below — no triage breakdown (user just made those decisions).

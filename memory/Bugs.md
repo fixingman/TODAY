@@ -14,7 +14,7 @@
 
 | # | Description | Status |
 |---|---|---|
-| 068 | Trello card 🍅 session count resets every morning | ✅ v2.48.4  |
+| 068 | Trello card 🍅 session count resets every morning | ✅ v2.52.1  |
 | 067 | Focused task jumps near top of viewport after focus ends | ✅ v2.44.1  |
 | 066 | Focus minutes from another device read 0 on second-device open | ✅ v2.43.8  |
 | 065 | Focus mode re-opened after leaving; timer bar torn loose on fast task switch | ✅ v2.43.7  |

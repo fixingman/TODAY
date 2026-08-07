@@ -144,7 +144,7 @@
 | Daily brief (✦ brief) | v2.29.0 | 2026-07-28 | ❌ Removed v2.40.9 — content redundant with About; fixing discoverability would have made a redundant feature easier to find. |
 | Today block in About | v2.33.0 | 2026-08-01 | ✅ Kept (2026-07-31) — adds value as a content layer; About is where the nudge actually lands and gets read. |
 | Season moments (6/year) | v2.37.0 | first appearance 2026-09-01 | Open — 14-day window doesn't apply (fires ~6×/year); judge per appearance. Sep 1 "First day of autumn.": does it land as noticed or as calendar readout? |
-| Focus companion question | v2.45.0 | 2026-08-16 | Open — does the question feel like a thoughtful friend or a template? Do different task types produce meaningfully different questions? |
+| Focus companion question | v2.45.0 / v2.53.0 | 2026-08-16 | Open — does the question feel like a thoughtful friend or a template? v2.53.0 added time-of-day, peak-hour, today's session count, and confirmed memory inferences — does it now feel more personal? |
 | Sunday recap + Monday intention (memory-enriched) | v2.48.2 | 2026-08-17 | Open — does the Monday line name something specific to how you work, or still feel generic? Quality improves as confirmed memory inferences accumulate. |
 | Memory panel quality gate | v2.47.0 | 2026-09-01 | Open — are AI-generated hypotheses earning confirmation or getting dismissed? High dismiss rate = prompting or data quality problem. |
 | Noticed block in About | v2.35.0–v2.39.0 | 2026-08-09 | ✅ Kept (2026-08-03). **Hypothesis:** as Memory panel accumulates confirmed inferences, Noticed observations will become more specific without new code — watch whether Noticed content shifts character after the first batch of confirmed memory inferences. |
