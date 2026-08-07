@@ -2607,17 +2607,24 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: var(--space-2) var(--space-4);
+    padding: var(--space-3) var(--space-4);
     font-size: var(--text-sm2);
     color: var(--text);
     display: flex;
-    align-items: center;
-    gap: var(--space-3);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
     box-shadow: var(--shadow-panel-sm);
     opacity: 0;
     pointer-events: none;
     transition: transform var(--dur-slow) var(--ease-spring), opacity var(--dur-mid) ease;
     z-index: var(--z-modal);
+  }
+  .undo-main {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
   }
   #undoToast.show {
     transform: translateX(-50%) translateY(0);
@@ -3838,8 +3845,11 @@
   </div>
 </div>
 <div id="undoToast" role="status" aria-live="polite">
-  <span id="undoMsg">Task removed</span>
-  <button onclick="_undoLast()">Undo</button>
+  <div class="undo-main">
+    <span id="undoMsg">Task removed</span>
+    <button onclick="_undoLast()">Undo</button>
+  </div>
+  <div id="undoReasonRow" class="triage-reason-row" style="display:none"></div>
 </div>
 
 <canvas id="celebCanvas" aria-hidden="true"></canvas>
@@ -3876,16 +3886,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '248h';
+const DEV_HOURS     = '249h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.55.0': 'Deleting a task from the list now also captures why — same four reasons as triage, shown as a quick row in the undo toast. Input bar auto-focuses on desktop so the cursor is ready when you open the app.',
   '2.54.0': 'Triage: letting go a task now asks why — not relevant, no energy, lost interest, or replaced. One tap. Stored in memory so patterns become visible over time.',
   '2.53.0': 'Focus companion: ✦ ask question now draws on your behavioral memory — peak hour, confirmed patterns, time of day, and sessions done today — so the question fits who you are, not just what the task says.',
-  '2.52.1': 'Fix: Trello 🍅 session badge now correctly shows lifetime count — it was resetting to zero each morning after the original fix didn\'t update the Trello patch path.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -8043,6 +8053,17 @@ let _archivedHabitStack = [];
 let _lastUndoType = 'task';
 let _undoTimeout = null;
 
+let _pendingDeleteText = '';
+
+function _recordDeleteReason(reason) {
+  if (_pendingDeleteText) {
+    _memoryOnTaskLetgo(_pendingDeleteText, reason);
+    _pendingDeleteText = '';
+  }
+  const row = document.getElementById('undoReasonRow');
+  if (row) { row.style.opacity = '0.35'; row.querySelectorAll('button').forEach(b => b.disabled = true); }
+}
+
 function _showUndoToast(text, stackSize, type = 'task') {
   const toast = document.getElementById('undoToast');
   const msg = document.getElementById('undoMsg');
@@ -8053,12 +8074,30 @@ function _showUndoToast(text, stackSize, type = 'task') {
   msg.textContent = type === 'habit'
     ? `"${displayText}" archived${countText}`
     : `"${displayText}" removed${countText}`;
+  const reasonRow = document.getElementById('undoReasonRow');
+  if (type === 'task' && reasonRow) {
+    _pendingDeleteText = text;
+    const _reasons = [
+      ['not_relevant', 'not relevant'], ['no_energy', 'no energy'],
+      ['lost_interest', 'lost interest'], ['replaced', 'replaced'],
+    ];
+    reasonRow.innerHTML = _reasons.map(([k, l]) =>
+      `<button class="triage-reason-btn" onclick="_recordDeleteReason('${k}')">${l}</button>`
+    ).join('');
+    reasonRow.style.display = 'flex';
+    reasonRow.style.opacity = '1';
+  } else if (reasonRow) {
+    reasonRow.style.display = 'none';
+    reasonRow.innerHTML = '';
+    _pendingDeleteText = '';
+  }
   toast.classList.add('show');
   clearTimeout(_undoTimeout);
   _undoTimeout = setTimeout(() => {
     toast.classList.remove('show');
     _deletedStack = [];
     _archivedHabitStack = [];
+    _pendingDeleteText = '';
   }, 5000);
 }
 
@@ -8066,11 +8105,14 @@ function _hideUndoToast() {
   const toast = document.getElementById('undoToast');
   if (toast) toast.classList.remove('show');
   clearTimeout(_undoTimeout);
+  _pendingDeleteText = '';
+  const reasonRow = document.getElementById('undoReasonRow');
+  if (reasonRow) { reasonRow.style.display = 'none'; reasonRow.innerHTML = ''; }
 }
 
 function _undoDelete() {
   if (_deletedStack.length === 0) return;
-  
+  _pendingDeleteText = '';
   const task = _deletedStack.pop();
   
   // Remove from deleted IDs
@@ -10176,6 +10218,10 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     _appLoadDone = true;
     // Enable wake detection after load settles (no splash path — _appReady never set otherwise)
     window.addEventListener('load', () => { _appReady = true; }, { once: true });
+    if (window.matchMedia('(hover: hover)').matches) {
+      const inp = document.getElementById('newTask');
+      if (inp) inp.focus();
+    }
     return;
   }
   localStorage.setItem(splashKey, Date.now().toString());
@@ -10399,6 +10445,12 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
         if (_mtgOvl)  _mtgOvl.classList.add('visible');
 
         setTimeout(() => { if (typeof updateStats === 'function') updateStats(); }, FADE_OUT + 30);
+        if (window.matchMedia('(hover: hover)').matches) {
+          setTimeout(() => {
+            const inp = document.getElementById('newTask');
+            if (inp && !document.querySelector('.focusing')) inp.focus();
+          }, FADE_OUT + 80);
+        }
       }, FADE_OUT + 30);
     }, 180);
   };
