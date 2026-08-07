@@ -1265,6 +1265,7 @@
     background: var(--surface2);
     color: var(--text);
   }
+  .past-revive-reasons { margin-top: var(--space-2); }
   #triageComplete {
     display: flex;
     flex-direction: column;
@@ -3895,9 +3896,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.58.0': 'Past → Soon: tapping ↩ soon now shows why first — still relevant, new context, too hasty, or came up again. The reason travels with the task.',
   '2.57.1': 'Splash safety ceiling lowered from 18s to 17s — the poem coda fits comfortably, and the extra second was just wasted wait.',
   '2.57.0': 'Focus ✦ ask button is hidden until AI is connected — no dead button, no mystery. Your name only appears in Connections once both AI keys are saved.',
-  '2.56.1': 'Splash: poem lines now drift away gently — each line lingers before fading, so the coda evaporates rather than snapping out.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4085,7 +4086,7 @@ function renderPast() {
     // unfinished (aged/let_go) get a quiet way back to SOON (Roadmap #8).
     const badge = t.status === 'done'
       ? `<span class="zone-badge">${t.status}</span>`
-      : `<button class="zone-badge pull-btn" onclick="reviveFromPast('${t.id}')" title="Back to soon">&#x21a9;&#xFE0E; soon</button>`;
+      : `<button class="zone-badge pull-btn" onclick="reviveFromPastShowReason('${t.id}')" title="Back to soon">&#x21a9;&#xFE0E; soon</button>`;
     return `
       <div class="task ${statusClass}" data-id="${t.id}">
         <div class="task-check past-check">
@@ -4129,7 +4130,26 @@ function pullFromSoon(id) {
 // session counts, and insight history survive (Roadmap #8: replaces Can's manual
 // copy-text → new task → move-to-soon ritual, which reset all of that).
 // Done items stay put — PAST is acknowledgment; only the unfinished get a way back.
-function reviveFromPast(id) {
+function reviveFromPastShowReason(id) {
+  const card = document.querySelector(`#pastList .task[data-id="${id}"]`);
+  if (!card) { reviveFromPast(id); return; }
+  const btn = card.querySelector('.pull-btn');
+  if (btn) btn.style.display = 'none';
+  const reasons = [
+    ['still_relevant', 'still relevant'],
+    ['new_context',    'new context'],
+    ['too_hasty',      'too hasty'],
+    ['came_up_again',  'came up again'],
+  ];
+  const row = document.createElement('div');
+  row.className = 'triage-reason-row past-revive-reasons';
+  row.innerHTML = reasons.map(([key, label]) =>
+    `<button class="triage-reason-btn" onclick="reviveFromPast('${id}','${key}')">${label}</button>`
+  ).join('');
+  card.querySelector('.task-body').appendChild(row);
+}
+
+function reviveFromPast(id, reason = '') {
   const task = pastTasks.find(t => t.id === id);
   if (!task || task.status === 'done') return;
 
@@ -4143,6 +4163,7 @@ function reviveFromPast(id) {
   task.zone = 'soon';
   task.zoneChangedAt = new Date().toISOString();
   task.revived = (task.revived || 0) + 1; // context signal for future nudge/insights
+  if (reason) task.reviveReason = reason;
   soonTasks.unshift(task);
   _saveSoon();
 
