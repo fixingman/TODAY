@@ -15,6 +15,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 072 | Triage flow never completes — "Let go" tapped but completion screen never appears | ⏳ v2.61.6  |
 | 071 | App goes blank on wake from sleep or when PWA returns from background while in focus mode — third recurrence of BUG-004/056 family | ⏳ v2.61.5  |
 | 070 | Undo toast reason chips unclickable on narrow screens — column layout fix + chip highlight/auto-dismiss feedback | ⏳ v2.61.4  |
 | 069 | Poem OG preview may show wrong poem for southern-hemisphere users — edge function has no viewer TZ, skips southern-hemisphere flip | 🚫 Rejected  |
@@ -91,6 +92,23 @@
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-072 — Triage flow never completes after "Let go" is tapped
+
+**Status:** ⏳ v2.61.6 (fix shipped — awaiting real-device verification)
+**File:** `index.html` — `triageShowReason`, `renderTriageList`
+
+**Symptom:** After making all triage decisions including "Let go" on one or more tasks, the completion screen never appears. The overlay stays open with decided tasks showing badges.
+
+**Root cause:** `triageShowReason(id)` (added v2.54.0 to show reason chips) only manipulated the DOM — it replaced the card's action buttons with reason chips but never set `triageDecisions[id]`. When any other card was decided, `renderTriageList()` re-rendered the entire list from scratch, wiping the reason chips. The "Let go" intent was lost. The task remained undecided, so `remaining` never reached 0 and `triageApplyAll()` never fired. Affects any session where "Let go" is not the very last decision made.
+
+**Fix (v2.61.6):**
+- `triageShowReason(id)` now commits `triageDecisions[id] = 'letgo'` immediately (fires `_haptic`, recalculates remaining, calls `triageApplyAll()` or `renderTriageList()` via the normal path). DOM manipulation removed.
+- `renderTriageList()` decided-card template now injects optional reason chips inline for any letgo task that has no reason yet (chips call new `triageSetReason(id, reason)`).
+- New `triageSetReason(id, reason)` — just records the reason and re-renders (no decision logic).
+- Edge case: if "Let go" is the LAST undecided task, `triageApplyAll()` fires immediately (reason = '', which is handled correctly by `triageApplyAll`'s `|| ''` fallback).
 
 ---
 

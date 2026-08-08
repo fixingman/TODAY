@@ -3895,9 +3895,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.61.6': 'Fix: triage "Let go" now registers as a decision immediately — tapping it commits the task and shows reason chips inline on the decided card, so the flow completes even when other decisions are made in between.',
   '2.61.5': 'Fix: app no longer goes blank when returning from background or after a long sleep while in focus mode — repaint window extended to 12 s, focused task re-centered if it drifted off-screen.',
   '2.61.4': 'Fix: tapping a reason chip in the undo toast now highlights the selected chip and dismisses the toast after 800ms — previously there was no visible feedback.',
-  '2.61.3': 'Fix: undo toast reason chips now stack below the Undo button in a column layout — chips were clipped off-screen in the previous side-by-side row layout on narrow screens.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4832,12 +4832,15 @@ function renderTriageList() {
     if (decision) {
       const badgeClass = decision;
       const badgeText = decision === 'done' ? 'done' : decision === 'kept' ? 'kept' : decision === 'soon' ? '↩︎ soon' : 'let go';
+      const needsReason = decision === 'letgo' && !triageDecisions[t.id + '_reason'];
+      const _rcs = [['not_relevant','not relevant'],['no_energy','no energy'],['lost_interest','lost interest'],['replaced','replaced']];
       return `
         <div class="triage-task decided" data-id="${t.id}">
           <div class="triage-task-row">
             <span class="triage-task-text">${esc(t.text)}</span>
             <span class="triage-task-badge ${badgeClass}">${badgeText}</span>
           </div>
+          ${needsReason ? `<div class="triage-actions"><div class="triage-reason-row">${_rcs.map(([k,l])=>`<button class="triage-reason-btn" onclick="triageSetReason('${t.id}','${k}')">${l}</button>`).join('')}</div></div>` : ''}
         </div>
       `;
     }
@@ -4878,21 +4881,23 @@ function renderTriageList() {
 }
 
 function triageShowReason(id) {
-  const card = document.querySelector(`.triage-task[data-id="${id}"]`);
-  if (!card) { triageDecide(id, 'letgo'); return; }
-  const actionsEl = card.querySelector('.triage-actions');
-  if (!actionsEl) { triageDecide(id, 'letgo'); return; }
-  const reasons = [
-    ['not_relevant',  'not relevant'],
-    ['no_energy',     'no energy'],
-    ['lost_interest', 'lost interest'],
-    ['replaced',      'replaced'],
-  ];
-  actionsEl.innerHTML = `<div class="triage-reason-row">${
-    reasons.map(([key, label]) =>
-      `<button class="triage-reason-btn" onclick="triageDecide('${id}','letgo','${key}')">${label}</button>`
-    ).join('')
-  }</div>`;
+  // Commit letgo immediately so remaining count is correct even if another card is decided first.
+  // Reason chips appear in the decided card row; triageSetReason captures the reason later.
+  triageDecisions[id] = 'letgo';
+  _haptic('light');
+  const { manual: undoneManual, trello: undoneTrello } = _undoneTasks();
+  const allUndone = [...undoneManual, ...undoneTrello];
+  const remaining = allUndone.filter(t => !triageDecisions[t.id]).length;
+  if (remaining === 0) {
+    triageApplyAll();
+  } else {
+    renderTriageList();
+  }
+}
+
+function triageSetReason(id, reason) {
+  triageDecisions[id + '_reason'] = reason;
+  renderTriageList();
 }
 
 function triageDecide(id, decision, reason = '') {
