@@ -3895,9 +3895,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.61.4': 'Fix: tapping a reason chip in the undo toast now highlights the selected chip and dismisses the toast after 800ms — previously there was no visible feedback.',
   '2.61.3': 'Fix: undo toast reason chips now stack below the Undo button in a column layout — chips were clipped off-screen in the previous side-by-side row layout on narrow screens.',
   '2.61.2': 'Internal: extracted shared poem logic to assets/poem-utils.js (_SOUTHERN_TZ, _poemForDate, _poemHTML, _escPoem) — no more duplication between index.html and poem.html.',
-  '2.61.0': 'Poem share: tap "save as image" on any poem page to get a shareable card — dark background, poem text, author. Saves to camera roll on mobile, downloads on desktop.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -8017,13 +8017,18 @@ let _undoTimeout = null;
 
 let _pendingDeleteText = '';
 
-function _recordDeleteReason(reason) {
+function _recordDeleteReason(reason, btn) {
   if (_pendingDeleteText) {
     _memoryOnTaskLetgo(_pendingDeleteText, reason);
     _pendingDeleteText = '';
   }
   const row = document.getElementById('undoReasonRow');
-  if (row) { row.style.opacity = '0.35'; row.querySelectorAll('button').forEach(b => b.disabled = true); }
+  if (row) {
+    row.querySelectorAll('button').forEach(b => { b.disabled = true; b.style.opacity = '0.3'; });
+    if (btn) { btn.style.opacity = '1'; btn.style.background = 'var(--accent-dim)'; btn.style.borderColor = 'var(--accent)'; btn.style.color = 'var(--accent)'; }
+  }
+  clearTimeout(_undoTimeout);
+  _undoTimeout = setTimeout(_hideUndoToast, 800);
 }
 
 function _showUndoToast(text, stackSize, type = 'task') {
@@ -8044,7 +8049,7 @@ function _showUndoToast(text, stackSize, type = 'task') {
       ['lost_interest', 'lost interest'], ['replaced', 'replaced'],
     ];
     reasonRow.innerHTML = _reasons.map(([k, l]) =>
-      `<button class="triage-reason-btn" onclick="_recordDeleteReason('${k}')">${l}</button>`
+      `<button class="triage-reason-btn" onclick="_recordDeleteReason('${k}',this)">${l}</button>`
     ).join('');
     reasonRow.style.display = 'flex';
     reasonRow.style.opacity = '1';
