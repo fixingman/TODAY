@@ -4,15 +4,14 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.50.0 — TODAY logo now opens Memory panel; ✦ star button removed from input bar. v2.48.4: Trello 🍅 sessions persist across days (BUG-068). Unverified: BUG-061 (Sunday/habit badges fresh device). Watching: ✦ question quality (Backlog).
-- **Recent (2026-07-22 → 07-24):** Big fix arc, mostly the `init()`-runs-before-sync bug family (now a named Sync.md Design Principle 6 + Rules.md Non-Delegation row): BUG-060 (Trello done card resurfaces on fresh device), BUG-061 (Sunday/habit badges silent on fresh device), morning nudge generation-timing (v2.37.6) + cross-call-site re-render (v2.38.4), drag jump-back (v2.38.7, recency-aware manual order merge, schema 5.4). Meeting mode: speaker-tracked attribution + accuracy counters (v2.37.4), accept-button ReferenceError + sticky panel head (v2.38.2). Nudge prompt de-contradicted (v2.38.6 — position-as-priority removed, ranks stuck-task signal). Noticed expanded to 7 signals (v2.38.0) + two AI observations tuned (v2.38.1). Poems round 23 (Teasdale ×3, 93→96). Season moments shipped (v2.37.0). Perf: sync kickoff moved off `window.load` (v2.38.5).
-- **Module extraction (Roadmap #3):** Done: `util.js`, `idle.js`, `sound.js`, `celebration.js`, `trello.js` (v2.33.5), `insights.js` (v2.33.10 — owns `appMemory`, runs at eval, must load after util.js). Next: `sync.js` (~510, Non-Delegation). Coupled core stays inline.
+- **Working on:** v2.61.5 — blank-screen-on-wake fix (BUG-071, third recurrence of BUG-004/056 family). Also in flight: BUG-070 ⏳ (undo toast chip layout + feedback, v2.61.3–4, unverified). Recent session: poem share image (v2.61.0), poem-utils.js extraction (v2.61.2), undo toast column layout (v2.61.3), chip highlight/dismiss (v2.61.4), wake repaint extended to 12s + _wakeFocusCheck (v2.61.5).
+- **Recent (2026-08-08):** Undo toast chips unclickable on narrow screens (BUG-070) — two-pass fix: column layout v2.61.3, feedback v2.61.4. Blank app on wake/PWA background return during focus (BUG-071) — repaint schedule to 12s + visibility guard + _wakeFocusCheck viewport correction v2.61.5. Poem share card (canvas PNG, Web Share API, v2.61.0). Shared poem-utils.js to eliminate index.html/poem.html duplication (v2.61.2). OG edge function for poem pages (v2.59.1). Sekki micro-seasons in poem selection (v2.60.0).
+- **Module extraction (Roadmap #3):** Done: `util.js`, `idle.js`, `sound.js`, `celebration.js`, `trello.js` (v2.33.5), `insights.js` (v2.33.10), `poem-utils.js` (v2.61.2). Next: `sync.js` (~510 lines, Non-Delegation). Coupled core stays inline.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
+  - **BUG-070 ⏳ v2.61.4** — verify undo toast chips are tappable on narrow screen; selected chip highlights accent, toast dismisses 800ms after tap.
+  - **BUG-071 ⏳ v2.61.5** — verify: focus mode active → PWA background → return → app not blank. Also: Mac long sleep (5–15 min) → wake → focused task still in viewport.
   - **Meeting attribution accuracy — ask Can:** after a few real meetings, ask "how's meeting attribution doing?" and read `appMemory.meetingAttribution` (`mineKept/mineShown` precision, `othersSelected/othersShown` recall).
-  - **Drag jump-back (BUG, v2.38.7)** — verify: on a warm refresh, drag a manual task immediately; should NOT snap back ~1s later. (2026-07-29: "seems fine so far" per Can — positive check-in, keep watching lightly rather than closing outright.)
-  - **Morning nudge quality (v2.38.6)** — does it now surface a genuinely stuck/revived/overdue task, and go quiet (not default to top) when nothing stands out?
-  - **Nudge day-rollover refresh (v2.38.8)** — verify: leave a tab open across midnight (or check right after wake past midnight); the nudge banner should show fresh content for the new day, not yesterday's cached text/count.
-  - **Noticed 7-signal expansion (v2.38.0, Aug 2 verdict)** — if it still reads as noise with 7 signals, don't add an 8th; ask whether Noticed needs a different shape.
+  - **Noticed 7-signal expansion (v2.38.0)** — if it still reads as noise, ask whether Noticed needs a different shape.
   - v2.28.0 meeting mode mobile — real in-room meeting on iPhone PWA (phone on table, screen on).
 
 ---
