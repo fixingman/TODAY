@@ -16,7 +16,7 @@
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 2 | **Poem corpus growth** | Ongoing | Corpus 96, target ~100, four to go. Spring thinnest gap. A cut is final — detail ↓ |
-| 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration/trello/insights/error-monitor.js. **Next:** `sync.js` (~510 lines, Non-Delegation) — needs a risk discussion before touching. **Ceiling:** coupled core stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
+| 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration/trello/insights/error-monitor/poem-utils.js. **Next:** `sync.js` (~510 lines, Non-Delegation) — needs a risk discussion before touching. **Ceiling:** coupled core stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 6 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 | 7 | **About — contextual digest layer** | ✅ Complete (v2.48.2) | Today block ✅ W3 kept. Daily brief ❌ removed. Noticed ✅ W3 kept. Memory panel inferences feed all AI surfaces. Sunday recap + Monday intention enriched with memory (v2.48.2). Remaining: time-based observation only — see Watching table. |
@@ -104,8 +104,6 @@
 | Item | From | What it is | Unpark when / gate |
 |------|------|------------|--------------------|
 | **Pinch-to-zoom accessibility toggle** | v2.36.9 zoom lock | `user-scalable=no` prevents layout breakage but also disables iOS accessibility zoom. If needed, a toggle that swaps the viewport meta to `maximum-scale=5, user-scalable=yes` would re-enable it. Not in Connections — surface TBD. Not needed now. |
-| **Skip-reason on letgo** | Landscape.md (Momentum) | One-tap reason picker on letgo — *not relevant / no energy / lost interest / replaced*. Low friction, high AI-context leverage | Can prioritizes — buildable as-is |
-| **Sekki season moments (24 divisions)** | Season moments discussion 2026-07-21 | Deepen shipped Season moments (v2.37.0, 6/year) to the Japanese 24 sekki (~every 15 days) — specific nature observations, still pure calendar, zero data. Not the 72 kō (every ~5 days = weather, and Yangtze-basin ecology doesn't transfer to Scandinavia); sekki are astronomical and do. | After the 6-appearance version earns its verdict — first real appearance Sep 1, 2026. |
 | **Sparse-context AI gate** | #1 verdict + first-run insight 2026-07-20 | When the AI has too little context for a real observation, stay silent — poem leads. Applies especially to first-run users who connect a key early (extends v2.34.0's quiet-first-open principle). | Watch-and-decide with W3 verdicts — a build item only if sparse output proves weak |
 | **"How did today feel?" emoji** | Landscape.md (Momentum) | Once daily after triage, optional 5-point | Psychology.md check first — closest of the candidates to mood-tracking |
 | **Weather awareness** | #1 deeper-personality | Weather-aware nudge/suggestions | Needs geolocation + weather API = new Connections data-boundary row. Decide deliberately if ever |
@@ -113,7 +111,7 @@
 | **AI system-prompt trimming** | — | Cost <$0.01/day. Never cut: task/habit lists with IDs, JSON rules, personality block | Only if token cost ever matters |
 | **Trello checklist write-back** | — | Write checklist state back to Trello | Only if editing is actually wanted |
 
-*(Left this list 2026-07-19: learned patterns → v2.35.0, energy-aware suggestions → v2.35.1, revived counter to AI → v2.35.2.)*
+*(Left this list 2026-07-19: learned patterns → v2.35.0, energy-aware suggestions → v2.35.1, revived counter to AI → v2.35.2. Left 2026-08-08: skip-reason on letgo → v2.54.0/v2.55.0; Sekki season moments → v2.60.0.)*
 
 ---
 
@@ -122,7 +120,7 @@
 ### Watching
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| Modularization | Single file (~12K lines) + `assets/poems.js` | Roadmap #3 is the plan; smoke test guards the boot path. Revisit harder if growth continues. |
+| Modularization | Single file (~14K lines) + `assets/poems.js` + extracted modules | Roadmap #3 in progress; 8 modules extracted. `sync.js` is the next meaningful cut. Smoke test guards the boot path. |
 | Sync conflict rate | Merge-anomaly counter live (Connections → Dropbox) | If count climbs above zero in normal use, revisit conflict handling before WEEK consumes the data. |
 | Dated AI-cache sync | 2 instances hand-plumbed (nudge v2.27.0b, weekly block v2.36.1/BUG-057) | **Rule of three:** the next AI-generated daily text must trigger a registry instead of a third hand-plumbing — same payload + remote-wins-merge pattern each time. |
 | open_triage second use | Shipped v2.36.0 from Can's own request | Does he reach for it again unprompted? If unused by ~mid-Aug, ask why before adding discoverability. |
