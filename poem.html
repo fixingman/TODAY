@@ -179,60 +179,27 @@
   </footer>
 
   <script src="/assets/poems.js"></script>
+  <script src="/assets/poem-utils.js"></script>
   <script>
-    const _SOUTHERN_TZ = ['Australia/', 'Pacific/Auckland', 'Pacific/Fiji',
-      'Pacific/Port_Moresby', 'America/Sao_Paulo', 'America/Argentina',
-      'America/Santiago', 'America/Montevideo', 'America/Asuncion', 'America/Lima',
-      'America/La_Paz', 'Africa/Johannesburg', 'Africa/Windhoek', 'Africa/Maputo',
-      'Africa/Lusaka', 'Africa/Harare', 'Indian/Antananarivo'];
-
     const params    = new URLSearchParams(location.search);
     const dateParam = params.get('date');
     const isEmbed   = params.get('embed') === '1';
     if (isEmbed) document.body.classList.add('embed-mode');
-
-    function poemForDate(dateStr) {
-      if (typeof POEMS === 'undefined' || !POEMS.length) return null;
-      const date = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
-      const tz   = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-      let m = date.getMonth();
-      if (_SOUTHERN_TZ.some(p => tz.startsWith(p))) m = (m + 6) % 12;
-      const season = m >= 2 && m <= 4 ? 'spring'
-                   : m >= 5 && m <= 7 ? 'summer'
-                   : m >= 8 && m <= 10 ? 'autumn' : 'winter';
-      const pool = POEMS.filter(p => !p.season || p.season === season);
-      if (!pool.length) return null;
-      const appDay = date.toDateString();
-      const days   = Math.floor(new Date(appDay).getTime() / 86400000);
-      return pool[days % pool.length];
-    }
 
     function fmtDate(dateStr) {
       const d = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
       return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     }
 
-    function escHtml(s) {
-      return String(s || '')
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    const poem = poemForDate(dateParam);
+    const poem = _poemForDate(dateParam);
     const card = document.getElementById('poemCard');
 
     if (!poem) {
       card.innerHTML = '<p class="error-msg">No poem found for this date.</p>';
     } else {
-      const poemHtml = poem.text.split('\n').map(line => {
-        const e = escHtml(line);
-        const i = e.lastIndexOf(' ');
-        return i > 0 ? e.slice(0, i) + ' ' + e.slice(i + 1) : e;
-      }).join('<br>');
-
       card.innerHTML = `
-        <div class="poem-text">${poemHtml}</div>
-        <div class="poem-author">${escHtml(poem.author)}</div>
+        <div class="poem-text">${_poemHTML(poem.text)}</div>
+        <div class="poem-author">${_escPoem(poem.author)}</div>
         <div class="poem-date">${fmtDate(dateParam)}</div>
       `.trim();
 
