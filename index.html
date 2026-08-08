@@ -3895,9 +3895,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.61.5': 'Fix: app no longer goes blank when returning from background or after a long sleep while in focus mode — GPU repaint window extended to 12 s, focused task re-centered if it drifted off-screen (BUG-071).',
   '2.61.4': 'Fix: tapping a reason chip in the undo toast now highlights the selected chip and dismisses the toast after 800ms — previously there was no visible feedback.',
   '2.61.3': 'Fix: undo toast reason chips now stack below the Undo button in a column layout — chips were clipped off-screen in the previous side-by-side row layout on narrow screens.',
-  '2.61.2': 'Internal: extracted shared poem logic to assets/poem-utils.js (_SOUTHERN_TZ, _poemForDate, _poemHTML, _escPoem) — no more duplication between index.html and poem.html.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -8655,6 +8655,7 @@ window._onWake = function() {
   // that would replay on each pass (panels visibly flash, BUG-023) — suppress it;
   // it's restored when the user next opens a panel.
   function _forceRepaint() {
+    if (document.visibilityState === 'hidden') return; // re-slept before this pass fired
     const appEl = document.getElementById('main-app');
     if (!appEl) return;
     // Save scroll positions of all scrollable children before display:none
@@ -8669,17 +8670,36 @@ window._onWake = function() {
     scrollPositions.forEach(({ el, top }) => { el.scrollTop = top; });
     window.scrollTo(0, appScroll);
   }
-  _forceRepaint();
+  // Re-anchor focused task and correct its viewport position after repaint.
+  // BUG-071: blank screen also occurs when PWA returns from background (not only after
+  // long sleep). Re-anchoring ensures .focused re-attaches after sync re-renders the DOM.
+  // Viewport correction handles body.position:fixed scroll drift on wake.
+  function _wakeFocusCheck() {
+    if (!window._focusUIActive) return;
+    if (typeof window._focusReanchor === 'function') window._focusReanchor();
+    const focused = document.querySelector('#main-app .task.focused');
+    if (!focused) return;
+    const rect = focused.getBoundingClientRect();
+    const vh = window.innerHeight;
+    if (rect.top >= -8 && rect.bottom <= vh + 8) return; // already in view
+    // During focus mode body is position:fixed — adjust body.top to re-center the task.
+    const savedScrollY = parseInt(document.body.dataset.scrollY || '0');
+    const drift = rect.top - (vh / 2 - focused.offsetHeight / 2);
+    const newScrollY = Math.max(0, savedScrollY + drift);
+    document.body.style.top = `-${newScrollY}px`;
+    document.body.dataset.scrollY = String(newScrollY);
+  }
+  _forceRepaint(); _wakeFocusCheck();
   requestAnimationFrame(() => {
-    _forceRepaint();
-    requestAnimationFrame(_forceRepaint);
+    _forceRepaint(); _wakeFocusCheck();
+    requestAnimationFrame(() => { _forceRepaint(); _wakeFocusCheck(); });
   });
-  setTimeout(_forceRepaint, 500);
-  // Extra passes for slow GPU wakeup after long sleep (BUG-004).
-  // Mac GPU re-init can take 3–5s after hours of sleep; 1500ms wasn't enough.
-  setTimeout(_forceRepaint, 1500);
-  setTimeout(_forceRepaint, 3000);
-  setTimeout(_forceRepaint, 5000);
+  // Extra passes for slow GPU wakeup after long sleep (BUG-004/056/071).
+  // Mac GPU re-init can take >5s after hours of sleep; extended to 12s.
+  // Also covers PWA-backgrounded returns where GPU compositor layers go stale.
+  [500, 1500, 3000, 5000, 8000, 12000].forEach(ms =>
+    setTimeout(() => { _forceRepaint(); _wakeFocusCheck(); }, ms)
+  );
 
   // Clear single-play animation classes that may be mid-flight at sleep time.
   // Removing the class cancels cleanly; the animation will re-play on next trigger.
