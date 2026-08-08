@@ -6212,7 +6212,7 @@ function _shareDailyPoem() {
   if (!poem) return;
   const dateStr = _localISO();
   const poemUrl = 'https://today-here.netlify.app/poem.html?date=' + dateStr;
-  const text = poem.text + '\n— ' + poem.author + '\n\n' + poemUrl;
+  const text = poem.text + '\n— ' + poem.author;
   const btn = document.getElementById('poemShareBtn');
   // Immediate click acknowledgment, independent of which branch runs below —
   // navigator.share() itself gives no usable completion signal (its promise

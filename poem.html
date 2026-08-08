@@ -28,13 +28,11 @@
       font-weight: 300; font-display: swap;
     }
 
-    html {
-      height: 100%;
-      background: #0e0e10;
-    }
+    html { height: 100%; background: #0e0e10; }
     body {
       display: flex;
       flex-direction: column;
+      align-items: center;
       min-height: 100dvh;
       background: #0e0e10;
       color: #e0e0e0;
@@ -44,26 +42,39 @@
       padding-bottom: env(safe-area-inset-bottom, 0);
     }
 
-    /* header */
+    /* header — centered TODAY mark */
     .page-header {
+      width: 100%;
       display: flex;
-      align-items: center;
-      padding: 22px 28px 0;
+      justify-content: center;
+      padding: 32px 28px 0;
       flex-shrink: 0;
     }
     .brand {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 400;
-      letter-spacing: 0.14em;
-      color: #3a3a3a;
+      letter-spacing: 0.18em;
+      color: #2e2e2e;
       text-decoration: none;
       display: flex;
       align-items: center;
-      gap: 5px;
-      transition: color 0.15s;
+      gap: 6px;
+      transition: color 0.2s;
     }
-    .brand:hover { color: #666; }
-    .brand .star { color: #c8f060; }
+    .brand:hover { color: #555; }
+    .brand-word { position: relative; top: 0.5px; }
+
+    /* twinkling ✦ — matches app's breathe animation */
+    .star {
+      color: #c8f060;
+      font-size: 10px;
+      display: inline-block;
+      animation: twinkle 2.8s ease-in-out infinite;
+    }
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.35; transform: scale(0.85); }
+      50%       { opacity: 1;    transform: scale(1);    }
+    }
 
     /* poem area */
     .poem-wrap {
@@ -71,37 +82,39 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 40px 28px 32px;
+      padding: 48px 32px 36px;
+      width: 100%;
     }
     .poem-card {
-      max-width: 460px;
+      max-width: 440px;
       width: 100%;
     }
     .poem-text {
-      font-size: 16px;
+      font-size: 18px;
       font-weight: 300;
-      line-height: 1.85;
-      color: #d0d0d0;
-      letter-spacing: 0.015em;
-      margin-bottom: 22px;
+      line-height: 1.9;
+      color: #d4d4d4;
+      letter-spacing: 0.01em;
+      margin-bottom: 24px;
       text-wrap: pretty;
     }
     .poem-author {
       font-size: 12px;
-      color: #484848;
+      color: #424242;
       letter-spacing: 0.07em;
     }
     .poem-author::before { content: '— '; }
     .poem-date {
       font-size: 11px;
-      color: #2c2c2c;
-      margin-top: 5px;
+      color: #282828;
+      margin-top: 6px;
       letter-spacing: 0.04em;
     }
 
     /* footer */
     .page-footer {
-      padding: 0 28px 28px;
+      width: 100%;
+      padding: 0 32px 32px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -114,32 +127,28 @@
       letter-spacing: 0.07em;
       transition: opacity 0.15s;
     }
-    .cta-link:hover { opacity: 0.65; }
+    .cta-link:hover { opacity: 0.6; }
     .embed-hint {
       font-size: 11px;
-      color: #242424;
+      color: #1e1e1e;
       letter-spacing: 0.03em;
       cursor: default;
     }
 
-    /* embed mode — tighter chrome */
-    body.embed-mode .page-header { padding: 14px 18px 0; }
-    body.embed-mode .poem-wrap   { padding: 24px 18px 20px; }
-    body.embed-mode .page-footer { padding: 0 18px 16px; }
+    /* embed mode */
+    body.embed-mode .page-header { padding: 18px 20px 0; }
+    body.embed-mode .poem-wrap   { padding: 28px 20px 20px; }
+    body.embed-mode .page-footer { padding: 0 20px 18px; }
     body.embed-mode .embed-hint  { display: none; }
 
     /* error */
-    .error-msg {
-      color: #3a3a3a;
-      font-size: 14px;
-      line-height: 1.6;
-    }
+    .error-msg { color: #3a3a3a; font-size: 14px; line-height: 1.6; }
   </style>
 </head>
 <body>
   <header class="page-header">
     <a href="https://today-here.netlify.app" class="brand" target="_blank" rel="noopener">
-      <span class="star">✦</span> TODAY
+      <span class="star">✦</span><span class="brand-word">TODAY</span>
     </a>
   </header>
 
@@ -150,7 +159,7 @@
   </main>
 
   <footer class="page-footer">
-    <a href="https://today-here.netlify.app" class="cta-link" id="ctaLink" target="_blank" rel="noopener">Open TODAY ↗</a>
+    <a href="https://today-here.netlify.app" class="cta-link" target="_blank" rel="noopener">Open TODAY ↗</a>
     <span class="embed-hint">A poem a day</span>
   </footer>
 
@@ -163,13 +172,12 @@
       'Africa/Lusaka', 'Africa/Harare', 'Indian/Antananarivo'];
 
     const params    = new URLSearchParams(location.search);
-    const dateParam = params.get('date'); // 'YYYY-MM-DD'
+    const dateParam = params.get('date');
     const isEmbed   = params.get('embed') === '1';
     if (isEmbed) document.body.classList.add('embed-mode');
 
     function poemForDate(dateStr) {
       if (typeof POEMS === 'undefined' || !POEMS.length) return null;
-      // Use noon to dodge DST boundary issues
       const date = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
       const tz   = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
       let m = date.getMonth();
@@ -179,9 +187,7 @@
                    : m >= 8 && m <= 10 ? 'autumn' : 'winter';
       const pool = POEMS.filter(p => !p.season || p.season === season);
       if (!pool.length) return null;
-      // Mirror the main app: days = Math.floor(new Date(_getAppDay()).getTime() / 86400000)
-      // _getAppDay() returns new Date().toDateString() — toDateString of the target date
-      const appDay = date.toDateString(); // e.g. "Sat Aug 08 2026"
+      const appDay = date.toDateString();
       const days   = Math.floor(new Date(appDay).getTime() / 86400000);
       return pool[days % pool.length];
     }
@@ -203,7 +209,6 @@
     if (!poem) {
       card.innerHTML = '<p class="error-msg">No poem found for this date.</p>';
     } else {
-      // Widow guard: tie last two words of each line with nbsp (mirrors _poemHTML)
       const poemHtml = poem.text.split('\n').map(line => {
         const e = escHtml(line);
         const i = e.lastIndexOf(' ');
@@ -216,10 +221,9 @@
         <div class="poem-date">${fmtDate(dateParam)}</div>
       `.trim();
 
-      // Update OG meta + title
-      const title = escHtml(poem.author) + ' · TODAY';
+      const title = poem.author + ' · TODAY';
       const desc  = poem.text.replace(/\n/g, ' ') + ' — ' + poem.author;
-      document.title = poem.author + ' · TODAY';
+      document.title = title;
       document.querySelector('meta[property="og:title"]').setAttribute('content', title);
       document.querySelector('meta[property="og:description"]').setAttribute('content', desc);
       document.querySelector('meta[name="twitter:title"]').setAttribute('content', title);
