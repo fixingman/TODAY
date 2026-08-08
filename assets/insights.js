@@ -631,16 +631,34 @@ function _noticedLines() {
   const todayISO = _localISO();
   const _hr12 = h => (h > 12 ? h - 12 : h) + (h >= 12 ? 'pm' : 'am');
 
-  // 0 · Season moment — fixed calendar dates, ~6/year (v2.37.0, Backlog: Season
-  // moments). Meteorological season starts (Scandinavia convention) + solstices.
-  // Solstices pinned to the 21st — off by a day in some years; fine for a quiet
-  // line. Wallpaper escape 1 by construction: rare, and each date shows once.
+  // 0 · Season moment — 24 sekki solar terms (v2.60.0, expanded from 6 in v2.37.0).
+  // Astronomical — sun’s ecliptic longitude every 15°. Dates pinned to typical MM-DD;
+  // off by ±1 day in some years, fine for a quiet line. Wallpaper escape by
+  // construction: each date shows once, ~24 appearances per year.
   const SEASON_MOMENTS = {
-    '03-01': 'First day of spring.',
-    '06-01': 'First day of summer.',
+    '01-06': 'The light is back — a minute more each day.',
+    '01-20': 'Coldest weeks. The world is very still.',
+    '02-04': 'Halfway between solstice and equinox. Spring is on its way.',
+    '02-19': 'The thaw begins.',
+    '03-06': 'Something is waking underground.',
+    '03-21': 'Day and night in balance. The year tips into light.',
+    '04-05': 'The air is clear. Light is landing differently now.',
+    '04-20': 'April rain, the long kind.',
+    '05-06': 'Summer starts by the old measure. Trees are finally green.',
+    '05-21': 'Long evenings now. Light stays past dinner.',
+    '06-06': 'The longest light before the solstice.',
     '06-21': 'Midsummer — the year’s longest day.',
-    '09-01': 'First day of autumn.',
-    '12-01': 'First day of winter.',
+    '07-07': 'The warmest weeks. Summer at its fullest.',
+    '07-23': 'Peak summer. The days are already shortening.',
+    '08-07': 'The sun pulls back. Autumn is on its way.',
+    '08-23': 'Mornings have an edge to them now.',
+    '09-08': 'Dew on the grass. The year is cooling.',
+    '09-23': 'Day and night equal again. The year tips toward dark.',
+    '10-08': 'The leaves are turning. Cold mornings.',
+    '10-23': 'First frosts. The year is giving in to winter.',
+    '11-07': 'The light is leaving quickly. Winter is here.',
+    '11-22': 'Snow possible any morning now.',
+    '12-07': 'Dark midwinter. Almost at the stillest point of the year.',
     '12-21': 'The year’s shortest day. The light turns back tomorrow.',
   };
   const seasonLine = SEASON_MOMENTS[todayISO.slice(5)];
