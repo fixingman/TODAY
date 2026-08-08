@@ -135,11 +135,26 @@
       cursor: default;
     }
 
+    /* share-as-image button */
+    .share-img-btn {
+      font-family: 'DM Mono', 'Courier New', monospace;
+      font-size: 11px;
+      color: #2e2e2e;
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: 0.07em;
+      padding: 0;
+      transition: color 0.15s;
+    }
+    .share-img-btn:hover { color: #555; }
+
     /* embed mode */
-    body.embed-mode .page-header { padding: 18px 20px 0; }
-    body.embed-mode .poem-wrap   { padding: 28px 20px 20px; }
-    body.embed-mode .page-footer { padding: 0 20px 18px; }
-    body.embed-mode .embed-hint  { display: none; }
+    body.embed-mode .page-header    { padding: 18px 20px 0; }
+    body.embed-mode .poem-wrap      { padding: 28px 20px 20px; }
+    body.embed-mode .page-footer    { padding: 0 20px 18px; }
+    body.embed-mode .embed-hint     { display: none; }
+    body.embed-mode .share-img-btn  { display: none; }
 
     /* error */
     .error-msg { color: #3a3a3a; font-size: 14px; line-height: 1.6; }
@@ -160,7 +175,7 @@
 
   <footer class="page-footer">
     <a href="https://today-here.netlify.app" class="cta-link" target="_blank" rel="noopener">Open TODAY ↗</a>
-    <span class="embed-hint">A poem a day</span>
+    <button class="share-img-btn" id="shareImgBtn" onclick="_shareAsImage()" style="display:none">save as image</button>
   </footer>
 
   <script src="/assets/poems.js"></script>
@@ -228,6 +243,91 @@
       document.querySelector('meta[property="og:description"]').setAttribute('content', desc);
       document.querySelector('meta[name="twitter:title"]').setAttribute('content', title);
       document.querySelector('meta[name="twitter:description"]').setAttribute('content', desc);
+
+      document.getElementById('shareImgBtn').style.display = '';
+    }
+
+    function _wrapText(ctx, text, maxW) {
+      const out = [];
+      for (const raw of text.split('\n')) {
+        const words = raw.split(' ');
+        let cur = '';
+        for (const w of words) {
+          const test = cur ? cur + ' ' + w : w;
+          if (ctx.measureText(test).width > maxW && cur) { out.push(cur); cur = w; }
+          else cur = test;
+        }
+        out.push(cur);
+      }
+      return out;
+    }
+
+    async function _shareAsImage() {
+      if (!poem) return;
+      await document.fonts.ready;
+
+      const W = 1080, H = 1350;
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      // background
+      ctx.fillStyle = '#0e0e10';
+      ctx.fillRect(0, 0, W, H);
+
+      // ✦ mark
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#c8f060';
+      ctx.font = '400 52px "DM Mono","Courier New",monospace';
+      ctx.fillText('❖', W / 2, 148);
+
+      // TODAY brand
+      ctx.fillStyle = '#242424';
+      ctx.font = '400 18px "DM Mono","Courier New",monospace';
+      ctx.fillText('T O D A Y', W / 2, 190);
+
+      // poem text — centered block
+      const PAD = 112, POEM_SIZE = 32, LINE_H = Math.round(POEM_SIZE * 1.9);
+      const maxW = W - PAD * 2;
+      ctx.font = '300 ' + POEM_SIZE + 'px "DM Mono","Courier New",monospace';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#d4d4d4';
+
+      const poemLines = _wrapText(ctx, poem.text, maxW);
+      const totalH = poemLines.length * LINE_H;
+      let py = Math.round((H - totalH) / 2) - 20;
+      for (const line of poemLines) { ctx.fillText(line, PAD, py); py += LINE_H; }
+
+      // author
+      ctx.fillStyle = '#3a3a3a';
+      ctx.font = '400 22px "DM Mono","Courier New",monospace';
+      ctx.fillText('— ' + poem.author, PAD, py + 32);
+
+      // date + URL (very dim, bottom)
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#1e1e1e';
+      ctx.font = '400 16px "DM Mono","Courier New",monospace';
+      ctx.fillText(fmtDate(dateParam), W / 2, H - 76);
+      ctx.fillStyle = '#191919';
+      ctx.font = '400 14px "DM Mono","Courier New",monospace';
+      ctx.fillText('today-here.netlify.app', W / 2, H - 52);
+
+      canvas.toBlob(async blob => {
+        const file = new File([blob], 'poem.png', { type: 'image/png' });
+        try {
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: poem.author + ' · TODAY' });
+          } else {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'poem.png';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+          }
+        } catch (e) {
+          if (e.name !== 'AbortError') console.warn('[poem] share failed', e);
+        }
+      }, 'image/png');
     }
   </script>
 </body>
