@@ -22,6 +22,10 @@
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
 
+[[edge_functions]]
+  path = "/poem.html"
+  function = "poem"
+
 # Production — master only
 [context.production]
   command = ""
