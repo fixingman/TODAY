@@ -35,7 +35,7 @@ export default async function handler(request, context) {
     .replace(/(<meta property="og:title" content=")[^"]*(")/,        `$1${ea(title)}$2`)
     .replace(/(<meta property="og:description" content=")[^"]*(")/,  `$1${ea(desc)}$2`)
     .replace(/(<meta name="twitter:title" content=")[^"]*(")/,       `$1${ea(title)}$2`)
-    .replace(/(<meta name="twitter:description" content=")[^"]*("/), `$1${ea(desc)}$2`);
+    .replace(/(<meta name="twitter:description" content=")[^"]*(")/,  `$1${ea(desc)}$2`);
 
   const headers = new Headers(response.headers);
   headers.set('content-type', 'text/html; charset=utf-8');
