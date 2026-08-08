@@ -1293,6 +1293,22 @@
     text-align: center;
     letter-spacing: 0.04em;
   }
+  .triage-undo-btn {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    padding: var(--space-1) var(--space-5);
+    cursor: pointer;
+    margin-top: var(--space-2);
+    transition: color var(--dur-fast), border-color var(--dur-fast);
+  }
+  .triage-undo-btn:hover {
+    color: var(--text);
+    border-color: var(--muted);
+  }
   /* Trigger bar (minimized) */
   #triageBar {
     position: fixed;
@@ -3752,6 +3768,7 @@
     <div id="triageComplete" class="hidden">
       <div class="triage-complete-msg">All sorted</div>
       <div id="triageSummary"></div>
+      <button id="triageUndoBtn" onclick="triageUndo()" class="triage-undo-btn" style="display:none">Undo</button>
     </div>
   </div>
 </div>
@@ -3895,9 +3912,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.62.0': 'Triage: tasks are cleaned from the list the moment you finish sorting, and an Undo button stays on screen for 3 seconds in case you want to reverse the whole session.',
   '2.61.6': 'Fix: triage "Let go" now registers as a decision immediately — tapping it commits the task and shows reason chips inline on the decided card, so the flow completes even when other decisions are made in between.',
   '2.61.5': 'Fix: app no longer goes blank when returning from background or after a long sleep while in focus mode — repaint window extended to 12 s, focused task re-centered if it drifted off-screen.',
-  '2.61.4': 'Fix: tapping a reason chip in the undo toast now highlights the selected chip and dismisses the toast after 800ms — previously there was no visible feedback.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4609,6 +4626,8 @@ function _undoneTasks() {
 
 // Evening triage (per-task)
 let triageDecisions = {}; // {taskId: 'kept'|'soon'|'letgo'}
+let _triageSnapshot = null; // pre-triage state for undo
+let _triageAutoCloseTimer = null;
 let _triageActive = false;      // True while triage overlay is open
 let _triageBarSilent = false;   // True for 3s after wake — lets sync settle before showing bar
 let _triageBarShown = false;    // True once bar has been shown this evening — prevents mutations hiding it
@@ -4931,6 +4950,16 @@ function triageApplyAll() {
   localStorage.setItem('triage_dismissed', _getAppDay());
 
   const { manual: undoneManual, trello: undoneTrello } = _undoneTasks();
+
+  // Snapshot pre-triage state so the Undo button can restore it
+  _triageSnapshot = {
+    manualTasks:  JSON.parse(JSON.stringify(manualTasks)),
+    doneIds:      new Set(doneIds),
+    soonTasks:    JSON.parse(JSON.stringify(soonTasks)),
+    pastTasks:    JSON.parse(JSON.stringify(pastTasks)),
+    checkedIds:   localStorage.getItem('today_checked_ids')   || '[]',
+    uncheckedIds: localStorage.getItem('today_unchecked_ids') || '[]',
+  };
   let keptCount = 0, soonCount = 0, letgoCount = 0, doneCount = 0;
 
   // "Done" in triage = completed but never checked off. Mirror a normal check's
@@ -5121,16 +5150,22 @@ function triageApplyAll() {
   }));
   
   _haptic('success');
-  
-  // Auto-close after 3s — longer than before (was 2s) to let the
-  // day summary sink in. This is a reflective moment.
-  setTimeout(() => {
+
+  // Clean task lists immediately behind the overlay — so the list is ready when it closes
+  renderManual();
+  renderTrello();
+  renderSoon();
+  renderPast();
+  updateStats();
+
+  // Show the Undo button on the completion screen
+  const undoBtn = document.getElementById('triageUndoBtn');
+  if (undoBtn) undoBtn.style.display = '';
+
+  // Auto-close after 3s; store ref so triageUndo can cancel it
+  _triageAutoCloseTimer = setTimeout(() => {
+    _triageSnapshot = null; // undo window closed — commit
     triageClose();
-    renderManual();
-    renderTrello();
-    renderSoon();
-    renderPast();
-    updateStats();
   }, 3000);
 }
 
@@ -5175,6 +5210,30 @@ function triageClose() {
   }
   
   // Sync triage dismissed state to other devices
+  const token = localStorage.getItem('dropbox_token');
+  if (token) dropboxBackup(true);
+}
+
+function triageUndo() {
+  if (!_triageSnapshot) return;
+  clearTimeout(_triageAutoCloseTimer);
+  _triageAutoCloseTimer = null;
+  manualTasks  = _triageSnapshot.manualTasks;
+  doneIds      = _triageSnapshot.doneIds;
+  soonTasks    = _triageSnapshot.soonTasks;
+  pastTasks    = _triageSnapshot.pastTasks;
+  localStorage.setItem('today_checked_ids',   _triageSnapshot.checkedIds);
+  localStorage.setItem('today_unchecked_ids', _triageSnapshot.uncheckedIds);
+  _saveManual(); _saveDone(); _saveSoon(); _savePast();
+  _triageSnapshot = null;
+  triageDecisions = {};
+  _triageActive = false;
+  triageDismissedToday = false;
+  localStorage.removeItem('triage_dismissed');
+  document.getElementById('triageOverlay').classList.add('hidden');
+  const undoBtn = document.getElementById('triageUndoBtn');
+  if (undoBtn) undoBtn.style.display = 'none';
+  renderManual(); renderTrello(); renderSoon(); renderPast(); updateStats();
   const token = localStorage.getItem('dropbox_token');
   if (token) dropboxBackup(true);
 }
