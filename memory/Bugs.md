@@ -16,7 +16,7 @@
 | # | Description | Status |
 |---|---|---|
 | 071 | App goes blank on wake from sleep or when PWA returns from background while in focus mode — third recurrence of BUG-004/056 family | ⏳ v2.61.5  |
-| 070 | Undo toast reason chips unclickable on narrow screens — chips clipped off viewport in row layout | ✅ v2.61.3  |
+| 070 | Undo toast reason chips unclickable on narrow screens — column layout fix + chip highlight/auto-dismiss feedback | ⏳ v2.61.4  |
 | 069 | Poem OG preview may show wrong poem for southern-hemisphere users — edge function has no viewer TZ, skips southern-hemisphere flip | 🚫 Rejected  |
 | 068 | Trello card 🍅 session count resets every morning | ✅ v2.52.1  |
 | 067 | Focused task jumps near top of viewport after focus ends | ✅ v2.44.1  |
@@ -110,6 +110,23 @@
 - `_forceRepaint` now skips passes if `document.visibilityState === 'hidden'` (no point repainting while hidden)
 - Repaint schedule extended: 500 / 1500 / 3000 / 5000 / 8000 / 12000ms
 - `_wakeFocusCheck()` runs alongside every repaint: calls `_focusReanchor()` to re-attach `.focused` if sync re-rendered it away, and corrects `body.top` drift if the focused task scrolled out of viewport
+
+---
+
+## BUG-070 — Undo toast reason chips unclickable on narrow screens
+
+**Status:** ⏳ v2.61.4 (fix shipped — awaiting real-device verification)
+**File:** `index.html` — `#undoToast` CSS, `_recordDeleteReason`, `_showUndoToast`
+
+**Symptom:** After deleting a task, the undo toast appeared with four reason chips (not relevant, no energy, lost interest, replaced), but only the Undo button was tappable. The chips were unreachable.
+
+**Root cause (v2.61.3):** `#undoToast` used `flex-direction: row; flex-wrap: wrap` — the chips and the "Task removed [Undo]" row shared the same flex row. On narrow screens, chips extended off the right edge of the viewport and were unclickable.
+
+**Fix 1 (v2.61.3):** Changed toast to `flex-direction: column; align-items: flex-start` with `max-width: min(420px, calc(100vw - 32px))`. Added `width: 100%` to `.undo-main` and `#undoReasonRow`. Changed chip separator from `border-left` (side-by-side) to `border-top + padding-top` (stacked below).
+
+**Root cause (v2.61.4):** After the layout fix, there was still no visible feedback when a chip was tapped — the row dimmed to 35% opacity silently and the toast stayed on screen indefinitely.
+
+**Fix 2 (v2.61.4):** `_recordDeleteReason(reason, btn)` now highlights the selected chip (accent border/color via `--accent`/`--accent-dim` tokens), dims the other chips to 0.3 opacity, and auto-dismisses the toast after 800ms. Button onclick passes `this` so the selected chip is identifiable.
 
 ---
 
