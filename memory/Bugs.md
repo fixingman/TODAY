@@ -15,6 +15,8 @@
 
 | # | Description | Status |
 |---|---|---|
+| 070 | Undo toast reason chips unclickable on narrow screens — chips clipped off viewport in row layout | ✅ v2.61.3  |
+| 069 | Poem OG preview may show wrong poem for southern-hemisphere users — edge function has no viewer TZ, skips southern-hemisphere flip | 🚫 Rejected  |
 | 068 | Trello card 🍅 session count resets every morning | ✅ v2.52.1  |
 | 067 | Focused task jumps near top of viewport after focus ends | ✅ v2.44.1  |
 | 066 | Focus minutes from another device read 0 on second-device open | ✅ v2.43.8  |
@@ -88,6 +90,18 @@
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-069 — Poem OG preview may show wrong poem for southern-hemisphere users
+
+**Status:** 🚫 Rejected (platform limitation — won't fix)
+**Introduced:** v2.59.1 (Netlify edge function for poem OG meta)
+**File:** `netlify/edge-functions/poem.js`
+
+`poem.html` uses `_SOUTHERN_TZ` to detect southern-hemisphere timezones client-side and flip the season by +6 months, so the poem matches the local season. The edge function runs server-side and has no access to the viewer's timezone — it can only use the date from the `?date=` param. As a result, the `og:description` (shown in OG link previews) is computed without the hemisphere flip, and may show a different poem than what the page renders for southern-hemisphere users.
+
+Accepted edge case: affects a small minority of users, and only in the link preview — the page itself shows the correct poem. Server-side TZ detection would require a geolocation lookup, which is not worth the complexity.
 
 ---
 
