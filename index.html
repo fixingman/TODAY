@@ -3897,9 +3897,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.59.0': 'Daily poem now has a shareable permalink — tap the share button to copy a link, or embed it anywhere with an iframe. Each link is date-stamped so it always resolves to the same poem.',
   '2.58.1': 'Fix: delete reason chips in the undo toast were invisible as pill buttons — a CSS specificity collision made them look like plain links. They now appear correctly.',
   '2.58.0': 'Past → Soon: tapping ↩ soon now shows why first — still relevant, new context, too hasty, or came up again. The reason travels with the task.',
-  '2.57.1': 'Splash safety ceiling lowered from 18s to 17s — the poem coda fits comfortably, and the extra second was just wasted wait.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -6210,7 +6210,9 @@ document.addEventListener('click', function(e) {
 function _shareDailyPoem() {
   const poem = _poemOfTheDay();
   if (!poem) return;
-  const text = poem.text + '\n— ' + poem.author + '\n\nRead daily on TODAY — https://today-here.netlify.app';
+  const dateStr = _localISO();
+  const poemUrl = 'https://today-here.netlify.app/poem.html?date=' + dateStr;
+  const text = poem.text + '\n— ' + poem.author + '\n\n' + poemUrl;
   const btn = document.getElementById('poemShareBtn');
   // Immediate click acknowledgment, independent of which branch runs below —
   // navigator.share() itself gives no usable completion signal (its promise
@@ -6234,14 +6236,14 @@ function _shareDailyPoem() {
     }, 1800);
   }
   if (navigator.share) {
-    navigator.share({ text }).catch(() => {}); // user cancelled — no error to show
+    navigator.share({ title: poem.author + ' · TODAY', text, url: poemUrl }).catch(() => {});
     return;
   }
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(_showCopied).catch(() => {
+    navigator.clipboard.writeText(poemUrl).then(_showCopied).catch(() => {
       try {
         const ta = document.createElement('textarea');
-        ta.value = text;
+        ta.value = poemUrl;
         ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
         document.body.appendChild(ta);
         ta.focus(); ta.select();

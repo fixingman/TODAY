@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en" style="background:#0e0e10;color-scheme:dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0e0e10">
+  <title>Daily poem · TODAY</title>
+  <meta property="og:site_name" content="TODAY">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Daily poem · TODAY">
+  <meta property="og:description" content="">
+  <meta property="og:image" content="https://today-here.netlify.app/assets/today-og.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Daily poem · TODAY">
+  <meta name="twitter:description" content="">
+  <meta name="twitter:image" content="https://today-here.netlify.app/assets/today-og.png">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @font-face {
+      font-family: 'DM Mono';
+      src: url('/fonts/DM%20Mono/dm-mono-v16-latin-regular.woff2') format('woff2');
+      font-weight: 400; font-display: swap;
+    }
+    @font-face {
+      font-family: 'DM Mono';
+      src: url('/fonts/DM%20Mono/dm-mono-v16-latin-300.woff2') format('woff2');
+      font-weight: 300; font-display: swap;
+    }
+
+    html {
+      height: 100%;
+      background: #0e0e10;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+      background: #0e0e10;
+      color: #e0e0e0;
+      font-family: 'DM Mono', 'Courier New', monospace;
+      -webkit-font-smoothing: antialiased;
+      padding-top: env(safe-area-inset-top, 0);
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    /* header */
+    .page-header {
+      display: flex;
+      align-items: center;
+      padding: 22px 28px 0;
+      flex-shrink: 0;
+    }
+    .brand {
+      font-size: 12px;
+      font-weight: 400;
+      letter-spacing: 0.14em;
+      color: #3a3a3a;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: color 0.15s;
+    }
+    .brand:hover { color: #666; }
+    .brand .star { color: #c8f060; }
+
+    /* poem area */
+    .poem-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 28px 32px;
+    }
+    .poem-card {
+      max-width: 460px;
+      width: 100%;
+    }
+    .poem-text {
+      font-size: 16px;
+      font-weight: 300;
+      line-height: 1.85;
+      color: #d0d0d0;
+      letter-spacing: 0.015em;
+      margin-bottom: 22px;
+      text-wrap: pretty;
+    }
+    .poem-author {
+      font-size: 12px;
+      color: #484848;
+      letter-spacing: 0.07em;
+    }
+    .poem-author::before { content: '— '; }
+    .poem-date {
+      font-size: 11px;
+      color: #2c2c2c;
+      margin-top: 5px;
+      letter-spacing: 0.04em;
+    }
+
+    /* footer */
+    .page-footer {
+      padding: 0 28px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .cta-link {
+      font-size: 12px;
+      color: #c8f060;
+      text-decoration: none;
+      letter-spacing: 0.07em;
+      transition: opacity 0.15s;
+    }
+    .cta-link:hover { opacity: 0.65; }
+    .embed-hint {
+      font-size: 11px;
+      color: #242424;
+      letter-spacing: 0.03em;
+      cursor: default;
+    }
+
+    /* embed mode — tighter chrome */
+    body.embed-mode .page-header { padding: 14px 18px 0; }
+    body.embed-mode .poem-wrap   { padding: 24px 18px 20px; }
+    body.embed-mode .page-footer { padding: 0 18px 16px; }
+    body.embed-mode .embed-hint  { display: none; }
+
+    /* error */
+    .error-msg {
+      color: #3a3a3a;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <header class="page-header">
+    <a href="https://today-here.netlify.app" class="brand" target="_blank" rel="noopener">
+      <span class="star">✦</span> TODAY
+    </a>
+  </header>
+
+  <main class="poem-wrap">
+    <div class="poem-card" id="poemCard">
+      <p class="error-msg">Loading…</p>
+    </div>
+  </main>
+
+  <footer class="page-footer">
+    <a href="https://today-here.netlify.app" class="cta-link" id="ctaLink" target="_blank" rel="noopener">Open TODAY ↗</a>
+    <span class="embed-hint">A poem a day</span>
+  </footer>
+
+  <script src="/assets/poems.js"></script>
+  <script>
+    const _SOUTHERN_TZ = ['Australia/', 'Pacific/Auckland', 'Pacific/Fiji',
+      'Pacific/Port_Moresby', 'America/Sao_Paulo', 'America/Argentina',
+      'America/Santiago', 'America/Montevideo', 'America/Asuncion', 'America/Lima',
+      'America/La_Paz', 'Africa/Johannesburg', 'Africa/Windhoek', 'Africa/Maputo',
+      'Africa/Lusaka', 'Africa/Harare', 'Indian/Antananarivo'];
+
+    const params    = new URLSearchParams(location.search);
+    const dateParam = params.get('date'); // 'YYYY-MM-DD'
+    const isEmbed   = params.get('embed') === '1';
+    if (isEmbed) document.body.classList.add('embed-mode');
+
+    function poemForDate(dateStr) {
+      if (typeof POEMS === 'undefined' || !POEMS.length) return null;
+      // Use noon to dodge DST boundary issues
+      const date = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
+      const tz   = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      let m = date.getMonth();
+      if (_SOUTHERN_TZ.some(p => tz.startsWith(p))) m = (m + 6) % 12;
+      const season = m >= 2 && m <= 4 ? 'spring'
+                   : m >= 5 && m <= 7 ? 'summer'
+                   : m >= 8 && m <= 10 ? 'autumn' : 'winter';
+      const pool = POEMS.filter(p => !p.season || p.season === season);
+      if (!pool.length) return null;
+      // Mirror the main app: days = Math.floor(new Date(_getAppDay()).getTime() / 86400000)
+      // _getAppDay() returns new Date().toDateString() — toDateString of the target date
+      const appDay = date.toDateString(); // e.g. "Sat Aug 08 2026"
+      const days   = Math.floor(new Date(appDay).getTime() / 86400000);
+      return pool[days % pool.length];
+    }
+
+    function fmtDate(dateStr) {
+      const d = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
+      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+
+    function escHtml(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    const poem = poemForDate(dateParam);
+    const card = document.getElementById('poemCard');
+
+    if (!poem) {
+      card.innerHTML = '<p class="error-msg">No poem found for this date.</p>';
+    } else {
+      // Widow guard: tie last two words of each line with nbsp (mirrors _poemHTML)
+      const poemHtml = poem.text.split('\n').map(line => {
+        const e = escHtml(line);
+        const i = e.lastIndexOf(' ');
+        return i > 0 ? e.slice(0, i) + ' ' + e.slice(i + 1) : e;
+      }).join('<br>');
+
+      card.innerHTML = `
+        <div class="poem-text">${poemHtml}</div>
+        <div class="poem-author">${escHtml(poem.author)}</div>
+        <div class="poem-date">${fmtDate(dateParam)}</div>
+      `.trim();
+
+      // Update OG meta + title
+      const title = escHtml(poem.author) + ' · TODAY';
+      const desc  = poem.text.replace(/\n/g, ' ') + ' — ' + poem.author;
+      document.title = poem.author + ' · TODAY';
+      document.querySelector('meta[property="og:title"]').setAttribute('content', title);
+      document.querySelector('meta[property="og:description"]').setAttribute('content', desc);
+      document.querySelector('meta[name="twitter:title"]').setAttribute('content', title);
+      document.querySelector('meta[name="twitter:description"]').setAttribute('content', desc);
+    }
+  </script>
+</body>
+</html>
