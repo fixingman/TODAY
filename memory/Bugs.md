@@ -15,6 +15,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 071 | App goes blank on wake from sleep or when PWA returns from background while in focus mode — third recurrence of BUG-004/056 family | ⏳ v2.61.5  |
 | 070 | Undo toast reason chips unclickable on narrow screens — chips clipped off viewport in row layout | ✅ v2.61.3  |
 | 069 | Poem OG preview may show wrong poem for southern-hemisphere users — edge function has no viewer TZ, skips southern-hemisphere flip | 🚫 Rejected  |
 | 068 | Trello card 🍅 session count resets every morning | ✅ v2.52.1  |
@@ -90,6 +91,25 @@
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-071 — App blank on wake / PWA background return during focus mode
+
+**Status:** ⏳ v2.61.5 (fix shipped — awaiting real-device verification)
+**Family:** BUG-004 → BUG-056 → BUG-071 (third recurrence)
+**File:** `index.html` — `_onWake`, `_forceRepaint`
+
+**Triggers:** Two confirmed:
+1. Mac sleeps with PWA in foreground while focus mode is active → wakes → app blank
+2. PWA sent to background (Cmd+Tab or lock screen) while in focus mode → return → app blank
+
+**Root cause:** GPU compositor layers go stale when the app is hidden. `_forceRepaint` toggles `display:none/''` to force layer invalidation, but the repaint schedule was capped at 5000ms — not enough for some GPU init times. The PWA-background case adds a second trigger path (short background, not a sleep) that was hitting the same blank via the same `visibilitychange → _onWake` flow.
+
+**Fix (v2.61.5):**
+- `_forceRepaint` now skips passes if `document.visibilityState === 'hidden'` (no point repainting while hidden)
+- Repaint schedule extended: 500 / 1500 / 3000 / 5000 / 8000 / 12000ms
+- `_wakeFocusCheck()` runs alongside every repaint: calls `_focusReanchor()` to re-attach `.focused` if sync re-rendered it away, and corrects `body.top` drift if the focused task scrolled out of viewport
 
 ---
 
