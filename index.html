@@ -1712,31 +1712,27 @@
      identical properties and states, same tokens, not just a similar-looking
      approximation. The gutter is a permanent padding, not something that
      appears only while hovering, so nothing shifts when the label reveals. */
-  .poem-block { position: relative; padding-right: 64px; }
+  .poem-block { position: relative; }
   .poem-block #dailyPoem,
   .poem-block .poem-author { transition: color var(--dur-fast); }
   .btn-poem-share {
     display: block;
     position: absolute;
-    top: var(--space-2);
-    right: var(--space-2);
+    top: 0;
+    right: 0;
     background: none;
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
+    border: none;
+    padding: 0;
     color: var(--muted);
     font-size: var(--text-xs);
     font-family: var(--font-mono);
-    letter-spacing: 0.06em;
-    padding: 2px var(--space-2);
     cursor: pointer;
-    white-space: nowrap;
-    line-height: 1.6;
     opacity: 0;
     pointer-events: none;
-    transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+    transition: opacity 160ms ease, color 160ms ease;
   }
   .btn-poem-share.copied,
-  .btn-poem-share.clicked { opacity: 1; pointer-events: none; color: var(--accent); border-color: var(--accent); }
+  .btn-poem-share.clicked { opacity: 1; pointer-events: none; color: var(--accent); }
 
   /* Touch: no hover, so tap itself must do what hover does on desktop — reveal
      first, act second. .revealed is a plain JS-toggled class (_onPoemTap,
@@ -1745,14 +1741,14 @@
      gets it (it won't, in normal use — desktop never taps into this path). */
   .poem-block.revealed #dailyPoem,
   .poem-block.revealed .poem-author { color: var(--text); }
-  .poem-block.revealed .btn-poem-share { opacity: 1; pointer-events: all; color: var(--text); border-color: var(--border); }
+  .poem-block.revealed .btn-poem-share { opacity: 1; pointer-events: all; color: var(--text); }
 
   @media (hover: hover) {
     .poem-block { cursor: pointer; }
     .poem-block:hover #dailyPoem,
     .poem-block:hover .poem-author { color: var(--text); }
-    .poem-block:hover .btn-poem-share { opacity: var(--opacity-copy); pointer-events: all; }
-    .poem-block:hover .btn-poem-share:hover { opacity: 1; color: var(--text); border-color: var(--border); }
+    .poem-block:hover .btn-poem-share { opacity: 1; pointer-events: all; }
+    .poem-block:hover .btn-poem-share:hover { color: var(--text); }
   }
 
   /* ── Drag-to-reorder — row-level cue, no extra element ── */
@@ -3925,9 +3921,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.63.2': 'Style: poem share button aligned to the same bare-text component as the week "see more" — no border, no padding, same mono font and fade-in.',
   '2.63.1': 'This week: hover (or tap on mobile) to reveal a "see more" link that opens your memory panel.',
   '2.63.0': 'Memory: morning nudge now uses your Soon pull-back pattern — if you frequently defer tasks to Soon and pull them back, the AI surfaces that as context.',
-  '2.62.2': 'Style: undo toast — Undo button pinned to the right edge of the row.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
