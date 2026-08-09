@@ -1417,7 +1417,7 @@
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    animation: tagShimmer 600ms 150ms ease-in-out both;
+    animation: tagShimmer 500ms 100ms ease-in-out 2 alternate both;
   }
 
   .task-slide-in {
@@ -3938,9 +3938,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.63.3': 'Animation: tagged tasks shimmer on add — a gradient glint sweeps across the tag the moment the task lands in the list.',
+  '2.64.0': 'After triage, your list is clean — done tasks and pre-checked tasks move to Past immediately so only tasks you explicitly kept remain visible.',
+  '2.63.3': 'Tag shimmer: the glint now waits until the tag is in view, then sweeps back and forth once.',
   '2.63.2': 'Style: poem share button aligned to the same bare-text component as the week "see more" — no border, no padding, same mono font and fade-in.',
-  '2.63.1': 'This week: hover (or tap on mobile) to reveal a "see more" link that opens your memory panel.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5089,18 +5089,30 @@ function triageApplyAll() {
   // (all mutate doneIds). (Replaces a call to the never-defined _persistDone().)
   _saveDone();
 
-  // Remove moved manual tasks from manualTasks — 'done' and 'kept' both stay
-  // (a done task lives in manualTasks until day-cleanup moves it to PAST).
+  // Remove decided tasks from manualTasks. Post-triage cleanup: done tasks
+  // (triage-marked + pre-existing checked) move to PAST now so the list is clean
+  // after triage — only explicitly kept tasks remain visible.
   const movedIds = undoneManual
     .filter(t => triageDecisions[t.id] !== 'kept' && triageDecisions[t.id] !== 'done')
     .map(t => t.id);
   manualTasks = manualTasks.filter(t => !movedIds.includes(t.id));
+
+  // Move all done tasks still in manualTasks (triage-done + pre-checked) to PAST immediately.
+  const _postTriageDone = manualTasks.filter(t => doneIds.has(t.id));
+  _postTriageDone.forEach(t => {
+    t.zone = 'past';
+    t.status = 'done';
+    t.zoneChangedAt = new Date().toISOString();
+    pastTasks.unshift(t);
+  });
+  if (_postTriageDone.length > 0) manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
+
   _saveManual();
   if (soonCount > 0) _saveSoon();
-  if (letgoCount > 0) _savePast();
+  if (letgoCount > 0 || _postTriageDone.length > 0) _savePast();
 
   // Sync zone + done changes immediately
-  if (movedIds.length > 0 || doneCount > 0) {
+  if (movedIds.length > 0 || doneCount > 0 || _postTriageDone.length > 0) {
     const token = localStorage.getItem('dropbox_token');
     if (token) dropboxBackup(true);
   }
@@ -7662,10 +7674,15 @@ function addManual() {
   el.addEventListener('animationend', () => el.classList.remove('task-new'), { once: true });
   list.appendChild(el);
   const tagEl = el.querySelector('.task-tag');
-  if (tagEl) requestAnimationFrame(() => {
-    tagEl.classList.add('task-tag-shimmer');
-    tagEl.addEventListener('animationend', () => tagEl.classList.remove('task-tag-shimmer'), { once: true });
-  });
+  if (tagEl) {
+    const _shimmerObs = new IntersectionObserver((entries, o) => {
+      if (!entries[0].isIntersecting) return;
+      o.disconnect();
+      tagEl.classList.add('task-tag-shimmer');
+      tagEl.addEventListener('animationend', () => tagEl.classList.remove('task-tag-shimmer'), { once: true });
+    }, { threshold: 0.8 });
+    _shimmerObs.observe(tagEl);
+  }
   if (empty) empty.style.display = 'none';
 
   $.manualCount.textContent = manualTasks.length;
