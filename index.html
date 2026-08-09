@@ -3938,9 +3938,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.1': 'Hover to pause: the triage completion countdown and delete undo toast both pause while you\'re over them, then resume with remaining time when you leave.',
   '2.64.0': 'After triage, your list is clean — done tasks and pre-checked tasks move to Past immediately so only tasks you explicitly kept remain visible.',
   '2.63.3': 'Tag shimmer: the glint now waits until the tag is in view, then sweeps back and forth once.',
-  '2.63.2': 'Style: poem share button aligned to the same bare-text component as the week "see more" — no border, no padding, same mono font and fade-in.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4656,6 +4656,8 @@ function _undoneTasks() {
 let triageDecisions = {}; // {taskId: 'kept'|'soon'|'letgo'}
 let _triageSnapshot = null; // pre-triage state for undo
 let _triageAutoCloseTimer = null;
+let _triageAutoCloseStart = 0;
+let _triageAutoCloseRemaining = 3000;
 let _triageActive = false;      // True while triage overlay is open
 let _triageBarSilent = false;   // True for 3s after wake — lets sync settle before showing bar
 let _triageBarShown = false;    // True once bar has been shown this evening — prevents mutations hiding it
@@ -5202,11 +5204,32 @@ function triageApplyAll() {
   const undoBtn = document.getElementById('triageUndoBtn');
   if (undoBtn) undoBtn.style.display = '';
 
-  // Auto-close after 3s; store ref so triageUndo can cancel it
+  // Auto-close after 3s; hover pauses the countdown, mouseleave resumes with remaining time
+  _triageAutoCloseRemaining = 3000;
+  _triageAutoCloseStart = Date.now();
   _triageAutoCloseTimer = setTimeout(() => {
-    _triageSnapshot = null; // undo window closed — commit
+    _triageSnapshot = null;
     triageClose();
   }, 3000);
+
+  const _triageCompleteEl = document.getElementById('triageComplete');
+  if (_triageCompleteEl && !_triageCompleteEl._hoverWired) {
+    _triageCompleteEl._hoverWired = true;
+    _triageCompleteEl.addEventListener('mouseenter', () => {
+      if (!_triageAutoCloseTimer) return;
+      clearTimeout(_triageAutoCloseTimer);
+      _triageAutoCloseTimer = null;
+      _triageAutoCloseRemaining -= (Date.now() - _triageAutoCloseStart);
+    });
+    _triageCompleteEl.addEventListener('mouseleave', () => {
+      if (!_triageSnapshot) return; // undo already fired — don't restart
+      _triageAutoCloseStart = Date.now();
+      _triageAutoCloseTimer = setTimeout(() => {
+        _triageSnapshot = null;
+        triageClose();
+      }, Math.max(_triageAutoCloseRemaining, 600));
+    });
+  }
 }
 
 // ─── Triage History ───────────────────────────────────────────────────────────
@@ -8140,6 +8163,8 @@ let _deletedStack = [];
 let _archivedHabitStack = [];
 let _lastUndoType = 'task';
 let _undoTimeout = null;
+let _undoTimeoutStart = 0;
+let _undoTimeoutRemaining = 5000;
 
 let _pendingDeleteText = '';
 
@@ -8186,12 +8211,36 @@ function _showUndoToast(text, stackSize, type = 'task') {
   }
   toast.classList.add('show');
   clearTimeout(_undoTimeout);
+  _undoTimeoutRemaining = 5000;
+  _undoTimeoutStart = Date.now();
   _undoTimeout = setTimeout(() => {
     toast.classList.remove('show');
     _deletedStack = [];
     _archivedHabitStack = [];
+    if (_pendingDeleteText && typeof _memoryOnTaskLetgo === 'function') _memoryOnTaskLetgo(_pendingDeleteText, '');
     _pendingDeleteText = '';
   }, 5000);
+
+  if (!toast._hoverWired) {
+    toast._hoverWired = true;
+    toast.addEventListener('mouseenter', () => {
+      if (!_undoTimeout) return;
+      clearTimeout(_undoTimeout);
+      _undoTimeout = null;
+      _undoTimeoutRemaining -= (Date.now() - _undoTimeoutStart);
+    });
+    toast.addEventListener('mouseleave', () => {
+      if (!toast.classList.contains('show')) return;
+      _undoTimeoutStart = Date.now();
+      _undoTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+        _deletedStack = [];
+        _archivedHabitStack = [];
+        if (_pendingDeleteText && typeof _memoryOnTaskLetgo === 'function') _memoryOnTaskLetgo(_pendingDeleteText, '');
+        _pendingDeleteText = '';
+      }, Math.max(_undoTimeoutRemaining, 600));
+    });
+  }
 }
 
 function _hideUndoToast() {
