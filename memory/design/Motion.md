@@ -53,6 +53,17 @@ The opacity-only 1→0.65→1 / 1800ms form is for larger surfaces where luminan
 
 ## Animation Types
 
+### Tag Shimmer (task-tag-shimmer)
+One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newly added to the list.
+
+- **Technique:** `background-clip: text` + `background-size: 400% 100%` + `background-position` sweep
+- **Gradient:** `--muted 0–47%, --accent 50%, --muted 53–100%` — tight accent peak so only a narrow band lights up
+- **Duration:** `600ms` — hardcoded, intentionally above `--dur-slow`. Needs to be slow enough for the eye to track a moving gradient across a short word. Tokenising at 0.6s would invite misuse on state transitions.
+- **Delay:** `150ms` — lets the task's `fadeIn` get underway first; shimmer reads as the tag "catching" light after the task materialises
+- **Easing:** `ease-in-out` — symmetrical; glint accelerates in and decelerates out
+- **Trigger:** JS in `addManual()` — `requestAnimationFrame` after `list.appendChild`, `animationend` cleanup
+- **CSS rule:** looping animations must use WAAPI (see rule above); this is a one-shot, so CSS is correct here
+
 ### Task Completion
 - Checkbox fills with accent color
 - Checkmark SVG pops in: `scale(0.5)→scale(1)` + `opacity:0→1` (`checkPop`, 150ms, GPU-composited). Replaced `stroke-dashoffset` at v2.17.71 — paint-triggered stroke draw lagged during iOS JIT warmup (~30s window).
