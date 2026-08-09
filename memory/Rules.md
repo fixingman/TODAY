@@ -138,6 +138,18 @@ asked. Don't ask permission to follow the rules; don't commit without being aske
 value that genuinely can't derive (separate SW context, no build) — the smoke test asserts it
 matches, so drift fails the pre-commit gate instead of shipping a stale cache.
 
+## When Adding a New AI Surface
+
+Before wiring any new memory signal into `_memoryForAI`, run the memory-signal pickup probe to confirm the AI actually uses it as useful context. The probe from 2026-08-09 lives in the session history; the pattern is:
+
+1. Call the handler directly via `createRequire` (same approach as `scripts/ai-test.mjs`)
+2. Build two payloads: **baseline** (no new signal) and **enriched** (signal in plain English, e.g. `"You often pull tasks back from Soon — tends to overestimate future availability."`)
+3. Run both through the target surface prompt (nudge, focus companion, etc.)
+4. Read the two responses side by side — the enriched response should be *observably more specific* about the behavior
+5. Only wire in signals that pass this check; hold the others until a better surface exists
+
+**Key lesson from the 2026-08-09 probe:** `soonPulls` passed immediately. `triageUndos` and `reviveReasons` didn't land in nudge context — they need surfaces closer to the behavior (triage screen, week reflection). Signals that dilute when combined should be surfaced selectively.
+
 ## Git Rules
 
 30. **Always work on `dev` branch** — never create feature branches unless explicitly asked

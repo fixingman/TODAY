@@ -3906,16 +3906,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '253h';
+const DEV_HOURS     = '256h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.63.0': 'Memory: morning nudge now uses your Soon pull-back pattern — if you frequently defer tasks to Soon and pull them back, the AI surfaces that as context.',
   '2.62.2': 'Style: undo toast — Undo button pinned to the right edge of the row.',
   '2.62.1': 'Triage: tasks are cleaned from the list the moment you finish sorting, and an Undo button stays on screen for 3 seconds in case you want to reverse the whole session.',
-  '2.62.0': 'Triage: tasks are cleaned from the list the moment you finish sorting, and an Undo button stays on screen for 3 seconds in case you want to reverse the whole session.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

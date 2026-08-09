@@ -376,6 +376,12 @@ function _memoryForAI(scope) {
     else lines.push(`You typically take about ${avg} days to complete a task.`);
   }
 
+  // Soon pull-back pattern — optimistic deferrals that keep coming back
+  const soonPulls = m.patterns.soonPulls || 0;
+  if (soonPulls >= 3) {
+    lines.push(`You often pull tasks back from Soon — tends to overestimate future availability.`);
+  }
+
   // Daily history — last 7 days rhythm and trend
   const dailyHistory = (typeof safeJSON === 'function') ? safeJSON('today_daily_history', []) : [];
   const last7 = dailyHistory.slice(-7);
