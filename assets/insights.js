@@ -39,6 +39,9 @@ let appMemory = (() => {
         bestStreak: 0,            // highest streak achieved
         taskLifespanSamples: [],  // rolling last-20 completed task ages (days)
         letgoReasons: {},         // { not_relevant: N, no_energy: N, lost_interest: N, replaced: N }
+        triageUndos: 0,           // how many times triage was undone
+        soonPulls: 0,             // how many times a task was pulled back from Soon
+        reviveReasons: {},        // { triage_undo: N, not_done_yet: N, ... } reason for reviving from Past
       },
       // Moments worth remembering
       moments: [],                // [{ type: 'streak_milestone', value: 7, date: '2024-03-10' }, ...]
@@ -86,7 +89,10 @@ if (!appMemory.recentConversations)    appMemory.recentConversations = [];
 if (!appMemory.recentCompletedTasks)   appMemory.recentCompletedTasks = [];
 if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
 if (!appMemory.patterns.taskLifespanSamples) appMemory.patterns.taskLifespanSamples = [];
-if (!appMemory.patterns.letgoReasons) appMemory.patterns.letgoReasons = {};
+if (!appMemory.patterns.letgoReasons)   appMemory.patterns.letgoReasons = {};
+if (appMemory.patterns.triageUndos === undefined) appMemory.patterns.triageUndos = 0;
+if (appMemory.patterns.soonPulls   === undefined) appMemory.patterns.soonPulls   = 0;
+if (!appMemory.patterns.reviveReasons) appMemory.patterns.reviveReasons = {};
 if (appMemory.patterns.dayStartCount === undefined) appMemory.patterns.dayStartCount = null;
 if (appMemory.patterns.dayShapeState === undefined) appMemory.patterns.dayShapeState = null;
 if (appMemory.patterns.dayStartDate  === undefined) appMemory.patterns.dayStartDate  = null;
@@ -194,6 +200,24 @@ function _memoryOnTaskLetgo(taskText, reason) {
   appMemory.preferences.dragKeywords.push(...words);
   if (appMemory.preferences.dragKeywords.length > 100)
     appMemory.preferences.dragKeywords = appMemory.preferences.dragKeywords.slice(-100);
+  _saveMemory();
+}
+
+function _memoryOnTriageUndo() {
+  appMemory.patterns.triageUndos = (appMemory.patterns.triageUndos || 0) + 1;
+  _saveMemory();
+}
+
+function _memoryOnSoonPull(taskText) {
+  appMemory.patterns.soonPulls = (appMemory.patterns.soonPulls || 0) + 1;
+  _memoryOnTaskLetgo(taskText, '');
+}
+
+function _memoryOnRevive(taskText, reason) {
+  if (reason) {
+    if (!appMemory.patterns.reviveReasons) appMemory.patterns.reviveReasons = {};
+    appMemory.patterns.reviveReasons[reason] = (appMemory.patterns.reviveReasons[reason] || 0) + 1;
+  }
   _saveMemory();
 }
 

@@ -3912,9 +3912,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.62.1': 'Triage: tasks are cleaned from the list the moment you finish sorting, and an Undo button stays on screen for 3 seconds in case you want to reverse the whole session.',
   '2.62.0': 'Triage: tasks are cleaned from the list the moment you finish sorting, and an Undo button stays on screen for 3 seconds in case you want to reverse the whole session.',
   '2.61.6': 'Fix: triage "Let go" now registers as a decision immediately — tapping it commits the task and shows reason chips inline on the decided card, so the flow completes even when other decisions are made in between.',
-  '2.61.5': 'Fix: app no longer goes blank when returning from background or after a long sleep while in focus mode — repaint window extended to 12 s, focused task re-centered if it drifted off-screen.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4138,7 +4138,8 @@ function pullFromSoon(id) {
   renderManual();
   updateStats();
   _haptic('light');
-  
+  if (typeof _memoryOnSoonPull === 'function') _memoryOnSoonPull(task.text);
+
   // Sync zone change immediately
   const token = localStorage.getItem('dropbox_token');
   if (token) dropboxBackup(true);
@@ -4189,6 +4190,7 @@ function reviveFromPast(id, reason = '') {
   renderSoon();
   updateStats();
   _haptic('light');
+  if (typeof _memoryOnRevive === 'function') _memoryOnRevive(task.text, reason);
 
   // Sync zone change immediately
   const token = localStorage.getItem('dropbox_token');
@@ -5233,6 +5235,7 @@ function triageUndo() {
   document.getElementById('triageOverlay').classList.add('hidden');
   const undoBtn = document.getElementById('triageUndoBtn');
   if (undoBtn) undoBtn.style.display = 'none';
+  if (typeof _memoryOnTriageUndo === 'function') _memoryOnTriageUndo();
   renderManual(); renderTrello(); renderSoon(); renderPast(); updateStats();
   const token = localStorage.getItem('dropbox_token');
   if (token) dropboxBackup(true);
@@ -8136,6 +8139,7 @@ function _hideUndoToast() {
   const toast = document.getElementById('undoToast');
   if (toast) toast.classList.remove('show');
   clearTimeout(_undoTimeout);
+  if (_pendingDeleteText && typeof _memoryOnTaskLetgo === 'function') _memoryOnTaskLetgo(_pendingDeleteText, '');
   _pendingDeleteText = '';
   const reasonRow = document.getElementById('undoReasonRow');
   if (reasonRow) { reasonRow.style.display = 'none'; reasonRow.innerHTML = ''; }
