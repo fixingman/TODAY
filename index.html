@@ -2659,6 +2659,7 @@
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
     transition: background var(--dur-fast);
+    margin-left: auto;
   }
   #undoToast .undo-main button:hover {
     background: var(--accent-dim);
@@ -3912,9 +3913,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.62.2': 'Style: undo toast — Undo button pinned to the right edge of the row.',
   '2.62.1': 'Triage: tasks are cleaned from the list the moment you finish sorting, and an Undo button stays on screen for 3 seconds in case you want to reverse the whole session.',
   '2.62.0': 'Triage: tasks are cleaned from the list the moment you finish sorting, and an Undo button stays on screen for 3 seconds in case you want to reverse the whole session.',
-  '2.61.6': 'Fix: triage "Let go" now registers as a decision immediately — tapping it commits the task and shows reason chips inline on the decided card, so the flow completes even when other decisions are made in between.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
