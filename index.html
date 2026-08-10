@@ -1419,6 +1419,20 @@
     -webkit-text-fill-color: transparent;
     animation: tagShimmer 500ms 100ms ease-in-out 2 alternate both;
   }
+  /* Soon list: single sweep on hover (desktop) or scroll-into-view (mobile) */
+  ._soon-shimmer {
+    background: linear-gradient(90deg,
+      var(--muted)  0%, var(--muted) 47%,
+      var(--accent) 50%,
+      var(--muted) 53%, var(--muted) 100%
+    );
+    background-size: 400% 100%;
+    background-repeat: no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: tagShimmer 400ms ease-in-out 1 normal both;
+  }
 
   .task-slide-in {
     animation: taskSlideIn var(--dur-base) var(--ease-std) both;
@@ -3955,9 +3969,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.4': 'Soon list tags shimmer on interaction: single left-to-right sweep on hover (desktop) or when scrolled into view (mobile). Uses the same tagShimmer keyframe as add-to-list, one pass only.',
   '2.64.3': 'Nudge content in the About panel now animates in — blocks entrance-slide with a staggered 60ms delay each, async-resolved text (reflecting…→real line) fades up in place, and fresh Noticed lines animate individually.',
   '2.64.2': '"Noticed" now reads your behavioral patterns — when you work, focus-day output, habit correlation, completion rate — instead of echoing the same tasks as "This week". Today nudge no longer leads with the streak count.',
-  '2.64.1': 'Hover to pause: the triage completion countdown and delete undo toast both pause while you\'re over them, then resume with remaining time when you leave.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4118,6 +4132,28 @@ function renderSoon() {
       <button class="zone-badge pull-btn" onclick="pullFromSoon('${t.id}')" title="Pull into today">← pull in</button>
     </div>
   `}).join('');
+
+  // Wire single-sweep shimmer: hover on desktop, scroll-into-view on mobile.
+  const _soonTouch = !window.matchMedia('(hover: hover)').matches;
+  list.querySelectorAll('.task').forEach(taskEl => {
+    const tagEl = taskEl.querySelector('.task-tag');
+    if (!tagEl) return;
+    const _shimmer = () => {
+      if (tagEl.classList.contains('_soon-shimmer')) return;
+      tagEl.classList.add('_soon-shimmer');
+      tagEl.addEventListener('animationend', () => tagEl.classList.remove('_soon-shimmer'), { once: true });
+    };
+    if (_soonTouch) {
+      const obs = new IntersectionObserver((entries, o) => {
+        if (!entries[0].isIntersecting) return;
+        o.disconnect();
+        _shimmer();
+      }, { threshold: 0.8 });
+      obs.observe(tagEl);
+    } else {
+      taskEl.addEventListener('mouseenter', _shimmer);
+    }
+  });
 }
 
 function renderPast() {
