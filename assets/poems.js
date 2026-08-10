@@ -261,6 +261,18 @@ const POEMS = [
     source: 'Rubáiyát — modern rendering after FitzGerald',
   },
   {
+    text: 'The bird of life is singing in the sun,\nShort is his song, nor only just begun,—\nA call, a trill, a rapture, then—so soon!—\nA silence, and the song is done—is done.',
+    author: 'Omar Khayyám',
+    season: null,
+    source: 'Rubáiyát, trans. Richard Le Gallienne, 1897 (Wikisource; Le Gallienne d.1947)',
+  },
+  {
+    text: 'Heed not To-morrow, heed not Yesterday;\nthe magic words of life are Here and Now.',
+    author: 'Omar Khayyám',
+    season: null,
+    source: 'Rubáiyát, trans. Le Gallienne, 1897 — core two lines, stanza trimmed',
+  },
+  {
     text: 'Awake! for Morning in the Bowl of Night\nHas flung the Stone that puts the Stars to Flight:\nAnd Lo! the Hunter of the East has caught\nThe Sultan\'s Turret in a Noose of Light.',
     author: 'Omar Khayyám',
     season: null,
