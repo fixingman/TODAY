@@ -1439,13 +1439,16 @@
   .task:hover {
     background: var(--surface);
     border-color: var(--border);
-    /* .section-header::after's fade gradient (z 9) always overlaps the top ~10px
-       of whatever sits directly beneath it, by design — tasks are meant to
-       dissolve under the pinned label rather than clip at a hard edge. At rest
-       the hover-less background blends into it invisibly; --surface's contrast
-       on hover made that permanent overlap read as a shadow. Paint the hovered
-       task above the gradient instead of touching the gradient itself. */
-    z-index: 10; /* above section-header gradient (9), below sticky-header (11) */
+  }
+  @media (hover: hover) {
+    /* .section-header::after's fade gradient (z 9) overlaps the top ~10px of whatever
+       sits below it — tasks dissolve under the pinned label rather than clipping hard.
+       Hovered --surface background made that gradient read as a shadow, so hover lifts
+       the task above it. Desktop only: on touch, :hover sticks after tap and would let
+       the selected task bleed over sticky section headers while scrolling. */
+    .task:hover {
+      z-index: 10; /* above section-header gradient (9), below sticky-header (11) */
+    }
   }
   /* Applied only on insertion, removed on animationend — fill-mode:backwards prevents opacity:1 fill */
   .task-new { animation: fadeIn var(--dur-slow) var(--ease-std) backwards; }
