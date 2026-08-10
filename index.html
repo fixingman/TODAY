@@ -2422,6 +2422,20 @@
   .week-label { font-size: var(--text-micro); color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 3px; }
   .week-summary { font-size: var(--text-base); color: var(--text); line-height: 1.5; }
   .week-summary.loading { color: var(--muted); font-style: italic; }
+  @keyframes _nudgeBlockIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes _nudgeTextIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  ._nudge-entering {
+    animation: _nudgeBlockIn 300ms ease-out both;
+  }
+  ._nudge-text-resolving {
+    animation: _nudgeTextIn 260ms ease-out both;
+  }
 
   .config-title {
     font-family: var(--font-display);
@@ -3941,9 +3955,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.3': 'Nudge content in the About panel now animates in — blocks entrance-slide with a staggered 60ms delay each, async-resolved text (reflecting…→real line) fades up in place, and fresh Noticed lines animate individually.',
   '2.64.2': '"Noticed" now reads your behavioral patterns — when you work, focus-day output, habit correlation, completion rate — instead of echoing the same tasks as "This week". Today nudge no longer leads with the streak count.',
   '2.64.1': 'Hover to pause: the triage completion countdown and delete undo toast both pause while you\'re over them, then resume with remaining time when you leave.',
-  '2.64.0': 'After triage, your list is clean — done tasks and pre-checked tasks move to Past immediately so only tasks you explicitly kept remain visible.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -6361,7 +6375,33 @@ function _copyToClipboard(text, onCopied) {
 }
 
 // Format focus time: "Xh Ym" if >= 60 minutes, "Xm" otherwise
+// Show a nudge block with a landing animation when transitioning from hidden.
+// forceAnimate=true re-runs the animation on an already-visible block (fresh async content).
+function _nudgeBlockShow(el, delayMs, forceAnimate) {
+  const wasHidden = el.style.display === 'none';
+  el.style.display = '';
+  if (wasHidden || forceAnimate) {
+    el.classList.remove('_nudge-entering');
+    void el.offsetWidth; // force reflow so re-adding the class restarts the animation
+    if (delayMs) el.style.animationDelay = delayMs + 'ms';
+    else el.style.animationDelay = '';
+    el.classList.add('_nudge-entering');
+    el.addEventListener('animationend', () => {
+      el.classList.remove('_nudge-entering');
+      el.style.animationDelay = '';
+    }, { once: true });
+  }
+}
+// Animate an element's text landing in place (async resolve — "reflecting…" → real content).
+function _nudgeTextResolve(el) {
+  el.classList.remove('_nudge-text-resolving');
+  void el.offsetWidth;
+  el.classList.add('_nudge-text-resolving');
+  el.addEventListener('animationend', () => el.classList.remove('_nudge-text-resolving'), { once: true });
+}
+
 function renderInfoStats() {
+  let _nudgeStagger = 0; // increments per visible block for staggered entrance
   // Pull stats from localStorage
   const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
   const streak = parseInt(localStorage.getItem('stat_streak') || '1');
@@ -6514,7 +6554,7 @@ function renderInfoStats() {
       const _wHK   = _snap7.reduce((s, e) => s + (e.habitsKept  || 0), 0);
       const _wHT   = _snap7.reduce((s, e) => s + (e.habitsTotal || 0), 0);
 
-      _sundayBlock.style.display = '';
+      _nudgeBlockShow(_sundayBlock, _nudgeStagger++ * 60);
       const _cached = localStorage.getItem(_cacheKey);
       if (_cached) {
         _sundayBlock.innerHTML =
@@ -6531,7 +6571,7 @@ function renderInfoStats() {
           if (text) {
             localStorage.setItem(_cacheKey, text);
             const el = _sundayBlock.querySelector('.week-summary');
-            if (el) { el.textContent = text; el.classList.remove('loading'); }
+            if (el) { el.textContent = text; el.classList.remove('loading'); _nudgeTextResolve(el); }
           } else if (_isSun) {
             // Fallback: rule-based summary for Sunday only
             const _fStr = _wF > 0 ? ' ' + _formatFocusTime(_wF) + ' of focus.' : '';
@@ -6539,7 +6579,7 @@ function renderInfoStats() {
             const fb = _wT + ' task' + (_wT !== 1 ? 's' : '') + ' done.' + _fStr + _hStr;
             localStorage.setItem(_cacheKey, fb);
             const el = _sundayBlock.querySelector('.week-summary');
-            if (el) { el.textContent = fb; el.classList.remove('loading'); }
+            if (el) { el.textContent = fb; el.classList.remove('loading'); _nudgeTextResolve(el); }
           } else {
             _sundayBlock.style.display = 'none';
           }
@@ -6583,7 +6623,7 @@ function renderInfoStats() {
       _nudgeBlock.innerHTML =
         '<div class="week-label">Today</div>' +
         '<div class="week-summary">' + esc(_dayLine) + '</div>';
-      _nudgeBlock.style.display = '';
+      _nudgeBlockShow(_nudgeBlock, _nudgeStagger++ * 60);
     } else {
       _nudgeBlock.style.display = 'none';
     }
@@ -6605,9 +6645,16 @@ function renderInfoStats() {
       localStorage.setItem(_nKey, JSON.stringify(_all));
     }
     if (_all.length) {
+      const _noticedWasHidden = _noticedEl.style.display === 'none';
       _noticedEl.innerHTML = '<div class="week-label">Noticed</div>' +
-        _all.map(l => '<div class="week-summary">' + esc(l) + '</div>').join('');
-      _noticedEl.style.display = '';
+        _all.map((l, i) =>
+          '<div class="week-summary' + (i >= _prior.length ? ' _nudge-fresh' : '') + '">' + esc(l) + '</div>'
+        ).join('');
+      _nudgeBlockShow(_noticedEl, _nudgeStagger++ * 60);
+      // Fresh lines inside an already-visible block: animate just those spans.
+      if (_fresh.length && !_noticedWasHidden) {
+        _noticedEl.querySelectorAll('._nudge-fresh').forEach(el => _nudgeTextResolve(el));
+      }
     } else {
       _noticedEl.style.display = 'none';
     }
