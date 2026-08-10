@@ -7091,6 +7091,8 @@ function renderManual() {
 // Wire hover/scroll shimmer on .task-tag elements in the manual list.
 // Pass a list container (renderManual) or a single .task element (addManual).
 // Desktop: mouseenter → single shimmer sweep. Mobile: IntersectionObserver.
+// Threshold 0.3 (not 0.8) so shimmer leads the element into view rather than
+// waiting until it's nearly fully visible.
 function _wireManualTagShimmer(container) {
   const _isTouch = !window.matchMedia('(hover: hover)').matches;
   const tasks = container.classList && container.classList.contains('task')
@@ -7109,7 +7111,7 @@ function _wireManualTagShimmer(container) {
         if (!entries[0].isIntersecting) return;
         o.disconnect();
         _shimmer();
-      }, { threshold: 0.8 });
+      }, { threshold: 0.3 });
       obs.observe(tagEl);
     } else {
       taskEl.addEventListener('mouseenter', _shimmer);
