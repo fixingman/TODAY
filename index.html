@@ -3938,9 +3938,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.2': '"Noticed" now reads your behavioral patterns — when you work, focus-day output, habit correlation, completion rate — instead of echoing the same tasks as "This week". Today nudge no longer leads with the streak count.',
   '2.64.1': 'Hover to pause: the triage completion countdown and delete undo toast both pause while you\'re over them, then resume with remaining time when you leave.',
   '2.64.0': 'After triage, your list is clean — done tasks and pre-checked tasks move to Past immediately so only tasks you explicitly kept remain visible.',
-  '2.63.3': 'Tag shimmer: the glint now waits until the tag is in view, then sweeps back and forth once.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -6654,14 +6654,74 @@ async function _fetchWeekThemeAI() {
   try {
     const key = _aiGetKey ? _aiGetKey() : null;
     if (!key || !navigator.onLine) return null;
-    const weekAgo = new Date(Date.now() - 7 * 864e5);
-    const recent = (appMemory.recentCompletedTasks || [])
-      .filter(e => new Date(e.date) >= weekAgo)
-      .map(e => _stripTag(e.text))
-      .filter(Boolean)
-      .slice(-20);
-    if (recent.length < 3) return null; // not enough completed this week to look for a pattern
-    const taskList = recent.map(t => '"' + t + '"').join(', ');
+
+    // Build behavioral data — NOT task content (which "This week" already covers).
+    // "Noticed" observes HOW/WHEN they work, not WHAT they worked on.
+    const m = appMemory;
+    const dailyHistory = (typeof safeJSON === 'function') ? safeJSON('today_daily_history', []) : [];
+    const behavioralLines = [];
+
+    // Peak hour
+    if (m.preferences?.peakHour !== null && m.preferences?.peakHour !== undefined) {
+      const h = m.preferences.peakHour;
+      behavioralLines.push(`Peak completion hour: ${h > 12 ? h - 12 : h}${h >= 12 ? 'pm' : 'am'}`);
+    }
+
+    // Focus correlation
+    const _focusDays = dailyHistory.filter(e => (e.focusMins || 0) > 0);
+    const _noFocusDays = dailyHistory.filter(e => (e.focusMins || 0) === 0 && e.tasksDone > 0);
+    if (_focusDays.length >= 5 && _noFocusDays.length >= 5) {
+      const _fAvg = (_focusDays.reduce((s, e) => s + e.tasksDone, 0) / _focusDays.length).toFixed(1);
+      const _nfAvg = (_noFocusDays.reduce((s, e) => s + e.tasksDone, 0) / _noFocusDays.length).toFixed(1);
+      behavioralLines.push(`Focus-session days: avg ${_fAvg} tasks done; non-focus days: avg ${_nfAvg} tasks (${_focusDays.length} vs ${_noFocusDays.length} days)`);
+    }
+
+    // Habit → output correlation
+    const _habitDays = dailyHistory.filter(e => e.habitsTotal > 0);
+    if (_habitDays.length >= 7) {
+      const _fullH = _habitDays.filter(e => e.habitsKept >= e.habitsTotal);
+      const _partH = _habitDays.filter(e => e.habitsKept < e.habitsTotal);
+      if (_fullH.length >= 3 && _partH.length >= 3) {
+        const _fhAvg = (_fullH.reduce((s, e) => s + e.tasksDone, 0) / _fullH.length).toFixed(1);
+        const _phAvg = (_partH.reduce((s, e) => s + e.tasksDone, 0) / _partH.length).toFixed(1);
+        behavioralLines.push(`All habits kept → avg ${_fhAvg} tasks done; partial habits → avg ${_phAvg} tasks (${_fullH.length} vs ${_partH.length} days)`);
+      }
+    }
+
+    // Completion rate (added vs done)
+    const _rateH = dailyHistory.filter(e => e.tasksAdded > 0);
+    if (_rateH.length >= 5) {
+      const _totalAdded = _rateH.reduce((s, e) => s + e.tasksAdded, 0);
+      const _totalDone = _rateH.reduce((s, e) => s + e.tasksDone, 0);
+      behavioralLines.push(`Completes ${Math.round(_totalDone / _totalAdded * 100)}% of tasks added (${_rateH.length} days)`);
+    }
+
+    // Late additions pattern (hours stored on patterns.lateAdditions)
+    const _lateHours = m.patterns?.lateAdditions || [];
+    if (_lateHours.length >= 5) {
+      const _latePct = Math.round(_lateHours.filter(h => h >= 14).length / _lateHours.length * 100);
+      behavioralLines.push(`${_latePct}% of additions happen after 2pm`);
+    }
+
+    // Day-of-week pattern
+    const _byDow = {};
+    for (const e of dailyHistory) {
+      const d = new Date(e.date).getDay();
+      if (!_byDow[d]) _byDow[d] = { total: 0, count: 0 };
+      _byDow[d].total += e.tasksDone || 0;
+      _byDow[d].count++;
+    }
+    const _dowNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const _dowAvgs = Object.entries(_byDow)
+      .filter(([,v]) => v.count >= 3)
+      .map(([d, v]) => ({ day: _dowNames[d], avg: v.total / v.count }))
+      .sort((a, b) => b.avg - a.avg);
+    if (_dowAvgs.length >= 3) {
+      behavioralLines.push(`Most productive days: ${_dowAvgs[0].day} (${_dowAvgs[0].avg.toFixed(1)}/day), ${_dowAvgs[1].day} (${_dowAvgs[1].avg.toFixed(1)}/day)`);
+    }
+
+    if (behavioralLines.length < 2) return null; // not enough behavioral signal
+
     const res = await fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -6669,12 +6729,12 @@ async function _fetchWeekThemeAI() {
         provider: _aiGetProvider(),
         apiKey: key,
         messages: [{ role: 'user', content:
-          'Completed this week: ' + taskList + '. ' +
-          'Look for a genuine pattern in what actually got done — not a repeated word, a real shape to the week ' +
-          '(a lot of small admin, a cluster around one thing, a run of things finally getting done). ' +
-          'Ground it only in the real tasks above, never invent specifics that are not there. ' +
+          'Behavioral data:\n' + behavioralLines.join('\n') + '\n\n' +
+          'Name one genuine pattern about WHEN or HOW this person works — timing, rhythm, focus sessions, habits, completion rate. ' +
+          'Do NOT describe what tasks they worked on — that\'s covered elsewhere. ' +
+          'Ground it only in the numbers above, never invent. ' +
           'If nothing genuine stands out, reply with exactly: none.' }],
-        systemPrompt: 'One sentence only, under 20 words. No quotes. Plain, warm, observational — noticing, not evaluating. Never a judgment or a to-do.',
+        systemPrompt: 'One sentence only, under 20 words. No quotes. Plain, observational, specific to their rhythm — not task content.',
       }),
     });
     if (!res.ok) return null;
@@ -11663,6 +11723,8 @@ Message guidelines:
 - Conversational questions ("how are you?", "I'm tired") → respond warmly, dismiss only, no task chips.
 - Never: "Let's", "Why not", "How about", exclamation marks, emoji.
 - Don't comment on list size. Don't suggest reorganising.
+- Don't open by citing the streak count — it's displayed in the UI already.
+- The "This week" section already narrates what got done this week. Don't echo the same task themes — find a different angle (timing, energy, what's sitting, what's next).
 
 Available actions (use only what genuinely fits — fewer is better):
   start_focus  { "id": "exact-id" }      — invite 25-min focus on a specific task
