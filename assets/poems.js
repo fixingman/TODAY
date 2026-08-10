@@ -255,10 +255,10 @@ const POEMS = [
     source: "'If—', Rewards and Fairies, 1910 (d. 1936; Gutenberg #556)",
   },
   {
-    text: 'The Moving Finger writes; and, having writ,\nMoves on: nor all thy Piety nor Wit\nShall lure it back to cancel half a Line,\nNor all thy Tears wash out a Word of it.',
+    text: 'The hand writes on. Once written,\nno prayer or wit recalls it—\nno tears wash out a word.\nWhat\'s done is done.',
     author: 'Omar Khayyám',
     season: null,
-    source: 'Rubáiyát, trans. FitzGerald (Gutenberg #246) — quoted in How to Stop Worrying, "don\'t saw sawdust"',
+    source: 'Rubáiyát — modern rendering after FitzGerald',
   },
   {
     text: 'Awake! for Morning in the Bowl of Night\nHas flung the Stone that puts the Stars to Flight:\nAnd Lo! the Hunter of the East has caught\nThe Sultan\'s Turret in a Noose of Light.',
