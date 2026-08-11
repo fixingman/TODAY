@@ -2858,6 +2858,14 @@
     background: var(--accent-hover);
   }
   
+  /* PWA install row — override status defaults so instruction text is readable */
+  #pwaInstallSection .connection-row-status {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    color: var(--text);
+  }
+
   /* Expanded config — board selection state */
   .connection-expanded {
     padding: var(--space-4);
@@ -3693,7 +3701,7 @@
     <div class="status-msg" id="statusMsg"></div>
 
     <!-- PWA install row — populated by JS for non-Chrome browsers -->
-    <div id="pwaInstallSection" style="display:none"></div>
+    <div class="panel-section" id="pwaInstallSection" style="display:none"></div>
 
     <!-- AI Assistant section -->
     <div class="panel-section" id="aiConfigSection">
@@ -14621,7 +14629,7 @@ if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.
     section.innerHTML = `<div class="connection-row">
       <div class="connection-row-info">
         <span class="connection-row-title">INSTALL APP</span>
-        <span class="connection-row-status" style="white-space:normal">${_instruction}</span>
+        <span class="connection-row-status">${_instruction}</span>
       </div>
     </div>`;
     section.style.display = 'block';
