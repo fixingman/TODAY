@@ -1,0 +1,12 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+setup = "git -C \"$CONDUCTOR_ROOT_PATH\" fetch --prune origin && git -C \"$CONDUCTOR_ROOT_PATH\" pull --ff-only || true"
+archive = "node -e \"const fs=require('fs');const c=fs.readFileSync('index.html','utf8');const s=c.slice(c.indexOf('<script>')+8,c.lastIndexOf('</script>'));try{new Function(s);process.stdout.write('JS OK\\n')}catch(e){process.stderr.write('JS ERROR: '+e.message+'\\n');process.exit(1)}\""
+run_mode = "concurrent"
+
+[scripts.run.dev]
+available_in = ["local"]
+command = "python3 -m http.server ${CONDUCTOR_PORT:-8000}"
+default = true
+icon = "play"
