@@ -2860,6 +2860,18 @@
   
   /* PWA install row */
   #pwaInstallSection { margin-top: var(--space-2); }
+  .connection-row-actions .btn-sm._pwa-revealed {
+    background: none;
+    border-color: transparent;
+    color: #fff;
+    cursor: default;
+    pointer-events: none;
+    animation: _pwaPulse 2.5s ease-in-out infinite;
+  }
+  @keyframes _pwaPulse {
+    0%, 100% { opacity: 0.45; }
+    50%       { opacity: 1; }
+  }
 
   /* Expanded config — board selection state */
   .connection-expanded {
@@ -3975,9 +3987,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.7': 'PWA install CTA: clicking "How to add ↓" replaces the button text in place with white pulsing instructions — no layout shift.',
   '2.64.6': 'Safari install instructions now appear without changing the height of the Connections row.',
   '2.64.5': 'PWA install prompt extended to iOS Safari, macOS Safari, and Firefox: each shows a contextual "how to install" row inside the Connections panel.',
-  '2.64.4': 'Soon list tags shimmer on interaction: single left-to-right sweep on hover (desktop) or when scrolled into view (mobile). Uses the same tagShimmer keyframe as add-to-list, one pass only.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -14623,9 +14635,9 @@ const _PWA_STEPS = {
   ios: 'Share ↑ → Add to Home Screen',
 };
 function _pwaShowSteps(btn, key) {
-  const status = btn.closest('.connection-row').querySelector('.connection-row-status');
-  if (status) status.textContent = _PWA_STEPS[key] || '';
-  btn.style.visibility = 'hidden';
+  btn.textContent = _PWA_STEPS[key] || '';
+  btn.classList.add('_pwa-revealed');
+  btn.disabled = true;
 }
 function _pwaCopyLink(btn) {
   navigator.clipboard.writeText(window.location.href).then(() => {
