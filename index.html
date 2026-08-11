@@ -3975,9 +3975,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.6': 'Safari install instructions now appear without changing the height of the Connections row.',
   '2.64.5': 'PWA install prompt extended to iOS Safari, macOS Safari, and Firefox: each shows a contextual "how to install" row inside the Connections panel.',
   '2.64.4': 'Soon list tags shimmer on interaction: single left-to-right sweep on hover (desktop) or when scrolled into view (mobile). Uses the same tagShimmer keyframe as add-to-list, one pass only.',
-  '2.64.3': 'Nudge content in the About panel now animates in — blocks entrance-slide with a staggered 60ms delay each, async-resolved text (reflecting…→real line) fades up in place, and fresh Noticed lines animate individually.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -14625,12 +14625,12 @@ const _PWA_STEPS = {
 function _pwaShowSteps(btn, key) {
   const status = btn.closest('.connection-row').querySelector('.connection-row-status');
   if (status) status.textContent = _PWA_STEPS[key] || '';
-  btn.style.display = 'none';
+  btn.style.visibility = 'hidden';
 }
 function _pwaCopyLink(btn) {
   navigator.clipboard.writeText(window.location.href).then(() => {
     const orig = btn.textContent;
-    btn.textContent = 'Copied!';
+    btn.textContent = 'Copied';
     setTimeout(() => { btn.textContent = orig; }, 2000);
   });
 }
