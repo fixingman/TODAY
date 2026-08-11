@@ -2859,13 +2859,26 @@
   }
   
   /* PWA install row */
-  #pwaInstallSection { margin-top: var(--space-2); }
+  #pwaInstallSection { margin-top: var(--space-2); position: relative; }
   #pwaInstallSection .connection-row-status {
     white-space: normal;
     overflow: visible;
     text-overflow: unset;
   }
-  #pwaInstallSection .connection-row-status strong { color: var(--text); }
+  ._pwa-tip {
+    position: absolute;
+    left: 0; right: 0;
+    top: calc(100% + var(--space-1));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--text-xs);
+    color: var(--muted);
+    line-height: 1.7;
+    z-index: 10;
+  }
+  ._pwa-tip strong { color: var(--text); }
 
   /* Expanded config — board selection state */
   .connection-expanded {
@@ -14629,9 +14642,26 @@ const _PWA_STEPS = {
   ios: `Tap <strong>Share</strong> ⬆ → tap <strong>"Add to Home Screen"</strong>`,
 };
 function _pwaShowSteps(btn, key) {
-  const status = btn.closest('.connection-row').querySelector('.connection-row-status');
-  if (status) status.innerHTML = _PWA_STEPS[key] || '';
-  btn.style.display = 'none';
+  const section = document.getElementById('pwaInstallSection');
+  const existing = section && section.querySelector('._pwa-tip');
+  if (existing) {
+    existing.remove();
+    btn.textContent = 'How to add ↓';
+    return;
+  }
+  const tip = document.createElement('div');
+  tip.className = '_pwa-tip';
+  tip.innerHTML = _PWA_STEPS[key] || '';
+  section.appendChild(tip);
+  btn.textContent = 'How to add ↑';
+  const dismiss = e => {
+    if (!section.contains(e.target)) {
+      tip.remove();
+      btn.textContent = 'How to add ↓';
+      document.removeEventListener('click', dismiss, true);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', dismiss, true), 0);
 }
 function _pwaCopyLink(btn) {
   navigator.clipboard.writeText(window.location.href).then(() => {
