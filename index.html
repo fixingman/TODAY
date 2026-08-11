@@ -14557,11 +14557,26 @@ let _deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   _deferredInstallPrompt = e;
-  
-  // Show install button in info panel
+
+  // Show install button in About panel
   const btn = document.getElementById('installBtn');
   if (btn) btn.style.display = 'inline-flex';
-  
+
+  // Show install row in Connections panel
+  const section = document.getElementById('pwaInstallSection');
+  if (section) {
+    section.innerHTML = `<div class="connection-row">
+      <div class="connection-row-info">
+        <span class="connection-row-title">INSTALL APP</span>
+        <span class="connection-row-status">Add TODAY to your home screen</span>
+      </div>
+      <div class="connection-row-actions">
+        <button class="btn-sm primary" onclick="installPWA()">Install</button>
+      </div>
+    </div>`;
+    section.style.display = 'block';
+  }
+
   console.log('[PWA] Install prompt captured — ready to install');
 });
 
@@ -14579,20 +14594,23 @@ function installPWA() {
   _deferredInstallPrompt.userChoice.then((result) => {
     console.log('[PWA] User choice:', result.outcome);
     if (result.outcome === 'accepted') {
-      // Hide install button after successful install
       const btn = document.getElementById('installBtn');
       if (btn) btn.style.display = 'none';
+      const section = document.getElementById('pwaInstallSection');
+      if (section) section.style.display = 'none';
     }
     _deferredInstallPrompt = null;
   });
 }
 
-// Hide install button if already running as installed PWA
+// Hide install UI if already running as installed PWA
 window.addEventListener('appinstalled', () => {
   console.log('[PWA] App installed successfully');
   _deferredInstallPrompt = null;
   const btn = document.getElementById('installBtn');
   if (btn) btn.style.display = 'none';
+  const section = document.getElementById('pwaInstallSection');
+  if (section) section.style.display = 'none';
 });
 
 // Also hide install button if already in standalone mode (already installed)
