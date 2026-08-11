@@ -14630,10 +14630,10 @@ if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.
 }
 
 // ── PWA install promotion for non-Chrome browsers ────────────────────────────
-function _pwaToggleSteps() {
+function _pwaShowSteps(btn) {
   const steps = document.querySelector('._pwa-steps');
-  if (!steps) return;
-  steps.style.display = steps.style.display === 'none' ? 'block' : 'none';
+  if (steps) steps.style.display = 'block';
+  if (btn) btn.style.display = 'none';
 }
 function _pwaCopyLink(btn) {
   navigator.clipboard.writeText(window.location.href).then(() => {
@@ -14646,25 +14646,30 @@ function _pwaCopyLink(btn) {
   const _isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
                         window.navigator.standalone;
   if (_isStandalone) return;
-  const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  const ua = navigator.userAgent;
+  const _isIOS = /iPad|iPhone|iPod/.test(ua) ||
                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const _isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  const _isMacSafari = _isSafari && !_isIOS && /Mac/.test(navigator.platform);
-  const _isFirefox = navigator.userAgent.includes('Firefox');
+  // Exclude CriOS (Chrome iOS) and FxiOS (Firefox iOS) — they embed Safari UA but aren't Safari
+  const _isIOSSafari = _isIOS && !ua.includes('CriOS') && !ua.includes('FxiOS') &&
+                       /^((?!chrome|android).)*safari/i.test(ua);
+  const _isMacSafari = !_isIOS && /Mac/.test(navigator.platform) &&
+                       /^((?!chrome|android).)*safari/i.test(ua);
+  const _isIOSNonSafari = _isIOS && !_isIOSSafari; // Chrome/Firefox/Edge on iOS
+  const _isFirefox = !_isIOS && (ua.includes('Firefox'));
 
   let _row = '';
-  if (_isIOS && _isSafari) {
+  if (_isIOSSafari) {
     _row = `<div class="connection-row">
       <div class="connection-row-info">
         <span class="connection-row-title">Install app</span>
         <span class="connection-row-status">Add TODAY to your home screen</span>
       </div>
       <div class="connection-row-actions">
-        <button class="btn-sm primary" onclick="_pwaToggleSteps()">How to install</button>
+        <button class="btn-sm primary" onclick="_pwaShowSteps(this)">How to add ↓</button>
       </div>
     </div>
     <div class="_pwa-steps">
-      1. Tap the <strong>Share</strong> ⬆ button in Safari's toolbar<br>
+      1. Tap the <strong>Share</strong> ⬆ button in Safari<br>
       2. Tap <strong>"Add to Home Screen"</strong>
     </div>`;
   } else if (_isMacSafari) {
@@ -14674,12 +14679,22 @@ function _pwaCopyLink(btn) {
         <span class="connection-row-status">Install TODAY as a desktop app</span>
       </div>
       <div class="connection-row-actions">
-        <button class="btn-sm primary" onclick="_pwaToggleSteps()">Add to Dock</button>
+        <button class="btn-sm primary" onclick="_pwaShowSteps(this)">How to add ↓</button>
       </div>
     </div>
     <div class="_pwa-steps">
       1. Open Safari's <strong>File</strong> menu<br>
       2. Click <strong>"Add to Dock"</strong>
+    </div>`;
+  } else if (_isIOSNonSafari) {
+    _row = `<div class="connection-row">
+      <div class="connection-row-info">
+        <span class="connection-row-title">Install app</span>
+        <span class="connection-row-status">Open in Safari to add to your home screen</span>
+      </div>
+      <div class="connection-row-actions">
+        <button class="btn-sm" onclick="_pwaCopyLink(this)">Copy link</button>
+      </div>
     </div>`;
   } else if (_isFirefox) {
     _row = `<div class="connection-row">
