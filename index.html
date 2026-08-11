@@ -14623,17 +14623,15 @@ if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.
     _instruction = 'Open in Chrome, Edge, or Safari to install as an app';
   }
   if (!_instruction) return;
-  document.addEventListener('DOMContentLoaded', () => {
-    const section = document.getElementById('pwaInstallSection');
-    if (!section) return;
-    section.innerHTML = `<div class="connection-row">
-      <div class="connection-row-info">
-        <span class="connection-row-title">INSTALL APP</span>
-        <span class="connection-row-status">${_instruction}</span>
-      </div>
-    </div>`;
-    section.style.display = 'block';
-  });
+  const section = document.getElementById('pwaInstallSection');
+  if (!section) return;
+  section.innerHTML = `<div class="connection-row">
+    <div class="connection-row-info">
+      <span class="connection-row-title">INSTALL APP</span>
+      <span class="connection-row-status">${_instruction}</span>
+    </div>
+  </div>`;
+  section.style.display = 'block';
 })();
 
 // Handle bfcache restoration — browser may restore page with stale .focusing class
