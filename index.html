@@ -3692,6 +3692,9 @@
 
     <div class="status-msg" id="statusMsg"></div>
 
+    <!-- PWA install row — populated by JS for non-Chrome browsers -->
+    <div id="pwaInstallSection" style="display:none"></div>
+
     <!-- AI Assistant section -->
     <div class="panel-section" id="aiConfigSection">
       <div class="config-title">✦&#xFE0E; AI ASSISTANT</div>
@@ -3969,9 +3972,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.5': 'PWA install prompt extended to iOS Safari, macOS Safari, and Firefox: each shows a contextual "how to install" row inside the Connections panel.',
   '2.64.4': 'Soon list tags shimmer on interaction: single left-to-right sweep on hover (desktop) or when scrolled into view (mobile). Uses the same tagShimmer keyframe as add-to-list, one pass only.',
   '2.64.3': 'Nudge content in the About panel now animates in — blocks entrance-slide with a staggered 60ms delay each, async-resolved text (reflecting…→real line) fades up in place, and fresh Noticed lines animate individually.',
-  '2.64.2': '"Noticed" now reads your behavioral patterns — when you work, focus-day output, habit correlation, completion rate — instead of echoing the same tasks as "This week". Today nudge no longer leads with the streak count.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -14592,6 +14595,38 @@ if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.
     if (btn) btn.style.display = 'none';
   });
 }
+
+// ── PWA install promotion for non-Chrome browsers ────────────────────────────
+(function () {
+  const _isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                        window.navigator.standalone;
+  if (_isStandalone) return;
+  const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const _isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  const _isMacSafari = _isSafari && !_isIOS && /Mac/.test(navigator.platform);
+  const _isFirefox = navigator.userAgent.includes('Firefox');
+  let _instruction = '';
+  if (_isIOS && _isSafari) {
+    _instruction = 'Tap <strong>Share</strong> ↑ then <strong>"Add to Home Screen"</strong>';
+  } else if (_isMacSafari) {
+    _instruction = 'In Safari: <strong>File → Add to Dock</strong>';
+  } else if (_isFirefox) {
+    _instruction = 'Open in Chrome, Edge, or Safari to install as an app';
+  }
+  if (!_instruction) return;
+  document.addEventListener('DOMContentLoaded', () => {
+    const section = document.getElementById('pwaInstallSection');
+    if (!section) return;
+    section.innerHTML = `<div class="connection-row">
+      <div class="connection-row-info">
+        <span class="connection-row-title">INSTALL APP</span>
+        <span class="connection-row-status" style="white-space:normal">${_instruction}</span>
+      </div>
+    </div>`;
+    section.style.display = 'block';
+  });
+})();
 
 // Handle bfcache restoration — browser may restore page with stale .focusing class
 // but JS state is reset, leaving app visually stuck in focus mode
