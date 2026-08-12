@@ -83,6 +83,34 @@
      See Design.md § Motion > Focus mode animation rules.
   ══════════════════════════════════════════════════════════════════ */
 
+  /* Quiet bordered CTA shared by focus-copy and About's contextual actions. */
+  .copy-cta {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--muted);
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    letter-spacing: 0.06em;
+    padding: 2px var(--space-2);
+    margin: 0;
+    cursor: pointer;
+    transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+    white-space: nowrap;
+    line-height: 1.6;
+  }
+  .copy-cta:hover {
+    opacity: 1;
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .copy-cta.copied,
+  .copy-cta.clicked {
+    opacity: 1;
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
   /* Copy button hidden globally — only shown inside @media (hover: hover) below */
   .task-copy { display: none; }
 
@@ -175,19 +203,7 @@
       top: var(--space-2);
       right: var(--space-2);
       opacity: 0;
-      background: none;
-      border: 1px solid transparent;
-      border-radius: var(--radius-md);
-      color: var(--muted);
-      font-size: var(--text-xs);
-      font-family: var(--font-mono);
-      letter-spacing: 0.06em;
-      padding: 2px var(--space-2);
-      cursor: pointer;
       pointer-events: none;
-      transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
-      white-space: nowrap;
-      line-height: 1.6;
     }
     .focusing .task.focused .task-copy {
       opacity: var(--opacity-copy);
@@ -1739,14 +1755,9 @@
   .btn-install:active { opacity: 1; transform: translateY(0); }
   .install-icon { font-size: 1.1em; }
 
-  /* Simplified .task-copy reference, per spec: whole poem is the click target
-     (no bounding box / card chrome — the poem isn't draggable like a task, so
-     it doesn't need one), text itself highlights on hover instead of a
-     background+border box, and the label is .task-copy's own component —
-     identical properties and states, same tokens, not just a similar-looking
-     approximation. The gutter is a permanent padding, not something that
-     appears only while hovering, so nothing shifts when the label reveals. */
-  .poem-block { position: relative; }
+  /* Whole poem remains the click target; the action itself uses the same
+     bordered copy CTA as focus mode. Permanent gutter prevents overlap. */
+  .poem-block { position: relative; padding-right: 64px; }
   .poem-block #dailyPoem,
   .poem-block .poem-author { transition: color var(--dur-fast); }
   .btn-poem-share {
@@ -1754,19 +1765,11 @@
     position: absolute;
     top: 0;
     right: 0;
-    background: none;
-    border: none;
-    padding: 0;
-    color: var(--muted);
-    font-size: var(--text-xs);
-    font-family: var(--font-mono);
-    cursor: pointer;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 160ms ease, color 160ms ease;
   }
   .btn-poem-share.copied,
-  .btn-poem-share.clicked { opacity: 1; pointer-events: none; color: var(--accent); }
+  .btn-poem-share.clicked { pointer-events: none; }
 
   /* Touch: no hover, so tap itself must do what hover does on desktop — reveal
      first, act second. .revealed is a plain JS-toggled class (_onPoemTap,
@@ -1775,14 +1778,23 @@
      gets it (it won't, in normal use — desktop never taps into this path). */
   .poem-block.revealed #dailyPoem,
   .poem-block.revealed .poem-author { color: var(--text); }
-  .poem-block.revealed .btn-poem-share { opacity: 1; pointer-events: all; color: var(--text); }
+  .poem-block.revealed .btn-poem-share {
+    opacity: 1;
+    pointer-events: all;
+    color: var(--text);
+    border-color: var(--border);
+  }
 
   @media (hover: hover) {
     .poem-block { cursor: pointer; }
     .poem-block:hover #dailyPoem,
     .poem-block:hover .poem-author { color: var(--text); }
-    .poem-block:hover .btn-poem-share { opacity: 1; pointer-events: all; }
-    .poem-block:hover .btn-poem-share:hover { color: var(--text); }
+    .poem-block:hover .btn-poem-share { opacity: var(--opacity-copy); pointer-events: all; }
+    .poem-block:hover .btn-poem-share:hover {
+      opacity: 1;
+      color: var(--text);
+      border-color: var(--border);
+    }
   }
 
   /* ── Drag-to-reorder — row-level cue, no extra element ── */
@@ -2398,14 +2410,21 @@
   #weekSection { position: relative; }
   #weekMoreBtn {
     position: absolute; top: var(--space-5); right: 0;
-    background: none; border: none; padding: 0; margin: 0; cursor: pointer;
-    font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted);
-    opacity: 0; transition: opacity 160ms ease;
+    opacity: 0;
     pointer-events: none;
   }
-  #weekMoreBtn:hover { color: var(--text); }
-  #weekSection:hover #weekMoreBtn,
-  #weekSection.touched  #weekMoreBtn { opacity: 1; pointer-events: auto; }
+  #weekSection:hover #weekMoreBtn { opacity: var(--opacity-copy); pointer-events: auto; }
+  #weekSection:hover #weekMoreBtn:hover {
+    opacity: 1;
+    color: var(--text);
+    border-color: var(--border);
+  }
+  #weekSection.touched #weekMoreBtn {
+    opacity: 1;
+    pointer-events: auto;
+    color: var(--text);
+    border-color: var(--border);
+  }
 
   #sundayBlock {
     margin-bottom: var(--space-3);
@@ -2749,6 +2768,14 @@
   }
   .offline-banner.visible { display: block; }
 
+  .connections-privacy-note {
+    display: none;
+    margin: calc(-1 * var(--space-2)) 0 var(--space-4);
+    color: var(--muted);
+    font-size: var(--text-sm2);
+    line-height: 1.6;
+  }
+
   /* ── Connections Grid (Trello + Dropbox side by side) ─────────────── */
   .connections-grid {
     display: grid;
@@ -2863,7 +2890,7 @@
   .connection-row-actions .btn-sm._pwa-revealed {
     background: none;
     border-color: transparent;
-    color: #fff;
+    color: var(--text);
     cursor: default;
     pointer-events: none;
     animation: _pwaPulse 2.5s ease-in-out infinite;
@@ -3699,6 +3726,8 @@
   <div class="config-panel" id="configPanel">
     <div class="config-title">⚡&#xFE0E; Connections</div>
 
+    <div class="connections-privacy-note" id="connectionsPrivacyNote">Private by design: no account, no analytics. You own your data and choose every connection.</div>
+
     <!-- Offline banner — shown when navigator.onLine is false -->
     <div class="offline-banner" id="offlineBanner">You're offline — connections unavailable</div>
 
@@ -3742,7 +3771,7 @@
 
     <div class="panel-section" id="weekSection" style="display:none">
       <div class="config-label">This week</div>
-      <button id="weekMoreBtn" onclick="toggleMemory()" aria-label="Open memory">see more</button>
+      <button id="weekMoreBtn" class="copy-cta" onclick="toggleMemory()" aria-label="Open memory">see more</button>
       <div id="weekGrid"></div>
     </div>
 
@@ -3757,7 +3786,7 @@
             Done rests, quietly proud<br>
             Morning clears the slate
           </div>
-          <span id="poemShareBtn" class="btn-poem-share">share</span>
+          <span id="poemShareBtn" class="btn-poem-share copy-cta">share</span>
         </div>
         <button id="installBtn" class="btn-install" style="display:none;margin-top:var(--space-3)" onclick="installPWA()">
           <span class="install-icon">⬇&#xFE0E;</span> Install App
@@ -3980,16 +4009,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '256h';
+const DEV_HOURS     = '259h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.64.7': 'PWA install CTA: clicking "How to add ↓" replaces the button text in place with white pulsing instructions — no layout shift.',
-  '2.64.6': 'Safari install instructions now appear without changing the height of the Connections row.',
-  '2.64.5': 'PWA install prompt extended to iOS Safari, macOS Safari, and Firefox: each shows a contextual "how to install" row inside the Connections panel.',
+  '2.64.12': 'Shared poem links now open normally instead of failing in the preview layer.',
+  '2.64.11': 'Connections now offers a one-time reminder that TODAY has no account or analytics, and that every connection is your choice.',
+  '2.64.10': 'The “see more” and poem “share” actions in About now match the bordered copy control used during focus.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5749,6 +5778,42 @@ function syncActiveButtons() {
 
 }
 
+const _CONNECTIONS_PRIVACY_SEEN_KEY = 'today_connections_privacy_seen';
+let _connectionsPrivacyVisible = false;
+
+function _connectionsHaveCredentials() {
+  const trelloConfig = safeJSON('trello_config', {});
+  return !!(
+    localStorage.getItem('trello_token') ||
+    trelloConfig.apiToken ||
+    localStorage.getItem('dropbox_token') ||
+    localStorage.getItem('dropbox_refresh_token') ||
+    localStorage.getItem('dropbox_token_expired') === '1' ||
+    _aiGetKey('gemini') ||
+    _aiGetKey('claude')
+  );
+}
+
+function _renderConnectionsPrivacy() {
+  if (_connectionsPrivacyVisible && _connectionsHaveCredentials()) {
+    _connectionsPrivacyVisible = false;
+  }
+  const note = document.getElementById('connectionsPrivacyNote');
+  if (note) note.style.display = _connectionsPrivacyVisible ? 'block' : 'none';
+}
+
+function _beginConnectionsPrivacyVisit() {
+  const isFirstVisit = localStorage.getItem(_CONNECTIONS_PRIVACY_SEEN_KEY) !== '1';
+  if (isFirstVisit) localStorage.setItem(_CONNECTIONS_PRIVACY_SEEN_KEY, '1');
+  _connectionsPrivacyVisible = isFirstVisit && !_connectionsHaveCredentials();
+  _renderConnectionsPrivacy();
+}
+
+function _endConnectionsPrivacyVisit() {
+  _connectionsPrivacyVisible = false;
+  _renderConnectionsPrivacy();
+}
+
 function toggleConfig() {
   const scrollY = window.scrollY; // Preserve scroll position
   const configPanel = $.configPanel;
@@ -5765,10 +5830,12 @@ function toggleConfig() {
   syncActiveButtons();
   window.scrollTo(0, scrollY); // Restore scroll position
   if (isOpening) {
+    _beginConnectionsPrivacyVisit();
     renderConnections();
     setTimeout(_aiRenderConfig, 0);
     renderMeetingNames();
   } else {
+    _endConnectionsPrivacyVisit();
     const s = document.getElementById('statusMsg');
     const d = document.getElementById('dropboxMsg');
     if (s) { s.textContent = ''; s.className = 'status-msg'; }
@@ -5787,6 +5854,7 @@ function toggleInfo() {
     panel.classList.remove('open');
   }
   $.configPanel.classList.remove('open');
+  _endConnectionsPrivacyVisit();
   $.habitsPanel.classList.remove('open');
   $.memoryPanel?.classList.remove('open');
   syncActiveButtons();
@@ -5821,6 +5889,7 @@ function toggleMemory() {
     panel.classList.remove('open');
   }
   $.configPanel.classList.remove('open');
+  _endConnectionsPrivacyVisit();
   $.habitsPanel.classList.remove('open');
   $.infoPanel.classList.remove('open');
   syncActiveButtons();
@@ -6909,6 +6978,8 @@ function renderConnections() {
   const container = document.getElementById('connectionsContainer');
   if (!container) return;
 
+  _renderConnectionsPrivacy();
+
   const trelloToken = localStorage.getItem('trello_token');
   const trelloConfig = getSavedConfig();
   const trelloHasBoard = !!(trelloConfig.boardId);
@@ -7212,7 +7283,7 @@ function taskHTML(task, type) {
     ? `<button class="task-delete" data-taskid="${tid}" title="Remove">×</button>`
     : '';
   // Copy button — visible only in focus mode via CSS, present on all task types
-  const copyBtn = `<button class="task-copy" data-taskid="${tid}" title="Copy task text">copy</button>`;
+  const copyBtn = `<button class="task-copy copy-cta" data-taskid="${tid}" title="Copy task text">copy</button>`;
 
   // Age bucket for CSS-based visual aging (undone manual + trello tasks)
   // Day 3-4: young, 5-6: mid, 7+: old. Day 0-2: no attribute (full opacity).
@@ -7469,6 +7540,7 @@ function toggleHabits() {
     panel.classList.remove('open');
   }
   $.configPanel.classList.remove('open');
+  _endConnectionsPrivacyVisit();
   document.getElementById('infoPanel').classList.remove('open');
   $.memoryPanel?.classList.remove('open');
   syncActiveButtons();
@@ -11048,6 +11120,7 @@ function openAI(skipAutoLoad) {
   // Close other panels
   ['configPanel','habitsPanel','infoPanel'].forEach(id =>
     document.getElementById(id)?.classList.remove('open'));
+  _endConnectionsPrivacyVisit();
 
   _aiPanelOpen = true;
   _aiClearBadge(); // Clear proactive badge when panel opens
@@ -12863,6 +12936,7 @@ function _aiRenderConfig() {
 
   // Gate ✦ ask button visibility on AI being configured
   document.body.classList.toggle('ai-connected', _aiIsConfigured());
+  _renderConnectionsPrivacy();
 
   // Re-apply offline state — buttons are freshly rendered so _applyOfflinePanel's
   // earlier pass over the panel won't have reached them yet.
@@ -13350,8 +13424,11 @@ function _aiClearBadge() {
     if (_revived)       _ctx.push('revived from past — the person let it go and came back');
     if (_deferred)      _ctx.push('was deferred to Soon, then returned to today');
 
-    const _hour = new Date().getHours();
-    _ctx.push(_hour < 5 ? 'late night' : _hour < 12 ? 'morning' : _hour < 17 ? 'afternoon' : _hour < 22 ? 'evening' : 'late night');
+    const _now = new Date();
+    const _hour = _now.getHours();
+    const _period = _hour < 5 ? 'late night' : _hour < 12 ? 'morning' : _hour < 17 ? 'afternoon' : _hour < 22 ? 'evening' : 'late night';
+    const _localTime = _now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    _ctx.push('local time ' + _localTime + ' (' + _period + ')');
     const _peakH = appMemory?.preferences?.peakHour;
     if (_peakH != null && Math.abs(_hour - _peakH) <= 1) _ctx.push('their peak productive hour');
     const _sToday = Math.floor(parseInt(localStorage.getItem('stat_focus_mins_today') || '0') / 25);
@@ -13386,7 +13463,7 @@ function _aiClearBadge() {
             role: 'user',
             content: 'Task: "' + taskText + '"' + (_ctx.length ? '\nContext: ' + _ctx.join(', ') + '.' : '')
           }],
-          systemPrompt: `You are the quiet companion in a minimal daily task app. The user is about to start a 25-minute focus session. Ask one question — the kind a thoughtful friend asks before they disappear into work. Not a coach, not a prompt. A moment of honest noticing. Let the context shape the question: first session — what does done-enough look like for this sitting? Multiple sessions — be curious about what's actually in the way, not nagging, just noticing. Revived task — they came back to it, what feels different now? Long-standing or deferred — gentle, not guilty, still on your mind? Peak hour — lean into the momentum. Multiple sessions today — acknowledge the sustained effort quietly. Use person context (if given) to ask something that fits who they are, not just what the task says. One question only. Under 18 words. No preamble, no quotation marks, no emoji, no exclamation marks. Just the question.` + _inferCtx
+          systemPrompt: `You are the quiet companion in a minimal daily task app. The user is about to start a 25-minute focus session. Ask one question — the kind a thoughtful friend asks before they disappear into work. Not a coach, not a prompt. A moment of honest noticing. Let the context shape the question: first session — what does done-enough look like for this sitting? Multiple sessions — be curious about what's actually in the way, not nagging, just noticing. Revived task — they came back to it, what feels different now? Long-standing or deferred — gentle, not guilty, still on your mind? Peak hour — lean into the momentum. Multiple sessions today — acknowledge the sustained effort quietly. If you refer to the time, use the supplied exact local time; never replace it with a vague phrase like "this late." Use person context (if given) to ask something that fits who they are, not just what the task says. One question only. Under 18 words. No preamble, no quotation marks, no emoji, no exclamation marks. Just the question.` + _inferCtx
         })
       });
       clearTimeout(_focusAbortTimer);

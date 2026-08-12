@@ -52,13 +52,15 @@
 | `dropbox_token` | string | Dropbox access token |
 | `dropbox_refresh_token` | string | Dropbox refresh token (PKCE) |
 | `dropbox_token_expiry` | string | Epoch ms |
+| `today_connections_privacy_seen` | string | Local-only `'1'` after the first Connections-panel open; gates the one-time privacy reassurance and is deliberately excluded from Dropbox backup/sync |
 
 ### AI
 
 | Key | Type | Description |
 |---|---|---|
-| `today_ai_key` | string | API key (Gemini or Anthropic) |
-| `today_ai_provider` | string | `'gemini'` or `'anthropic'` |
+| `today_ai_key_gemini` | string | Gemini API key, stored locally and excluded from Dropbox backup |
+| `today_ai_key_claude` | string | Claude API key, stored locally and excluded from Dropbox backup |
+| `today_ai_provider` | string | `'gemini'` or `'claude'` |
 | `ai_last_open_date` | string | YYYY-MM-DD — for morning briefing |
 | `ai_last_observation` | string | Last proactive observation type |
 | `ai_last_observation_time` | string | Timestamp of last observation |

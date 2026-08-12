@@ -43,7 +43,76 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     process.exit(1);
   }
   console.log(`  ✓ CHANGELOG entry count (3)`);
+
+  // Focus Companion time-reference guard (BUG-073): a broad period such as
+  // "late night" is not enough for the model to produce a concrete question.
+  // Keep both halves of the contract present: exact local time in context and
+  // an instruction to use that value instead of vague wording.
+  const hasFocusLocalTime = /_localTime\s*=\s*_now\.toLocaleTimeString\(\[\],\s*\{\s*hour:\s*'numeric',\s*minute:\s*'2-digit'\s*\}\)/.test(indexSrc)
+    && indexSrc.includes("_ctx.push('local time ' + _localTime + ' (' + _period + ')')");
+  const hasFocusTimeInstruction = indexSrc.includes('use the supplied exact local time; never replace it with a vague phrase like "this late."');
+  if (!hasFocusLocalTime || !hasFocusTimeInstruction) {
+    console.error('✗ FAIL — Focus Companion must send exact local time and forbid vague time references (BUG-073).');
+    process.exit(1);
+  }
+  console.log('  ✓ Focus Companion exact-time context');
+
+  const privacyCopy = 'Private by design: no account, no analytics. You own your data and choose every connection.';
+  if (!indexSrc.includes(privacyCopy)) {
+    console.error('✗ FAIL — Connections privacy reassurance copy is missing or changed.');
+    process.exit(1);
+  }
+  const backupBlock = indexSrc.match(/async function dropboxBackup\(silent\)[\s\S]*?const data = \{[\s\S]*?\n  \};/)?.[0] || '';
+  const privacyKeyOccurrences = (indexSrc.match(/today_connections_privacy_seen/g) || []).length;
+  if (!backupBlock || backupBlock.includes('today_connections_privacy_seen') || privacyKeyOccurrences !== 1) {
+    console.error('✗ FAIL — Connections privacy seen flag must remain local-only, outside Dropbox backup and merge.');
+    process.exit(1);
+  }
+  console.log('  ✓ Connections privacy flag is local-only');
 }
+
+// ── 0b. Poem Edge Function — real corpus shape + safe fallback (BUG-074) ─────
+{
+  const edgeSrc  = await readFile(join(ROOT, 'netlify/edge-functions/poem.js'), 'utf8');
+  const corpus   = await readFile(join(ROOT, 'assets/poems.js'), 'utf8');
+  const poemHtml = await readFile(join(ROOT, 'poem.html'), 'utf8');
+  const edgeUrl  = 'data:text/javascript;base64,' + Buffer.from(edgeSrc).toString('base64');
+  const edge     = (await import(edgeUrl)).default;
+  const realFetch = globalThis.fetch;
+
+  try {
+    globalThis.fetch = async request => {
+      if (new URL(request).pathname !== '/assets/poems.js') return new Response('not found', { status: 404 });
+      return new Response(corpus, { status: 200, headers: { 'content-type': 'text/javascript' } });
+    };
+    const response = await edge(
+      new Request('https://today.test/poem.html?date=2026-08-12'),
+      { next: async () => new Response(poemHtml, { status: 200, headers: { 'content-type': 'text/html', 'content-length': String(Buffer.byteLength(poemHtml)) } }) }
+    );
+    const html = await response.text();
+    const title = html.match(/<meta property="og:title" content="([^"]*)"/)?.[1] || '';
+    const description = html.match(/<meta property="og:description" content="([^"]*)"/)?.[1] || '';
+    if (!response.ok || !title || title === 'Daily poem · TODAY' || !description || response.headers.has('content-length')) {
+      console.error('✗ FAIL — poem edge function did not inject valid OG metadata from the real commented corpus.');
+      process.exit(1);
+    }
+
+    globalThis.fetch = async () => new Response('// corpus unavailable', { status: 200 });
+    const fallbackHtml = '<!doctype html><title>Static poem fallback</title>';
+    const fallback = await edge(
+      new Request('https://today.test/poem.html?date=2026-08-12'),
+      { next: async () => new Response(fallbackHtml, { status: 200, headers: { 'content-type': 'text/html' } }) }
+    );
+    if (!fallback.ok || await fallback.text() !== fallbackHtml) {
+      console.error('✗ FAIL — poem edge function did not fall back to the static page for an invalid corpus.');
+      process.exit(1);
+    }
+    console.log('  ✓ poem edge metadata injection and static fallback');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 let puppeteer;
@@ -111,7 +180,116 @@ try {
   ).catch(() => fail('splash never dismissed / add bar never became visible'));
   ok('splash dismissed, add bar visible');
 
-  // ── 3. Add a task ───────────────────────────────────────────────────────
+  // ── 3. Connections privacy reassurance — one local visit only ───────────
+  const privacyResult = await page.evaluate(async () => {
+    const privacyCopy = 'Private by design: no account, no analytics. You own your data and choose every connection.';
+    const credentialKeys = [
+      'trello_token', 'trello_config', 'dropbox_token', 'dropbox_refresh_token',
+      'dropbox_token_expired', 'today_ai_key_gemini', 'today_ai_key_claude'
+    ];
+    const reset = () => {
+      credentialKeys.forEach(key => localStorage.removeItem(key));
+      localStorage.removeItem('today_connections_privacy_seen');
+      document.getElementById('configPanel').classList.remove('open');
+      _endConnectionsPrivacyVisit();
+    };
+    const isVisible = () => getComputedStyle(document.getElementById('connectionsPrivacyNote')).display !== 'none';
+    const open = async () => {
+      toggleConfig();
+      await new Promise(resolve => setTimeout(resolve, 10));
+    };
+    const close = () => {
+      if (document.getElementById('configPanel').classList.contains('open')) toggleConfig();
+    };
+
+    reset();
+    await open();
+    const firstOpen = isVisible();
+    const copyMatches = document.getElementById('connectionsPrivacyNote').textContent.trim() === privacyCopy;
+    const seenWritten = localStorage.getItem('today_connections_privacy_seen') === '1';
+    const panelRect = document.getElementById('configPanel').getBoundingClientRect();
+    const noteRect = document.getElementById('connectionsPrivacyNote').getBoundingClientRect();
+    const bannerEl = document.getElementById('offlineBanner');
+    bannerEl.classList.add('visible');
+    const bannerRect = bannerEl.getBoundingClientRect();
+    const desktopFits = noteRect.left >= panelRect.left && noteRect.right <= panelRect.right && noteRect.bottom <= bannerRect.top;
+    bannerEl.classList.remove('visible');
+    close();
+    const hiddenAfterClose = !isVisible();
+    await open();
+    const hiddenOnReopen = !isVisible();
+    close();
+
+    reset();
+    await open();
+    toggleInfo();
+    const hiddenAfterOtherPanel = !isVisible() && !document.getElementById('configPanel').classList.contains('open');
+    if (document.getElementById('infoPanel').classList.contains('open')) toggleInfo();
+
+    const cases = [
+      ['trello token', 'trello_token', 'token'],
+      ['trello config credential', 'trello_config', JSON.stringify({ apiToken: 'token' })],
+      ['dropbox token', 'dropbox_token', 'token'],
+      ['dropbox refresh token', 'dropbox_refresh_token', 'token'],
+      ['dropbox expired state', 'dropbox_token_expired', '1'],
+      ['Gemini key', 'today_ai_key_gemini', 'key'],
+      ['Claude key', 'today_ai_key_claude', 'key'],
+    ];
+    const suppressionFailures = [];
+    for (const [label, key, value] of cases) {
+      reset();
+      localStorage.setItem(key, value);
+      await open();
+      if (isVisible() || localStorage.getItem('today_connections_privacy_seen') !== '1') suppressionFailures.push(label);
+      close();
+    }
+
+    reset();
+    localStorage.setItem('today_user_names', JSON.stringify(['Can']));
+    localStorage.setItem('today_pwa_installed', '1');
+    await open();
+    const localStateDoesNotSuppress = isVisible();
+    localStorage.setItem('today_ai_key_gemini', 'key');
+    _aiRenderConfig();
+    const hiddenAfterAIConnect = !isVisible();
+    close();
+
+    reset();
+    localStorage.removeItem('today_user_names');
+    localStorage.removeItem('today_pwa_installed');
+    return {
+      firstOpen, copyMatches, seenWritten, desktopFits, hiddenAfterClose, hiddenOnReopen, hiddenAfterOtherPanel,
+      suppressionFailures, localStateDoesNotSuppress, hiddenAfterAIConnect
+    };
+  });
+  const privacyFailures = Object.entries(privacyResult)
+    .filter(([key, value]) => key === 'suppressionFailures' ? value.length : !value)
+    .map(([key, value]) => key === 'suppressionFailures' ? `${key}: ${value.join(', ')}` : key);
+  if (privacyFailures.length) fail('Connections privacy gate failed: ' + privacyFailures.join('; '));
+  ok('Connections privacy reassurance is one-time and credential-gated');
+
+  await page.setViewport({ width: 375, height: 812 });
+  const privacyMobile = await page.evaluate(async () => {
+    localStorage.removeItem('today_connections_privacy_seen');
+    document.getElementById('configPanel').classList.remove('open');
+    _endConnectionsPrivacyVisit();
+    toggleConfig();
+    await new Promise(resolve => setTimeout(resolve, 10));
+    const panel = document.getElementById('configPanel').getBoundingClientRect();
+    const note = document.getElementById('connectionsPrivacyNote').getBoundingClientRect();
+    const bannerEl = document.getElementById('offlineBanner');
+    bannerEl.classList.add('visible');
+    const banner = bannerEl.getBoundingClientRect();
+    const fits = note.left >= panel.left && note.right <= panel.right && note.bottom <= banner.top;
+    bannerEl.classList.remove('visible');
+    toggleConfig();
+    return fits;
+  });
+  if (!privacyMobile) fail('Connections privacy reassurance does not fit the narrow layout with offline banner');
+  ok('Connections privacy reassurance fits narrow layout');
+  await page.setViewport({ width: 1200, height: 800 });
+
+  // ── 4. Add a task ───────────────────────────────────────────────────────
   await page.click('#newTask');
   await page.type('#newTask', 'smoke test task');
   await page.keyboard.press('Enter');
@@ -122,7 +300,43 @@ try {
   ).catch(() => fail('task did not appear in the list after Enter'));
   ok('task added');
 
-  // ── 4. Check it off ──────────────────────────────────────────────────────
+  // About's contextual actions intentionally reuse the Focus → Copy visual
+  // component. Compare computed component properties so one surface cannot
+  // silently drift back to a flat text link (v2.64.10).
+  const ctaParity = await page.evaluate(() => {
+    const ref = document.querySelector('#manualList .task-copy');
+    const targets = [document.getElementById('weekMoreBtn'), document.getElementById('poemShareBtn')];
+    if (!ref || targets.some(el => !el)) return { missing: true };
+    const props = [
+      'backgroundColor', 'borderTopWidth', 'borderTopStyle', 'borderRadius',
+      'fontFamily', 'fontSize', 'letterSpacing', 'paddingTop', 'paddingRight',
+      'paddingBottom', 'paddingLeft', 'lineHeight', 'whiteSpace'
+    ];
+    const refStyle = getComputedStyle(ref);
+    const mismatches = [];
+    for (const target of targets) {
+      const style = getComputedStyle(target);
+      for (const prop of props) {
+        if (style[prop] !== refStyle[prop]) mismatches.push(`${target.id}.${prop}: ${style[prop]} != ${refStyle[prop]}`);
+      }
+    }
+    document.getElementById('weekSection').classList.add('touched');
+    document.getElementById('poemBlock').classList.add('revealed');
+    const revealedBorders = targets.map(el => getComputedStyle(el).borderTopColor);
+    document.getElementById('weekSection').classList.remove('touched');
+    document.getElementById('poemBlock').classList.remove('revealed');
+    return {
+      missing: false,
+      mismatches,
+      revealBorderMismatch: revealedBorders[0] === 'rgba(0, 0, 0, 0)' || revealedBorders[0] !== revealedBorders[1]
+    };
+  });
+  if (ctaParity.missing || ctaParity.mismatches.length || ctaParity.revealBorderMismatch) {
+    fail('About CTAs drifted from Focus Copy styling' + (ctaParity.mismatches?.length ? ':\n  ' + ctaParity.mismatches.join('\n  ') : ''));
+  }
+  ok('About CTAs match Focus Copy styling');
+
+  // ── 5. Check it off ──────────────────────────────────────────────────────
   await page.evaluate(() => {
     const row = [...document.querySelectorAll('#manualList .task')]
       .find(t => t.textContent.includes('smoke test task'));
@@ -135,7 +349,7 @@ try {
   ).catch(() => fail('task did not reach done state after checking'));
   ok('task checked off');
 
-  // ── 5. No uncaught errors anywhere along the way ─────────────────────────
+  // ── 6. No uncaught errors anywhere along the way ─────────────────────────
   if (pageErrors.length) fail('uncaught page error(s):\n  ' + pageErrors.join('\n  '));
   ok('no uncaught page errors');
 

@@ -18,6 +18,16 @@ The panel uses two layouts depending on connection state:
 - Sync tick (every 7s) — but returns immediately if panel is closed (performance guard)
 - Token expiry detection
 
+### One-time privacy reassurance (v2.64.11)
+
+On the first panel open per device, a fully disconnected installation shows one quiet line immediately below the title:
+
+> Private by design: no account, no analytics. You own your data and choose every connection.
+
+The gate checks Trello token/config credentials, Dropbox access/refresh/expired state, and both AI provider key slots. If any exists, the first-open opportunity is silently consumed without showing the line. PWA installation and meeting-name state do not count as external connections.
+
+`today_connections_privacy_seen=1` is written at the start of that first panel visit and remains local-only: it is not part of the Dropbox payload or merge. The line stays for that one open visit, hides on panel close or a successful in-panel AI connection, and never returns on that device. It has no CTA, dismiss control, network call, or independent animation.
+
 ---
 
 ## Trello
@@ -202,7 +212,7 @@ Nothing blocks task entry. The app is fully functional without any connection.
 | Key | Set by | Cleared by |
 |---|---|---|
 | `trello_token` | OAuth return | `clearTrello()` |
-| `today_trello_config` | `saveAndLoad()` | `clearTrello()` |
+| `trello_config` | `saveAndLoad()` | `clearTrello()` |
 | `today_trello_cache` | `loadTrello()` | `clearTrello()`, new day |
 | `today_trello_focus` | focus sessions | `clearTrello()`, new day |
 | `dropbox_token` | OAuth token exchange | `dropboxDisconnect()` |
@@ -210,7 +220,9 @@ Nothing blocks task entry. The app is fully functional without any connection.
 | `dropbox_token_expired` | `_dropboxEnsureToken()` on fail | `dropboxAuth()` on success |
 | `last_successful_backup` | `dropboxBackup()` | — |
 | `last_sync_read` | `dropboxRestore()` | — |
-| `ai_api_key` | `saveAIKey()` | AI forget button |
-| `ai_provider` | `saveAIKey()` / `setAIProvider()` | AI forget button |
+| `today_ai_key_gemini` | `saveAIKey('gemini')` | Gemini Forget button |
+| `today_ai_key_claude` | `saveAIKey('claude')` | Claude Forget button |
+| `today_ai_provider` | `saveAIKey()` / `setDefaultProvider()` | AI forget button when no provider remains |
 | `user_names` | `saveMeetingName()` / inline name prompt | clearing the name input |
 | `user_names_at` | `saveMeetingName()` / inline name prompt | clearing the name input |
+| `today_connections_privacy_seen` | first Connections-panel open | never automatically; local-only and not synced |

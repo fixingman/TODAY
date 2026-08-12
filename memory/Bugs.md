@@ -15,6 +15,8 @@
 
 | # | Description | Status |
 |---|---|---|
+| 074 | Shared `/poem.html` links crash in the Netlify Edge Function before the static page loads | ⏳ v2.64.12 |
+| 073 | Focus Ask question says “this late” without supplying the actual local time | ⏳ v2.64.9 |
 | 072 | Triage flow never completes — "Let go" tapped but completion screen never appears | ⏳ v2.61.6  |
 | 071 | App goes blank on wake from sleep or when PWA returns from background while in focus mode — third recurrence of BUG-004/056 family | ⏳ v2.61.5  |
 | 070 | Undo toast reason chips unclickable on narrow screens — column layout fix + chip highlight/auto-dismiss feedback | ⏳ v2.61.4  |
@@ -95,6 +97,36 @@
 
 ---
 
+## BUG-074 — Shared poem link crashes in Netlify Edge Function
+
+**Status:** ⏳ v2.64.12 (fix prepared — awaiting deployment and live verification)
+**File:** `netlify/edge-functions/poem.js`
+
+**Symptom:** Opening a shared URL such as `/poem.html?date=2026-08-12` returns Netlify's “This edge function has crashed” page with HTTP 500. The static poem page never loads.
+
+**Root cause:** The edge function fetched `assets/poems.js` and removed `const POEMS =` only when that declaration appeared at the start of the file. The corpus begins with header comments, so the replacement did nothing. The generated body began `return // TODAY…`; automatic semicolon insertion made it return `undefined`. Parsing did not throw, so execution left the guarded block and crashed on `POEMS.length`.
+
+**Fix (v2.64.12):** Extract through the actual declaration regardless of leading comments, evaluate the array as a parenthesized expression, require an OK asset response and an array result, and guard `poemForDate()` against non-arrays. Strip stale byte-length/encoding headers after rewriting HTML. The smoke test runs the handler against the real corpus and separately proves malformed input serves the static fallback.
+
+**Verify:** After production deployment, open `https://today-here.netlify.app/poem.html?date=2026-08-12`. It returns HTTP 200, renders the poem, and its initial HTML contains populated Open Graph title and description tags.
+
+---
+
+## BUG-073 — Focus Ask refers to lateness without a time value
+
+**Status:** ⏳ v2.64.9 (fix shipped — awaiting real-device verification)
+**File:** `index.html` — `_focusAskAI`
+
+**Symptom:** A late-night Focus Companion question can say “this late” without naming what time it is, making the observation feel incomplete.
+
+**Root cause:** The context payload included only the broad `late night` label. The model could infer lateness but had no clock value to cite.
+
+**Fix (v2.64.9):** The payload now includes the device-local hour and minute alongside the broad period. The prompt requires that exact value whenever it refers to time, while leaving the model free to omit time when another signal is more useful.
+
+**Verify:** Late at night, tap `✦ ask` in focus mode. If the question comments on lateness, it names the local time; it never says only “this late.”
+
+---
+
 ## BUG-072 — Triage flow never completes after "Let go" is tapped
 
 **Status:** ⏳ v2.61.6 (fix shipped — awaiting real-device verification)
@@ -159,4 +191,3 @@
 Accepted edge case: affects a small minority of users, and only in the link preview — the page itself shows the correct poem. Server-side TZ detection would require a geolocation lookup, which is not worth the complexity.
 
 ---
-

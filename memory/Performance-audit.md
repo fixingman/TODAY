@@ -24,7 +24,7 @@
 **Lines of code:** 13,109 index.html + 2,559 extracted (15,668 total)  
 — util.js: 97 · idle.js: 289 · sound.js: 224 · celebration.js: 163 · trello.js: 474 · insights.js: 526 · error-monitor.js: 145 · poems.js: 641
 
-**External scripts:** 0. All assets same-origin, SW-cached; no CDN, no analytics SDK.  
+**External scripts:** 0. All assets same-origin, SW-cached; no CDN, no analytics SDK. `scripts/design-lint.mjs` rejects external runtime script tags and known analytics/replay markers (Rule 32).
 **External fonts on first visit:** 6 files (self-hosted, pre-cached by SW). Zero Google Fonts pings.  
 **External fonts on repeat visits:** 0 — all served from SW cache.  
 **@font-face declarations:** 9 total — 6 in main doc (DM Mono ×3, Syne ×3), 2 injected into PiP window, 1 in offline fallback HTML in SW.
@@ -154,6 +154,8 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 - AI conversation thread cleared on panel close (last 3 session summaries, 200-char cap).
 - Trello tokens scoped to `read` only.
 - No cookies set by app code.
+
+**Analytics boundary (2026-08-11):** Umami Cloud was evaluated and rejected for the task app. Cookie-free anonymous sessions still create third-party observation and contradict the literal “no account, no server” promise. Default URL tracking also creates an app-specific credential risk: Dropbox returns a PKCE code in the query string and Trello returns a long-lived token in the hash. Session replay and heatmaps are prohibited because rendered task text is sensitive content. Acquisition analytics remains acceptable only on a separate public landing surface; any future in-app diagnostics must be explicit opt-in, aggregate, and content/identifier-free.
 
 ### Egress table
 

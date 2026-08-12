@@ -10,10 +10,15 @@ export default async function handler(request, context) {
   let POEMS = [];
   try {
     const resp      = await fetch(new URL('/assets/poems.js', url));
+    if (!resp.ok) throw new Error('Poem corpus unavailable');
     const src       = await resp.text();
-    // Strip 'const POEMS = ' declaration, evaluate the array literal
-    const arrayText = src.replace(/^\s*const POEMS\s*=\s*/, '').replace(/;\s*$/, '');
-    POEMS = new Function('return ' + arrayText)();
+    // Strip the corpus header comments plus `const POEMS =`, then evaluate only
+    // the array literal. The old start-anchored replacement missed those comments,
+    // turning `return // TODAY...` into an automatic-semicolon return of undefined.
+    const arrayText = src.replace(/^[\s\S]*?\bconst\s+POEMS\s*=\s*/, '').replace(/;\s*$/, '');
+    const parsed = new Function('return (' + arrayText + ')')();
+    if (!Array.isArray(parsed)) throw new Error('Invalid poem corpus');
+    POEMS = parsed;
   } catch (_) {
     return context.next(); // poems unavailable — serve static page as-is
   }
@@ -38,13 +43,16 @@ export default async function handler(request, context) {
     .replace(/(<meta name="twitter:description" content=")[^"]*(")/,  `$1${ea(desc)}$2`);
 
   const headers = new Headers(response.headers);
+  // Body changed, so origin byte-length/encoding headers are no longer valid.
+  headers.delete('content-length');
+  headers.delete('content-encoding');
   headers.set('content-type', 'text/html; charset=utf-8');
   return new Response(injected, { status: response.status, headers });
 }
 
 // Mirror _poemOfTheDay() — no southern-hemisphere flip (server has no viewer TZ)
 function poemForDate(POEMS, dateParam) {
-  if (!POEMS.length) return null;
+  if (!Array.isArray(POEMS) || !POEMS.length) return null;
   const date   = dateParam ? new Date(dateParam + 'T12:00:00') : new Date();
   const m      = date.getMonth();
   const season = m >= 2 && m <= 4 ? 'spring'

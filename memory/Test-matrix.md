@@ -72,6 +72,12 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 
 ## Full Test Matrix
 
+### Shared Poem Permalink
+
+- [ ] `/poem.html?date=2026-08-12` returns HTTP 200 and renders the dated poem.
+- [ ] Initial response HTML contains non-placeholder `og:title`, `og:description`, `twitter:title`, and `twitter:description` values.
+- [ ] Missing or malformed poem corpus falls through to the static page instead of returning an edge-function 500.
+
 ### 1. Manual Tasks (14 tests)
 
 | # | Scenario | Expected |

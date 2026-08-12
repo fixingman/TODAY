@@ -1,8 +1,10 @@
 // TODAY — design lint
 // Answers one question before every push: does the app still follow its own
-// design rules? Pure static analysis of index.html — no browser, no build step.
+// design rules? Pure static analysis of the app shell and its local runtime
+// scripts — no browser, no build step.
 // Checks token hygiene (Rule 19/22), CSS hygiene, voice/vocabulary (Philosophy.md),
-// emoji-selector rule (Rule 20), and a soft parity check for Rule 27.
+// emoji-selector rule (Rule 20), the no-analytics boundary (Rule 32), and a soft
+// parity check for Rule 27.
 //
 // This is NOT the "does it match the product philosophy" review — that needs
 // judgment, not regex. Use the /design-review skill for that. This script only
@@ -17,6 +19,16 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = await readFile(join(ROOT, 'index.html'), 'utf8');
+const localRuntimeScriptPaths = [...src.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi)]
+  .map(match => match[1].split(/[?#]/)[0])
+  .filter(path => path.startsWith('assets/'));
+const runtimeSources = [
+  { name: 'index.html', text: src },
+  ...await Promise.all(localRuntimeScriptPaths.map(async path => ({
+    name: path,
+    text: await readFile(join(ROOT, path), 'utf8'),
+  }))),
+];
 
 let failures = 0;
 let warnings = 0;
@@ -222,7 +234,48 @@ if (!styleBlocks.length) fail('no <style> blocks found — extraction regex may 
   }
 }
 
-// ── Check 7 (soft): Rule 27 render-path feature parity ───────────────────────
+// ── Check 7: no third-party analytics or session replay (Rule 32) ────────────
+// TODAY's privacy promise is stronger than cookie-free analytics: the task app
+// has no observer-owned sessions at all. Scan the app shell and every local
+// runtime script it loads. Public landing surfaces are deliberately out of scope.
+{
+  const hits = [];
+  const externalScriptRe = /<script\b[^>]*\bsrc\s*=\s*["'](?:https?:)?\/\//gi;
+  let externalMatch;
+  while ((externalMatch = externalScriptRe.exec(scanSrc))) {
+    hits.push({ label: 'external script tag', file: 'index.html', line: lineOf(src, externalMatch.index) });
+  }
+
+  const analyticsMarkers = [
+    { label: 'Umami', re: /\b(?:cloud|gateway)\.umami\.is\b|\bumami\.(?:track|identify)\s*\(|\bdata-website-id\s*=|\brecorder\.js\b/gi },
+    { label: 'Google Analytics', re: /\b(?:googletagmanager|google-analytics)\.com\b|\bgtag\s*\(/gi },
+    { label: 'analytics/replay SDK', re: /\b(?:posthog|mixpanel|plausible|hotjar|fullstory)\b(?:\.|\/|\s*\()|\bclarity\.ms\b/gi },
+  ];
+
+  for (const unit of runtimeSources) {
+    const scanned = unit.text
+      .replace(/<!--[\s\S]*?-->/g, blank)
+      .replace(/\/\*[\s\S]*?\*\//g, blank)
+      .replace(/(?<![:/])\/\/[^\n]*/g, blank);
+    for (const marker of analyticsMarkers) {
+      marker.re.lastIndex = 0;
+      let markerMatch;
+      while ((markerMatch = marker.re.exec(scanned))) {
+        hits.push({ label: marker.label, file: unit.name, line: lineOf(unit.text, markerMatch.index) });
+      }
+    }
+  }
+
+  if (hits.length) {
+    fail(`${hits.length} in-app analytics/replay marker(s) found (Rule 32 — keep acquisition analytics outside the task app):`);
+    for (const hit of hits.slice(0, 15)) console.error(`    ${hit.file}:${hit.line}: ${hit.label}`);
+    if (hits.length > 15) console.error(`    ...and ${hits.length - 15} more`);
+  } else {
+    ok(`no external analytics/replay code in app shell (${runtimeSources.length} runtime files scanned)`);
+  }
+}
+
+// ── Check 8 (soft): Rule 27 render-path feature parity ───────────────────────
 // taskHTML() and the Trello 7s patch path must render the same feature set
 // (badges, session count, age bucket). This is a heuristic marker check, not
 // real parity verification — WARN, not FAIL, since it can't see intent.

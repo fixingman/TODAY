@@ -8,6 +8,8 @@
 - **Recent (2026-08-08):** Undo toast chips unclickable on narrow screens (BUG-070) — two-pass fix: column layout v2.61.3, feedback v2.61.4. Blank app on wake/PWA background return during focus (BUG-071) — repaint schedule to 12s + visibility guard + _wakeFocusCheck viewport correction v2.61.5. Poem share card (canvas PNG, Web Share API, v2.61.0). Shared poem-utils.js to eliminate index.html/poem.html duplication (v2.61.2). OG edge function for poem pages (v2.59.1). Sekki micro-seasons in poem selection (v2.60.0).
 - **Module extraction (Roadmap #3):** Done: `util.js`, `idle.js`, `sound.js`, `celebration.js`, `trello.js` (v2.33.5), `insights.js` (v2.33.10), `poem-utils.js` (v2.61.2). Next: `sync.js` (~510 lines, Non-Delegation). Coupled core stays inline.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
+  - **BUG-074 ⏳ v2.64.12** — after production deploy, open the Aug 12 shared poem URL and confirm HTTP 200, rendered poem content, and populated OG metadata.
+  - **BUG-073 ⏳ v2.64.9** — verify late-night `✦ ask`: if the question comments on lateness, it names the exact local time instead of only saying “this late.”
   - **v2.62.1 ⏳** — verify: `appMemory.patterns.triageUndos` increments on triage undo; `soonPulls` increments on pull-from-soon; `reviveReasons` populated on revive; letting the undo toast expire records letgoReasons.
   - **v2.62.0 ⏳** — verify: triage → completion screen → list is already clean behind overlay → Undo button visible → tap Undo → state fully restored → triage bar reappears. Also: wait 3s without tapping Undo → overlay closes → list stays clean.
   - **BUG-072 ⏳ v2.61.6** — verify: open triage → "Let go" a non-last task → decide another task → chips survive re-render; decide all → completion screen appears. Also: "Let go" last remaining task → completion fires immediately.
@@ -157,6 +159,10 @@ Before wiring any new memory signal into `_memoryForAI`, run the memory-signal p
 ## Changelog Rules
 
 31. **`index.html` CHANGELOG — keep exactly 3 entries (1 current + 2 history).** The About panel renders `slice(0, 1 + HISTORY_SHOWN)` where `HISTORY_SHOWN = 2` — anything beyond 3 is never shown. Plain language only: no function names, CSS properties, BUG-XXX codes, or root-cause archaeology. Say what changed for the user, not how. When adding a new entry, drop the oldest one (full history is in `memory/Changelog.md` / `memory/archive/Changelog-archive.md`). Dev detail belongs in `memory/Changelog.md`, not here.
+
+## Privacy Rules
+
+32. **No analytics, session replay, or heatmap SDK in the task app.** TODAY's promise is absence of observation, not merely anonymous or cookie-free tracking. Acquisition analytics may live on a separate public landing surface, never in `index.html` or its runtime scripts. Any future in-app diagnostics require explicit opt-in and must not send task content, URLs, identifiers, OAuth query/hash values, or session profiles. `scripts/design-lint.mjs` enforces the runtime boundary.
 
 ## Non-Delegation Zones (require extra scrutiny)
 
