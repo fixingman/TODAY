@@ -78,7 +78,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 - [ ] Initial response HTML contains non-placeholder `og:title`, `og:description`, `twitter:title`, and `twitter:description` values.
 - [ ] Missing or malformed poem corpus falls through to the static page instead of returning an edge-function 500.
 
-### 1. Manual Tasks (14 tests)
+### 1. Manual Tasks (16 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -96,6 +96,8 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 1.12 | Shift+D | Clears done tasks |
 | 1.13 | Rapid check/uncheck | No glitch |
 | 1.14 | 100 tasks | All render |
+| 1.15 | Add `work: task` while pointer is over the arriving row | Full two-pass arrival shimmer completes; hover does not replace it or flash midway |
+| 1.16 | Hover tagged row after arrival settles | One forward pass uses the same muted/lime gradient, then returns to normal muted text |
 
 ### 2. Zones (17 tests)
 
@@ -268,7 +270,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 
 | Category | Count | Critical |
 |----------|-------|----------|
-| Manual Tasks | 14 | 5 |
+| Manual Tasks | 16 | 5 |
 | Zones | 17 | 8 |
 | Habits | 12 | 5 |
 | Done State | 7 | 4 |

@@ -1438,20 +1438,9 @@
     from { background-position: 0% center; }
     to   { background-position: 100% center; }
   }
-  .task-tag-shimmer {
-    background: linear-gradient(90deg,
-      var(--muted)  0%, var(--muted) 47%,
-      var(--accent) 50%,
-      var(--muted) 53%, var(--muted) 100%
-    );
-    background-size: 400% 100%;
-    background-repeat: no-repeat;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: tagShimmer 500ms 100ms ease-in-out 2 alternate both;
-  }
-  /* Soon list: single sweep on hover (desktop) or scroll-into-view (mobile) */
+  /* Arrival and interaction use one colour treatment. Their timing differs,
+     but keeping the paint in one rule prevents the two paths drifting. */
+  .task-tag-shimmer,
   ._soon-shimmer {
     background: linear-gradient(90deg,
       var(--muted)  0%, var(--muted) 47%,
@@ -1463,6 +1452,12 @@
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+  }
+  .task-tag-shimmer {
+    animation: tagShimmer 500ms 100ms ease-in-out 2 alternate both;
+  }
+  /* Soon list: single sweep on hover (desktop) or scroll-into-view (mobile) */
+  ._soon-shimmer {
     animation: tagShimmer 400ms ease-in-out 1 normal both;
   }
 
@@ -4025,16 +4020,16 @@ const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
 const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '259h';
+const DEV_HOURS     = '260h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.20': 'Tagged tasks keep one calm shimmer: adding and hovering no longer compete, flash, or change colour midway.',
   '2.64.19': 'Focus mode: dim-then-blur on enter (opacity 120ms, filter 60ms delayed); blur-then-brighten on exit (filter 200ms, opacity 260ms delayed) — eliminates blurry-box artifact.',
   '2.64.17': 'Focus mode: two-beat exhale — blur arrives first on enter (130ms), opacity drops after; opacity clears first on exit (220ms), blur dissolves last (320ms).',
-  '2.64.16': 'Poem CTA default is bright lime; hover sweeps dark → white → back to bright lime in one pass.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4201,11 +4196,7 @@ function renderSoon() {
   list.querySelectorAll('.task').forEach(taskEl => {
     const tagEl = taskEl.querySelector('.task-tag');
     if (!tagEl) return;
-    const _shimmer = () => {
-      if (tagEl.classList.contains('_soon-shimmer')) return;
-      tagEl.classList.add('_soon-shimmer');
-      tagEl.addEventListener('animationend', () => tagEl.classList.remove('_soon-shimmer'), { once: true });
-    };
+    const _shimmer = () => _playTagInteractionShimmer(tagEl);
     if (_soonTouch) {
       const obs = new IntersectionObserver((entries, o) => {
         if (!entries[0].isIntersecting) return;
@@ -7175,6 +7166,45 @@ function _getDueStr(task) {
   return d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
 }
 
+// Tag shimmer state is exclusive: an arrival shimmer must never be replaced
+// midway by the shorter hover/scroll shimmer. Both paths call this helper so
+// their classes and cleanup cannot overlap (BUG-075).
+function _playTagShimmer(tagEl, className, state) {
+  if (!tagEl || tagEl.dataset.tagShimmer) return false;
+  tagEl.dataset.tagShimmer = state;
+  tagEl.classList.add(className);
+
+  const cleanup = event => {
+    if (event.target !== tagEl || event.animationName !== 'tagShimmer') return;
+    tagEl.classList.remove(className);
+    if (tagEl.dataset.tagShimmer === state) delete tagEl.dataset.tagShimmer;
+    tagEl.removeEventListener('animationend', cleanup);
+    tagEl.removeEventListener('animationcancel', cleanup);
+  };
+  tagEl.addEventListener('animationend', cleanup);
+  tagEl.addEventListener('animationcancel', cleanup);
+  return true;
+}
+
+function _queueTagArrivalShimmer(tagEl) {
+  if (!tagEl || tagEl.dataset.tagShimmer) return;
+  // Mark synchronously. A mouseenter delivered after the row is appended but
+  // before IntersectionObserver runs must not steal the arrival animation.
+  tagEl.dataset.tagShimmer = 'arrival-pending';
+  const observer = new IntersectionObserver((entries, currentObserver) => {
+    if (!entries[0].isIntersecting) return;
+    currentObserver.disconnect();
+    if (tagEl.dataset.tagShimmer !== 'arrival-pending') return;
+    delete tagEl.dataset.tagShimmer;
+    _playTagShimmer(tagEl, 'task-tag-shimmer', 'arrival');
+  }, { threshold: 0.8 });
+  observer.observe(tagEl);
+}
+
+function _playTagInteractionShimmer(tagEl) {
+  return _playTagShimmer(tagEl, '_soon-shimmer', 'interaction');
+}
+
 function renderManual() {
   const list  = $.manualList || document.getElementById('manualList');
   const empty = $.manualEmpty || document.getElementById('manualEmpty');
@@ -7206,11 +7236,7 @@ function _wireManualTagShimmer(container) {
   tasks.forEach(taskEl => {
     const tagEl = taskEl.querySelector('.task-tag');
     if (!tagEl) return;
-    const _shimmer = () => {
-      if (tagEl.classList.contains('_soon-shimmer')) return;
-      tagEl.classList.add('_soon-shimmer');
-      tagEl.addEventListener('animationend', () => tagEl.classList.remove('_soon-shimmer'), { once: true });
-    };
+    const _shimmer = () => _playTagInteractionShimmer(tagEl);
     if (_isTouch) {
       const obs = new IntersectionObserver((entries, o) => {
         if (!entries[0].isIntersecting) return;
@@ -7981,15 +8007,7 @@ function addManual() {
   el.addEventListener('animationend', () => el.classList.remove('task-new'), { once: true });
   list.appendChild(el);
   const tagEl = el.querySelector('.task-tag');
-  if (tagEl) {
-    const _shimmerObs = new IntersectionObserver((entries, o) => {
-      if (!entries[0].isIntersecting) return;
-      o.disconnect();
-      tagEl.classList.add('task-tag-shimmer');
-      tagEl.addEventListener('animationend', () => tagEl.classList.remove('task-tag-shimmer'), { once: true });
-    }, { threshold: 0.8 });
-    _shimmerObs.observe(tagEl);
-  }
+  _queueTagArrivalShimmer(tagEl);
   // Desktop: wire hover shimmer for new task (mobile gets add-shimmer above, skip to avoid conflict).
   if (window.matchMedia('(hover: hover)').matches) _wireManualTagShimmer(el);
   if (empty) empty.style.display = 'none';

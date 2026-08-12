@@ -15,6 +15,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 075 | Tagged task flashes or changes shimmer timing when hover overlaps its arrival animation | ⏳ v2.64.20 |
 | 074 | Shared `/poem.html` links crash in the Netlify Edge Function before the static page loads | ⏳ v2.64.12 |
 | 073 | Focus Ask question says “this late” without supplying the actual local time | ⏳ v2.64.9 |
 | 072 | Triage flow never completes — "Let go" tapped but completion screen never appears | ⏳ v2.61.6  |
@@ -94,6 +95,21 @@
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-075 — Tagged-task shimmer flashes when hover overlaps arrival
+
+**Status:** ⏳ v2.64.20 (fix prepared — awaiting real-device verification)
+**File:** `index.html` — tag shimmer CSS, `_playTagShimmer`, `_queueTagArrivalShimmer`
+
+**Symptom:** Adding a task in `tag: task` format can show a short, differently timed flash instead of the established two-pass shimmer. Hovering tags can also look inconsistent immediately after insertion.
+
+**Root cause:** New tasks started the arrival shimmer asynchronously through `IntersectionObserver`, while desktop hover was wired immediately. If the row appeared beneath a stationary pointer, `_soon-shimmer` could start first and `task-tag-shimmer` would be added on top of it. The later CSS hover rule won, and the shorter hover animation's `animationend` caused both independent cleanup listeners to remove their classes before the arrival animation completed.
+
+**Fix (v2.64.20):** One exclusive tag-shimmer state now owns pending, arrival, and interaction phases. Arrival reserves the state synchronously before observer delivery, so hover cannot interrupt it. Both animation classes share the exact same gradient declaration; only their intentional timing differs. The smoke test recreates the overlapping mouseenter and verifies priority, cleanup, and colour parity.
+
+**Verify:** Add a tagged task while leaving the pointer over the place where the row will appear. It completes the muted→lime→muted two-pass arrival without flashing or switching speed. After it settles, leave and re-enter the row; one calm pass plays using the same colours.
 
 ---
 

@@ -58,10 +58,11 @@ One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newl
 
 - **Technique:** `background-clip: text` + `background-size: 400% 100%` + `background-position` sweep
 - **Gradient:** `--muted 0–47%, --accent 50%, --muted 53–100%` — tight accent peak so only a narrow band lights up
-- **Duration:** `600ms` — hardcoded, intentionally above `--dur-slow`. Needs to be slow enough for the eye to track a moving gradient across a short word. Tokenising at 0.6s would invite misuse on state transitions.
-- **Delay:** `150ms` — lets the task's `fadeIn` get underway first; shimmer reads as the tag "catching" light after the task materialises
+- **Arrival timing:** `500ms`, `100ms` delay, two alternate passes — lets the task's `fadeIn` get underway, catches light in both directions, then returns to neutral
+- **Interaction timing:** `400ms`, no delay, one forward pass — desktop `mouseenter`; touch devices trigger once as the tag scrolls into view
 - **Easing:** `ease-in-out` — symmetrical; glint accelerates in and decelerates out
-- **Trigger:** JS in `addManual()` — `requestAnimationFrame` after `list.appendChild`, `animationend` cleanup
+- **Trigger/state:** `_queueTagArrivalShimmer()` reserves `data-tag-shimmer="arrival-pending"` synchronously, then starts in viewport. `_playTagShimmer()` owns both arrival and interaction classes and refuses a second animation while one is pending or active. This exclusivity prevents hover from replacing an arrival animation (BUG-075).
+- **Colour parity:** `.task-tag-shimmer` and `._soon-shimmer` share one gradient rule. Their motion differs intentionally; their paint must not drift.
 - **CSS rule:** looping animations must use WAAPI (see rule above); this is a one-shot, so CSS is correct here
 
 ### Task Completion

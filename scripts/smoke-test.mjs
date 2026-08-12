@@ -291,7 +291,7 @@ try {
 
   // ── 4. Add a task ───────────────────────────────────────────────────────
   await page.click('#newTask');
-  await page.type('#newTask', 'smoke test task');
+  await page.type('#newTask', 'work: smoke test task');
   await page.keyboard.press('Enter');
   await page.waitForFunction(
     () => [...document.querySelectorAll('#manualList .task')]
@@ -299,6 +299,53 @@ try {
     { timeout: 5000 }
   ).catch(() => fail('task did not appear in the list after Enter'));
   ok('task added');
+
+  // BUG-075: the row can land beneath an already-stationary pointer. Simulate
+  // that mouseenter while the arrival shimmer is pending/playing and prove the
+  // shorter hover shimmer cannot replace it or change its paint midway.
+  const tagArrival = await page.evaluate(async () => {
+    const row = [...document.querySelectorAll('#manualList .task')]
+      .find(task => task.textContent.includes('smoke test task'));
+    const tag = row?.querySelector('.task-tag');
+    if (!row || !tag) return { missing: true };
+    row.dispatchEvent(new MouseEvent('mouseenter'));
+    await new Promise(resolve => setTimeout(resolve, 150));
+    const style = getComputedStyle(tag);
+    return {
+      missing: false,
+      state: tag.dataset.tagShimmer,
+      arrival: tag.classList.contains('task-tag-shimmer'),
+      interaction: tag.classList.contains('_soon-shimmer'),
+      gradient: style.backgroundImage
+    };
+  });
+  if (tagArrival.missing || tagArrival.state !== 'arrival' || !tagArrival.arrival || tagArrival.interaction) {
+    fail('tag hover replaced or interrupted the new-task arrival shimmer');
+  }
+  if (!tagArrival.gradient.includes('rgb(200, 240, 96)')) {
+    fail('tag arrival shimmer lost the accent colour');
+  }
+  await page.waitForFunction(() => {
+    const tag = [...document.querySelectorAll('#manualList .task')]
+      .find(task => task.textContent.includes('smoke test task'))?.querySelector('.task-tag');
+    return tag && !tag.dataset.tagShimmer;
+  }, { timeout: 2000 }).catch(() => fail('tag arrival shimmer did not clean up'));
+  const tagHover = await page.evaluate(() => {
+    const row = [...document.querySelectorAll('#manualList .task')]
+      .find(task => task.textContent.includes('smoke test task'));
+    const tag = row.querySelector('.task-tag');
+    row.dispatchEvent(new MouseEvent('mouseenter'));
+    return {
+      state: tag.dataset.tagShimmer,
+      arrival: tag.classList.contains('task-tag-shimmer'),
+      interaction: tag.classList.contains('_soon-shimmer'),
+      gradient: getComputedStyle(tag).backgroundImage
+    };
+  });
+  if (tagHover.state !== 'interaction' || tagHover.arrival || !tagHover.interaction || tagHover.gradient !== tagArrival.gradient) {
+    fail('tag hover shimmer does not reuse the stable arrival colour treatment');
+  }
+  ok('tag arrival and hover shimmers stay exclusive and colour-consistent');
 
   // About's contextual actions intentionally reuse the Focus → Copy visual
   // component. Compare computed component properties so one surface cannot
