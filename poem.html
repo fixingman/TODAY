@@ -85,25 +85,33 @@
       from { background-position: 0% center; }
       to   { background-position: 100% center; }
     }
+    /* Gradient encodes the full hover sequence in one left→right pass:
+       pos 0%  → bright lime  (default)
+       pos 25% → dark dip
+       pos 50% → white peak   (shimmer)
+       pos 75% → dark dip
+       pos 100%→ bright lime  (settled while hovering) */
     .cta-link {
       font-size: 12px;
       text-decoration: none;
       letter-spacing: 0.07em;
       background: linear-gradient(90deg,
-        #608020 0%,
+        #c8f060 0%,
+        #c8f060 18%,
         #608020 30%,
-        #fff    50%,
+        #ffffff 50%,
         #608020 70%,
-        #608020 100%
+        #c8f060 82%,
+        #c8f060 100%
       );
-      background-size: 300% 100%;
+      background-size: 500% 100%;
       background-position: 0% center;
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
     }
     .cta-link._shimmer {
-      animation: ctaShimmer 500ms 80ms ease-in-out 2 alternate both;
+      animation: ctaShimmer 700ms ease-out 1 normal forwards;
     }
     .embed-hint {
       font-size: 11px;
