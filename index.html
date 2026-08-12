@@ -75,11 +75,13 @@
 
   /* ══════════════════════════════════════════════════════════════════
      FOCUS MODE (Pomodoro) — desktop only (@media hover:hover)
-     Animation contract — two-beat exhale on exit:
-       Enter:  focused bg+border snap in (no transition). Others: blur snaps on
-               immediately (no blur transition — animated blur on bg-elements shows a
-               visible bounding-box artifact), opacity fades 200ms ease.
-       Exit:   opacity returns 220ms ease → blur dissolves 320ms ease (exhale).
+     Animation contract — sequenced to avoid the blurry-opaque-box artifact:
+       Enter:  focused bg+border snap in (no transition). Others: opacity drops
+               120ms (dim first), then blur applies 60ms at 120ms delay. Blur only
+               ever touches an already-dim element — no visible blurry box.
+       Exit:   blur dissolves 200ms (clarity first), opacity returns 260ms at
+               80ms delay. Blur is gone before opacity rises high — no opaque+blurry
+               box at any point in the sequence.
        Timer: slides open downward via max-height var(--dur-fast) — two distinct beats.
      See Design.md § Motion > Focus mode animation rules.
   ══════════════════════════════════════════════════════════════════ */
@@ -124,8 +126,8 @@
     .task, .habit, .empty, .section-header, .app-date, h1 {
       transition:
         border-color var(--dur-fast),
-        opacity 220ms ease,
-        filter 320ms ease;
+        filter 200ms ease,
+        opacity 260ms ease 80ms;
     }
 
     /* Focused task/habit snaps in via background+border, no opacity change */
@@ -139,36 +141,37 @@
     }
 
     /* Recede — opacity + noise filter for depth, pointer-events off.
-       Enter transition: opacity only (200ms) — blur snaps on instantly so the task's
-       background box is never visible mid-transition. filter: blur() on a element with
-       a background creates a visible rectangular artifact when animated.
-       Exit transition: governed by base .task rule — opacity 220ms, filter 320ms. */
+       Enter: opacity drops first (120ms) → blur applies after on an already-dim element
+       (60ms, 120ms delay). Dim-then-blur avoids the blurry-opaque-box artifact.
+       Exit: governed by base .task rule — blur dissolves first (200ms), then opacity
+       returns (260ms, 80ms delay). Blur is gone before opacity rises, so no
+       opaque+blurry rectangle at any point. */
     .focusing .task:not(.focused),
     .focusing .habit:not(.focused) {
-      transition: opacity 200ms ease;
+      transition: opacity 120ms ease, filter 60ms ease 120ms;
       opacity: var(--opacity-recede) !important;
       pointer-events: none;
       filter: url(#noise) blur(8px);
     }
     .focusing .task.done:not(.focused) {
-      transition: opacity 200ms ease;
+      transition: opacity 120ms ease, filter 60ms ease 120ms;
       opacity: var(--opacity-recede-done) !important;
       filter: url(#noise) blur(10px);
     }
     .focusing .empty {
-      transition: opacity 200ms ease;
+      transition: opacity 120ms ease, filter 60ms ease 120ms;
       opacity: var(--opacity-recede-done) !important;
       filter: url(#noise) blur(10px);
     }
     .focusing .section-header,
     .focusing .app-date {
-      transition: opacity 200ms ease;
+      transition: opacity 120ms ease, filter 60ms ease 120ms;
       opacity: var(--opacity-recede-chrome) !important;
       filter: url(#noise) blur(6px);
     }
     /* Habits panel header recedes too */
     .focusing .config-panel:not(:has(.habit.focused)) {
-      transition: opacity 200ms ease;
+      transition: opacity 120ms ease, filter 60ms ease 120ms;
       opacity: var(--opacity-recede-chrome) !important;
       filter: url(#noise) blur(6px);
     }
@@ -4029,7 +4032,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.64.18': 'Focus mode: blur snaps on enter (no box-artifact transition), dissolves on exit (320ms); opacity transitions both ways.',
+  '2.64.19': 'Focus mode: dim-then-blur on enter (opacity 120ms, filter 60ms delayed); blur-then-brighten on exit (filter 200ms, opacity 260ms delayed) — eliminates blurry-box artifact.',
   '2.64.17': 'Focus mode: two-beat exhale — blur arrives first on enter (130ms), opacity drops after; opacity clears first on exit (220ms), blur dissolves last (320ms).',
   '2.64.16': 'Poem CTA default is bright lime; hover sweeps dark → white → back to bright lime in one pass.',
 };
