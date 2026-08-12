@@ -42,39 +42,6 @@
       padding-bottom: env(safe-area-inset-bottom, 0);
     }
 
-    /* header — centered TODAY mark */
-    .page-header {
-      width: 100%;
-      display: flex;
-      justify-content: center;
-      padding: 32px 28px 0;
-      flex-shrink: 0;
-    }
-    .brand {
-      font-size: 11px;
-      font-weight: 400;
-      letter-spacing: 0.18em;
-      color: #2e2e2e;
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: color 0.2s;
-    }
-    .brand:hover { color: #555; }
-    .brand-word { position: relative; top: 0.5px; }
-
-    /* twinkling ✦ — matches app's breathe animation */
-    .star {
-      color: #c8f060;
-      font-size: 10px;
-      display: inline-block;
-      animation: twinkle 2.8s ease-in-out infinite;
-    }
-    @keyframes twinkle {
-      0%, 100% { opacity: 0.35; transform: scale(0.85); }
-      50%       { opacity: 1;    transform: scale(1);    }
-    }
 
     /* poem area */
     .poem-wrap {
@@ -100,16 +67,10 @@
     }
     .poem-author {
       font-size: 12px;
-      color: #424242;
+      color: #888;
       letter-spacing: 0.07em;
     }
     .poem-author::before { content: '— '; }
-    .poem-date {
-      font-size: 11px;
-      color: #282828;
-      margin-top: 6px;
-      letter-spacing: 0.04em;
-    }
 
     /* footer */
     .page-footer {
@@ -120,14 +81,28 @@
       justify-content: space-between;
       flex-shrink: 0;
     }
+    @keyframes ctaShimmer {
+      from { background-position: 0% center; }
+      to   { background-position: 100% center; }
+    }
     .cta-link {
       font-size: 12px;
-      color: #c8f060;
       text-decoration: none;
       letter-spacing: 0.07em;
-      transition: opacity 0.15s;
+      background: linear-gradient(90deg,
+        #c8f060 0%, #c8f060 47%,
+        #fff    50%,
+        #c8f060 53%, #c8f060 100%
+      );
+      background-size: 400% 100%;
+      background-position: 0% center;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
-    .cta-link:hover { opacity: 0.6; }
+    .cta-link:hover {
+      animation: ctaShimmer 450ms ease-in-out 1 normal both;
+    }
     .embed-hint {
       font-size: 11px;
       color: #1e1e1e;
@@ -150,7 +125,6 @@
     .share-img-btn:hover { color: #555; }
 
     /* embed mode */
-    body.embed-mode .page-header    { padding: 18px 20px 0; }
     body.embed-mode .poem-wrap      { padding: 28px 20px 20px; }
     body.embed-mode .page-footer    { padding: 0 20px 18px; }
     body.embed-mode .embed-hint     { display: none; }
@@ -161,12 +135,6 @@
   </style>
 </head>
 <body>
-  <header class="page-header">
-    <a href="https://today-here.netlify.app" class="brand" target="_blank" rel="noopener">
-      <span class="star">✦</span><span class="brand-word">TODAY</span>
-    </a>
-  </header>
-
   <main class="poem-wrap">
     <div class="poem-card" id="poemCard">
       <p class="error-msg">Loading…</p>
@@ -200,7 +168,6 @@
       card.innerHTML = `
         <div class="poem-text">${_poemHTML(poem.text)}</div>
         <div class="poem-author">${_escPoem(poem.author)}</div>
-        <div class="poem-date">${fmtDate(dateParam)}</div>
       `.trim();
 
       const title = poem.author + ' · TODAY';
