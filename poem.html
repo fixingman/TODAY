@@ -90,18 +90,20 @@
       text-decoration: none;
       letter-spacing: 0.07em;
       background: linear-gradient(90deg,
-        #c8f060 0%, #c8f060 47%,
+        #c8f060 0%,
+        #c8f060 30%,
         #fff    50%,
-        #c8f060 53%, #c8f060 100%
+        #c8f060 70%,
+        #c8f060 100%
       );
-      background-size: 400% 100%;
+      background-size: 300% 100%;
       background-position: 0% center;
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    .cta-link:hover {
-      animation: ctaShimmer 450ms ease-in-out 1 normal both;
+    .cta-link._shimmer {
+      animation: ctaShimmer 550ms ease-in-out 1 normal both;
     }
     .embed-hint {
       font-size: 11px;
@@ -263,6 +265,17 @@
         }
       }, 'image/png');
     }
+  </script>
+  <script>
+    (function() {
+      const el = document.querySelector('.cta-link');
+      if (!el) return;
+      el.addEventListener('mouseenter', function() {
+        if (this.classList.contains('_shimmer')) return;
+        this.classList.add('_shimmer');
+        this.addEventListener('animationend', () => this.classList.remove('_shimmer'), { once: true });
+      });
+    })();
   </script>
 </body>
 </html>
