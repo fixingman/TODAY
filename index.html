@@ -75,10 +75,10 @@
 
   /* ══════════════════════════════════════════════════════════════════
      FOCUS MODE (Pomodoro) — desktop only (@media hover:hover)
-     Animation contract:
-       Enter: 120ms snap — background + border snap in immediately.
-       Recede: var(--dur-mid) ease — other tasks fade to 0.07 opacity, nothing moves.
-       Exit:  var(--dur-mid) ease — recede reverses, focused border fades.
+     Animation contract — two-beat exhale (enter and exit mirror each other):
+       Enter:  focused bg+border snap in (no transition). Others inhale:
+               blur(8px) 130ms ease → opacity drops 200ms ease (30ms delay).
+       Exit:   opacity returns 220ms ease → blur dissolves 320ms ease.
        Timer: slides open downward via max-height var(--dur-fast) — two distinct beats.
      See Design.md § Motion > Focus mode animation rules.
   ══════════════════════════════════════════════════════════════════ */
@@ -123,7 +123,8 @@
     .task, .habit, .empty, .section-header, .app-date, h1 {
       transition:
         border-color var(--dur-fast),
-        opacity var(--dur-mid) ease;
+        opacity 220ms ease,
+        filter 320ms ease;
     }
 
     /* Focused task/habit snaps in via background+border, no opacity change */
@@ -136,31 +137,40 @@
       pointer-events: all !important;
     }
 
-    /* Recede — opacity + noise filter for depth, pointer-events off */
+    /* Recede — opacity + noise filter for depth, pointer-events off.
+       Enter transition: blur arrives first (130ms), then opacity drops (200ms, 30ms delay).
+       Exit transition: governed by base .task rule — opacity 220ms, filter 320ms. */
     .focusing .task:not(.focused),
     .focusing .habit:not(.focused) {
+      transition: filter 130ms ease, opacity 200ms ease 30ms;
       opacity: var(--opacity-recede) !important;
       pointer-events: none;
       filter: url(#noise) blur(8px);
     }
-    .focusing .task.done:not(.focused) { 
+    .focusing .task.done:not(.focused) {
+      transition: filter 130ms ease, opacity 200ms ease 30ms;
       opacity: var(--opacity-recede-done) !important;
       filter: url(#noise) blur(10px);
     }
-    .focusing .empty { 
+    .focusing .empty {
+      transition: filter 130ms ease, opacity 200ms ease 30ms;
       opacity: var(--opacity-recede-done) !important;
       filter: url(#noise) blur(10px);
     }
     .focusing .section-header,
-    .focusing .app-date { 
+    .focusing .app-date {
+      transition: filter 130ms ease, opacity 200ms ease 30ms;
       opacity: var(--opacity-recede-chrome) !important;
       filter: url(#noise) blur(6px);
     }
     /* Habits panel header recedes too */
-    .focusing .config-panel:not(:has(.habit.focused)) { 
+    .focusing .config-panel:not(:has(.habit.focused)) {
+      transition: filter 130ms ease, opacity 200ms ease 30ms;
       opacity: var(--opacity-recede-chrome) !important;
       filter: url(#noise) blur(6px);
     }
+    /* config-panel exit: base rule needed since it isn't in the .task/etc. list above */
+    .config-panel { transition: filter 320ms ease, opacity 220ms ease; }
 
     /* Checkbox — accent border in focus */
     .focusing .task.focused .task-check,
@@ -4016,9 +4026,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.17': 'Focus mode: two-beat exhale — blur arrives first on enter (130ms), opacity drops after; opacity clears first on exit (220ms), blur dissolves last (320ms).',
   '2.64.16': 'Poem CTA default is bright lime; hover sweeps dark → white → back to bright lime in one pass.',
   '2.64.15': 'Poem CTA shimmer: dim olive edges + pure white center gives same dark-to-white contrast ratio as tag shimmer; 2 alternate passes.',
-  '2.64.14': 'Poem CTA shimmer: wider bright zone and JS class-toggle (same pattern as tag shimmer) — clearly visible on hover.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
