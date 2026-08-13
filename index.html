@@ -4027,9 +4027,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.22': 'Sync hardening: streak stale-high fix, checked_ids true LWW, Trello config cross-device, AI conversation merge, storage pruning for reflection/nudge/Trello card maps.',
   '2.64.21': 'Sync fix: memory inferences now merge cross-device (union by id); missing pattern fields (triageUndos, soonPulls, letgoReasons, reviveReasons, lateAdditions, taskLifespanSamples) added to merge.',
   '2.64.20': 'Tagged tasks keep one calm shimmer: adding and hovering no longer compete, flash, or change colour midway.',
-  '2.64.19': 'Focus mode: dim-then-blur on enter (opacity 120ms, filter 60ms delayed); blur-then-brighten on exit (filter 200ms, opacity 260ms delayed) — eliminates blurry-box artifact.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5412,6 +5412,20 @@ function triageUndo() {
 // ─── Memory System → assets/insights.js (Roadmap #3, sixth extraction) ─────
 // appMemory + _memoryOn* writers + _memoryForAI + proactive observations.
 
+// ─── Trello card map pruning (age-based, safe to call after Trello loads) ────
+function _pruneTrelloMaps() {
+  if (!window.trelloTasks || !window.trelloTasks.length) return; // guard: Trello not yet loaded
+  const lastActive = safeJSON('today_trello_lastactive', {});
+  const cutoffISO = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  const stale = Object.keys(lastActive).filter(id => lastActive[id] < cutoffISO);
+  if (!stale.length) return;
+  ['today_trello_firstseen', 'today_trello_lastactive', 'today_trello_focus_total'].forEach(key => {
+    const obj = safeJSON(key, {});
+    stale.forEach(id => delete obj[id]);
+    localStorage.setItem(key, JSON.stringify(obj));
+  });
+}
+
 // ─── New-day cleanup ─────────────────────────────────────────────────────────
 function applyNewDayCleanup() {
   const today = _getAppDay();
@@ -5595,6 +5609,7 @@ function applyNewDayCleanup() {
   }
 
   localStorage.setItem('stat_last_visit', today);
+  _pruneTrelloMaps();
 
   // Push clean state after a short delay — gives syncDropbox time to pull remote first.
   // Without the delay, this backup races with syncDropbox's metadata fetch on morning wake
@@ -5873,6 +5888,7 @@ function toggleInfo() {
     if (_ib && _ib.classList.contains('btn-icon-week')) {
       _ib.classList.remove('btn-icon-week');
       localStorage.setItem('sunday_nudge_seen_' + _localISO(), '1');
+      _pruneLS('sunday_nudge_seen_', 'sunday_nudge_seen_' + _localISO());
     }
     if (_ib && _ib.classList.contains('btn-icon-version')) {
       _ib.classList.remove('btn-icon-version');
@@ -6700,6 +6716,7 @@ function renderInfoStats() {
         _fetcher.then(text => {
           if (text) {
             localStorage.setItem(_cacheKey, text);
+            _pruneLS(_isSun ? 'week_reflection_' : 'monday_intention_', _cacheKey);
             const el = _sundayBlock.querySelector('.week-summary');
             if (el) { el.textContent = text; el.classList.remove('loading'); _nudgeTextResolve(el); }
           } else if (_isSun) {
@@ -6708,6 +6725,7 @@ function renderInfoStats() {
             const _hStr = _wHT > 0 ? ' ' + _wHK + '/' + _wHT + ' habits.' : '';
             const fb = _wT + ' task' + (_wT !== 1 ? 's' : '') + ' done.' + _fStr + _hStr;
             localStorage.setItem(_cacheKey, fb);
+            _pruneLS('week_reflection_', _cacheKey);
             const el = _sundayBlock.querySelector('.week-summary');
             if (el) { el.textContent = fb; el.classList.remove('loading'); _nudgeTextResolve(el); }
           } else {
@@ -7594,6 +7612,7 @@ function toggleHabits() {
     if (_hBtn && _hBtn.classList.contains('btn-icon-habits')) {
       _hBtn.classList.remove('btn-icon-habits');
       localStorage.setItem('habit_nudge_opened_' + _habitTodayISO(), '1');
+      _pruneLS('habit_nudge_opened_', 'habit_nudge_opened_' + _habitTodayISO());
     }
   }
 }
@@ -9267,6 +9286,7 @@ const _DISMISS_SYNC = [
   // nudges hide too. Remove once all devices are past 2.19.0.
   { field: 'trello_nudge_dismissed',  prefix: 'day_nudge_dismissed_', el: 'dayNudge' }, // BUG-051
   { field: 'morning_nudge_dismissed', prefix: 'day_nudge_dismissed_', el: 'dayNudge' }, // BUG-053
+  { field: 'sunday_nudge_seen', prefix: 'sunday_nudge_seen_', el: '' },                 // BUG-073 Fix 8
 ];
 
 // ── Backup ────────────────────────────────────────────────────────────────────
@@ -9445,8 +9465,16 @@ function mergeRemoteData(data) {
   // Union of all operation logs from both devices
   const mergedDeletedMap   = new Map([...localDeletedMap,   ...remoteDeletedMap]);
   const mergedUncheckedMap = new Map([...localUncheckedMap, ...remoteUncheckedMap]);
-  // For checked: remote wins on conflict — preserves check timestamps from other device
+  // Max-per-key: remote-spread-last gives remote the initial win; then upgrade any
+  // entry where local's timestamp was actually newer. Prevents wrong-LWW from
+  // overwriting a more-recent local toggle with a stale remote timestamp.
+  for (const [id, localAt] of localUncheckedMap) {
+    if ((remoteUncheckedMap.get(id) ?? '') < localAt) mergedUncheckedMap.set(id, localAt);
+  }
   const mergedCheckedMap   = new Map([...localCheckedMap,   ...remoteCheckedMap]);
+  for (const [id, localAt] of localCheckedMap) {
+    if ((remoteCheckedMap.get(id) ?? '') < localAt) mergedCheckedMap.set(id, localAt);
+  }
 
   // ── Zones: get remote SOON/PAST for zone-aware task merging ────────────
   const remoteSoon = Array.isArray(data.soon_tasks) ? data.soon_tasks : [];
@@ -9619,7 +9647,7 @@ function mergeRemoteData(data) {
 
   localStorage.setItem('today_habits',            JSON.stringify(habitsList));
   localStorage.setItem('today_habit_completions', JSON.stringify(habitCompletions));
-  localStorage.setItem('today_deleted_habit_ids', JSON.stringify([...mergedDeletedHabitIds]));
+  localStorage.setItem('today_deleted_habit_ids', JSON.stringify([...mergedDeletedHabitIds].slice(-200)));
 
   const habitsPanel = document.getElementById('habitsPanel');
   if (habitsPanel && habitsPanel.classList.contains('open')) renderHabits();
@@ -9817,10 +9845,15 @@ function mergeRemoteData(data) {
   const remoteFocusMinsToday = remoteFocusDate === _getAppDay() ? remoteFocusMins : 0;
 
   const mergedFocusMins = Math.max(localFocusMins, remoteFocusMinsToday);
-  const mergedStreak    = Math.max(localStreak, remoteStreak);
-  // Adopt the remote streak date if remote has a newer/later date — this prevents
-  // Device B from incrementing a streak that Device A already bumped today (BUG-020).
   const mergedStreakDate = remoteStreakDate > localStreakDate ? remoteStreakDate : localStreakDate;
+  // Streak count: only adopt remote's count when remote's date is at least as recent
+  // as local's. If remote is older (stale device), its count may reflect a streak the
+  // current device already correctly reset via applyNewDayCleanup() — the ticker path
+  // runs cleanup BEFORE sync, so Math.max would re-inflate the reset value every tick.
+  // Same-day (remoteDate === localDate) takes Math.max, which is correct (BUG-020 guard).
+  const mergedStreak = remoteStreakDate >= localStreakDate
+    ? Math.max(localStreak, remoteStreak)
+    : localStreak;
   // Done count is NOT merged here — it derives from checked_ids, which merge by timestamp
   // union below. Math.max on a monotonic counter was what inflated it (retired v2.18.21).
 
@@ -9966,6 +9999,27 @@ function mergeRemoteData(data) {
     }
   });
 
+  // ── Trello config: fill-if-empty so a new device picks up existing Trello setup ──
+  if (!localStorage.getItem('trello_config') && data.trello_config && typeof data.trello_config === 'object' && Object.keys(data.trello_config).length) {
+    localStorage.setItem('trello_config', JSON.stringify(data.trello_config));
+  }
+
+  // ── recentConversations: union merge so AI chat context propagates cross-device ──
+  if (typeof appMemory !== 'undefined' && appMemory && data.memory && Array.isArray(data.memory.recentConversations)) {
+    if (!appMemory.recentConversations) appMemory.recentConversations = [];
+    const seen = new Set(appMemory.recentConversations.map(c => c.date + '|' + (c.message || '').slice(0, 20)));
+    let _convChanged = false;
+    for (const c of data.memory.recentConversations) {
+      const key = c.date + '|' + (c.message || '').slice(0, 20);
+      if (!seen.has(key)) { appMemory.recentConversations.push(c); seen.add(key); _convChanged = true; }
+    }
+    if (_convChanged) {
+      appMemory.recentConversations.sort((a, b) => b.date > a.date ? 1 : -1);
+      appMemory.recentConversations = appMemory.recentConversations.slice(0, 5);
+      _saveMemory();
+    }
+  }
+
   // ── Day review + AI nudge ─────────────────────────────────────────────────
   // day_review: fill-if-empty (local is the authoritative current-session record)
   if (data.day_review && !localStorage.getItem('today_day_review')) {
@@ -9988,10 +10042,12 @@ function mergeRemoteData(data) {
   let _weekBlockSynced = false;
   if (data.week_reflection && data.week_reflection !== localStorage.getItem('week_reflection_' + _todayISO)) {
     localStorage.setItem('week_reflection_' + _todayISO, data.week_reflection);
+    _pruneLS('week_reflection_', 'week_reflection_' + _todayISO);
     _weekBlockSynced = true;
   }
   if (data.monday_intention && data.monday_intention !== localStorage.getItem('monday_intention_' + _todayISO)) {
     localStorage.setItem('monday_intention_' + _todayISO, data.monday_intention);
+    _pruneLS('monday_intention_', 'monday_intention_' + _todayISO);
     _weekBlockSynced = true;
   }
   // Week theme for Noticed (v2.39.0) — same remote-always-wins reasoning, keyed
