@@ -4027,9 +4027,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.21': 'Sync fix: memory inferences now merge cross-device (union by id); missing pattern fields (triageUndos, soonPulls, letgoReasons, reviveReasons, lateAdditions, taskLifespanSamples) added to merge.',
   '2.64.20': 'Tagged tasks keep one calm shimmer: adding and hovering no longer compete, flash, or change colour midway.',
   '2.64.19': 'Focus mode: dim-then-blur on enter (opacity 120ms, filter 60ms delayed); blur-then-brighten on exit (filter 200ms, opacity 260ms delayed) — eliminates blurry-box artifact.',
-  '2.64.17': 'Focus mode: two-beat exhale — blur arrives first on enter (130ms), opacity drops after; opacity clears first on exit (220ms), blur dissolves last (320ms).',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -10285,6 +10285,55 @@ async function dropboxRestore(fromSync) {
             const remoteDate = remote.noticedDates[key];
             const localDate = appMemory.noticedDates[key];
             if (!localDate || remoteDate < localDate) appMemory.noticedDates[key] = remoteDate;
+          }
+        }
+        // Merge pattern fields missing from original sync (BUG-073)
+        // triageUndos / soonPulls — additive counters, max is safe
+        if (remote.patterns) {
+          appMemory.patterns.triageUndos  = Math.max(appMemory.patterns.triageUndos  || 0, remote.patterns.triageUndos  || 0);
+          appMemory.patterns.soonPulls    = Math.max(appMemory.patterns.soonPulls    || 0, remote.patterns.soonPulls    || 0);
+          appMemory.patterns.dayStartCount = Math.max(appMemory.patterns.dayStartCount || 0, remote.patterns.dayStartCount || 0);
+          // dayStartDate — keep earliest (first observation date across devices)
+          if (remote.patterns.dayStartDate) {
+            if (!appMemory.patterns.dayStartDate || remote.patterns.dayStartDate < appMemory.patterns.dayStartDate) {
+              appMemory.patterns.dayStartDate = remote.patterns.dayStartDate;
+            }
+          }
+          // dayShapeState — remote wins if set (inferred label, not worth conflicting)
+          if (remote.patterns.dayShapeState) appMemory.patterns.dayShapeState = remote.patterns.dayShapeState;
+          // letgoReasons / reviveReasons — max per reason key
+          for (const [k, v] of Object.entries(remote.patterns.letgoReasons  || {})) {
+            appMemory.patterns.letgoReasons[k]  = Math.max(appMemory.patterns.letgoReasons[k]  || 0, v);
+          }
+          for (const [k, v] of Object.entries(remote.patterns.reviveReasons || {})) {
+            appMemory.patterns.reviveReasons[k] = Math.max(appMemory.patterns.reviveReasons[k] || 0, v);
+          }
+          // lateAdditions — union of hour stamps (concat, dedup by value, keep last 50)
+          const existingLate = new Set(appMemory.patterns.lateAdditions || []);
+          for (const h of (remote.patterns.lateAdditions || [])) {
+            existingLate.add(h);
+          }
+          appMemory.patterns.lateAdditions = [...existingLate].slice(-50);
+          // taskLifespanSamples — merge both rolling windows, keep last 20 most recent
+          const mergedSamples = [...(appMemory.patterns.taskLifespanSamples || []), ...(remote.patterns.taskLifespanSamples || [])];
+          appMemory.patterns.taskLifespanSamples = mergedSamples.slice(-20);
+        }
+        // Merge AI inferences (BUG-073) — union by id, dedup by text prefix (same
+        // logic as _memoryAbstract skip guard). Each device generates inferences
+        // independently; without this they never appear on the other device.
+        if (remote.memory && appMemory.memory) {
+          for (const type of ['semantic', 'episodic', 'procedural']) {
+            if (!Array.isArray(remote.memory[type])) continue;
+            if (!Array.isArray(appMemory.memory[type])) appMemory.memory[type] = [];
+            const existingIds   = new Set(appMemory.memory[type].map(i => i.id));
+            const existingTexts = new Set(appMemory.memory[type].map(i => (i.text || '').toLowerCase().slice(0, 8)));
+            for (const item of remote.memory[type]) {
+              if (!item.id || existingIds.has(item.id)) continue;
+              if (existingTexts.has((item.text || '').toLowerCase().slice(0, 8))) continue;
+              appMemory.memory[type].push(item);
+              existingIds.add(item.id);
+              existingTexts.add((item.text || '').toLowerCase().slice(0, 8));
+            }
           }
         }
         _saveMemory();
