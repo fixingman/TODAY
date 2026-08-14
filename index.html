@@ -4027,9 +4027,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.23': 'Memory now merges on every sync cycle — patterns, inferences, moments, keywords no longer require manual Restore Backup to reconcile across devices.',
   '2.64.22': 'Sync hardening: streak stale-high fix, checked_ids true LWW, Trello config cross-device, AI conversation merge, storage pruning for reflection/nudge/Trello card maps.',
   '2.64.21': 'Sync fix: memory inferences now merge cross-device (union by id); missing pattern fields (triageUndos, soonPulls, letgoReasons, reviveReasons, lateAdditions, taskLifespanSamples) added to merge.',
-  '2.64.20': 'Tagged tasks keep one calm shimmer: adding and hovering no longer compete, flash, or change colour midway.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -9443,6 +9443,128 @@ function _mergeDailyHistory(localArr, remoteArr) {
 // ── Core merge logic — operates on a remote data object, no timestamp guard ───
 // Called by dropboxRestore(fromSync=true) AND by the offline-reconnect path.
 // Returns true if any state changed (so caller knows whether to push back to Dropbox).
+// ── appMemory merge helper — called by both auto-sync and manual restore ─────
+// Merges a remote appMemory snapshot into the local appMemory in-place,
+// then persists via _saveMemory(). All strategies are idempotent and safe
+// to run on every 7-second sync tick.
+function _mergeAppMemory(remote) {
+  if (!remote || typeof remote !== 'object') return;
+  if (typeof appMemory === 'undefined' || !appMemory) return;
+  // AI name: remote wins (first device to set it becomes canonical)
+  if (remote.aiName) appMemory.aiName = remote.aiName;
+  // Merge completionsByHour (max)
+  for (const [h, count] of Object.entries(remote.patterns?.completionsByHour || {})) {
+    appMemory.patterns.completionsByHour[h] = Math.max(appMemory.patterns.completionsByHour[h] || 0, count);
+  }
+  // Merge taskKeywords (max per keyword)
+  for (const [word, kd] of Object.entries(remote.patterns?.taskKeywords || {})) {
+    if (!appMemory.patterns.taskKeywords[word]) appMemory.patterns.taskKeywords[word] = { completed: 0 };
+    appMemory.patterns.taskKeywords[word].completed = Math.max(appMemory.patterns.taskKeywords[word].completed, kd.completed || 0);
+  }
+  // Max of lifetime counters
+  appMemory.patterns.focusMinutesTotal = Math.max(appMemory.patterns.focusMinutesTotal, remote.patterns?.focusMinutesTotal || 0);
+  appMemory.patterns.bestStreak        = Math.max(appMemory.patterns.bestStreak,        remote.patterns?.bestStreak        || 0);
+  appMemory.totalTasksCompleted = Math.max(appMemory.totalTasksCompleted, remote.totalTasksCompleted || 0);
+  appMemory.totalDaysActive     = Math.max(appMemory.totalDaysActive,     remote.totalDaysActive     || 0);
+  if (remote.meetingAttribution) {
+    const ma = appMemory.meetingAttribution, rma = remote.meetingAttribution;
+    ma.mineShown      = Math.max(ma.mineShown,      rma.mineShown      || 0);
+    ma.mineKept       = Math.max(ma.mineKept,       rma.mineKept       || 0);
+    ma.othersShown    = Math.max(ma.othersShown,    rma.othersShown    || 0);
+    ma.othersSelected = Math.max(ma.othersSelected, rma.othersSelected || 0);
+  }
+  // Union of moments (dedupe by type+date)
+  const existingKeys = new Set(appMemory.moments.map(m => m.type + m.date));
+  for (const moment of (remote.moments || [])) {
+    if (!existingKeys.has(moment.type + moment.date)) appMemory.moments.push(moment);
+  }
+  appMemory.moments = appMemory.moments.slice(-20);
+  // Merge suggestion cooldowns (remote wins if more recent)
+  for (const [id, date] of Object.entries(remote.suggestionCooldowns || {})) {
+    if (!appMemory.suggestionCooldowns[id] || date > appMemory.suggestionCooldowns[id]) {
+      appMemory.suggestionCooldowns[id] = date;
+    }
+  }
+  // Merge suggestion history (union by taskId+suggested+action)
+  const existingHistoryKeys = new Set((appMemory.suggestionHistory || []).map(h => h.taskId + h.suggested + h.action));
+  for (const entry of (remote.suggestionHistory || [])) {
+    if (!existingHistoryKeys.has(entry.taskId + entry.suggested + entry.action)) {
+      appMemory.suggestionHistory.unshift(entry);
+    }
+  }
+  if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
+  // Merge recentCompletedTasks (union by text+date, 30-day window)
+  if (Array.isArray(remote.recentCompletedTasks)) {
+    const cutoff = new Date(Date.now() - 30 * 864e5);
+    const existingRCT = new Set((appMemory.recentCompletedTasks || []).map(e => e.text + e.date));
+    for (const entry of remote.recentCompletedTasks) {
+      if (!existingRCT.has(entry.text + entry.date) && new Date(entry.date) > cutoff) {
+        appMemory.recentCompletedTasks.push(entry);
+      }
+    }
+    appMemory.recentCompletedTasks.sort((a, b) => a.date < b.date ? -1 : 1);
+  }
+  // noticedDates: earliest date wins per key (when signal first fired on any device)
+  if (remote.noticedDates && typeof remote.noticedDates === 'object') {
+    if (!appMemory.noticedDates) appMemory.noticedDates = {};
+    for (const key of Object.keys(remote.noticedDates)) {
+      const rDate = remote.noticedDates[key], lDate = appMemory.noticedDates[key];
+      if (!lDate || rDate < lDate) appMemory.noticedDates[key] = rDate;
+    }
+  }
+  // BUG-073 pattern fields — additive counters (max) and union collections
+  if (remote.patterns) {
+    appMemory.patterns.triageUndos   = Math.max(appMemory.patterns.triageUndos   || 0, remote.patterns.triageUndos   || 0);
+    appMemory.patterns.soonPulls     = Math.max(appMemory.patterns.soonPulls     || 0, remote.patterns.soonPulls     || 0);
+    appMemory.patterns.dayStartCount = Math.max(appMemory.patterns.dayStartCount || 0, remote.patterns.dayStartCount || 0);
+    if (remote.patterns.dayStartDate) {
+      if (!appMemory.patterns.dayStartDate || remote.patterns.dayStartDate < appMemory.patterns.dayStartDate) {
+        appMemory.patterns.dayStartDate = remote.patterns.dayStartDate;
+      }
+    }
+    if (remote.patterns.dayShapeState) appMemory.patterns.dayShapeState = remote.patterns.dayShapeState;
+    for (const [k, v] of Object.entries(remote.patterns.letgoReasons  || {})) {
+      appMemory.patterns.letgoReasons[k]  = Math.max(appMemory.patterns.letgoReasons[k]  || 0, v);
+    }
+    for (const [k, v] of Object.entries(remote.patterns.reviveReasons || {})) {
+      appMemory.patterns.reviveReasons[k] = Math.max(appMemory.patterns.reviveReasons[k] || 0, v);
+    }
+    const existingLate = new Set(appMemory.patterns.lateAdditions || []);
+    for (const h of (remote.patterns.lateAdditions || [])) existingLate.add(h);
+    appMemory.patterns.lateAdditions = [...existingLate].slice(-50);
+    const mergedSamples = [...(appMemory.patterns.taskLifespanSamples || []), ...(remote.patterns.taskLifespanSamples || [])];
+    appMemory.patterns.taskLifespanSamples = mergedSamples.slice(-20);
+  }
+  // recentConversations — union by date+message prefix, cap at 5
+  if (Array.isArray(remote.recentConversations)) {
+    if (!appMemory.recentConversations) appMemory.recentConversations = [];
+    const seenConv = new Set(appMemory.recentConversations.map(c => c.date + '|' + (c.message || '').slice(0, 20)));
+    for (const c of remote.recentConversations) {
+      const key = c.date + '|' + (c.message || '').slice(0, 20);
+      if (!seenConv.has(key)) { appMemory.recentConversations.push(c); seenConv.add(key); }
+    }
+    appMemory.recentConversations.sort((a, b) => b.date > a.date ? 1 : -1);
+    appMemory.recentConversations = appMemory.recentConversations.slice(0, 5);
+  }
+  // BUG-073 AI inferences — union by id, dedup by text prefix
+  if (remote.memory && appMemory.memory) {
+    for (const type of ['semantic', 'episodic', 'procedural']) {
+      if (!Array.isArray(remote.memory[type])) continue;
+      if (!Array.isArray(appMemory.memory[type])) appMemory.memory[type] = [];
+      const existingIds   = new Set(appMemory.memory[type].map(i => i.id));
+      const existingTexts = new Set(appMemory.memory[type].map(i => (i.text || '').toLowerCase().slice(0, 8)));
+      for (const item of remote.memory[type]) {
+        if (!item.id || existingIds.has(item.id)) continue;
+        if (existingTexts.has((item.text || '').toLowerCase().slice(0, 8))) continue;
+        appMemory.memory[type].push(item);
+        existingIds.add(item.id);
+        existingTexts.add((item.text || '').toLowerCase().slice(0, 8));
+      }
+    }
+  }
+  _saveMemory();
+}
+
 function mergeRemoteData(data) {
   let _changed = false;
   const remoteTasks     = Array.isArray(data.manual_tasks)  ? data.manual_tasks  : [];
@@ -10004,21 +10126,8 @@ function mergeRemoteData(data) {
     localStorage.setItem('trello_config', JSON.stringify(data.trello_config));
   }
 
-  // ── recentConversations: union merge so AI chat context propagates cross-device ──
-  if (typeof appMemory !== 'undefined' && appMemory && data.memory && Array.isArray(data.memory.recentConversations)) {
-    if (!appMemory.recentConversations) appMemory.recentConversations = [];
-    const seen = new Set(appMemory.recentConversations.map(c => c.date + '|' + (c.message || '').slice(0, 20)));
-    let _convChanged = false;
-    for (const c of data.memory.recentConversations) {
-      const key = c.date + '|' + (c.message || '').slice(0, 20);
-      if (!seen.has(key)) { appMemory.recentConversations.push(c); seen.add(key); _convChanged = true; }
-    }
-    if (_convChanged) {
-      appMemory.recentConversations.sort((a, b) => b.date > a.date ? 1 : -1);
-      appMemory.recentConversations = appMemory.recentConversations.slice(0, 5);
-      _saveMemory();
-    }
-  }
+  // ── Full appMemory merge: patterns, inferences, moments, keywords ───────────
+  _mergeAppMemory(data.memory);
 
   // ── Day review + AI nudge ─────────────────────────────────────────────────
   // day_review: fill-if-empty (local is the authoritative current-session record)
@@ -10249,151 +10358,10 @@ async function dropboxRestore(fromSync) {
         const mergedDaily = _mergeDailyHistory(localDaily, data.daily_history);
         localStorage.setItem('today_daily_history', JSON.stringify(mergedDaily));
       }
-      // Restore memory (merge with local — union of moments, max of counters)
-      if (data.memory && typeof data.memory === 'object') {
-        const remote = data.memory;
-        // AI name: remote wins (first device to set it becomes canonical across all devices)
-        if (remote.aiName) {
-          appMemory.aiName = remote.aiName;
-        }
-        // Merge completionsByHour (sum)
-        for (const [h, count] of Object.entries(remote.patterns?.completionsByHour || {})) {
-          appMemory.patterns.completionsByHour[h] = Math.max(appMemory.patterns.completionsByHour[h] || 0, count);
-        }
-        // Merge taskKeywords
-        for (const [word, data] of Object.entries(remote.patterns?.taskKeywords || {})) {
-          if (!appMemory.patterns.taskKeywords[word]) appMemory.patterns.taskKeywords[word] = { completed: 0 };
-          appMemory.patterns.taskKeywords[word].completed = Math.max(appMemory.patterns.taskKeywords[word].completed, data.completed || 0);
-        }
-        // Max of counters
-        appMemory.patterns.focusMinutesTotal = Math.max(appMemory.patterns.focusMinutesTotal, remote.patterns?.focusMinutesTotal || 0);
-        appMemory.patterns.bestStreak = Math.max(appMemory.patterns.bestStreak, remote.patterns?.bestStreak || 0);
-        appMemory.totalTasksCompleted = Math.max(appMemory.totalTasksCompleted, remote.totalTasksCompleted || 0);
-        appMemory.totalDaysActive = Math.max(appMemory.totalDaysActive, remote.totalDaysActive || 0);
-        if (remote.meetingAttribution) {
-          const ma = appMemory.meetingAttribution, rma = remote.meetingAttribution;
-          ma.mineShown      = Math.max(ma.mineShown,      rma.mineShown      || 0);
-          ma.mineKept       = Math.max(ma.mineKept,       rma.mineKept       || 0);
-          ma.othersShown    = Math.max(ma.othersShown,    rma.othersShown    || 0);
-          ma.othersSelected = Math.max(ma.othersSelected, rma.othersSelected || 0);
-        }
-        // Union of moments (dedupe by type+date)
-        const existingKeys = new Set(appMemory.moments.map(m => m.type + m.date));
-        for (const moment of (remote.moments || [])) {
-          if (!existingKeys.has(moment.type + moment.date)) {
-            appMemory.moments.push(moment);
-          }
-        }
-        appMemory.moments = appMemory.moments.slice(-20);
-        // Merge suggestion cooldowns (remote wins if more recent)
-        for (const [id, date] of Object.entries(remote.suggestionCooldowns || {})) {
-          if (!appMemory.suggestionCooldowns[id] || date > appMemory.suggestionCooldowns[id]) {
-            appMemory.suggestionCooldowns[id] = date;
-          }
-        }
-        // Merge suggestion history (union by taskId+date+action)
-        const existingHistoryKeys = new Set((appMemory.suggestionHistory || []).map(h => h.taskId + h.suggested + h.action));
-        for (const entry of (remote.suggestionHistory || [])) {
-          if (!existingHistoryKeys.has(entry.taskId + entry.suggested + entry.action)) {
-            appMemory.suggestionHistory.unshift(entry);
-          }
-        }
-        if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
-        // Merge recentCompletedTasks (union by text+date, 30-day window)
-        if (Array.isArray(remote.recentCompletedTasks)) {
-          const cutoff = new Date(Date.now() - 30 * 864e5);
-          const existingRCT = new Set((appMemory.recentCompletedTasks || []).map(e => e.text + e.date));
-          for (const entry of remote.recentCompletedTasks) {
-            if (!existingRCT.has(entry.text + entry.date) && new Date(entry.date) > cutoff) {
-              appMemory.recentCompletedTasks.push(entry);
-            }
-          }
-          appMemory.recentCompletedTasks.sort((a, b) => a.date < b.date ? -1 : 1);
-        }
-        // appMemory.noticed (show-once bookkeeping for the Noticed block) is
-        // deliberately NOT merged from remote (reverts the BUG-058 sync, v2.36.3).
-        // BUG-058 made it synced specifically because two devices could show
-        // DIFFERENT, contradictory observations for the same underlying pattern —
-        // a real problem. But the side effect: "shown once" became "shown once
-        // across all devices combined," so whichever device opens About first
-        // silently consumes the notification for every other device too, even
-        // though their own user never actually saw it there. The underlying DATA
-        // that feeds each signal (habit completions, focus minutes, peak hour,
-        // the week-theme AI text, recentCompletedTasks below) is still fully
-        // synced, so two devices that DO show a signal always show identical
-        // content — no divergence risk reintroduced. Only the "have I shown you
-        // this yet" gate is local now, so each device gets its own honest chance.
-        // (`remote.noticed` still travels in the backup payload as part of the
-        // whole appMemory blob — harmless, just unused on the reading side.)
-        //
-        // appMemory.noticedDates (v2.39.4) is the deliberately narrower thing
-        // that IS synced: not the actual shown content, just "date this signal
-        // first fired, on any device," keyed per-occurrence (e.g. 'peak:14',
-        // 'habit:abc123:30' — see _noticedEligible in insights.js). Earliest
-        // date wins per key, so it reflects when the signal FIRST happened
-        // anywhere, not the most recent write. This is what lets a signal
-        // that already fired on one device today still show on a second
-        // device opened later the same day, without resurfacing something
-        // that first fired on a prior day.
-        if (remote.noticedDates && typeof remote.noticedDates === 'object') {
-          if (!appMemory.noticedDates) appMemory.noticedDates = {};
-          for (const key of Object.keys(remote.noticedDates)) {
-            const remoteDate = remote.noticedDates[key];
-            const localDate = appMemory.noticedDates[key];
-            if (!localDate || remoteDate < localDate) appMemory.noticedDates[key] = remoteDate;
-          }
-        }
-        // Merge pattern fields missing from original sync (BUG-073)
-        // triageUndos / soonPulls — additive counters, max is safe
-        if (remote.patterns) {
-          appMemory.patterns.triageUndos  = Math.max(appMemory.patterns.triageUndos  || 0, remote.patterns.triageUndos  || 0);
-          appMemory.patterns.soonPulls    = Math.max(appMemory.patterns.soonPulls    || 0, remote.patterns.soonPulls    || 0);
-          appMemory.patterns.dayStartCount = Math.max(appMemory.patterns.dayStartCount || 0, remote.patterns.dayStartCount || 0);
-          // dayStartDate — keep earliest (first observation date across devices)
-          if (remote.patterns.dayStartDate) {
-            if (!appMemory.patterns.dayStartDate || remote.patterns.dayStartDate < appMemory.patterns.dayStartDate) {
-              appMemory.patterns.dayStartDate = remote.patterns.dayStartDate;
-            }
-          }
-          // dayShapeState — remote wins if set (inferred label, not worth conflicting)
-          if (remote.patterns.dayShapeState) appMemory.patterns.dayShapeState = remote.patterns.dayShapeState;
-          // letgoReasons / reviveReasons — max per reason key
-          for (const [k, v] of Object.entries(remote.patterns.letgoReasons  || {})) {
-            appMemory.patterns.letgoReasons[k]  = Math.max(appMemory.patterns.letgoReasons[k]  || 0, v);
-          }
-          for (const [k, v] of Object.entries(remote.patterns.reviveReasons || {})) {
-            appMemory.patterns.reviveReasons[k] = Math.max(appMemory.patterns.reviveReasons[k] || 0, v);
-          }
-          // lateAdditions — union of hour stamps (concat, dedup by value, keep last 50)
-          const existingLate = new Set(appMemory.patterns.lateAdditions || []);
-          for (const h of (remote.patterns.lateAdditions || [])) {
-            existingLate.add(h);
-          }
-          appMemory.patterns.lateAdditions = [...existingLate].slice(-50);
-          // taskLifespanSamples — merge both rolling windows, keep last 20 most recent
-          const mergedSamples = [...(appMemory.patterns.taskLifespanSamples || []), ...(remote.patterns.taskLifespanSamples || [])];
-          appMemory.patterns.taskLifespanSamples = mergedSamples.slice(-20);
-        }
-        // Merge AI inferences (BUG-073) — union by id, dedup by text prefix (same
-        // logic as _memoryAbstract skip guard). Each device generates inferences
-        // independently; without this they never appear on the other device.
-        if (remote.memory && appMemory.memory) {
-          for (const type of ['semantic', 'episodic', 'procedural']) {
-            if (!Array.isArray(remote.memory[type])) continue;
-            if (!Array.isArray(appMemory.memory[type])) appMemory.memory[type] = [];
-            const existingIds   = new Set(appMemory.memory[type].map(i => i.id));
-            const existingTexts = new Set(appMemory.memory[type].map(i => (i.text || '').toLowerCase().slice(0, 8)));
-            for (const item of remote.memory[type]) {
-              if (!item.id || existingIds.has(item.id)) continue;
-              if (existingTexts.has((item.text || '').toLowerCase().slice(0, 8))) continue;
-              appMemory.memory[type].push(item);
-              existingIds.add(item.id);
-              existingTexts.add((item.text || '').toLowerCase().slice(0, 8));
-            }
-          }
-        }
-        _saveMemory();
-      }
+      // Restore memory (merge with local) — delegates to _mergeAppMemory() which
+      // is also called on every auto-sync tick. appMemory.noticed is intentionally
+      // NOT merged (local-only gate; see v2.36.3 / BUG-058 comments in insights.js).
+      _mergeAppMemory(data.memory);
       // stat_last_visit intentionally NOT restored — it's local device state.
       // Restoring it would cause applyNewDayCleanup() to re-run and delete today's tasks.
       renderManual();
