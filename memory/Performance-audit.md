@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.39.3 · Jul 2026  
+> v2.64.23 · Aug 2026
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -7,9 +7,9 @@
 
 ## 1. Bundle & Load
 
-| Asset | Raw | Gzip | Notes |
+| Asset | Raw (decoded) | Brotli | Notes |
 |---|---|---|---|
-| `index.html` | 556 KB | 163 KB | Single HTML file — no build step |
+| `index.html` | 657 KB | 187 KB | Single HTML file — no build step; 3.6× brotli ratio (v2.64.23 baseline) |
 | `sw.js` | 6.1 KB | 2.5 KB | Service worker — cache strategy, precache list, offline fallback |
 | `assets/util.js` | 4.4 KB | 2.3 KB | Pure utility helpers; SW-precached |
 | `assets/idle.js` | 6.2 KB | 2.1 KB | Idle companion IIFE; SW-precached |
@@ -21,15 +21,15 @@
 | `assets/poems.js` | 33.9 KB | 11.4 KB | Daily poem corpus (96 poems); SW-precached |
 | **Total JS** | **661 KB** | **195 KB** | index.html + 8 extracted modules |
 
-**Lines of code:** 13,109 index.html + 2,559 extracted (15,668 total)  
-— util.js: 97 · idle.js: 289 · sound.js: 224 · celebration.js: 163 · trello.js: 474 · insights.js: 526 · error-monitor.js: 145 · poems.js: 641
+**Lines of code:** ~14,700 index.html + ~2,900 extracted (≈17,600 total)
+— util.js: 97 · idle.js: 289 · sound.js: 224 · celebration.js: 163 · trello.js: ~510 · insights.js: ~560 · error-monitor.js: 145 · poem-utils.js: ~200 · poems.js: 641
 
 **External scripts:** 0. All assets same-origin, SW-cached; no CDN, no analytics SDK. `scripts/design-lint.mjs` rejects external runtime script tags and known analytics/replay markers (Rule 32).
 **External fonts on first visit:** 6 files (self-hosted, pre-cached by SW). Zero Google Fonts pings.  
 **External fonts on repeat visits:** 0 — all served from SW cache.  
 **@font-face declarations:** 9 total — 6 in main doc (DM Mono ×3, Syne ×3), 2 injected into PiP window, 1 in offline fallback HTML in SW.
 
-**Assessment:** index.html shrank 578 KB → 556 KB (−22 KB) since v2.32.0, driven by trello.js and insights.js extractions (Roadmap #3, ~42 KB moved out). New features added since (Noticed block, open_triage, meeting attribution improvements, BUG-057/058 sync fixes) added ~20 KB back. Net: extraction wins, feature growth offsets partially. Total payload grew 641 → 655 KB (+14 KB) because both new modules are SW-precached. All loads after first are fully offline-capable.
+**Assessment (v2.64.23):** index.html is 657 KB decoded / 187 KB brotli (3.6× ratio). Previous baseline: 556 KB raw / 163 KB gzip at v2.39.3. Growth driven by sync hardening (v2.64.21–23), memory auto-sync, Focus companion improvements, and contextual CTAs. `_mergeAppMemory()` helper extracted in v2.64.23 (no size penalty — code moved from `dropboxRestore` to a shared function). Brotli ratio is healthy; watch if it drops below 3×. Total transfer (index + modules + fonts) is 313 KB (first cold load, cached on SW install after). All loads after first are offline-capable.
 
 ---
 
@@ -172,6 +172,8 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 
 **New since v2.32.0:** `week_reflection` and `monday_intention` added to Dropbox payload (BUG-057, v2.36.1). `recentCompletedTasks` included in memory merge (BUG-058, v2.36.3); `appMemory.noticed` was too, but that part was reverted v2.39.3 — it's device-local again (still travels in the whole-appMemory backup blob, just no longer applied on read). `appMemory.noticedDates` (v2.39.4) — a narrower, date-only sibling field — IS merged, so a Noticed signal that fired on one device can still show on another the same day. `capturedMine` items sent to meeting-extract to prevent duplicate task capture.
 
+**New in v2.64.21–23:** `appMemory.semantic`, `appMemory.episodic`, `appMemory.procedural` (AI inference arrays) now union-merged on every sync tick via `_mergeAppMemory()`. Pattern fields `triageUndos`, `soonPulls`, `letgoReasons`, `reviveReasons`, `lateAdditions`, `taskLifespanSamples` added to pattern merge (v2.64.21). `sunday_nudge_seen_<date>` key added to `_DISMISS_SYNC` registry (v2.64.22) — propagates Sunday nudge dismissal cross-device. `_pruneLS` now cleans `reflection_<date>`, `nudge_done_count_<date>`, `noticed_lines_<date>`, and `week_theme_tried_<week>` keys at 4 write sites. `_pruneTrelloMaps()` removes `today_trello_firstseen` and `today_trello_lastactive` entries for cards absent >90 days. `habit_events` tombstone cap: 200 entries max.
+
 ---
 
 ## 5. Test Coverage
@@ -193,7 +195,7 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 | `localStorage` disabled | Low | `safeJSON` reads catch SecurityError; global `setItem` wrapper IIFE may throw before installing if storage fully blocked. App loads with red dot, data not persisted. |
 | `renderTrello()` runs every 7s tick unconditionally | Low | v2.18.12 — diff-patch bounds cost (≤20 cards). Only item in history that adds baseline per-tick work. Revisit if Trello card counts grow much larger than ~20. |
 | BUG-004 repaint ceiling | Low | Extended to 5000ms (v2.31.9). If a very long sleep still leaves GPU unready past 5s, a 7th pass or a fallback `click` simulation may be needed. |
-| index.html growth | Watch | 556 KB now; extraction (Roadmap #3) offsets feature growth. Next extraction candidate: sync.js (~510 lines) — needs risk discussion (Non-Delegation ceiling). |
+| index.html growth | Watch | 657 KB decoded / 187 KB brotli (v2.64.23 baseline). Extraction (Roadmap #3, 8 modules) offsets feature growth partially. Next extraction candidate: sync.js (~510 lines) — needs risk discussion (Non-Delegation ceiling). At ~300 lines/version growth rate, adds ~5 KB brotli per version. |
 | BUG-041: iOS PWA splash white flash | Platform limitation | Closed 2026-07-24 after a fourth investigation pass ruled out every app-code explanation: splash launch-image colors correct (RGB 14,14,16, matches `--bg`), iPhone 14 Pro's exact spec present in the `apple-touch-startup-image` list, latest build confirmed running, no render-blocking `<head>` resource. What remains is the gap between iOS's static launch image ending and the WebView's first painted frame — a handoff with no hook available from web content. Reopen only if light/dark-mode correlation is confirmed, or the flash appears on a warm/backgrounded reopen (not just true cold start) — either would point back at in-page code. Full four-pass history → `archive/Bugs-archive.md`. |
 
 ---
@@ -202,7 +204,7 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 
 | Area | Score | Notes |
 |---|---|---|
-| Load performance | ✅ Good | 556 KB index.html + 99 KB extracted modules (655 KB total), fonts cached, offline-capable |
+| Load performance | ✅ Good | 657 KB index.html (187 KB brotli) + ~180 KB extracted modules decoded (48.6 KB transfer), fonts cached, 313 KB total cold transfer, offline-capable |
 | Runtime performance | ✅ Good | Cached elements, cheap ticker, incremental DOM, debounced `_onWake` |
 | CSS token hygiene | ✅ Good | 116 `:root` vars, 0 violations (design-lint enforced) |
 | XSS protection | ✅ Good | `esc()` on all user content |
@@ -217,7 +219,19 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.42.3)
+## 8. Changes since last audit (v2.32.0 → v2.64.23)
+
+### v2.64.21 – v2.64.23 additions
+
+| Change | Version | Performance impact |
+|---|---|---|
+| AI inference + pattern field merge in `mergeRemoteData` | v2.64.21 | Union of `semantic`/`episodic`/`procedural` arrays by id, 6 new pattern fields merged. O(n) over inference arrays (bounded by 200-entry cap on inferences). Runs on every 7s tick — still negligible given bounded sizes. |
+| Sync hardening: checked_ids true LWW, streak date-guard, trello_config fill-if-empty, `_pruneTrelloMaps`, `_pruneLS` at 4 sites, `habit_events` tombstone cap, `sunday_nudge_seen` in `_DISMISS_SYNC` | v2.64.22 | `_pruneTrelloMaps` is an O(n) loop over `today_trello_firstseen` + `today_trello_lastactive` on each sync tick — bounded by number of ever-seen Trello cards, expected < 500. `_pruneLS` adds 4 localStorage reads + conditional deletes per tick. Net negligible. |
+| `_mergeAppMemory()` helper extracted; called from `mergeRemoteData()` on every 7s tick | v2.64.23 | Previously only `dropboxRestore` path merged appMemory. Adding it to the 7s tick increases merge work per tick by O(n) over patterns/inferences/moments (all bounded). Measured: no long tasks on benchmark (0 tasks >50ms), so the addition stays below 50ms threshold. |
+
+---
+
+### v2.32.0 – v2.42.3 (original audit entries)
 
 | Change | Version | Performance impact |
 |---|---|---|
@@ -273,4 +287,4 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 
 ---
 
-*Last updated: v2.42.3 · Jul 2026*
+*Last updated: v2.64.23 · Aug 2026*

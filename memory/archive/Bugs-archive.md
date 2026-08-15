@@ -6,6 +6,52 @@
 
 ---
 
+## BUG-075 — Tagged-task shimmer flashes when hover overlaps arrival
+
+**Status:** ✅ Verified fixed (v2.64.20; verified 2026-08-15 by Can on real device)
+
+**Symptom:** Adding a task in `tag: task` format could show a short, differently timed flash instead of the established two-pass shimmer. Hovering tags could also look inconsistent immediately after insertion.
+
+**Root cause:** New tasks started the arrival shimmer asynchronously through `IntersectionObserver`, while desktop hover was wired immediately. If the row appeared beneath a stationary pointer, `_soon-shimmer` could start first and `task-tag-shimmer` would be added on top of it. The later CSS hover rule won, and the shorter hover animation's `animationend` caused both independent cleanup listeners to remove their classes before the arrival animation completed.
+
+**Fix (v2.64.20):** One exclusive tag-shimmer state owns pending, arrival, and interaction phases. Arrival reserves the state synchronously before observer delivery, so hover cannot interrupt it. Both animation classes share the exact same gradient declaration; only their intentional timing differs. The smoke test recreates the overlapping mouseenter and verifies priority, cleanup, and colour parity.
+
+**Verified fixed:** ✅ 2026-08-15 (Can, real device)
+
+---
+
+## BUG-074 — Shared poem link crashes in Netlify Edge Function
+
+**Status:** ✅ Verified fixed (v2.64.12; verified 2026-08-15 by Can on production)
+
+**Symptom:** Opening a shared URL such as `/poem.html?date=2026-08-12` returned Netlify's “This edge function has crashed” page with HTTP 500. The static poem page never loaded.
+
+**Root cause:** The edge function fetched `assets/poems.js` and removed `const POEMS =` only when that declaration appeared at the start of the file. The corpus begins with header comments, so the replacement did nothing. The generated body began `return // TODAY…`; automatic semicolon insertion made it return `undefined`. Parsing did not throw, so execution left the guarded block and crashed on `POEMS.length`.
+
+**Fix (v2.64.12):** Extract through the actual declaration regardless of leading comments, evaluate the array as a parenthesized expression, require an OK asset response and an array result, and guard `poemForDate()` against non-arrays. Strip stale byte-length/encoding headers after rewriting HTML. The smoke test runs the handler against the real corpus and separately proves malformed input serves the static fallback.
+
+**Verified fixed:** ✅ 2026-08-15 (Can, production)
+
+---
+
+## BUG-070 — Undo toast reason chips unclickable on narrow screens
+
+**Status:** ✅ Verified fixed (v2.61.4; verified 2026-08-15 by Can on real device)
+
+**Symptom:** After deleting a task, the undo toast appeared with four reason chips (not relevant, no energy, lost interest, replaced), but only the Undo button was tappable. The chips were unreachable.
+
+**Root cause (v2.61.3):** `#undoToast` used `flex-direction: row; flex-wrap: wrap` — the chips and the "Task removed [Undo]" row shared the same flex row. On narrow screens, chips extended off the right edge of the viewport and were unclickable.
+
+**Fix 1 (v2.61.3):** Changed toast to `flex-direction: column; align-items: flex-start` with `max-width: min(420px, calc(100vw - 32px))`. Added `width: 100%` to `.undo-main` and `#undoReasonRow`. Changed chip separator from `border-left` (side-by-side) to `border-top + padding-top` (stacked below).
+
+**Root cause (v2.61.4):** After the layout fix, there was still no visible feedback when a chip was tapped — the row dimmed to 35% opacity silently and the toast stayed on screen indefinitely.
+
+**Fix 2 (v2.61.4):** `_recordDeleteReason(reason, btn)` highlights the selected chip, dims the other chips, and auto-dismisses the toast after 800ms.
+
+**Verified fixed:** ✅ 2026-08-15 (Can, real device)
+
+---
+
 ## BUG-061: Sunday/habit badges silently fail to show on a fresh device
 
 **Status: ⚠️ Stale** — fix shipped v2.37.8, never verified on real device. Condition may no longer be reproducible.

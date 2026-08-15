@@ -15,12 +15,12 @@
 
 | # | Description | Status |
 |---|---|---|
-| 075 | Tagged task flashes or changes shimmer timing when hover overlaps its arrival animation | ⏳ v2.64.20 |
-| 074 | Shared `/poem.html` links crash in the Netlify Edge Function before the static page loads | ⏳ v2.64.12 |
+| 075 | Tagged task flashes or changes shimmer timing when hover overlaps its arrival animation | ✅ v2.64.20 |
+| 074 | Shared `/poem.html` links crash in the Netlify Edge Function before the static page loads | ✅ v2.64.12 |
 | 073 | Focus Ask question says “this late” without supplying the actual local time | ⏳ v2.64.9 |
 | 072 | Triage flow never completes — "Let go" tapped but completion screen never appears | ⏳ v2.61.6  |
 | 071 | App goes blank on wake from sleep or when PWA returns from background while in focus mode — third recurrence of BUG-004/056 family | ⏳ v2.61.5  |
-| 070 | Undo toast reason chips unclickable on narrow screens — column layout fix + chip highlight/auto-dismiss feedback | ⏳ v2.61.4  |
+| 070 | Undo toast reason chips unclickable on narrow screens — column layout fix + chip highlight/auto-dismiss feedback | ✅ v2.61.4  |
 | 069 | Poem OG preview may show wrong poem for southern-hemisphere users — edge function has no viewer TZ, skips southern-hemisphere flip | 🚫 Rejected  |
 | 068 | Trello card 🍅 session count resets every morning | ✅ v2.52.1  |
 | 067 | Focused task jumps near top of viewport after focus ends | ✅ v2.44.1  |
@@ -98,36 +98,6 @@
 
 ---
 
-## BUG-075 — Tagged-task shimmer flashes when hover overlaps arrival
-
-**Status:** ⏳ v2.64.20 (fix prepared — awaiting real-device verification)
-**File:** `index.html` — tag shimmer CSS, `_playTagShimmer`, `_queueTagArrivalShimmer`
-
-**Symptom:** Adding a task in `tag: task` format can show a short, differently timed flash instead of the established two-pass shimmer. Hovering tags can also look inconsistent immediately after insertion.
-
-**Root cause:** New tasks started the arrival shimmer asynchronously through `IntersectionObserver`, while desktop hover was wired immediately. If the row appeared beneath a stationary pointer, `_soon-shimmer` could start first and `task-tag-shimmer` would be added on top of it. The later CSS hover rule won, and the shorter hover animation's `animationend` caused both independent cleanup listeners to remove their classes before the arrival animation completed.
-
-**Fix (v2.64.20):** One exclusive tag-shimmer state now owns pending, arrival, and interaction phases. Arrival reserves the state synchronously before observer delivery, so hover cannot interrupt it. Both animation classes share the exact same gradient declaration; only their intentional timing differs. The smoke test recreates the overlapping mouseenter and verifies priority, cleanup, and colour parity.
-
-**Verify:** Add a tagged task while leaving the pointer over the place where the row will appear. It completes the muted→lime→muted two-pass arrival without flashing or switching speed. After it settles, leave and re-enter the row; one calm pass plays using the same colours.
-
----
-
-## BUG-074 — Shared poem link crashes in Netlify Edge Function
-
-**Status:** ⏳ v2.64.12 (fix prepared — awaiting deployment and live verification)
-**File:** `netlify/edge-functions/poem.js`
-
-**Symptom:** Opening a shared URL such as `/poem.html?date=2026-08-12` returns Netlify's “This edge function has crashed” page with HTTP 500. The static poem page never loads.
-
-**Root cause:** The edge function fetched `assets/poems.js` and removed `const POEMS =` only when that declaration appeared at the start of the file. The corpus begins with header comments, so the replacement did nothing. The generated body began `return // TODAY…`; automatic semicolon insertion made it return `undefined`. Parsing did not throw, so execution left the guarded block and crashed on `POEMS.length`.
-
-**Fix (v2.64.12):** Extract through the actual declaration regardless of leading comments, evaluate the array as a parenthesized expression, require an OK asset response and an array result, and guard `poemForDate()` against non-arrays. Strip stale byte-length/encoding headers after rewriting HTML. The smoke test runs the handler against the real corpus and separately proves malformed input serves the static fallback.
-
-**Verify:** After production deployment, open `https://today-here.netlify.app/poem.html?date=2026-08-12`. It returns HTTP 200, renders the poem, and its initial HTML contains populated Open Graph title and description tags.
-
----
-
 ## BUG-073 — Focus Ask refers to lateness without a time value
 
 **Status:** ⏳ v2.64.9 (fix shipped — awaiting real-device verification)
@@ -176,23 +146,6 @@
 - `_forceRepaint` now skips passes if `document.visibilityState === 'hidden'` (no point repainting while hidden)
 - Repaint schedule extended: 500 / 1500 / 3000 / 5000 / 8000 / 12000ms
 - `_wakeFocusCheck()` runs alongside every repaint: calls `_focusReanchor()` to re-attach `.focused` if sync re-rendered it away, and corrects `body.top` drift if the focused task scrolled out of viewport
-
----
-
-## BUG-070 — Undo toast reason chips unclickable on narrow screens
-
-**Status:** ⏳ v2.61.4 (fix shipped — awaiting real-device verification)
-**File:** `index.html` — `#undoToast` CSS, `_recordDeleteReason`, `_showUndoToast`
-
-**Symptom:** After deleting a task, the undo toast appeared with four reason chips (not relevant, no energy, lost interest, replaced), but only the Undo button was tappable. The chips were unreachable.
-
-**Root cause (v2.61.3):** `#undoToast` used `flex-direction: row; flex-wrap: wrap` — the chips and the "Task removed [Undo]" row shared the same flex row. On narrow screens, chips extended off the right edge of the viewport and were unclickable.
-
-**Fix 1 (v2.61.3):** Changed toast to `flex-direction: column; align-items: flex-start` with `max-width: min(420px, calc(100vw - 32px))`. Added `width: 100%` to `.undo-main` and `#undoReasonRow`. Changed chip separator from `border-left` (side-by-side) to `border-top + padding-top` (stacked below).
-
-**Root cause (v2.61.4):** After the layout fix, there was still no visible feedback when a chip was tapped — the row dimmed to 35% opacity silently and the toast stayed on screen indefinitely.
-
-**Fix 2 (v2.61.4):** `_recordDeleteReason(reason, btn)` now highlights the selected chip (accent border/color via `--accent`/`--accent-dim` tokens), dims the other chips to 0.3 opacity, and auto-dismisses the toast after 800ms. Button onclick passes `this` so the selected chip is identifiable.
 
 ---
 

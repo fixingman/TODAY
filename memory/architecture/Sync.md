@@ -351,15 +351,16 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 | Trello order | Newer `trello_order_at` wins (bootstrap if local order empty) — BUG-042 |
 | Trello focus map | Union by card ID (max value), date-guarded — v2.18.17 |
 | Trello first-seen | Union by card ID, **MIN timestamp wins** (earliest sighting), no date guard, persists across days — v2.18.22 (BUG-049) |
-| Done IDs | Union with check/uncheck timestamps (most-recent op wins) |
+| Trello config | Fill-if-empty: `mergeRemoteData` applies `remote.trello_config` when local is absent (v2.64.22) — Connections entered on one device now propagates without a full manual restore |
+| Done IDs | True LWW per id: `Math.max(checkedAt, uncheckedAt)` across both maps determines winning op (v2.64.22 — previously blind union could leave a stale check entry outliving a newer uncheck) |
 | Done-today count | NOT stored/merged — derived from checked_ids via `_doneTodayCount()` (v2.18.21) |
 | Deleted IDs | Union (excluded from tasks) |
 | SOON tasks | Union by ID, newer zoneChangedAt wins |
 | PAST tasks | Union by ID, newer zoneChangedAt wins, age-based purge only (done >7d, let_go/aged >30d) — no count cap (v2.17.47) |
-| Stats | Max wins |
+| Stats | Max wins; streak uses `Math.max` only when `remoteStreakDate >= localStreakDate` — prevents ticker-reversed device from re-inflating yesterday's count after midnight reset (v2.64.22) |
 | Triage dismissed | If remote = today, apply locally |
-| Nudge dismissal (unified day nudge) | If remote = `'1'` and local key unset for today, set + hide element. Payload field AND merge block are both driven by the `_DISMISS_SYNC` registry (v2.18.40) — new per-day dismissable surface = one registry row (BUG-051/053 lesson). v2.19.0 merged the two nudges into one `dayNudge` (`day_nudge_dismissed`); the legacy `trello_nudge_dismissed`/`morning_nudge_dismissed` fields remain as registry rows mapped to the new key for pre-2.19.0 devices — remove once all devices updated |
-| Memory | Merge patterns, max of counters, union of moments |
+| Nudge dismissal (unified day nudge) | If remote = `'1'` and local key unset for today, set + hide element. Payload field AND merge block are both driven by the `_DISMISS_SYNC` registry (v2.18.40) — new per-day dismissable surface = one registry row (BUG-051/053 lesson). v2.19.0 merged the two nudges into one `dayNudge` (`day_nudge_dismissed`); the legacy `trello_nudge_dismissed`/`morning_nudge_dismissed` fields remain as registry rows mapped to the new key for pre-2.19.0 devices — remove once all devices updated. `sunday_nudge_seen_<date>` added to registry v2.64.22 so Sunday nudge dismissal propagates cross-device |
+| Memory | `_mergeAppMemory(remote.memory)` called from both `mergeRemoteData()` (every 7s tick, v2.64.23) and `dropboxRestore(!fromSync)` (manual restore). Merges: patterns (union of counted objects by key, max wins), AI inferences (`semantic`/`episodic`/`procedural` — union by id), moments (union by id), task keywords (union). `recentConversations` union-merged in `mergeRemoteData()` (v2.64.22). `appMemory.noticed` NOT merged (device-local, v2.39.3). `appMemory.noticedDates` IS merged, earliest-date-wins (v2.39.4) |
 
 ### Stat Merge — Date Guards
 
@@ -379,8 +380,25 @@ Stats use `Math.max` but the remaining counter has a date guard to prevent yeste
 
 **`stat_streak` / `stat_streak_date`**
 - `stat_streak_date` is set to `_localISO()` whenever streak is incremented in `applyNewDayCleanup()`
-- Merge adopts the lexicographically newer date from remote (alongside `Math.max` streak)
+- **Merge (v2.64.22):** `mergedStreak = remoteStreakDate >= localStreakDate ? Math.max(localStreak, remoteStreak) : localStreak`. If the remote streak's date is in the past relative to local (device opened late after midnight and recorded today's streak first), the remote value is ignored — prevents a ticker-reversed device from re-inflating yesterday's count after midnight reset. Previous behavior was unconditional `Math.max`, which caused stale-high syndrome when the syncing device hadn't yet applied `applyNewDayCleanup`.
 - **Critical:** `applyNewDayCleanup()` only skips the streak INCREMENT when `streakDate === todayISO` — it must NOT return early, as the focus-minutes reset and other daily cleanup still need to run (BUG-024 true root cause, fixed v2.17.48)
+
+### `_mergeAppMemory(remoteMemory)` — extracted helper (v2.64.23)
+
+Prior to v2.64.23, the full appMemory merge lived only in `dropboxRestore(!fromSync)` (the manual restore path). The periodic `mergeRemoteData()` path (7s tick) did NOT merge appMemory — it only carried `recentConversations`.
+
+**v2.64.23:** `_mergeAppMemory(remote)` extracted as a shared helper. Now called from:
+- `mergeRemoteData(data)` → `_mergeAppMemory(data.memory)` — every 7s sync tick
+- `dropboxRestore(!fromSync)` — manual restore (unchanged)
+
+**What it merges:**
+- `patterns`: union of counted object fields by key, `Math.max` on numeric values (triageUndos, soonPulls, letgoReasons, reviveReasons, lateAdditions, taskLifespanSamples added in v2.64.21)
+- `semantic` / `episodic` / `procedural` inferences: union by `id` (v2.64.21)
+- `moments`: union by `id`
+- `taskKeywords`: union by task id
+- Lifetime counters: `Math.max`
+
+**NOT merged:** `noticed` (device-local gate, v2.39.3). `noticedDates` merged via its own loop (earliest-date-wins).
 
 ---
 
