@@ -148,6 +148,8 @@
 | Sunday recap + Monday intention (memory-enriched) | v2.48.2 | 2026-08-17 | Open — does the Monday line name something specific to how you work, or still feel generic? Quality improves as confirmed memory inferences accumulate. |
 | Memory panel quality gate | v2.47.0 | 2026-09-01 | Open — are AI-generated hypotheses earning confirmation or getting dismissed? High dismiss rate = prompting or data quality problem. |
 | Noticed block in About | v2.35.0–v2.39.0 | 2026-08-09 | ✅ Kept (2026-08-03). **Hypothesis:** as Memory panel accumulates confirmed inferences, Noticed observations will become more specific without new code — watch whether Noticed content shifts character after the first batch of confirmed memory inferences. |
+| Memory auto-sync (patterns, inferences, moments) | v2.64.23 | 2026-08-29 | Open — does appMemory now converge across devices without manual Restore Backup? Check that `today_memory` on both devices has matching `semantic.length` after a few auto-sync cycles (7s ticker). BUG-073 side-effect: focus minutes (BUG-066) and cross-device keyword counts should also now reconcile automatically. |
+| Sync hardening (streak, checked_ids LWW, Trello config, Trello maps pruning) | v2.64.22 | 2026-08-29 | Open — does the streak stay accurate after leaving the app open overnight? On the weaker device (ticker runs first), the streak should no longer re-inflate to yesterday's count after midnight reset. |
 
 ### Not implementing
 | Feature | Reason |
