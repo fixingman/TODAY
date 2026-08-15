@@ -15,14 +15,13 @@
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 2 | **Poem corpus growth** | Ongoing | Corpus 96, target ~100, four to go. Spring thinnest gap. A cut is final — detail ↓ |
-| 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration/trello/insights/error-monitor/poem-utils.js. **Next:** `sync.js` (~510 lines, Non-Delegation) — needs a risk discussion before touching. **Ceiling:** coupled core stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
+| 2 | **Poem corpus growth** | Ongoing | Corpus 97, target ~100, three to go. Spring thinnest gap. A cut is final — detail ↓ |
+| 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration/trello/insights/error-monitor/poem-utils/splash/platform.js. **Next:** `focus.js` (~1,333). Direct `sync.js` extraction is deferred: the live sync/wake cluster is ~1,968 lines and tightly coupled. **Ceiling:** coupled core stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
-| 6 | **Todoist integration** | Not started | Highest integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
-| 7 | **About — contextual digest layer** | ✅ Complete (v2.48.2) | Today block ✅ W3 kept. Daily brief ❌ removed. Noticed ✅ W3 kept. Memory panel inferences feed all AI surfaces. Sunday recap + Monday intention enriched with memory (v2.48.2). Remaining: time-based observation only — see Watching table. |
+| 6 | **Todoist integration** | Not started | Highest task-integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 | 9 | **Meeting mode v2** | Mobile awaiting device verify | Language ✅ done. In-room meetings on iOS PWA — detail ↓ |
 
-*Shipped & closed (2026-07-18): #1 morning nudge (verdict: kept, verbatim quotes v2.32.3), #5 first-run (v2.34.0), #8 PAST revive (v2.27.0). History in `Changelog.md`; numbers stay retired.*
+*Shipped & closed: #1 morning nudge (verdict: kept, verbatim quotes v2.32.3), #5 first-run (v2.34.0), #7 About contextual digest layer (feature-complete v2.48.2), #8 PAST revive (v2.27.0). History in `Changelog.md`; numbers stay retired.*
 
 **Awaiting device verification:** canonical list lives in `Rules.md` → Watch for.
 
@@ -44,7 +43,7 @@
 > **PD check:** verify text verbatim against Wikisource / Gutenberg / archive.org — never from memory. Confirm death dates for author and translator.
 > **Search process:** search by named PD anthology or translator, not by theme or region (`"[name]" site:gutenberg.org OR site:en.wikisource.org OR site:archive.org`). Region is a tiebreaker only — when two candidates tie on quality, prefer the one from a country not yet represented.
 
-**Seasons:** W12 / Sp11 / Su11 / Au11 / year-round 51 — corpus 96, target ~100. Four to go; spring thinnest. Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cut.
+**Seasons:** W12 / Sp10 / Su11 / Au11 / year-round 53 — corpus 97, target ~100. Three to go; spring thinnest. Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cut.
 
 **PD notes:** US-PD-only closed (v2.35.3) — worldwide PD is the bar. Five US-PD poems kept permanently (Frost ×3, Yang-ti, Po Chü-i 'After Lunch'). Future unlocks: Milne 2027 (taste caveat: canonical "cutesy"), cummings 2033, Frost/WCW worldwide 2034, Eliot 2036. China most-represented — country tiebreaker is a lean, not a wall.
 
@@ -61,11 +60,6 @@
 **Stack:** `push` listener in `sw.js`, VAPID keys in Netlify env, two new Netlify functions (store subscription + scheduled send), permission UI in Connections panel.
 **Key constraint:** iOS has no background sync — notifications must be server-sent via Netlify Scheduled Functions. The app cannot self-schedule.
 **Scope:** day boundaries only — 8pm triage reminder + morning briefing. No habit nudges, no task chasing.
-
-### 7 · About — Contextual Digest Layer
-**Concept:** Periodic, context-aware content in About based on day/week. No push, no server — pure local data.
-**Shipped — all candidate moments complete:** Today block (v2.33.0, W3 ✅) · ✦ brief (W3 ❌ removed v2.40.9) · Noticed block (v2.35.0–v2.39.0, W3 ✅) · Memory panel (v2.47.0–v2.48.2) · Sunday recap + Monday intention (v2.48.2, memory-enriched).
-**Item 7 is feature-complete as of v2.48.2.** Remaining work is observation — see Watching table.
 
 ### 9 · Meeting mode v2 — mobile
 **Scope boundary (permanent):** phone-call recording is impossible from any app on iOS — the OS never exposes call audio. Mobile meeting mode = in-room/speakerphone capture through the mic. Don't revisit; it's an OS wall, not a PWA limitation.
@@ -88,7 +82,7 @@
 
 **Transcription engine bake-off — not started.** Evaluate Gemini (current) vs Whisper vs Deepgram on real recordings. Judge on: task-extraction quality, accuracy on non-Western names/accented speech, cost, latency. Run *after* a few real meetings exist to test against. Capture and extraction are separable layers — engine can be swapped later.
 
-**Granola integration path (researched 2026-08-03 — Can is on free plan, happy with capture).** Granola auto-detects meetings at OS level (PWA can't), outputs structured notes + action items. TODAY's role: task extraction from Granola's output. `get_meetings` (summaries + action items) is available free — enough without the transcript. **Integration MVP:** Granola MCP key in Connections → Netlify function calls `list_meetings` + `get_meetings` → AI extraction → task chips. Manual trigger: user finishes a meeting, opens TODAY, taps import. **Priority:** build Granola integration before investing further in native capture.
+**Granola integration path (researched 2026-08-03 — Can is on free plan, happy with capture).** Granola auto-detects meetings at OS level (PWA can't), outputs structured notes + action items. TODAY's role: task extraction from Granola's output. `get_meetings` (summaries + action items) is available free — enough without the transcript. **Integration MVP:** Granola MCP key in Connections → Netlify function calls `list_meetings` + `get_meetings` → AI extraction → task chips. Manual trigger: user finishes a meeting, opens TODAY, taps import. **Priority within meeting capture:** build Granola integration before investing further in native capture. (Todoist is the highest task-integration priority separately.)
 
 **Gate (unchanged):** extraction quality — are the chips what you'd have written down yourself?
 
@@ -120,7 +114,7 @@
 ### Watching
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| Modularization | Single file (~14K lines) + `assets/poems.js` + extracted modules | Roadmap #3 in progress; 8 modules extracted. `sync.js` is the next meaningful cut. Smoke test guards the boot path. |
+| Modularization | Single file (~14.2K lines) + `assets/poems.js` + extracted modules | Roadmap #3 in progress; 10 modules extracted. Next: `focus.js`; direct sync extraction stays deferred. Platform, splash, focus, and smoke tests guard the affected paths. |
 | Sync conflict rate | Merge-anomaly counter live (Connections → Dropbox) | If count climbs above zero in normal use, revisit conflict handling before WEEK consumes the data. |
 | Dated AI-cache sync | 2 instances hand-plumbed (nudge v2.27.0b, weekly block v2.36.1/BUG-057) | **Rule of three:** the next AI-generated daily text must trigger a registry instead of a third hand-plumbing — same payload + remote-wins-merge pattern each time. |
 | open_triage second use | Shipped v2.36.0 from Can's own request | ⚠️ Mid-Aug deadline reached (2026-08-08) — ask Can whether he's used `open_triage` unprompted, or if discoverability should be improved / feature removed. |

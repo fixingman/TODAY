@@ -9,7 +9,7 @@
 
 | Asset | Raw (decoded) | Brotli | Notes |
 |---|---|---|---|
-| `index.html` | 657 KB | 187 KB | Single HTML file — no build step; 3.6× brotli ratio (v2.64.23 baseline) |
+| `index.html` | 627 KB | 168 KB | Single HTML file — no build step (v2.64.26 baseline, Brotli q5) |
 | `sw.js` | 6.1 KB | 2.5 KB | Service worker — cache strategy, precache list, offline fallback |
 | `assets/util.js` | 4.4 KB | 2.3 KB | Pure utility helpers; SW-precached |
 | `assets/idle.js` | 6.2 KB | 2.1 KB | Idle companion IIFE; SW-precached |
@@ -18,11 +18,13 @@
 | `assets/trello.js` | 20.9 KB | 7.0 KB | Trello integration extracted v2.33.x (Roadmap #3); SW-precached |
 | `assets/insights.js` | 20.5 KB | 6.7 KB | AI memory + pattern learning extracted v2.33.10 (Roadmap #3); SW-precached |
 | `assets/error-monitor.js` | 6.0 KB | 2.1 KB | Error logging + red dot/panel extracted v2.41.1 (Roadmap #3, seventh module); SW-precached |
+| `assets/splash.js` | 19.5 KB | 6.6 KB | Splash gate + animation controller extracted v2.64.25 (Roadmap #3); SW-precached |
+| `assets/platform.js` | 12.1 KB | 3.2 KB | PWA, mobile keyboard, SW registration, and bfcache controller extracted v2.64.26 (Roadmap #3); SW-precached |
 | `assets/poems.js` | 33.9 KB | 11.4 KB | Daily poem corpus (96 poems); SW-precached |
-| **Total JS** | **661 KB** | **195 KB** | index.html + 8 extracted modules |
+| **Total app JS** | **~787 KB** | **~219 KB** | index.html + 10 extracted modules + poem corpus (Brotli q5) |
 
-**Lines of code:** ~14,700 index.html + ~2,900 extracted (≈17,600 total)
-— util.js: 97 · idle.js: 289 · sound.js: 224 · celebration.js: 163 · trello.js: ~510 · insights.js: ~560 · error-monitor.js: 145 · poem-utils.js: ~200 · poems.js: 641
+**Lines of code:** ~14,200 index.html + ~3,020 extracted + ~650 poem corpus (≈17,900 total)
+— util.js: 97 · idle.js: 289 · sound.js: 224 · celebration.js: 163 · trello.js: 519 · insights.js: 825 · error-monitor.js: 145 · poem-utils.js: 45 · splash.js: 403 · platform.js: 310 · poems.js: 647
 
 **External scripts:** 0. All assets same-origin, SW-cached; no CDN, no analytics SDK. `scripts/design-lint.mjs` rejects external runtime script tags and known analytics/replay markers (Rule 32).
 **External fonts on first visit:** 6 files (self-hosted, pre-cached by SW). Zero Google Fonts pings.  
@@ -195,7 +197,7 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 | `localStorage` disabled | Low | `safeJSON` reads catch SecurityError; global `setItem` wrapper IIFE may throw before installing if storage fully blocked. App loads with red dot, data not persisted. |
 | `renderTrello()` runs every 7s tick unconditionally | Low | v2.18.12 — diff-patch bounds cost (≤20 cards). Only item in history that adds baseline per-tick work. Revisit if Trello card counts grow much larger than ~20. |
 | BUG-004 repaint ceiling | Low | Extended to 5000ms (v2.31.9). If a very long sleep still leaves GPU unready past 5s, a 7th pass or a fallback `click` simulation may be needed. |
-| index.html growth | Watch | 657 KB decoded / 187 KB brotli (v2.64.23 baseline). Extraction (Roadmap #3, 8 modules) offsets feature growth partially. Next extraction candidate: sync.js (~510 lines) — needs risk discussion (Non-Delegation ceiling). At ~300 lines/version growth rate, adds ~5 KB brotli per version. |
+| index.html growth | Watch | 627 KB decoded / 168 KB brotli (v2.64.26 Brotli-q5 baseline). Extraction (Roadmap #3, 10 modules) offsets feature growth partially. Next candidate: `focus.js` (~1,333). Direct sync extraction is deferred because its live sync/wake cluster is ~1,968 tightly coupled lines. At ~300 lines/version growth rate, index growth adds roughly 5 KB brotli per version. |
 | BUG-041: iOS PWA splash white flash | Platform limitation | Closed 2026-07-24 after a fourth investigation pass ruled out every app-code explanation: splash launch-image colors correct (RGB 14,14,16, matches `--bg`), iPhone 14 Pro's exact spec present in the `apple-touch-startup-image` list, latest build confirmed running, no render-blocking `<head>` resource. What remains is the gap between iOS's static launch image ending and the WebView's first painted frame — a handoff with no hook available from web content. Reopen only if light/dark-mode correlation is confirmed, or the flash appears on a warm/backgrounded reopen (not just true cold start) — either would point back at in-page code. Full four-pass history → `archive/Bugs-archive.md`. |
 
 ---
@@ -278,6 +280,8 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 | Poem share design iteration (color/weight, hover-reveal, `.task-copy` mirroring, click feedback) | v2.40.2–v2.40.8 | Pure CSS/small-DOM-handler changes throughout — no new network calls, no new storage keys, no measurable runtime cost at any point in the arc. Negligible. |
 | Removed: ✦ Daily brief | v2.41.0 | Net negative work — one function (`_showDailyBrief()`) and its supporting CSS deleted outright, not replaced with anything heavier. Empty ✦ tap now runs the AI panel's pre-existing `_aiLoad()` path, already paid for elsewhere. |
 | Roadmap #3: `error-monitor.js` extracted (seventh module) | v2.41.1 | ~6 KB moved out of `index.html` into an SW-precached file. Zero runtime cost change — same functions, same call sites, only the physical file boundary moved. First extraction with no Non-Delegation concerns at all (dev-aid only, no sync/merge logic). |
+| Roadmap #3: `splash.js` extracted (ninth module) | v2.64.25 | ~20 KB moved out of `index.html` into an SW-precached classic script. It stays inert until called at the original post-`init()` boundary, so execution timing and runtime cost are unchanged. |
+| Roadmap #3: `platform.js` extracted (tenth module) | v2.64.26 | ~12 KB moved out of `index.html` into an SW-precached classic script. One end-of-script initializer preserves listener timing and runtime work. Cost: one additional same-origin app-shell request on an uncached first load; repeat/offline loads come from the SW cache. |
 | Feature: two-tap poem share on touch | v2.42.0 | One new function (`_onPoemTap`), one `matchMedia` check per tap, one document-level click listener (bounded — fires on every click app-wide, but does only a cheap `classList.contains`/`.contains()` check unless a poem is actively revealed). Negligible. |
 | Fix: Trello checklist/session badge order + spacing | v2.42.1–v2.42.2 | Pure CSS property swap (`inline`→`inline-block`, one `margin-top`) plus a template string reorder in both `taskHTML()` and `renderTrello()`'s patch path. Same string-building cost either way — zero net change. |
 | Fix: Day Nudge fallback→AI upgrade | v2.42.3 | One new boolean flag (`_nudgeIsFallback`) and one changed condition in an existing guard — no new network calls, no new storage keys, no additional AI generation (reuses the exact same cached response that was already being generated and discarded). Negligible. |

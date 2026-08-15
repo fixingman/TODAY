@@ -354,6 +354,8 @@ Fades in over 0.6s, fades out on activity.
 
 Full-screen overlay (`z-index: 500`, `pointer-events: all`) shown on cold app open. Covers the task list while it loads — `pointer-events: all` prevents accidental taps reaching tasks below.
 
+**Implementation (v2.64.25):** the complete controller lives in `assets/splash.js`, loaded as an inert classic script before the main inline script. `index.html` calls `window._startSplash()` immediately after `init()`, preserving the original startup order. The module owns the readiness flags and animation internals while retaining the existing `window._onAppLoadDone`, `window._onSplashAnimDone`, and `window._doSplashDismiss` hooks used by the load gate.
+
 **Animation:** Typewriter date string at 38–66ms per character, then 500ms cursor hold, then dismiss.
 
 **Poem coda (v2.26.0, Roadmap #2):** on the day's **first** splash (`poem_splash_date` in
@@ -376,3 +378,11 @@ instead of clipping at the top — `justify-content:center` would clip invisibly
 - localStorage cleared → always show
 
 This 30-minute window replaced an earlier date-key approach (`splash_shown_date`) which was once-per-day and blocked desktop PWA close + reopen from seeing the splash. (The poem coda's `poem_splash_date` is a separate, deliberately once-per-day key — the poem is a morning moment; the splash itself still follows the 30-minute rule.)
+
+---
+
+## Browser Platform Behaviors (v2.64.26)
+
+`assets/platform.js` owns the browser-facing shell integrations behind one idempotent `window._startPlatform()` call at the end of the main script: service-worker registration/update activation, coarse-pointer `visualViewport` keyboard positioning, PWA install events and browser-specific promotion, and persisted `pageshow` wake recovery. `installPWA`, `_pwaShowSteps`, and `_pwaCopyLink` remain explicit `window` functions because static/generated buttons call them by name.
+
+The module owns behavior only. PWA and keyboard HTML/CSS remain in `index.html`; installation instructions, row dimensions, service-worker policy, and `_onWake` behavior are unchanged by the extraction.

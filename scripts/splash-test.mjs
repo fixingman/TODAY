@@ -3,10 +3,12 @@
 // Verifies the staged splash exit animation introduced in v2.56.0:
 //   • No-coda path (no poem today): splash dismisses in < 10s, no JS errors
 //   • Forced-coda path (poem shows): splash dismisses in < 20s, no JS errors
+//   • 30-minute cooldown path: splash skips and the app reveals immediately
+//   • Extracted-module wiring, static selectors, and SW precache entry
 //
 // The key invariant: _doSplashDismiss now stages the exit (TO → DAY → coda lines →
 // overlay), adding ~1s exit time. Total wall time must never exceed the 20s ceiling.
-// Safety timers in the app cap pre-dismiss time at 18s, making max total ~19.5s.
+// Safety timers in the app cap pre-dismiss time at 17s, keeping the total under 20s.
 //
 // Run from repo root:  node scripts/splash-test.mjs   (~30s)
 
@@ -64,18 +66,19 @@ try {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
 
-    // Pre-seed localStorage before navigation (can't do it beforehand without a page)
-    // Instead: navigate, then let the fast path or non-poem day handle it.
-    // To reliably suppress the coda, we'll inject poem_splash_date = today via
-    // page.evaluate in a new tab after first navigate, then reload.
-    const t0 = Date.now();
+    // Prime the origin, then clear the cooldown key before reloading. Previously the
+    // test left splash_shown_at intact, so both animation passes silently tested only
+    // the cooldown shortcut.
     await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
-
-    // Suppress poem coda for this test by setting poem_splash_date to today
-    const today = new Date().toISOString().slice(0, 10);
-    await page.evaluate((d) => localStorage.setItem('poem_splash_date', d), today);
+    await page.evaluate(() => {
+      localStorage.setItem('poem_splash_date', _localISO());
+      localStorage.removeItem('splash_shown_at');
+    });
     const reloadT0 = Date.now();
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
+
+    if (!await page.$('#splash'))
+      await fail('no-coda pass took the cooldown shortcut instead of running the splash');
     await waitForSplashGone(page);
     const elapsed = Date.now() - reloadT0;
 
@@ -96,19 +99,24 @@ try {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
 
-    // Prime localStorage via a first load, then reload with coda forced
+    // Prime localStorage via a first load, then force a fresh splash with an unseen
+    // poem date. The corpus always returns a poem for a valid local day.
     await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
-    const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
-    await page.evaluate((d) => localStorage.setItem('poem_splash_date', d), yesterday);
+    await page.evaluate(() => {
+      localStorage.setItem('poem_splash_date', '1900-01-01');
+      localStorage.removeItem('splash_shown_at');
+    });
 
     const t0 = Date.now();
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
 
-    // Check whether a poem actually exists for today (the app may skip coda if no poem)
+    // Pre-population happens synchronously at splash start, before the delayed fade-in.
     const hasCoda = await page.evaluate(() => {
       const el = document.getElementById('splash-poem');
       return el && el.querySelector('.splash-poem-text')?.innerHTML.trim().length > 0;
     }).catch(() => false);
+    if (!hasCoda)
+      await fail('forced-coda pass did not populate the poem');
 
     await waitForSplashGone(page);
     const elapsed = Date.now() - t0;
@@ -118,15 +126,47 @@ try {
     if (errors.length)
       await fail('uncaught JS errors on coda path', errors);
 
-    ok(`coda-${hasCoda ? 'active' : 'skipped'} splash dismissed in ${elapsed}ms (< 20s)`);
+    ok(`coda-active splash dismissed in ${elapsed}ms (< 20s)`);
     await page.close();
   }
 
-  // ── Pass 3: static logo structure (file check) ──────────────────────────
+  // ── Pass 3: cooldown skip path ──────────────────────────────────────────
+  {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1200, height: 900 });
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+
+    await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.evaluate(() => localStorage.setItem('splash_shown_at', Date.now().toString()));
+
+    const t0 = Date.now();
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForFunction(() => {
+      const main = document.getElementById('main-app');
+      const bar  = document.getElementById('addTaskBar');
+      return !document.getElementById('splash')
+        && main?.style.opacity === '1'
+        && bar?.style.opacity === '1';
+    }, { timeout: 3000 });
+    const elapsed = Date.now() - t0;
+
+    if (elapsed >= 3000)
+      await fail(`cooldown splash skip took ${elapsed}ms — expected < 3000ms`);
+    if (errors.length)
+      await fail('uncaught JS errors on cooldown path', errors);
+
+    ok(`cooldown path skipped splash and revealed app in ${elapsed}ms (< 3s)`);
+    await page.close();
+  }
+
+  // ── Pass 4: static structure + extracted-module wiring ──────────────────
   // The TO/DAY spans are static HTML — verify directly from source so timing
   // of splash dismiss doesn't interfere.
   {
-    const html = await readFile(join(ROOT, 'index.html'), 'utf8');
+    const html      = await readFile(join(ROOT, 'index.html'), 'utf8');
+    const splashSrc = await readFile(join(ROOT, 'assets/splash.js'), 'utf8');
+    const swSrc     = await readFile(join(ROOT, 'sw.js'), 'utf8');
     // Match <span class="l">T</span>, <span class="l">O</span> (non-accent)
     const toCount  = (html.match(/<span class="l">/g) || []).length;
     // Match <span class="l a"> (accent — the DAY letters)
@@ -137,15 +177,23 @@ try {
     if (dayCount !== 3)
       await fail(`expected 3 accent .l.a spans (DAY), found ${dayCount}`);
 
-    // Also verify _doSplashDismiss uses the correct selectors
-    if (!html.includes("querySelectorAll('.l:not(.a)')"))
+    // Also verify _doSplashDismiss uses the correct selectors in its new module.
+    if (!splashSrc.includes("querySelectorAll('.l:not(.a)')"))
       await fail('_doSplashDismiss missing TO selector: .l:not(.a)');
-    if (!html.includes("querySelectorAll('.l.a')"))
+    if (!splashSrc.includes("querySelectorAll('.l.a')"))
       await fail('_doSplashDismiss missing DAY selector: .l.a');
-    if (!html.includes('splash-coda-line'))
+    if (!splashSrc.includes('splash-coda-line'))
       await fail('_doSplashDismiss missing splash-coda-line span wrapping');
+    if (!splashSrc.includes('window._startSplash = function()'))
+      await fail('assets/splash.js does not expose window._startSplash()');
+    if (!html.includes('<script src="assets/splash.js"></script>'))
+      await fail('index.html does not load assets/splash.js');
+    if (html.indexOf('window._startSplash();') < html.indexOf('init();'))
+      await fail('window._startSplash() must run after init()');
+    if (!swSrc.includes("'/assets/splash.js'"))
+      await fail('sw.js does not precache assets/splash.js');
 
-    ok(`logo structure verified: ${toCount} TO spans + ${dayCount} DAY spans + coda-line wrapping present`);
+    ok(`module wiring verified: ${toCount} TO spans + ${dayCount} DAY spans + coda + SW cache`);
   }
 
   console.log('✓ SPLASH TEST PASSED');

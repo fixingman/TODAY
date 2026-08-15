@@ -28,6 +28,10 @@ The gate checks Trello token/config credentials, Dropbox access/refresh/expired 
 
 `today_connections_privacy_seen=1` is written at the start of that first panel visit and remains local-only: it is not part of the Dropbox payload or merge. The line stays for that one open visit, hides on panel close or a successful in-panel AI connection, and never returns on that device. It has no CTA, dismiss control, network call, or independent animation.
 
+### Install app row (v2.64.5–v2.64.7, module v2.64.26)
+
+PWA installation is contextual platform help, not a data connection. Android Chromium uses the deferred native `beforeinstallprompt`; iOS/macOS Safari show their native menu instruction in place; iOS non-Safari and Firefox offer a copy-link route. Installed/standalone mode suppresses promotion. The instruction button keeps the row's computed height unchanged when its text is revealed. Runtime ownership lives in `assets/platform.js`; no install state enters Dropbox backup or sync.
+
 ---
 
 ## Trello
