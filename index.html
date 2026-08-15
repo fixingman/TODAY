@@ -1242,14 +1242,6 @@
   .triage-task-badge.letgo { color: var(--muted); }
   .triage-task-meta.trello { color: var(--highlight); }
   .triage-task.trello { border-left: 2px solid var(--highlight); }
-  .triage-task-hint {
-    font-size: var(--text-xs);
-    color: var(--muted);
-    margin-bottom: var(--space-2);
-    font-style: italic;
-    opacity: 0;
-    animation: fadeIn var(--dur-base) var(--ease-std) forwards;
-  }
   .triage-actions {
     display: flex;
     gap: var(--space-2);
@@ -1375,6 +1367,8 @@
   .triage-msg {
     font-size: var(--text-sm2);
     color: var(--text);
+    flex: 1;
+    min-width: 0;
   }
   #triageBar .triage-btn.primary {
     background: var(--accent-dim);
@@ -1383,6 +1377,7 @@
     padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-md);
     font-size: var(--text-xs);
+    flex: 0 0 auto;
   }
 
   /* Task item */
@@ -4030,9 +4025,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.28': 'Fix: task count in the evening review bar is now visible. Fix: tasks marked done during review now count toward your daily total.',
   '2.64.27': 'Fix: task order changed on touch devices now saves and syncs reliably. Maintenance: drag and reorder handling was reorganized internally.',
   '2.64.26': 'Maintenance: browser installation, mobile keyboard, updates, and wake handling were reorganized internally without changing how they work.',
-  '2.64.25': 'Maintenance: the opening splash was reorganized internally with no change to its appearance or timing.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4827,7 +4822,6 @@ function checkTriageBar() {
 
 function triageExpand() {
   triageDecisions = {};
-  _triageHints = {}; // Reset AI hints
   _triageActive = true; // Lock bar hidden while triage is in progress
   
   const { manual: undoneManual, trello: undoneTrello } = _undoneTasks();
@@ -4846,118 +4840,6 @@ function triageExpand() {
   const overlay = $.triageOverlay || document.getElementById('triageOverlay');
   if (overlay) overlay.classList.remove('hidden');
   
-  // Fetch AI hints async (non-blocking) — manual tasks only for now
-  _fetchTriageHints(undoneManual);
-}
-
-// AI hints for triage — stored per task ID
-let _triageHints = {};
-
-async function _fetchTriageHints(tasks) {
-  // Check if AI is configured
-  const key = _aiGetKey();
-  if (!key || tasks.length === 0) return;
-  
-  // Build context for each task
-  const hour = new Date().getHours();
-  const dayOfWeek = new Date().getDay();
-  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  
-  // Read once before map — not inside the loop (was reading N times per render)
-  const focusData = safeJSON('today_trello_focus_total', {});
-
-  const taskContexts = tasks.map(t => {
-    const created = t.lastActive || t.createdAt || _getCreatedFromId(t.id);
-    const ageDays = _getAgeDays(created);
-    const sessions = focusData[t.id] || 0;
-    return {
-      id: t.id,
-      text: t.text,
-      ageDays,
-      sessions
-    };
-  });
-  
-  // Get past triage decisions for pattern learning
-  const history = _getTriageHistory();
-  const recentHistory = history.slice(0, 20); // Last 20 decisions
-  
-  // Summarize patterns from history
-  let historyContext = '';
-  if (recentHistory.length >= 5) {
-    const keptCount = recentHistory.filter(h => h.decision === 'kept').length;
-    const soonCount = recentHistory.filter(h => h.decision === 'soon').length;
-    const letgoCount = recentHistory.filter(h => h.decision === 'letgo').length;
-    const avgAge = Math.round(recentHistory.reduce((sum, h) => sum + (h.ageDays || 0), 0) / recentHistory.length);
-    const withSessions = recentHistory.filter(h => h.sessions > 0);
-    const sessionsKept = withSessions.filter(h => h.decision === 'kept').length;
-    
-    historyContext = `
-Past triage patterns (last ${recentHistory.length} decisions):
-- Kept: ${keptCount}, Deferred to Soon: ${soonCount}, Let go: ${letgoCount}
-- Average task age at triage: ${avgAge} days
-${withSessions.length > 0 ? `- Tasks with focus sessions: ${sessionsKept}/${withSessions.length} were kept` : ''}
-${dayOfWeek === 0 ? `- Sunday decisions tend toward: ${soonCount > keptCount ? 'deferring' : 'keeping'}` : ''}`;
-  }
-  
-  const prompt = `Evening triage: the user has ${tasks.length} undone task(s). For each, provide a SHORT contextual hint (or null if no hint needed).
-
-Current time: ${hour}:00, ${dayNames[dayOfWeek]}
-${historyContext}
-
-Tasks:
-${taskContexts.map(t => `- "${t.text}" [id: ${t.id}] — ${t.sessions > 0 ? t.sessions + ' focus sessions, ' : ''}${t.ageDays} days old`).join('\n')}
-
-Reply ONLY with raw JSON (no markdown):
-{
-  "hints": [
-    { "id": "task_id", "hint": "short hint under 10 words" },
-    { "id": "task_id", "hint": null }
-  ]
-}
-
-Hint guidelines:
-- If task has focus sessions: "Time invested. Worth finishing?"
-- If task is 5+ days old: "Day X. Still relevant?"
-- If it's late (after 10pm): "It's late. Maybe tomorrow?"
-- If Sunday evening: "New week tomorrow"
-- If task seems complex (many words): "Big one. Break it down?"
-- Use past patterns: if they usually keep tasks with sessions, nudge that way
-- If no useful context: null (no hint)
-- Never preachy, never judgmental. Curious, warm, brief.`;
-
-  try {
-    const res = await fetch('/.netlify/functions/ai-assist', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        provider: _aiGetProvider(),
-        apiKey: key,
-        messages: [{ role: 'user', content: prompt }],
-        systemPrompt: 'You are a gentle assistant helping with evening task triage. Be warm, brief, never preachy. Learn from their past patterns.'
-      }),
-    });
-    
-    if (!res.ok) return;
-    
-    const data = await res.json();
-    if (data.error) return;
-    
-    // Parse AI response
-    const content = data.content || data.message || '';
-    const parsed = typeof content === 'string' ? JSON.parse(content) : content;
-    
-    if (parsed.hints && Array.isArray(parsed.hints)) {
-      parsed.hints.forEach(h => {
-        if (h.hint) _triageHints[h.id] = h.hint;
-      });
-      // Re-render to show hints
-      renderTriageList();
-    }
-  } catch (e) {
-    console.log('[Triage] AI hints failed:', e.message);
-    // Silent failure — hints are optional
-  }
 }
 
 function renderTriageList() {
@@ -5024,7 +4906,6 @@ function renderTriageList() {
           <span class="triage-task-text">${esc(t.text)}</span>
           <span class="triage-task-meta ${metaClass}">${metaText}</span>
         </div>
-        ${_triageHints[t.id] ? `<div class="triage-task-hint">${esc(_triageHints[t.id])}</div>` : ''}
         <div class="triage-actions">
           ${actions}
         </div>
@@ -8379,7 +8260,7 @@ function deleteManual(taskId) {
 function updateStats() {
   const all   = [...trelloTasks, ...manualTasks];
   const total = all.length;
-  const done  = all.filter(t => doneIds.has(t.id)).length;
+  const done  = [...all, ...pastTasks].filter(t => doneIds.has(t.id)).length;
   const left  = total - done;
   const pct   = total > 0 ? done / total : 0;
 
@@ -11294,7 +11175,6 @@ Available actions (use only what genuinely fits — fewer is better):
   check_habit  { "id": "exact-id" }      — remind to mark a habit done
   add_task     { "text": "task text" }   — add something (empty state only)
   move_soon    { "id": "exact-id" }      — park a task to Soon. ONLY when they explicitly ask to park/move/defer it — never suggest it yourself. Works for manual tasks only (ids starting "manual_"), not trello cards.
-  open_triage  {}                        — open the sorting flow where they decide each remaining task (done / keep / soon / let go). Use when they ask to go through, sort, park, or defer what's left as a whole — "triage", "review my tasks", "move things to soon", "I'll do these later". If they name ONE specific task, use move_soon instead. ONLY on their explicit ask — never suggest sorting yourself.
   reflect      {}                        — use rarely, only when you have a specific pattern observation worth sharing
   dismiss      {}                        — close
 
@@ -11473,20 +11353,6 @@ function _aiExecute(action) {
       updateStats();
       dropboxAutoSave();
       closeAI();
-      return;
-    }
-    case 'open_triage': {
-      // User asked to sort what's left ("triage", "move these to soon", "do
-      // the rest later"). User-initiated, so no evening gate — the 8pm window
-      // governs when the app *invites* triage, not when it obliges a request.
-      const { manual: _tm, trello: _tt } = _undoneTasks();
-      if (_tm.length + _tt.length === 0) {
-        _aiSetMsg('Nothing waiting — the list is already clear.');
-        _aiSetChips([{ label: 'Close', type: 'dismiss' }]);
-        return;
-      }
-      closeAI();
-      setTimeout(triageExpand, 150);
       return;
     }
     case 'reflect': {

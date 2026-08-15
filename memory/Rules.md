@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.64.27 drag extraction complete; next Roadmap #3 extraction is `focus.js`. In queue: poem corpus growth (spring=10, target ~13; Teasdale candidates proposed, awaiting cut). Splash letter dispersion fix pending (WAAPI `_fade` plan exists).
-- **Recent (2026-08-15):** Memory auto-sync fix — appMemory now merges on every sync cycle, not just manual restore (v2.64.23). Sync hardening — 8 storage/merge fixes (v2.64.22). Tagged task shimmer stabilized (v2.64.20/21). Focus mode dim-then-blur enter / blur-then-brighten exit (v2.64.19). About contextual CTAs bordered treatment (v2.64.10). Connections privacy reassurance (v2.64.11). Focus companion late-night time reference made concrete (v2.64.9).
+- **Working on:** v2.64.28 shipped; next Roadmap #3 extraction is `focus.js`. In queue: poem corpus growth (spring=10, target ~13; Teasdale candidates proposed, awaiting cut). Splash letter dispersion fix pending (WAAPI `_fade` plan exists).
+- **Recent (2026-08-15):** Triage bar count visible + stats-after-triage fix + AI hints dead code removed (v2.64.28). Drag extraction complete (v2.64.27). Memory auto-sync fix (v2.64.23). Sync hardening — 8 storage/merge fixes (v2.64.22). Tagged task shimmer stabilized (v2.64.20/21). Focus mode dim-then-blur enter / blur-then-brighten exit (v2.64.19).
 - **Module extraction (Roadmap #3):** 11 done: `util.js`, `idle.js`, `sound.js`, `celebration.js`, `trello.js`, `insights.js`, `error-monitor.js`, `poem-utils.js`, `splash.js`, `platform.js`, `drag.js`. Next: `focus.js` (~1,333). Then test-gated: `meeting.js` (~879). Direct sync extraction is deferred: the live sync/wake cluster is ~1,968 tightly coupled lines. Coupled core stays inline. Full inventory and queue → `Backlog.md` §3 / `Performance-audit.md` §1.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
   - **v2.62.1 ⏳** — verify: `appMemory.patterns.triageUndos` increments on triage undo; `soonPulls` increments on pull-from-soon; `reviveReasons` populated on revive; letting the undo toast expire records letgoReasons.
