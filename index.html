@@ -4027,9 +4027,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.24': 'Fix: splash logo letters now fade out in consistent order (TO then DAY) — replaced style-transition pattern with WAAPI animate() to prevent non-deterministic same-frame skip.',
   '2.64.23': 'Memory now merges on every sync cycle — patterns, inferences, moments, keywords no longer require manual Restore Backup to reconcile across devices.',
   '2.64.22': 'Sync hardening: streak stale-high fix, checked_ids true LWW, Trello config cross-device, AI conversation merge, storage pruning for reflection/nudge/Trello card maps.',
-  '2.64.21': 'Sync fix: memory inferences now merge cross-device (union by id); missing pattern fields (triageUndos, soonPulls, letgoReasons, reviveReasons, lateAdditions, taskLifespanSamples) added to merge.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -10941,8 +10941,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
 
     const _fade = (el, dur, ease = 'ease') => {
       if (!el) return;
-      el.style.transition = `opacity ${dur}ms ${ease}`;
-      el.style.opacity = '0';
+      el.animate([{ opacity: '0' }], { duration: dur, easing: ease, fill: 'forwards' });
     };
 
     // 1. "TO" fades first (non-accent .l spans)
