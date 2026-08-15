@@ -311,6 +311,8 @@ if (!_changed && manualTasks.length === mergedTasks.length) {
 
 When `_changed` is true, `renderManual()` is called to update the UI.
 
+**v2.64.27 touch Trello parity:** the mobile long-press path previously reordered `trelloTasks` and refreshed `today_trello_cache`, but omitted `today_trello_order`, `today_trello_order_at`, `last_local_change`, and Dropbox autosave. It now writes the same persistence and recency signals as desktop before the extracted drag controller cleans up the gesture.
+
 ### Recency-Aware Manual Order — drag jump-back (v2.38.7)
 
 **Symptom:** drag a manual task to reorder, and ~1 second later it snaps back to its old position — most visible on a warm refresh (reopened within 30 min, so the splash is skipped and the app is interactive instantly).

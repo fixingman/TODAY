@@ -45,6 +45,10 @@ If testing **focus mode** changes:
 - [ ] Complete a session, then start a different task → no `.complete` styling bleeds
       into the new session's bar (BUG-022/028 — same reason)
 
+If testing **task or habit reorder** changes:
+- [ ] Run `node scripts/drag-test.mjs` first — it covers desktop and touch ordering,
+      persistence and sync timestamps, guards, long-press cancellation, and cleanup.
+
 If testing **zone** changes:
 - [ ] Triage bar appears 8pm–midnight
 - [ ] Zone moves trigger sync

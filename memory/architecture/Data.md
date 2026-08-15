@@ -203,6 +203,8 @@
 
 **Critical:** `manualTasks`, `habitsList`, and `trelloTasks` arrays preserve drag order. Never re-sort them programmatically.
 
+Desktop and touch reorder are owned by `assets/drag.js`; both paths persist the same list-specific order contract before sync is allowed to run.
+
 - Manual tasks: order stored in `today_manual` array
 - Habits: order stored in `today_habits` array  
 - Trello: order stored separately in `today_trello_order` (applied after each Trello fetch)

@@ -16,7 +16,7 @@
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 2 | **Poem corpus growth** | Ongoing | Corpus 97, target ~100, three to go. Spring thinnest gap. A cut is final — detail ↓ |
-| 3 | **Module extraction** | In progress | **Done:** util/idle/sound/celebration/trello/insights/error-monitor/poem-utils/splash/platform.js. **Next:** `focus.js` (~1,333). Direct `sync.js` extraction is deferred: the live sync/wake cluster is ~1,968 lines and tightly coupled. **Ceiling:** coupled core stays inline — extracting it needs ES modules + build step (breaks Rule 24). |
+| 3 | **Module extraction** | In progress | 11 modules extracted. **Next:** `focus.js` (~1,333). Meeting remains test-gated; direct sync extraction is deferred. Inventory and decision gates ↓ |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 6 | **Todoist integration** | Not started | Highest task-integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 | 9 | **Meeting mode v2** | Mobile awaiting device verify | Language ✅ done. In-room meetings on iOS PWA — detail ↓ |
@@ -54,6 +54,18 @@
 - Cranmer-Byng *A Feast of Lanterns* (archive.org `in.ernet.dli.2015.282424`) — Yuan Mei, Liu Tzu-hui unproposed, available when China tiebreaker lifts
 - Prose at Marcus Aurelius length (2–5 sentences) works; Muir *First Summer* (d.1914) worth a targeted pass; Garnett-trans. Chekhov nature prose not yet searched
 - Closed: London Snow (too long), Turkish/Sufi (no worldwide-PD English), Poe (anguished), Egyptian/African/Scandinavian (PD-translation bottleneck)
+
+### 3 · Module Extraction
+
+**Extracted (11):** `util.js` · `idle.js` · `sound.js` · `celebration.js` · `trello.js` · `insights.js` · `error-monitor.js` · `poem-utils.js` · `splash.js` · `platform.js` · `drag.js`. Exact sizes, versions, and runtime ownership live in `Performance-audit.md` §1.
+
+| Order | Candidate | Approx. lines | Gate / decision |
+|---|---|---:|---|
+| Next | `focus.js` | 1,333 | Ready: cohesive IIFE with strong `focus-test.mjs` invariant coverage. Preserve existing `window._focus*` / `window._pip*` hooks and load at the current boundary. |
+| Later | `meeting.js` | 879 | Add mocked MediaRecorder/getUserMedia/wake-lock tests and complete real-device mobile verification first. |
+| Deferred | Sync/wake cluster | 1,968 | Do not extract wholesale. First separate and test merge rules, Dropbox transport, persistence timestamps, and wake orchestration; only the resulting low-coupling unit becomes a module. |
+
+**Ceiling:** AI panel, triage/nudges, task rendering/actions, habits state, and startup/day orchestration remain inline until they gain explicit state APIs or materially better regression coverage. Extraction is for ownership and navigation, not payload reduction; every module remains part of the same SW-cached app shell.
 
 ### 4 · Push Notifications
 **Platform:** iOS 16.4+ (installed PWA only) + Android. Web Push API + VAPID keys.
@@ -114,7 +126,7 @@
 ### Watching
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| Modularization | Single file (~14.2K lines) + `assets/poems.js` + extracted modules | Roadmap #3 in progress; 10 modules extracted. Next: `focus.js`; direct sync extraction stays deferred. Platform, splash, focus, and smoke tests guard the affected paths. |
+| Modularization | Single file (~13.9K lines) + `assets/poems.js` + extracted modules | Roadmap #3 in progress; 11 modules extracted. Next: `focus.js`; direct sync extraction stays deferred. Drag, platform, splash, focus, and smoke tests guard the affected paths. |
 | Sync conflict rate | Merge-anomaly counter live (Connections → Dropbox) | If count climbs above zero in normal use, revisit conflict handling before WEEK consumes the data. |
 | Dated AI-cache sync | 2 instances hand-plumbed (nudge v2.27.0b, weekly block v2.36.1/BUG-057) | **Rule of three:** the next AI-generated daily text must trigger a registry instead of a third hand-plumbing — same payload + remote-wins-merge pattern each time. |
 | open_triage second use | Shipped v2.36.0 from Can's own request | ⚠️ Mid-Aug deadline reached (2026-08-08) — ask Can whether he's used `open_triage` unprompted, or if discoverability should be improved / feature removed. |
