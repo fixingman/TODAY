@@ -34,6 +34,20 @@
 
 ---
 
+## BUG-073 — Focus Ask refers to lateness without a time value
+
+**Status:** ✅ Verified fixed (v2.64.9; verified 2026-08-15 by Can on real device)
+
+**Symptom:** A late-night Focus Companion question could say “this late” without naming what time it was, making the observation feel incomplete.
+
+**Root cause:** The context payload included only the broad `late night` label. The model could infer lateness but had no clock value to cite.
+
+**Fix (v2.64.9):** The payload includes the device-local hour and minute alongside the broad period. The prompt requires that exact value whenever it refers to time, while leaving the model free to omit time when another signal is more useful.
+
+**Verified fixed:** ✅ 2026-08-15 (Can, real device)
+
+---
+
 ## BUG-070 — Undo toast reason chips unclickable on narrow screens
 
 **Status:** ✅ Verified fixed (v2.61.4; verified 2026-08-15 by Can on real device)

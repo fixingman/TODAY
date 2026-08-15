@@ -17,7 +17,7 @@
 |---|---|---|
 | 075 | Tagged task flashes or changes shimmer timing when hover overlaps its arrival animation | ✅ v2.64.20 |
 | 074 | Shared `/poem.html` links crash in the Netlify Edge Function before the static page loads | ✅ v2.64.12 |
-| 073 | Focus Ask question says “this late” without supplying the actual local time | ⏳ v2.64.9 |
+| 073 | Focus Ask question says “this late” without supplying the actual local time | ✅ v2.64.9 |
 | 072 | Triage flow never completes — "Let go" tapped but completion screen never appears | ⏳ v2.61.6  |
 | 071 | App goes blank on wake from sleep or when PWA returns from background while in focus mode — third recurrence of BUG-004/056 family | ⏳ v2.61.5  |
 | 070 | Undo toast reason chips unclickable on narrow screens — column layout fix + chip highlight/auto-dismiss feedback | ✅ v2.61.4  |
@@ -95,21 +95,6 @@
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
-
----
-
-## BUG-073 — Focus Ask refers to lateness without a time value
-
-**Status:** ⏳ v2.64.9 (fix shipped — awaiting real-device verification)
-**File:** `index.html` — `_focusAskAI`
-
-**Symptom:** A late-night Focus Companion question can say “this late” without naming what time it is, making the observation feel incomplete.
-
-**Root cause:** The context payload included only the broad `late night` label. The model could infer lateness but had no clock value to cite.
-
-**Fix (v2.64.9):** The payload now includes the device-local hour and minute alongside the broad period. The prompt requires that exact value whenever it refers to time, while leaving the model free to omit time when another signal is more useful.
-
-**Verify:** Late at night, tap `✦ ask` in focus mode. If the question comments on lateness, it names the local time; it never says only “this late.”
 
 ---
 
