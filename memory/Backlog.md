@@ -16,7 +16,7 @@
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 2 | **Poem corpus growth** | Ongoing | Corpus 97, target ~100, three to go. Spring thinnest gap. A cut is final — detail ↓ |
-| 3 | **Module extraction** | In progress | 12 modules extracted. Next: `focus.js`. The complete reviewed extraction queue is tracked below. Direct sync extraction is deferred. Inventory and decision gates ↓ |
+| 3 | **Module extraction** | In progress | 16 modules extracted. Next: `focus.js`. The complete reviewed extraction queue is tracked below. Direct sync extraction is deferred. Inventory and decision gates ↓ |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 6 | **Todoist integration** | Not started | Highest task-integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 | 9 | **Meeting mode v2** | Mobile awaiting device verify | Language ✅ done. In-room meetings on iOS PWA — detail ↓ |
@@ -57,18 +57,18 @@
 
 ### 3 · Module Extraction
 
-**Extracted (11):** `util.js` · `idle.js` · `sound.js` · `celebration.js` · `trello.js` · `insights.js` · `error-monitor.js` · `poem-utils.js` · `splash.js` · `platform.js` · `drag.js`. Exact sizes, versions, and runtime ownership live in `Performance-audit.md` §1.
+**Extracted (16):** `util.js` · `idle.js` · `sound.js` · `celebration.js` · `trello.js` · `insights.js` · `error-monitor.js` · `poem-utils.js` · `splash.js` · `platform.js` · `drag.js` · `meeting.js` · `memory-panel.js` · `triage.js` · `zones.js` · `habits.js`. Exact sizes, versions, and runtime ownership live in `Performance-audit.md` §1.
 
 | Order | Module | Size | Gate |
 |---|---|---:|---|
 | Done | `meeting.js` | ~715 | Extracted v2.64.29. Physical baseline on v2.64.28 confirmed; post-extraction test on deployed v2.64.29 still pending (Can to run). |
+| Done | `memory-panel.js` | ~520 | Extracted v2.64.30. `scripts/memory-panel-test.mjs` written; all 9 assertions pass. Post-extraction physical test pending. |
+| Done | `triage.js` | ~545 | Extracted v2.64.31. `scripts/triage-test.mjs` written; all 10 assertions pass (pre and post). |
+| Done | `zones.js` | ~293 | Extracted v2.64.32. `scripts/zones-test.mjs` written; all 11 assertions pass (pre and post). soonTasks/pastTasks/triageDismissedToday stay as inline globals — wholesale-reassigned by merge layer. |
 | 1 | `focus.js` | ~1,332 | Ready—strong automated invariant coverage. |
-| 2 | `memory-panel.js` | ~500 | Test confirm, dismiss, forget, clear, abstraction, and Connections handoff. |
 | 3 | `about.js` | ~585 | Test poem sharing, weekly stats, Noticed, Sunday reflection, and Monday intention. |
 | 4 | `connections.js` | ~430 | Test credential combinations, privacy gate, offline state, and provider rendering. |
-| 5 | `zones.js` | ~308 | Test Soon/Past moves, ordering, timestamps, deletion, and sync. Keep shared `soonTasks` / `pastTasks` state inline for triage, stats, rollover, backup, and merge consumers. |
-| 6 | `habits.js` | ~409 | Test 3am rollover, editing, archive/undo, focus integration, and sync. |
-| 7 | `triage.js` | ~640 | Needs a full flow invariant suite before extraction. |
+| Done | `habits.js` | ~403 | Extracted v2.64.33. `scripts/habits-test.mjs` written; all 11 assertions pass (pre and post). All 4 state vars stay as inline globals — wholesale-reassigned by merge layer. `_getHabitDates` private. |
 
 **Deferred:** do not extract the ~1,968-line sync/wake cluster wholesale. First separate and test merge rules, Dropbox transport, persistence timestamps, and wake orchestration; only a resulting low-coupling unit becomes a module.
 
