@@ -16,7 +16,7 @@
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 2 | **Poem corpus growth** | Ongoing | Corpus 97, target ~100, three to go. Spring thinnest gap. A cut is final — detail ↓ |
-| 3 | **Module extraction** | In progress | 16 modules implemented locally; 13 are tracked at `dev` HEAD. **Immediate:** repair the omitted Memory panel, Triage, and Zones assets/tests, then extract `focus.js`. Direct sync extraction is deferred. Inventory and decision gates ↓ |
+| 3 | **Module extraction** | In progress | 17 modules implemented locally; 14 are tracked at `dev` HEAD. **Immediate:** repair the omitted Memory panel, Triage, and Zones assets/tests, then extract `focus.js`. Direct sync extraction is deferred. Inventory and decision gates ↓ |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 6 | **Todoist integration** | Not started | Highest task-integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 
@@ -56,7 +56,7 @@
 
 ### 3 · Module Extraction
 
-**Implemented (16; 13 tracked, 3 awaiting release repair):** `util.js` · `idle.js` · `sound.js` · `celebration.js` · `trello.js` · `insights.js` · `error-monitor.js` · `poem-utils.js` · `splash.js` · `platform.js` · `drag.js` · `meeting.js` · `memory-panel.js`* · `triage.js`* · `zones.js`* · `habits.js`. Asterisks mark locally present, passing modules omitted from the current commit and therefore returning 404 on deployed `dev`. Exact sizes and runtime ownership live in `Performance-audit.md` §1.
+**Implemented (17; 14 tracked, 3 awaiting release repair):** `util.js` · `idle.js` · `sound.js` · `celebration.js` · `trello.js` · `insights.js` · `error-monitor.js` · `poem-utils.js` · `splash.js` · `platform.js` · `drag.js` · `meeting.js` · `about.js` · `memory-panel.js`* · `triage.js`* · `zones.js`* · `habits.js`. Asterisks mark locally present, passing modules omitted from the current commit and therefore returning 404 on deployed `dev`. Exact sizes and runtime ownership live in `Performance-audit.md` §1.
 
 | Order | Module | Size | Gate |
 |---|---|---:|---|
@@ -65,7 +65,7 @@
 | Repair | `triage.js` | ~545 | Implementation and all 10 pre/post assertions pass locally, but the asset and test are untracked; deployed `dev` returns 404. |
 | Repair | `zones.js` | ~293 | Implementation and all 11 pre/post assertions pass locally, but the asset and test are untracked; deployed `dev` returns 404. Shared zone state remains inline for the merge layer. |
 | 1 | `focus.js` | ~1,332 | Ready—strong automated invariant coverage. |
-| 3 | `about.js` | ~585 | Test poem sharing, weekly stats, Noticed, Sunday reflection, and Monday intention. |
+| Done | `about.js` | ~605 | Extracted v2.64.34; 11 tests pass. No module-scope state vars. 6 exports: `toggleInfo`, `_poemOfTheDay`, `_onPoemTap`, `_shareDailyPoem`, `_copyToClipboard`, `renderInfoStats`. |
 | 4 | `connections.js` | ~430 | Test credential combinations, privacy gate, offline state, and provider rendering. |
 | Done | `habits.js` | ~403 | Extracted and tracked in v2.64.33; all 11 pre/post assertions pass. Its initializer runs, but deployed `dev` then fails at the missing Zones initializer before `init()`. All four state vars stay inline for the merge layer; `_getHabitDates` is private. |
 
