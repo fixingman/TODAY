@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.64.33 shipped; next Roadmap #3 extraction is `focus.js`. In queue: poem corpus growth (spring=10, target ~13; Teasdale candidates proposed, awaiting cut). Splash letter dispersion fix pending (WAAPI `_fade` plan exists).
-- **Recent (2026-08-16):** habits.js extracted (v2.64.33). zones.js extracted (v2.64.32). triage.js extracted (v2.64.31). memory-panel.js extracted (v2.64.30). meeting.js extracted (v2.64.29). Triage bar count visible + stats-after-triage fix + AI hints removed (v2.64.28). Drag extraction complete (v2.64.27). Memory auto-sync fix (v2.64.23). Sync hardening — 8 storage/merge fixes (v2.64.22).
-- **Module extraction (Roadmap #3):** 16 done: `util.js`, `idle.js`, `sound.js`, `celebration.js`, `trello.js`, `insights.js`, `error-monitor.js`, `poem-utils.js`, `splash.js`, `platform.js`, `drag.js`, `meeting.js`, `memory-panel.js`, `triage.js`, `zones.js`, `habits.js`. Next: `focus.js` (~1,332). Direct sync extraction is deferred: the live sync/wake cluster is ~1,968 tightly coupled lines. Coupled core stays inline. Full inventory and queue → `Backlog.md` §3 / `Performance-audit.md` §1.
+- **Working on:** repair the v2.64.30–32 release omission: `memory-panel.js`, `triage.js`, `zones.js`, and their tests exist and pass locally but are untracked, so deployed `dev` returns 404 and cannot finish startup. After repair, next Roadmap #3 extraction is `focus.js`. In queue: poem corpus growth (spring=10, target ~13; Teasdale candidates proposed, awaiting cut). Splash letter dispersion fix pending (WAAPI `_fade` plan exists).
+- **Recent (2026-08-17):** meeting.js post-extraction verification passed on desktop and mobile; its device gate is closed. v2.64.33 habits extraction is tracked, while the v2.64.30–32 Memory panel/Triage/Zones assets and tests need release repair. Meeting.js extracted (v2.64.29). Triage bar count visible + stats-after-triage fix + AI hints removed (v2.64.28). Drag extraction complete (v2.64.27).
+- **Module extraction (Roadmap #3):** 16 implemented locally, 13 tracked at `dev` HEAD. `memory-panel.js`, `triage.js`, and `zones.js` must be added to repair the deployed app before `focus.js` (~1,332). Then: `about.js` → `connections.js`. Direct sync extraction is deferred: the live sync/wake cluster is ~1,968 tightly coupled lines. Coupled core stays inline. Full inventory and queue → `Backlog.md` §3 / `Performance-audit.md` §1.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
   - **v2.62.1 ⏳** — verify: `appMemory.patterns.triageUndos` increments on triage undo; `soonPulls` increments on pull-from-soon; `reviveReasons` populated on revive; letting the undo toast expire records letgoReasons.
   - **v2.62.0 ⏳** — verify: triage → completion screen → list is already clean behind overlay → Undo button visible → tap Undo → state fully restored → triage bar reappears. Also: wait 3s without tapping Undo → overlay closes → list stays clean.
@@ -14,7 +14,6 @@
   - **BUG-071 ⏳ v2.61.5** — verify: focus mode active → PWA background → return → app not blank. Also: Mac long sleep (5–15 min) → wake → focused task still in viewport.
   - **Meeting attribution accuracy — ask Can:** after a few real meetings, ask "how's meeting attribution doing?" and read `appMemory.meetingAttribution` (`mineKept/mineShown` precision, `othersSelected/othersShown` recall).
   - **Noticed 7-signal expansion (v2.38.0)** — if it still reads as noise, ask whether Noticed needs a different shape.
-  - v2.28.0 meeting mode mobile — real in-room meeting on iPhone PWA (phone on table, screen on).
 
 ---
 

@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.64.23 · Aug 2026
+> v2.64.33 local extraction state · Aug 2026
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -9,7 +9,7 @@
 
 | Asset | Raw (decoded) | Brotli | Notes |
 |---|---|---|---|
-| `index.html` | 614 KB | 165 KB | Single HTML file — no build step (v2.64.27 baseline, Brotli q5) |
+| `index.html` | 517 KB | 142 KB | Single HTML file — no build step (v2.64.33 local state, Brotli q5) |
 | `sw.js` | 6.1 KB | 2.5 KB | Service worker — cache strategy, precache list, offline fallback |
 | `assets/util.js` | 4.4 KB | 2.3 KB | Pure utility helpers extracted v2.17.122; SW-precached |
 | `assets/idle.js` | 6.2 KB | 2.1 KB | Idle companion IIFE extracted v2.17.124; SW-precached |
@@ -22,20 +22,25 @@
 | `assets/splash.js` | 19.5 KB | 6.6 KB | Splash gate + animation controller extracted v2.64.25 (Roadmap #3); SW-precached |
 | `assets/platform.js` | 12.1 KB | 3.2 KB | PWA, mobile keyboard, SW registration, and bfcache controller extracted v2.64.26 (Roadmap #3); SW-precached |
 | `assets/drag.js` | 12.4 KB | 2.3 KB | Desktop + touch reorder controllers extracted v2.64.27 (Roadmap #3); SW-precached |
+| `assets/meeting.js` | 35.7 KB | 10.4 KB | Meeting + Voice Note extracted v2.64.29; automated and desktop/mobile verified; tracked and SW-precached |
+| `assets/memory-panel.js` | 28.2 KB | 7.3 KB | Memory panel extracted locally for v2.64.30; tests pass, but asset/test are not yet tracked |
+| `assets/triage.js` | 19.9 KB | 4.0 KB | Triage extracted locally for v2.64.31; tests pass, but asset/test are not yet tracked |
+| `assets/zones.js` | 11.0 KB | 3.0 KB | Soon/Past controller extracted locally for v2.64.32; tests pass, but asset/test are not yet tracked |
+| `assets/habits.js` | 18.8 KB | 5.7 KB | Habits controller extracted v2.64.33; tracked and tested |
 | `assets/poems.js` | 33.9 KB | 11.4 KB | Daily poem corpus (97 poems); SW-precached |
-| **Total app JS** | **~787 KB** | **~219 KB** | index.html + 11 extracted modules + poem corpus (Brotli q5) |
+| **Total app JS** | **~807 KB** | **~228 KB** | Local app shell: index.html + 16 implemented modules + poem corpus (Brotli q5) |
 
-**Lines of code:** ~13,926 index.html + ~3,312 extracted + ~647 poem corpus (≈17,885 total)
-— util.js: 97 · idle.js: 289 · sound.js: 224 · celebration.js: 163 · trello.js: 519 · insights.js: 825 · error-monitor.js: 145 · poem-utils.js: 45 · splash.js: 403 · platform.js: 310 · drag.js: 292 · poems.js: 647
+**Lines of code:** ~11,324 index.html + ~5,836 extracted + ~647 poem corpus (≈17,807 total)
+— util.js: 97 · idle.js: 289 · sound.js: 224 · celebration.js: 163 · trello.js: 519 · insights.js: 825 · error-monitor.js: 145 · poem-utils.js: 45 · splash.js: 403 · platform.js: 310 · drag.js: 292 · meeting.js: 746 · memory-panel.js: 540 · triage.js: 504 · zones.js: 303 · habits.js: 431 · poems.js: 647
 
 **External scripts:** 0. All assets same-origin, SW-cached; no CDN, no analytics SDK. `scripts/design-lint.mjs` rejects external runtime script tags and known analytics/replay markers (Rule 32).
 **External fonts on first visit:** 6 files (self-hosted, pre-cached by SW). Zero Google Fonts pings.  
 **External fonts on repeat visits:** 0 — all served from SW cache.  
 **@font-face declarations:** 9 total — 6 in main doc (DM Mono ×3, Syne ×3), 2 injected into PiP window, 1 in offline fallback HTML in SW.
 
-**Extraction queue:** `focus.js` (~1,333, ready) → `meeting.js` (~879, tests + device verification first). The ~1,968-line sync/wake cluster is not a direct candidate; decompose and regression-test it before drawing any file boundary. AI, triage, shared task state, and startup orchestration remain inline by design.
+**Extraction queue:** first repair the missing tracked assets/tests for Memory panel, Triage, and Zones; deployed `dev` currently returns 404 for all three. Then `focus.js` (~1,332, ready) → `about.js` (~585) → `connections.js` (~430). The ~1,968-line sync/wake cluster is not a direct candidate; decompose and regression-test it before drawing any file boundary. AI orchestration, shared task state, and startup orchestration remain inline by design.
 
-**Assessment (v2.64.27):** index.html is 614 KB decoded / 165 KB Brotli-q5 after the drag extraction; total app JavaScript remains ~787 KB decoded / ~219 KB compressed because extraction changes file ownership, not payload. Previous baseline: 627 KB / 168 KB at v2.64.26. The new module boundary adds one same-origin request on an uncached first load, then comes from the service worker. Total transfer (app JS + six fonts + service worker) remains ~313 KB on first cold load. Repeat loads are offline-capable.
+**Assessment (v2.64.33 local state):** index.html is 517 KB decoded / 142 KB Brotli-q5; total app JavaScript is ~807 KB decoded / ~228 KB compressed because extraction changes ownership rather than payload. Meeting and Habits are tracked. Memory panel, Triage, and Zones pass locally but were omitted from the commit, so deployed `dev` cannot be considered healthy until those 404s are repaired.
 
 ---
 
@@ -201,7 +206,7 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 | `localStorage` disabled | Low | `safeJSON` reads catch SecurityError; global `setItem` wrapper IIFE may throw before installing if storage fully blocked. App loads with red dot, data not persisted. |
 | `renderTrello()` runs every 7s tick unconditionally | Low | v2.18.12 — diff-patch bounds cost (≤20 cards). Only item in history that adds baseline per-tick work. Revisit if Trello card counts grow much larger than ~20. |
 | BUG-004 repaint ceiling | Low | Extended to 5000ms (v2.31.9). If a very long sleep still leaves GPU unready past 5s, a 7th pass or a fallback `click` simulation may be needed. |
-| index.html growth | Watch | 614 KB decoded / 165 KB brotli (v2.64.27 Brotli-q5 baseline). Extraction (Roadmap #3, 11 modules) offsets feature growth partially. Next candidate: `focus.js` (~1,333). Direct sync extraction is deferred because its live sync/wake cluster is ~1,968 tightly coupled lines. At ~300 lines/version growth rate, index growth adds roughly 5 KB brotli per version. |
+| index.html growth | Watch | 517 KB decoded / 142 KB brotli (v2.64.33 local Brotli-q5 state). Sixteen modules are implemented locally; repair the three omitted module files before extracting `focus.js` (~1,332). Direct sync extraction remains deferred because its live sync/wake cluster is ~1,968 tightly coupled lines. |
 | BUG-041: iOS PWA splash white flash | Platform limitation | Closed 2026-07-24 after a fourth investigation pass ruled out every app-code explanation: splash launch-image colors correct (RGB 14,14,16, matches `--bg`), iPhone 14 Pro's exact spec present in the `apple-touch-startup-image` list, latest build confirmed running, no render-blocking `<head>` resource. What remains is the gap between iOS's static launch image ending and the WebView's first painted frame — a handoff with no hook available from web content. Reopen only if light/dark-mode correlation is confirmed, or the flash appears on a warm/backgrounded reopen (not just true cold start) — either would point back at in-page code. Full four-pass history → `archive/Bugs-archive.md`. |
 
 ---

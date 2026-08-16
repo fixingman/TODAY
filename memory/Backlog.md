@@ -16,12 +16,11 @@
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 2 | **Poem corpus growth** | Ongoing | Corpus 97, target ~100, three to go. Spring thinnest gap. A cut is final — detail ↓ |
-| 3 | **Module extraction** | In progress | 16 modules extracted. Next: `focus.js`. The complete reviewed extraction queue is tracked below. Direct sync extraction is deferred. Inventory and decision gates ↓ |
+| 3 | **Module extraction** | In progress | 16 modules implemented locally; 13 are tracked at `dev` HEAD. **Immediate:** repair the omitted Memory panel, Triage, and Zones assets/tests, then extract `focus.js`. Direct sync extraction is deferred. Inventory and decision gates ↓ |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 6 | **Todoist integration** | Not started | Highest task-integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
-| 9 | **Meeting mode v2** | Mobile awaiting device verify | Language ✅ done. In-room meetings on iOS PWA — detail ↓ |
 
-*Shipped & closed: #1 morning nudge (verdict: kept, verbatim quotes v2.32.3), #5 first-run (v2.34.0), #7 About contextual digest layer (feature-complete v2.48.2), #8 PAST revive (v2.27.0). History in `Changelog.md`; numbers stay retired.*
+*Shipped & closed: #1 morning nudge (verdict: kept, verbatim quotes v2.32.3), #5 first-run (v2.34.0), #7 About contextual digest layer (feature-complete v2.48.2), #8 PAST revive (v2.27.0), #9 Meeting mode v2 (desktop + mobile verified 2026-08-17). History in `Changelog.md`; numbers stay retired.*
 
 **Awaiting device verification:** canonical list lives in `Rules.md` → Watch for.
 
@@ -57,18 +56,18 @@
 
 ### 3 · Module Extraction
 
-**Extracted (16):** `util.js` · `idle.js` · `sound.js` · `celebration.js` · `trello.js` · `insights.js` · `error-monitor.js` · `poem-utils.js` · `splash.js` · `platform.js` · `drag.js` · `meeting.js` · `memory-panel.js` · `triage.js` · `zones.js` · `habits.js`. Exact sizes, versions, and runtime ownership live in `Performance-audit.md` §1.
+**Implemented (16; 13 tracked, 3 awaiting release repair):** `util.js` · `idle.js` · `sound.js` · `celebration.js` · `trello.js` · `insights.js` · `error-monitor.js` · `poem-utils.js` · `splash.js` · `platform.js` · `drag.js` · `meeting.js` · `memory-panel.js`* · `triage.js`* · `zones.js`* · `habits.js`. Asterisks mark locally present, passing modules omitted from the current commit and therefore returning 404 on deployed `dev`. Exact sizes and runtime ownership live in `Performance-audit.md` §1.
 
 | Order | Module | Size | Gate |
 |---|---|---:|---|
-| Done | `meeting.js` | ~715 | Extracted v2.64.29. Physical baseline on v2.64.28 confirmed; post-extraction test on deployed v2.64.29 still pending (Can to run). |
-| Done | `memory-panel.js` | ~520 | Extracted v2.64.30. `scripts/memory-panel-test.mjs` written; all 9 assertions pass. Post-extraction physical test pending. |
-| Done | `triage.js` | ~545 | Extracted v2.64.31. `scripts/triage-test.mjs` written; all 10 assertions pass (pre and post). |
-| Done | `zones.js` | ~293 | Extracted v2.64.32. `scripts/zones-test.mjs` written; all 11 assertions pass (pre and post). soonTasks/pastTasks/triageDismissedToday stay as inline globals — wholesale-reassigned by merge layer. |
+| Done | `meeting.js` | ~715 | Extracted v2.64.29. Automated suite passes; Can verified the extracted controller on desktop and mobile on 2026-08-17. Device gate closed. |
+| Repair | `memory-panel.js` | ~520 | Implementation and all 9 automated assertions pass locally, but the asset and test are untracked; deployed `dev` returns 404. Add them before further extraction. Physical panel test remains open. |
+| Repair | `triage.js` | ~545 | Implementation and all 10 pre/post assertions pass locally, but the asset and test are untracked; deployed `dev` returns 404. |
+| Repair | `zones.js` | ~293 | Implementation and all 11 pre/post assertions pass locally, but the asset and test are untracked; deployed `dev` returns 404. Shared zone state remains inline for the merge layer. |
 | 1 | `focus.js` | ~1,332 | Ready—strong automated invariant coverage. |
 | 3 | `about.js` | ~585 | Test poem sharing, weekly stats, Noticed, Sunday reflection, and Monday intention. |
 | 4 | `connections.js` | ~430 | Test credential combinations, privacy gate, offline state, and provider rendering. |
-| Done | `habits.js` | ~403 | Extracted v2.64.33. `scripts/habits-test.mjs` written; all 11 assertions pass (pre and post). All 4 state vars stay as inline globals — wholesale-reassigned by merge layer. `_getHabitDates` private. |
+| Done | `habits.js` | ~403 | Extracted and tracked in v2.64.33; all 11 pre/post assertions pass. Its initializer runs, but deployed `dev` then fails at the missing Zones initializer before `init()`. All four state vars stay inline for the merge layer; `_getHabitDates` is private. |
 
 **Deferred:** do not extract the ~1,968-line sync/wake cluster wholesale. First separate and test merge rules, Dropbox transport, persistence timestamps, and wake orchestration; only a resulting low-coupling unit becomes a module.
 
@@ -80,12 +79,10 @@
 **Key constraint:** iOS has no background sync — notifications must be server-sent via Netlify Scheduled Functions. The app cannot self-schedule.
 **Scope:** day boundaries only — 8pm triage reminder + morning briefing. No habit nudges, no task chasing.
 
-### 9 · Meeting mode v2 — mobile
+### 9 · Meeting mode follow-ons
 **Scope boundary (permanent):** phone-call recording is impossible from any app on iOS — the OS never exposes call audio. Mobile meeting mode = in-room/speakerphone capture through the mic. Don't revisit; it's an OS wall, not a PWA limitation.
 
-**Open:** post-extraction physical test on v2.64.29 pending (meeting mode on iPhone PWA). Automated baseline green — all 14 meeting-test.mjs assertions pass.
-
-**Device gate:** run a named Gemini-backed recording beyond the two-minute AAC boundary with distinct tasks spoken before and after rollover; verify chronological attribution/selection, non-blocking task entry, acceptance/sync, foreground wake lock, and clean teardown. Then lock/background a second recording and confirm it either resumes safely or stops with the honest suspension note—never falsely live. Repeat the critical paths on `dev` after extraction before advancing to `focus.js`.
+**Verified 2026-08-17:** `meeting.js` shipped in v2.64.29 and passes its automated suite. Can tested the extracted Meeting controller successfully on desktop and mobile, closing the baseline and post-extraction device gates. Native capture no longer blocks the extraction roadmap.
 
 **Calendar-triggered capture — proposed 2026-08-02, not started.** Can's problem: forgets to click the button almost every time, or misses it mid-meeting when sharing screen. v2.44.0's auto-PiP doesn't solve it — it follows a capture you already started.
 
@@ -135,7 +132,7 @@
 ### Watching
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| Modularization | Single file (~13.9K lines) + `assets/poems.js` + extracted modules | Roadmap #3 in progress; 11 modules extracted. Meeting is active behind its physical iPhone gate; reviewed queue: Focus → Memory panel → About → Connections → Zones → Habits → Triage. Direct sync extraction stays deferred. Meeting, drag, platform, splash, focus, and smoke tests guard the affected paths. |
+| Modularization | Single file (~11.3K lines) + `assets/poems.js` + extracted modules | Roadmap #3 in progress; 16 modules implemented locally, 13 tracked. Repair the three omitted module/test pairs first, then queue: Focus → About → Connections. Direct sync extraction stays deferred. Meeting, Memory panel, Triage, Zones, Habits, drag, platform, splash, focus, and smoke tests guard the affected paths. |
 | Sync conflict rate | Merge-anomaly counter live (Connections → Dropbox) | If count climbs above zero in normal use, revisit conflict handling before WEEK consumes the data. |
 | Dated AI-cache sync | 2 instances hand-plumbed (nudge v2.27.0b, weekly block v2.36.1/BUG-057) | **Rule of three:** the next AI-generated daily text must trigger a registry instead of a third hand-plumbing — same payload + remote-wins-merge pattern each time. |
 | open_triage second use | Shipped v2.36.0 from Can's own request | ⚠️ Mid-Aug deadline reached (2026-08-08) — ask Can whether he's used `open_triage` unprompted, or if discoverability should be improved / feature removed. |
