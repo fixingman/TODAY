@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** poem corpus growth (spring=10, target ~13; Teasdale candidates proposed, awaiting cut). BUG-076 (v2.65.3) awaiting Safari/iPhone deployment verification. Roadmap #3 module extraction complete.
-- **Recent (2026-08-17):** focus.js extracted (v2.65.13) — 5 exports, 11 tests, BUG-073 smoke check updated. Memory-quality fixes (v2.65.10). connections.js shimmer export (v2.65.11). day-lifecycle.js extracted (v2.65.9). nudge.js extracted (v2.65.8). TODAY logo hover (v2.65.6).
+- **Working on:** poem corpus growth (spring=10, target ~13; Teasdale candidates proposed, awaiting cut). BUG-076 (v2.65.3) awaiting Safari/iPhone deployment verification.
+- **Recent (2026-08-17):** _pruneTrelloMaps folded into day-lifecycle.js (v2.65.15). Install app sentence-case fix (v2.65.14). focus.js extracted (v2.65.13) — 5 exports, 11 tests. Memory-quality fixes (v2.65.10). connections.js shimmer export (v2.65.11). day-lifecycle.js extracted (v2.65.9).
 - **Module extraction (Roadmap #3): COMPLETE.** focus.js done (v2.65.13, ~1,400 lines). All modules extracted: dropbox, connections (+ AI provider config), assistant, task-actions, nudge, day-lifecycle, focus. Startup composition root (~350 lines inline) remains as intended. Full inventory → `Backlog.md` §3.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
   - **BUG-076 ⏳ v2.65.3** — force at least ten poem-coda exits on Safari/iPhone PWA; TO and DAY must fade as complete groups with no `O` / `AY` residue while the poem disappears.

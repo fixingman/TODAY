@@ -5,6 +5,20 @@ window._startDayLifecycle = (function() {
   return function() {
     if (started) return; started = true;
 
+    // Trello card map pruning — age-based, safe to call after Trello loads.
+    function _pruneTrelloMaps() {
+      if (!window.trelloTasks || !window.trelloTasks.length) return;
+      const lastActive = safeJSON('today_trello_lastactive', {});
+      const cutoffISO = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+      const stale = Object.keys(lastActive).filter(id => lastActive[id] < cutoffISO);
+      if (!stale.length) return;
+      ['today_trello_firstseen', 'today_trello_lastactive', 'today_trello_focus_total'].forEach(key => {
+        const obj = safeJSON(key, {});
+        stale.forEach(id => delete obj[id]);
+        localStorage.setItem(key, JSON.stringify(obj));
+      });
+    }
+
     function applyNewDayCleanup() {
       const today = _getAppDay();
       // Guard: only run if last visit was a different app day
