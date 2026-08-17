@@ -252,7 +252,7 @@ try {
       const requiredExports = [
         'addManual', 'deleteManual', 'toggleDone', 'toggleClearBtn', 'clearTaskInput',
         '_undoLast', '_undoDelete', '_recordDeleteReason', '_clearAllDone', 'updateStats',
-        'updateManualEmptyState', '_archiveHabitUndo',
+        'updateManualEmptyState', '_archiveHabitUndo', '_applyDoneStyles',
       ];
       const startupIdx     = indexSrc.indexOf('window._startTaskActions();');
       const startAssistIdx = indexSrc.indexOf('window._startAssistant();');

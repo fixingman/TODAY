@@ -16,7 +16,7 @@
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 2 | **Poem corpus growth** | Ongoing | Corpus 97, target ~100, three to go. Spring thinnest gap. A cut is final — detail ↓ |
-| 3 | **Module extraction** | In progress | **Next:** `nudge.js` (plan ready). task-actions.js done (v2.65.5). assistant.js done (v2.65.2). Queue: focus.js. Decision queue ↓ |
+| 3 | **Module extraction** | In progress | **Next:** `focus.js` (~1,332). nudge.js done (v2.65.8). task-actions.js done (v2.65.5). assistant.js done (v2.65.2). Decision queue ↓ |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 6 | **Todoist integration** | Not started | Highest task-integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 
@@ -56,8 +56,8 @@
 
 | Order | Module | Size | Gate |
 |---|---|---:|---|
-| **Next** | `nudge.js` | ~360 | **Plan ready (assessed 2026-08-17).** Morning AI banner + version/Sunday/habit badge nudges. 4 exports. Drop write-only `_aiBadgeShown` (never read; DOM guard does the real work — also update assistant.js). 10 tests: cached AI, noon+ hidden, 1s fallback, later-fallback upgrade, stale-done invalidation, dismiss, offline/no-key, badge nudges, static wiring. |
-| Queue | `focus.js` | ~1,332 | **High feasibility.** Strong automated invariant coverage already exists. Preserve the Focus/PiP hooks and private timer state. |
+| **Next** | `focus.js` | ~1,332 | **High feasibility.** Strong automated invariant coverage already exists. Preserve the Focus/PiP hooks and private timer state. |
+| Done ✓ | `nudge.js` | ~374 | **Done v2.65.8.** Morning AI banner + version/Sunday/habit badge nudges. 4 exports (`checkDayNudge`, `checkVersionNudge`, `checkSundayNudge`, `checkHabitNudge`). `_aiBadgeShown` stays inline (write-shared). `_showNudge` stays nested inside `checkDayNudge`. Also fixed `_applyDoneStyles` export from `task-actions.js`. `scripts/nudge-test.mjs` (10 tests). |
 | Done ✓ | AI provider config → `connections.js` | ~164 inline | **Folded in v2.64.38.** 8 new exports (23 total). `_aiGetProvider`/`_aiGetKey`/`_aiIsConfigured` helpers, `_aiRenderConfig`/`saveAIKey`/`clearAIKey`/`setDefaultProvider` panel functions, constants, and `_aiInit` migration IIFE all in `_startConnections()` closure. 17 connections tests. |
 | Done ✓ | `assistant.js` | ~1,246 | **Done v2.65.2.** AI panel + post-add suggestion controller. 8 exports. `_aiPanelOpen` stays inline. ESC listener stays inline. `scripts/assistant-test.mjs` (9 tests). |
 | Done ✓ | `task-actions.js` | ~553 | **Done v2.65.5.** Add/check/delete/undo/clear/stats controller. 12 exports. `scripts/task-actions-test.mjs` (9 tests). `_archiveHabitUndo(h)` helper added for habits.js cross-module undo. |

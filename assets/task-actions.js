@@ -531,5 +531,6 @@ window._startTaskActions = (function() {
     window._recordDeleteReason = _recordDeleteReason;
     window._clearAllDone = _clearAllDone;
     window.updateStats = updateStats;
+    window._applyDoneStyles = _applyDoneStyles;
   };
 }());
