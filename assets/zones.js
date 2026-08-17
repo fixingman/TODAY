@@ -115,7 +115,7 @@
       list.querySelectorAll('.task').forEach(taskEl => {
         const tagEl = taskEl.querySelector('.task-tag');
         if (!tagEl) return;
-        const _shimmer = () => _playTagInteractionShimmer(tagEl);
+        const _shimmer = () => window._playTagInteractionShimmer(tagEl);
         if (_soonTouch) {
           const obs = new IntersectionObserver((entries, o) => {
             if (!entries[0].isIntersecting) return;

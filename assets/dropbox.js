@@ -770,9 +770,9 @@
         for (const [k, v] of Object.entries(remote.patterns.reviveReasons || {})) {
           appMemory.patterns.reviveReasons[k] = Math.max(appMemory.patterns.reviveReasons[k] || 0, v);
         }
-        const existingLate = new Set(appMemory.patterns.lateAdditions || []);
-        for (const h of (remote.patterns.lateAdditions || [])) existingLate.add(h);
-        appMemory.patterns.lateAdditions = [...existingLate].slice(-50);
+        const _localLate  = appMemory.patterns.lateAdditions || [];
+        const _remoteLate = remote.patterns.lateAdditions    || [];
+        appMemory.patterns.lateAdditions = (_localLate.length >= _remoteLate.length ? _localLate : _remoteLate).slice(-50);
         const mergedSamples = [...(appMemory.patterns.taskLifespanSamples || []), ...(remote.patterns.taskLifespanSamples || [])];
         appMemory.patterns.taskLifespanSamples = mergedSamples.slice(-20);
       }

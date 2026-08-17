@@ -698,6 +698,7 @@
     window._queueTagArrivalShimmer = _queueTagArrivalShimmer;
     window.renderManual = renderManual;
     window._wireManualTagShimmer = _wireManualTagShimmer;
+    window._playTagInteractionShimmer = _playTagInteractionShimmer;
     window.taskHTML = taskHTML;
     window._getCreatedFromId = _getCreatedFromId;
     window._getAgeDays = _getAgeDays;

@@ -165,8 +165,8 @@
       const dayStart = m.patterns?.dayStartCount;
       if (lateAdds.length >= 5 && dayStart !== null && dayStart !== undefined) {
         const recentLate = lateAdds.slice(-20);
-        const avgLate = recentLate.reduce((a, b) => a + b, 0) / recentLate.length;
-        if (avgLate >= 11) {
+        const _latePct = recentLate.filter(h => h >= 14).length / recentLate.length;
+        if (_latePct >= 0.40) {
           proceduralItems.push({ text: `tends to add tasks reactively — most additions happen after the day starts` });
         } else {
           proceduralItems.push({ text: `mostly plans ahead — tasks are usually set before the day begins` });
@@ -244,7 +244,7 @@
       // ── META: what today knows it knows ───────────────────────────────────────
       const metaItems = [];
       if (m.firstSeen) {
-        const _calDays = Math.round((Date.now() - new Date(m.firstSeen).getTime()) / 86400000);
+        const _calDays = Math.round((Date.now() - new Date(m.firstSeen + 'T12:00:00').getTime()) / 86400000);
         const _activeDays = m.totalDaysActive || 0;
         const _dayStr = _activeDays > 0 && _calDays > 0
           ? `active on ${_activeDays} of ${_calDays} day${_calDays === 1 ? '' : 's'}`

@@ -160,8 +160,8 @@ function _memoryOnTaskComplete(taskText, taskId) {
   
   appMemory.totalTasksCompleted++;
 
-  // Record task lifespan — days from creation to completion
-  if (taskId && typeof _getCreatedFromId === 'function') {
+  // Record task lifespan — days from creation to completion (manual tasks only)
+  if (taskId && taskId.startsWith('manual_') && typeof _getCreatedFromId === 'function') {
     const created = _getCreatedFromId(taskId);
     const lifespanDays = Math.floor((Date.now() - created) / 86400000);
     if (lifespanDays >= 0 && lifespanDays <= 365) {
