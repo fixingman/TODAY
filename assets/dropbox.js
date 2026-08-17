@@ -1726,9 +1726,7 @@
         // full reload. The banner's own cache key is date-scoped and would naturally
         // regenerate — but _nudgeRendered (v2.38.4, blocks re-render once shown per page
         // load) doesn't know a genuine day boundary just passed, so it must be reset here.
-        _nudgeRendered = false;
-        _nudgeRacing   = false;
-        _nudgeIsFallback = false;
+        if (typeof window._nudgeOnNewDay === 'function') window._nudgeOnNewDay();
         if (typeof checkDayNudge === 'function') checkDayNudge();
       }
 

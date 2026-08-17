@@ -249,7 +249,12 @@
         const _dayStr = _activeDays > 0 && _calDays > 0
           ? `active on ${_activeDays} of ${_calDays} day${_calDays === 1 ? '' : 's'}`
           : `${_calDays} day${_calDays === 1 ? '' : 's'} of data`;
-        metaItems.push({ text: `tracking since ${m.firstSeen} — ${_dayStr}` });
+        let _sinceStr = m.firstSeen;
+        try {
+          const _d = new Date(m.firstSeen + 'T12:00:00');
+          _sinceStr = _d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } catch (_) {}
+        metaItems.push({ text: `tracking since ${_sinceStr} — ${_dayStr}` });
       }
       if (m.totalTasksCompleted > 0) {
         metaItems.push({ text: `${m.totalTasksCompleted} tasks completed total` });

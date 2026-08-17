@@ -370,5 +370,12 @@ window._startNudge = (function() {
     window.checkVersionNudge = checkVersionNudge;
     window.checkSundayNudge = checkSundayNudge;
     window.checkHabitNudge = checkHabitNudge;
+    // Called by dropbox.js checkNewDay() at day boundary — resets session guards so the
+    // fresh day's nudge can render in a tab that stayed open across midnight.
+    window._nudgeOnNewDay = function() {
+      _nudgeRendered  = false;
+      _nudgeRacing    = false;
+      _nudgeIsFallback = false;
+    };
   };
 }());
