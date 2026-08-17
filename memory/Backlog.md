@@ -22,7 +22,7 @@
 
 **Awaiting device verification:** canonical list lives in `Rules.md` → Watch for.
 
-**Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months data + #3 done; #1's learnings landed with the 2026-07-18 verdict). Detail ↓
+**Gated:** WEEK companion — decide ~autumn 2026 (needs 3+ months data + #3 done; nudge verdict 2026-07-18 landed). Detail ↓
 
 **Parked:** idle companion artwork · AI prompt trimming · Trello checklist write-back. Detail ↓
 
@@ -54,20 +54,18 @@
 
 ### 3 · Module Extraction
 
-| Order | Module | Size | Gate |
+| Order | Module | Size | Notes |
 |---|---|---:|---|
 | **Next** | `focus.js` | ~1,332 | **High feasibility.** Strong automated invariant coverage already exists. Preserve the Focus/PiP hooks and private timer state. |
-| Done ✓ | `nudge.js` | ~374 | **Done v2.65.8.** Morning AI banner + version/Sunday/habit badge nudges. 4 exports (`checkDayNudge`, `checkVersionNudge`, `checkSundayNudge`, `checkHabitNudge`). `_aiBadgeShown` stays inline (write-shared). `_showNudge` stays nested inside `checkDayNudge`. Also fixed `_applyDoneStyles` export from `task-actions.js`. `scripts/nudge-test.mjs` (10 tests). |
-| Done ✓ | AI provider config → `connections.js` | ~164 inline | **Folded in v2.64.38.** 8 new exports (23 total). `_aiGetProvider`/`_aiGetKey`/`_aiIsConfigured` helpers, `_aiRenderConfig`/`saveAIKey`/`clearAIKey`/`setDefaultProvider` panel functions, constants, and `_aiInit` migration IIFE all in `_startConnections()` closure. 17 connections tests. |
-| Done ✓ | `assistant.js` | ~1,246 | **Done v2.65.2.** AI panel + post-add suggestion controller. 8 exports. `_aiPanelOpen` stays inline. ESC listener stays inline. `scripts/assistant-test.mjs` (9 tests). |
-| Done ✓ | `task-actions.js` | ~553 | **Done v2.65.5.** Add/check/delete/undo/clear/stats controller. 12 exports. `scripts/task-actions-test.mjs` (9 tests). `_archiveHabitUndo(h)` helper added for habits.js cross-module undo. |
-| Assess | `day-lifecycle.js` | ~210 | **Medium-low feasibility.** New-day cleanup is cohesive but crosses Focus snapshots, habits, zones, memory, tombstones, and delayed backup. Dropbox extraction done; require midnight, 3am habit, cross-device check timestamps, purge tombstones, and delayed-backup tests. |
+| Assess | `day-lifecycle.js` | ~210 | **Medium-low feasibility.** New-day cleanup crosses Focus snapshots, habits, zones, memory, tombstones, and delayed backup. Require midnight, 3am habit, cross-device check timestamps, purge tombstones, and delayed-backup tests before extracting. |
+| Done ✓ | `nudge.js` | ~374 | Done v2.65.8. 4 exports. Also fixed `_applyDoneStyles` export from `task-actions.js`. |
+| Done ✓ | `task-actions.js` | ~553 | Done v2.65.5. 13 exports (incl. `_applyDoneStyles`). |
+| Done ✓ | `assistant.js` | ~1,246 | Done v2.65.2. 8 exports. |
+| Done ✓ | AI provider config → `connections.js` | ~164 inline | Folded v2.64.38. 23 exports total. |
 
-Completed module inventory, sizes, and test ownership live in `Performance-audit.md` §1; release history lives in `Changelog.md`.
+Full inventory and test ownership → `Performance-audit.md` §1. Release history → `Changelog.md`.
 
-**Dropbox coordination:** `dropbox.js` extracted (v2.64.36) — auth (PKCE), backup/restore, live sync cluster (syncTrello, syncDropbox, checkNewDay, ticker), wake handling, and all state helpers (checked/unchecked/deleted ID logs, Trello tracking maps); 27 exports; 1,975 lines. `_appReady` stays as an inline global (assets/splash.js writes it as a bare identifier). `task-actions.js` and `day-lifecycle.js` can now be assessed; the operation-log, autosave, wake, and day-boundary interfaces are stable and public.
-
-**Keep inline:** startup/init and event wiring (~218 lines) are the composition root and gain little from extraction. Favicon rendering (~53 lines) is too small for a request/module boundary; fold it into a future stats/task controller if that boundary lands. Shared task state remains inline. Extraction is for ownership and navigation, not payload reduction; every module remains part of the same SW-cached app shell.
+**Keep inline:** startup/init and event wiring (~218 lines) are the composition root and gain little from extraction. Favicon rendering (~53 lines) is too small for a module boundary. Shared task state remains inline. Extraction is for ownership and navigation, not payload reduction — every module stays part of the same SW-cached app shell.
 
 ### 4 · Push Notifications
 **Platform:** iOS 16.4+ (installed PWA only) + Android. Web Push API + VAPID keys.
@@ -123,7 +121,7 @@ Completed module inventory, sizes, and test ownership live in `Performance-audit
 ### Watching
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| Modularization | `index.html` is ~8.3K lines with 20 same-origin assets; Dropbox extraction landed in v2.64.36 | Focus is next. After Focus: AI config fold-in → Nudge → Assistant → Task Actions → Day Lifecycle. Startup remains inline; shared state and merge boundaries stay test-gated. |
+| Modularization | `focus.js` (~1,332 lines) is next. After that: `day-lifecycle.js` is assess-gated. Startup, shared task state, and favicon remain inline. All prior extractions done: dropbox, connections (+ AI provider config), assistant, task-actions, nudge. | Startup remains the composition root and gains nothing from extraction. Shared state and merge boundaries stay test-gated. |
 | Merge-anomaly observability | Dropbox emits a console-only `[merge-anomaly]` breadcrumb; there is no persisted counter or Connections metric | Revisit only if anomalies appear during debugging or WEEK needs a measurable conflict rate. Do not describe this as live product telemetry. |
 | Dated AI-cache sync | Four fields are hand-plumbed: `day_nudge_ai`, `week_reflection`, `monday_intention`, and `week_theme_ai` | The rule-of-three threshold has been exceeded. Create one declarative cache registry before adding a fifth dated AI field. |
 | Morning nudge usefulness | v2.43.5 rebalanced list vs memory context; generation runs after sync and the resulting line syncs cross-device | Ask for the About panel's Today line verbatim. Does it name a specific current task without biography drift, reflect the synced list, and stay quiet when nothing stands out? If not, cut `Past suggestions` + `Recent conversations` before more prompt tuning. |
@@ -134,7 +132,7 @@ Completed module inventory, sizes, and test ownership live in `Performance-audit
 
 | Surface | Shipped | W3 due | Status |
 |---------|---------|--------|--------|
-| Season moments (24/year) | v2.60.0 | next appearance 2026-08-23 | Open — rarity is the escape, so judge per appearance rather than after 14 days. Next line: “Mornings have an edge to them now.” Does it feel noticed or like a calendar readout? |
+| Season moments (24/year) | v2.60.0 | next appearance 2026-08-23 | Open — rarity is the escape, so judge per appearance rather than after 14 days. Next line: "Mornings have an edge to them now." Does it feel noticed or like a calendar readout? |
 | Focus companion question | v2.65.0 | 2026-08-31 | Improved: taxonomy-based system prompt, drag-word + letgo-reason signals, worked-today / last-worked-N-days, word cap 18→22. Re-observe after a week of sessions — does the question now feel like a moment of clarity rather than a check-in? |
 | About contextual CTAs | v2.64.10 | 2026-08-25 | Open — Focus Copy, `see more`, and poem `share` now share the bordered CTA treatment. Does the border make the actions clearer without pulling attention from the week/poem content? |
 | Connections privacy reassurance | v2.64.11 | 2026-08-26 | Open — one appearance per device when fully disconnected. Does it feel like timely reassurance, or like policy copy interrupting setup? |
