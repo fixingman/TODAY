@@ -16,7 +16,7 @@
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 2 | **Poem corpus growth** | Ongoing | Corpus 97, target ~100, three to go. Spring thinnest gap. A cut is final — detail ↓ |
-| 3 | **Module extraction** | In progress | 17 modules implemented locally; 14 are tracked at `dev` HEAD. **Immediate:** repair the omitted Memory panel, Triage, and Zones assets/tests, then extract `focus.js`. Direct sync extraction is deferred. Inventory and decision gates ↓ |
+| 3 | **Module extraction** | In progress | 18 modules implemented locally; 14 are tracked at `dev` HEAD. **Immediate:** repair the omitted Memory panel, Triage, and Zones assets/tests, then extract `focus.js`. Direct sync extraction is deferred. Inventory and decision gates ↓ |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 6 | **Todoist integration** | Not started | Highest task-integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 
@@ -56,7 +56,7 @@
 
 ### 3 · Module Extraction
 
-**Implemented (17; 14 tracked, 3 awaiting release repair):** `util.js` · `idle.js` · `sound.js` · `celebration.js` · `trello.js` · `insights.js` · `error-monitor.js` · `poem-utils.js` · `splash.js` · `platform.js` · `drag.js` · `meeting.js` · `about.js` · `memory-panel.js`* · `triage.js`* · `zones.js`* · `habits.js`. Asterisks mark locally present, passing modules omitted from the current commit and therefore returning 404 on deployed `dev`. Exact sizes and runtime ownership live in `Performance-audit.md` §1.
+**Implemented (18; 14 tracked, 3 awaiting release repair):** `util.js` · `idle.js` · `sound.js` · `celebration.js` · `trello.js` · `insights.js` · `error-monitor.js` · `poem-utils.js` · `splash.js` · `platform.js` · `drag.js` · `meeting.js` · `about.js` · `connections.js` · `memory-panel.js`* · `triage.js`* · `zones.js`* · `habits.js`. Asterisks mark locally present, passing modules omitted from the current commit and therefore returning 404 on deployed `dev`. Exact sizes and runtime ownership live in `Performance-audit.md` §1.
 
 | Order | Module | Size | Gate |
 |---|---|---:|---|
@@ -66,7 +66,7 @@
 | Repair | `zones.js` | ~293 | Implementation and all 11 pre/post assertions pass locally, but the asset and test are untracked; deployed `dev` returns 404. Shared zone state remains inline for the merge layer. |
 | 1 | `focus.js` | ~1,332 | Ready—strong automated invariant coverage. |
 | Done | `about.js` | ~605 | Extracted v2.64.34; 11 tests pass. No module-scope state vars. 6 exports: `toggleInfo`, `_poemOfTheDay`, `_onPoemTap`, `_shareDailyPoem`, `_copyToClipboard`, `renderInfoStats`. |
-| 4 | `connections.js` | ~430 | Test credential combinations, privacy gate, offline state, and provider rendering. |
+| Done | `connections.js` | ~499 | Extracted v2.64.35; 11 tests pass. `_CONNECTIONS_PRIVACY_SEEN_KEY` and `_connectionsPrivacyVisible` moved into closure. 15 exports: `setTrelloIcon`, `syncActiveButtons`, `_renderConnectionsPrivacy`, `_endConnectionsPrivacyVisit`, `toggleConfig`, `_applyOfflinePanel`, `renderConnections`, `dropboxDisconnect`, `_getDueStr`, `_queueTagArrivalShimmer`, `renderManual`, `_wireManualTagShimmer`, `taskHTML`, `_getCreatedFromId`, `_getAgeDays`. Load order: before `trello.js`; startup call: first. |
 | Done | `habits.js` | ~403 | Extracted and tracked in v2.64.33; all 11 pre/post assertions pass. Its initializer runs, but deployed `dev` then fails at the missing Zones initializer before `init()`. All four state vars stay inline for the merge layer; `_getHabitDates` is private. |
 
 **Deferred:** do not extract the ~1,968-line sync/wake cluster wholesale. First separate and test merge rules, Dropbox transport, persistence timestamps, and wake orchestration; only a resulting low-coupling unit becomes a module.
@@ -132,7 +132,7 @@
 ### Watching
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| Modularization | Single file (~11.3K lines) + `assets/poems.js` + extracted modules | Roadmap #3 in progress; 16 modules implemented locally, 13 tracked. Repair the three omitted module/test pairs first, then queue: Focus → About → Connections. Direct sync extraction stays deferred. Meeting, Memory panel, Triage, Zones, Habits, drag, platform, splash, focus, and smoke tests guard the affected paths. |
+| Modularization | Single file (~10.2K lines) + `assets/poems.js` + extracted modules | Roadmap #3 in progress; 18 modules implemented locally, 14 tracked. Repair the three omitted module/test pairs first, then queue: Focus. Direct sync extraction stays deferred. Meeting, Memory panel, Triage, Zones, Habits, About, Connections, drag, platform, splash, and smoke tests guard the affected paths. |
 | Sync conflict rate | Merge-anomaly counter live (Connections → Dropbox) | If count climbs above zero in normal use, revisit conflict handling before WEEK consumes the data. |
 | Dated AI-cache sync | 2 instances hand-plumbed (nudge v2.27.0b, weekly block v2.36.1/BUG-057) | **Rule of three:** the next AI-generated daily text must trigger a registry instead of a third hand-plumbing — same payload + remote-wins-merge pattern each time. |
 | open_triage second use | Shipped v2.36.0 from Can's own request | ⚠️ Mid-Aug deadline reached (2026-08-08) — ask Can whether he's used `open_triage` unprompted, or if discoverability should be improved / feature removed. |

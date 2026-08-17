@@ -63,7 +63,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     process.exit(1);
   }
   const backupBlock = indexSrc.match(/async function dropboxBackup\(silent\)[\s\S]*?const data = \{[\s\S]*?\n  \};/)?.[0] || '';
-  const privacyKeyOccurrences = (indexSrc.match(/today_connections_privacy_seen/g) || []).length;
+  const connSrc = await readFile(join(ROOT, 'assets/connections.js'), 'utf8').catch(() => '');
+  const privacyKeyOccurrences = (indexSrc + connSrc).match(/today_connections_privacy_seen/g)?.length ?? 0;
   if (!backupBlock || backupBlock.includes('today_connections_privacy_seen') || privacyKeyOccurrences !== 1) {
     console.error('✗ FAIL — Connections privacy seen flag must remain local-only, outside Dropbox backup and merge.');
     process.exit(1);
