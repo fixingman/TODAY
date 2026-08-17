@@ -1713,7 +1713,7 @@
         if (localStorage.getItem('stat_last_visit') === today) return;
         applyNewDayCleanup();
         renderManual();
-        loadTrello();
+        loadTrello(true);
         updateStats();
         // Refresh the nudge banner too — a tab left open across midnight (common desktop
         // usage) would otherwise keep showing yesterday's cached AI text (wrong counts,
@@ -1824,8 +1824,9 @@
         }
 
         // Refresh Trello so cached tasks get replaced with fresh data
+        // fromSync=true: reconnect is a background event — transient errors must not open the config panel
         const cfg = getSavedConfig();
-        if (cfg.apiToken && cfg.boardId) loadTrello();
+        if (cfg.apiToken && cfg.boardId) loadTrello(true);
 
         // Resume sync ticker (2s delay to let backup settle)
         clearTimeout(wakeTimer);

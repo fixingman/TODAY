@@ -404,13 +404,11 @@
     function archiveHabit(id) {
       const h = habitsList.find(h => h.id === id);
       if (!h) return;
-      _archivedHabitStack.push({ ...h });
-      if (_archivedHabitStack.length > 10) _archivedHabitStack.shift();
       h.archived = true;
       _saveHabits();
       renderHabits();
       if (habitEditMode) _enterHabitEditMode();
-      _showUndoToast(h.name || 'Habit', _archivedHabitStack.length, 'habit');
+      _archiveHabitUndo(h);
     }
 
     window._saveHabits = _saveHabits;
