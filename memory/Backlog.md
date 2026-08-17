@@ -16,7 +16,6 @@
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 2 | **Poem corpus growth** | Ongoing | Corpus 97, target ~100, three to go. Spring thinnest gap. A cut is final — detail ↓ |
-| 3 | **Module extraction** | **Done** | All extraction complete. focus.js done (v2.65.13). day-lifecycle.js done (v2.65.9). nudge.js done (v2.65.8). task-actions.js done (v2.65.5). assistant.js done (v2.65.2). Startup, shared task state, and favicon remain inline as intended. |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 6 | **Todoist integration** | Not started | Highest task-integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 
@@ -51,21 +50,6 @@
 - Cranmer-Byng *A Feast of Lanterns* (archive.org `in.ernet.dli.2015.282424`) — Yuan Mei, Liu Tzu-hui unproposed, available when China tiebreaker lifts
 - Prose at Marcus Aurelius length (2–5 sentences) works; Muir *First Summer* (d.1914) worth a targeted pass; Garnett-trans. Chekhov nature prose not yet searched
 - Closed: London Snow (too long), Turkish/Sufi (no worldwide-PD English), Poe (anguished), Egyptian/African/Scandinavian (PD-translation bottleneck)
-
-### 3 · Module Extraction
-
-| Order | Module | Size | Notes |
-|---|---|---:|---|
-| Done ✓ | `focus.js` | ~1,400 | Done v2.65.13. 5 exports (`_focusOnCheck`, `_tryRestoreFocusSession`, `_focusReanchor`, `_pipSync`, `_pipClose`). `_focusUIActive` is write-through (not formal export). 11-test suite (`focus-test.mjs`). |
-| Done ✓ | `day-lifecycle.js` | ~197 | Done v2.65.9. 1 export (`applyNewDayCleanup`). Also fixed midnight nudge reset (`_nudgeOnNewDay` callback) and bundled memory-panel date-format fix. |
-| Done ✓ | `nudge.js` | ~374 | Done v2.65.8. 4 exports. Also fixed `_applyDoneStyles` export from `task-actions.js`. |
-| Done ✓ | `task-actions.js` | ~553 | Done v2.65.5. 13 exports (incl. `_applyDoneStyles`). |
-| Done ✓ | `assistant.js` | ~1,246 | Done v2.65.2. 8 exports. |
-| Done ✓ | AI provider config → `connections.js` | ~164 inline | Folded v2.64.38. 23 exports total. |
-
-Full inventory and test ownership → `Performance-audit.md` §1. Release history → `Changelog.md`.
-
-**Keep inline:** startup/init and event wiring (~218 lines) are the composition root and gain little from extraction. Favicon rendering (~53 lines) is too small for a module boundary. Shared task state remains inline. Extraction is for ownership and navigation, not payload reduction — every module stays part of the same SW-cached app shell.
 
 ### 4 · Push Notifications
 **Platform:** iOS 16.4+ (installed PWA only) + Android. Web Push API + VAPID keys.
@@ -121,7 +105,6 @@ Full inventory and test ownership → `Performance-audit.md` §1. Release histor
 ### Watching
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| Modularization | **All extractions complete (v2.65.13).** focus.js extracted last (~1,400 lines). Startup (~350 lines), shared task state (`manualTasks`, `habitsList`), and `drawFavicon` remain inline as composition root. | No further modules to extract. |
 | Merge-anomaly observability | Dropbox emits a console-only `[merge-anomaly]` breadcrumb; there is no persisted counter or Connections metric | Revisit only if anomalies appear during debugging or WEEK needs a measurable conflict rate. Do not describe this as live product telemetry. |
 | Dated AI-cache sync | Four fields are hand-plumbed: `day_nudge_ai`, `week_reflection`, `monday_intention`, and `week_theme_ai` | The rule-of-three threshold has been exceeded. Create one declarative cache registry before adding a fifth dated AI field. |
 | Morning nudge usefulness | v2.43.5 rebalanced list vs memory context; generation runs after sync and the resulting line syncs cross-device | Ask for the About panel's Today line verbatim. Does it name a specific current task without biography drift, reflect the synced list, and stay quiet when nothing stands out? If not, cut `Past suggestions` + `Recent conversations` before more prompt tuning. |
