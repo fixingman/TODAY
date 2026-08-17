@@ -119,6 +119,42 @@ After all decisions, replaces task list for 3s before auto-close:
 └─────────────────────────────────────────┘
 ```
 
+### Post-Triage Reflection (v2.65.7)
+
+Rendered inside `#triageReflection` (between summary and Undo button). Three states:
+
+**State 1 — intro (no policy yet, cooldown permits):** auto-close 10s
+
+```
+┌─────────────────────────────────────────┐
+│  Remember how days felt?                │
+│  TODAY can remember these reflections   │
+│  for 30 days and notice patterns over   │
+│  time. They stay on this device, and    │
+│  in your Dropbox if you connect it.     │
+│  Your AI sees a short summary only      │
+│  when you ask.                          │
+│                                         │
+│  [ Remember ]     [ Not for me ]        │
+└─────────────────────────────────────────┘
+```
+
+**State 2 — question (policy = remember, no response today):** auto-close 6s; resets to 8s on "Remember"
+
+```
+┌─────────────────────────────────────────┐
+│  Beyond what got done, how did          │
+│  today feel?                            │
+│                                         │
+│  [ drained ] [ tense ] [ steady ]       │
+│  [ calm ]    [ alive ]                  │
+└─────────────────────────────────────────┘
+```
+
+After selection: feeling button accent-selected, choices hidden, auto-close resets to 3s.
+
+**Conditions where `#triageReflection` is empty:** policy = `not_for_me`, policy = `remember` and response already exists for today, or intro cooldown has not elapsed.
+
 ---
 
 ## Focus Mode Timer
@@ -217,6 +253,25 @@ Single `.morning-nudge` strip (`#dayNudge`) positioned **between the SOON and Tr
 - **Delta-gating is the design:** each line fires once when something *changes* (show-once bookkeeping in `appMemory.noticed`, device-local), then never again. Empty → block hidden. Silence weeks are correct, not broken.
 - **Day cache:** `noticed_lines_<date>` (`_pruneLS`-cleaned) keeps the day's lines visible on re-open so they don't vanish between morning and evening.
 - **Wallpaper Test:** W1 by construction (a line exists only when something changed); W2 escapes 1+2+3. W3 due 2026-08-02: does a line land as "it knows me" or as noise?
+
+---
+
+## Memory Panel — "HOW DAYS FELT" Block (v2.65.7)
+
+Appended after the four main `typeBlock` sections by `_reflectionRenderMemory(el)`. Lives in a separate `div.reflection-memory-block` so it cannot be included in a memory-clear flow that doesn't also call `_reflectionClearFromAllMemory`.
+
+**States rendered in the block:**
+
+| Condition | Content |
+|-----------|---------|
+| Forget confirm pending | "Forget these reflections?" + Yes / Cancel |
+| Policy = `not_for_me` or absent | "Reflections are not remembered." + "Remember reflections" button |
+| Policy = `remember`, < 7 reflections | "Remembering the last 30 days." + count sentence |
+| Policy = `remember`, ≥ 7 entries + AI configured | Count + on-device observation + "Reflect" button (AI, user-initiated, aggregate only) |
+| `_reflectPending` | "reflecting…" spinner sentence in place of Reflect button |
+| `_reflectResult` set | AI-generated text in place of Reflect button |
+
+"Forget reflections" button shows whenever `list.length > 0`. "Remember reflections" button shows when policy is `not_for_me`. These two buttons are mutually exclusive.
 
 ---
 

@@ -66,6 +66,20 @@ Run ProductThinking's "what already exists?" reflex against this table before ad
 
 ---
 
+## Sensitive-data boundary — post-triage reflections (v2.65.7)
+
+Evening reflections (five categorical feelings after triage) are a **separate sensitive record** from the main `appMemory` object. They live in four dedicated localStorage keys (`today_reflection_policy`, `today_reflections`, `today_reflections_cleared_at`, `today_reflection_intro_seen_at`) backed up under matching keys in Dropbox.
+
+Design decisions:
+
+- **Opt-in with visible payoff**: a one-time consent prompt after the user's first eligible triage; nothing is collected before "Remember" is tapped.
+- **No automatic AI inclusion**: the `_memoryForAI()` function does NOT include reflection history. The user triggers AI via a "Reflect" button in the Memory panel, which sends only aggregate counts — never the feeling words attached to specific dates.
+- **Selected-population wording required**: any surface that analyses reflection data must say "On evenings you reflected…" — the sample is never claimed to be representative of all evenings.
+- **Whole-history deletion**: clearing also sends an immediate silent Dropbox backup so the deletion propagates to all devices without waiting for the next scheduled sync.
+- **Deliberate exclusion from `#memoryPanel` main blocks**: the reflection block is appended _after_ the four main `typeBlock` sections by a separate `_reflectionRenderMemory(el)` call, so it can never be accidentally included in a memory-reset flow that doesn't also call `_reflectionClearFromAllMemory`.
+
+---
+
 ## Resolved candidates (how the gates played out, 2026-07)
 
 Both original gated candidates resolved with the Roadmap #1 verdict (2026-07-18: nudge kept, read every time):

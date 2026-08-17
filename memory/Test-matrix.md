@@ -317,4 +317,90 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 
 ---
 
-*Last updated: v2.32.0 · Jul 2026*
+---
+
+## 14. Post-Triage Reflections (v2.65.7)
+
+### Consent lifecycle
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 14.1 | Triage complete, no policy, cooldown permits | `#triageReflection` shows intro copy + Remember / Not for me |
+| 14.2 | Triage complete, no policy, cooldown not elapsed | `#triageReflection` empty |
+| 14.3 | Tap "Remember" | Policy saved `remember`, intro replaced by five-word buttons, timer reset to 8s |
+| 14.4 | Tap "Not for me" | Policy saved `not_for_me`, `#triageReflection` cleared, timer reset to 3s |
+| 14.5 | Triage complete, policy = `remember`, no today response | Question shown, timer 6s |
+| 14.6 | Triage complete, policy = `remember`, today response exists | `#triageReflection` empty |
+| 14.7 | Triage complete, policy = `not_for_me` | `#triageReflection` empty |
+
+### Timer paths
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 14.8 | Intro visible (10s), user hovers `#triageComplete` | Timer pauses |
+| 14.9 | User taps "Remember" | Timer resets to 8s |
+| 14.10 | User selects feeling | Timer resets to 3s |
+| 14.11 | User taps "Not for me" | Timer resets to 3s |
+
+### Response validation
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 14.12 | Tap "steady" | Entry `{date: today, feeling: 'steady', updatedAt: ISO}` saved |
+| 14.13 | Tap second feeling same day | Entry replaced (not appended) |
+| 14.14 | 31 reflections across 31 days | Oldest entry pruned; list stays at 30 |
+| 14.15 | Invalid `feeling` value passed to `reflectionSelect` | Silently ignored, no write |
+
+### Memory panel & deletion
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 14.16 | Open Memory panel, policy = `remember`, 3 entries | "Remembering last 30 days." shown; count sentence; no observation (< 14) |
+| 14.17 | 14+ entries with dominant feeling (≥45%) | On-device observation shown |
+| 14.18 | 7+ entries + AI configured | "Reflect" button shown |
+| 14.19 | Tap "Forget reflections" → "Yes, forget" | Policy = `not_for_me`, `today_reflections` removed, `reflections_cleared_at` stamped |
+| 14.20 | Policy = `not_for_me` in panel | "Remember reflections" button shown |
+| 14.21 | Tap "Remember reflections" | Policy = `remember`, Memory block re-renders |
+
+### Dropbox sync invariants
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 14.22 | Remote has newer `reflection_policy.updatedAt` | Remote policy adopted |
+| 14.23 | Local has newer `reflection_policy.updatedAt` | Local policy kept |
+| 14.24 | Both have same `updatedAt` | Remote wins |
+| 14.25 | Remote has a response for a date local doesn't | Entry merged in |
+| 14.26 | Both have a response for same date; remote newer | Remote entry wins |
+| 14.27 | Remote `reflections_cleared_at` newer | Watermark adopted; entries ≤ watermark discarded |
+| 14.28 | Backup payload | `reflection_policy`, `reflections`, `reflections_cleared_at` present; `today_reflection_intro_seen_at` absent |
+
+### Observation thresholds
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 14.29 | 13 reflections | No observation |
+| 14.30 | 14 reflections, top feeling 44% | No observation (below 45%) |
+| 14.31 | 14 reflections, top feeling 45% | Observation: "On evenings you reflected, `<feeling>` was the most common feeling." |
+| 14.32 | 14 reflections, no dominant, no focus history | No observation |
+
+### AI reflection privacy
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 14.33 | Tap "Reflect" | Network request body contains only `evenings_count`, `feeling_counts`, optional `on_device_observation`, optional `focus_groups` — no task text, no raw dates, no names |
+| 14.34 | Result returned | Session-only; `_reflectResult` set; not written to localStorage |
+| 14.35 | Page reload after AI reflection | No `_reflectResult` in fresh session |
+
+### Static wiring
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 14.36 | `reflections.js` file exists | node --check passes |
+| 14.37 | `sw.js` precache | `'/assets/reflections.js'` present |
+| 14.38 | `CACHE_VERSION` = `'today-v2.65.7'` | Matches `APP_VERSION` (smoke-test gate) |
+| 14.39 | `index.html` script order | `reflections.js` after `dropbox.js`, before `triage.js` |
+| 14.40 | `#triageReflection` DOM | Present between `#triageSummary` and `#triageUndoBtn` |
+
+---
+
+*Last updated: v2.65.7 · Aug 2026*

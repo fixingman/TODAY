@@ -274,6 +274,8 @@
           'patterns will appear after more activity') +
         typeBlock('META', '— what today has seen and how confident it is', metaItems);
 
+      if (typeof window._reflectionRenderMemory === 'function') window._reflectionRenderMemory(el);
+
       const footer = document.getElementById('memoryFooter');
       if (footer) footer.innerHTML = _memoryClearPending
         ? `<div class="memory-footer">` +
@@ -328,6 +330,7 @@
         appMemory.suggestionHistory = [];
         _saveMemory();
       }
+      if (typeof window._reflectionClearFromAllMemory === 'function') window._reflectionClearFromAllMemory();
       renderMemoryPanel();
     }
 

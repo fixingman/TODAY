@@ -116,15 +116,19 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
 
 ---
 
-## Backup Schema (v5.4)
+## Backup Schema (v5.5)
 
 ```javascript
 {
-  version: '5.4',
+  version: '5.5',
   saved_at: 'ISO string',
   // Tasks
   manual_tasks: [{id, text, lastActive?, zone?, zoneChangedAt?}, ...],
   manual_order_at: 'ISO',  // v5.4 — manual reorder timestamp; newer wins on merge (drag jump-back fix). Mirrors trello_order_at. Absent in older backups → '' → remote order wins (prior behavior)
+  // v5.5 — post-triage reflections (opt-in). today_reflection_intro_seen_at intentionally excluded (local-only cooldown).
+  reflection_policy:      { choice: 'remember'|'not_for_me', updatedAt: 'ISO' },
+  reflections:            [{ date: 'YYYY-MM-DD', feeling: 'drained'|'tense'|'steady'|'calm'|'alive', updatedAt: 'ISO' }],
+  reflections_cleared_at: 'ISO',
   done_ids: ['id1', 'id2', ...],
   deleted_ids: [{id, at}, ...],
   checked_ids: [{id, at}, ...],
@@ -358,6 +362,9 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 | Done-today count | NOT stored/merged — derived from checked_ids via `_doneTodayCount()` (v2.18.21) |
 | Deleted IDs | Union (excluded from tasks) |
 | SOON tasks | Union by ID, newer zoneChangedAt wins |
+| Reflection policy | LWW by `updatedAt`; ties → remote wins |
+| Reflections | Per-date LWW union (newest `updatedAt` wins); entries ≤ `reflections_cleared_at` watermark discarded; pruned to 30-day calendar window |
+| Reflections cleared-at | Max-wins (most-recent deletion propagates) |
 | PAST tasks | Union by ID, newer zoneChangedAt wins, age-based purge only (done >7d, let_go/aged >30d) — no count cap (v2.17.47) |
 | Stats | Max wins; streak uses `Math.max` only when `remoteStreakDate >= localStreakDate` — prevents ticker-reversed device from re-inflating yesterday's count after midnight reset (v2.64.22) |
 | Triage dismissed | If remote = today, apply locally |
@@ -410,6 +417,21 @@ Prior to v2.64.23, the full appMemory merge lived only in `dropboxRestore(!fromS
 2. Mutations queued in localStorage
 3. Sync resumes on connectivity
 4. SW caches app shell for offline access
+
+---
+
+## Reflection Merge (v2.65.7)
+
+The merge delegate `_reflectionMergeRemote(data)` is called from both `mergeRemoteData()` (background sync) and `dropboxRestore()` (manual restore) so the two paths cannot drift. The four-step algorithm:
+
+1. **Clear watermark** — `MAX(local, remote)`. If remote is newer, overwrite local and set `changed = true`.
+2. **Policy LWW** — compare `updatedAt` ISO strings. Remote wins on ties. Write local if different.
+3. **Responses union** — build a `Map<date, entry>`. Local entries loaded first; remote entries overwrite any where `remote.updatedAt > local.updatedAt`. Entries whose `updatedAt ≤ merged_cleared_at` are then discarded.
+4. **Prune to 30 calendar days** — based on wall-clock date, not elapsed ms, to survive DST transitions cleanly.
+
+**Later-connection behavior:** if Dropbox is connected for the first time after reflections exist locally, the next backup includes the full `reflections` array and policy. On any other device that already has a backup, `mergeRemoteData` unions in the new entries on the next sync.
+
+**Deletion propagation:** `reflectionForgetConfirm()` calls `_reflectionClearFromAllMemory()` which stamps `reflections_cleared_at`, removes the local data, sets policy to `not_for_me`, then triggers an immediate silent `dropboxBackup(true)`. The next sync on any other device will receive the new watermark and discard all entries before it.
 
 ---
 

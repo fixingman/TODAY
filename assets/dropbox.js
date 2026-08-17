@@ -537,7 +537,7 @@
 
       const now = new Date().toISOString();
       const data = {
-        version:      '5.4', // 5.4: + manual_order_at (recency-aware manual reorder merge)
+        version:      '5.5', // 5.5: + reflection_policy, reflections, reflections_cleared_at
         saved_at:     now,
         manual_tasks:      safeJSON('today_manual', []),
         done_ids:          safeJSON('today_done',   []),
@@ -598,6 +598,8 @@
         user_names:           _getUserNames(),
         user_names_at:        localStorage.getItem('user_names_at') || '',
         // stat_last_visit intentionally excluded — it's local device state, meaningless on another device
+        // Reflections — opt-in evening feelings; today_reflection_intro_seen_at intentionally excluded (local-only)
+        ...(typeof window._reflectionBackupFields === 'function' ? window._reflectionBackupFields() : {}),
       };
 
       try {
@@ -1440,6 +1442,8 @@
         });
         if (trelloTasks.length !== prevLen) renderTrello();
       }
+      if (typeof window._reflectionMergeRemote === 'function' && window._reflectionMergeRemote(data)) _changed = true;
+
       updateStats();
       return _changed;
     }
@@ -1603,6 +1607,7 @@
           _mergeAppMemory(data.memory);
           // stat_last_visit intentionally NOT restored — it's local device state.
           // Restoring it would cause applyNewDayCleanup() to re-run and delete today's tasks.
+          if (typeof window._reflectionMergeRemote === 'function') window._reflectionMergeRemote(data);
           renderManual();
           renderTrello();
           updateStats();

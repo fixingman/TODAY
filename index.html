@@ -1391,6 +1391,82 @@
     flex: 0 0 auto;
   }
 
+  /* ── Post-triage reflections ─────────────────────────────────────── */
+  #triageReflection {
+    width: 100%;
+    margin-top: var(--space-2);
+  }
+  .reflection-intro {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+  }
+  .reflection-intro-copy {
+    font-size: var(--text-sm2);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .reflection-consent-actions {
+    display: flex;
+    gap: var(--space-2);
+  }
+  .reflection-consent-btn {
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm2);
+    cursor: pointer;
+    transition: opacity var(--dur-fast) var(--ease-out);
+  }
+  .reflection-consent-btn.accent {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-glow);
+    color: var(--accent);
+  }
+  .reflection-consent-btn.neutral {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .reflection-consent-btn:hover { opacity: 0.8; }
+  .reflection-question {
+    font-size: var(--text-sm2);
+    color: var(--muted);
+    padding: var(--space-2) 0 var(--space-1);
+  }
+  .reflection-feelings {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--space-1);
+  }
+  .reflection-feeling-btn {
+    min-height: 44px;
+    padding: var(--space-1);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-size: var(--text-xs);
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  }
+  .reflection-feeling-btn[aria-pressed="true"],
+  .reflection-feeling-btn.selected {
+    background: var(--accent-dim);
+    border-color: var(--accent-glow);
+    color: var(--accent);
+  }
+  .reflection-feeling-btn:hover:not([aria-pressed="true"]) {
+    border-color: var(--muted);
+  }
+  @media (max-width: 375px) {
+    .reflection-feelings { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 320px) {
+    .reflection-feelings { grid-template-columns: repeat(2, 1fr); }
+  }
+
   /* Task item */
   /* ── Component: Task ───────────────────────────────────────────────── */
   .task-list {
@@ -3652,6 +3728,12 @@
     /* Keep essential state indicators visible */
     .focus-timer-fill.complete { opacity: 1; }
     .loading-dots span { opacity: 0.6; }
+
+    /* Reflections: suppress button hover transitions */
+    .reflection-consent-btn,
+    .reflection-feeling-btn {
+      transition: none;
+    }
   }
 </style>
 </head>
@@ -3889,6 +3971,7 @@
     <div id="triageComplete" class="hidden">
       <div class="triage-complete-msg">All sorted</div>
       <div id="triageSummary"></div>
+      <div id="triageReflection" aria-live="polite"></div>
       <button id="triageUndoBtn" onclick="triageUndo()" class="triage-undo-btn" style="display:none">Undo</button>
     </div>
   </div>
@@ -4001,6 +4084,7 @@
 <script src="assets/celebration.js"></script>
 <script src="assets/connections.js"></script>
 <script src="assets/dropbox.js"></script>
+<script src="assets/reflections.js"></script>
 <script src="assets/trello.js"></script>
 <script src="assets/insights.js"></script>
 <script src="assets/error-monitor.js"></script>
@@ -4033,16 +4117,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '263h';
+const DEV_HOURS     = '266h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.65.7': 'New: opt-in post-triage reflections — capture how evenings felt, keep 30 days, and let TODAY notice patterns over time.',
   '2.65.6': 'Polish: the TODAY logo gently expands its letter-spacing when you hover over it.',
   '2.65.5': 'Maintenance: task management actions (adding, checking off, deleting, and undoing) were reorganised internally with no change to how they work.',
-  '2.65.4': 'Fix: reconnecting after being offline no longer briefly shows a Trello error in the Connections panel.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5014,6 +5098,7 @@ window._startConnections();
 window._startAbout();
 window._startHabits();
 window._startZones();
+window._startReflections();
 window._startTriage();
 window._startMemoryPanel();
 window._startTaskActions();

@@ -16,7 +16,7 @@
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 2 | **Poem corpus growth** | Ongoing | Corpus 97, target ~100, three to go. Spring thinnest gap. A cut is final — detail ↓ |
-| 3 | **Module extraction** | In progress | **Next:** `focus.js`. task-actions.js done (v2.65.5). assistant.js done (v2.65.2). Several post-Focus boundaries are feasible but require explicit test gates. Decision queue ↓ |
+| 3 | **Module extraction** | In progress | **Next:** `nudge.js` (plan ready). task-actions.js done (v2.65.5). assistant.js done (v2.65.2). Queue: focus.js. Decision queue ↓ |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 6 | **Todoist integration** | Not started | Highest task-integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 
@@ -56,10 +56,10 @@
 
 | Order | Module | Size | Gate |
 |---|---|---:|---|
-| **Next** | `focus.js` | ~1,332 | **High feasibility.** Strong automated invariant coverage already exists. Preserve the Focus/PiP hooks and private timer state. |
+| **Next** | `nudge.js` | ~360 | **Plan ready (assessed 2026-08-17).** Morning AI banner + version/Sunday/habit badge nudges. 4 exports. Drop write-only `_aiBadgeShown` (never read; DOM guard does the real work — also update assistant.js). 10 tests: cached AI, noon+ hidden, 1s fallback, later-fallback upgrade, stale-done invalidation, dismiss, offline/no-key, badge nudges, static wiring. |
+| Queue | `focus.js` | ~1,332 | **High feasibility.** Strong automated invariant coverage already exists. Preserve the Focus/PiP hooks and private timer state. |
 | Done ✓ | AI provider config → `connections.js` | ~164 inline | **Folded in v2.64.38.** 8 new exports (23 total). `_aiGetProvider`/`_aiGetKey`/`_aiIsConfigured` helpers, `_aiRenderConfig`/`saveAIKey`/`clearAIKey`/`setDefaultProvider` panel functions, constants, and `_aiInit` migration IIFE all in `_startConnections()` closure. 17 connections tests. |
-| Assess | `nudge.js` | ~360 | **Medium-high feasibility.** Cohesive cache/race/dismissal controller with private session guards. Add deterministic tests for morning/noon windows, cached AI vs 1s fallback, later fallback upgrade, dismissal during fetch, stale-done invalidation, offline/no-key behavior, and version/Sunday/habit badges. |
-| Done ✓ | `assistant.js` | ~1,246 | **Done v2.65.2.** AI panel + post-add suggestion controller. 8 exports. `_aiPanelOpen` and `_aiBadgeShown` stay inline. ESC listener stays inline. `scripts/assistant-test.mjs` (9 tests). |
+| Done ✓ | `assistant.js` | ~1,246 | **Done v2.65.2.** AI panel + post-add suggestion controller. 8 exports. `_aiPanelOpen` stays inline. ESC listener stays inline. `scripts/assistant-test.mjs` (9 tests). |
 | Done ✓ | `task-actions.js` | ~553 | **Done v2.65.5.** Add/check/delete/undo/clear/stats controller. 12 exports. `scripts/task-actions-test.mjs` (9 tests). `_archiveHabitUndo(h)` helper added for habits.js cross-module undo. |
 | Assess | `day-lifecycle.js` | ~210 | **Medium-low feasibility.** New-day cleanup is cohesive but crosses Focus snapshots, habits, zones, memory, tombstones, and delayed backup. Dropbox extraction done; require midnight, 3am habit, cross-device check timestamps, purge tombstones, and delayed-backup tests. |
 
@@ -140,6 +140,7 @@ Completed module inventory, sizes, and test ownership live in `Performance-audit
 | Connections privacy reassurance | v2.64.11 | 2026-08-26 | Open — one appearance per device when fully disconnected. Does it feel like timely reassurance, or like policy copy interrupting setup? |
 | Sunday recap + Monday intention (memory-enriched) | v2.65.1 | 2026-08-24 | Verdict (2026-08-17): Monday synthesis is nice, not unhappy with it. Data source fixed: now includes Soon + Trello cards (was manual only). Re-observe next Monday — does broader view produce a more relevant orientation line? |
 | Memory panel quality gate | v2.47.0 | 2026-09-01 | Open — are AI-generated hypotheses earning confirmation or getting dismissed? High dismiss rate = prompting or data quality problem. |
+| Post-triage reflections | v2.65.7 | 2026-08-31 | Open — does the prompt create a real pause to name the day, or does it become rote wallpaper / a source of quiet guilt? Watch for: selection bias (only tapping on "good" days), avoidance on hard days, feeling rote after the first week. See `research/Psychology.md` for the evidence boundary. |
 
 ### Not implementing
 | Feature | Reason |

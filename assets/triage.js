@@ -397,12 +397,24 @@
       const undoBtn = document.getElementById('triageUndoBtn');
       if (undoBtn) undoBtn.style.display = '';
 
-      _triageAutoCloseRemaining = 3000;
+      const reflectionState = typeof window._reflectionShowAfterTriage === 'function'
+        ? window._reflectionShowAfterTriage()
+        : { visible: false };
+
+      const initialMs = reflectionState.timeoutMs || 3000;
+      _startAutoClose(initialMs);
+
+      if (typeof window._reflectionMountInTriage === 'function') window._reflectionMountInTriage(reflectionState);
+    }
+
+    function _startAutoClose(durationMs) {
+      if (_triageAutoCloseTimer) clearTimeout(_triageAutoCloseTimer);
+      _triageAutoCloseRemaining = durationMs;
       _triageAutoCloseStart = Date.now();
       _triageAutoCloseTimer = setTimeout(() => {
         _triageSnapshot = null;
         triageClose();
-      }, 3000);
+      }, durationMs);
 
       const _triageCompleteEl = document.getElementById('triageComplete');
       if (_triageCompleteEl && !_triageCompleteEl._hoverWired) {
@@ -423,6 +435,18 @@
         });
       }
     }
+
+    function _triageResetAutoClose(ms) {
+      if (_triageAutoCloseTimer) { clearTimeout(_triageAutoCloseTimer); _triageAutoCloseTimer = null; }
+      _triageAutoCloseRemaining = ms;
+      _triageAutoCloseStart = Date.now();
+      _triageAutoCloseTimer = setTimeout(() => {
+        _triageSnapshot = null;
+        triageClose();
+      }, ms);
+    }
+
+    window._triageResetAutoClose = _triageResetAutoClose;
 
     function _saveTriageHistory(entry) {
       let history = safeJSON('today_triage_history', []);

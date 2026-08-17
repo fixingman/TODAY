@@ -77,12 +77,16 @@ foreboding, or the feeling of another task to maintain. Brief reflection has bet
 helps a person **name** an experience or connect it to meaning or action. Affect-labeling research
 likewise supports putting feelings into words more directly than selecting an unlabeled score.
 
-**TODAY's fit:** if explored, make it an optional, ephemeral reflection at an earned day-end closure:
-“What feeling best describes today?” Use a small set of human words, with pictograms only as support.
-Do not store the answer, score the day, build history, show trends or streaks, repeat after a skip, or
-feed it to AI. A triage-only appearance is acceptable for a closure ritual but must never be described
-or analysed as representative daily mood data. If answers are retained or compared later, the feature
-has become mood tracking and requires a separate product, privacy, and measurement decision.
+**TODAY's product/privacy decision (v2.65.7):** opt-in evening reflections shipped. The explicit choices made, each driven by the above tensions:
+
+- **Opt-in with two-tap consent** — prompt shown once after triage; “Remember” or “Not for me.” Consent is local, revocable at any time from the Memory panel.
+- **Whole-history deletion** — “Forget reflections” clears policy, history, and watermark in one step; an immediate silent Dropbox backup propagates deletion to all devices.
+- **Five categorical words only** — drained · tense · steady · calm · alive. No scores, no sliders, no unlabeled ratings, no emojis. Affect-labeling benefit without numeric-score baggage.
+- **30-day local retention** — responses stay on device and in Dropbox if connected; they do not accumulate indefinitely.
+- **Selected-population wording** — all in-app observations say “On evenings you reflected…” to acknowledge the selection bias: the sample is not a random cross-section of all evenings.
+- **Conservative on-device observations** — purely deterministic, no AI. Require ≥14 reflections total, ≥4 per comparison group. Only two patterns surfaced: a dominant feeling (≥45% share) or a focus-association (≥30 pp difference between low-focus and long-focus groups). One observation maximum.
+- **User-initiated AI only** — the “Reflect” button is shown only when the AI is configured and ≥7 reflections exist; sends aggregate counts and the on-device observation, never task text, raw dates, or identifiers; result is session-only and never stored.
+- **No streaks, no trends** — no counts displayed, no completion indicators, no comparison across weeks.
 
 **Evidence boundary (research pass, 2026-08):** mood-monitoring RCT meta-analysis found no robust
 benefit or harm ([Astill Wright et al.](https://pmc.ncbi.nlm.nih.gov/articles/PMC12779106/)); a brief
@@ -90,7 +94,10 @@ daily self-care reflection RCT reduced stress and negative affect but included b
 and planning, not a single rating ([Fiodorova & Farb](https://pubmed.ncbi.nlm.nih.gov/34313502/));
 user-experience synthesis found both insight and risks such as rumination and guilt
 ([Astill Wright et al.](https://www.nature.com/articles/s41746-025-02118-8)). The value of TODAY's
-one-tap closure version therefore remains a product hypothesis, not a proven wellbeing intervention.
+opt-in closure version therefore remains a product hypothesis, not a proven wellbeing intervention.
+The wellbeing benefit of even the brief one-tap form is unproven; rumination and guilt remain real
+risks. See `Backlog.md` → Watching for the Wallpaper Test watchlist entry (re-evaluate ~2 weeks
+after release).
 
 ---
 

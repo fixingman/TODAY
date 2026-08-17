@@ -166,7 +166,16 @@
 
 ## Backup Schema
 
-**Version: 5.4** (authoritative schema in `architecture/Sync.md`)
+**Version: 5.5** (authoritative schema in `architecture/Sync.md`)
+
+### Post-Triage Reflection keys (v2.65.7)
+
+| Key | Type | Notes |
+|-----|------|-------|
+| `today_reflection_policy` | JSON `{choice, updatedAt}` | `choice` is `"remember"` or `"not_for_me"`; LWW on sync |
+| `today_reflections` | JSON array `[{date, feeling, updatedAt}]` | per-date LWW union on sync; pruned to 30 calendar days; `feeling` ∈ `{drained, tense, steady, calm, alive}` |
+| `today_reflections_cleared_at` | ISO string | deletion watermark; max-wins on sync; entries ≤ watermark are discarded |
+| `today_reflection_intro_seen_at` | ISO string | **local-only** — 7-day cooldown before re-offering the intro; intentionally never backed up to Dropbox |
 
 ```javascript
 {
