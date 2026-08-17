@@ -284,7 +284,7 @@ try {
     await page.close();
   }
 
-  // 8. archiveHabit + undo — habit archived, toast shown, _undoArchiveHabit restores it.
+  // 8. archiveHabit + undo — habit archived, toast shown, _undoLast restores it.
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
@@ -293,27 +293,25 @@ try {
       // Capture booleans immediately — habitA is a live reference; undo will mutate it.
       const habitA       = habitsList.find(h => h.id === 'habit_a');
       const habitArchived = !!(habitA && habitA.archived === true);
-      const stackLen     = _archivedHabitStack.length;
       const toast        = document.getElementById('undoToast');
       const toastShown   = !!(toast && toast.classList.contains('show'));
       const ls1          = JSON.parse(localStorage.getItem('today_habits') || '[]');
       const lsArchivedA  = ls1.find(h => h.id === 'habit_a');
 
-      _undoArchiveHabit();
+      _undoLast();
       const habitAAfter    = habitsList.find(h => h.id === 'habit_a');
       const ls2            = JSON.parse(localStorage.getItem('today_habits') || '[]');
       const lsUnarchivedA  = ls2.find(h => h.id === 'habit_a');
       return {
         habitArchived,
         lsArchived:     !!(lsArchivedA && lsArchivedA.archived === true),
-        stackHasEntry:  stackLen === 1,
         toastShown,
         undoRestored:   !!(habitAAfter && habitAAfter.archived === false),
         lsRestored:     !!(lsUnarchivedA && lsUnarchivedA.archived === false),
       };
     });
     await expectAll('archiveHabit + undo', { ...result, noErrors: errors.length === 0 });
-    ok('archiveHabit: archived + toast shown; _undoArchiveHabit restores it');
+    ok('archiveHabit: archived + toast shown; _undoLast restores it');
     await page.close();
   }
 
