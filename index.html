@@ -863,9 +863,9 @@
   }
 
   /* Logo hover: letter-spacing expands on pointer devices — not a loop, CSS correct (Rule 29) */
-  @media (prefers-reduced-motion: no-preference) {
+  @media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
     .header-left h1 {
-      transition: color var(--dur-fast), letter-spacing 300ms var(--ease-out);
+      transition: color var(--dur-fast), letter-spacing var(--dur-slow) var(--ease-out);
     }
     .header-left h1:hover {
       letter-spacing: 0.10em;
