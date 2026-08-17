@@ -149,21 +149,38 @@ A separate AI surface that lives inside the focus timer bar. Triggered by the �
 
 | Signal | Source | When |
 |---|---|---|
-| Previous sessions on task | `manualTask.focusSessions` or `_getTrelloFocusTotal()[id]` | sessions > 0 |
+| Total pomodoros on task | `manualTask.focusSessions` or `_getTrelloFocusTotal()[id]` | sessions > 0 |
+| Worked on task today | `manualTask.lastActive` date vs. today's local date | when sessions > 0 and worked today |
+| Last session N days ago | `manualTask.lastActive` timestamp | sessions > 0, not worked today, gap ≥ 2 days |
 | Task age | `_getCreatedFromId(id)` or `lastActive` | ageDays >= 3 |
 | Revived | `manualTask.revived` | true |
 | Deferred | `manualTask.zoneChangedAt` | truthy |
+| Drag-word match | `appMemory.preferences.dragKeywords` intersect task words | any word length > 3 with freq ≥ 2 in drag list |
+| Dominant letgo reason | `appMemory.patterns.letgoReasons` | one reason ≥ 35% of total, total ≥ 8 |
 | Local time | `new Date()` + locale clock formatting | always — exact local hour/minute plus morning/afternoon/evening/late night |
 | Peak hour match | `appMemory.preferences.peakHour ± 1h` | when peak hour is set |
-| Today's sessions | `stat_focus_mins_today ÷ 25` | count ≥ 1 |
+| Today's sessions (other tasks) | `stat_focus_mins_today ÷ 25` | count ≥ 1 |
 
 ### Behavioral inferences (appended to system prompt)
 
 Up to 4 confirmed inferences from `appMemory.memory` (semantic + episodic + procedural, `status === 'confirmed'`) are appended as `\n\nWhat we know about this person: ...` — added v2.53.0.
 
-### System prompt character
+### System prompt character (v2.65.0)
 
-"Quiet companion" — not a coach. One question, honest noticing. Adapts tone by context: first session → done-enough framing; multiple sessions → curious about what's in the way; revived → what changed; deferred → gentle check-in; peak hour → lean into momentum; many sessions today → acknowledge sustained effort. If the question mentions time, it must use the supplied exact local time rather than a vague phrase such as “this late.” Never offers advice or exclamation marks.
+“Focus catalyst” — not a friendly check-in, not a coach. Produces one question that creates a moment of clarity. Uses an explicit taxonomy of question types mapped to context signals:
+- **Scope-setter** (first session): what does done look like for these 25 minutes?
+- **Obstacle-surfacer** (2–3 sessions): what's actually in the way?
+- **Scope-challenger** (4+ sessions): is there a smaller version that would close it?
+- **Pick-up** (gap ≥ 2 days since last session): what do you need to pick up?
+- **Pivot** (worked today already): what shifted since the last session?
+- **Revival check** (revived): what's different this time?
+- **Deferred check** (deferred): is this the right moment, or is energy the real issue?
+- **Avoidance probe** (drag-word match): names the avoidance pattern directly
+- **Energy fit** (letgo = no_energy): check if energy fits this task right now
+- **Peak lever** (peak hour): what's the hardest part to tackle while sharp?
+- **Wind-down** (3+ sessions today or late evening): is this the right task for now?
+
+Word cap increased to 22 (was 18). Bad-question list added to system prompt: vague check-ins, affirmations, obvious yes/no questions. If the question mentions time, must use the supplied exact local time.
 
 ### Note on orphaned AI panel
 
@@ -251,6 +268,8 @@ On Mondays, the same `#sundayBlock` slot shows an AI-generated intention prompt 
 **Cache:** stored as `monday_intention_<date>` in localStorage, regenerated once per day.
 
 **Fallback:** none — block is hidden if no AI key or offline (unlike Sunday which has a rule-based fallback).
+
+**Task sources (v2.65.1):** manual tasks (undone, up to 5, done/past filtered), Soon tasks (up to 4), Trello cards (up to 4) — all included as labeled sections in the user message.
 
 ---
 

@@ -104,7 +104,7 @@ Slides up from bottom (same as AI panel). Full-screen backdrop.
 - **Done** (v2.18.0) = completed but never checked off → marks done (counts toward today's total via `_markDoneInTriage`), no celebration. Order: `Keep / ↩ Soon / Let go / Done` (Trello cards drop Soon → `Keep / Let go / Done`). **Done sits last and is neutral as of v2.18.19** — only Keep carries the accent treatment; Soon, Let go, and Done are neutral. (Previously Done led and shared Keep's accent green; moved + neutralised so the row's positive accent points only at "Keep".)
 - The leading `○` checkbox marker was removed (v2.18.1) so the four buttons get the full row width and stay one line on phones; rows are flush to the section edge.
 - Backdrop tap → `triageMinimize()` → returns to callout bar.
-- **Entrances (v2.36.0):** the evening callout bar (8pm–midnight, proactive) *and* an explicit ✦ request ("triage", "move these to soon", "I'll do these later" → `open_triage` action → `triageExpand()`). The hour gate governs when the app invites triage, not when it obliges a request — capability vs. invitation.
+- **Entrance:** the evening callout bar appears from 8pm–midnight; tapping Review opens the overlay. The former hidden AI `open_triage` action (v2.36.0) was removed in v2.64.28, so natural-language requests no longer open triage.
 
 ### Triage Summary (v2.14.4)
 
@@ -356,17 +356,23 @@ Full-screen overlay (`z-index: 500`, `pointer-events: all`) shown on cold app op
 
 **Implementation (v2.64.25):** the complete controller lives in `assets/splash.js`, loaded as an inert classic script before the main inline script. `index.html` calls `window._startSplash()` immediately after `init()`, preserving the original startup order. The module owns the readiness flags and animation internals while retaining the existing `window._onAppLoadDone`, `window._onSplashAnimDone`, and `window._doSplashDismiss` hooks used by the load gate.
 
-**Animation:** Typewriter date string at 38–66ms per character, then 500ms cursor hold, then dismiss.
+**Animation:** Typewriter date string at 38–60ms per character, then 500ms cursor hold, then dismiss.
 
 **Poem coda (v2.26.0, Roadmap #2):** on the day's **first** splash (`poem_splash_date` in
 localStorage vs `_localISO()`), after the cursor hold the day's poem (`_poemOfTheDay()`)
 fades in under the date (`#splash-poem`, 900ms opacity) and holds for a read —
-`min(4000 + lines×600, 9500)`ms, tap anywhere skips. Only then does `_onSplashAnimDone()`
+`min(max(5000, words×200), 8000)`ms, tap anywhere skips. Only then does `_onSplashAnimDone()`
 fire. The key is written at fade-in, not at decision time, so an early bail doesn't burn
-the day. `_splashPoemHold` tells the 6s anim-stall safety this is deliberate; an 18s
+the day. `_splashPoemHold` tells the 6s anim-stall safety this is deliberate; a 17s
 ceiling still backstops the whole coda. Splash content sits in `#splash-inner`
 (`margin:auto 0` + `overflow-y:auto` on `#splash`) so a long poem scrolls on a phone
 instead of clipping at the top — `justify-content:center` would clip invisibly.
+
+**Dismissal (v2.65.3, BUG-076):** static `TO` and `DAY` wrappers fade as two word layers,
+not five independently composited letters. TO runs for 250ms; DAY begins 150ms later; the
+date begins at 200ms and the star bursts at 300ms. Explicit opacity endpoints plus a persisted
+zero base style prevent Safari from exposing completed letters while the coda continues. Poem
+lines retain their 700ms fade and 250ms stagger.
 
 **Gate system:** Two parallel signals must both fire before dismiss:
 - `_splashAnimDone` — set by the 500ms cursor timeout (or by the poem coda finishing)

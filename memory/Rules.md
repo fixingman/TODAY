@@ -4,11 +4,11 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** next Roadmap #3 extraction is `focus.js` (~1,332). In queue: poem corpus growth (spring=10, target ~13; Teasdale candidates proposed, awaiting cut). BUG-076 (v2.64.37) awaiting Safari/iPhone deployment verification.
-- **Recent (2026-08-17):** assistant.js extracted (v2.65.2) — AI panel + post-add suggestion controller, 8 exports, 9 tests. Monday intention now includes Soon + Trello (v2.65.1). Focus companion question quality improved (v2.65.0) — taxonomy-based system prompt, drag-word match, letgo reason signal, worked-today / last-worked-N-days signals, word cap 18→22. AI provider config folded into connections.js (v2.64.38). BUG-076 fixed (v2.64.37).
+- **Working on:** next Roadmap #3 extraction is `focus.js` (~1,332). In queue: poem corpus growth (spring=10, target ~13; Teasdale candidates proposed, awaiting cut). BUG-076 (v2.65.3) awaiting Safari/iPhone deployment verification.
+- **Recent (2026-08-17):** BUG-076 Safari splash exit fix shipped (v2.65.3). assistant.js extracted (v2.65.2) — AI panel + post-add suggestion controller, 8 exports, 9 tests. Monday intention now includes Soon + Trello (v2.65.1). Focus companion question quality improved (v2.65.0) — taxonomy-based system prompt, drag-word match, letgo reason signal, worked-today / last-worked-N-days signals, word cap 18→22. AI provider config folded into connections.js (v2.64.38).
 - **Module extraction (Roadmap #3):** connections.js at 23 exports (AI provider config folded in). assistant.js done (v2.65.2). Next: `focus.js` (~1,332). Full inventory → `Backlog.md` §3 / `Performance-audit.md` §1.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
-  - **BUG-076 🧪 v2.64.37** — after deployment, force at least ten poem-coda exits on Safari/iPhone PWA; TO and DAY must fade as complete groups with no `O` / `AY` residue while the poem disappears.
+  - **BUG-076 ⏳ v2.65.3** — force at least ten poem-coda exits on Safari/iPhone PWA; TO and DAY must fade as complete groups with no `O` / `AY` residue while the poem disappears.
   - **v2.64.23 ⏳** — verify appMemory convergence across two devices after a few 7s sync cycles: `today_memory.semantic.length` and newly confirmed inferences should match without manual Restore Backup.
   - **v2.64.22 ⏳** — verify overnight sync hardening: streak does not re-inflate from yesterday, newest check/uncheck wins, and Trello configuration reaches the second device.
   - **v2.62.1 ⏳** — verify: `appMemory.patterns.triageUndos` increments on triage undo; `soonPulls` increments on pull-from-soon; `reviveReasons` populated on revive; letting the undo toast expire records letgoReasons.

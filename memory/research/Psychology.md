@@ -68,6 +68,32 @@ TODAY acknowledges without gamifying.
 
 ---
 
+## Reflection Without Mood Tracking
+
+A reflection prompt and a mood measurement can look identical, but they have different jobs.
+Mood monitoring alone is useful as data, yet randomized evidence does not show a robust wellbeing
+benefit; qualitative research also finds that repeated tracking can produce rumination, guilt,
+foreboding, or the feeling of another task to maintain. Brief reflection has better support when it
+helps a person **name** an experience or connect it to meaning or action. Affect-labeling research
+likewise supports putting feelings into words more directly than selecting an unlabeled score.
+
+**TODAY's fit:** if explored, make it an optional, ephemeral reflection at an earned day-end closure:
+“What feeling best describes today?” Use a small set of human words, with pictograms only as support.
+Do not store the answer, score the day, build history, show trends or streaks, repeat after a skip, or
+feed it to AI. A triage-only appearance is acceptable for a closure ritual but must never be described
+or analysed as representative daily mood data. If answers are retained or compared later, the feature
+has become mood tracking and requires a separate product, privacy, and measurement decision.
+
+**Evidence boundary (research pass, 2026-08):** mood-monitoring RCT meta-analysis found no robust
+benefit or harm ([Astill Wright et al.](https://pmc.ncbi.nlm.nih.gov/articles/PMC12779106/)); a brief
+daily self-care reflection RCT reduced stress and negative affect but included behavioural reflection
+and planning, not a single rating ([Fiodorova & Farb](https://pubmed.ncbi.nlm.nih.gov/34313502/));
+user-experience synthesis found both insight and risks such as rumination and guilt
+([Astill Wright et al.](https://www.nature.com/articles/s41746-025-02118-8)). The value of TODAY's
+one-tap closure version therefore remains a product hypothesis, not a proven wellbeing intervention.
+
+---
+
 ## Task Aging Philosophy
 
 Old tasks don't need action — they need **acknowledgment**.

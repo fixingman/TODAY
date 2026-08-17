@@ -249,7 +249,7 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 | `trello.js` extracted (Roadmap #3) | v2.33.x | ~21 KB out of index.html. SW-precached. Reduces main-file DOM queries and timers. |
 | `insights.js` extracted (Roadmap #3) | v2.33.10 | ~21 KB out of index.html. Owns `appMemory`, all pattern learning, and Noticed block. SW-precached. Loads after util.js (state dependency). |
 | Noticed block (About) | v2.35.0 | `_noticedLines()` runs on About open — O(n) over recentCompletedTasks (≤50 entries) + O(1) pattern checks. Day-cache (`noticed_lines_<date>`) prevents recompute on re-open. Negligible. |
-| open_triage AI action | v2.36.0 | Vocabulary entry + one `_aiExecute` case. Zero ongoing cost. |
+| `open_triage` AI action | v2.36.0–v2.64.28 | Vocabulary entry + `_aiExecute` case were removed in v2.64.28. Zero current runtime cost. |
 | BUG-057: week block sync | v2.36.1 | `week_reflection` + `monday_intention` added to Dropbox backup payload and `mergeRemoteData`. Two extra `localStorage.getItem` per backup, two extra `setItem` per merge. Negligible. |
 | _stripTag() keyword fix | v2.36.2 | Regex replace on task text at 3 keyword-mining sites. O(1) per call. Negligible. |
 | BUG-058: Noticed block sync | v2.36.3 | `recentCompletedTasks` and `noticed` now union-merged in `mergeRemoteData`. O(n) over remote entries on each sync merge. Bounded by 30-day window (~50 entries max). Negligible. |

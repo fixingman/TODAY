@@ -562,8 +562,21 @@
       try {
         const key = _aiGetKey ? _aiGetKey() : null;
         if (!key || !navigator.onLine) return null;
-        const waiting = manualTasks.slice(0, 5).map((t, i) => (i + 1) + '. "' + t.text + '"');
-        const ctx = waiting.length > 0 ? 'Waiting this week: ' + waiting.join(', ') + '.' : 'Fresh week, nothing waiting yet.';
+
+        const _pastIds = new Set(pastTasks.map(t => t.id));
+        const manualLines = manualTasks
+          .filter(t => !doneIds.has(t.id) && !_pastIds.has(t.id))
+          .slice(0, 5).map(t => '"' + t.text + '"');
+        const soonLines = (typeof soonTasks !== 'undefined' ? soonTasks : [])
+          .slice(0, 4).map(t => '"' + t.text + '"');
+        const trelloLines = (trelloTasks || []).slice(0, 4).map(t => '"' + t.text + '"');
+
+        const parts = [];
+        if (manualLines.length) parts.push('Today\'s list: ' + manualLines.join(', ') + '.');
+        if (soonLines.length)   parts.push('Parked for later: ' + soonLines.join(', ') + '.');
+        if (trelloLines.length) parts.push('Trello cards: ' + trelloLines.join(', ') + '.');
+        const ctx = parts.length ? parts.join(' ') : 'Fresh week, nothing waiting yet.';
+
         const memCtx = typeof _memoryForAI === 'function' ? _memoryForAI('weekly') : '';
         const userContent = (memCtx ? 'About this person:\n' + memCtx + '\n\n' : '') +
           ctx + ' One sentence for Monday — what most deserves attention this week, given what you know about how they work.';

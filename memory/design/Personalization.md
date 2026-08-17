@@ -9,7 +9,7 @@
 **North star names the moment. Intelligence fills it. Personalization keeps it fresh.**
 
 - The north star (*own the first 30 seconds of the day*, `Backlog.md` ◎) claims a **moment**, not a feature set.
-- Intelligence is what makes that moment worth 30 seconds. This is already visible in the code: every AI surface clusters at day boundaries — morning nudge, daily brief (✦), evening triage hints, day-end review, Sunday reflection / Monday intention. New intelligence surfaces should keep landing on day boundaries; an AI surface that fires mid-day at random competes with focus instead of framing it.
+- Intelligence is what makes that moment worth 30 seconds. This is already visible in the code: AI surfaces cluster at day boundaries — morning nudge, daily brief (✦), evening triage hints, day-end review, Sunday reflection / Monday intention. The focus companion (✦ ask button, v2.45.0) is the intentional exception: it fires at session-start, not a day boundary, because its job is to frame a 25-minute sitting, not the day. New intelligence surfaces should keep landing on day boundaries unless they have an equivalently bounded session moment to justify the exception; an AI surface that fires mid-day at random competes with focus instead of framing it.
 - Personalization is what keeps intelligence off the Wallpaper Test's kill list. `Philosophy.md`: *variety of input matters more than the model* — an LLM prompted the same way over the same data becomes slower wallpaper. Personal data IS the input variety. When a surface starts going stale, the fix is a fresh signal (`appMemory`, day shape, calendar), not a better prompt.
 
 ---
@@ -48,7 +48,8 @@ Run ProductThinking's "what already exists?" reflex against this table before ad
 | Signal | Where | Feeds |
 |---|---|---|
 | `completionsByHour` → `peakHour` | `appMemory.patterns` / `.preferences` | energy-rhythm lines, proactive observations |
-| `taskKeywords` (added count, avg days to complete) | `appMemory.patterns` | drag-keyword awareness |
+| `taskKeywords` (added count, avg days to complete) | `appMemory.patterns` | historical task keyword stats — distinct from `dragKeywords` |
+| `dragKeywords` (rolling 100-word list) | `appMemory.preferences` | words extracted from tasks let go via triage (`_memoryOnTaskLetgo`, v2.52.0). Shown in memory panel when 10+ entries and a word appears 2+ times. **Used in focus companion (v2.65.0):** task words matched against this list (freq ≥ 2, len > 3) — if there's a hit, companion is told to name the avoidance pattern directly. |
 | `focusMinutesTotal`, `bestStreak`, `moments` | `appMemory` | milestone observations; `focusMinutesTotal` also feeds a Noticed total-focus-hours milestone (v2.38.0) |
 | `dayStartCount` / `lateAdditions` | `appMemory.patterns` | planned-vs-emergent insight (proactive `reactive_pattern` observation only — considered for Noticed v2.38.0, dropped as a near-duplicate of that existing observation) |
 | `recentCompletedTasks` (30-day rolling, v2.29.0) | `appMemory` | `_memoryForAI()`, Sunday/Monday prompts, Noticed's AI-generated week theme (v2.39.0 — replaced a keyword-frequency count that read as a stat, not an insight) |
@@ -56,7 +57,7 @@ Run ProductThinking's "what already exists?" reflex against this table before ad
 | `today_daily_history` (30-day per-day snapshots) | localStorage | weekly stats, week grid, future WEEK companion |
 | `user_names` | localStorage | meeting attribution — the only *declared* personal data |
 | `task.revived` (v2.27.0, sync-merged) | task objects | strongest importance signal to nudge + proactive AI (v2.35.2) — "the choice was theirs, already made" |
-| `letgoReasons` (v2.62+) | `appMemory.patterns` | reason distribution for tasks let go via triage. **Caution (v2.62.1):** `letgoReasons['']` is now semantically ambiguous — it captures both "triage Let go, no reason chip selected" and "silent delete (toast expired without undo)." If this bucket is ever surfaced or compared, these two populations need to be distinguished (a separate `silentDeletes` counter or a richer key). Neither feeds `_memoryForAI` yet. |
+| `letgoReasons` (v2.62+) | `appMemory.patterns` | reason distribution for tasks let go via triage. **Caution (v2.62.1):** `letgoReasons['']` is now semantically ambiguous — it captures both "triage Let go, no reason chip selected" and "silent delete (toast expired without undo)." If this bucket is ever surfaced or compared, these two populations need to be distinguished (a separate `silentDeletes` counter or a richer key). Does not feed `_memoryForAI`. **Used in focus companion (v2.65.0):** dominant reason surfaced when one reason ≥35% of ≥8 total. |
 | `soonPulls` (v2.62.1) | `appMemory.patterns` | how many times a task was pulled back from Soon to today. Forms a **reschedule regret cluster** with `task.revived` (Past → Today is the stronger version; Soon → Today is the softer one — wishful deferral the user couldn't commit to). Not in `_memoryForAI` yet. |
 | `reviveReasons` (v2.62.1) | `appMemory.patterns` | reason distribution for tasks revived from Past (the *why* behind `task.revived`). Enriches but does not change the existing `task.revived` → Noticed path. Not in `_memoryForAI` yet. |
 | `triageUndos` (v2.62.1) | `appMemory.patterns` | how many times the user undid an entire triage session. Meta signal: if elevated, triage decisions are hasty or the session fired at the wrong moment. Not in `_memoryForAI` yet. |
@@ -69,10 +70,10 @@ Run ProductThinking's "what already exists?" reflex against this table before ad
 
 Both original gated candidates resolved with the Roadmap #1 verdict (2026-07-18: nudge kept, read every time):
 
-- **Surfacing learned patterns** → **shipped v2.35.0 as the Noticed block** (About). The surveillance tension was answered by design, not softened wording: **delta-gating** — each line appears once when something *changes* (milestone crossed, peak hour moved, theme emerged), then never again; empty means hidden. A fact restated is surveillance; a change noticed once is attention. That principle — *state deltas, never facts* — is the reusable lesson for any future "what TODAY knows" surface. W3 verdict due 2026-08-02.
+- **Surfacing learned patterns** → **shipped v2.35.0 as the Noticed block** (About). The surveillance tension was answered by design, not softened wording: **delta-gating** — each line appears once when something *changes* (milestone crossed, peak hour moved, theme emerged), then never again; empty means hidden. A fact restated is surveillance; a change noticed once is attention. That principle — *state deltas, never facts* — is the reusable lesson for any future "what TODAY knows" surface. W3 verdict season passed (Aug 2026) — Noticed remains in watch list pending Can's read.
 - **Calendar busy/free day-shape** — **untriggered.** It was the escape hatch for a stale nudge; the verdict found the nudge isn't stale. Stays in `Backlog.md`'s Not-implementing table as a conditional; revisit only if a future W-check finds the nudge going flat.
 
-Current sequencing gate: the **W3 verdict season** (poem coda Jul 28 · brief Jul 30 · Today block Aug 1 · Noticed Aug 2). Four intelligence surfaces await behavioral verdicts — building a fifth before hearing how these four landed repeats the wallpaper mistake the #1 gate existed to prevent.
+The W3 verdict season (poem coda, brief, Today block, Noticed — all due Jul 28–Aug 2 2026) has passed. Verdicts outstanding: **Noticed 7-signal** still open in `Rules.md` watch list. Focus companion and Monday intention had their W-check in Aug 2026 — improvements shipped (v2.65.0, v2.65.1). The sequencing gate principle stands: hear how a surface is landing before building the next one.
 
 ---
 

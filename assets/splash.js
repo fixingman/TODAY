@@ -223,9 +223,10 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     }, 700);
   }
 
-  // Transition: typewriter done → burst → 180ms → fade splash (explosion plays over it) → reveal app
+  // Transition: TO → DAY/date → burst/coda → fade splash → reveal app
   window._doSplashDismiss = function(){
-    const logo       = document.getElementById('splash-logo');
+    const wordTo     = document.getElementById('splash-word-to');
+    const wordDay    = document.getElementById('splash-word-day');
     const dateWrap   = document.getElementById('splash-date-wrap');
     const poemEl     = document.getElementById('splash-poem');
     const poemTextEl = poemEl?.querySelector('.splash-poem-text');
@@ -233,15 +234,21 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
 
     const _fade = (el, dur, ease = 'ease') => {
       if (!el) return;
-      el.animate([{ opacity: '0' }], { duration: dur, easing: ease, fill: 'forwards' });
+      // Explicit endpoints keep WebKit from resolving several sibling animations
+      // against different implicit compositor states. Persist the final base style
+      // as well, so losing a fill state can never reveal faded content again.
+      el.animate([{ opacity: '1' }, { opacity: '0' }], {
+        duration: dur, easing: ease, fill: 'both'
+      });
+      el.style.opacity = '0';
     };
 
-    // 1. "TO" fades first (non-accent .l spans)
-    (logo ? [...logo.querySelectorAll('.l:not(.a)')] : []).forEach(el => _fade(el, 250));
+    // 1. "TO" fades first as one word layer (BUG-076)
+    _fade(wordTo, 250);
 
     // 2. "DAY" + date row fade 150ms later; star bursts at 300ms total
     setTimeout(() => {
-      (logo ? [...logo.querySelectorAll('.l.a')] : []).forEach(el => _fade(el, 250));
+      _fade(wordDay, 250);
       setTimeout(() => _fade(dateWrap, 200), 50);
       setTimeout(() => sBurst(_burstX, _burstY), 150);
     }, 150);

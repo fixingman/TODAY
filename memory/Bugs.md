@@ -8,6 +8,7 @@
 |-------|---------|
 | ✅ `vX.X.X`  | Fixed and verified by Can on real device |
 | ⏳ `vX.X.X`  | Fix shipped — awaiting real-device verification |
+| 🧪 `vX.X.X`  | Fix complete locally — awaiting deployment and real-device verification |
 | ⚠️ Stale     | Fix shipped long ago, never verified, condition may no longer be reproducible |
 | 🚫 Rejected  | Not a fixable app bug (platform limitation, won't fix) |
 
@@ -15,6 +16,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 076 | Splash exit intermittently leaves `O` and `AY` visible while the poem coda disappears | ⏳ v2.65.3 |
 | 075 | Tagged task flashes or changes shimmer timing when hover overlaps its arrival animation | ✅ v2.64.20 |
 | 074 | Shared `/poem.html` links crash in the Netlify Edge Function before the static page loads | ✅ v2.64.12 |
 | 073 | Focus Ask question says “this late” without supplying the actual local time | ✅ v2.64.9 |
@@ -95,6 +97,36 @@
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-076 — Splash exit leaves `O` / `AY` visible
+
+**Status:** ⏳ v2.65.3 (fix shipped — awaiting Safari/iPhone verification)
+**Introduced:** v2.64.24 (per-letter WAAPI exit)
+**Files:** `index.html`, `assets/splash.js`, `scripts/splash-test.mjs`
+
+**Symptom:** During the staged splash dismissal, `TO` and `DAY` normally fade smoothly before
+the star burst, but Safari can leave `O` and `AY` visible while the poem lines continue fading.
+The residue is intermittent and was not reproducible in 24 instrumented Chromium runs.
+
+**Root cause:** The exit created five accelerated opacity animations in two same-turn sibling
+batches: T/O, then D/A/Y 150ms later. Their final invisibility existed only in WAAPI
+`fill: 'forwards'`; no underlying opacity was written. The exact surviving letters match the
+later siblings in each batch, consistent with a WebKit compositor/fill handoff race. The prior
+test checked only eventual splash removal and static letter counts, so it could not detect a
+visible residue during the longer coda exit.
+
+**Fix (v2.65.3):**
+- Static `#splash-word-to` and `#splash-word-day` wrappers now own one animation each.
+- `_fade()` uses explicit opacity `1 → 0` keyframes and persists `style.opacity = '0'` beneath
+  the animation, preventing a lost fill state from revealing completed content.
+- TO/DAY/date/burst/coda timing is unchanged; individual letter spans own no animations.
+- The splash suite repeats desktop and 375px exits and verifies ownership, order, and final state.
+
+**Device verification:** On macOS Safari and the iPhone PWA, force both coda and no-coda splash
+paths. Across at least ten coda exits, confirm TO fades together, DAY fades together 150ms later,
+the star burst remains aligned, and `O` / `AY` never remain visible while the poem disappears.
 
 ---
 

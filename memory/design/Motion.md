@@ -93,20 +93,20 @@ One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newl
 
 ---
 
-### Splash Screen Sequence (v2.17.21)
+### Splash Screen Sequence (v2.65.3)
 
 Strict order — each step gates the next:
 
 1. **Fonts ready** → `startSplash()` — star scales in (450ms), typewriter begins (rAF, ~38–60ms/char)
-2. **Typewriter done** → cursor blinks 500ms → `_onSplashAnimDone`
+2. **Typewriter done** → cursor blinks 500ms → optional poem coda → `_onSplashAnimDone`
 3. **App load done** (`_onAppLoadDone` from window.load sync) → `_doSplashDismiss`
-4. **Dismiss fires** — logo/date fade out (600ms), `sBurst(_burstX, _burstY)` fires immediately
-5. **`sLoop` runs** — stops when `maxAlpha < 0.1` (10% opacity threshold) OR 90 frames (1.5s hard cap)
-6. **`_sBurstComplete` callback** — splash fades (420ms) AND app cross-fades in simultaneously
-7. **450ms later** — splash DOM removed, canvas removed
+4. **Dismiss fires** — `TO` fades for 250ms; `DAY` starts at 150ms; date starts at 200ms; `sBurst(_burstX, _burstY)` fires at 300ms
+5. **Coda exits** — poem lines and author fade for 700ms each with a 250ms stagger, beginning at 300ms
+6. **Overlay exits** — after the last coda fade (420ms fallback without coda), splash fades for 420ms
+7. **450ms later** — splash DOM and particle canvas are removed; app children reveal with an 80ms stagger
 
 **Canvas coordinate rules:**
-- Buffer: `innerWidth*dpr × innerHeight*dpr`; context: `scale(dpr,dpr)`; CSS: `style.width/height` explicitly set to `innerWidth × innerHeight` px
+- Buffer and drawing coordinates: `innerWidth × innerHeight` CSS pixels; width/height attributes are refreshed on resize
 - Never use `inset:0` alone on canvas — some browsers use the `width` attribute as intrinsic CSS size
 - Burst origin captured at `startSplash+600ms` (post-transition), not at dismiss time
 
@@ -121,6 +121,13 @@ timed; avoiding `will-change` does not prevent it (the animation itself promotes
 visibility (nothing paints — still opacity 0) and fades the whole logo to 1 over `.5s
 var(--ease-out)` — one unit, one layer, one raster. Ceiling path (fonts unconfirmed at 2000ms)
 reveals statically with no fade.
+
+**Logo exit = two word layers (v2.65.3, BUG-076).** `TO` and `DAY` each have one stable
+wrapper and one opacity animation. Never return to separate per-letter opacity animations:
+Safari/WebKit could retain `O` and `AY` after later sibling fill states were lost. Exit keyframes
+are explicit `1 → 0`, and the underlying inline opacity is also set to zero so a compositor/fill
+handoff cannot reveal a completed word. Letter markup remains separate only for the white/accent
+colour split; individual letters own no animation.
 
 ---
 
