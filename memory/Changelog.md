@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.65.13** | **Fix: "Install app" button corrected to sentence case.** Was "Install App" in the About panel install button — inconsistent with the Connections panel rendering (platform.js) which already used "Install app". One-character fix, no behaviour change. |
 | **2.65.12** | **Fix: "Read me" label corrected to sentence case.** Was "Read Me" — inconsistent with "This week" and "Changelog" which are sentence case. One-character label fix; no behaviour change. |
 | **2.65.11** | **Fix: `connections.js` exports `_playTagInteractionShimmer`.** Was silently missing from the export block. `zones.js` calls `window._playTagInteractionShimmer(tagEl)` on tag interaction — would throw `ReferenceError` on Soon zone tag clicks. |
 | **2.65.10** | **Fix: four memory-quality corrections.** (1) `dropbox.js` lateAdditions merge: was using `Set` (collapses duplicate hours, e.g. recording three 2pm additions as one), now picks the longer of local vs. remote arrays — duplicates are data. (2) `insights.js` task lifespan: now skips non-manual tasks (`manual_` prefix guard) — Trello/soon IDs have no reliable creation timestamp. (3) `memory-panel.js` reactive/planned label: switched from average-hour ≥ 11 to percentage-≥-14h ≥ 40% — more stable threshold that matches the "after 2pm" intuition. (4) `memory-panel.js` tracking-since UTC+ fix: `new Date(m.firstSeen)` parses a bare date string as UTC midnight, landing on yesterday for UTC+ users; fixed by appending `T12:00:00` to noon-anchor the parse. |
