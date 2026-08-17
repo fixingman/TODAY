@@ -16,11 +16,9 @@
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 2 | **Poem corpus growth** | Ongoing | Corpus 97, target ~100, three to go. Spring thinnest gap. A cut is final — detail ↓ |
-| 3 | **Module extraction** | In progress | 18 modules implemented locally; 14 are tracked at `dev` HEAD. **Immediate:** repair the omitted Memory panel, Triage, and Zones assets/tests, then extract `focus.js`. Direct sync extraction is deferred. Inventory and decision gates ↓ |
+| 3 | **Module extraction** | In progress | **Next:** `focus.js`. Several post-Focus boundaries are feasible but require explicit test gates. Decision queue ↓ |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 6 | **Todoist integration** | Not started | Highest task-integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
-
-*Shipped & closed: #1 morning nudge (verdict: kept, verbatim quotes v2.32.3), #5 first-run (v2.34.0), #7 About contextual digest layer (feature-complete v2.48.2), #8 PAST revive (v2.27.0), #9 Meeting mode v2 (desktop + mobile verified 2026-08-17). History in `Changelog.md`; numbers stay retired.*
 
 **Awaiting device verification:** canonical list lives in `Rules.md` → Watch for.
 
@@ -56,22 +54,20 @@
 
 ### 3 · Module Extraction
 
-**Implemented (18; 14 tracked, 3 awaiting release repair):** `util.js` · `idle.js` · `sound.js` · `celebration.js` · `trello.js` · `insights.js` · `error-monitor.js` · `poem-utils.js` · `splash.js` · `platform.js` · `drag.js` · `meeting.js` · `about.js` · `connections.js` · `memory-panel.js`* · `triage.js`* · `zones.js`* · `habits.js`. Asterisks mark locally present, passing modules omitted from the current commit and therefore returning 404 on deployed `dev`. Exact sizes and runtime ownership live in `Performance-audit.md` §1.
-
 | Order | Module | Size | Gate |
 |---|---|---:|---|
-| Done | `meeting.js` | ~715 | Extracted v2.64.29. Automated suite passes; Can verified the extracted controller on desktop and mobile on 2026-08-17. Device gate closed. |
-| Repair | `memory-panel.js` | ~520 | Implementation and all 9 automated assertions pass locally, but the asset and test are untracked; deployed `dev` returns 404. Add them before further extraction. Physical panel test remains open. |
-| Repair | `triage.js` | ~545 | Implementation and all 10 pre/post assertions pass locally, but the asset and test are untracked; deployed `dev` returns 404. |
-| Repair | `zones.js` | ~293 | Implementation and all 11 pre/post assertions pass locally, but the asset and test are untracked; deployed `dev` returns 404. Shared zone state remains inline for the merge layer. |
-| 1 | `focus.js` | ~1,332 | Ready—strong automated invariant coverage. |
-| Done | `about.js` | ~605 | Extracted v2.64.34; 11 tests pass. No module-scope state vars. 6 exports: `toggleInfo`, `_poemOfTheDay`, `_onPoemTap`, `_shareDailyPoem`, `_copyToClipboard`, `renderInfoStats`. |
-| Done | `connections.js` | ~499 | Extracted v2.64.35; 11 tests pass. `_CONNECTIONS_PRIVACY_SEEN_KEY` and `_connectionsPrivacyVisible` moved into closure. 15 exports: `setTrelloIcon`, `syncActiveButtons`, `_renderConnectionsPrivacy`, `_endConnectionsPrivacyVisit`, `toggleConfig`, `_applyOfflinePanel`, `renderConnections`, `dropboxDisconnect`, `_getDueStr`, `_queueTagArrivalShimmer`, `renderManual`, `_wireManualTagShimmer`, `taskHTML`, `_getCreatedFromId`, `_getAgeDays`. Load order: before `trello.js`; startup call: first. |
-| Done | `habits.js` | ~403 | Extracted and tracked in v2.64.33; all 11 pre/post assertions pass. Its initializer runs, but deployed `dev` then fails at the missing Zones initializer before `init()`. All four state vars stay inline for the merge layer; `_getHabitDates` is private. |
+| Next | `focus.js` | ~1,332 | **High feasibility.** Strong automated invariant coverage already exists. Preserve the Focus/PiP hooks and private timer state. |
+| Assess | AI provider config → `connections.js` | ~164 inline | **High feasibility; fold-in, not a new module.** Extend Connections tests for valid/invalid keys, offline failure, default-provider switching, forget, and Meeting/Voice re-gating. Move the shared provider/key helpers with it; keep generic AI response parsing shared. |
+| Assess | `nudge.js` | ~360 | **Medium-high feasibility.** Cohesive cache/race/dismissal controller with private session guards. Add deterministic tests for morning/noon windows, cached AI vs 1s fallback, later fallback upgrade, dismissal during fetch, stale-done invalidation, offline/no-key behavior, and version/Sunday/habit badges. |
+| Assess | `assistant.js` | ~1,270 | **Medium feasibility.** Combine the AI panel and post-add suggestion controller after provider config moves to Connections. Existing `ai-test.mjs` covers the server boundary, not browser state; add panel lifecycle, request sequencing, rendering, action execution, breakdown, dismissal, and mutation/sync tests first. Shared task arrays remain inline. |
+| Assess | `task-actions.js` | ~553 | **Medium feasibility.** Add/check/delete/undo/clear/stats form a coherent controller, but depend on checked/deleted operation logs and autosave hooks. Dropbox public interface is now stable (v2.64.36); test manual/Trello completion, Focus interception, tombstones, undo stacks, habit archive undo, clear-done, stats, and persistence. |
+| Assess | `day-lifecycle.js` | ~210 | **Medium-low feasibility.** New-day cleanup is cohesive but crosses Focus snapshots, habits, zones, memory, tombstones, and delayed backup. Dropbox extraction done; require midnight, 3am habit, cross-device check timestamps, purge tombstones, and delayed-backup tests. |
 
-**Deferred:** do not extract the ~1,968-line sync/wake cluster wholesale. First separate and test merge rules, Dropbox transport, persistence timestamps, and wake orchestration; only a resulting low-coupling unit becomes a module.
+Completed module inventory, sizes, and test ownership live in `Performance-audit.md` §1; release history lives in `Changelog.md`.
 
-**Ceiling:** AI orchestration, shared task state, task rendering/actions, nudges, and startup/day orchestration remain inline until they gain explicit state APIs or materially better regression coverage. Candidate modules above move only after their listed gates pass. Zones is a controller-only boundary: its shared arrays stay inline. Extraction is for ownership and navigation, not payload reduction; every module remains part of the same SW-cached app shell.
+**Dropbox coordination:** `dropbox.js` extracted (v2.64.36) — auth (PKCE), backup/restore, live sync cluster (syncTrello, syncDropbox, checkNewDay, ticker), wake handling, and all state helpers (checked/unchecked/deleted ID logs, Trello tracking maps); 27 exports; 1,975 lines. `_appReady` stays as an inline global (assets/splash.js writes it as a bare identifier). `task-actions.js` and `day-lifecycle.js` can now be assessed; the operation-log, autosave, wake, and day-boundary interfaces are stable and public.
+
+**Keep inline:** startup/init and event wiring (~218 lines) are the composition root and gain little from extraction. Favicon rendering (~53 lines) is too small for a request/module boundary; fold it into a future stats/task controller if that boundary lands. Shared task state remains inline. Extraction is for ownership and navigation, not payload reduction; every module remains part of the same SW-cached app shell.
 
 ### 4 · Push Notifications
 **Platform:** iOS 16.4+ (installed PWA only) + Android. Web Push API + VAPID keys.
@@ -79,10 +75,8 @@
 **Key constraint:** iOS has no background sync — notifications must be server-sent via Netlify Scheduled Functions. The app cannot self-schedule.
 **Scope:** day boundaries only — 8pm triage reminder + morning briefing. No habit nudges, no task chasing.
 
-### 9 · Meeting mode follow-ons
+### Meeting mode follow-ons
 **Scope boundary (permanent):** phone-call recording is impossible from any app on iOS — the OS never exposes call audio. Mobile meeting mode = in-room/speakerphone capture through the mic. Don't revisit; it's an OS wall, not a PWA limitation.
-
-**Verified 2026-08-17:** `meeting.js` shipped in v2.64.29 and passes its automated suite. Can tested the extracted Meeting controller successfully on desktop and mobile, closing the baseline and post-extraction device gates. Native capture no longer blocks the extraction roadmap.
 
 **Calendar-triggered capture — proposed 2026-08-02, not started.** Can's problem: forgets to click the button almost every time, or misses it mid-meeting when sharing screen. v2.44.0's auto-PiP doesn't solve it — it follows a capture you already started.
 
@@ -123,8 +117,6 @@
 | **AI system-prompt trimming** | — | Cost <$0.01/day. Never cut: task/habit lists with IDs, JSON rules, personality block | Only if token cost ever matters |
 | **Trello checklist write-back** | — | Write checklist state back to Trello | Only if editing is actually wanted |
 
-*(Left this list 2026-07-19: learned patterns → v2.35.0, energy-aware suggestions → v2.35.1, revived counter to AI → v2.35.2. Left 2026-08-08: skip-reason on letgo → v2.54.0/v2.55.0; Sekki season moments → v2.60.0.)*
-
 ---
 
 ## Decisions & boundaries *(reference — rarely changes)*
@@ -132,7 +124,7 @@
 ### Watching
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| Modularization | Single file (~10.2K lines) + `assets/poems.js` + extracted modules | Roadmap #3 in progress; 18 modules implemented locally, 14 tracked. Repair the three omitted module/test pairs first, then queue: Focus. Direct sync extraction stays deferred. Meeting, Memory panel, Triage, Zones, Habits, About, Connections, drag, platform, splash, and smoke tests guard the affected paths. |
+| Modularization | Single file (~10.2K lines) + `assets/poems.js` + extracted modules | Focus is ready. Post-Focus feasibility: AI config fold-in → Nudge → Assistant; Task Actions and Day Lifecycle wait for the active Dropbox extraction. Startup remains inline; union merge stays test-gated. |
 | Sync conflict rate | Merge-anomaly counter live (Connections → Dropbox) | If count climbs above zero in normal use, revisit conflict handling before WEEK consumes the data. |
 | Dated AI-cache sync | 2 instances hand-plumbed (nudge v2.27.0b, weekly block v2.36.1/BUG-057) | **Rule of three:** the next AI-generated daily text must trigger a registry instead of a third hand-plumbing — same payload + remote-wins-merge pattern each time. |
 | open_triage second use | Shipped v2.36.0 from Can's own request | ⚠️ Mid-Aug deadline reached (2026-08-08) — ask Can whether he's used `open_triage` unprompted, or if discoverability should be improved / feature removed. |
@@ -148,18 +140,12 @@
 
 | Surface | Shipped | W3 due | Status |
 |---------|---------|--------|--------|
-| Morning nudge AI line | v2.17.73 | 2026-07-18 | ✅ Kept + iterated — read every time; task references now verbatim (v2.32.3). |
-| Week-grid "best day" dot | v2.17.121 | 2026-06-30 | ✅ Kept — works well (verified 2026-07-15). |
-| Poem splash coda | v2.26.0 | 2026-07-28 | ✅ Kept + iterated — coda never became wallpaper; timing fix v2.36.8; poem share shipped v2.40.0. |
-| Daily brief (✦ brief) | v2.29.0 | 2026-07-28 | ❌ Removed v2.40.9 — content redundant with About; fixing discoverability would have made a redundant feature easier to find. |
-| Today block in About | v2.33.0 | 2026-08-01 | ✅ Kept (2026-07-31) — adds value as a content layer; About is where the nudge actually lands and gets read. |
 | Season moments (6/year) | v2.37.0 | first appearance 2026-09-01 | Open — 14-day window doesn't apply (fires ~6×/year); judge per appearance. Sep 1 "First day of autumn.": does it land as noticed or as calendar readout? |
 | Focus companion question | v2.45.0 / v2.53.0 / v2.64.9 | 2026-08-16 | Open — does the question feel like a thoughtful friend or a template? v2.64.9 makes time references concrete after “this late” landed without a clock value. Does exact time improve the observation, or does it feel overly literal? |
 | About contextual CTAs | v2.64.10 | 2026-08-25 | Open — Focus Copy, `see more`, and poem `share` now share the bordered CTA treatment. Does the border make the actions clearer without pulling attention from the week/poem content? |
 | Connections privacy reassurance | v2.64.11 | 2026-08-26 | Open — one appearance per device when fully disconnected. Does it feel like timely reassurance, or like policy copy interrupting setup? |
 | Sunday recap + Monday intention (memory-enriched) | v2.48.2 | 2026-08-17 | Open — does the Monday line name something specific to how you work, or still feel generic? Quality improves as confirmed memory inferences accumulate. |
 | Memory panel quality gate | v2.47.0 | 2026-09-01 | Open — are AI-generated hypotheses earning confirmation or getting dismissed? High dismiss rate = prompting or data quality problem. |
-| Noticed block in About | v2.35.0–v2.39.0 | 2026-08-09 | ✅ Kept (2026-08-03). **Hypothesis:** as Memory panel accumulates confirmed inferences, Noticed observations will become more specific without new code — watch whether Noticed content shifts character after the first batch of confirmed memory inferences. |
 | Memory auto-sync (patterns, inferences, moments) | v2.64.23 | 2026-08-29 | Open — does appMemory now converge across devices without manual Restore Backup? Check that `today_memory` on both devices has matching `semantic.length` after a few auto-sync cycles (7s ticker). BUG-073 side-effect: focus minutes (BUG-066) and cross-device keyword counts should also now reconcile automatically. |
 | Sync hardening (streak, checked_ids LWW, Trello config, Trello maps pruning) | v2.64.22 | 2026-08-29 | Open — does the streak stay accurate after leaving the app open overnight? On the weaker device (ticker runs first), the streak should no longer re-inflate to yesterday's count after midnight reset. |
 
