@@ -3884,7 +3884,7 @@
     </div>
 
     <div class="panel-section">
-      <div class="config-label">Read Me</div>
+      <div class="config-label">Read me</div>
       <div class="panel-haiku">
         <div class="poem-block" id="poemBlock" role="button" tabindex="0" title="Share this poem"
              onclick="_onPoemTap()"
@@ -4135,6 +4135,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.65.12': 'Fix: "Read me" label corrected to sentence case (was "Read Me").',
   '2.65.11': 'Fix: ReferenceError on Soon zone — _playTagInteractionShimmer now exported from connections.js.',
   '2.65.10': 'Fix: Dropbox sync preserves repeated lateAdditions hours (was Set-merging, collapsing duplicates); task lifespan samples now skip non-manual tasks; reactive/planned label uses consistent 2pm threshold; tracking-since day count correct for UTC+ users.',
   '2.65.9': 'Maintenance: new-day cleanup and midnight nudge refresh reorganised internally; memory panel tracking-since date now shows as "Aug 17, 2026" instead of raw ISO.',
