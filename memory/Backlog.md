@@ -16,7 +16,7 @@
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 2 | **Poem corpus growth** | Ongoing | Corpus 97, target ~100, three to go. Spring thinnest gap. A cut is final — detail ↓ |
-| 3 | **Module extraction** | In progress | **Next:** `focus.js` (~1,332). day-lifecycle.js done (v2.65.9). nudge.js done (v2.65.8). task-actions.js done (v2.65.5). assistant.js done (v2.65.2). Decision queue ↓ |
+| 3 | **Module extraction** | **Done** | All extraction complete. focus.js done (v2.65.13). day-lifecycle.js done (v2.65.9). nudge.js done (v2.65.8). task-actions.js done (v2.65.5). assistant.js done (v2.65.2). Startup, shared task state, and favicon remain inline as intended. |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 6 | **Todoist integration** | Not started | Highest task-integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 
@@ -56,7 +56,7 @@
 
 | Order | Module | Size | Notes |
 |---|---|---:|---|
-| **Next** | `focus.js` | ~1,332 | **High feasibility.** Strong automated invariant coverage already exists. Preserve the Focus/PiP hooks and private timer state. |
+| Done ✓ | `focus.js` | ~1,400 | Done v2.65.13. 5 exports (`_focusOnCheck`, `_tryRestoreFocusSession`, `_focusReanchor`, `_pipSync`, `_pipClose`). `_focusUIActive` is write-through (not formal export). 11-test suite (`focus-test.mjs`). |
 | Done ✓ | `day-lifecycle.js` | ~197 | Done v2.65.9. 1 export (`applyNewDayCleanup`). Also fixed midnight nudge reset (`_nudgeOnNewDay` callback) and bundled memory-panel date-format fix. |
 | Done ✓ | `nudge.js` | ~374 | Done v2.65.8. 4 exports. Also fixed `_applyDoneStyles` export from `task-actions.js`. |
 | Done ✓ | `task-actions.js` | ~553 | Done v2.65.5. 13 exports (incl. `_applyDoneStyles`). |
@@ -121,7 +121,7 @@ Full inventory and test ownership → `Performance-audit.md` §1. Release histor
 ### Watching
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| Modularization | `focus.js` (~1,332 lines) is next. Startup, shared task state, and favicon remain inline. All prior extractions done: dropbox, connections (+ AI provider config), assistant, task-actions, nudge, day-lifecycle. | Startup remains the composition root and gains nothing from extraction. Shared state and merge boundaries stay test-gated. |
+| Modularization | **All extractions complete (v2.65.13).** focus.js extracted last (~1,400 lines). Startup (~350 lines), shared task state (`manualTasks`, `habitsList`), and `drawFavicon` remain inline as composition root. | No further modules to extract. |
 | Merge-anomaly observability | Dropbox emits a console-only `[merge-anomaly]` breadcrumb; there is no persisted counter or Connections metric | Revisit only if anomalies appear during debugging or WEEK needs a measurable conflict rate. Do not describe this as live product telemetry. |
 | Dated AI-cache sync | Four fields are hand-plumbed: `day_nudge_ai`, `week_reflection`, `monday_intention`, and `week_theme_ai` | The rule-of-three threshold has been exceeded. Create one declarative cache registry before adding a fifth dated AI field. |
 | Morning nudge usefulness | v2.43.5 rebalanced list vs memory context; generation runs after sync and the resulting line syncs cross-device | Ask for the About panel's Today line verbatim. Does it name a specific current task without biography drift, reflect the synced list, and stay quiet when nothing stands out? If not, cut `Past suggestions` + `Recent conversations` before more prompt tuning. |

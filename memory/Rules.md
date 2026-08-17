@@ -4,9 +4,9 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** next Roadmap #3 extraction is `focus.js` (~1,332 lines, high feasibility — preserve Focus/PiP hooks and private timer state). Also in queue: poem corpus growth (spring=10, target ~13; Teasdale candidates proposed, awaiting cut). BUG-076 (v2.65.3) awaiting Safari/iPhone deployment verification.
-- **Recent (2026-08-17):** day-lifecycle.js extracted (v2.65.9) — 1 export (`applyNewDayCleanup`), 11 tests, midnight nudge reset bug fixed, memory-panel date format bundled. nudge.js extracted (v2.65.8) — 4 exports, 10 tests. TODAY logo hover (v2.65.6). Task actions refactored (v2.65.5). Trello reconnect fix (v2.65.4). BUG-076 splash fix (v2.65.3). assistant.js extracted (v2.65.2).
-- **Module extraction (Roadmap #3):** connections.js at 23 exports (AI provider config folded in). day-lifecycle.js done (v2.65.9). nudge.js done (v2.65.8). task-actions.js done (v2.65.5). assistant.js done (v2.65.2). Next: `focus.js` (~1,332). Full inventory → `Backlog.md` §3 / `Performance-audit.md` §1.
+- **Working on:** poem corpus growth (spring=10, target ~13; Teasdale candidates proposed, awaiting cut). BUG-076 (v2.65.3) awaiting Safari/iPhone deployment verification. Roadmap #3 module extraction complete.
+- **Recent (2026-08-17):** focus.js extracted (v2.65.13) — 5 exports, 11 tests, BUG-073 smoke check updated. Memory-quality fixes (v2.65.10). connections.js shimmer export (v2.65.11). day-lifecycle.js extracted (v2.65.9). nudge.js extracted (v2.65.8). TODAY logo hover (v2.65.6).
+- **Module extraction (Roadmap #3): COMPLETE.** focus.js done (v2.65.13, ~1,400 lines). All modules extracted: dropbox, connections (+ AI provider config), assistant, task-actions, nudge, day-lifecycle, focus. Startup composition root (~350 lines inline) remains as intended. Full inventory → `Backlog.md` §3.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
   - **BUG-076 ⏳ v2.65.3** — force at least ten poem-coda exits on Safari/iPhone PWA; TO and DAY must fade as complete groups with no `O` / `AY` residue while the poem disappears.
   - **v2.64.23 ⏳** — verify appMemory convergence across two devices after a few 7s sync cycles: `today_memory.semantic.length` and newly confirmed inferences should match without manual Restore Backup.

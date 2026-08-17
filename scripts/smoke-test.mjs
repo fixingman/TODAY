@@ -48,9 +48,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
   // "late night" is not enough for the model to produce a concrete question.
   // Keep both halves of the contract present: exact local time in context and
   // an instruction to use that value instead of vague wording.
-  const hasFocusLocalTime = /_localTime\s*=\s*_now\.toLocaleTimeString\(\[\],\s*\{\s*hour:\s*'numeric',\s*minute:\s*'2-digit'\s*\}\)/.test(indexSrc)
-    && indexSrc.includes("_ctx.push('local time ' + _localTime + ' (' + _period + ')')");
-  const hasFocusTimeInstruction = indexSrc.includes('use the supplied exact local time — never a vague phrase like "this late."');
+  // Since focus mode was extracted to assets/focus.js (v2.65.13), search both files.
+  const focusSrc = await readFile(join(ROOT, 'assets/focus.js'), 'utf8');
+  const combinedSrc = indexSrc + focusSrc;
+  const hasFocusLocalTime = /_localTime\s*=\s*_now\.toLocaleTimeString\(\[\],\s*\{\s*hour:\s*'numeric',\s*minute:\s*'2-digit'\s*\}\)/.test(combinedSrc)
+    && combinedSrc.includes("_ctx.push('local time ' + _localTime + ' (' + _period + ')')");
+  const hasFocusTimeInstruction = combinedSrc.includes('use the supplied exact local time — never a vague phrase like "this late."');
   if (!hasFocusLocalTime || !hasFocusTimeInstruction) {
     console.error('✗ FAIL — Focus Companion must send exact local time and forbid vague time references (BUG-073).');
     process.exit(1);
