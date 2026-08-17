@@ -50,7 +50,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
   // an instruction to use that value instead of vague wording.
   const hasFocusLocalTime = /_localTime\s*=\s*_now\.toLocaleTimeString\(\[\],\s*\{\s*hour:\s*'numeric',\s*minute:\s*'2-digit'\s*\}\)/.test(indexSrc)
     && indexSrc.includes("_ctx.push('local time ' + _localTime + ' (' + _period + ')')");
-  const hasFocusTimeInstruction = indexSrc.includes('use the supplied exact local time; never replace it with a vague phrase like "this late."');
+  const hasFocusTimeInstruction = indexSrc.includes('use the supplied exact local time — never a vague phrase like "this late."');
   if (!hasFocusLocalTime || !hasFocusTimeInstruction) {
     console.error('✗ FAIL — Focus Companion must send exact local time and forbid vague time references (BUG-073).');
     process.exit(1);

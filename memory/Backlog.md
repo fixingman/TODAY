@@ -16,7 +16,7 @@
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 2 | **Poem corpus growth** | Ongoing | Corpus 97, target ~100, three to go. Spring thinnest gap. A cut is final — detail ↓ |
-| 3 | **Module extraction** | In progress | **Next:** `focus.js`. Several post-Focus boundaries are feasible but require explicit test gates. Decision queue ↓ |
+| 3 | **Module extraction** | In progress | **Next:** `focus.js`. assistant.js done (v2.65.2). Several post-Focus boundaries are feasible but require explicit test gates. Decision queue ↓ |
 | 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
 | 6 | **Todoist integration** | Not started | Highest task-integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
 
@@ -56,10 +56,10 @@
 
 | Order | Module | Size | Gate |
 |---|---|---:|---|
-| Next | `focus.js` | ~1,332 | **High feasibility.** Strong automated invariant coverage already exists. Preserve the Focus/PiP hooks and private timer state. |
+| **Next** | `focus.js` | ~1,332 | **High feasibility.** Strong automated invariant coverage already exists. Preserve the Focus/PiP hooks and private timer state. |
 | Done ✓ | AI provider config → `connections.js` | ~164 inline | **Folded in v2.64.38.** 8 new exports (23 total). `_aiGetProvider`/`_aiGetKey`/`_aiIsConfigured` helpers, `_aiRenderConfig`/`saveAIKey`/`clearAIKey`/`setDefaultProvider` panel functions, constants, and `_aiInit` migration IIFE all in `_startConnections()` closure. 17 connections tests. |
 | Assess | `nudge.js` | ~360 | **Medium-high feasibility.** Cohesive cache/race/dismissal controller with private session guards. Add deterministic tests for morning/noon windows, cached AI vs 1s fallback, later fallback upgrade, dismissal during fetch, stale-done invalidation, offline/no-key behavior, and version/Sunday/habit badges. |
-| Assess | `assistant.js` | ~1,270 | **Medium feasibility.** Combine the AI panel and post-add suggestion controller after provider config moves to Connections. Existing `ai-test.mjs` covers the server boundary, not browser state; add panel lifecycle, request sequencing, rendering, action execution, breakdown, dismissal, and mutation/sync tests first. Shared task arrays remain inline. |
+| Done ✓ | `assistant.js` | ~1,246 | **Done v2.65.2.** AI panel + post-add suggestion controller. 8 exports. `_aiPanelOpen` and `_aiBadgeShown` stay inline. ESC listener stays inline. `scripts/assistant-test.mjs` (9 tests). |
 | Assess | `task-actions.js` | ~553 | **Medium feasibility.** Add/check/delete/undo/clear/stats form a coherent controller, but depend on checked/deleted operation logs and autosave hooks. Dropbox public interface is now stable (v2.64.36); test manual/Trello completion, Focus interception, tombstones, undo stacks, habit archive undo, clear-done, stats, and persistence. |
 | Assess | `day-lifecycle.js` | ~210 | **Medium-low feasibility.** New-day cleanup is cohesive but crosses Focus snapshots, habits, zones, memory, tombstones, and delayed backup. Dropbox extraction done; require midnight, 3am habit, cross-device check timestamps, purge tombstones, and delayed-backup tests. |
 
@@ -112,7 +112,6 @@ Completed module inventory, sizes, and test ownership live in `Performance-audit
 | **Pinch-to-zoom accessibility toggle** | v2.36.9 zoom lock | `user-scalable=no` prevents layout breakage but also disables iOS accessibility zoom. If needed, a toggle that swaps the viewport meta to `maximum-scale=5, user-scalable=yes` would re-enable it. Not in Connections — surface TBD. Not needed now. |
 | **Sparse-context AI gate** | #1 verdict + first-run insight 2026-07-20 | When the AI has too little context for a real observation, stay silent — poem leads. Applies especially to first-run users who connect a key early (extends v2.34.0's quiet-first-open principle). | Watch-and-decide with W3 verdicts — a build item only if sparse output proves weak |
 | **"How did today feel?" emoji** | Landscape.md (Momentum) | Once daily after triage, optional 5-point | Psychology.md check first — closest of the candidates to mood-tracking |
-| **Weather awareness** | #1 deeper-personality | Weather-aware nudge/suggestions | Needs geolocation + weather API = new Connections data-boundary row. Decide deliberately if ever |
 | **Idle companion artwork** | — | Higher-resolution creatures, consistency across the 7 | If they start mattering |
 | **AI system-prompt trimming** | — | Cost <$0.01/day. Never cut: task/habit lists with IDs, JSON rules, personality block | Only if token cost ever matters |
 | **Trello checklist write-back** | — | Write checklist state back to Trello | Only if editing is actually wanted |
@@ -136,15 +135,16 @@ Completed module inventory, sizes, and test ownership live in `Performance-audit
 | Surface | Shipped | W3 due | Status |
 |---------|---------|--------|--------|
 | Season moments (24/year) | v2.60.0 | next appearance 2026-08-23 | Open — rarity is the escape, so judge per appearance rather than after 14 days. Next line: “Mornings have an edge to them now.” Does it feel noticed or like a calendar readout? |
-| Focus companion question | v2.45.0 / v2.53.0 / v2.64.9 | Due now | Needs Can's verdict — does the question feel like a thoughtful friend or a template? Does including an exact time improve the observation, or feel overly literal? |
+| Focus companion question | v2.65.0 | 2026-08-31 | Improved: taxonomy-based system prompt, drag-word + letgo-reason signals, worked-today / last-worked-N-days, word cap 18→22. Re-observe after a week of sessions — does the question now feel like a moment of clarity rather than a check-in? |
 | About contextual CTAs | v2.64.10 | 2026-08-25 | Open — Focus Copy, `see more`, and poem `share` now share the bordered CTA treatment. Does the border make the actions clearer without pulling attention from the week/poem content? |
 | Connections privacy reassurance | v2.64.11 | 2026-08-26 | Open — one appearance per device when fully disconnected. Does it feel like timely reassurance, or like policy copy interrupting setup? |
-| Sunday recap + Monday intention (memory-enriched) | v2.48.2 | Due now | Needs Can's verdict — does the Monday line synthesize something specific about how you work, or merely restate recent tasks? |
+| Sunday recap + Monday intention (memory-enriched) | v2.65.1 | 2026-08-24 | Verdict (2026-08-17): Monday synthesis is nice, not unhappy with it. Data source fixed: now includes Soon + Trello cards (was manual only). Re-observe next Monday — does broader view produce a more relevant orientation line? |
 | Memory panel quality gate | v2.47.0 | 2026-09-01 | Open — are AI-generated hypotheses earning confirmation or getting dismissed? High dismiss rate = prompting or data quality problem. |
 
 ### Not implementing
 | Feature | Reason |
 |---------|--------|
+| Weather-aware nudges or suggestions | **Rejected 2026-08-17.** Weather and geolocation add an external-data dependency and a new Connections privacy boundary without a demonstrated need. Do not re-propose. |
 | Truncating task text | **Rejected 2026-08-01.** Task text is primary content — hiding its tail trades legibility for tidiness. Wrapping is correct; do not re-propose clamping as a "tidiness" fix. |
 | Keyboard shortcuts (desktop) | No demonstrated need — revisit only if a real workflow gap shows up. |
 | Widget / Home Screen | Needs WidgetKit / native Android — not reachable from a PWA. |
