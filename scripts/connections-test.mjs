@@ -1,13 +1,16 @@
-// TODAY — Connections panel regression test
+// TODAY — Connections panel + AI provider config regression test
 //
 // Flow: toggleConfig open/close, _applyOfflinePanel offline/online,
 // renderConnections renders, _renderConnectionsPrivacy no-creds/with-creds,
 // _endConnectionsPrivacyVisit hides privacy, _getDueStr returns time/empty,
-// renderManual renders task rows, module wiring.
+// renderManual renders task rows, _aiGetProvider/_aiGetKey basics,
+// _aiIsConfigured reflects key, _aiRenderConfig renders rows,
+// saveAIKey valid key saves, clearAIKey removes and switches default,
+// setDefaultProvider switches default, module wiring.
 //
 // Run from repo root:
-//   node scripts/connections-test.mjs --pre-extraction
-//   node scripts/connections-test.mjs
+//   node scripts/connections-test.mjs --pre-extraction   # pre-fold baseline
+//   node scripts/connections-test.mjs                    # post-fold (17 tests)
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -78,14 +81,17 @@ async function openPage(extraSeed) {
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForFunction(
-    () => typeof renderConnections === 'function' && typeof renderManual === 'function' && !!$.configPanel,
+    () => typeof renderConnections === 'function' &&
+          typeof renderManual === 'function' &&
+          typeof saveAIKey === 'function' &&
+          typeof _aiGetKey === 'function' &&
+          !!$.configPanel,
     { timeout: 15000 }
   );
   await page.evaluate(() => {
     window.dropboxAutoSave    = () => {};
     window.dropboxBackup      = () => {};
     window.loadTrelloBoards   = () => {};
-    window._aiRenderConfig    = () => {};
     window.renderMeetingNames = () => {};
   });
   return { page, errors };
@@ -234,42 +240,169 @@ try {
     await page.close();
   }
 
-  // 11. Static wiring checks.
+  // 12. _aiGetProvider / _aiGetKey basics: provider set by _aiInit, key round-trip.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      // _aiInit seeds today_ai_provider = AI_BUILD_PROVIDER ('claude') on first load
+      const providerAfterInit = _aiGetProvider();
+      localStorage.removeItem('today_ai_key_gemini');
+      const emptyKey = _aiGetKey('gemini');
+      localStorage.setItem('today_ai_key_gemini', 'gk-test');
+      const foundKey = _aiGetKey('gemini');
+      localStorage.setItem('today_ai_provider', 'gemini');
+      const switchedProvider = _aiGetProvider();
+      return {
+        providerSet:      providerAfterInit === 'claude',
+        emptyKeyIsEmpty:  emptyKey === '',
+        foundKey:         foundKey === 'gk-test',
+        providerSwitched: switchedProvider === 'gemini',
+      };
+    });
+    await expectAll('_aiGetProvider / _aiGetKey basics', { ...result, noErrors: errors.length === 0 });
+    ok('_aiGetProvider: returns provider from localStorage; _aiGetKey: round-trip read/write');
+    await page.close();
+  }
+
+  // 13. _aiIsConfigured: false without key, true after key set.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      localStorage.removeItem('today_ai_key_claude');
+      localStorage.removeItem('today_ai_key_gemini');
+      const notConfigured = !_aiIsConfigured();
+      // _aiGetProvider() returns 'claude' (set by _aiInit), so set claude key
+      localStorage.setItem('today_ai_key_claude', 'ck-test');
+      const configured = _aiIsConfigured();
+      return { notConfigured, configured };
+    });
+    await expectAll('_aiIsConfigured reflects key', { ...result, noErrors: errors.length === 0 });
+    ok('_aiIsConfigured: false without key, true after key set');
+    await page.close();
+  }
+
+  // 14. _aiRenderConfig: renders provider rows into #aiProviderRows when config panel opens.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      toggleConfig(); // opens panel; setTimeout(_aiRenderConfig, 0) fires shortly
+      await new Promise(r => setTimeout(r, 80)); // wait for deferred _aiRenderConfig
+      const rows = document.getElementById('aiProviderRows');
+      const html = rows ? rows.innerHTML : '';
+      return {
+        rowsPresent: html.trim().length > 0,
+        hasGemini:   html.includes('gemini') || html.includes('Gemini'),
+        hasClaude:   html.includes('claude') || html.includes('Claude'),
+      };
+    });
+    await expectAll('_aiRenderConfig renders provider rows', { ...result, noErrors: errors.length === 0 });
+    ok('_aiRenderConfig: renders Gemini and Claude rows into #aiProviderRows');
+    await page.close();
+  }
+
+  // 15. saveAIKey: valid key saves to localStorage after successful fetch ping.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      window.fetch = async () => ({ ok: true, text: async () => '' });
+      window._updateBarPlaceholder = () => {};
+      window._meetingInit = () => {};
+      window._voiceNoteInit = () => {};
+      toggleConfig();
+      await new Promise(r => setTimeout(r, 80)); // wait for _aiRenderConfig to render inputs
+      const input = document.getElementById('aiKey_gemini');
+      if (input) input.value = 'sk-test-key-gemini';
+      await saveAIKey('gemini');
+      return { keySaved: !!localStorage.getItem('today_ai_key_gemini') };
+    });
+    await expectAll('saveAIKey valid key saves', { ...result, noErrors: errors.length === 0 });
+    ok('saveAIKey: valid key saved to localStorage after successful fetch ping');
+    await page.close();
+  }
+
+  // 16. clearAIKey: removes key and switches default to other provider.
+  {
+    const { page, errors } = await openPage({
+      today_ai_key_gemini: 'gk',
+      today_ai_key_claude: 'ck',
+      today_ai_provider:   'gemini',
+    });
+    const result = await page.evaluate(() => {
+      window._updateBarPlaceholder = () => {};
+      window._meetingInit = () => {};
+      window._voiceNoteInit = () => {};
+      clearAIKey('gemini');
+      return {
+        keyRemoved:      _aiGetKey('gemini') === '',
+        defaultSwitched: _aiGetProvider() === 'claude',
+      };
+    });
+    await expectAll('clearAIKey removes key and switches default', { ...result, noErrors: errors.length === 0 });
+    ok('clearAIKey: gemini key removed, default switched to claude');
+    await page.close();
+  }
+
+  // 17. setDefaultProvider: switches default between two saved keys.
+  {
+    const { page, errors } = await openPage({
+      today_ai_key_gemini: 'gk',
+      today_ai_key_claude: 'ck',
+      today_ai_provider:   'gemini',
+    });
+    const result = await page.evaluate(() => {
+      window._updateBarPlaceholder = () => {};
+      window._meetingInit = () => {};
+      window._voiceNoteInit = () => {};
+      setDefaultProvider('claude');
+      return { defaultIsClaude: _aiGetProvider() === 'claude' };
+    });
+    await expectAll('setDefaultProvider switches default', { ...result, noErrors: errors.length === 0 });
+    ok('setDefaultProvider: default switched to claude');
+    await page.close();
+  }
+
+  // 18. Static wiring checks.
   {
     const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
     const swSrc    = await readFile(join(ROOT, 'sw.js'), 'utf8');
+    const connSrc  = await readFile(join(ROOT, 'assets/connections.js'), 'utf8');
     if (PRE_EXTRACTION) {
-      await expectAll('inline connections baseline', {
-        inlineFnPresent: indexSrc.includes('function renderConnections()'),
-        noModuleLoad:    !indexSrc.includes('<script src="assets/connections.js"></script>'),
-        noPrecache:      !swSrc.includes("'/assets/connections.js'"),
+      // Pre-fold baseline: AI provider functions still inline in index.html.
+      await expectAll('pre-fold AI provider baseline', {
+        aiRenderConfigInline: indexSrc.includes('function _aiRenderConfig()'),
+        saveAIKeyInline:      indexSrc.includes('async function saveAIKey('),
+        notYetInConnections:  !connSrc.includes('window.saveAIKey = saveAIKey;'),
       });
-      ok('inline connections baseline: renderConnections present inline, no module tag yet');
+      ok('pre-fold baseline: AI provider functions inline in index.html, not yet in connections.js');
     } else {
-      const connSrc = await readFile(join(ROOT, 'assets/connections.js'), 'utf8');
       const requiredExports = [
         'setTrelloIcon', 'syncActiveButtons', '_renderConnectionsPrivacy',
         '_endConnectionsPrivacyVisit', 'toggleConfig', '_applyOfflinePanel',
         'renderConnections', 'dropboxDisconnect', '_getDueStr',
         '_queueTagArrivalShimmer', 'renderManual', '_wireManualTagShimmer',
         'taskHTML', '_getCreatedFromId', '_getAgeDays',
+        '_aiGetProvider', '_aiGetKey', '_aiIsConfigured',
+        '_aiRenderConfig', '_aiUpdateConnectBtn',
+        'saveAIKey', 'clearAIKey', 'setDefaultProvider',
       ];
       const startupIdx = indexSrc.indexOf('window._startConnections();');
       const aboutIdx   = indexSrc.indexOf('window._startAbout();');
-      await expectAll('extracted connections module wiring', {
+      await expectAll('connections module with AI fold-in wiring', {
         moduleLoad:       indexSrc.includes('<script src="assets/connections.js"></script>'),
         beforeTrello:     indexSrc.indexOf("assets/connections.js") < indexSrc.indexOf("assets/trello.js"),
         initializerFirst: startupIdx !== -1 && startupIdx < aboutIdx,
-        sectionRemoved:   !indexSrc.includes('function renderConnections()'),
+        aiRenderRemoved:  !indexSrc.includes('function _aiRenderConfig()'),
+        saveAIKeyRemoved: !indexSrc.includes('async function saveAIKey('),
         moduleInit:       connSrc.includes('window._startConnections = function()'),
         allExports:       requiredExports.every(n => connSrc.includes(`window.${n} = ${n};`)),
         precached:        swSrc.includes("'/assets/connections.js'"),
       });
-      ok('extracted connections module wiring, 15 exports correct, load order and init order correct');
+      ok('connections with AI fold-in: 23 exports, AI functions removed from index.html');
     }
   }
 
-  console.log(`\nConnections tests passed (${PRE_EXTRACTION ? 'inline baseline' : 'extracted module'}).`);
+  const testCount = PRE_EXTRACTION ? '11' : '17';
+  console.log(`\nConnections tests passed (${PRE_EXTRACTION ? 'pre-fold baseline' : 'AI fold-in'}, ${testCount} tests).`);
 } finally {
   if (browser) await browser.close();
   server.close();

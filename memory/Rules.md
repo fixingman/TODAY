@@ -4,10 +4,13 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** commit + push v2.64.36 (dropbox.js extraction — auth, backup/restore, live sync cluster, state helpers; 27 exports; 11 tests pass). Next Roadmap #3 extraction is `focus.js` (~1,332). In queue: poem corpus growth (spring=10, target ~13; Teasdale candidates proposed, awaiting cut). Splash letter dispersion fix pending (WAAPI `_fade` plan exists).
-- **Recent (2026-08-17):** dropbox.js extracted (v2.64.36) — auth, backup/restore, live sync cluster, state helpers; 27 exports; 1,975 lines; 11 tests pass. connections.js extracted (v2.64.35) — config panel, privacy gate, connections rendering, and task HTML; 11 tests pass. about.js extracted (v2.64.34). habits.js extracted (v2.64.33). memory-panel.js/triage.js/zones.js repair committed (v2.64.30–32 release fix now on dev).
-- **Module extraction (Roadmap #3):** 20 implemented locally, 19 tracked at `dev` HEAD. Next: `focus.js` (~1,332). Full inventory and queue → `Backlog.md` §3 / `Performance-audit.md` §1.
+- **Working on:** next Roadmap #3 extraction is `focus.js` (~1,332). In queue: poem corpus growth (spring=10, target ~13; Teasdale candidates proposed, awaiting cut). BUG-076 (v2.64.37) awaiting Safari/iPhone deployment verification.
+- **Recent (2026-08-17):** AI provider config folded into connections.js (v2.64.38) — `_aiGetProvider`/`_aiGetKey`/`_aiIsConfigured`/`_aiRenderConfig`/`saveAIKey`/`clearAIKey`/`setDefaultProvider` + constants; 8 new exports (23 total); 17 connections tests. BUG-076 fixed (v2.64.37). dropbox.js extracted (v2.64.36) — 27 exports. connections.js extracted (v2.64.35).
+- **Module extraction (Roadmap #3):** connections.js at 23 exports (AI provider config folded in). Next: `focus.js` (~1,332). Full inventory → `Backlog.md` §3 / `Performance-audit.md` §1.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
+  - **BUG-076 🧪 v2.64.37** — after deployment, force at least ten poem-coda exits on Safari/iPhone PWA; TO and DAY must fade as complete groups with no `O` / `AY` residue while the poem disappears.
+  - **v2.64.23 ⏳** — verify appMemory convergence across two devices after a few 7s sync cycles: `today_memory.semantic.length` and newly confirmed inferences should match without manual Restore Backup.
+  - **v2.64.22 ⏳** — verify overnight sync hardening: streak does not re-inflate from yesterday, newest check/uncheck wins, and Trello configuration reaches the second device.
   - **v2.62.1 ⏳** — verify: `appMemory.patterns.triageUndos` increments on triage undo; `soonPulls` increments on pull-from-soon; `reviveReasons` populated on revive; letting the undo toast expire records letgoReasons.
   - **v2.62.0 ⏳** — verify: triage → completion screen → list is already clean behind overlay → Undo button visible → tap Undo → state fully restored → triage bar reappears. Also: wait 3s without tapping Undo → overlay closes → list stays clean.
   - **BUG-072 ⏳ v2.61.6** — verify: open triage → “Let go” a non-last task → decide another task → chips survive re-render; decide all → completion screen appears. Also: “Let go” last remaining task → completion fires immediately.

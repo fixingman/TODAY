@@ -1,4 +1,4 @@
-// TODAY — Config panel, privacy gate, connections rendering, and task HTML.
+// TODAY — Config panel, privacy gate, AI provider config, connections rendering, and task HTML.
 // Inert until index.html calls window._startConnections() before init().
 (function() {
   'use strict';
@@ -11,6 +11,30 @@
     let _connectionsPrivacyVisible = false;
     // All other state (manualTasks, doneIds, soonTasks, pastTasks, trelloTasks, $)
     // is wholesale-replaced by mergeRemoteData — must stay as inline globals.
+
+    // ── AI provider config ─────────────────────────────────────────────────────
+    // Keys and provider preference live in localStorage; helpers are used by the
+    // rest of the AI stack (nudge, assistant, post-add) via window.* exports below.
+    const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
+    const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
+
+    function _aiGetProvider() { return localStorage.getItem('today_ai_provider') || AI_DEFAULT_PROVIDER; }
+    function _aiGetKey(provider) {
+      const p = provider || _aiGetProvider();
+      return localStorage.getItem('today_ai_key_' + p) || '';
+    }
+    function _aiIsConfigured() { return !!_aiGetKey(); }
+
+    // Migrate legacy key slot + seed default provider on first visit
+    (function() {
+      const legacyKey = localStorage.getItem('today_ai_key');
+      if (legacyKey) {
+        const p = localStorage.getItem('today_ai_provider') || AI_BUILD_PROVIDER;
+        if (!localStorage.getItem('today_ai_key_' + p)) localStorage.setItem('today_ai_key_' + p, legacyKey);
+        localStorage.removeItem('today_ai_key');
+      }
+      if (!localStorage.getItem('today_ai_provider')) localStorage.setItem('today_ai_provider', AI_BUILD_PROVIDER);
+    })();
 
     function setTrelloIcon(connected) {
       const btn = document.getElementById('trelloBtn');
@@ -503,6 +527,165 @@
       return Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
     }
 
+    // ── AI config panel functions ──────────────────────────────────────────────
+
+    function _aiRenderConfig() {
+      const container = document.getElementById('aiProviderRows');
+      if (!container) return;
+
+      const defaultProvider = _aiGetProvider();
+      const hasGemini = !!_aiGetKey('gemini');
+      const hasClaude = !!_aiGetKey('claude');
+      const bothConnected = hasGemini && hasClaude;
+
+      function _providerRow(id, label, hint, keyLink, keyLinkText, hasKey) {
+        const isDefault = bothConnected && defaultProvider === id;
+        const defaultBtn = bothConnected
+          ? `<button class="btn-sm${isDefault ? ' primary' : ''}" onclick="setDefaultProvider('${id}')">${isDefault ? '✓ ' : ''}Default</button>`
+          : '';
+
+        if (hasKey) {
+          return `<div class="connection-row connected">
+        <div class="connection-row-info">
+          <span class="connection-row-title connected">${label}</span>
+        </div>
+        <span class="conn-check">✓</span>
+        <div class="connection-row-actions">
+          ${defaultBtn}
+          <button class="btn-sm btn-forget" onclick="clearAIKey('${id}')">Forget</button>
+        </div>
+      </div>`;
+        }
+        return `<div class="connection-row">
+      <div class="connection-row-info">
+        <span class="connection-row-title">${label}</span>
+        <span class="connection-row-status"><a href="${keyLink}" target="_blank" rel="noopener" style="color:var(--highlight-ui);text-decoration:none">${keyLinkText}</a></span>
+      </div>
+      <div class="connection-row-actions">
+        <input class="ai-key-input" id="aiKey_${id}" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Paste key…"
+          oninput="_aiUpdateConnectBtn('${id}')"
+          onkeydown="if(event.key==='Enter')saveAIKey('${id}')" />
+        <button class="btn-sm primary" id="aiConnect_${id}" onclick="saveAIKey('${id}')" disabled>Connect</button>
+      </div>
+      <div id="aiMsg_${id}" class="status-msg" style="display:none;margin-top:var(--space-2);width:100%"></div>
+    </div>`;
+      }
+
+      container.innerHTML =
+        _providerRow('gemini', 'Gemini Flash', 'Free tier', 'https://aistudio.google.com/apikey', 'Get free key →', hasGemini) +
+        _providerRow('claude', 'Claude Sonnet', 'Paid API', 'https://platform.claude.com/login', 'Get key →', hasClaude);
+
+      // Show "Your name" card only once both AI keys are saved
+      const nameWrap = document.getElementById('meetingNameWrap');
+      if (nameWrap) nameWrap.style.display = bothConnected ? '' : 'none';
+
+      // Gate ✦ ask button visibility on AI being configured
+      document.body.classList.toggle('ai-connected', _aiIsConfigured());
+      _renderConnectionsPrivacy();
+
+      // Re-apply offline state — buttons are freshly rendered so _applyOfflinePanel's
+      // earlier pass over the panel won't have reached them yet.
+      _applyOfflinePanel();
+    }
+
+    function _aiUpdateConnectBtn(provider) {
+      const input = document.getElementById('aiKey_' + provider);
+      const btn   = document.getElementById('aiConnect_' + provider);
+      if (btn) btn.disabled = !input?.value?.trim();
+    }
+
+    async function saveAIKey(provider) {
+      const input   = document.getElementById('aiKey_' + provider);
+      const saveBtn = document.getElementById('aiConnect_' + provider);
+      const msgEl   = document.getElementById('aiMsg_' + provider);
+      // Strip non-printable / non-ASCII characters — pasting from some apps
+      // includes smart quotes or zero-width spaces that break HTTP headers
+      const key     = (input?.value || '').replace(/[^\x20-\x7E]/g, '').trim();
+
+      // Keep panel open throughout
+      $.configPanel?.classList.add('open');
+
+      function _msg(text, colour) {
+        if (!msgEl) return;
+        const isError = colour.includes('danger');
+        msgEl.className   = 'status-msg' + (isError ? ' error' : ' success');
+        msgEl.textContent = text;
+        msgEl.style.color = colour;
+        msgEl.style.display = text ? '' : 'none';
+      }
+
+      if (!key) { _msg('Paste your API key first', 'var(--danger)'); input?.focus(); return; }
+
+      if (saveBtn) saveBtn.disabled = true;
+
+      const storageKey = 'today_ai_key_' + provider;
+      localStorage.setItem(storageKey, key);
+
+      try {
+        const res = await fetch('/.netlify/functions/ai-assist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            provider, apiKey: key,
+            messages: [{ role: 'user', content: 'ping' }],
+            systemPrompt: 'Reply with only the word: pong',
+          }),
+        });
+
+        if (!res.ok) {
+          localStorage.removeItem(storageKey);
+          const err = await res.text();
+          const isHtml = err.includes('<!DOCTYPE') || err.includes('<html');
+          const msg = isHtml ? 'Function not deployed — redeploy site'
+            : (err.includes('API key') || err.includes('not valid') || err.includes('API_KEY'))
+            ? 'That key didn\'t work — try again'
+            : err.includes('quota') ? 'Quota exceeded — try later'
+            : 'Can\'t connect — ' + err.slice(0, 50);
+          _msg(msg, 'var(--danger)');
+          if (saveBtn) saveBtn.disabled = false;
+          input?.select(); input?.focus();
+          return;
+        }
+
+        // Set as default only if the other provider has no key (first key wins default)
+        const otherProvider = provider === 'gemini' ? 'claude' : 'gemini';
+        if (!_aiGetKey(otherProvider)) {
+          localStorage.setItem('today_ai_provider', provider);
+        }
+        _aiRenderConfig();
+        _updateBarPlaceholder();
+        _meetingInit();
+        _voiceNoteInit();
+
+      } catch(e) {
+        localStorage.removeItem(storageKey);
+        _msg('Can\'t reach the server — check your connection', 'var(--danger)');
+        if (saveBtn) saveBtn.disabled = false;
+      }
+    }
+
+    function clearAIKey(provider) {
+      localStorage.removeItem('today_ai_key_' + provider);
+      // If we just cleared the default, switch default to the other provider if it has a key
+      const other = provider === 'gemini' ? 'claude' : 'gemini';
+      if (_aiGetProvider() === provider) {
+        if (_aiGetKey(other)) localStorage.setItem('today_ai_provider', other);
+        else localStorage.removeItem('today_ai_provider');
+      }
+      _aiRenderConfig();
+      _updateBarPlaceholder();
+      _meetingInit();
+      _voiceNoteInit();
+    }
+
+    function setDefaultProvider(p) {
+      localStorage.setItem('today_ai_provider', p);
+      _aiRenderConfig();
+      _updateBarPlaceholder();
+      _meetingInit();
+      _voiceNoteInit();
+    }
+
     window.setTrelloIcon = setTrelloIcon;
     window.syncActiveButtons = syncActiveButtons;
     window._renderConnectionsPrivacy = _renderConnectionsPrivacy;
@@ -518,5 +701,13 @@
     window.taskHTML = taskHTML;
     window._getCreatedFromId = _getCreatedFromId;
     window._getAgeDays = _getAgeDays;
+    window._aiGetProvider = _aiGetProvider;
+    window._aiGetKey = _aiGetKey;
+    window._aiIsConfigured = _aiIsConfigured;
+    window._aiRenderConfig = _aiRenderConfig;
+    window._aiUpdateConnectBtn = _aiUpdateConnectBtn;
+    window.saveAIKey = saveAIKey;
+    window.clearAIKey = clearAIKey;
+    window.setDefaultProvider = setDefaultProvider;
   };
 })();

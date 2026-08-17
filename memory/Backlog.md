@@ -57,7 +57,7 @@
 | Order | Module | Size | Gate |
 |---|---|---:|---|
 | Next | `focus.js` | ~1,332 | **High feasibility.** Strong automated invariant coverage already exists. Preserve the Focus/PiP hooks and private timer state. |
-| Assess | AI provider config → `connections.js` | ~164 inline | **High feasibility; fold-in, not a new module.** Extend Connections tests for valid/invalid keys, offline failure, default-provider switching, forget, and Meeting/Voice re-gating. Move the shared provider/key helpers with it; keep generic AI response parsing shared. |
+| Done ✓ | AI provider config → `connections.js` | ~164 inline | **Folded in v2.64.38.** 8 new exports (23 total). `_aiGetProvider`/`_aiGetKey`/`_aiIsConfigured` helpers, `_aiRenderConfig`/`saveAIKey`/`clearAIKey`/`setDefaultProvider` panel functions, constants, and `_aiInit` migration IIFE all in `_startConnections()` closure. 17 connections tests. |
 | Assess | `nudge.js` | ~360 | **Medium-high feasibility.** Cohesive cache/race/dismissal controller with private session guards. Add deterministic tests for morning/noon windows, cached AI vs 1s fallback, later fallback upgrade, dismissal during fetch, stale-done invalidation, offline/no-key behavior, and version/Sunday/habit badges. |
 | Assess | `assistant.js` | ~1,270 | **Medium feasibility.** Combine the AI panel and post-add suggestion controller after provider config moves to Connections. Existing `ai-test.mjs` covers the server boundary, not browser state; add panel lifecycle, request sequencing, rendering, action execution, breakdown, dismissal, and mutation/sync tests first. Shared task arrays remain inline. |
 | Assess | `task-actions.js` | ~553 | **Medium feasibility.** Add/check/delete/undo/clear/stats form a coherent controller, but depend on checked/deleted operation logs and autosave hooks. Dropbox public interface is now stable (v2.64.36); test manual/Trello completion, Focus interception, tombstones, undo stacks, habit archive undo, clear-done, stats, and persistence. |
@@ -124,15 +124,10 @@ Completed module inventory, sizes, and test ownership live in `Performance-audit
 ### Watching
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| Modularization | Single file (~10.2K lines) + `assets/poems.js` + extracted modules | Focus is ready. Post-Focus feasibility: AI config fold-in → Nudge → Assistant; Task Actions and Day Lifecycle wait for the active Dropbox extraction. Startup remains inline; union merge stays test-gated. |
-| Sync conflict rate | Merge-anomaly counter live (Connections → Dropbox) | If count climbs above zero in normal use, revisit conflict handling before WEEK consumes the data. |
-| Dated AI-cache sync | 2 instances hand-plumbed (nudge v2.27.0b, weekly block v2.36.1/BUG-057) | **Rule of three:** the next AI-generated daily text must trigger a registry instead of a third hand-plumbing — same payload + remote-wins-merge pattern each time. |
-| open_triage second use | Shipped v2.36.0 from Can's own request | ⚠️ Mid-Aug deadline reached (2026-08-08) — ask Can whether he's used `open_triage` unprompted, or if discoverability should be improved / feature removed. |
-| Morning nudge quality | v2.38.6 — removed the "position 1 = priority" framing that caused top-task echo | Does it now genuinely surface a different task when one is stuck/revived/overdue, and go quiet when nothing stands out? **When asked "how's the nudge doing?" — ask for the About panel's Today line verbatim.** That block renders the same `day_nudge_ai_<date>` string. If it drifts generic, next cut is `Past suggestions` + `Recent conversations`, not more instruction tuning. |
-| Morning nudge context balance | v2.43.5 — rebalanced after `_memoryForAI()` was 56% of the prompt vs 35% for the actual list | Does the nudge still name a specific task in the user's own words, or drift toward generic biography filler? Watch on real device with a key. |
-| Morning nudge staleness | v2.37.6 — generation moved to post-sync re-check | Does the nudge reflect the freshest cross-device list on cold start? If still behind, widen `_raceAINudge`'s 1s timeout. |
-| Monday intention prompt | v2.36.4 fix (pending-only) | Watch for same echo pattern as nudge — does it synthesize or restate? |
-| Meeting `mine` attribution | v2.37.4 — attribution now tracks who's speaking, not just whether a name was said | Ask after a handful of real meetings: read `appMemory.meetingAttribution` (`mineKept/mineShown` for precision, `othersSelected/othersShown` for recall). |
+| Modularization | `index.html` is ~8.3K lines with 20 same-origin assets; Dropbox extraction landed in v2.64.36 | Focus is next. After Focus: AI config fold-in → Nudge → Assistant → Task Actions → Day Lifecycle. Startup remains inline; shared state and merge boundaries stay test-gated. |
+| Merge-anomaly observability | Dropbox emits a console-only `[merge-anomaly]` breadcrumb; there is no persisted counter or Connections metric | Revisit only if anomalies appear during debugging or WEEK needs a measurable conflict rate. Do not describe this as live product telemetry. |
+| Dated AI-cache sync | Four fields are hand-plumbed: `day_nudge_ai`, `week_reflection`, `monday_intention`, and `week_theme_ai` | The rule-of-three threshold has been exceeded. Create one declarative cache registry before adding a fifth dated AI field. |
+| Morning nudge usefulness | v2.43.5 rebalanced list vs memory context; generation runs after sync and the resulting line syncs cross-device | Ask for the About panel's Today line verbatim. Does it name a specific current task without biography drift, reflect the synced list, and stay quiet when nothing stands out? If not, cut `Past suggestions` + `Recent conversations` before more prompt tuning. |
 
 ### Wallpaper Test — W3 follow-ups (day-14 behavioral check)
 > Resolve each row — **kept** (delivering), **iterated**, or **removed**.
@@ -140,14 +135,12 @@ Completed module inventory, sizes, and test ownership live in `Performance-audit
 
 | Surface | Shipped | W3 due | Status |
 |---------|---------|--------|--------|
-| Season moments (6/year) | v2.37.0 | first appearance 2026-09-01 | Open — 14-day window doesn't apply (fires ~6×/year); judge per appearance. Sep 1 "First day of autumn.": does it land as noticed or as calendar readout? |
-| Focus companion question | v2.45.0 / v2.53.0 / v2.64.9 | 2026-08-16 | Open — does the question feel like a thoughtful friend or a template? v2.64.9 makes time references concrete after “this late” landed without a clock value. Does exact time improve the observation, or does it feel overly literal? |
+| Season moments (24/year) | v2.60.0 | next appearance 2026-08-23 | Open — rarity is the escape, so judge per appearance rather than after 14 days. Next line: “Mornings have an edge to them now.” Does it feel noticed or like a calendar readout? |
+| Focus companion question | v2.45.0 / v2.53.0 / v2.64.9 | Due now | Needs Can's verdict — does the question feel like a thoughtful friend or a template? Does including an exact time improve the observation, or feel overly literal? |
 | About contextual CTAs | v2.64.10 | 2026-08-25 | Open — Focus Copy, `see more`, and poem `share` now share the bordered CTA treatment. Does the border make the actions clearer without pulling attention from the week/poem content? |
 | Connections privacy reassurance | v2.64.11 | 2026-08-26 | Open — one appearance per device when fully disconnected. Does it feel like timely reassurance, or like policy copy interrupting setup? |
-| Sunday recap + Monday intention (memory-enriched) | v2.48.2 | 2026-08-17 | Open — does the Monday line name something specific to how you work, or still feel generic? Quality improves as confirmed memory inferences accumulate. |
+| Sunday recap + Monday intention (memory-enriched) | v2.48.2 | Due now | Needs Can's verdict — does the Monday line synthesize something specific about how you work, or merely restate recent tasks? |
 | Memory panel quality gate | v2.47.0 | 2026-09-01 | Open — are AI-generated hypotheses earning confirmation or getting dismissed? High dismiss rate = prompting or data quality problem. |
-| Memory auto-sync (patterns, inferences, moments) | v2.64.23 | 2026-08-29 | Open — does appMemory now converge across devices without manual Restore Backup? Check that `today_memory` on both devices has matching `semantic.length` after a few auto-sync cycles (7s ticker). BUG-073 side-effect: focus minutes (BUG-066) and cross-device keyword counts should also now reconcile automatically. |
-| Sync hardening (streak, checked_ids LWW, Trello config, Trello maps pruning) | v2.64.22 | 2026-08-29 | Open — does the streak stay accurate after leaving the app open overnight? On the weaker device (ticker runs first), the streak should no longer re-inflate to yesterday's count after midnight reset. |
 
 ### Not implementing
 | Feature | Reason |

@@ -731,6 +731,7 @@
   }
   #splash-logo .l { display: inline-block; }
   #splash-logo .l.a { color: var(--accent); }
+  #splash-logo .splash-word { display: inline-flex; }
 
   #splash-star {
     position: absolute; right: -0.28em; top: -0.2em;
@@ -3662,8 +3663,8 @@
 <div id="splash" aria-hidden="true">
   <div id="splash-inner">
     <div id="splash-logo">
-      <span class="l">T</span><span class="l">O</span>
-      <span class="l a">D</span><span class="l a">A</span><span class="l a">Y</span>
+      <span id="splash-word-to" class="splash-word"><span class="l">T</span><span class="l">O</span></span>
+      <span id="splash-word-day" class="splash-word"><span class="l a">D</span><span class="l a">A</span><span class="l a">Y</span></span>
       <div id="splash-star">
         <svg viewBox="0 0 40 40" fill="none">
           <path d="M20 2 L22.4 17.6 L38 20 L22.4 22.4 L20 38 L17.6 22.4 L2 20 L17.6 17.6 Z" fill="var(--accent)" opacity=".95"/>
@@ -4017,13 +4018,7 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // Color constants (COLOR_ACCENT/BG/MUTED/BORDER) now live in assets/util.js.
 
-// ─── AI Assistant ─────────────────────────────────────────────────────────────
-// AI_BUILD_PROVIDER: set to 'claude' on the maintainer's deployment,
-//   'gemini' for any open-source fork. This is the INSTALL default only —
-//   users can change their provider in the Connections panel at runtime.
-// AI_DEFAULT_PROVIDER: what first-time users see. Always 'gemini' (free, no account wall).
-const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
-const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
+// AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
 const DEV_HOURS     = '263h';
@@ -4033,9 +4028,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.64.38': 'Maintenance: the AI provider settings were moved to the Connections panel module with no change to how they work.',
+  '2.64.37': 'Fix: the splash logo now fades cleanly as “TO” and “DAY” without leaving letters behind on Safari.',
   '2.64.36': 'Maintenance: Dropbox sync, backup, and live sync were reorganized internally with no change to how they work.',
-  '2.64.35': 'Maintenance: the connections panel, privacy gate, and task rendering were reorganized internally with no change to how they work.',
-  '2.64.34': 'Maintenance: the info panel, poem display, and weekly stats were reorganized internally with no change to how they work.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -5546,28 +5541,7 @@ let _aiLoadedOnce = false; // prevent re-fetching if panel is toggled quickly
 let _aiReqSeq = 0; // monotonic request id — late responses from superseded requests are dropped (BUG-029b)
 let _aiThread = []; // in-session conversation history, cleared on panel close
 
-function _aiGetProvider() { return localStorage.getItem('today_ai_provider') || AI_DEFAULT_PROVIDER; }
-function _aiGetKey(provider) {
-  const p = provider || _aiGetProvider();
-  return localStorage.getItem('today_ai_key_' + p) || '';
-}
-function _aiIsConfigured(){ return !!_aiGetKey(); }
-
-// Seed provider + migrate legacy single-slot key on first visit
-(function _aiInit() {
-  // Migrate old today_ai_key → today_ai_key_<provider>
-  const legacyKey = localStorage.getItem('today_ai_key');
-  if (legacyKey) {
-    const p = localStorage.getItem('today_ai_provider') || AI_BUILD_PROVIDER;
-    if (!localStorage.getItem('today_ai_key_' + p)) {
-      localStorage.setItem('today_ai_key_' + p, legacyKey);
-    }
-    localStorage.removeItem('today_ai_key');
-  }
-  if (!localStorage.getItem('today_ai_provider')) {
-    localStorage.setItem('today_ai_provider', AI_BUILD_PROVIDER);
-  }
-})();
+// _aiGetProvider / _aiGetKey / _aiIsConfigured / _aiInit — moved to assets/connections.js
 
 // ── Open / close ──────────────────────────────────────────────────────────────
 function toggleAI() {
@@ -6613,164 +6587,7 @@ function _aiExecute(action) {
   }
 }
 
-// ── Config panel ──────────────────────────────────────────────────────────────
-
-function _aiRenderConfig() {
-  const container = document.getElementById('aiProviderRows');
-  if (!container) return;
-
-  const defaultProvider = _aiGetProvider();
-  const hasGemini = !!_aiGetKey('gemini');
-  const hasClaude = !!_aiGetKey('claude');
-  const bothConnected = hasGemini && hasClaude;
-
-  function _providerRow(id, label, hint, keyLink, keyLinkText, hasKey) {
-    const isDefault = bothConnected && defaultProvider === id;
-    const defaultBtn = bothConnected
-      ? `<button class="btn-sm${isDefault ? ' primary' : ''}" onclick="setDefaultProvider('${id}')">${isDefault ? '✓ ' : ''}Default</button>`
-      : '';
-
-    if (hasKey) {
-      return `<div class="connection-row connected">
-        <div class="connection-row-info">
-          <span class="connection-row-title connected">${label}</span>
-        </div>
-        <span class="conn-check">✓</span>
-        <div class="connection-row-actions">
-          ${defaultBtn}
-          <button class="btn-sm btn-forget" onclick="clearAIKey('${id}')">Forget</button>
-        </div>
-      </div>`;
-    }
-    return `<div class="connection-row">
-      <div class="connection-row-info">
-        <span class="connection-row-title">${label}</span>
-        <span class="connection-row-status"><a href="${keyLink}" target="_blank" rel="noopener" style="color:var(--highlight-ui);text-decoration:none">${keyLinkText}</a></span>
-      </div>
-      <div class="connection-row-actions">
-        <input class="ai-key-input" id="aiKey_${id}" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Paste key…"
-          oninput="_aiUpdateConnectBtn('${id}')"
-          onkeydown="if(event.key==='Enter')saveAIKey('${id}')" />
-        <button class="btn-sm primary" id="aiConnect_${id}" onclick="saveAIKey('${id}')" disabled>Connect</button>
-      </div>
-      <div id="aiMsg_${id}" class="status-msg" style="display:none;margin-top:var(--space-2);width:100%"></div>
-    </div>`;
-  }
-
-  container.innerHTML =
-    _providerRow('gemini', 'Gemini Flash', 'Free tier', 'https://aistudio.google.com/apikey', 'Get free key →', hasGemini) +
-    _providerRow('claude', 'Claude Sonnet', 'Paid API', 'https://platform.claude.com/login', 'Get key →', hasClaude);
-
-  // Show "Your name" card only once both AI keys are saved
-  const nameWrap = document.getElementById('meetingNameWrap');
-  if (nameWrap) nameWrap.style.display = bothConnected ? '' : 'none';
-
-  // Gate ✦ ask button visibility on AI being configured
-  document.body.classList.toggle('ai-connected', _aiIsConfigured());
-  _renderConnectionsPrivacy();
-
-  // Re-apply offline state — buttons are freshly rendered so _applyOfflinePanel's
-  // earlier pass over the panel won't have reached them yet.
-  _applyOfflinePanel();
-}
-
-function _aiUpdateConnectBtn(provider) {
-  const input = document.getElementById('aiKey_' + provider);
-  const btn   = document.getElementById('aiConnect_' + provider);
-  if (btn) btn.disabled = !input?.value?.trim();
-}
-
-async function saveAIKey(provider) {
-  const input   = document.getElementById('aiKey_' + provider);
-  const saveBtn = document.getElementById('aiConnect_' + provider);
-  const msgEl   = document.getElementById('aiMsg_' + provider);
-  // Strip non-printable / non-ASCII characters — pasting from some apps
-  // includes smart quotes or zero-width spaces that break HTTP headers
-  const key     = (input?.value || '').replace(/[^\x20-\x7E]/g, '').trim();
-
-  // Keep panel open throughout
-  $.configPanel?.classList.add('open');
-
-  function _msg(text, colour) {
-    if (!msgEl) return;
-    const isError = colour.includes('danger');
-    msgEl.className   = 'status-msg' + (isError ? ' error' : ' success');
-    msgEl.textContent = text;
-    msgEl.style.color = colour;
-    msgEl.style.display = text ? '' : 'none';
-  }
-
-  if (!key) { _msg('Paste your API key first', 'var(--danger)'); input?.focus(); return; }
-
-  if (saveBtn) saveBtn.disabled = true;
-
-  const storageKey = 'today_ai_key_' + provider;
-  localStorage.setItem(storageKey, key);
-
-  try {
-    const res = await fetch('/.netlify/functions/ai-assist', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        provider, apiKey: key,
-        messages: [{ role: 'user', content: 'ping' }],
-        systemPrompt: 'Reply with only the word: pong',
-      }),
-    });
-
-    if (!res.ok) {
-      localStorage.removeItem(storageKey);
-      const err = await res.text();
-      const isHtml = err.includes('<!DOCTYPE') || err.includes('<html');
-      const msg = isHtml ? 'Function not deployed — redeploy site'
-        : (err.includes('API key') || err.includes('not valid') || err.includes('API_KEY'))
-        ? 'That key didn\'t work — try again'
-        : err.includes('quota') ? 'Quota exceeded — try later'
-        : 'Can\'t connect — ' + err.slice(0, 50);
-      _msg(msg, 'var(--danger)');
-      if (saveBtn) saveBtn.disabled = false;
-      input?.select(); input?.focus();
-      return;
-    }
-
-    // Set as default only if the other provider has no key (first key wins default)
-    const otherProvider = provider === 'gemini' ? 'claude' : 'gemini';
-    if (!_aiGetKey(otherProvider)) {
-      localStorage.setItem('today_ai_provider', provider);
-    }
-    _aiRenderConfig();
-    _updateBarPlaceholder();
-    _meetingInit();
-    _voiceNoteInit();
-
-  } catch(e) {
-    localStorage.removeItem(storageKey);
-    _msg('Can\'t reach the server — check your connection', 'var(--danger)');
-    if (saveBtn) saveBtn.disabled = false;
-  }
-}
-
-function clearAIKey(provider) {
-  localStorage.removeItem('today_ai_key_' + provider);
-  // If we just cleared the default, switch default to the other provider if it has a key
-  const other = provider === 'gemini' ? 'claude' : 'gemini';
-  if (_aiGetProvider() === provider) {
-    if (_aiGetKey(other)) localStorage.setItem('today_ai_provider', other);
-    else localStorage.removeItem('today_ai_provider');
-  }
-  _aiRenderConfig();
-  _updateBarPlaceholder();
-  _meetingInit();
-  _voiceNoteInit();
-}
-
-function setDefaultProvider(p) {
-  localStorage.setItem('today_ai_provider', p);
-  _aiRenderConfig();
-  _updateBarPlaceholder();
-  _meetingInit();
-  _voiceNoteInit();
-}
+// _aiRenderConfig / saveAIKey / clearAIKey / setDefaultProvider — moved to assets/connections.js
 
 // Esc closes panel
 document.addEventListener('keydown', e => {
