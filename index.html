@@ -1444,20 +1444,22 @@
     border-top: 1px solid var(--border);
   }
   .reflection-feelings {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--space-2);
+    justify-content: center;
+    padding-bottom: var(--space-2);
   }
   .reflection-feeling-btn {
-    min-height: 52px;
-    padding: var(--space-2) var(--space-1);
-    border-radius: var(--radius-lg);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
     border: 1px solid var(--border);
-    background: var(--surface);
+    background: transparent;
     color: var(--text);
-    font-size: var(--text-sm2);
     cursor: pointer;
-    transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+    transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
   }
   .reflection-feeling-btn[aria-pressed="true"],
   .reflection-feeling-btn.selected {
@@ -1469,11 +1471,15 @@
     border-color: var(--muted);
     background: var(--surface2);
   }
-  @media (max-width: 375px) {
-    .reflection-feelings { grid-template-columns: repeat(3, 1fr); }
+  .reflection-confirmed {
+    padding: var(--space-3) 0 var(--space-2);
+    border-top: 1px solid var(--border);
+    text-align: center;
   }
-  @media (max-width: 320px) {
-    .reflection-feelings { grid-template-columns: repeat(2, 1fr); }
+  .reflection-confirmed-word {
+    font-family: var(--font-mono);
+    font-size: var(--text-base);
+    color: var(--accent);
   }
 
   /* Task item */
@@ -4137,9 +4143,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.66.2': 'Fix: post-triage mood buttons restyled to pill/DM Mono to match TODAY UI; selecting a feeling now shows the word in accent colour instead of leaving the question unanswered.',
   '2.66.1': 'Fix: BUG-079 age-bucket task opacity scoped to desktop only — age dimming now behind @media (hover: hover) so mobile tasks always render at full opacity.',
   '2.66.0': 'Maintenance: full-suite test runner + _parseAIText extraction fixes.',
-  '2.65.17': 'Fix: BUG-078 TRIAGE_HISTORY_MAX out of scope in dropbox.js — replaced bare constant with literal 50.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

@@ -143,6 +143,12 @@
         `</div>`;
     }
 
+    function _buildConfirmedHTML(feeling) {
+      return `<div class="reflection-confirmed">` +
+        `<span class="reflection-confirmed-word">${feeling}</span>` +
+        `</div>`;
+    }
+
     // ── Consent actions ──────────────────────────────────────────────────────
 
     function reflectionRemember() {
@@ -184,16 +190,10 @@
       if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
       if (typeof _haptic === 'function') _haptic('light');
 
-      // Accent-select the pressed button; hide the feeling choices
+      // Replace question+buttons with a brief confirmation of the selected feeling
       const el = document.getElementById('triageReflection');
       if (el) {
-        el.querySelectorAll('.reflection-feeling-btn').forEach(btn => {
-          const pressed = btn.textContent.trim() === feeling;
-          btn.setAttribute('aria-pressed', String(pressed));
-          if (pressed) btn.classList.add('selected');
-        });
-        const feelingsEl = el.querySelector('.reflection-feelings');
-        if (feelingsEl) feelingsEl.style.display = 'none';
+        el.innerHTML = _buildConfirmedHTML(feeling);
       }
 
       // Leave 3 s for Undo
