@@ -1707,11 +1707,12 @@
   .task[data-age-bucket] {
     transition: opacity var(--dur-base);
   }
-  .task[data-age-bucket="young"] { opacity: 0.75; }
-  .task[data-age-bucket="mid"]   { opacity: 0.55; }
-  .task[data-age-bucket="old"]   { opacity: 0.35; }
-  /* Hover restores readability for aged tasks */
-  .task[data-age-bucket]:hover { opacity: 0.85; }
+  @media (hover: hover) {
+    .task[data-age-bucket="young"] { opacity: 0.75; }
+    .task[data-age-bucket="mid"]   { opacity: 0.55; }
+    .task[data-age-bucket="old"]   { opacity: 0.35; }
+    .task[data-age-bucket]:hover   { opacity: 0.85; }
+  }
 
   .task-body { flex: 1; min-width: 0; }
 
@@ -4136,9 +4137,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.66.1': 'Fix: BUG-079 age-bucket task opacity scoped to desktop only — age dimming now behind @media (hover: hover) so mobile tasks always render at full opacity.',
   '2.66.0': 'Maintenance: full-suite test runner + _parseAIText extraction fixes.',
   '2.65.17': 'Fix: BUG-078 TRIAGE_HISTORY_MAX out of scope in dropbox.js — replaced bare constant with literal 50.',
-  '2.65.16': 'Maintenance: regression test suite added for insights.js (appMemory system).',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
