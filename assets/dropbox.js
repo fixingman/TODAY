@@ -1253,7 +1253,7 @@
         if (remoteNew.length > 0) {
           const merged = [...localHistory, ...remoteNew]
             .sort((a, b) => new Date(b.ts) - new Date(a.ts))
-            .slice(0, TRIAGE_HISTORY_MAX);
+            .slice(0, 50);
           localStorage.setItem('today_triage_history', JSON.stringify(merged));
         }
       }
