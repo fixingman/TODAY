@@ -42,6 +42,7 @@ let appMemory = (() => {
         triageUndos: 0,           // how many times triage was undone
         soonPulls: 0,             // how many times a task was pulled back from Soon
         reviveReasons: {},        // { triage_undo: N, not_done_yet: N, ... } reason for reviving from Past
+        inlineSuggestions: { offered: 0, applied: 0, dismissed: 0 }, // inline AI breakdown tracking
       },
       // Moments worth remembering
       moments: [],                // [{ type: 'streak_milestone', value: 7, date: '2024-03-10' }, ...]
@@ -96,6 +97,7 @@ if (!appMemory.patterns.reviveReasons) appMemory.patterns.reviveReasons = {};
 if (appMemory.patterns.dayStartCount === undefined) appMemory.patterns.dayStartCount = null;
 if (appMemory.patterns.dayShapeState === undefined) appMemory.patterns.dayShapeState = null;
 if (appMemory.patterns.dayStartDate  === undefined) appMemory.patterns.dayStartDate  = null;
+if (!appMemory.patterns.inlineSuggestions) appMemory.patterns.inlineSuggestions = { offered: 0, applied: 0, dismissed: 0 };
 if (!appMemory.meetingAttribution) appMemory.meetingAttribution = {
   mineShown: 0, mineKept: 0, othersShown: 0, othersSelected: 0,
 };

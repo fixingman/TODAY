@@ -1073,7 +1073,11 @@ function _aiAnalyzeTask(taskId, taskText) {
 async function _aiDoAnalyze(taskId, taskText) {
   // Dismiss any existing suggestion first
   _aiDismissSuggestion();
-  
+
+  // Suppress if user dismisses >70% of suggestions (min 5 offered)
+  const _sig = appMemory?.patterns?.inlineSuggestions;
+  if (_sig && _sig.offered >= 5 && _sig.dismissed / _sig.offered > 0.7) return;
+
   // Build minimal context
   const existingTasks = manualTasks
     .filter(t => t.id !== taskId && !doneIds.has(t.id))
@@ -1099,6 +1103,16 @@ Rules:
 - subtasks: 2-3 concrete actionable items, not rewording of original`;
 
   try {
+    const _acceptRate = _sig?.offered >= 3 ? Math.round(_sig.applied / _sig.offered * 100) : null;
+    const _letgoArr = Object.entries(appMemory?.patterns?.letgoReasons || {});
+    const _letgoTotal = _letgoArr.reduce((s, [, n]) => s + n, 0);
+    const _letgoDominant = _letgoTotal >= 8
+      ? _letgoArr.sort((a, b) => b[1] - a[1]).find(([, n]) => n / _letgoTotal >= 0.35)?.[0]
+      : null;
+    let _behaviorCtx = '';
+    if (_acceptRate !== null) _behaviorCtx += ` Acceptance rate for previous breakdown suggestions: ${_acceptRate}% — suggest only when clearly beneficial.`;
+    if (_letgoDominant)       _behaviorCtx += ` User's most common reason for letting tasks go: ${_letgoDominant} — factor this into your suggestion.`;
+
     const res = await fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1106,7 +1120,7 @@ Rules:
         provider: _aiGetProvider(),
         apiKey: _aiGetKey(),
         messages: [{ role: 'user', content: prompt }],
-        systemPrompt: 'You analyze tasks for a todo app. Be concise. Most tasks need no changes.',
+        systemPrompt: `You analyze tasks for a todo app. Be concise. Most tasks need no changes.${_behaviorCtx}`,
       }),
     });
     
@@ -1149,7 +1163,7 @@ function _aiShowSuggestion(taskId, taskEl, data) {
   const dismissBtn = document.createElement('button');
   dismissBtn.className = 'task-suggestion-chip dismiss';
   dismissBtn.textContent = '✕';
-  dismissBtn.onclick = () => _aiDismissSuggestion();
+  dismissBtn.onclick = () => _aiDismissSuggestion('user');
   chips.appendChild(dismissBtn);
   
   row.appendChild(msg);
@@ -1159,7 +1173,12 @@ function _aiShowSuggestion(taskId, taskEl, data) {
   taskEl.insertAdjacentElement('afterend', row);
   
   _aiCurrentSuggestion = { taskId, element: row };
-  
+
+  if (appMemory?.patterns?.inlineSuggestions) {
+    appMemory.patterns.inlineSuggestions.offered++;
+    _saveMemory();
+  }
+
   // Auto-dismiss after 10s
   setTimeout(() => {
     if (_aiCurrentSuggestion?.taskId === taskId) {
@@ -1168,15 +1187,20 @@ function _aiShowSuggestion(taskId, taskEl, data) {
   }, 10000);
 }
 
-function _aiDismissSuggestion() {
+function _aiDismissSuggestion(source) {
   if (!_aiCurrentSuggestion) return;
-  
+
   const el = _aiCurrentSuggestion.element;
   if (el && el.parentNode) {
     el.classList.add('removing');
     el.addEventListener('animationend', () => el.remove(), { once: true });
   }
   _aiCurrentSuggestion = null;
+
+  if (source === 'user' && appMemory?.patterns?.inlineSuggestions) {
+    appMemory.patterns.inlineSuggestions.dismissed++;
+    _saveMemory();
+  }
 }
 
 function _aiApplyBreakdown(originalTaskId, subtasks) {
@@ -1223,6 +1247,10 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
   
   // Update UI
   $.manualCount.textContent = manualTasks.length;
+  if (appMemory?.patterns?.inlineSuggestions) {
+    appMemory.patterns.inlineSuggestions.applied++;
+    _saveMemory();
+  }
   _aiDismissSuggestion();
   _haptic('success');
 }
