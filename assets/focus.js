@@ -12,6 +12,11 @@ window._startFocus = (function() {
   const TOTAL  = 25 * 60;
   const appEl  = document.getElementById('main-app');
 
+  function _parseAIText(data) {
+    if (data.error) return null;
+    return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
+  }
+
   // ── Checkbox intercept hook ───────────────────────────────────────────────
   // Called before toggleDone. Returns true if focus mode handled the check
   // (stops normal toggleDone from firing). Registers partial session,

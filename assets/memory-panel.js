@@ -10,6 +10,11 @@
     let _memoryClearPending = false;
     let _memoryAbstracting = false;
 
+    function _parseAIText(data) {
+      if (data.error) return null;
+      return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
+    }
+
     function toggleMemory() {
       const scrollY = window.scrollY;
       const panel = $.memoryPanel;

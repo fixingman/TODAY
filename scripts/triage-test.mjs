@@ -324,7 +324,8 @@ try {
       });
       ok('inline triage baseline');
     } else {
-      const triageSrc = await readFile(join(ROOT, 'assets/triage.js'), 'utf8');
+      const triageSrc  = await readFile(join(ROOT, 'assets/triage.js'), 'utf8');
+      const dropboxSrc = await readFile(join(ROOT, 'assets/dropbox.js'), 'utf8');
       const requiredExports = [
         'checkTriageBar', 'triageExpand', 'renderTriageList',
         'triageShowReason', 'triageSetReason', 'triageDecide',
@@ -338,7 +339,8 @@ try {
         exports: requiredExports.every(name => triageSrc.includes(`window.${name} = ${name};`)),
         setterExported: triageSrc.includes('window._setTriageBarSilent'),
         privateState: !indexSrc.includes('let triageDecisions') && !indexSrc.includes('let _triageBarSilent'),
-        setterCalled: indexSrc.includes('_setTriageBarSilent('),
+        // _setTriageBarSilent may be called from index.html or from dropbox.js (extracted)
+        setterCalled: indexSrc.includes('_setTriageBarSilent(') || dropboxSrc.includes('_setTriageBarSilent('),
         precached: swSrc.includes("'/assets/triage.js'"),
       });
       ok('extracted triage wiring, exports, private state, setter, and precache');

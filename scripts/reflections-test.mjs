@@ -495,6 +495,8 @@ try {
     const reflIdx = indexSrc.indexOf("assets/reflections.js");
     const dropIdx = indexSrc.indexOf("assets/dropbox.js");
     const triaIdx = indexSrc.indexOf("assets/triage.js");
+    const appVerMatch = indexSrc.match(/const CHANGELOG\s*=\s*\{\s*'([^']+)'/);
+    const appVer = appVerMatch?.[1];
 
     await expectAll('static wiring', {
       modulePresent:   reflIdx !== -1,
@@ -503,7 +505,7 @@ try {
       startCall:       indexSrc.includes('window._startReflections();'),
       domElement:      indexSrc.includes('id="triageReflection"'),
       precached:       swSrc.includes("'/assets/reflections.js'"),
-      cacheVersion:    swSrc.includes("'today-v2.65.7'"),
+      cacheVersion:    !!appVer && swSrc.includes(`'today-v${appVer}'`),
       iife:            reflectionsSrc.includes('window._startReflections = function()'),
       backupExport:    reflectionsSrc.includes('window._reflectionBackupFields'),
       mergeExport:     reflectionsSrc.includes('window._reflectionMergeRemote'),

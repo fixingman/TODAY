@@ -10,6 +10,11 @@
     // habitsList, habitCompletions, APP_VERSION, $ and appMemory are all
     // pre-existing inline globals read (never written) by this module.
 
+    function _parseAIText(data) {
+      if (data.error) return null;
+      return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
+    }
+
     function toggleInfo() {
       const scrollY = window.scrollY; // Preserve scroll position
       const panel = $.infoPanel;
