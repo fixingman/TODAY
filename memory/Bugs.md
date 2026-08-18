@@ -16,6 +16,8 @@
 
 | # | Description | Status |
 |---|---|---|
+| 078 | `TRIAGE_HISTORY_MAX` out of scope in `dropbox.js` — threw `ReferenceError` on Dropbox pull and restore | ✅ v2.65.17 |
+| 077 | Trello "Network error" flash in Connections panel on Dropbox reconnect or midnight boundary | ✅ v2.65.4 |
 | 076 | Splash exit intermittently leaves `O` and `AY` visible while the poem coda disappears | ⏳ v2.65.3 |
 | 075 | Tagged task flashes or changes shimmer timing when hover overlaps its arrival animation | ✅ v2.64.20 |
 | 074 | Shared `/poem.html` links crash in the Netlify Edge Function before the static page loads | ✅ v2.64.12 |
