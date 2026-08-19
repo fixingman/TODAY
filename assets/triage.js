@@ -405,6 +405,8 @@
       _startAutoClose(initialMs);
 
       if (typeof window._reflectionMountInTriage === 'function') window._reflectionMountInTriage(reflectionState);
+
+      if (typeof window._memoryAbstract === 'function') window._memoryAbstract();
     }
 
     function _startAutoClose(durationMs) {

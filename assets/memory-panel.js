@@ -8,7 +8,7 @@
     started = true;
 
     let _memoryClearPending = false;
-    let _memoryAbstracting = false;
+    let _memoryAbstractRunning = false;
 
     function _parseAIText(data) {
       if (data.error) return null;
@@ -31,7 +31,17 @@
       $.infoPanel.classList.remove('open');
       syncActiveButtons();
       window.scrollTo(0, scrollY);
-      if (isOpening) { renderMemoryPanel(); _memoryAbstract(); }
+      if (isOpening) {
+        let _anyNew = false;
+        const _memTypes = ['semantic', 'episodic', 'procedural'];
+        for (const _t of _memTypes) {
+          for (const _item of (appMemory?.memory?.[_t] || [])) {
+            if (_item.isNew) { _item.isNew = false; _anyNew = true; }
+          }
+        }
+        if (_anyNew) _saveMemory();
+        renderMemoryPanel();
+      }
     }
 
     function renderMemoryPanel() {
@@ -43,6 +53,7 @@
       function typeBlock(name, desc, items, pendingNote) {
         const rows = items.length
           ? items.map(item => `<div class="memory-item">` +
+                (item.isNew ? `<span class="memory-item-new"></span>` : '') +
                 `<span class="memory-item-text">${item.text}</span>` +
                 `</div>`
             ).join('')
@@ -291,8 +302,6 @@
           `<button class="memory-clear-btn" style="opacity:1;color:var(--danger)" onclick="_memoryClearConfirm()">yes, clear</button>` +
           `<button class="btn-ghost memory-conn-link" onclick="_memoryClearCancel()">cancel</button>` +
           `</span></div>`
-        : _memoryAbstracting
-        ? `<div class="memory-footer"><span class="memory-abstracting" style="padding:0">noticing…</span></div>`
         : `<div class="memory-footer">` +
           `<button class="memory-clear-btn" onclick="_memoryClearRequest()">clear all memory</button>` +
           `<span class="memory-conn-link" onclick="_memoryGoToConnections()">Connections →</span>` +
@@ -352,8 +361,8 @@
       // Require minimum signal
       if ((m.totalTasksCompleted || 0) < 5) return;
 
-      _memoryAbstracting = true;
-      renderMemoryPanel();
+      if (_memoryAbstractRunning) return;
+      _memoryAbstractRunning = true;
 
       try {
         const completionHours = Object.entries(m.patterns?.completionsByHour || {})
@@ -478,6 +487,7 @@
             source: 'ai_abstract',
             addedAt: _localISO(),
             status: 'confirmed',
+            isNew: true,
           });
           added++;
         }
@@ -486,7 +496,7 @@
       } catch (_e) {
         // silent fail
       } finally {
-        _memoryAbstracting = false;
+        _memoryAbstractRunning = false;
         renderMemoryPanel();
       }
     }

@@ -476,6 +476,11 @@
       // after overnight don't see it without this. Nudge has its own hour < 12 guard.
       if (typeof checkDayNudge === 'function') checkDayNudge();
 
+      // Cold-start memory abstraction — once per day if triage hasn't already triggered it.
+      if (typeof _localISO === 'function' && appMemory?.memory?._lastAbstractDate !== _localISO()) {
+        if (typeof window._memoryAbstract === 'function') window._memoryAbstract();
+      }
+
       // Triage silent window — prevents ticker showing bar before sync settles. (BUG-001)
       _setTriageBarSilent(true);
       setTimeout(() => {
@@ -797,7 +802,7 @@
           for (const item of remote.memory[type]) {
             if (!item.id || existingIds.has(item.id)) continue;
             if (existingTexts.has((item.text || '').toLowerCase().slice(0, 8))) continue;
-            appMemory.memory[type].push(item);
+            appMemory.memory[type].push({ ...item, isNew: false });
             existingIds.add(item.id);
             existingTexts.add((item.text || '').toLowerCase().slice(0, 8));
           }
