@@ -326,7 +326,7 @@
           if (_cached) {
             _sundayBlock.innerHTML =
               '<div class="week-label">' + _weekLabel + '</div>' +
-              '<div class="week-summary">' + _cached + '</div>';
+              '<div class="week-summary">' + esc(_cached) + '</div>';
           } else {
             _sundayBlock.innerHTML =
               '<div class="week-label">' + _weekLabel + '</div>' +

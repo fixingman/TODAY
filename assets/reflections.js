@@ -251,7 +251,7 @@
           if (_reflectPending) {
             inner += `<div class="memory-item"><span class="memory-item-text memory-abstracting">reflecting…</span></div>`;
           } else if (_reflectResult) {
-            inner += `<div class="memory-item"><span class="memory-item-text">${_reflectResult}</span></div>`;
+            inner += `<div class="memory-item"><span class="memory-item-text">${esc(_reflectResult)}</span></div>`;
           } else {
             inner += `<div class="memory-item" style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap">` +
               `<button class="triage-undo-btn" onclick="reflectionReflect()">Reflect</button>` +

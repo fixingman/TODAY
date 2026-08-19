@@ -4,7 +4,7 @@
 // This is the ONE version value still hand-synced — a SW can't import APP_VERSION from
 // index.html (separate context, no build step). scripts/smoke-test.mjs asserts it matches
 // `today-v${APP_VERSION}` and fails the pre-commit gate on drift.
-const CACHE_VERSION  = 'today-v2.69.1';
+const CACHE_VERSION  = 'today-v2.69.2';
 const CACHE_APP_SHELL = [
   '/',
   '/poem.html',
@@ -152,7 +152,7 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
   // 2. Bypass all external API origins — never intercept
-  if (BYPASS_ORIGINS.some(origin => url.hostname.includes(origin))) return;
+  if (BYPASS_ORIGINS.some(origin => url.hostname === origin || url.hostname.endsWith('.' + origin))) return;
 
   // 3. Bypass chrome-extension and non-http(s) schemes
   if (!url.protocol.startsWith('http')) return;

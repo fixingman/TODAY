@@ -135,20 +135,20 @@
             <span class="triage-task-text">${esc(t.text)}</span>
             <span class="triage-task-badge ${badgeClass}">${badgeText}</span>
           </div>
-          ${needsReason ? `<div class="triage-actions"><div class="triage-reason-row">${_rcs.map(([k,l])=>`<button class="triage-reason-btn" onclick="triageSetReason('${t.id}','${k}')">${l}</button>`).join('')}</div></div>` : ''}
+          ${needsReason ? `<div class="triage-actions"><div class="triage-reason-row">${_rcs.map(([k,l])=>`<button class="triage-reason-btn" onclick="triageSetReason('${esc(t.id)}','${k}')">${l}</button>`).join('')}</div></div>` : ''}
         </div>
       `;
         }
 
         const actions = isTrello ? `
-      <button class="triage-btn keep" onclick="triageDecide('${t.id}','kept')">Keep</button>
-      <button class="triage-btn" onclick="triageShowReason('${t.id}')">Let go</button>
-      <button class="triage-btn done" onclick="triageDecide('${t.id}','done')">Done</button>
+      <button class="triage-btn keep" onclick="triageDecide('${esc(t.id)}','kept')">Keep</button>
+      <button class="triage-btn" onclick="triageShowReason('${esc(t.id)}')">Let go</button>
+      <button class="triage-btn done" onclick="triageDecide('${esc(t.id)}','done')">Done</button>
     ` : `
-      <button class="triage-btn keep" onclick="triageDecide('${t.id}','kept')">Keep</button>
-      <button class="triage-btn" onclick="triageDecide('${t.id}','soon')">↩&#xFE0E; Soon</button>
-      <button class="triage-btn" onclick="triageShowReason('${t.id}')">Let go</button>
-      <button class="triage-btn done" onclick="triageDecide('${t.id}','done')">Done</button>
+      <button class="triage-btn keep" onclick="triageDecide('${esc(t.id)}','kept')">Keep</button>
+      <button class="triage-btn" onclick="triageDecide('${esc(t.id)}','soon')">↩&#xFE0E; Soon</button>
+      <button class="triage-btn" onclick="triageShowReason('${esc(t.id)}')">Let go</button>
+      <button class="triage-btn done" onclick="triageDecide('${esc(t.id)}','done')">Done</button>
     `;
 
         return `

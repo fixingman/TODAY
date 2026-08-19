@@ -110,7 +110,7 @@
         return `
         <div class="task" role="listitem" data-id="${t.id}">
           <span class="task-text">${textHTML}</span>
-          <button class="zone-badge pull-btn" onclick="pullFromSoon('${t.id}')" aria-label="Pull ${esc(t.text)} into today">← pull in</button>
+          <button class="zone-badge pull-btn" onclick="pullFromSoon('${esc(t.id)}')" aria-label="Pull ${esc(t.text)} into today">← pull in</button>
         </div>
       `}).join('');
 
@@ -156,7 +156,7 @@
           : esc(t.text);
         const badge = t.status === 'done'
           ? `<span class="zone-badge">${t.status}</span>`
-          : `<button class="zone-badge pull-btn" onclick="reviveFromPastShowReason('${t.id}')" aria-label="Move ${esc(t.text)} back to soon">&#x21a9;&#xFE0E; soon</button>`;
+          : `<button class="zone-badge pull-btn" onclick="reviveFromPastShowReason('${esc(t.id)}')" aria-label="Move ${esc(t.text)} back to soon">&#x21a9;&#xFE0E; soon</button>`;
         return `
           <div class="task ${statusClass}" role="listitem" data-id="${t.id}">
             <div class="task-check past-check" aria-hidden="true">

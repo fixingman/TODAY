@@ -16,3 +16,6 @@ npm-debug.log*
 *.swp
 *.swo
 .gstack/
+.env
+.env.local
+.env.production

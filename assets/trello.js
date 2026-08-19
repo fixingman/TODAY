@@ -81,7 +81,9 @@ async function loadTrelloBoards() {
   const token = localStorage.getItem('trello_token');
   if (!token) return;
   try {
-    const res = await fetch(`https://api.trello.com/1/members/me/boards?key=${TRELLO_API_KEY}&token=${token}&fields=name,id&filter=open`);
+    const res = await fetch(`https://api.trello.com/1/members/me/boards?key=${TRELLO_API_KEY}&fields=name,id&filter=open`, {
+      headers: { Authorization: `OAuth oauth_consumer_key="${TRELLO_API_KEY}", oauth_token="${token}"` }
+    });
     if (!res.ok) throw new Error(res.status);
     const boards = await res.json();
     // boardSelect is already in the DOM — renderConnections() always runs before this
@@ -120,7 +122,9 @@ async function loadTrelloLists(boardId, selectedList) {
   const token = localStorage.getItem('trello_token');
   if (!token || !boardId) return;
   try {
-    const res = await fetch(`https://api.trello.com/1/boards/${boardId}/lists?key=${TRELLO_API_KEY}&token=${token}&fields=name,id&filter=open`);
+    const res = await fetch(`https://api.trello.com/1/boards/${boardId}/lists?key=${TRELLO_API_KEY}&fields=name,id&filter=open`, {
+      headers: { Authorization: `OAuth oauth_consumer_key="${TRELLO_API_KEY}", oauth_token="${token}"` }
+    });
     if (!res.ok) throw new Error(res.status);
     const lists = await res.json();
     const sel = document.getElementById('listSelect');
@@ -190,9 +194,10 @@ async function loadTrello(fromSync) {
     const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
 
     // Fetch lists and cards in parallel
+    const _trelloAuth = { Authorization: `OAuth oauth_consumer_key="${config.apiKey}", oauth_token="${config.apiToken}"` };
     const [listsRes, cardsRes] = await Promise.all([
-      fetch(`https://api.trello.com/1/boards/${config.boardId}/lists?key=${config.apiKey}&token=${config.apiToken}`),
-      fetch(`https://api.trello.com/1/boards/${config.boardId}/cards?key=${config.apiKey}&token=${config.apiToken}&fields=name,due,idList,url,labels&checklists=all`)
+      fetch(`https://api.trello.com/1/boards/${config.boardId}/lists?key=${config.apiKey}`, { headers: _trelloAuth }),
+      fetch(`https://api.trello.com/1/boards/${config.boardId}/cards?key=${config.apiKey}&fields=name,due,idList,url,labels&checklists=all`, { headers: _trelloAuth })
     ]);
 
     if (!listsRes.ok) throw new Error(`Trello ${listsRes.status}: ${listsRes.statusText}`);

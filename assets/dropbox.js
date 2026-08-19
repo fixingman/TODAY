@@ -181,7 +181,9 @@
       const verifier    = _generateVerifier();
       const challenge   = await _generateChallenge(verifier);
       const redirectUri = window.location.origin + '/';
-      const state       = Math.random().toString(36).slice(2);
+      const _stateArr   = new Uint8Array(16);
+      crypto.getRandomValues(_stateArr);
+      const state       = Array.from(_stateArr, b => b.toString(16).padStart(2, '0')).join('');
 
       sessionStorage.setItem('dbx_verifier',     verifier);
       sessionStorage.setItem('dbx_redirect_uri', redirectUri);
@@ -1872,7 +1874,9 @@
           try {
             const cfg = getSavedConfig();
             if (cfg.apiKey && cfg.apiToken && cfg.boardId) {
-              const r = await fetch(`https://api.trello.com/1/boards/${cfg.boardId}?fields=dateLastActivity&key=${cfg.apiKey}&token=${cfg.apiToken}`).catch(() => null);
+              const r = await fetch(`https://api.trello.com/1/boards/${cfg.boardId}?fields=dateLastActivity&key=${cfg.apiKey}`, {
+                headers: { Authorization: `OAuth oauth_consumer_key="${cfg.apiKey}", oauth_token="${cfg.apiToken}"` }
+              }).catch(() => null);
               if (r && r.ok) { const b = await r.json(); if (b) lastTrelloDate = b.dateLastActivity; }
             }
             const token = localStorage.getItem('dropbox_token');

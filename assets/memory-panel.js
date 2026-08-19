@@ -54,7 +54,7 @@
         const rows = items.length
           ? items.map(item => `<div class="memory-item">` +
                 (item.isNew ? `<span class="memory-item-new"></span>` : '') +
-                `<span class="memory-item-text">${item.text}</span>` +
+                `<span class="memory-item-text">${esc(item.text)}</span>` +
                 `</div>`
             ).join('')
           : pendingNote

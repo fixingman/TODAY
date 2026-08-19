@@ -519,9 +519,9 @@ function _aiSetThinking() {
   }
 }
 
-function _aiSetMsg(html) {
+function _aiSetMsg(text) {
   const el = document.getElementById('aiSuggestionMsg');
-  if (el) { el.innerHTML = html; el.className = 'ai-suggestion-msg'; }
+  if (el) { el.textContent = text; el.className = 'ai-suggestion-msg'; }
 }
 
 function _aiSetChips(actions) {
