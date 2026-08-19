@@ -44,9 +44,6 @@
         const rows = items.length
           ? items.map(item => `<div class="memory-item">` +
                 `<span class="memory-item-text">${item.text}</span>` +
-                (item.forgetKey || item.dismissKey
-                  ? `<button class="memory-item-forget" onclick="_memoryDismiss('${item.dismissKey || item.forgetKey}')">forget</button>`
-                  : '') +
                 `</div>`
             ).join('')
           : pendingNote
@@ -344,34 +341,6 @@
       renderMemoryPanel();
     }
 
-    function _memoryForget(key) {
-      if (!appMemory?.memory) return;
-      const [type, id] = key.split(':');
-      if (appMemory.memory[type]) {
-        appMemory.memory[type] = appMemory.memory[type].filter(i => i.id !== id);
-        _saveMemory();
-        renderMemoryPanel();
-      }
-    }
-
-    function _memoryConfirm(key) {
-      if (!appMemory?.memory) return;
-      const [type, id] = key.split(':');
-      const slot = appMemory.memory[type];
-      if (!slot) return;
-      const item = slot.find(i => i.id === id);
-      if (item) { item.status = 'confirmed'; _saveMemory(); renderMemoryPanel(); }
-    }
-
-    function _memoryDismiss(key) {
-      if (!appMemory?.memory) return;
-      const [type, id] = key.split(':');
-      const slot = appMemory.memory[type];
-      if (!slot) return;
-      appMemory.memory[type] = slot.filter(i => i.id !== id);
-      _saveMemory();
-      renderMemoryPanel();
-    }
 
     async function _memoryAbstract() {
       if (!_aiIsConfigured() || !navigator.onLine) return;
@@ -544,9 +513,6 @@
     window._memoryClearRequest = _memoryClearRequest;
     window._memoryClearCancel = _memoryClearCancel;
     window._memoryClearConfirm = _memoryClearConfirm;
-    window._memoryForget = _memoryForget;
-    window._memoryConfirm = _memoryConfirm;
-    window._memoryDismiss = _memoryDismiss;
     window._memoryAbstract = _memoryAbstract;
     window._versionBadgeBreathe = _versionBadgeBreathe;
   };
