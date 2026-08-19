@@ -462,11 +462,13 @@
     --color-surface:     #17171a;   /* card / hover surface        */
     --color-surface2:    #1f1f24;   /* elevated surface (panels)   */
     --color-border:      #2a2a30;   /* decorative separation       */
-    --color-control-border: #6b6b78;/* interactive boundaries      */
+    --color-control-border: #636370;/* main-surface boundaries      */
+    --color-control-border-elevated: #6b6b78;/* elevated boundaries */
 
     /* ── Color: Text ─────────────────────────────────────────── */
     --color-text:        #e8e8ec;   /* primary text                */
-    --color-muted:       #858594;   /* AA secondary / placeholder  */
+    --color-muted:       #80808d;   /* main-surface secondary text */
+    --color-muted-elevated: #858594;/* elevated AA secondary text  */
 
     /* ── Color: Accent (lime green) ──────────────────────────── */
     --color-accent:      #c8f060;   /* primary accent              */
@@ -600,6 +602,17 @@
     /* Copy button */
     --opacity-copy:         0.45;  /* copy button at rest in focus     */
 
+  }
+
+  /* Elevated surfaces retain the stronger values required against --surface2;
+     the everyday task canvas uses the quieter base tokens above. */
+  .config-panel,
+  #triagePanel,
+  #meetingPanel,
+  .focusing .task.focused,
+  .focusing .habit.focused {
+    --muted: var(--color-muted-elevated);
+    --control-border: var(--color-control-border-elevated);
   }
 
   html, body {
@@ -4260,16 +4273,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '270h';
+const DEV_HOURS     = '271h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.69.0': 'Motion: triage decisions have distinct exit animations | UX: focus timer breathes at 6s | UX: stat numbers count up on triage complete | UX: time-of-day accent + empty-state micro-copy',
+  '2.68.2': 'Refinement — completed tasks recede again, secondary text and controls are quieter, Memory footer targets stay comfortably sized, and copied feedback resets when focus ends.',
   '2.68.1': 'UX: post-triage mood confirmation now reads "today felt X." — undo hides after selection; mood buttons use muted color at rest.',
-  '2.68.0': 'Accessibility — keyboard navigation, screen-reader labels, clearer focus, stronger contrast, zoom, and reflow now work throughout TODAY.',
-  '2.67.3': 'Fix: splash poem coda hold (5–8s) now starts after the 900ms fade-in completes — ensuring the full floor/ceiling is actual reading time. Tap-to-dismiss also arms only once the poem is fully visible, preventing accidental early dismissal on mobile.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4397,6 +4410,20 @@ function init() {
   // New-day cleanup runs after Dropbox restore (see load event in sync module)
   // so the clean state is applied to the freshest data, not overwritten by the pull.
 
+  (function _applyTimeTexture() {
+    const h = new Date().getHours();
+    const root = document.documentElement;
+    if (h >= 5 && h < 8)       root.style.setProperty('--accent', 'hsl(87, 85%, 66%)');
+    else if (h >= 18 && h < 22) root.style.setProperty('--accent', 'hsl(77, 89%, 64%)');
+    else if (h >= 22 || h < 5)  root.style.setProperty('--accent', 'hsl(82, 80%, 60%)');
+    const emptyEl = document.getElementById('manualEmpty');
+    if (emptyEl) {
+      if (h >= 22 || h < 4)        emptyEl.textContent = 'Rest is work too.';
+      else if (h >= 5 && h < 8)    emptyEl.textContent = 'Still early. Good.';
+      else if (h >= 18 && h < 22)  emptyEl.textContent = 'Wrapped up early.';
+    }
+  })();
+
   renderManual();
   renderSoon();
   renderPast();
@@ -4511,13 +4538,19 @@ document.addEventListener('click', function(e) {
       });
       clone.querySelectorAll('.session-count, .task-tag').forEach(el => el.remove());
       const text = clone.textContent.replace(/\s+/g, ' ').trim();
+      const feedbackGeneration = (copyEl._copyFeedbackGeneration || 0) + 1;
+      copyEl._copyFeedbackGeneration = feedbackGeneration;
 
       function _showCopied() {
+        if (copyEl._copyFeedbackGeneration !== feedbackGeneration) return;
+        clearTimeout(copyEl._copyFeedbackTimer);
         copyEl.textContent = 'copied';
         copyEl.classList.add('copied');
-        setTimeout(() => {
+        copyEl._copyFeedbackTimer = setTimeout(() => {
+          if (copyEl._copyFeedbackGeneration !== feedbackGeneration) return;
           copyEl.textContent = 'copy';
           copyEl.classList.remove('copied');
+          delete copyEl._copyFeedbackTimer;
         }, 1800);
       }
 

@@ -170,16 +170,36 @@
       }
     }
 
+    function _triageDecisionAnim(el, decision) {
+      if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const spring = 'cubic-bezier(0.34,1.56,0.64,1)';
+      const frames = {
+        kept:  [{ transform: 'translateX(0)' }, { transform: 'translateX(8px)' }, { transform: 'translateX(0)' }],
+        soon:  [{ transform: 'translateX(0)' }, { transform: 'translateX(-10px)' }, { transform: 'translateX(0)' }],
+        done:  [{ transform: 'scale(1)',    filter: 'brightness(1)'    },
+                { transform: 'scale(1.04)', filter: 'brightness(1.15)' },
+                { transform: 'scale(1)',    filter: 'brightness(1)'    }],
+        letgo: [{ transform: 'scale(1)', opacity: '1' },
+                { transform: 'scale(0.96)', opacity: '0.55' }],
+      };
+      const dur  = { kept: 150, soon: 150, done: 180, letgo: 130 };
+      const ease = { kept: spring, soon: spring, done: spring, letgo: 'ease-in' };
+      el.animate(frames[decision] || [], { duration: dur[decision] || 150, easing: ease[decision] || 'ease-out', fill: 'none' });
+    }
+
     function triageShowReason(id) {
       triageDecisions[id] = 'letgo';
       _haptic('light');
+      const taskEl = document.querySelector(`.triage-task[data-id="${id}"]`);
+      if (taskEl) _triageDecisionAnim(taskEl, 'letgo');
       const { manual: undoneManual, trello: undoneTrello } = _undoneTasks();
       const allUndone = [...undoneManual, ...undoneTrello];
       const remaining = allUndone.filter(t => !triageDecisions[t.id]).length;
+      const delay = taskEl ? 140 : 0;
       if (remaining === 0) {
-        triageApplyAll();
+        setTimeout(triageApplyAll, delay);
       } else {
-        renderTriageList();
+        setTimeout(renderTriageList, delay);
       }
     }
 
@@ -193,14 +213,18 @@
       if (decision === 'letgo') triageDecisions[id + '_reason'] = reason;
       _haptic('light');
 
+      const taskEl = document.querySelector(`.triage-task[data-id="${id}"]`);
+      if (taskEl) _triageDecisionAnim(taskEl, decision);
+
       const { manual: undoneManual, trello: undoneTrello } = _undoneTasks();
       const allUndone = [...undoneManual, ...undoneTrello];
       const remaining = allUndone.filter(t => !triageDecisions[t.id]).length;
+      const delay = taskEl ? 160 : 0;
 
       if (remaining === 0) {
-        triageApplyAll();
+        setTimeout(triageApplyAll, delay);
       } else {
-        renderTriageList();
+        setTimeout(renderTriageList, delay);
       }
     }
 
@@ -209,6 +233,36 @@
       undoneManual.forEach(t => triageDecisions[t.id] = 'kept');
       undoneTrello.forEach(t => triageDecisions[t.id] = 'kept');
       triageApplyAll();
+    }
+
+    function _rollupStats(el, parts) {
+      if (!parts.length) { el.innerHTML = ''; return; }
+      const STAGGER = 150, DUR = 300;
+      const parsed = parts.map(part => {
+        let m = part.match(/^(\d+)(.*)/);
+        if (m) return { pre: '', num: parseInt(m[1], 10), suf: esc(m[2]) };
+        m = part.match(/^(day )(\d+)$/);
+        if (m) return { pre: esc(m[1]), num: parseInt(m[2], 10), suf: '' };
+        return { pre: '', num: null, raw: esc(part) };
+      });
+      const inner = parsed.map((p, i) =>
+        p.num !== null
+          ? `${p.pre}<span class="stat-roll" data-i="${i}">0</span>${p.suf}`
+          : p.raw
+      ).join(' · ');
+      el.innerHTML = `<div class="triage-complete-sub">${inner}</div>`;
+      parsed.forEach((p, i) => {
+        if (p.num === null) return;
+        const numEl = el.querySelector(`[data-i="${i}"]`);
+        if (!numEl) return;
+        const t0 = performance.now() + i * STAGGER;
+        (function step(now) {
+          if (now < t0) { requestAnimationFrame(step); return; }
+          const t = Math.min(1, (now - t0) / DUR);
+          numEl.textContent = String(Math.round((1 - Math.pow(1 - t, 3)) * p.num));
+          if (t < 1) requestAnimationFrame(step);
+        })(performance.now());
+      });
     }
 
     function triageApplyAll() {
@@ -376,12 +430,7 @@
       if (_streak >= 3 && subParts.length < 2) subParts.push(`day ${_streak}`);
 
       const summaryEl = document.getElementById('triageSummary');
-      if (summaryEl) {
-        const subLine = subParts.join(' · ');
-        summaryEl.innerHTML = subLine
-          ? `<div class="triage-complete-sub">${esc(subLine)}</div>`
-          : '';
-      }
+      if (summaryEl) _rollupStats(summaryEl, subParts);
 
       localStorage.setItem('today_day_review', JSON.stringify({
         done: _doneToday,

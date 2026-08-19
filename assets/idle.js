@@ -9,7 +9,8 @@
 // Inspired by cli-spinners (https://github.com/sindresorhus/cli-spinners)
 // A mini creature that shows up after inactivity — delight, not productivity
 (function() {
-  const IDLE_THRESHOLD = 45000; // 45 seconds of no activity
+  const _idleH = new Date().getHours();
+  const IDLE_THRESHOLD = (_idleH >= 22 || _idleH < 5) ? 25000 : 45000; // 25s at night, 45s otherwise
   const IDLE_CHECK_INTERVAL = 5000; // check every 5 seconds
   
   let lastActivity = Date.now();

@@ -377,6 +377,17 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     }
   }
 
+  function _breatheRun(el, on) {
+    if (!el) return;
+    if (el._breatheAnim) { el._breatheAnim.cancel(); el._breatheAnim = null; }
+    if (on && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      el._breatheAnim = el.animate(
+        [{ opacity: 1 }, { opacity: 0.88 }, { opacity: 1 }],
+        { duration: 6000, easing: 'ease-in-out', iterations: Infinity }
+      );
+    }
+  }
+
   // Click on timer bar to restart when complete
   timerEl.addEventListener('click', function(e) {
     if (!uiTaskId) return;
@@ -448,6 +459,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     fillEl.classList.toggle('paused', on);
     pausedEl.classList.toggle('show', on);
     timeEl.setAttribute('aria-label', on ? 'Resume focus timer' : 'Pause focus timer');
+    _breatheRun(fillEl, !on);
   }
 
   function _setFocusInert(on, activeRow) {
@@ -473,6 +485,16 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     }
   }
 
+  function _resetCopyFeedback(taskEl) {
+    const copyButton = taskEl?.querySelector('.task-copy');
+    if (!copyButton) return;
+    clearTimeout(copyButton._copyFeedbackTimer);
+    copyButton._copyFeedbackGeneration = (copyButton._copyFeedbackGeneration || 0) + 1;
+    delete copyButton._copyFeedbackTimer;
+    copyButton.textContent = 'copy';
+    copyButton.classList.remove('copied');
+  }
+
   // ── Open UI on a task ─────────────────────────────────────────────────────
   function openUI(taskEl, taskId) {
     // If showing a different task's UI, close it first (no state change)
@@ -484,10 +506,12 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     uiTaskEl = taskEl;
     uiTaskId = taskId;
     window._focusUIActive = true;
+    _resetCopyFeedback(taskEl);
 
     // Strip complete state — timerEl is reused; prior .complete bleeds into new session (BUG-022)
     fillEl.classList.remove('complete');
     _pulseComplete(fillEl, false);
+    _breatheRun(fillEl, false);
     timeEl.classList.remove('complete');
     timerEl.classList.remove('complete');
     // If the previous session completed (rem=0), clear state so syncDisplay shows fresh 25:00.
@@ -579,12 +603,14 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
   // ── Close UI — preserves task state unless clearState=true ───────────────
   function closeUI(doResetState) {
     clearTimeout(tickHandle);
+    _resetCopyFeedback(uiTaskEl);
     timerEl.classList.remove('open');
     kbdHint.classList.remove('show');
     _setFocusInert(false, uiTaskEl);
     _focusResetAI();
     _updateBreatheOverlay(false); // Clear breathe overlay
-    
+    _breatheRun(fillEl, false);
+
     // Close PiP widget if open
     if (window._pipClose) window._pipClose();
     
@@ -836,6 +862,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       setPaused(false);
       fillEl.classList.add('complete');
       _pulseComplete(fillEl, true);
+      _breatheRun(fillEl, false);
       timeEl.classList.add('complete');
       timerEl.classList.add('complete'); // cursor: pointer
       timeEl.textContent = 'again?';
