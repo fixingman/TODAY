@@ -344,7 +344,7 @@ try {
       const third = window.__meetingTest.recorders[2];
       toggleMeeting();
       await new Promise(resolve => setTimeout(resolve, 40));
-      const texts = [...document.querySelectorAll('#meetingItems .meeting-item span:not(.meeting-owner)')]
+      const texts = [...document.querySelectorAll('#meetingItems .meeting-item .meeting-item-text')]
         .map(el => el.textContent.trim());
       return {
         iosPolicy,

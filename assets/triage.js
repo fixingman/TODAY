@@ -87,7 +87,16 @@
 
       renderTriageList();
       const overlay = $.triageOverlay || document.getElementById('triageOverlay');
-      if (overlay) overlay.classList.remove('hidden');
+      if (overlay) {
+        overlay.hidden = false;
+        overlay.classList.remove('hidden');
+        if (window._a11yOpenDialog) _a11yOpenDialog(overlay, {
+          modal: true,
+          initialFocus: overlay.querySelector('.triage-header-btn'),
+          returnFocus: document.getElementById('triageReviewBtn'),
+          onEscape: triageMinimize
+        });
+      }
     }
 
     function renderTriageList() {
@@ -469,7 +478,10 @@
         return;
       }
       _triageActive = false;
-      document.getElementById('triageOverlay').classList.add('hidden');
+      const overlay = document.getElementById('triageOverlay');
+      overlay.classList.add('hidden');
+      if (window._a11yCloseDialog) _a11yCloseDialog(overlay);
+      else overlay.hidden = true;
       const _tbMin = document.getElementById('triageBar');
       if (_tbMin) { _tbMin.classList.remove('hidden'); requestAnimationFrame(() => _tbMin.classList.add('visible')); }
     }
@@ -478,7 +490,10 @@
       _triageActive = false;
       triageDismissedToday = true;
       localStorage.setItem('triage_dismissed', _getAppDay());
-      document.getElementById('triageOverlay').classList.add('hidden');
+      const overlay = document.getElementById('triageOverlay');
+      overlay.classList.add('hidden');
+      if (window._a11yCloseDialog) _a11yCloseDialog(overlay);
+      else overlay.hidden = true;
       const _tbClose = document.getElementById('triageBar');
       if (_tbClose) {
         _tbClose.classList.remove('visible');
@@ -505,13 +520,17 @@
       _triageActive = false;
       triageDismissedToday = false;
       localStorage.removeItem('triage_dismissed');
-      document.getElementById('triageOverlay').classList.add('hidden');
+      const overlay = document.getElementById('triageOverlay');
+      overlay.classList.add('hidden');
+      if (window._a11yCloseDialog) _a11yCloseDialog(overlay);
+      else overlay.hidden = true;
       const undoBtn = document.getElementById('triageUndoBtn');
       if (undoBtn) undoBtn.style.display = 'none';
       if (typeof _memoryOnTriageUndo === 'function') _memoryOnTriageUndo();
       renderManual(); renderTrello(); renderSoon(); renderPast(); updateStats();
       const token = localStorage.getItem('dropbox_token');
       if (token) dropboxBackup(true);
+      if (window._a11yAnnounce) _a11yAnnounce('Triage changes undone.');
     }
 
     window.checkTriageBar = checkTriageBar;

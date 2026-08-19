@@ -124,11 +124,12 @@
       }
 
       list.innerHTML = '';
-      const CHK = `<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      const CHK = `<svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true" focusable="false"><path d="M1 4L3.5 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
       activeHabits.forEach(h => {
         const ds     = new Set(habitCompletions[h.id] || []);
         const isDone = ds.has(_habitTodayISO());
         const strength = _getHabitStrength(h.id);
+        const completedDays = week.filter(d => ds.has(d));
         const dots = week.map((d, i) => {
           const opacity = i >= 14 ? 1 : (0.12 + (i / 14) * 0.70);
           const style   = `opacity:${opacity.toFixed(2)}`;
@@ -142,13 +143,17 @@
         const el = document.createElement('div');
         el.className = `habit${isDone ? ' done-today' : ''}`;
         el.dataset.habitId = h.id;
+        el.setAttribute('role', 'listitem');
+        el.tabIndex = 0;
+        el.setAttribute('aria-describedby', `habitSummary-${h.id} reorderHelp`);
         el.innerHTML = `
-          <div class="habit-check" onclick="toggleHabitDone('${h.id}')">${CHK}</div>
+          <button type="button" class="habit-check" aria-pressed="${isDone}" aria-label="${isDone ? 'Mark incomplete' : 'Mark complete'}: ${esc(h.name)}" onclick="toggleHabitDone('${h.id}')">${CHK}</button>
           <div class="habit-body"><div class="habit-name">${esc(h.name)}${sessionBadge}</div></div>
-          <div class="habit-week">${dots}</div>
+          <div class="habit-week" aria-hidden="true">${dots}</div>
           <div class="habit-streak" title="${strength}% habit strength">
             <span class="streak-label${strength >= 80 ? ' hot' : ''}">${strengthTxt}</span>
-          </div>`;
+          </div>
+          <span class="visually-hidden" id="habitSummary-${h.id}">${completedDays.length} of the last 21 days complete. ${strength}% habit strength.</span>`;
         list.appendChild(el);
       });
     }
@@ -317,6 +322,13 @@
       if (!el) return;
 
       el.classList.toggle('done-today', isNowDone);
+      const checkButton = el.querySelector('.habit-check');
+      const habit = habitsList.find(h => h.id === id);
+      if (checkButton) {
+        checkButton.setAttribute('aria-pressed', String(isNowDone));
+        checkButton.setAttribute('aria-label', `${isNowDone ? 'Mark incomplete' : 'Mark complete'}: ${habit?.name || 'habit'}`);
+      }
+      if (window._a11yAnnounce) _a11yAnnounce(`${habit?.name || 'Habit'} ${isNowDone ? 'completed' : 'marked incomplete'}.`);
 
       // Update dot fill for today
       el.querySelectorAll('.week-dot.is-today').forEach(dot => {

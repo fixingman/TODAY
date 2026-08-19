@@ -73,8 +73,8 @@
     // desktop), second tap (while still revealed) actually shares — otherwise
     // an ordinary read-tap on mobile would fire the share sheet immediately,
     // with no equivalent of "just glancing at it" the way hovering allows.
-    function _onPoemTap() {
-      if (window.matchMedia('(hover: hover)').matches) { _shareDailyPoem(); return; }
+    function _onPoemTap(event) {
+      if (event?.detail === 0 || window.matchMedia('(hover: hover)').matches) { _shareDailyPoem(); return; }
       const block = document.getElementById('poemBlock');
       if (block && !block.classList.contains('revealed')) {
         block.classList.add('revealed');
@@ -113,8 +113,10 @@
           btn.textContent = 'share';
           btn.classList.remove('copied');
         }, 1800);
+        if (window._a11yAnnounce) _a11yAnnounce('Poem link copied.');
       }
       if (navigator.share) {
+        if (window._a11yAnnounce) _a11yAnnounce('Share sheet opened.');
         navigator.share({ title: poem.author + ' · TODAY', text, url: poemUrl }).catch(() => {});
         return;
       }

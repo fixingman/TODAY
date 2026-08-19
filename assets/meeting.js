@@ -58,9 +58,9 @@
       if (!list) return;
       const names = _getUserNames();
       list.innerHTML = names.map((n, i) =>
-        `<span class="name-chip">${esc(n)}<button class="name-chip-remove" onclick="removeMeetingName(${i})" aria-label="Remove">×</button></span>`
+        `<span class="name-chip">${esc(n)}<button class="name-chip-remove" onclick="removeMeetingName(${i})" aria-label="Remove ${esc(n)}">×</button></span>`
       ).join('') +
-      `<input id="meetingNameInput" type="text" maxlength="60"
+      `<label class="visually-hidden" for="meetingNameInput">Add a meeting name</label><input id="meetingNameInput" type="text" maxlength="60"
         autocomplete="off" autocorrect="off" spellcheck="false"
         placeholder="${names.length ? 'Add another…' : 'First name…'}"
         onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();addMeetingName()}"
@@ -149,13 +149,14 @@
         'background:var(--pip-btn-bg);border:1px solid var(--pip-btn-border);color:var(--pip-accent);cursor:pointer;' +
         'transition:background 140ms;}' +
         '.mp-btn:hover{background:var(--pip-btn-hover-bg);}' +
+        '.mp-btn:focus-visible{outline:2px solid var(--pip-accent);outline-offset:2px;}' +
         '.mp-note{position:absolute;left:14px;right:14px;bottom:6px;font-size:9px;letter-spacing:0.04em;' +
         'color:var(--pip-muted);text-align:center;}' +
         '</style>' +
         '<div class="mp">' +
-          '<div class="mp-dot" id="mpDot"></div>' +
-          '<span class="mp-time" id="mpTime">00:00</span>' +
-          '<button class="mp-btn" id="mpBtn">record</button>' +
+          '<div class="mp-dot" id="mpDot" aria-hidden="true"></div>' +
+          '<span class="mp-time" id="mpTime" role="timer" aria-label="Meeting elapsed time">00:00</span>' +
+          '<button class="mp-btn" id="mpBtn" aria-pressed="false" aria-label="Start meeting recording">record</button>' +
         '</div>' +
         '<div class="mp-note" id="mpNote"></div>';
 
@@ -192,6 +193,8 @@
       dot.classList.toggle('live', live);
       time.classList.toggle('live', live);
       btn.textContent = live ? 'stop' : 'record';
+      btn.setAttribute('aria-pressed', String(live));
+      btn.setAttribute('aria-label', live ? 'Stop meeting recording' : 'Start meeting recording');
       if (live) {
         const el = Math.floor((Date.now() - _mtg.startedAt) / 1000);
         time.textContent = String(Math.floor(el / 60)).padStart(2, '0') + ':' +
@@ -222,6 +225,8 @@
     function _meetingNamePromptShow() {
       const el = document.getElementById('meetingNamePrompt');
       if (!el) return;
+      if (window._a11yOpenPopover) _a11yOpenPopover(el, document.getElementById('meetingBtn'));
+      else el.hidden = false;
       el.classList.add('show');
       requestAnimationFrame(() => el.classList.add('visible'));
       setTimeout(() => document.getElementById('meetingNamePromptInput')?.focus(), 50);
@@ -230,7 +235,11 @@
       const el = document.getElementById('meetingNamePrompt');
       if (!el) return;
       el.classList.remove('visible');
-      setTimeout(() => el.classList.remove('show'), 300);
+      setTimeout(() => {
+        el.classList.remove('show');
+        if (window._a11yClosePopover) _a11yClosePopover(el);
+        else el.hidden = true;
+      }, 300);
     }
     function _meetingNamePromptKey(e) {
       if (e.key === 'Enter') { e.preventDefault(); _meetingNamePromptSubmit(); }
@@ -279,10 +288,17 @@
       _meetingWakeLock(); // keep the screen on while listening (no-op where unsupported)
 
       document.getElementById('meetingBtn')?.classList.add('live');
+      const meetingBtn = document.getElementById('meetingBtn');
+      if (meetingBtn) {
+        meetingBtn.setAttribute('aria-pressed', 'true');
+        meetingBtn.setAttribute('aria-label', 'Stop meeting recording');
+      }
       const pill = document.getElementById('meetingPill');
       const time = document.getElementById('meetingPillTime');
       if (time) time.textContent = '00:00';
       if (pill) {
+        pill.hidden = false;
+        pill.setAttribute('aria-hidden', 'false');
         pill.classList.add('show');
         requestAnimationFrame(() => pill.classList.add('visible'));
         // Store the animation handle so _meetingTeardown can cancel it — the pill element
@@ -468,10 +484,19 @@
       _mtg.stream.getTracks().forEach(t => t.stop());
 
       document.getElementById('meetingBtn')?.classList.remove('live');
+      const meetingBtn = document.getElementById('meetingBtn');
+      if (meetingBtn) {
+        meetingBtn.setAttribute('aria-pressed', 'false');
+        meetingBtn.setAttribute('aria-label', 'Start meeting recording');
+      }
       const _pill = document.getElementById('meetingPill');
       if (_pill) {
         _pill.classList.remove('visible');
-        setTimeout(() => _pill.classList.remove('show'), 300);
+        setTimeout(() => {
+          _pill.classList.remove('show');
+          _pill.hidden = true;
+          _pill.setAttribute('aria-hidden', 'true');
+        }, 300);
       }
 
       // Snapshot how long the final chunk is so the review can show "Digesting last X min…"
@@ -483,7 +508,17 @@
       // Render immediately — shows prior-chunk items if any, or loader if none yet.
       _meetingRenderReview(_mtg);
       const ovl = document.getElementById('meetingOverlay');
-      if (ovl) { ovl.style.animation = ''; ovl.classList.remove('hidden'); requestAnimationFrame(() => ovl.classList.add('visible')); }
+      if (ovl) {
+        ovl.style.animation = '';
+        ovl.hidden = false;
+        ovl.classList.remove('hidden');
+        if (window._a11yOpenDialog) _a11yOpenDialog(ovl, {
+          modal: true,
+          initialFocus: document.getElementById('meetingAddBtn'),
+          returnFocus: document.getElementById('meetingBtn')
+        });
+        requestAnimationFrame(() => ovl.classList.add('visible'));
+      }
     }
 
     function _meetingRenderReview(state) {
@@ -528,11 +563,11 @@
       if (actions) actions.classList.remove('no-add');
 
       const itemsHTML = state.items.map((item, i) => `
-        <div class="meeting-item${item.mine ? ' selected' : ''}" data-idx="${i}" onclick="this.classList.toggle('selected');_meetingUpdateCount()">
-          <div class="meeting-tick"></div>
-          <span>${esc(item.text)}</span>
+        <button type="button" class="meeting-item${item.mine ? ' selected' : ''}" data-idx="${i}" aria-pressed="${item.mine}" onclick="this.classList.toggle('selected');this.setAttribute('aria-pressed',String(this.classList.contains('selected')));_meetingUpdateCount()">
+          <span class="meeting-tick" aria-hidden="true"></span>
+          <span class="meeting-item-text">${esc(item.text)}</span>
           ${item.owner ? '<span class="meeting-owner">' + esc(item.owner) + '</span>' : ''}
-        </div>`).join('');
+        </button>`).join('');
 
       if (processing) {
         // State 2 — inset strip above prior items
@@ -572,7 +607,7 @@
         });
         _memoryOnMeetingAttribution(stats);
       }
-      const picked = [...document.querySelectorAll('#meetingItems .meeting-item.selected span:not(.meeting-owner)')]
+      const picked = [...document.querySelectorAll('#meetingItems .meeting-item.selected .meeting-item-text')]
         .map(el => el.textContent.trim()).filter(Boolean);
       picked.forEach((text, i) => {
         manualTasks.push({ id: 'manual_' + (Date.now() + i), text });
@@ -595,8 +630,14 @@
       _mtg?.wakeLock?.release().catch(() => {}); // defensive — normally released in _meetingStop
       const _ovl = document.getElementById('meetingOverlay');
       if (_ovl) {
+        if (window._a11yCloseDialog) _a11yCloseDialog(_ovl, { hide: false });
         _ovl.classList.remove('visible');
-        setTimeout(() => { _ovl.classList.add('hidden'); const list = document.getElementById('meetingItems'); if (list) list.innerHTML = ''; }, 300);
+        setTimeout(() => {
+          _ovl.classList.add('hidden');
+          _ovl.hidden = true;
+          const list = document.getElementById('meetingItems');
+          if (list) list.innerHTML = '';
+        }, 300);
       } else {
         const list = document.getElementById('meetingItems');
         if (list) list.innerHTML = '';
@@ -650,8 +691,17 @@
         _voiceNoteSend(blob, mimeType);
         _vn = null;
         const pill = document.getElementById('voicePill');
-        if (pill) { pill.classList.remove('visible'); setTimeout(() => pill.classList.remove('show'), 300); }
+        if (pill) {
+          pill.classList.remove('visible');
+          setTimeout(() => {
+            pill.classList.remove('show');
+            pill.hidden = true;
+            pill.setAttribute('aria-hidden', 'true');
+          }, 300);
+        }
         document.getElementById('voiceNoteBtn')?.classList.remove('live');
+        const voiceBtn = document.getElementById('voiceNoteBtn');
+        if (voiceBtn) { voiceBtn.setAttribute('aria-pressed', 'false'); voiceBtn.setAttribute('aria-label', 'Record a voice note'); }
       });
 
       recorder.start();
@@ -679,6 +729,8 @@
 
       const pill = document.getElementById('voicePill');
       if (pill) {
+        pill.hidden = false;
+        pill.setAttribute('aria-hidden', 'false');
         const timeEl = document.getElementById('voicePillTime');
         if (timeEl) timeEl.textContent = '0:00';
         const capEl = document.getElementById('voicePillCap');
@@ -687,6 +739,8 @@
         requestAnimationFrame(() => pill.classList.add('visible'));
       }
       document.getElementById('voiceNoteBtn')?.classList.add('live');
+      const voiceBtn = document.getElementById('voiceNoteBtn');
+      if (voiceBtn) { voiceBtn.setAttribute('aria-pressed', 'true'); voiceBtn.setAttribute('aria-label', 'Stop voice note recording'); }
     }
 
     function _voiceNoteStop() {

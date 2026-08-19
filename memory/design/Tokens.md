@@ -13,11 +13,12 @@
 | `--color-bg` | `#0e0e10` | Page background |
 | `--color-surface` | `#17171a` | Card / hover surface |
 | `--color-surface2` | `#1f1f24` | Elevated surface (panels) |
-| `--color-border` | `#2a2a30` | Default border |
+| `--color-border` | `#2a2a30` | Decorative separators only |
+| `--color-control-border` | `#6b6b78` | Interactive control boundaries |
 | `--color-text` | `#e8e8ec` | Primary text |
-| `--color-muted` | `#6b6b78` | Secondary / placeholder |
+| `--color-muted` | `#858594` | AA secondary / placeholder text |
 
-**Aliases:** `--bg`, `--surface`, `--surface2`, `--border`, `--text`, `--muted`
+**Aliases:** `--bg`, `--surface`, `--surface2`, `--border`, `--control-border`, `--text`, `--muted`
 
 ### Accent (Lime Green)
 
@@ -180,7 +181,7 @@ Scale is numeric, 4px base:
 
 | Token | Value | Usage |
 |---|---|---|
-| `--opacity-dim` | `0.25` | Done state, secondary badges |
+| `--opacity-dim` | `0.25` | Decorative/nonessential treatment only; never essential text or controls |
 | `--opacity-label` | `0.40` | Subtle hints, kbd hint |
 | `--opacity-copy` | `0.45` | Copy button at rest in focus |
 | `--opacity-mid` | `0.50` | Focused session count |

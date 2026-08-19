@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** poem corpus growth (spring=10, target ~13; Teasdale candidates proposed, awaiting cut). BUG-076 (v2.65.3) awaiting Safari/iPhone deployment verification.
-- **Recent (2026-08-17):** insights-test.mjs added (v2.65.16) — 12 tests, 18 functions covered. _pruneTrelloMaps folded into day-lifecycle.js (v2.65.15). Install app sentence-case fix (v2.65.14). focus.js extracted (v2.65.13) — 5 exports, 11 tests.
+- **Working on:** v2.68.0 accessibility remediation and release verification; manual VoiceOver, 200% zoom, iPhone PWA, and real focus/meeting PiP passes remain.
+- **Recent (2026-08-19):** shared accessibility helpers, semantic controls/disclosures/dialogs, keyboard row actions and Option+Arrow reorder, live announcements, contrast/target/focus improvements, zoom + 320px reflow, poem/PiP remediation, and axe-core coverage added. WCAG 2.5.7 pointer-drag exception documented.
 - **Module extraction (Roadmap #3): COMPLETE.** focus.js done (v2.65.13, ~1,400 lines). All modules extracted: dropbox, connections (+ AI provider config), assistant, task-actions, nudge, day-lifecycle, focus. Startup composition root (~350 lines inline) remains as intended. Full inventory → `Backlog.md` §3.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
   - **BUG-076 ⏳ v2.65.3** — force at least ten poem-coda exits on Safari/iPhone PWA; TO and DAY must fade as complete groups with no `O` / `AY` residue while the poem disappears.
@@ -94,6 +94,9 @@ Status symbols used throughout:
 8. `_aiLoadedOnce` prevents re-fetch on panel toggle — reset only on error
 9. Uncheck = neutral (no celebration, no sound)
 10. Check = celebration (sound, particles, haptic)
+10a. **Keyboard row contract:** Enter starts focus, Space toggles completion, and Option+Up/Down reorders manual tasks, Trello tasks, and habits through their existing persistence paths.
+10b. **Hidden UI must be truly hidden:** closed panels, overlays, backdrops, toasts, parked controls, and unreachable sheets must be absent from both tab order and accessibility tree. Modal dialogs must contain focus, isolate the background, and restore focus.
+10c. **Do not claim full WCAG conformance:** pointer reorder remains drag-only and WCAG 2.2 criterion 2.5.7 is an accepted exception. See `Accessibility-audit.md`.
 
 ## Data Rules
 

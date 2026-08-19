@@ -304,7 +304,7 @@
           `</span></div>`
         : `<div class="memory-footer">` +
           `<button class="memory-clear-btn" onclick="_memoryClearRequest()">clear all memory</button>` +
-          `<span class="memory-conn-link" onclick="_memoryGoToConnections()">Connections →</span>` +
+          `<button type="button" class="memory-conn-link" onclick="_memoryGoToConnections()">Connections →</button>` +
           `</div>`;
     }
 

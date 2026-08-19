@@ -29,6 +29,11 @@
     }
 
     html { height: 100%; background: #0e0e10; }
+    .visually-hidden {
+      position: absolute !important; width: 1px !important; height: 1px !important;
+      padding: 0 !important; margin: -1px !important; overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important;
+    }
     body {
       display: flex;
       flex-direction: column;
@@ -67,7 +72,7 @@
     }
     .poem-author {
       font-size: 12px;
-      color: #888;
+      color: #9a9aa6;
       letter-spacing: 0.07em;
     }
     .poem-author::before { content: '— '; }
@@ -93,29 +98,20 @@
        pos 100%→ bright lime  (settled while hovering) */
     .cta-link {
       font-size: 12px;
-      text-decoration: none;
+      text-decoration: underline;
+      text-underline-offset: 4px;
       letter-spacing: 0.07em;
-      background: linear-gradient(90deg,
-        #c8f060 0%,
-        #c8f060 18%,
-        #608020 30%,
-        #ffffff 50%,
-        #608020 70%,
-        #c8f060 82%,
-        #c8f060 100%
-      );
-      background-size: 500% 100%;
-      background-position: 0% center;
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
+      color: #c8f060;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
     }
     .cta-link._shimmer {
       animation: ctaShimmer 700ms ease-out 1 normal forwards;
     }
     .embed-hint {
       font-size: 11px;
-      color: #1e1e1e;
+      color: #9a9aa6;
       letter-spacing: 0.03em;
       cursor: default;
     }
@@ -124,15 +120,18 @@
     .share-img-btn {
       font-family: 'DM Mono', 'Courier New', monospace;
       font-size: 11px;
-      color: #2e2e2e;
+      color: #9a9aa6;
       background: none;
       border: none;
       cursor: pointer;
       letter-spacing: 0.07em;
-      padding: 0;
+      padding: 10px 4px;
+      min-height: 44px;
       transition: color 0.15s;
     }
-    .share-img-btn:hover { color: #555; }
+    .share-img-btn:hover { color: #c8f060; }
+    :where(a, button):focus-visible { outline: 2px solid #c8f060; outline-offset: 3px; }
+    @media (prefers-reduced-motion: reduce) { .cta-link._shimmer { animation: none; } }
 
     /* embed mode */
     body.embed-mode .poem-wrap      { padding: 28px 20px 20px; }
@@ -141,20 +140,22 @@
     body.embed-mode .share-img-btn  { display: none; }
 
     /* error */
-    .error-msg { color: #3a3a3a; font-size: 14px; line-height: 1.6; }
+    .error-msg { color: #9a9aa6; font-size: 14px; line-height: 1.6; }
   </style>
 </head>
 <body>
-  <main class="poem-wrap">
-    <div class="poem-card" id="poemCard">
-      <p class="error-msg">Loading…</p>
-    </div>
+  <h1 class="visually-hidden" id="poemHeading">Daily poem from TODAY</h1>
+  <main class="poem-wrap" aria-labelledby="poemHeading">
+    <article class="poem-card" id="poemCard" aria-live="polite">
+      <p class="error-msg" role="status">Loading…</p>
+    </article>
   </main>
 
   <footer class="page-footer">
     <a href="https://today-here.netlify.app" class="cta-link" target="_blank" rel="noopener">Open TODAY ↗</a>
     <button class="share-img-btn" id="shareImgBtn" onclick="_shareAsImage()" style="display:none">save as image</button>
   </footer>
+  <div class="visually-hidden" id="shareStatus" role="status" aria-live="polite"></div>
 
   <script src="/assets/poems.js"></script>
   <script src="/assets/poem-utils.js"></script>
@@ -176,8 +177,8 @@
       card.innerHTML = '<p class="error-msg">No poem found for this date.</p>';
     } else {
       card.innerHTML = `
-        <div class="poem-text">${_poemHTML(poem.text)}</div>
-        <div class="poem-author">${_escPoem(poem.author)}</div>
+        <blockquote class="poem-text">${_poemHTML(poem.text)}</blockquote>
+        <cite class="poem-author">${_escPoem(poem.author)}</cite>
       `.trim();
 
       const title = poem.author + ' · TODAY';
@@ -261,15 +262,20 @@
         try {
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({ files: [file], title: poem.author + ' · TODAY' });
+            document.getElementById('shareStatus').textContent = 'Share sheet closed.';
           } else {
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             a.download = 'poem.png';
             a.click();
             setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+            document.getElementById('shareStatus').textContent = 'Poem image downloaded.';
           }
         } catch (e) {
-          if (e.name !== 'AbortError') console.warn('[poem] share failed', e);
+          if (e.name !== 'AbortError') {
+            console.warn('[poem] share failed', e);
+            document.getElementById('shareStatus').textContent = 'Could not share the poem image.';
+          }
         }
       }, 'image/png');
     }

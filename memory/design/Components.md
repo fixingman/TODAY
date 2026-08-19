@@ -2,6 +2,15 @@
 
 > Specifications for key UI components.
 
+## Shared accessibility contract (v2.68.0)
+
+- Reachable icon-only controls are native buttons with explicit accessible names. Stateful controls expose `aria-pressed`, `aria-expanded`, `aria-busy`, or progress semantics as appropriate.
+- Header panels are disclosures. Closed panels and parked/closed overlays are both untabbable and absent from the accessibility tree.
+- Triage and meeting review are modal dialogs with initial focus, focus containment, temporary background `inert`, Escape handling, and focus restoration. The meeting-name prompt is nonmodal.
+- Shared visually-hidden live regions report meaningful completion, focus, recording, reordering, sharing, and asynchronous results without narrating every drag movement.
+- Interactive controls have a 24×24px minimum target and visible `:focus-visible` treatment. Hover-revealed PiP controls also reveal with `:focus-within`.
+- Full findings and the accepted WCAG 2.5.7 dragging exception are in `memory/Accessibility-audit.md`.
+
 ---
 
 ## Task Row
@@ -16,7 +25,8 @@
 - Text: `--text-task` (13.5px), `--font-mono`
 - Delete button: `×`, appears on row hover (desktop), opacity 0→1
 - Link arrow: ↗ (`.task-link`) — opens `task.url` in new tab. Trello tasks get URL from API; manual tasks extract URL from input at creation. Title: "Open in Trello" or "Open link"
-- Done state: strikethrough, muted opacity
+- Done state: strikethrough and AA-muted text; essential content is not opacity-dimmed
+- Keyboard: focus the row; Enter starts focus, Space toggles completion, Option+Up/Down reorders and persists
 
 ### Task Aging
 
@@ -34,6 +44,8 @@ Hover restores to 85%. Age resets to 0 on focus session complete.
 ## Habit Row
 
 Same structure as task row. Progress indicator: `done/7` weekly view. Resets daily, history preserved.
+
+Completion is a named `aria-pressed` button. The row uses the same Enter, Space, and Option+Arrow contract as task rows, and the history strip has a screen-reader summary.
 
 ---
 
@@ -172,7 +184,8 @@ Appears below focused task, replaces task row bottom area.
 - Timer: `--font-display`, large accent text
 - Progress bar: fills left to right
 - Controls: slide up on task hover/tap
-- Non-focused tasks recede to 7% opacity
+- Non-focused content recedes visually and becomes inert/hidden from assistive technology while focus mode is active
+- The time is a named button; session progress is exposed as a progressbar
 
 ---
 

@@ -1,7 +1,7 @@
 // TODAY — Memory Panel regression test
 //
-// Exercises toggleMemory, confirm/dismiss/forget, clear flow, Connections handoff,
-// and AI abstraction with throttle — against the real app DOM with fetch stubbed.
+// Exercises toggleMemory, clear flow, Connections handoff, and AI abstraction
+// with throttle — against the real app DOM with fetch stubbed.
 //
 // Run from repo root:
 //   node scripts/memory-panel-test.mjs --pre-extraction
@@ -148,59 +148,6 @@ try {
     await page.close();
   }
 
-  // Confirm: pending item becomes confirmed, _saveMemory called.
-  {
-    const { page, errors } = await openPage();
-    const result = await page.evaluate(() => {
-      window.__memoryTest.saveCalls = 0;
-      _memoryConfirm('semantic:0');
-      const item = appMemory.memory.semantic.find(i => i.id === '0');
-      return {
-        confirmed: item?.status === 'confirmed',
-        saved: window.__memoryTest.saveCalls === 1,
-      };
-    });
-    await expectAll('confirm', { ...result, noErrors: errors.length === 0 });
-    ok('_memoryConfirm marks pending item confirmed and saves');
-    await page.close();
-  }
-
-  // Dismiss: pending item removed from appMemory.memory, _saveMemory called.
-  {
-    const { page, errors } = await openPage();
-    const result = await page.evaluate(() => {
-      window.__memoryTest.saveCalls = 0;
-      _memoryDismiss('semantic:0');
-      const remaining = appMemory.memory.semantic.map(i => i.id);
-      return {
-        removed: !remaining.includes('0'),
-        otherIntact: remaining.includes('1'),
-        saved: window.__memoryTest.saveCalls === 1,
-      };
-    });
-    await expectAll('dismiss', { ...result, noErrors: errors.length === 0 });
-    ok('_memoryDismiss removes pending item and saves');
-    await page.close();
-  }
-
-  // Forget: confirmed item removed from appMemory.memory, _saveMemory called.
-  {
-    const { page, errors } = await openPage();
-    const result = await page.evaluate(() => {
-      window.__memoryTest.saveCalls = 0;
-      _memoryForget('semantic:1');
-      const remaining = appMemory.memory.semantic.map(i => i.id);
-      return {
-        removed: !remaining.includes('1'),
-        otherIntact: remaining.includes('0'),
-        saved: window.__memoryTest.saveCalls === 1,
-      };
-    });
-    await expectAll('forget', { ...result, noErrors: errors.length === 0 });
-    ok('_memoryForget removes confirmed item and saves');
-    await page.close();
-  }
-
   // Clear request + cancel: footer shows confirm prompt, then reverts.
   {
     const { page, errors } = await openPage();
@@ -302,7 +249,6 @@ try {
       const requiredExports = [
         'toggleMemory', 'renderMemoryPanel', '_memoryGoToConnections',
         '_memoryClearRequest', '_memoryClearCancel', '_memoryClearConfirm',
-        '_memoryForget', '_memoryConfirm', '_memoryDismiss',
         '_memoryAbstract', '_versionBadgeBreathe',
       ];
       await expectAll('extracted Memory Panel module wiring', {

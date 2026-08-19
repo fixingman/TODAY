@@ -19,16 +19,20 @@ window._startTaskActions = (function() {
     // ── Functions ──
 
     function _applyDoneStyles(el, isDone) {
-      el.style.opacity = isDone ? '0.25' : '';
+      el.style.opacity = '';
       const textEl = el.querySelector('.task-text');
       if (textEl) {
         textEl.style.textDecoration = isDone ? 'line-through' : '';
         textEl.style.textDecorationColor = isDone ? 'var(--done-line)' : '';
+        textEl.style.color = isDone ? 'var(--muted)' : '';
       }
       const checkEl = el.querySelector('.task-check');
       if (checkEl) {
         checkEl.style.background  = isDone ? 'var(--accent)' : '';
         checkEl.style.borderColor = isDone ? 'var(--accent)' : '';
+        checkEl.setAttribute('aria-pressed', String(isDone));
+        const name = el.querySelector('.task-text')?.textContent?.replace(/\s+/g, ' ').trim() || 'task';
+        checkEl.setAttribute('aria-label', `${isDone ? 'Mark incomplete' : 'Mark complete'}: ${name}`);
       }
       const svgEl = el.querySelector('.task-check svg');
       if (svgEl) svgEl.style.display = isDone ? 'block' : 'none';
@@ -123,6 +127,10 @@ window._startTaskActions = (function() {
       }
       updateStats();
       updateManualEmptyState(true);
+      if (window._a11yAnnounce) {
+        const name = el?.querySelector('.task-text')?.textContent?.replace(/\s+/g, ' ').trim() || 'Task';
+        _a11yAnnounce(`${name} ${doneIds.has(taskId) ? 'completed' : 'marked incomplete'}.`);
+      }
     }
 
     function addManual() {
@@ -198,6 +206,7 @@ window._startTaskActions = (function() {
 
       $.manualCount.textContent = manualTasks.length;
       updateStats();
+      if (window._a11yAnnounce) _a11yAnnounce(`${task.text} added.`);
 
       // AI post-add analysis (async, non-blocking)
       _aiAnalyzeTask(task.id, task.text);
@@ -337,11 +346,15 @@ window._startTaskActions = (function() {
         _pendingDeleteText = '';
       }
       toast.classList.add('show');
+      toast.hidden = false;
+      toast.setAttribute('aria-hidden', 'false');
       clearTimeout(_undoTimeout);
       _undoTimeoutRemaining = 5000;
       _undoTimeoutStart = Date.now();
       _undoTimeout = setTimeout(() => {
         toast.classList.remove('show');
+        toast.hidden = true;
+        toast.setAttribute('aria-hidden', 'true');
         _deletedStack = [];
         _archivedHabitStack = [];
         if (_pendingDeleteText && typeof _memoryOnTaskLetgo === 'function') _memoryOnTaskLetgo(_pendingDeleteText, '');
@@ -361,6 +374,8 @@ window._startTaskActions = (function() {
           _undoTimeoutStart = Date.now();
           _undoTimeout = setTimeout(() => {
             toast.classList.remove('show');
+            toast.hidden = true;
+            toast.setAttribute('aria-hidden', 'true');
             _deletedStack = [];
             _archivedHabitStack = [];
             if (_pendingDeleteText && typeof _memoryOnTaskLetgo === 'function') _memoryOnTaskLetgo(_pendingDeleteText, '');
@@ -372,7 +387,11 @@ window._startTaskActions = (function() {
 
     function _hideUndoToast() {
       const toast = document.getElementById('undoToast');
-      if (toast) toast.classList.remove('show');
+      if (toast) {
+        toast.classList.remove('show');
+        toast.hidden = true;
+        toast.setAttribute('aria-hidden', 'true');
+      }
       clearTimeout(_undoTimeout);
       if (_pendingDeleteText && typeof _memoryOnTaskLetgo === 'function') _memoryOnTaskLetgo(_pendingDeleteText, '');
       _pendingDeleteText = '';
@@ -402,6 +421,7 @@ window._startTaskActions = (function() {
       renderManual();
       updateStats();
       _haptic('success');
+      if (window._a11yAnnounce) _a11yAnnounce(`${task.text || 'Task'} restored.`);
 
       // Update toast or hide if stack is empty
       if (_deletedStack.length > 0) {
@@ -482,7 +502,10 @@ window._startTaskActions = (function() {
         updateStats();
 
         // Show undo toast
-        if (task) _showUndoToast(task.text || 'Task', _deletedStack.length);
+        if (task) {
+          _showUndoToast(task.text || 'Task', _deletedStack.length);
+          if (window._a11yAnnounce) _a11yAnnounce(`${task.text || 'Task'} removed. Undo available.`);
+        }
       }, 180);
     }
 
@@ -498,6 +521,12 @@ window._startTaskActions = (function() {
       s('statDone',  done);
       const fill = document.getElementById('progressFill');
       if (fill) fill.style.transform = 'scaleX(' + pct + ')';
+      const progress = document.getElementById('progressTrack');
+      if (progress) {
+        progress.setAttribute('aria-valuemax', String(total));
+        progress.setAttribute('aria-valuenow', String(done));
+        progress.setAttribute('aria-valuetext', `${done} of ${total} tasks complete`);
+      }
 
       updateFavicon(total > 0 ? done / total : 0, total === 0);
 

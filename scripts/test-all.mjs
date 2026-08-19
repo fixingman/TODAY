@@ -8,6 +8,7 @@ const DIR = dirname(fileURLToPath(import.meta.url));
 
 const SUITE = [
   'smoke-test',
+  'accessibility-test',
   'splash-test',
   'platform-test',
   'connections-test',

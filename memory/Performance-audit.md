@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.64.33 local extraction state · Aug 2026
+> v2.68.0 accessibility delta on the v2.64.33 baseline · Aug 2026
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -12,6 +12,7 @@
 | `index.html` | 517 KB | 142 KB | Single HTML file — no build step (v2.64.33 local state, Brotli q5) |
 | `sw.js` | 6.1 KB | 2.5 KB | Service worker — cache strategy, precache list, offline fallback |
 | `assets/util.js` | 4.4 KB | 2.3 KB | Pure utility helpers extracted v2.17.122; SW-precached |
+| `assets/accessibility.js` | 6.8 KB | — | Shared semantics, announcements, dialog/disclosure focus handling, and row keyboard layer; SW-precached |
 | `assets/idle.js` | 6.2 KB | 2.1 KB | Idle companion IIFE extracted v2.17.124; SW-precached |
 | `assets/sound.js` | 10.0 KB | 3.5 KB | Sound + haptics module extracted v2.23.1 (Roadmap #3); SW-precached |
 | `assets/celebration.js` | 6.1 KB | 2.2 KB | Ember drift + glow extracted v2.25.3 (Roadmap #3); SW-precached |
@@ -191,6 +192,8 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 
 > **All test cases in `Test-matrix.md`** — comprehensive matrix covering sync, UI, security, zones, habits, and edge cases.
 
+v2.68.0 adds a dev-only axe-core/Puppeteer suite covering representative desktop/mobile states, disclosures, focus mode, triage, meeting review, poem semantics, keyboard reorder persistence, dialog focus behavior, hidden-tree exclusion, contrast tokens, target size, zoom metadata, and 320px reflow. It adds no production dependency or runtime network request. Manual VoiceOver and real Picture-in-Picture verification remain release gates.
+
 ---
 
 ## 6. Known Issues & Gaps
@@ -198,7 +201,7 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 | Issue | Severity | Notes |
 |---|---|---|
 | No CSP header | Low | Personal tool, inline scripts/styles |
-| Pinch-to-zoom disabled | Accessibility tradeoff | `user-scalable=no` locks zoom to prevent layout breakage (v2.36.9). Also blocks iOS accessibility zoom gesture. Fine for a personal tool; if needed, a toggle to re-enable (surface TBD, not Connections) — see Backlog Parked. |
+| Pointer reorder requires dragging | Accepted accessibility exception | Option+Arrow supports keyboard reordering, but no single-pointer non-drag alternative is provided; WCAG 2.2 criterion 2.5.7 remains unmet. See `Accessibility-audit.md`. |
 | `localStorage` quota failures | Low | Writes wrapped globally; quota errors route to red dot (v2.17.70) |
 | Focus mode not on touch devices | By design | Timer UI is pointer-interaction dependent |
 | 9 `@font-face` declarations | Low | 2 in PiP block duplicate main doc; loaded in isolated window, no waste |
@@ -301,4 +304,4 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 
 ---
 
-*Last updated: v2.64.23 · Aug 2026*
+*Last updated: v2.68.0 accessibility delta · Aug 2026*

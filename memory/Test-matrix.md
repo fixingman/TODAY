@@ -397,10 +397,36 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 |---|----------|----------|
 | 14.36 | `reflections.js` file exists | node --check passes |
 | 14.37 | `sw.js` precache | `'/assets/reflections.js'` present |
-| 14.38 | `CACHE_VERSION` = `'today-v2.65.7'` | Matches `APP_VERSION` (smoke-test gate) |
+| 14.38 | `CACHE_VERSION` | Matches current `APP_VERSION` (smoke-test gate) |
 | 14.39 | `index.html` script order | `reflections.js` after `dropbox.js`, before `triage.js` |
 | 14.40 | `#triageReflection` DOM | Present between `#triageSummary` and `#triageUndoBtn` |
 
 ---
 
-*Last updated: v2.65.7 · Aug 2026*
+## 15. Accessibility (v2.68.0)
+
+### Automated gate
+
+| # | Scenario | Expected |
+|---|---|---|
+| 15.1 | Run `node scripts/accessibility-test.mjs` | axe-core reports no violations in representative main, disclosure, focus, triage, meeting-review, mobile, and poem states |
+| 15.2 | Inspect reachable controls | Every control has a name and native/state semantics; closed UI is absent from tab order and accessibility tree |
+| 15.3 | Open/close triage and meeting review | Initial focus enters, Tab/Shift+Tab stay contained, background is inert, Escape closes, invoking focus returns |
+| 15.4 | Focus a manual/Trello/habit row; press Option+Up/Down | Item persists in the new order, retains focus, and announces position; first/last boundaries announce without moving |
+| 15.5 | 320px viewport and zoom-capable metadata | No document-level horizontal overflow; viewport contains no zoom-disabling directives |
+| 15.6 | Computed targets/tokens | Representative controls are at least 24×24px; muted text and interactive borders meet the documented contrast thresholds |
+
+### Manual keyboard and screen-reader gate
+
+- [ ] macOS Safari keyboard-only: skip link; add, complete, delete, undo; disclosures; focus; triage; meeting selection/review; Option+Arrow reorder.
+- [ ] macOS Chrome keyboard-only: repeat the same flow and confirm focus indication/restoration.
+- [ ] VoiceOver in Safari and Chrome: names, headings/lists, pressed/expanded/busy/progress state, live announcements, dialog containment, and poem sharing.
+- [ ] iPhone installed PWA with VoiceOver: task/habit actions, disclosures, triage, meeting/Voice Note, zoom, orientation, and narrow reflow.
+- [ ] 200% browser zoom and 320 CSS-pixel reflow: no clipped actions, lost content, or horizontal document scrolling.
+- [ ] Real focus and meeting PiP: keyboard controls, names/state, timer/progress output, focus reveal, and reduced-motion behavior.
+
+### Known exception
+
+Pointer reorder remains drag-only. WCAG 2.2 criterion 2.5.7 remains unmet by explicit product decision; keyboard Option+Arrow support does not remove the single-pointer requirement. Do not record the product as fully WCAG-conformant. See `Accessibility-audit.md`.
+
+*Last updated: v2.68.0 · Aug 2026*

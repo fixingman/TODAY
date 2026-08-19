@@ -443,7 +443,7 @@ function renderTrello() {
       ? `<span class="task-tag">${esc(_tagMatch[1].toLowerCase())}</span>${esc(_tagMatch[2])}`
       : esc(task.text);
     const _link = safeUrl
-      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="Open in Trello">↗&#xFE0E;</a>`
+      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" aria-label="Open in Trello">↗&#xFE0E;</a>`
       : '';
     // Include session badge in text comparison so patch doesn't destroy it (BUG-005).
     // Due/checklist badges (task-meta) are built into the same string, in the

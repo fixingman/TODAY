@@ -110,7 +110,11 @@ function _toggleErrorPanel() {
     // Close and clear
     _errorPanelOpen = false;
     panel.classList.remove('open');
+    panel.hidden = true;
+    panel.setAttribute('aria-hidden', 'true');
     dot.classList.remove('open');
+    dot.setAttribute('aria-expanded', 'false');
+    dot.setAttribute('aria-label', 'Open error log');
     _errorLog.length = 0;
     dot.style.display = 'none';
     dot.dataset.count = 0;
@@ -118,6 +122,8 @@ function _toggleErrorPanel() {
     // Open — render entries
     _errorPanelOpen = true;
     dot.classList.add('open');
+    dot.setAttribute('aria-expanded', 'true');
+    dot.setAttribute('aria-label', 'Close and clear error log');
     panel.innerHTML = _errorLog.map(entry => {
       // Parse: "HH:MM:SS [source] message" or "HH:MM:SS [external] message"
       const timeMatch   = entry.match(/^(\d{2}:\d{2}:\d{2})\s/);
@@ -140,6 +146,8 @@ function _toggleErrorPanel() {
           <div class="error-panel-msg">${esc(msg)}</div>
         </div>`;
     }).join('');
+    panel.hidden = false;
+    panel.setAttribute('aria-hidden', 'false');
     panel.classList.add('open');
   }
 }

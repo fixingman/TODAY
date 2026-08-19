@@ -91,7 +91,6 @@
 
 | Item | From | What it is | Unpark when / gate |
 |------|------|------------|--------------------|
-| **Pinch-to-zoom accessibility toggle** | v2.36.9 zoom lock | `user-scalable=no` prevents layout breakage but also disables iOS accessibility zoom. If needed, a toggle that swaps the viewport meta to `maximum-scale=5, user-scalable=yes` would re-enable it. Not in Connections — surface TBD. Not needed now. |
 | **Sparse-context AI gate** | #1 verdict + first-run insight 2026-07-20 | When the AI has too little context for a real observation, stay silent — poem leads. Applies especially to first-run users who connect a key early (extends v2.34.0's quiet-first-open principle). | Watch-and-decide with W3 verdicts — a build item only if sparse output proves weak |
 | **Idle companion artwork** | — | Higher-resolution creatures, consistency across the 7 | If they start mattering |
 | **AI system-prompt trimming** | — | Cost <$0.01/day. Never cut: task/habit lists with IDs, JSON rules, personality block | Only if token cost ever matters |
@@ -123,6 +122,10 @@
 | Post-triage reflections | v2.65.7 | 2026-08-31 | Open — does the prompt create a real pause to name the day, or does it become rote wallpaper / a source of quiet guilt? Watch for: selection bias (only tapping on "good" days), avoidance on hard days, feeling rote after the first week. See `research/Psychology.md` for the evidence boundary. |
 
 ### Not implementing
+
+| Decision | Rationale |
+|---|---|
+| Visible pointer reorder controls | Pointer reorder remains drag-only. Option+Arrow is available for keyboards, but WCAG 2.2 criterion 2.5.7 remains an accepted exception; see `Accessibility-audit.md`. |
 | Feature | Reason |
 |---------|--------|
 | Weather-aware nudges or suggestions | **Rejected 2026-08-17.** Weather and geolocation add an external-data dependency and a new Connections privacy boundary without a demonstrated need. Do not re-propose. |

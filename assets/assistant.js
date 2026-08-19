@@ -26,8 +26,11 @@ function openAI(skipAutoLoad) {
 
   _aiPanelOpen = true;
   _aiClearBadge(); // Clear proactive badge when panel opens
+  panel.hidden = false;
+  panel.setAttribute('aria-hidden', 'false');
   panel.classList.add('open');
-  document.getElementById('aiBackdrop')?.classList.add('open');
+  const backdrop = document.getElementById('aiBackdrop');
+  if (backdrop) { backdrop.hidden = false; backdrop.setAttribute('aria-hidden', 'false'); backdrop.classList.add('open'); }
   document.body.classList.add('ai-chat-open');
   
   // Transform input to chat mode
@@ -80,8 +83,15 @@ function closeAI() {
 
   _aiPanelOpen = false;
   _aiThread = [];
-  document.getElementById('aiPanel')?.classList.remove('open');
-  document.getElementById('aiBackdrop')?.classList.remove('open');
+  const panel = document.getElementById('aiPanel');
+  const backdrop = document.getElementById('aiBackdrop');
+  panel?.classList.remove('open');
+  backdrop?.classList.remove('open');
+  setTimeout(() => {
+    if (_aiPanelOpen) return;
+    if (panel) { panel.hidden = true; panel.setAttribute('aria-hidden', 'true'); }
+    if (backdrop) { backdrop.hidden = true; backdrop.setAttribute('aria-hidden', 'true'); }
+  }, 320);
   document.body.classList.remove('ai-chat-open');
   
   // Restore input placeholder (recomputed — AI may have been connected mid-session)

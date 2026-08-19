@@ -40,7 +40,8 @@
       const btn = document.getElementById('trelloBtn');
       if (!btn) return;
       btn.textContent = connected ? '✦︎' : '⚡︎';
-      // title stays "Connections" — set in HTML, never overwritten
+      const action = btn.getAttribute('aria-expanded') === 'true' ? 'Close' : 'Open';
+      btn.setAttribute('aria-label', connected ? `${action} connections, Trello connected` : `${action} connections`);
     }
 
     function syncActiveButtons() {
@@ -52,6 +53,13 @@
       document.getElementById('trelloBtn').classList.toggle('active', configOpen);
       document.getElementById('infoBtn').classList.toggle('active',   infoOpen);
       $.todayLogo?.classList.toggle('active', memoryOpen);
+
+      if (window._a11ySetDisclosure) {
+        _a11ySetDisclosure('habitsBtn', $.habitsPanel, habitsOpen);
+        _a11ySetDisclosure('trelloBtn', $.configPanel, configOpen);
+        _a11ySetDisclosure('infoBtn', $.infoPanel, infoOpen);
+        _a11ySetDisclosure('todayLogo', $.memoryPanel, memoryOpen);
+      }
 
     }
 
@@ -208,7 +216,7 @@
               <span class="connection-row-title connected">Trello</span>
               <span class="connection-row-status">${esc(boardName)} → ${esc(listName)}</span>
             </div>
-            <span class="conn-check">✓</span>
+            <span class="conn-check" aria-hidden="true">✓</span>
             <div class="connection-row-actions">
               <button class="btn-sm" onclick="loadTrello()">Refresh</button>
               <button class="btn-sm btn-forget" onclick="clearTrello()">Forget</button>
@@ -222,10 +230,12 @@
               <span class="connection-expanded-title">Trello</span>
               <span class="connection-expanded-status">● Connected</span>
             </div>
+            <label class="visually-hidden" for="boardSelect">Trello board</label>
             <select id="boardSelect" onchange="onBoardChange()">
               <option value="">— select a board —</option>
             </select>
             <div id="listFieldWrap" style="display:none">
+              <label class="visually-hidden" for="listSelect">Trello list</label>
               <select id="listSelect">
                 <option value="">— due today only —</option>
               </select>
@@ -258,7 +268,7 @@
               <span class="connection-row-title connected">Dropbox</span>
               <span class="connection-row-status">${backupStatus ? 'Saved ' + backupStatus : ''}</span>
             </div>
-            <span class="conn-check">✓</span>
+            <span class="conn-check" aria-hidden="true">✓</span>
             <div class="connection-row-actions">
               <button class="btn-sm" onclick="dropboxBackup()">Save</button>
               <button class="btn-sm" onclick="dropboxRestore()">Restore</button>
@@ -438,7 +448,7 @@
       // Trello links are system-generated URLs — just ↗. Manual links were pasted by user — link ↗.
       const linkLabel = type === 'trello' ? '↗︎' : 'link ↗︎';
       const linkHTML = safeUrl
-        ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" title="${linkTitle}">${linkLabel}</a>`
+        ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" class="task-link" aria-label="${linkTitle}">${linkLabel}</a>`
         : '';
 
       // For manual tasks: if URL is still in task.text (new behavior), inject inline.
@@ -483,7 +493,7 @@
         : `<span class="session-count"></span>`;
 
       const deleteBtn = type === 'manual'
-        ? `<button class="task-delete" data-taskid="${tid}" title="Remove">×</button>`
+        ? `<button type="button" class="task-delete" data-taskid="${tid}" aria-label="Remove ${esc(task.text)}">×</button>`
         : '';
       // Copy button — visible only in focus mode via CSS, present on all task types
       const copyBtn = `<button class="task-copy copy-cta" data-taskid="${tid}" title="Copy task text">copy</button>`;
@@ -499,12 +509,12 @@
       const ageAttr = ageBucket ? ` data-age-bucket="${ageBucket}"` : '';
 
       return `
-        <div class="task${done ? ' done' : ''}"${ageAttr} data-taskid="${tid}">
-          <div class="task-check" data-taskid="${tid}">
-            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+        <div class="task${done ? ' done' : ''}" role="listitem" tabindex="0" aria-describedby="reorderHelp"${ageAttr} data-taskid="${tid}">
+          <button type="button" class="task-check" data-taskid="${tid}" aria-pressed="${done}" aria-label="${done ? 'Mark incomplete' : 'Mark complete'}: ${esc(task.text)}">
+            <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true" focusable="false">
               <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-          </div>
+          </button>
           <div class="task-body">
             <div class="task-text">${taskTextHTML}<span class="task-tail">${badges ? `<span class="task-meta">${badges}</span>` : ''}${sessionBadge}</span></div>
           </div>
@@ -549,7 +559,7 @@
         <div class="connection-row-info">
           <span class="connection-row-title connected">${label}</span>
         </div>
-        <span class="conn-check">✓</span>
+        <span class="conn-check" aria-hidden="true">✓</span>
         <div class="connection-row-actions">
           ${defaultBtn}
           <button class="btn-sm btn-forget" onclick="clearAIKey('${id}')">Forget</button>
@@ -562,12 +572,12 @@
         <span class="connection-row-status"><a href="${keyLink}" target="_blank" rel="noopener" style="color:var(--highlight-ui);text-decoration:none">${keyLinkText}</a></span>
       </div>
       <div class="connection-row-actions">
-        <input class="ai-key-input" id="aiKey_${id}" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Paste key…"
+        <label class="visually-hidden" for="aiKey_${id}">${label} API key</label><input class="ai-key-input" id="aiKey_${id}" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Paste key…"
           oninput="_aiUpdateConnectBtn('${id}')"
           onkeydown="if(event.key==='Enter')saveAIKey('${id}')" />
         <button class="btn-sm primary" id="aiConnect_${id}" onclick="saveAIKey('${id}')" disabled>Connect</button>
       </div>
-      <div id="aiMsg_${id}" class="status-msg" style="display:none;margin-top:var(--space-2);width:100%"></div>
+      <div id="aiMsg_${id}" class="status-msg" role="status" aria-live="polite" style="display:none;margin-top:var(--space-2);width:100%"></div>
     </div>`;
       }
 

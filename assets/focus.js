@@ -143,7 +143,10 @@ window._startFocus = (function() {
   // ── DOM: kbd hint + timer block ───────────────────────────────────────────
   const kbdHint = document.createElement('div');
   kbdHint.className = 'focus-kbd-hint';
-  kbdHint.innerHTML = '<span class="focus-kbd-hints"><kbd>space</kbd> breathe &nbsp;&nbsp; <kbd>esc</kbd> rest</span>';
+  kbdHint.setAttribute('role', 'listitem');
+  kbdHint.hidden = true;
+  kbdHint.setAttribute('aria-hidden', 'true');
+  kbdHint.innerHTML = '<span class="focus-kbd-hints"><kbd>timer</kbd> breathe &nbsp;&nbsp; <kbd>esc</kbd> rest</span>';
   let focusAIBtn;   // assigned after timerEl is created (button lives in the timer bar)
   let _thinkAnim = null; // WAAPI animation for thinking\u2026 pulse \u2014 stored so it can be cancelled in both paths
 
@@ -329,14 +332,16 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
 
   const timerEl = document.createElement('div');
   timerEl.className = 'focus-timer';
-  timerEl.setAttribute('role', 'complementary');
+  timerEl.setAttribute('role', 'listitem');
   timerEl.setAttribute('aria-label', 'Focus timer');
+  timerEl.hidden = true;
+  timerEl.setAttribute('aria-hidden', 'true');
   timerEl.innerHTML =
-    '<div class="focus-timer-inner">' +
-      '<div class="focus-timer-fill" id="focusFill"></div>' +
+    '<div class="focus-timer-inner" role="complementary" aria-label="Focus timer controls">' +
+      '<div class="focus-timer-fill" id="focusFill" role="progressbar" aria-label="Focus session progress" aria-valuemin="0" aria-valuemax="1500" aria-valuenow="0"></div>' +
       '<span class="focus-timer-paused" id="focusPaused">paused</span>' +
       '<button class="focus-ai-timer-btn" aria-label="Ask for a focus question">✦ ask</button>' +
-      '<span class="focus-timer-time" id="focusTime">25:00</span>' +
+      '<button type="button" class="focus-timer-time" id="focusTime" aria-label="Pause focus timer">25:00</button>' +
     '</div>';
   document.body.appendChild(timerEl);
   focusAIBtn = timerEl.querySelector('.focus-ai-timer-btn');
@@ -348,6 +353,13 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
   const fillEl   = timerEl.querySelector('#focusFill');
   const timeEl   = timerEl.querySelector('#focusTime');
   const pausedEl = timerEl.querySelector('#focusPaused');
+  timeEl.addEventListener('click', function(e) {
+    if (!uiTaskId) return;
+    e.stopPropagation();
+    const st = getState(uiTaskId);
+    if (st.rem <= 0) return;
+    toggle();
+  });
 
   // BUG-028 (final): the completed-bar pulse is driven by the Web Animations API,
   // not a CSS animation. CSS animations restart from keyframe 0 on every
@@ -408,6 +420,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
 
   function setProgress(p, taskEl) {
     fillEl.style.transform = 'scaleX(' + p + ')';
+    fillEl.setAttribute('aria-valuenow', String(Math.round(p * TOTAL)));
     if (taskEl) taskEl.style.setProperty('--progress', p);
   }
 
@@ -434,6 +447,30 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     timeEl.classList.toggle('paused', on);
     fillEl.classList.toggle('paused', on);
     pausedEl.classList.toggle('show', on);
+    timeEl.setAttribute('aria-label', on ? 'Resume focus timer' : 'Pause focus timer');
+  }
+
+  function _setFocusInert(on, activeRow) {
+    const selectors = '.task,.habit,.section-header,.empty,.config-panel';
+    document.querySelectorAll(selectors).forEach(el => {
+      if (on && (el === activeRow || el.contains(activeRow))) return;
+      if (on) {
+        el.dataset.focusA11yHidden = '1';
+        el.inert = true;
+        el.setAttribute('aria-hidden', 'true');
+      } else if (el.dataset.focusA11yHidden === '1') {
+        delete el.dataset.focusA11yHidden;
+        el.inert = false;
+        el.removeAttribute('aria-hidden');
+      }
+    });
+    for (const id of ['sticky-header', 'addTaskBar']) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.inert = on;
+      if (on) el.setAttribute('aria-hidden', 'true');
+      else el.removeAttribute('aria-hidden');
+    }
   }
 
   // ── Open UI on a task ─────────────────────────────────────────────────────
@@ -460,13 +497,22 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
 
     appEl.classList.add('focusing');
     taskEl.classList.add('focused');
+    _setFocusInert(true, taskEl);
     taskEl.after(timerEl);
     timerEl.after(kbdHint); // kbd hint follows timer bar
 
     syncDisplay(taskId, taskEl);
 
+    timerEl.hidden = false;
+    timerEl.setAttribute('aria-hidden', 'false');
+    kbdHint.hidden = false;
+    kbdHint.setAttribute('aria-hidden', 'false');
     requestAnimationFrame(() => timerEl.classList.add('open'));
     kbdHint.classList.add('show');
+    if (window._a11yAnnounce) {
+      const focusName = taskEl.querySelector('.task-text,.habit-name')?.textContent?.trim() || 'item';
+      _a11yAnnounce(`Focus started for ${focusName}.`);
+    }
     
     // Check if task + timer bar need nudge BEFORE locking scroll
     // Timer bar is ~80px, appears below task
@@ -535,6 +581,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     clearTimeout(tickHandle);
     timerEl.classList.remove('open');
     kbdHint.classList.remove('show');
+    _setFocusInert(false, uiTaskEl);
     _focusResetAI();
     _updateBreatheOverlay(false); // Clear breathe overlay
     
@@ -620,6 +667,10 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
 
       appEl.classList.remove('focusing');
       document.body.appendChild(timerEl);
+      timerEl.hidden = true;
+      timerEl.setAttribute('aria-hidden', 'true');
+      kbdHint.hidden = true;
+      kbdHint.setAttribute('aria-hidden', 'true');
 
       if (doResetState && closingTaskId) {
         clearState(closingTaskId);
@@ -635,6 +686,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     uiTaskEl = null;
     uiTaskId = null;
     window._focusUIActive = false;
+    if (closingTaskId && window._a11yAnnounce) _a11yAnnounce('Focus ended.');
 
     // Timer was paused before closeUI — nothing to continue
   }
@@ -678,6 +730,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     _saveSession(uiTaskId, st);
     setPaused(true);
     _updateBreatheOverlay(true);
+    if (window._a11yAnnounce) _a11yAnnounce('Focus paused.');
   }
 
   // ── Resume the active task ────────────────────────────────────────────────
@@ -692,6 +745,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     _updateBreatheOverlay(false);
     playResumeSound();
     tickFor(uiTaskId);
+    if (window._a11yAnnounce) _a11yAnnounce('Focus resumed.');
   }
 
   function toggle() {
@@ -788,6 +842,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     }
 
     _recordFocusComplete(taskId);
+    if (window._a11yAnnounce) _a11yAnnounce('Focus session complete.');
     playChime();
     _haptic('success');
 
@@ -972,7 +1027,8 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     if (!uiTaskId) return;
     const active  = document.activeElement;
     const inInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
-    if (e.code === 'Space' && !inInput) { e.preventDefault(); toggle(); }
+    const onRow = active?.matches?.('.task[data-taskid],.habit[data-habit-id]');
+    if (e.code === 'Space' && !inInput && !onRow) { e.preventDefault(); toggle(); }
     if (e.code === 'Escape') { closeUI(false); }
   });
 
@@ -1168,6 +1224,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
               transition: opacity 0.15s ease;
             }
             .pip-bar:hover .pip-controls,
+            .pip-bar:focus-within .pip-controls,
             .pip-bar.complete .pip-controls {
               opacity: 1;
             }
@@ -1188,18 +1245,25 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
               background: var(--pip-btn-hover-bg);
               border-color: var(--pip-btn-hover-border);
             }
+            .pip-btn:focus-visible {
+              outline: 2px solid var(--pip-accent);
+              outline-offset: 2px;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .pip-controls, .pip-btn { transition: none; }
+            }
           </style>
           <div class="pip-widget">
             <div class="pip-content">
-              <div class="pip-task">${esc(taskName)}</div>
-              <div class="pip-time" id="pipTime">${fmt(st.rem)}</div>
+              <div class="pip-task" id="pipTask">${esc(taskName)}</div>
+              <div class="pip-time" id="pipTime" role="timer" aria-label="Focus time remaining">${fmt(st.rem)}</div>
             </div>
             <div class="pip-bar">
-              <div class="pip-fill" id="pipFill"></div>
+              <div class="pip-fill" id="pipFill" role="progressbar" aria-label="Focus session progress" aria-valuemin="0" aria-valuemax="1500" aria-valuenow="${TOTAL - st.rem}"></div>
               <div class="pip-controls">
-                <button class="pip-btn" id="pipOpen">Open</button>
-                <button class="pip-btn" id="pipPause">Breathe</button>
-                <button class="pip-btn" id="pipClose">Rest</button>
+                <button class="pip-btn" id="pipOpen" aria-label="Open TODAY">Open</button>
+                <button class="pip-btn" id="pipPause" aria-pressed="false" aria-label="Pause focus timer">Breathe</button>
+                <button class="pip-btn" id="pipClose" aria-label="End focus session">Rest</button>
               </div>
             </div>
           </div>
@@ -1251,6 +1315,8 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
             toggle();
             const newSt = getState(uiTaskId);
             this.textContent = newSt.paused ? 'Resume' : 'Breathe';
+            this.setAttribute('aria-pressed', String(newSt.paused));
+            this.setAttribute('aria-label', newSt.paused ? 'Resume focus timer' : 'Pause focus timer');
           }
         });
 
@@ -1301,6 +1367,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       if (!pipFillEl || !pipTimeEl) return;
       const progress = (1 - rem / total) * 100;
       pipFillEl.style.width = progress + '%';
+      pipFillEl.setAttribute('aria-valuenow', String(Math.round((progress / 100) * total)));
       pipTimeEl.textContent = fmt(rem);
       if (rem === 0) {
         _pipDone = true;
@@ -1343,6 +1410,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
             // Timer completed (not just paused) — update PiP to done state and stop RAF
             pipTimeEl.textContent = fmt(0);
             pipFillEl.style.width = '100%';
+            pipFillEl.setAttribute('aria-valuenow', String(TOTAL));
             _pipDone = true;
             const pauseBtn = pipWindow.document.getElementById('pipPause');
             if (pauseBtn) pauseBtn.textContent = 'Again';
@@ -1352,6 +1420,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
           // Regular pause — show frozen time, keep polling slowly
           pipTimeEl.textContent = fmt(lastRem);
           pipFillEl.style.width = ((1 - lastRem / TOTAL) * 100) + '%';
+          pipFillEl.setAttribute('aria-valuenow', String(TOTAL - lastRem));
           wasPaused = true;
           rafId = pipWindow.requestAnimationFrame(pipTick);
           return;
@@ -1372,6 +1441,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
 
         pipTimeEl.textContent = fmt(lastRem);
         pipFillEl.style.width = ((1 - lastRem / TOTAL) * 100) + '%';
+        pipFillEl.setAttribute('aria-valuenow', String(TOTAL - lastRem));
 
         if (lastRem <= 0) {
           // Timer reached zero — trigger completion immediately from wall clock.
@@ -1383,6 +1453,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
           if (pipWindow && !pipWindow.closed && pipTimeEl) {
             pipTimeEl.textContent = fmt(0);
             if (pipFillEl) pipFillEl.style.width = '100%';
+            if (pipFillEl) pipFillEl.setAttribute('aria-valuenow', String(TOTAL));
             _pipDone = true;
             const _pb = pipWindow.document.getElementById('pipPause');
             if (_pb) _pb.textContent = 'Again';

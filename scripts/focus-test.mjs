@@ -161,6 +161,7 @@ try {
       const r = await page.evaluate(() => ({
         timerOpen: !!document.querySelector('.focus-timer.open'),
       }));
+      if (errors.length) await fail('task click opens timer — browser errors', errors);
       await expectAll('task click opens timer', { ...r, noErrors: !errors.length });
       ok('task click opens timer: .focus-timer.open present');
       await page.close();
@@ -193,6 +194,7 @@ try {
         () => document.querySelector('.focus-timer.open') !== null,
         { timeout: 3000 }
       );
+      await page.focus('#focusTime');
       await page.keyboard.press('Space');
       // Allow one frame for setPaused to update the DOM
       await page.waitForFunction(

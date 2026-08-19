@@ -10,6 +10,59 @@
     if (started) return;
     started = true;
 
+    function _saveReorderedList(listId, preserveDesktopHabitAutosave) {
+      const sel = listId === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]';
+      const list = document.getElementById(listId);
+      if (!list) return;
+      const rows = [...list.querySelectorAll(sel)];
+      if (listId === 'manualList') {
+        const ids = rows.map(el => el.dataset.taskid);
+        manualTasks.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+        _saveManual();
+        localStorage.setItem('today_manual_order_at', new Date().toISOString());
+        _setLastLocalChange();
+        dropboxAutoSave();
+      } else if (listId === 'trelloList') {
+        const ids = rows.map(el => el.dataset.taskid);
+        trelloTasks.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+        localStorage.setItem('today_trello_order', JSON.stringify(ids));
+        localStorage.setItem('today_trello_order_at', new Date().toISOString());
+        try {
+          const cached = safeJSON('today_trello_cache', null);
+          if (cached) { cached.tasks = trelloTasks; localStorage.setItem('today_trello_cache', JSON.stringify(cached)); }
+        } catch(e) {}
+        _setLastLocalChange();
+        dropboxAutoSave();
+      } else if (listId === 'habitList') {
+        const ids = rows.map(el => el.dataset.habitId);
+        habitsList.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+        _saveHabits();
+        if (preserveDesktopHabitAutosave) dropboxAutoSave();
+      }
+    }
+
+    window._a11yMoveRow = function(row, delta) {
+      const list = row?.parentElement;
+      if (!list || !['manualList', 'trelloList', 'habitList'].includes(list.id)) {
+        return { moved: false, message: 'This item cannot be reordered.' };
+      }
+      if (row.classList.contains('done') || row.classList.contains('editing')) {
+        return { moved: false, message: 'This item cannot be reordered in its current state.' };
+      }
+      const selector = list.id === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]';
+      const rows = [...list.querySelectorAll(selector)];
+      const from = rows.indexOf(row);
+      const to = from + delta;
+      if (from < 0 || to < 0 || to >= rows.length) {
+        return { moved: false, message: delta < 0 ? 'Already first in the list.' : 'Already last in the list.' };
+      }
+      if (delta < 0) list.insertBefore(row, rows[to]);
+      else list.insertBefore(rows[to], row);
+      _saveReorderedList(list.id);
+      _haptic('selection');
+      return { moved: true, position: to + 1, total: rows.length };
+    };
+
     // ── Drag-to-reorder — manual tasks, trello tasks, habits ────────────────
     (function() {
       let dragSrc    = null;
@@ -107,31 +160,7 @@
         else                  list.insertBefore(dragSrc, cfg.row);
         _haptic('selection');
 
-        const newOrder = [...list.querySelectorAll(sel)];
-        if (cfg.listId === 'manualList') {
-          const ids = newOrder.map(el => el.dataset.taskid);
-          manualTasks.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-          _saveManual();
-          localStorage.setItem('today_manual_order_at', new Date().toISOString());
-          _setLastLocalChange();
-          dropboxAutoSave();
-        } else if (cfg.listId === 'trelloList') {
-          const ids = newOrder.map(el => el.dataset.taskid);
-          trelloTasks.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-          localStorage.setItem('today_trello_order', JSON.stringify(ids));
-          localStorage.setItem('today_trello_order_at', new Date().toISOString());
-          try {
-            const cached = safeJSON('today_trello_cache', null);
-            if (cached) { cached.tasks = trelloTasks; localStorage.setItem('today_trello_cache', JSON.stringify(cached)); }
-          } catch(e) {}
-          _setLastLocalChange();
-          dropboxAutoSave();
-        } else if (cfg.listId === 'habitList') {
-          const ids = newOrder.map(el => el.dataset.habitId);
-          habitsList.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-          _saveHabits();
-          dropboxAutoSave();
-        }
+        _saveReorderedList(cfg.listId, cfg.listId === 'habitList');
       });
     })();
 
@@ -189,34 +218,6 @@
         const row = el.closest(listId === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]');
         if (!row || !list.contains(row) || row === touchSrc) return null;
         return row;
-      }
-
-      function _saveOrder(listId) {
-        const sel  = listId === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]';
-        const list = document.getElementById(listId);
-        const newOrder = [...list.querySelectorAll(sel)];
-        if (listId === 'manualList') {
-          const ids = newOrder.map(el => el.dataset.taskid);
-          manualTasks.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-          _saveManual();
-          localStorage.setItem('today_manual_order_at', new Date().toISOString());
-          _setLastLocalChange(); dropboxAutoSave();
-        } else if (listId === 'trelloList') {
-          const ids = newOrder.map(el => el.dataset.taskid);
-          trelloTasks.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-          localStorage.setItem('today_trello_order', JSON.stringify(ids));
-          localStorage.setItem('today_trello_order_at', new Date().toISOString());
-          try {
-            const cached = safeJSON('today_trello_cache', null);
-            if (cached) { cached.tasks = trelloTasks; localStorage.setItem('today_trello_cache', JSON.stringify(cached)); }
-          } catch(ex) {}
-          _setLastLocalChange();
-          dropboxAutoSave();
-        } else if (listId === 'habitList') {
-          const ids = newOrder.map(el => el.dataset.habitId);
-          habitsList.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-          _saveHabits();
-        }
       }
 
       function _cleanup() {
@@ -279,7 +280,7 @@
         _cancelPress();
         if (!touchSrc) return;
         _haptic('selection');
-        _saveOrder(touchListId);
+        _saveReorderedList(touchListId);
         _cleanup();
       }, { passive: true });
 

@@ -80,8 +80,11 @@
     function toggleZone(zone) {
       const list = document.getElementById(zone + 'List');
       const chevron = document.getElementById(zone + 'Chevron');
-      const isOpen = list.style.display !== 'none';
-      list.style.display = isOpen ? 'none' : 'block';
+      const trigger = document.getElementById(zone + 'Toggle');
+      const isOpen = !list.hidden;
+      list.hidden = isOpen;
+      list.setAttribute('aria-hidden', String(isOpen));
+      if (trigger) trigger.setAttribute('aria-expanded', String(!isOpen));
       chevron.classList.toggle('open', !isOpen);
       chevron.textContent = isOpen ? '+' : '−';
     }
@@ -105,9 +108,9 @@
           ? `<span class="task-tag">${esc(tagMatch[1].toLowerCase())}</span>${esc(tagMatch[2])}`
           : esc(t.text);
         return `
-        <div class="task" data-id="${t.id}">
+        <div class="task" role="listitem" data-id="${t.id}">
           <span class="task-text">${textHTML}</span>
-          <button class="zone-badge pull-btn" onclick="pullFromSoon('${t.id}')" title="Pull into today">← pull in</button>
+          <button class="zone-badge pull-btn" onclick="pullFromSoon('${t.id}')" aria-label="Pull ${esc(t.text)} into today">← pull in</button>
         </div>
       `}).join('');
 
@@ -153,10 +156,10 @@
           : esc(t.text);
         const badge = t.status === 'done'
           ? `<span class="zone-badge">${t.status}</span>`
-          : `<button class="zone-badge pull-btn" onclick="reviveFromPastShowReason('${t.id}')" title="Back to soon">&#x21a9;&#xFE0E; soon</button>`;
+          : `<button class="zone-badge pull-btn" onclick="reviveFromPastShowReason('${t.id}')" aria-label="Move ${esc(t.text)} back to soon">&#x21a9;&#xFE0E; soon</button>`;
         return `
-          <div class="task ${statusClass}" data-id="${t.id}">
-            <div class="task-check past-check">
+          <div class="task ${statusClass}" role="listitem" data-id="${t.id}">
+            <div class="task-check past-check" aria-hidden="true">
               <span class="past-icon">${statusBadge}</span>
             </div>
             <div class="task-body">

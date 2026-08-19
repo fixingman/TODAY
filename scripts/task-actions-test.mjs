@@ -134,7 +134,7 @@ try {
       await page.close();
     }
 
-    // 2. toggleDone — check: doneIds gains taskId, element gains .done class.
+    // 2. toggleDone — check: state is exposed without low-contrast opacity dimming.
     {
       const { page, errors } = await openPage();
       const result = await page.evaluate(() => {
@@ -143,7 +143,8 @@ try {
         return {
           inDoneIds:   doneIds.has('task_1'),
           hasDoneClass: !!(el && el.classList.contains('done')),
-          dimmed:       !!(el && parseFloat(el.style.opacity) < 1),
+          notOpacityDimmed: !!(el && (el.style.opacity === '' || parseFloat(el.style.opacity) >= 1)),
+          pressedState: el?.querySelector('.task-check')?.getAttribute('aria-pressed') === 'true',
         };
       });
       await expectAll('toggleDone — check', { ...result, noErrors: errors.length === 0 });
