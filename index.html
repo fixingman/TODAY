@@ -2105,7 +2105,51 @@
      (.btn-icon, .add-mic-btn, .btn-ghost). Focus keeps the accent (below wins). */
   .add-task-input:hover { border-color: var(--muted); }
   .add-task-input:focus { border-color: var(--accent); }
-  
+
+  /* Mirror mode: text is invisible so the mirror's animated spans show instead.
+     caret-color keeps the native cursor visible despite color: transparent. */
+  .add-task-input.has-mirror {
+    color: transparent;
+    caret-color: var(--text);
+  }
+
+  /* Mirror overlay — pixel-aligned with .add-task-input text region */
+  #newTaskMirror {
+    position: absolute;
+    inset: 0;
+    padding: 11px 40px 11px 14px;
+    pointer-events: none;
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    line-height: normal;
+    box-sizing: border-box;
+    overflow: hidden;
+    white-space: pre;
+    display: flex;
+    align-items: center;
+    color: var(--text);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Each character is a separate span so WAAPI can animate it individually */
+  #newTaskMirror span {
+    display: inline-block;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes charBounce {
+      0%   { transform: translateY(-5px) scale(0.8);  opacity: 0; }
+      55%  { transform: translateY(1px)  scale(1.03); opacity: 1; }
+      80%  { transform: translateY(-0.5px) scale(0.99); }
+      100% { transform: translateY(0)   scale(1);     opacity: 1; }
+    }
+
+    .mirror-char-new {
+      animation: charBounce 120ms ease-out both;
+    }
+  }
+
   /* When AI panel is open, input bar transforms into chat mode */
   body.ai-chat-open .add-task-input {
     border-color: var(--accent);
@@ -3990,6 +4034,7 @@
     <input class="add-task-input" id="newTask" maxlength="500" type="text"
       placeholder="What's on your mind?"
       onkeydown="handleBarKey(event)" oninput="toggleClearBtn()" />
+    <div id="newTaskMirror" aria-hidden="true"></div>
     <button id="clearTaskBtn" onclick="clearTaskInput()" onpointerdown="event.preventDefault()" class="clear-input-btn" style="display:none">×</button>
   </div>
   <!-- Voice note mic (mobile-only, revealed by _voiceNoteInit) — v2.24.0 -->
@@ -4103,6 +4148,7 @@
 <script src="/assets/day-lifecycle.js"></script>
 <script src="/assets/focus.js"></script>
 <script src="assets/about.js"></script>
+<script src="assets/task-bounce.js"></script>
 <script>
 // Always start at top — browser's auto scroll-restoration causes mid-page reloads
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -4128,12 +4174,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.67.0': 'Feat: per-character bounce animation on task input — each letter springs in as you type (compositor-only, reduced-motion safe, IME/paste/autofill aware).',
   '2.66.5': 'UX: removed per-item "forget" buttons from Memory panel — "clear all memory" is the single action for resetting AI memory.',
   '2.66.4': 'Fix: "noticing…" in Memory panel now pulses like the focus ask button (opacity 0.25→0.65→0.25, 2.4s, reduced-motion safe).',
-  '2.66.3': 'Feat: inline AI suggestions now learn from user actions — dismissal rate gates future suggestions; acceptance rate and letgo patterns inform the system prompt.',
-  '2.66.2': 'Fix: post-triage mood buttons restyled to pill/DM Mono to match TODAY UI; selecting a feeling now shows the word in accent colour instead of leaving the question unanswered.',
-  '2.66.1': 'Fix: BUG-079 age-bucket task opacity scoped to desktop only — age dimming now behind @media (hover: hover) so mobile tasks always render at full opacity.',
-  '2.66.0': 'Maintenance: full-suite test runner + _parseAIText extraction fixes.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
