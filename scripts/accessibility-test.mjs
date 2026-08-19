@@ -99,7 +99,7 @@ try {
     return { clear: metric(clear), connections: metric(connections) };
   });
   if (memoryTargets.clear.height < 24 || memoryTargets.connections.height < 24
-      || memoryTargets.clear.paddingTop !== '4px' || memoryTargets.connections.paddingTop !== '4px') {
+      || memoryTargets.clear.paddingTop !== '8px' || memoryTargets.connections.paddingTop !== '8px') {
     fail('Memory footer target sizing or spacing regressed: ' + JSON.stringify(memoryTargets));
   }
   ok('Memory footer keeps its visible padding and 24px minimum targets');

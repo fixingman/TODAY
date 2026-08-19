@@ -3668,7 +3668,7 @@
     border-top: 1px solid var(--border);
   }
   .memory-clear-btn {
-    background: none; border: none; padding: var(--space-1); min-height: 24px; cursor: pointer;
+    background: none; border: none; padding: var(--space-2) var(--space-1); min-height: 24px; cursor: pointer;
     font-size: var(--text-sm2);
     font-family: var(--font-mono);
     letter-spacing: 0.04em;
@@ -3687,7 +3687,7 @@
     background: none;
     border: none;
     min-height: 24px;
-    padding: var(--space-1);
+    padding: var(--space-2) var(--space-1);
   }
   .memory-conn-link:hover { opacity: 1; }
   .memory-confirm-msg { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text); opacity: var(--opacity-strong); }
@@ -4280,9 +4280,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.69.1': 'UX: Memory footer buttons gain vertical breathing room — padding increased to 8px top/bottom.',
   '2.69.0': 'Motion: triage decisions have distinct exit animations | UX: focus timer breathes at 6s | UX: stat numbers count up on triage complete | UX: time-of-day accent + empty-state micro-copy',
   '2.68.2': 'Refinement — completed tasks recede again, secondary text and controls are quieter, Memory footer targets stay comfortably sized, and copied feedback resets when focus ends.',
-  '2.68.1': 'UX: post-triage mood confirmation now reads "today felt X." — undo hides after selection; mood buttons use muted color at rest.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
