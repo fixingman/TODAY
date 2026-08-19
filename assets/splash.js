@@ -216,10 +216,14 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     };
     setTimeout(() => {
       poemEl.classList.add('visible');
-      // Reading hold scales with word count: floor 5s, ~200ms/word, ceiling 8s
       const words = poem.text.split(/\s+/).filter(Boolean).length;
-      holdTimer = setTimeout(finish, Math.min(Math.max(5000, words * 200), 8000));
-      splashEl.addEventListener('click', finish);
+      const holdDur = Math.min(Math.max(5000, words * 200), 8000);
+      // Hold and tap-dismiss arm after the 900ms CSS fade-in completes so the
+      // floor/ceiling represent actual reading time, not time-including-the-fade.
+      setTimeout(() => {
+        holdTimer = setTimeout(finish, holdDur);
+        splashEl.addEventListener('click', finish);
+      }, 900);
     }, 700);
   }
 
@@ -267,7 +271,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     // 4. Splash overlay fades after all coda lines have started fading
     const overlayDelay = codaEls.length
       ? 300 + (codaEls.length - 1) * STAGGER + CODA_DUR
-      : 750;
+      : 420;
 
     setTimeout(() => {
       const splash  = document.getElementById('splash');

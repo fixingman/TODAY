@@ -771,7 +771,7 @@
   }
   @media (max-width: 600px) {
     #splash-poem { max-width: 86vw; margin-top: 24px; }
-    #splash-poem .splash-poem-text { font-size: clamp(12px, 3.5vw, 14px); line-height: 1.8; }
+    #splash-poem .splash-poem-text { font-size: var(--text-sm2); line-height: 1.7; }
   }
 
 
@@ -4173,9 +4173,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.67.2': 'Fix: splash dismiss star-burst visible on no-coda revisits; mobile splash poem text matches desktop size.',
+  '2.67.3': 'Fix: splash poem coda hold (5–8s) now starts after the 900ms fade-in completes — ensuring the full floor/ceiling is actual reading time. Tap-to-dismiss also arms only once the poem is fully visible, preventing accidental early dismissal on mobile.',
+  '2.67.2': 'Fix: splash dismiss no-coda timing and mobile poem text size (reverted in v2.67.3 — misdiagnosed).',
   '2.67.1': 'Feat: memory panel now updates in the background after each triage; new items show a subtle accent dot until you open the panel.',
-  '2.67.0': 'Feat: per-character bounce animation on task input — each letter springs in as you type (compositor-only, reduced-motion safe, IME/paste/autofill aware).',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
