@@ -134,7 +134,7 @@ try {
       await page.close();
     }
 
-    // 2. toggleDone — check: state is exposed without low-contrast opacity dimming.
+    // 2. toggleDone — check: the original low-noise fade and accessible state coexist.
     {
       const { page, errors } = await openPage();
       const result = await page.evaluate(() => {
@@ -143,8 +143,9 @@ try {
         return {
           inDoneIds:   doneIds.has('task_1'),
           hasDoneClass: !!(el && el.classList.contains('done')),
-          notOpacityDimmed: !!(el && (el.style.opacity === '' || parseFloat(el.style.opacity) >= 1)),
+          dimmedToQuarter: el?.style.opacity === '0.25',
           pressedState: el?.querySelector('.task-check')?.getAttribute('aria-pressed') === 'true',
+          namedControl: !!el?.querySelector('.task-check')?.getAttribute('aria-label'),
         };
       });
       await expectAll('toggleDone — check', { ...result, noErrors: errors.length === 0 });

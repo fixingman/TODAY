@@ -152,12 +152,13 @@ try {
   // Decisions recorded per type (3-task page, decide 2, leave 1 undecided to prevent auto-apply).
   {
     const { page, errors } = await openPage({ tasks: [TASK_A, TASK_B, TASK_C, { id: 'tx4', text: 'guard task', createdAt: '2026-08-10T10:00:00.000Z' }], hour: 21 });
-    const result = await page.evaluate(() => {
+    const result = await page.evaluate(async () => {
       triageExpand();
       triageDecide('ta1', 'kept');
       triageDecide('tb2', 'soon');
       triageDecide('tc3', 'letgo');
       // tx4 is undecided, so triageApplyAll won't fire yet
+      await new Promise(r => setTimeout(r, 180));
       const list = document.getElementById('triageList');
       const keptEl  = list.querySelector('[data-id="ta1"] .triage-task-badge');
       const soonEl  = list.querySelector('[data-id="tb2"] .triage-task-badge');
@@ -176,11 +177,12 @@ try {
   // triageShowReason commits letgo; triageSetReason captures the reason chip.
   {
     const { page, errors } = await openPage({ tasks: [TASK_A, TASK_C], hour: 21 });
-    const result = await page.evaluate(() => {
+    const result = await page.evaluate(async () => {
       triageExpand();
       // Decide TASK_A so TASK_C is the last undecided — triageShowReason fires apply
       triageDecide('ta1', 'kept');
       triageShowReason('tc3'); // commits letgo, fires triageApplyAll (all decided)
+      await new Promise(r => setTimeout(r, 180));
       // completion screen appears when triageApplyAll ran
       const completionShown = !document.getElementById('triageComplete').classList.contains('hidden');
       // letgo task removed from manual
@@ -217,14 +219,15 @@ try {
   // Apply all full flow: kept stays, soon moves to soonTasks, letgo moves to pastTasks.
   {
     const { page, errors } = await openPage({ hour: 21 });
-    const result = await page.evaluate(() => {
+    const result = await page.evaluate(async () => {
       const startManualLen = manualTasks.length;
       const startSoonLen = soonTasks.length;
       triageExpand();
       triageDecide('ta1', 'kept');
       triageDecide('tb2', 'soon');
       triageDecide('tc3', 'letgo'); // last task — triggers triageApplyAll
-      // triageApplyAll has run by now
+      await new Promise(r => setTimeout(r, 180));
+      // triageApplyAll runs after the decision animation.
       const completionShown = !document.getElementById('triageComplete').classList.contains('hidden');
       const keptInManual = manualTasks.some(t => t.id === 'ta1');
       const soonMoved = soonTasks.some(t => t.id === 'tb2') && !manualTasks.some(t => t.id === 'tb2');
@@ -252,7 +255,8 @@ try {
       triageDecide('ta1', 'kept');
       triageDecide('tb2', 'soon');
       triageDecide('tc3', 'letgo'); // triggers apply
-      // Apply ran — now undo
+      await new Promise(r => setTimeout(r, 180));
+      // Apply ran after the decision animation — now undo.
       triageUndo();
       await new Promise(r => setTimeout(r, 20));
       const overlayHidden = document.getElementById('triageOverlay').classList.contains('hidden');
@@ -271,11 +275,12 @@ try {
   // History: an entry is written to today_triage_history after apply.
   {
     const { page, errors } = await openPage({ hour: 21 });
-    const result = await page.evaluate(() => {
+    const result = await page.evaluate(async () => {
       triageExpand();
       triageDecide('ta1', 'kept');
       triageDecide('tb2', 'soon');
       triageDecide('tc3', 'letgo'); // triggers apply
+      await new Promise(r => setTimeout(r, 180));
       const history = JSON.parse(localStorage.getItem('today_triage_history') || '[]');
       const hasKept  = history.some(e => e.decision === 'kept');
       const hasSoon  = history.some(e => e.decision === 'soon');

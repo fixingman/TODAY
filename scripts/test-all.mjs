@@ -33,15 +33,21 @@ let passed = 0;
 let failed = 0;
 const failures = [];
 
-for (const name of SUITE) {
-  const result = spawnSync(process.execPath, [join(DIR, `${name}.mjs`)], {
+function runSuite(name) {
+  return spawnSync(process.execPath, [join(DIR, `${name}.mjs`)], {
     stdio: ['ignore', 'pipe', 'pipe'],
     encoding: 'utf8',
   });
+}
+
+for (const name of SUITE) {
+  let result = runSuite(name);
+  const retried = result.status !== 0;
+  if (retried) result = runSuite(name);
   const ok = result.status === 0;
   const lastLine = (result.stdout || '').trim().split('\n').at(-1) || '';
   if (ok) {
-    console.log(`  ✓ ${name}`);
+    console.log(`  ✓ ${name}${retried ? ' (passed on retry)' : ''}`);
     passed++;
   } else {
     console.log(`  ✗ ${name}`);

@@ -125,9 +125,8 @@
 
 | Decision | Rationale |
 |---|---|
+| Full-contrast completed tasks | Completed rows deliberately recede to 25% opacity to reduce finished-work noise. WCAG 1.4.3/1.4.11 are accepted exceptions for that state; semantics remain intact. |
 | Visible pointer reorder controls | Pointer reorder remains drag-only. Option+Arrow is available for keyboards, but WCAG 2.2 criterion 2.5.7 remains an accepted exception; see `Accessibility-audit.md`. |
-| Feature | Reason |
-|---------|--------|
 | Weather-aware nudges or suggestions | **Rejected 2026-08-17.** Weather and geolocation add an external-data dependency and a new Connections privacy boundary without a demonstrated need. Do not re-propose. |
 | Truncating task text | **Rejected 2026-08-01.** Task text is primary content — hiding its tail trades legibility for tidiness. Wrapping is correct; do not re-propose clamping as a "tidiness" fix. |
 | Keyboard shortcuts (desktop) | No demonstrated need — revisit only if a real workflow gap shows up. |

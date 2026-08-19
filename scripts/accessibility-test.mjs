@@ -87,6 +87,24 @@ try {
     await page.click('#' + button);
   }
 
+  await page.click('#todayLogo');
+  const memoryTargets = await page.evaluate(() => {
+    const clear = document.querySelector('.memory-clear-btn');
+    const connections = document.querySelector('.memory-conn-link');
+    const metric = el => {
+      const rect = el?.getBoundingClientRect();
+      const css = el ? getComputedStyle(el) : null;
+      return { height: rect?.height || 0, paddingTop: css?.paddingTop || '' };
+    };
+    return { clear: metric(clear), connections: metric(connections) };
+  });
+  if (memoryTargets.clear.height < 24 || memoryTargets.connections.height < 24
+      || memoryTargets.clear.paddingTop !== '4px' || memoryTargets.connections.paddingTop !== '4px') {
+    fail('Memory footer target sizing or spacing regressed: ' + JSON.stringify(memoryTargets));
+  }
+  ok('Memory footer keeps its visible padding and 24px minimum targets');
+  await page.click('#todayLogo');
+
   await page.focus('#manualList .task');
   await page.keyboard.down('Alt');
   await page.keyboard.press('ArrowDown');
@@ -143,12 +161,22 @@ try {
     };
     const ratio = (a,b) => { const x=lum(rgb(a)), y=lum(rgb(b)); return (Math.max(x,y)+.05)/(Math.min(x,y)+.05); };
     return {
-      muted: ratio(css.getPropertyValue('--color-muted'), css.getPropertyValue('--color-surface2')),
-      control: ratio(css.getPropertyValue('--color-control-border'), css.getPropertyValue('--color-surface2')),
+      baseMuted: ratio(css.getPropertyValue('--color-muted'), css.getPropertyValue('--color-surface')),
+      baseControl: ratio(css.getPropertyValue('--color-control-border'), css.getPropertyValue('--color-surface')),
+      elevatedMuted: ratio(css.getPropertyValue('--color-muted-elevated'), css.getPropertyValue('--color-surface2')),
+      elevatedControl: ratio(css.getPropertyValue('--color-control-border-elevated'), css.getPropertyValue('--color-surface2')),
+      panelUsesElevatedMuted: getComputedStyle(document.getElementById('memoryPanel')).getPropertyValue('--muted').trim()
+        === css.getPropertyValue('--color-muted-elevated').trim(),
+      panelUsesElevatedControl: getComputedStyle(document.getElementById('memoryPanel')).getPropertyValue('--control-border').trim()
+        === css.getPropertyValue('--color-control-border-elevated').trim(),
     };
   });
-  if (contrast.muted < 4.5 || contrast.control < 3) fail(`token contrast failed (${JSON.stringify(contrast)})`);
-  ok('muted text and control-border tokens meet contrast thresholds');
+  if (contrast.baseMuted < 4.5 || contrast.baseControl < 3
+      || contrast.elevatedMuted < 4.5 || contrast.elevatedControl < 3
+      || !contrast.panelUsesElevatedMuted || !contrast.panelUsesElevatedControl) {
+    fail(`contextual token contrast failed (${JSON.stringify(contrast)})`);
+  }
+  ok('base and elevated muted/control tokens meet their contextual thresholds');
 
   const poem = await browser.newPage();
   await poem.setViewport({ width: 320, height: 800 });

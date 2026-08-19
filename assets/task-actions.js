@@ -19,12 +19,12 @@ window._startTaskActions = (function() {
     // ── Functions ──
 
     function _applyDoneStyles(el, isDone) {
-      el.style.opacity = '';
+      el.style.opacity = isDone ? '0.25' : '';
       const textEl = el.querySelector('.task-text');
       if (textEl) {
         textEl.style.textDecoration = isDone ? 'line-through' : '';
         textEl.style.textDecorationColor = isDone ? 'var(--done-line)' : '';
-        textEl.style.color = isDone ? 'var(--muted)' : '';
+        textEl.style.color = '';
       }
       const checkEl = el.querySelector('.task-check');
       if (checkEl) {

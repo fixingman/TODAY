@@ -415,6 +415,9 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 15.4 | Focus a manual/Trello/habit row; press Option+Up/Down | Item persists in the new order, retains focus, and announces position; first/last boundaries announce without moving |
 | 15.5 | 320px viewport and zoom-capable metadata | No document-level horizontal overflow; viewport contains no zoom-disabling directives |
 | 15.6 | Computed targets/tokens | Representative controls are at least 24×24px; muted text and interactive borders meet the documented contrast thresholds |
+| 15.7 | Open Memory panel | “clear all memory” and “Connections →” retain 4px padding and at least 24px height |
+| 15.8 | Copy a focused task, then leave/re-enter focus before 1.8s | Label resets immediately to `copy`; `.copied` does not leak into the next focus session |
+| 15.9 | Complete a task | Row returns to exactly 25% opacity while completion button keeps its accessible name and pressed state |
 
 ### Manual keyboard and screen-reader gate
 
@@ -427,6 +430,6 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 
 ### Known exception
 
-Pointer reorder remains drag-only. WCAG 2.2 criterion 2.5.7 remains unmet by explicit product decision; keyboard Option+Arrow support does not remove the single-pointer requirement. Do not record the product as fully WCAG-conformant. See `Accessibility-audit.md`.
+Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 and 1.4.11 remain unmet for that state. Pointer reorder remains drag-only, so criterion 2.5.7 also remains unmet. Do not record the product as fully WCAG-conformant. See `Accessibility-audit.md`.
 
-*Last updated: v2.68.0 · Aug 2026*
+*Last updated: v2.69.0 · Aug 2026*

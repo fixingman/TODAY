@@ -14,9 +14,11 @@
 | `--color-surface` | `#17171a` | Card / hover surface |
 | `--color-surface2` | `#1f1f24` | Elevated surface (panels) |
 | `--color-border` | `#2a2a30` | Decorative separators only |
-| `--color-control-border` | `#6b6b78` | Interactive control boundaries |
+| `--color-control-border` | `#636370` | Interactive boundaries on the main surface |
+| `--color-control-border-elevated` | `#6b6b78` | Interactive boundaries on elevated panels |
 | `--color-text` | `#e8e8ec` | Primary text |
-| `--color-muted` | `#858594` | AA secondary / placeholder text |
+| `--color-muted` | `#80808d` | Secondary / placeholder text on the main surface |
+| `--color-muted-elevated` | `#858594` | Secondary / placeholder text on elevated panels |
 
 **Aliases:** `--bg`, `--surface`, `--surface2`, `--border`, `--control-border`, `--text`, `--muted`
 
@@ -181,7 +183,7 @@ Scale is numeric, 4px base:
 
 | Token | Value | Usage |
 |---|---|---|
-| `--opacity-dim` | `0.25` | Decorative/nonessential treatment only; never essential text or controls |
+| `--opacity-dim` | `0.25` | Done-task row treatment and secondary badges; done-task contrast is an accepted exception |
 | `--opacity-label` | `0.40` | Subtle hints, kbd hint |
 | `--opacity-copy` | `0.45` | Copy button at rest in focus |
 | `--opacity-mid` | `0.50` | Focused session count |

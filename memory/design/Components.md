@@ -25,7 +25,7 @@
 - Text: `--text-task` (13.5px), `--font-mono`
 - Delete button: `×`, appears on row hover (desktop), opacity 0→1
 - Link arrow: ↗ (`.task-link`) — opens `task.url` in new tab. Trello tasks get URL from API; manual tasks extract URL from input at creation. Title: "Open in Trello" or "Open link"
-- Done state: strikethrough and AA-muted text; essential content is not opacity-dimmed
+- Done state: strikethrough and 25% row opacity to deliberately reduce completed-task noise; names/state remain available to assistive technology, but visible text/control contrast is an accepted exception
 - Keyboard: focus the row; Enter starts focus, Space toggles completion, Option+Up/Down reorders and persists
 
 ### Task Aging
@@ -186,6 +186,7 @@ Appears below focused task, replaces task row bottom area.
 - Controls: slide up on task hover/tap
 - Non-focused content recedes visually and becomes inert/hidden from assistive technology while focus mode is active
 - The time is a named button; session progress is exposed as a progressbar
+- Copy feedback is session-scoped: leaving focus immediately restores `copy` and clears the success treatment
 
 ---
 

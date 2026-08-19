@@ -234,7 +234,53 @@ try {
       await page.close();
     }
 
-    // 7. _focusOnCheck with no active session returns falsy (no-op path).
+    // 7. Copy feedback is session-scoped and cannot leak through exit/re-entry.
+    {
+      const { page, errors } = await openPage();
+      await page.evaluate(() => { window._copyToClipboard = (_text, done) => done(); });
+      await page.click('.task-text');
+      await page.waitForFunction(
+        () => document.querySelector('.focus-timer.open') !== null,
+        { timeout: 3000 }
+      );
+      await page.click('.task-copy');
+      const copied = await page.evaluate(() => {
+        const btn = document.querySelector('.task.focused .task-copy');
+        return btn?.textContent === 'copied' && btn.classList.contains('copied');
+      });
+      await page.keyboard.press('Escape');
+      const resetOnExit = await page.evaluate(() => {
+        const btn = document.querySelector('.task-copy');
+        return btn?.textContent === 'copy' && !btn.classList.contains('copied') && !btn._copyFeedbackTimer;
+      });
+      await page.waitForFunction(() => document.querySelector('.focus-timer').hidden, { timeout: 2000 });
+      await page.click('.task-text');
+      await page.waitForFunction(
+        () => document.querySelector('.focus-timer.open') !== null,
+        { timeout: 3000 }
+      );
+      const cleanOnReentry = await page.evaluate(() => {
+        const btn = document.querySelector('.task.focused .task-copy');
+        return btn?.textContent === 'copy' && !btn.classList.contains('copied');
+      });
+      await page.evaluate(() => {
+        window._copyToClipboard = (_text, done) => { window.__delayedCopyDone = done; };
+      });
+      await page.click('.task-copy');
+      await page.keyboard.press('Escape');
+      await page.evaluate(() => window.__delayedCopyDone?.());
+      const delayedCallbackIgnored = await page.evaluate(() => {
+        const btn = document.querySelector('.task-copy');
+        return btn?.textContent === 'copy' && !btn.classList.contains('copied');
+      });
+      await expectAll('copy feedback reset', {
+        copied, resetOnExit, cleanOnReentry, delayedCallbackIgnored, noErrors: !errors.length,
+      });
+      ok('copy feedback resets on exit, stays clean on re-entry, and ignores a late clipboard callback');
+      await page.close();
+    }
+
+    // 8. _focusOnCheck with no active session returns falsy (no-op path).
     {
       const { page, errors } = await openPage();
       const r = await page.evaluate(() => {
@@ -246,7 +292,7 @@ try {
       await page.close();
     }
 
-    // 8. _focusOnCheck closes active timer.
+    // 9. _focusOnCheck closes active timer.
     {
       const { page, errors } = await openPage();
       await page.click('.task-text');
@@ -267,7 +313,7 @@ try {
       await page.close();
     }
 
-    // 9. Session restore — seed today_focus_session, call _tryRestoreFocusSession().
+    // 10. Session restore — seed today_focus_session, call _tryRestoreFocusSession().
     {
       const { page, errors } = await openPage({
         extraSeed: {
@@ -289,7 +335,7 @@ try {
       await page.close();
     }
 
-    // 10. _focusReanchor no-throw with no active session.
+    // 11. _focusReanchor no-throw with no active session.
     {
       const { page, errors } = await openPage();
       const r = await page.evaluate(() => {
@@ -301,7 +347,7 @@ try {
       await page.close();
     }
 
-    // 11. Static wiring — file reads only.
+    // 12. Static wiring — file reads only.
     {
       const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
       const swSrc    = await readFile(join(ROOT, 'sw.js'), 'utf8');
@@ -329,7 +375,7 @@ try {
       ok('static wiring: script tag, startup call, IIFE removed, all exports present, precached');
     }
 
-    console.log('\nFocus tests passed (post-extraction, 11 tests).');
+    console.log('\nFocus tests passed (post-extraction, 12 tests).');
   }
 } finally {
   if (browser) await browser.close();

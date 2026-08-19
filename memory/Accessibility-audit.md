@@ -20,17 +20,23 @@ The implementation follows the [Astryx `VisuallyHidden` guide](https://astryx.at
 | Status and async feedback | Several visual-only updates were silent to assistive technology. | Added polite and urgent visually-hidden live regions for task, focus, recording, reorder, share, and async-result updates. Pointer drag does not announce intermediate movement. |
 | Forms and history | Some inputs and habit history lacked explicit labels or a usable summary. | Added programmatic form labels and accessible habit-history summaries. |
 | Focus and targets | Focus indication and small icon targets were inconsistent. | Added visible `:focus-visible` treatment and a 24×24 CSS-pixel minimum for interactive controls. PiP hover controls also reveal on `:focus-within`. |
-| Contrast | Muted text, subtle control borders, opacity-based done states, and poem footer text could fall below intended contrast. | Raised muted text to `#858594`, added `--control-border: #6b6b78`, reserved the old border for decorative separation, and removed opacity reduction from essential done/memory text and controls. |
+| Contrast | Muted text, subtle control borders, opacity-based done states, and poem footer text could fall below intended contrast. | Main-surface muted/control tokens are `#80808d`/`#636370`; elevated panels retain `#858594`/`#6b6b78`. Memory footer controls retain their 4px padding and 24px minimum height. Completed task rows deliberately return to 25% opacity as the exception below. |
 | Zoom and reflow | Viewport metadata blocked zoom and narrow layouts could overflow horizontally. | Removed zoom restrictions, added 320 CSS-pixel reflow protections, and kept horizontal clipping on the document root rather than `.app`. |
 | Motion | Some repeating or reveal motion did not consistently respect reduced-motion settings. | Disabled relevant focus/PiP animation under `prefers-reduced-motion: reduce`. |
 | Poem page | Heading/content structure, sharing status, focus indication, targets, and footer contrast were incomplete. | Added article/heading/blockquote/cite semantics, accessible share feedback, stronger contrast, visible focus, and adequate targets. |
 | Picture-in-Picture | Focus and meeting PiP controls lacked complete names/state/progress output. | Added named keyboard controls, pressed/state semantics, meaningful timer/progress output, focus reveal, and reduced-motion handling. |
 
-## Accepted exception — WCAG 2.2 criterion 2.5.7
+## Accepted exceptions
+
+### WCAG 2.2 criteria 1.4.3 and 1.4.11 — completed tasks
+
+Completed task rows use 25% opacity to reduce visual noise once work is finished. Their text and completion control therefore do not retain the contrast required by criteria 1.4.3 and 1.4.11. This is an explicit product exception; accessible names, pressed state, keyboard operation, and the underlying task content remain available to assistive technology.
+
+### WCAG 2.2 criterion 2.5.7 — dragging movements
 
 Pointer reordering still requires a dragging movement. No visible move buttons, click-to-move control, or long-press alternative has been added. Therefore WCAG 2.2 criterion 2.5.7, Dragging Movements, remains unmet and is an explicitly accepted product exception.
 
-Keyboard users have an alternative through Option+Up/Down, but that does not satisfy the criterion's required single-pointer alternative. The product must not be described as fully WCAG-conformant while this exception remains.
+Keyboard users have an alternative through Option+Up/Down, but that does not satisfy the criterion's required single-pointer alternative. The product must not be described as fully WCAG-conformant while these exceptions remain.
 
 ## Automated verification
 

@@ -201,6 +201,7 @@ v2.68.0 adds a dev-only axe-core/Puppeteer suite covering representative desktop
 | Issue | Severity | Notes |
 |---|---|---|
 | No CSP header | Low | Personal tool, inline scripts/styles |
+| Completed tasks use 25% opacity | Accepted accessibility exception | Deliberately reduces finished-work noise; visible text/control contrast in this state does not meet WCAG 1.4.3/1.4.11. Semantics and keyboard state remain available. |
 | Pointer reorder requires dragging | Accepted accessibility exception | Option+Arrow supports keyboard reordering, but no single-pointer non-drag alternative is provided; WCAG 2.2 criterion 2.5.7 remains unmet. See `Accessibility-audit.md`. |
 | `localStorage` quota failures | Low | Writes wrapped globally; quota errors route to red dot (v2.17.70) |
 | Focus mode not on touch devices | By design | Timer UI is pointer-interaction dependent |
@@ -304,4 +305,4 @@ v2.68.0 adds a dev-only axe-core/Puppeteer suite covering representative desktop
 
 ---
 
-*Last updated: v2.68.0 accessibility delta · Aug 2026*
+*Last updated: v2.68.2 accessibility refinement · Aug 2026*

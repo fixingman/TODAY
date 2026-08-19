@@ -316,18 +316,25 @@ try {
     row.dispatchEvent(new MouseEvent('mouseenter'));
     await new Promise(resolve => setTimeout(resolve, 150));
     const style = getComputedStyle(tag);
+    const accentProbe = document.createElement('span');
+    accentProbe.style.color = 'var(--accent)';
+    document.body.appendChild(accentProbe);
+    const accentChannels = (getComputedStyle(accentProbe).color.match(/[\d.]+/g) || [])
+      .slice(0, 3).join(', ');
+    accentProbe.remove();
     return {
       missing: false,
       state: tag.dataset.tagShimmer,
       arrival: tag.classList.contains('task-tag-shimmer'),
       interaction: tag.classList.contains('_soon-shimmer'),
-      gradient: style.backgroundImage
+      gradient: style.backgroundImage,
+      accentChannels,
     };
   });
   if (tagArrival.missing || tagArrival.state !== 'arrival' || !tagArrival.arrival || tagArrival.interaction) {
     fail('tag hover replaced or interrupted the new-task arrival shimmer');
   }
-  if (!tagArrival.gradient.includes('rgb(200, 240, 96)')) {
+  if (!tagArrival.accentChannels || !tagArrival.gradient.includes(tagArrival.accentChannels)) {
     fail('tag arrival shimmer lost the accent colour');
   }
   await page.waitForFunction(() => {
