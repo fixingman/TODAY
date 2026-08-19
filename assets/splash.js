@@ -267,7 +267,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     // 4. Splash overlay fades after all coda lines have started fading
     const overlayDelay = codaEls.length
       ? 300 + (codaEls.length - 1) * STAGGER + CODA_DUR
-      : 420;
+      : 750;
 
     setTimeout(() => {
       const splash  = document.getElementById('splash');
