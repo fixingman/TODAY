@@ -145,7 +145,7 @@
 
     function _buildConfirmedHTML(feeling) {
       return `<div class="reflection-confirmed">` +
-        `<span class="reflection-confirmed-word">${feeling}</span>` +
+        `today felt <span class="reflection-confirmed-word">${feeling}</span>.` +
         `</div>`;
     }
 
@@ -195,6 +195,8 @@
       if (el) {
         el.innerHTML = _buildConfirmedHTML(feeling);
       }
+      const undoBtn = document.getElementById('triageUndoBtn');
+      if (undoBtn) undoBtn.style.display = 'none';
 
       // Leave 3 s for Undo
       if (typeof window._triageResetAutoClose === 'function') window._triageResetAutoClose(3000);
