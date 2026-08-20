@@ -641,20 +641,7 @@
     border: 0 !important;
   }
 
-  .skip-link {
-    position: fixed;
-    top: calc(env(safe-area-inset-top, 0px) + var(--space-2));
-    left: var(--space-2);
-    z-index: 10000;
-    padding: var(--space-2) var(--space-3);
-    border-radius: var(--radius-md);
-    background: var(--accent);
-    color: var(--bg);
-    transform: translateY(-200%);
-  }
-  .skip-link:focus { transform: translateY(0); }
-
-  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 3px;
   }
@@ -3886,7 +3873,6 @@
 </style>
 </head>
 <body style="background-color:#0e0e10"><!-- inline base color: see <html> note (BUG-041) -->
-<a class="skip-link" href="#manualSection">Skip to tasks</a>
 <div id="a11yPolite" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
 <div id="a11yAssertive" class="visually-hidden" role="alert" aria-live="assertive" aria-atomic="true"></div>
 <div id="reorderHelp" class="visually-hidden">Enter starts focus. Space changes completion. Option plus Up or Down Arrow moves this item.</div>
@@ -4286,9 +4272,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.69.5': 'UX: remove skip-to-tasks link — was an a11y nav aid that appeared unexpectedly on mobile touch.',
   '2.69.4': 'fix: reviving past item now auto-expands soon zone — no more black screen | fix: Trello token expiry reverted to never.',
   '2.69.3': 'fix: task input mirror tracks scrollLeft so bounce animation stays visible on long strings | security: Trello apiToken excluded from Dropbox backup.',
-  '2.69.2': 'Security: CSP + security headers, XSS esc() on AI strings, CORS origin lock, Trello token in Authorization header, CSPRNG OAuth state.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
