@@ -100,6 +100,12 @@
       }
 
       section.style.display = 'block';
+      list.hidden = false;
+      list.setAttribute('aria-hidden', 'false');
+      const soonChevron = document.getElementById('soonChevron');
+      const soonToggle  = document.getElementById('soonToggle');
+      if (soonChevron) { soonChevron.classList.add('open'); soonChevron.textContent = '−'; }
+      if (soonToggle)  soonToggle.setAttribute('aria-expanded', 'true');
       count.textContent = soonTasks.length;
 
       list.innerHTML = [...soonTasks].sort((a, b) => a.text.localeCompare(b.text)).map(t => {
@@ -145,10 +151,16 @@
       }
 
       section.style.display = 'block';
+      list.hidden = false;
+      list.setAttribute('aria-hidden', 'false');
+      const pastChevron = document.getElementById('pastChevron');
+      const pastToggle  = document.getElementById('pastToggle');
+      if (pastChevron) { pastChevron.classList.add('open'); pastChevron.textContent = '−'; }
+      if (pastToggle)  pastToggle.setAttribute('aria-expanded', 'true');
       count.textContent = pastTasks.length;
 
       list.innerHTML = visible.map(t => {
-        const statusClass = t.status || '';
+        const statusClass = t.status ? t.status.replace('_', '-') : '';
         const statusBadge = t.status === 'done' ? '✓' : t.status === 'let_go' ? '○' : '◌';
         const tagMatch = t.text.match(/^([a-z0-9]{1,12}):\s+(.+)$/i);
         const textHTML = tagMatch

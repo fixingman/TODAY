@@ -36,7 +36,7 @@ function trelloAuth() {
   // Trello returns the token to the return_url in the hash
   const returnUrl = encodeURIComponent(window.location.origin + '/');
   const authUrl = 'https://trello.com/1/authorize'
-    + '?expiration=30days'
+    + '?expiration=never'
     + '&scope=read'
     + '&response_type=token'
     + '&key=' + TRELLO_API_KEY
