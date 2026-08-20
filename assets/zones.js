@@ -99,13 +99,17 @@
         return;
       }
 
+      const soonWasHidden = section.style.display === 'none' || section.style.display === '';
       section.style.display = 'block';
-      list.hidden = false;
-      list.setAttribute('aria-hidden', 'false');
-      const soonChevron = document.getElementById('soonChevron');
-      const soonToggle  = document.getElementById('soonToggle');
-      if (soonChevron) { soonChevron.classList.add('open'); soonChevron.textContent = '−'; }
-      if (soonToggle)  soonToggle.setAttribute('aria-expanded', 'true');
+      if (soonWasHidden) {
+        // First appearance — start collapsed, let user open it
+        list.hidden = true;
+        list.setAttribute('aria-hidden', 'true');
+        const soonChevron = document.getElementById('soonChevron');
+        const soonToggle  = document.getElementById('soonToggle');
+        if (soonChevron) { soonChevron.classList.remove('open'); soonChevron.textContent = '+'; }
+        if (soonToggle)  soonToggle.setAttribute('aria-expanded', 'false');
+      }
       count.textContent = soonTasks.length;
 
       list.innerHTML = [...soonTasks].sort((a, b) => a.text.localeCompare(b.text)).map(t => {
@@ -150,13 +154,17 @@
         return;
       }
 
+      const pastWasHidden = section.style.display === 'none' || section.style.display === '';
       section.style.display = 'block';
-      list.hidden = false;
-      list.setAttribute('aria-hidden', 'false');
-      const pastChevron = document.getElementById('pastChevron');
-      const pastToggle  = document.getElementById('pastToggle');
-      if (pastChevron) { pastChevron.classList.add('open'); pastChevron.textContent = '−'; }
-      if (pastToggle)  pastToggle.setAttribute('aria-expanded', 'true');
+      if (pastWasHidden) {
+        // First appearance — start collapsed, let user open it
+        list.hidden = true;
+        list.setAttribute('aria-hidden', 'true');
+        const pastChevron = document.getElementById('pastChevron');
+        const pastToggle  = document.getElementById('pastToggle');
+        if (pastChevron) { pastChevron.classList.remove('open'); pastChevron.textContent = '+'; }
+        if (pastToggle)  pastToggle.setAttribute('aria-expanded', 'false');
+      }
       count.textContent = pastTasks.length;
 
       list.innerHTML = visible.map(t => {
