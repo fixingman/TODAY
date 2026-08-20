@@ -144,9 +144,13 @@
     }
 
     function _buildConfirmedHTML(feeling) {
+      const count = _loadReflections().length;
+      const hint  = count < 7
+        ? `<div class="reflection-confirmed-hint">${count} of 7 evenings — patterns unlock soon.</div>`
+        : '';
       return `<div class="reflection-confirmed">` +
         `today felt <span class="reflection-confirmed-word">${feeling}</span>.` +
-        `</div>`;
+        `</div>${hint}`;
     }
 
     // ── Consent actions ──────────────────────────────────────────────────────
