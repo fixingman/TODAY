@@ -510,11 +510,12 @@ window._startTaskActions = (function() {
     }
 
     function updateStats() {
-      const all   = [...trelloTasks, ...manualTasks];
-      const total = all.length;
-      const done  = [...all, ...pastTasks].filter(t => doneIds.has(t.id)).length;
-      const left  = total - done;
-      const pct   = total > 0 ? done / total : 0;
+      const all      = [...trelloTasks, ...manualTasks];
+      const pastDone = pastTasks.filter(t => doneIds.has(t.id)).length;
+      const total    = all.length + pastDone;
+      const done     = all.filter(t => doneIds.has(t.id)).length + pastDone;
+      const left     = total - done;
+      const pct      = total > 0 ? done / total : 0;
 
       const s = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
       s('statTotal', total);
