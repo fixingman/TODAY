@@ -13,12 +13,24 @@
   const mirror = document.getElementById('newTaskMirror');
   if (!input || !mirror) return;
 
+  // Inner wrapper: spans go here so we can translateX it to track input.scrollLeft.
+  // The mirror itself stays as the overflow:hidden clipping frame.
+  const mirrorContent = document.createElement('div');
+  mirrorContent.id = 'newTaskMirrorContent';
+  mirror.appendChild(mirrorContent);
+
   // Activate: hide real text so only mirror chars are visible.
   // The browser caret is preserved via caret-color in CSS.
   input.classList.add('has-mirror');
 
   let _prev      = '';
   let _composing = false;
+
+  // Translate mirrorContent to match the input's horizontal scroll offset so
+  // the visible mirror window stays aligned with the caret position.
+  function _syncScroll() {
+    mirrorContent.style.transform = 'translateX(-' + input.scrollLeft + 'px)';
+  }
 
   // ── Core sync ─────────────────────────────────────────────────────────────
   // Rebuilds the mirror to match val. When skipAnimation is false and chars
@@ -41,17 +53,25 @@
     }
 
     // Rebuild the entire mirror (cheap — max 500 spans per input maxlength).
-    mirror.innerHTML = '';
+    mirrorContent.innerHTML = '';
     for (let i = 0; i < val.length; i++) {
       const s = document.createElement('span');
       // Spaces must be non-breaking so inline-block spans don't collapse them.
       s.textContent = val[i] === ' ' ? ' ' : val[i];
       if (i >= animateFrom && i < animateTo) s.className = 'mirror-char-new';
-      mirror.appendChild(s);
+      mirrorContent.appendChild(s);
     }
 
     _prev = val;
+    // Sync immediately then defer one frame — browsers may update scrollLeft
+    // asynchronously after the value change settles.
+    _syncScroll();
+    requestAnimationFrame(_syncScroll);
   }
+
+  // Keep mirror tracking when the user scrolls inside the input (arrow keys,
+  // click-to-reposition, home/end) without changing the value.
+  input.addEventListener('scroll', _syncScroll);
 
   // ── IME (Japanese / Chinese / Korean / etc.) ──────────────────────────────
   // During composition the interim text must not trigger per-char animation.
@@ -87,6 +107,7 @@
   // not focused (e.g. voice note placeholder text set/restored by meeting.js).
   input.addEventListener('focus', () => {
     if (input.value !== _prev) _sync(input.value, true);
+    else _syncScroll();
   });
 
   // ── Programmatic value assignments ────────────────────────────────────────

@@ -552,7 +552,7 @@
         unchecked_ids:     _getUncheckedIds(),
         checked_ids:       _getCheckedIds(),
         manual_order_at:   localStorage.getItem('today_manual_order_at') || '', // recency for manual reorder merge (drag jump-back)
-        trello_config:     safeJSON('trello_config', {}),
+        trello_config:     (function() { const tc = safeJSON('trello_config', {}); delete tc.apiToken; return tc; }()),
         // Trello order — synced so drag order persists across devices
         trello_order:      safeJSON('today_trello_order', []),
         trello_order_at:   localStorage.getItem('today_trello_order_at') || '', // recency for merge (BUG-042)
