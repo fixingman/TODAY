@@ -146,7 +146,7 @@ window._startFocus = (function() {
   kbdHint.setAttribute('role', 'listitem');
   kbdHint.hidden = true;
   kbdHint.setAttribute('aria-hidden', 'true');
-  kbdHint.innerHTML = '<span class="focus-kbd-hints"><kbd>timer</kbd> breathe &nbsp;&nbsp; <kbd>esc</kbd> rest</span>';
+  kbdHint.innerHTML = '<span class="focus-kbd-hints"><kbd>space</kbd> breathe &nbsp;&nbsp; <kbd>esc</kbd> rest</span>';
   let focusAIBtn;   // assigned after timerEl is created (button lives in the timer bar)
   let _thinkAnim = null; // WAAPI animation for thinking\u2026 pulse \u2014 stored so it can be cancelled in both paths
 
