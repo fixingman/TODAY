@@ -1224,8 +1224,6 @@
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    padding: var(--space-4);
-    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
   }
   #triageOverlay.hidden {
     display: none;
@@ -1238,6 +1236,7 @@
     max-height: 70vh;
     overflow-y: auto;
     padding: var(--space-4);
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
     animation: slideUp var(--dur-slow) var(--ease-out);
     box-shadow: var(--shadow-triage);
   }
@@ -1495,16 +1494,15 @@
     border-top: 1px solid var(--border);
   }
   .reflection-feelings {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: var(--space-2);
-    justify-content: center;
     padding-bottom: var(--space-2);
   }
   .reflection-feeling-btn {
     font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    padding: var(--space-1) var(--space-3);
+    font-size: var(--text-sm2);
+    padding: var(--space-3) var(--space-3);
     border-radius: var(--radius-full);
     border: 1px solid var(--border);
     background: transparent;
@@ -4280,9 +4278,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.69.11': 'UX: post-triage panel flushes to bottom edge; mood buttons larger (12px, 2-col grid, 12px padding).',
   '2.69.10': 'fix: task count under logo no longer shows done > total after triage (pastDone included in total).',
   '2.69.9': 'fix: Soon and Past zones load collapsed by default; re-renders no longer force them open.',
-  '2.69.8': 'UX: post-triage reflection confirmation shows evening count toward 7-evening unlock threshold.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
