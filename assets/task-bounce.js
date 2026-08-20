@@ -26,10 +26,24 @@
   let _prev      = '';
   let _composing = false;
 
+  // Canvas used to measure text width on iOS Safari, which always reports
+  // input.scrollLeft = 0 regardless of actual scroll position.
+  const _canvas = document.createElement('canvas');
+  const _ctx    = _canvas.getContext('2d');
+
   // Translate mirrorContent to match the input's horizontal scroll offset so
   // the visible mirror window stays aligned with the caret position.
+  // Desktop: native scrollLeft (fast). iOS: canvas measurement fallback.
   function _syncScroll() {
-    mirrorContent.style.transform = 'translateX(-' + input.scrollLeft + 'px)';
+    let offset = input.scrollLeft;
+    if (!offset) {
+      _ctx.font  = getComputedStyle(input).font;
+      const cursor   = input.selectionEnd ?? input.value.length;
+      const textW    = _ctx.measureText(input.value.substring(0, cursor)).width;
+      const visibleW = input.clientWidth - 54; // 14px left-pad + 40px right-pad
+      offset = Math.max(0, textW - visibleW);
+    }
+    mirrorContent.style.transform = 'translateX(-' + offset + 'px)';
   }
 
   // ── Core sync ─────────────────────────────────────────────────────────────
