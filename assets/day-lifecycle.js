@@ -129,6 +129,8 @@ window._startDayLifecycle = (function() {
       _saveManual();
 
       // Clear only manual done IDs that graduated — today-checked IDs are kept
+      // BUG-082 diagnostic — remove after root cause confirmed
+      if (doneIds.size > 0) console.warn('[BUG-082] applyNewDayCleanup: clearing doneIds. lastVisit=', lastVisit, 'today=', today, 'doneIds.size=', doneIds.size, 'pastTasks.length=', pastTasks.length);
       for (const id of [...doneIds]) {
         if (id.startsWith('manual_') && !_checkedTodayIds.has(id)) doneIds.delete(id);
       }

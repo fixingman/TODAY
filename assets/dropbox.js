@@ -1451,6 +1451,8 @@
       }
       if (typeof window._reflectionMergeRemote === 'function' && window._reflectionMergeRemote(data)) _changed = true;
 
+      // BUG-082 diagnostic — remove after root cause confirmed
+      { const _pd = pastTasks.filter(t => doneIds.has(t.id)).length; if (_pd === 0 && pastTasks.length > 0) console.warn('[BUG-082] mergeRemoteData: pastDone=0 pastLen=', pastTasks.length, 'doneIds.size=', doneIds.size, 'manualLen=', manualTasks.length); }
       updateStats();
       return _changed;
     }
