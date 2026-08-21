@@ -5,6 +5,14 @@
 
 ---
 
+## Claude session conventions
+
+| Context | Use |
+|---------|-----|
+| Searching Coda | `/browse` skill — not raw WebFetch or grep |
+
+---
+
 ## ◎ North star (agreed Jun 2026)
 
 **Own the first 30 seconds of the day.** The morning is TODAY's signature beat — nudge (verdict 2026-07-18: kept, read every time), poem (#2), briefing (#7); everything else supports or follows. How intelligence and personalization serve this → `design/Personalization.md`.
@@ -15,9 +23,9 @@
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 2 | **Poem corpus growth** | Ongoing | Corpus 97, target ~100, three to go. Spring thinnest gap. A cut is final — detail ↓ |
-| 4 | **Push notifications — day boundaries only** | Not started | Evening triage + morning briefing only. Needs server infra — detail ↓ |
-| 6 | **Todoist integration** | Not started | Highest task-integration priority after Trello. ~1.5× Trello effort — `research/Integrations.md`. |
+| 2 | **Poem corpus — iterate** | Not started | 101 poems, target met. Next: audit rotation feel, not count — do poems feel varied or does the same one recur too soon? Detail ↓ |
+| 7 | **Season moments — solar term label** | Shipped v2.71.0 | Solar term label above evocative line; season owns full Noticed block. Detail ↓ |
+| 8 | **Noticed block — expand** | Not started | No problem now, but growth area. What else could TODAY notice that earns a line? Detail ↓ |
 
 **Awaiting device verification:** canonical list lives in `Rules.md` → Watch for.
 
@@ -29,7 +37,7 @@
 
 ## Details
 
-### 2 · Daily Poem Corpus Growth
+### 2 · Poem Corpus — Iterate
 **Process:** curation rounds in chat — Claude proposes verified candidates, Can cuts by number. Accepted poems land in `assets/poems.js`.
 
 **The brief:**
@@ -39,7 +47,7 @@
 > **PD check:** verify text verbatim against Wikisource / Gutenberg / archive.org — never from memory. Confirm death dates for author and translator.
 > **Search process:** search by named PD anthology or translator, not by theme or region (`"[name]" site:gutenberg.org OR site:en.wikisource.org OR site:archive.org`). Region is a tiebreaker only — when two candidates tie on quality, prefer the one from a country not yet represented.
 
-**Seasons:** W12 / Sp10 / Su11 / Au11 / year-round 53 — corpus 97, target ~100. Three to go; spring thinnest. Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cut.
+**Seasons:** W12 / Sp14 / Su11 / Au11 / year-round 53 — corpus 101, target met (2026-08-21). Next focus: rotation feel. Do poems feel varied day-to-day, or does the same one recur within a noticeable window? If recurrence is felt, the lever is shuffle algorithm (not more poems). New poems only if a season feels qualitatively thin, not for count. Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cut.
 
 **PD notes:** US-PD-only closed (v2.35.3) — worldwide PD is the bar. Five US-PD poems kept permanently (Frost ×3, Yang-ti, Po Chü-i 'After Lunch'). Future unlocks: Milne 2027 (taste caveat: canonical "cutesy"), cummings 2033, Frost/WCW worldwide 2034, Eliot 2036. China most-represented — country tiebreaker is a lean, not a wall.
 
@@ -76,7 +84,7 @@
 
 **Transcription engine bake-off — not started.** Evaluate Gemini (current) vs Whisper vs Deepgram on real recordings. Judge on: task-extraction quality, accuracy on non-Western names/accented speech, cost, latency. Run *after* a few real meetings exist to test against. Capture and extraction are separable layers — engine can be swapped later.
 
-**Granola integration path (researched 2026-08-03 — Can is on free plan, happy with capture).** Granola auto-detects meetings at OS level (PWA can't), outputs structured notes + action items. TODAY's role: task extraction from Granola's output. `get_meetings` (summaries + action items) is available free — enough without the transcript. **Integration MVP:** Granola MCP key in Connections → Netlify function calls `list_meetings` + `get_meetings` → AI extraction → task chips. Manual trigger: user finishes a meeting, opens TODAY, taps import. **Priority within meeting capture:** build Granola integration before investing further in native capture. (Todoist is the highest task-integration priority separately.)
+**Granola integration path (researched 2026-08-03 — Can is on free plan, happy with capture).** Granola auto-detects meetings at OS level (PWA can't), outputs structured notes + action items. TODAY's role: task extraction from Granola's output. `get_meetings` (summaries + action items) is available free — enough without the transcript. **Integration MVP:** Granola MCP key in Connections → Netlify function calls `list_meetings` + `get_meetings` → AI extraction → task chips. Manual trigger: user finishes a meeting, opens TODAY, taps import. **Priority within meeting capture:** build Granola integration before investing further in native capture. (Todoist rejected 2026-08-21 — no demonstrated need.)
 
 **Gate (unchanged):** extraction quality — are the chips what you'd have written down yourself?
 
@@ -100,6 +108,27 @@
 
 ## Decisions & boundaries *(reference — rarely changes)*
 
+### Season moments · Iteration spec
+**Verdict 2026-08-21:** iterate. The evocative line is right — don't touch it. The problem is the seasonal turning-point meaning didn't land from the line alone. Need a second layer that signals "something is changing in the season" without replacing the poem or becoming a calendar readout.
+
+**Constraint:** whatever is added must feel as light as the line itself. A label that explains too much kills the moment.
+
+**Open question:** what form should the second layer take? Options worth exploring:
+- A short framing word or phrase above the line — e.g. "end of summer" in a muted style, smaller than the line
+- The solar term name — e.g. "処暑 · End of Heat" (Japanese 24-term system these lines already follow)
+- A visual signal only — a subtle color shift, a different background tone, something ambient
+- Nothing textual — just surface it differently (full-bleed, centred, no task list context)
+
+**Decided 2026-08-21:**
+- Solar term label above the line: `処暑 · End of Heat` (muted, `week-label` style) + evocative line below it
+- Season moments get the full Noticed block when they appear — other Noticed lines are suppressed that day
+- Store as `{ term, line }` object instead of plain string; give season entries their own render path in the Noticed block
+
+### 8 · Noticed block — expand
+No problem with the current lines. Growth question: what else could TODAY notice that earns a line? Open for ideas — don't force it. Candidates must pass the Wallpaper Test before shipping: would this still feel right after 20 appearances?
+
+---
+
 ### Watching
 | Decision | Current | Watch for |
 |----------|---------|-----------|
@@ -113,7 +142,8 @@
 
 | Surface | Shipped | W3 due | Status |
 |---------|---------|--------|--------|
-| Season moments (24/year) | v2.60.0 | next appearance 2026-08-23 | Open — rarity is the escape, so judge per appearance rather than after 14 days. Next line: "Mornings have an edge to them now." Does it feel noticed or like a calendar readout? |
+| Season moments (24/year) | v2.60.0 | — | **Iterate (2026-08-21).** The line itself is right — don't change it. But the seasonal turning-point meaning didn't land from the line alone. Need a second layer that makes the transition explicit without replacing the evocative line. Detail ↓ |
+| Season moments — solar term label | v2.71.0 | 2026-09-05 | Open — does the `処暑 · End of Heat` label above the line make the seasonal turning-point land? Does it feel like context or noise after a few appearances? |
 | Focus companion question | v2.65.0 | 2026-08-31 | Improved: taxonomy-based system prompt, drag-word + letgo-reason signals, worked-today / last-worked-N-days, word cap 18→22. Re-observe after a week of sessions — does the question now feel like a moment of clarity rather than a check-in? |
 | About contextual CTAs | v2.64.10 | 2026-08-25 | Open — Focus Copy, `see more`, and poem `share` now share the bordered CTA treatment. Does the border make the actions clearer without pulling attention from the week/poem content? |
 | Connections privacy reassurance | v2.64.11 | 2026-08-26 | Open — one appearance per device when fully disconnected. Does it feel like timely reassurance, or like policy copy interrupting setup? |
@@ -135,7 +165,9 @@
 | Microsoft Notes integration | No clear user need. |
 | Momentum integration | No public API; ICS is inbound-only. |
 | Calendar integration (as agenda) | Rejected as a *displayed* surface. Calendar-triggered capture in #9 reads it as INPUT only — never rendered back. Not as an agenda/time-blocker; that's planner drift. |
-| Slack / Gmail / stream extraction | Wrong trust model + needs server-side token storage (breaks client-only posture) + renders other people's demands into the calm list. Task-unit integrations (Trello, Todoist #6) remain the open lane. |
+| Slack / Gmail / stream extraction | Wrong trust model + needs server-side token storage (breaks client-only posture) + renders other people's demands into the calm list. |
+| Todoist integration | **Rejected 2026-08-21.** Trello machinery exists — that's not a reason. No demonstrated need for a second task-integration lane. Do not re-propose. |
+| Push notifications | **Rejected 2026-08-21.** No demonstrated need — never felt the absence. Needs server infra with no validated payoff. Do not re-propose. |
 | In-app analytics / session replay (including Umami Cloud) | **Rejected 2026-08-11.** TODAY promises no observation, not merely cookie-free analytics. A tracker creates observer-owned sessions and can expose Dropbox query codes or Trello hash tokens from OAuth callbacks. If acquisition analytics is ever useful, keep it on a separate public landing surface. Explicit opt-in, content-free aggregate diagnostics is the only in-app lane. |
 
 ### Rejected approaches

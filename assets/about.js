@@ -408,17 +408,33 @@
         const _nKey = 'noticed_lines_' + _today;
         const _prior = safeJSON(_nKey, []);
         const _fresh = _noticedLines(); // can't duplicate prior — show-once bookkeeping
-        const _all = _prior.concat(_fresh).slice(0, 2);
-        if (_fresh.length) {
+        const _isSeason = e => e && typeof e === 'object' && e._season;
+        let _all;
+        if (_prior.some(_isSeason)) {
+          // Season already shown today — preserve it, suppress any new fresh lines
+          _all = _prior.filter(_isSeason);
+        } else if (_fresh.some(_isSeason)) {
+          // Season fires now — it owns the full block; ignore prior + other fresh lines
+          _all = _fresh.filter(_isSeason);
           _pruneLS('noticed_lines_', _nKey);
           localStorage.setItem(_nKey, JSON.stringify(_all));
+        } else {
+          _all = _prior.concat(_fresh).slice(0, 2);
+          if (_fresh.length) {
+            _pruneLS('noticed_lines_', _nKey);
+            localStorage.setItem(_nKey, JSON.stringify(_all));
+          }
         }
         if (_all.length) {
           const _noticedWasHidden = _noticedEl.style.display === 'none';
           _noticedEl.innerHTML = '<div class="week-label">Noticed</div>' +
-            _all.map((l, i) =>
-              '<div class="week-summary' + (i >= _prior.length ? ' _nudge-fresh' : '') + '">' + esc(l) + '</div>'
-            ).join('');
+            _all.map((l, i) => {
+              const _cls = '"week-summary' + (i >= _prior.length ? ' _nudge-fresh' : '') + '"';
+              if (_isSeason(l)) {
+                return '<div class=' + _cls + '><span class="noticed-term">' + esc(l.term) + '</span>' + esc(l.line) + '</div>';
+              }
+              return '<div class=' + _cls + '>' + esc(l) + '</div>';
+            }).join('');
           _nudgeBlockShow(_noticedEl, _nudgeStagger++ * 60);
           // Fresh lines inside an already-visible block: animate just those spans.
           if (_fresh.length && !_noticedWasHidden) {

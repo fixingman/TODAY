@@ -4,6 +4,8 @@
 
 | Version | Key change |
 |---|---|
+| **2.71.0** | **Season moments: solar term label.** `_noticedLines()` now returns `{ _season: true, term, line }` objects instead of plain strings when a sekki fires; `about.js` renders the Japanese solar term name (e.g. `処暑 · End of Heat`) above the evocative line in a muted `week-label` style via `.noticed-term`. Season moments suppress all other Noticed lines for that day — `about.js` early-returns the season entry when detected in `_prior` or `_fresh`. SEASON_MOMENTS map changed from `{ 'MM-DD': string }` to `{ 'MM-DD': { term, line } }` for all 24 sekki. |
+| **2.70.1** | **UX: reflection feelings updated.** "Steady" renamed to "present"; "off" added. Mood buttons show surface background color. |
 | **2.70.0** | **Poems: four new spring tanka from the Hyakunin Isshu** — Ki no Tomonori (33), Ki no Tsurayuki (35), Ise no Taifu (61), Ōe no Masafusa (73), all via William N. Porter (1909). Corpus now 101 poems. |
 | **2.69.12** | **Fix: confetti canvas uses `100dvh` instead of `100vh`** so the burst aligns with the checkbox on iOS (where `100vh` overflows behind the status bar). |
 | **2.69.11** | **UX: post-triage panel flush + mood grid.** Panel scrolls to bottom after triage; mood buttons 2-col grid with 12px/12px sizing. |
