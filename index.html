@@ -4162,14 +4162,14 @@
   <div class="voice-pill-dot" aria-hidden="true"></div>
   <span class="voice-pill-time" id="voicePillTime" role="timer">0:00</span>
   <span class="voice-pill-cap" id="voicePillCap"></span>
-  <button class="voice-pill-stop" type="button" onclick="_voiceNoteStop()">Stop recording</button>
+  <button class="voice-pill-stop" type="button" onclick="_voiceNoteStop()">Stop</button>
 </div>
 
 <!-- Meeting mode: non-blocking listening pill (v2.22.0) -->
 <div id="meetingPill" role="status" aria-label="Meeting recording" hidden aria-hidden="true">
   <div class="meeting-pill-dot" aria-hidden="true"></div>
   <span class="meeting-pill-time" id="meetingPillTime" role="timer">00:00</span>
-  <button class="meeting-pill-stop" type="button" onclick="_meetingStop()">Stop recording</button>
+  <button class="meeting-pill-stop" type="button" onclick="_meetingStop()">Stop</button>
 </div>
 
 <!-- Meeting mode: first-use name prompt — shown when no name is set and mic is tapped -->
@@ -4279,9 +4279,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.71.2': 'UX: recording stop button now reads "Stop" instead of "Stop recording".',
   '2.71.1': 'fix: Noticed AI insight no longer combines timing stats into a contradictory same-day claim (e.g. "finish at noon before adding after 2pm").',
   '2.71.0': 'Season moments: solar term label (e.g. 処暑 · End of Heat) now appears above the evocative line in the Noticed block, and season moments own the full block when they appear.',
-  '2.70.1': 'UX: reflection feelings updated (steady → present, added off); mood buttons show surface background.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
