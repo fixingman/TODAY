@@ -257,6 +257,45 @@
       _meetingStart();
     }
 
+    function _micGlow(stream, pillEl) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx || !pillEl) return { stop() {} };
+      const ctx = new Ctx();
+      const src = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.5;
+      src.connect(analyser);
+      const buf = new Uint8Array(analyser.frequencyBinCount);
+      let raf, glow = 0, active = true;
+
+      function tick() {
+        if (!active) return;
+        raf = requestAnimationFrame(tick);
+        analyser.getByteTimeDomainData(buf);
+        let sum = 0;
+        for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+        const rms = Math.sqrt(sum / buf.length);
+        const target = Math.min(rms * 5, 1);
+        glow += (target - glow) * (target > glow ? 0.35 : 0.06);
+        const spread = (glow * 7).toFixed(1);
+        const alpha = (glow * 0.5).toFixed(2);
+        pillEl.style.boxShadow = '0 0 0 ' + spread + 'px rgba(255,95,95,' + alpha + ')';
+      }
+      raf = requestAnimationFrame(tick);
+
+      return {
+        stop() {
+          active = false;
+          cancelAnimationFrame(raf);
+          ctx.close().catch(() => {});
+          pillEl.style.transition = 'box-shadow 0.4s ease';
+          pillEl.style.boxShadow = '';
+          setTimeout(() => { pillEl.style.transition = ''; }, 400);
+        }
+      };
+    }
+
     async function _meetingStart() {
       // _meetingStarting covers the getUserMedia await window where _mtg is still null —
       // without it a second tap opens a parallel stream that is never released.
@@ -304,6 +343,7 @@
         // Store the animation handle so _meetingTeardown can cancel it — the pill element
         // is reused across sessions and _breathe stacks a new animation each call otherwise.
         _mtg.dotAnim = _breathe(pill.querySelector('.meeting-pill-dot'), _KF_BREATHE_SMALL, 2400);
+        _mtg.glowAnim = _micGlow(stream, pill);
       }
 
       // Wall-clock elapsed — immune to background-tab interval throttling
@@ -481,6 +521,7 @@
       _mtg.wakeLock?.release().catch(() => {});
       _mtg.wakeLock = null;
       if (_mtg.recorder && _mtg.recorder.state === 'recording') _mtg.recorder.stop(); // flushes final chunk via onstop
+      _mtg.glowAnim?.stop();
       _mtg.stream.getTracks().forEach(t => t.stop());
 
       document.getElementById('meetingBtn')?.classList.remove('live');
@@ -725,7 +766,7 @@
         if (remaining <= 0) { _voiceNoteStop(); }
       }, 1000);
 
-      _vn = { recorder, timerId, mimeType };
+      _vn = { recorder, timerId, mimeType, glowAnim: null };
 
       const pill = document.getElementById('voicePill');
       if (pill) {
@@ -737,6 +778,7 @@
         if (capEl) { capEl.textContent = ''; capEl.classList.remove('visible'); }
         pill.classList.add('show');
         requestAnimationFrame(() => pill.classList.add('visible'));
+        _vn.glowAnim = _micGlow(stream, pill);
       }
       document.getElementById('voiceNoteBtn')?.classList.add('live');
       const voiceBtn = document.getElementById('voiceNoteBtn');
@@ -745,6 +787,7 @@
 
     function _voiceNoteStop() {
       if (!_vn) return;
+      _vn.glowAnim?.stop();
       clearInterval(_vn.timerId);
       _vn.recorder.stop();
       // Pill hide + state clear happen in the 'stop' event handler
