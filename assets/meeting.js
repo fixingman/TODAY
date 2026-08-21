@@ -257,9 +257,10 @@
       _meetingStart();
     }
 
-    function _micGlow(stream, pillEl) {
+    function _micGlow(stream, targets) {
+      const els = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
       const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx || !pillEl) return { stop() {} };
+      if (!Ctx || !els.length) return { stop() {} };
       const ctx = new Ctx();
       const src = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
@@ -278,9 +279,8 @@
         const rms = Math.sqrt(sum / buf.length);
         const target = Math.min(rms * 5, 1);
         glow += (target - glow) * (target > glow ? 0.35 : 0.06);
-        const spread = (glow * 7).toFixed(1);
-        const alpha = (glow * 0.5).toFixed(2);
-        pillEl.style.boxShadow = '0 0 0 ' + spread + 'px rgba(255,95,95,' + alpha + ')';
+        const shadow = '0 0 0 ' + (glow * 7).toFixed(1) + 'px rgba(255,95,95,' + (glow * 0.5).toFixed(2) + ')';
+        els.forEach(el => { el.style.boxShadow = shadow; });
       }
       raf = requestAnimationFrame(tick);
 
@@ -289,9 +289,11 @@
           active = false;
           cancelAnimationFrame(raf);
           ctx.close().catch(() => {});
-          pillEl.style.transition = 'box-shadow 0.4s ease';
-          pillEl.style.boxShadow = '';
-          setTimeout(() => { pillEl.style.transition = ''; }, 400);
+          els.forEach(el => {
+            el.style.transition = 'box-shadow 0.4s ease';
+            el.style.boxShadow = '';
+            setTimeout(() => { el.style.transition = ''; }, 400);
+          });
         }
       };
     }
@@ -343,7 +345,7 @@
         // Store the animation handle so _meetingTeardown can cancel it — the pill element
         // is reused across sessions and _breathe stacks a new animation each call otherwise.
         _mtg.dotAnim = _breathe(pill.querySelector('.meeting-pill-dot'), _KF_BREATHE_SMALL, 2400);
-        _mtg.glowAnim = _micGlow(stream, pill);
+        _mtg.glowAnim = _micGlow(stream, [pill, document.getElementById('meetingBtn')]);
       }
 
       // Wall-clock elapsed — immune to background-tab interval throttling
