@@ -261,14 +261,28 @@
       const els = (Array.isArray(targets) ? targets : [targets]).filter(Boolean);
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx || !els.length) return { stop() {} };
-      const ctx = new Ctx();
-      const src = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
+
+      // Inject a canvas per target — radiating lines drawn outside the element
+      const canvases = els.map(el => {
+        const pad = 24; // canvas extends this far beyond the element edge
+        const c = document.createElement('canvas');
+        c.style.cssText = 'position:absolute;pointer-events:none;z-index:0;inset:0;' +
+          'margin:auto;overflow:visible;border-radius:inherit;';
+        el.style.overflow = 'visible';
+        if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+        el.appendChild(c);
+        return { c, el, pad };
+      });
+
+      const audioCtx = new Ctx();
+      const src = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.5;
+      analyser.smoothingTimeConstant = 0.3;
       src.connect(analyser);
       const buf = new Uint8Array(analyser.frequencyBinCount);
       let raf, glow = 0, active = true;
+      const LINES = 6;
 
       function tick() {
         if (!active) return;
@@ -277,10 +291,38 @@
         let sum = 0;
         for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
         const rms = Math.sqrt(sum / buf.length);
-        const target = Math.min(rms * 5, 1);
-        glow += (target - glow) * (target > glow ? 0.35 : 0.06);
-        const shadow = '0 0 0 ' + (glow * 7).toFixed(1) + 'px rgba(255,95,95,' + (glow * 0.5).toFixed(2) + ')';
-        els.forEach(el => { el.style.boxShadow = shadow; });
+        // Power curve: lifts quiet speech (rms ~0.03-0.07) into visible range
+        const target = Math.min(Math.pow(rms * 14, 0.6), 1);
+        glow += (target - glow) * (target > glow ? 0.45 : 0.07);
+        if (glow < 0.005) { canvases.forEach(({ c }) => c.getContext('2d').clearRect(0, 0, c.width, c.height)); return; }
+
+        canvases.forEach(({ c, el, pad }) => {
+          const w = el.offsetWidth + pad * 2;
+          const h = el.offsetHeight + pad * 2;
+          if (c.width !== w || c.height !== h) {
+            c.width = w; c.height = h;
+            c.style.width = w + 'px'; c.style.height = h + 'px';
+            c.style.left = -pad + 'px'; c.style.top = -pad + 'px';
+            c.style.position = 'absolute';
+          }
+          const g2 = c.getContext('2d');
+          g2.clearRect(0, 0, w, h);
+          const cx = w / 2, cy = h / 2;
+          // Inner radius just outside the element border
+          const ir = Math.min(el.offsetWidth, el.offsetHeight) / 2 + 3;
+          const lineLen = glow * 11; // max ~11px
+          g2.lineWidth = 1.5;
+          g2.lineCap = 'round';
+          for (let i = 0; i < LINES; i++) {
+            const angle = (i / LINES) * Math.PI * 2 - Math.PI / 2;
+            const fade = 0.75 + 0.25 * Math.sin(angle * 2); // subtle variation
+            g2.strokeStyle = 'rgba(200,240,96,' + (glow * 0.85 * fade).toFixed(2) + ')';
+            g2.beginPath();
+            g2.moveTo(cx + Math.cos(angle) * ir, cy + Math.sin(angle) * ir);
+            g2.lineTo(cx + Math.cos(angle) * (ir + lineLen), cy + Math.sin(angle) * (ir + lineLen));
+            g2.stroke();
+          }
+        });
       }
       raf = requestAnimationFrame(tick);
 
@@ -288,11 +330,11 @@
         stop() {
           active = false;
           cancelAnimationFrame(raf);
-          ctx.close().catch(() => {});
-          els.forEach(el => {
-            el.style.transition = 'box-shadow 0.4s ease';
-            el.style.boxShadow = '';
-            setTimeout(() => { el.style.transition = ''; }, 400);
+          audioCtx.close().catch(() => {});
+          canvases.forEach(({ c }) => {
+            let op = 1;
+            const fade = () => { op -= 0.08; c.style.opacity = op; if (op > 0) requestAnimationFrame(fade); else c.remove(); };
+            requestAnimationFrame(fade);
           });
         }
       };
