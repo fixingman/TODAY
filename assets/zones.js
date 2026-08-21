@@ -237,9 +237,30 @@
       card.querySelector('.task-body').appendChild(row);
     }
 
+    function _reviveDiag(label) {
+      // BUG-??? black screen diagnostic — remove after root cause confirmed
+      const tov = document.getElementById('triageOverlay');
+      const mov = document.getElementById('meetingOverlay');
+      const mai = document.getElementById('main-app');
+      const atb = document.getElementById('addTaskBar');
+      console.log('[REVIVE-DIAG]', label, {
+        triageOverlayClasses: tov ? [...tov.classList].join(' ') : 'missing',
+        triageOverlayHidden: tov ? tov.hidden : 'missing',
+        meetingOverlayClasses: mov ? [...mov.classList].join(' ') : 'missing',
+        meetingOverlayHidden: mov ? mov.hidden : 'missing',
+        mainAppInert: mai ? mai.inert : 'missing',
+        mainAppOpacity: mai ? mai.style.opacity : 'missing',
+        addTaskBarInert: atb ? atb.inert : 'missing',
+        soonLen: soonTasks.length,
+        pastLen: pastTasks.length,
+      });
+    }
+
     function reviveFromPast(id, reason = '') {
       const task = pastTasks.find(t => t.id === id);
       if (!task || task.status === 'done') return;
+
+      _reviveDiag('before');
 
       pastTasks = pastTasks.filter(t => t.id !== id);
       _savePast();
@@ -254,11 +275,13 @@
       soonTasks.unshift(task);
       _saveSoon();
 
-      renderPast();
-      renderSoon();
+      try { renderPast(); } catch(e) { console.error('[REVIVE-DIAG] renderPast threw:', e); }
+      try { renderSoon(); } catch(e) { console.error('[REVIVE-DIAG] renderSoon threw:', e); }
       updateStats();
       _haptic('light');
       if (typeof _memoryOnRevive === 'function') _memoryOnRevive(task.text, reason);
+
+      _reviveDiag('after');
 
       const token = localStorage.getItem('dropbox_token');
       if (token) dropboxBackup(true);
