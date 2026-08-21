@@ -625,6 +625,34 @@ const POEMS = [
     source: "The Moral Sayings of Publius Syrus, A Roman Slave, trans. Darius Lyman (1856), maxims 499–500, Wikisource (Lyman d. 1884 — PD worldwide) — verified verbatim",
   },
 
+  // ── Round 25 (Aug 2026) — Hyakunin Isshu (trans. William N. Porter, 1909) ──
+  // Four tanka on spring blossoms. Porter d. 1917; all poets d. pre-1200 — PD worldwide.
+  // Verified verbatim from Wikisource: A_Hundred_Verses_from_Old_Japan/Poem_N
+  {
+    text: 'The spring has come, and once again\nThe sun shines in the sky;\nSo gently smile the heavens, that\nIt almost makes me cry,\nWhen blossoms droop and die.',
+    author: 'Ki no Tomonori',
+    season: 'spring',
+    source: "Hyakunin Isshu 33, A Hundred Verses from Old Japan, trans. William N. Porter (1909) — verified Wikisource (Porter d. 1917, Ki no Tomonori d. c. 905)",
+  },
+  {
+    text: 'The village of my youth is gone,\nNew faces meet my gaze;\nBut still the blossoms at thy gate,\nWhose perfume scents the ways,\nRecall my childhood\'s days.',
+    author: 'Ki no Tsurayuki',
+    season: 'spring',
+    source: "Hyakunin Isshu 35, A Hundred Verses from Old Japan, trans. William N. Porter (1909) — verified Wikisource (Porter d. 1917, Ki no Tsurayuki d. 946)",
+  },
+  {
+    text: 'The double cherry trees, which grew\nAt Nara in past days,\nNow beautify this Palace, and\nTheir blossoms all ablaze\nPerfume the royal ways.',
+    author: 'Ise no Taifu',
+    season: 'spring',
+    source: "Hyakunin Isshu 61, A Hundred Verses from Old Japan, trans. William N. Porter (1909) — verified Wikisource (Porter d. 1917, Ise no Taifu fl. c. 1000)",
+  },
+  {
+    text: 'The cherry trees are blossoming\nOn Takasago\'s height;\nOh may no mountain mist arise,\nNo clouds so soft and white,\nTo hide them from our sight.',
+    author: 'Ōe no Masafusa',
+    season: 'spring',
+    source: "Hyakunin Isshu 73, A Hundred Verses from Old Japan, trans. William N. Porter (1909) — verified Wikisource (Porter d. 1917, Ōe no Masafusa d. 1111)",
+  },
+
   // ── Round 23 (Jul 2026) — Sara Teasdale, Stars To-night ──────────────────
   {
     text: 'Stars over snow,\nAnd in the west a planet\nSwinging below a star—\nLook for a lovely thing and you will find it,\nIt is not far—\nIt never will be far.',
