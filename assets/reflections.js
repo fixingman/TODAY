@@ -7,7 +7,7 @@
     if (started) return;
     started = true;
 
-    const VALID_FEELINGS  = ['drained', 'tense', 'steady', 'calm', 'alive'];
+    const VALID_FEELINGS  = ['drained', 'tense', 'present', 'off', 'calm', 'alive'];
     const POLICY_KEY      = 'today_reflection_policy';
     const DATA_KEY        = 'today_reflections';
     const CLEARED_KEY     = 'today_reflections_cleared_at';

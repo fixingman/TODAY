@@ -1505,7 +1505,7 @@
     padding: var(--space-3) var(--space-3);
     border-radius: var(--radius-full);
     border: 1px solid var(--border);
-    background: transparent;
+    background: var(--surface);
     color: var(--muted);
     cursor: pointer;
     transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
@@ -4278,9 +4278,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.70.1': 'UX: reflection feelings updated (steady → present, added off); mood buttons show surface background.',
   '2.70.0': 'Poems: four new spring tanka from the Hyakunin Isshu (Ki no Tomonori, Ki no Tsurayuki, Ise no Taifu, Ōe no Masafusa), bringing the corpus to 101 poems.',
   '2.69.12': 'fix: confetti burst now aligns with checkbox on iOS — canvas height uses dvh to match visual viewport.',
-  '2.69.11': 'UX: post-triage panel flushes to bottom edge; mood buttons larger (12px, 2-col grid, 12px padding).',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
