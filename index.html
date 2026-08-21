@@ -3337,7 +3337,7 @@
     pointer-events: none;
     z-index: var(--z-overlay);
     width: 100vw;
-    height: 100vh;
+    height: 100dvh;
   }
 
   /* ── Component: Habits Panel ───────────────────────────────────────── */
@@ -4278,9 +4278,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.69.12': 'fix: confetti burst now aligns with checkbox on iOS — canvas height uses dvh to match visual viewport.',
   '2.69.11': 'UX: post-triage panel flushes to bottom edge; mood buttons larger (12px, 2-col grid, 12px padding).',
   '2.69.10': 'fix: task count under logo no longer shows done > total after triage (pastDone included in total).',
-  '2.69.9': 'fix: Soon and Past zones load collapsed by default; re-renders no longer force them open.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
