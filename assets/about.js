@@ -564,9 +564,10 @@
             provider: _aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content:
-              'Behavioral data:\n' + behavioralLines.join('\n') + '\n\n' +
+              'Behavioral data (all stats are independent daily averages — timing patterns are not same-day pairs):\n' + behavioralLines.join('\n') + '\n\n' +
               'Name one genuine pattern about WHEN or HOW this person works — timing, rhythm, focus sessions, habits, completion rate. ' +
               'Do NOT describe what tasks they worked on — that\'s covered elsewhere. ' +
+              'Do NOT combine two timing stats into a same-day cause-effect claim — each is an independent aggregate. ' +
               'Ground it only in the numbers above, never invent. ' +
               'If nothing genuine stands out, reply with exactly: none.' }],
             systemPrompt: 'One sentence only, under 20 words. No quotes. Plain, observational, specific to their rhythm — not task content.',
