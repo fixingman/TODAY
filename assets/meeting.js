@@ -284,9 +284,9 @@
         const target = Math.min(Math.pow(rms * 14, 0.6), 1);
         glow += (target - glow) * (target > glow ? 0.45 : 0.07);
         const a1 = (glow * 0.9 ).toFixed(2); // inner ring
-        const a2 = (glow * 0.5 ).toFixed(2); // middle ring
-        const a3 = (glow * 0.2 ).toFixed(2); // outer ring
-        const ag = (glow * 0.18).toFixed(2); // soft ambient glow
+        const a2 = (glow * 0.22).toFixed(2); // middle ring — subtle
+        const a3 = (glow * 0.09).toFixed(2); // outer ring — very faint
+        const ag = (glow * 0.08).toFixed(2); // soft ambient glow
         // Three crisp rings separated by bg-coloured gap layers, plus a soft glow behind them.
         // The gap layers (drawn front-to-back in CSS) occlude the fill between rings,
         // making each accent layer appear as a thin line rather than a filled blob.
@@ -363,7 +363,7 @@
         // Store the animation handle so _meetingTeardown can cancel it — the pill element
         // is reused across sessions and _breathe stacks a new animation each call otherwise.
         _mtg.dotAnim = _breathe(pill.querySelector('.meeting-pill-dot'), _KF_BREATHE_SMALL, 2400);
-        _mtg.glowAnim = _micGlow(stream, [pill, document.getElementById('meetingBtn')]);
+        _mtg.glowAnim = _micGlow(stream, pill);
       }
 
       // Wall-clock elapsed — immune to background-tab interval throttling
