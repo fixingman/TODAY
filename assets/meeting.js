@@ -270,6 +270,9 @@
       const buf = new Uint8Array(analyser.frequencyBinCount);
       let raf, glow = 0, active = true;
 
+      // Page background used as gap-masking layer between rings
+      const bg = getComputedStyle(document.body).backgroundColor;
+
       function tick() {
         if (!active) return;
         raf = requestAnimationFrame(tick);
@@ -280,14 +283,21 @@
         // Power curve: quiet speech (rms ~0.03-0.07) maps to visible range
         const target = Math.min(Math.pow(rms * 14, 0.6), 1);
         glow += (target - glow) * (target > glow ? 0.45 : 0.07);
-        // Thin crisp ring: spread stays small (1.5–4px) so it reads as a line, not a blob.
-        // A second faint ring sits a few px further out for depth.
-        const s1 = (1.5 + glow * 2.5).toFixed(1);
-        const s2 = (5   + glow * 5  ).toFixed(1);
-        const a1 = (glow * 0.9 ).toFixed(2);
-        const a2 = (glow * 0.22).toFixed(2);
-        const shadow = '0 0 0 ' + s1 + 'px rgba(200,240,96,' + a1 + '),' +
-                       '0 0 0 ' + s2 + 'px rgba(200,240,96,' + a2 + ')';
+        const a1 = (glow * 0.9 ).toFixed(2); // inner ring
+        const a2 = (glow * 0.5 ).toFixed(2); // middle ring
+        const a3 = (glow * 0.2 ).toFixed(2); // outer ring
+        const ag = (glow * 0.18).toFixed(2); // soft ambient glow
+        // Three crisp rings separated by bg-coloured gap layers, plus a soft glow behind them.
+        // The gap layers (drawn front-to-back in CSS) occlude the fill between rings,
+        // making each accent layer appear as a thin line rather than a filled blob.
+        const shadow = [
+          '0 0 0 3px rgba(200,240,96,' + a1 + ')',    // ring 1 — tight to border
+          '0 0 0 6px ' + bg,                            // gap
+          '0 0 0 8px rgba(200,240,96,' + a2 + ')',    // ring 2
+          '0 0 0 12px ' + bg,                           // gap
+          '0 0 0 14px rgba(200,240,96,' + a3 + ')',   // ring 3
+          '0 0 14px 2px rgba(200,240,96,' + ag + ')', // soft ambient glow
+        ].join(', ');
         els.forEach(el => { el.style.boxShadow = shadow; });
       }
       raf = requestAnimationFrame(tick);
