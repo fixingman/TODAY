@@ -2977,7 +2977,10 @@
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
     transition: background var(--dur-fast);
+  }
+  #undoEditBtn {
     margin-left: auto;
+    color: var(--muted);
   }
   #undoToast .undo-main button:hover {
     background: var(--accent-dim);
@@ -4219,6 +4222,7 @@
 <div id="undoToast" role="region" aria-label="Undo removal" hidden aria-hidden="true">
   <div class="undo-main">
     <span id="undoMsg" role="status" aria-live="polite">Task removed</span>
+    <button id="undoEditBtn" type="button" onclick="_editFromToast()" hidden>Edit</button>
     <button type="button" onclick="_undoLast()">Undo</button>
   </div>
   <div id="undoReasonRow" class="triage-reason-row" style="display:none"></div>
@@ -4272,16 +4276,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '275h';
+const DEV_HOURS     = '276h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.71.7': 'UX: mic glow rings apply only to the recording pill; outer rings are more transparent for a subtle halo effect.',
-  '2.71.5': 'UX: mic ring is now a thin crisp accent line (not a blob) that brightens and dims with voice in real time.',
-  '2.71.4': 'UX: mic glow now applies to both the recording pill (mobile) and the mic button (desktop).',
+  '2.71.10': 'UX: Edit button in delete toast — recover task text into the input bar for quick re-editing.',
+  '2.71.9': 'Fix: completion rate stat now uses per-day task-add counts; existing history migrated from cumulative totals to daily deltas.',
+  '2.71.8': 'Fix: checkmark confetti now stays aligned with the checkbox on mobile.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

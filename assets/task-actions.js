@@ -304,6 +304,14 @@ window._startTaskActions = (function() {
       toggleClearBtn();
     }
 
+    function _editFromToast() {
+      const text = _pendingDeleteText;
+      _hideUndoToast();
+      if (!text) return;
+      const input = document.getElementById('newTask');
+      if (input) { input.value = text; input.focus(); }
+    }
+
     function _recordDeleteReason(reason, btn) {
       if (_pendingDeleteText) {
         _memoryOnTaskLetgo(_pendingDeleteText, reason);
@@ -345,6 +353,8 @@ window._startTaskActions = (function() {
         reasonRow.innerHTML = '';
         _pendingDeleteText = '';
       }
+      const editBtn = document.getElementById('undoEditBtn');
+      if (editBtn) editBtn.hidden = (type !== 'task');
       toast.classList.add('show');
       toast.hidden = false;
       toast.setAttribute('aria-hidden', 'false');
