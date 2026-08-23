@@ -272,7 +272,7 @@
       const metaItems = [];
       if (m.firstSeen) {
         const _calDays = Math.round((Date.now() - new Date(m.firstSeen + 'T12:00:00').getTime()) / 86400000);
-        const _activeDays = m.totalDaysActive || 0;
+        const _activeDays = Math.min(m.totalDaysActive || 0, _calDays);
         const _dayStr = _activeDays > 0 && _calDays > 0
           ? `active on ${_activeDays} of ${_calDays} day${_calDays === 1 ? '' : 's'}`
           : `${_calDays} day${_calDays === 1 ? '' : 's'} of data`;

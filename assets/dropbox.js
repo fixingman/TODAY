@@ -723,6 +723,10 @@
       appMemory.patterns.bestStreak        = Math.max(appMemory.patterns.bestStreak,        remote.patterns?.bestStreak        || 0);
       appMemory.totalTasksCompleted = Math.max(appMemory.totalTasksCompleted, remote.totalTasksCompleted || 0);
       appMemory.totalDaysActive     = Math.max(appMemory.totalDaysActive,     remote.totalDaysActive     || 0);
+      // Keep the earliest firstSeen across devices — new-device init sets today, Dropbox had the real date
+      if (remote.firstSeen && (!appMemory.firstSeen || remote.firstSeen < appMemory.firstSeen)) {
+        appMemory.firstSeen = remote.firstSeen;
+      }
       if (remote.meetingAttribution) {
         const ma = appMemory.meetingAttribution, rma = remote.meetingAttribution;
         ma.mineShown      = Math.max(ma.mineShown,      rma.mineShown      || 0);
