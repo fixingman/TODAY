@@ -89,6 +89,13 @@ if (!appMemory.suggestionHistory)      appMemory.suggestionHistory = [];
 if (!appMemory.recentConversations)    appMemory.recentConversations = [];
 if (!appMemory.recentCompletedTasks)   appMemory.recentCompletedTasks = [];
 if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
+// Migrate plain-number entries to {h, date} objects — old format had no date
+if (appMemory.patterns.lateAdditions.some(e => typeof e === 'number')) {
+  appMemory.patterns.lateAdditions = appMemory.patterns.lateAdditions.map(e =>
+    typeof e === 'number' ? { h: e, date: '' } : e
+  );
+  localStorage.setItem('today_memory', JSON.stringify(appMemory));
+}
 if (!appMemory.patterns.taskLifespanSamples) appMemory.patterns.taskLifespanSamples = [];
 if (!appMemory.patterns.letgoReasons)   appMemory.patterns.letgoReasons = {};
 if (appMemory.patterns.triageUndos === undefined) appMemory.patterns.triageUndos = 0;
@@ -362,8 +369,9 @@ function _memoryForAI(scope) {
   // Late-addition pattern — when tasks tend to get added reactively
   const lateAdds = m.patterns.lateAdditions || [];
   if (lateAdds.length >= 10) {
-    const avgHour = Math.round(lateAdds.reduce((a, b) => a + b, 0) / lateAdds.length);
-    const latePct = Math.round(lateAdds.filter(h => h >= 14).length / lateAdds.length * 100);
+    const _lh = e => typeof e === 'object' ? e.h : e;
+    const avgHour = Math.round(lateAdds.reduce((s, e) => s + _lh(e), 0) / lateAdds.length);
+    const latePct = Math.round(lateAdds.filter(e => _lh(e) >= 14).length / lateAdds.length * 100);
     if (latePct >= 40) {
       const period = avgHour < 12 ? 'morning' : avgHour < 17 ? 'afternoon' : 'evening';
       lines.push(`You tend to add tasks in the ${period} (${latePct}% after 2pm).`);

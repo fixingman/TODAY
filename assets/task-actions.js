@@ -233,8 +233,7 @@ window._startTaskActions = (function() {
         appMemory.patterns.tasksAddedToday = (appMemory.patterns.tasksAddedToday || 0) + 1;
         if (addHour >= 8) {
           if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
-          appMemory.patterns.lateAdditions.push(addHour);
-          // Keep last 50 additions only
+          appMemory.patterns.lateAdditions.push({ h: addHour, date: _localISO() });
           if (appMemory.patterns.lateAdditions.length > 50) {
             appMemory.patterns.lateAdditions = appMemory.patterns.lateAdditions.slice(-50);
           }

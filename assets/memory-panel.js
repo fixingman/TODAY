@@ -204,7 +204,8 @@
       const dayStart = m.patterns?.dayStartCount;
       if (lateAdds.length >= 5 && dayStart !== null && dayStart !== undefined) {
         const recentLate = lateAdds.slice(-20);
-        const _latePct = recentLate.filter(h => h >= 14).length / recentLate.length;
+        const _lh = e => typeof e === 'object' ? e.h : e;
+        const _latePct = recentLate.filter(e => _lh(e) >= 14).length / recentLate.length;
         if (_latePct >= 0.40) {
           proceduralItems.push({ text: `tends to add tasks reactively — most additions happen after the day starts` });
         } else {
@@ -398,8 +399,9 @@
           ? (lifespanSamples.reduce((a, b) => a + b, 0) / lifespanSamples.length).toFixed(1) : null;
 
         const lateAdds = m.patterns?.lateAdditions || [];
+        const _lhAbs = e => typeof e === 'object' ? e.h : e;
         const lateAddPct = lateAdds.length >= 5
-          ? Math.round(lateAdds.filter(h => h >= 14).length / lateAdds.length * 100) : null;
+          ? Math.round(lateAdds.filter(e => _lhAbs(e) >= 14).length / lateAdds.length * 100) : null;
 
         const topKeywords = Object.entries(m.patterns?.taskKeywords || {})
           .filter(([w, d]) => d.completed >= 2 && w.length > 3)

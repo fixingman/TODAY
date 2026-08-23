@@ -804,7 +804,17 @@
         }
         const _localLate  = appMemory.patterns.lateAdditions || [];
         const _remoteLate = remote.patterns.lateAdditions    || [];
-        appMemory.patterns.lateAdditions = (_localLate.length >= _remoteLate.length ? _localLate : _remoteLate).slice(-50);
+        // Union by date:h — preserves entries from both devices; old plain-number entries normalized
+        { const _lMap = new Map();
+          for (const _e of [..._localLate, ..._remoteLate]) {
+            const _n = typeof _e === 'number' ? { h: _e, date: '' } : _e;
+            const _k = _n.date + ':' + _n.h;
+            if (!_lMap.has(_k)) _lMap.set(_k, _n);
+          }
+          appMemory.patterns.lateAdditions = [..._lMap.values()]
+            .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0)
+            .slice(-50);
+        }
         const mergedSamples = [...(appMemory.patterns.taskLifespanSamples || []), ...(remote.patterns.taskLifespanSamples || [])];
         appMemory.patterns.taskLifespanSamples = mergedSamples.slice(-20);
       }
