@@ -3455,9 +3455,9 @@
   .habit-edit-input {
     display: block; flex: 1; min-width: 0; width: 100%;
     background: transparent; border: none;
-    color: var(--text); font-family: var(--font-mono); font-size: var(--text-task);
+    color: var(--text); font-family: var(--font-mono); font-size: 16px;
     outline: none; padding: 0; margin: 0; line-height: 1.4;
-    height: calc(var(--text-task) * 1.4);
+    height: calc(16px * 1.4);
     box-sizing: content-box;
   }
   .habit-edit-input::placeholder { color: var(--muted); }
@@ -4284,9 +4284,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.71.21': 'Fix: Editing a habit on mobile no longer zooms in and stays zoomed.',
   '2.71.20': 'Fix: About weekly stats graph now counts tasks done before triage.',
   '2.71.19': 'Fix: Edit button in delete toast now works.',
-  '2.71.18': 'Maintenance: the full test runner now detects omitted suites and fails visibly on flaky retry-only passes.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

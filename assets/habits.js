@@ -212,6 +212,9 @@
           row.classList.remove('editing');
         });
         _saveHabits();
+        // iOS: reset any zoom triggered by the input gaining focus
+        const vp = document.querySelector('meta[name=viewport]');
+        if (vp) { const c = vp.content; vp.content = c + ',maximum-scale=1'; setTimeout(() => { vp.content = c; }, 50); }
       } else {
         _enterHabitEditMode();
       }
