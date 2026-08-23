@@ -693,6 +693,18 @@ const POEMS = [
     season: null,
     source: "'Possession of Love', kural 78, Tirukkural (Clarendon Press, Oxford, 1886) — Thiruvalluvar ~300 CE (classical Tamil), Pope d. 1908, both PD worldwide — verified verbatim",
   },
+  {
+    text: 'Love without hatred is ripened fruit;\nWithout some lesser strife, fruit immature.',
+    author: 'Thiruvalluvar (trans. G. U. Pope)',
+    season: null,
+    source: "'Pouting', kural 1306, Tirukural (trans. G. U. Pope, Clarendon Press, 1886) — Thiruvalluvar ~300 CE (classical Tamil), Pope d. 1908, both PD worldwide — verified verbatim",
+  },
+  {
+    text: 'One day we silent sulked; he sneezed: The reason well I knew;\nHe thought that I, to speak well pleased, Would say, \'Long life to you!\'',
+    author: 'Thiruvalluvar (trans. G. U. Pope)',
+    season: null,
+    source: "'Feigned Anger', kural 1312, Tirukural (trans. G. U. Pope, Clarendon Press, 1886) — Thiruvalluvar ~300 CE (classical Tamil), Pope d. 1908, both PD worldwide — verified verbatim",
+  },
 
   // ── Round 27 (Aug 2026) — Arabic (Carlyle 1796) ───────────────────────────
   {

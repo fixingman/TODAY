@@ -49,7 +49,7 @@
 > **PD check:** for path A — confirm death dates for author and translator. For path B — quote the exact license statement from the source page.
 > **Search process:** WebSearch first to identify a specific poem by title/poet (fast, cheap) — then one targeted WebFetch on that poem's URL to pull verbatim text. Never bulk-fetch entire anthologies or book scans. Prefer `poetryfoundation.org`, `lyrikline.org`, `banipal.co.uk`, `asymptotejournal.com`, `poemhunter.com` over archive.org/Gutenberg for discovery. For PD verification still confirm death dates via Wikisource or archive.org, but on the specific page only. Region is a tiebreaker only — when two candidates tie on quality, prefer the one from a country not yet represented.
 
-**Seasons:** W14 / Sp15 / Su10 / Au11 / year-round 58 — corpus 107 (2026-08-24).
+**Seasons:** W14 / Sp15 / Su10 / Au11 / year-round 60 — corpus 109 (2026-08-24).
 
 **Rotation verdict (2026-08-22):** No repetition observed — shuffle algorithm is not the lever.
 
