@@ -249,7 +249,7 @@ Does not enumerate signal priorities. Soon tasks are included but only surfaced 
 
 ## Sunday Weekly Reflection (v2.17.56; evidence contract v2.71.12)
 
-On Sundays, `#sundayBlock` may appear above the stat tiles in the About panel. The sentence is now signal-gated: `_buildWeekReflectionInsight()` ranks deterministic candidates from the same seven calendar days shown in the grid. Current candidates are focus/completion association, habit/completion association, a standout weekday that repeats across earlier instances, and concentrated two-day bursts. Relationships require observations on both sides; the burst candidate is deliberately weakest.
+On Sundays, `#sundayBlock` may appear above the stat tiles in the About panel. The sentence is now signal-gated: `_buildWeekReflectionInsight()` ranks deterministic candidates from the same seven calendar days shown in the grid. Current candidates are focus/completion association, habit/completion association, a standout weekday that repeats across earlier instances, and concentrated two-day bursts. Relationships require observations on both sides; the burst candidate is deliberately weakest. The ranker and `_weekReflectionTextIsGrounded()` live in DOM-free `assets/week-reflection-policy.js`; the browser uses their globals while `week-reflection-unit-test.mjs` requires the same implementation directly for threshold/ranking tests.
 
 The winning object contains `{kind, score, evidence, meaning}`. `_fetchWeekReflection()` sends only that object to the AI. It no longer sends `_memoryForAI('weekly')`, lifetime days active, or `recentCompletedTasks`; the model gives a verified observation voice rather than deciding what is true from raw personal history.
 

@@ -415,21 +415,26 @@ try {
       ok('inline about baseline: function toggleInfo present, no module tag yet');
     } else {
       const aboutSrc = await readFile(join(ROOT, 'assets/about.js'), 'utf8');
-      const requiredExports = [
+      const policySrc = await readFile(join(ROOT, 'assets/week-reflection-policy.js'), 'utf8');
+      const aboutExports = [
         'toggleInfo', '_poemOfTheDay', '_onPoemTap',
         '_shareDailyPoem', '_copyToClipboard', 'renderInfoStats',
-        '_buildWeekReflectionInsight', '_weekReflectionTextIsGrounded',
         '_fetchWeekReflection',
       ];
       await expectAll('extracted about module wiring', {
         moduleLoad:     indexSrc.includes('<script src="assets/about.js"></script>'),
+        policyLoad:     indexSrc.includes('<script src="assets/week-reflection-policy.js"></script>'),
+        policyBeforeAbout: indexSrc.indexOf('assets/week-reflection-policy.js') < indexSrc.indexOf('assets/about.js'),
         initializer:    indexSrc.includes('window._startAbout();'),
         sectionRemoved: !indexSrc.includes('function toggleInfo()'),
         moduleInit:     aboutSrc.includes('window._startAbout = function()'),
-        exports:        requiredExports.every(n => aboutSrc.includes(`window.${n} = ${n};`)),
+        exports:        aboutExports.every(n => aboutSrc.includes(`window.${n} = ${n};`)),
+        policyExports:  ['_buildWeekReflectionInsight', '_weekReflectionTextIsGrounded']
+          .every(n => policySrc.includes(`root.${n} = policy.${n};`)),
         precached:      swSrc.includes("'/assets/about.js'"),
+        policyPrecached: swSrc.includes("'/assets/week-reflection-policy.js'"),
       });
-      ok('extracted about module wiring, exports correct, precached');
+      ok('About + weekly policy wiring, exports, load order, and precache correct');
     }
   }
 

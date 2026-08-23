@@ -6,6 +6,9 @@
 
 ## Pre-Release Checklist (REQUIRED)
 
+Automated baseline: `node scripts/test-all.mjs` runs all 23 local suites. The live
+`scripts/ai-test.mjs` remains separate because it requires an API key and real provider calls.
+
 Run these **before every GitHub push**:
 
 | # | Test | Steps | Pass |
@@ -48,6 +51,10 @@ If testing **focus mode** changes:
 If testing **task or habit reorder** changes:
 - [ ] Run `node scripts/drag-test.mjs` first — it covers desktop and touch ordering,
       persistence and sync timestamps, guards, long-press cancellation, and cleanup.
+
+If testing **task actions** (add, copy, complete, delete, undo, or stats/favicon):
+- [ ] Run `node scripts/task-actions-test.mjs` first — it covers direct mutations,
+      delegated row controls, focus interception, feedback, accessibility state, and favicon refresh.
 
 If testing **zone** changes:
 - [ ] Triage bar appears 8pm–midnight
@@ -178,6 +185,9 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 5.13 | Sunday earned reflection | On Sunday, a qualifying evidence-backed candidate is AI-written and cached; a flat week leaves the sentence hidden |
 
 ### 6. Trello (8 tests)
+
+Run `node scripts/trello-test.mjs` for mocked-API coverage of board/list selection,
+OAuth headers, card filtering, render/cache state, errors, reconciliation, and disconnect.
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -433,4 +443,4 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 
 Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 and 1.4.11 remain unmet for that state. Pointer reorder remains drag-only, so criterion 2.5.7 also remains unmet. Do not record the product as fully WCAG-conformant. See `Accessibility-audit.md`.
 
-*Last updated: v2.69.0 · Aug 2026*
+*Last updated: v2.71.17 · Aug 2026*

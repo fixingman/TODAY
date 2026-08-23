@@ -28,6 +28,7 @@
 - Done state: strikethrough and 25% row opacity to deliberately reduce completed-task noise; names/state remain available to assistive technology, but visible text/control contrast is an accepted exception
 - Keyboard: focus the row; Enter starts focus, Space toggles completion, Option+Up/Down reorders and persists
 - Completion particles receive checkbox client coordinates; the celebration canvas converts them to its backing-buffer coordinates so mobile viewport sizing cannot offset the visible burst
+- Runtime ownership: `assets/task-actions.js` owns delegated copy/check/delete activation, copy feedback, mutations, aggregate task stats, and the progress favicon. Re-rendered manual/Trello rows require no per-row listener rebinding.
 
 ### Task Aging
 

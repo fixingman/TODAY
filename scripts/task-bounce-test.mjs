@@ -71,8 +71,8 @@ assert('prototype descriptor captured before override',
 assert('non-breaking space for literal space chars',
   js.includes("' '") || js.includes("&#160;") || js.includes("' '"));
 
-assert('mirror.innerHTML cleared before rebuild',
-  js.includes("mirror.innerHTML = ''"));
+assert('mirrorContent.innerHTML cleared before rebuild',
+  js.includes("mirrorContent.innerHTML = ''"));
 
 assert('animateFrom / animateTo logic for insertion-point precision',
   js.includes("animateFrom") && js.includes("animateTo"));

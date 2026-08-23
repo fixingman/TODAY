@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.71.12 earned-personality weekly reflection; BUG-082/083 diagnostics remain active, and manual VoiceOver, zoom, iPhone PWA, and real PiP passes remain.
-- **Recent (2026-08-23):** Sunday prose now starts from a code-verified, useful pattern; lifetime biography/task-title wordplay and bland counter fallbacks were removed; old cached copy is policy-invalidated across Dropbox.
+- **Working on:** v2.71.17 weekly-policy unit tests and Trello regression coverage; BUG-082/083 diagnostics remain active, and manual VoiceOver, zoom, iPhone PWA, and real PiP passes remain.
+- **Recent (2026-08-23):** the DOM-free weekly evidence policy has direct threshold/ranking tests, Trello has a dedicated mocked-API suite, and the default runner covers 23 non-credentialed suites.
 - **Module extraction (Roadmap #3): COMPLETE.** focus.js done (v2.65.13, ~1,400 lines). All modules extracted: dropbox, connections (+ AI provider config), assistant, task-actions, nudge, day-lifecycle, focus. Startup composition root (~350 lines inline) remains as intended. Full inventory → `Backlog.md` §3.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
   - **BUG-076 ⏳ v2.65.3** — force at least ten poem-coda exits on Safari/iPhone PWA; TO and DAY must fade as complete groups with no `O` / `AY` residue while the poem disappears.

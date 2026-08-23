@@ -38,28 +38,28 @@ PWA installation is contextual platform help, not a data connection. Android Chr
 
 ### API Key
 
-`TRELLO_API_KEY` is a constant in `index.html` (line 3034). If you fork and self-host, replace it with your own key from [trello.com/power-ups/admin](https://trello.com/power-ups/admin). The key is public — it identifies the app, not the user.
+`TRELLO_API_KEY` is a constant in `assets/trello.js`. If you fork and self-host, replace it with your own key from [trello.com/power-ups/admin](https://trello.com/power-ups/admin). The key is public — it identifies the app, not the user.
 
 ### Auth Flow (OAuth implicit grant)
 
 ```
 trelloAuth()
-  → redirects to trello.com/1/authorize
+  → opens trello.com/1/authorize in a popup
       key=TRELLO_API_KEY
       response_type=token
       scope=read
       expiration=never
       return_url=today-here.netlify.app/
-  → on return, URL hash contains #token=XXX
-  → init() calls _checkTrelloOAuthReturn()
-      extracts token from hash
-      stores in localStorage('trello_token')
-      calls loadTrelloBoards()
+  → popup returns to this origin with #token=XXX
+  → trelloAuth() polls until the popup is same-origin
+      extracts token from the popup hash
+      stores localStorage('trello_token')
+      closes the popup and calls loadTrelloBoards()
 ```
 
 ### Board Selection Flow
 
-After auth, `loadTrelloBoards()` fetches the user's open boards and populates `#boardSelect`. On selection (`onBoardChange()`), `loadTrelloLists()` fetches lists for that board and populates `#listSelect`. User picks a list (defaults to "due today only"). `saveAndLoad()` saves config to `today_trello_config` in localStorage and calls `loadTrello()`.
+After auth, `loadTrelloBoards()` fetches the user's open boards and populates `#boardSelect`. On selection (`onBoardChange()`), `loadTrelloLists()` fetches lists for that board and populates `#listSelect`. User picks a list (defaults to "due today only"). `saveAndLoad()` saves config to `trello_config` in localStorage and calls `loadTrello()`.
 
 **Trello config in localStorage:**
 ```json
@@ -76,11 +76,15 @@ After auth, `loadTrelloBoards()` fetches the user's open boards and populates `#
 Shows: `Board Name → List Name` | Refresh + Forget buttons.
 
 **Refresh** → calls `loadTrello()` (same as 7s tick but immediate).
-**Forget** → `clearTrello()`: removes `trello_token`, `today_trello_config`, `today_trello_cache`, `today_trello_focus` from localStorage. Clears `trelloTasks = []`, calls `renderTrello()`.
+**Forget** → `clearTrello()`: removes `trello_token`, `trello_config`, and `today_trello_cache` from localStorage. Clears `trelloTasks = []`, calls `renderTrello()`. Historical focus/aging maps remain governed by their own daily/pruning paths.
 
 ### Disconnect Recovery
 
-If token is invalid (403 from Trello API), `loadTrello()` logs error to red dot and calls `clearTrello()` automatically.
+Manual load failures reopen Connections and map common 401/404/405/429 responses to actionable status. Background-sync failures do not interrupt the user; non-network failures are logged to the diagnostic red dot. Cached cards remain readable during a transient network failure.
+
+### Automated coverage (v2.71.17)
+
+`scripts/trello-test.mjs` uses mocked Trello responses to cover board/list selection and escaping, OAuth headers without token-bearing URLs, list/due/completion-grace filtering, synced order, checklist/tag/link/done rendering, cache and first-seen state, manual/background failures, post-Dropbox reconciliation, disconnect cleanup, popup failure, and module/precache wiring.
 
 ---
 

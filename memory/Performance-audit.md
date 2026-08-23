@@ -28,6 +28,8 @@
 | `assets/triage.js` | 19.9 KB | 4.0 KB | Triage extracted locally for v2.64.31; tests pass, but asset/test are not yet tracked |
 | `assets/zones.js` | 11.0 KB | 3.0 KB | Soon/Past controller extracted locally for v2.64.32; tests pass, but asset/test are not yet tracked |
 | `assets/habits.js` | 18.8 KB | 5.7 KB | Habits controller extracted v2.64.33; tracked and tested |
+| `assets/task-actions.js` | 26.9 KB | 7.2 KB | Task mutations, delegated row controls, stats, and private favicon renderer; SW-precached |
+| `assets/week-reflection-policy.js` | 6.2 KB | 2.1 KB | DOM-free Sunday candidate ranker/output guard; browser global + direct Node unit-test boundary; SW-precached |
 | `assets/poems.js` | 33.9 KB | 11.4 KB | Daily poem corpus (97 poems); SW-precached |
 | **Total app JS** | **~807 KB** | **~228 KB** | Local app shell: index.html + 16 implemented modules + poem corpus (Brotli q5) |
 
@@ -39,7 +41,7 @@
 **External fonts on repeat visits:** 0 — all served from SW cache.  
 **@font-face declarations:** 9 total — 6 in main doc (DM Mono ×3, Syne ×3), 2 injected into PiP window, 1 in offline fallback HTML in SW.
 
-**Extraction queue:** first repair the missing tracked assets/tests for Memory panel, Triage, and Zones; deployed `dev` currently returns 404 for all three. Then `focus.js` (~1,332, ready) → `about.js` (~585) → `connections.js` (~430). The ~1,968-line sync/wake cluster is not a direct candidate; decompose and regression-test it before drawing any file boundary. AI orchestration, shared task state, and startup orchestration remain inline by design.
+**Extraction status:** complete. v2.71.15 moved the remaining task-row action delegation and favicon renderer into the existing task-actions owner. Shared state, initialization, and startup sequencing remain inline as the intentional composition root.
 
 **Assessment (v2.64.33 local state):** index.html is 517 KB decoded / 142 KB Brotli-q5; total app JavaScript is ~807 KB decoded / ~228 KB compressed because extraction changes ownership rather than payload. Meeting and Habits are tracked. Memory panel, Triage, and Zones pass locally but were omitted from the commit, so deployed `dev` cannot be considered healthy until those 404s are repaired.
 

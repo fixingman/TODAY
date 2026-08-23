@@ -1,12 +1,12 @@
 // TODAY — task-actions module regression test
 //
-// Tests: addManual, toggleDone check/uncheck, focus interception,
-// deleteManual (undo toast), _undoDelete restore, _clearAllDone,
-// updateStats, static wiring.
+// Tests: addManual, toggleDone check/uncheck, delegated copy/check/delete controls,
+// focus interception, deleteManual (undo toast), _undoDelete restore,
+// _clearAllDone, updateStats/favicon, static wiring.
 //
 // Run from repo root:
 //   node scripts/task-actions-test.mjs --pre-extraction   # pre-extraction baseline
-//   node scripts/task-actions-test.mjs                    # post-extraction (9 tests)
+//   node scripts/task-actions-test.mjs                    # post-extraction (11 tests)
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -190,7 +190,48 @@ try {
       await page.close();
     }
 
-    // 5+6. deleteManual + undo toast + _undoDelete restore.
+    // 5. Delegated copy strips visual metadata and owns feedback state.
+    {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(() => {
+        window.__copiedTaskText = null;
+        window._copyToClipboard = (text, onCopied) => {
+          window.__copiedTaskText = text;
+          onCopied();
+        };
+        const copy = document.querySelector('.task[data-taskid="task_1"] .task-copy');
+        copy?.click();
+        return {
+          copiedText: window.__copiedTaskText === 'Write tests for the module',
+          feedbackText: copy?.textContent === 'copied',
+          feedbackClass: copy?.classList.contains('copied') === true,
+          timerOwnedByButton: !!copy?._copyFeedbackTimer,
+        };
+      });
+      await expectAll('delegated task copy', { ...result, noErrors: errors.length === 0 });
+      ok('delegated copy: clean task text copied and feedback attached to its button');
+      await page.close();
+    }
+
+    // 6. Delegated delete routes through the shared mutation path and haptic.
+    {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(async () => {
+        window.__deleteHaptic = null;
+        window._haptic = type => { window.__deleteHaptic = type; };
+        document.querySelector('.task[data-taskid="task_1"] .task-delete')?.click();
+        await new Promise(resolve => setTimeout(resolve, 280));
+        return {
+          taskRemoved: !manualTasks.some(task => task.id === 'task_1'),
+          warningHaptic: window.__deleteHaptic === 'warning',
+        };
+      });
+      await expectAll('delegated task delete', { ...result, noErrors: errors.length === 0 });
+      ok('delegated delete: shared delete path removes task and requests warning haptic');
+      await page.close();
+    }
+
+    // 7+8. deleteManual + undo toast + _undoDelete restore.
     //   deleteManual removes task after 180ms setTimeout; toast shows at same time.
     //   _undoDelete restores the task to manualTasks.
     {
@@ -211,7 +252,7 @@ try {
       await page.close();
     }
 
-    // 7. _clearAllDone removes done tasks from manualTasks.
+    // 9. _clearAllDone removes done tasks from manualTasks.
     {
       const { page, errors } = await openPage();
       const result = await page.evaluate(() => {
@@ -228,7 +269,7 @@ try {
       await page.close();
     }
 
-    // 8. updateStats reflects correct counts in the DOM.
+    // 10. updateStats reflects correct counts in the DOM and refreshes the favicon.
     {
       const { page, errors } = await openPage();
       const result = await page.evaluate(() => {
@@ -239,14 +280,15 @@ try {
         return {
           totalShows2: !!(statTotal && statTotal.textContent === '2'),
           doneShows1:  !!(statDone  && statDone.textContent  === '1'),
+          faviconData: document.getElementById('favicon')?.href.startsWith('data:image/png') === true,
         };
       });
       await expectAll('updateStats DOM', { ...result, noErrors: errors.length === 0 });
-      ok('updateStats: statTotal=2, statDone=1 after one check');
+      ok('updateStats: statTotal=2, statDone=1, favicon refreshed after one check');
       await page.close();
     }
 
-    // 9. Static wiring: 10 exports, functions removed from index.html, precached in sw.js.
+    // 11. Static wiring: action controls and favicon are module-owned; public exports unchanged.
     {
       const indexSrc      = await readFile(join(ROOT, 'index.html'), 'utf8');
       const swSrc         = await readFile(join(ROOT, 'sw.js'), 'utf8');
@@ -265,14 +307,20 @@ try {
         addManualRemoved:   !indexSrc.includes('function addManual()'),
         toggleDoneRemoved:  !indexSrc.includes('function toggleDone('),
         deleteManualRemoved:!indexSrc.includes('function deleteManual('),
+        delegationRemoved:  !indexSrc.includes("e.target.closest('.task-copy')"),
+        faviconRemoved:     !indexSrc.includes('function drawFavicon('),
         moduleInit:         taskActionsSrc.includes('window._startTaskActions = '),
+        delegationOwned:    taskActionsSrc.includes("e.target.closest('.task-copy')") &&
+                            taskActionsSrc.includes("e.target.closest('.task-check')") &&
+                            taskActionsSrc.includes("e.target.closest('.task-delete')"),
+        faviconOwned:       taskActionsSrc.includes('function drawFavicon('),
         allExports:         requiredExports.every(n => taskActionsSrc.includes(`window.${n} = ${n};`)),
         precached:          swSrc.includes("'/assets/task-actions.js'"),
       });
-      ok('task-actions module: 10 exports, functions removed from index.html, precached in sw.js');
+      ok('task-actions module: row controls + favicon private, 13 exports unchanged, precached');
     }
 
-    console.log('\nTask-actions tests passed (post-extraction, 9 tests).');
+    console.log('\nTask-actions tests passed (post-extraction, 11 tests).');
   }
 } finally {
   if (browser) await browser.close();

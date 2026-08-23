@@ -4256,6 +4256,7 @@
 <script src="/assets/nudge.js"></script>
 <script src="/assets/day-lifecycle.js"></script>
 <script src="/assets/focus.js"></script>
+<script src="assets/week-reflection-policy.js"></script>
 <script src="assets/about.js"></script>
 <script src="assets/task-bounce.js"></script>
 <script>
@@ -4276,16 +4277,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '280h';
+const DEV_HOURS     = '284h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.71.14': 'Poems: two new Latin American voices added to the corpus — Urbina and Blanco Fombona, trans. Blackwell.',
-  '2.71.13': 'Fix: reviving a task from Past to Soon no longer causes a black screen on iOS.',
-  '2.71.12': 'Weekly reflections now appear only when there is a real pattern worth noticing, with personality grounded in your week.',
+  '2.71.17': 'Maintenance: weekly insights and Trello now have deeper automated checks for reliable filtering and decisions.',
+  '2.71.16': 'Maintenance: automated checks now cover the task-input animation in every full test run.',
+  '2.71.15': 'Maintenance: task controls and the progress icon now use one consistent action path.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4525,64 +4526,6 @@ function init() {
 
 }
 
-// ─── Event delegation ────────────────────────────────────────────────────────
-document.addEventListener('click', function(e) {
-  // Copy button — copies task text to clipboard, shows brief 'copied' feedback
-  const copyEl = e.target.closest('.task-copy');
-  if (copyEl) {
-    const taskEl = copyEl.closest('.task[data-taskid]');
-    if (taskEl) {
-      const textEl = taskEl.querySelector('.task-text');
-      const clone = textEl.cloneNode(true);
-      // Replace each task-link <a> with its actual URL so copy preserves the link
-      // inline (new tasks) or at end (legacy/Trello tasks)
-      clone.querySelectorAll('.task-link').forEach(a => {
-        a.replaceWith(document.createTextNode(' ' + a.href));
-      });
-      clone.querySelectorAll('.session-count, .task-tag').forEach(el => el.remove());
-      const text = clone.textContent.replace(/\s+/g, ' ').trim();
-      const feedbackGeneration = (copyEl._copyFeedbackGeneration || 0) + 1;
-      copyEl._copyFeedbackGeneration = feedbackGeneration;
-
-      function _showCopied() {
-        if (copyEl._copyFeedbackGeneration !== feedbackGeneration) return;
-        clearTimeout(copyEl._copyFeedbackTimer);
-        copyEl.textContent = 'copied';
-        copyEl.classList.add('copied');
-        copyEl._copyFeedbackTimer = setTimeout(() => {
-          if (copyEl._copyFeedbackGeneration !== feedbackGeneration) return;
-          copyEl.textContent = 'copy';
-          copyEl.classList.remove('copied');
-          delete copyEl._copyFeedbackTimer;
-        }, 1800);
-      }
-
-      _copyToClipboard(text, _showCopied);
-    }
-    return;
-  }
-
-  // Check box
-  const checkEl = e.target.closest('.task-check');
-  if (checkEl) {
-    const id = checkEl.dataset.taskid;
-    if (id) {
-      // If focus mode is active on this task, let it handle completion first
-      if (window._focusOnCheck && window._focusOnCheck(id)) return;
-      toggleDone(id);
-    }
-    return;
-  }
-
-  // Delete button
-  const delEl = e.target.closest('.task-delete');
-  if (delEl) {
-    const id = delEl.dataset.taskid;
-    if (id) { _haptic('warning'); deleteManual(id); }
-    return;
-  }
-});
-
 // ─── Sound + haptics ── moved to assets/sound.js (self-contained, browser APIs only).
 
 // ── Accent glow flash + ember drift ── moved to assets/celebration.js.
@@ -4647,46 +4590,6 @@ function showStatus(msg, type) {
   if (!el) return;
   el.textContent = msg;
   el.className   = 'status-msg ' + type;
-}
-
-// ─── Favicon ─────────────────────────────────────────────────────────────────
-function drawFavicon(pct, isEmpty) {
-  const s   = 64;
-  const c   = document.createElement('canvas');
-  c.width   = s; c.height = s;
-  const ctx = c.getContext('2d');
-  const cx = s / 2, cy = s / 2;
-
-  // Background
-  ctx.fillStyle = COLOR_BG;
-  ctx.fillRect(0, 0, s, s);
-
-  // Ring track — always visible
-  const ringR = s * 0.38, lw = s * 0.10;
-  ctx.beginPath();
-  ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-  ctx.strokeStyle = COLOR_BORDER;
-  ctx.lineWidth = lw;
-  ctx.stroke();
-
-  // Ring fill — progress arc
-  if (!isEmpty && pct > 0) {
-    ctx.beginPath();
-    ctx.arc(cx, cy, ringR, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(pct, 1));
-    ctx.strokeStyle = COLOR_ACCENT;
-    ctx.lineWidth = lw;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-  }
-
-  // Star ✦ — always 100% accent, precisely centered
-  ctx.fillStyle    = COLOR_ACCENT;
-  ctx.font         = `${s * 0.48}px serif`;
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('✦', cx, cy + 2);
-
-  return c.toDataURL('image/png');
 }
 
 // ─── Celebration — ember drift + accent glow ── moved to assets/celebration.js.

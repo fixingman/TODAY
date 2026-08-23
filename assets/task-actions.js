@@ -1,4 +1,4 @@
-// TODAY — task mutation actions: add, check/uncheck, delete, undo stack, stats.
+// TODAY — task mutation actions: add, check/uncheck, delete, undo stack, row controls, stats.
 // Inert until index.html calls window._startTaskActions() before init().
 window._startTaskActions = (function() {
   let started = false;
@@ -36,6 +36,65 @@ window._startTaskActions = (function() {
       }
       const svgEl = el.querySelector('.task-check svg');
       if (svgEl) svgEl.style.display = isDone ? 'block' : 'none';
+    }
+
+    // One delegated listener owns the task-row controls across manual and Trello
+    // renders. Keeping it inside this started-once module prevents duplicate
+    // handlers while allowing rows to be replaced without rebinding controls.
+    function _bindTaskActionDelegation() {
+      document.addEventListener('click', function(e) {
+        // Copy task text and briefly show feedback on the originating control.
+        const copyEl = e.target.closest('.task-copy');
+        if (copyEl) {
+          const taskEl = copyEl.closest('.task[data-taskid]');
+          if (taskEl) {
+            const textEl = taskEl.querySelector('.task-text');
+            const clone = textEl.cloneNode(true);
+            // Preserve actual link targets in copied text. Remove visual-only task
+            // metadata that should not become part of the clipboard payload.
+            clone.querySelectorAll('.task-link').forEach(a => {
+              a.replaceWith(document.createTextNode(' ' + a.href));
+            });
+            clone.querySelectorAll('.session-count, .task-tag').forEach(el => el.remove());
+            const text = clone.textContent.replace(/\s+/g, ' ').trim();
+            const feedbackGeneration = (copyEl._copyFeedbackGeneration || 0) + 1;
+            copyEl._copyFeedbackGeneration = feedbackGeneration;
+
+            function _showCopied() {
+              if (copyEl._copyFeedbackGeneration !== feedbackGeneration) return;
+              clearTimeout(copyEl._copyFeedbackTimer);
+              copyEl.textContent = 'copied';
+              copyEl.classList.add('copied');
+              copyEl._copyFeedbackTimer = setTimeout(() => {
+                if (copyEl._copyFeedbackGeneration !== feedbackGeneration) return;
+                copyEl.textContent = 'copy';
+                copyEl.classList.remove('copied');
+                delete copyEl._copyFeedbackTimer;
+              }, 1800);
+            }
+
+            _copyToClipboard(text, _showCopied);
+          }
+          return;
+        }
+
+        const checkEl = e.target.closest('.task-check');
+        if (checkEl) {
+          const id = checkEl.dataset.taskid;
+          if (id) {
+            // Focus mode owns completion teardown before the shared mutation path.
+            if (window._focusOnCheck && window._focusOnCheck(id)) return;
+            toggleDone(id);
+          }
+          return;
+        }
+
+        const deleteEl = e.target.closest('.task-delete');
+        if (deleteEl) {
+          const id = deleteEl.dataset.taskid;
+          if (id) { _haptic('warning'); deleteManual(id); }
+        }
+      });
     }
 
     function toggleDone(taskId) {
@@ -519,6 +578,45 @@ window._startTaskActions = (function() {
       }, 180);
     }
 
+    function drawFavicon(pct, isEmpty) {
+      const size = 64;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const cx = size / 2;
+      const cy = size / 2;
+
+      ctx.fillStyle = COLOR_BG;
+      ctx.fillRect(0, 0, size, size);
+
+      // Ring track is always visible; the fill reflects aggregate completion.
+      const ringR = size * 0.38;
+      const lineWidth = size * 0.10;
+      ctx.beginPath();
+      ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+      ctx.strokeStyle = COLOR_BORDER;
+      ctx.lineWidth = lineWidth;
+      ctx.stroke();
+
+      if (!isEmpty && pct > 0) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, ringR, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(pct, 1));
+        ctx.strokeStyle = COLOR_ACCENT;
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = COLOR_ACCENT;
+      ctx.font = `${size * 0.48}px serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('✦', cx, cy + 2);
+
+      return canvas.toDataURL('image/png');
+    }
+
     function updateStats() {
       const all      = [...trelloTasks, ...manualTasks];
       const pastDone = pastTasks.filter(t => doneIds.has(t.id)).length;
@@ -567,6 +665,8 @@ window._startTaskActions = (function() {
       const link = document.getElementById('favicon');
       if (link) link.href = dataURL;
     }
+
+    _bindTaskActionDelegation();
 
     // ── Exports ──
     window.updateManualEmptyState = updateManualEmptyState;
