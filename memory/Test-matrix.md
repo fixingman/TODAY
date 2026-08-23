@@ -7,7 +7,10 @@
 ## Pre-Release Checklist (REQUIRED)
 
 Automated baseline: `node scripts/test-all.mjs` runs all 23 local suites. The live
-`scripts/ai-test.mjs` remains separate because it requires an API key and real provider calls.
+`scripts/ai-test.mjs` remains the sole explicit exclusion because it requires an API key and
+real provider calls. The runner verifies this inventory before execution. A suite that passes
+only on its diagnostic retry is reported as flaky and fails the gate. Run `design-lint.mjs`
+and `memory/validate-files.sh` separately; they are intentionally not part of `test-all.mjs`.
 
 Run these **before every GitHub push**:
 
@@ -443,4 +446,4 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 
 Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 and 1.4.11 remain unmet for that state. Pointer reorder remains drag-only, so criterion 2.5.7 also remains unmet. Do not record the product as fully WCAG-conformant. See `Accessibility-audit.md`.
 
-*Last updated: v2.71.17 · Aug 2026*
+*Last updated: v2.71.18 · Aug 2026*

@@ -4,9 +4,10 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** v2.71.17 weekly-policy unit tests and Trello regression coverage; BUG-082/083 diagnostics remain active, and manual VoiceOver, zoom, iPhone PWA, and real PiP passes remain.
-- **Recent (2026-08-23):** the DOM-free weekly evidence policy has direct threshold/ranking tests, Trello has a dedicated mocked-API suite, and the default runner covers 23 non-credentialed suites.
+- **Working on:** v2.71.18 full-runner inventory and flake enforcement; BUG-082/083 diagnostics remain active, and manual VoiceOver, zoom, iPhone PWA, and real PiP passes remain.
+- **Recent (2026-08-23):** `test-all.mjs` now rejects omitted/stale/duplicate suites and treats retry-only passes as non-zero flaky results; design lint and memory validation remain separate gates.
 - **Module extraction (Roadmap #3): COMPLETE.** focus.js done (v2.65.13, ~1,400 lines). All modules extracted: dropbox, connections (+ AI provider config), assistant, task-actions, nudge, day-lifecycle, focus. Startup composition root (~350 lines inline) remains as intended. Full inventory → `Backlog.md` §3.
+- **Machine routing guard:** before any agent changes Headroom, a model provider/base URL, proxy/wrapper, port/mode, runtime override, or Headroom version, read `/Users/can/.headroom/ROUTING-GUARD.md` and obtain Can's explicit approval for that exact change. Keep Codex on explicit `127.0.0.1`, not `localhost`. Do not run `headroom learn --verbosity --apply`: v0.35.0 learns from Claude history only but hot-enables a proxy-global output shaper that can also affect Codex.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
   - **BUG-076 ⏳ v2.65.3** — force at least ten poem-coda exits on Safari/iPhone PWA; TO and DAY must fade as complete groups with no `O` / `AY` residue while the poem disappears.
   - **v2.64.23 ⏳** — verify appMemory convergence across two devices after a few 7s sync cycles: `today_memory.semantic.length` and newly confirmed inferences should match without manual Restore Backup.

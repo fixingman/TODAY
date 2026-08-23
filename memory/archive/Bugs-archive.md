@@ -1068,3 +1068,18 @@ Architectural dead end: with a CSS animation, every `display:none/block` repaint
 **Root cause:** `today_trello_focus` served two roles — (1) daily activity signal for un-dimming aged cards (BUG-043/064), and (2) display count. Day-rollover wipe at `applyNewDayCleanup()` cleared the whole map to reset the signal, discarding the display count with it.
 
 **Fix (v2.48.4):** Added `today_trello_focus_total` — a permanent per-card lifetime counter. `_logSession()` writes to both maps. All display reads (badge, triage AI context, triage panel) use the total. Daily map keeps its un-dim role unchanged. Syncs via MAX-merge, no date guard. Pruned in `loadTrello()` when cards leave the board.
+
+---
+
+## BUG-084 — Checkmark confetti offset on mobile
+
+**Status:** ✅ Verified v2.71.8
+**File:** `assets/celebration.js` — `fireEmberDrift()`
+
+**Symptom:** On mobile, checking a task draws the confetti away from its checkbox. Desktop placement is correct.
+
+**Root cause:** `.task-check.getBoundingClientRect()` supplies CSS viewport coordinates, but the celebration canvas draws in backing-buffer coordinates sized from `window.innerWidth`/`innerHeight`. Mobile Safari can render the CSS canvas at `100dvh`, a different height from that buffer, and scales the unchecked client coordinate into the wrong visible position.
+
+**Fix (v2.71.8):** `fireEmberDrift()` converts incoming client coordinates through `#celebCanvas.getBoundingClientRect()` into backing-buffer coordinates before spawning particles. The conversion also accounts for a non-zero canvas offset. Desktop and all-done origins are unchanged.
+
+**Verified:** Real-device iPhone PWA — confetti burst originates at its checkmark in both ordinary and final task flows, with browser chrome expanded and collapsed.
