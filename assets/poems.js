@@ -506,13 +506,6 @@ const POEMS = [
     season: 'summer',
     source: "'Beneath the Pine', Select Epigrams from the Greek Anthology (1890), Nature V, Gutenberg #2378 (Mackail d. 1945)",
   },
-  {
-    text: 'Drink not here, traveller, from this warm pool in the brook,\nfull of mud stirred by the sheep at pasture;\nbut go a very little way over the ridge\nwhere the heifers are grazing;\nfor there by yonder pastoral stone-pine thou wilt find\nbubbling through the fountained rock\na spring colder than northern snow.',
-    author: 'Leonidas of Tarentum (trans. J. W. Mackail)',
-    season: 'summer',
-    source: "'The Roadside Pool', Select Epigrams from the Greek Anthology (1890), Nature III, Gutenberg #2378 (Mackail d. 1945)",
-  },
-
   // ── Round 14 (Jul 2026) — Stoics, trans. Farquharson ──────────────────────
   {
     text: 'Men look for retreats for themselves,\nthe country, the sea-shore, the hills;\nand you yourself, too, are peculiarly accustomed to feel the same want.\nYet all this is very unlike a philosopher,\nwhen you may at any hour you please retreat into yourself.\nFor nowhere does a man retreat into more quiet or more privacy\nthan into his own mind.',
