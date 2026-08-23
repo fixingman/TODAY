@@ -74,6 +74,18 @@ function _flashAccentGlow() {
   }
   function celebStart() { if (!celebFrame) celebFrame = requestAnimationFrame(celebAnimate); }
 
+  // getBoundingClientRect() returns CSS viewport coordinates, while canvas drawing
+  // uses its backing-buffer coordinates. Those sizes can diverge on mobile Safari
+  // (`innerHeight` vs 100dvh), which vertically offsets an otherwise correct burst.
+  function celebPointFromViewport(clientX, clientY) {
+    const rect = celebCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return { x: clientX, y: clientY };
+    return {
+      x: (clientX - rect.left) * (celebCanvas.width / rect.width),
+      y: (clientY - rect.top) * (celebCanvas.height / rect.height),
+    };
+  }
+
   function spawnFragment(fx, fy, fvx, fvy, char, size, depth) {
     if (celebParticles.length >= CELEB_MAX_PARTICLES) return;
     const trail = [];
@@ -135,7 +147,8 @@ function _flashAccentGlow() {
     });
   }
 
-  window.fireEmberDrift = function(cx, cy) {
+  window.fireEmberDrift = function(clientX, clientY) {
+    const { x: cx, y: cy } = celebPointFromViewport(clientX, clientY);
     const count = 14;
     celebParticles.push({
       x: cx, y: cy, r: 2, life: 1, maxLife: 1,
@@ -159,5 +172,6 @@ function _flashAccentGlow() {
       );
     }
     celebStart();
+    return { x: cx, y: cy };
   };
 })();

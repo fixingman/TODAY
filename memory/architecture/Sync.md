@@ -165,7 +165,7 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   triage_history: [{id, decision, at}, ...],
   triage_dismissed: 'YYYY-MM-DD',  // synced to prevent repeat prompts
   // Daily history — per-day snapshots the week grid reads for past days (v5.3, BUG-036)
-  daily_history: [{date: 'YYYY-MM-DD', tasksDone: 0, focusMins: 0, habitsKept: 0, habitsTotal: 0}]
+  daily_history: [{date: 'YYYY-MM-DD', tasksDone: 0, tasksAdded: 0, focusMins: 0, habitsKept: 0, habitsTotal: 0, tasksAddedFixed?: true}]
 }
 ```
 
@@ -365,6 +365,7 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 | Reflection policy | LWW by `updatedAt`; ties → remote wins |
 | Reflections | Per-date LWW union (newest `updatedAt` wins); entries ≤ `reflections_cleared_at` watermark discarded; pruned to 30-day calendar window |
 | Reflections cleared-at | Max-wins (most-recent deletion propagates) |
+| `daily_history` entries | Per-field `Math.max` — `_mergeDailyHistory` in `dropbox.js` merges by date; each numeric field uses `Math.max` so neither device's data is silently discarded (v2.71.11 — was winner-takes-all by score). `tasksAddedFixed: true` propagates if either side carries it. |
 | PAST tasks | Union by ID, newer zoneChangedAt wins, age-based purge only (done >7d, let_go/aged >30d) — no count cap (v2.17.47) |
 | Stats | Max wins; streak uses `Math.max` only when `remoteStreakDate >= localStreakDate` — prevents ticker-reversed device from re-inflating yesterday's count after midnight reset (v2.64.22) |
 | Triage dismissed | If remote = today, apply locally |
