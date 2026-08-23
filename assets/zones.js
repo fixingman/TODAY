@@ -238,7 +238,7 @@
     }
 
     function _reviveDiag(label) {
-      // BUG-??? black screen diagnostic — remove after root cause confirmed
+      // BUG-083 black screen diagnostic — remove after root cause confirmed
       const tov = document.getElementById('triageOverlay');
       const mov = document.getElementById('meetingOverlay');
       const mai = document.getElementById('main-app');
@@ -251,9 +251,35 @@
         mainAppInert: mai ? mai.inert : 'missing',
         mainAppOpacity: mai ? mai.style.opacity : 'missing',
         addTaskBarInert: atb ? atb.inert : 'missing',
+        triageActive: typeof _triageActive !== 'undefined' ? _triageActive : 'n/a',
         soonLen: soonTasks.length,
         pastLen: pastTasks.length,
       });
+    }
+
+    function _reviveDiagAsync() {
+      // Fires 250ms after revive to catch any async-triggered state change (dropbox cb, timers)
+      setTimeout(() => {
+        const tov = document.getElementById('triageOverlay');
+        const mov = document.getElementById('meetingOverlay');
+        const mai = document.getElementById('main-app');
+        const atb = document.getElementById('addTaskBar');
+        const tovHidden = tov ? (tov.classList.contains('hidden') && tov.hidden) : true;
+        const movHidden = mov ? (mov.classList.contains('hidden') && mov.hidden) : true;
+        const inertOk   = mai ? !mai.inert : true;
+        if (!tovHidden || !movHidden || !inertOk) {
+          console.warn('[REVIVE-DIAG] ASYNC 250ms — unexpected state:', {
+            triageOverlayClasses: tov ? [...tov.classList].join(' ') : 'missing',
+            triageOverlayHidden: tov ? tov.hidden : 'missing',
+            meetingOverlayClasses: mov ? [...mov.classList].join(' ') : 'missing',
+            meetingOverlayHidden: mov ? mov.hidden : 'missing',
+            mainAppInert: mai ? mai.inert : 'missing',
+            addTaskBarInert: atb ? atb.inert : 'missing',
+          });
+        } else {
+          console.log('[REVIVE-DIAG] ASYNC 250ms — state OK');
+        }
+      }, 250);
     }
 
     function reviveFromPast(id, reason = '') {
@@ -282,6 +308,7 @@
       if (typeof _memoryOnRevive === 'function') _memoryOnRevive(task.text, reason);
 
       _reviveDiag('after');
+      _reviveDiagAsync();
 
       const token = localStorage.getItem('dropbox_token');
       if (token) dropboxBackup(true);
