@@ -121,6 +121,21 @@ async function openPage(options = {}) {
       fail() { this._emit('error', { error: new Error('recorder failed') }); }
     }
     window.MediaRecorder = FakeMediaRecorder;
+    // _micGlow consumes the real Web Audio surface. Keep the lifecycle test
+    // deterministic while still exercising its setup/stop contract.
+    class FakeAudioContext {
+      createMediaStreamSource() { return { connect() {} }; }
+      createAnalyser() {
+        return {
+          fftSize: 0,
+          smoothingTimeConstant: 0,
+          frequencyBinCount: 128,
+          getByteTimeDomainData(buffer) { buffer.fill(128); },
+        };
+      }
+      close() { return Promise.resolve(); }
+    }
+    window.AudioContext = FakeAudioContext;
 
     Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
       getUserMedia: () => {
@@ -288,14 +303,18 @@ try {
         { text: 'Book the room', owner: 'Robin', mine: false },
       ] });
       toggleMeeting();
-      await new Promise(resolve => setTimeout(resolve, 40));
+      // FileReader + mocked fetch + final render cross several async queues.
+      // Wait for the observable review state instead of assuming 40ms is enough.
+      for (let i = 0; i < 30 && document.querySelectorAll('#meetingItems .meeting-item').length < 2; i++) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
       const rows = [...document.querySelectorAll('#meetingItems .meeting-item')];
       const review = !document.getElementById('meetingOverlay').classList.contains('hidden')
         && rows.length === 2 && rows[0].classList.contains('selected') && !rows[1].classList.contains('selected');
       const ephemeralBeforeAccept = ![...Array(localStorage.length).keys()]
         .map(i => localStorage.getItem(localStorage.key(i)) || '')
         .some(value => value.includes('Send the notes') || value.includes('kept context'));
-      rows[1].click();
+      if (rows[1]) rows[1].click();
       const count = document.getElementById('meetingAddBtn').textContent.trim() === 'Add 2 tasks';
       _meetingAccept();
       const stored = JSON.parse(localStorage.getItem('today_manual') || '[]');

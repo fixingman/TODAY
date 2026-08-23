@@ -68,7 +68,7 @@ One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newl
 ### Task Completion
 - Checkbox fills with accent color
 - Checkmark SVG pops in: `scale(0.5)→scale(1)` + `opacity:0→1` (`checkPop`, 150ms, GPU-composited). Replaced `stroke-dashoffset` at v2.17.71 — paint-triggered stroke draw lagged during iOS JIT warmup (~30s window).
-- Particles drift upward (ember drift)
+- Particles drift upward from the completed checkbox centre (ember drift). `fireEmberDrift()` converts CSS client coordinates through the live canvas rect before drawing, because mobile `100dvh` and the backing-buffer height may differ.
 - Haptic feedback (success pattern)
 - Sound: soft completion tone
 

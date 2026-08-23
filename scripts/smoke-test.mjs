@@ -292,6 +292,36 @@ try {
   });
   if (!privacyMobile) fail('Connections privacy reassurance does not fit the narrow layout with offline banner');
   ok('Connections privacy reassurance fits narrow layout');
+
+  // Mobile Safari can give the canvas a different CSS size (`100dvh`) from its
+  // backing buffer (`innerHeight`). A client-space checkbox point must be mapped
+  // through the live canvas rect before particles are spawned.
+  const celebrationPoint = await page.evaluate(() => {
+    const canvas = document.getElementById('celebCanvas');
+    const previousStyle = canvas.getAttribute('style');
+    const previousWidth = canvas.width;
+    const previousHeight = canvas.height;
+    canvas.style.width = '300px';
+    canvas.style.height = '400px';
+    canvas.style.left = '10px';
+    canvas.style.top = '20px';
+    canvas.width = 600;
+    canvas.height = 800;
+    const rect = canvas.getBoundingClientRect();
+    const mapped = fireEmberDrift(
+      rect.left + rect.width * 0.25,
+      rect.top + rect.height * 0.75
+    );
+    if (previousStyle === null) canvas.removeAttribute('style');
+    else canvas.setAttribute('style', previousStyle);
+    canvas.width = previousWidth;
+    canvas.height = previousHeight;
+    return mapped;
+  });
+  if (Math.abs(celebrationPoint.x - 150) > 0.5 || Math.abs(celebrationPoint.y - 600) > 0.5) {
+    fail('mobile celebration point was not converted into canvas coordinates');
+  }
+  ok('mobile celebration coordinates map into the canvas backing buffer');
   await page.setViewport({ width: 1200, height: 800 });
 
   // ── 4. Add a task ───────────────────────────────────────────────────────

@@ -47,7 +47,7 @@ It isn't about quality either. A well-built feature becomes wallpaper the moment
 
 **Case law:**
 - Week narrative lines (`#weekNarrative`/`#weekCompare`/`#weekRhythm`) — shipped v2.17.59, removed v2.17.66. Rule-based phrases stopped delivering after first reading; the visual grid already showed the week's shape. Escape 3.
-- Sunday AI reflection — kept. Personal, fresh, AI-generated, once a week. Escapes 1 + 2.
+- Sunday AI reflection — iterated v2.71.12 after a noun-juxtaposition line failed W1. Code now selects an evidence-backed, non-obvious, useful observation; AI supplies earned personality; no signal means silence. Escapes 1 + 2 only when the evidence gate passes.
 - Morning nudge AI upgrade (v2.17.73) — insight-gated prompt: name something non-obvious if it exists, else state the morning plainly. Escape 2.
 - Comparison framing rule (`research/Psychology.md`) — when there isn't a confident *and* kind thing to say, say nothing. Escape 1.
 

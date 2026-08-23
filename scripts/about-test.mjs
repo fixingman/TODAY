@@ -3,7 +3,7 @@
 // Flow: toggleInfo opens panel, _poemOfTheDay, renderDailyPoem via toggleInfo,
 // _onPoemTap reveal + outside-click collapse, _copyToClipboard callback,
 // _shareDailyPoem clipboard path, renderInfoStats week grid, Noticed block,
-// Sunday reflection block (day=0), Monday intention block (day=1), module wiring.
+// Sunday earned-insight gate/prompt/cache, Monday intention block (day=1), module wiring.
 //
 // Run from repo root:
 //   node scripts/about-test.mjs --pre-extraction
@@ -243,6 +243,9 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
+      // Keep fixed-date solar moments from replacing the fixture on their day.
+      if (!appMemory.noticed) appMemory.noticed = {};
+      appMemory.noticed.seasonDate = _localISO();
       renderInfoStats();
       const el = document.getElementById('noticedBlock');
       return {
@@ -262,6 +265,7 @@ try {
       // Pre-cache so block shows without waiting for async AI call
       const today = _localISO();
       localStorage.setItem('week_reflection_' + today, 'A productive week.');
+      localStorage.setItem('week_policy_' + today, _weekReflectionPolicy);
       const orig = Date.prototype.getDay;
       Date.prototype.getDay = () => 0; // Sunday
       renderInfoStats();
@@ -299,7 +303,106 @@ try {
     await page.close();
   }
 
-  // 11. Static wiring checks.
+  // 11. Sunday evidence gate: prefer a supported focus relationship and abstain
+  //     when the week only supplies a flat counter summary.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const focusPattern = _buildWeekReflectionInsight({
+        days: [
+          { iso:'2026-08-17', tasks:5, focus:25, habitsKept:1, habitsTotal:1 },
+          { iso:'2026-08-18', tasks:4, focus:25, habitsKept:1, habitsTotal:1 },
+          { iso:'2026-08-19', tasks:1, focus:0, habitsKept:0, habitsTotal:1 },
+          { iso:'2026-08-20', tasks:1, focus:0, habitsKept:0, habitsTotal:1 },
+          { iso:'2026-08-21', tasks:0, focus:0, habitsKept:0, habitsTotal:0 },
+          { iso:'2026-08-22', tasks:1, focus:0, habitsKept:0, habitsTotal:0 },
+          { iso:'2026-08-23', tasks:0, focus:0, habitsKept:0, habitsTotal:0 },
+        ],
+        history: [],
+      });
+      const flatWeek = _buildWeekReflectionInsight({
+        days: [0,1,2,3,4,5,6].map(i => ({ iso:'2026-08-' + String(17 + i).padStart(2, '0'), tasks:1, focus:0, habitsKept:0, habitsTotal:0 })),
+        history: [],
+      });
+      return {
+        choseFocus: focusPattern?.kind === 'focus-leverage',
+        evidenceNamed: !!focusPattern?.evidence.includes('focus days'),
+        flatAbstains: flatWeek === null,
+        rejectsIdentity: !_weekReflectionTextIsGrounded("That's just who you are now."),
+        rejectsCausation: !_weekReflectionTextIsGrounded('Focus caused you to finish more.'),
+        acceptsVoice: _weekReflectionTextIsGrounded('Focus days did the heavy lifting; the week moved differently when you made room for them.'),
+      };
+    });
+    await expectAll('Sunday earned-insight gate', { ...result, noErrors: errors.length === 0 });
+    ok('Sunday reflection: supported patterns pass; flat summaries and overclaims abstain');
+    await page.close();
+  }
+
+  // 12. Sunday prompt receives one verified observation, not lifetime memory or
+  //     a bag of unrelated completed-task titles.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      const realFetch = window.fetch;
+      const realGetKey = window._aiGetKey;
+      let requestBody = null;
+      window._aiGetKey = () => 'stub';
+      appMemory.recentCompletedTasks = [
+        { text: 'fix avios video', date: '2026-08-22' },
+        { text: 'book manicure', date: '2026-08-23' },
+      ];
+      window.fetch = async (_url, options) => {
+        requestBody = JSON.parse(options.body);
+        return { ok: true, json: async () => ({ content: 'Focus days did the heavy lifting; the week moved differently when you made room for them.' }) };
+      };
+      const insight = {
+        kind: 'focus-leverage',
+        evidence: 'On 2 focus days this week, completions averaged 4.5; on 5 other recorded days, 0.6.',
+        meaning: 'Focus days coincided with a stronger completion rhythm this week.',
+      };
+      const text = await _fetchWeekReflection({ insight, days: [], history: [] });
+      window.fetch = realFetch;
+      window._aiGetKey = realGetKey;
+      const prompt = requestBody?.messages?.[0]?.content || '';
+      return {
+        returnedLine: text?.startsWith('Focus days did the heavy lifting'),
+        hasEvidence: prompt.includes('On 2 focus days this week'),
+        noLifetimeProfile: !prompt.includes('About this person'),
+        noTaskNouns: !prompt.includes('avios') && !prompt.includes('manicure'),
+        voiceAllowed: prompt.includes('light metaphor or dry wit'),
+      };
+    });
+    await expectAll('Sunday evidence-only prompt', { ...result, noErrors: errors.length === 0 });
+    ok('Sunday reflection: AI writes from one verified observation, without lifetime/task-title leakage');
+    await page.close();
+  }
+
+  // 13. A pre-policy cached line is invalidated instead of surviving the new
+  //     evidence contract. With no qualifying pattern, the block stays silent.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const today = _localISO();
+      localStorage.setItem('week_reflection_' + today, "202 days in — that's just who you are now.");
+      localStorage.removeItem('week_policy_' + today);
+      const orig = Date.prototype.getDay;
+      Date.prototype.getDay = () => 0;
+      renderInfoStats();
+      Date.prototype.getDay = orig;
+      const el = document.getElementById('sundayBlock');
+      return {
+        cacheRemoved: !localStorage.getItem('week_reflection_' + today),
+        policyStamped: localStorage.getItem('week_policy_' + today) === _weekReflectionPolicy,
+        hidden: !!(el && el.style.display === 'none'),
+        oldTextGone: !(el && el.textContent.includes('202 days in')),
+      };
+    });
+    await expectAll('Sunday old-cache invalidation', { ...result, noErrors: errors.length === 0 });
+    ok('Sunday reflection: old ungrounded cache is removed and a flat week stays silent');
+    await page.close();
+  }
+
+  // 14. Static wiring checks.
   {
     const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
     const swSrc    = await readFile(join(ROOT, 'sw.js'), 'utf8');
@@ -315,6 +418,8 @@ try {
       const requiredExports = [
         'toggleInfo', '_poemOfTheDay', '_onPoemTap',
         '_shareDailyPoem', '_copyToClipboard', 'renderInfoStats',
+        '_buildWeekReflectionInsight', '_weekReflectionTextIsGrounded',
+        '_fetchWeekReflection',
       ];
       await expectAll('extracted about module wiring', {
         moduleLoad:     indexSrc.includes('<script src="assets/about.js"></script>'),

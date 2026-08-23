@@ -172,11 +172,11 @@ try {
       const el = document.getElementById('triageReflection');
       return {
         policyRemember: policy?.choice === 'remember',
-        hasButtons: !!(el && el.querySelectorAll('.reflection-feeling-btn').length === 5),
+        hasButtons: !!(el && el.querySelectorAll('.reflection-feeling-btn').length === 6),
       };
     });
     await expectAll('reflectionRemember saves policy + shows question', result);
-    ok('reflectionRemember: policy=remember, five feeling buttons shown');
+    ok('reflectionRemember: policy=remember, six feeling buttons shown');
     await page.close();
   }
 
@@ -202,17 +202,17 @@ try {
     });
     const today = TODAY;
     const result = await page.evaluate(date => {
-      window.reflectionSelect('steady');
+      window.reflectionSelect('present');
       const list = JSON.parse(localStorage.getItem('today_reflections') || '[]');
       const entry = list.find(r => r.date === date);
       return {
         entryExists: !!entry,
-        feelingCorrect: entry?.feeling === 'steady',
+        feelingCorrect: entry?.feeling === 'present',
         hasUpdatedAt: typeof entry?.updatedAt === 'string',
       };
     }, today);
     await expectAll('reflectionSelect stores entry', result);
-    ok('reflectionSelect("steady"): entry saved with correct date and feeling');
+    ok('reflectionSelect("present"): entry saved with correct date and feeling');
     await page.close();
   }
 
@@ -472,7 +472,7 @@ try {
       // 14 reflections: 8 'calm' (57%), 6 others
       const list = Array.from({ length: 14 }, (_, i) => ({
         date: `2026-08-${String(i + 1).padStart(2, '0')}`,
-        feeling: i < 8 ? 'calm' : ['drained', 'tense', 'steady', 'alive', 'drained', 'tense'][i - 8],
+        feeling: i < 8 ? 'calm' : ['drained', 'tense', 'present', 'alive', 'drained', 'tense'][i - 8],
         updatedAt: new Date().toISOString(),
       }));
       localStorage.setItem('today_reflections', JSON.stringify(list));

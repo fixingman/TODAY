@@ -247,17 +247,19 @@ Does not enumerate signal priorities. Soon tasks are included but only surfaced 
 
 ---
 
-## Sunday Weekly Reflection (v2.17.56)
+## Sunday Weekly Reflection (v2.17.56; evidence contract v2.71.12)
 
-On Sundays, `#sundayBlock` appears above the stat tiles in the About panel. Shows an AI-generated one-sentence reflection (warm, honest, under 15 words) based on the week's stats (tasks done, focus time, habits kept).
+On Sundays, `#sundayBlock` may appear above the stat tiles in the About panel. The sentence is now signal-gated: `_buildWeekReflectionInsight()` ranks deterministic candidates from the same seven calendar days shown in the grid. Current candidates are focus/completion association, habit/completion association, a standout weekday that repeats across earlier instances, and concentrated two-day bursts. Relationships require observations on both sides; the burst candidate is deliberately weakest.
 
-**Cache:** stored as `week_reflection_YYYY-MM-DD` in localStorage, regenerated once per day.
+The winning object contains `{kind, score, evidence, meaning}`. `_fetchWeekReflection()` sends only that object to the AI. It no longer sends `_memoryForAI('weekly')`, lifetime days active, or `recentCompletedTasks`; the model gives a verified observation voice rather than deciding what is true from raw personal history.
 
-**Fallback:** if no AI key or offline, shows a rule-based summary ("3 tasks done. 90m of focus. 4/5 habits.").
+**Voice:** one sentence, under 22 words; intentional, smart, useful, and quietly human. Light metaphor or dry wit is welcome when it clarifies the pattern. Identity claims, causal claims from correlation, tenure language, invented facts, and visible-counter paraphrases are forbidden. `_weekReflectionTextIsGrounded()` rejects identity/causal/tenure overclaims even if the model ignores the prompt.
 
-**Entry point:** `_fetchWeekReflection({wT, wF, wHK, wHT})` via `/.netlify/functions/ai-assist`.
+**Abstention:** no qualifying candidate, `none`, missing AI, offline, or an invalid response hides the sentence. There is no factual fallback; the week grid already carries that information.
 
-System prompt: *"One sentence only. No quotes. Under 15 words. Plain, warm, grounded."*
+**Cache:** text remains `week_reflection_YYYY-MM-DD`. `week_policy_YYYY-MM-DD = earned-v1` is a policy/negative-cache companion, Dropbox-backed as `week_reflection_policy`. A current marker with no text means the evidence gate intentionally abstained. Old reflection text without the current marker is deleted and ignored during sync, preventing the reported “202 days in … that's who you are” line from surviving the new contract.
+
+**Entry point:** `_fetchWeekReflection({days, history, insight})` via `/.netlify/functions/ai-assist`.
 
 ---
 
@@ -267,7 +269,7 @@ On Mondays, the same `#sundayBlock` slot shows an AI-generated intention prompt 
 
 **Cache:** stored as `monday_intention_<date>` in localStorage, regenerated once per day.
 
-**Fallback:** none — block is hidden if no AI key or offline (unlike Sunday which has a rule-based fallback).
+**Fallback:** none — block is hidden if no AI key or offline.
 
 **Task sources (v2.65.1):** manual tasks (undone, up to 5, done/past filtered), Soon tasks (up to 4), Trello cards (up to 4) — all included as labeled sections in the user message.
 

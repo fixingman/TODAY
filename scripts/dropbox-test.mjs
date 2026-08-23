@@ -245,7 +245,35 @@ try {
     await page.close();
   }
 
-  // 11. Static wiring checks.
+  // 11. Weekly reflection sync accepts only text generated under the current
+  //     evidence policy, so an older backup cannot resurrect biography drift.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const today = _localISO();
+      const base = {
+        manual_tasks: [], done_ids: [], deleted_ids: [], unchecked_ids: [], checked_ids: [],
+        soon_tasks: [], past_tasks: [], habits: [],
+      };
+      mergeRemoteData({ ...base, week_reflection: "202 days in — that's just who you are now." });
+      const rejectedOld = !localStorage.getItem('week_reflection_' + today);
+      mergeRemoteData({
+        ...base,
+        week_reflection: 'Tuesday is becoming your unofficial cleanup crew.',
+        week_reflection_policy: _weekReflectionPolicy,
+      });
+      return {
+        rejectedOld,
+        acceptedCurrent: localStorage.getItem('week_reflection_' + today) === 'Tuesday is becoming your unofficial cleanup crew.',
+        policySynced: localStorage.getItem('week_policy_' + today) === _weekReflectionPolicy,
+      };
+    });
+    await expectAll('weekly reflection policy sync', { ...result, noErrors: errors.length === 0 });
+    ok('mergeRemoteData: stale weekly copy rejected; current evidence policy syncs');
+    await page.close();
+  }
+
+  // 12. Static wiring checks.
   {
     const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
     const swSrc    = await readFile(join(ROOT, 'sw.js'), 'utf8');
@@ -284,6 +312,7 @@ try {
         mergeRemoved:       !indexSrc.includes('function mergeRemoteData('),
         moduleInit:         dropboxSrc.includes('window._startDropbox = function()'),
         allExports:         requiredExports.every(n => dropboxSrc.includes(`window.${n} = ${n};`)),
+        weekPolicySynced:   dropboxSrc.includes('week_reflection_policy:'),
         precached:          swSrc.includes("'/assets/dropbox.js'"),
       });
       ok('extracted dropbox module: 27 exports correct, load order and init order correct');

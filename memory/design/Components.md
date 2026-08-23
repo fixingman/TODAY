@@ -27,6 +27,7 @@
 - Link arrow: ↗ (`.task-link`) — opens `task.url` in new tab. Trello tasks get URL from API; manual tasks extract URL from input at creation. Title: "Open in Trello" or "Open link"
 - Done state: strikethrough and 25% row opacity to deliberately reduce completed-task noise; names/state remain available to assistive technology, but visible text/control contrast is an accepted exception
 - Keyboard: focus the row; Enter starts focus, Space toggles completion, Option+Up/Down reorders and persists
+- Completion particles receive checkbox client coordinates; the celebration canvas converts them to its backing-buffer coordinates so mobile viewport sizing cannot offset the visible burst
 
 ### Task Aging
 
@@ -158,8 +159,8 @@ Rendered inside `#triageReflection` (between summary and Undo button). Three sta
 │  Beyond what got done, how did          │
 │  today feel?                            │
 │                                         │
-│  [ drained ] [ tense ] [ steady ]       │
-│  [ calm ]    [ alive ]                  │
+│  [ drained ] [ tense ] [ present ]      │
+│  [ off ]     [ calm ]  [ alive ]        │
 └─────────────────────────────────────────┘
 ```
 
@@ -382,7 +383,11 @@ until `today_daily_history` has any data (`_hasData` guard).
   today). No label — recognition, not a trophy.
 - **No text lines below the grid (v2.17.66):** `#weekNarrative`, `#weekCompare`, `#weekRhythm`
   were removed. Rule-based phrases became wallpaper after first reading — the visual bars
-  already show the week's shape. The Sunday AI block handles the one case where words add value.
+  already show the week's shape.
+- **Sunday earned insight (v2.71.12):** the optional sentence above the grid appears only when
+  code finds a supported relationship or recurring pattern that adds information. The AI adds
+  personality to that selected observation; it never receives lifetime biography or a loose list
+  of task titles. No pattern means no sentence — there is no counter-summary fallback.
 
 ---
 

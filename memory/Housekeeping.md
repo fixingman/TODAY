@@ -127,6 +127,7 @@ Quick smoke test after any deploy:
 - Review `Backlog.md` — any stale items to close or move to Not Implementing?
 - Check `Bugs.md` — any "awaiting" bugs that have been soaking for 3+ sessions? Follow up with Can.
 - **Wallpaper audit (W3):** any recurring surface shipped ~2+ weeks ago — ask Can whether it still delivers each time it appears, or has become skippable. Iterate or remove (removal is a valid outcome).
+- **Clean plan files:** `ls ~/.claude/plans/` — delete completed plans and any that belong to other projects (unrecognized subject matter). Completed plan = its fix is already shipped. Foreign plan = content clearly unrelated to TODAY.
 
 ### Occasionally: Documentation Audit
 - Changelog.md over 20 versions? Archive oldest entries to `Changelog-archive.md`

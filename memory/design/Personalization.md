@@ -24,6 +24,33 @@ Naming caveat: `appMemory.preferences` contains only **inferences** (peakHour is
 
 ---
 
+## Earned personality — the AI/data contract (v2.71.12)
+
+**Personality belongs in the delivery; evidence owns the claim.** A safe sentence that merely repeats a counter is wallpaper, while a lively sentence built from unrelated task nouns is faux insight. Every proactive personal line must therefore pass three gates before prose generation:
+
+1. **Evidence** — repeated behavior, a clear self-comparison, or a relationship with observations on both sides.
+2. **Novelty** — something the visible list, grid, or counters do not already say.
+3. **Usefulness** — it changes self-understanding, suggests a lever, or helps choose what to do next.
+
+If any gate fails, the surface abstains. It does not fall back to a generic summary. When a candidate passes, code selects and describes the observation; the LLM is a **writer, not the epistemologist**. It may add warmth, rhythm, dry wit, or a clarifying metaphor, but may not add evidence, infer identity, or turn association into causation. The voice can be confident; the claim stays conservative.
+
+The Sunday reflection is the first full implementation. `_buildWeekReflectionInsight()` deterministically ranks supported focus/completion, habit/completion, recurring-weekday, and burst-rhythm candidates. `_fetchWeekReflection()` receives only the winner — no lifetime biography and no bag of completed-task titles. A programmatic output guard rejects identity, causal, tenure, and overlong claims. `none` or no qualifying candidate hides the sentence and leaves the week grid alone.
+
+**Research basis:** perceived rather than merely actual personalization drives message effects ([Li, 2016](https://scholarship.miami.edu/esploro/outputs/journalArticle/When-does-web-based-personalization-really-work/991031577120502976)); anthropomorphic style improves calibrated trust only when it communicates useful context ([Carter, Loft & Visser, 2024](https://pmc.ncbi.nlm.nih.gov/articles/PMC11457490/)); a new preprint found unsupported user-profile inference across every tested LLM, so model self-restraint is not an adequate evidence layer ([Sun, Zhang & Sheng, 2026](https://arxiv.org/abs/2608.04570)). See `research/Psychology.md` for the evidence boundary.
+
+### Where the existing symbiosis can compound next
+
+These are leverage points, not permission to add more surfaces:
+
+- **Close the outcome loop.** TODAY already observes → infers → suggests, but only inline suggestions record offered/applied/dismissed. Before expanding personalization, attach privacy-preserving outcome signals to an existing recommendation and learn whether it helped. Never equate silence with rejection unless the UI actually exposed the suggestion long enough to be seen.
+- **Give memory provenance.** Confirmable inferences should eventually carry a short evidence window (“6 of 8 recorded Tuesdays”) and freshness/confidence metadata. This makes correction meaningful and prevents a once-true pattern from becoming permanent biography.
+- **Prefer lifecycle evidence over noun themes.** Revive, Soon-return, age, focus-session, and let-go-reason data express choices the user actually made. They are stronger personalization material than semantic coincidence between task titles.
+- **Share candidates across surfaces.** Sunday, Noticed, Monday, the morning nudge, and focus should draw from one ranked observation pool with surface-specific eligibility and cooldowns. That prevents the same pattern from being narrated twice and makes abstention consistent.
+- **Measure interventions, not just behavior.** If TODAY says focus appears to be a lever, later reflection should check whether using focus changed the following period. A recommendation that cannot be evaluated should not harden into memory.
+- **Model expiry and contradiction.** Recent episodic evidence may challenge a durable pattern without overwriting it immediately. Confirmed memory needs decay/revalidation rules before more signals are added.
+
+---
+
 ## Capabilities vs. preferences — the Connections membership test
 
 The "settings drawer" worry dissolves once the two populations are split:
@@ -52,7 +79,7 @@ Run ProductThinking's "what already exists?" reflex against this table before ad
 | `dragKeywords` (rolling 100-word list) | `appMemory.preferences` | words extracted from tasks let go via triage (`_memoryOnTaskLetgo`, v2.52.0). Shown in memory panel when 10+ entries and a word appears 2+ times. **Used in focus companion (v2.65.0):** task words matched against this list (freq ≥ 2, len > 3) — if there's a hit, companion is told to name the avoidance pattern directly. |
 | `focusMinutesTotal`, `bestStreak`, `moments` | `appMemory` | milestone observations; `focusMinutesTotal` also feeds a Noticed total-focus-hours milestone (v2.38.0) |
 | `dayStartCount` / `lateAdditions` | `appMemory.patterns` | planned-vs-emergent insight (proactive `reactive_pattern` observation only — considered for Noticed v2.38.0, dropped as a near-duplicate of that existing observation) |
-| `recentCompletedTasks` (30-day rolling, v2.29.0) | `appMemory` | `_memoryForAI()`, Sunday/Monday prompts, Noticed's AI-generated week theme (v2.39.0 — replaced a keyword-frequency count that read as a stat, not an insight) |
+| `recentCompletedTasks` (30-day rolling, v2.29.0) | `appMemory` | `_memoryForAI()` and Monday context. Removed from Sunday in v2.71.12: unrelated titles encouraged semantic wordplay without evidence. Noticed uses behavioral aggregates, not task content, since v2.64.2. |
 | `suggestionHistory` / `suggestionCooldowns` | `appMemory` | AI remembers what it suggested and what the user did |
 | `today_daily_history` (30-day per-day snapshots) | localStorage | weekly stats, week grid, future WEEK companion |
 | `user_names` | localStorage | meeting attribution — the only *declared* personal data |

@@ -130,6 +130,11 @@ try {
   await page.waitForFunction(() => document.querySelector('.focus-timer').hidden);
 
   await page.evaluate(() => triageExpand());
+  await page.waitForFunction(() => {
+    const panel = document.getElementById('triagePanel');
+    const active = document.activeElement;
+    return panel?.getAttribute('aria-modal') === 'true' && active instanceof Element && !!active.closest('#triageOverlay');
+  });
   await audit(page, 'triage dialog passes axe', '#triageOverlay');
   const triageModal = await page.evaluate(() => document.getElementById('triagePanel').getAttribute('aria-modal') === 'true' && document.activeElement.closest('#triageOverlay'));
   if (!triageModal) fail('triage dialog did not receive modal focus');

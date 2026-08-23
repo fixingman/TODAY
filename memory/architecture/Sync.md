@@ -127,7 +127,7 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   manual_order_at: 'ISO',  // v5.4 — manual reorder timestamp; newer wins on merge (drag jump-back fix). Mirrors trello_order_at. Absent in older backups → '' → remote order wins (prior behavior)
   // v5.5 — post-triage reflections (opt-in). today_reflection_intro_seen_at intentionally excluded (local-only cooldown).
   reflection_policy:      { choice: 'remember'|'not_for_me', updatedAt: 'ISO' },
-  reflections:            [{ date: 'YYYY-MM-DD', feeling: 'drained'|'tense'|'steady'|'calm'|'alive', updatedAt: 'ISO' }],
+  reflections:            [{ date: 'YYYY-MM-DD', feeling: 'drained'|'tense'|'present'|'off'|'calm'|'alive', updatedAt: 'ISO' }],
   reflections_cleared_at: 'ISO',
   done_ids: ['id1', 'id2', ...],
   deleted_ids: [{id, at}, ...],

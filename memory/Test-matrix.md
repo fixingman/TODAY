@@ -175,7 +175,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 5.10 | SOON phantom — complete/delete task in SOON, sync next day | Task does NOT reappear in SOON |
 | 5.11 | Daily history — midnight snapshot | `today_daily_history` gains a new entry after midnight; capped at 30 entries |
 | 5.12 | About weekly grid | "This week" section shows 7-day grid with bar heights matching task counts |
-| 5.13 | Sunday AI reflection | On Sunday, `#sundayBlock` shows AI-generated sentence; cached in `week_reflection_YYYY-MM-DD` |
+| 5.13 | Sunday earned reflection | On Sunday, a qualifying evidence-backed candidate is AI-written and cached; a flat week leaves the sentence hidden |
 
 ### 6. Trello (8 tests)
 
@@ -259,14 +259,15 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 12.2 | Click ↩ soon | Task moves to SOON with same ID; `zoneChangedAt` refreshed; `revived` counter increments |
 | 12.3 | Done task in PAST — hover | No ↩ soon button (done stays — PAST is acknowledgment) |
 
-### 13. About — Sunday/Monday Layer (4 tests)
+### 13. About — Sunday/Monday Layer (5 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
-| 13.1 | Open About on Sunday (AI key set) | `#sundayBlock` shows "This week" label + AI-generated reflection; cached in `week_reflection_<date>` |
+| 13.1 | Open About on Sunday with a qualifying pattern (AI key set) | Code selects one candidate; prompt contains its evidence/meaning only; grounded AI line cached in `week_reflection_<date>` with current `week_policy_<date>` |
 | 13.2 | Open About on Monday (AI key set) | `#sundayBlock` shows "New week" label + AI intention prompt; cached in `monday_intention_<date>` |
-| 13.3 | Open About on Sunday — no AI key / offline | Sunday block hidden (no fallback for Monday intention; Sunday has rule-based fallback) |
+| 13.3 | Open About on Sunday — no AI key / offline | Sunday block hidden; no generic counter-summary fallback and no false negative-cache stamp |
 | 13.4 | Open About Tuesday–Saturday | No Sunday/Monday block shown |
+| 13.5 | Flat week, identity/causal response, or old unmarked cache | Flat week abstains; overclaim rejected; old copy removed and cannot restore from Dropbox without current policy |
 
 ---
 
@@ -286,8 +287,8 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | Meeting Mode | 8 | 4 |
 | Poem & Daily Brief | 6 | 3 |
 | PAST Revive | 3 | 2 |
-| About Sunday/Monday | 4 | 2 |
-| **Total** | **114** | **51** |
+| About Sunday/Monday | 5 | 3 |
+| **Total** | **115** | **52** |
 
 ---
 
@@ -327,7 +328,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 |---|----------|----------|
 | 14.1 | Triage complete, no policy, cooldown permits | `#triageReflection` shows intro copy + Remember / Not for me |
 | 14.2 | Triage complete, no policy, cooldown not elapsed | `#triageReflection` empty |
-| 14.3 | Tap "Remember" | Policy saved `remember`, intro replaced by five-word buttons, timer reset to 8s |
+| 14.3 | Tap "Remember" | Policy saved `remember`, intro replaced by six-word buttons, timer reset to 8s |
 | 14.4 | Tap "Not for me" | Policy saved `not_for_me`, `#triageReflection` cleared, timer reset to 3s |
 | 14.5 | Triage complete, policy = `remember`, no today response | Question shown, timer 6s |
 | 14.6 | Triage complete, policy = `remember`, today response exists | `#triageReflection` empty |
@@ -346,7 +347,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 
 | # | Scenario | Expected |
 |---|----------|----------|
-| 14.12 | Tap "steady" | Entry `{date: today, feeling: 'steady', updatedAt: ISO}` saved |
+| 14.12 | Tap "present" | Entry `{date: today, feeling: 'present', updatedAt: ISO}` saved |
 | 14.13 | Tap second feeling same day | Entry replaced (not appended) |
 | 14.14 | 31 reflections across 31 days | Oldest entry pruned; list stays at 30 |
 | 14.15 | Invalid `feeling` value passed to `reflectionSelect` | Silently ignored, no write |

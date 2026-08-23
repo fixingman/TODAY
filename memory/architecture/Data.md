@@ -102,8 +102,9 @@
 
 | Key | Type | Description |
 |---|---|---|
-| `today_daily_history` | JSON array | Rolling 30-day snapshot `{date, tasksDone, focusMins, habitsKept, habitsTotal}` — one entry per day, written at midnight in `applyNewDayCleanup`, used by the About weekly grid and the Sunday AI reflection (v2.17.55) |
-| `week_reflection_YYYY-MM-DD` | string | Cached AI-generated Sunday reflection for that date — regenerated at most once per day; falls back to rule-based summary if no AI key (v2.17.56) |
+| `today_daily_history` | JSON array | Rolling 30-day snapshot `{date, tasksDone, tasksAdded, focusMins, habitsKept, habitsTotal}` — one entry per day, written at midnight in `applyNewDayCleanup`, used by the About weekly grid and the Sunday evidence gate |
+| `week_reflection_YYYY-MM-DD` | string | Cached AI-written Sunday line for one code-verified observation; absent when the evidence gate abstains |
+| `week_policy_YYYY-MM-DD` | string | Sunday reflection policy/negative-cache marker (`earned-v1`). Current marker + no reflection text means “no qualifying insight”; Dropbox field `week_reflection_policy` prevents old-policy prose from being restored |
 | `monday_intention_<date>` | string | Cached AI-generated Monday intention prompt for that date — `#sundayBlock` shows this on Mondays instead of the Sunday reflection; no rule-based fallback (v2.30.0) |
 | `poem_splash_date` | string | YYYY-MM-DD — date the splash poem coda was last shown. Written at fade-in. Once-per-day gate — a second splash the same day skips the poem. Local only, not synced (v2.26.0) |
 | `sunday_nudge_seen_<date>` | string | Per-date flag set when the About panel is opened on Sunday/Monday while the AI nudge block is visible; clears the pulse on `#infoBtn`. Extended to Monday nudge in v2.30.0 |
@@ -173,7 +174,7 @@
 | Key | Type | Notes |
 |-----|------|-------|
 | `today_reflection_policy` | JSON `{choice, updatedAt}` | `choice` is `"remember"` or `"not_for_me"`; LWW on sync |
-| `today_reflections` | JSON array `[{date, feeling, updatedAt}]` | per-date LWW union on sync; pruned to 30 calendar days; `feeling` ∈ `{drained, tense, steady, calm, alive}` |
+| `today_reflections` | JSON array `[{date, feeling, updatedAt}]` | per-date LWW union on sync; pruned to 30 calendar days; `feeling` ∈ `{drained, tense, present, off, calm, alive}` |
 | `today_reflections_cleared_at` | ISO string | deletion watermark; max-wins on sync; entries ≤ watermark are discarded |
 | `today_reflection_intro_seen_at` | ISO string | **local-only** — 7-day cooldown before re-offering the intro; intentionally never backed up to Dropbox |
 

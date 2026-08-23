@@ -74,6 +74,7 @@
 |---|---|---|
 | `noticed_lines_<date>` | Day-cache for Noticed block lines — keeps them visible on re-open (v2.35.0); pruned by `_pruneLS` | Local |
 | `week_reflection_<date>` | Sunday reflection (AI-generated, cached per day) | Dropbox-synced (BUG-057, v2.36.1) |
+| `week_policy_<date>` | Sunday evidence-contract marker + negative cache (`earned-v1`) | Dropbox-synced as `week_reflection_policy`; rejects old-policy copy |
 | `monday_intention_<date>` | Monday intention (AI-generated, cached per day) | Dropbox-synced (BUG-057, v2.36.1) |
 | `today_manual_order_at` | ISO stamp of last manual reorder — recency-aware merge, prevents drag jump-back (v2.38.7) | Dropbox-synced (`manual_order_at`, schema 5.4) |
 | `week_theme_ai_<weekKey>` | Noticed's week-theme AI text, cached once/week (v2.39.0) | Dropbox-synced (`week_theme_ai`) |

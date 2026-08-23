@@ -68,6 +68,21 @@ TODAY acknowledges without gamifying.
 
 ---
 
+## Earned Personalization
+
+Personal language is valuable when it carries a useful observation; it becomes intimacy theatre when tone outruns evidence. TODAY's rule is **confident voice, conservative claim**: wit and warmth are welcome in phrasing, but identity, causation, and “the system knows the real you” claims require stronger evidence and user ratification.
+
+The adjacent research converges on four practical constraints:
+
+- Perceived personalization drives message effectiveness more than the sender's actual personalization process, so more history is not automatically better ([Li, 2016](https://scholarship.miami.edu/esploro/outputs/journalArticle/When-does-web-based-personalization-really-work/991031577120502976)).
+- Anthropomorphic presentation improved calibrated trust only when it communicated contextually useful reliability information; superficial humanness did not ([Carter, Loft & Visser, 2024](https://pmc.ncbi.nlm.nih.gov/articles/PMC11457490/)).
+- People can find algorithmic personal-trait profiles uncomfortably authoritative and need meaningful control over them ([Warshaw et al., CHI 2015](https://research.ibm.com/publications/can-an-algorithm-know-the-real-you-understanding-peoples-reactions-to-hyper-personal-analytics-systems)).
+- A recent preprint found 35–49% unsupported user-profile claims across 12 tested LLMs and found model self-assessment unreliable at model-selection level. Treat this as emerging rather than settled evidence, but it directly supports external claim verification ([Sun, Zhang & Sheng, 2026](https://arxiv.org/abs/2608.04570)).
+
+**Product inference:** code or a separately verifiable analysis layer determines what the data supports; the LLM writes it. A candidate must add evidence-backed novelty and usefulness. Otherwise silence beats both faux insight and a bland factual recap. If an interpretation may become durable memory, show its basis and let the user confirm or reject it.
+
+---
+
 ## Reflection Without Mood Tracking
 
 A reflection prompt and a mood measurement can look identical, but they have different jobs.
@@ -81,7 +96,7 @@ likewise supports putting feelings into words more directly than selecting an un
 
 - **Opt-in with two-tap consent** — prompt shown once after triage; “Remember” or “Not for me.” Consent is local, revocable at any time from the Memory panel.
 - **Whole-history deletion** — “Forget reflections” clears policy, history, and watermark in one step; an immediate silent Dropbox backup propagates deletion to all devices.
-- **Five categorical words only** — drained · tense · steady · calm · alive. No scores, no sliders, no unlabeled ratings, no emojis. Affect-labeling benefit without numeric-score baggage.
+- **Six categorical words only** — drained · tense · present · off · calm · alive. No scores, no sliders, no unlabeled ratings, no emojis. Affect-labeling benefit without numeric-score baggage.
 - **30-day local retention** — responses stay on device and in Dropbox if connected; they do not accumulate indefinitely.
 - **Selected-population wording** — all in-app observations say “On evenings you reflected…” to acknowledge the selection bias: the sample is not a random cross-section of all evenings.
 - **Conservative on-device observations** — purely deterministic, no AI. Require ≥14 reflections total, ≥4 per comparison group. Only two patterns surfaced: a dominant feeling (≥45% share) or a focus-association (≥30 pp difference between low-focus and long-focus groups). One observation maximum.

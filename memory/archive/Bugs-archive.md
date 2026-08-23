@@ -6,6 +6,61 @@
 
 ---
 
+## BUG-076 — Splash exit leaves `O` / `AY` visible
+
+**Status:** ✅ Verified fixed (v2.65.3; verified 2026-08-20 by Can on real device)
+**Introduced:** v2.64.24 (per-letter WAAPI exit)
+**Files:** `index.html`, `assets/splash.js`, `scripts/splash-test.mjs`
+
+**Symptom:** During the staged splash dismissal, `TO` and `DAY` normally fade smoothly before the star burst, but Safari could leave `O` and `AY` visible while the poem lines continued fading. Intermittent, not reproducible in Chromium.
+
+**Root cause:** The exit created five accelerated opacity animations in two same-turn sibling batches: T/O, then D/A/Y 150ms later. Their final invisibility existed only in WAAPI `fill: 'forwards'`; no underlying opacity was written. The surviving letters match the later siblings in each batch, consistent with a WebKit compositor/fill handoff race.
+
+**Fix (v2.65.3):** Static `#splash-word-to` and `#splash-word-day` wrappers now own one animation each. `_fade()` persists `style.opacity = '0'` beneath the animation, preventing a lost fill state from revealing content. Individual letter spans own no animations.
+
+**Verified fixed:** ✅ 2026-08-20 (Can, real device)
+
+---
+
+## BUG-072 — Triage flow never completes after "Let go" is tapped
+
+**Status:** ✅ Verified fixed (v2.61.6; verified 2026-08-20 by Can on real device)
+**File:** `index.html` — `triageShowReason`, `renderTriageList`
+
+**Symptom:** After making all triage decisions including "Let go" on one or more tasks, the completion screen never appeared. The overlay stayed open with decided tasks showing badges.
+
+**Root cause:** `triageShowReason(id)` only manipulated the DOM — it replaced the card's action buttons with reason chips but never set `triageDecisions[id]`. When any other card was decided, `renderTriageList()` re-rendered the entire list, wiping the reason chips. The "Let go" intent was lost; `remaining` never reached 0 and `triageApplyAll()` never fired.
+
+**Fix (v2.61.6):** `triageShowReason(id)` now commits `triageDecisions[id] = 'letgo'` immediately and calls `triageApplyAll()` or `renderTriageList()` via the normal path. `renderTriageList()` injects reason chips inline for any letgo task awaiting a reason.
+
+**Verified fixed:** ✅ 2026-08-20 (Can, real device)
+
+---
+
+## BUG-081 — Task count shows done > total after triage ("8 of 5")
+
+**Status:** ✅ Fixed (v2.69.10, 2026-08-20)
+
+**Symptom:** The "X of Y" counter under the logo showed impossible values like "8 of 5" immediately after completing triage.
+
+**Root cause:** `updateStats()` in `assets/task-actions.js` computed `total` from only current today tasks (`trelloTasks + manualTasks`) but computed `done` from both current and past tasks (`[...all, ...pastTasks].filter(doneIds)`). After triage, `_postTriageDone` moves tasks checked off during the day from `manualTasks` into `pastTasks` — shrinking `total` — while those same tasks' IDs remain in `doneIds` and continue to contribute to `done`. With 8 tasks completed during the day and 5 undone tasks kept, `total` became 5 and `done` became 8.
+
+**Fix (v2.69.10):** Compute `pastDone = pastTasks.filter(doneIds).length` and include it in both `total` and `done`. The two values now share identical domains: `done` can never exceed `total`.
+
+---
+
+## BUG-080 — Soon and Past zones auto-expand on re-render
+
+**Status:** ✅ Fixed (v2.69.9, 2026-08-20)
+
+**Symptom:** The Soon and Past zones loaded expanded on app start (they should start collapsed). They also randomly re-expanded during normal use — e.g. after pulling a task from Soon into today.
+
+**Root cause:** `renderSoon()` and `renderPast()` in `assets/zones.js` unconditionally set `list.hidden = false`, removed the `hidden` attribute, and flipped the chevron to the open state on every call — including re-renders triggered by task pulls, stats updates, and any other action that refreshes those zones. The HTML default (`aria-expanded="false"`, `hidden` on the list) was overridden on the very first render call.
+
+**Fix (v2.69.9):** Both functions now check whether the section was previously hidden (`section.style.display === 'none'`). On first appearance only, the zone starts collapsed. On subsequent re-renders, the current expanded/collapsed state is preserved.
+
+---
+
 ## BUG-075 — Tagged-task shimmer flashes when hover overlaps arrival
 
 **Status:** ✅ Verified fixed (v2.64.20; verified 2026-08-15 by Can on real device)
