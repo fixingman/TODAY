@@ -105,12 +105,33 @@ function closeAI() {
 function _aiShowSetup() {
   const provider = _aiGetProvider();
   const isGemini = provider === 'gemini';
-  _aiSetMsg(
-    `<span class="ai-not-configured">` +
-    `Add a <a href="${isGemini ? 'https://aistudio.google.com/apikey' : 'https://platform.claude.com/login'}" ` +
-    `target="_blank" rel="noopener">${isGemini ? 'free Gemini' : 'Claude'} API key</a> ` +
-    `in <a href="#" onclick="closeAI();setTimeout(toggleConfig,80);return false">Connections ✦</a> to activate.</span>`
-  );
+  // _aiSetMsg deliberately uses textContent for AI output. Build this trusted
+  // setup UI with DOM APIs so links remain interactive without reopening an
+  // innerHTML/XSS path for model responses.
+  const el = document.getElementById('aiSuggestionMsg');
+  if (el) {
+    el.textContent = '';
+    el.className = 'ai-suggestion-msg';
+    const wrap = document.createElement('span');
+    wrap.className = 'ai-not-configured';
+    wrap.append('Add a ');
+    const keyLink = document.createElement('a');
+    keyLink.href = isGemini ? 'https://aistudio.google.com/apikey' : 'https://platform.claude.com/login';
+    keyLink.target = '_blank';
+    keyLink.rel = 'noopener';
+    keyLink.textContent = isGemini ? 'free Gemini API key' : 'Claude API key';
+    wrap.append(keyLink, ' in ');
+    const connectionsLink = document.createElement('a');
+    connectionsLink.href = '#';
+    connectionsLink.textContent = 'Connections ✦';
+    connectionsLink.addEventListener('click', event => {
+      event.preventDefault();
+      closeAI();
+      setTimeout(toggleConfig, 80);
+    });
+    wrap.append(connectionsLink, ' to activate.');
+    el.appendChild(wrap);
+  }
   _aiSetChips([
     { label: 'Open Connections', type: 'open_panel', payload: { panel: 'connections' }, primary: true },
     { label: 'Dismiss', type: 'dismiss', payload: {} },
@@ -1084,9 +1105,9 @@ async function _aiDoAnalyze(taskId, taskText) {
   // Dismiss any existing suggestion first
   _aiDismissSuggestion();
 
-  // Suppress if user dismisses >70% of suggestions (min 5 offered)
+  // Suppress if user explicitly dismisses or ignores >70% of suggestions (min 5 offered)
   const _sig = appMemory?.patterns?.inlineSuggestions;
-  if (_sig && _sig.offered >= 5 && _sig.dismissed / _sig.offered > 0.7) return;
+  if (_sig && _sig.offered >= 5 && (_sig.dismissed + (_sig.autoDismissed || 0)) / _sig.offered > 0.7) return;
 
   // Build minimal context
   const existingTasks = manualTasks
@@ -1189,10 +1210,10 @@ function _aiShowSuggestion(taskId, taskEl, data) {
     _saveMemory();
   }
 
-  // Auto-dismiss after 10s
+  // Auto-dismiss after 10s — pass 'auto' so it counts toward suppression gate
   setTimeout(() => {
     if (_aiCurrentSuggestion?.taskId === taskId) {
-      _aiDismissSuggestion();
+      _aiDismissSuggestion('auto');
     }
   }, 10000);
 }
@@ -1207,9 +1228,10 @@ function _aiDismissSuggestion(source) {
   }
   _aiCurrentSuggestion = null;
 
-  if (source === 'user' && appMemory?.patterns?.inlineSuggestions) {
-    appMemory.patterns.inlineSuggestions.dismissed++;
-    _saveMemory();
+  if (appMemory?.patterns?.inlineSuggestions) {
+    if (source === 'user') appMemory.patterns.inlineSuggestions.dismissed++;
+    else if (source === 'auto') appMemory.patterns.inlineSuggestions.autoDismissed = (appMemory.patterns.inlineSuggestions.autoDismissed || 0) + 1;
+    if (source === 'user' || source === 'auto') _saveMemory();
   }
 }
 

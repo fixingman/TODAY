@@ -16,6 +16,9 @@
 
 | # | Description | Status |
 |---|---|---|
+| 084 | Checkmark confetti is vertically offset from its checkbox on mobile | 🧪 v2.71.8 |
+| 083 | Past→Soon revive causes black screen — interface unresponsive until refresh, data saves correctly | 🔍 Diagnosing |
+| 082 | Post-triage done counter shows 0 after triage completes same day | 🔍 Diagnosing |
 | 078 | `TRIAGE_HISTORY_MAX` out of scope in `dropbox.js` — threw `ReferenceError` on Dropbox pull and restore | ✅ v2.65.17 |
 | 077 | Trello "Network error" flash in Connections panel on Dropbox reconnect or midnight boundary | ✅ v2.65.4 |
 | 076 | Splash exit intermittently leaves `O` and `AY` visible while the poem coda disappears | ⏳ v2.65.3 |
@@ -102,53 +105,6 @@
 
 ---
 
-## BUG-076 — Splash exit leaves `O` / `AY` visible
-
-**Status:** ⏳ v2.65.3 (fix shipped — awaiting Safari/iPhone verification)
-**Introduced:** v2.64.24 (per-letter WAAPI exit)
-**Files:** `index.html`, `assets/splash.js`, `scripts/splash-test.mjs`
-
-**Symptom:** During the staged splash dismissal, `TO` and `DAY` normally fade smoothly before
-the star burst, but Safari can leave `O` and `AY` visible while the poem lines continue fading.
-The residue is intermittent and was not reproducible in 24 instrumented Chromium runs.
-
-**Root cause:** The exit created five accelerated opacity animations in two same-turn sibling
-batches: T/O, then D/A/Y 150ms later. Their final invisibility existed only in WAAPI
-`fill: 'forwards'`; no underlying opacity was written. The exact surviving letters match the
-later siblings in each batch, consistent with a WebKit compositor/fill handoff race. The prior
-test checked only eventual splash removal and static letter counts, so it could not detect a
-visible residue during the longer coda exit.
-
-**Fix (v2.65.3):**
-- Static `#splash-word-to` and `#splash-word-day` wrappers now own one animation each.
-- `_fade()` uses explicit opacity `1 → 0` keyframes and persists `style.opacity = '0'` beneath
-  the animation, preventing a lost fill state from revealing completed content.
-- TO/DAY/date/burst/coda timing is unchanged; individual letter spans own no animations.
-- The splash suite repeats desktop and 375px exits and verifies ownership, order, and final state.
-
-**Device verification:** On macOS Safari and the iPhone PWA, force both coda and no-coda splash
-paths. Across at least ten coda exits, confirm TO fades together, DAY fades together 150ms later,
-the star burst remains aligned, and `O` / `AY` never remain visible while the poem disappears.
-
----
-
-## BUG-072 — Triage flow never completes after "Let go" is tapped
-
-**Status:** ⏳ v2.61.6 (fix shipped — awaiting real-device verification)
-**File:** `index.html` — `triageShowReason`, `renderTriageList`
-
-**Symptom:** After making all triage decisions including "Let go" on one or more tasks, the completion screen never appears. The overlay stays open with decided tasks showing badges.
-
-**Root cause:** `triageShowReason(id)` (added v2.54.0 to show reason chips) only manipulated the DOM — it replaced the card's action buttons with reason chips but never set `triageDecisions[id]`. When any other card was decided, `renderTriageList()` re-rendered the entire list from scratch, wiping the reason chips. The "Let go" intent was lost. The task remained undecided, so `remaining` never reached 0 and `triageApplyAll()` never fired. Affects any session where "Let go" is not the very last decision made.
-
-**Fix (v2.61.6):**
-- `triageShowReason(id)` now commits `triageDecisions[id] = 'letgo'` immediately (fires `_haptic`, recalculates remaining, calls `triageApplyAll()` or `renderTriageList()` via the normal path). DOM manipulation removed.
-- `renderTriageList()` decided-card template now injects optional reason chips inline for any letgo task that has no reason yet (chips call new `triageSetReason(id, reason)`).
-- New `triageSetReason(id, reason)` — just records the reason and re-renders (no decision logic).
-- Edge case: if "Let go" is the LAST undecided task, `triageApplyAll()` fires immediately (reason = '', which is handled correctly by `triageApplyAll`'s `|| ''` fallback).
-
----
-
 ## BUG-071 — App blank on wake / PWA background return during focus mode
 
 **Status:** ⏳ v2.61.5 (fix shipped — awaiting real-device verification)
@@ -179,3 +135,67 @@ the star burst remains aligned, and `O` / `AY` never remain visible while the po
 Accepted edge case: affects a small minority of users, and only in the link preview — the page itself shows the correct poem. Server-side TZ detection would require a geolocation lookup, which is not worth the complexity.
 
 ---
+
+---
+
+## BUG-082 — Post-triage done counter shows 0 after same-day triage
+
+**Status:** 🔍 Diagnosing (runtime logging deployed to dev — awaiting user report)
+**Introduced:** unknown
+**File:** `assets/triage.js`, `assets/task-actions.js`, `assets/dropbox.js`, `assets/day-lifecycle.js`
+
+**Symptom:** After triage completes on the same day, the done/total counter in the stats bar shows 0 instead of the correct count (e.g. "0/3 done").
+
+**Code flow:**
+- `triageApplyAll()` moves done tasks from `manualTasks` → `pastTasks` without clearing their IDs from `doneIds`
+- `updateStats()` computes `pastDone = pastTasks.filter(t => doneIds.has(t.id)).length`
+- On paper this should be non-zero; root cause not yet found via static analysis
+
+**Diagnostic logging added (v2.71.3 area):**
+- `[BUG-082] post-triage:` — logs counts immediately after triage commit
+- `[BUG-082] updateStats:` with stack trace — fires when `pastDone=0` but `pastTasks` non-empty
+- `[BUG-082] mergeRemoteData:` — fires if Dropbox sync zeroes out the count
+- `[BUG-082] applyNewDayCleanup:` — fires if guard fails and cleanup runs same-day
+
+**Next step:** User opens DevTools filtered for `BUG-082`, runs triage, observes the bug, reports console output.
+
+---
+
+## BUG-083 — Past→Soon revive causes black screen, interface unresponsive
+
+**Status:** 🔍 Diagnosing (runtime logging deployed to dev — awaiting user report)
+**Introduced:** unknown
+**Affects:** Desktop and mobile
+**File:** `assets/zones.js` — `reviveFromPast()` / `reviveFromPastShowReason()`
+
+**Symptom:** After tapping "↩ soon" on a past task and selecting a reason, the interface goes black and is completely unresponsive. Only the task input bar is faintly visible but unclickable. After page refresh, the task has correctly moved to Soon (data saves fine).
+
+**Hypotheses explored (static analysis, all inconclusive):**
+- `#triageOverlay` becoming visible (z-999, dark backdrop) — would explain visual + block
+- `inert=true` left on body elements by `_setBackgroundInert` not restoring properly
+- Race between focus-mode `_setFocusInert` and `_a11yOpenDialog`/`_a11yCloseDialog` inerted map
+- `#meetingOverlay` stuck in opacity-0 non-hidden state (blocks pointer events during 300ms fade)
+- Unhandled JS exception mid-render leaving partial state
+- `renderSoon()` / `renderPast()` side effects
+
+**Diagnostic logging added (zones.js `reviveFromPast()`):**
+- `[REVIVE-DIAG] before` — overlay classList + hidden attr + main-app inert/opacity + addTaskBar inert
+- `[REVIVE-DIAG] after` — same fields post-render
+- `renderPast` / `renderSoon` wrapped in try/catch to surface any thrown exception
+
+**Next step:** User opens DevTools filtered for `REVIVE-DIAG`, triggers the bug, reports both log lines.
+
+---
+
+## BUG-084 — Checkmark confetti offset on mobile
+
+**Status:** 🧪 v2.71.8 (fix complete locally — awaiting deployment and real-device verification)
+**File:** `assets/celebration.js` — `fireEmberDrift()`
+
+**Symptom:** On mobile, checking a task draws the confetti away from its checkbox. Desktop placement is correct.
+
+**Root cause:** `.task-check.getBoundingClientRect()` supplies CSS viewport coordinates, but the celebration canvas draws in backing-buffer coordinates sized from `window.innerWidth`/`innerHeight`. Mobile Safari can render the CSS canvas at `100dvh`, a different height from that buffer, and scales the unchecked client coordinate into the wrong visible position.
+
+**Fix (v2.71.8):** `fireEmberDrift()` converts incoming client coordinates through `#celebCanvas.getBoundingClientRect()` into backing-buffer coordinates before spawning particles. The conversion also accounts for a non-zero canvas offset. Desktop and all-done origins are unchanged.
+
+**Device verification:** Complete ordinary and final tasks in the iPhone PWA with the browser chrome both expanded and collapsed. Confirm each initial burst originates at its checkmark. Desktop placement should remain unchanged.

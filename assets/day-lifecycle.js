@@ -102,6 +102,7 @@ window._startDayLifecycle = (function() {
         appMemory.patterns.dayStartCount = undoneCarriedOver;
         appMemory.patterns.dayStartDate  = _localISO();
         if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
+        appMemory.patterns.tasksAddedToday = 0;
         _saveMemory();
       }
 

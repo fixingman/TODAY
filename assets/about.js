@@ -2,6 +2,11 @@
 // Inert until index.html calls window._startAbout() before init().
 (function() {
   'use strict';
+  // Bumps when the evidence contract for the Sunday sentence changes. The dated
+  // companion key prevents a previously cached, less-grounded line from surviving
+  // a policy change or being restored by an older Dropbox backup.
+  const WEEK_REFLECTION_POLICY = 'earned-v1';
+  window._weekReflectionPolicy = WEEK_REFLECTION_POLICY;
   let started = false;
   window._startAbout = function() {
     if (started) return;
@@ -313,26 +318,50 @@
           const _weekLabel = _isSun ? 'This week' : 'New week';
           const _cacheKey  = _isSun ? 'week_reflection_' + _today : 'monday_intention_' + _today;
 
-          // Week stats (needed for Sunday reflection + fallback; harmless to compute on Monday)
+          // Structured week data for the Sunday evidence gate. Monday uses its
+          // own forward-looking task context and ignores this object.
           const _week  = _days.filter(d => d.tasks !== null);
-          const _wT    = _week.reduce((s, d) => s + (d.tasks || 0), 0);
-          const _wF    = _week.reduce((s, d) => s + (d.focus || 0), 0);
-          const _snap7 = _history.slice(-7);
-          const _wHK   = _snap7.reduce((s, e) => s + (e.habitsKept  || 0), 0);
-          const _wHT   = _snap7.reduce((s, e) => s + (e.habitsTotal || 0), 0);
+          const _reflectionStats = { days: _week, history: _history };
+          const _weekInsight = _isSun ? _buildWeekReflectionInsight(_reflectionStats) : null;
 
           _nudgeBlockShow(_sundayBlock, _nudgeStagger++ * 60);
-          const _cached = localStorage.getItem(_cacheKey);
+          const _weekPolicyKey = 'week_policy_' + _today;
+          let _cached = localStorage.getItem(_cacheKey);
+          const _weekPolicyCurrent = !_isSun || localStorage.getItem(_weekPolicyKey) === WEEK_REFLECTION_POLICY;
+          if (_isSun && !_weekPolicyCurrent) {
+            // The old Sunday contract mixed lifetime memory and unrelated task
+            // titles. Never preserve one of those lines under the earned-insight
+            // policy, even if it was generated earlier today.
+            localStorage.removeItem(_cacheKey);
+            _cached = null;
+          }
           if (_cached) {
             _sundayBlock.innerHTML =
               '<div class="week-label">' + _weekLabel + '</div>' +
               '<div class="week-summary">' + esc(_cached) + '</div>';
+          } else if (_isSun && _weekPolicyCurrent) {
+            // A current policy marker without text is the negative cache: the
+            // evidence gate found nothing worth saying. The grid can stand alone.
+            _sundayBlock.style.display = 'none';
+          } else if (_isSun && !_weekInsight) {
+            // A real negative result is worth caching; a missing key or offline
+            // state below is not. That distinction lets the line retry later if
+            // connectivity returns, without repeatedly asking about a flat week.
+            localStorage.setItem(_weekPolicyKey, WEEK_REFLECTION_POLICY);
+            _pruneLS('week_policy_', _weekPolicyKey);
+            _sundayBlock.style.display = 'none';
+          } else if (_isSun && (!(_aiGetKey && _aiGetKey()) || !navigator.onLine)) {
+            _sundayBlock.style.display = 'none';
           } else {
             _sundayBlock.innerHTML =
               '<div class="week-label">' + _weekLabel + '</div>' +
               '<div class="week-summary loading">reflecting…</div>';
+            if (_isSun) {
+              localStorage.setItem(_weekPolicyKey, WEEK_REFLECTION_POLICY);
+              _pruneLS('week_policy_', _weekPolicyKey);
+            }
             const _fetcher = _isSun
-              ? _fetchWeekReflection({ wT: _wT, wF: _wF, wHK: _wHK, wHT: _wHT })
+              ? _fetchWeekReflection({ ..._reflectionStats, insight: _weekInsight })
               : _fetchMondayIntention();
             _fetcher.then(text => {
               if (text) {
@@ -340,15 +369,6 @@
                 _pruneLS(_isSun ? 'week_reflection_' : 'monday_intention_', _cacheKey);
                 const el = _sundayBlock.querySelector('.week-summary');
                 if (el) { el.textContent = text; el.classList.remove('loading'); _nudgeTextResolve(el); }
-              } else if (_isSun) {
-                // Fallback: rule-based summary for Sunday only
-                const _fStr = _wF > 0 ? ' ' + _formatFocusTime(_wF) + ' of focus.' : '';
-                const _hStr = _wHT > 0 ? ' ' + _wHK + '/' + _wHT + ' habits.' : '';
-                const fb = _wT + ' task' + (_wT !== 1 ? 's' : '') + ' done.' + _fStr + _hStr;
-                localStorage.setItem(_cacheKey, fb);
-                _pruneLS('week_reflection_', _cacheKey);
-                const el = _sundayBlock.querySelector('.week-summary');
-                if (el) { el.textContent = fb; el.classList.remove('loading'); _nudgeTextResolve(el); }
               } else {
                 _sundayBlock.style.display = 'none';
               }
@@ -446,21 +466,118 @@
       }
     }
 
+    function _buildWeekReflectionInsight(stats) {
+      const days = (stats.days || []).filter(d => d && d.tasks !== null && d.tasks !== undefined);
+      if (days.length < 4) return null;
+
+      const candidates = [];
+      const avg = (items, field) => items.length
+        ? items.reduce((sum, item) => sum + (Number(item[field]) || 0), 0) / items.length
+        : 0;
+      const oneDecimal = n => Number(n.toFixed(1));
+
+      // Strongest weekly lever: a within-week relationship between focus and
+      // completion. This is phrased as association, never causation.
+      const focusDays = days.filter(d => (d.focus || 0) >= 5);
+      const otherDays = days.filter(d => (d.focus || 0) < 5);
+      if (focusDays.length >= 2 && otherDays.length >= 2) {
+        const focusAvg = avg(focusDays, 'tasks');
+        const otherAvg = avg(otherDays, 'tasks');
+        if (focusAvg - otherAvg >= 1 && focusAvg >= Math.max(1.4 * otherAvg, 1.5)) {
+          candidates.push({
+            kind: 'focus-leverage',
+            score: 110 + Math.min(20, Math.round((focusAvg - otherAvg) * 5)),
+            evidence: `On ${focusDays.length} focus days this week, completions averaged ${oneDecimal(focusAvg)}; on ${otherDays.length} other recorded days, ${oneDecimal(otherAvg)}.`,
+            meaning: 'Focus days coincided with a stronger completion rhythm this week.',
+          });
+        }
+      }
+
+      // Habit alignment is useful only with observations on both sides. A perfect
+      // streak alone is praise; a repeatable relationship can teach something.
+      const habitDays = days.filter(d => (d.habitsTotal || 0) > 0);
+      const heldDays = habitDays.filter(d => d.habitsKept >= d.habitsTotal);
+      const missedDays = habitDays.filter(d => d.habitsKept < d.habitsTotal);
+      if (heldDays.length >= 2 && missedDays.length >= 2) {
+        const heldAvg = avg(heldDays, 'tasks');
+        const missedAvg = avg(missedDays, 'tasks');
+        if (heldAvg - missedAvg >= 1 && heldAvg >= Math.max(1.4 * missedAvg, 1.5)) {
+          candidates.push({
+            kind: 'habit-alignment',
+            score: 100 + Math.min(15, Math.round((heldAvg - missedAvg) * 4)),
+            evidence: `On ${heldDays.length} days every habit held, completions averaged ${oneDecimal(heldAvg)}; on ${missedDays.length} other habit days, ${oneDecimal(missedAvg)}.`,
+            meaning: 'Habit consistency and task momentum moved together this week.',
+          });
+        }
+      }
+
+      // A day earns personality when this week's standout repeats a longer-lived
+      // rhythm. A single busy Tuesday is not a Tuesday pattern.
+      const rankedDays = [...days].sort((a, b) => (b.tasks || 0) - (a.tasks || 0));
+      const top = rankedDays[0];
+      const uniqueTop = top && (rankedDays.length === 1 || (top.tasks || 0) > (rankedDays[1].tasks || 0));
+      if (uniqueTop && (top.tasks || 0) >= 2) {
+        const currentDates = new Set(days.map(d => d.iso));
+        const prior = (stats.history || []).filter(e => e && e.date && !currentDates.has(e.date));
+        const [y, mo, da] = String(top.iso || '').split('-').map(Number);
+        const topDow = Number.isFinite(y) && Number.isFinite(mo) && Number.isFinite(da)
+          ? new Date(y, mo - 1, da).getDay() : -1;
+        const sameDow = prior.filter(e => {
+          const [ey, em, ed] = String(e.date).split('-').map(Number);
+          return new Date(ey, em - 1, ed).getDay() === topDow;
+        });
+        const priorAvg = avg(prior, 'tasksDone');
+        const sameAvg = avg(sameDow, 'tasksDone');
+        const weekAvg = avg(days, 'tasks');
+        if (topDow >= 0 && sameDow.length >= 2 && sameAvg >= Math.max(1.25 * priorAvg, 1) && (top.tasks || 0) >= Math.max(1.25 * weekAvg, 2)) {
+          const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][topDow];
+          candidates.push({
+            kind: 'recurring-day',
+            score: 90 + Math.min(10, sameDow.length),
+            evidence: `${dayName} led this week with ${top.tasks} completions and has averaged ${oneDecimal(sameAvg)} across ${sameDow.length} earlier recorded ${dayName}s.`,
+            meaning: `${dayName} is becoming a reliably strong day, not just a one-off.`,
+          });
+        }
+      }
+
+      // A lopsided week can reveal working rhythm, but this is deliberately the
+      // weakest candidate: it loses to any relationship or recurring pattern.
+      const totalTasks = days.reduce((sum, d) => sum + (d.tasks || 0), 0);
+      const topTwoTasks = rankedDays.slice(0, 2).reduce((sum, d) => sum + (d.tasks || 0), 0);
+      if (days.length >= 6 && totalTasks >= 8 && topTwoTasks / totalTasks >= 0.7) {
+        candidates.push({
+          kind: 'bursts',
+          score: 65,
+          evidence: `${topTwoTasks} of ${totalTasks} completions happened on the week's two busiest days.`,
+          meaning: 'The week moved in concentrated bursts rather than at an even pace.',
+        });
+      }
+
+      return candidates.sort((a, b) => b.score - a.score)[0] || null;
+    }
+
+    function _weekReflectionTextIsGrounded(text) {
+      if (!text || /^none\.?$/i.test(text.trim())) return false;
+      // Identity and causal claims outrun the observational evidence supplied to
+      // this surface. Reject them even if the model ignores the prompt.
+      if (/\bwho you are\b|\bthat(?:'s| is) (?:just )?you\b|\byou(?:'re| are) (?:the kind|the type|someone who|a person who)\b/i.test(text)) return false;
+      if (/\b(?:caused|made you|because of)\b/i.test(text)) return false;
+      if (/\b\d{2,4}\s+days? in\b/i.test(text)) return false;
+      return text.trim().split(/\s+/).length <= 26;
+    }
+
     async function _fetchWeekReflection(stats) {
       try {
         const key = _aiGetKey ? _aiGetKey() : null;
         if (!key || !navigator.onLine) return null;
-        const parts = [];
-        if (stats.wT > 0)  parts.push(stats.wT + ' tasks done');
-        if (stats.wF >= 5) parts.push(_formatFocusTime(stats.wF) + ' focused');
-        if (stats.wHT > 0) parts.push(stats.wHK + '/' + stats.wHT + ' habits kept');
-        const summary = parts.length > 0 ? parts.join(', ') : 'a quiet week';
-        const recentNames = (appMemory.recentCompletedTasks || []).slice(-15).map(e => e.text).filter(Boolean);
-        const taskCtx = recentNames.length > 0 ? ' Tasks this week: ' + recentNames.join(', ') + '.' : '';
-        const memCtx = typeof _memoryForAI === 'function' ? _memoryForAI('weekly') : '';
-        const userContent = (memCtx ? 'About this person:\n' + memCtx + '\n\n' : '') +
-          'This week: ' + summary + '.' + taskCtx +
-          ' One sentence — warm and honest, like a friend who knows them noticing what they did this week. Not a motivational poster.';
+        const insight = stats.insight || _buildWeekReflectionInsight(stats);
+        if (!insight) return null;
+        const userContent =
+          'Verified observation type: ' + insight.kind + '\n' +
+          'Evidence: ' + insight.evidence + '\n' +
+          'Useful meaning: ' + insight.meaning + '\n\n' +
+          'Write the Sunday line. Give this observation personality and warmth, but preserve its epistemic limits. ' +
+          'You may use a light metaphor or dry wit when it clarifies the pattern. Do not introduce any fact not present above.';
         const res = await fetch('/.netlify/functions/ai-assist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -468,11 +585,12 @@
             provider: _aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: userContent }],
-            systemPrompt: 'One sentence only. No quotes. Under 20 words. Plain, warm, grounded. Use what you know about the person to make it specific, not generic.',
+            systemPrompt: 'One sentence only. No quotes. Under 22 words. Confident voice, conservative claim. Be intentional, smart, useful, and quietly human. Never infer identity or personality, never say who the person is, never claim causation from correlation, and never restate a visible counter without adding meaning. If the evidence cannot support a useful line, reply exactly: none.',
           }),
         });
         if (!res.ok) return null;
-        return _parseAIText(await res.json());
+        const text = _parseAIText(await res.json());
+        return _weekReflectionTextIsGrounded(text) ? text : null;
       } catch (e) {
         return null;
       }
@@ -494,6 +612,16 @@
         // "Noticed" observes HOW/WHEN they work, not WHAT they worked on.
         const m = appMemory;
         const dailyHistory = (typeof safeJSON === 'function') ? safeJSON('today_daily_history', []) : [];
+        // Migration guard: tasksAdded was cumulative before the fix; convert to per-day deltas if needed.
+        if (dailyHistory.length > 0 && !dailyHistory[0].tasksAddedFixed) {
+          dailyHistory.sort((a, b) => a.date.localeCompare(b.date));
+          for (let _mi = dailyHistory.length - 1; _mi >= 0; _mi--) {
+            const _mp = _mi > 0 ? dailyHistory[_mi - 1].tasksAdded : 0;
+            dailyHistory[_mi].tasksAdded = Math.max(0, (dailyHistory[_mi].tasksAdded || 0) - _mp);
+            dailyHistory[_mi].tasksAddedFixed = true;
+          }
+          localStorage.setItem('today_daily_history', JSON.stringify(dailyHistory));
+        }
         const behavioralLines = [];
 
         // Peak hour
@@ -638,5 +766,8 @@
     window._shareDailyPoem = _shareDailyPoem;
     window._copyToClipboard = _copyToClipboard;
     window.renderInfoStats = renderInfoStats;
+    window._buildWeekReflectionInsight = _buildWeekReflectionInsight;
+    window._weekReflectionTextIsGrounded = _weekReflectionTextIsGrounded;
+    window._fetchWeekReflection = _fetchWeekReflection;
   };
 })();

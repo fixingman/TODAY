@@ -592,6 +592,7 @@
         // Sunday reflection / Monday intention in About — same cross-device story as
         // day_nudge_ai (BUG-057): without sync each device generates its own AI text
         week_reflection:  localStorage.getItem('week_reflection_'  + _localISO()) || '',
+        week_reflection_policy: localStorage.getItem('week_policy_' + _localISO()) || '',
         monday_intention: localStorage.getItem('monday_intention_' + _localISO()) || '',
         // Week theme for Noticed (v2.39.0) — same cross-device story, keyed per calendar
         // week rather than per day (Sunday/Monday-only surfaces use _localISO(); this
@@ -673,17 +674,25 @@
 
     // ── Daily history union merge (BUG-036) — the week grid reads per-day snapshots from
     // today_daily_history, which used to be local-only, so each device snapshotted its own
-    // days at midnight and the week view diverged across devices. Union by date; on a
-    // duplicate date keep the richer snapshot (higher tasksDone, tiebreak focusMins) so each
-    // entry stays internally consistent rather than mixing fields across devices. Cap 30 days.
+    // days at midnight and the week view diverged across devices. Union by date; on duplicate
+    // dates merge per-field with Math.max so neither device's data is silently discarded.
+    // Cap 30 days.
     function _mergeDailyHistory(localArr, remoteArr) {
       const byDate = new Map();
-      const _score = e => (e.tasksDone || 0) * 1000 + (e.focusMins || 0);
       for (const e of (Array.isArray(localArr)  ? localArr  : [])) { if (e && e.date) byDate.set(e.date, e); }
       for (const e of (Array.isArray(remoteArr) ? remoteArr : [])) {
         if (!e || !e.date) continue;
         const cur = byDate.get(e.date);
-        if (!cur || _score(e) > _score(cur)) byDate.set(e.date, e);
+        if (!cur) { byDate.set(e.date, e); continue; }
+        byDate.set(e.date, {
+          date:        e.date,
+          tasksDone:   Math.max(cur.tasksDone   || 0, e.tasksDone   || 0),
+          tasksAdded:  Math.max(cur.tasksAdded  || 0, e.tasksAdded  || 0),
+          focusMins:   Math.max(cur.focusMins   || 0, e.focusMins   || 0),
+          habitsKept:  Math.max(cur.habitsKept  || 0, e.habitsKept  || 0),
+          habitsTotal: Math.max(cur.habitsTotal || 0, e.habitsTotal || 0),
+          ...(cur.tasksAddedFixed || e.tasksAddedFixed ? { tasksAddedFixed: true } : {}),
+        });
       }
       return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
     }
@@ -1397,10 +1406,19 @@
       // day_nudge_ai — one device's generated text becomes the day's text everywhere
       // (BUG-057: About's This week / New week block differed between devices).
       let _weekBlockSynced = false;
-      if (data.week_reflection && data.week_reflection !== localStorage.getItem('week_reflection_' + _todayISO)) {
-        localStorage.setItem('week_reflection_' + _todayISO, data.week_reflection);
-        _pruneLS('week_reflection_', 'week_reflection_' + _todayISO);
-        _weekBlockSynced = true;
+      const _expectedWeekPolicy = window._weekReflectionPolicy || '';
+      if (_expectedWeekPolicy && data.week_reflection_policy === _expectedWeekPolicy) {
+        const _weekPolicyKey = 'week_policy_' + _todayISO;
+        if (localStorage.getItem(_weekPolicyKey) !== _expectedWeekPolicy) {
+          localStorage.setItem(_weekPolicyKey, _expectedWeekPolicy);
+          _pruneLS('week_policy_', _weekPolicyKey);
+          _weekBlockSynced = true;
+        }
+        if (data.week_reflection && data.week_reflection !== localStorage.getItem('week_reflection_' + _todayISO)) {
+          localStorage.setItem('week_reflection_' + _todayISO, data.week_reflection);
+          _pruneLS('week_reflection_', 'week_reflection_' + _todayISO);
+          _weekBlockSynced = true;
+        }
       }
       if (data.monday_intention && data.monday_intention !== localStorage.getItem('monday_intention_' + _todayISO)) {
         localStorage.setItem('monday_intention_' + _todayISO, data.monday_intention);

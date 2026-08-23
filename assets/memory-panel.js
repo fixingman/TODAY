@@ -70,6 +70,20 @@
       const _dowNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
       const _parseDowLocal = iso => { const [y,mo,d] = iso.split('-').map(Number); return new Date(y, mo-1, d).getDay(); };
       const allDailyHistory = safeJSON('today_daily_history', []);
+      // One-time migration: tasksAdded was stored as a cumulative lifetime total (never
+      // reset at day rollover). Convert to per-day deltas by diffing consecutive entries.
+      // Marker: if any entry has tasksAddedFixed=true we've already run the migration.
+      if (allDailyHistory.length > 0 && !allDailyHistory[0].tasksAddedFixed) {
+        allDailyHistory.sort((a, b) => a.date.localeCompare(b.date));
+        for (let _i = allDailyHistory.length - 1; _i >= 0; _i--) {
+          const _prev = _i > 0 ? allDailyHistory[_i - 1].tasksAdded : 0;
+          const _raw  = allDailyHistory[_i].tasksAdded || 0;
+          const _delta = Math.max(0, _raw - _prev);
+          allDailyHistory[_i].tasksAdded = _delta;
+          allDailyHistory[_i].tasksAddedFixed = true;
+        }
+        localStorage.setItem('today_daily_history', JSON.stringify(allDailyHistory));
+      }
       const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
       const weekAgoISO = weekAgo.toISOString().slice(0, 10);
       const weekHistory = allDailyHistory.filter(e => e.date >= weekAgoISO);
@@ -381,6 +395,16 @@
           .map(([w, d]) => `${w} (${d.completed} done, avg ${(d.avgDaysToComplete || 0).toFixed(1)}d)`);
 
         const dailyHistory = (typeof safeJSON === 'function') ? safeJSON('today_daily_history', []) : [];
+        // Migration guard: same as renderMemoryPanel — convert cumulative tasksAdded to per-day deltas.
+        if (dailyHistory.length > 0 && !dailyHistory[0].tasksAddedFixed) {
+          dailyHistory.sort((a, b) => a.date.localeCompare(b.date));
+          for (let _mi = dailyHistory.length - 1; _mi >= 0; _mi--) {
+            const _mp = _mi > 0 ? dailyHistory[_mi - 1].tasksAdded : 0;
+            dailyHistory[_mi].tasksAdded = Math.max(0, (dailyHistory[_mi].tasksAdded || 0) - _mp);
+            dailyHistory[_mi].tasksAddedFixed = true;
+          }
+          localStorage.setItem('today_daily_history', JSON.stringify(dailyHistory));
+        }
         const _parseDowAbs = iso => { const [y, mo, d] = iso.split('-').map(Number); return new Date(y, mo - 1, d).getDay(); };
         const byDow = {};
         dailyHistory.slice(-14).forEach(e => {
