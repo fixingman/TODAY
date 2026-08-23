@@ -4277,16 +4277,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '284h';
+const DEV_HOURS     = '285h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.71.19': 'Fix: Edit button in delete toast now works.',
+  '2.71.18': 'Maintenance: the full test runner now detects omitted suites and fails visibly on flaky retry-only passes.',
   '2.71.17': 'Maintenance: weekly insights and Trello now have deeper automated checks for reliable filtering and decisions.',
-  '2.71.16': 'Maintenance: automated checks now cover the task-input animation in every full test run.',
-  '2.71.15': 'Maintenance: task controls and the progress icon now use one consistent action path.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

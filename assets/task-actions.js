@@ -682,5 +682,6 @@ window._startTaskActions = (function() {
     window._clearAllDone = _clearAllDone;
     window.updateStats = updateStats;
     window._applyDoneStyles = _applyDoneStyles;
+    window._editFromToast = _editFromToast;
   };
 }());
