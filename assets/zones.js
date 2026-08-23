@@ -303,6 +303,18 @@
 
       try { renderPast(); } catch(e) { console.error('[REVIVE-DIAG] renderPast threw:', e); }
       try { renderSoon(); } catch(e) { console.error('[REVIVE-DIAG] renderSoon threw:', e); }
+
+      // BUG-083: soonSection going display:none→block triggers iOS GPU compositor glitch
+      // (same family as BUG-004/056/071). Force repaint by toggling #main-app display.
+      (function() {
+        if (document.visibilityState === 'hidden') return;
+        const el = document.getElementById('main-app');
+        if (!el) return;
+        const sy = window.scrollY;
+        el.style.display = 'none'; void el.offsetHeight; el.style.display = '';
+        window.scrollTo(0, sy);
+      })();
+
       updateStats();
       _haptic('light');
       if (typeof _memoryOnRevive === 'function') _memoryOnRevive(task.text, reason);

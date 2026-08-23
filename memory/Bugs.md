@@ -16,8 +16,8 @@
 
 | # | Description | Status |
 |---|---|---|
-| 084 | Checkmark confetti is vertically offset from its checkbox on mobile | 🧪 v2.71.8 |
-| 083 | Past→Soon revive causes black screen — interface unresponsive until refresh, data saves correctly | 🔍 Diagnosing |
+| 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
+| 083 | Past→Soon revive causes black screen — interface unresponsive until refresh, data saves correctly | 🧪 v2.71.13 |
 | 082 | Post-triage done counter shows 0 after triage completes same day | 🔍 Diagnosing |
 | 078 | `TRIAGE_HISTORY_MAX` out of scope in `dropbox.js` — threw `ReferenceError` on Dropbox pull and restore | ✅ v2.65.17 |
 | 077 | Trello "Network error" flash in Connections panel on Dropbox reconnect or midnight boundary | ✅ v2.65.4 |
@@ -163,39 +163,14 @@ Accepted edge case: affects a small minority of users, and only in the link prev
 
 ## BUG-083 — Past→Soon revive causes black screen, interface unresponsive
 
-**Status:** 🔍 Diagnosing (runtime logging deployed to dev — awaiting user report)
+**Status:** 🧪 v2.71.13 (fix complete locally — awaiting deployment and real-device verification)
 **Introduced:** unknown
-**Affects:** Desktop and mobile
-**File:** `assets/zones.js` — `reviveFromPast()` / `reviveFromPastShowReason()`
+**Affects:** iOS Safari PWA (primary); possibly other GPU-composited contexts
+**File:** `assets/zones.js` — `reviveFromPast()`
+**Family:** BUG-004 → BUG-056 → BUG-071 → BUG-083
 
 **Symptom:** After tapping "↩ soon" on a past task and selecting a reason, the interface goes black and is completely unresponsive. Only the task input bar is faintly visible but unclickable. After page refresh, the task has correctly moved to Soon (data saves fine).
 
-**Hypotheses explored (static analysis, all inconclusive):**
-- `#triageOverlay` becoming visible (z-999, dark backdrop) — would explain visual + block
-- `inert=true` left on body elements by `_setBackgroundInert` not restoring properly
-- Race between focus-mode `_setFocusInert` and `_a11yOpenDialog`/`_a11yCloseDialog` inerted map
-- `#meetingOverlay` stuck in opacity-0 non-hidden state (blocks pointer events during 300ms fade)
-- Unhandled JS exception mid-render leaving partial state
-- `renderSoon()` / `renderPast()` side effects
+**Root cause:** `renderSoon()` transitions `#soonSection` from `display:none` → `display:block` for the first time during a revive. iOS Safari's GPU compositor layer for `#main-app` goes stale on this visibility change and blacks out the screen — same mechanism as BUG-004/056/071.
 
-**Diagnostic logging added (zones.js `reviveFromPast()`):**
-- `[REVIVE-DIAG] before` — overlay classList + hidden attr + main-app inert/opacity + addTaskBar inert
-- `[REVIVE-DIAG] after` — same fields post-render
-- `renderPast` / `renderSoon` wrapped in try/catch to surface any thrown exception
-
-**Next step:** User opens DevTools filtered for `REVIVE-DIAG`, triggers the bug, reports both log lines.
-
----
-
-## BUG-084 — Checkmark confetti offset on mobile
-
-**Status:** 🧪 v2.71.8 (fix complete locally — awaiting deployment and real-device verification)
-**File:** `assets/celebration.js` — `fireEmberDrift()`
-
-**Symptom:** On mobile, checking a task draws the confetti away from its checkbox. Desktop placement is correct.
-
-**Root cause:** `.task-check.getBoundingClientRect()` supplies CSS viewport coordinates, but the celebration canvas draws in backing-buffer coordinates sized from `window.innerWidth`/`innerHeight`. Mobile Safari can render the CSS canvas at `100dvh`, a different height from that buffer, and scales the unchecked client coordinate into the wrong visible position.
-
-**Fix (v2.71.8):** `fireEmberDrift()` converts incoming client coordinates through `#celebCanvas.getBoundingClientRect()` into backing-buffer coordinates before spawning particles. The conversion also accounts for a non-zero canvas offset. Desktop and all-done origins are unchanged.
-
-**Device verification:** Complete ordinary and final tasks in the iPhone PWA with the browser chrome both expanded and collapsed. Confirm each initial burst originates at its checkmark. Desktop placement should remain unchanged.
+**Fix (v2.71.13):** `reviveFromPast()` in `zones.js` runs an inline `#main-app` display-toggle IIFE after the renders. Equivalent to `_forceRepaint()` in `dropbox.js`, but inlined since that function is scoped inside `_onWake` and not exported. Diagnostic logging retained until real-device verification confirms fix.
