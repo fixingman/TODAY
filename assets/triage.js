@@ -451,8 +451,6 @@
       renderSoon();
       renderPast();
       updateStats();
-      // BUG-082 diagnostic — remove after root cause confirmed
-      { const _pd = pastTasks.filter(t => doneIds.has(t.id)).length; console.log('[BUG-082] post-triage: manualLen=', manualTasks.length, 'pastLen=', pastTasks.length, 'doneIds.size=', doneIds.size, 'pastDone=', _pd, 'trelloLen=', trelloTasks.length); }
 
       const undoBtn = document.getElementById('triageUndoBtn');
       if (undoBtn) undoBtn.style.display = '';

@@ -226,7 +226,7 @@
         const entry = _history.find(e => e.date === iso);
         // Today: read live counters; prior days: use snapshot
         const tasks = iso === _today
-          ? [...manualTasks, ...(trelloTasks || [])].filter(t => doneIds.has(t.id)).length
+          ? [...manualTasks, ...pastTasks, ...(trelloTasks || [])].filter(t => doneIds.has(t.id)).length
           : (entry ? entry.tasksDone : null);
         const focus = iso === _today
           ? parseInt(localStorage.getItem('stat_focus_mins_today') || '0')
