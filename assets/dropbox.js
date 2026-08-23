@@ -715,9 +715,15 @@
       if (typeof appMemory === 'undefined' || !appMemory) return;
       // AI name: remote wins (first device to set it becomes canonical)
       if (remote.aiName) appMemory.aiName = remote.aiName;
-      // Merge completionsByHour (max)
+      // Merge completionsByHour (max), then re-derive peakHour from merged data
       for (const [h, count] of Object.entries(remote.patterns?.completionsByHour || {})) {
         appMemory.patterns.completionsByHour[h] = Math.max(appMemory.patterns.completionsByHour[h] || 0, count);
+      }
+      { let _pk = null, _pkC = 0;
+        for (const [h, c] of Object.entries(appMemory.patterns.completionsByHour)) {
+          if (c > _pkC) { _pkC = c; _pk = parseInt(h); }
+        }
+        appMemory.preferences.peakHour = _pk;
       }
       // Merge taskKeywords (max per keyword)
       for (const [word, kd] of Object.entries(remote.patterns?.taskKeywords || {})) {

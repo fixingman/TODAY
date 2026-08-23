@@ -97,7 +97,7 @@
         localStorage.setItem('today_tasksAdded_v2', '1');
       }
       const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-      const weekAgoISO = weekAgo.toISOString().slice(0, 10);
+      const weekAgoISO = _localISO(weekAgo);
       const weekHistory = allDailyHistory.filter(e => e.date >= weekAgoISO);
 
       // ── SEMANTIC: stable identity traits ──────────────────────────────────────
