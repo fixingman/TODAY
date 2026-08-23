@@ -8,7 +8,7 @@
 |-------|---------|
 | ✅ `vX.X.X`  | Fixed and verified by Can on real device |
 | ⏳ `vX.X.X`  | Fix shipped — awaiting real-device verification |
-| 🧪 `vX.X.X`  | Fix complete locally — awaiting deployment and real-device verification |
+| 🔍 Diagnosing | Root cause not yet confirmed — investigation in progress |
 | ⚠️ Stale     | Fix shipped long ago, never verified, condition may no longer be reproducible |
 | 🚫 Rejected  | Not a fixable app bug (platform limitation, won't fix) |
 
@@ -17,7 +17,7 @@
 | # | Description | Status |
 |---|---|---|
 | 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
-| 083 | Past→Soon revive causes black screen — interface unresponsive until refresh, data saves correctly | 🧪 v2.71.13 |
+| 083 | Past→Soon revive causes black screen — interface unresponsive until refresh, data saves correctly | ⏳ v2.71.13 |
 | 082 | Post-triage done counter shows 0 after triage completes same day | 🔍 Diagnosing |
 | 078 | `TRIAGE_HISTORY_MAX` out of scope in `dropbox.js` — threw `ReferenceError` on Dropbox pull and restore | ✅ v2.65.17 |
 | 077 | Trello "Network error" flash in Connections panel on Dropbox reconnect or midnight boundary | ✅ v2.65.4 |
