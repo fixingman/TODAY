@@ -18,7 +18,7 @@
 |---|---|---|
 | 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
 | 083 | Past→Soon revive causes black screen — interface unresponsive until refresh | ⏳ v2.71.13 |
-| 082 | Post-triage done counter shows 0 after same-day triage | 🔍 Diagnosing |
+| 082 | Post-triage done counter shows 0 after same-day triage | ⏳ v2.71.20 |
 | 078 | `TRIAGE_HISTORY_MAX` out of scope — `ReferenceError` on Dropbox pull/restore | ✅ v2.65.17 |
 | 077 | Trello “Network error” flash on Dropbox reconnect or midnight boundary | ✅ v2.65.4 |
 | 076 | Splash exit leaves `O` and `AY` visible while poem coda disappears | ✅ v2.65.3 |
@@ -140,24 +140,15 @@ Accepted edge case: affects a small minority of users, and only in the link prev
 
 ## BUG-082 — Post-triage done counter shows 0 after same-day triage
 
-**Status:** 🔍 Diagnosing (runtime logging deployed to dev — awaiting user report)
+**Status:** ⏳ v2.71.20
 **Introduced:** unknown
-**File:** `assets/triage.js`, `assets/task-actions.js`, `assets/dropbox.js`, `assets/day-lifecycle.js`
+**File:** `assets/about.js`
 
-**Symptom:** After triage completes on the same day, the done/total counter in the stats bar shows 0 instead of the correct count (e.g. "0/3 done").
+**Symptom:** After triage, About weekly stats graph showed 0 done tasks for today — tasks done before triage weren't counted.
 
-**Code flow:**
-- `triageApplyAll()` moves done tasks from `manualTasks` → `pastTasks` without clearing their IDs from `doneIds`
-- `updateStats()` computes `pastDone = pastTasks.filter(t => doneIds.has(t.id)).length`
-- On paper this should be non-zero; root cause not yet found via static analysis
+**Root cause:** `about.js` line 229 computed today's done count from `[...manualTasks, ...(trelloTasks || [])]`. After `triageApplyAll()`, all done tasks are moved to `pastTasks`; `manualTasks` had no done tasks left.
 
-**Diagnostic logging added (v2.71.3 area):**
-- `[BUG-082] post-triage:` — logs counts immediately after triage commit
-- `[BUG-082] updateStats:` with stack trace — fires when `pastDone=0` but `pastTasks` non-empty
-- `[BUG-082] mergeRemoteData:` — fires if Dropbox sync zeroes out the count
-- `[BUG-082] applyNewDayCleanup:` — fires if guard fails and cleanup runs same-day
-
-**Next step:** User opens DevTools filtered for `BUG-082`, runs triage, observes the bug, reports console output.
+**Fix:** Added `...pastTasks` to the spread: `[...manualTasks, ...pastTasks, ...(trelloTasks || [])]`. `doneIds.has(t.id)` already acts as the day filter. Diagnostic `[BUG-082]` console logs removed from `triage.js` and `day-lifecycle.js`.
 
 ---
 
