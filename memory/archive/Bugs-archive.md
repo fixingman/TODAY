@@ -1083,3 +1083,16 @@ Architectural dead end: with a CSS animation, every `display:none/block` repaint
 **Fix (v2.71.8):** `fireEmberDrift()` converts incoming client coordinates through `#celebCanvas.getBoundingClientRect()` into backing-buffer coordinates before spawning particles. The conversion also accounts for a non-zero canvas offset. Desktop and all-done origins are unchanged.
 
 **Verified:** Real-device iPhone PWA — confetti burst originates at its checkmark in both ordinary and final task flows, with browser chrome expanded and collapsed.
+
+---
+
+## BUG-085 — NEW WEEK nudge names tasks completed before midnight
+
+**Status:** ✅ Fixed v2.71.25
+**File:** `assets/about.js` — `_fetchMondayIntention()`
+
+**Symptom:** On Monday morning, the NEW WEEK nudge (About panel, `sundayBlock`) mentioned specific task names ("Unpack", "Move travel costs") even though all tasks were completed and cleared before midnight. Nothing was pending.
+
+**Root cause:** `_fetchMondayIntention()` passes `_memoryForAI('weekly')` as context, which includes `suggestionHistory` — a log of AI suggestions made for specific tasks (with their exact text). When the task list is empty, the prompt asked the AI to be "specific, not generic," so it reached into `suggestionHistory` and named historical tasks as if they were still pending.
+
+**Fix (v2.71.25):** Added `listIsEmpty` flag derived from the filtered task arrays. When the list is empty, the task instruction explicitly says "Do not name any tasks; the list is empty and clear." When tasks are present, the instruction says "Only name tasks from the list above, not from history." System prompt updated: "Speak about how this person works, not about specific tasks unless they appear in the current list."

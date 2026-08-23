@@ -630,8 +630,14 @@
         const ctx = parts.length ? parts.join(' ') : 'Fresh week, nothing waiting yet.';
 
         const memCtx = typeof _memoryForAI === 'function' ? _memoryForAI('weekly') : '';
+        // BUG-085: when the task list is empty, AI was naming historical tasks from
+        // suggestionHistory as if they were pending. Explicitly distinguish the two cases.
+        const listIsEmpty = !manualLines.length && !soonLines.length && !trelloLines.length;
+        const taskInstruction = listIsEmpty
+          ? ' One sentence for Monday — a focus intention based on how this person works. Do not name any tasks; the list is empty and clear.'
+          : ' One sentence for Monday — what most deserves attention this week. Only name tasks from the list above, not from history.';
         const userContent = (memCtx ? 'About this person:\n' + memCtx + '\n\n' : '') +
-          ctx + ' One sentence for Monday — what most deserves attention this week, given what you know about how they work.';
+          ctx + taskInstruction;
         const res = await fetch('/.netlify/functions/ai-assist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -639,7 +645,7 @@
             provider: _aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: userContent }],
-            systemPrompt: 'One sentence only. No quotes. Under 20 words. Plain, warm, grounded. Use what you know about how this person works to make the recommendation specific, not generic.',
+            systemPrompt: 'One sentence only. No quotes. Under 20 words. Plain, warm, grounded. Speak about how this person works, not about specific tasks unless they appear in the current list.',
           }),
         });
         if (!res.ok) return null;
