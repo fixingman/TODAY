@@ -687,6 +687,14 @@ const POEMS = [
     source: "'A Little Messenger Dove' / 'Palomita Mensajera' (trans. Alice Stone Blackwell), Some Spanish-American Poets (1929), p. 434–435 — Blanco Fombona d. 1944, Blackwell d. 1950, both PD worldwide — verified verbatim vs archive.org/details/somespanishamerica00blac",
   },
 
+  // ── Round 27 (Aug 2026) — Arabic (Carlyle 1796) ───────────────────────────
+  {
+    text: 'Come, Leila, fill the goblet up,\nReach round the rosy wine,\nThink not that we will take the cup\nFrom any hand but thine.\n\nA draught like this \'twere vain to seek,\nNo grape can such supply;\nIt steals its tint from Leila\'s cheek,\nIts brightness from her eye.',
+    author: 'Abd Alsalam Ben Raghib',
+    season: null,
+    source: "'To a Female Cupbearer' (trans. J. D. Carlyle), Specimens of Arabian Poetry (Cambridge, 1796); repr. Clouston, Arabian Poetry for English Readers (Glasgow, 1881) — classical Arabic poet, Carlyle d. 1804, both PD worldwide — verified verbatim",
+  },
+
   // ── Round 26 (Aug 2026) — Arabic (Carlyle 1796) + Korea Review 1906 ──────
   {
     text: 'Not always wealth, not always force,\nA splendid destiny commands;\nThe lordly vulture gnaws the corse\nThat rots upon yon barren sands.\n\nNor want nor weakness still conspires\nTo bind us to a sordid state;\nThe fly, that with a touch expires,\nSips honey from the royal plate.',

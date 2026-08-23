@@ -43,13 +43,13 @@
 **Process:** curation rounds in chat — Claude proposes verified candidates, Can cuts by number. Accepted poems land in `assets/poems.js`.
 
 **The brief:**
-> 2–11 lines. Human-written, worldwide public domain (author AND translator d. pre-1956; rolls forward each year). Voice: spare, concrete, present-tense, clear/light/affirming — mornings, evenings, seasons, small noticed things. In: imagism, haiku, plain free verse, rhymed-lyrical if the feeling is real and resolves held/affirmed. Out: quaint, ornate, cutesy, preachy, bleak-unresolved, abstraction without an image.
+> 2–11 lines. Human-written. Two licensing paths: (A) worldwide public domain — author AND translator both d. pre-1956; (B) CC0 / explicit public-domain dedication by the author — verify the specific license on the source page, never assume. Voice: spare, concrete, present-tense, clear/light/affirming — mornings, evenings, seasons, small noticed things. In: imagism, haiku, plain free verse, rhymed-lyrical if the feeling is real and resolves held/affirmed. Out: quaint, ornate, cutesy, preachy, bleak-unresolved, abstraction without an image.
 > **App-moment test:** would this still feel right beside an undone task list? If it depends on being read in isolation, cut it.
 > **Corpus-fit test:** does it sit comfortably next to Bashō and Marcus Aurelius in tone? The existing corpus is the style reference, not just a checklist.
-> **PD check:** verify text verbatim against Wikisource / Gutenberg / archive.org — never from memory. Confirm death dates for author and translator.
+> **PD check:** for path A — confirm death dates for author and translator. For path B — quote the exact license statement from the source page.
 > **Search process:** WebSearch first to identify a specific poem by title/poet (fast, cheap) — then one targeted WebFetch on that poem's URL to pull verbatim text. Never bulk-fetch entire anthologies or book scans. Prefer `poetryfoundation.org`, `lyrikline.org`, `banipal.co.uk`, `asymptotejournal.com`, `poemhunter.com` over archive.org/Gutenberg for discovery. For PD verification still confirm death dates via Wikisource or archive.org, but on the specific page only. Region is a tiebreaker only — when two candidates tie on quality, prefer the one from a country not yet represented.
 
-**Seasons:** W14 / Sp15 / Su11 / Au11 / year-round 53 — corpus 103 (2026-08-23).
+**Seasons:** W14 / Sp15 / Su11 / Au11 / year-round 56 — corpus 106 (2026-08-23).
 
 **Rotation verdict (2026-08-22):** No repetition observed — shuffle algorithm is not the lever.
 
@@ -70,8 +70,11 @@ Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cu
 **Active leads:**
 - Chamberlain 1902 (archive.org/details/basho-and-the-japanses-poetical-epigram) — productive; identifier confirmed
 - Cranmer-Byng *A Feast of Lanterns* (archive.org `in.ernet.dli.2015.282424`) — Yuan Mei, Liu Tzu-hui unproposed, available when China tiebreaker lifts
+- Carlyle, *Specimens of Arabian Poetry* (Cambridge, 1796; Carlyle d.1804) — ~50 short Arabic poems (8–12 lines each), many unproposed. Multiple 8-liners remain: 'On Temper' (Nabegat), 'Barmecides', 'To the Khaliph' (Ibrahim Ben Adham), 'To a Female Cupbearer', 'Epigram on Taher'. Poet death dates all pre-820 CE. Reprinted in Clouston *Arabian Poetry for English Readers* (Glasgow, 1881). Worldwide PD confirmed.
+- Korea Review (1901–1906) — checked vols 1–6; 'The Seasons' (vol 6 p.1, trans. Mikson) was the only poem under 10 lines. Rich in articles but sparse in verse.
 - Prose at Marcus Aurelius length (2–5 sentences) works; Muir *First Summer* (d.1914) worth a targeted pass; Garnett-trans. Chekhov nature prose not yet searched
-- Closed: London Snow (too long), Turkish/Sufi (no worldwide-PD English), Poe (anguished), Egyptian/African/Scandinavian (PD-translation bottleneck)
+- Closed: London Snow (too long), Turkish/Sufi (no worldwide-PD English), Poe (anguished), Egyptian/African (PD-translation bottleneck; /Xam poem in Bleek & Lloyd 1911 p.231–233 confirmed but sacred-texts.com blocks all fetches — try HathiTrust next)
+- Modern CC0 (1970+): poetrysoup.com 'public domain' = topic not license (all poems © authors); openpoet.org = classic pre-1923 only; no contemporary CC0 poems found after exhaustive search. The path exists in principle but no viable candidates surfaced.
 
 ### 4 · Push Notifications
 **Platform:** iOS 16.4+ (installed PWA only) + Android. Web Push API + VAPID keys.
