@@ -17,18 +17,18 @@
 | # | Description | Status |
 |---|---|---|
 | 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
-| 083 | Past→Soon revive causes black screen — interface unresponsive until refresh, data saves correctly | ⏳ v2.71.13 |
-| 082 | Post-triage done counter shows 0 after triage completes same day | 🔍 Diagnosing |
-| 078 | `TRIAGE_HISTORY_MAX` out of scope in `dropbox.js` — threw `ReferenceError` on Dropbox pull and restore | ✅ v2.65.17 |
-| 077 | Trello "Network error" flash in Connections panel on Dropbox reconnect or midnight boundary | ✅ v2.65.4 |
-| 076 | Splash exit intermittently leaves `O` and `AY` visible while the poem coda disappears | ✅ v2.65.3 |
-| 075 | Tagged task flashes or changes shimmer timing when hover overlaps its arrival animation | ✅ v2.64.20 |
-| 074 | Shared `/poem.html` links crash in the Netlify Edge Function before the static page loads | ✅ v2.64.12 |
-| 073 | Focus Ask question says “this late” without supplying the actual local time | ✅ v2.64.9 |
-| 072 | Triage flow never completes — "Let go" tapped but completion screen never appears | ⏳ v2.61.6  |
-| 071 | App goes blank on wake from sleep or when PWA returns from background while in focus mode — third recurrence of BUG-004/056 family | ⏳ v2.61.5  |
-| 070 | Undo toast reason chips unclickable on narrow screens — column layout fix + chip highlight/auto-dismiss feedback | ✅ v2.61.4  |
-| 069 | Poem OG preview may show wrong poem for southern-hemisphere users — edge function has no viewer TZ, skips southern-hemisphere flip | 🚫 Rejected  |
+| 083 | Past→Soon revive causes black screen — interface unresponsive until refresh | ⏳ v2.71.13 |
+| 082 | Post-triage done counter shows 0 after same-day triage | 🔍 Diagnosing |
+| 078 | `TRIAGE_HISTORY_MAX` out of scope — `ReferenceError` on Dropbox pull/restore | ✅ v2.65.17 |
+| 077 | Trello “Network error” flash on Dropbox reconnect or midnight boundary | ✅ v2.65.4 |
+| 076 | Splash exit leaves `O` and `AY` visible while poem coda disappears | ✅ v2.65.3 |
+| 075 | Tagged task flashes or shimmer-timing changes when hover overlaps arrival animation | ✅ v2.64.20 |
+| 074 | Shared `/poem.html` links crash in Netlify Edge Function before static page loads | ✅ v2.64.12 |
+| 073 | Focus Ask says “this late” without supplying the actual local time | ✅ v2.64.9 |
+| 072 | Triage flow never completes — “Let go” tapped but completion screen never appears | ⏳ v2.61.6  |
+| 071 | App goes blank on wake/PWA background return while in focus mode (BUG-004/056 recurrence) | ⏳ v2.61.5  |
+| 070 | Undo toast reason chips unclickable on narrow screens | ✅ v2.61.4  |
+| 069 | Poem OG preview may show wrong poem for southern-hemisphere users | 🚫 Rejected  |
 | 068 | Trello card 🍅 session count resets every morning | ✅ v2.52.1  |
 | 067 | Focused task jumps near top of viewport after focus ends | ✅ v2.44.1  |
 | 066 | Focus minutes from another device read 0 on second-device open | ✅ v2.43.8  |

@@ -672,4 +672,18 @@ const POEMS = [
     season: 'summer',
     source: "'Summer Evening', Stars To-night (1930) (d. 1933 — PD worldwide) — verified verbatim vs archive.org/details/starstonightvers0000sara",
   },
+
+  // ── Round 24 (Aug 2026) — Latin American, Blackwell anthology ───────────
+  {
+    text: 'All things climb a starry stair,\nBy a law that no man knows.\nWhat was yesterday a thorn\nShall tomorrow be a rose.\n\nWhat was once a chrysalid\nSoon shall soar, free fluttering;\nWhat was yesterday a wish\nWill tomorrow be a wing!',
+    author: 'Luis G. Urbina',
+    season: 'spring',
+    source: "'Ascension' (trans. Alice Stone Blackwell), Some Spanish-American Poets (1929), p. 70 — Urbina d. 1934, Blackwell d. 1950, both PD worldwide — verified verbatim vs archive.org/details/somespanishamerica00blac",
+  },
+  {
+    text: 'Upon an arch in the prison has fallen a small snowflake.\nIt is a little dove, white as a dream.\n\nShe comes from the turquoise sky, opens her rosy beak\nand says to me tenderly: "She is kind, and thinks of thee!"',
+    author: 'Rufino Blanco Fombona',
+    season: 'winter',
+    source: "'A Little Messenger Dove' / 'Palomita Mensajera' (trans. Alice Stone Blackwell), Some Spanish-American Poets (1929), p. 434–435 — Blanco Fombona d. 1944, Blackwell d. 1950, both PD worldwide — verified verbatim vs archive.org/details/somespanishamerica00blac",
+  },
 ];

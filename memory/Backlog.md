@@ -10,6 +10,8 @@
 | Context | Use |
 |---------|-----|
 | Searching Coda | `/browse` skill — not raw WebFetch or grep |
+| Poem curation search | WebSearch to identify candidate by title/poet → single targeted WebFetch on that poem's page. No bulk-fetching anthologies. Do inline in main conversation, not via agents. Better sources than Gutenberg/Wikisource/archive.org: `poetryfoundation.org` (searchable by country), `lyrikline.org` (world poetry in translation), `banipal.co.uk` (Arabic lit in translation), `asymptotejournal.com` (world lit, often CC-licensed), `poemhunter.com` (searchable by poet nationality). |
+| Poem display in chat | Always use real line breaks — one line per line, in a blockquote. Never use `/` as an inline line separator. |
 
 ---
 
@@ -23,7 +25,7 @@
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 2 | **Poem corpus — iterate** | Not started | 101 poems, target met. Next: audit rotation feel, not count — do poems feel varied or does the same one recur too soon? Detail ↓ |
+| 2 | **Poem corpus — iterate** | In progress | Rotation verdict: no repetition, shuffle fine. Problem: 101 not enough; some poems sound alike. New direction: expand geography, untapped poets, contemporary CC-licensed work. Detail ↓ |
 | 7 | **Season moments — solar term label** | Shipped v2.71.0 | Solar term label above evocative line; season owns full Noticed block. Detail ↓ |
 | 8 | **Noticed block — expand** | Not started | No problem now, but growth area. What else could TODAY notice that earns a line? Detail ↓ |
 
@@ -45,13 +47,25 @@
 > **App-moment test:** would this still feel right beside an undone task list? If it depends on being read in isolation, cut it.
 > **Corpus-fit test:** does it sit comfortably next to Bashō and Marcus Aurelius in tone? The existing corpus is the style reference, not just a checklist.
 > **PD check:** verify text verbatim against Wikisource / Gutenberg / archive.org — never from memory. Confirm death dates for author and translator.
-> **Search process:** search by named PD anthology or translator, not by theme or region (`"[name]" site:gutenberg.org OR site:en.wikisource.org OR site:archive.org`). Region is a tiebreaker only — when two candidates tie on quality, prefer the one from a country not yet represented.
+> **Search process:** WebSearch first to identify a specific poem by title/poet (fast, cheap) — then one targeted WebFetch on that poem's URL to pull verbatim text. Never bulk-fetch entire anthologies or book scans. Prefer `poetryfoundation.org`, `lyrikline.org`, `banipal.co.uk`, `asymptotejournal.com`, `poemhunter.com` over archive.org/Gutenberg for discovery. For PD verification still confirm death dates via Wikisource or archive.org, but on the specific page only. Region is a tiebreaker only — when two candidates tie on quality, prefer the one from a country not yet represented.
 
-**Seasons:** W12 / Sp14 / Su11 / Au11 / year-round 53 — corpus 101, target met (2026-08-21). Next focus: rotation feel. Do poems feel varied day-to-day, or does the same one recur within a noticeable window? If recurrence is felt, the lever is shuffle algorithm (not more poems). New poems only if a season feels qualitatively thin, not for count. Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cut.
+**Seasons:** W14 / Sp15 / Su11 / Au11 / year-round 53 — corpus 103 (2026-08-23).
+
+**Rotation verdict (2026-08-22):** No repetition observed — shuffle algorithm is not the lever.
+
+**New diagnosis:** 101 not enough; some poems sound similar to each other. The problem is sameness of voice and origin, not count. We haven't found original pieces — different geography, different sensibilities.
+
+**New direction:**
+- **Expand geography** — Africa, Latin America, the Middle East, Southeast Asia are underrepresented. Prioritise translators with confirmed PD status over themed searches.
+- **Untapped poets** — dig into regions and anthologies not yet touched. Country tiebreaker becomes a country *requirement* for the next round.
+- **Contemporary CC-licensed work** — poets who have explicitly released poems under CC0 or public domain dedication. Sources: Wikisource contemporary contributions, poets who publish under open licenses on their own sites. Vet each case individually; do not assume a blog post is freely usable.
+- **The bar stays:** brief quality criteria unchanged (spare, concrete, present-tense, app-moment test). More poems only if they pass.
+
+Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cut.
 
 **PD notes:** US-PD-only closed (v2.35.3) — worldwide PD is the bar. Five US-PD poems kept permanently (Frost ×3, Yang-ti, Po Chü-i 'After Lunch'). Future unlocks: Milne 2027 (taste caveat: canonical "cutesy"), cummings 2033, Frost/WCW worldwide 2034, Eliot 2036. China most-represented — country tiebreaker is a lean, not a wall.
 
-**Curation rule: a cut is final.** Candidates not picked are dead — never re-proposed. (Not-picked so they aren't re-found: Ou-yang Hsiu 'Bell Hill', Yeats 'Cloths of Heaven', Landor 'Dying Speech', Moritake butterfly, Hokushi 'burnt out', Dickinson 'The Snow'.)
+**Curation rule: a cut is final.** Candidates not picked are dead — never re-proposed. (Not-picked so they aren't re-found: Ou-yang Hsiu 'Bell Hill', Yeats 'Cloths of Heaven', Landor 'Dying Speech', Moritake butterfly, Hokushi 'burnt out', Dickinson 'The Snow', Nervo 'Revenge', Nervo 'What matter hours' [untitled], Storni 'The Piety of the Cypress', Contardo 'Home of Peace and Purity'.)
 
 **Active leads:**
 - Chamberlain 1902 (archive.org/details/basho-and-the-japanses-poetical-epigram) — productive; identifier confirmed
