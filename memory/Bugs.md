@@ -165,7 +165,7 @@ Accepted edge case: affects a small minority of users, and only in the link prev
 
 **Status:** 🧪 v2.71.13 (fix complete locally — awaiting deployment and real-device verification)
 **Introduced:** unknown
-**Affects:** iOS Safari PWA (primary); possibly other GPU-composited contexts
+**Affects:** PWA contexts with GPU compositing (confirmed: Chromium desktop; likely iOS Safari too)
 **File:** `assets/zones.js` — `reviveFromPast()`
 **Family:** BUG-004 → BUG-056 → BUG-071 → BUG-083
 
