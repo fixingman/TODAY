@@ -84,6 +84,18 @@
         }
         localStorage.setItem('today_daily_history', JSON.stringify(allDailyHistory));
       }
+      // v2 re-migration: Dropbox Math.max merge could restore cumulative values on top of
+      // already-migrated per-day deltas. Entries with tasksAddedFixed=true are the old ones
+      // that may be corrupted; zero them out so the count rebuilds from clean new entries.
+      if (!localStorage.getItem('today_tasksAdded_v2')) {
+        let _dirty = false;
+        for (const _e of allDailyHistory) {
+          if (_e.tasksAddedFixed) { _e.tasksAdded = 0; _dirty = true; }
+          _e.tasksAddedFixed = true;
+        }
+        if (_dirty) localStorage.setItem('today_daily_history', JSON.stringify(allDailyHistory));
+        localStorage.setItem('today_tasksAdded_v2', '1');
+      }
       const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
       const weekAgoISO = weekAgo.toISOString().slice(0, 10);
       const weekHistory = allDailyHistory.filter(e => e.date >= weekAgoISO);
@@ -404,6 +416,16 @@
             dailyHistory[_mi].tasksAddedFixed = true;
           }
           localStorage.setItem('today_daily_history', JSON.stringify(dailyHistory));
+        }
+        // v2 re-migration: same as renderMemoryPanel — zero out potentially re-corrupted entries.
+        if (!localStorage.getItem('today_tasksAdded_v2')) {
+          let _mDirty = false;
+          for (const _e of dailyHistory) {
+            if (_e.tasksAddedFixed) { _e.tasksAdded = 0; _mDirty = true; }
+            _e.tasksAddedFixed = true;
+          }
+          if (_mDirty) localStorage.setItem('today_daily_history', JSON.stringify(dailyHistory));
+          localStorage.setItem('today_tasksAdded_v2', '1');
         }
         const _parseDowAbs = iso => { const [y, mo, d] = iso.split('-').map(Number); return new Date(y, mo - 1, d).getDay(); };
         const byDow = {};

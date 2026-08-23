@@ -687,7 +687,13 @@
         byDate.set(e.date, {
           date:        e.date,
           tasksDone:   Math.max(cur.tasksDone   || 0, e.tasksDone   || 0),
-          tasksAdded:  Math.max(cur.tasksAdded  || 0, e.tasksAdded  || 0),
+          // tasksAdded: prefer the per-day delta from the 'fixed' side — Math.max would
+          // restore old cumulative totals over already-migrated per-day values.
+          tasksAdded: (cur.tasksAddedFixed && e.tasksAddedFixed)
+            ? Math.max(cur.tasksAdded || 0, e.tasksAdded || 0)
+            : cur.tasksAddedFixed ? (cur.tasksAdded || 0)
+            : e.tasksAddedFixed   ? (e.tasksAdded   || 0)
+            : Math.max(cur.tasksAdded || 0, e.tasksAdded || 0),
           focusMins:   Math.max(cur.focusMins   || 0, e.focusMins   || 0),
           habitsKept:  Math.max(cur.habitsKept  || 0, e.habitsKept  || 0),
           habitsTotal: Math.max(cur.habitsTotal || 0, e.habitsTotal || 0),
