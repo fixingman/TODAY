@@ -680,6 +680,20 @@ const POEMS = [
     source: "'A Little Messenger Dove' / 'Palomita Mensajera' (trans. Alice Stone Blackwell), Some Spanish-American Poets (1929), p. 434–435 — Blanco Fombona d. 1944, Blackwell d. 1950, both PD worldwide — verified verbatim vs archive.org/details/somespanishamerica00blac",
   },
 
+  // ── Round 28 (Aug 2026) — Tamil (Tirukkural, trans. Pope 1886) ──────────────
+  {
+    text: 'The loveless to themselves belong alone;\nThe loving men are others\' to the very bone.',
+    author: 'Thiruvalluvar (trans. G. U. Pope)',
+    season: null,
+    source: "'Possession of Love', kural 72, Tirukkural (Clarendon Press, Oxford, 1886) — Thiruvalluvar ~300 CE (classical Tamil), Pope d. 1908, both PD worldwide — verified verbatim",
+  },
+  {
+    text: 'The loveless soul, the very joys of life may know,\nWhen flowers, in barren soil, on sapless trees, shall blow.',
+    author: 'Thiruvalluvar (trans. G. U. Pope)',
+    season: null,
+    source: "'Possession of Love', kural 78, Tirukkural (Clarendon Press, Oxford, 1886) — Thiruvalluvar ~300 CE (classical Tamil), Pope d. 1908, both PD worldwide — verified verbatim",
+  },
+
   // ── Round 27 (Aug 2026) — Arabic (Carlyle 1796) ───────────────────────────
   {
     text: 'Come, Leila, fill the goblet up,\nReach round the rosy wine,\nThink not that we will take the cup\nFrom any hand but thine.\n\nA draught like this \'twere vain to seek,\nNo grape can such supply;\nIt steals its tint from Leila\'s cheek,\nIts brightness from her eye.',
