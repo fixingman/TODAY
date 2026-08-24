@@ -353,6 +353,19 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
   const fillEl   = timerEl.querySelector('#focusFill');
   const timeEl   = timerEl.querySelector('#focusTime');
   const pausedEl = timerEl.querySelector('#focusPaused');
+
+  // Pre-warm WAAPI compositor thread — first el.animate() initializes compositor
+  // infrastructure lazily, causing a one-time 50-200ms stall on mobile. Running a
+  // no-op animation at idle time moves that cost before the first user tap.
+  (function() {
+    function _wapiWarm() { fillEl.animate([{opacity:1},{opacity:1}], {duration:100, fill:'none'}); }
+    if (window.requestIdleCallback) {
+      requestIdleCallback(_wapiWarm, { timeout: 2000 });
+    } else {
+      setTimeout(_wapiWarm, 300);
+    }
+  })();
+
   timeEl.addEventListener('click', function(e) {
     if (!uiTaskId) return;
     e.stopPropagation();
