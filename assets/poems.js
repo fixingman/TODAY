@@ -680,6 +680,26 @@ const POEMS = [
     source: "'A Little Messenger Dove' / 'Palomita Mensajera' (trans. Alice Stone Blackwell), Some Spanish-American Poets (1929), p. 434–435 — Blanco Fombona d. 1944, Blackwell d. 1950, both PD worldwide — verified verbatim vs archive.org/details/somespanishamerica00blac",
   },
 
+  // ── Round 29 (Aug 2026) — Japanese (trans. B.H. Chamberlain 1902) ──────────
+  {
+    text: '\'Tis a toad\'s croak. Come! hop away\nFrom underneath the fancier\'s house.',
+    author: 'Bashō',
+    season: null,
+    source: "Chamberlain 1902, no. 34 (archive.org/details/basho-and-the-japanses-poetical-epigram; Bashō d. 1694, Chamberlain d. 1935, both PD worldwide — verified verbatim)",
+  },
+  {
+    text: 'How cool the air! and through a shower\nThe radiance of the setting sun.',
+    author: 'Anonymous (Japanese, trans. B.H. Chamberlain)',
+    season: 'summer',
+    source: "Chamberlain 1902, no. 2 (archive.org/details/basho-and-the-japanses-poetical-epigram; anonymous Edo-period poem, Chamberlain d. 1935, PD worldwide — verified verbatim)",
+  },
+  {
+    text: 'A change of garments, and the spring\nGoes into hiding in the chest.',
+    author: 'Anonymous (Japanese, Danrin school, trans. B.H. Chamberlain)',
+    season: 'spring',
+    source: "Chamberlain 1902 essay example, Danrin school (archive.org/details/basho-and-the-japanses-poetical-epigram; anonymous 17th-c. Japanese, Chamberlain d. 1935, PD worldwide — verified verbatim)",
+  },
+
   // ── Round 28 (Aug 2026) — Tamil (Tirukkural, trans. Pope 1886) ──────────────
   {
     text: 'The loveless to themselves belong alone;\nThe loving men are others\' to the very bone.',
