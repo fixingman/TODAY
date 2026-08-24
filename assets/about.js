@@ -182,8 +182,7 @@
       // Based on: Endowed Progress Effect (Nunes & Dreze 2006), Goal Gradient Hypothesis (Kivetz et al. 2006)
       // First task = ~20% (quick win), decelerates after (fast start, slow finish)
       // Formula: 100 × (1 - 0.8^done) — 5 tasks ≈ 67% "good day"
-      const allTasks = [...manualTasks, ...pastTasks, ...(trelloTasks || [])];
-      const totalDone = allTasks.filter(t => doneIds.has(t.id)).length;
+      const totalDone = _doneTodayCount();
       const flowRate = Math.round(100 * (1 - Math.pow(0.8, totalDone)));
 
       const stats = [
@@ -226,7 +225,7 @@
         const entry = _history.find(e => e.date === iso);
         // Today: read live counters; prior days: use snapshot
         const tasks = iso === _today
-          ? [...manualTasks, ...pastTasks, ...(trelloTasks || [])].filter(t => doneIds.has(t.id)).length
+          ? _doneTodayCount()
           : (entry ? entry.tasksDone : null);
         const focus = iso === _today
           ? parseInt(localStorage.getItem('stat_focus_mins_today') || '0')

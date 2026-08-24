@@ -18,7 +18,7 @@
 |---|---|---|
 | 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
 | 083 | Past→Soon revive causes black screen — interface unresponsive until refresh | ⏳ v2.71.13 |
-| 082 | Post-triage done counter shows 0 after same-day triage | ✅ v2.71.33 |
+| 082 | Post-triage done counter shows 0 after same-day triage | ✅ v2.71.34 |
 | 078 | `TRIAGE_HISTORY_MAX` out of scope — `ReferenceError` on Dropbox pull/restore | ✅ v2.65.17 |
 | 077 | Trello “Network error” flash on Dropbox reconnect or midnight boundary | ✅ v2.65.4 |
 | 076 | Splash exit leaves `O` and `AY` visible while poem coda disappears | ✅ v2.65.3 |
@@ -140,15 +140,15 @@ Accepted edge case: affects a small minority of users, and only in the link prev
 
 ## BUG-082 — Post-triage done counter shows 0 after same-day triage
 
-**Status:** ✅ v2.71.33
+**Status:** ✅ v2.71.34
 **Introduced:** unknown
 **File:** `assets/about.js`
 
-**Symptom:** After triage, About stats showed 0% Flow and 0 done tasks — tasks done before triage weren't counted.
+**Symptom:** After triage / "clear done", About weekly graph and Flow % showed 0 done tasks for today.
 
-**Root cause:** The v2.71.20 fix added `...pastTasks` to the graph bar spread (line 229) but missed the Flow % stat spread (line 185): `[...manualTasks, ...(trelloTasks || [])]`. After `triageApplyAll()`, done tasks live in `pastTasks`; `manualTasks` has none left, so `totalDone = 0` → `flowRate = 0%`.
+**Root cause:** Both spreads computed done count from `manualTasks.filter(t => doneIds.has(t.id))`. `_clearAllDone()` in `task-actions.js` removes tasks from `manualTasks` AND calls `doneIds.delete(t.id)` — so both are empty after a clear. The v2.71.20 fix added `...pastTasks` to the graph bar spread (line 229) but `pastTasks` doesn't hold cleared done tasks either; the v2.71.33 attempt was also wrong for the same reason.
 
-**Fix (v2.71.33):** Added `...pastTasks` to line 185: `[...manualTasks, ...pastTasks, ...(trelloTasks || [])]`. Graph bar was already correct since v2.71.20.
+**Fix (v2.71.34):** Both graph bar (line 229) and Flow % (line 185) now call `_doneTodayCount()` — a timestamp-based counter in `dropbox.js` that reads the check/uncheck log in localStorage, survives task clearing because it never relies on `doneIds` or `manualTasks`.
 
 ---
 
