@@ -680,6 +680,20 @@ const POEMS = [
     source: "'A Little Messenger Dove' / 'Palomita Mensajera' (trans. Alice Stone Blackwell), Some Spanish-American Poets (1929), p. 434–435 — Blanco Fombona d. 1944, Blackwell d. 1950, both PD worldwide — verified verbatim vs archive.org/details/somespanishamerica00blac",
   },
 
+  // ── Round 30 (Aug 2026) — Chinese (trans. H.A. Giles 1898) + Sappho (trans. Bliss Carman 1904) ──
+  {
+    text: 'The bright moon shining overhead,\nThe stream beneath the breeze\'s touch,\nAre pure and perfect joys indeed, —\nBut few are they who think them such.',
+    author: 'Anonymous (Chinese, Tang dynasty, trans. Herbert Giles)',
+    season: null,
+    source: 'Chinese Poetry in English Verse, H.A. Giles (1898), "True Pleasures" (archive.org ChinesePoetryInEnglishVerse; anon. Tang poet, Giles d. 1935, PD worldwide — verified verbatim)',
+  },
+  {
+    text: 'If death be good,\nWhy do the gods not die?\nIf life be ill,\nWhy do the gods still live?\nIf love be naught,\nWhy do the gods still love?\nIf love be all,\nWhat should men do but love?',
+    author: 'Sappho (trans. Bliss Carman)',
+    season: null,
+    source: 'Sappho: One Hundred Lyrics, LXXIV, Bliss Carman (1904), Gutenberg #12389 (Carman d. 1929 — PD worldwide — verified verbatim)',
+  },
+
   // ── Round 29 (Aug 2026) — Japanese (trans. B.H. Chamberlain 1902) ──────────
   {
     text: '\'Tis a toad\'s croak. Come! hop away\nFrom underneath the fancier\'s house.',
