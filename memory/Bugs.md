@@ -18,7 +18,7 @@
 |---|---|---|
 | 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
 | 083 | Past→Soon revive causes black screen — interface unresponsive until refresh | ⏳ v2.71.13 |
-| 082 | Post-triage done counter shows 0 after same-day triage | ⏳ v2.71.20 |
+| 082 | Post-triage done counter shows 0 after same-day triage | ✅ v2.71.33 |
 | 078 | `TRIAGE_HISTORY_MAX` out of scope — `ReferenceError` on Dropbox pull/restore | ✅ v2.65.17 |
 | 077 | Trello “Network error” flash on Dropbox reconnect or midnight boundary | ✅ v2.65.4 |
 | 076 | Splash exit leaves `O` and `AY` visible while poem coda disappears | ✅ v2.65.3 |
@@ -140,15 +140,15 @@ Accepted edge case: affects a small minority of users, and only in the link prev
 
 ## BUG-082 — Post-triage done counter shows 0 after same-day triage
 
-**Status:** ⏳ v2.71.20
+**Status:** ✅ v2.71.33
 **Introduced:** unknown
 **File:** `assets/about.js`
 
-**Symptom:** After triage, About weekly stats graph showed 0 done tasks for today — tasks done before triage weren't counted.
+**Symptom:** After triage, About stats showed 0% Flow and 0 done tasks — tasks done before triage weren't counted.
 
-**Root cause:** `about.js` line 229 computed today's done count from `[...manualTasks, ...(trelloTasks || [])]`. After `triageApplyAll()`, all done tasks are moved to `pastTasks`; `manualTasks` had no done tasks left.
+**Root cause:** The v2.71.20 fix added `...pastTasks` to the graph bar spread (line 229) but missed the Flow % stat spread (line 185): `[...manualTasks, ...(trelloTasks || [])]`. After `triageApplyAll()`, done tasks live in `pastTasks`; `manualTasks` has none left, so `totalDone = 0` → `flowRate = 0%`.
 
-**Fix:** Added `...pastTasks` to the spread: `[...manualTasks, ...pastTasks, ...(trelloTasks || [])]`. `doneIds.has(t.id)` already acts as the day filter. Diagnostic `[BUG-082]` console logs removed from `triage.js` and `day-lifecycle.js`.
+**Fix (v2.71.33):** Added `...pastTasks` to line 185: `[...manualTasks, ...pastTasks, ...(trelloTasks || [])]`. Graph bar was already correct since v2.71.20.
 
 ---
 
