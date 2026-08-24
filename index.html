@@ -343,12 +343,14 @@
       opacity: 1;
     }
     .focus-kbd-hint kbd {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: middle;
       border: 1px solid var(--control-border);
       border-radius: var(--radius-sm);
       padding: 3px var(--space-2);
       font-size: var(--text-xs);
-      line-height: 1;
       color: var(--muted);
       font-family: var(--font-mono);
     }
@@ -4284,9 +4286,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.71.36': 'Fix: focus kbd hint — inline-flex + vertical-align:middle centers space/esc labels.',
   '2.71.35': 'Perf: pre-warm WAAPI compositor at idle time — eliminates first-focus lag on mobile.',
   '2.71.34': 'Fix: done count and Flow use _doneTodayCount() — survive clear-done/triage (BUG-082).',
-  '2.71.33': 'Fix: Flow % stat now includes pastTasks — no longer shows 0 after triage (BUG-082).',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
