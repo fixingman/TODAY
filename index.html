@@ -349,7 +349,9 @@
       vertical-align: middle;
       border: 1px solid var(--control-border);
       border-radius: var(--radius-sm);
-      padding: 3px var(--space-2);
+      padding: 0 var(--space-2);
+      height: calc(1em + 6px);
+      line-height: 1;
       font-size: var(--text-xs);
       color: var(--muted);
       font-family: var(--font-mono);
@@ -4286,9 +4288,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.71.37': 'Fix: focus kbd hint — explicit height lets align-items:center truly center labels; restore size.',
   '2.71.36': 'Fix: focus kbd hint — inline-flex + vertical-align:middle centers space/esc labels.',
   '2.71.35': 'Perf: pre-warm WAAPI compositor at idle time — eliminates first-focus lag on mobile.',
-  '2.71.34': 'Fix: done count and Flow use _doneTodayCount() — survive clear-done/triage (BUG-082).',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
