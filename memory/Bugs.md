@@ -18,7 +18,7 @@
 |---|---|---|
 | 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
 | 083 | Past→Soon revive causes black screen — interface unresponsive until refresh | ⏳ v2.71.13 |
-| 082 | Post-triage done counter shows 0 after same-day triage | ✅ v2.71.34 ✓ |
+| 082 | Post-triage done counter shows 0 after same-day triage | ✅ v2.71.34 |
 | 078 | `TRIAGE_HISTORY_MAX` out of scope — `ReferenceError` on Dropbox pull/restore | ✅ v2.65.17 |
 | 077 | Trello “Network error” flash on Dropbox reconnect or midnight boundary | ✅ v2.65.4 |
 | 076 | Splash exit leaves `O` and `AY` visible while poem coda disappears | ✅ v2.65.3 |
