@@ -25,7 +25,7 @@
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 2 | **Poem corpus — iterate** | In progress | Expand geography and voice diversity. Corpus 114 (2026-08-25). Detail ↓ |
+| 2 | **Poem corpus — iterate** | In progress | Expand geography and voice diversity. Corpus 115 (2026-08-25). Detail ↓ |
 | 7 | **Season moments — solar term label** | Shipped v2.71.0 | Solar term label above evocative line; season owns full Noticed block. Wallpaper test → table below. |
 | 8 | **Noticed block — expand** | Not started | Growth area. What else could TODAY notice that earns a line? Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
@@ -46,7 +46,7 @@
 
 > **Search process:** WebSearch first to identify a specific poem by title/poet (fast, cheap) — then one targeted WebFetch on that poem's URL to pull verbatim text. Never bulk-fetch entire anthologies or book scans. Prefer `poetryfoundation.org`, `lyrikline.org`, `banipal.co.uk`, `asymptotejournal.com`, `poemhunter.com` over archive.org/Gutenberg for discovery. For PD verification still confirm death dates via Wikisource or archive.org, but on the specific page only. Region is a tiebreaker only — when two candidates tie on quality, prefer the one from a country not yet represented.
 
-**Seasons:** W14 / Sp16 / Su11 / Au11 / year-round 62 — corpus 114 (2026-08-25).
+**Seasons:** W14 / Sp16 / Su11 / Au11 / year-round 63 — corpus 115 (2026-08-25).
 
 **Rotation verdict (2026-08-22):** No repetition observed — shuffle algorithm is not the lever.
 

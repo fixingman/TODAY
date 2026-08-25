@@ -680,6 +680,14 @@ const POEMS = [
     source: "'A Little Messenger Dove' / 'Palomita Mensajera' (trans. Alice Stone Blackwell), Some Spanish-American Poets (1929), p. 434–435 — Blanco Fombona d. 1944, Blackwell d. 1950, both PD worldwide — verified verbatim vs archive.org/details/somespanishamerica00blac",
   },
 
+  // ── Round 31 (Aug 2026) — Chinese (trans. L. Cranmer-Byng 1909) ─────────
+  {
+    text: 'The Lady Moon is my lover,\nMy friends are the oceans four,\nThe heavens have roofed me over,\nAnd the dawn is my golden door\nI would liefer follow the condor\nOr the seagull, soaring from ken,\nThan bury my godhead yonder\nIn the dust of the whirl of men.',
+    author: 'Chang Chih-ho (Chinese, Tang dynasty, trans. L. Cranmer-Byng)',
+    season: null,
+    source: 'A Lute of Jade, L. Cranmer-Byng (1909), Gutenberg #390 (Chang Chih-ho c. 750, Cranmer-Byng d. 1945 — PD worldwide — verified verbatim)',
+  },
+
   // ── Round 30 (Aug 2026) — Chinese (trans. H.A. Giles 1898) + Sappho (trans. Bliss Carman 1904) ──
   {
     text: 'The bright moon shining overhead,\nThe stream beneath the breeze\'s touch,\nAre pure and perfect joys indeed, —\nBut few are they who think them such.',
