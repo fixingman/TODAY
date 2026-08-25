@@ -6,6 +6,22 @@
 
 ---
 
+## BUG-082 — Post-triage done counter shows 0 after same-day triage
+
+**Status:** ✅ Verified fixed (v2.71.34; verified 2026-08-25 by Can on real device)
+**Introduced:** unknown
+**File:** `assets/about.js`
+
+**Symptom:** After triage / "clear done", About weekly graph and Flow % showed 0 done tasks for today.
+
+**Root cause:** Both spreads computed done count from `manualTasks.filter(t => doneIds.has(t.id))`. `_clearAllDone()` in `task-actions.js` removes tasks from `manualTasks` AND calls `doneIds.delete(t.id)` — so both are empty after a clear. The v2.71.20 fix added `...pastTasks` to the graph bar spread but `pastTasks` doesn't hold cleared done tasks either; the v2.71.33 attempt was also wrong for the same reason.
+
+**Fix (v2.71.34):** Both graph bar (line 229) and Flow % (line 185) now call `_doneTodayCount()` — a timestamp-based counter in `dropbox.js` that reads the check/uncheck log in localStorage, survives task clearing because it never relies on `doneIds` or `manualTasks`.
+
+**Verified fixed:** ✅ 2026-08-25 (Can, real device)
+
+---
+
 ## BUG-076 — Splash exit leaves `O` / `AY` visible
 
 **Status:** ✅ Verified fixed (v2.65.3; verified 2026-08-20 by Can on real device)
