@@ -221,7 +221,7 @@
         proceduralItems.push({ text: `often works on: ${topWords.join(', ')}` });
       }
       // Completion rate from daily history entries that have tasksAdded tracked
-      const rateHistory = allDailyHistory.filter(e => e.tasksAdded > 0 && e.tasksAdded <= 100);
+      const rateHistory = allDailyHistory.filter(e => e.tasksAdded > 0 && e.tasksAdded <= 30);
       if (rateHistory.length >= 5) {
         const totalAdded = rateHistory.reduce((s, e) => s + e.tasksAdded, 0);
         const totalDone  = rateHistory.reduce((s, e) => s + e.tasksDone,  0);
@@ -463,7 +463,7 @@
         }
 
         // Completion rate: tasksAdded vs tasksDone ratio from daily_history
-        const rateHistory = dailyHistory.filter(e => e.tasksAdded > 0 && e.tasksAdded <= 100);
+        const rateHistory = dailyHistory.filter(e => e.tasksAdded > 0 && e.tasksAdded <= 30);
         let completionRate = null;
         if (rateHistory.length >= 5) {
           const totalAdded = rateHistory.reduce((s, e) => s + e.tasksAdded, 0);

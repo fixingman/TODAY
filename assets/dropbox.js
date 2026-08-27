@@ -692,7 +692,7 @@
           // restore large values via Math.max before that device has run the migration).
           // _sa() treats any value > 100 as 0 so the merge stays clean on both sides.
           tasksAdded: (function() {
-            const _sa = v => (v || 0) > 100 ? 0 : (v || 0);
+            const _sa = v => (v || 0) > 30 ? 0 : (v || 0);
             const _a = _sa(cur.tasksAdded), _b = _sa(e.tasksAdded);
             if (cur.tasksAddedFixed && e.tasksAddedFixed) return Math.max(_a, _b);
             if (cur.tasksAddedFixed) return _a;
