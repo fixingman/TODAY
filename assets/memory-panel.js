@@ -172,10 +172,7 @@
       if (thisWeek.length > 0) {
         episodicItems.push({ text: `completed ${thisWeek.length} task${thisWeek.length === 1 ? '' : 's'} in the last 7 days` });
       }
-      const streak = parseInt(localStorage.getItem('stat_streak') || '0');
-      if (streak >= 2) {
-        episodicItems.push({ text: `on a ${streak}-day streak` });
-      }
+
       // Best day this week
       if (weekHistory.length >= 2) {
         const bestDay = weekHistory.reduce((a, b) => b.tasksDone > a.tasksDone ? b : a);
