@@ -77,31 +77,30 @@
       if (popup) { popup.location.href = authUrl; }
       else { showStatus('Popup blocked — allow popups for this site.', 'error'); return; }
 
-      const poll = setInterval(async function() {
-        try {
-          if (!popup || popup.closed) { clearInterval(poll); return; }
-          const search = popup.location.search || '';
-          if (search.includes('code=')) {
-            clearInterval(poll);
-            const params = new URLSearchParams(search);
-            const code   = params.get('code');
-            const ret    = params.get('state');
-            const err    = params.get('error_description') || params.get('error');
-            popup.close();
-            if (err)   { showStatus('Google error: ' + err, 'error'); return; }
-            if (!code) { showStatus('No auth code — check Client ID and redirect URI.', 'error'); return; }
-            if (ret !== sessionStorage.getItem('gml_state')) {
-              showStatus('State mismatch — try again.', 'error'); return;
-            }
-            await _gmailExchangeCode(code);
-          } else if (search.includes('error=')) {
-            clearInterval(poll);
-            popup.close();
-            const params = new URLSearchParams(search);
-            showStatus('Google error: ' + (params.get('error_description') || params.get('error') || 'Unknown'), 'error');
-          }
-        } catch(e) { /* cross-origin — still on accounts.google.com */ }
-      }, 500);
+      // postMessage-based callback — avoids COOP cross-origin popup access
+      function onOAuthMessage(event) {
+        if (event.origin !== window.location.origin) return;
+        if (!event.data || event.data.type !== 'oauth_callback') return;
+        window.removeEventListener('message', onOAuthMessage);
+        clearInterval(closeWatch);
+        const params = new URLSearchParams(event.data.search);
+        const code   = params.get('code');
+        const ret    = params.get('state');
+        const err    = params.get('error_description') || params.get('error');
+        if (err)   { showStatus('Google error: ' + err, 'error'); return; }
+        if (!code) { showStatus('No auth code — check Client ID and redirect URI.', 'error'); return; }
+        if (ret !== sessionStorage.getItem('gml_state')) {
+          showStatus('State mismatch — try again.', 'error'); return;
+        }
+        _gmailExchangeCode(code);
+      }
+      window.addEventListener('message', onOAuthMessage);
+
+      // Fallback: detect if user closed the popup manually
+      const closeWatch = setInterval(function() {
+        try { if (popup && popup.closed) { clearInterval(closeWatch); window.removeEventListener('message', onOAuthMessage); } }
+        catch(e) { clearInterval(closeWatch); window.removeEventListener('message', onOAuthMessage); }
+      }, 800);
     }
 
     async function _gmailExchangeCode(code) {

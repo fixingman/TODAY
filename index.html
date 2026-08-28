@@ -4337,6 +4337,17 @@
 <script src="assets/about.js"></script>
 <script src="assets/task-bounce.js"></script>
 <script>
+// OAuth popup relay — if this page loaded inside a popup after an OAuth redirect,
+// send the code/error back to the opener via postMessage and close immediately,
+// before any app init runs.
+(function() {
+  if (!window.opener) return;
+  const p = new URLSearchParams(window.location.search);
+  if (!p.has('code') && !p.has('error')) return;
+  try { window.opener.postMessage({ type: 'oauth_callback', search: window.location.search }, window.location.origin); } catch(e) {}
+  window.close();
+})();
+
 // Always start at top — browser's auto scroll-restoration causes mid-page reloads
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 window.scrollTo(0, 0);
@@ -4361,9 +4372,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.75.9': 'Fix: Gmail OAuth popup switched to postMessage — eliminates COOP cross-origin warning.',
   '2.75.8': 'Fix: Gmail thread search unblocked — added gmail.googleapis.com to Content Security Policy.',
   '2.75.7': 'Focus: tapping the add bar now exits focus mode and opens the input.',
-  '2.75.6': 'Fix: Gmail Connect button no longer requires a Client ID input — credentials come entirely from Netlify env vars.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
