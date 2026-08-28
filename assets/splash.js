@@ -50,10 +50,6 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     _appLoadDone = true;
     // Enable wake detection after load settles (no splash path — _appReady never set otherwise)
     window.addEventListener('load', () => { _appReady = true; }, { once: true });
-    if (window.matchMedia('(hover: hover)').matches) {
-      const inp = document.getElementById('newTask');
-      if (inp) inp.focus();
-    }
     return;
   }
   localStorage.setItem(splashKey, Date.now().toString());
@@ -313,12 +309,6 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
         if (_mtgOvl)  _mtgOvl.classList.add('visible');
 
         setTimeout(() => { if (typeof updateStats === 'function') updateStats(); }, FADE_OUT + 30);
-        if (window.matchMedia('(hover: hover)').matches) {
-          setTimeout(() => {
-            const inp = document.getElementById('newTask');
-            if (inp && !document.querySelector('.focusing')) inp.focus();
-          }, FADE_OUT + 80);
-        }
       }, FADE_OUT + 30);
     }, overlayDelay);
   };
