@@ -9,7 +9,6 @@
 
     // ── Constants ─────────────────────────────────────────────────────────────
     const GMAIL_AUTH_URL  = 'https://accounts.google.com/o/oauth2/v2/auth';
-    const GMAIL_TOKEN_URL = 'https://oauth2.googleapis.com/token';
     const GMAIL_API_BASE  = 'https://gmail.googleapis.com/gmail/v1/users/me';
     const GMAIL_SCOPE     = 'https://www.googleapis.com/auth/gmail.readonly';
 
@@ -105,16 +104,10 @@
 
       showStatus('Connecting…', 'success');
       try {
-        const res = await fetch(GMAIL_TOKEN_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            code,
-            client_id:     _clientId(),
-            code_verifier: verifier,
-            redirect_uri:  redirectUri,
-            grant_type:    'authorization_code',
-          }),
+        const res = await fetch('/.netlify/functions/gmail-token', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ code, code_verifier: verifier, redirect_uri: redirectUri }),
         });
         const data = await res.json();
         if (!res.ok || data.error) {
@@ -136,14 +129,10 @@
       const rt = _refreshToken();
       if (!rt) return false;
       try {
-        const res = await fetch(GMAIL_TOKEN_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            refresh_token: rt,
-            client_id:     _clientId(),
-            grant_type:    'refresh_token',
-          }),
+        const res = await fetch('/.netlify/functions/gmail-token', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ refresh_token: rt }),
         });
         const data = await res.json();
         if (!res.ok || data.error) return false;
