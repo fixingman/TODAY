@@ -3508,6 +3508,13 @@
     }
     .btn-forget { margin-left: var(--space-1); }
   }
+
+  @media (hover: hover) {
+    .btn-sm.btn-forget:hover {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+  }
   .week-dot {
     width: 5px; height: 5px; border-radius: 50%;
     background: var(--border); flex-shrink: 0;
@@ -4372,9 +4379,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.75.10': 'UI: destructive Forget buttons highlight red border on hover.',
   '2.75.9': 'Fix: Gmail OAuth popup switched to postMessage — eliminates COOP cross-origin warning.',
   '2.75.8': 'Fix: Gmail thread search unblocked — added gmail.googleapis.com to Content Security Policy.',
-  '2.75.7': 'Focus: tapping the add bar now exits focus mode and opens the input.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
