@@ -584,6 +584,29 @@
 
         if (behavioralLines.length < 2) return null; // not enough behavioral signal
 
+        // Pending tasks with age — gives the AI what's actually in flight this week
+        const _pastIds = new Set((typeof pastTasks !== 'undefined' ? pastTasks : []).map(t => t.id));
+        const _agingTasks = (typeof manualTasks !== 'undefined' ? manualTasks : [])
+          .filter(t => !doneIds.has(t.id) && !_pastIds.has(t.id))
+          .map(t => {
+            const created = typeof _getCreatedFromId === 'function' ? _getCreatedFromId(t.id) : (t.lastActive || t.id.replace('manual_', '') * 1);
+            const ageDays = created ? Math.floor((Date.now() - created) / 86400000) : 0;
+            const sessions = parseInt(t.focusSessions) || 0;
+            return { text: t.text, ageDays, sessions };
+          })
+          .filter(t => t.ageDays >= 2)
+          .sort((a, b) => b.ageDays - a.ageDays)
+          .slice(0, 5)
+          .map(t => {
+            const signals = [t.ageDays + 'd old'];
+            if (t.sessions > 0) signals.push(t.sessions + ' focus session' + (t.sessions > 1 ? 's' : ''));
+            return '"' + t.text + '" (' + signals.join(', ') + ')';
+          });
+
+        const taskCtx = _agingTasks.length
+          ? '\n\nAging tasks in flight this week:\n' + _agingTasks.join('\n')
+          : '';
+
         const res = await fetch('/.netlify/functions/ai-assist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -591,13 +614,14 @@
             provider: _aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content:
-              'Behavioral data (all stats are independent daily averages — timing patterns are not same-day pairs):\n' + behavioralLines.join('\n') + '\n\n' +
-              'Name one genuine pattern about WHEN or HOW this person works — timing, rhythm, focus sessions, habits, completion rate. ' +
-              'Do NOT describe what tasks they worked on — that\'s covered elsewhere. ' +
+              'Behavioral data (all stats are independent daily averages — timing patterns are not same-day pairs):\n' + behavioralLines.join('\n') +
+              taskCtx + '\n\n' +
+              'Name one genuine observation about this person\'s week — their rhythm, timing, or what\'s actually been in flight. ' +
+              'You may reference a specific aging task if it illuminates a real pattern (e.g. something kept vs. avoided). ' +
               'Do NOT combine two timing stats into a same-day cause-effect claim — each is an independent aggregate. ' +
-              'Ground it only in the numbers above, never invent. ' +
+              'Ground it only in the data above, never invent. ' +
               'If nothing genuine stands out, reply with exactly: none.' }],
-            systemPrompt: 'One sentence only, under 20 words. No quotes. Plain, observational, specific to their rhythm — not task content.',
+            systemPrompt: 'One sentence only, under 22 words. No quotes. Plain, observational — rhythm, timing, or a concrete task that reveals something real.',
           }),
         });
         if (!res.ok) return null;
