@@ -217,14 +217,14 @@
         if (res.ok) {
           const data = await res.json();
           if (typeof data.isComm === 'boolean' && typeof data.searchQuery === 'string') {
-            localStorage.setItem('gmail_classify_' + taskId, JSON.stringify(data));
+            try { localStorage.setItem('gmail_classify_' + taskId, JSON.stringify(data)); } catch(e) {}
             return data;
           }
         }
       } catch(e) {}
 
       const result = { isComm: true, searchQuery: _buildQueryFallback(taskText) };
-      localStorage.setItem('gmail_classify_' + taskId, JSON.stringify(result));
+      try { localStorage.setItem('gmail_classify_' + taskId, JSON.stringify(result)); } catch(e) {}
       return result;
     }
 
@@ -349,17 +349,24 @@
       const enrichment = _getEnrichment(taskId);
       if (enrichment) { _doRenderBlock(block, taskText, enrichment); return; }
 
-      // No cache yet — classify then fetch on demand
+      // No cache yet — classify then fetch on demand.
+      // Clear stale content immediately; stamp the block so async renders can
+      // bail if the user has already switched to a different task's focus session.
       if (!taskText) return;
+      block.hidden = true;
+      block.innerHTML = '';
+      block.dataset.focusTaskId = taskId;
+      const requestTaskId = taskId;
       _classifyTask(taskId, taskText).then(function(classification) {
         if (!classification.isComm) return;
         return _gmailSearch(classification.searchQuery).then(function(result) {
           if (!result) return;
           const data = Object.assign({}, result, { taskText, searchQuery: classification.searchQuery, fetchedAt: Date.now() });
-          localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify(data));
+          try { localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify(data)); } catch(e) {}
           _gmailUpdateIndicator(taskId);
           const b = document.getElementById('focusGmailBlock');
-          if (b) _doRenderBlock(b, taskText, data);
+          // Guard: abort if user switched to a different task while we were fetching
+          if (b && b.dataset.focusTaskId === requestTaskId) _doRenderBlock(b, taskText, data);
         });
       });
     }
