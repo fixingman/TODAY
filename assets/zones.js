@@ -89,6 +89,24 @@
       chevron.textContent = isOpen ? '+' : '−';
     }
 
+    function _flickCount(el, newVal) {
+      const str = String(newVal);
+      if (el.textContent === str) return;
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = str; return; }
+      const spring = 'cubic-bezier(0.34,1.56,0.64,1)';
+      const exit = el.animate(
+        [{ transform: 'translateY(0)', opacity: '1' }, { transform: 'translateY(-8px)', opacity: '0' }],
+        { duration: 120, easing: 'ease-in', fill: 'forwards' }
+      );
+      exit.onfinish = function() {
+        el.textContent = str;
+        el.animate(
+          [{ transform: 'translateY(8px)', opacity: '0' }, { transform: 'translateY(0)', opacity: '1' }],
+          { duration: 150, easing: spring, fill: 'none' }
+        );
+      };
+    }
+
     function renderSoon() {
       const section = document.getElementById('soonSection');
       const list = document.getElementById('soonList');
@@ -110,7 +128,7 @@
         if (soonChevron) { soonChevron.classList.remove('open'); soonChevron.textContent = '+'; }
         if (soonToggle)  soonToggle.setAttribute('aria-expanded', 'false');
       }
-      count.textContent = soonTasks.length;
+      _flickCount(count, soonTasks.length);
 
       list.innerHTML = [...soonTasks].sort((a, b) => a.text.localeCompare(b.text)).map(t => {
         const tagMatch = t.text.match(/^([a-z0-9]{1,12}):\s+(.+)$/i);
@@ -165,7 +183,7 @@
         if (pastChevron) { pastChevron.classList.remove('open'); pastChevron.textContent = '+'; }
         if (pastToggle)  pastToggle.setAttribute('aria-expanded', 'false');
       }
-      count.textContent = pastTasks.length;
+      _flickCount(count, pastTasks.length);
 
       list.innerHTML = visible.map(t => {
         const statusClass = t.status ? t.status.replace('_', '-') : '';
