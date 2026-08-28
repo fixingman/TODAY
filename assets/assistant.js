@@ -9,7 +9,10 @@ window._startAssistant = (function() {
     let _aiReqSeq = 0;
     let _aiThread = [];
     let _aiAnalyzeTimeout = null;
+    let _aiAnalyzeSeq = 0;
+    let _aiPendingSuggestion = null;
     let _aiCurrentSuggestion = null;
+    const _aiSuggestionExposureMs = 10000;
 
 function toggleAI() {
   _aiPanelOpen ? closeAI() : openAI();
@@ -18,6 +21,8 @@ function toggleAI() {
 function openAI(skipAutoLoad) {
   const panel = document.getElementById('aiPanel');
   if (!panel) return;
+
+  _aiCancelPendingSuggestion();
 
   // Close other panels
   ['configPanel','habitsPanel','infoPanel'].forEach(id =>
@@ -1087,6 +1092,11 @@ function _aiExecute(action) {
 
 // _aiRenderConfig / saveAIKey / clearAIKey / setDefaultProvider — moved to assets/connections.js
 function _aiAnalyzeTask(taskId, taskText) {
+  _aiCancelPendingSuggestion();
+  const analyzeSeq = ++_aiAnalyzeSeq;
+  clearTimeout(_aiAnalyzeTimeout);
+  _aiAnalyzeTimeout = null;
+
   // Don't analyze if AI not configured
   if (!_aiIsConfigured()) return;
   
@@ -1097,17 +1107,14 @@ function _aiAnalyzeTask(taskId, taskText) {
   if (taskText.length < 10) return;
   
   // Debounce — wait 2s after last task add
-  clearTimeout(_aiAnalyzeTimeout);
-  _aiAnalyzeTimeout = setTimeout(() => _aiDoAnalyze(taskId, taskText), 2000);
+  _aiAnalyzeTimeout = setTimeout(() => _aiDoAnalyze(taskId, taskText, analyzeSeq), 2000);
 }
 
-async function _aiDoAnalyze(taskId, taskText) {
+async function _aiDoAnalyze(taskId, taskText, analyzeSeq) {
+  if (analyzeSeq !== _aiAnalyzeSeq) return;
   // Dismiss any existing suggestion first
   _aiDismissSuggestion();
-
-  // Suppress if user explicitly dismisses or ignores >70% of suggestions (min 5 offered)
-  const _sig = appMemory?.patterns?.inlineSuggestions;
-  if (_sig && _sig.offered >= 5 && (_sig.dismissed + (_sig.autoDismissed || 0)) / _sig.offered > 0.7) return;
+  _suggestionReconcileOutcomes();
 
   // Build minimal context
   const existingTasks = manualTasks
@@ -1122,6 +1129,7 @@ Analyze briefly. Reply ONLY with raw JSON:
 {
   "suggest": true/false,
   "type": "break_down" | "clarify" | "none",
+  "reason": "multiple_actions" | "long_complex_task" | "vague_task" | "other_complexity",
   "message": "short reason (max 10 words)",
   "subtasks": ["task 1", "task 2", "task 3"] // only if type=break_down
 }
@@ -1130,11 +1138,16 @@ Rules:
 - suggest:true ONLY if task has multiple distinct steps or is vague
 - break_down: task contains "and", multiple verbs, or >8 words with distinct parts
 - clarify: task is <4 words and vague (e.g. "do thing", "work stuff")
+- reason: choose the single strongest reason the suggestion is being made
+- When several reasons fit, prefer a category marked "prefer" in reason performance and avoid one marked "use rarely"
 - Most tasks are fine as-is — suggest:false is the default
 - subtasks: 2-3 concrete actionable items, not rewording of original`;
 
   try {
-    const _acceptRate = _sig?.offered >= 3 ? Math.round(_sig.applied / _sig.offered * 100) : null;
+    const _allOutcomeStats = _suggestionOutcomeStats();
+    const _acceptRate = _allOutcomeStats.decisions >= 3
+      ? Math.round(_allOutcomeStats.applied / _allOutcomeStats.decisions * 100)
+      : null;
     const _letgoArr = Object.entries(appMemory?.patterns?.letgoReasons || {});
     const _letgoTotal = _letgoArr.reduce((s, [, n]) => s + n, 0);
     const _letgoDominant = _letgoTotal >= 8
@@ -1143,6 +1156,7 @@ Rules:
     let _behaviorCtx = '';
     if (_acceptRate !== null) _behaviorCtx += ` Acceptance rate for previous breakdown suggestions: ${_acceptRate}% — suggest only when clearly beneficial.`;
     if (_letgoDominant)       _behaviorCtx += ` User's most common reason for letting tasks go: ${_letgoDominant} — factor this into your suggestion.`;
+    _behaviorCtx += _suggestionPerformanceContext();
 
     const res = await fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
@@ -1158,17 +1172,105 @@ Rules:
     if (!res.ok) return; // fail silently
     
     const data = await res.json();
+    if (analyzeSeq !== _aiAnalyzeSeq) return;
     if (data.error || !data.suggest) return;
+    data.reason = _suggestionReason(data, taskText);
+    if (!_suggestionShouldOffer(data.reason, taskId)) return;
     
-    // Task might have been deleted while we were analyzing
-    const taskEl = document.querySelector(`.task[data-taskid="${CSS.escape(taskId)}"]`);
-    if (!taskEl) return;
-    
-    _aiShowSuggestion(taskId, taskEl, data);
+    _aiQueueSuggestion(taskId, taskText, data);
     
   } catch(e) {
     // Fail silently — this is enhancement, not critical
   }
+}
+
+function _aiCancelPendingSuggestion(pending = _aiPendingSuggestion) {
+  if (!pending || pending !== _aiPendingSuggestion) return;
+  pending.intersectionObserver?.disconnect();
+  pending.mutationObserver?.disconnect();
+  if (pending.onScroll) window.removeEventListener('scroll', pending.onScroll);
+  if (pending.onResize) window.removeEventListener('resize', pending.onResize);
+  if (pending.onVisibility) document.removeEventListener('visibilitychange', pending.onVisibility);
+  _aiPendingSuggestion = null;
+}
+
+function _aiTaskInDeliveryZone(taskEl) {
+  if (!taskEl?.isConnected || document.visibilityState !== 'visible') return false;
+  const rect = taskEl.getBoundingClientRect();
+  const deliveryBottom = Math.max(0, window.innerHeight - 64);
+  return rect.bottom > 0 && rect.right > 0 && rect.top < deliveryBottom && rect.left < window.innerWidth;
+}
+
+function _aiQueueSuggestion(taskId, analyzedText, data) {
+  _aiCancelPendingSuggestion();
+  const pending = { taskId, analyzedText, data, taskEl: null };
+  _aiPendingSuggestion = pending;
+
+  const show = taskEl => {
+    if (_aiPendingSuggestion !== pending) return;
+    const task = manualTasks.find(item => item.id === taskId);
+    if (!task || task.text !== analyzedText || doneIds.has(taskId) || !taskEl?.isConnected || _aiPanelOpen) {
+      _aiCancelPendingSuggestion(pending);
+      return;
+    }
+    _aiCancelPendingSuggestion(pending);
+    _aiShowSuggestion(taskId, taskEl, data);
+  };
+
+  const attach = () => {
+    if (_aiPendingSuggestion !== pending) return;
+    const task = manualTasks.find(item => item.id === taskId);
+    if (!task || task.text !== analyzedText || doneIds.has(taskId) || _aiPanelOpen) {
+      _aiCancelPendingSuggestion(pending);
+      return;
+    }
+    const taskEl = document.querySelector(`.task[data-taskid="${CSS.escape(taskId)}"]`);
+    if (!taskEl) return;
+    if (pending.taskEl === taskEl) return;
+
+    pending.intersectionObserver?.disconnect();
+    pending.taskEl = taskEl;
+    if (typeof IntersectionObserver === 'function') {
+      pending.intersectionObserver = new IntersectionObserver(entries => {
+        if (_aiPendingSuggestion !== pending) return;
+        if (entries.some(entry => entry.target === taskEl && entry.isIntersecting) &&
+            document.visibilityState === 'visible') show(taskEl);
+      }, { rootMargin: '0px 0px -64px 0px', threshold: 0.25 });
+      pending.intersectionObserver.observe(taskEl);
+    } else if (_aiTaskInDeliveryZone(taskEl)) {
+      show(taskEl);
+    }
+  };
+
+  const list = $.manualList || document.getElementById('manualList');
+  if (list) {
+    pending.mutationObserver = new MutationObserver(attach);
+    pending.mutationObserver.observe(list, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+  }
+
+  pending.onVisibility = () => {
+    if (document.visibilityState !== 'visible') return;
+    attach();
+    if (_aiPendingSuggestion === pending && _aiTaskInDeliveryZone(pending.taskEl)) show(pending.taskEl);
+  };
+  document.addEventListener('visibilitychange', pending.onVisibility);
+
+  if (typeof IntersectionObserver !== 'function') {
+    pending.onScroll = () => {
+      attach();
+      if (_aiPendingSuggestion === pending && _aiTaskInDeliveryZone(pending.taskEl)) show(pending.taskEl);
+    };
+    pending.onResize = pending.onScroll;
+    window.addEventListener('scroll', pending.onScroll, { passive: true });
+    window.addEventListener('resize', pending.onResize, { passive: true });
+  }
+
+  attach();
 }
 
 function _aiShowSuggestion(taskId, taskEl, data) {
@@ -1203,25 +1305,83 @@ function _aiShowSuggestion(taskId, taskEl, data) {
   // Insert after the task
   taskEl.insertAdjacentElement('afterend', row);
   
-  _aiCurrentSuggestion = { taskId, element: row };
+  const task = manualTasks.find(item => item.id === taskId);
 
   if (appMemory?.patterns?.inlineSuggestions) {
     appMemory.patterns.inlineSuggestions.offered++;
-    _saveMemory();
+  }
+  const outcomeId = _suggestionOutcomeRecord({
+    taskId,
+    taskText: task?.text || '',
+    type: data.type,
+    reason: data.reason,
+    message: data.message,
+  });
+  _aiCurrentSuggestion = { taskId, element: row, outcomeId };
+  _aiStartSuggestionExposure(_aiCurrentSuggestion);
+}
+
+function _aiStartSuggestionExposure(current) {
+  let exposedMs = 0;
+  let exposureStartedAt = null;
+  let intersecting = false;
+  let timer = null;
+
+  const update = () => {
+    const now = performance.now();
+    if (exposureStartedAt !== null) {
+      exposedMs += now - exposureStartedAt;
+      exposureStartedAt = null;
+    }
+    clearTimeout(timer);
+
+    if (_aiCurrentSuggestion !== current) return;
+    if (exposedMs >= _aiSuggestionExposureMs) {
+      _aiDismissSuggestion('auto');
+      return;
+    }
+
+    if (document.visibilityState === 'visible' && intersecting) {
+      exposureStartedAt = now;
+      timer = setTimeout(update, _aiSuggestionExposureMs - exposedMs);
+    }
+  };
+
+  const onVisibility = () => update();
+  document.addEventListener('visibilitychange', onVisibility);
+
+  let observer = null;
+  if (typeof IntersectionObserver === 'function') {
+    observer = new IntersectionObserver(entries => {
+      intersecting = entries.some(entry => entry.target === current.element && entry.isIntersecting);
+      update();
+    }, { threshold: 0.01 });
+    observer.observe(current.element);
+  } else {
+    const rect = current.element.getBoundingClientRect();
+    intersecting = rect.bottom > 0 && rect.right > 0 &&
+      rect.top < window.innerHeight && rect.left < window.innerWidth;
+    update();
   }
 
-  // Auto-dismiss after 10s — pass 'auto' so it counts toward suppression gate
-  setTimeout(() => {
-    if (_aiCurrentSuggestion?.taskId === taskId) {
-      _aiDismissSuggestion('auto');
-    }
-  }, 10000);
+  current.stopExposure = () => {
+    if (exposureStartedAt !== null) exposedMs += performance.now() - exposureStartedAt;
+    exposureStartedAt = null;
+    clearTimeout(timer);
+    observer?.disconnect();
+    document.removeEventListener('visibilitychange', onVisibility);
+  };
 }
 
 function _aiDismissSuggestion(source) {
-  if (!_aiCurrentSuggestion) return;
+  if (!_aiCurrentSuggestion) {
+    if (!source) _aiCancelPendingSuggestion();
+    return;
+  }
 
-  const el = _aiCurrentSuggestion.element;
+  const current = _aiCurrentSuggestion;
+  current.stopExposure?.();
+  const el = current.element;
   if (el && el.parentNode) {
     el.classList.add('removing');
     el.addEventListener('animationend', () => el.remove(), { once: true });
@@ -1231,7 +1391,10 @@ function _aiDismissSuggestion(source) {
   if (appMemory?.patterns?.inlineSuggestions) {
     if (source === 'user') appMemory.patterns.inlineSuggestions.dismissed++;
     else if (source === 'auto') appMemory.patterns.inlineSuggestions.autoDismissed = (appMemory.patterns.inlineSuggestions.autoDismissed || 0) + 1;
-    if (source === 'user' || source === 'auto') _saveMemory();
+    if (source === 'user' || source === 'auto') {
+      _suggestionOutcomeDismiss(current.outcomeId, source);
+      _saveMemory();
+    }
   }
 }
 
@@ -1257,9 +1420,11 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
   
   // Add subtasks
   const list = $.manualList;
+  const resultTaskIds = [];
   subtasks.forEach((text, i) => {
     const task = { id: 'manual_' + (Date.now() + i), text };
     manualTasks.push(task);
+    resultTaskIds.push(task.id);
     
     // Add to DOM
     if (list) {
@@ -1281,6 +1446,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
   $.manualCount.textContent = manualTasks.length;
   if (appMemory?.patterns?.inlineSuggestions) {
     appMemory.patterns.inlineSuggestions.applied++;
+    _suggestionOutcomeApply(_aiCurrentSuggestion?.outcomeId, resultTaskIds);
     _saveMemory();
   }
   _aiDismissSuggestion();

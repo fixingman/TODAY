@@ -4281,16 +4281,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '285h';
+const DEV_HOURS     = '288h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.71.43': 'Fix: tasksAdded daily cap lowered to 30 — v1 migration artifacts (~70/day) were passing the 100 threshold.',
-  '2.71.42': 'Fix: remove streak line from memory panel.',
-  '2.71.41': 'Poems: Chang Chih-ho "A World Apart" (Cranmer-Byng 1909) — corpus 115.',
+  '2.72.0': 'AI: inline suggestions now learn which kinds actually help, without adding a new screen.',
+  '2.71.44': 'Fix: completion-rate data is now cleaned consistently across devices.',
+  '2.71.43': 'Fix: completion-rate insights now ignore implausible daily task totals.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4435,6 +4435,7 @@ function init() {
   renderManual();
   renderSoon();
   renderPast();
+  _suggestionReconcileOutcomes();
   _updateBarPlaceholder();
   _cleanupDeletedIds();   // Remove invalid deleted_ids that match zone tasks
   _cleanupHabitEvents();  // Purge habit_events older than 30 days

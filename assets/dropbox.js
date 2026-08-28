@@ -678,31 +678,38 @@
     // dates merge per-field with Math.max so neither device's data is silently discarded.
     // Cap 30 days.
     function _mergeDailyHistory(localArr, remoteArr) {
+      const _cleanEntry = entry => ({
+        ...entry,
+        tasksAdded: _sanitizeDailyTasksAdded(entry.tasksAdded),
+      });
       const byDate = new Map();
-      for (const e of (Array.isArray(localArr)  ? localArr  : [])) { if (e && e.date) byDate.set(e.date, e); }
+      for (const e of (Array.isArray(localArr)  ? localArr  : [])) {
+        if (e && e.date) byDate.set(e.date, _cleanEntry(e));
+      }
       for (const e of (Array.isArray(remoteArr) ? remoteArr : [])) {
         if (!e || !e.date) continue;
+        const remote = _cleanEntry(e);
         const cur = byDate.get(e.date);
-        if (!cur) { byDate.set(e.date, e); continue; }
+        if (!cur) { byDate.set(e.date, remote); continue; }
         byDate.set(e.date, {
           date:        e.date,
-          tasksDone:   Math.max(cur.tasksDone   || 0, e.tasksDone   || 0),
-          // tasksAdded: per-day delta only — values above 100 are cumulative artifacts
+          tasksDone:   Math.max(cur.tasksDone   || 0, remote.tasksDone   || 0),
+          // tasksAdded: per-day delta only — values above the shared plausibility
+          // ceiling are cumulative artifacts
           // (the v2 migration zeroes them locally, but a sync from the other device can
-          // restore large values via Math.max before that device has run the migration).
-          // _sa() treats any value > 100 as 0 so the merge stays clean on both sides.
+          // restore large values before that device has run the migration). Every local,
+          // remote-only, and duplicate-date entry is normalized before it reaches storage.
           tasksAdded: (function() {
-            const _sa = v => (v || 0) > 30 ? 0 : (v || 0);
-            const _a = _sa(cur.tasksAdded), _b = _sa(e.tasksAdded);
-            if (cur.tasksAddedFixed && e.tasksAddedFixed) return Math.max(_a, _b);
+            const _a = cur.tasksAdded, _b = remote.tasksAdded;
+            if (cur.tasksAddedFixed && remote.tasksAddedFixed) return Math.max(_a, _b);
             if (cur.tasksAddedFixed) return _a;
-            if (e.tasksAddedFixed)   return _b;
+            if (remote.tasksAddedFixed) return _b;
             return Math.max(_a, _b);
           })(),
-          focusMins:   Math.max(cur.focusMins   || 0, e.focusMins   || 0),
-          habitsKept:  Math.max(cur.habitsKept  || 0, e.habitsKept  || 0),
-          habitsTotal: Math.max(cur.habitsTotal || 0, e.habitsTotal || 0),
-          ...(cur.tasksAddedFixed || e.tasksAddedFixed ? { tasksAddedFixed: true } : {}),
+          focusMins:   Math.max(cur.focusMins   || 0, remote.focusMins   || 0),
+          habitsKept:  Math.max(cur.habitsKept  || 0, remote.habitsKept  || 0),
+          habitsTotal: Math.max(cur.habitsTotal || 0, remote.habitsTotal || 0),
+          ...(cur.tasksAddedFixed || remote.tasksAddedFixed ? { tasksAddedFixed: true } : {}),
         });
       }
       return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
@@ -771,6 +778,51 @@
         }
       }
       if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
+      // Inline suggestion outcomes are monotonic event records. Merge by stable
+      // offer ID and union each timestamp/result set so an older device cannot
+      // erase later evidence (applied → helped/reversed) with a stale snapshot.
+      if (Array.isArray(remote.suggestionOutcomes)) {
+        if (!Array.isArray(appMemory.suggestionOutcomes)) appMemory.suggestionOutcomes = [];
+        const outcomeById = new Map(appMemory.suggestionOutcomes
+          .filter(entry => entry?.id)
+          .map(entry => [entry.id, entry]));
+        const later = (a, b) => !a ? b : !b ? a : (a > b ? a : b);
+        for (const remoteEntry of remote.suggestionOutcomes) {
+          if (!remoteEntry?.id) continue;
+          const localEntry = outcomeById.get(remoteEntry.id);
+          if (!localEntry) {
+            outcomeById.set(remoteEntry.id, { ...remoteEntry });
+            continue;
+          }
+          const localNewest = (localEntry.updatedAt || localEntry.offeredAt || '') >=
+            (remoteEntry.updatedAt || remoteEntry.offeredAt || '');
+          const newest = localNewest ? localEntry : remoteEntry;
+          const merged = {
+            ...(localNewest ? remoteEntry : localEntry),
+            ...newest,
+            offeredAt: later(localEntry.offeredAt, remoteEntry.offeredAt),
+            appliedAt: later(localEntry.appliedAt, remoteEntry.appliedAt),
+            dismissedAt: later(localEntry.dismissedAt, remoteEntry.dismissedAt),
+            ignoredAt: later(localEntry.ignoredAt, remoteEntry.ignoredAt),
+            helpedAt: later(localEntry.helpedAt, remoteEntry.helpedAt),
+            reversedAt: later(localEntry.reversedAt, remoteEntry.reversedAt),
+            updatedAt: later(localEntry.updatedAt, remoteEntry.updatedAt),
+            resultTaskIds: [...new Set([
+              ...(localEntry.resultTaskIds || []),
+              ...(remoteEntry.resultTaskIds || []),
+            ])],
+          };
+          if (merged.helpedAt) merged.outcome = 'helped';
+          else if (merged.reversedAt) merged.outcome = 'reversed';
+          else if (merged.appliedAt) merged.outcome = 'applied';
+          else if (merged.dismissedAt) merged.outcome = 'dismissed';
+          else if (merged.ignoredAt) merged.outcome = 'ignored';
+          outcomeById.set(remoteEntry.id, merged);
+        }
+        appMemory.suggestionOutcomes = [...outcomeById.values()]
+          .sort((a, b) => (b.offeredAt || '').localeCompare(a.offeredAt || ''))
+          .slice(0, 100);
+      }
       // Merge recentCompletedTasks (union by text+date, 30-day window)
       if (Array.isArray(remote.recentCompletedTasks)) {
         const cutoff = new Date(Date.now() - 30 * 864e5);

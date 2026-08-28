@@ -186,7 +186,7 @@ Dropbox + GDrive simultaneously · automatic cross-provider migration · OneDriv
 | Merge-anomaly observability | Dropbox emits a console-only `[merge-anomaly]` breadcrumb; no persisted counter or Connections metric | Revisit only if anomalies appear during debugging or WEEK needs a measurable conflict rate. Not live product telemetry. |
 | Dated AI-cache sync | Four fields hand-plumbed: `day_nudge_ai`, `week_reflection`, `monday_intention`, `week_theme_ai` | Rule-of-three exceeded. Create one declarative cache registry before adding a fifth dated AI field. |
 | Morning nudge usefulness | v2.43.5 rebalanced list vs memory context; generation runs after sync and result syncs cross-device | Ask for the About panel's Today line verbatim. Does it name a specific current task without biography drift? If not, cut `Past suggestions` + `Recent conversations` before more prompt tuning. |
-| AI/data outcome loop | Inline suggestions record offered/applied/dismissed; most AI surfaces stop at generation | Before collecting new signals, prototype provenance + one evaluable recommendation loop on an existing surface. Do not add another recurring panel. |
+| AI/data outcome loop | **Shipped v2.72.0** on the existing post-add row: reason provenance, applied/dismissed/full-exposure ignored, completed-step help, conservative reversal, reason-level reduction/preference | After 12+ resolved offers, inspect reason totals and reversal quality. Extend to another action only if this loop changes recommendation mix without adding noise. |
 
 ---
 

@@ -6,7 +6,7 @@
 
 ## Pre-Release Checklist (REQUIRED)
 
-Automated baseline: `node scripts/test-all.mjs` runs all 23 local suites. The live
+Automated baseline: `node scripts/test-all.mjs` runs all 24 local suites. The live
 `scripts/ai-test.mjs` remains the sole explicit exclusion because it requires an API key and
 real provider calls. The runner verifies this inventory before execution. A suite that passes
 only on its diagnostic retry is reported as flaky and fails the gate. Run `design-lint.mjs`
@@ -169,7 +169,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 4.6 | **SYNC: Check/uncheck rapid toggle** | Final state correct |
 | 4.7 | **BUG-055: Second-device first-open** — tasks checked on device A today, device B opens for first time | Done tasks stay in TODAY, not moved to PAST (fix v2.30.1 — `today_checked_ids` timestamps distinguish today vs yesterday) |
 
-### 5. Stats & Memory (13 tests)
+### 5. Stats & Memory (16 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -186,6 +186,9 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 5.11 | Daily history — midnight snapshot | `today_daily_history` gains a new entry after midnight; capped at 30 entries |
 | 5.12 | About weekly grid | "This week" section shows 7-day grid with bar heights matching task counts |
 | 5.13 | Sunday earned reflection | On Sunday, a qualifying evidence-backed candidate is AI-written and cached; a flat week leaves the sentence hidden |
+| 5.14 | Daily-history sync receives local, duplicate-date, and remote-only `tasksAdded` values | 0–30 preserved; values above 30 normalize to 0 before storage; other per-day fields still merge normally |
+| 5.15 | Memory completion rate has five valid days plus one restored day with `tasksAdded: 31` | Invalid day is excluded; rate and evidence totals use only the five plausible days |
+| 5.16 | Inline suggestion reasons accumulate applied, dismissed, full-exposure ignored, completed-step, and later-reversed evidence | Four resolved failures reduce only that reason to one-in-four exploration; completed-step evidence is preferred; Dropbox union preserves later outcomes |
 
 ### 6. Trello (8 tests)
 
@@ -292,7 +295,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | Zones | 17 | 8 |
 | Habits | 12 | 5 |
 | Done State | 7 | 4 |
-| Stats/Memory | 13 | 5 |
+| Stats/Memory | 16 | 6 |
 | Trello | 8 | 3 |
 | Focus | 11 | 4 |
 | Network | 7 | 4 |
@@ -301,7 +304,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | Poem & Daily Brief | 6 | 3 |
 | PAST Revive | 3 | 2 |
 | About Sunday/Monday | 5 | 3 |
-| **Total** | **115** | **52** |
+| **Total** | **118** | **53** |
 
 ---
 

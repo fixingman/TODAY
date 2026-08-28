@@ -102,7 +102,7 @@
 
 | Key | Type | Description |
 |---|---|---|
-| `today_daily_history` | JSON array | Rolling 30-day snapshot `{date, tasksDone, tasksAdded, focusMins, habitsKept, habitsTotal, tasksAddedFixed?}` — one entry per day, written at midnight in `applyNewDayCleanup`. `tasksAddedFixed: true` is a one-time migration marker (v2.71.9) that marks an entry's `tasksAdded` as a per-day delta (not a cumulative total); migration runs in `renderMemoryPanel`, `_memoryAbstract`, and `_fetchWeekThemeAI`. Used by the About weekly grid and the Sunday evidence gate |
+| `today_daily_history` | JSON array | Rolling 30-day snapshot `{date, tasksDone, tasksAdded, focusMins, habitsKept, habitsTotal, tasksAddedFixed?}` — one entry per day, written at midnight in `applyNewDayCleanup`. `tasksAddedFixed: true` is a one-time migration marker (v2.71.9) that marks an entry's `tasksAdded` as a per-day delta (not a cumulative total); migration runs in `renderMemoryPanel`, `_memoryAbstract`, and `_fetchWeekThemeAI`. `_sanitizeDailyTasksAdded()` treats values outside 0–30 as missing (`0`) before sync storage or completion-rate use, preventing cumulative migration artifacts from dominating Memory. Used by the About weekly grid and the Sunday evidence gate |
 | `week_reflection_YYYY-MM-DD` | string | Cached AI-written Sunday line for one code-verified observation; absent when the evidence gate abstains |
 | `week_policy_YYYY-MM-DD` | string | Sunday reflection policy/negative-cache marker (`earned-v1`). Current marker + no reflection text means “no qualifying insight”; Dropbox field `week_reflection_policy` prevents old-policy prose from being restored |
 | `monday_intention_<date>` | string | Cached AI-generated Monday intention prompt for that date — `#sundayBlock` shows this on Mondays instead of the Sunday reflection; no rule-based fallback (v2.30.0) |
@@ -151,11 +151,19 @@
   moments: [],                       // [{ type, value, date }] — milestones, big clears (last 20)
   suggestionCooldowns: {},           // { taskId: 'YYYY-MM-DD' } — 7-day cooldown
   suggestionHistory: [],             // [{ taskId, taskText, suggested, action }] (last 50)
+  suggestionOutcomes: [{             // post-add inline outcome loop (last 100, v2.72.0)
+    id, taskId, taskText, pattern,
+    reason, reasonText, offeredAt, updatedAt,
+    appliedAt?, dismissedAt?, ignoredAt?, helpedAt?, reversedAt?,
+    resultTaskIds?, matchingTaskIdsAtApply?, reversalReason?
+  }],
   recentConversations: [],           // [{ date, message }] (last 3)
   recentCompletedTasks: [],          // [{ text, date }] — rolling 30-day (last 50)
   meetingAttribution: { mineShown, mineKept, othersShown, othersSelected },
 }
 ```
+
+`suggestionOutcomes` is additive inside the existing `appMemory` payload, so backup schema 5.4 does not change. Task text and the model's visible reason line are stored because they are needed to explain the offer and detect an explicit recreation of the original; both were already inside TODAY's local/synced task-memory boundary. “Clear all memory” removes outcomes, legacy suggestion history, and suggestion cooldowns. Outcome records are capped at 100 newest offers.
 
 ---
 

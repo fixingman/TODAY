@@ -21,6 +21,14 @@
 // suggestion-cooldown pruning in the cleanup path.
 
 const AI_NAMES = ['lu', 'kit', 'em', 'jo', 'pip', 'sol', 'rue', 'finn'];
+const SUGGESTION_OUTCOME_LIMIT = 100;
+const SUGGESTION_REVERSAL_GRACE_MS = 10 * 60 * 1000;
+const SUGGESTION_REASONS = [
+  'multiple_actions',
+  'long_complex_task',
+  'vague_task',
+  'other_complexity',
+];
 
 function _pickAIName() {
   return AI_NAMES[Math.floor(Math.random() * AI_NAMES.length)];
@@ -55,6 +63,8 @@ let appMemory = (() => {
       suggestionCooldowns: {},    // { taskId: 'YYYY-MM-DD' } — last suggested date
       // AI suggestion history — what was suggested and what action was taken
       suggestionHistory: [],      // [{ taskId, taskText, suggested: 'YYYY-MM-DD', action: 'break_down'|'move_soon'|'dismiss'|... }]
+      // Post-add inline suggestion outcomes — reason-level learning, newest first
+      suggestionOutcomes: [],     // [{ id, taskId, reason, offeredAt, appliedAt|dismissedAt|ignoredAt, helpedAt?, reversedAt? }]
       // Recent completed task texts — rolling 30-day window for type summarization
       recentCompletedTasks: [],   // [{ text, date }]
       // Typed memory slots — AI-proposed, user-confirmed inferences
@@ -72,6 +82,7 @@ let appMemory = (() => {
   preferences: { peakHour: null, dragKeywords: [] },
   suggestionCooldowns: {},
   suggestionHistory: [],
+  suggestionOutcomes: [],
   recentCompletedTasks: [],
   memory: { semantic: [], episodic: [], procedural: [] },
   firstSeen: _localISO(),
@@ -86,6 +97,7 @@ if (!appMemory.aiName) {
 }
 if (!appMemory.suggestionCooldowns)    appMemory.suggestionCooldowns = {};
 if (!appMemory.suggestionHistory)      appMemory.suggestionHistory = [];
+if (!Array.isArray(appMemory.suggestionOutcomes)) appMemory.suggestionOutcomes = [];
 if (!appMemory.recentConversations)    appMemory.recentConversations = [];
 if (!appMemory.recentCompletedTasks)   appMemory.recentCompletedTasks = [];
 if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
@@ -134,6 +146,217 @@ function _saveMemory() {
   localStorage.setItem('today_memory', JSON.stringify(appMemory));
 }
 
+// ── Inline suggestion outcome loop ──────────────────────────────────────────
+// suggestionHistory predates the post-add inline row and records actions taken
+// in the assistant panel. suggestionOutcomes is deliberately separate: every
+// inline offer has one stable record, one explicit reason, and downstream
+// evidence that can change an initially applied suggestion into helped/reversed.
+
+function _suggestionNormalizeTaskText(text) {
+  return _stripTag(text || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function _suggestionReason(data, taskText) {
+  const explicit = data?.reason;
+  if (SUGGESTION_REASONS.includes(explicit)) return explicit;
+  if (data?.type === 'clarify') return 'vague_task';
+
+  const clean = _suggestionNormalizeTaskText(taskText);
+  if (/\b(and|then|plus|after|before)\b|[,;/+]/.test(clean)) return 'multiple_actions';
+  if (clean.split(/\s+/).filter(Boolean).length > 8) return 'long_complex_task';
+  return 'other_complexity';
+}
+
+function _suggestionOutcomeRecord(details) {
+  if (!appMemory || !details?.taskId) return null;
+  if (!Array.isArray(appMemory.suggestionOutcomes)) appMemory.suggestionOutcomes = [];
+  const now = new Date().toISOString();
+  const id = 'inline_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  appMemory.suggestionOutcomes.unshift({
+    id,
+    taskId: details.taskId,
+    taskText: details.taskText || '',
+    pattern: details.type || 'break_down',
+    reason: _suggestionReason(details, details.taskText),
+    reasonText: (details.message || '').slice(0, 120),
+    offeredAt: now,
+    updatedAt: now,
+  });
+  appMemory.suggestionOutcomes = appMemory.suggestionOutcomes.slice(0, SUGGESTION_OUTCOME_LIMIT);
+  _saveMemory();
+  return id;
+}
+
+function _suggestionOutcomeUpdate(id, changes) {
+  if (!id || !Array.isArray(appMemory?.suggestionOutcomes)) return false;
+  const record = appMemory.suggestionOutcomes.find(entry => entry.id === id);
+  if (!record) return false;
+  Object.assign(record, changes, { updatedAt: new Date().toISOString() });
+  _saveMemory();
+  return true;
+}
+
+function _suggestionOutcomeDismiss(id, source) {
+  if (source !== 'user' && source !== 'auto') return false;
+  const record = appMemory?.suggestionOutcomes?.find(entry => entry.id === id);
+  if (!record || record.appliedAt || record.dismissedAt || record.ignoredAt) return false;
+  const now = new Date().toISOString();
+  return _suggestionOutcomeUpdate(id, source === 'user'
+    ? { dismissedAt: now, outcome: 'dismissed' }
+    : { ignoredAt: now, outcome: 'ignored' });
+}
+
+function _suggestionOutcomeApply(id, resultTaskIds) {
+  const record = appMemory?.suggestionOutcomes?.find(entry => entry.id === id);
+  if (!record || record.dismissedAt || record.ignoredAt) return false;
+  const now = new Date().toISOString();
+  const resultSet = new Set((resultTaskIds || []).filter(Boolean));
+  const current = [
+    ...(typeof manualTasks !== 'undefined' ? manualTasks : []),
+    ...(typeof soonTasks !== 'undefined' ? soonTasks : []),
+    ...(typeof pastTasks !== 'undefined' ? pastTasks : []),
+  ];
+  const originalText = _suggestionNormalizeTaskText(record.taskText);
+  return _suggestionOutcomeUpdate(id, {
+    appliedAt: record.appliedAt || now,
+    outcome: 'applied',
+    resultTaskIds: [...resultSet],
+    matchingTaskIdsAtApply: originalText ? current
+      .filter(task => !resultSet.has(task.id) &&
+        _suggestionNormalizeTaskText(task.text || task.name) === originalText)
+      .map(task => task.id)
+      : [],
+  });
+}
+
+function _suggestionOutcomeOnTaskComplete(taskId) {
+  if (!taskId || !Array.isArray(appMemory?.suggestionOutcomes)) return false;
+  let changed = false;
+  const now = new Date().toISOString();
+  for (const record of appMemory.suggestionOutcomes) {
+    if (!record.appliedAt || record.reversedAt || record.helpedAt) continue;
+    if (!(record.resultTaskIds || []).includes(taskId)) continue;
+    record.helpedAt = now;
+    record.outcome = 'helped';
+    record.updatedAt = now;
+    changed = true;
+  }
+  if (changed) _saveMemory();
+  return changed;
+}
+
+function _suggestionReconcileOutcomes() {
+  if (!Array.isArray(appMemory?.suggestionOutcomes)) return false;
+  const current = [
+    ...(typeof manualTasks !== 'undefined' ? manualTasks : []),
+    ...(typeof soonTasks !== 'undefined' ? soonTasks : []),
+    ...(typeof pastTasks !== 'undefined' ? pastTasks : []),
+  ];
+  const currentById = new Map(current.map(task => [task.id, task]));
+  const deletedIds = new Set((typeof _getDeletedIds === 'function'
+    ? _getDeletedIds()
+    : safeJSON('today_deleted_ids', [])).map(entry => entry.id));
+  const completedIds = typeof doneIds !== 'undefined' ? doneIds : new Set();
+  let changed = false;
+  const now = new Date().toISOString();
+
+  for (const record of appMemory.suggestionOutcomes) {
+    if (!record.appliedAt || record.reversedAt || record.helpedAt) continue;
+    const resultIds = (record.resultTaskIds || []).filter(Boolean);
+    if (!resultIds.length) continue;
+
+    if (resultIds.some(id => completedIds.has(id))) {
+      record.helpedAt = now;
+      record.outcome = 'helped';
+      record.updatedAt = now;
+      changed = true;
+      continue;
+    }
+
+    const appliedMs = Date.parse(record.appliedAt);
+    if (!Number.isFinite(appliedMs) || Date.now() - appliedMs < SUGGESTION_REVERSAL_GRACE_MS) continue;
+
+    const resultSet = new Set(resultIds);
+    const baselineMatches = new Set(record.matchingTaskIdsAtApply || []);
+    const originalText = _suggestionNormalizeTaskText(record.taskText);
+    const originalRestored = originalText && current.some(task =>
+      !resultSet.has(task.id) && !baselineMatches.has(task.id) &&
+      _suggestionNormalizeTaskText(task.text || task.name) === originalText
+    );
+    const allDiscarded = resultIds.every(id => {
+      if (deletedIds.has(id)) return true;
+      const task = currentById.get(id);
+      return !!task && task.zone === 'past' && task.status === 'let_go';
+    });
+
+    if (originalRestored || allDiscarded) {
+      record.reversedAt = now;
+      record.reversalReason = originalRestored ? 'original_restored' : 'all_steps_discarded';
+      record.outcome = 'reversed';
+      record.updatedAt = now;
+      changed = true;
+    }
+  }
+
+  if (changed) _saveMemory();
+  return changed;
+}
+
+function _suggestionOutcomeStats(reason) {
+  const records = (appMemory?.suggestionOutcomes || []).filter(record => !reason || record.reason === reason);
+  const stats = {
+    offered: records.length,
+    applied: 0,
+    dismissed: 0,
+    ignored: 0,
+    reversed: 0,
+    helped: 0,
+    retained: 0,
+    decisions: 0,
+    failures: 0,
+    underperforming: false,
+  };
+  for (const record of records) {
+    if (record.appliedAt) stats.applied++;
+    if (record.dismissedAt) stats.dismissed++;
+    if (record.ignoredAt) stats.ignored++;
+    if (record.reversedAt && !record.helpedAt) stats.reversed++;
+    if (record.helpedAt) stats.helped++;
+    if (record.appliedAt && (!record.reversedAt || record.helpedAt)) stats.retained++;
+  }
+  stats.decisions = stats.applied + stats.dismissed + stats.ignored;
+  stats.failures = stats.dismissed + stats.ignored + stats.reversed;
+  stats.underperforming = stats.decisions >= 4 && stats.failures / stats.decisions >= 0.7;
+  return stats;
+}
+
+function _suggestionStableBucket(value) {
+  let hash = 0;
+  for (const char of String(value || '')) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
+  return Math.abs(hash) % 4;
+}
+
+function _suggestionShouldOffer(reason, taskId) {
+  const stats = _suggestionOutcomeStats(reason);
+  if (!stats.underperforming) return true;
+  // Keep one-in-four exploration so a category can recover if the person's
+  // behavior changes; repeated failures reduce noise without becoming a ban.
+  return _suggestionStableBucket(reason + ':' + taskId) === 0;
+}
+
+function _suggestionPerformanceContext() {
+  const lines = [];
+  for (const reason of SUGGESTION_REASONS) {
+    const stats = _suggestionOutcomeStats(reason);
+    if (stats.decisions < 3) continue;
+    const evidence = `${stats.applied}/${stats.decisions} applied, ${stats.helped} led to a completed step, ${stats.reversed} later reversed`;
+    if (stats.underperforming) lines.push(`${reason}: ${evidence}; use rarely`);
+    else if (stats.helped > 0) lines.push(`${reason}: ${evidence}; prefer when it genuinely fits`);
+    else lines.push(`${reason}: ${evidence}`);
+  }
+  return lines.length ? ' Reason performance: ' + lines.join('. ') + '.' : '';
+}
+
 // Strip the "tag: " prefix before keyword-mining task text (same pattern
 // taskHTML renders as a tag chip). A tag is how the user files a task, not
 // what it's about — leaving it in guarantees noise like «"today:" keeps
@@ -169,6 +392,10 @@ function _memoryOnTaskComplete(taskText, taskId) {
   }
   
   appMemory.totalTasksCompleted++;
+
+  // A completed generated step is stronger evidence than accepting the chip:
+  // it is the positive signal used to prefer useful recommendation patterns.
+  _suggestionOutcomeOnTaskComplete(taskId);
 
   // Record task lifespan — days from creation to completion (manual tasks only)
   if (taskId && taskId.startsWith('manual_') && typeof _getCreatedFromId === 'function') {

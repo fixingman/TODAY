@@ -19,6 +19,7 @@ const SUITE = [
   'task-actions-test',
   'task-bounce-test',
   'assistant-test',
+  'suggestion-outcomes-test',
   'nudge-test',
   'habits-test',
   'triage-test',

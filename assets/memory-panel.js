@@ -221,7 +221,9 @@
         proceduralItems.push({ text: `often works on: ${topWords.join(', ')}` });
       }
       // Completion rate from daily history entries that have tasksAdded tracked
-      const rateHistory = allDailyHistory.filter(e => e.tasksAdded > 0 && e.tasksAdded <= 30);
+      const rateHistory = allDailyHistory
+        .map(e => ({ ...e, tasksAdded: _sanitizeDailyTasksAdded(e.tasksAdded) }))
+        .filter(e => e.tasksAdded > 0);
       if (rateHistory.length >= 5) {
         const totalAdded = rateHistory.reduce((s, e) => s + e.tasksAdded, 0);
         const totalDone  = rateHistory.reduce((s, e) => s + e.tasksDone,  0);
@@ -361,11 +363,14 @@
           completionsByHour: {}, taskKeywords: {}, focusMinutesTotal: appMemory.patterns?.focusMinutesTotal || 0,
           bestStreak: 0, taskLifespanSamples: [], lateAdditions: [], tasksAddedToday: 0,
           dayStartCount: null, dayStartDate: null, dayShapeState: null,
+          inlineSuggestions: { offered: 0, applied: 0, dismissed: 0, autoDismissed: 0 },
         };
         appMemory.memory = { semantic: [], episodic: [], procedural: [] };
         appMemory.recentCompletedTasks = [];
         appMemory.moments = [];
         appMemory.suggestionHistory = [];
+        appMemory.suggestionOutcomes = [];
+        appMemory.suggestionCooldowns = {};
         _saveMemory();
       }
       if (typeof window._reflectionClearFromAllMemory === 'function') window._reflectionClearFromAllMemory();
@@ -463,7 +468,9 @@
         }
 
         // Completion rate: tasksAdded vs tasksDone ratio from daily_history
-        const rateHistory = dailyHistory.filter(e => e.tasksAdded > 0 && e.tasksAdded <= 30);
+        const rateHistory = dailyHistory
+          .map(e => ({ ...e, tasksAdded: _sanitizeDailyTasksAdded(e.tasksAdded) }))
+          .filter(e => e.tasksAdded > 0);
         let completionRate = null;
         if (rateHistory.length >= 5) {
           const totalAdded = rateHistory.reduce((s, e) => s + e.tasksAdded, 0);

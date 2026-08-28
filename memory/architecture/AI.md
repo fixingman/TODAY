@@ -334,3 +334,21 @@ Prevents the AI from repeatedly suggesting the same aging task.
 - Max 50 entries, newest first
 - Synced via Dropbox
 - **Sent to AI via `_memoryForAI()` (v2.15.4)** — last 30 days, up to 5 tasks, grouped by taskText with action labels. AI uses this to write contextually aware messages.
+
+## Post-add Inline Outcome Loop (v2.72.0)
+
+This is separate from the assistant panel's aging-task history above. It learns on the existing row shown after a newly added task; it adds no panel, badge, setting, or recurring message.
+
+Each shown offer appends one `appMemory.suggestionOutcomes` record with a stable ID, task/pattern, explicit reason (`multiple_actions`, `long_complex_task`, `vague_task`, or `other_complexity`), the visible reason text, and an ISO `offeredAt`. The model is asked for the enum; deterministic text/type rules classify older or malformed responses.
+
+**Outcome evidence:**
+
+- **Applied:** the split chip was used; generated task IDs are attached to the offer.
+- **Dismissed:** the explicit close chip was used.
+- **Ignored:** the row accumulated ten seconds while both intersecting the viewport and in a visible document, then auto-expired. Off-screen time, background-tab time, and programmatic replacement are not counted.
+- **Helped:** at least one generated step was later completed. This is the positive preference signal; application alone is weaker intent evidence.
+- **Later reversed:** after a ten-minute undo grace, the original task was recreated or every generated step was deleted/let go before any generated step completed. Duplicate originals already present at apply time are excluded. Moving a step to Soon is not reversal.
+
+**Reason policy:** no category judgment before four resolved offers. At four or more, a reason whose `(dismissed + ignored + reversed) / (applied + dismissed + ignored)` is at least 70% is reduced to deterministic one-in-four exploration. It is not permanently disabled, so changed behavior can produce recovery evidence. Categories with at least one completed generated step are described to the task-analysis model as preferred when multiple reasons genuinely fit. This replaces the old all-or-nothing global suppression ratio.
+
+Records cap at 100. Dropbox merges them by stable offer ID, unions result IDs and monotonic event timestamps, and treats completion evidence as stronger than a conflicting reversal from another device. The aggregate reason evidence is sent only with the post-add analysis request to the user's configured provider; there is no analytics or TODAY server telemetry.

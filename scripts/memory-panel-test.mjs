@@ -74,6 +74,7 @@ const SEEDED_MEMORY = {
     triageUndos: 0,
     soonPulls: 0,
     reviveReasons: {},
+    inlineSuggestions: { offered: 2, applied: 1, dismissed: 1, autoDismissed: 0 },
   },
   memory: {
     semantic: [
@@ -85,9 +86,10 @@ const SEEDED_MEMORY = {
   },
   recentCompletedTasks: [],
   moments: [],
-  suggestionHistory: [],
+  suggestionHistory: [{ taskId: 'manual_old', taskText: 'Old', suggested: '2026-08-20', action: 'break_down' }],
+  suggestionOutcomes: [{ id: 'inline_old', taskId: 'manual_old', reason: 'multiple_actions', offeredAt: '2026-08-20T09:00:00.000Z' }],
   recentConversations: [],
-  suggestionCooldowns: {},
+  suggestionCooldowns: { manual_old: '2026-08-20' },
   meetingAttribution: { mineShown: 0, mineKept: 0, othersShown: 0, othersSelected: 0 },
 };
 
@@ -177,6 +179,10 @@ try {
         semanticEmpty: mem.semantic.length === 0,
         episodicEmpty: mem.episodic.length === 0,
         proceduralEmpty: mem.procedural.length === 0,
+        outcomesEmpty: appMemory.suggestionOutcomes.length === 0,
+        historyEmpty: appMemory.suggestionHistory.length === 0,
+        cooldownsEmpty: Object.keys(appMemory.suggestionCooldowns).length === 0,
+        countersReset: appMemory.patterns.inlineSuggestions.offered === 0,
         saved: window.__memoryTest.saveCalls >= 1,
       };
     });
@@ -230,6 +236,33 @@ try {
     });
     await expectAll('abstraction and throttle', { ...result, noErrors: errors.length === 0 });
     ok('_memoryAbstract adds items and throttles to once per day');
+    await page.close();
+  }
+
+  // Completion-rate memory ignores an implausible restored day while keeping
+  // plausible per-day counts at the shared data-integrity boundary.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      localStorage.setItem('today_tasksAdded_v2', '1');
+      localStorage.setItem('today_daily_history', JSON.stringify([
+        { date: '2026-08-20', tasksDone: 1, tasksAdded: 2, tasksAddedFixed: true },
+        { date: '2026-08-21', tasksDone: 1, tasksAdded: 2, tasksAddedFixed: true },
+        { date: '2026-08-22', tasksDone: 1, tasksAdded: 2, tasksAddedFixed: true },
+        { date: '2026-08-23', tasksDone: 1, tasksAdded: 2, tasksAddedFixed: true },
+        { date: '2026-08-24', tasksDone: 1, tasksAdded: 2, tasksAddedFixed: true },
+        { date: '2026-08-25', tasksDone: 31, tasksAdded: 31, tasksAddedFixed: true },
+      ]));
+      renderMemoryPanel();
+      const text = document.getElementById('memoryContent')?.textContent || '';
+      return {
+        correctRate: text.includes('completes 50% of tasks added'),
+        correctEvidence: text.includes('5 done of 10 added'),
+        corruptDayExcluded: !text.includes('36 done of 41 added'),
+      };
+    });
+    await expectAll('completion-rate daily-count sanitization', { ...result, noErrors: errors.length === 0 });
+    ok('renderMemoryPanel excludes implausible restored daily task totals');
     await page.close();
   }
 

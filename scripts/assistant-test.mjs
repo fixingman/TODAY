@@ -233,9 +233,127 @@ try {
       await page.close();
     }
 
-    // 7+8. Post-add suggest + dismissal.
+    // 7+8. Post-add suggestion waits for viewport delivery, then measures
+    // exposure and explicit dismissal.
     //   _aiAnalyzeTask debounces 2s then calls _aiDoAnalyze which calls fetch.
     //   After suggestion appears, _aiDismissSuggestion applies .removing class.
+    {
+      const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
+      const result = await page.evaluate(async () => {
+        const realSetTimeout = window.setTimeout;
+        const realIntersectionObserver = window.IntersectionObserver;
+        const observers = [];
+        let exposureTimersArmed = 0;
+        window.IntersectionObserver = class {
+          constructor(callback) { this.callback = callback; this.disconnected = false; observers.push(this); }
+          observe(target) { this.target = target; }
+          disconnect() { this.disconnected = true; }
+        };
+        window.setTimeout = (callback, ms, ...args) => {
+          if (ms >= 9999) { exposureTimersArmed++; return 987654; }
+          return realSetTimeout(callback, ms, ...args);
+        };
+        window.fetch = async () => ({
+          ok: true,
+          json: async () => ({
+            suggest: true,
+            type: 'break_down',
+            reason: 'multiple_actions',
+            message: 'Has multiple steps',
+            subtasks: ['Write the draft', 'Add examples'],
+          }),
+        });
+        renderManual(); // ensure .task[data-task-id="task_1"] exists in DOM
+        _aiAnalyzeTask('task_1', 'Write complete documentation with examples and unit tests');
+        await new Promise(r => setTimeout(r, 2400)); // debounce 2s + fetch
+        const pendingNotMounted = !document.querySelector('.task-suggestion');
+        const pendingNotOffered = appMemory.suggestionOutcomes.length === 0;
+        const deliveryObserver = observers[0];
+        deliveryObserver?.callback([{ target: deliveryObserver.target, isIntersecting: true }]);
+        const suggestionEl = document.querySelector('.task-suggestion');
+        const suggestionAppeared = !!suggestionEl;
+        const offscreenDoesNotCount = exposureTimersArmed === 0;
+        const exposureObserver = observers[1];
+        exposureObserver?.callback([{ target: exposureObserver.target, isIntersecting: true }]);
+        const visibleExposureArmed = exposureTimersArmed === 1;
+        const offered = appMemory.suggestionOutcomes[0];
+        _aiDismissSuggestion('user');
+        const getsRemoving = !!document.querySelector('.task-suggestion.removing');
+        window.setTimeout = realSetTimeout;
+        window.IntersectionObserver = realIntersectionObserver;
+        return {
+          suggestionAppeared,
+          getsRemoving,
+          pendingNotMounted,
+          pendingNotOffered,
+          offscreenDoesNotCount,
+          visibleExposureArmed,
+          deliveryCleanedUp: !!deliveryObserver?.disconnected,
+          exposureCleanedUp: !!exposureObserver?.disconnected,
+          reasonRecorded: offered?.reason === 'multiple_actions',
+          dismissedRecorded: !!offered?.dismissedAt && offered?.outcome === 'dismissed',
+        };
+      });
+      await expectAll('post-add suggest + dismiss', { ...result, noErrors: errors.length === 0 });
+      ok('post-add suggest: waits for task viewport entry, then records exposure and dismissal');
+      await page.close();
+    }
+
+    // 9. Pending delivery follows the newest task, survives a list re-render by
+    // task ID, and cancels if that task disappears before viewport entry.
+    {
+      const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
+      const result = await page.evaluate(async () => {
+        const observers = [];
+        const prompts = [];
+        const realIntersectionObserver = window.IntersectionObserver;
+        window.IntersectionObserver = class {
+          constructor(callback) { this.callback = callback; this.disconnected = false; observers.push(this); }
+          observe(target) { this.target = target; }
+          disconnect() { this.disconnected = true; }
+        };
+        window.fetch = async (_url, options) => {
+          prompts.push(JSON.parse(options.body).messages[0].content);
+          return {
+            ok: true,
+            json: async () => ({
+              suggest: true,
+              type: 'break_down',
+              reason: 'multiple_actions',
+              message: 'Has multiple steps',
+              subtasks: ['Draft it', 'Review it'],
+            }),
+          };
+        };
+
+        renderManual();
+        _aiAnalyzeTask('task_1', 'First complex task with drafting and review');
+        _aiAnalyzeTask('task_2', 'Second complex task with drafting and review');
+        await new Promise(r => setTimeout(r, 2400));
+        const newestWon = prompts.length === 1 && prompts[0].includes('Second complex task');
+        const firstObserver = observers[0];
+        const firstTarget = firstObserver?.target;
+
+        renderManual();
+        await new Promise(r => setTimeout(r, 30));
+        const reanchorObserver = observers[1];
+        const reanchored = !!firstObserver?.disconnected &&
+          !!reanchorObserver?.target && reanchorObserver.target !== firstTarget;
+
+        manualTasks = manualTasks.filter(task => task.id !== 'task_2');
+        renderManual();
+        await new Promise(r => setTimeout(r, 30));
+        const removedCancelled = !!reanchorObserver?.disconnected &&
+          !document.querySelector('.task-suggestion') && appMemory.suggestionOutcomes.length === 0;
+        window.IntersectionObserver = realIntersectionObserver;
+        return { newestWon, reanchored, removedCancelled };
+      });
+      await expectAll('pending suggestion lifecycle', { ...result, noErrors: errors.length === 0 });
+      ok('pending suggest: newest task wins, re-render re-anchors, removal cancels before offer');
+      await page.close();
+    }
+
+    // 10. Breakdown apply: _aiApplyBreakdown removes original task, adds subtasks.
     {
       const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
       const result = await page.evaluate(async () => {
@@ -244,37 +362,25 @@ try {
           json: async () => ({
             suggest: true,
             type: 'break_down',
-            message: 'Has multiple steps',
-            subtasks: ['Write the draft', 'Add examples'],
+            reason: 'long_complex_task',
+            message: 'Several distinct steps',
+            subtasks: ['Write the draft', 'Add examples', 'Review'],
           }),
         });
-        renderManual(); // ensure .task[data-task-id="task_1"] exists in DOM
-        _aiAnalyzeTask('task_1', 'Write complete documentation with examples and unit tests');
-        await new Promise(r => setTimeout(r, 2400)); // debounce 2s + fetch
-        const suggestionEl = document.querySelector('.task-suggestion');
-        const suggestionAppeared = !!suggestionEl;
-        _aiDismissSuggestion();
-        const getsRemoving = !!document.querySelector('.task-suggestion.removing');
-        return { suggestionAppeared, getsRemoving };
-      });
-      await expectAll('post-add suggest + dismiss', { ...result, noErrors: errors.length === 0 });
-      ok('post-add suggest: .task-suggestion appears after analyze; dismiss: .removing class applied');
-      await page.close();
-    }
-
-    // 9. Breakdown apply: _aiApplyBreakdown removes original task, adds subtasks.
-    {
-      const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
-      const result = await page.evaluate(() => {
         renderManual(); // render task_1 and task_2 into DOM
         const prevCount = manualTasks.length; // 2
-        _aiApplyBreakdown('task_1', ['Write the draft', 'Add examples', 'Review']);
+        _aiAnalyzeTask('task_1', 'Write complete documentation with examples and unit tests');
+        await new Promise(r => setTimeout(r, 2400));
+        document.querySelector('.task-suggestion-chip:not(.dismiss)')?.click();
+        const outcome = appMemory.suggestionOutcomes[0];
         return {
           taskRemoved:    !manualTasks.find(t => t.id === 'task_1'),
           subtasksAdded:  manualTasks.filter(t =>
             ['Write the draft', 'Add examples', 'Review'].includes(t.text)
           ).length === 3,
           countCorrect:   manualTasks.length === prevCount - 1 + 3,
+          appliedRecorded: !!outcome?.appliedAt && outcome?.outcome === 'applied',
+          resultIdsRecorded: outcome?.resultTaskIds?.length === 3,
         };
       });
       await expectAll('breakdown apply', { ...result, noErrors: errors.length === 0 });
@@ -282,7 +388,7 @@ try {
       await page.close();
     }
 
-    // 10. Static wiring: 8 exports in assistant.js, functions removed from index.html, precached.
+    // 11. Static wiring: 8 exports in assistant.js, functions removed from index.html, precached.
     {
       const indexSrc  = await readFile(join(ROOT, 'index.html'), 'utf8');
       const swSrc     = await readFile(join(ROOT, 'sw.js'), 'utf8');
@@ -306,7 +412,7 @@ try {
       ok('assistant module: 8 exports, functions removed from index.html, precached in sw.js');
     }
 
-    console.log('\nAssistant tests passed (post-extraction, 9 tests).');
+    console.log('\nAssistant tests passed (post-extraction, 10 behavior groups + wiring).');
   }
 } finally {
   if (browser) await browser.close();

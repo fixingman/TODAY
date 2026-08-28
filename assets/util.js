@@ -33,6 +33,18 @@ function _localISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
+// Daily task-add counts feed completion-rate memory. Historical cumulative values
+// can be marked as per-day deltas and restored by sync, so treat anything outside
+// the observed plausible range as missing data rather than letting one corrupt day
+// dominate the rate. Shared by sync normalization and Memory's two read paths.
+const MAX_DAILY_TASKS_ADDED = 30;
+function _sanitizeDailyTasksAdded(value) {
+  const count = Number(value);
+  return Number.isFinite(count) && count >= 0 && count <= MAX_DAILY_TASKS_ADDED
+    ? count
+    : 0;
+}
+
 // Habits roll over at 3am — a late-night check counts toward the day that's ending.
 // Keep _habitNow() as the single source for habit-day reads so the strip refreshes
 // in lockstep with check eligibility (v2.12.74 lesson).

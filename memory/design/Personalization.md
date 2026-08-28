@@ -42,7 +42,7 @@ The Sunday reflection is the first full implementation. `_buildWeekReflectionIns
 
 These are leverage points, not permission to add more surfaces:
 
-- **Close the outcome loop.** TODAY already observes → infers → suggests, but only inline suggestions record offered/applied/dismissed. Before expanding personalization, attach privacy-preserving outcome signals to an existing recommendation and learn whether it helped. Never equate silence with rejection unless the UI actually exposed the suggestion long enough to be seen.
+- **Expand only from earned intervention evidence.** v2.72.0 closes the first loop on the existing post-add suggestion row: offered reason → applied/dismissed/full-exposure ignore → generated-step completion or conservative reversal. A weak reason is reduced, not globally silenced; a reason earns preference from completed work, not persuasive copy. Before extending this machinery to another AI action, require an equally observable downstream outcome and reuse an existing surface.
 - **Give memory provenance.** Confirmable inferences should eventually carry a short evidence window (“6 of 8 recorded Tuesdays”) and freshness/confidence metadata. This makes correction meaningful and prevents a once-true pattern from becoming permanent biography.
 - **Prefer lifecycle evidence over noun themes.** Revive, Soon-return, age, focus-session, and let-go-reason data express choices the user actually made. They are stronger personalization material than semantic coincidence between task titles.
 - **Share candidates across surfaces.** Sunday, Noticed, Monday, the morning nudge, and focus should draw from one ranked observation pool with surface-specific eligibility and cooldowns. That prevents the same pattern from being narrated twice and makes abstention consistent.
@@ -80,7 +80,8 @@ Run ProductThinking's "what already exists?" reflex against this table before ad
 | `focusMinutesTotal`, `bestStreak`, `moments` | `appMemory` | milestone observations; `focusMinutesTotal` also feeds a Noticed total-focus-hours milestone (v2.38.0) |
 | `dayStartCount` / `lateAdditions` | `appMemory.patterns` | planned-vs-emergent insight (proactive `reactive_pattern` observation only — considered for Noticed v2.38.0, dropped as a near-duplicate of that existing observation) |
 | `recentCompletedTasks` (30-day rolling, v2.29.0) | `appMemory` | `_memoryForAI()` and Monday context. Removed from Sunday in v2.71.12: unrelated titles encouraged semantic wordplay without evidence. Noticed uses behavioral aggregates, not task content, since v2.64.2. |
-| `suggestionHistory` / `suggestionCooldowns` | `appMemory` | AI remembers what it suggested and what the user did |
+| `suggestionHistory` / `suggestionCooldowns` | `appMemory` | Assistant-panel aging-task history and cooldown |
+| `suggestionOutcomes` (v2.72.0) | `appMemory` | Post-add inline offers by reason: applied, dismissed, ignored, completed-step help, and conservative reversal. Reduces repeatedly failing reasons and informs model preference; last 100, Dropbox-synced, no telemetry or new surface. |
 | `today_daily_history` (30-day per-day snapshots) | localStorage | weekly stats, week grid, future WEEK companion |
 | `user_names` | localStorage | meeting attribution — the only *declared* personal data |
 | `task.revived` (v2.27.0, sync-merged) | task objects | strongest importance signal to nudge + proactive AI (v2.35.2) — "the choice was theirs, already made" |

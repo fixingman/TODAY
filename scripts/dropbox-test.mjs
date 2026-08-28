@@ -245,7 +245,41 @@ try {
     await page.close();
   }
 
-  // 11. Weekly reflection sync accepts only text generated under the current
+  // 11. Daily-history merge keeps plausible per-day counts at the boundary and
+  //     sanitizes corrupt local, duplicate-date, and remote-only values.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      localStorage.setItem('today_daily_history', JSON.stringify([
+        { date: '2026-08-20', tasksDone: 10, tasksAdded: 30, tasksAddedFixed: true },
+        { date: '2026-08-21', tasksDone: 2, tasksAdded: 42, tasksAddedFixed: true },
+      ]));
+      mergeRemoteData({
+        manual_tasks: [], done_ids: [], deleted_ids: [], unchecked_ids: [], checked_ids: [],
+        soon_tasks: [], past_tasks: [], habits: [],
+        daily_history: [
+          { date: '2026-08-20', tasksDone: 11, tasksAdded: 31, tasksAddedFixed: true },
+          { date: '2026-08-22', tasksDone: 4, tasksAdded: 12, tasksAddedFixed: true },
+          { date: '2026-08-23', tasksDone: 3, tasksAdded: 70, tasksAddedFixed: true },
+        ],
+      });
+      const byDate = Object.fromEntries(
+        safeJSON('today_daily_history', []).map(entry => [entry.date, entry])
+      );
+      return {
+        boundaryKept: byDate['2026-08-20']?.tasksAdded === 30,
+        duplicateCorruptionIgnored: byDate['2026-08-20']?.tasksDone === 11,
+        localOnlyCorruptionCleared: byDate['2026-08-21']?.tasksAdded === 0,
+        remoteOnlyValidKept: byDate['2026-08-22']?.tasksAdded === 12,
+        remoteOnlyCorruptionCleared: byDate['2026-08-23']?.tasksAdded === 0,
+      };
+    });
+    await expectAll('daily-history tasksAdded sanitization', { ...result, noErrors: errors.length === 0 });
+    ok('mergeRemoteData: daily tasksAdded ceiling covers boundary, duplicates, and one-sided dates');
+    await page.close();
+  }
+
+  // 12. Weekly reflection sync accepts only text generated under the current
   //     evidence policy, so an older backup cannot resurrect biography drift.
   {
     const { page, errors } = await openPage();
@@ -273,7 +307,50 @@ try {
     await page.close();
   }
 
-  // 12. Static wiring checks.
+  // 13. Suggestion outcome merge preserves monotonic evidence by offer ID.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const offeredAt = '2026-08-20T09:00:00.000Z';
+      appMemory.suggestionOutcomes = [{
+        id: 'inline_shared', taskId: 'task_1', taskText: 'First task',
+        pattern: 'break_down', reason: 'multiple_actions', offeredAt,
+        appliedAt: '2026-08-20T09:01:00.000Z', updatedAt: '2026-08-20T09:01:00.000Z',
+        outcome: 'applied', resultTaskIds: ['manual_step_1'],
+      }];
+      mergeRemoteData({
+        manual_tasks: [], done_ids: [], deleted_ids: [], unchecked_ids: [], checked_ids: [],
+        soon_tasks: [], past_tasks: [], habits: [],
+        memory: {
+          suggestionOutcomes: [
+            {
+              id: 'inline_shared', taskId: 'task_1', taskText: 'First task',
+              pattern: 'break_down', reason: 'multiple_actions', offeredAt,
+              helpedAt: '2026-08-20T10:00:00.000Z', updatedAt: '2026-08-20T10:00:00.000Z',
+              outcome: 'helped', resultTaskIds: ['manual_step_2'],
+            },
+            {
+              id: 'inline_remote', taskId: 'task_2', taskText: 'Second task',
+              pattern: 'break_down', reason: 'long_complex_task',
+              offeredAt: '2026-08-21T09:00:00.000Z', updatedAt: '2026-08-21T09:00:00.000Z',
+            },
+          ],
+        },
+      });
+      const shared = appMemory.suggestionOutcomes.find(entry => entry.id === 'inline_shared');
+      return {
+        unionById: appMemory.suggestionOutcomes.length === 2,
+        appliedPreserved: !!shared?.appliedAt,
+        helpedPreserved: !!shared?.helpedAt && shared?.outcome === 'helped',
+        resultIdsUnited: shared?.resultTaskIds?.length === 2,
+      };
+    });
+    await expectAll('suggestion outcome sync merge', { ...result, noErrors: errors.length === 0 });
+    ok('mergeRemoteData: suggestion outcomes union by ID without losing later evidence');
+    await page.close();
+  }
+
+  // 14. Static wiring checks.
   {
     const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
     const swSrc    = await readFile(join(ROOT, 'sw.js'), 'utf8');

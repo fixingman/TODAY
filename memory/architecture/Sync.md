@@ -365,12 +365,12 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 | Reflection policy | LWW by `updatedAt`; ties → remote wins |
 | Reflections | Per-date LWW union (newest `updatedAt` wins); entries ≤ `reflections_cleared_at` watermark discarded; pruned to 30-day calendar window |
 | Reflections cleared-at | Max-wins (most-recent deletion propagates) |
-| `daily_history` entries | Per-field `Math.max` — `_mergeDailyHistory` in `dropbox.js` merges by date; each numeric field uses `Math.max` so neither device's data is silently discarded (v2.71.11 — was winner-takes-all by score). `tasksAddedFixed: true` propagates if either side carries it. |
+| `daily_history` entries | Per-field `Math.max` — `_mergeDailyHistory` in `dropbox.js` merges by date; each numeric field uses `Math.max` so neither device's data is silently discarded (v2.71.11 — was winner-takes-all by score). `tasksAddedFixed: true` propagates if either side carries it. Every local, remote-only, and duplicate-date `tasksAdded` value is normalized through `_sanitizeDailyTasksAdded()` first; values outside 0–30 become `0` so a cumulative migration artifact cannot be restored or propagated (v2.71.44). |
 | PAST tasks | Union by ID, newer zoneChangedAt wins, age-based purge only (done >7d, let_go/aged >30d) — no count cap (v2.17.47) |
 | Stats | Max wins; streak uses `Math.max` only when `remoteStreakDate >= localStreakDate` — prevents ticker-reversed device from re-inflating yesterday's count after midnight reset (v2.64.22) |
 | Triage dismissed | If remote = today, apply locally |
 | Nudge dismissal (unified day nudge) | If remote = `'1'` and local key unset for today, set + hide element. Payload field AND merge block are both driven by the `_DISMISS_SYNC` registry (v2.18.40) — new per-day dismissable surface = one registry row (BUG-051/053 lesson). v2.19.0 merged the two nudges into one `dayNudge` (`day_nudge_dismissed`); the legacy `trello_nudge_dismissed`/`morning_nudge_dismissed` fields remain as registry rows mapped to the new key for pre-2.19.0 devices — remove once all devices updated. `sunday_nudge_seen_<date>` added to registry v2.64.22 so Sunday nudge dismissal propagates cross-device |
-| Memory | `_mergeAppMemory(remote.memory)` called from both `mergeRemoteData()` (every 7s tick, v2.64.23) and `dropboxRestore(!fromSync)` (manual restore). Merges: patterns (union of counted objects by key, max wins), AI inferences (`semantic`/`episodic`/`procedural` — union by id), moments (union by id), task keywords (union). `recentConversations` union-merged in `mergeRemoteData()` (v2.64.22). `appMemory.noticed` NOT merged (device-local, v2.39.3). `appMemory.noticedDates` IS merged, earliest-date-wins (v2.39.4) |
+| Memory | `_mergeAppMemory(remote.memory)` called from both `mergeRemoteData()` (every 7s tick, v2.64.23) and `dropboxRestore(!fromSync)` (manual restore). Merges: patterns (union of counted objects by key, max wins), AI inferences (`semantic`/`episodic`/`procedural` — union by id), moments (union by id), task keywords (union). `recentConversations` union-merged in `mergeRemoteData()` (v2.64.22). `suggestionOutcomes` union by stable offer ID, with monotonic timestamp/result-ID preservation and a 100-record cap (v2.72.0). `appMemory.noticed` NOT merged (device-local, v2.39.3). `appMemory.noticedDates` IS merged, earliest-date-wins (v2.39.4) |
 
 ### Stat Merge — Date Guards
 
@@ -407,6 +407,7 @@ Prior to v2.64.23, the full appMemory merge lived only in `dropboxRestore(!fromS
 - `moments`: union by `id`
 - `taskKeywords`: union by task id
 - Lifetime counters: `Math.max`
+- Inline suggestion outcomes: union by stable `id`; event timestamps and generated-task IDs union so stale devices cannot erase later applied/helped/reversed evidence; newest metadata wins; completion evidence wins a cross-device outcome conflict; newest 100 offers retained (v2.72.0)
 
 **NOT merged:** `noticed` (device-local gate, v2.39.3). `noticedDates` merged via its own loop (earliest-date-wins).
 
