@@ -165,6 +165,14 @@ window._startFocus = (function() {
   async function _focusAskAI() {
     if (!_aiIsConfigured()) return;
     if (timerEl.classList.contains('ai-active')) { _focusResetAI(); return; }
+
+    // When Gmail context is showing, the button acts as a draft shortcut
+    const _gmailBlock = document.getElementById('focusGmailBlock');
+    if (_gmailBlock && !_gmailBlock.hidden) {
+      _gmailBlock.querySelector('.focus-gmail-draft-btn')?.click();
+      return;
+    }
+
     const taskText = (uiTaskEl && uiTaskEl.querySelector('.task-text')?.textContent?.trim()) || '';
     if (!taskText) return;
 

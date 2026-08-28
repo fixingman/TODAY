@@ -347,6 +347,8 @@
 
       block.hidden = false;
       if (window._focusExpandTimer) _focusExpandTimer();
+      const _aiBtn = document.querySelector('.focus-ai-timer-btn');
+      if (_aiBtn) _aiBtn.textContent = '✦︎ draft reply';
       block.querySelector('.focus-gmail-draft-btn').addEventListener('click', function() {
         _fetchDraft(taskText || enrichment.taskText || '', snippet, block);
       });
