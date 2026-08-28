@@ -293,6 +293,24 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       _thinkAnim = focusAIBtn.animate([{ opacity: 0.25 }, { opacity: 0.65 }, { opacity: 0.25 }], { duration: 2400, easing: 'ease-in-out', iterations: Infinity });
     }
 
+    // Other pending tasks — gives the companion awareness of what else is waiting,
+    // so it can ask about prioritisation or energy fit relative to the full list.
+    const _otherTasks = (typeof manualTasks !== 'undefined' ? manualTasks : [])
+      .filter(t => t.id !== uiTaskId && !doneIds.has(t.id))
+      .slice(0, 5)
+      .map(t => {
+        const created = typeof _getCreatedFromId === 'function' ? _getCreatedFromId(t.id) : null;
+        const age = created ? Math.floor((Date.now() - created) / 86400000) : 0;
+        const s = parseInt(t.focusSessions) || 0;
+        const sig = [];
+        if (age >= 2) sig.push(age + 'd old');
+        if (s > 0) sig.push(s + ' session' + (s > 1 ? 's' : ''));
+        return '"' + t.text + '"' + (sig.length ? ' (' + sig.join(', ') + ')' : '');
+      });
+    const _otherCtx = _otherTasks.length
+      ? '\nRest of today\'s list: ' + _otherTasks.join('; ')
+      : '';
+
     const _focusCtrl = new AbortController();
     const _focusAbortTimer = setTimeout(() => _focusCtrl.abort(), 25000);
     try {
@@ -307,7 +325,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
           apiKey: key,
           messages: [{
             role: 'user',
-            content: 'Task: "' + taskText + '"' + (_ctx.length ? '\nContext: ' + _ctx.join(', ') + '.' : '')
+            content: 'Task: "' + taskText + '"' + (_ctx.length ? '\nContext: ' + _ctx.join(', ') + '.' : '') + _otherCtx
           }],
           systemPrompt: _systemPrompt
         })
@@ -874,11 +892,19 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       setProgress(1, uiTaskEl);
       setPaused(false);
       fillEl.classList.add('complete');
-      _pulseComplete(fillEl, true);
       _breatheRun(fillEl, false);
       timeEl.classList.add('complete');
       timerEl.classList.add('complete'); // cursor: pointer
       timeEl.textContent = 'again?';
+      // Final exhale: one slow breath resolves the session before the complete pulse begins
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        fillEl.animate(
+          [{ opacity: 1 }, { opacity: 0.65 }, { opacity: 1 }],
+          { duration: 2500, easing: 'ease-in-out', fill: 'none' }
+        ).onfinish = function() { _pulseComplete(fillEl, true); };
+      } else {
+        _pulseComplete(fillEl, true);
+      }
     }
 
     _recordFocusComplete(taskId);
