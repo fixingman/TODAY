@@ -28,6 +28,7 @@ Most task apps have the same bug: they remember everything, and opening them fee
 **The frame**
 - **Daily poem** — human-written, worldwide public domain, rotating by day and season (90+ poems, Bashō to Dickinson); greets you on the day's first open
 - Pull in cards from a Trello board (read-only) so work tasks aren't re-typed
+- **Gmail enrichment** — add a task with a name and action verb ("email Johannes about the invoice") and TODAY finds the matching thread; focus mode surfaces the snippet and offers a draft reply
 - Idle companions — small creatures that wander the screen when you step away
 - Sync across devices via **your own Dropbox** — no account, no server-side data
 - Installs as a desktop or mobile app (PWA), works offline after first load
@@ -52,7 +53,7 @@ No framework, no build step, no bundler. Vanilla JS + CSS.
 - `index.html` — the app (~13K lines), plus small classic-script modules in `/assets/`: `util`, `poems`, `idle`, `sound`, `celebration`, `trello`, `insights`
 - `sw.js` — service worker: offline support, background updates
 - `manifest.json` — PWA installation
-- Five Netlify Functions: Dropbox OAuth (`dropbox-token`, `dropbox-refresh`), AI proxy (`ai-assist`), meeting extraction (`meeting-extract`), voice transcription (`transcribe`)
+- Six Netlify Functions: Dropbox OAuth (`dropbox-token`, `dropbox-refresh`), Gmail OAuth (`gmail-token`), AI proxy (`ai-assist`), meeting extraction (`meeting-extract`), voice transcription (`transcribe`)
 - Fonts self-hosted (Syne + DM Mono)
 - `scripts/` — headless smoke test and design lint, run as a pre-commit gate
 
@@ -110,7 +111,26 @@ Trello pulls in cards from a board and list of your choice. Read-only.
 2. Open `index.html` and replace the `TRELLO_API_KEY` constant with your own key
 3. In the app, open **✧ Connections** and follow the Trello connect flow
 
-### 4. Enable the AI companion (optional)
+### 4. Connect Gmail (optional)
+
+Gmail enrichment finds email threads that match your tasks and surfaces them in focus mode.
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com) → APIs & Services → Credentials
+2. Enable the **Gmail API** for your project
+3. Create an OAuth 2.0 Client ID — type **Web application**
+4. Add your Netlify URL as an Authorized redirect URI: `https://your-site.netlify.app/`
+5. Add your Netlify URL (no trailing slash) as an Authorized JavaScript origin
+
+In Netlify → Site settings → Environment variables, add:
+
+```
+GMAIL_CLIENT_ID     = your OAuth client ID
+GMAIL_CLIENT_SECRET = your OAuth client secret
+```
+
+Redeploy, then open **✧ Connections** in the app and click Connect under Gmail.
+
+### 5. Enable the AI companion (optional)
 
 1. Get an API key:
    - **Gemini (free tier):** [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
