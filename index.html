@@ -4431,9 +4431,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.76.4':  'Fix: agent enrichment was timing out — Netlify function timeout set to 26s, model changed to claude-opus-5, tool_use stop-reason handled alongside pause_turn, API errors now logged.',
   '2.76.3':  'Fix: Gmail enrichment now matches the actual sender/recipient — search uses from:Name OR to:Name operators instead of a bare keyword that hit email bodies.',
   '2.76.2':  'Fix: focus block (agent ↗ and Gmail ↩) now visible in focus mode — timer panel expands past 36px to reveal enrichment content.',
-  '2.76.0':  'Feat: task agent enrichment — web search fires on add for actionable tasks; ↗ indicator on task row; full card (headline, info, CTA link) in focus mode.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

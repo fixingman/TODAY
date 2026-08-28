@@ -10,7 +10,7 @@ const CORS_HEADERS = {
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const MAX_TURNS = 3;
-const TIMEOUT_MS = 30000;
+const TIMEOUT_MS = 24000; // leave 2s headroom inside Netlify's 26s function limit
 
 const SYSTEM_PROMPT = `You are a task enrichment assistant. For the given task, search for ONE specific actionable piece of information — a phone number, address, price, hours, or booking URL. Return ONLY valid JSON in exactly this format:
 {"icon":"<single emoji>","headline":"<name or title, max 40 chars>","body":"<key info like phone/price/hours, max 80 chars>","cta":{"label":"<action word, max 10 chars>","href":"<https URL>"}}
@@ -60,8 +60,8 @@ exports.handler = async function(event) {
           'anthropic-beta': 'web-search-2025-03-05',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-5',
-          max_tokens: 1024,
+          model: 'claude-opus-5',
+          max_tokens: 512,
           system: SYSTEM_PROMPT,
           tools: [{ type: 'web_search_20250305', name: 'web_search' }],
           messages,
@@ -71,23 +71,35 @@ exports.handler = async function(event) {
       if (res.status === 429 || res.status >= 500) {
         return { statusCode: res.status, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'API error ' + res.status }) };
       }
-      if (!res.ok) break;
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        console.error('[task-enrich] API error', res.status, errBody);
+        break;
+      }
 
       const data = await res.json();
+      console.log('[task-enrich] turn', turn, 'stop_reason:', data.stop_reason,
+        'content_types:', (data.content || []).map(b => b.type).join(','));
 
       if (data.stop_reason === 'end_turn') {
         const textBlock = (data.content || []).find(b => b.type === 'text');
-        if (!textBlock) break;
+        if (!textBlock) { console.error('[task-enrich] end_turn but no text block'); break; }
         return _parseCard(textBlock.text, CORS_HEADERS);
       }
 
-      if (data.stop_reason === 'pause_turn') {
-        // Token budget exhausted mid-tool-use — continue from where Claude paused
-        messages.push({ role: 'assistant', content: data.content });
+      if (data.stop_reason === 'pause_turn' || data.stop_reason === 'tool_use') {
+        // Server-executed tool: push assistant turn and continue.
+        // tool_result blocks (if any) in data.content go into the user turn per API spec.
+        const assistantBlocks = (data.content || []).filter(b => b.type !== 'tool_result');
+        const resultBlocks    = (data.content || []).filter(b => b.type === 'tool_result');
+        messages.push({ role: 'assistant', content: assistantBlocks });
+        if (resultBlocks.length > 0) {
+          messages.push({ role: 'user', content: resultBlocks });
+        }
         continue;
       }
 
-      // max_tokens, refusal, or unexpected stop reason
+      console.error('[task-enrich] unexpected stop_reason:', data.stop_reason);
       break;
     }
   } catch(e) {

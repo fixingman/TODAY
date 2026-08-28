@@ -3,6 +3,9 @@
   functions = "netlify/functions"
   ignore = "git diff --quiet HEAD^ HEAD -- index.html sw.js netlify.toml"
 
+[functions]
+  timeout = 26
+
 [build.processing]
   skip_processing = false
 
