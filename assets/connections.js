@@ -72,6 +72,7 @@
         localStorage.getItem('dropbox_token') ||
         localStorage.getItem('dropbox_refresh_token') ||
         localStorage.getItem('dropbox_token_expired') === '1' ||
+        localStorage.getItem('gmail_access_token') ||
         _aiGetKey('gemini') ||
         _aiGetKey('claude')
       );
@@ -179,6 +180,9 @@
         const mins = Math.round((Date.now() - new Date(lastActivity).getTime()) / 60000);
         backupStatus = mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.round(mins/60)}h ago`;
       }
+      const gmailConnected = !!(typeof _gmailIsConnected === 'function' && _gmailIsConnected());
+      const gmailClientId  = localStorage.getItem('gmail_client_id') || '';
+
       // Both disconnected: side-by-side cards
       if (!trelloToken && !dropboxConnected) {
         container.innerHTML = `
@@ -197,7 +201,8 @@
               <div class="connection-card-hint">Sync tasks across devices</div>
               <button class="btn-primary" onclick="dropboxAuth()">Connect</button>
             </div>
-          </div>`;
+          </div>
+          ${_gmailRowHTML(gmailConnected, gmailClientId)}`;
         _applyOfflinePanel();
         return;
       }
@@ -301,6 +306,7 @@
           </div>`;
       }
 
+      html += _gmailRowHTML(gmailConnected, gmailClientId);
       container.innerHTML = html;
 
       // If Trello needs board loading, do it now
@@ -312,6 +318,55 @@
       renderMeetingNames();
     }
 
+
+    function _gmailRowHTML(connected, clientId) {
+      if (connected) {
+        const lastSearchRaw = localStorage.getItem('gmail_last_search');
+        const lastSearch = lastSearchRaw
+          ? (function() {
+              const mins = Math.round((Date.now() - parseInt(lastSearchRaw)) / 60000);
+              return mins < 1 ? 'just now' : mins < 60 ? mins + 'm ago' : Math.round(mins/60) + 'h ago';
+            })()
+          : '';
+        return `
+          <div class="connection-row connected">
+            <div class="connection-row-info">
+              <span class="connection-row-title connected">Gmail</span>
+              <span class="connection-row-status">${lastSearch ? 'Last searched ' + esc(lastSearch) : 'Connected'}</span>
+            </div>
+            <span class="conn-check" aria-hidden="true">✓</span>
+            <div class="connection-row-actions">
+              <button class="btn-sm btn-forget" onclick="gmailDisconnect()">Forget</button>
+            </div>
+          </div>`;
+      }
+      if (clientId) {
+        return `
+          <div class="connection-row">
+            <div class="connection-row-info">
+              <span class="connection-row-title">Gmail</span>
+              <span class="connection-row-status">Find email context for your tasks</span>
+            </div>
+            <div class="connection-row-actions">
+              <button class="btn-sm primary" onclick="gmailAuth()">Connect</button>
+            </div>
+          </div>`;
+      }
+      return `
+        <div class="connection-row gmail-setup-row">
+          <div class="connection-row-info">
+            <span class="connection-row-title">Gmail</span>
+            <span class="connection-row-status">Find email context for your tasks</span>
+          </div>
+          <div class="connection-row-actions gmail-setup-actions">
+            <label class="visually-hidden" for="gmailClientIdInput">Google OAuth Client ID</label>
+            <input class="ai-key-input" id="gmailClientIdInput" type="text" autocomplete="off"
+              autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Google OAuth Client ID…"
+              oninput="_updateGmailConnectBtn && _updateGmailConnectBtn()" />
+            <button class="btn-sm primary" id="gmailConnectBtn" onclick="gmailAuth()" disabled>Connect</button>
+          </div>
+        </div>`;
+    }
 
     // Dropbox disconnect helper
     function dropboxDisconnect() {
@@ -392,6 +447,7 @@
       // Attempt to restore a focus session that survived an iOS PWA reload
       if (window._tryRestoreFocusSession) window._tryRestoreFocusSession();
       _wireManualTagShimmer(list);
+      if (window._gmailRestoreAllIndicators) _gmailRestoreAllIndicators();
     }
 
     // Wire hover/scroll shimmer on .task-tag elements in the manual list.

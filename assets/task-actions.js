@@ -287,6 +287,7 @@ window._startTaskActions = (function() {
 
       // AI post-add analysis (async, non-blocking)
       _aiAnalyzeTask(task.id, task.text);
+      if (window._gmailEnrichTask) _gmailEnrichTask(task.id, task.text);
     }
 
     // Clean-slate echo (Roadmap #2) — the calm states re-surface the morning's poem,

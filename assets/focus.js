@@ -360,7 +360,8 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       '<span class="focus-timer-paused" id="focusPaused">paused</span>' +
       '<button class="focus-ai-timer-btn" aria-label="Ask for a focus question">✦ ask</button>' +
       '<button type="button" class="focus-timer-time" id="focusTime" aria-label="Pause focus timer">25:00</button>' +
-    '</div>';
+    '</div>' +
+    '<div class="focus-gmail-block" id="focusGmailBlock" hidden></div>';
   document.body.appendChild(timerEl);
   focusAIBtn = timerEl.querySelector('.focus-ai-timer-btn');
   focusAIBtn.addEventListener('click', function(e) {
@@ -558,6 +559,11 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
 
     syncDisplay(taskId, taskEl);
 
+    if (window._gmailRenderFocusBlock) {
+      const _taskObj = (typeof manualTasks !== 'undefined' ? manualTasks : []).find(t => t.id === taskId);
+      _gmailRenderFocusBlock(taskId, _taskObj ? _taskObj.text : '');
+    }
+
     timerEl.hidden = false;
     timerEl.setAttribute('aria-hidden', 'false');
     kbdHint.hidden = false;
@@ -641,6 +647,8 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     _focusResetAI();
     _updateBreatheOverlay(false); // Clear breathe overlay
     _breatheRun(fillEl, false);
+    const _gmailBlock = document.getElementById('focusGmailBlock');
+    if (_gmailBlock) { _gmailBlock.hidden = true; _gmailBlock.innerHTML = ''; }
 
     // Close PiP widget if open
     if (window._pipClose) window._pipClose();
