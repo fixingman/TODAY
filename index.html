@@ -4431,9 +4431,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.77.0':  'UX: focus Gmail draft adds "Open in Mail ↗" link on desktop PWA — tapping pre-fills recipient, subject, and draft in the system mail app via mailto:.',
   '2.76.5':  'UX: focus ✦ ask button becomes ✦ draft reply when Gmail context is showing — tapping it triggers the draft directly; the button resets to ask on focus close.',
   '2.76.4':  'Fix: agent enrichment was timing out — Netlify function timeout set to 26s, model changed to claude-opus-5, tool_use stop-reason handled alongside pause_turn, API errors now logged.',
-  '2.76.3':  'Fix: Gmail enrichment now matches the actual sender/recipient — search uses from:Name OR to:Name operators instead of a bare keyword that hit email bodies.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

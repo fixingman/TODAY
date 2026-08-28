@@ -318,6 +318,9 @@
     function _doRenderBlock(block, taskText, enrichment) {
       const fromRaw  = enrichment.from || '';
       const fromName = fromRaw.replace(/<[^>]+>/g, '').replace(/"/g, '').trim();
+      const _emailM  = fromRaw.match(/<([^>]+@[^>]+)>/);
+      block.dataset.fromEmail = _emailM ? _emailM[1] : (fromRaw.includes('@') ? fromRaw.trim() : '');
+      block.dataset.subject   = enrichment.subject || '';
       const dateStr  = enrichment.date
         ? (function() {
             try { return new Date(enrichment.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
@@ -419,6 +422,24 @@
           });
           btn.removeEventListener('click', copyOnce);
         });
+
+        const _isPWA = window.matchMedia('(display-mode: standalone)').matches || !!window.navigator.standalone;
+        if (_isPWA) {
+          const _toEmail   = block.dataset.fromEmail || '';
+          const _rawSubj   = block.dataset.subject || '';
+          const _subject   = _rawSubj ? 'Re: ' + _rawSubj : '';
+          const _actionsEl = block.querySelector('.focus-gmail-actions');
+          if (_actionsEl && _toEmail && !_actionsEl.querySelector('.focus-gmail-mailto')) {
+            const _mLink = document.createElement('a');
+            _mLink.className   = 'focus-gmail-mailto focus-gmail-open';
+            _mLink.textContent = 'Open in Mail ↗';
+            _mLink.href        = 'mailto:' + encodeURIComponent(_toEmail)
+              + '?subject=' + encodeURIComponent(_subject)
+              + '&body='    + encodeURIComponent(draft);
+            _actionsEl.appendChild(_mLink);
+            if (window._focusExpandTimer) _focusExpandTimer();
+          }
+        }
       } catch(e) {
         btn.textContent = 'Draft reply';
         btn.disabled    = false;
