@@ -625,17 +625,6 @@ window._startTaskActions = (function() {
       const done     = all.filter(t => doneIds.has(t.id)).length + pastDone;
       const left     = total - done;
       const pct      = total > 0 ? done / total : 0;
-      // BUG-082 diagnostic — remove after root cause confirmed
-      if (done === 0 && total === 0 && pastTasks.length > 0) {
-        console.warn('[BUG-082] updateStats: done=0 total=0 but pastTasks has', pastTasks.length, 'items. doneIds.size=', doneIds.size, 'pastDone=', pastDone, 'manualLen=', manualTasks.length, 'trelloLen=', trelloTasks.length);
-        console.warn('[BUG-082] pastTask IDs:', pastTasks.slice(0,5).map(t=>t.id), '| doneId sample:', [...doneIds].slice(0,5));
-        console.trace('[BUG-082] caller');
-      } else if (done === 0 && pastTasks.length > 0 && pastDone === 0) {
-        console.warn('[BUG-082] updateStats: pastDone=0 but pastTasks has', pastTasks.length, 'items. doneIds.size=', doneIds.size, 'total=', total);
-        console.warn('[BUG-082] pastTask IDs:', pastTasks.slice(0,5).map(t=>t.id), '| doneId sample:', [...doneIds].slice(0,5));
-        console.trace('[BUG-082] caller');
-      }
-
       const s = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
       s('statTotal', total);
       s('statDone',  done);
