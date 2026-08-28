@@ -182,6 +182,7 @@
     function _buildQuery(taskText) {
       return taskText
         .replace(/\b(reply|email|answer|call|contact|follow[\s-]?up|message|write to|respond|ping|reach out|get back to|answer to|send)\b/gi, '')
+        .replace(/^\s*(to|with|for|about)\s+/i, '')
         .replace(/\s+/g, ' ').trim();
     }
 
@@ -217,9 +218,11 @@
     // ── Pattern detection ──────────────────────────────────────────────────────
     function _isCommTask(text) {
       const hasVerb = /\b(reply|email|answer|call|contact|follow[\s-]?up|message|write to|respond|ping|reach out|get back to|answer to|send)\b/i.test(text);
-      // Heuristic for a person name: capitalized word that isn't first word of sentence
-      const hasName = text.split(/\s+/).slice(1).some(w => /^[A-ZÄÖÜ][a-zäöü]{1,}/.test(w));
-      return hasVerb && hasName;
+      // Capitalized word after the first word — or any word following "to/with/for/about"
+      const words = text.split(/\s+/);
+      const hasCapName  = words.slice(1).some(w => /^[A-ZÄÖÜ][a-zäöü]{1,}/.test(w));
+      const hasPrepName = /\b(?:to|with|for|about)\s+[a-zA-ZÄÖÜäöü]{2,}/i.test(text);
+      return hasVerb && (hasCapName || hasPrepName);
     }
 
     // ── Enrichment ─────────────────────────────────────────────────────────────
