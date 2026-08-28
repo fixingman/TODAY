@@ -14,6 +14,7 @@ const TIMEOUT_MS = 24000; // leave 2s headroom inside Netlify's 26s function lim
 
 const SYSTEM_PROMPT = `You are a task enrichment assistant. For the given task, search for ONE specific actionable piece of information — a phone number, address, price, hours, or booking URL. Return ONLY valid JSON in exactly this format:
 {"icon":"<single emoji>","headline":"<name or title, max 40 chars>","body":"<key info like phone/price/hours, max 80 chars>","cta":{"label":"<action word, max 10 chars>","href":"<https URL>"}}
+CTA label rules: price/specs/info → "Reveal"; booking/reservation/purchase → "Book"; directions/location → "Go"; hours/contact → "Call" or "Visit"; default → "Open".
 If you cannot find useful, specific information, return exactly: {"card":null}
 No explanations. No markdown. Only the JSON object.`;
 

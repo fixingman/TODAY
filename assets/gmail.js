@@ -409,6 +409,7 @@
 
         draftEl.textContent = draft;
         draftEl.hidden      = false;
+        if (window._focusExpandTimer) _focusExpandTimer();
         btn.textContent     = 'Copy';
         btn.disabled        = false;
         btn.addEventListener('click', function copyOnce() {

@@ -146,6 +146,11 @@
 
     block.hidden = false;
     if (window._focusExpandTimer) _focusExpandTimer();
+    const _aiBtn = document.querySelector('.focus-ai-timer-btn');
+    if (_aiBtn) {
+      const _label = (card.cta && card.cta.label) ? card.cta.label.toLowerCase() : 'view';
+      _aiBtn.textContent = '✦︎ ' + _label;
+    }
   }
 
   // ── Cache cleanup ─────────────────────────────────────────────────────────

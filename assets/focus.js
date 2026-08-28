@@ -163,15 +163,21 @@ window._startFocus = (function() {
   }
 
   async function _focusAskAI() {
-    if (!_aiIsConfigured()) return;
     if (timerEl.classList.contains('ai-active')) { _focusResetAI(); return; }
 
-    // When Gmail context is showing, the button acts as a draft shortcut
+    // Enrichment shortcuts — don't require local AI key (ai-assist uses server key fallback)
     const _gmailBlock = document.getElementById('focusGmailBlock');
     if (_gmailBlock && !_gmailBlock.hidden) {
       _gmailBlock.querySelector('.focus-gmail-draft-btn')?.click();
       return;
     }
+    const _agentBlock = document.getElementById('focusAgentBlock');
+    if (_agentBlock && !_agentBlock.hidden) {
+      const _ctaLink = _agentBlock.querySelector('.focus-agent-link');
+      if (_ctaLink) { window.open(_ctaLink.href, '_blank', 'noopener'); return; }
+    }
+
+    if (!_aiIsConfigured()) return;
 
     const taskText = (uiTaskEl && uiTaskEl.querySelector('.task-text')?.textContent?.trim()) || '';
     if (!taskText) return;
