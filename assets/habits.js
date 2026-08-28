@@ -336,6 +336,12 @@
       // Update dot fill for today
       el.querySelectorAll('.week-dot.is-today').forEach(dot => {
         dot.classList.toggle('filled', isNowDone);
+        if (isNowDone && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          dot.animate(
+            [{ transform: 'scale(0.4)', opacity: '0.5' }, { transform: 'scale(1.5)', opacity: '1' }, { transform: 'scale(1)', opacity: '1' }],
+            { duration: 200, easing: 'cubic-bezier(0.34,1.56,0.64,1)', fill: 'none' }
+          );
+        }
       });
 
       // Update strength label
