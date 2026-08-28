@@ -564,7 +564,10 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     timerEl.setAttribute('aria-hidden', 'false');
     kbdHint.hidden = false;
     kbdHint.setAttribute('aria-hidden', 'false');
-    requestAnimationFrame(() => timerEl.classList.add('open'));
+    requestAnimationFrame(() => {
+      timerEl.classList.add('open');
+      timerEl.style.maxHeight = timerEl.scrollHeight + 'px';
+    });
     kbdHint.classList.add('show');
     if (window._a11yAnnounce) {
       const focusName = taskEl.querySelector('.task-text,.habit-name')?.textContent?.trim() || 'item';
@@ -638,6 +641,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     clearTimeout(tickHandle);
     _resetCopyFeedback(uiTaskEl);
     timerEl.classList.remove('open');
+    timerEl.style.maxHeight = '';
     kbdHint.classList.remove('show');
     _setFocusInert(false, uiTaskEl);
     _focusResetAI();
@@ -753,6 +757,11 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
 
     // Timer was paused before closeUI — nothing to continue
   }
+
+  window._focusExpandTimer = function() {
+    if (!timerEl || !timerEl.classList.contains('open')) return;
+    timerEl.style.maxHeight = timerEl.scrollHeight + 'px';
+  };
 
   // ── Start fresh session on a task ─────────────────────────────────────────
   function start(taskEl) {

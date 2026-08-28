@@ -145,6 +145,7 @@
     }
 
     block.hidden = false;
+    if (window._focusExpandTimer) _focusExpandTimer();
   }
 
   // ── Cache cleanup ─────────────────────────────────────────────────────────

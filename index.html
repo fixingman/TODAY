@@ -4431,9 +4431,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.76.2':  'Fix: focus block (agent ↗ and Gmail ↩) now visible in focus mode — timer panel expands past 36px to reveal enrichment content.',
   '2.76.1':  'Fix: remove stale BUG-082 diagnostic console.warn/trace from updateStats and mergeRemoteData — fired as false positives at day start when nothing is checked off yet.',
   '2.76.0':  'Feat: task agent enrichment — web search fires on add for actionable tasks; ↗ indicator on task row; full card (headline, info, CTA link) in focus mode.',
-  '2.75.22': 'Fix: existing keyword history no longer lost on first completion after upgrade — legacy completed count migrated to days._legacy before new day entry is written.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

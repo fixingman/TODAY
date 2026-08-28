@@ -337,6 +337,7 @@
         '</div>';
 
       block.hidden = false;
+      if (window._focusExpandTimer) _focusExpandTimer();
       block.querySelector('.focus-gmail-draft-btn').addEventListener('click', function() {
         _fetchDraft(taskText || enrichment.taskText || '', snippet, block);
       });
