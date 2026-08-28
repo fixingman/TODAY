@@ -588,28 +588,30 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       _a11yAnnounce(`Focus started for ${focusName}.`);
     }
     
-    // Check if task + timer bar need nudge BEFORE locking scroll
-    // Timer bar is ~80px, appears below task
+    // Save original scroll and task position BEFORE any nudge — this is what we restore to on close.
+    const originalScrollY = window.scrollY;
+    const originalTaskTop = taskEl.getBoundingClientRect().top;
+
+    // Nudge task into view if it (+ enrichment blocks up to ~260px) would overflow.
     const rect = taskEl.getBoundingClientRect();
     const viewportH = window.innerHeight;
-    const timerHeight = 80;
+    const timerHeight = 260;
     const footerH = 70;
     const headerH = 80;
     const needsNudge = rect.top < headerH || rect.bottom + timerHeight > viewportH - footerH;
-    
+
     if (needsNudge) {
       taskEl.scrollIntoView({ block: 'center', behavior: 'instant' });
     }
-    
-    // Lock scroll during focus mode (position:fixed preserves scroll position)
-    const scrollY = window.scrollY;
+
+    // Lock scroll at the nudged position; restore target is the pre-nudge original.
+    const lockScrollY = window.scrollY;
     document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
+    document.body.style.top = `-${lockScrollY}px`;
     document.body.style.left = '0';
     document.body.style.right = '0';
-    document.body.dataset.scrollY = scrollY;
-    // Save task's viewport Y so closeUI can restore it exactly even if renderManual reorders
-    document.body.dataset.focusTaskTop = taskEl.getBoundingClientRect().top;
+    document.body.dataset.scrollY    = originalScrollY; // restore to pre-nudge depth
+    document.body.dataset.focusTaskTop = originalTaskTop; // pre-nudge position for drift check
   }
 
   // ── Track actual focus time spent (not just completed sessions) ────────────
@@ -775,6 +777,19 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
   window._focusExpandTimer = function() {
     if (!timerEl || !timerEl.classList.contains('open')) return;
     timerEl.style.maxHeight = timerEl.scrollHeight + 'px';
+
+    // If scroll is locked (position:fixed during focus), shift the lock offset
+    // so the newly-expanded block stays inside the viewport.
+    if (document.body.style.position === 'fixed') {
+      requestAnimationFrame(function() {
+        const rect = timerEl.getBoundingClientRect();
+        const overflow = rect.bottom - (window.innerHeight - 20);
+        if (overflow > 0) {
+          const currentTop = parseInt(document.body.style.top || '0', 10);
+          document.body.style.top = (currentTop - overflow) + 'px';
+        }
+      });
+    }
   };
 
   // ── Start fresh session on a task ─────────────────────────────────────────
