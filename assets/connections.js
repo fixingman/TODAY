@@ -431,6 +431,7 @@
       if (window._tryRestoreFocusSession) window._tryRestoreFocusSession();
       _wireManualTagShimmer(list);
       if (window._gmailRestoreAllIndicators) _gmailRestoreAllIndicators();
+      if (window._agentRestoreAllIndicators) _agentRestoreAllIndicators();
     }
 
     // Wire hover/scroll shimmer on .task-tag elements in the manual list.
