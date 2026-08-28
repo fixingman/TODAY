@@ -196,18 +196,14 @@ window._startTaskActions = (function() {
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       const input = $.newTask;
       if (!input) return;
-      const wrapper = input.parentElement;
-      if (!wrapper) return;
-      const clip = document.createElement('div');
-      clip.style.cssText = 'position:absolute;inset:0;overflow:hidden;border-radius:var(--radius-lg);pointer-events:none;z-index:1;';
-      const sweep = document.createElement('div');
-      sweep.style.cssText = 'position:absolute;top:0;bottom:0;left:0;width:100%;background:linear-gradient(90deg,transparent 0%,rgba(200,240,96,0.18) 50%,transparent 100%);';
-      clip.appendChild(sweep);
-      wrapper.appendChild(clip);
-      sweep.animate(
-        [{ transform: 'translateX(-100%)' }, { transform: 'translateX(100%)' }],
-        { duration: 150, easing: 'ease-in-out', fill: 'forwards' }
-      ).onfinish = function() { clip.remove(); };
+      input.animate(
+        [
+          { boxShadow: '0 0 0 0px rgba(200,240,96,0)' },
+          { boxShadow: '0 0 0 4px rgba(200,240,96,0.38)' },
+          { boxShadow: '0 0 0 0px rgba(200,240,96,0)' }
+        ],
+        { duration: 320, easing: 'ease-in-out', fill: 'none' }
+      );
     }
 
     function addManual() {
