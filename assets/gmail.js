@@ -180,10 +180,13 @@
 
     // Regex fallback for when AI classification is unavailable.
     function _buildQueryFallback(taskText) {
-      return taskText
+      const name = taskText
         .replace(/\b(reply|email|answer|call|contact|follow[\s-]?up|message|write to|respond|ping|reach out|get back to|answer to|send)\b/gi, '')
         .replace(/^\s*(to|with|for|about)\s+/i, '')
         .replace(/\s+/g, ' ').trim();
+      if (!name) return '';
+      const q = name.includes(' ') ? ('"' + name + '"') : name;
+      return 'from:' + q + ' OR to:' + q;
     }
 
     // AI-backed classification — returns { isComm, searchQuery }.
@@ -197,7 +200,13 @@
         const raw = localStorage.getItem('gmail_classify_' + taskId);
         if (raw) {
           const hit = JSON.parse(raw);
-          if (typeof hit.isComm === 'boolean') return hit;
+          // Invalidate old-format cache entries (plain name, no from:/to: operators)
+          // so existing wrong matches get re-queried with the correct Gmail operators.
+          const hasOp = !hit.searchQuery || /\b(from:|to:|subject:|label:)/.test(hit.searchQuery);
+          if (typeof hit.isComm === 'boolean' && hasOp) return hit;
+          // Old format detected — clear both classify and enrichment caches
+          try { localStorage.removeItem('gmail_classify_' + taskId); } catch(e) {}
+          try { localStorage.removeItem('gmail_enrichment_' + taskId); } catch(e) {}
         }
       } catch(e) {}
 
@@ -210,7 +219,7 @@
           body: JSON.stringify({
             provider:     provider || 'gemini',
             apiKey,
-            systemPrompt: 'Return ONLY valid JSON: {"isComm":true,"searchQuery":"name"}. isComm=true when the task involves contacting or replying to a specific person or organization. searchQuery is the person/org name extracted cleanly — no verbs, no prepositions. If isComm=false, set searchQuery to "".',
+            systemPrompt: 'Return ONLY valid JSON: {"isComm":true,"searchQuery":"gmail_query"}. isComm=true when the task involves contacting or replying to a specific person or organization. searchQuery must be a Gmail search string using from:/to: operators — e.g. for a person named Johanna: "from:Johanna OR to:Johanna". For a multi-word name: \'from:"First Last" OR to:"First Last"\'. For a company: "from:company.com". If isComm=false set searchQuery to "".',
             messages:     [{ role: 'user', content: taskText }],
           }),
         });
