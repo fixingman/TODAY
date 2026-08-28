@@ -192,20 +192,6 @@ window._startTaskActions = (function() {
       }
     }
 
-    function _barFlash() {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      const input = $.newTask;
-      if (!input) return;
-      input.animate(
-        [
-          { boxShadow: '0 0 0 0px rgba(200,240,96,0)' },
-          { boxShadow: '0 0 0 4px rgba(200,240,96,0.38)' },
-          { boxShadow: '0 0 0 0px rgba(200,240,96,0)' }
-        ],
-        { duration: 320, easing: 'ease-in-out', fill: 'none' }
-      );
-    }
-
     function addManual() {
       const input = $.newTask;
       if (!input) return;
@@ -254,7 +240,6 @@ window._startTaskActions = (function() {
         }
         _saveMemory();
       }
-      _barFlash();
       input.value = '';
       input.focus();
       toggleClearBtn();
