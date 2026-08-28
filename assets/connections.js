@@ -181,7 +181,6 @@
         backupStatus = mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.round(mins/60)}h ago`;
       }
       const gmailConnected = !!(typeof _gmailIsConnected === 'function' && _gmailIsConnected());
-      const gmailClientId  = localStorage.getItem('gmail_client_id') || '';
 
       // Both disconnected: side-by-side cards
       if (!trelloToken && !dropboxConnected) {
@@ -202,7 +201,7 @@
               <button class="btn-primary" onclick="dropboxAuth()">Connect</button>
             </div>
           </div>
-          ${_gmailRowHTML(gmailConnected, gmailClientId)}`;
+          ${_gmailRowHTML(gmailConnected)}`;
         _applyOfflinePanel();
         return;
       }
@@ -306,7 +305,7 @@
           </div>`;
       }
 
-      html += _gmailRowHTML(gmailConnected, gmailClientId);
+      html += _gmailRowHTML(gmailConnected);
       container.innerHTML = html;
 
       // If Trello needs board loading, do it now
@@ -319,7 +318,7 @@
     }
 
 
-    function _gmailRowHTML(connected, clientId) {
+    function _gmailRowHTML(connected) {
       if (connected) {
         const lastSearchRaw = localStorage.getItem('gmail_last_search');
         const lastSearch = lastSearchRaw
@@ -340,30 +339,14 @@
             </div>
           </div>`;
       }
-      if (clientId) {
-        return `
-          <div class="connection-row">
-            <div class="connection-row-info">
-              <span class="connection-row-title">Gmail</span>
-              <span class="connection-row-status">Find email context for your tasks</span>
-            </div>
-            <div class="connection-row-actions">
-              <button class="btn-sm primary" onclick="gmailAuth()">Connect</button>
-            </div>
-          </div>`;
-      }
       return `
-        <div class="connection-row gmail-setup-row">
+        <div class="connection-row">
           <div class="connection-row-info">
             <span class="connection-row-title">Gmail</span>
             <span class="connection-row-status">Find email context for your tasks</span>
           </div>
-          <div class="connection-row-actions gmail-setup-actions">
-            <label class="visually-hidden" for="gmailClientIdInput">Google OAuth Client ID</label>
-            <input class="ai-key-input" id="gmailClientIdInput" type="text" autocomplete="off"
-              autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Google OAuth Client ID…"
-              oninput="_updateGmailConnectBtn && _updateGmailConnectBtn()" />
-            <button class="btn-sm primary" id="gmailConnectBtn" onclick="gmailAuth()" disabled>Connect</button>
+          <div class="connection-row-actions">
+            <button class="btn-sm primary" onclick="gmailAuth()">Connect</button>
           </div>
         </div>`;
     }

@@ -3,6 +3,16 @@
 // keeping client_secret out of the browser.
 
 exports.handler = async (event) => {
+  // GET: return client_id so the browser can build the OAuth redirect URL
+  // (client_secret stays server-only)
+  if (event.httpMethod === 'GET') {
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: process.env.GMAIL_CLIENT_ID || '' }),
+    };
+  }
+
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }

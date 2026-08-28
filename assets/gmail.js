@@ -13,7 +13,16 @@
     const GMAIL_SCOPE     = 'https://www.googleapis.com/auth/gmail.readonly';
 
     // ── Stored values ─────────────────────────────────────────────────────────
-    function _clientId()     { return localStorage.getItem('gmail_client_id') || ''; }
+    let _cachedClientId = null;
+    async function _getClientId() {
+      if (_cachedClientId) return _cachedClientId;
+      try {
+        const res = await fetch('/.netlify/functions/gmail-token');
+        const data = await res.json();
+        _cachedClientId = data.client_id || '';
+      } catch(e) { _cachedClientId = ''; }
+      return _cachedClientId;
+    }
     function _accessToken()  { return localStorage.getItem('gmail_access_token') || ''; }
     function _refreshToken() { return localStorage.getItem('gmail_refresh_token') || ''; }
     function _isExpired()    {
@@ -38,8 +47,8 @@
 
     // ── Auth ───────────────────────────────────────────────────────────────────
     async function _gmailDoAuth() {
-      const clientId = _clientId();
-      if (!clientId) { showStatus('Enter your Google OAuth Client ID first.', 'error'); return; }
+      const clientId = await _getClientId();
+      if (!clientId) { showStatus('Gmail not configured — set GMAIL_CLIENT_ID in Netlify env vars.', 'error'); return; }
 
       const popup = window.open('about:blank', 'gmail_auth', 'width=600,height=700,left=200,top=100');
 
@@ -143,7 +152,8 @@
     }
 
     function gmailDisconnect() {
-      ['gmail_access_token','gmail_refresh_token','gmail_token_expiry']
+      _cachedClientId = null;
+      ['gmail_access_token','gmail_refresh_token','gmail_token_expiry','gmail_client_id']
         .forEach(k => localStorage.removeItem(k));
       Object.keys(localStorage)
         .filter(k => k.startsWith('gmail_enrichment_'))
@@ -343,31 +353,13 @@
       }
     }
 
-    // ── Client ID input helper ─────────────────────────────────────────────────
-    function _saveClientIdFromInput() {
-      const input = document.getElementById('gmailClientIdInput');
-      const val   = (input && input.value.trim()) || '';
-      if (val) localStorage.setItem('gmail_client_id', val);
-      return !!_clientId();
-    }
-
-    function _updateGmailConnectBtn() {
-      const input = document.getElementById('gmailClientIdInput');
-      const btn   = document.getElementById('gmailConnectBtn');
-      if (btn) btn.disabled = !((input && input.value.trim()) || _clientId());
-    }
-
     // ── Exports ────────────────────────────────────────────────────────────────
-    window.gmailAuth = async function() {
-      _saveClientIdFromInput();
-      await _gmailDoAuth();
-    };
+    window.gmailAuth                    = _gmailDoAuth;
     window.gmailDisconnect              = gmailDisconnect;
     window._gmailIsConnected            = _gmailIsConnected;
     window._gmailEnrichTask             = _gmailEnrichTask;
     window._gmailRenderFocusBlock       = _gmailRenderFocusBlock;
     window._gmailRestoreAllIndicators   = _gmailRestoreAllIndicators;
     window._gmailUpdateIndicator        = _gmailUpdateIndicator;
-    window._updateGmailConnectBtn       = _updateGmailConnectBtn;
   };
 })();
