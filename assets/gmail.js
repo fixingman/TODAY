@@ -82,7 +82,7 @@
         if (event.origin !== window.location.origin) return;
         if (!event.data || event.data.type !== 'oauth_callback') return;
         window.removeEventListener('message', onOAuthMessage);
-        clearInterval(closeWatch);
+        clearTimeout(cleanupTimer);
         const params = new URLSearchParams(event.data.search);
         const code   = params.get('code');
         const ret    = params.get('state');
@@ -96,11 +96,10 @@
       }
       window.addEventListener('message', onOAuthMessage);
 
-      // Fallback: detect if user closed the popup manually
-      const closeWatch = setInterval(function() {
-        try { if (popup && popup.closed) { clearInterval(closeWatch); window.removeEventListener('message', onOAuthMessage); } }
-        catch(e) { clearInterval(closeWatch); window.removeEventListener('message', onOAuthMessage); }
-      }, 800);
+      // Clean up listener if user dismisses the popup without completing auth
+      const cleanupTimer = setTimeout(function() {
+        window.removeEventListener('message', onOAuthMessage);
+      }, 300000); // 5-minute window
     }
 
     async function _gmailExchangeCode(code) {
