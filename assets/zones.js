@@ -99,6 +99,7 @@
         { duration: 120, easing: 'ease-in', fill: 'forwards' }
       );
       exit.onfinish = function() {
+        exit.cancel(); // clear fill:forwards so it can't re-assert after enter finishes
         el.textContent = str;
         el.animate(
           [{ transform: 'translateY(8px)', opacity: '0' }, { transform: 'translateY(0)', opacity: '1' }],

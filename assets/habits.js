@@ -352,10 +352,12 @@
         streakEl.className = 'streak-label' + (strength >= 80 ? ' hot' : '');
         if (newTxt !== streakEl.textContent && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
           const spring = 'cubic-bezier(0.34,1.56,0.64,1)';
-          streakEl.animate(
+          const exitAnim = streakEl.animate(
             [{ transform: 'translateY(0)', opacity: '1' }, { transform: 'translateY(-6px)', opacity: '0' }],
             { duration: 100, easing: 'ease-in', fill: 'forwards' }
-          ).onfinish = function() {
+          );
+          exitAnim.onfinish = function() {
+            exitAnim.cancel(); // clear fill:forwards so it can't re-assert after enter finishes
             streakEl.textContent = newTxt;
             streakEl.animate(
               [{ transform: 'translateY(6px)', opacity: '0' }, { transform: 'translateY(0)', opacity: '1' }],
