@@ -258,9 +258,12 @@
 
       const span = document.createElement('span');
       span.className = 'gmail-indicator';
-      span.textContent = '✉';
+      span.textContent = '↩';
       span.setAttribute('aria-label', 'Email context available — start a focus session');
-      taskEl.querySelector('.task-body')?.appendChild(span);
+      const textEl = taskEl.querySelector('.task-text');
+      const tail   = textEl && textEl.querySelector('.task-tail');
+      if (tail) textEl.insertBefore(span, tail);
+      else if (textEl) textEl.appendChild(span);
     }
 
     function _gmailRestoreAllIndicators() {
@@ -270,14 +273,8 @@
     }
 
     // ── Focus block ─────────────────────────────────────────────────────────────
-    function _gmailRenderFocusBlock(taskId, taskText) {
-      const block = document.getElementById('focusGmailBlock');
-      if (!block) return;
-
-      const enrichment = _getEnrichment(taskId);
-      if (!enrichment) { block.hidden = true; block.innerHTML = ''; return; }
-
-      const fromRaw = enrichment.from || '';
+    function _doRenderBlock(block, taskText, enrichment) {
+      const fromRaw  = enrichment.from || '';
       const fromName = fromRaw.replace(/<[^>]+>/g, '').replace(/"/g, '').trim();
       const dateStr  = enrichment.date
         ? (function() {
@@ -295,7 +292,7 @@
       block.innerHTML =
         '<div class="focus-gmail-thread">' +
           '<div class="focus-gmail-meta">' +
-            '<span class="focus-gmail-icon">✉</span>' +
+            '<span class="focus-gmail-icon">↩</span>' +
             esc(fromName) + (dateStr ? ' — ' + esc(dateStr) : '') +
           '</div>' +
           '<div class="focus-gmail-snippet">&ldquo;' + esc(snippet) + (snippet.length >= 200 ? '…' : '') + '&rdquo;</div>' +
@@ -307,9 +304,27 @@
         '</div>';
 
       block.hidden = false;
-
       block.querySelector('.focus-gmail-draft-btn').addEventListener('click', function() {
         _fetchDraft(taskText || enrichment.taskText || '', snippet, block);
+      });
+    }
+
+    function _gmailRenderFocusBlock(taskId, taskText) {
+      const block = document.getElementById('focusGmailBlock');
+      if (!block || !_gmailIsConnected()) return;
+
+      const enrichment = _getEnrichment(taskId);
+      if (enrichment) { _doRenderBlock(block, taskText, enrichment); return; }
+
+      // No cache yet — fetch on demand if this looks like a comm task
+      if (!taskText || !_isCommTask(taskText)) return;
+      _gmailSearch(taskText).then(function(result) {
+        if (!result) return;
+        const data = Object.assign({}, result, { taskText, fetchedAt: Date.now() });
+        localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify(data));
+        _gmailUpdateIndicator(taskId);
+        const b = document.getElementById('focusGmailBlock');
+        if (b) _doRenderBlock(b, taskText, data);
       });
     }
 
