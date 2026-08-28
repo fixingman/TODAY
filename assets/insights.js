@@ -398,7 +398,7 @@ function _memoryOnTaskComplete(taskText, taskId) {
   for (const word of words) {
     if (!appMemory.patterns.taskKeywords[word]) appMemory.patterns.taskKeywords[word] = { days: {} };
     const kw = appMemory.patterns.taskKeywords[word];
-    if (!kw.days) kw.days = {}; // migrate legacy entry on first touch
+    if (!kw.days) { kw.days = {}; if (kw.completed) kw.days['_legacy'] = kw.completed; }
     kw.days[_kwDay] = (kw.days[_kwDay] || 0) + 1;
     for (const d of Object.keys(kw.days)) { if (d < _kwCutoff) delete kw.days[d]; }
   }
