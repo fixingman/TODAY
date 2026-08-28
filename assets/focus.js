@@ -508,7 +508,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
         el.removeAttribute('aria-hidden');
       }
     });
-    for (const id of ['sticky-header', 'addTaskBar']) {
+    for (const id of ['sticky-header']) {
       const el = document.getElementById(id);
       if (!el) continue;
       el.inert = on;
@@ -1092,6 +1092,14 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     // Fresh start on a new task/habit
     start(focusEl);
   }, false);
+
+  // ── Tapping the add bar exits focus mode ─────────────────────────────────
+  const _addInput = document.getElementById('newTask');
+  if (_addInput) {
+    _addInput.addEventListener('focus', function() {
+      if (uiTaskId) closeUI(false);
+    });
+  }
 
   // ── Keyboard — guarded against accidental input-field triggers ────────────
   document.addEventListener('keydown', function(e) {
