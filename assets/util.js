@@ -55,6 +55,13 @@ function _kwCount(kw) {
   return (kw && kw.completed) || 0;
 }
 
+// Let-go / revive reason count helper — same per-day pattern.
+// Legacy values are plain numbers; new values are { days: { "YYYY-MM-DD": N } }.
+function _lrCount(v) {
+  if (v && typeof v === 'object' && v.days) return Object.values(v.days).reduce((s, c) => s + c, 0);
+  return typeof v === 'number' ? v : 0;
+}
+
 const HABIT_ROLLOVER_HOURS = 3;
 function _habitNow() {
   return new Date(Date.now() - HABIT_ROLLOVER_HOURS * 60 * 60 * 1000);

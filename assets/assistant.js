@@ -334,8 +334,8 @@ function _aiIntroMessage(ctx) {
     
     // Task keyword patterns
     const keywords = Object.entries(m.patterns.taskKeywords || {})
-      .filter(([_, v]) => v.completed >= 3)
-      .sort((a, b) => b[1].completed - a[1].completed);
+      .filter(([_, v]) => _kwCount(v) >= 3)
+      .sort((a, b) => _kwCount(b[1]) - _kwCount(a[1]));
     if (keywords.length > 0) {
       const topKeyword = keywords[0][0];
       insights.push(`"${topKeyword}" keeps coming up in your tasks. Seems important to you.`);
@@ -1149,9 +1149,9 @@ Rules:
       ? Math.round(_allOutcomeStats.applied / _allOutcomeStats.decisions * 100)
       : null;
     const _letgoArr = Object.entries(appMemory?.patterns?.letgoReasons || {});
-    const _letgoTotal = _letgoArr.reduce((s, [, n]) => s + n, 0);
+    const _letgoTotal = _letgoArr.reduce((s, [, v]) => s + _lrCount(v), 0);
     const _letgoDominant = _letgoTotal >= 8
-      ? _letgoArr.sort((a, b) => b[1] - a[1]).find(([, n]) => n / _letgoTotal >= 0.35)?.[0]
+      ? _letgoArr.sort((a, b) => _lrCount(b[1]) - _lrCount(a[1])).find(([, v]) => _lrCount(v) / _letgoTotal >= 0.35)?.[0]
       : null;
     let _behaviorCtx = '';
     if (_acceptRate !== null) _behaviorCtx += ` Acceptance rate for previous breakdown suggestions: ${_acceptRate}% — suggest only when clearly beneficial.`;

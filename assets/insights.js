@@ -438,7 +438,15 @@ function _memoryOnTaskLetgo(taskText, reason) {
   if (!taskText) return;
   if (reason) {
     if (!appMemory.patterns.letgoReasons) appMemory.patterns.letgoReasons = {};
-    appMemory.patterns.letgoReasons[reason] = (appMemory.patterns.letgoReasons[reason] || 0) + 1;
+    const _lrToday = _localISO();
+    const _lrEntry = appMemory.patterns.letgoReasons[reason];
+    if (!_lrEntry || typeof _lrEntry === 'number') {
+      appMemory.patterns.letgoReasons[reason] = { days: { [_lrToday]: 1 + (typeof _lrEntry === 'number' ? 0 : 0) } };
+      if (typeof _lrEntry === 'number') appMemory.patterns.letgoReasons[reason].days['_legacy'] = _lrEntry;
+    } else {
+      if (!_lrEntry.days) _lrEntry.days = {};
+      _lrEntry.days[_lrToday] = (_lrEntry.days[_lrToday] || 0) + 1;
+    }
   }
   const _kStopWords = new Set(['about','after','also','back','been','before','call','check','done','from','have','into','just','make','more','need','send','some','take','than','that','them','then','they','this','were','what','when','will','with','your']);
   const words = _stripTag(taskText).toLowerCase().split(/\s+/)
@@ -465,7 +473,15 @@ function _memoryOnSoonPull(taskText) {
 function _memoryOnRevive(taskText, reason) {
   if (reason) {
     if (!appMemory.patterns.reviveReasons) appMemory.patterns.reviveReasons = {};
-    appMemory.patterns.reviveReasons[reason] = (appMemory.patterns.reviveReasons[reason] || 0) + 1;
+    const _rvToday = _localISO();
+    const _rvEntry = appMemory.patterns.reviveReasons[reason];
+    if (!_rvEntry || typeof _rvEntry === 'number') {
+      appMemory.patterns.reviveReasons[reason] = { days: { [_rvToday]: 1 } };
+      if (typeof _rvEntry === 'number') appMemory.patterns.reviveReasons[reason].days['_legacy'] = _rvEntry;
+    } else {
+      if (!_rvEntry.days) _rvEntry.days = {};
+      _rvEntry.days[_rvToday] = (_rvEntry.days[_rvToday] || 0) + 1;
+    }
   }
   _saveMemory();
 }

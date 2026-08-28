@@ -266,11 +266,11 @@
         }
       }
       const _lr = m.patterns?.letgoReasons || {};
-      const _lrTotal = Object.values(_lr).reduce((s, v) => s + v, 0);
+      const _lrTotal = Object.values(_lr).reduce((s, v) => s + _lrCount(v), 0);
       if (_lrTotal >= 8) {
-        const _lrTop = Object.entries(_lr).sort(([,a],[,b]) => b - a)[0];
+        const _lrTop = Object.entries(_lr).sort(([,a],[,b]) => _lrCount(b) - _lrCount(a))[0];
         const _lrLabels = { not_relevant: 'not relevant', no_energy: 'no energy', lost_interest: 'lost interest', replaced: 'replaced' };
-        const _lrPct = Math.round((_lrTop[1] / _lrTotal) * 100);
+        const _lrPct = Math.round((_lrCount(_lrTop[1]) / _lrTotal) * 100);
         if (_lrPct >= 35) {
           proceduralItems.push({ text: `most let-go decisions: ${_lrLabels[_lrTop[0]] || _lrTop[0]} (${_lrPct}%)` });
         }
@@ -319,6 +319,8 @@
         typeBlock('PROCEDURAL', '— how you tend to work', proceduralItems,
           'patterns will appear after more activity') +
         typeBlock('META', '— what today has seen and how confident it is', metaItems);
+
+      if (typeof window._reflectionRenderMemory === 'function') window._reflectionRenderMemory(el);
 
       const footer = document.getElementById('memoryFooter');
       if (footer) footer.innerHTML = _memoryClearPending

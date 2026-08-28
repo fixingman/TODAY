@@ -16,7 +16,7 @@
 
 | # | Description | Status |
 |---|---|---|
-| 086 | Completion rate in Memory exceeds 100% — wrong denominator (4th root cause) | ⏳ v2.75.13 |
+| 086 | Completion rate in Memory exceeds 100% — wrong denominator (4th root cause) | ✅ v2.75.13 |
 | 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
 | 083 | Past→Soon revive causes black screen — interface unresponsive until refresh | ⏳ v2.71.13 |
 | 082 | Post-triage done counter shows 0 after same-day triage | ✅ v2.71.34 |

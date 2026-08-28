@@ -742,10 +742,19 @@
         }
         appMemory.preferences.peakHour = _pk;
       }
-      // Merge taskKeywords (max per keyword)
+      // Merge taskKeywords: per-day MAX so cross-device completions on different days
+      // both survive. Legacy entries (no .days) are migrated to days['_legacy'] as a floor.
       for (const [word, kd] of Object.entries(remote.patterns?.taskKeywords || {})) {
-        if (!appMemory.patterns.taskKeywords[word]) appMemory.patterns.taskKeywords[word] = { completed: 0 };
-        appMemory.patterns.taskKeywords[word].completed = Math.max(appMemory.patterns.taskKeywords[word].completed, kd.completed || 0);
+        if (!appMemory.patterns.taskKeywords[word]) appMemory.patterns.taskKeywords[word] = { days: {} };
+        const lkw = appMemory.patterns.taskKeywords[word];
+        if (!lkw.days) lkw.days = {};
+        if (kd.days) {
+          for (const [day, count] of Object.entries(kd.days)) {
+            lkw.days[day] = Math.max(lkw.days[day] || 0, count);
+          }
+        } else if (kd.completed) {
+          lkw.days['_legacy'] = Math.max(lkw.days['_legacy'] || 0, kd.completed);
+        }
       }
       // Max of lifetime counters
       appMemory.patterns.focusMinutesTotal = Math.max(appMemory.patterns.focusMinutesTotal, remote.patterns?.focusMinutesTotal || 0);
@@ -858,11 +867,19 @@
           }
         }
         if (remote.patterns.dayShapeState) appMemory.patterns.dayShapeState = remote.patterns.dayShapeState;
-        for (const [k, v] of Object.entries(remote.patterns.letgoReasons  || {})) {
-          appMemory.patterns.letgoReasons[k]  = Math.max(appMemory.patterns.letgoReasons[k]  || 0, v);
+        for (const [k, rv] of Object.entries(remote.patterns.letgoReasons || {})) {
+          const lv = appMemory.patterns.letgoReasons[k];
+          const lnorm = (!lv || typeof lv === 'number') ? { days: { _legacy: lv || 0 } } : { days: { ...(lv.days || {}) } };
+          const rdays = (rv && typeof rv === 'object' && rv.days) ? rv.days : { _legacy: typeof rv === 'number' ? rv : 0 };
+          for (const [day, cnt] of Object.entries(rdays)) lnorm.days[day] = Math.max(lnorm.days[day] || 0, cnt);
+          appMemory.patterns.letgoReasons[k] = lnorm;
         }
-        for (const [k, v] of Object.entries(remote.patterns.reviveReasons || {})) {
-          appMemory.patterns.reviveReasons[k] = Math.max(appMemory.patterns.reviveReasons[k] || 0, v);
+        for (const [k, rv] of Object.entries(remote.patterns.reviveReasons || {})) {
+          const lv = appMemory.patterns.reviveReasons[k];
+          const lnorm = (!lv || typeof lv === 'number') ? { days: { _legacy: lv || 0 } } : { days: { ...(lv.days || {}) } };
+          const rdays = (rv && typeof rv === 'object' && rv.days) ? rv.days : { _legacy: typeof rv === 'number' ? rv : 0 };
+          for (const [day, cnt] of Object.entries(rdays)) lnorm.days[day] = Math.max(lnorm.days[day] || 0, cnt);
+          appMemory.patterns.reviveReasons[k] = lnorm;
         }
         const _localLate  = appMemory.patterns.lateAdditions || [];
         const _remoteLate = remote.patterns.lateAdditions    || [];
