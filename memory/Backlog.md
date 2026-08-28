@@ -30,7 +30,7 @@
 | 8 | **Noticed block — expand** | Not started | Growth area. What else could TODAY notice that earns a line? Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
-| 11 | **Task agent — enrichment at add-time** | Not started | When a task contains a trigger (call, email, answer, book + a name), TODAY enriches it inline: draft, number, or context. Stages ↓ |
+| 11 | **Task agent — enrichment at add-time** | Stage 2 shipped; Stage 1 next | Gmail enrichment done (v2.75.1+). Stage 1 = tool-use agent (search_web, read_url). Detail ↓ |
 | — | **WEEK companion** | Gated — autumn 2026 | Needs 3+ months data + #3 done. Detail ↓ |
 
 ---
@@ -174,87 +174,26 @@ Dropbox + GDrive simultaneously · automatic cross-provider migration · OneDriv
 
 ### 11 · Task Agent — Enrichment at Add-Time
 
-**Three scopes (A, B, C) — all part of the same agent vision:**
+**Shipped:** Gmail enrichment (v2.75.1+) — AI-classified comm tasks get a ↩ indicator; focus session surfaces thread snippet + "Draft reply" button. AI classification (v2.75.17) replaced regex. Race fixes (v2.75.21). Personalized AI surfaces shipped incrementally: focus companion sees other tasks (v2.74.3), week theme sees aging tasks (v2.74.2), nudge already task-specific.
 
-**A · Draft the communication** — for reply/call tasks, the agent doesn't just find the contact, it drafts the actual email or suggests what to say on the call. You review, edit, send. The task collapses from "I need to do this" to "approve and go."
+**Next: Stage 1 — tool-use agent, no-auth tools**
 
-**B · Personalized AI surfaces** — TODAY's existing AI (daily briefing, focus companion, week theme, day nudge) currently uses: task count, focus minutes, streak, memory patterns. The new layer: also use the actual task *text* and what you've been focusing on. "Call KRY for meniscus" sitting 8 days makes the briefing say something different than "Move travel costs to SEB." The AI knows your actual situation, not just your stats.
+TODAY sends task text → Claude decides which tools to call → returns an enriched card below the task row (distinct from suggestion row — action, not advice). Card shows tool output + one-tap action (call, open, copy).
 
-**C · Task enrichment at add-time** — when a task contains a trigger (call, email, answer, book + a name), TODAY enriches it inline: finds the number, pre-reads the URL, surfaces the draft. Agent does the legwork; you review and approve.
+**Tools for Stage 1 (no connections needed):**
+- `search_web(query)` — phone numbers, addresses, booking pages, product comparisons
+- `read_url(url)` — pre-reads a URL already in the task
 
----
-
-**Real examples from your list (all three scopes):**
-- "Answer to Mäklare" → C: find thread / A: draft the reply → send
-- "Call KRY for meniscus" → C: find KRY's number + what to say / A: draft call notes
-- "Change iPhone battery https://phonehero.se/..." → C: pre-read the URL, show booking steps
-- "Find a tile settler for the apartment bathroom" → C: research shortlist
-- Daily briefing sees "Answer to Mäklare" is 13 days old → B: nudge is specific, not generic
-
----
-
-**Architecture (all stages):** tool-use chain from day one. TODAY sends the task text → Claude decides which tools to call → returns enriched card. Tools added incrementally; the orchestration layer never needs redesigning.
-
----
-
-#### Stage 1 — Tool-use agent, no-auth tools *(start here)*
-
-Build the full tool-use architecture with the tools that need no connections. Useful immediately.
-
-**Tools available at Stage 1 (no auth):**
-- `search_web(query)` — finds phone numbers, addresses, booking pages, product comparisons
-- `read_url(url)` — pre-reads a URL already in the task (e.g. phonehero.se booking flow)
-
-**Real tasks this already solves:**
-- "Call KRY for meniscus" → `search_web("KRY clinic phone number Stockholm")` → number + what to say
+**Real tasks this unlocks:**
+- "Call KRY for meniscus" → `search_web(...)` → number + what to say
 - "Change iPhone battery https://phonehero.se/..." → `read_url(url)` → booking steps
-- "Find a tile settler for the apartment bathroom" → `search_web(...)` → 3 options with prices
-- "Look into buying safe box" → `search_web(...)` → shortlist
-
-**UX:** agent card appears below the task row (distinct from suggestion row — action, not advice). Card shows tool output + a one-tap action (call, open, copy).
+- "Find a tile settler for the apartment bathroom" → `search_web(...)` → shortlist
 
 Effort: S–M | Risk: Low | No external auth needed
 
----
+**Stage 3 (after Stage 1 proves itself):** expand registry — `search_contacts`, `read_calendar`, `search_trello`. One task can trigger multiple tools; Claude decides the sequence.
 
-#### Stage 2 — Gmail connected enrichment ✅ *shipped v2.75.1*
-
-**Approach B (direct integration) built instead of full tool-use chain.** PKCE OAuth (`gmail.readonly` scope, client-side only, no server-side token storage). Pattern detection at add-time (`_isCommTask`): action verb + capitalised name triggers silent Gmail search. Thread snippet + sender + date cached in localStorage (`gmail_enrichment_{taskId}`) for 24h. `✉` indicator on task row. Draft reply generated on-demand inside focus session overlay.
-
-**The prior Gmail rejection resolved:** rejection was about extraction (importing others' emails as tasks) + server-side storage. This is enrichment-only (surfaces below *your* task, never creates new tasks) + client-side PKCE (no server storage). Both concerns addressed.
-
-**Real tasks this unlocks:**
-- "Answer to Mäklare" → finds thread → draft reply in focus session
-- "Eplanet: Answer Morvarid" → thread + context-aware draft
-
-Effort: M (shipped) | Risk: Low (readonly scope, client-side)
-
----
-
-#### Stage 3 — Expand tool registry *(when the pattern proves itself)*
-
-Add tools as needs surface: `search_contacts`, `read_calendar`, `search_trello`. One task can trigger multiple tools. Claude decides the sequence.
-
-Effort: incremental | Risk: Low (architecture already handles it)
-
----
-
-#### Scope B — Personalized AI surfaces *(parallel track, separate implementation)*
-
-TODAY's existing AI calls (day nudge, focus companion, week theme, morning briefing) get richer context: actual task text + what's been in focus, not just counts and streaks. No new architecture needed — extend the existing prompt payloads.
-
-**What changes:** the system prompt for each AI surface receives a structured summary of the current task list (text, age, zone, focus sessions) so it can reason about *what you're actually dealing with*, not just *how many things you have*.
-
-**Real difference:** today the nudge says "you've got 13 tasks, streak at 206." With this: "Answer to Mäklare has been sitting 13 days — someone's probably waiting." (This is already half-working — `day_nudge_ai` in your backup already says exactly that. Scope B is about making *all* AI surfaces this specific, not just the nudge.)
-
-Effort: S–M (prompt enrichment, no new infra) | Risk: Low | Can run in parallel with Stage 1
-
----
-
-**Out of scope for all stages:**
-- Autonomous execution without review (agent surfaces, you act)
-- Importing other people's email as new tasks (rejected extraction pattern)
-- Always-on background agent (trigger-on-add only)
+**Out of scope:** autonomous execution without review · importing others' email as tasks · always-on background agent (trigger-on-add only)
 
 ---
 
@@ -270,11 +209,11 @@ Effort: S–M (prompt enrichment, no new infra) | Risk: Low | Can run in paralle
 
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| Merge-anomaly observability | Dropbox emits a console-only `[merge-anomaly]` breadcrumb; no persisted counter or Connections metric | Revisit only if anomalies appear during debugging or WEEK needs a measurable conflict rate. Not live product telemetry. |
-| Dated AI-cache sync | Four fields hand-plumbed: `day_nudge_ai`, `week_reflection`, `monday_intention`, `week_theme_ai` | Rule-of-three exceeded. Create one declarative cache registry before adding a fifth dated AI field. |
+| AI/data outcome loop | **Shipped v2.72.0; viewport delivery fixed v2.72.1.** Post-add row records reason provenance and downstream outcomes after the task reaches view. Reason-level policy (`_suggestionShouldOffer`) throttles underperforming categories to 1-in-4 exploration after 4+ decisions. | Check `appMemory.suggestionOutcomes` length — if past 12 resolved offers, inspect reason totals and whether any reason is flagged `underperforming`. Did the recommendation mix change? Only extend to another action (tab focus, habit prompts) if it did and without adding noise. |
+| Morning nudge usefulness | v2.43.5 rebalanced list vs memory context; generation runs after sync and result syncs cross-device. The right instrument is now `appMemory.suggestionOutcomes` reason stats, not About panel prose. | If reason-level policy is firing (any reason throttled), check whether it changed the mix before tuning prompts further. |
+| Dated AI-cache sync | Four fields hand-plumbed: `day_nudge_ai`, `week_reflection`, `monday_intention`, `week_theme_ai`. `gmail_classify_*` uses a different pattern (keyed by taskId, not date) — not a fifth. | Create one declarative cache registry before a genuinely fifth dated AI field lands (e.g. `focus_companion_ai_*`). Not yet. |
+| Merge-anomaly observability | Dropbox emits a console-only `[merge-anomaly]` breadcrumb; no persisted counter or Connections metric. | Revisit only if anomalies appear during debugging or a conflict rate becomes measurable. Not live product telemetry. |
 | Chrome Built-in AI (Prompt API) | Research — not started | Chrome 127+ ships Gemini Nano on-device (`window.ai.languageModel`). Still in Origin Trial (Chrome-only, needs registration). Ideal long-term destination for Gmail comm-task classification: on-device, free, no API key, offline. Current approach uses `ai-assist` proxy. When Chrome Built-in AI reaches stable / broad availability, progressive enhancement: try `window.ai` first, fall back to `ai-assist`. Polyfill exists for non-Chrome browsers. Revisit when out of Origin Trial (~2026 or later). |
-| Morning nudge usefulness | v2.43.5 rebalanced list vs memory context; generation runs after sync and result syncs cross-device | Ask for the About panel's Today line verbatim. Does it name a specific current task without biography drift? If not, cut `Past suggestions` + `Recent conversations` before more prompt tuning. |
-| AI/data outcome loop | **Shipped v2.72.0; viewport delivery fixed v2.72.1.** Existing post-add row records reason provenance and downstream outcomes only after the task reaches view. | After 12+ resolved offers, inspect reason totals and reversal quality. Extend to another action only if this loop changes recommendation mix without adding noise. |
 
 ---
 
