@@ -341,6 +341,8 @@ This is separate from the assistant panel's aging-task history above. It learns 
 
 Each shown offer appends one `appMemory.suggestionOutcomes` record with a stable ID, task/pattern, explicit reason (`multiple_actions`, `long_complex_task`, `vague_task`, or `other_complexity`), the visible reason text, and an ISO `offeredAt`. The model is asked for the enum; deterministic text/type rules classify older or malformed responses.
 
+**Viewport delivery (v2.72.1):** generation and delivery are separate. The provider may finish while a newly added task is outside the viewport, but the result stays in closure-only pending state: no DOM row, animation, `offered` count, persisted outcome, or exposure timer exists yet. The task row is observed with a 64px bottom reserve so the action has room to appear; on entry, the row mounts and the normal outcome lifecycle begins. A mutation observer re-anchors the pending result when task rendering or sync replaces the DOM node. Pending delivery is discarded if a newer analysis supersedes it, the task text changes, the task is completed/removed/moved, or the user opens the AI panel. Provider responses carry an analysis sequence guard, preventing an older slow response from surfacing after a newer task. Browsers without `IntersectionObserver` use the same geometry check on scroll, resize, and foreground return.
+
 **Outcome evidence:**
 
 - **Applied:** the split chip was used; generated task IDs are attached to the offer.

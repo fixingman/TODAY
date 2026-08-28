@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Measuring whether existing AI interventions help, without adding surfaces.
-- **Recent (2026-08-28):** v2.72.0 closes one outcome loop on post-add inline suggestions: each offer records a reason plus applied/dismissed/ignored state; completed generated steps count as help; conservative downstream rejection counts as reversal; repeatedly failing reasons are shown one-quarter as often while useful reasons are preferred in model context.
+- **Working on:** Gmail enrichment — task-row thread indicator + focus-session draft reply.
+- **Recent (2026-08-28):** v2.75.1–v2.75.9: Gmail OAuth (PKCE → Netlify function token exchange), CSP connect-src gap fixed, COOP popup warning resolved (postMessage relay), Client ID UI input removed (served from Netlify env). Enrichment searches Gmail for threads matching action-verb + capitalized-name tasks; `✉` indicator on task row; focus overlay shows snippet + "Draft reply" button calling `ai-assist`.
 - **Module extraction (Roadmap #3): COMPLETE.** focus.js done (v2.65.13, ~1,400 lines). All modules extracted: dropbox, connections (+ AI provider config), assistant, task-actions, nudge, day-lifecycle, focus. Startup composition root (~350 lines inline) remains as intended. Full inventory → `Backlog.md` §3.
 - **Machine routing guard:** before any agent changes Headroom, a model provider/base URL, proxy/wrapper, port/mode, runtime override, or Headroom version, read `/Users/can/.headroom/ROUTING-GUARD.md` and obtain Can's explicit approval for that exact change. Keep Codex on explicit `127.0.0.1`, not `localhost`. Do not run `headroom learn --verbosity --apply`: v0.35.0 learns from Claude history only but hot-enables a proxy-global output shaper that can also affect Codex.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**

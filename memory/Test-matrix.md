@@ -188,7 +188,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 5.13 | Sunday earned reflection | On Sunday, a qualifying evidence-backed candidate is AI-written and cached; a flat week leaves the sentence hidden |
 | 5.14 | Daily-history sync receives local, duplicate-date, and remote-only `tasksAdded` values | 0–30 preserved; values above 30 normalize to 0 before storage; other per-day fields still merge normally |
 | 5.15 | Memory completion rate has five valid days plus one restored day with `tasksAdded: 31` | Invalid day is excluded; rate and evidence totals use only the five plausible days |
-| 5.16 | Inline suggestion reasons accumulate applied, dismissed, full-exposure ignored, completed-step, and later-reversed evidence | Four resolved failures reduce only that reason to one-in-four exploration; completed-step evidence is preferred; Dropbox union preserves later outcomes |
+| 5.16 | Inline suggestion generation finishes while its task is off-screen, then the list re-renders and the task enters view | No row/offer/exposure before entry; pending delivery re-anchors by task ID; entry mounts and measures it; replacement/removal cancels; reason outcomes still learn and sync |
 
 ### 6. Trello (8 tests)
 

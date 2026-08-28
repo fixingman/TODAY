@@ -263,8 +263,10 @@ try {
             subtasks: ['Write the draft', 'Add examples'],
           }),
         });
-        renderManual(); // ensure .task[data-task-id="task_1"] exists in DOM
-        _aiAnalyzeTask('task_1', 'Write complete documentation with examples and unit tests');
+        const analyzedText = 'Write complete documentation with examples and unit tests';
+        manualTasks.find(task => task.id === 'task_1').text = analyzedText;
+        renderManual(); // ensure the analyzed task text and rendered row agree
+        _aiAnalyzeTask('task_1', analyzedText);
         await new Promise(r => setTimeout(r, 2400)); // debounce 2s + fetch
         const pendingNotMounted = !document.querySelector('.task-suggestion');
         const pendingNotOffered = appMemory.suggestionOutcomes.length === 0;
@@ -326,9 +328,13 @@ try {
           };
         };
 
+        const firstText = 'First complex task with drafting and review';
+        const secondText = 'Second complex task with drafting and review';
+        manualTasks.find(task => task.id === 'task_1').text = firstText;
+        manualTasks.find(task => task.id === 'task_2').text = secondText;
         renderManual();
-        _aiAnalyzeTask('task_1', 'First complex task with drafting and review');
-        _aiAnalyzeTask('task_2', 'Second complex task with drafting and review');
+        _aiAnalyzeTask('task_1', firstText);
+        _aiAnalyzeTask('task_2', secondText);
         await new Promise(r => setTimeout(r, 2400));
         const newestWon = prompts.length === 1 && prompts[0].includes('Second complex task');
         const firstObserver = observers[0];
@@ -367,9 +373,11 @@ try {
             subtasks: ['Write the draft', 'Add examples', 'Review'],
           }),
         });
+        const analyzedText = 'Write complete documentation with examples and unit tests';
+        manualTasks.find(task => task.id === 'task_1').text = analyzedText;
         renderManual(); // render task_1 and task_2 into DOM
         const prevCount = manualTasks.length; // 2
-        _aiAnalyzeTask('task_1', 'Write complete documentation with examples and unit tests');
+        _aiAnalyzeTask('task_1', analyzedText);
         await new Promise(r => setTimeout(r, 2400));
         document.querySelector('.task-suggestion-chip:not(.dismiss)')?.click();
         const outcome = appMemory.suggestionOutcomes[0];
