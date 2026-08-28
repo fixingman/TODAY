@@ -57,10 +57,9 @@ exports.handler = async function(event) {
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
-          'anthropic-beta': 'web-search-2025-03-05',
         },
         body: JSON.stringify({
-          model: 'claude-opus-5',
+          model: 'claude-sonnet-5',
           max_tokens: 512,
           system: SYSTEM_PROMPT,
           tools: [{ type: 'web_search_20250305', name: 'web_search' }],
@@ -68,9 +67,6 @@ exports.handler = async function(event) {
         }),
       });
 
-      if (res.status === 429 || res.status >= 500) {
-        return { statusCode: res.status, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'API error ' + res.status }) };
-      }
       if (!res.ok) {
         const errBody = await res.text().catch(() => '');
         console.error('[task-enrich] API error', res.status, errBody);
