@@ -706,6 +706,11 @@
             if (remote.tasksAddedFixed) return _b;
             return Math.max(_a, _b);
           })(),
+          // dayStartCount: tasks on the list at day start — take the higher value so
+          // neither device's observation is discarded (added v2.75.13, BUG-086)
+          ...(cur.dayStartCount != null || remote.dayStartCount != null
+            ? { dayStartCount: Math.max(cur.dayStartCount ?? 0, remote.dayStartCount ?? 0) }
+            : {}),
           focusMins:   Math.max(cur.focusMins   || 0, remote.focusMins   || 0),
           habitsKept:  Math.max(cur.habitsKept  || 0, remote.habitsKept  || 0),
           habitsTotal: Math.max(cur.habitsTotal || 0, remote.habitsTotal || 0),

@@ -508,13 +508,8 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
         el.removeAttribute('aria-hidden');
       }
     });
-    for (const id of ['sticky-header']) {
-      const el = document.getElementById(id);
-      if (!el) continue;
-      el.inert = on;
-      if (on) el.setAttribute('aria-hidden', 'true');
-      else el.removeAttribute('aria-hidden');
-    }
+    // sticky-header is intentionally left interactive during focus — its buttons
+    // (logo, habits, connections, about) exit focus and open their panel on click.
   }
 
   function _resetCopyFeedback(taskEl) {
@@ -996,6 +991,13 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
 
   // ── Click handler ─────────────────────────────────────────────────────────
   document.addEventListener('click', function(e) {
+    // Header and recording buttons: button's own onclick already fires the panel toggle
+    // (bubbling order: element onclick first, document listener second). We just need to
+    // close focus here and bail — the panel is already opening.
+    if (uiTaskId && e.target.closest('#todayLogo, #habitsBtn, #trelloBtn, #infoBtn, #voiceNoteBtn, #meetingBtn')) {
+      closeUI(false);
+      return;
+    }
     if (e.target.closest('.task-delete')) return;
     if (e.target.closest('.task-check'))  return;
     if (e.target.closest('.task-copy'))   return;

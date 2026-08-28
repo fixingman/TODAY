@@ -367,6 +367,15 @@ function _stripTag(text) {
 
 // Update memory when a task is completed
 function _memoryOnTaskComplete(taskText, taskId) {
+  // Guard: don't double-count a re-check (uncheck then check again on the same day).
+  // recentCompletedTasks deduplicates by text+date — if this text is already there for
+  // today, all the counters were already incremented on the first check.
+  if (taskText) {
+    const today = _localISO();
+    if ((appMemory.recentCompletedTasks || []).some(e => e.text === taskText && e.date === today)) {
+      return;
+    }
+  }
   const hour = new Date().getHours();
   
   // Track completions by hour
@@ -384,11 +393,14 @@ function _memoryOnTaskComplete(taskText, taskId) {
   const words = _stripTag(taskText).toLowerCase().split(/\s+/)
     .map(w => w.replace(/[^a-z]/g, ''))
     .filter(w => w.length >= 5 && !_kStopWords.has(w));
+  const _kwDay = _localISO();
+  const _kwCutoff = _localISO(new Date(Date.now() - 90 * 86400000));
   for (const word of words) {
-    if (!appMemory.patterns.taskKeywords[word]) {
-      appMemory.patterns.taskKeywords[word] = { completed: 0 };
-    }
-    appMemory.patterns.taskKeywords[word].completed++;
+    if (!appMemory.patterns.taskKeywords[word]) appMemory.patterns.taskKeywords[word] = { days: {} };
+    const kw = appMemory.patterns.taskKeywords[word];
+    if (!kw.days) kw.days = {}; // migrate legacy entry on first touch
+    kw.days[_kwDay] = (kw.days[_kwDay] || 0) + 1;
+    for (const d of Object.keys(kw.days)) { if (d < _kwCutoff) delete kw.days[d]; }
   }
   
   appMemory.totalTasksCompleted++;

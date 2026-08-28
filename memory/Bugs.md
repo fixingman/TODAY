@@ -16,6 +16,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 086 | Completion rate in Memory exceeds 100% — wrong denominator (4th root cause) | ⏳ v2.75.13 |
 | 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
 | 083 | Past→Soon revive causes black screen — interface unresponsive until refresh | ⏳ v2.71.13 |
 | 082 | Post-triage done counter shows 0 after same-day triage | ✅ v2.71.34 |
@@ -135,6 +136,29 @@
 Accepted edge case: affects a small minority of users, and only in the link preview — the page itself shows the correct poem. Server-side TZ detection would require a geolocation lookup, which is not worth the complexity.
 
 ---
+
+---
+
+## BUG-086 — Memory completion rate exceeds 100% (wrong denominator)
+
+**Status:** ⏳ v2.75.13 (fix shipped — awaiting real-device verification)
+**Introduced:** recurring — four distinct root causes across v2.71.9, v2.71.11, v2.71.38–44
+**File:** `assets/memory-panel.js` — completion rate stat; `assets/day-lifecycle.js` — daily history write
+
+**Symptom:** Memory panel shows "completes 163% of tasks added — 80 done of 49 added." Rate above 100% is mathematically impossible if the stat meant what the label says.
+
+**Root cause (4th):** The numerator and denominator measure different task populations.
+- `tasksDone` (numerator): counts every task checked on that day — manual tasks carried over from prior days, Trello tasks, and tasks added reactively that day.
+- `tasksAdded` (denominator): only counts new tasks manually typed into the input bar that day (`tasksAddedToday` in `task-actions.js`). Carried-over tasks and Trello tasks are never included.
+
+On any day where you check tasks that were already on your list at day start (or check Trello cards), `tasksDone > tasksAdded`. Over several days this compounds into an impossible rate.
+
+**Prior passes:**
+- v2.71.9: `tasksAddedToday` was a lifetime total, never reset at midnight — inflated denominator
+- v2.71.11: migration guard missing in `_memoryAbstract()` — stale cumulative values in AI prompts
+- v2.71.38–44: cumulative artifacts survived Dropbox sync via `Math.max`; sanitizer (30-task ceiling) added
+
+**Fix direction:** At midnight, before `dayStartCount` is overwritten, save it into the daily history entry (`dayStartCount: appMemory.patterns.dayStartCount || 0`). Change the completion rate denominator to `e.dayStartCount + e.tasksAdded` for entries that have it, falling back to `e.tasksAdded` for old entries. This correctly represents "tasks you had available that day." Trello completions can still push the rate fractionally above 100% on heavy Trello days — acceptable, and far less misleading than the current state. Update `_mergeDailyHistory` in `dropbox.js` to merge `dayStartCount` with `Math.max`.
 
 ---
 

@@ -75,6 +75,7 @@ window._startDayLifecycle = (function() {
           date: yesterdayISO,
           tasksDone: doneToday,
           tasksAdded: appMemory?.patterns?.tasksAddedToday || 0,
+          dayStartCount: appMemory?.patterns?.dayStartCount ?? null,
           focusMins: focusMinsYesterday,
           habitsKept: habitsKeptYesterday,
           habitsTotal: activeHabitsYesterday.length,

@@ -154,7 +154,7 @@
       ['gmail_access_token','gmail_refresh_token','gmail_token_expiry','gmail_client_id']
         .forEach(k => localStorage.removeItem(k));
       Object.keys(localStorage)
-        .filter(k => k.startsWith('gmail_enrichment_'))
+        .filter(k => k.startsWith('gmail_enrichment_') || k.startsWith('gmail_classify_'))
         .forEach(k => localStorage.removeItem(k));
       document.querySelectorAll('.gmail-indicator').forEach(el => el.remove());
       renderConnections();
@@ -178,20 +178,61 @@
       return res.json();
     }
 
-    // Strip action words to extract the name/subject for Gmail search.
-    function _buildQuery(taskText) {
+    // Regex fallback for when AI classification is unavailable.
+    function _buildQueryFallback(taskText) {
       return taskText
         .replace(/\b(reply|email|answer|call|contact|follow[\s-]?up|message|write to|respond|ping|reach out|get back to|answer to|send)\b/gi, '')
         .replace(/^\s*(to|with|for|about)\s+/i, '')
         .replace(/\s+/g, ' ').trim();
     }
 
-    async function _gmailSearch(taskText) {
-      const query = _buildQuery(taskText);
-      if (query.length < 2) return null;
+    // AI-backed classification — returns { isComm, searchQuery }.
+    // Fast verb pre-filter avoids the AI call for clearly non-comm tasks.
+    // Falls back to regex silently if AI is unavailable or returns bad output.
+    async function _classifyTask(taskId, taskText) {
+      const hasVerb = /\b(reply|email|answer|call|contact|follow[\s-]?up|message|write to|respond|ping|reach out|get back to|answer to|send)\b/i.test(taskText);
+      if (!hasVerb) return { isComm: false, searchQuery: '' };
+
+      try {
+        const raw = localStorage.getItem('gmail_classify_' + taskId);
+        if (raw) {
+          const hit = JSON.parse(raw);
+          if (typeof hit.isComm === 'boolean') return hit;
+        }
+      } catch(e) {}
+
+      try {
+        const provider = typeof _aiGetProvider === 'function' ? _aiGetProvider() : 'gemini';
+        const apiKey   = typeof _aiGetKey === 'function' ? _aiGetKey() : '';
+        const res = await fetch('/.netlify/functions/ai-assist', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            provider:     provider || 'gemini',
+            apiKey,
+            systemPrompt: 'Return ONLY valid JSON: {"isComm":true,"searchQuery":"name"}. isComm=true when the task involves contacting or replying to a specific person or organization. searchQuery is the person/org name extracted cleanly — no verbs, no prepositions. If isComm=false, set searchQuery to "".',
+            messages:     [{ role: 'user', content: taskText }],
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (typeof data.isComm === 'boolean' && typeof data.searchQuery === 'string') {
+            localStorage.setItem('gmail_classify_' + taskId, JSON.stringify(data));
+            return data;
+          }
+        }
+      } catch(e) {}
+
+      const result = { isComm: true, searchQuery: _buildQueryFallback(taskText) };
+      localStorage.setItem('gmail_classify_' + taskId, JSON.stringify(result));
+      return result;
+    }
+
+    async function _gmailSearch(searchQuery) {
+      if (!searchQuery || searchQuery.length < 2) return null;
 
       const listData = await _gmailFetch(
-        GMAIL_API_BASE + '/threads?q=' + encodeURIComponent(query) + '&maxResults=1'
+        GMAIL_API_BASE + '/threads?q=' + encodeURIComponent(searchQuery) + '&maxResults=1'
       );
       if (!listData || !listData.threads || !listData.threads.length) return null;
 
@@ -215,16 +256,6 @@
       };
     }
 
-    // ── Pattern detection ──────────────────────────────────────────────────────
-    function _isCommTask(text) {
-      const hasVerb = /\b(reply|email|answer|call|contact|follow[\s-]?up|message|write to|respond|ping|reach out|get back to|answer to|send)\b/i.test(text);
-      // Capitalized word after the first word — or any word following "to/with/for/about"
-      const words = text.split(/\s+/);
-      const hasCapName  = words.slice(1).some(w => /^[A-ZÄÖÜ][a-zäöü]{1,}/.test(w));
-      const hasPrepName = /\b(?:to|with|for|about)\s+[a-zA-ZÄÖÜäöü]{2,}/i.test(text);
-      return hasVerb && (hasCapName || hasPrepName);
-    }
-
     // ── Enrichment ─────────────────────────────────────────────────────────────
     function _getEnrichment(taskId) {
       try {
@@ -235,16 +266,18 @@
 
     async function _gmailEnrichTask(taskId, taskText) {
       if (!_gmailIsConnected()) return;
-      if (!_isCommTask(taskText)) return;
 
       const cached = _getEnrichment(taskId);
       if (cached && (Date.now() - cached.fetchedAt) < 86400000) return;
 
-      const result = await _gmailSearch(taskText);
+      const { isComm, searchQuery } = await _classifyTask(taskId, taskText);
+      if (!isComm) return;
+
+      const result = await _gmailSearch(searchQuery);
       if (!result) return;
 
       localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify({
-        ...result, taskText, fetchedAt: Date.now(),
+        ...result, taskText, searchQuery, fetchedAt: Date.now(),
       }));
       _gmailUpdateIndicator(taskId);
     }
@@ -286,7 +319,7 @@
         .replace(/&#(\d+);/g, (_, c) => String.fromCharCode(c))
         .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
         .slice(0, 200);
-      const searchQ  = encodeURIComponent(_buildQuery(taskText || enrichment.taskText || ''));
+      const searchQ  = encodeURIComponent(enrichment.searchQuery || _buildQueryFallback(taskText || enrichment.taskText || ''));
       const gmailUrl = 'https://mail.google.com/mail/u/0/#search/' + searchQ;
 
       block.innerHTML =
@@ -316,15 +349,18 @@
       const enrichment = _getEnrichment(taskId);
       if (enrichment) { _doRenderBlock(block, taskText, enrichment); return; }
 
-      // No cache yet — fetch on demand if this looks like a comm task
-      if (!taskText || !_isCommTask(taskText)) return;
-      _gmailSearch(taskText).then(function(result) {
-        if (!result) return;
-        const data = Object.assign({}, result, { taskText, fetchedAt: Date.now() });
-        localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify(data));
-        _gmailUpdateIndicator(taskId);
-        const b = document.getElementById('focusGmailBlock');
-        if (b) _doRenderBlock(b, taskText, data);
+      // No cache yet — classify then fetch on demand
+      if (!taskText) return;
+      _classifyTask(taskId, taskText).then(function(classification) {
+        if (!classification.isComm) return;
+        return _gmailSearch(classification.searchQuery).then(function(result) {
+          if (!result) return;
+          const data = Object.assign({}, result, { taskText, searchQuery: classification.searchQuery, fetchedAt: Date.now() });
+          localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify(data));
+          _gmailUpdateIndicator(taskId);
+          const b = document.getElementById('focusGmailBlock');
+          if (b) _doRenderBlock(b, taskText, data);
+        });
       });
     }
 

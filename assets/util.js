@@ -48,6 +48,13 @@ function _sanitizeDailyTasksAdded(value) {
 // Habits roll over at 3am — a late-night check counts toward the day that's ending.
 // Keep _habitNow() as the single source for habit-day reads so the strip refreshes
 // in lockstep with check eligibility (v2.12.74 lesson).
+// Keyword count helper — sums per-day counts if the new schema is present,
+// falls back to the legacy flat `completed` field for older entries.
+function _kwCount(kw) {
+  if (kw && kw.days) return Object.values(kw.days).reduce((s, v) => s + v, 0);
+  return (kw && kw.completed) || 0;
+}
+
 const HABIT_ROLLOVER_HOURS = 3;
 function _habitNow() {
   return new Date(Date.now() - HABIT_ROLLOVER_HOURS * 60 * 60 * 1000);

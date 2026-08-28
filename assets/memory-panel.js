@@ -213,22 +213,24 @@
       const _memStopWords = new Set(['about','after','also','back','been','before','call','check','done','from','have','into','just','make','more','need','send','some','take','than','that','them','then','they','this','were','what','when','will','with','your']);
       const topWords = Object.entries(keywords)
         .map(([w, d]) => [w.replace(/[^a-z]/g, ''), d])
-        .filter(([w, d]) => d.completed >= 3 && w.length >= 5 && !_memStopWords.has(w))
-        .sort(([, a], [, b]) => b.completed - a.completed)
+        .filter(([w, d]) => _kwCount(d) >= 3 && w.length >= 5 && !_memStopWords.has(w))
+        .sort(([, a], [, b]) => _kwCount(b) - _kwCount(a))
         .slice(0, 5)
         .map(([w]) => w);
       if (topWords.length >= 2) {
         proceduralItems.push({ text: `often works on: ${topWords.join(', ')}` });
       }
-      // Completion rate from daily history entries that have tasksAdded tracked
-      const rateHistory = allDailyHistory
-        .map(e => ({ ...e, tasksAdded: _sanitizeDailyTasksAdded(e.tasksAdded) }))
-        .filter(e => e.tasksAdded > 0);
+      // Completion rate: tasksDone vs tasks available (dayStartCount + tasksAdded).
+      // dayStartCount was added in v2.75.13; older entries fall back to tasksAdded alone.
+      const _effectiveDenom = e => e.dayStartCount != null
+        ? Math.max(0, e.dayStartCount) + _sanitizeDailyTasksAdded(e.tasksAdded)
+        : _sanitizeDailyTasksAdded(e.tasksAdded);
+      const rateHistory = allDailyHistory.filter(e => _effectiveDenom(e) > 0);
       if (rateHistory.length >= 5) {
-        const totalAdded = rateHistory.reduce((s, e) => s + e.tasksAdded, 0);
-        const totalDone  = rateHistory.reduce((s, e) => s + e.tasksDone,  0);
-        const rate = Math.round((totalDone / totalAdded) * 100);
-        proceduralItems.push({ text: `completes ${rate}% of tasks added — ${totalDone} done of ${totalAdded} added` });
+        const totalAvailable = rateHistory.reduce((s, e) => s + _effectiveDenom(e), 0);
+        const totalDone      = rateHistory.reduce((s, e) => s + e.tasksDone,        0);
+        const rate = Math.round((totalDone / totalAvailable) * 100);
+        proceduralItems.push({ text: `completes ${rate}% of tasks on the list — ${totalDone} done of ${totalAvailable} available` });
       }
       // Habit cross-variable: tasks done on full-habit days vs partial/missed days
       const _habitDays = allDailyHistory.filter(e => e.habitsTotal > 0);
@@ -406,9 +408,9 @@
           ? Math.round(lateAdds.filter(e => _lhAbs(e) >= 14).length / lateAdds.length * 100) : null;
 
         const topKeywords = Object.entries(m.patterns?.taskKeywords || {})
-          .filter(([w, d]) => d.completed >= 2 && w.length > 3)
-          .sort(([, a], [, b]) => b.completed - a.completed).slice(0, 5)
-          .map(([w, d]) => `${w} (${d.completed} done, avg ${(d.avgDaysToComplete || 0).toFixed(1)}d)`);
+          .filter(([w, d]) => _kwCount(d) >= 2 && w.length > 3)
+          .sort(([, a], [, b]) => _kwCount(b) - _kwCount(a)).slice(0, 5)
+          .map(([w, d]) => `${w} (${_kwCount(d)} done)`);
 
         const dailyHistory = (typeof safeJSON === 'function') ? safeJSON('today_daily_history', []) : [];
         // Migration guard: same as renderMemoryPanel — convert cumulative tasksAdded to per-day deltas.
@@ -467,15 +469,17 @@
           }
         }
 
-        // Completion rate: tasksAdded vs tasksDone ratio from daily_history
-        const rateHistory = dailyHistory
-          .map(e => ({ ...e, tasksAdded: _sanitizeDailyTasksAdded(e.tasksAdded) }))
-          .filter(e => e.tasksAdded > 0);
+        // Completion rate: tasksDone vs tasks available (dayStartCount + tasksAdded).
+        // dayStartCount was added in v2.75.13; older entries fall back to tasksAdded alone.
+        const _eDenom = e => e.dayStartCount != null
+          ? Math.max(0, e.dayStartCount) + _sanitizeDailyTasksAdded(e.tasksAdded)
+          : _sanitizeDailyTasksAdded(e.tasksAdded);
+        const rateHistory = dailyHistory.filter(e => _eDenom(e) > 0);
         let completionRate = null;
         if (rateHistory.length >= 5) {
-          const totalAdded = rateHistory.reduce((s, e) => s + e.tasksAdded, 0);
+          const totalAvailable = rateHistory.reduce((s, e) => s + _eDenom(e), 0);
           const totalDone = rateHistory.reduce((s, e) => s + e.tasksDone, 0);
-          completionRate = `Completes ${Math.round(totalDone / totalAdded * 100)}% of tasks added (${totalDone} done of ${totalAdded} added over ${rateHistory.length} days)`;
+          completionRate = `Completes ${Math.round(totalDone / totalAvailable * 100)}% of tasks on the list (${totalDone} done of ${totalAvailable} available over ${rateHistory.length} days)`;
         }
 
         const alreadyConfirmed = ['semantic', 'episodic', 'procedural'].flatMap(t =>
