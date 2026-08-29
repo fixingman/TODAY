@@ -438,7 +438,21 @@ try {
   ).catch(() => fail('task did not reach done state after checking'));
   ok('task checked off');
 
-  // ── 6. No uncaught errors anywhere along the way ─────────────────────────
+  // ── 6. Desktop shortcut Shift+; focuses the add bar ─────────────────────
+  // Verifies the shortcut handler survived extraction from inline script to
+  // accessibility.js. Only meaningful on hover:hover (non-touch) viewports.
+  const isHover = await page.evaluate(() => window.matchMedia('(hover: hover)').matches);
+  if (isHover) {
+    const focused = await page.evaluate(() => {
+      document.activeElement?.blur();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: ':', shiftKey: true, bubbles: true, cancelable: true }));
+      return document.activeElement?.id;
+    });
+    if (focused !== 'newTask') fail(`Shift+; did not focus #newTask (active: ${focused})`);
+    ok('Shift+; focuses add bar (desktop shortcut)');
+  }
+
+  // ── 7. No uncaught errors anywhere along the way ─────────────────────────
   if (pageErrors.length) fail('uncaught page error(s):\n  ' + pageErrors.join('\n  '));
   ok('no uncaught page errors');
 
