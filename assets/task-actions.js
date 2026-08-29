@@ -622,7 +622,12 @@ window._startTaskActions = (function() {
       const all      = [...trelloTasks, ...manualTasks];
       const pastDone = pastTasks.filter(t => doneIds.has(t.id)).length;
       const total    = all.length + pastDone;
-      const done     = all.filter(t => doneIds.has(t.id)).length + pastDone;
+      let   done     = all.filter(t => doneIds.has(t.id)).length + pastDone;
+      // Guard: done can't exceed total (double-counted tasks inflate both; cap display)
+      if (done > total) {
+        console.warn('[stats] done(' + done + ') > total(' + total + ') — capping. all=' + all.length + ' pastDone=' + pastDone + ' doneIds=' + doneIds.size + ' pastTasks=' + pastTasks.length);
+        done = total;
+      }
       const left     = total - done;
       const pct      = total > 0 ? done / total : 0;
       const s = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };

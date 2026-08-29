@@ -1218,26 +1218,41 @@
       });
       remotePast.forEach(t => {
         if (mergedDeletedMap.has(t.id)) return; // Skip deleted tasks
-        // Skip if task was pulled back to TODAY or SOON more recently
+        // Skip if task is in TODAY or SOON with a newer (or untracked) zone-change
         const inToday = mergedTasksMap.get(t.id);
-        if (inToday && inToday.zoneChangedAt && (!t.zoneChangedAt || inToday.zoneChangedAt > t.zoneChangedAt)) return;
+        if (inToday) {
+          const todayAt = inToday.zoneChangedAt || '';
+          const pastAt  = t.zoneChangedAt       || '';
+          if (!pastAt || (todayAt && todayAt >= pastAt)) return;
+        }
         const inSoon = soonMap.get(t.id);
-        if (inSoon && inSoon.zoneChangedAt && (!t.zoneChangedAt || inSoon.zoneChangedAt > t.zoneChangedAt)) return;
+        if (inSoon) {
+          const soonAt = inSoon.zoneChangedAt || '';
+          const pastAt = t.zoneChangedAt      || '';
+          if (!pastAt || (soonAt && soonAt >= pastAt)) return;
+        }
         const existing = pastMap.get(t.id);
         if (!existing || (t.zoneChangedAt && (!existing.zoneChangedAt || t.zoneChangedAt > existing.zoneChangedAt))) {
           pastMap.set(t.id, t);
         }
       });
-      // Also remove any PAST tasks that are now in TODAY or SOON with newer timestamp
+      // Also remove any PAST tasks that are now in TODAY or SOON.
+      // Guard: TODAY/SOON wins when (a) past has no zone timestamp (never explicitly moved there),
+      // (b) only TODAY has a zone timestamp, or (c) TODAY's timestamp is newer.
+      // Old guard required inToday.zoneChangedAt — tasks with no pull-back timestamp (normal
+      // today tasks, old data) would be double-counted in both today and past. (BUG-086)
       for (const [id, task] of pastMap) {
         const inToday = mergedTasksMap.get(id);
-        if (inToday && inToday.zoneChangedAt && (!task.zoneChangedAt || inToday.zoneChangedAt > task.zoneChangedAt)) {
-          pastMap.delete(id);
-          continue;
+        if (inToday) {
+          const todayAt = inToday.zoneChangedAt || '';
+          const pastAt  = task.zoneChangedAt    || '';
+          if (!pastAt || (todayAt && todayAt >= pastAt)) { pastMap.delete(id); continue; }
         }
         const inSoon = soonMap.get(id);
-        if (inSoon && inSoon.zoneChangedAt && (!task.zoneChangedAt || inSoon.zoneChangedAt > task.zoneChangedAt)) {
-          pastMap.delete(id);
+        if (inSoon) {
+          const soonAt = inSoon.zoneChangedAt || '';
+          const pastAt = task.zoneChangedAt   || '';
+          if (!pastAt || (soonAt && soonAt >= pastAt)) { pastMap.delete(id); }
         }
       }
       // Sort by zoneChangedAt descending, then apply age-based purge
