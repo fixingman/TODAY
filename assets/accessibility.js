@@ -161,11 +161,29 @@
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   }
 
+  function _desktopShortcuts(e) {
+    if (e.metaKey || e.ctrlKey) return;
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+    if (e.shiftKey && e.key === ':') {
+      e.preventDefault();
+      const input = document.getElementById('newTask');
+      if (input) input.focus();
+    }
+    if (e.shiftKey && e.key === 'D') {
+      e.preventDefault();
+      if (typeof window._clearAllDone === 'function') window._clearAllDone();
+    }
+  }
+
   window._startAccessibility = function() {
     if (started) return;
     started = true;
     document.addEventListener('keydown', _rowKeyboard);
     document.addEventListener('keydown', _dialogKeyboard);
+    if (window.matchMedia('(hover: hover)').matches) {
+      document.addEventListener('keydown', _desktopShortcuts);
+    }
 
     _a11ySetDisclosure('habitsBtn', 'habitsPanel', false);
     _a11ySetDisclosure('trelloBtn', 'configPanel', false);

@@ -4705,30 +4705,7 @@ function _updateBarPlaceholder() {
 }
 
 
-// ── Desktop shortcut: Shift+; → focus add input ───────────────────────────
-// Mirrors the ':' key press (Shift+; on US layout). Only fires when no input
-// is already focused and hover:hover device (desktop).
-if (window.matchMedia('(hover: hover)').matches) {
-  document.addEventListener('keydown', function(e) {
-    // Allow native OS shortcuts (Cmd+H to hide, Cmd+Q to quit, etc.)
-    if (e.metaKey || e.ctrlKey) return;
-    
-    const active = document.activeElement;
-    const inInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
-    if (inInput) return;
-    // Shift+; → focus add input
-    if (e.shiftKey && e.key === ':') {
-      e.preventDefault();
-      const input = document.getElementById('newTask');
-      if (input) input.focus();
-    }
-    // Shift+D → clear all done manual tasks
-    if (e.shiftKey && e.key === 'D') {
-      e.preventDefault();
-      _clearAllDone();
-    }
-  });
-}
+// ── Desktop shortcuts (Shift+;, Shift+D) — moved to assets/accessibility.js
 
 window._startDrag();
 
