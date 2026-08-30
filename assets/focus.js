@@ -583,7 +583,9 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       timerEl.style.maxHeight = timerEl.scrollHeight + 'px';
       if (document.body.style.position === 'fixed') {
         const rect = timerEl.getBoundingClientRect();
-        const overflow = (rect.top + timerEl.scrollHeight) - (window.innerHeight - 20);
+        const _addRow = document.querySelector('.add-task-row');
+        const _footerH = _addRow ? _addRow.getBoundingClientRect().height : 70;
+        const overflow = (rect.top + timerEl.scrollHeight) - (window.innerHeight - _footerH - 8);
         if (overflow > 0) {
           const currentTop = parseInt(document.body.style.top || '0', 10);
           document.body.style.top = (currentTop - overflow) + 'px';
@@ -678,7 +680,21 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
 
     // Close PiP widget if open
     if (window._pipClose) window._pipClose();
-    
+
+    // Task-check path: pull the timer out of the task list immediately so the
+    // layout is stable before scroll is restored. If the timer collapses in-place
+    // for 200ms (the CSS transition), bottom tasks shift upward as the space is
+    // freed — visible as an odd jump on the checked task. Moving it to body first
+    // means the reflow happens now, not 200ms from now when toggleDone has already
+    // run and the user sees the final position.
+    if (doResetState) {
+      document.body.appendChild(timerEl);
+      timerEl.hidden = true;
+      timerEl.setAttribute('aria-hidden', 'true');
+      kbdHint.hidden = true;
+      kbdHint.setAttribute('aria-hidden', 'true');
+    }
+
     // Unlock scroll (restore position from data attribute)
     const scrollY = parseInt(document.body.dataset.scrollY || '0');
     document.body.style.position = '';
@@ -757,11 +773,14 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       if (myGen !== focusGen) return;
 
       appEl.classList.remove('focusing');
-      document.body.appendChild(timerEl);
-      timerEl.hidden = true;
-      timerEl.setAttribute('aria-hidden', 'true');
-      kbdHint.hidden = true;
-      kbdHint.setAttribute('aria-hidden', 'true');
+      // Timer already moved to body on task-check; only move it here for other close paths.
+      if (!doResetState) {
+        document.body.appendChild(timerEl);
+        timerEl.hidden = true;
+        timerEl.setAttribute('aria-hidden', 'true');
+        kbdHint.hidden = true;
+        kbdHint.setAttribute('aria-hidden', 'true');
+      }
 
       if (doResetState && closingTaskId) {
         clearState(closingTaskId);
@@ -789,9 +808,14 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     // If scroll is locked (position:fixed during focus), shift the lock offset
     // so the newly-expanded block stays inside the viewport.
     // Use scrollHeight for the final bottom — rect.bottom is mid-transition and wrong.
+    // The fixed add-task-row footer sits at the bottom of the viewport (measured live
+    // so zoom/resize changes are respected). Without accounting for it the timer can
+    // slide 50px behind the footer even after overflow correction.
     if (document.body.style.position === 'fixed') {
       const rect = timerEl.getBoundingClientRect();
-      const overflow = (rect.top + timerEl.scrollHeight) - (window.innerHeight - 20);
+      const _addRow = document.querySelector('.add-task-row');
+      const _footerH = _addRow ? _addRow.getBoundingClientRect().height : 70;
+      const overflow = (rect.top + timerEl.scrollHeight) - (window.innerHeight - _footerH - 8);
       if (overflow > 0) {
         const currentTop = parseInt(document.body.style.top || '0', 10);
         document.body.style.top = (currentTop - overflow) + 'px';

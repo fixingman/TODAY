@@ -23,7 +23,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 {
   const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
   const swSrc    = await readFile(join(ROOT, 'sw.js'), 'utf8');
-  const appVer   = indexSrc.match(/'(\d+\.\d+\.\d+)':/)?.[1];        // newest CHANGELOG key
+  const appVer   = indexSrc.match(/['‘](\d+\.\d+\.\d+)['’]:/)?.[1]; // newest CHANGELOG key (handles both straight and curly apostrophes)
   const cacheVer = swSrc.match(/CACHE_VERSION\s*=\s*'today-v([\d.]+)'/)?.[1];
   if (!appVer)   { console.error('✗ FAIL — could not read newest CHANGELOG version from index.html'); process.exit(1); }
   if (!cacheVer) { console.error('✗ FAIL — could not read CACHE_VERSION from sw.js'); process.exit(1); }
@@ -37,7 +37,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
   // HISTORY_SHOWN) with HISTORY_SHOWN=2, so anything past 3 entries is never shown
   // and is pure drift. This crept back twice in one session by hand — pin it here.
   const cgBlock = indexSrc.match(/const CHANGELOG = \{[\s\S]*?\n\};/)?.[0] || '';
-  const cgCount = (cgBlock.match(/^\s*'\d+\.\d+\.\d+':/gm) || []).length;
+  const cgCount = (cgBlock.match(/^\s*['‘]\d+\.\d+\.\d+['’]:/gm) || []).length;
   if (cgCount !== 3) {
     console.error(`✗ FAIL — index.html CHANGELOG has ${cgCount} entries, must be exactly 3 (Rule 31: 1 current + 2 history; About renders slice(0,3)). Trim the oldest — full history lives in memory/Changelog.md.`);
     process.exit(1);

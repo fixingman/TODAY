@@ -16,6 +16,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 089 | "Open in Mail" opens browser instead of native Mail app | ⏳ v2.77.6 |
 | 088 | Inline AI helper stays behind when its task is reordered | ✅ v2.77.3 |
 | 087 | Emoji disappear or render broken in the animated task input | ⏳ v2.77.2 |
 | 086 | Completion rate in Memory exceeds 100% — wrong denominator (4th root cause) | ✅ v2.75.13 |
@@ -105,6 +106,18 @@
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-089 — "Open in Mail" opens browser instead of native Mail app
+
+**Status:** ⏳ v2.77.6
+
+**Symptom:** Clicking "Open in Mail ↗" in the Gmail draft block inside focus mode opens the browser (Chrome/Safari) instead of the system Mail app.
+
+**Root cause:** The `<a href="mailto:...">` link had no `target` attribute. In a standalone PWA, Chrome handles `mailto:` navigation by opening a browser window rather than delegating to the OS protocol handler. Also, the link was gated behind `_isPWA` — unnecessary, since a `mailto:` link is useful in any context.
+
+**Fix (v2.77.6):** Added `target="_blank"` to the anchor, which signals the PWA shell to open the URL externally via the OS handler. Removed the `_isPWA` guard so the link shows in browser context too.
 
 ---
 
