@@ -16,6 +16,8 @@
 
 | # | Description | Status |
 |---|---|---|
+| 091 | Gmail enrichment picks wrong email — forces person query for topic-based tasks | 🔍 Diagnosing |
+| 090 | `task-enrich` Netlify function returns 500 on every call — enrichment never loads | ⏳ v2.77.7 |
 | 089 | "Open in Mail" opens browser instead of native Mail app | ⏳ v2.77.6 |
 | 088 | Inline AI helper stays behind when its task is reordered | ✅ v2.77.3 |
 | 087 | Emoji disappear or render broken in the animated task input | ⏳ v2.77.2 |
@@ -106,6 +108,61 @@
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-091 — Gmail enrichment picks wrong email for topic-based tasks
+
+**Status:** 🔍 Diagnosing
+**Files:** `assets/gmail.js` (`_classifyTask`, `_buildQueryFallback`, system prompt at line ~222)
+
+**Symptom:** For tasks like "Follow up on the three proposals we sent last week", the Gmail focus block surfaces a random unrelated email instead of the actual proposal thread.
+
+**Root cause:** The classification pipeline has two compounding flaws:
+
+1. **The AI system prompt restricts queries to `from:`/`to:` operators only.** The prompt says: *"searchQuery must be a Gmail search string using from:/to: operators"*. For a task with no named person this forces the AI to invent a person-match query (e.g. `from:proposals`) that can never find the right thread.
+
+2. **The fallback `_buildQueryFallback` produces garbage for non-person tasks.** It strips communication verbs then wraps everything that remains in `from:"..." OR to:"..."`. "Follow up on the three proposals we sent last week" becomes `from:"on the three proposals we sent last week" OR to:"on the three proposals we sent last week"` — which matches the most recent email with any of those words, not the actual proposal thread.
+
+**What the AI should be doing instead:**
+- For *person-targeted* tasks ("Reply to Maria about the contract") → `from:Maria subject:contract`
+- For *topic-targeted* tasks ("Follow up on the three proposals we sent last week") → `subject:proposal after:2026/08/23` or `"proposal" in:sent after:2026/08/23`
+- For tasks where no useful email search is possible → `isComm: false`
+
+**Fix direction:** Rewrite the classification system prompt to allow the full Gmail operator set (`from:`, `to:`, `subject:`, keyword, `after:`, `in:sent`, etc.) and instruct the AI to pick the operator set that best matches the task semantics. Remove the person-operator restriction. Update `_buildQueryFallback` to attempt a subject/keyword search when no named person is found.
+
+---
+
+## BUG-090 — `task-enrich` Netlify function returns 500 on every call
+
+**Status:** 🔍 Diagnosing
+**Files:** `netlify/functions/task-enrich.js`, `assets/task-enrich.js`
+
+**Symptom:** Every call to `/.netlify/functions/task-enrich` returns HTTP 500. Enrichment cards never appear on focus open or task add. The failure is consistent — not flaky — across both entry points:
+- `addManual → _agentEnrichTask` (task add path)
+- `_agentRenderFocusBlock → _agentEnrichTask` (focus mode open path)
+
+The client treats 5xx as transient and does not cache the failure, so the error fires again on every subsequent open.
+
+**Stack trace (representative):**
+```
+task-enrich.js:38  POST /.netlify/functions/task-enrich 500 (Internal Server Error)
+_agentEnrichTask @ task-enrich.js:38
+_agentRenderFocusBlock @ task-enrich.js:102
+openUI @ focus.js:575
+```
+
+**Likely root causes (in priority order):**
+
+1. **`ANTHROPIC_API_KEY` not set in Netlify production env** — the only explicit `statusCode: 500` in the function is the apiKey guard (line 30–32). All other failures fall through to `_nullCard` (200). Check Netlify → Site settings → Environment variables.
+
+2. **`dev` fix not merged to `master`** — Netlify deploys from `master`. Commit `291da8e` updated the tool type from `web_search_20250305` → `web_search_20260209` on `dev` only. If `master` still has the old tool type, every Anthropic API call fails with a 4xx, which the function logs and breaks from — but the Anthropic error may be propagating as a 500 via a Netlify edge-layer bug.
+
+3. **`anthropic-version: 2023-06-01` incompatible with `claude-sonnet-5` + `web_search_20260209`** — the API version header may need updating or a `anthropic-beta` header may be required for the new tool type on Sonnet 5. A previous fix (commit `6c9ceda`) dropped a beta header; Sonnet 5 + `web_search_20260209` may need one added back.
+
+**Root cause confirmed:** `ANTHROPIC_API_KEY` is not set as a Netlify env var. The user's Claude key lives client-side in localStorage (connections panel). The function returned 500 before even parsing the body, so the client key was never reachable.
+
+**Fix (v2.77.7):** Parse body first, then resolve `apiKey` as `process.env.ANTHROPIC_API_KEY || clientKey`. Client sends `apiKey: _aiGetKey('claude')` in the POST body. Changed the hard 500 to a 400 when neither source has a key.
 
 ---
 

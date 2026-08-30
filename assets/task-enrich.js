@@ -35,10 +35,11 @@
     _inflight.add(taskId);
 
     try {
+      const apiKey = typeof _aiGetKey === 'function' ? _aiGetKey('claude') : '';
       const res = await fetch('/.netlify/functions/task-enrich', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ taskText }),
+        body:    JSON.stringify({ taskText, apiKey }),
       });
 
       if (res.status === 429 || res.status >= 500) return; // transient — don't cache

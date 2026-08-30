@@ -27,14 +27,15 @@ exports.handler = async function(event) {
     return { statusCode: 405, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return { statusCode: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Server not configured' }) };
-  }
-
   let body;
   try { body = JSON.parse(event.body); } catch(e) {
     return { statusCode: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Invalid JSON' }) };
+  }
+
+  const clientKey = body.apiKey ? String(body.apiKey).replace(/[^\x20-\x7E]/g, '').trim() : '';
+  const apiKey = process.env.ANTHROPIC_API_KEY || clientKey;
+  if (!apiKey) {
+    return { statusCode: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'No API key — add your Claude key in Connections' }) };
   }
 
   const { taskText } = body;
