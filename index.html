@@ -1492,7 +1492,7 @@
     background: var(--surface2);
     color: var(--text);
   }
-  .past-revive-reasons { margin-top: var(--space-2); }
+  .past-revive-reasons { margin-top: var(--space-2); animation: none; }
   #undoReasonRow.triage-reason-row { gap: var(--space-1); border-top: 1px solid var(--border); padding-top: var(--space-2); width: 100%; }
   #triageComplete {
     display: flex;
@@ -4462,9 +4462,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.77.11': 'Fix: revive reason pills no longer blink — sync re-renders skip the list while a selection is open.',
   '2.77.10': 'Fix: Past‒Soon revive no longer locks the UI in a dimmed state when a focus session is active (BUG-083).',
   '2.77.9':  'Polish: task enrichment indicator arrives with an accent shimmer instead of appearing silently.',
-  '2.77.8':  'Fix: task enrichment now works when the Claude key is in Connections — client key passed to task-enrich function (BUG-090).',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

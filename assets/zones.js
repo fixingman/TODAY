@@ -166,6 +166,11 @@
       const list = document.getElementById('pastList');
       const count = document.getElementById('pastCount');
 
+      // Don't rebuild the list while the user is choosing a revive reason — a background
+      // sync firing during the ~1s selection window would destroy the pills mid-choice.
+      // reviveFromPast() calls renderPast() explicitly after the selection, so nothing is lost.
+      if (list && list.querySelector('.past-revive-reasons')) return;
+
       const visible = pastTasks;
 
       if (visible.length === 0) {
