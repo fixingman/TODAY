@@ -1,6 +1,6 @@
 // Static wiring tests for assets/task-bounce.js and its HTML/CSS surface.
-// Tests that the module, mirror element, keyframe, and edge-case guards are wired
-// as expected — without a browser runtime.
+// Tests that the module, Unicode-safe mirror, keyframe, and edge-case guards are
+// wired as expected — without a browser runtime.
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -76,6 +76,18 @@ assert('mirrorContent.innerHTML cleared before rebuild',
 
 assert('animateFrom / animateTo logic for insertion-point precision',
   js.includes("animateFrom") && js.includes("animateTo"));
+
+assert('Unicode grapheme segmentation uses Intl.Segmenter when available',
+  js.includes('Intl.Segmenter') && js.includes("granularity: 'grapheme'"));
+
+assert('Unicode fallback iterates code points instead of UTF-16 units',
+  js.includes('Array.from(text)'));
+
+assert('mirror rebuild iterates graphemes',
+  js.includes('nextGraphemes.length') && js.includes('nextGraphemes[i]'));
+
+assert('mirror no longer indexes the input string by UTF-16 unit',
+  !js.includes('val[i]'));
 
 // ── HTML ────────────────────────────────────────────────────────────────────
 assert('mirror div present in HTML',

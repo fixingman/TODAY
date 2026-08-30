@@ -343,11 +343,9 @@
             // evidence gate found nothing worth saying. The grid can stand alone.
             _sundayBlock.style.display = 'none';
           } else if (_isSun && !_weekInsight) {
-            // A real negative result is worth caching; a missing key or offline
-            // state below is not. That distinction lets the line retry later if
-            // connectivity returns, without repeatedly asking about a flat week.
-            localStorage.setItem(_weekPolicyKey, WEEK_REFLECTION_POLICY);
-            _pruneLS('week_policy_', _weekPolicyKey);
+            // Don't cache the negative — Sunday's data is live (today's completions
+            // still accumulating), so a morning miss would block the afternoon reveal.
+            // The AI is only called when insight exists, so no extra network cost.
             _sundayBlock.style.display = 'none';
           } else if (_isSun && (!(_aiGetKey && _aiGetKey()) || !navigator.onLine)) {
             _sundayBlock.style.display = 'none';
@@ -388,13 +386,16 @@
         const _themeKey = 'week_theme_ai_' + _weekKey;
         const _themeTriedKey = 'week_theme_tried_' + _weekKey;
         if (!localStorage.getItem(_themeKey) && !localStorage.getItem(_themeTriedKey) && _history.length > 0) {
-          _pruneLS('week_theme_tried_', _themeTriedKey);
-          localStorage.setItem(_themeTriedKey, '1');
           _fetchWeekThemeAI().then(text => {
             if (text) {
               _pruneLS('week_theme_ai_', _themeKey);
               localStorage.setItem(_themeKey, text);
               if ($.infoPanel && $.infoPanel.classList.contains('open')) renderInfoStats();
+            } else if (navigator.onLine) {
+              // AI was reachable but had nothing genuine to say — negative-cache for the week.
+              // Don't set tried when offline: a transient failure shouldn't silence Noticed all week.
+              _pruneLS('week_theme_tried_', _themeTriedKey);
+              localStorage.setItem(_themeTriedKey, '1');
             }
           });
         }

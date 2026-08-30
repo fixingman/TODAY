@@ -1321,6 +1321,23 @@ function _aiShowSuggestion(taskId, taskEl, data) {
   _aiStartSuggestionExposure(_aiCurrentSuggestion);
 }
 
+// The suggestion is a sibling rather than part of the task row so it can span
+// the full list width. Reorders move only `.task` elements, and renderManual()
+// replaces those elements wholesale; always restore the sibling relationship
+// from the stable task ID after either operation.
+function _aiReanchorSuggestion() {
+  const current = _aiCurrentSuggestion;
+  if (!current?.element) return false;
+  const taskEl = document.querySelector(
+    `.task[data-taskid="${CSS.escape(current.taskId)}"]`
+  );
+  if (!taskEl?.isConnected) return false;
+  if (current.element.previousElementSibling !== taskEl) {
+    taskEl.insertAdjacentElement('afterend', current.element);
+  }
+  return true;
+}
+
 function _aiStartSuggestionExposure(current) {
   let exposedMs = 0;
   let exposureStartedAt = null;
@@ -1466,6 +1483,7 @@ function _aiClearBadge() {
     window._aiAskFromPanel = _aiAskFromPanel;
     window._aiAnalyzeTask = _aiAnalyzeTask;
     window._aiDismissSuggestion = _aiDismissSuggestion;
+    window._aiReanchorSuggestion = _aiReanchorSuggestion;
     window._aiSendFromInput = _aiSendFromInput;
     window._aiApplyBreakdown = _aiApplyBreakdown;
   };

@@ -30,7 +30,7 @@
 | 8 | **Noticed block — expand** | Not started | Growth area. What else could TODAY notice that earns a line? Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
-| 11 | **Task agent — enrichment at add-time** | Stage 2 shipped; Stage 1 next | Gmail enrichment done (v2.75.1+). Stage 1 = tool-use agent (search_web, read_url). Detail ↓ |
+| 11 | **Task agent — enrichment at add-time** | Stages 1 & 2 shipped; Stage 3 next | Gmail (v2.75.1+) + web-search agent (v2.76.0+) both live. Stage 3 = expand tool registry (contacts, calendar, Trello). Detail ↓ |
 | — | **WEEK companion** | Gated — autumn 2026 | Needs 3+ months data + #3 done. Detail ↓ |
 
 ---
@@ -176,22 +176,11 @@ Dropbox + GDrive simultaneously · automatic cross-provider migration · OneDriv
 
 **Shipped:** Gmail enrichment (v2.75.1+) — AI-classified comm tasks get a ↩ indicator; focus session surfaces thread snippet + "Draft reply" button. AI classification (v2.75.17) replaced regex. Race fixes (v2.75.21). Personalized AI surfaces shipped incrementally: focus companion sees other tasks (v2.74.3), week theme sees aging tasks (v2.74.2), nudge already task-specific.
 
-**Next: Stage 1 — tool-use agent, no-auth tools**
+**Stage 1 shipped (v2.76.0+):** Tool-use agent fires on task add for actionable tasks. Netlify function calls `claude-sonnet-5` with `web_search_20250305` server tool; handles multi-turn `pause_turn`/`tool_use` continuation; returns validated card `{ icon, headline, body, cta }`. ↗ indicator in task row; card renders in `#focusAgentBlock` on focus open. Timeout set to 26s (v2.76.4), beta header dropped, focus block clip fixed (v2.76.2).
 
-TODAY sends task text → Claude decides which tools to call → returns an enriched card below the task row (distinct from suggestion row — action, not advice). Card shows tool output + one-tap action (call, open, copy).
+**Next: Stage 3 — expand tool registry**
 
-**Tools for Stage 1 (no connections needed):**
-- `search_web(query)` — phone numbers, addresses, booking pages, product comparisons
-- `read_url(url)` — pre-reads a URL already in the task
-
-**Real tasks this unlocks:**
-- "Call KRY for meniscus" → `search_web(...)` → number + what to say
-- "Change iPhone battery https://phonehero.se/..." → `read_url(url)` → booking steps
-- "Find a tile settler for the apartment bathroom" → `search_web(...)` → shortlist
-
-Effort: S–M | Risk: Low | No external auth needed
-
-**Stage 3 (after Stage 1 proves itself):** expand registry — `search_contacts`, `read_calendar`, `search_trello`. One task can trigger multiple tools; Claude decides the sequence.
+`search_contacts`, `read_calendar`, `search_trello`. One task can trigger multiple tools; Claude decides the sequence.
 
 **Out of scope:** autonomous execution without review · importing others' email as tasks · always-on background agent (trigger-on-add only)
 

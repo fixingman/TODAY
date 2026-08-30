@@ -116,21 +116,32 @@ try {
     ok('pre-extraction: addManual/toggleDone/deleteManual inline; assets/task-actions.js not yet created');
     console.log('\nTask-actions tests passed (pre-extraction baseline, 1 check).');
   } else {
-    // 1. addManual adds a task to manualTasks and the DOM.
+    // 1. The input mirror and addManual preserve full Unicode graphemes.
     {
       const { page, errors } = await openPage();
       const result = await page.evaluate(() => {
+        const text = 'Email José 👩🏽‍💻 about 🇸🇪';
         const prevCount = manualTasks.length;
-        document.getElementById('newTask').value = 'New task from test';
+        const input = document.getElementById('newTask');
+        input.value = text;
+        const mirrorSpans = Array.from(
+          document.querySelectorAll('#newTaskMirrorContent span'),
+          span => span.textContent === '\u00a0' ? ' ' : span.textContent
+        );
+        const mirrorText = mirrorSpans.join('');
         addManual();
         return {
           taskAdded:   manualTasks.length === prevCount + 1,
-          taskPresent: manualTasks.some(t => t.text === 'New task from test'),
-          inputCleared: document.getElementById('newTask').value === '',
+          taskPresent: manualTasks.some(t => t.text === text),
+          mirrorTextPreserved: mirrorText === text,
+          zwjEmojiIsOneSpan: mirrorSpans.includes('👩🏽‍💻'),
+          flagIsOneSpan: mirrorSpans.includes('🇸🇪'),
+          noReplacementGlyph: !mirrorText.includes('\uFFFD'),
+          inputCleared: input.value === '',
         };
       });
-      await expectAll('addManual adds task', { ...result, noErrors: errors.length === 0 });
-      ok('addManual: task added to manualTasks, input cleared');
+      await expectAll('Unicode task input and addManual', { ...result, noErrors: errors.length === 0 });
+      ok('task input: emoji graphemes render intact and persist through addManual');
       await page.close();
     }
 

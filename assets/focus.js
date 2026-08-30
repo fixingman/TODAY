@@ -581,6 +581,14 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     requestAnimationFrame(() => {
       timerEl.classList.add('open');
       timerEl.style.maxHeight = timerEl.scrollHeight + 'px';
+      if (document.body.style.position === 'fixed') {
+        const rect = timerEl.getBoundingClientRect();
+        const overflow = (rect.top + timerEl.scrollHeight) - (window.innerHeight - 20);
+        if (overflow > 0) {
+          const currentTop = parseInt(document.body.style.top || '0', 10);
+          document.body.style.top = (currentTop - overflow) + 'px';
+        }
+      }
     });
     kbdHint.classList.add('show');
     if (window._a11yAnnounce) {
@@ -780,15 +788,14 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
 
     // If scroll is locked (position:fixed during focus), shift the lock offset
     // so the newly-expanded block stays inside the viewport.
+    // Use scrollHeight for the final bottom — rect.bottom is mid-transition and wrong.
     if (document.body.style.position === 'fixed') {
-      requestAnimationFrame(function() {
-        const rect = timerEl.getBoundingClientRect();
-        const overflow = rect.bottom - (window.innerHeight - 20);
-        if (overflow > 0) {
-          const currentTop = parseInt(document.body.style.top || '0', 10);
-          document.body.style.top = (currentTop - overflow) + 'px';
-        }
-      });
+      const rect = timerEl.getBoundingClientRect();
+      const overflow = (rect.top + timerEl.scrollHeight) - (window.innerHeight - 20);
+      if (overflow > 0) {
+        const currentTop = parseInt(document.body.style.top || '0', 10);
+        document.body.style.top = (currentTop - overflow) + 'px';
+      }
     }
   };
 

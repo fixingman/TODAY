@@ -1,7 +1,7 @@
 // TODAY — per-character bounce animation on the task input.
 // Technique: real <input> stays as-is for a11y/IME/autofill; its text color
 // is set to transparent (caret stays visible). An absolutely-positioned mirror
-// <div> overlays it with one <span> per character. New characters animate via
+// <div> overlays it with one <span> per grapheme. New graphemes animate via
 // WAAPI on transform+opacity — compositor-only, zero layout/paint cost.
 // Skips entirely when prefers-reduced-motion is set.
 (function () {
@@ -25,6 +25,22 @@
 
   let _prev      = '';
   let _composing = false;
+
+  // JavaScript string indexes address UTF-16 code units, not visible
+  // characters. Splitting on those indexes separates emoji surrogate pairs
+  // (and can also separate skin tones, flags, or ZWJ sequences) across spans,
+  // which prevents the browser from shaping them as one glyph. Segment the
+  // mirror and its insertion math by grapheme cluster instead.
+  const _segmenter = typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function'
+    ? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+    : null;
+
+  function _graphemes(value) {
+    const text = String(value || '');
+    return _segmenter
+      ? Array.from(_segmenter.segment(text), part => part.segment)
+      : Array.from(text); // code-point fallback keeps surrogate pairs intact
+  }
 
   // Canvas used to measure text width on iOS Safari, which always reports
   // input.scrollLeft = 0 regardless of actual scroll position.
@@ -50,7 +66,9 @@
   // Rebuilds the mirror to match val. When skipAnimation is false and chars
   // were added (not deleted/replaced), newly inserted chars get the bounce class.
   function _sync(val, skipAnimation) {
-    const addedCount = val.length - _prev.length;
+    const prevGraphemes = _graphemes(_prev);
+    const nextGraphemes = _graphemes(val);
+    const addedCount = nextGraphemes.length - prevGraphemes.length;
     const isTyping   = addedCount > 0 && !skipAnimation;
 
     let animateFrom = Infinity;
@@ -59,19 +77,19 @@
     if (isTyping) {
       // Find the first position where the strings diverge — that's the
       // insertion point. Only animate the newly inserted characters.
-      animateFrom = _prev.length;
-      for (let i = 0; i < _prev.length; i++) {
-        if (val[i] !== _prev[i]) { animateFrom = i; break; }
+      animateFrom = prevGraphemes.length;
+      for (let i = 0; i < prevGraphemes.length; i++) {
+        if (nextGraphemes[i] !== prevGraphemes[i]) { animateFrom = i; break; }
       }
       animateTo = animateFrom + addedCount;
     }
 
     // Rebuild the entire mirror (cheap — max 500 spans per input maxlength).
     mirrorContent.innerHTML = '';
-    for (let i = 0; i < val.length; i++) {
+    for (let i = 0; i < nextGraphemes.length; i++) {
       const s = document.createElement('span');
       // Spaces must be non-breaking so inline-block spans don't collapse them.
-      s.textContent = val[i] === ' ' ? ' ' : val[i];
+      s.textContent = nextGraphemes[i] === ' ' ? ' ' : nextGraphemes[i];
       if (i >= animateFrom && i < animateTo) s.className = 'mirror-char-new';
       mirrorContent.appendChild(s);
     }
@@ -105,7 +123,7 @@
     // character in a single event. Animating a flood of chars looks wrong.
     // Use inputType when available; fall back to delta-count for browsers
     // (e.g. iOS Safari autofill) that omit inputType on programmatic fills.
-    const addedCount = input.value.length - _prev.length;
+    const addedCount = _graphemes(input.value).length - _graphemes(_prev).length;
     const isBulk =
       addedCount > 1                                    ||
       e.inputType === 'insertFromPaste'                 ||

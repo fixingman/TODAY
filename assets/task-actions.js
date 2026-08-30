@@ -254,7 +254,14 @@ window._startTaskActions = (function() {
       div.innerHTML = taskHTML(task, 'manual');
       const el = div.firstElementChild;
       el.classList.add('task-new');
-      el.addEventListener('animationend', () => el.classList.remove('task-new'), { once: true });
+      const _removeFade = e => {
+        if (e.animationName !== 'fadeIn') return;
+        el.classList.remove('task-new');
+        el.removeEventListener('animationend', _removeFade);
+        el.removeEventListener('animationcancel', _removeFade);
+      };
+      el.addEventListener('animationend', _removeFade);
+      el.addEventListener('animationcancel', _removeFade);
       list.appendChild(el);
       const tagEl = el.querySelector('.task-tag');
       _queueTagArrivalShimmer(tagEl);
@@ -418,6 +425,12 @@ window._startTaskActions = (function() {
       toast.classList.add('show');
       toast.hidden = false;
       toast.setAttribute('aria-hidden', 'false');
+      const _countdown = document.getElementById('undoCountdown');
+      if (_countdown) {
+        _countdown.style.animation = 'none';
+        void _countdown.offsetWidth;
+        _countdown.style.animation = '';
+      }
       clearTimeout(_undoTimeout);
       _undoTimeoutRemaining = 5000;
       _undoTimeoutStart = Date.now();

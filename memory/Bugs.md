@@ -16,6 +16,8 @@
 
 | # | Description | Status |
 |---|---|---|
+| 088 | Inline AI helper stays behind when its task is reordered | ⏳ v2.77.3 |
+| 087 | Emoji disappear or render broken in the animated task input | ⏳ v2.77.2 |
 | 086 | Completion rate in Memory exceeds 100% — wrong denominator (4th root cause) | ✅ v2.75.13 |
 | 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
 | 083 | Past→Soon revive causes black screen — interface unresponsive until refresh | ⏳ v2.71.13 |
@@ -103,6 +105,34 @@
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-088 — Inline AI helper stays behind when its task is reordered
+
+**Status:** ⏳ v2.77.3 (fix complete locally — awaiting real-device verification)
+**Introduced:** v2.72.0 (post-add inline outcome row)
+**Files:** `assets/assistant.js`, `assets/drag.js`, `assets/connections.js`
+
+**Symptom:** Moving a task while its inline AI helper is visible can leave the helper beneath a different task. Moving upward reproduces it reliably; a full list rebuild can remove the visible helper from the DOM.
+
+**Root cause:** The helper is a full-width sibling inserted after `.task`, while reorder controllers intentionally move only task elements. The helper had no shown-state reattachment path; only not-yet-shown pending suggestions followed replacement task nodes.
+
+**Fix (v2.77.3):** `_aiReanchorSuggestion()` resolves the visible helper's owner from `_aiCurrentSuggestion.taskId` and moves the existing helper immediately after the current task element. All persisted reorder paths and `renderManual()` call it. This preserves the existing exposure timer/outcome record and prevents duplicate offers.
+
+---
+
+## BUG-087 — Emoji disappear or render broken in the animated task input
+
+**Status:** ⏳ v2.77.2 (fix complete locally — awaiting real-device verification)
+**Introduced:** v2.67.0 (animated task-input mirror)
+**File:** `assets/task-bounce.js`
+
+**Symptom:** Emoji typed into the task input can disappear or render as broken glyphs. The native input value is still correct, but its text is transparent while motion is enabled, so only the broken visual mirror is visible.
+
+**Root cause:** The mirror rebuilt text with `val[i]`, which indexes UTF-16 code units rather than visible characters. A surrogate-pair emoji—and the multiple code points used by modifiers, flags, and joined emoji—was split across separate DOM spans, preventing the browser from shaping it as one glyph. Length and insertion calculations used the same incorrect unit.
+
+**Fix (v2.77.2):** Segment both old and new values into Unicode grapheme clusters with `Intl.Segmenter`, use those arrays for insertion/bulk math and mirror spans, and retain `Array.from(text)` as a surrogate-safe fallback. The native input, IME path, task value, storage, and sync formats are unchanged.
 
 ---
 

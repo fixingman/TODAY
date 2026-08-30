@@ -4,11 +4,13 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Gmail enrichment — task-row thread indicator + focus-session draft reply.
-- **Recent (2026-08-28):** v2.75.1–v2.75.9: Gmail OAuth (PKCE → Netlify function token exchange), CSP connect-src gap fixed, COOP popup warning resolved (postMessage relay), Client ID UI input removed (served from Netlify env). Enrichment searches Gmail for threads matching action-verb + capitalized-name tasks; `✉` indicator on task row; focus overlay shows snippet + "Draft reply" button calling `ai-assist`.
+- **Working on:** Inline AI helper ownership through task-list mutations.
+- **Recent (2026-08-30):** v2.77.3 fixes BUG-088: a visible inline helper now reattaches by stable task ID after pointer/touch/keyboard reorder and full `renderManual()` rebuilds, preserving the same helper and outcome record.
 - **Module extraction (Roadmap #3): COMPLETE.** focus.js done (v2.65.13, ~1,400 lines). All modules extracted: dropbox, connections (+ AI provider config), assistant, task-actions, nudge, day-lifecycle, focus. Startup composition root (~350 lines inline) remains as intended. Full inventory → `Backlog.md` §3.
 - **Machine routing guard:** before any agent changes Headroom, a model provider/base URL, proxy/wrapper, port/mode, runtime override, or Headroom version, read `/Users/can/.headroom/ROUTING-GUARD.md` and obtain Can's explicit approval for that exact change. Keep Codex on explicit `127.0.0.1`, not `localhost`. Do not run `headroom learn --verbosity --apply`: v0.35.0 learns from Claude history only but hot-enables a proxy-global output shaper that can also affect Codex.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
+  - **BUG-088 ⏳ v2.77.3** — verify on desktop and iPhone PWA: while an inline AI helper is visible, move its task above and below another task; the helper must remain immediately below its owner.
+  - **BUG-087 ⏳ v2.77.2** — verify on iPhone PWA and desktop Safari: type and save a plain emoji, skin-tone emoji, flag, and joined emoji; each must remain visible and intact in the input and saved row.
   - **BUG-076 ⏳ v2.65.3** — force at least ten poem-coda exits on Safari/iPhone PWA; TO and DAY must fade as complete groups with no `O` / `AY` residue while the poem disappears.
   - **v2.64.23 ⏳** — verify appMemory convergence across two devices after a few 7s sync cycles: `today_memory.semantic.length` and newly confirmed inferences should match without manual Restore Backup.
   - **v2.64.22 ⏳** — verify overnight sync hardening: streak does not re-inflate from yesterday, newest check/uncheck wins, and Trello configuration reaches the second device.

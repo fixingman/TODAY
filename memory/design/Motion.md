@@ -72,6 +72,11 @@ One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newl
 - Haptic feedback (success pattern)
 - Sound: soft completion tone
 
+### Task Input Bounce
+- The native input remains authoritative; an `aria-hidden` mirror supplies the one-shot character bounce.
+- Mirror spans and insertion ranges use Unicode grapheme clusters. Never split input with `value[i]` or raw `.length`: those are UTF-16 units and can break emoji, skin-tone modifiers, flags, and ZWJ sequences across DOM nodes.
+- IME composition and bulk input remain unanimated; reduced motion skips the mirror module entirely.
+
 ### All-Done Celebration
 - Accent glow pulse (radial, 1.2s fade)
 - Extra particle burst

@@ -39,6 +39,7 @@
         _saveHabits();
         if (preserveDesktopHabitAutosave) dropboxAutoSave();
       }
+      if (window._aiReanchorSuggestion) window._aiReanchorSuggestion();
     }
 
     window._a11yMoveRow = function(row, delta) {

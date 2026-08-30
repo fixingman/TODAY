@@ -108,9 +108,10 @@ try {
       'today_habit_events', 'last_local_change']) localStorage.removeItem(key);
     localStorage.setItem('today_trello_cache', JSON.stringify({ marker: 'keep', tasks: [] }));
 
-    window.__dragTest = { autosaves: 0, haptics: [] };
+    window.__dragTest = { autosaves: 0, haptics: [], suggestionReanchors: 0 };
     dropboxAutoSave = () => { window.__dragTest.autosaves++; };
     window._haptic = preset => { window.__dragTest.haptics.push(preset); };
+    window._aiReanchorSuggestion = () => { window.__dragTest.suggestionReanchors++; return true; };
   });
 
   const desktopDrag = async (listId, attr, sourceId, targetId) => page.evaluate(
@@ -183,6 +184,7 @@ try {
       domOrder: JSON.stringify(result.dom) === JSON.stringify(expected),
       memoryOrder: JSON.stringify(result.memory) === JSON.stringify(expected),
       selectionHaptic: result.calls.haptics.includes('selection'),
+      suggestionReanchored: result.calls.suggestionReanchors === 1,
       cleaned: result.dirty === 0 && result.draggable === 0,
     };
     if (testCase.list === 'manualList') Object.assign(common, {
@@ -292,6 +294,7 @@ try {
       memoryOrder: JSON.stringify(result.memory) === JSON.stringify(expected),
       activationHaptic: result.calls.haptics.includes('heavy'),
       dropHaptic: result.calls.haptics.includes('selection'),
+      suggestionReanchored: result.calls.suggestionReanchors === 1,
       cleaned: result.dirty === 0,
     };
     if (testCase.list === 'manualList') Object.assign(common, {

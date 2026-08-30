@@ -4,7 +4,7 @@
   'use strict';
 
   const CACHE_PREFIX = 'agent_enrichment_';
-  const TRIGGER_RE   = /https?:\/\/|\b(book|order|where|directions|price|hours|find|look\s+up|compare|research|navigate|reserve|schedule)\b/i;
+  const TRIGGER_RE   = /https?:\/\/|\b(book|order|where|directions|price|hours|find|look\s+up|compare|research|navigate|reserve|schedule|answer|reply|call|contact|email|message|reach\s+out|follow\s+up|respond|check\s+in)\b/i;
   const _inflight    = new Set();
 
   // ── Cache helpers ──────────────────────────────────────────────────────────

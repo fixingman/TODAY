@@ -29,6 +29,7 @@
 - Keyboard: focus the row; Enter starts focus, Space toggles completion, Option+Up/Down reorders and persists
 - Completion particles receive checkbox client coordinates; the celebration canvas converts them to its backing-buffer coordinates so mobile viewport sizing cannot offset the visible burst
 - Runtime ownership: `assets/task-actions.js` owns delegated copy/check/delete activation, copy feedback, mutations, aggregate task stats, and the progress favicon. Re-rendered manual/Trello rows require no per-row listener rebinding.
+- Inline AI helper: rendered as a full-width sibling, owned by `data-taskid`; reorder and full-list render paths reattach the existing helper immediately after its task so DOM position never becomes ownership.
 
 ### Task Aging
 
@@ -62,6 +63,7 @@ Fixed at bottom, outside `.app` container.
 ```
 
 - Input: full width minus button
+- The bounce mirror preserves the native input for focus, accessibility, IME, and storage. Its visual spans are split by Unicode grapheme cluster—not UTF-16 index—so emoji, modifiers, flags, and joined sequences shape intact.
 - ✦ button: opens AI panel (or adds task if AI not configured)
 - Enter: always adds task
 

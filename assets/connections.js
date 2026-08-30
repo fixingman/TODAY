@@ -432,6 +432,7 @@
       _wireManualTagShimmer(list);
       if (window._gmailRestoreAllIndicators) _gmailRestoreAllIndicators();
       if (window._agentRestoreAllIndicators) _agentRestoreAllIndicators();
+      if (window._aiReanchorSuggestion) window._aiReanchorSuggestion();
     }
 
     // Wire hover/scroll shimmer on .task-tag elements in the manual list.

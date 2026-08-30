@@ -233,8 +233,8 @@ try {
       await page.close();
     }
 
-    // 7+8. Post-add suggestion waits for viewport delivery, then measures
-    // exposure and explicit dismissal.
+    // 7+8. Post-add suggestion waits for viewport delivery, follows its task
+    // through reordering/re-rendering, then measures exposure and dismissal.
     //   _aiAnalyzeTask debounces 2s then calls _aiDoAnalyze which calls fetch.
     //   After suggestion appears, _aiDismissSuggestion applies .removing class.
     {
@@ -275,6 +275,16 @@ try {
         const suggestionEl = document.querySelector('.task-suggestion');
         const suggestionAppeared = !!suggestionEl;
         const offscreenDoesNotCount = exposureTimersArmed === 0;
+        const taskRow = document.querySelector('.task[data-taskid="task_1"]');
+        const movedDown = _a11yMoveRow(taskRow, 1);
+        const followsMoveDown = movedDown.moved && suggestionEl?.previousElementSibling === taskRow;
+        const movedUp = _a11yMoveRow(taskRow, -1);
+        const followsMoveUp = movedUp.moved && suggestionEl?.previousElementSibling === taskRow;
+        renderManual();
+        const rerenderedTaskRow = document.querySelector('.task[data-taskid="task_1"]');
+        const survivesRerender = suggestionEl?.isConnected &&
+          suggestionEl.previousElementSibling === rerenderedTaskRow &&
+          document.querySelectorAll('.task-suggestion').length === 1;
         const exposureObserver = observers[1];
         exposureObserver?.callback([{ target: exposureObserver.target, isIntersecting: true }]);
         const visibleExposureArmed = exposureTimersArmed === 1;
@@ -289,6 +299,9 @@ try {
           pendingNotMounted,
           pendingNotOffered,
           offscreenDoesNotCount,
+          followsMoveDown,
+          followsMoveUp,
+          survivesRerender,
           visibleExposureArmed,
           deliveryCleanedUp: !!deliveryObserver?.disconnected,
           exposureCleanedUp: !!exposureObserver?.disconnected,
@@ -297,7 +310,7 @@ try {
         };
       });
       await expectAll('post-add suggest + dismiss', { ...result, noErrors: errors.length === 0 });
-      ok('post-add suggest: waits for task viewport entry, then records exposure and dismissal');
+      ok('post-add suggest: follows its task, then records exposure and dismissal');
       await page.close();
     }
 
@@ -396,14 +409,15 @@ try {
       await page.close();
     }
 
-    // 11. Static wiring: 8 exports in assistant.js, functions removed from index.html, precached.
+    // 11. Static wiring: 9 exports in assistant.js, functions removed from index.html, precached.
     {
       const indexSrc  = await readFile(join(ROOT, 'index.html'), 'utf8');
       const swSrc     = await readFile(join(ROOT, 'sw.js'), 'utf8');
       const assistSrc = await readFile(join(ROOT, 'assets/assistant.js'), 'utf8');
       const requiredExports = [
         'toggleAI', 'openAI', 'closeAI', '_aiAskFromPanel',
-        '_aiAnalyzeTask', '_aiDismissSuggestion', '_aiSendFromInput', '_aiApplyBreakdown',
+        '_aiAnalyzeTask', '_aiDismissSuggestion', '_aiReanchorSuggestion',
+        '_aiSendFromInput', '_aiApplyBreakdown',
       ];
       const startupIdx   = indexSrc.indexOf('window._startAssistant();');
       const startMeetIdx = indexSrc.indexOf('window._startMeeting();');
@@ -417,7 +431,7 @@ try {
         allExports:       requiredExports.every(n => assistSrc.includes(`window.${n} = ${n};`)),
         precached:        swSrc.includes("'/assets/assistant.js'"),
       });
-      ok('assistant module: 8 exports, functions removed from index.html, precached in sw.js');
+      ok('assistant module: 9 exports, functions removed from index.html, precached in sw.js');
     }
 
     console.log('\nAssistant tests passed (post-extraction, 10 behavior groups + wiring).');
