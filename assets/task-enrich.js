@@ -49,7 +49,7 @@
       const state = data.card ? 'success' : 'no_result';
       _setCache(taskId, { state, card: data.card || null, taskText, fetchedAt: Date.now() });
 
-      if (data.card) _agentUpdateIndicator(taskId);
+      if (data.card) _agentUpdateIndicator(taskId, true);
     } catch(e) {
       // Network error — don't cache; will retry next load
     } finally {
@@ -58,7 +58,7 @@
   }
 
   // ── Task-row indicator ─────────────────────────────────────────────────────
-  function _agentUpdateIndicator(taskId) {
+  function _agentUpdateIndicator(taskId, fresh) {
     const taskEl = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
     if (!taskEl) return;
     taskEl.querySelector('.agent-indicator')?.remove();
@@ -67,7 +67,7 @@
     if (!cached || cached.state !== 'success' || !cached.card) return;
 
     const span = document.createElement('span');
-    span.className = 'agent-indicator';
+    span.className = fresh ? 'agent-indicator agent-indicator-arrive' : 'agent-indicator';
     span.textContent = '↗';
     span.setAttribute('aria-label', 'Web context available — start a focus session');
     const textEl = taskEl.querySelector('.task-text');

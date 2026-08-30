@@ -440,6 +440,16 @@
   }
   .task:hover .agent-indicator { opacity: var(--opacity-soft); }
 
+  @keyframes agentIndicatorArrive {
+    0%   { opacity: 0; color: var(--muted); }
+    15%  { opacity: 1; color: var(--accent); }
+    65%  { opacity: 1; color: var(--accent); }
+    100% { opacity: 0; color: var(--muted); }
+  }
+  .agent-indicator.agent-indicator-arrive {
+    animation: agentIndicatorArrive 1.4s var(--ease-out) 1;
+  }
+
   .focus-gmail-block {
     border-top: 1px solid rgba(200,240,96,0.08);
     padding: var(--space-3) var(--space-4) var(--space-3);
@@ -4451,9 +4461,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.77.9':  'Polish: task enrichment indicator arrives with an accent shimmer instead of appearing silently.',
   '2.77.8':  'Fix: task enrichment now works when the Claude key is in Connections — client key passed to task-enrich function (BUG-090).',
   '2.77.7':  'Poems: three reviewed voices from Syria, Persia, and Armenia join the daily rotation.',
-  '2.77.6':  'Fix: “Open in Mail” now opens the native Mail app instead of the browser — added target=”_blank” and removed the PWA-only guard so it works everywhere.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
