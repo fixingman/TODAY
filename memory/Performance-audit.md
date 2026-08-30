@@ -30,11 +30,11 @@
 | `assets/habits.js` | 18.8 KB | 5.7 KB | Habits controller extracted v2.64.33; tracked and tested |
 | `assets/task-actions.js` | 26.9 KB | 7.2 KB | Task mutations, delegated row controls, stats, and private favicon renderer; SW-precached |
 | `assets/week-reflection-policy.js` | 6.2 KB | 2.1 KB | DOM-free Sunday candidate ranker/output guard; browser global + direct Node unit-test boundary; SW-precached |
-| `assets/poems.js` | 44.2 KB | 14.1 KB | Daily poem corpus (116 poems); SW-precached |
-| **Total app JS** | **~818 KB** | **~231 KB** | Local app shell: index.html + implemented modules + poem corpus (Brotli q5) |
+| `assets/poems.js` | 42.8 KB | 13.5 KB | Daily poem corpus (114 reviewed poems); SW-precached |
+| **Total app JS** | **~817 KB** | **~231 KB** | Local app shell: index.html + implemented modules + poem corpus (Brotli q5) |
 
-**Lines of code:** ~11,324 index.html + ~5,836 extracted + ~786 poem corpus (≈17,946 total)
-— util.js: 97 · idle.js: 289 · sound.js: 224 · celebration.js: 163 · trello.js: 519 · insights.js: 825 · error-monitor.js: 145 · poem-utils.js: 45 · splash.js: 403 · platform.js: 310 · drag.js: 292 · meeting.js: 746 · memory-panel.js: 540 · triage.js: 504 · zones.js: 303 · habits.js: 431 · poems.js: 786
+**Lines of code:** ~11,324 index.html + ~5,836 extracted + ~768 poem corpus (≈17,928 total)
+— util.js: 97 · idle.js: 289 · sound.js: 224 · celebration.js: 163 · trello.js: 519 · insights.js: 825 · error-monitor.js: 145 · poem-utils.js: 45 · splash.js: 403 · platform.js: 310 · drag.js: 292 · meeting.js: 746 · memory-panel.js: 540 · triage.js: 504 · zones.js: 303 · habits.js: 431 · poems.js: 768
 
 **External scripts:** 0. All assets same-origin, SW-cached; no CDN, no analytics SDK. `scripts/design-lint.mjs` rejects external runtime script tags and known analytics/replay markers (Rule 32).
 **External fonts on first visit:** 6 files (self-hosted, pre-cached by SW). Zero Google Fonts pings.  

@@ -475,12 +475,6 @@ const POEMS = [
 
   // ── Round 12 (Jul 2026) ────────────────────────────────────────────────────
   {
-    text: 'The leaves fall, fall as from far,\nLike distant gardens withered in the heavens;\nThey fall with slow and lingering descent.\n\nAnd in the nights the heavy Earth, too, falls\nFrom out the stars into the Solitude.\n\nThus all doth fall. This hand of mine must fall\nAnd lo! the other one:—it is the law.\nBut there is One who holds this falling\nInfinitely softly in His hands.',
-    author: 'Rainer Maria Rilke (trans. Jessie Lemont)',
-    season: 'autumn',
-    source: "'Autumn', Poems (1918) trans. Lemont, Gutenberg #38594, cross-checked vs archive.org poems00rilk scan (Rilke d. 1926, Lemont d. 1947)",
-  },
-  {
     text: "A rough sea, and the Milky Way\nStretching across to Sado's isle.",
     author: 'Bashō',
     season: 'autumn',
@@ -674,18 +668,12 @@ const POEMS = [
     source: "'A Little Messenger Dove' / 'Palomita Mensajera' (trans. Alice Stone Blackwell), Some Spanish-American Poets (1929), p. 434–435 — Blanco Fombona d. 1944, Blackwell d. 1950, both PD worldwide — verified verbatim vs archive.org/details/somespanishamerica00blac",
   },
 
-  // ── Round 32 (Aug 2026) — !kun oral tradition + Philippines ────────────
+  // ── Round 32 (Aug 2026) — !kun oral tradition ──────────────────────────
   {
     text: 'Tell me of something.\nHail, hail!\nWhen the sun rises,\nThou must speak to me,\nThat I may eat something.\nThou must speak to me about a little thing,\nThat I may eat.\nHail, hail,\nYoung Moon!',
     author: 'Traditional !kun (recited by !nanni)',
     season: null,
     source: "'Prayer to the Young Moon' (closing excerpt), recited by !nanni from his father's prayer and recorded by L.C. Lloyd on 8 June 1880, Specimens of Bushman Folklore (1911) — anonymous !kun oral tradition, Lloyd d. 1914, PD worldwide — verified verbatim vs sacred-texts.com/afr/sbf/sbf85.htm and Digital Bleek & Lloyd story 1040",
-  },
-  {
-    text: 'Go to my native land, go, foreign flowers,\nSown by the traveler on his way;\nAnd there beneath its azure sky,\nWhere all of my affections lie;\nThere from the weary pilgrim say,\nWhat faith is his in that land of ours!',
-    author: 'José Rizal (trans. Charles Derbyshire)',
-    season: null,
-    source: "'To the Flowers of Heidelberg' (first stanza, trans. Charles Derbyshire), Austin Craig, Lineage, Life and Labors of José Rizal (1914), p. 127 — Rizal d. 1896, Derbyshire d. 1933, both PD worldwide — verified against the University of Michigan scan at Wikimedia Commons; its obvious 'of.my' spacing typo is normalized",
   },
 
   // ── Round 31 (Aug 2026) — Chinese (trans. L. Cranmer-Byng 1909) ─────────

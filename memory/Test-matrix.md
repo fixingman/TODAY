@@ -268,7 +268,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 11.4 | All tasks done | ✦ star above day's poem (done echo) |
 | 11.5 | ✦ empty tap (no text in input) | Daily brief opens: AI nudge line + today's poem |
 | 11.6 | ✦ empty tap — no nudge cache, no poem | Falls through to proactive AI suggestions |
-| 11.7 | Run smoke guard against `assets/poems.js` | Exactly 116 entries; every entry has text/author/source, a valid season, and 2–11 nonblank lines; !nanni's traditional !kun prayer and Rizal/Derbyshire are present |
+| 11.7 | Run smoke guard against `assets/poems.js` | Exactly 114 reviewed entries; every entry has text/author/source, a valid season, and 2–11 nonblank lines; approved !kun prayer is present and skipped Rizal candidate is absent |
 
 ### 12. PAST Revive (3 tests)
 

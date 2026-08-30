@@ -88,22 +88,16 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
   const malformed = poems.filter(poem => {
     const lines = poem.text.split('\n').filter(line => line.trim()).length;
-    return !poem.text || !poem.author || !poem.source || lines < 1 || lines > 11 ||
+    return !poem.text || !poem.author || !poem.source || lines < 2 || lines > 11 ||
       ![null, 'spring', 'summer', 'autumn', 'winter'].includes(poem.season);
   });
-  const requiredVoices = [
-    poems.find(poem => poem.author === 'Traditional !kun (recited by !nanni)'),
-    poems.find(poem => poem.author === 'José Rizal (trans. Charles Derbyshire)'),
-  ];
-  const newVoiceShapeWrong = requiredVoices.some(poem => {
-    const lines = poem?.text?.split('\n').filter(line => line.trim()).length ?? 0;
-    return lines < 2 || lines > 11;
-  });
-  if (poems.length !== 116 || malformed.length || newVoiceShapeWrong) {
-    console.error('✗ FAIL — poem corpus count, schema, line limit, or geographic additions drifted.');
+  const hasApprovedVoice = poems.some(poem => poem.author === 'Traditional !kun (recited by !nanni)');
+  const hasSkippedVoice = poems.some(poem => poem.author === 'José Rizal (trans. Charles Derbyshire)');
+  if (poems.length !== 114 || malformed.length || !hasApprovedVoice || hasSkippedVoice) {
+    console.error('✗ FAIL — reviewed poem corpus count, schema, or line limit drifted.');
     process.exit(1);
   }
-  console.log('  ✓ 116-poem corpus shape and geographic additions');
+  console.log('  ✓ 114-poem reviewed corpus shape and approved geography');
 
   try {
     globalThis.fetch = async request => {
