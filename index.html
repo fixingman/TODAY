@@ -4444,16 +4444,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '291h';
+const DEV_HOURS     = '292h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.77.4':  'Poems: two new voices — a traditional !kun prayer to the young moon and José Rizal’s flowers sent home from Heidelberg. The daily rotation now holds 116 poems.',
   '2.77.3':  'Fix: inline AI helper stays under its task when the list is reordered or re-rendered, reattaching by stable task ID after pointer, keyboard, sync, and render changes.',
   '2.77.2':  'Fix: emoji support in the task input — the animated text mirror now segments Unicode grapheme clusters, keeping emoji, skin tones, flags, and joined sequences intact while typing and saving.',
-  '2.77.1':  'Fix: stats double-counting — Dropbox merge now correctly evicts a task from PAST when it already lives in TODAY, even if TODAY lacks a zoneChangedAt timestamp; updateStats caps done display at total as a safety guard.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

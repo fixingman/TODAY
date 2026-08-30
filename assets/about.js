@@ -332,15 +332,17 @@
             // titles. Never preserve one of those lines under the earned-insight
             // policy, even if it was generated earlier today.
             localStorage.removeItem(_cacheKey);
+            _pruneLS('week_policy_', _weekPolicyKey);
+            localStorage.setItem(_weekPolicyKey, WEEK_REFLECTION_POLICY);
             _cached = null;
           }
           if (_cached) {
             _sundayBlock.innerHTML =
               '<div class="week-label">' + _weekLabel + '</div>' +
               '<div class="week-summary">' + esc(_cached) + '</div>';
-          } else if (_isSun && _weekPolicyCurrent) {
-            // A current policy marker without text is the negative cache: the
-            // evidence gate found nothing worth saying. The grid can stand alone.
+          } else if (_isSun && _weekPolicyCurrent && !_weekInsight) {
+            // Policy current but no evidence yet — hide without permanent block
+            // so evidence accumulating during the day can still trigger a fetch.
             _sundayBlock.style.display = 'none';
           } else if (_isSun && !_weekInsight) {
             // Don't cache the negative — Sunday's data is live (today's completions

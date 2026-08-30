@@ -81,9 +81,29 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
   const edgeSrc  = await readFile(join(ROOT, 'netlify/edge-functions/poem.js'), 'utf8');
   const corpus   = await readFile(join(ROOT, 'assets/poems.js'), 'utf8');
   const poemHtml = await readFile(join(ROOT, 'poem.html'), 'utf8');
+  const poems    = new Function(`${corpus}\nreturn POEMS;`)();
   const edgeUrl  = 'data:text/javascript;base64,' + Buffer.from(edgeSrc).toString('base64');
   const edge     = (await import(edgeUrl)).default;
   const realFetch = globalThis.fetch;
+
+  const malformed = poems.filter(poem => {
+    const lines = poem.text.split('\n').filter(line => line.trim()).length;
+    return !poem.text || !poem.author || !poem.source || lines < 1 || lines > 11 ||
+      ![null, 'spring', 'summer', 'autumn', 'winter'].includes(poem.season);
+  });
+  const requiredVoices = [
+    poems.find(poem => poem.author === 'Traditional !kun (recited by !nanni)'),
+    poems.find(poem => poem.author === 'José Rizal (trans. Charles Derbyshire)'),
+  ];
+  const newVoiceShapeWrong = requiredVoices.some(poem => {
+    const lines = poem?.text?.split('\n').filter(line => line.trim()).length ?? 0;
+    return lines < 2 || lines > 11;
+  });
+  if (poems.length !== 116 || malformed.length || newVoiceShapeWrong) {
+    console.error('✗ FAIL — poem corpus count, schema, line limit, or geographic additions drifted.');
+    process.exit(1);
+  }
+  console.log('  ✓ 116-poem corpus shape and geographic additions');
 
   try {
     globalThis.fetch = async request => {

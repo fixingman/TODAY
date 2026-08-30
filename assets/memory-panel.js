@@ -230,7 +230,7 @@
         const totalAvailable = rateHistory.reduce((s, e) => s + _effectiveDenom(e), 0);
         const totalDone      = rateHistory.reduce((s, e) => s + e.tasksDone,        0);
         const rate = Math.round((totalDone / totalAvailable) * 100);
-        proceduralItems.push({ text: `completes ${rate}% of tasks on the list — ${totalDone} done of ${totalAvailable} available` });
+        proceduralItems.push({ text: `completes ${rate}% of tasks added — ${totalDone} done of ${totalAvailable} added` });
       }
       // Habit cross-variable: tasks done on full-habit days vs partial/missed days
       const _habitDays = allDailyHistory.filter(e => e.habitsTotal > 0);

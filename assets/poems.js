@@ -297,12 +297,6 @@ const POEMS = [
     source: 'Carlyle (d. 1881), as quoted in How to Stop Worrying ch. 1',
   },
   {
-    text: 'Live in day-tight compartments.',
-    author: 'Sir William Osler',
-    season: null,
-    source: "'A Way of Life', Yale address, 1913 (d. 1919) — the phrase Carnegie built the book on",
-  },
-  {
     text: 'Anyone can do his work, however hard, for one day.\nAnyone can live sweetly, patiently, lovingly, purely,\ntill the sun goes down.\nAnd this is all that life really means.',
     author: 'Robert Louis Stevenson',
     season: null,
@@ -678,6 +672,20 @@ const POEMS = [
     author: 'Rufino Blanco Fombona',
     season: 'winter',
     source: "'A Little Messenger Dove' / 'Palomita Mensajera' (trans. Alice Stone Blackwell), Some Spanish-American Poets (1929), p. 434–435 — Blanco Fombona d. 1944, Blackwell d. 1950, both PD worldwide — verified verbatim vs archive.org/details/somespanishamerica00blac",
+  },
+
+  // ── Round 32 (Aug 2026) — !kun oral tradition + Philippines ────────────
+  {
+    text: 'Tell me of something.\nHail, hail!\nWhen the sun rises,\nThou must speak to me,\nThat I may eat something.\nThou must speak to me about a little thing,\nThat I may eat.\nHail, hail,\nYoung Moon!',
+    author: 'Traditional !kun (recited by !nanni)',
+    season: null,
+    source: "'Prayer to the Young Moon' (closing excerpt), recited by !nanni from his father's prayer and recorded by L.C. Lloyd on 8 June 1880, Specimens of Bushman Folklore (1911) — anonymous !kun oral tradition, Lloyd d. 1914, PD worldwide — verified verbatim vs sacred-texts.com/afr/sbf/sbf85.htm and Digital Bleek & Lloyd story 1040",
+  },
+  {
+    text: 'Go to my native land, go, foreign flowers,\nSown by the traveler on his way;\nAnd there beneath its azure sky,\nWhere all of my affections lie;\nThere from the weary pilgrim say,\nWhat faith is his in that land of ours!',
+    author: 'José Rizal (trans. Charles Derbyshire)',
+    season: null,
+    source: "'To the Flowers of Heidelberg' (first stanza, trans. Charles Derbyshire), Austin Craig, Lineage, Life and Labors of José Rizal (1914), p. 127 — Rizal d. 1896, Derbyshire d. 1933, both PD worldwide — verified against the University of Michigan scan at Wikimedia Commons; its obvious 'of.my' spacing typo is normalized",
   },
 
   // ── Round 31 (Aug 2026) — Chinese (trans. L. Cranmer-Byng 1909) ─────────

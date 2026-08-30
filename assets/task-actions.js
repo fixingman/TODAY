@@ -451,10 +451,14 @@ window._startTaskActions = (function() {
           clearTimeout(_undoTimeout);
           _undoTimeout = null;
           _undoTimeoutRemaining -= (Date.now() - _undoTimeoutStart);
+          const _cd = document.getElementById('undoCountdown');
+          if (_cd) _cd.style.animationPlayState = 'paused';
         });
         toast.addEventListener('mouseleave', () => {
           if (!toast.classList.contains('show')) return;
           _undoTimeoutStart = Date.now();
+          const _cd = document.getElementById('undoCountdown');
+          if (_cd) _cd.style.animationPlayState = 'running';
           _undoTimeout = setTimeout(() => {
             toast.classList.remove('show');
             toast.hidden = true;

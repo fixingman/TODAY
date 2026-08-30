@@ -258,7 +258,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 10.7 | Review panel — auto-select | Items where `mine: true` start pre-selected; others start unticked; tapping toggles |
 | 10.8 | Accept selected items | Selected items added to task list; sync fires; review panel closes |
 
-### 11. Poem & Daily Brief (6 tests)
+### 11. Poem & Daily Brief (7 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -268,6 +268,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 11.4 | All tasks done | ✦ star above day's poem (done echo) |
 | 11.5 | ✦ empty tap (no text in input) | Daily brief opens: AI nudge line + today's poem |
 | 11.6 | ✦ empty tap — no nudge cache, no poem | Falls through to proactive AI suggestions |
+| 11.7 | Run smoke guard against `assets/poems.js` | Exactly 116 entries; every entry has text/author/source, a valid season, and 2–11 nonblank lines; !nanni's traditional !kun prayer and Rizal/Derbyshire are present |
 
 ### 12. PAST Revive (3 tests)
 
@@ -303,10 +304,10 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | Network | 7 | 4 |
 | Destructive | 4 | 2 |
 | Meeting Mode | 8 | 4 |
-| Poem & Daily Brief | 6 | 3 |
+| Poem & Daily Brief | 7 | 3 |
 | PAST Revive | 3 | 2 |
 | About Sunday/Monday | 5 | 3 |
-| **Total** | **118** | **53** |
+| **Total** | **119** | **53** |
 
 ---
 

@@ -4,8 +4,8 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Inline AI helper ownership through task-list mutations.
-- **Recent (2026-08-30):** v2.77.3 fixes BUG-088: a visible inline helper now reattaches by stable task ID after pointer/touch/keyboard reorder and full `renderManual()` rebuilds, preserving the same helper and outcome record.
+- **Working on:** Poem corpus geographic balance without lowering the curation or worldwide-PD bar.
+- **Recent (2026-08-30):** v2.77.4 grows the corpus from 115 to 116 with the first African oral-tradition voice (a traditional !kun prayer recited by !nanni) and the first Philippine voice (José Rizal, translated by Charles Derbyshire); one grandfathered single-line aphorism (Osler) removed for failing the 2-line minimum. The corpus smoke guard now enforces count, schema, and the 2–11-line brief.
 - **Module extraction (Roadmap #3): COMPLETE.** focus.js done (v2.65.13, ~1,400 lines). All modules extracted: dropbox, connections (+ AI provider config), assistant, task-actions, nudge, day-lifecycle, focus. Startup composition root (~350 lines inline) remains as intended. Full inventory → `Backlog.md` §3.
 - **Machine routing guard:** before any agent changes Headroom, a model provider/base URL, proxy/wrapper, port/mode, runtime override, or Headroom version, read `/Users/can/.headroom/ROUTING-GUARD.md` and obtain Can's explicit approval for that exact change. Keep Codex on explicit `127.0.0.1`, not `localhost`. Do not run `headroom learn --verbosity --apply`: v0.35.0 learns from Claude history only but hot-enables a proxy-global output shaper that can also affect Codex.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**

@@ -231,7 +231,7 @@ window._startDayLifecycle = (function() {
       }
     }
 
-    window.applyNewDayCleanup  = applyNewDayCleanup;
+    window.applyNewDayCleanup = applyNewDayCleanup;
     window._applyTimeTexture   = _applyTimeTexture;
   };
 }());

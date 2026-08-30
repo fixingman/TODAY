@@ -213,7 +213,7 @@ try {
       window._memoryOnTaskLetgo('work: review this sprint', 'overwhelmed');
       const m = appMemory;
       return {
-        reasonCounted:  m.patterns.letgoReasons.overwhelmed === 1,
+        reasonCounted:  _lrCount(m.patterns.letgoReasons.overwhelmed) === 1,
         // dragKeywords is a string array; 'review' (6 chars, not a stop word) must be present
         dragHasReview:  Array.isArray(m.preferences.dragKeywords) &&
                         m.preferences.dragKeywords.includes('review'),
