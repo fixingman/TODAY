@@ -16,7 +16,7 @@
 
 | # | Description | Status |
 |---|---|---|
-| 088 | Inline AI helper stays behind when its task is reordered | ⏳ v2.77.3 |
+| 088 | Inline AI helper stays behind when its task is reordered | ✅ v2.77.3 |
 | 087 | Emoji disappear or render broken in the animated task input | ⏳ v2.77.2 |
 | 086 | Completion rate in Memory exceeds 100% — wrong denominator (4th root cause) | ✅ v2.75.13 |
 | 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
@@ -110,7 +110,7 @@
 
 ## BUG-088 — Inline AI helper stays behind when its task is reordered
 
-**Status:** ⏳ v2.77.3 (fix complete locally — awaiting real-device verification)
+**Status:** ✅ v2.77.3 (verified on real device 2026-08-29)
 **Introduced:** v2.72.0 (post-add inline outcome row)
 **Files:** `assets/assistant.js`, `assets/drag.js`, `assets/connections.js`
 
