@@ -25,7 +25,7 @@
     // Transient session-only state (never persisted)
     let _reflectResult  = null;
     let _reflectPending = false;
-    let _forgetPending  = false;
+    let _reflectTriggered = false; // auto-trigger fires once per session
 
     // ── Storage helpers ──────────────────────────────────────────────────────
 
@@ -224,26 +224,19 @@
         `<span class="memory-type-desc">— a separate sensitive record of evening reflections</span>` +
         `</div>`;
 
-      if (_forgetPending) {
-        inner += `<div class="memory-item">` +
-          `<span class="memory-item-text">Forget these reflections?</span>` +
-          `</div>` +
-          `<div style="display:flex;gap:var(--space-3);margin-top:var(--space-2);padding:0 0 var(--space-2)">` +
-          `<button class="memory-clear-btn" style="opacity:1;color:var(--danger)" onclick="reflectionForgetConfirm()">Yes, forget</button>` +
-          `<button class="btn-ghost memory-conn-link" onclick="reflectionForgetCancel()">Cancel</button>` +
-          `</div>`;
-      } else if (!policy || policy.choice === 'not_for_me') {
+      if (!policy || policy.choice === 'not_for_me') {
         inner += `<div class="memory-item"><span class="memory-item-text">Reflections are not remembered.</span></div>` +
           `<div style="margin-top:var(--space-2);padding-bottom:var(--space-2)">` +
           `<button class="triage-undo-btn" onclick="reflectionRememberAgain()">Remember reflections</button>` +
           `</div>`;
       } else {
         // policy.choice === 'remember'
-        inner += `<div class="memory-item"><span class="memory-item-text">Remembering the last ${MAX_DAYS} days.</span></div>`;
-
-        if (list.length > 0) {
-          inner += `<div class="memory-item"><span class="memory-item-text">${list.length} evening${list.length === 1 ? '' : 's'} remembered.</span></div>`;
-        }
+        const s = list.length === 1 ? '' : 's';
+        inner += `<div class="memory-item"><span class="memory-item-text">${
+          list.length > 0
+            ? `${list.length} evening${s} — last ${MAX_DAYS} days.`
+            : `Remembering the last ${MAX_DAYS} days.`
+        }</span></div>`;
 
         const obs = _computeObservation(list);
         if (obs) {
@@ -256,18 +249,12 @@
             inner += `<div class="memory-item"><span class="memory-item-text memory-abstracting">reflecting…</span></div>`;
           } else if (_reflectResult) {
             inner += `<div class="memory-item"><span class="memory-item-text">${esc(_reflectResult)}</span></div>`;
-          } else {
-            inner += `<div class="memory-item" style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap">` +
-              `<button class="triage-undo-btn" onclick="reflectionReflect()">Reflect</button>` +
-              `<span style="font-size:var(--text-xs);color:var(--muted)">Shares a brief summary with ${provider} only when you ask.</span>` +
-              `</div>`;
+          } else if (!_reflectTriggered) {
+            // Auto-trigger once per session — show placeholder immediately, fire async
+            inner += `<div class="memory-item"><span class="memory-item-text memory-abstracting">reflecting…</span></div>`;
+            _reflectTriggered = true;
+            setTimeout(reflectionReflect, 0);
           }
-        }
-
-        if (list.length > 0) {
-          inner += `<div style="margin-top:var(--space-2);padding-bottom:var(--space-2)">` +
-            `<button class="memory-clear-btn" onclick="reflectionForgetRequest()">Forget reflections</button>` +
-            `</div>`;
         }
       }
 
@@ -324,24 +311,6 @@
       }
 
       return null;
-    }
-
-    // ── Forget flow ──────────────────────────────────────────────────────────
-
-    function reflectionForgetRequest() {
-      _forgetPending = true;
-      _refreshMemoryBlock();
-    }
-
-    function reflectionForgetCancel() {
-      _forgetPending = false;
-      _refreshMemoryBlock();
-    }
-
-    function reflectionForgetConfirm() {
-      _forgetPending = false;
-      _reflectionClearFromAllMemory();
-      _refreshMemoryBlock();
     }
 
     function _reflectionClearFromAllMemory() {
@@ -545,9 +514,6 @@
     window.reflectionDecline             = reflectionDecline;
     window.reflectionSelect              = reflectionSelect;
     window._reflectionRenderMemory       = _reflectionRenderMemory;
-    window.reflectionForgetRequest       = reflectionForgetRequest;
-    window.reflectionForgetCancel        = reflectionForgetCancel;
-    window.reflectionForgetConfirm       = reflectionForgetConfirm;
     window.reflectionRememberAgain       = reflectionRememberAgain;
     window.reflectionReflect             = reflectionReflect;
     window._reflectionBackupFields       = _reflectionBackupFields;
