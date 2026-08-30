@@ -1,5 +1,5 @@
 // netlify/functions/task-enrich.js
-// Agentic task enrichment — Claude with web_search server tool.
+// Agentic task enrichment — Claude Sonnet 5 with web_search_20260209 server tool.
 // Returns a card object for the focus block, or { card: null } if nothing useful.
 
 const CORS_HEADERS = {
@@ -63,7 +63,7 @@ exports.handler = async function(event) {
           model: 'claude-sonnet-5',
           max_tokens: 512,
           system: SYSTEM_PROMPT,
-          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+          tools: [{ type: 'web_search_20260209', name: 'web_search' }],
           messages,
         }),
       });
