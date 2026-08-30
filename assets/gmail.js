@@ -288,18 +288,18 @@
       localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify({
         ...result, taskText, searchQuery, fetchedAt: Date.now(),
       }));
-      _gmailUpdateIndicator(taskId);
+      _gmailUpdateIndicator(taskId, true);
     }
 
     // ── Task row indicator ─────────────────────────────────────────────────────
-    function _gmailUpdateIndicator(taskId) {
+    function _gmailUpdateIndicator(taskId, fresh) {
       const taskEl = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
       if (!taskEl) return;
       taskEl.querySelector('.gmail-indicator')?.remove();
       if (!_getEnrichment(taskId) || !_gmailIsConnected()) return;
 
       const span = document.createElement('span');
-      span.className = 'gmail-indicator';
+      span.className = fresh ? 'gmail-indicator agent-indicator-arrive' : 'gmail-indicator';
       span.textContent = '↩';
       span.setAttribute('aria-label', 'Email context available — start a focus session');
       const textEl = taskEl.querySelector('.task-text');
@@ -378,7 +378,7 @@
           if (!result) return;
           const data = Object.assign({}, result, { taskText, searchQuery: classification.searchQuery, fetchedAt: Date.now() });
           try { localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify(data)); } catch(e) {}
-          _gmailUpdateIndicator(taskId);
+          _gmailUpdateIndicator(taskId, true);
           const b = document.getElementById('focusGmailBlock');
           // Guard: abort if user switched to a different task while we were fetching
           if (b && b.dataset.focusTaskId === requestTaskId) _doRenderBlock(b, taskText, data);
