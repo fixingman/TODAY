@@ -690,6 +690,32 @@
       }
     });
 
+    if (typeof CHANGELOG !== 'undefined' && typeof HISTORY_SHOWN !== 'undefined') {
+      const _clPanel  = document.getElementById('changelogPanel');
+      const _versions = Object.keys(CHANGELOG);
+      const _shown    = _versions.slice(0, 1 + HISTORY_SHOWN);
+      if (_clPanel) {
+        _clPanel.innerHTML = _shown.map((v, i) => {
+          if (i === 0) {
+            const bullets = CHANGELOG[v].split(' | ').map(b =>
+              `<div class="changelog-line"><span>${b}</span></div>`
+            ).join('');
+            return `<div class="changelog-entry">
+              <span class="changelog-version">v${v}</span>
+              <div class="changelog-entry-body">
+                <span class="version-badge">CURRENT</span>
+                <div class="changelog-text">${bullets}</div>
+              </div>
+            </div>`;
+          }
+          return `<div class="changelog-old">
+            <span class="changelog-version">v${v}</span>
+            <span class="changelog-text">${CHANGELOG[v].split(' | ')[0]}</span>
+          </div>`;
+        }).join('');
+      }
+    }
+
     window.toggleInfo = toggleInfo;
     window._poemOfTheDay = _poemOfTheDay;
     window._onPoemTap = _onPoemTap;

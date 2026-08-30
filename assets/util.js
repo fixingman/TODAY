@@ -121,3 +121,11 @@ const _KF_BREATHE_SMALL = [
   { opacity: 0.5, transform: 'scale(0.85)' },
   { opacity: 1, transform: 'scale(1)' },
 ];
+
+// ── Status bar helper — used by gmail.js, dropbox.js, connections.js, and others.
+window.showStatus = function(msg, type) {
+  const el = document.getElementById('statusMsg');
+  if (!el) return;
+  el.textContent = msg;
+  el.className   = 'status-msg ' + type;
+};

@@ -3097,7 +3097,6 @@
     animation-play-state: paused;
   }
   #undoToast.show .toast-countdown { animation-play-state: running; }
-  #undoToast:hover .toast-countdown { animation-play-state: paused; }
   @keyframes toast-countdown {
     from { transform: scaleX(1); }
     to   { transform: scaleX(0); }
@@ -4582,19 +4581,8 @@ function init() {
   // New-day cleanup runs after Dropbox restore (see load event in sync module)
   // so the clean state is applied to the freshest data, not overwritten by the pull.
 
-  (function _applyTimeTexture() {
-    const h = new Date().getHours();
-    const root = document.documentElement;
-    if (h >= 5 && h < 8)       root.style.setProperty('--accent', 'hsl(87, 85%, 66%)');
-    else if (h >= 18 && h < 22) root.style.setProperty('--accent', 'hsl(77, 89%, 64%)');
-    else if (h >= 22 || h < 5)  root.style.setProperty('--accent', 'hsl(82, 80%, 60%)');
-    const emptyEl = document.getElementById('manualEmpty');
-    if (emptyEl) {
-      if (h >= 22 || h < 4)        emptyEl.textContent = 'Rest is work too.';
-      else if (h >= 5 && h < 8)    emptyEl.textContent = 'Still early. Good.';
-      else if (h >= 18 && h < 22)  emptyEl.textContent = 'Wrapped up early.';
-    }
-  })();
+  // ── Time texture (accent + empty-state text) — moved to assets/day-lifecycle.js
+  _applyTimeTexture();
 
   renderManual();
   renderSoon();
@@ -4643,32 +4631,7 @@ function init() {
   const devHoursEl = document.querySelector('.dev-hours-val');
   if (devHoursEl) devHoursEl.innerHTML = '⏱︎ built in <span style="color:var(--accent);font-weight:500">' + DEV_HOURS + '</span>';
 
-  // Changelog — current version expanded, rest as quiet one-liners
-  const clPanel  = document.getElementById('changelogPanel');
-  const versions = Object.keys(CHANGELOG);
-  const shown    = versions.slice(0, 1 + HISTORY_SHOWN);
-
-  if (clPanel) {
-    clPanel.innerHTML = shown.map((v, i) => {
-      if (i === 0) {
-        const bullets = CHANGELOG[v].split(' | ').map(b =>
-          `<div class="changelog-line"><span>${b}</span></div>`
-        ).join('');
-        return `<div class="changelog-entry">
-          <span class="changelog-version">v${v}</span>
-          <div class="changelog-entry-body">
-            <span class="version-badge">CURRENT</span>
-            <div class="changelog-text">${bullets}</div>
-          </div>
-        </div>`;
-      } else {
-        return `<div class="changelog-old">
-          <span class="changelog-version">v${v}</span>
-          <span class="changelog-text">${CHANGELOG[v].split(' | ')[0]}</span>
-        </div>`;
-      }
-    }).join('');
-  }
+  // ── Changelog renderer — moved to assets/about.js (_startAbout reads CHANGELOG/HISTORY_SHOWN globals)
 
   // Pre-warm celebCanvas GPU pipeline — on iOS the first canvas draw triggers
   // Metal shader compilation per draw-op type (~100-200ms stall each). Run all
@@ -4731,12 +4694,7 @@ function _updateBarPlaceholder() {
 window._startDrag();
 
 
-function showStatus(msg, type) {
-  const el = document.getElementById('statusMsg');
-  if (!el) return;
-  el.textContent = msg;
-  el.className   = 'status-msg ' + type;
-}
+// ── showStatus — moved to assets/util.js (window.showStatus)
 
 // ─── Celebration — ember drift + accent glow ── moved to assets/celebration.js.
 

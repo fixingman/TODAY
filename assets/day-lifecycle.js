@@ -217,6 +217,21 @@ window._startDayLifecycle = (function() {
       }, 3000);
     }
 
-    window.applyNewDayCleanup = applyNewDayCleanup;
+    function _applyTimeTexture() {
+      const h = new Date().getHours();
+      const root = document.documentElement;
+      if (h >= 5 && h < 8)        root.style.setProperty('--accent', 'hsl(87, 85%, 66%)');
+      else if (h >= 18 && h < 22) root.style.setProperty('--accent', 'hsl(77, 89%, 64%)');
+      else if (h >= 22 || h < 5)  root.style.setProperty('--accent', 'hsl(82, 80%, 60%)');
+      const emptyEl = document.getElementById('manualEmpty');
+      if (emptyEl) {
+        if (h >= 22 || h < 4)       emptyEl.textContent = 'Rest is work too.';
+        else if (h >= 5 && h < 8)   emptyEl.textContent = 'Still early. Good.';
+        else if (h >= 18 && h < 22) emptyEl.textContent = 'Wrapped up early.';
+      }
+    }
+
+    window.applyNewDayCleanup  = applyNewDayCleanup;
+    window._applyTimeTexture   = _applyTimeTexture;
   };
 }());
