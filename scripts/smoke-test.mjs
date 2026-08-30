@@ -438,7 +438,33 @@ try {
   ).catch(() => fail('task did not reach done state after checking'));
   ok('task checked off');
 
-  // ── 6. Desktop shortcut Shift+; focuses the add bar ─────────────────────
+  // ── 6. Extraction wiring — showStatus, _applyTimeTexture, changelog renderer ─
+  const statusOk = await page.evaluate(() => {
+    showStatus('_smoke_', 'success');
+    const el = document.getElementById('statusMsg');
+    const ok = el && el.textContent === '_smoke_' && el.className.includes('success');
+    if (el) { el.textContent = ''; el.className = 'status-msg'; }
+    return ok;
+  });
+  if (!statusOk) fail('showStatus (util.js) did not update #statusMsg text and class');
+  ok('showStatus wiring (util.js)');
+
+  const textureOk = await page.evaluate(() => {
+    if (typeof window._applyTimeTexture !== 'function') return false;
+    window._applyTimeTexture();
+    return !!getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  });
+  if (!textureOk) fail('_applyTimeTexture (day-lifecycle.js) missing or did not set --accent');
+  ok('_applyTimeTexture wiring (day-lifecycle.js)');
+
+  const changelogOk = await page.evaluate(() => {
+    const badge = document.querySelector('#changelogPanel .version-badge');
+    return badge && badge.textContent.trim() === 'CURRENT';
+  });
+  if (!changelogOk) fail('changelog renderer (about.js) did not render CURRENT badge in #changelogPanel');
+  ok('changelog renderer wiring (about.js)');
+
+  // ── 7. Desktop shortcut Shift+; focuses the add bar ─────────────────────
   // Verifies the shortcut handler survived extraction from inline script to
   // accessibility.js. Only meaningful on hover:hover (non-touch) viewports.
   const isHover = await page.evaluate(() => window.matchMedia('(hover: hover)').matches);

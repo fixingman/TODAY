@@ -338,17 +338,20 @@ try {
       const dlIdx    = indexSrc.indexOf('window._startDayLifecycle();');
       const nudgeIdx = indexSrc.indexOf('window._startNudge();');
       await expectAll('static wiring', {
-        scriptTag:            indexSrc.includes('<script src="/assets/day-lifecycle.js"></script>'),
-        startupCall:          dlIdx !== -1,
-        beforeNudge:          dlIdx !== -1 && nudgeIdx !== -1 && dlIdx < nudgeIdx,
-        fnRemovedFromIndex:   !indexSrc.includes('function applyNewDayCleanup()'),
-        moduleInit:           modSrc.includes('window._startDayLifecycle = '),
-        exportApplyCleanup:   modSrc.includes('window.applyNewDayCleanup = applyNewDayCleanup;'),
-        precached:            swSrc.includes("'/assets/day-lifecycle.js'"),
-        pruneRemovedFromIdx:  !indexSrc.includes('function _pruneTrelloMaps()'),
-        pruneInModule:        modSrc.includes('function _pruneTrelloMaps()'),
+        scriptTag:              indexSrc.includes('<script src="/assets/day-lifecycle.js"></script>'),
+        startupCall:            dlIdx !== -1,
+        beforeNudge:            dlIdx !== -1 && nudgeIdx !== -1 && dlIdx < nudgeIdx,
+        fnRemovedFromIndex:     !indexSrc.includes('function applyNewDayCleanup()'),
+        moduleInit:             modSrc.includes('window._startDayLifecycle = '),
+        exportApplyCleanup:     modSrc.includes('window.applyNewDayCleanup = applyNewDayCleanup;'),
+        precached:              swSrc.includes("'/assets/day-lifecycle.js'"),
+        pruneRemovedFromIdx:    !indexSrc.includes('function _pruneTrelloMaps()'),
+        pruneInModule:          modSrc.includes('function _pruneTrelloMaps()'),
+        textureInModule:        modSrc.includes('function _applyTimeTexture()'),
+        textureExported:        modSrc.includes('window._applyTimeTexture') && modSrc.includes('= _applyTimeTexture;'),
+        textureRemovedFromIdx:  !indexSrc.includes('function _applyTimeTexture()'),
       });
-      ok('static wiring: script tag, startup call, export, function removed from index.html, precached, _pruneTrelloMaps in module');
+      ok('static wiring: script tag, startup call, exports, functions removed from index.html, precached, _pruneTrelloMaps and _applyTimeTexture in module');
     }
 
     console.log('\nDay-lifecycle tests passed (post-extraction, 11 tests).');

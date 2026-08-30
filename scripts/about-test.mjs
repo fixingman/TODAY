@@ -422,19 +422,21 @@ try {
         '_fetchWeekReflection',
       ];
       await expectAll('extracted about module wiring', {
-        moduleLoad:     indexSrc.includes('<script src="assets/about.js"></script>'),
-        policyLoad:     indexSrc.includes('<script src="assets/week-reflection-policy.js"></script>'),
-        policyBeforeAbout: indexSrc.indexOf('assets/week-reflection-policy.js') < indexSrc.indexOf('assets/about.js'),
-        initializer:    indexSrc.includes('window._startAbout();'),
-        sectionRemoved: !indexSrc.includes('function toggleInfo()'),
-        moduleInit:     aboutSrc.includes('window._startAbout = function()'),
-        exports:        aboutExports.every(n => aboutSrc.includes(`window.${n} = ${n};`)),
-        policyExports:  ['_buildWeekReflectionInsight', '_weekReflectionTextIsGrounded']
+        moduleLoad:              indexSrc.includes('<script src="assets/about.js"></script>'),
+        policyLoad:              indexSrc.includes('<script src="assets/week-reflection-policy.js"></script>'),
+        policyBeforeAbout:       indexSrc.indexOf('assets/week-reflection-policy.js') < indexSrc.indexOf('assets/about.js'),
+        initializer:             indexSrc.includes('window._startAbout();'),
+        sectionRemoved:          !indexSrc.includes('function toggleInfo()'),
+        moduleInit:              aboutSrc.includes('window._startAbout = function()'),
+        exports:                 aboutExports.every(n => aboutSrc.includes(`window.${n} = ${n};`)),
+        policyExports:           ['_buildWeekReflectionInsight', '_weekReflectionTextIsGrounded']
           .every(n => policySrc.includes(`root.${n} = policy.${n};`)),
-        precached:      swSrc.includes("'/assets/about.js'"),
-        policyPrecached: swSrc.includes("'/assets/week-reflection-policy.js'"),
+        precached:               swSrc.includes("'/assets/about.js'"),
+        policyPrecached:         swSrc.includes("'/assets/week-reflection-policy.js'"),
+        changelogInModule:       aboutSrc.includes('changelogPanel'),
+        changelogRemovedFromIdx: !indexSrc.includes('const clPanel'),
       });
-      ok('About + weekly policy wiring, exports, load order, and precache correct');
+      ok('About + weekly policy wiring, exports, load order, precache, and changelog renderer correct');
     }
   }
 
