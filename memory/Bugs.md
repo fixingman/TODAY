@@ -23,7 +23,7 @@
 | 087 | Emoji disappear or render broken in the animated task input | ⏳ v2.77.2 |
 | 086 | Completion rate in Memory exceeds 100% — wrong denominator (4th root cause) | ✅ v2.75.13 |
 | 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
-| 083 | Past→Soon revive causes black screen — interface unresponsive until refresh | ⏳ v2.71.13 |
+| 083 | Past→Soon revive causes black screen — interface unresponsive until refresh | ⏳ v2.77.10 |
 | 082 | Post-triage done counter shows 0 after same-day triage | ✅ v2.71.34 |
 | 078 | `TRIAGE_HISTORY_MAX` out of scope — `ReferenceError` on Dropbox pull/restore | ✅ v2.65.17 |
 | 077 | Trello “Network error” flash on Dropbox reconnect or midnight boundary | ✅ v2.65.4 |
@@ -275,3 +275,7 @@ On any day where you check tasks that were already on your list at day start (or
 **Root cause:** `renderSoon()` transitions `#soonSection` from `display:none` → `display:block` for the first time during a revive. iOS Safari's GPU compositor layer for `#main-app` goes stale on this visibility change and blacks out the screen — same mechanism as BUG-004/056/071.
 
 **Fix (v2.71.13):** `reviveFromPast()` in `zones.js` runs an inline `#main-app` display-toggle IIFE after the renders. Equivalent to `_forceRepaint()` in `dropbox.js`, but inlined since that function is scoped inside `_onWake` and not exported. Diagnostic logging retained until real-device verification confirms fix.
+
+**Regression (confirmed v2.77.10):** The display-toggle fix itself causes a new stuck state when focus mode is active during the revive. `display:none` on `#main-app` tears down the focus UI while leaving `.focusing` on the element — result: all tasks dimmed/blurred, focus panel gone, clicks in the zone-list area blocked by the existing `.zone-list` early-return guard so the user can't escape. Only clicking the add bar (outside `.zone-list`) triggers `closeUI(false)` and restores the DOM.
+
+**Fix (v2.77.10):** Added `if (el.classList.contains('focusing')) return;` guard to the display-toggle IIFE. When the compositor is already engaged for focus mode, the `soonSection` flash risk is negligible; skipping the toggle prevents the regression.

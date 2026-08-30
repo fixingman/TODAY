@@ -325,10 +325,15 @@
 
       // BUG-083: soonSection going display:none→block triggers a GPU compositor glitch
       // (same family as BUG-004/056/071). Force repaint by toggling #main-app display.
+      // Skip when focus mode is active — display:none tears down the focus UI while
+      // leaving .focusing on #main-app, producing a dimmed/blurred stuck state (BUG-083
+      // regression). The compositor is already engaged during focus mode so the flash
+      // risk is negligible compared to breaking the focus session.
       (function() {
         if (document.visibilityState === 'hidden') return;
         const el = document.getElementById('main-app');
         if (!el) return;
+        if (el.classList.contains('focusing')) return;
         const sy = window.scrollY;
         el.style.display = 'none'; void el.offsetHeight; el.style.display = '';
         window.scrollTo(0, sy);
