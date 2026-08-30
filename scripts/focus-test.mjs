@@ -375,7 +375,59 @@ try {
       ok('static wiring: script tag, startup call, IIFE removed, all exports present, precached');
     }
 
-    console.log('\nFocus tests passed (post-extraction, 12 tests).');
+    // 13. _focusExpandTimer overflow correction: when the timer's projected bottom
+    //     exceeds (viewport - footer - 8px) during scroll-lock, body.top shifts up.
+    {
+      const { page, errors } = await openPage();
+      await page.click('.task-text');
+      await page.waitForFunction(
+        () => document.querySelector('.focus-timer.open') !== null,
+        { timeout: 3000 }
+      );
+      // Simulate scroll-lock (focus.js sets this during start()) and place the
+      // timer so its bottom overflows the footer boundary.
+      const r = await page.evaluate(() => {
+        const timerEl = document.querySelector('.focus-timer');
+        if (!timerEl) return { overflowCorrected: false, reason: 'no timer' };
+
+        // Install a fake fixed-footer so _focusExpandTimer can measure it.
+        let fakeFooter = document.querySelector('.add-task-row');
+        let createdFakeFooter = false;
+        if (!fakeFooter) {
+          fakeFooter = document.createElement('div');
+          fakeFooter.className = 'add-task-row';
+          Object.assign(fakeFooter.style, { position: 'fixed', bottom: '0', height: '70px', width: '100%' });
+          document.body.appendChild(fakeFooter);
+          createdFakeFooter = true;
+        }
+
+        // Apply scroll-lock styling (mirrors what focus.js does in start()).
+        const lockScrollY = 200;
+        document.body.style.position = 'fixed';
+        document.body.style.top      = -lockScrollY + 'px';
+        document.body.style.width    = '100%';
+
+        // Force the timer to appear near the bottom of the viewport so it overflows.
+        const vh = window.innerHeight;
+        Object.assign(timerEl.style, { position: 'fixed', top: (vh - 60) + 'px' });
+
+        // Stub scrollHeight so _focusExpandTimer sees a tall timer (200px).
+        Object.defineProperty(timerEl, 'scrollHeight', { get: () => 200, configurable: true });
+
+        const topBefore = parseInt(document.body.style.top || '0', 10);
+        window._focusExpandTimer();
+        const topAfter = parseInt(document.body.style.top || '0', 10);
+
+        if (createdFakeFooter) fakeFooter.remove();
+
+        return { overflowCorrected: topAfter < topBefore };
+      });
+      await expectAll('_focusExpandTimer overflow correction', { ...r, noErrors: !errors.length });
+      ok('_focusExpandTimer: shifts body.top up when timer overflows footer boundary');
+      await page.close();
+    }
+
+    console.log('\nFocus tests passed (post-extraction, 13 tests).');
   }
 } finally {
   if (browser) await browser.close();
