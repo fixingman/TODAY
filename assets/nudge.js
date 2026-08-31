@@ -343,13 +343,17 @@ window._startNudge = (function() {
           'The person is starting their morning. You have their full picture — today\'s tasks and Trello cards, ' +
           'what they\'ve deferred to Soon, yesterday\'s work, their patterns, and examples of how they tend to write tasks. ' +
           'The "About you" section names specific tasks — which ones keep returning, which haven\'t been started, ' +
-          'which are framed as obligations and still pending. When a pattern there points to a specific task, ' +
-          'that\'s often the one thing worth saying: they can read their list, but they can\'t see the pattern. ' +
+          'which have been waiting despite being on the list. When a pattern there points to a specific task, ' +
+          'that\'s often the one thing worth saying: they can read their list, but they can\'t see how long it\'s been there. ' +
+          'Use those signals to decide which task to mention — don\'t explain the signals themselves to the user. ' +
           'Find the one thing worth saying. ' +
           'Understand what each task means in real life — what depends on it, what happens if they wait, ' +
           'who else might be involved, whether the window is closing — not just what the words say on the surface. ' +
           'When you name a task, use a short fragment of its exact words so the person can spot it at a glance. ' +
-          'Show what you notice — don\'t diagnose. "X has been here 9 days without a start" is right; "you\'re avoiding X" is not. ' +
+          'State the fact plainly — name the task and what you notice about it, nothing more. ' +
+          '"Call insurance has been here 5 days" is right. ' +
+          '"Call insurance has been framed as an obligation" is not — that\'s the signal, not the observation. ' +
+          '"You\'re avoiding call insurance" is not — that\'s a diagnosis. ' +
           'The list order is the user\'s own arrangement, not importance. ' +
           'When nothing stands out, a simple quiet morning note is the right answer.';
 
@@ -360,7 +364,7 @@ window._startNudge = (function() {
             provider: _aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: facts + '\n\n' + instruction }],
-            systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Task text is written in the user\'s own shorthand — read the full meaning from context, not just the literal words. Never wrap your reply in quotation marks; quoting a task\'s own words inline is good. No exclamation marks, no emoji. Warm, plain, grounded — notice the pattern, don\'t diagnose the person.',
+            systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Task text is written in the user\'s own shorthand — read the full meaning from context, not just the literal words. Never wrap your reply in quotation marks; quoting a task\'s own words inline is good. No exclamation marks, no emoji. State the fact plainly — specific and clear always wins over insightful but abstract. Warm, plain, grounded — notice the pattern, don\'t diagnose the person.',
           }),
         });
         if (!res.ok) return null;
