@@ -584,7 +584,14 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     requestAnimationFrame(() => {
       timerEl.classList.add('open');
       timerEl.style.maxHeight = timerEl.scrollHeight + 'px';
-      if (document.body.style.position === 'fixed') {
+      if (_enterDelta !== 0 && document.body.style.position === 'fixed') {
+        // Animate body.top to target — concurrent with the blur-in, matching exit character.
+        // Delta already accounts for timerHeight so overflow correction is not needed here.
+        document.body.style.transition = 'top 200ms cubic-bezier(0.16, 1, 0.3, 1)';
+        document.body.style.top = `-${_targetScrollY}px`;
+        setTimeout(() => { document.body.style.transition = ''; }, 210);
+      } else if (document.body.style.position === 'fixed') {
+        // No nudge — run normal overflow correction for edge cases
         const rect = timerEl.getBoundingClientRect();
         const _addRow = document.querySelector('.add-task-row');
         const _footerH = _addRow ? _addRow.getBoundingClientRect().height : 70;
@@ -601,41 +608,33 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       _a11yAnnounce(`Focus started for ${focusName}.`);
     }
     
-    // Save original scroll and task position BEFORE any nudge — this is what we restore to on close.
+    // Save original scroll and task position — restore target on close.
     const originalScrollY = window.scrollY;
     const originalTaskTop = taskEl.getBoundingClientRect().top;
 
-    // Nudge task into view if it (+ enrichment blocks up to ~260px) would overflow.
+    // Compute nudge delta without instant-scrolling — the rAF above animates body.top
+    // to the target concurrent with blur-in, so enter and exit feel matched.
     const rect = taskEl.getBoundingClientRect();
     const viewportH = window.innerHeight;
     const timerHeight = 260;
     const footerH = 70;
     const headerH = 80;
-    const needsNudge = rect.top < headerH || rect.bottom + timerHeight > viewportH - footerH;
-
-    if (needsNudge) {
-      // Minimum delta — only move what's strictly needed to fit task + timer.
-      // block:'center' would scroll 200-300px for a task near the bottom and mirror
-      // that full distance on exit. A targeted delta keeps both jumps proportional
-      // to the actual overflow (~50-100px), matching the "calm, not urgent" motion rule.
-      const GUTTER = 12;
-      let delta = 0;
-      if (rect.bottom + timerHeight > viewportH - footerH) {
-        delta = (rect.bottom + timerHeight + GUTTER) - (viewportH - footerH);
-      } else if (rect.top < headerH) {
-        delta = rect.top - headerH - GUTTER;
-      }
-      if (delta !== 0) window.scrollTo({ top: Math.max(0, window.scrollY + delta), behavior: 'instant' });
+    const GUTTER = 12;
+    let _enterDelta = 0;
+    if (rect.bottom + timerHeight > viewportH - footerH) {
+      _enterDelta = (rect.bottom + timerHeight + GUTTER) - (viewportH - footerH);
+    } else if (rect.top < headerH) {
+      _enterDelta = rect.top - headerH - GUTTER;
     }
+    const _targetScrollY = Math.max(0, originalScrollY + _enterDelta);
 
-    // Lock scroll at the nudged position; restore target is the pre-nudge original.
-    const lockScrollY = window.scrollY;
+    // Lock scroll immediately at current position; animation to target fires in the rAF above.
     document.body.style.position = 'fixed';
-    document.body.style.top = `-${lockScrollY}px`;
+    document.body.style.top = `-${originalScrollY}px`;
     document.body.style.left = '0';
     document.body.style.right = '0';
-    document.body.dataset.scrollY    = originalScrollY; // restore to pre-nudge depth
-    document.body.dataset.focusTaskTop = originalTaskTop; // pre-nudge position for drift check
+    document.body.dataset.scrollY     = originalScrollY;
+    document.body.dataset.focusTaskTop = originalTaskTop;
   }
 
   // ── Track actual focus time spent (not just completed sessions) ────────────
