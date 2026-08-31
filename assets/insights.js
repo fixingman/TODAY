@@ -130,6 +130,10 @@ if (!appMemory.memory) appMemory.memory = { semantic: [], episodic: [], procedur
 if (!appMemory.memory.semantic)   appMemory.memory.semantic = [];
 if (!appMemory.memory.episodic)   appMemory.memory.episodic = [];
 if (!appMemory.memory.procedural) appMemory.memory.procedural = [];
+// 12a: Relational memory slots — task-age awareness, obligation language tally
+if (!appMemory.returningTasks)              appMemory.returningTasks = {};
+if (!appMemory.obligationLanguageTally)     appMemory.obligationLanguageTally = { week: '', count: 0 };
+if (!appMemory.taskAgeBuckets)              appMemory.taskAgeBuckets = { d1to3: 0, d4to6: 0, d7to13: 0, d14plus: 0 };
 
 // Cumulative accuracy counters for meeting mode's mine/others attribution — not
 // a user-facing surface, just numbers to answer "am I getting the right tasks?"
@@ -149,6 +153,57 @@ function _memoryOnMeetingAttribution(stats) {
 
 function _saveMemory() {
   localStorage.setItem('today_memory', JSON.stringify(appMemory));
+}
+
+// 12a: Scan current task list and update relational memory slots.
+// Called at the top of _memoryForAI() when manualTasks is available.
+function _updateReturningTasksMemory(tasks) {
+  if (!Array.isArray(tasks)) return;
+  const now = Date.now();
+  const todayISO = _localISO();
+  const prior = appMemory.returningTasks || {};
+  const updated = {};
+  const buckets = { d1to3: 0, d4to6: 0, d7to13: 0, d14plus: 0 };
+
+  for (const t of tasks) {
+    if (!t.id || !t.id.startsWith('manual_')) continue;
+    const created = typeof _getCreatedFromId === 'function'
+      ? _getCreatedFromId(t.id)
+      : parseInt(t.id.replace('manual_', '')) || now;
+    const ageDays = Math.max(0, Math.floor((now - created) / 86400000));
+
+    if      (ageDays <= 3)  buckets.d1to3++;
+    else if (ageDays <= 6)  buckets.d4to6++;
+    else if (ageDays <= 13) buckets.d7to13++;
+    else                    buckets.d14plus++;
+
+    if (ageDays >= 5) {
+      updated[t.id] = {
+        text:          t.text || '',
+        firstSeen:     prior[t.id] ? prior[t.id].firstSeen : todayISO,
+        dayCount:      ageDays,
+        focusSessions: parseInt(t.focusSessions) || 0,
+      };
+    }
+  }
+
+  appMemory.returningTasks  = updated;
+  appMemory.taskAgeBuckets  = buckets;
+  _saveMemory();
+}
+
+// 12a: Increment obligation-language tally for the current week.
+// Called by assistant.js when obligation language is detected at task add.
+function _incrementObligationTally() {
+  const now    = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const weekKey = _localISO(monday);
+  const tally   = appMemory.obligationLanguageTally || { week: '', count: 0 };
+  if (tally.week !== weekKey) { tally.week = weekKey; tally.count = 0; }
+  tally.count++;
+  appMemory.obligationLanguageTally = tally;
+  _saveMemory();
 }
 
 // ── Inline suggestion outcome loop ──────────────────────────────────────────
@@ -534,6 +589,7 @@ function _memoryOnDaySummary(tasksCompleted) {
 // they crowded out the actual list (v2.43.5). The conversational assistant still
 // gets everything: there, "your best streak was 14" is legitimate color.
 function _memoryForAI(scope) {
+  if (typeof manualTasks !== 'undefined') _updateReturningTasksMemory(manualTasks);
   const m = appMemory;
   const lines = [];
   const lifetime = scope !== 'nudge';
@@ -696,6 +752,22 @@ function _memoryForAI(scope) {
   );
   if (confirmed.length > 0) {
     lines.push(`Confirmed patterns (ratified by user):\n${confirmed.map(t => `- ${t}`).join('\n')}`);
+  }
+
+  // Returning tasks — tasks that have been waiting 5+ days without completing
+  const returning = Object.values(m.returningTasks || {}).sort((a, b) => b.dayCount - a.dayCount);
+  if (returning.length > 0) {
+    const items = returning.slice(0, 3).map(t => {
+      const sessions = t.focusSessions > 0 ? `, ${t.focusSessions} focus session${t.focusSessions > 1 ? 's' : ''}` : ', not yet focused on';
+      return `"${_stripTag(t.text)}" (waiting ${t.dayCount} days${sessions})`;
+    });
+    lines.push(`Tasks that keep waiting:\n${items.join('\n')}`);
+  }
+
+  // Obligation language tally — how many tasks this week were phrased as obligations
+  const tally = m.obligationLanguageTally;
+  if (tally && tally.count >= 2) {
+    lines.push(`This week, ${tally.count} tasks were added with obligation language ("have to", "should", "must").`);
   }
 
   // Newline-joined: several entries are themselves multi-line (past suggestions,

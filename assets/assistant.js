@@ -1118,6 +1118,7 @@ async function _aiDoAnalyze(taskId, taskText, analyzeSeq) {
 
   // Obligation language — client-side, no AI call needed
   if (typeof _aiCheckObligationLanguage === 'function' && _aiCheckObligationLanguage(taskText)) {
+    if (typeof _incrementObligationTally === 'function') _incrementObligationTally();
     if (_suggestionShouldOffer('obligation_language', taskId)) {
       _aiQueueSuggestion(taskId, taskText, {
         type: 'obligation',
