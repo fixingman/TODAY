@@ -842,21 +842,21 @@ function _memoryForAI(scope) {
     lines.push(`Confirmed patterns (ratified by user):\n${confirmed.map(t => `- ${t}`).join('\n')}`);
   }
 
-  // Returning tasks — tasks that have been waiting 5+ days (with/without focus sessions)
+  // Returning tasks — waiting 5+ days. Focus avoidance (7+ days, zero sessions) is carried
+  // as an inline marker rather than a second block. Emitting the same task under two headings
+  // ("keep waiting" and "not yet started") made it the most-repeated string in the prompt —
+  // and a model selecting from an unranked list selects on salience, so repetition was doing
+  // the choosing. Verified in a captured payload 2026-09-01: one task appeared 3 times.
+  // Fixes the symptom only; ranking properly is 12c's job.
   const returning = Object.values(m.returningTasks || {}).sort((a, b) => b.dayCount - a.dayCount);
   if (returning.length > 0) {
     const items = returning.slice(0, 3).map(t => {
-      const sessions = t.focusSessions > 0 ? `, ${t.focusSessions} focus session${t.focusSessions > 1 ? 's' : ''}` : ', not yet started';
-      return `"${_stripTag(t.text)}" (${t.dayCount} days${sessions})`;
+      const marker = t.focusSessions > 0
+        ? `, ${t.focusSessions} focus session${t.focusSessions > 1 ? 's' : ''}`
+        : (t.dayCount >= 7 ? ', never opened' : ', not yet started');
+      return `"${_stripTag(t.text)}" (${t.dayCount} days${marker})`;
     });
     lines.push(`Tasks that keep waiting:\n${items.join('\n')}`);
-  }
-
-  // Signal 1: Focus avoidance — tasks 7+ days old that haven't been started at all
-  const neverStarted = returning.filter(t => t.focusSessions === 0 && t.dayCount >= 7);
-  if (neverStarted.length > 0) {
-    const items = neverStarted.slice(0, 3).map(t => `"${_stripTag(t.text)}" (${t.dayCount} days, never opened)`);
-    lines.push(`Tasks not yet started despite being on the list:\n${items.join('\n')}`);
   }
 
   // Signal 2: List growth direction — are more tasks being added than completed?
