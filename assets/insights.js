@@ -155,21 +155,40 @@ function _saveMemory() {
   localStorage.setItem('today_memory', JSON.stringify(appMemory));
 }
 
-// 12a: Scan current task list and update relational memory slots.
+// 12a: Scan current task list (manual + Trello) and update relational memory slots.
 // Called at the top of _memoryForAI() when manualTasks is available.
-function _updateReturningTasksMemory(tasks) {
-  if (!Array.isArray(tasks)) return;
-  const now = Date.now();
+function _updateReturningTasksMemory(manualArr, trelloArr) {
+  const now      = Date.now();
   const todayISO = _localISO();
-  const prior = appMemory.returningTasks || {};
-  const updated = {};
-  const buckets = { d1to3: 0, d4to6: 0, d7to13: 0, d14plus: 0 };
+  const prior    = appMemory.returningTasks || {};
+  const updated  = {};
+  const buckets  = { d1to3: 0, d4to6: 0, d7to13: 0, d14plus: 0 };
 
-  for (const t of tasks) {
-    if (!t.id || !t.id.startsWith('manual_')) continue;
-    const created = typeof _getCreatedFromId === 'function'
-      ? _getCreatedFromId(t.id)
-      : parseInt(t.id.replace('manual_', '')) || now;
+  // Trello age/focus maps exposed by dropbox.js
+  const trelloFS = (typeof window !== 'undefined' && typeof window._getTrelloFirstSeen === 'function')
+    ? window._getTrelloFirstSeen() : {};
+  const trelloFT = (typeof window !== 'undefined' && typeof window._getTrelloFocusTotal === 'function')
+    ? window._getTrelloFocusTotal() : {};
+
+  const entries = [
+    ...((Array.isArray(manualArr) ? manualArr : []).map(t => ({ t, source: 'manual' }))),
+    ...((Array.isArray(trelloArr) ? trelloArr : []).map(t => ({ t, source: 'trello' }))),
+  ];
+
+  for (const { t, source } of entries) {
+    if (!t.id) continue;
+    let created, focusSessions;
+    if (source === 'manual') {
+      if (!t.id.startsWith('manual_')) continue;
+      created       = typeof _getCreatedFromId === 'function'
+        ? _getCreatedFromId(t.id)
+        : parseInt(t.id.replace('manual_', '')) || now;
+      focusSessions = parseInt(t.focusSessions) || 0;
+    } else {
+      created       = trelloFS[t.id] || now;
+      focusSessions = trelloFT[t.id] || 0;
+    }
+
     const ageDays = Math.max(0, Math.floor((now - created) / 86400000));
 
     if      (ageDays <= 3)  buckets.d1to3++;
@@ -182,13 +201,13 @@ function _updateReturningTasksMemory(tasks) {
         text:          t.text || '',
         firstSeen:     prior[t.id] ? prior[t.id].firstSeen : todayISO,
         dayCount:      ageDays,
-        focusSessions: parseInt(t.focusSessions) || 0,
+        focusSessions,
       };
     }
   }
 
-  appMemory.returningTasks  = updated;
-  appMemory.taskAgeBuckets  = buckets;
+  appMemory.returningTasks = updated;
+  appMemory.taskAgeBuckets = buckets;
   _saveMemory();
 }
 
@@ -589,7 +608,12 @@ function _memoryOnDaySummary(tasksCompleted) {
 // they crowded out the actual list (v2.43.5). The conversational assistant still
 // gets everything: there, "your best streak was 14" is legitimate color.
 function _memoryForAI(scope) {
-  if (typeof manualTasks !== 'undefined') _updateReturningTasksMemory(manualTasks);
+  if (typeof manualTasks !== 'undefined') {
+    _updateReturningTasksMemory(
+      manualTasks,
+      typeof trelloTasks !== 'undefined' ? trelloTasks : []
+    );
+  }
   const m = appMemory;
   const lines = [];
   const lifetime = scope !== 'nudge';
