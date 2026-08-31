@@ -396,7 +396,10 @@
             systemPrompt,
           }),
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          res.json().then(e => console.warn('[reflection]', res.status, e?.error)).catch(() => {});
+          return;
+        }
 
         const data = await res.json();
         const text = typeof _parseAIText === 'function' ? _parseAIText(data)?.trim() : null;
