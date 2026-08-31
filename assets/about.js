@@ -487,7 +487,7 @@
             provider: _aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: userContent }],
-            systemPrompt: 'One sentence only. No quotes. Under 22 words. Confident voice, conservative claim. Be intentional, smart, useful, and quietly human. Never infer identity or personality, never say who the person is, never claim causation from correlation, and never restate a visible counter without adding meaning. If the evidence cannot support a useful line, reply exactly: none.',
+            systemPrompt: 'One sentence only. No quotes. Under 22 words. Second person — address the user as "you". Confident voice, conservative claim. Be intentional, smart, useful, and quietly human. Never infer identity or personality, never claim causation from correlation, and never restate a visible counter without adding meaning. If the evidence cannot support a useful line, reply exactly: none.',
           }),
         });
         if (!res.ok) return null;
@@ -619,12 +619,12 @@
             messages: [{ role: 'user', content:
               'Behavioral data (all stats are independent daily averages — timing patterns are not same-day pairs):\n' + behavioralLines.join('\n') +
               taskCtx + '\n\n' +
-              'Name one genuine observation about this person\'s week — their rhythm, timing, or what\'s actually been in flight. ' +
+              'Name one genuine observation about your week — your rhythm, timing, or what\'s actually been in flight. ' +
               'You may reference a specific aging task if it illuminates a real pattern (e.g. something kept vs. avoided). ' +
               'Do NOT combine two timing stats into a same-day cause-effect claim — each is an independent aggregate. ' +
               'Ground it only in the data above, never invent. ' +
               'If nothing genuine stands out, reply with exactly: none.' }],
-            systemPrompt: 'One sentence only, under 22 words. No quotes. Plain, observational — rhythm, timing, or a concrete task that reveals something real.',
+            systemPrompt: 'One sentence only, under 22 words. No quotes. Second person — address the user as "you". Plain, observational — rhythm, timing, or a concrete task that reveals something real.',
           }),
         });
         if (!res.ok) return null;
@@ -660,9 +660,9 @@
         // suggestionHistory as if they were pending. Explicitly distinguish the two cases.
         const listIsEmpty = !manualLines.length && !soonLines.length && !trelloLines.length;
         const taskInstruction = listIsEmpty
-          ? ' One sentence for Monday — a focus intention based on how this person works. Do not name any tasks; the list is empty and clear.'
+          ? ' One sentence for Monday — a focus intention based on how you work. Do not name any tasks; the list is empty and clear.'
           : ' One sentence for Monday — what most deserves attention this week. Only name tasks from the list above, not from history.';
-        const userContent = (memCtx ? 'About this person:\n' + memCtx + '\n\n' : '') +
+        const userContent = (memCtx ? 'About you:\n' + memCtx + '\n\n' : '') +
           ctx + taskInstruction;
         const res = await fetch('/.netlify/functions/ai-assist', {
           method: 'POST',
@@ -671,7 +671,7 @@
             provider: _aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: userContent }],
-            systemPrompt: 'One sentence only. No quotes. Under 20 words. Plain, warm, grounded. Speak about how this person works, not about specific tasks unless they appear in the current list.',
+            systemPrompt: 'One sentence only. No quotes. Under 20 words. Second person — address the user as "you". Plain, warm, grounded. Do not name tasks unless they appear in the current list.',
           }),
         });
         if (!res.ok) return null;
