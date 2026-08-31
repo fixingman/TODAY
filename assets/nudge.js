@@ -342,10 +342,14 @@ window._startNudge = (function() {
         const instruction =
           'The person is starting their morning. You have their full picture — today\'s tasks and Trello cards, ' +
           'what they\'ve deferred to Soon, yesterday\'s work, their patterns, and examples of how they tend to write tasks. ' +
-          'Find the one thing worth saying that they\'d miss just by reading the list themselves. ' +
+          'The "About you" section names specific tasks — which ones keep returning, which haven\'t been started, ' +
+          'which are framed as obligations and still pending. When a pattern there points to a specific task, ' +
+          'that\'s often the one thing worth saying: they can read their list, but they can\'t see the pattern. ' +
+          'Find the one thing worth saying. ' +
           'Understand what each task means in real life — what depends on it, what happens if they wait, ' +
           'who else might be involved, whether the window is closing — not just what the words say on the surface. ' +
           'When you name a task, use a short fragment of its exact words so the person can spot it at a glance. ' +
+          'Show what you notice — don\'t diagnose. "X has been here 9 days without a start" is right; "you\'re avoiding X" is not. ' +
           'The list order is the user\'s own arrangement, not importance. ' +
           'When nothing stands out, a simple quiet morning note is the right answer.';
 
@@ -356,7 +360,7 @@ window._startNudge = (function() {
             provider: _aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: facts + '\n\n' + instruction }],
-            systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Task text is written in the user\'s own shorthand — read the full meaning from context, not just the literal words. Never wrap your reply in quotation marks; quoting a task\'s own words inline is good. No exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
+            systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Task text is written in the user\'s own shorthand — read the full meaning from context, not just the literal words. Never wrap your reply in quotation marks; quoting a task\'s own words inline is good. No exclamation marks, no emoji. Warm, plain, grounded — notice the pattern, don\'t diagnose the person.',
           }),
         });
         if (!res.ok) return null;
