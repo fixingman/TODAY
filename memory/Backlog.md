@@ -240,9 +240,11 @@ The four stages are sequenced — each builds on the previous. The arc as a whol
 
 **Shape:**
 1. **Candidate builder** — turns 12a signals into scored candidates `{ kind, evidence, meaning, surfaces, strength }`. Lifecycle evidence only (revive, Soon-return, focus-session, let-go reason, obligation outcome), never noun themes.
-2. **Three gates**, per `Personalization.md`: **evidence** (repeated behavior or a clear self-comparison), **novelty** (not already said by the list, grid, counters, or triage), **usefulness** (changes self-understanding or suggests a lever). Any gate fails → the candidate is dropped.
+2. **Four gates.** Three from `Personalization.md`: **evidence** (repeated behavior or a clear self-comparison), **novelty** (not already said by the list, grid, counters, or triage), **usefulness** (changes self-understanding). Plus **single-reading (added 2026-09-01):** a candidate must be statable as a bare contrast. If it only lands with an interpretation attached, the interpretation is doing the work and the app cannot support it — drop the candidate. Any gate fails → dropped.
+   - **Candidates carry a contrast, never a cause.** The field is `Contrast:`, not `Meaning:`. Per `research/Psychology.md` — *"the observation creates space; the user fills in the meaning."* Moving causal judgment from the LLM into code does not fix the overreach, it relocates it. *"What's stopping it isn't time — it's starting"* fits the evidence; so does *"work got priority over a dreaded obligation."* When the app picks one, the user either agrees and learns nothing, or disagrees and feels misread.
+   - **Prefer category contrasts over single-task ones, and months over weeks.** *"12 focus sessions this month, all on tasks you chose; the 4 you framed as 'have to' got none"* is a pattern. The same contrast over one week is a coincidence. Category contrasts also survive the single-reading gate more often, because the user supplies the why.
 3. **Ranking + eligibility** — each surface (nudge, Noticed, focus, Sunday, Monday) declares which kinds it can carry and its cooldown. A candidate narrated by one surface is on cooldown for all.
-4. **Delivery** — the winning candidate goes to the model as evidence + meaning, with instructions to phrase only. No raw signal dump.
+4. **Delivery** — the winning candidate goes to the model as evidence + contrast, with instructions to phrase only and to leave the contrast unresolved. No raw signal dump.
 5. **Output guard** — reject added facts, identity claims, causation. Mirror `_weekReflectionTextIsGrounded()`.
 6. **Abstention** — no qualifying candidate means the surface says nothing. Never a generic fallback.
 
