@@ -32,7 +32,11 @@ const SUGGESTION_REASONS = [
 ];
 
 function _aiCheckObligationLanguage(text) {
-  return /\bhave to\b|\bneed to\b|\bshould\b|\bmust\b|\bought to\b|\bsupposed to\b|\bhave got to\b/i.test(text || '');
+  const t = (text || '').trim();
+  if (t.split(/\s+/).filter(Boolean).length < 3) return false;
+  // Exclude descriptive "should/must be [adj]" — these describe task difficulty, not obligation framing
+  if (/\b(should|must)\s+be\s+(quick|easy|fast|simple|fine|short|straightforward|ready|good|ok|done|small|trivial)\b/i.test(t)) return false;
+  return /\bhave to\b|\bneed to\b|\bshould\b|\bmust\b|\bought to\b|\bsupposed to\b|\bhave got to\b/i.test(t);
 }
 
 function _pickAIName() {
@@ -132,9 +136,13 @@ if (!appMemory.memory.episodic)   appMemory.memory.episodic = [];
 if (!appMemory.memory.procedural) appMemory.memory.procedural = [];
 // 12a: Relational memory slots — task-age awareness, obligation language tally
 if (!appMemory.returningTasks)              appMemory.returningTasks = {};
-if (!appMemory.obligationLanguageTally)     appMemory.obligationLanguageTally = { week: '', count: 0, completed: 0 };
+if (!appMemory.obligationLanguageTally)     appMemory.obligationLanguageTally = { week: '', count: 0, completed: 0, tasks: [] };
 if (appMemory.obligationLanguageTally.completed === undefined) appMemory.obligationLanguageTally.completed = 0;
+if (!appMemory.obligationLanguageTally.tasks) appMemory.obligationLanguageTally.tasks = [];
+if (!appMemory.obligationHistory)           appMemory.obligationHistory = [];
 if (!appMemory.taskAgeBuckets)              appMemory.taskAgeBuckets = { d1to3: 0, d4to6: 0, d7to13: 0, d14plus: 0 };
+// Retroactive fix: drop any history entries that no longer pass the current (tightened) detection
+appMemory.obligationHistory = appMemory.obligationHistory.filter(e => _aiCheckObligationLanguage(e.text));
 
 // Cumulative accuracy counters for meeting mode's mine/others attribution — not
 // a user-facing surface, just numbers to answer "am I getting the right tasks?"
@@ -212,17 +220,26 @@ function _updateReturningTasksMemory(manualArr, trelloArr) {
   _saveMemory();
 }
 
-// 12a: Increment obligation-language tally for the current week.
+// 12a: Increment obligation-language tally for the current week and append to rolling history.
 // Called by assistant.js when obligation language is detected at task add.
-function _incrementObligationTally() {
+function _incrementObligationTally(taskText) {
   const now    = new Date();
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
   const weekKey = _localISO(monday);
-  const tally   = appMemory.obligationLanguageTally || { week: '', count: 0, completed: 0 };
-  if (tally.week !== weekKey) { tally.week = weekKey; tally.count = 0; tally.completed = 0; }
+  const tally   = appMemory.obligationLanguageTally || { week: '', count: 0, completed: 0, tasks: [] };
+  if (tally.week !== weekKey) { tally.week = weekKey; tally.count = 0; tally.completed = 0; tally.tasks = []; }
   tally.count++;
+  if (taskText && !tally.tasks.includes(taskText)) tally.tasks.push(taskText);
   appMemory.obligationLanguageTally = tally;
+
+  // Rolling 90-day history — one entry per task addition
+  if (taskText) {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
+    appMemory.obligationHistory = (appMemory.obligationHistory || []).filter(e => new Date(e.date) >= cutoff);
+    appMemory.obligationHistory.push({ text: taskText, date: _localISO(), done: false });
+  }
+
   _saveMemory();
 }
 
@@ -509,16 +526,25 @@ function _memoryOnTaskComplete(taskText, taskId) {
     appMemory.recentCompletedTasks.push({ text: taskText, date: _localISO() });
   }
 
-  // 12a: Track obligation-language completions — feeds completion-rate signal in _memoryForAI
+  // 12a: Track obligation-language completions — weekly tally + history done flag
   if (taskText && typeof _aiCheckObligationLanguage === 'function' && _aiCheckObligationLanguage(taskText)) {
     const _oblNow    = new Date();
     const _oblMonday = new Date(_oblNow);
     _oblMonday.setDate(_oblNow.getDate() - ((_oblNow.getDay() + 6) % 7));
     const _oblWeek = _localISO(_oblMonday);
-    const _oblTally = appMemory.obligationLanguageTally || { week: '', count: 0, completed: 0 };
+    const _oblTally = appMemory.obligationLanguageTally || { week: '', count: 0, completed: 0, tasks: [] };
     if (_oblTally.week === _oblWeek) {
       _oblTally.completed = (_oblTally.completed || 0) + 1;
       appMemory.obligationLanguageTally = _oblTally;
+    }
+    // Mark matching history entry done — find by normalized text, most recent first
+    const _stripped = _stripTag(taskText).trim();
+    const _hist = appMemory.obligationHistory || [];
+    for (let i = _hist.length - 1; i >= 0; i--) {
+      if (!_hist[i].done && _stripTag(_hist[i].text || '').trim() === _stripped) {
+        _hist[i].done = true;
+        break;
+      }
     }
   }
 
@@ -820,11 +846,29 @@ function _memoryForAI(scope) {
     else if (_surplus <= -3) lines.push(`List is shrinking: ${_done} completed, ${_added} added over the last ${_last7h.length} days.`);
   }
 
-  // Signal 3: Obligation language — added count vs completed this week
+  // Signal 3: Obligation language — task names this week + long-term completion rate
   const oblTally = m.obligationLanguageTally;
+  const _oblHistory = m.obligationHistory || [];
   if (oblTally && oblTally.count >= 2) {
     const oblCompleted = oblTally.completed || 0;
-    lines.push(`This week: ${oblTally.count} tasks added with obligation language ("have to", "should", "must") — ${oblCompleted} completed so far.`);
+    // Pending obligation tasks: history entries from this week not yet done
+    const _wkMonday = new Date(); _wkMonday.setDate(_wkMonday.getDate() - ((_wkMonday.getDay() + 6) % 7));
+    const _wkStart  = _localISO(_wkMonday);
+    const _pendingObl = _oblHistory
+      .filter(e => e.date >= _wkStart && !e.done)
+      .map(e => `"${_stripTag(e.text)}"`);
+    if (_pendingObl.length > 0) {
+      lines.push(`This week: ${oblTally.count} obligation-framed tasks — ${oblCompleted} completed. Still pending: ${_pendingObl.slice(0, 5).join(', ')}.`);
+    } else {
+      lines.push(`This week: ${oblTally.count} obligation-framed tasks — ${oblCompleted} completed.`);
+    }
+  }
+  // Long-term completion rate — only surface when statistically meaningful (10+ entries, 30+ days)
+  const _oblCutoff = new Date(); _oblCutoff.setDate(_oblCutoff.getDate() - 30);
+  const _oblRecent = _oblHistory.filter(e => new Date(e.date) >= _oblCutoff);
+  if (_oblRecent.length >= 10) {
+    const _oblDone = _oblRecent.filter(e => e.done).length;
+    lines.push(`Over 30 days: ${Math.round(_oblDone / _oblRecent.length * 100)}% of obligation-framed tasks completed (${_oblDone}/${_oblRecent.length}).`);
   }
 
   // Signal 4: Cognitive weight — tasks sitting 14+ days (ambient load, not just list size)
