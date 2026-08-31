@@ -5,7 +5,7 @@
 
 ## Current Focus (update each session)
 - **Working on:** Poem corpus curation — geographic balance and tone consistency.
-- **Recent (2026-08-30):** v2.77.5 ships the traditional !kun 'Prayer to the Young Moon' excerpt after Can's review and records the José Rizal candidate as skipped. A concurrent tone pass removed Rilke's "Autumn"; with the earlier Osler cut, the reviewed corpus is 114. Smoke guard enforces count, schema, the 2–11-line brief, and approved/skipped candidate state.
+- **Recent (2026-08-31):** v2.77.27 prepares five reviewed poems: al-Ma'arri's quiet-rain couplet, Abu-Yshac's complete 'The Roses', the first two stanzas of Patkanian's 'The Sure Hope', McKay's closing stanza from 'Joy in the Woods', and Machado's 'Counsels'. The corpus is 119; future search candidates are capped at 6 lines, while longer selections already reviewed remain grandfathered.
 - **Module extraction (Roadmap #3): COMPLETE.** focus.js done (v2.65.13, ~1,400 lines). All modules extracted: dropbox, connections (+ AI provider config), assistant, task-actions, nudge, day-lifecycle, focus. Startup composition root (~350 lines inline) remains as intended. Full inventory → `Backlog.md` §3.
 - **Machine routing guard:** before any agent changes Headroom, a model provider/base URL, proxy/wrapper, port/mode, runtime override, or Headroom version, read `/Users/can/.headroom/ROUTING-GUARD.md` and obtain Can's explicit approval for that exact change. Keep Codex on explicit `127.0.0.1`, not `localhost`. Do not run `headroom learn --verbosity --apply`: v0.35.0 learns from Claude history only but hot-enables a proxy-global output shaper that can also affect Codex.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**

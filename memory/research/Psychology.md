@@ -116,6 +116,53 @@ after release).
 
 ---
 
+## Companion Psychology — research pass (2026-08-31)
+
+*Grounding for the companion arc (Items 12a–12d). Sources: SDT.org, Psychology Today, APA, Decision Lab, James Clear, positive psychology literature.*
+
+### Self-Determination Theory — autonomy is the lever
+
+Motivation exists on a spectrum from fully external ("have to") to fully integrated ("I choose this"). The more internalized a commitment, the more durable the behavior. This is why obligation language is a meaningful signal: tasks framed as "have to / must / should" sit at the low-autonomy end and are measurably less likely to be completed.
+
+**Product implication:** the obligation-language tip ("Have to — or choosing to?") isn't moralizing — it's SDT applied. Surfacing the framing once invites the user to move the task up the autonomy spectrum, or to let it go cleanly.
+
+### Procrastination — emotional, not time management
+
+Procrastination is emotion-driven, not a planning failure. The cycle: anticipated discomfort → avoidance → short-term relief → amplified negative emotion → harder to start. Key distinction from genuine deprioritization: avoidance is accompanied by self-blame and guilt; deliberate deprioritization is neutral and reasoned.
+
+**Key behavioral signals:**
+- Substitution — active on small tasks while avoiding one big one
+- Deadline rush — confirms the task was valued but avoided
+- Zero focus sessions on an old task — the strongest pure-avoidance signal (not slow progress, just not started)
+
+**Product implication:** the companion should surface *what is happening* without speculating about *why*. "This has been on the list 12 days and hasn't been opened" is an observation. The user draws their own conclusion. This is also why the Wallpaper Test matters: a repeated phrase stops being an observation and becomes a verdict.
+
+### Zeigarnik Effect — unfinished tasks occupy mental space
+
+Unresolved tasks create ambient cognitive load — they intrude on thinking until either completed or consciously abandoned. The key word is *consciously*: tasks that are neither completed nor deliberately let go create ongoing low-level stress. More importantly, a long-accumulating list doesn't feel neutral — it carries weight.
+
+**Product implication:** tasks 14+ days old are a proxy for ambient cognitive load, not just list age. The companion can name this without judgment. "4 tasks have been here more than 2 weeks" is factual, not accusatory. The *Noticed* block and the *task view age signal* (12c) serve this function — showing rather than telling.
+
+### Self-awareness research — "what" not "why"
+
+Only 10–15% of people demonstrate genuine self-awareness despite most believing they do. Critically: asking *"what circumstances lead to this?"* is more useful than *"why?"* — because internal processes are often unconscious. Contextual observations ("you tend to not start tasks added on Fridays") are more actionable than character observations ("you avoid difficult work").
+
+**Product implication:** the companion voice should describe patterns, not diagnose personality. The AI should be a mirror, not a therapist. This is why the companion prompt says "name the pattern without judgment" — the observation creates space; the user fills in the meaning.
+
+### Identity-based habits — behavior as self-evidence
+
+Behaviors mirror beliefs about self. Each action is "evidence" for or against a self-concept. Relevant for TODAY: a list that keeps growing is an identity signal — not just a planning failure. "More added than completed this week" is a fact about how commitments are being made right now.
+
+**Product implication:** the list growth signal (signal 2 in `_memoryForAI`) surfaces this without commentary. Combined with returning tasks, it gives the companion enough context to say something genuinely observational rather than generic.
+
+### The "what" design principle for companion voice
+
+Across all four psychological frameworks, the same practical rule emerges: show the specific circumstance, not the character judgment. Not "you procrastinate" — "this hasn't been started." Not "you overcommit" — "more tasks were added than completed this week." The companion names the pattern; the user makes the meaning.
+
+This maps directly to the Earned Personalization rule in this file: confident voice, conservative claim.
+
+---
+
 ## Task Aging Philosophy
 
 Old tasks don't need action — they need **acknowledgment**.
