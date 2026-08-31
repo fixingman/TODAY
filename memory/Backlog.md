@@ -29,16 +29,16 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 119 reviewed poems (2026-08-31). Detail ↓ |
-| 7 | **Season moments — solar term label** | Shipped v2.71.0 | Solar term label above evocative line; season owns full Noticed block. Wallpaper test → table below. |
-| 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
-| 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
-| 11 | **Task agent — enrichment at add-time** | Stages 1 & 2 shipped; Stage 3 next | External context enrichment (Gmail, web search, soon: contacts, calendar, Trello). Distinct from companion arc — enriches the task, not understanding of you. Detail ↓ |
-| 12a | **Companion — relational memory foundation** | Not started | `appMemory` gets relational slots: returning-task registry, obligation-language tallies, task-age buckets. The AI stops starting fresh each morning. Prerequisite for 12b–12d. Detail ↓ |
-| 12b | **Companion — voice** | Not started | `_memoryForAI()` surfaces relational context; nudge prompt explicitly asks for one pattern observation when context supports it. Requires 12a. Detail ↓ |
+| 12a | **Companion — relational memory foundation** | Shipped v2.78.0 | `appMemory` gets relational slots: returning-task registry, obligation-language tally with 90-day named history, task-age buckets. Tightened false-positive detection. Prerequisite for 12b–12d. Detail ↓ |
+| 12b | **Companion — voice** | Shipped v2.78.1 | Nudge instruction explicitly names what "About you" contains and invites behavioral pattern observation; "what not why" rule added. Requires 12a. Detail ↓ |
 | 12c | **Companion — showing** | Not started | Noticed block carries one relational line; task view shows add-date when a task has waited 7+ days. No AI — pure transparency. Requires 12a. Detail ↓ |
+| 11 | **Task agent — enrichment at add-time** | Stages 1 & 2 shipped; Stage 3 next | External context enrichment (Gmail, web search, soon: contacts, calendar, Trello). Distinct from companion arc — enriches the task, not understanding of you. Detail ↓ |
+| 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
+| 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
 | 12d | **Companion — memory surface** | Not started | "What TODAY knows about you" in Connections. Inspectable, clearable. Requires 12a + 12b to have something worth showing. Detail ↓ |
 | — | **WEEK companion** | Gated | Gate is now: *12b is working and feels like a companion, not a feature.* Data accumulation is necessary but not sufficient. Detail ↓ |
+| 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 119 reviewed poems (2026-08-31). Detail ↓ |
+| 7 | **Season moments — solar term label** | Shipped v2.71.0 | Solar term label above evocative line; season owns full Noticed block. Wallpaper test → table below. |
 
 ---
 
@@ -207,14 +207,15 @@ The four stages are sequenced — each builds on the previous. The arc as a whol
 
 `appMemory` currently stores behavioral snapshots (peakHour, recentCompletedTasks). It does not remember your relationship with individual tasks across sessions. The AI starts fresh every morning. This stage changes that.
 
-**New `appMemory` slots:**
-- `returningTasks` — `{ taskId, text, firstSeen, dayCount, focusSessions }` for each task on the list 5+ days. Written on each app load. Trimmed when tasks complete or are deleted.
-- `obligationLanguageTally` — rolling weekly count of tasks that triggered the obligation-language detector (v2.77.20). Resets each Monday.
-- `taskAgeBuckets` — summary counts: tasks 1–3 days / 4–6 days / 7–13 days / 14+ days. Cheap to compute; useful for nudge context without exposing full task list.
+**`appMemory` slots shipped:**
+- `returningTasks` — `{ taskId, text, firstSeen, dayCount, focusSessions }` for each task on the list 5+ days (manual + Trello). Written on each `_memoryForAI()` call. Trimmed when tasks complete or are deleted.
+- `obligationLanguageTally` — `{ week, count, completed, tasks[] }` — rolling weekly tally with all task texts for the current week. Resets each Monday. False-positive detection tightened: min 3 words; "should/must be [adj]" excluded.
+- `obligationHistory` — rolling 90-day log of `{ text, date, done }`. One entry per obligation-language task added. `done` marked on completion. Retroactively pruned against current detection on every load. Surfaces long-term completion rate when 10+ entries over 30 days.
+- `taskAgeBuckets` — `{ d1to3, d4to6, d7to13, d14plus }` summary counts. Cheap to compute; surfaces `d14plus` count as cognitive-weight signal in `_memoryForAI()`.
 
-**What this unlocks:** every AI call (`_memoryForAI()`) can now see not just what you've done, but what's been sitting — and how long. The companion has memory between sessions for the first time.
+**What this unlocks:** `_memoryForAI()` now surfaces returning tasks by name, pending obligation tasks by name, long-term obligation completion rate, list growth direction, and cognitive weight — the companion has specific, named memory between sessions.
 
-**Test for success:** after a week, `appMemory.returningTasks` contains recognizable tasks with accurate age. Obligation tally is non-zero if obligation-language tasks were added.
+**Shipped:** v2.77.26 (foundation), v2.78.0 (obligation history + tighter detection).
 
 ---
 
@@ -222,14 +223,15 @@ The four stages are sequenced — each builds on the previous. The arc as a whol
 
 The morning nudge already runs. This stage gives it relational context and one explicit instruction.
 
-**Changes:**
-1. `_memoryForAI()` outputs `returningTasks` and `obligationLanguageTally` (from 12a) in its context block.
-2. Nudge system prompt adds one instruction: *"If the context shows a task that has been waiting more than a week, or a pattern in how commitments are being framed, say one sentence about it. This is not a productivity observation — it is a mirror. Name the pattern without judgment."*
-3. No new UI, no new API call.
+**What shipped (v2.78.1):**
+1. Nudge instruction updated: explicitly names what "About you" contains (returning tasks, unstarted, pending obligation-framed tasks); gives Claude permission to lead with a behavioral observation when a pattern points to a specific task — *"they can read their list, but they can't see the pattern."*
+2. "What not why" rule added to instruction: *"Show what you notice — don't diagnose. 'X has been here 9 days without a start' is right; 'you're avoiding X' is not."*
+3. System prompt: "a friend noticing, not a coach" → "notice the pattern, don't diagnose the person" — more precise framing for the new signal types.
+4. No new UI, no new API call.
 
-**Test for success:** the morning nudge says something you didn't expect — that names a real pattern. Not "you have 5 tasks." Something like "One thing has been waiting since Monday." The test is: does it feel like being *seen*?
+**Test for success:** the morning nudge names a specific task alongside its behavioral pattern — not "you have stuck tasks" but "call insurance has been framed as a 'have to' for 5 days." The test is: does it feel like being *seen*, not coached?
 
-**What to watch:** Wallpaper test, 2 weeks. Does the relational sentence add weight or noise? Does it appear on days when the context actually warrants it, or does it force observations on clean slates?
+**What to watch:** Wallpaper test, 2 weeks. Does the relational observation add weight or noise? Does it appear on days when the context warrants it, or force observations on clean slates?
 
 ---
 
@@ -295,7 +297,7 @@ What TODAY knows about you, made visible and clearable.
 | Monday intention (memory-enriched) | v2.65.1 | 2026-08-24 | Verdict (2026-08-17): synthesis is nice. Data source fixed: now includes Soon + Trello. Re-observe next Monday. |
 | Memory panel quality gate | v2.47.0 | 2026-09-01 | Open — are AI-generated hypotheses earning confirmation or getting dismissed? |
 | Post-triage reflections | v2.65.7 | 2026-08-31 | Open — real pause or rote wallpaper? Watch for: avoidance on hard days, selection bias, feeling rote after first week. |
-| Obligation language tip | v2.77.20 | 2026-09-14 | Open — "Have to — or choosing to?" Does it land as a genuine moment of reflection, or does it feel like an interruption? Watch: dismissed immediately vs. paused on. Is the regex too broad (catching tasks where "should" is incidental)? |
+| Obligation language tip | v2.77.20 | 2026-09-14 | Open — "Have to — or choosing to?" Does it land as a genuine moment of reflection, or does it feel like an interruption? Watch: dismissed immediately vs. paused on. Regex tightened v2.78.0: min 3 words + "should/must be [adj]" excluded. |
 
 ---
 
