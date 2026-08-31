@@ -28,7 +28,12 @@ const SUGGESTION_REASONS = [
   'long_complex_task',
   'vague_task',
   'other_complexity',
+  'obligation_language',
 ];
+
+function _aiCheckObligationLanguage(text) {
+  return /\bhave to\b|\bneed to\b|\bshould\b|\bmust\b|\bought to\b|\bsupposed to\b|\bhave got to\b/i.test(text || '');
+}
 
 function _pickAIName() {
   return AI_NAMES[Math.floor(Math.random() * AI_NAMES.length)];

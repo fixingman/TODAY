@@ -1116,6 +1116,19 @@ async function _aiDoAnalyze(taskId, taskText, analyzeSeq) {
   _aiDismissSuggestion();
   _suggestionReconcileOutcomes();
 
+  // Obligation language — client-side, no AI call needed
+  if (typeof _aiCheckObligationLanguage === 'function' && _aiCheckObligationLanguage(taskText)) {
+    if (_suggestionShouldOffer('obligation_language', taskId)) {
+      _aiQueueSuggestion(taskId, taskText, {
+        type: 'obligation',
+        suggest: true,
+        reason: 'obligation_language',
+        message: 'Have to — or choosing to?',
+      });
+    }
+    return;
+  }
+
   // Build minimal context
   const existingTasks = manualTasks
     .filter(t => t.id !== taskId && !doneIds.has(t.id))
@@ -1174,9 +1187,10 @@ Rules:
     const data = await res.json();
     if (analyzeSeq !== _aiAnalyzeSeq) return;
     if (data.error || !data.suggest) return;
+    if (data.type === 'break_down' && (data.subtasks?.length ?? 0) < 2) return;
     data.reason = _suggestionReason(data, taskText);
     if (!_suggestionShouldOffer(data.reason, taskId)) return;
-    
+
     _aiQueueSuggestion(taskId, taskText, data);
     
   } catch(e) {
@@ -1285,7 +1299,7 @@ function _aiShowSuggestion(taskId, taskEl, data) {
   const chips = document.createElement('div');
   chips.className = 'task-suggestion-chips';
   
-  if (data.type === 'break_down' && data.subtasks?.length) {
+  if (data.type === 'break_down' && data.subtasks?.length >= 2) {
     const breakBtn = document.createElement('button');
     breakBtn.className = 'task-suggestion-chip';
     breakBtn.textContent = `Split into ${data.subtasks.length}`;
