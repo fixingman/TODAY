@@ -91,13 +91,24 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     return !poem.text || !poem.author || !poem.source || lines < 2 || lines > 11 ||
       ![null, 'spring', 'summer', 'autumn', 'winter'].includes(poem.season);
   });
-  const hasApprovedVoice = poems.some(poem => poem.author === 'Traditional !kun (recited by !nanni)');
-  const hasSkippedVoice = poems.some(poem => poem.author === 'José Rizal (trans. Charles Derbyshire)');
-  if (poems.length !== 114 || malformed.length || !hasApprovedVoice || hasSkippedVoice) {
+  const approvedVoices = [
+    'Traditional !kun (recited by !nanni)',
+    "Abu al-Ala al-Ma'arri (trans. Ameen Rihani)",
+    'Abu-Yshac (trans. E. Powys Mathers)',
+    'Raphael Patkanian (trans. Alice Stone Blackwell)',
+  ];
+  const hasAllApprovedVoices = approvedVoices.every(author =>
+    poems.some(poem => poem.author === author));
+  const hasSkippedVoice = poems.some(poem =>
+    poem.author === 'José Rizal (trans. Charles Derbyshire)' ||
+    poem.author.includes('Manuel José Othón') ||
+    poem.text.includes('The turi tree') ||
+    poem.text.includes('Moon, you must shine'));
+  if (poems.length !== 119 || malformed.length || !hasAllApprovedVoices || hasSkippedVoice) {
     console.error('✗ FAIL — reviewed poem corpus count, schema, or line limit drifted.');
     process.exit(1);
   }
-  console.log('  ✓ 114-poem reviewed corpus shape and approved geography');
+  console.log('  ✓ 117-poem reviewed corpus shape and approved geography');
 
   try {
     globalThis.fetch = async request => {

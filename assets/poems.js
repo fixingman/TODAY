@@ -1,6 +1,6 @@
 // TODAY — daily poem corpus
 // Human-written, public-domain poems about living this day.
-// Curated by hand in chat (accept/reject rounds) — never AI-generated. Target ~90.
+// Curated by hand in chat (accept/reject rounds) — never AI-generated.
 //
 // Shape: { text, author, season, source }
 //   season: 'spring' | 'summer' | 'autumn' | 'winter' | null (year-round)
@@ -666,6 +666,40 @@ const POEMS = [
     author: 'Rufino Blanco Fombona',
     season: 'winter',
     source: "'A Little Messenger Dove' / 'Palomita Mensajera' (trans. Alice Stone Blackwell), Some Spanish-American Poets (1929), p. 434–435 — Blanco Fombona d. 1944, Blackwell d. 1950, both PD worldwide — verified verbatim vs archive.org/details/somespanishamerica00blac",
+  },
+
+  // ── Round 33 (Aug 2026) — Syria, Persia, Armenia ───────────────────────
+  {
+    text: 'The thunder hath a grandeur, but the rains,\nWithout the thunder, quench the thirst of Earth.',
+    author: 'Abu al-Ala al-Ma\'arri (trans. Ameen Rihani)',
+    season: null,
+    source: "'The Luzumiyat of Abu'l-Ala', quatrain LXIX (closing couplet), trans. Ameen Rihani (1920) — al-Ma'arri d. 1057, Rihani d. 1940, both PD worldwide — verified verbatim vs Wikisource proofread edition",
+  },
+  {
+    text: 'Roses are a wandering scent from heaven.\nRose-seller, why do you sell your roses?\nFor silver? But with the silver from your roses\nWhat can you buy so precious as your roses?',
+    author: 'Abu-Yshac (trans. E. Powys Mathers)',
+    season: null,
+    source: "'The Roses', The Garden of Bright Waters, trans. E. Powys Mathers (1920) — Abu-Yshac, tenth century; Mathers d. 1939, both PD worldwide — verified verbatim vs Project Gutenberg #9920",
+  },
+  {
+    text: 'Let the wind blow cold, let it beat my face,\nLet the clouds above heavy snow-flakes fling,\nLet the north wind blow, raging all it will,—\nYet I live in hope soon or late comes spring.\n\nLet the heavy clouds make the clear sky dark,\nLet the dense fogs cover the earth from sight,\nLet the elements be together mixed,\nYet I know the sun will again be bright.',
+    author: 'Raphael Patkanian (trans. Alice Stone Blackwell)',
+    season: 'winter',
+    source: "'The Sure Hope' (first two of three stanzas), Armenian Poems, Rendered into English Verse, trans. Alice Stone Blackwell (1917), p. 250 — Patkanian d. 1892, Blackwell d. 1950, both PD worldwide — verified verbatim vs Internet Archive/Wikimedia scan",
+  },
+
+  // ── Round 34 (Aug 2026) — Jamaica, Spain ───────────────────────────────
+  {
+    text: 'But oh! for the woods, the flowers\nOf natural, sweet perfume,\nThe heartening, summer showers\nAnd the smiling shrubs in bloom,\nDust-free, dew-tinted at morn,\nThe fresh and life-giving air,\nThe billowing waves of corn\nAnd the birds’ notes rich and clear:—\nFor a man-machine toil-tired\nMay crave beauty too—though he’s hired.',
+    author: 'Claude McKay',
+    season: 'summer',
+    source: "'Joy in the Woods' (closing stanza), Workers' Dreadnought, 10 April 1920 (signed 'Hugh Hope') — McKay d. 1948, PD worldwide — verified verbatim vs the Workers' Dreadnought scan and Academy of American Poets",
+  },
+  {
+    text: 'Learn how to hope, to wait the proper tide—\nAs on the coast a bark—then part without a care;\nHe who knows how to wait wins victory for bride;\nFor life is long and art a plaything there.\n\nBut should your life prove short\nAnd never come a tide,\nWait still, unsailing, hope is on your side—\nArt may be long or, else, of no import.',
+    author: 'Antonio Machado (trans. Thomas Walsh)',
+    season: null,
+    source: "'Counsels', Hispanic Anthology, trans. Thomas Walsh (G. P. Putnam's Sons, 1920), p. 663 — Machado d. 1939, Walsh d. 1928, both PD worldwide — verified verbatim vs the Internet Archive scan",
   },
 
   // ── Round 32 (Aug 2026) — !kun oral tradition ──────────────────────────

@@ -132,7 +132,8 @@ if (!appMemory.memory.episodic)   appMemory.memory.episodic = [];
 if (!appMemory.memory.procedural) appMemory.memory.procedural = [];
 // 12a: Relational memory slots — task-age awareness, obligation language tally
 if (!appMemory.returningTasks)              appMemory.returningTasks = {};
-if (!appMemory.obligationLanguageTally)     appMemory.obligationLanguageTally = { week: '', count: 0 };
+if (!appMemory.obligationLanguageTally)     appMemory.obligationLanguageTally = { week: '', count: 0, completed: 0 };
+if (appMemory.obligationLanguageTally.completed === undefined) appMemory.obligationLanguageTally.completed = 0;
 if (!appMemory.taskAgeBuckets)              appMemory.taskAgeBuckets = { d1to3: 0, d4to6: 0, d7to13: 0, d14plus: 0 };
 
 // Cumulative accuracy counters for meeting mode's mine/others attribution — not
@@ -218,8 +219,8 @@ function _incrementObligationTally() {
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
   const weekKey = _localISO(monday);
-  const tally   = appMemory.obligationLanguageTally || { week: '', count: 0 };
-  if (tally.week !== weekKey) { tally.week = weekKey; tally.count = 0; }
+  const tally   = appMemory.obligationLanguageTally || { week: '', count: 0, completed: 0 };
+  if (tally.week !== weekKey) { tally.week = weekKey; tally.count = 0; tally.completed = 0; }
   tally.count++;
   appMemory.obligationLanguageTally = tally;
   _saveMemory();
@@ -508,6 +509,19 @@ function _memoryOnTaskComplete(taskText, taskId) {
     appMemory.recentCompletedTasks.push({ text: taskText, date: _localISO() });
   }
 
+  // 12a: Track obligation-language completions — feeds completion-rate signal in _memoryForAI
+  if (taskText && typeof _aiCheckObligationLanguage === 'function' && _aiCheckObligationLanguage(taskText)) {
+    const _oblNow    = new Date();
+    const _oblMonday = new Date(_oblNow);
+    _oblMonday.setDate(_oblNow.getDate() - ((_oblNow.getDay() + 6) % 7));
+    const _oblWeek = _localISO(_oblMonday);
+    const _oblTally = appMemory.obligationLanguageTally || { week: '', count: 0, completed: 0 };
+    if (_oblTally.week === _oblWeek) {
+      _oblTally.completed = (_oblTally.completed || 0) + 1;
+      appMemory.obligationLanguageTally = _oblTally;
+    }
+  }
+
   _saveMemory();
 }
 
@@ -778,20 +792,45 @@ function _memoryForAI(scope) {
     lines.push(`Confirmed patterns (ratified by user):\n${confirmed.map(t => `- ${t}`).join('\n')}`);
   }
 
-  // Returning tasks — tasks that have been waiting 5+ days without completing
+  // Returning tasks — tasks that have been waiting 5+ days (with/without focus sessions)
   const returning = Object.values(m.returningTasks || {}).sort((a, b) => b.dayCount - a.dayCount);
   if (returning.length > 0) {
     const items = returning.slice(0, 3).map(t => {
-      const sessions = t.focusSessions > 0 ? `, ${t.focusSessions} focus session${t.focusSessions > 1 ? 's' : ''}` : ', not yet focused on';
-      return `"${_stripTag(t.text)}" (waiting ${t.dayCount} days${sessions})`;
+      const sessions = t.focusSessions > 0 ? `, ${t.focusSessions} focus session${t.focusSessions > 1 ? 's' : ''}` : ', not yet started';
+      return `"${_stripTag(t.text)}" (${t.dayCount} days${sessions})`;
     });
     lines.push(`Tasks that keep waiting:\n${items.join('\n')}`);
   }
 
-  // Obligation language tally — how many tasks this week were phrased as obligations
-  const tally = m.obligationLanguageTally;
-  if (tally && tally.count >= 2) {
-    lines.push(`This week, ${tally.count} tasks were added with obligation language ("have to", "should", "must").`);
+  // Signal 1: Focus avoidance — tasks 7+ days old that haven't been started at all
+  const neverStarted = returning.filter(t => t.focusSessions === 0 && t.dayCount >= 7);
+  if (neverStarted.length > 0) {
+    const items = neverStarted.slice(0, 3).map(t => `"${_stripTag(t.text)}" (${t.dayCount} days, never opened)`);
+    lines.push(`Tasks not yet started despite being on the list:\n${items.join('\n')}`);
+  }
+
+  // Signal 2: List growth direction — are more tasks being added than completed?
+  const _growthHistory = (typeof safeJSON === 'function') ? safeJSON('today_daily_history', []) : [];
+  const _last7h = _growthHistory.slice(-7);
+  if (_last7h.length >= 3) {
+    const _added = _last7h.reduce((s, e) => s + (e.tasksAdded || 0), 0);
+    const _done  = _last7h.reduce((s, e) => s + (e.tasksDone  || 0), 0);
+    const _surplus = _added - _done;
+    if (_surplus >= 3)       lines.push(`List is growing: ${_added} tasks added, ${_done} completed over the last ${_last7h.length} days.`);
+    else if (_surplus <= -3) lines.push(`List is shrinking: ${_done} completed, ${_added} added over the last ${_last7h.length} days.`);
+  }
+
+  // Signal 3: Obligation language — added count vs completed this week
+  const oblTally = m.obligationLanguageTally;
+  if (oblTally && oblTally.count >= 2) {
+    const oblCompleted = oblTally.completed || 0;
+    lines.push(`This week: ${oblTally.count} tasks added with obligation language ("have to", "should", "must") — ${oblCompleted} completed so far.`);
+  }
+
+  // Signal 4: Cognitive weight — tasks sitting 14+ days (ambient load, not just list size)
+  const _old14 = (m.taskAgeBuckets || {}).d14plus || 0;
+  if (_old14 >= 2) {
+    lines.push(`${_old14} tasks have been on the list for more than 2 weeks.`);
   }
 
   // Newline-joined: several entries are themselves multi-line (past suggestions,
