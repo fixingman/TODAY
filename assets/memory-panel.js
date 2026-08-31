@@ -515,7 +515,10 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ provider, apiKey: key, messages: [{ role: 'user', content: userMsg }], systemPrompt }),
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          res.json().then(e => console.warn('[memory abstract]', res.status, e?.error)).catch(() => {});
+          return;
+        }
 
         const data = await res.json();
         const raw = _parseAIText(data)?.trim();

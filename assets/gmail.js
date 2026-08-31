@@ -405,7 +405,10 @@
             systemPrompt: 'Draft a brief, natural reply. Under 3 sentences. Use first name only if greeting. No subject line. No sign-off.',
           }),
         });
-        if (!res.ok) { btn.textContent = 'Draft reply'; btn.disabled = false; return; }
+        if (!res.ok) {
+          res.json().then(e => console.warn('[draft reply]', res.status, e?.error)).catch(() => {});
+          btn.textContent = 'Draft reply'; btn.disabled = false; return;
+        }
         const data  = await res.json();
         const draft = (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '');
         if (!draft)  { btn.textContent = 'Draft reply'; btn.disabled = false; return; }

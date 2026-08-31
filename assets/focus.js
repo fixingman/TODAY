@@ -345,7 +345,10 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
         })
       });
       clearTimeout(_focusAbortTimer);
-      if (!res.ok) { _focusResetAI(); return; }
+      if (!res.ok) {
+        res.json().then(e => console.warn('[focus ask]', res.status, e?.error)).catch(() => {});
+        _focusResetAI(); return;
+      }
       const data = await res.json();
       const q = _parseAIText(data)?.trim();
       if (q) {
