@@ -30,7 +30,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 12a | **Companion — relational memory foundation** | Shipped v2.78.0 | `appMemory` gets relational slots: returning-task registry, obligation-language tally with 90-day named history, task-age buckets. Tightened false-positive detection. Prerequisite for 12b–12d. Detail ↓ |
-| 12b | **Companion — voice** | Shipped v2.78.1 | Nudge instruction explicitly names what "About you" contains and invites behavioral pattern observation; "what not why" rule added. Requires 12a. Detail ↓ |
+| 12b | **Companion — voice** | Shipped v2.78.1 | Nudge instruction uses accumulated history to judge what matters — insight, never a count reported back. System prompt unchanged. Requires 12a. Detail ↓ |
 | 12c | **Companion — showing** | Not started | Noticed block carries one relational line; task view shows add-date when a task has waited 7+ days. No AI — pure transparency. Requires 12a. Detail ↓ |
 | 11 | **Task agent — enrichment at add-time** | Stages 1 & 2 shipped; Stage 3 next | External context enrichment (Gmail, web search, soon: contacts, calendar, Trello). Distinct from companion arc — enriches the task, not understanding of you. Detail ↓ |
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
@@ -223,15 +223,21 @@ The four stages are sequenced — each builds on the previous. The arc as a whol
 
 The morning nudge already runs. This stage gives it relational context and one explicit instruction.
 
-**What shipped (v2.78.1):**
-1. Nudge instruction updated: explicitly names what "About you" contains (returning tasks, unstarted, pending obligation-framed tasks); gives Claude permission to lead with a behavioral observation when a pattern points to a specific task — *"they can read their list, but they can't see the pattern."*
-2. "What not why" rule added to instruction: *"Show what you notice — don't diagnose. 'X has been here 9 days without a start' is right; 'you're avoiding X' is not."*
-3. System prompt: "a friend noticing, not a coach" → "notice the pattern, don't diagnose the person" — more precise framing for the new signal types.
-4. No new UI, no new API call.
+**What shipped (v2.78.1):** three lines in the nudge instruction. System prompt unchanged from its pre-12b baseline.
 
-**Test for success:** the morning nudge names a specific task alongside its behavioral pattern — not "you have stuck tasks" but "call insurance has been framed as a 'have to' for 5 days." The test is: does it feel like being *seen*, not coached?
+> *The "About you" section tells you what has happened before — which tasks keep coming back, what has never been started, what they have been finishing. Use it to judge which thing matters and how much. It sharpens the insight; it is not the insight. Never report it back as a count.*
 
-**What to watch:** Wallpaper test, 2 weeks. Does the relational observation add weight or noise? Does it appear on days when the context warrants it, or force observations on clean slates?
+The nudge's goal is unchanged: *find the one thing worth saying they'd miss just by reading the list themselves* — real-world stakes, what depends on what, whether a window is closing. 12a memory makes that judgment better informed. It is not itself the thing to say.
+
+**Design principle (learned the hard way, 2026-09-01):** the signals are input to judgment, not material for output. An insight catches a blind corner — *"this one has a deadline you haven't clocked."* A count restates something already visible — *"this has been here 5 days."* Only the first serves the north star.
+
+**Two prompt failure modes, both hit and reverted before shipping:**
+- **Worked examples anchor.** Three examples all shaped `task + days + implication` collapsed the output space to one template — the Wallpaper Test failure mode, built directly into the prompt. Prefer stating the principle over demonstrating the form.
+- **Negative instructions cost warmth.** Replacing *"a friend noticing, not a coach"* with *"notice the pattern, don't diagnose the person"* removed the license for acknowledgment nudges (focus time, what got done) that were landing well. The positive frame already forbids diagnosis; naming diagnosis invites thinking in those terms.
+
+**Test for success:** the nudge catches something real — a deadline, a dependency, a closing window — that reading the list wouldn't surface. Does it feel like being *seen*, not measured?
+
+**What to watch:** Wallpaper test, 2 weeks (due 2026-09-15). Does the richer history make the insight sharper, or does the nudge drift back toward restating counts?
 
 ---
 
@@ -297,6 +303,7 @@ What TODAY knows about you, made visible and clearable.
 | Monday intention (memory-enriched) | v2.65.1 | 2026-08-24 | Verdict (2026-08-17): synthesis is nice. Data source fixed: now includes Soon + Trello. Re-observe next Monday. |
 | Memory panel quality gate | v2.47.0 | 2026-09-01 | Open — are AI-generated hypotheses earning confirmation or getting dismissed? |
 | Post-triage reflections | v2.65.7 | 2026-08-31 | Open — real pause or rote wallpaper? Watch for: avoidance on hard days, selection bias, feeling rote after first week. |
+| Morning nudge — history-informed (12b) | v2.78.1 | 2026-09-15 | Open — does the accumulated history make the insight sharper, or does the nudge drift into restating counts? Watch for: template repetition (same sentence shape each morning), loss of the acknowledgment nudges that were landing, any sentence that reports a number back rather than catching a blind corner. |
 | Obligation language tip | v2.77.20 | 2026-09-14 | Open — "Have to — or choosing to?" Does it land as a genuine moment of reflection, or does it feel like an interruption? Watch: dismissed immediately vs. paused on. Regex tightened v2.78.0: min 3 words + "should/must be [adj]" excluded. |
 
 ---
