@@ -252,6 +252,8 @@ The four stages are sequenced — each builds on the previous. The arc as a whol
 
 **Test for success:** the same pattern is never narrated twice across surfaces in the same week, and surfaces genuinely go quiet on thin days rather than reaching. Does a line arrive feeling like it was *chosen*, not generated?
 
+**Prior art:** `research/ObservationSelection.md` — pipeline-beats-end-to-end (EMNLP 2019), the interestingness-measures literature behind the gates, an impact x significance ranking function, and the reason to reject that literature's surprise-maximizing objective.
+
 **Wallpaper test required before shipping.**
 
 ---
