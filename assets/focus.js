@@ -261,7 +261,7 @@ window._startFocus = (function() {
     const _localTime = _now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     _ctx.push('local time ' + _localTime + ' (' + _period + ')');
     const _peakH = appMemory?.preferences?.peakHour;
-    if (_peakH != null && Math.abs(_hour - _peakH) <= 1) _ctx.push('their peak productive hour');
+    if (_peakH != null && Math.abs(_hour - _peakH) <= 1) _ctx.push('your peak productive hour');
     const _sToday = Math.floor(parseInt(localStorage.getItem('stat_focus_mins_today') || '0') / 25);
     if (_sToday === 1) _ctx.push('1 other focus session today (different tasks)');
     else if (_sToday >= 2) _ctx.push(_sToday + ' focus sessions done today across tasks');
@@ -270,7 +270,7 @@ window._startFocus = (function() {
     const _inferences = ['semantic', 'episodic', 'procedural']
       .flatMap(t => (appMemory?.memory?.[t] || []).filter(i => i.status === 'confirmed').map(i => i.text))
       .slice(0, 4);
-    const _inferCtx = _inferences.length ? '\n\nWhat we know about this person: ' + _inferences.join('. ') + '.' : '';
+    const _inferCtx = _inferences.length ? '\n\nWhat we know about the user: ' + _inferences.join('. ') + '.' : '';
 
     // ── System prompt ─────────────────────────────────────────────────────────
     const _systemPrompt = `You are a focus catalyst in a minimal task app. The user is about to start a 25-minute session. Ask exactly one question that creates a moment of clarity they wouldn't have reached on their own — not a friendly check-in.

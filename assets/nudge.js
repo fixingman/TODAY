@@ -331,7 +331,7 @@ window._startNudge = (function() {
           'Morning check-in. Today is ' + dayNames[new Date().getDay()] + '.\n' +
           'Yesterday: ' + yLine + '.\n' +
           (carriedOver > 0 ? carriedOver + ' task(s) carried over from yesterday.\n' : '');
-        if (patternCtx) facts += 'About this person: ' + patternCtx + '\n';
+        if (patternCtx) facts += 'About you: ' + patternCtx + '\n';
         if (taskLines.length) facts +=
           'Tasks, in the order the user arranged them:\n' +
           taskLines.join('\n') + '\n';
@@ -356,7 +356,7 @@ window._startNudge = (function() {
             provider: _aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: facts + '\n\n' + instruction }],
-            systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Task text is written in the user\'s own shorthand — read the full meaning from context, not just the literal words. Never wrap your reply in quotation marks; quoting a task\'s own words inline is good. No exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
+            systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Task text is written in the user\'s own shorthand — read the full meaning from context, not just the literal words. Never wrap your reply in quotation marks; quoting a task\'s own words inline is good. No exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
           }),
         });
         if (!res.ok) return null;

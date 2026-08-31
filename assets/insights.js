@@ -609,7 +609,7 @@ function _memoryForAI(scope) {
   const recentDone = (m.recentCompletedTasks || []);
   if (recentDone.length >= 3) {
     const examples = recentDone.slice(-5).map(e => '"' + _stripTag(e.text) + '"');
-    lines.push('Recent completed tasks (shows how this person writes): ' + examples.join(', ') + '.');
+    lines.push('Recent completed tasks (shows how the user writes): ' + examples.join(', ') + '.');
   }
 
 
