@@ -96,19 +96,25 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     "Abu al-Ala al-Ma'arri (trans. Ameen Rihani)",
     'Abu-Yshac (trans. E. Powys Mathers)',
     'Raphael Patkanian (trans. Alice Stone Blackwell)',
+    'Claude McKay',
+    'Antonio Machado (trans. Thomas Walsh)',
   ];
   const hasAllApprovedVoices = approvedVoices.every(author =>
     poems.some(poem => poem.author === author));
   const hasSkippedVoice = poems.some(poem =>
     poem.author === 'José Rizal (trans. Charles Derbyshire)' ||
     poem.author.includes('Manuel José Othón') ||
+    poem.source.includes("'A Shaded Spot'") ||
+    (poem.source.includes("'Spring'") && poem.author === 'Sarojini Naidu') ||
+    poem.source.includes("'Rejoice'") ||
+    poem.source.includes("'Yesterday and Today'") ||
     poem.text.includes('The turi tree') ||
     poem.text.includes('Moon, you must shine'));
   if (poems.length !== 119 || malformed.length || !hasAllApprovedVoices || hasSkippedVoice) {
     console.error('✗ FAIL — reviewed poem corpus count, schema, or line limit drifted.');
     process.exit(1);
   }
-  console.log('  ✓ 117-poem reviewed corpus shape and approved geography');
+  console.log('  ✓ 119-poem reviewed corpus shape and approved geography');
 
   try {
     globalThis.fetch = async request => {
