@@ -355,6 +355,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
         if (_thinkAnim) { _thinkAnim.cancel(); _thinkAnim = null; }
         focusAIBtn.classList.remove('loading');
         focusAIBtn.textContent = q;
+        if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('focus question', q);
       } else {
         _focusResetAI();
       }

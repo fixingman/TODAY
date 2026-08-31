@@ -141,6 +141,8 @@ if (appMemory.obligationLanguageTally.completed === undefined) appMemory.obligat
 if (!appMemory.obligationLanguageTally.tasks) appMemory.obligationLanguageTally.tasks = [];
 if (!appMemory.obligationHistory)           appMemory.obligationHistory = [];
 if (!appMemory.taskAgeBuckets)              appMemory.taskAgeBuckets = { d1to3: 0, d4to6: 0, d7to13: 0, d14plus: 0 };
+// 12b: What TODAY has said on its own initiative — the app's memory of its own voice.
+if (!appMemory.spokenLines)                 appMemory.spokenLines = [];
 // Retroactive fix: drop any history entries that no longer pass the current (tightened) detection
 appMemory.obligationHistory = appMemory.obligationHistory.filter(e => _aiCheckObligationLanguage(e.text));
 
@@ -240,6 +242,28 @@ function _incrementObligationTally(taskText) {
     appMemory.obligationHistory.push({ text: taskText, date: _localISO(), done: false });
   }
 
+  _saveMemory();
+}
+
+// 12b: Record a line TODAY said on its own initiative — morning nudge, focus question,
+// Sunday reflection, week theme, Monday intention, Noticed. Every generative surface
+// used to speak in isolation: none knew what the others had said, or what it had said
+// yesterday, so the same observation could surface four times in one morning and the
+// voice could never accumulate. _memoryForAI() feeds these back to every surface.
+// Deliberately NOT the assistant chat — that's user-initiated dialogue, not the app's
+// unprompted voice, and its replies are long and situational.
+function _memoryRecordSpokenLine(surface, text) {
+  if (!surface || !text) return;
+  const clean = String(text).trim();
+  if (!clean) return;
+  const today  = _localISO();
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+  const lines  = (appMemory.spokenLines || []).filter(l => l && l.date && new Date(l.date) >= cutoff);
+  // One entry per surface per day — a regenerated line replaces, never stacks
+  const entry = { surface, date: today, text: clean.slice(0, 200) };
+  const i = lines.findIndex(l => l.surface === surface && l.date === today);
+  if (i >= 0) lines[i] = entry; else lines.push(entry);
+  appMemory.spokenLines = lines.slice(-30);
   _saveMemory();
 }
 
@@ -875,6 +899,19 @@ function _memoryForAI(scope) {
   const _old14 = (m.taskAgeBuckets || {}).d14plus || 0;
   if (_old14 >= 2) {
     lines.push(`${_old14} tasks have been on the list for more than 2 weeks.`);
+  }
+
+  // 12b: What TODAY has already said, across every surface. Without this each
+  // generator spoke blind — the nudge could not know it made the same observation
+  // yesterday, and the focus question at 2pm could not know the nudge had already
+  // named that task at 8am. Last 8 is enough to cover roughly a week of mornings
+  // plus the current day's other surfaces.
+  const spoken = (m.spokenLines || []).slice(-8);
+  if (spoken.length > 0) {
+    const spokenLines = spoken.map(l => `[${l.date} · ${l.surface}] ${l.text}`);
+    lines.push(
+      `Already said to them recently — do not repeat these observations, and do not reuse their sentence shape:\n${spokenLines.join('\n')}`
+    );
   }
 
   // Newline-joined: several entries are themselves multi-line (past suggestions,

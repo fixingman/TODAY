@@ -492,7 +492,9 @@
         });
         if (!res.ok) return null;
         const text = _parseAIText(await res.json());
-        return _weekReflectionTextIsGrounded(text) ? text : null;
+        if (!_weekReflectionTextIsGrounded(text)) return null;
+        if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('Sunday reflection', text);
+        return text;
       } catch (e) {
         return null;
       }
@@ -630,6 +632,7 @@
         if (!res.ok) return null;
         const text = _parseAIText(await res.json());
         if (!text || /^none\.?$/i.test(text.trim())) return null;
+        if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('week theme', text);
         return text;
       } catch (e) {
         return null;
@@ -675,7 +678,11 @@
           }),
         });
         if (!res.ok) return null;
-        return _parseAIText(await res.json());
+        const _mondayText = _parseAIText(await res.json());
+        if (_mondayText && typeof _memoryRecordSpokenLine === 'function') {
+          _memoryRecordSpokenLine('Monday intention', _mondayText);
+        }
+        return _mondayText;
       } catch (e) {
         return null;
       }

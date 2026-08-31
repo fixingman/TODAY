@@ -908,6 +908,40 @@
         appMemory.recentConversations.sort((a, b) => b.date > a.date ? 1 : -1);
         appMemory.recentConversations = appMemory.recentConversations.slice(0, 5);
       }
+      // 12b spokenLines — union by date+surface (the one-per-surface-per-day invariant),
+      // oldest first, cap 30. Without this the voice memory is per-device: device A's
+      // nudge would happily repeat what device B said this morning.
+      if (Array.isArray(remote.spokenLines)) {
+        if (!Array.isArray(appMemory.spokenLines)) appMemory.spokenLines = [];
+        const seenSpoken = new Set(appMemory.spokenLines.map(l => l.date + '|' + l.surface));
+        for (const l of remote.spokenLines) {
+          if (!l || !l.date || !l.surface) continue;
+          const key = l.date + '|' + l.surface;
+          if (!seenSpoken.has(key)) { appMemory.spokenLines.push(l); seenSpoken.add(key); }
+        }
+        appMemory.spokenLines.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+        appMemory.spokenLines = appMemory.spokenLines.slice(-30);
+      }
+      // 12a obligationHistory — union by date+text, done flag OR'd (either device
+      // seeing it completed settles it), 90-day window. Accumulated data, so unlike
+      // returningTasks/taskAgeBuckets it cannot self-heal from the current task list.
+      if (Array.isArray(remote.obligationHistory)) {
+        if (!Array.isArray(appMemory.obligationHistory)) appMemory.obligationHistory = [];
+        const oblIndex = new Map(
+          appMemory.obligationHistory.map(e => [e.date + '|' + (e.text || '').slice(0, 40), e])
+        );
+        for (const e of remote.obligationHistory) {
+          if (!e || !e.date) continue;
+          const key = e.date + '|' + (e.text || '').slice(0, 40);
+          const local = oblIndex.get(key);
+          if (!local) { appMemory.obligationHistory.push(e); oblIndex.set(key, e); }
+          else if (e.done) local.done = true;
+        }
+        const _oblFloor = new Date(); _oblFloor.setDate(_oblFloor.getDate() - 90);
+        appMemory.obligationHistory = appMemory.obligationHistory
+          .filter(e => new Date(e.date) >= _oblFloor)
+          .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+      }
       // BUG-073 AI inferences — union by id, dedup by text prefix
       if (remote.memory && appMemory.memory) {
         for (const type of ['semantic', 'episodic', 'procedural']) {

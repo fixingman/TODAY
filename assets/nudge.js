@@ -212,7 +212,10 @@ window._startNudge = (function() {
           cacheKey: _aiCacheKey,
           cachePrefix: 'day_nudge_ai_',
           fetchPromise: _fetchDayNudgeAI(review, carriedOver, cards).then(text => {
-            if (text) localStorage.setItem(_doneCountKey, String(doneIds.size));
+            if (text) {
+              localStorage.setItem(_doneCountKey, String(doneIds.size));
+              if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('morning nudge', text);
+            }
             return text;
           }),
           fallbackMsg: msg,
