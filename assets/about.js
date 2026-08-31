@@ -487,7 +487,7 @@
             provider: _aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: userContent }],
-            systemPrompt: 'One sentence only. No quotes. Under 22 words. Second person — address the user as "you". Confident voice, conservative claim. Be intentional, smart, useful, and quietly human. Never infer identity or personality, never claim causation from correlation, and never restate a visible counter without adding meaning. If the evidence cannot support a useful line, reply exactly: none.',
+            systemPrompt: 'One sentence only. No quotes. Under 22 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Confident voice, conservative claim. Be intentional, smart, useful, and quietly human. Never infer identity or personality, never claim causation from correlation, and never restate a visible counter without adding meaning. If the evidence cannot support a useful line, reply exactly: none.',
           }),
         });
         if (!res.ok) return null;
@@ -624,7 +624,7 @@
               'Do NOT combine two timing stats into a same-day cause-effect claim — each is an independent aggregate. ' +
               'Ground it only in the data above, never invent. ' +
               'If nothing genuine stands out, reply with exactly: none.' }],
-            systemPrompt: 'One sentence only, under 22 words. No quotes. Second person — address the user as "you". Plain, observational — rhythm, timing, or a concrete task that reveals something real.',
+            systemPrompt: 'One sentence only, under 22 words. No quotes. Second person — address the user as "you". Use numerals for all numbers (3 not three). Plain, observational — rhythm, timing, or a concrete task that reveals something real.',
           }),
         });
         if (!res.ok) return null;
@@ -671,7 +671,7 @@
             provider: _aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: userContent }],
-            systemPrompt: 'One sentence only. No quotes. Under 20 words. Second person — address the user as "you". Plain, warm, grounded. Do not name tasks unless they appear in the current list.',
+            systemPrompt: 'One sentence only. No quotes. Under 20 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Plain, warm, grounded. Do not name tasks unless they appear in the current list.',
           }),
         });
         if (!res.ok) return null;

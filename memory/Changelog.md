@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.77.19** | **Fix: numerals rule added to all About-panel AI nudges.** Week theme, Sunday reflection, and Monday intention system prompts now include "Use numerals for all numbers (3 not three)" — completing the numerals fix that v2.77.17 applied to the day nudge only. |
 | **2.77.17** | **Fix: day nudge numerals + all-nudge voice consistency.** Day nudge system prompt now says "Use numerals for all numbers (3 not three)" and "Second person — address the user as 'you'". All remaining "About this person:" / "this person" references purged from `nudge.js`, `focus.js`, and `insights.js` (`_memoryForAI`). |
 | **2.77.16** | **Fix: Noticed week nudge now speaks directly to you.** All three About-panel AI nudges (`_fetchWeekThemeAI`, `_fetchWeekReflection`, `_fetchMondayIntention`) had their prompts framing the user as "this person", which caused the AI to write in third-person ("This person consistently works..."). All three system prompts now explicitly say "Second person — address the user as 'you'", and user messages no longer say "this person". |
 | **2.77.13** | **Debug: AI error logging.** `focus.js`, `gmail.js`, and `memory-panel.js` now log the exact Anthropic API error message to the browser console (`[focus ask]`, `[draft reply]`, `[memory abstract]`) when an `ai-assist` call fails, so the root cause of any 400/500 is visible in DevTools without digging into the Network tab. |
