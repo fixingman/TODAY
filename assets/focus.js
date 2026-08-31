@@ -614,7 +614,18 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     const needsNudge = rect.top < headerH || rect.bottom + timerHeight > viewportH - footerH;
 
     if (needsNudge) {
-      taskEl.scrollIntoView({ block: 'center', behavior: 'instant' });
+      // Minimum delta — only move what's strictly needed to fit task + timer.
+      // block:'center' would scroll 200-300px for a task near the bottom and mirror
+      // that full distance on exit. A targeted delta keeps both jumps proportional
+      // to the actual overflow (~50-100px), matching the "calm, not urgent" motion rule.
+      const GUTTER = 12;
+      let delta = 0;
+      if (rect.bottom + timerHeight > viewportH - footerH) {
+        delta = (rect.bottom + timerHeight + GUTTER) - (viewportH - footerH);
+      } else if (rect.top < headerH) {
+        delta = rect.top - headerH - GUTTER;
+      }
+      if (delta !== 0) window.scrollTo({ top: Math.max(0, window.scrollY + delta), behavior: 'instant' });
     }
 
     // Lock scroll at the nudged position; restore target is the pre-nudge original.

@@ -4465,16 +4465,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '293h';
+const DEV_HOURS     = '294h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.77.22': 'Polish: focus mode nudges the task by the minimum pixels needed to fit the timer — no more centering jump on enter or exit.',
+  '2.77.21': 'Poems: three reviewed voices from Syria, Persia, and Armenia join the daily rotation.',
   '2.77.20': 'Feat: task tip detects "have to / should / must" language and asks "Have to — or choosing to?". Fix: split tip no longer shows when AI returns fewer than 2 subtasks.',
-  '2.77.19': 'Fix: all AI nudges now use numerals for numbers (3 not three) — week theme, Sunday reflection, Monday intention.',
-  '2.77.18': 'Fix: first task under each section header no longer shadowed on mobile — removed fade gradient that hover-elevation could not clear on touch.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
