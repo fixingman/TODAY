@@ -2782,9 +2782,12 @@
   .week-col-focus { font-size: var(--text-micro); color: var(--muted); letter-spacing: 0.04em; }
   .week-col-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--accent); opacity: 0; }
   .week-col-dot.on { opacity: var(--opacity-soft); }
-  #weekSection { position: relative; }
+  #weekSection { position: relative; display: flex; flex-wrap: wrap; align-items: baseline; }
+  #weekSection .config-label { flex: 1; }
+  #weekGrid { flex: 0 0 100%; }
   #weekMoreBtn {
-    position: absolute; top: var(--space-5); right: 0;
+    flex: 0 0 auto;
+    margin-bottom: var(--space-2);
     opacity: 0;
     pointer-events: none;
   }
@@ -4462,9 +4465,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.77.15': 'Fix: \'see more\' button in This week graph is now inline with the label, no longer overlaps day-letter columns on mobile.',
   '2.77.14': 'Debug: reflections.js AI error also logged to console (same pattern as v2.77.13).',
   '2.77.13': 'Debug: AI error responses now log to console so the exact failure reason is visible in DevTools.',
-  '2.77.12': 'Polish: reflections panel auto-reflects on open and removes the manual Forget flow.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
