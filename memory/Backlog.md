@@ -30,13 +30,13 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 12a | **Companion — relational memory foundation** | Shipped v2.78.0 | `appMemory` gets relational slots: returning-task registry, obligation-language tally with 90-day named history, task-age buckets. Tightened false-positive detection. Prerequisite for 12b–12d. Detail ↓ |
-| 12b | **Companion — voice** | Shipped v2.78.1 | Nudge instruction uses accumulated history to judge what matters — insight, never a count reported back. System prompt unchanged. Requires 12a. Detail ↓ |
-| 12c | **Companion — showing** | Not started | Noticed block carries one relational line; task view shows add-date when a task has waited 7+ days. No AI — pure transparency. Requires 12a. Detail ↓ |
+| 12b | **Companion — voice** | Shipped v2.78.1 — **superseded by 12c** | Built the inverse of the AI/data contract: raw signals dumped into the nudge prompt, model left to judge. Not fixable in isolation; 12c is the fix. Detail ↓ |
+| 12c | **Companion — observation pool** | Not started — **next** | One ranked candidate pool feeding every surface: code selects the observation through 3 gates, model only phrases it. Fixes 12b, replaces voice memory's post-hoc dedup, retires the age-display idea. Requires 12a. Detail ↓ |
 | 11 | **Task agent — enrichment at add-time** | Stages 1 & 2 shipped; Stage 3 next | External context enrichment (Gmail, web search, soon: contacts, calendar, Trello). Distinct from companion arc — enriches the task, not understanding of you. Detail ↓ |
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
-| 12d | **Companion — memory surface** | Not started | "What TODAY knows about you" in Connections. Inspectable, clearable. Requires 12a + 12b to have something worth showing. Detail ↓ |
-| — | **WEEK companion** | Gated | Gate is now: *12b is working and feels like a companion, not a feature.* Data accumulation is necessary but not sufficient. Detail ↓ |
+| 12d | **Companion — memory surface** | Not started | "What TODAY knows about you" in the Memory panel (`#memoryPanel`, not Connections — see `design/Personalization.md` hard constraint). Inspectable, clearable. Requires 12c to have ranked observations worth showing. Detail ↓ |
+| — | **WEEK companion** | Gated | Gate is now: *12c is working and feels like a companion, not a feature.* Data accumulation is necessary but not sufficient. Detail ↓ |
 | 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 119 reviewed poems (2026-08-31). Detail ↓ |
 | 7 | **Season moments — solar term label** | Shipped v2.71.0 | Solar term label above evocative line; season owns full Noticed block. Wallpaper test → table below. |
 
@@ -219,41 +219,42 @@ The four stages are sequenced — each builds on the previous. The arc as a whol
 
 ---
 
-#### 12b · Companion Voice *(requires 12a)*
+#### 12b · Companion Voice — *superseded by 12c (2026-09-01)*
 
-The morning nudge already runs. This stage gives it relational context and one explicit instruction.
+**What shipped (v2.78.1):** three lines added to the nudge instruction telling the model to use accumulated history as judgment rather than report it as counts. System prompt left at its pre-12b baseline.
 
-**What shipped (v2.78.1):** three lines in the nudge instruction. System prompt unchanged from its pre-12b baseline.
+**Why it is superseded, not iterated.** 12b handed the morning nudge a dump of raw `appMemory` signals and asked it to decide what mattered. That inverts the AI/data contract in `design/Personalization.md` — *"code selects and describes the observation; the LLM is a writer, not the epistemologist."* Four successive prompt revisions could not repair it, which `Personalization.md` also predicts: *"when a surface starts going stale, the fix is a fresh signal, not a better prompt."* The current three lines are a defensible holding position; the real fix is 12c, and 12b is not separately fixable.
 
-> *The "About you" section tells you what has happened before — which tasks keep coming back, what has never been started, what they have been finishing. Use it to judge which thing matters and how much. It sharpens the insight; it is not the insight. Never report it back as a count.*
+**Kept as durable lessons:**
+- **The distinction that settled it.** An insight catches a blind corner — *"this one has a deadline you haven't clocked."* A count restates something already visible — *"this has been here 5 days."* Only the first serves the north star. Age in particular is already shown in triage (`assets/triage.js:118` prints `today`/`yesterday`/`N days`), so age-as-content fails the novelty gate everywhere.
+- **Worked examples anchor.** Three examples all shaped `task + days + implication` collapsed the output space to one template — the Wallpaper Test failure mode written into the prompt. State the principle; never demonstrate the form.
+- **Negative instructions cost warmth.** Replacing *"a friend noticing, not a coach"* with *"notice the pattern, don't diagnose the person"* removed the license for acknowledgment lines (focus time, what got done) that were landing well. The positive frame already forbids diagnosis; naming diagnosis invites thinking in those terms.
 
-The nudge's goal is unchanged: *find the one thing worth saying they'd miss just by reading the list themselves* — real-world stakes, what depends on what, whether a window is closing. 12a memory makes that judgment better informed. It is not itself the thing to say.
-
-**Design principle (learned the hard way, 2026-09-01):** the signals are input to judgment, not material for output. An insight catches a blind corner — *"this one has a deadline you haven't clocked."* A count restates something already visible — *"this has been here 5 days."* Only the first serves the north star.
-
-**Two prompt failure modes, both hit and reverted before shipping:**
-- **Worked examples anchor.** Three examples all shaped `task + days + implication` collapsed the output space to one template — the Wallpaper Test failure mode, built directly into the prompt. Prefer stating the principle over demonstrating the form.
-- **Negative instructions cost warmth.** Replacing *"a friend noticing, not a coach"* with *"notice the pattern, don't diagnose the person"* removed the license for acknowledgment nudges (focus time, what got done) that were landing well. The positive frame already forbids diagnosis; naming diagnosis invites thinking in those terms.
-
-**Test for success:** the nudge catches something real — a deadline, a dependency, a closing window — that reading the list wouldn't surface. Does it feel like being *seen*, not measured?
-
-**What to watch:** Wallpaper test, 2 weeks (due 2026-09-15). Does the richer history make the insight sharper, or does the nudge drift back toward restating counts?
+**Also shipped alongside (v2.79.0) — voice memory.** `appMemory.spokenLines` records what each surface said (`{ surface, date, text }`, 30 entries / 30 days) and `_memoryForAI()` feeds the last 8 back as *"already said — do not repeat."* This addressed a real structural gap: every generative surface spoke in isolation, and `recentConversations` stored only the user's messages, never the app's. It is a **post-hoc patch** on the problem 12c solves structurally — when the pool ships, dedup moves into candidate cooldowns and `spokenLines` becomes a display/debug record rather than prompt material.
 
 ---
 
-#### 12c · Companion Showing *(requires 12a)*
+#### 12c · Observation Pool *(requires 12a — the fix for 12b)*
 
-The companion shows rather than speaks. Two surfaces — neither uses AI. Noticed is where this lives: one line about you, not the world. Factual, not interpretive. A mirror held up without comment.
+**One ranked candidate pool feeding every surface.** Code selects the observation; the model only phrases it. This is `design/Personalization.md`'s own prescription (*"share candidates across surfaces"*), generalized from `_buildWeekReflectionInsight()` — currently the only surface implementing the contract correctly.
 
-**Noticed block:** when `returningTasks` contains a task 7+ days old, one Noticed line: *"One task has been waiting since [day]."* Appears at most once per day. The filter: not *could we notice this?* — but *does this help you see yourself more clearly?*
+**Shape:**
+1. **Candidate builder** — turns 12a signals into scored candidates `{ kind, evidence, meaning, surfaces, strength }`. Lifecycle evidence only (revive, Soon-return, focus-session, let-go reason, obligation outcome), never noun themes.
+2. **Three gates**, per `Personalization.md`: **evidence** (repeated behavior or a clear self-comparison), **novelty** (not already said by the list, grid, counters, or triage), **usefulness** (changes self-understanding or suggests a lever). Any gate fails → the candidate is dropped.
+3. **Ranking + eligibility** — each surface (nudge, Noticed, focus, Sunday, Monday) declares which kinds it can carry and its cooldown. A candidate narrated by one surface is on cooldown for all.
+4. **Delivery** — the winning candidate goes to the model as evidence + meaning, with instructions to phrase only. No raw signal dump.
+5. **Output guard** — reject added facts, identity claims, causation. Mirror `_weekReflectionTextIsGrounded()`.
+6. **Abstention** — no qualifying candidate means the surface says nothing. Never a generic fallback.
 
-**Task view — age signal:** tasks 7+ days old display their add-date in muted text below the task name. No icons, no color change. The user sees time passing without the app editorializing about it.
+**What this replaces:** 12b's signal dump; `spokenLines` as prompt material; and the original 12c (add-date on 7+ day tasks, a Noticed age line) — both were age-as-content, which fails the novelty gate because triage already prints it.
 
-**Wallpaper test required before shipping.** The Noticed line must feel observational, not accusatory. Test: would this still feel right after 20 appearances?
+**Test for success:** the same pattern is never narrated twice across surfaces in the same week, and surfaces genuinely go quiet on thin days rather than reaching. Does a line arrive feeling like it was *chosen*, not generated?
+
+**Wallpaper test required before shipping.**
 
 ---
 
-#### 12d · Memory Surface *(requires 12a + 12b)*
+#### 12d · Memory Surface *(requires 12c)*
 
 What TODAY knows about you, made visible and clearable.
 
@@ -269,7 +270,7 @@ What TODAY knows about you, made visible and clearable.
 
 **Vision (revised Aug 2026):** not a planning tool — a longitudinal companion surface. The same relational awareness as 12a–12d, extended to a weekly rhythm. TODAY = the daily moment; WEEK = the accumulated pattern.
 
-**Gate (revised):** 12b is working and genuinely feels like a companion — not a feature. Data accumulation matters but the emotional test is the gate, not the calendar.
+**Gate (revised):** 12c is working and genuinely feels like a companion — not a feature. Data accumulation matters but the emotional test is the gate, not the calendar.
 
 **Feeds on:** `today_daily_history` accumulating since v2.17.55. Three months of data gives the weekly view meaningful signal.
 
