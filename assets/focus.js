@@ -709,19 +709,37 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       kbdHint.setAttribute('aria-hidden', 'true');
     }
 
-    // Unlock scroll (restore position from data attribute)
-    const scrollY = parseInt(document.body.dataset.scrollY || '0');
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.left = '';
-    document.body.style.right = '';
-    window.scrollTo(0, scrollY);
-    // If renderManual reordered tasks during focus, the task's DOM position shifted.
-    // Correct by the exact drift so it lands at the same viewport Y as when focus opened.
+    // Unlock scroll — slide back to original position if there was a nudge,
+    // so enter (instant small nudge) and exit feel matched in character.
+    const scrollY      = parseInt(document.body.dataset.scrollY || '0');
+    const lockY        = Math.abs(parseInt(document.body.style.top || '0'));
+    const _driftAnchor = uiTaskEl; // capture before uiTaskEl is cleared at line 810
     const _savedTaskTop = parseFloat(document.body.dataset.focusTaskTop || '-1');
-    if (_savedTaskTop >= 0 && uiTaskEl) {
-      const _drift = uiTaskEl.getBoundingClientRect().top - _savedTaskTop;
-      if (Math.abs(_drift) > 2) window.scrollTo(0, scrollY + _drift);
+
+    function _doUnfix() {
+      document.body.style.transition = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      window.scrollTo(0, scrollY);
+      // If renderManual reordered tasks during focus, the task's DOM position shifted.
+      // Correct by the exact drift so it lands at the same viewport Y as when focus opened.
+      if (_savedTaskTop >= 0 && _driftAnchor) {
+        const _drift = _driftAnchor.getBoundingClientRect().top - _savedTaskTop;
+        if (Math.abs(_drift) > 2) window.scrollTo(0, scrollY + _drift);
+      }
+    }
+
+    if (Math.abs(lockY - scrollY) > 2) {
+      // Animate the fixed body to the original scroll position (ease-out, 200ms —
+      // matches focus exit animation). Visual position is correct at end, so the
+      // subsequent scrollTo in _doUnfix causes no visible snap.
+      document.body.style.transition = 'top 200ms cubic-bezier(0.16, 1, 0.3, 1)';
+      document.body.style.top = `-${scrollY}px`;
+      setTimeout(_doUnfix, 210);
+    } else {
+      _doUnfix();
     }
 
     const closingTask   = uiTaskEl;
