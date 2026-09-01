@@ -256,8 +256,8 @@ One ranked candidate pool for every proactive personal line: code selects the ob
 | Function | Role |
 |---|---|
 | `_buildObservationCandidates({ outcomes, todayISO, …weekStats })` | The pool: Sunday's week-shaped kinds plus the outcome-derived kinds, sorted by hand-assigned `score`. Proposes only — callers apply gates and per-surface eligibility. |
-| `_buildOutcomeCandidates(outcomes, todayISO)` | Five kinds from `appMemory.taskOutcomes` over a 30-day window: `focus-vs-obligation` 115, `obligation-completion` 105, `letgo-reason` 95, `soon-pullback` 88, `letgo-return` 85 (v2.81.0). Each is `{ kind, score, evidence, contrast }` — a contrast, never a cause; the person supplies the meaning. |
-| `_observationGateExplain(candidate, { spokenLines, todayISO })` | `null` to keep, or a human-readable drop reason: age-as-content (triage already prints every task's age) or a per-kind cooldown hit against `spokenLines` entries with the same `kind`. Cooldowns are cross-surface — a kind narrated anywhere is on cooldown everywhere: 21 days for month-window kinds, 7–14 for week-shaped. |
+| `_buildOutcomeCandidates(outcomes, todayISO)` | Five kinds from `appMemory.taskOutcomes` over a 30-day window: `focus-vs-obligation` 115, `obligation-completion` 105, `letgo-reason` 95, `soon-pullback` 88, `letgo-return` 85 (v2.81.0; 45-day window and 30-day cooldown since v2.81.1 — revive is rare, so this kind alone reaches further back). Each is `{ kind, score, evidence, contrast }` — a contrast, never a cause; the person supplies the meaning. |
+| `_observationGateExplain(candidate, { spokenLines, todayISO })` | `null` to keep, or a human-readable drop reason: age-as-content (triage already prints every task's age) or a per-kind cooldown hit against `spokenLines` entries with the same `kind`. Cooldowns are cross-surface — a kind narrated anywhere is on cooldown everywhere: 21 days for month-window kinds, 30 for `letgo-return`, 7–14 for week-shaped. |
 | `_observationNoveltyGate(candidates, knowledge)` | Filters by the above. |
 | `_observationTextIsGrounded(text, maxWords)` | Output guard shared by every pool-fed surface and by the nudge's task-reading track: rejects identity, causal and tenure claims and overlong text. `_weekReflectionTextIsGrounded` is this at 26 words. |
 
@@ -265,7 +265,7 @@ One ranked candidate pool for every proactive personal line: code selects the ob
 
 **Unknowns stay unknown.** Backfilled rows (`backfilled: true`) are excluded from `focus-vs-obligation`; rows with `obligation: null` fall out of both partitions. **Abstention is per surface:** the nudge falls through to its task-reading track; a surface that exists only to observe goes silent.
 
-**Tests:** `scripts/observation-pool-test.mjs` (50) plus pool coverage in `nudge-test`, `insights-test` and `dropbox-test`. They assert the silences as well as the firings.
+**Tests:** `scripts/observation-pool-test.mjs` (53) plus pool coverage in `nudge-test`, `insights-test` and `dropbox-test`. They assert the silences as well as the firings.
 
 ---
 

@@ -140,8 +140,11 @@
 
   function _buildOutcomeCandidates(outcomes, todayISO) {
     const candidates = [];
-    const win = _outcomesWithin(outcomes, 30, todayISO);
-    if (!win.length) return candidates;
+    const win   = _outcomesWithin(outcomes, 30, todayISO);
+    // letgo-return alone reads 45 days (below). The empty check must use the wider
+    // window, or a log whose only events are 31–45 days old returns before reaching it.
+    const win45 = _outcomesWithin(outcomes, 45, todayISO);
+    if (!win45.length) return candidates;
 
     const sumFocus = list => list.reduce((n, e) => n + (Number(e.focusSessions) || 0), 0);
     // Strict equality, never truthiness: backfilled rows carry `obligation: null`
@@ -217,13 +220,18 @@
     // says anything — 2 of 2 coming back is a coincidence, 2 of 6 is a pattern. The
     // evidence deliberately does not say "of them": a revive may be of something let
     // go before the window, and the log has no text to link the two.
-    const releases = win.filter(e => e.outcome === 'letgo');
-    const returns  = win.filter(e => e.outcome === 'revive');
+    //
+    // 45-day window, not 30: revive is a slow signal — a deliberate act, maybe once
+    // a month — and slow signals earn a longer window rather than a lower floor. The
+    // floors stay; only the reach changes. The cooldown for this kind is 30 days so
+    // the same revives are not narrated twice inside one window.
+    const releases = win45.filter(e => e.outcome === 'letgo');
+    const returns  = win45.filter(e => e.outcome === 'revive');
     if (releases.length >= 4 && returns.length >= 2) {
       candidates.push({
         kind: 'letgo-return',
         score: 85,
-        evidence: `This month you let go of ${releases.length} things and brought ${returns.length} back.`,
+        evidence: `Over 45 days, you let go of ${releases.length} things and brought ${returns.length} back.`,
         contrast: 'What you release, and what comes back.',
       });
     }
@@ -246,7 +254,8 @@
     'obligation-completion': 21,
     'letgo-reason': 21,
     'soon-pullback': 21,
-    'letgo-return': 21,
+    // 45-day window — see _buildOutcomeCandidates. 30 keeps one firing per window.
+    'letgo-return': 30,
     // Week-shaped observations belong to a weekly surface and may legitimately recur
     // week to week.
     'focus-leverage': 7,

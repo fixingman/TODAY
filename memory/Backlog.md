@@ -233,7 +233,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 | 95 | `letgo-reason` | one reason accounts for most of what is released |
 | 90 | `recurring-day` | pre-existing |
 | 88 | `soon-pullback` | what you defer tends to come back |
-| 85 | `letgo-return` | what you release, and what comes back — added v2.81.0, after asking why `revive` was recorded but unread |
+| 85 | `letgo-return` | what you release, and what comes back — added v2.81.0 after asking why `revive` was recorded but unread. **45-day window** (v2.81.1), the only kind not on 30: revive is a slow signal, and slow signals earn a longer window rather than a lower floor |
 | 65 | `bursts` | pre-existing, last resort — same container-subject shape as the cuts. Task context may rescue it: naming *what* filled the busy days would give it a subject |
 | — | `list-growth`, `cognitive-weight` | **cut** — container subject, and a count of what triage already prints |
 
@@ -241,7 +241,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 
 **Backfilled rows carry unknowns, and unknowns must stay unknown.** `focusSessions` is unknown for reconstructed history — written as `0`, `focus-vs-obligation` becomes trivially true. `obligation` is unknown for let-go and revive rows — written as `false`, they are silently counted as *chosen*. Rows carry `backfilled: true` and `obligation: null`, and partitions match on `=== true` / `=== false`, never truthiness.
 
-**Tests:** `scripts/observation-pool-test.mjs` (50, in `test-all`), plus pool coverage in `insights-test`, `dropbox-test` and `nudge-test`. They assert the silences as well as the firings.
+**Tests:** `scripts/observation-pool-test.mjs` (53, in `test-all`), plus pool coverage in `insights-test`, `dropbox-test` and `nudge-test`. They assert the silences as well as the firings.
 
 **Two verification hazards, both hit more than once:**
 - **Capture the real payload before theorising about output.** The v2.79.1 duplicate-emission defect was invisible in code review and obvious the moment the request was intercepted.

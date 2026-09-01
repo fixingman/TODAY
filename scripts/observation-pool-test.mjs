@@ -172,10 +172,25 @@ test('letgo-return ranks below soon-pullback', () => {
   return k.indexOf('soon-pullback') < k.indexOf('letgo-return');
 });
 
-test('letgo-return is on a 21-day cross-surface cooldown', () => {
+test('letgo-return is on a 30-day cross-surface cooldown — one firing per 45-day window', () => {
   const c = { kind: 'letgo-return', evidence: 'x', contrast: 'y' };
   const said = d => ({ spokenLines: [{ surface: 'morning nudge', date: ago(d), kind: 'letgo-return' }], todayISO: TODAY });
-  return typeof _observationGateExplain(c, said(20)) === 'string' && _observationGateExplain(c, said(21)) === null;
+  return typeof _observationGateExplain(c, said(29)) === 'string' && _observationGateExplain(c, said(30)) === null;
+});
+
+test('letgo-return reaches 45 days back — a slow signal earns a longer window', () => {
+  const old = releases(4).concat(returns(2)).map(e => ({ ...e, date: ago(40) }));
+  const cs = _buildOutcomeCandidates(old, TODAY);
+  return !!find(cs, 'letgo-return') && !find(cs, 'letgo-reason');
+});
+
+test('letgo-return still ignores outcomes older than 45 days', () =>
+  !find(_buildOutcomeCandidates(
+    releases(4).concat(returns(2)).map(e => ({ ...e, date: ago(46) })), TODAY), 'letgo-return'));
+
+test('letgo-return evidence names its window, not "this month"', () => {
+  const c = find(_buildOutcomeCandidates(releases(4).concat(returns(2)), TODAY), 'letgo-return');
+  return c && /45 days/.test(c.evidence) && !/this month/i.test(c.evidence);
 });
 
 test('every candidate carries a contrast and no meaning field', () =>
