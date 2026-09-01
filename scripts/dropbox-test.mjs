@@ -279,6 +279,83 @@ try {
     await page.close();
   }
 
+  // 11b. appMemory relational-slot merges (12a/12c). These exist because
+  //      obligationHistory shipped in v2.78.0 without a merge entry and was silently
+  //      per-device for a week — _mergeAppMemory is hand-plumbed field by field, so an
+  //      omitted slot fails invisibly rather than loudly. Every accumulated slot needs
+  //      a test here; unlike returningTasks or taskAgeBuckets these cannot self-heal
+  //      from current state.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const D = 86400000, now = Date.now();
+      const iso = d => new Date(d).toISOString().slice(0, 10);
+      const base = {
+        manual_tasks: [], done_ids: [], deleted_ids: [], unchecked_ids: [], checked_ids: [],
+        soon_tasks: [], past_tasks: [], habits: [],
+      };
+
+      appMemory.taskOutcomes = [
+        { id: 'local_1', date: iso(now), outcome: 'done', obligation: false, focusSessions: 2 },
+      ];
+      appMemory.spokenLines = [
+        { surface: 'morning nudge', date: iso(now), text: 'local line', kind: 'letgo-reason' },
+      ];
+      appMemory.obligationHistory = [
+        { text: 'call insurance', date: iso(now - 3 * D), done: false },
+      ];
+
+      mergeRemoteData({
+        ...base,
+        memory: {
+          taskOutcomes: [
+            // exact duplicate of the local row — must not double
+            { id: 'local_1', date: iso(now), outcome: 'done', obligation: false, focusSessions: 2 },
+            // genuinely remote-only
+            { id: 'remote_1', date: iso(now - 5 * D), outcome: 'letgo', obligation: null, focusSessions: 0, reason: 'no_energy' },
+            // same task and day, different outcome — a distinct event, must survive
+            { id: 'local_1', date: iso(now), outcome: 'revive', obligation: false, focusSessions: 0 },
+            // outside the 90-day window
+            { id: 'ancient', date: iso(now - 200 * D), outcome: 'done', obligation: false, focusSessions: 0 },
+          ],
+          spokenLines: [
+            // same surface+day as local — one entry per surface per day
+            { surface: 'morning nudge', date: iso(now), text: 'remote line', kind: 'focus-vs-obligation' },
+            { surface: 'Sunday reflection', date: iso(now - 1 * D), text: 'sunday line', kind: 'habit-alignment' },
+          ],
+          obligationHistory: [
+            // same entry, but the other device saw it completed — done must win
+            { text: 'call insurance', date: iso(now - 3 * D), done: true },
+            { text: 'should email landlord', date: iso(now - 6 * D), done: false },
+          ],
+        },
+      });
+
+      const o = appMemory.taskOutcomes;
+      const ids = o.map(e => e.id + '|' + e.outcome);
+      const oblig = appMemory.obligationHistory;
+      const insurance = oblig.find(e => e.text === 'call insurance');
+      return {
+        outcomeDuplicateNotDoubled: ids.filter(k => k === 'local_1|done').length === 1,
+        outcomeRemoteMerged: ids.includes('remote_1|letgo'),
+        outcomeSameDayDifferentOutcomeKept: ids.includes('local_1|revive'),
+        outcomeOldPruned: !o.some(e => e.id === 'ancient'),
+        outcomeSortedAscending: o.every((e, i, a) => i === 0 || a[i - 1].date <= e.date),
+        outcomeUnknownObligationPreserved: o.find(e => e.id === 'remote_1').obligation === null,
+        spokenOnePerSurfacePerDay:
+          appMemory.spokenLines.filter(l => l.surface === 'morning nudge' && l.date === iso(now)).length === 1,
+        spokenRemoteSurfaceMerged: appMemory.spokenLines.some(l => l.surface === 'Sunday reflection'),
+        spokenKindPreserved: appMemory.spokenLines.every(l => typeof l.kind === 'string'),
+        obligationDoneFlagOred: insurance && insurance.done === true,
+        obligationRemoteOnlyMerged: oblig.some(e => e.text === 'should email landlord'),
+        obligationNotDoubled: oblig.filter(e => e.text === 'call insurance').length === 1,
+      };
+    });
+    await expectAll('appMemory relational slot merges', { ...result, noErrors: errors.length === 0 });
+    ok('mergeRemoteData: taskOutcomes / spokenLines / obligationHistory union, dedup, prune, done-flag OR');
+    await page.close();
+  }
+
   // 12. Weekly reflection sync accepts only text generated under the current
   //     evidence policy, so an older backup cannot resurrect biography drift.
   {

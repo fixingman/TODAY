@@ -429,7 +429,14 @@ window._startNudge = (function() {
           }),
         });
         if (!res.ok) return null;
-        return _parseAIText(await res.json());
+        const text = _parseAIText(await res.json());
+        // Same guard the pool path applies. Adding it there first left the split
+        // incoherent: an identity or causal claim was blocked on the rare path and
+        // waved through on the majority one. Rejecting falls back to the rule-based
+        // line, which is the correct failure — never a claim about who you are.
+        if (!text || (typeof _observationTextIsGrounded === 'function'
+                      && !_observationTextIsGrounded(text, 30))) return null;
+        return text;
       } catch (e) {
         return null;
       }

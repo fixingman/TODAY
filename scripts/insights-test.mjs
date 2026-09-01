@@ -227,6 +227,117 @@ try {
     await page.close();
   }
 
+  // 6b. taskOutcomes capture (12c Phase 0). Every approved pool candidate is a
+  //     windowed contrast, so these dated events are the only thing standing between
+  //     the pool and silence. Also pins that no task text is stored.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      appMemory.taskOutcomes = [];
+      manualTasks.length = 0;
+      manualTasks.push({ id: 'manual_A', text: 'finish the deck', focusSessions: 3 });
+      if (typeof soonTasks !== 'undefined') {
+        soonTasks.length = 0;
+        soonTasks.push({ id: 'manual_C', text: 'have to learn rust', focusSessions: 1 });
+      }
+
+      _memoryOnTaskComplete('finish the deck', 'manual_A');      // id path, focus known
+      _memoryOnTaskLetgo('should book the dentist', 'no_energy'); // text-fallback path
+      _memoryOnSoonPull('have to learn rust');                    // must not also log a letgo
+      _memoryOnRevive('call the plumber', 'changed_mind');         // added v2.80.1
+      _memoryOnTaskComplete('finish the deck', 'manual_A');        // repeat — must dedupe
+
+      const o = appMemory.taskOutcomes;
+      const byOutcome = k => o.filter(e => e.outcome === k);
+      const serialized = JSON.stringify(o);
+      return {
+        fourDistinctEvents: o.length === 4,
+        doneRecorded: byOutcome('done').length === 1,
+        letgoRecorded: byOutcome('letgo').length === 1,
+        soonPullRecorded: byOutcome('soon_pull').length === 1,
+        reviveRecorded: byOutcome('revive').length === 1,
+        soonPullDidNotAlsoLogLetgo: byOutcome('letgo').length === 1,
+        focusResolvedById: byOutcome('done')[0].focusSessions === 3,
+        focusResolvedByTextFallback: byOutcome('soon_pull')[0].focusSessions === 1,
+        obligationDetectedFromText: byOutcome('letgo')[0].obligation === true,
+        obligationFalseForPlainTask: byOutcome('done')[0].obligation === false,
+        reasonCaptured: byOutcome('letgo')[0].reason === 'no_energy',
+        noTaskTextStored: !/dentist|plumber|deck/.test(serialized),
+        persisted: (JSON.parse(localStorage.getItem('today_memory')).taskOutcomes || []).length === 4,
+      };
+    });
+    await expectAll('taskOutcomes capture', { ...result, noErrors: errors.length === 0 });
+    ok('_memoryRecordOutcome: done/letgo/soon_pull/revive each once, focus + obligation resolved, no text stored');
+    await page.close();
+  }
+
+  // 6c. One-time backfill (v2.80.1). The two invariants here are the whole point:
+  //     unknown focus and unknown obligation must stay unknown, because writing 0 or
+  //     false would manufacture the pool's most confident observation out of a gap.
+  {
+    const day = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+    const { page, errors } = await openPage({
+      memory: {
+        recentCompletedTasks: [
+          { text: 'finish the deck', date: day(4) },
+          { text: 'should book the dentist', date: day(6) },
+          { text: 'ancient task', date: day(200) },
+        ],
+        patterns: {
+          letgoReasons:  { no_energy:    { days: { [day(3)]: 2, _legacy: 7 } } },
+          reviveReasons: { changed_mind: { days: { [day(5)]: 1 } } },
+        },
+      },
+    });
+    const result = await page.evaluate(() => {
+      const o = appMemory.taskOutcomes || [];
+      const done = o.filter(e => e.outcome === 'done');
+      const before = o.length;
+      _memoryBackfillOutcomes(); // must be idempotent
+      return {
+        seeded: before === 5, // 2 completions in window + 2 let-gos + 1 revive
+        flagSet: appMemory.taskOutcomesBackfilled === true,
+        allMarkedBackfilled: o.every(e => e.backfilled === true),
+        completionsPresent: done.length === 2,
+        completionsKeepRealObligation: done.length === 2 && done.every(e => typeof e.obligation === 'boolean'),
+        obligationTextDetected: done.some(e => e.obligation === true),
+        reasonRowsObligationUnknown: o.filter(e => e.outcome !== 'done').length === 3
+          && o.filter(e => e.outcome !== 'done').every(e => e.obligation === null),
+        focusNeverGuessed: o.length > 0 && o.every(e => e.focusSessions === 0 && e.backfilled === true),
+        legacyBucketSkipped: !o.some(e => String(e.id).includes('_legacy')),
+        outOfWindowExcluded: !o.some(e => new Date(e.date) < new Date(Date.now() - 90 * 86400000)),
+        reviveBackfilled: o.some(e => e.outcome === 'revive'),
+        idempotent: appMemory.taskOutcomes.length === before,
+      };
+    });
+    await expectAll('taskOutcomes backfill', { ...result, noErrors: errors.length === 0 });
+    ok('_memoryBackfillOutcomes: seeds once, marks backfilled, keeps unknown focus/obligation unknown');
+    await page.close();
+  }
+
+  // 6d. spokenLines carries the candidate kind — without it the novelty gate can only
+  //     string-match prose, and a kind would never actually go on cooldown.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      appMemory.spokenLines = [];
+      _memoryRecordSpokenLine('morning nudge', 'a pool line', 'focus-vs-obligation');
+      _memoryRecordSpokenLine('focus question', 'an untagged line');
+      _memoryRecordSpokenLine('morning nudge', 'regenerated same day', 'letgo-reason');
+      const l = appMemory.spokenLines;
+      return {
+        kindStored: l[0].kind === 'letgo-reason',
+        untaggedHasNoKind: !('kind' in l.find(e => e.surface === 'focus question')),
+        onePerSurfacePerDay: l.filter(e => e.surface === 'morning nudge').length === 1,
+        regeneratedReplaced: l[0].text === 'regenerated same day',
+        persisted: (JSON.parse(localStorage.getItem('today_memory')).spokenLines || []).length === 2,
+      };
+    });
+    await expectAll('spokenLines kind', { ...result, noErrors: errors.length === 0 });
+    ok('_memoryRecordSpokenLine: stores kind, replaces same surface+day, untagged lines carry none');
+    await page.close();
+  }
+
   // 7. _memoryOnStreakUpdate — updates bestStreak and records streak_milestone moment.
   {
     const { page, errors } = await openPage({
