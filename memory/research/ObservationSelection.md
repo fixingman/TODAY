@@ -35,6 +35,10 @@ Read the full paper before citing metric-level claims.
 Geng & Hamilton, *"Interestingness measures for data mining: A survey"*, ACM Computing Surveys,
 2006 — [10.1145/1132960.1132963](https://doi.org/10.1145/1132960.1132963).
 
+**The nine criteria, verified** (quoted by Zeng et al., AAAI 2019, citing Geng & Hamilton):
+*conciseness, coverage, reliability, peculiarity, diversity, novelty, surprisingness, utility,
+and actionability.*
+
 The field separates **objective** measures (computable from the data alone — coverage,
 reliability) from **subjective** ones (novelty, surprisingness, actionability), and holds that
 subjective measures **require an explicit model of what the user already knows**. Novelty is not
@@ -45,19 +49,66 @@ a prompt instruction. Two things already qualify: `appMemory.spokenLines` (what 
 and the fact that `assets/triage.js:118` already prints each task's age. Voice memory (v2.79.0)
 was built as prompt text; it belongs in the gate.
 
-## 3. A principled ranking function instead of invented weights
+## 3. A ranking function — with a documented limitation
 
-Tang, Han, Yiu, Tang & Zhang, *"Extracting Top-K Insights from Multi-dimensional Data"*,
+Tang, Han, Yiu, Ding & Zhang, *"Extracting Top-K Insights from Multi-dimensional Data"*,
 SIGMOD 2017 — [10.1145/3035918.3035922](https://doi.org/10.1145/3035918.3035922). The lineage
-behind Power BI's automatic insights.
+behind Power BI's automatic insights. **Closed access**; the OA copy indexed at PolyU has been
+withdrawn. Verified below via a citing paper, not the original.
 
-Scores a candidate as **impact × significance** — impact being how much of the data the
-observation covers, significance being deviation from a null baseline.
+Zeng, Luo, Huang & Tang, *"Text Assisted Insight Ranking Using Context-Aware Memory Network"*,
+AAAI 2019 — [arXiv:1811.05563](https://arxiv.org/abs/1811.05563) — describes it directly:
 
-**What it changes for us:** gives the candidate builder a defensible ranking function.
-Translated: **impact** = how much of the user's month the observation describes; **significance**
-= distance from *their own* baseline, never a population's. Self-comparison keeps the claim
-conservative, per the AI/data contract.
+> *"Tang et al. (2017) proposes that the insight score should be applicable to and fair across
+> different types of insight. The insight score function in their paper measures the **market
+> share** and the **p-value based uncommonness significance score**. In their work, different
+> insights follow different distribution and have different null hypothesis."*
+
+So the two components are confirmed: **impact ≈ market share** (how much of the data the
+observation covers) and **significance ≈ a p-value against a per-insight-type null hypothesis.**
+The specific combining operator — whether it is literally a product — is **not** confirmed by
+this source, and the original is paywalled. Do not write `impact * significance` into code as
+though it were quoted.
+
+### The limitation, and why it changes our plan
+
+The same paper argues against the approach:
+
+> *"We argue that such statistical methods do not satisfy the comparability requirement of
+> insight importance score."*
+
+and, on why:
+
+> *"statistical significance has some limitation in insight importance ranking. First, as its
+> scoring method suggests, it neglects the semantics of the data … which is proved to greatly
+> contribute to the importance."*
+
+Two problems, both of which apply to us directly:
+
+1. **Cross-type incomparability.** Each insight type has its own null distribution, so a p-value
+   from one type is not commensurable with a p-value from another. Our candidate kinds have
+   exactly this shape — an obligation-completion contrast and a focus-allocation contrast are
+   different distributions. Ranking them against each other by statistical deviation is not
+   meaningful.
+2. **Semantics-blindness.** A statistically odd but meaningless pattern outranks a
+   semantically important one. For TODAY the semantic weight is the whole point: not calling
+   the insurance company is not interchangeable with not doing an arbitrary task.
+
+**What this means for 12c — a correction to the earlier plan.** Do **not** replace
+`week-reflection-policy.js`'s hand-assigned per-kind base scores (`score: 110 + …`,
+`score: 100 + …`) with a statistical ranking. Those constants encode editorial judgment about
+which *kinds* of observation matter more, which is precisely the comparability layer the
+literature says statistics cannot supply. Correct division of labour:
+
+- **Within a kind** — use deviation from the user's own baseline as a *threshold*: does this
+  candidate qualify at all? (The existing file already does this: `focusAvg - otherAvg >= 1`
+  and `focusAvg >= max(1.4 * otherAvg, 1.5)`.)
+- **Across kinds** — use hand-assigned base scores, reviewed as an editorial decision.
+- **Impact** — coverage of the user's month is a sound tiebreaker within a kind, and is the
+  component of Tang et al. worth borrowing.
+
+The existing code was already right. The upgrade I proposed would have replaced working
+editorial judgment with a method its own literature criticises.
 
 ## 4. Abstention has an evidence base
 
@@ -88,9 +139,13 @@ diagnosis — a confident, surprising, unfalsifiable statement about who the use
 
 | Claim | Status |
 |---|---|
-| Titles, venues, years, DOIs of all five papers | ✅ verified via Crossref / arXiv this session |
-| Pipeline > end-to-end finding, and better generalization to unseen inputs | ✅ verified from the arXiv abstract |
-| Impact × significance decomposition (Top-K Insights) | ⚠️ from background knowledge — not read this session |
-| Specific criterion names in the Geng & Hamilton taxonomy (conciseness, peculiarity, etc.) | ⚠️ from background knowledge — no open copy obtained |
+| Titles, venues, years, DOIs of all papers | ✅ verified via Crossref / OpenAlex / arXiv |
+| Pipeline > end-to-end, and better generalization to unseen inputs | ✅ verified from the arXiv abstract |
+| Geng & Hamilton's nine interestingness criteria | ✅ verified — quoted verbatim in Zeng et al. (AAAI 2019), arXiv:1811.05563. Secondary source; the ACM original was not opened |
+| Top-K Insights scores on market share + p-value significance | ✅ verified via the same secondary source |
+| That the two are combined as a **product** | ❌ **not** verified — original is paywalled, PolyU OA copy withdrawn. Do not write `impact * significance` as though quoted |
+| Statistical significance is cross-type incomparable and semantics-blind | ✅ verified — argued explicitly in Zeng et al. |
 
-Resolve the two ⚠️ rows before the candidate builder's scoring function is written against them.
+**Resolution (2026-09-01):** both previously-open rows are settled. The unresolved item is now
+narrower and lower-stakes — the exact combining operator — and it no longer blocks 12c, because
+the design conclusion is *not* to rank across kinds statistically at all.
