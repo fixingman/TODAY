@@ -37,6 +37,7 @@ Then read Tier 2 files relevant to the task (see `Rules.md` File Guide).
 ```markdown
 | **X.X.X** | **Feature name** — Brief description. |
 ```
+After adding the new entry, count the rows. If there are more than 20, move the oldest excess rows (bottom of the table) to the top of `memory/archive/Changelog-archive.md` (after its `|---|---|` line). Do this in the same commit — not a separate session.
 
 **b) `index.html` CHANGELOG object** — **user-facing** (renders in the About panel). Short, plain language, no lingo. Say what changed for the user, not how. One sentence, two max. No function names, no CSS properties, no root-cause archaeology, no version cross-references.
 ```javascript
@@ -130,7 +131,6 @@ Quick smoke test after any deploy:
 - **Clean plan files:** `ls ~/.claude/plans/` — delete completed plans and any that belong to other projects (unrecognized subject matter). Completed plan = its fix is already shipped. Foreign plan = content clearly unrelated to TODAY.
 
 ### Occasionally: Documentation Audit
-- Changelog.md over 20 versions? Archive oldest entries to `Changelog-archive.md`
 - Any architecture doc drifting from reality? Spot-check against code
 - Update version references in performance audit, component docs
 
