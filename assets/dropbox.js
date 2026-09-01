@@ -920,7 +920,7 @@
           if (!seenSpoken.has(key)) { appMemory.spokenLines.push(l); seenSpoken.add(key); }
         }
         appMemory.spokenLines.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-        appMemory.spokenLines = appMemory.spokenLines.slice(-30);
+        appMemory.spokenLines = appMemory.spokenLines.slice(-120);
       }
       // 12c taskOutcomes — union by id+outcome+date. Accumulated dated events; like
       // obligationHistory it cannot self-heal from current state, so a missing merge entry

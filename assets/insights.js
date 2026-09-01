@@ -256,18 +256,25 @@ function _incrementObligationTally(taskText) {
 // voice could never accumulate. _memoryForAI() feeds these back to every surface.
 // Deliberately NOT the assistant chat — that's user-initiated dialogue, not the app's
 // unprompted voice, and its replies are long and situational.
-function _memoryRecordSpokenLine(surface, text) {
+function _memoryRecordSpokenLine(surface, text, kind) {
   if (!surface || !text) return;
   const clean = String(text).trim();
   if (!clean) return;
   const today  = _localISO();
   const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
   const lines  = (appMemory.spokenLines || []).filter(l => l && l.date && new Date(l.date) >= cutoff);
-  // One entry per surface per day — a regenerated line replaces, never stacks
+  // 12c: `kind` links the line back to the candidate that produced it, which is what
+  // lets the novelty gate put a *kind* on cooldown rather than string-matching prose.
+  // Optional — lines from surfaces not yet wired to the pool simply carry no kind.
   const entry = { surface, date: today, text: clean.slice(0, 200) };
+  if (kind) entry.kind = kind;
+  // One entry per surface per day — a regenerated line replaces, never stacks
   const i = lines.findIndex(l => l.surface === surface && l.date === today);
   if (i >= 0) lines[i] = entry; else lines.push(entry);
-  appMemory.spokenLines = lines.slice(-30);
+  // Cap raised from 30 with the gate (v2.80.x): cooldowns reach 21 days, and at one
+  // entry per surface per day across five surfaces a 30-entry cap held barely six
+  // days of history — a kind would leave cooldown purely by eviction.
+  appMemory.spokenLines = lines.slice(-120);
   _saveMemory();
 }
 

@@ -10,6 +10,8 @@
   root._weekReflectionTextIsGrounded = policy._weekReflectionTextIsGrounded;
   root._buildObservationCandidates = policy._buildObservationCandidates;
   root._buildOutcomeCandidates = policy._buildOutcomeCandidates;
+  root._observationNoveltyGate = policy._observationNoveltyGate;
+  root._observationGateExplain = policy._observationGateExplain;
   if (typeof module === 'object' && module.exports) module.exports = policy;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function() {
   'use strict';
@@ -204,6 +206,77 @@
     return candidates;
   }
 
+  // ── 12c: novelty gate ───────────────────────────────────────────────────────
+  // Subjective interestingness — novelty, actionability — cannot be computed without
+  // an explicit model of what the user already knows (Geng & Hamilton; see
+  // memory/research/ObservationSelection.md). That model is two things: `spokenLines`,
+  // which is what TODAY has already said, and the fact that triage already prints every
+  // task's age. This is the layer v2.79.0's voice memory belongs in — a filter that
+  // eliminates candidates deterministically, rather than prompt text asking the model to
+  // police itself.
+  const _KIND_COOLDOWN_DAYS = {
+    // Month-window observations. Saying one twice inside its own window is repetition,
+    // not accumulation.
+    'focus-vs-obligation': 21,
+    'obligation-completion': 21,
+    'letgo-reason': 21,
+    'soon-pullback': 21,
+    // Week-shaped observations belong to a weekly surface and may legitimately recur
+    // week to week.
+    'focus-leverage': 7,
+    'habit-alignment': 7,
+    'recurring-day': 14,
+    'bursts': 14,
+  };
+  const _DEFAULT_COOLDOWN_DAYS = 14;
+
+  // Age-as-content. Triage prints today / yesterday / N days for every task, so a tenure
+  // claim restates a visible counter. Deliberately narrow: "Over 30 days, 5 focus
+  // sessions…" states a *window* and must survive; "sat here 9 days" is a tenure claim
+  // and must not.
+  const _AGE_CLAIM = /\b\d+\s*days?\s*(?:old|ago|now|without|untouched)\b|\b(?:been|sat|sitting|waiting|unopened|untouched|still here)\b[^.]{0,24}\b\d+\s*days?\b/i;
+
+  function _daysBetweenISO(fromISO, toISO) {
+    const a = new Date(fromISO), b = new Date(toISO);
+    if (isNaN(a.getTime()) || isNaN(b.getTime())) return Infinity;
+    return Math.round((b - a) / 86400000);
+  }
+
+  // Returns null to keep, or a human-readable reason to drop. A reason rather than a
+  // boolean so Phase 3 can log why a surface went quiet, and so 12d can show it — a
+  // silent filter is untraceable when a surface unexpectedly says nothing.
+  function _observationGateExplain(candidate, knowledge) {
+    if (!candidate || !candidate.kind) return 'malformed candidate';
+    const k = knowledge || {};
+    const today = k.todayISO || new Date().toISOString().slice(0, 10);
+
+    if (_AGE_CLAIM.test(String(candidate.evidence || '') + ' ' + String(candidate.contrast || ''))) {
+      return 'restates task age, which triage already prints';
+    }
+
+    const cooldown = Object.prototype.hasOwnProperty.call(_KIND_COOLDOWN_DAYS, candidate.kind)
+      ? _KIND_COOLDOWN_DAYS[candidate.kind]
+      : _DEFAULT_COOLDOWN_DAYS;
+
+    for (const line of (Array.isArray(k.spokenLines) ? k.spokenLines : [])) {
+      if (!line || !line.date || line.kind !== candidate.kind) continue;
+      const age = _daysBetweenISO(line.date, today);
+      if (age >= 0 && age < cooldown) {
+        const when = age === 0 ? 'today' : age + ' day' + (age === 1 ? '' : 's') + ' ago';
+        return 'already said ' + when + ' on ' + (line.surface || 'another surface');
+      }
+    }
+    return null;
+  }
+
+  // Cross-surface by design: a kind narrated by the nudge is on cooldown for Noticed,
+  // focus, Sunday and Monday too. The point is that the *person* does not hear the same
+  // observation twice, not that each surface avoids repeating itself.
+  function _observationNoveltyGate(candidates, knowledge) {
+    if (!Array.isArray(candidates)) return [];
+    return candidates.filter(c => _observationGateExplain(c, knowledge) === null);
+  }
+
   // The pool: every candidate from every source, ranked. Callers apply gates and
   // per-surface eligibility; this function only proposes.
   function _buildObservationCandidates(input) {
@@ -223,5 +296,5 @@
     return text.trim().split(/\s+/).length <= 26;
   }
 
-  return { _buildWeekReflectionInsight, _weekReflectionTextIsGrounded, _buildWeekCandidates, _buildOutcomeCandidates, _buildObservationCandidates };
+  return { _buildWeekReflectionInsight, _weekReflectionTextIsGrounded, _buildWeekCandidates, _buildOutcomeCandidates, _buildObservationCandidates, _observationNoveltyGate, _observationGateExplain };
 });

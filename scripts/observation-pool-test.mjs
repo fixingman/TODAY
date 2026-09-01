@@ -11,6 +11,8 @@ const {
   _buildOutcomeCandidates,
   _buildObservationCandidates,
   _buildWeekReflectionInsight,
+  _observationNoveltyGate,
+  _observationGateExplain,
 } = require(join(ROOT, 'assets/week-reflection-policy.js'));
 
 let passed = 0, failed = 0;
@@ -178,6 +180,79 @@ test('Sunday behaviour unchanged: a focus-leverage week still wins, now with con
   ];
   const insight = _buildWeekReflectionInsight({ days, history: [] });
   return insight && insight.kind === 'focus-leverage' && typeof insight.contrast === 'string';
+});
+
+
+// ── novelty gate ────────────────────────────────────────────────────────────
+console.log('\nobservation pool — novelty gate\n');
+
+const said = (kind, daysAgo, surface = 'morning nudge') =>
+  ({ surface, date: ago(daysAgo), text: 'whatever it said', kind });
+const cand = (kind, extra = {}) =>
+  ({ kind, score: 100, evidence: extra.evidence || 'Some grounded evidence.', contrast: extra.contrast || 'A contrast.' });
+
+test('keeps a candidate never said before', () =>
+  _observationNoveltyGate([cand('focus-vs-obligation')], { spokenLines: [], todayISO: TODAY }).length === 1);
+
+test('drops a kind said inside its cooldown', () =>
+  _observationNoveltyGate([cand('focus-vs-obligation')],
+    { spokenLines: [said('focus-vs-obligation', 5)], todayISO: TODAY }).length === 0);
+
+test('keeps a kind said outside its cooldown', () =>
+  _observationNoveltyGate([cand('focus-vs-obligation')],
+    { spokenLines: [said('focus-vs-obligation', 22)], todayISO: TODAY }).length === 1);
+
+test('cooldown is per kind — a different kind does not block', () =>
+  _observationNoveltyGate([cand('focus-vs-obligation')],
+    { spokenLines: [said('letgo-reason', 1)], todayISO: TODAY }).length === 1);
+
+test('cooldown is cross-surface — Sunday blocks the nudge', () =>
+  _observationNoveltyGate([cand('letgo-reason')],
+    { spokenLines: [said('letgo-reason', 3, 'Sunday reflection')], todayISO: TODAY }).length === 0);
+
+test('week kinds get the shorter 7-day cooldown', () =>
+  _observationNoveltyGate([cand('focus-leverage')],
+    { spokenLines: [said('focus-leverage', 8)], todayISO: TODAY }).length === 1 &&
+  _observationNoveltyGate([cand('focus-leverage')],
+    { spokenLines: [said('focus-leverage', 3)], todayISO: TODAY }).length === 0);
+
+test('lines with no kind are ignored by the gate', () =>
+  _observationNoveltyGate([cand('focus-vs-obligation')],
+    { spokenLines: [{ surface: 'morning nudge', date: ago(1), text: 'an old untagged line' }], todayISO: TODAY }).length === 1);
+
+test('drops an age claim even when the kind is fresh', () =>
+  _observationNoveltyGate([cand('some-future-kind', { evidence: 'Call insurance has sat here 9 days.' })],
+    { spokenLines: [], todayISO: TODAY }).length === 0);
+
+test('a 30-day window statement is not an age claim', () => {
+  const real = _buildOutcomeCandidates(focusSplit, TODAY);
+  return real.length > 0 &&
+    _observationNoveltyGate(real, { spokenLines: [], todayISO: TODAY }).length === real.length;
+});
+
+test('explain gives a reason for a cooldown drop, null for a keep', () => {
+  const why = _observationGateExplain(cand('letgo-reason'),
+    { spokenLines: [said('letgo-reason', 2, 'Sunday reflection')], todayISO: TODAY });
+  return typeof why === 'string' && why.includes('2 days ago') && why.includes('Sunday reflection') &&
+    _observationGateExplain(cand('letgo-reason'), { spokenLines: [], todayISO: TODAY }) === null;
+});
+
+test('explain names the age rule when it fires', () =>
+  /triage/.test(_observationGateExplain(
+    cand('x', { evidence: 'It has been waiting 12 days.' }), { spokenLines: [], todayISO: TODAY })));
+
+test('gate tolerates malformed input and never throws', () =>
+  _observationNoveltyGate(null, {}).length === 0 &&
+  _observationNoveltyGate([null, {}], { spokenLines: null, todayISO: TODAY }).length === 0 &&
+  _observationNoveltyGate([cand('letgo-reason')], undefined).length === 1);
+
+test('gate preserves ranking order of what survives', () => {
+  const all = _buildObservationCandidates({
+    outcomes: focusSplit.concat(Array.from({ length: 3 }, () => out({ outcome: 'soon_pull' }))),
+    todayISO: TODAY,
+  });
+  const kept = _observationNoveltyGate(all, { spokenLines: [], todayISO: TODAY });
+  return kept.every((c, i, a) => i === 0 || a[i - 1].score >= c.score);
 });
 
 console.log('\n' + (failed === 0 ? '✓ ' : '✗ ') + passed + ' passed, ' + failed + ' failed\n');
