@@ -51,6 +51,7 @@
 | AI companion | `architecture/AI.md` |
 | Focus/timer | `architecture/Focus.md` |
 | User psychology | `research/Psychology.md` |
+| Observation selection / 12c candidate ranking | `research/ObservationSelection.md` |
 | Time/day logic | `research/Temporal.md` |
 | Integrations | `research/Integrations.md` |
 | Quick capture | `research/Quick-capture.md` |
