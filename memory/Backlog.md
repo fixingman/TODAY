@@ -29,16 +29,13 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 12a | **Companion — relational memory foundation** | Shipped v2.79.1 | `appMemory` gets relational slots: returning-task registry, obligation-language tally with 90-day named history, task-age buckets. Plus `spokenLines` (what TODAY has said), which becomes 12c's novelty-gate input. Prerequisite for the rest of the arc. Detail ↓ |
-| 12b | **Companion — voice** | Shipped v2.78.1 — **superseded by 12c** | Built the inverse of the AI/data contract: raw signals dumped into the nudge prompt, model left to judge. Not fixable in isolation; 12c is the fix. Detail ↓ |
-| 12c | **Companion — observation pool** | Phases 0–3 shipped v2.80.0; **Phase 4 = judge** | One ranked candidate pool feeding every surface: code selects through 4 gates, model only phrases it. Capture, candidates and the novelty gate are in and tested (36 tests); nothing consumes them yet. Phase 3 wires the nudge and is the first behaviour change. Detail ↓ |
+| 12c | **Companion — observation pool** | Phases 0–3 shipped; **Phase 4 = judge** | Ranked candidate pool feeding every surface: code selects through 4 gates, model only phrases. Wired to the morning nudge only. Phase 4 is a verdict, not code. Detail ↓ |
 | 11 | **Task agent — enrichment at add-time** | Stages 1 & 2 shipped; Stage 3 next | External context enrichment (Gmail, web search, soon: contacts, calendar, Trello). Distinct from companion arc — enriches the task, not understanding of you. Detail ↓ |
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
 | 12d | **Companion — memory surface** | Not started | "What TODAY knows about you" in the Memory panel (`#memoryPanel`, not Connections — see `design/Personalization.md` hard constraint). Inspectable, clearable. Requires 12c to have ranked observations worth showing. Detail ↓ |
 | — | **WEEK companion** | Gated | Gate is now: *12c is working and feels like a companion, not a feature.* Data accumulation is necessary but not sufficient. Detail ↓ |
 | 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 123 reviewed poems (2026-09-01). Detail ↓ |
-| 7 | **Season moments — solar term label** | Shipped v2.71.0 | Solar term label above evocative line; season owns full Noticed block. Wallpaper test → table below. |
 
 ---
 
@@ -84,14 +81,6 @@ Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cu
 - Southeast Asia: José Rizal's 'To the Flowers of Heidelberg' first stanza (trans. Charles Derbyshire) was reviewed and skipped; do not re-propose it. Continue searching beyond the Philippines.
 - Closed: London Snow (too long), Turkish/Sufi (no worldwide-PD English), Poe (anguished), 'The Broken String' (bleak/unresolved)
 - Modern CC0: no viable candidates found after exhaustive search. Path exists in principle.
-
----
-
-### 7 · Season Moments — ✅ Shipped v2.71.0
-
-Solar term label (`処暑 · End of Heat`) above the evocative line. Season moments own the full Noticed block when they appear. Stored as `{ term, line }` object; own render path.
-
-**Wallpaper test:** tracked in table below. Due 2026-09-05.
 
 ---
 
@@ -205,138 +194,49 @@ The four stages are sequenced — each builds on the previous. The arc as a whol
 
 ---
 
-#### 12a · Relational Memory Foundation — **shipped** *(prerequisite for all)*
+#### 12c · Observation Pool — Phases 0–3 shipped, **Phase 4 next**
 
-`appMemory` stored behavioral snapshots (peakHour, recentCompletedTasks) but nothing about your relationship with individual tasks across sessions. 12a added that. It owns every `appMemory` slot in the arc; 12c consumes them.
+**One ranked candidate pool feeding every surface.** Code selects the observation through four gates; the model only phrases it. Built by extending `assets/week-reflection-policy.js`, which stays pure and Node-testable. Currently wired to the **morning nudge only**. Implementation detail → `Changelog.md` (2.80.0–2.80.4); prior art → `research/ObservationSelection.md`; prompt rules → `design/Personalization.md`.
 
-**Slots shipped:**
-- `returningTasks` — `{ taskId, text, firstSeen, dayCount, focusSessions }` for each task on the list 5+ days (manual + Trello). Written on each `_memoryForAI()` call. Trimmed on complete/delete.
-- `obligationLanguageTally` — `{ week, count, completed, tasks[] }`, resets Monday. Detection tightened: min 3 words; "should/must be [adj]" excluded.
-- `obligationHistory` — rolling 90-day log of `{ text, date, done }`, retroactively re-validated against current detection on load. **This is the slot that enables the category contrast** ("focus went to chosen work, not to the obligations") — which is what passes all four of 12c's gates. Built to name individual stuck tasks; its real value turned out to be the category comparison.
-- `taskAgeBuckets` — `{ d1to3, d4to6, d7to13, d14plus }` summary counts.
-- `spokenLines` — `{ surface, date, text }`, 30 entries / 30 days, one per surface per day. What TODAY has said on its own initiative across every surface. Merged across devices in `dropbox.js`.
+**Phase 4 — judge, then generalize.** A verdict, not code. Two weeks of real mornings on the nudge alone; only on a pass do Noticed, focus, Sunday and Monday get wired, with cooldowns. Tracked in the Wallpaper Test table below.
 
-**`spokenLines` is the novelty gate's knowledge model, not a dedup patch.** Geng & Hamilton: subjective interestingness (novelty, actionability) cannot be computed without an explicit model of what the user already knows. `spokenLines` plus the triage age display (`assets/triage.js:118`) constitute that model. v2.79.0 routed it into the prompt as text, where it can only ask the model to self-police; 12c moves it into the gate, where it eliminates candidates deterministically. The data was right, the layer was wrong.
+- **The pool is silent for a while by design.** `taskOutcomes` began recording 2026-09-01 and the backfill reaches only as far as existing dated history. Thirty-day windows with 4+ samples per side mean most mornings still take the task-reading path. A quiet fortnight is expected, not a failed threshold.
+- **Distinguish the two failure modes before changing anything.** *Never fires* and *fires but feels like a verdict* have different fixes. Check `spokenLines` for entries carrying a `kind` — that is the pool speaking. None at all points at thresholds or thin `taskOutcomes`, not at the prompt.
 
-**Known debt, deliberately deferred:** `obligationHistory` stores raw events, which `design/Personalization.md` warns against (*"don't store behavior — store conclusions"*). Not worth fixing before 12c, because 12c's candidate builder **is** the transformation step — raw events become its input rather than prompt material. Fixing storage first would be work redone.
+**Standing rules for wiring any further surface:**
 
-**Shipped:** v2.77.26 (foundation) · v2.78.0 (obligation history, tighter detection) · v2.79.0 (`spokenLines` + cross-device merge, which also fixed `obligationHistory` never having been added to `_mergeAppMemory`) · v2.79.1 (stopped emitting the same waiting task under two headings — repetition was manufacturing salience in an unranked prompt).
+1. **Four gates.** **Evidence** (repeated behaviour or a clear self-comparison), **novelty** (not already said by the list, grid, counters, triage, or `spokenLines`), **usefulness** (changes self-understanding), **single-reading** (statable as a bare contrast — if it only lands with an interpretation attached, the interpretation is doing the work).
+2. **Candidates carry a contrast, never a cause.** *"The observation creates space; the user fills in the meaning"* (`research/Psychology.md`). Moving causal judgment from the model into code relocates the overreach rather than fixing it.
+3. **Prefer category contrasts over single-task, and months over weeks.** A one-week contrast is a coincidence.
+4. **Ranking is editorial, not statistical.** Hand-assigned base scores stay. P-values are not comparable across kinds with different null distributions and are blind to semantics; deviation from the user's own baseline is a within-kind threshold only.
+5. **Abstention is per surface.** Where a surface exists only to observe (Noticed, Sunday) it goes silent. Where it also has a factual job, it abstains *to that job* — the nudge falls back to its rule-based line, because the morning is the signature beat.
+6. **Cooldowns are cross-surface.** A kind narrated anywhere is on cooldown everywhere; the point is that the person does not hear the same observation twice.
 
----
+### Candidate kinds — settled with Can 2026-09-01
 
-#### 12b · Companion Voice — *superseded by 12c (2026-09-01)*
+Sorted by reacting to sample output lines rather than score constants, which is the artifact worth putting in front of a person. Everything that survived is a **relationship** or **lifecycle** kind; both cuts were count-shaped.
 
-**What shipped (v2.78.1):** three lines added to the nudge instruction telling the model to use accumulated history as judgment rather than report it as counts. System prompt left at its pre-12b baseline. Kept as a holding position until 12c lands; harmless, but not the fix.
-
-**Why it is superseded, not iterated.** 12b handed the morning nudge a dump of raw `appMemory` signals and asked it to decide what mattered — inverting the AI/data contract in `design/Personalization.md`: *"code selects and describes the observation; the LLM is a writer, not the epistemologist."* Four successive prompt revisions could not repair it, which `Personalization.md` also predicts: *"when a surface starts going stale, the fix is a fresh signal, not a better prompt."* External evidence for why prompt-only repair fails on a **selection** problem: Castro Ferreira et al. (EMNLP 2019) find explicit intermediate steps beat end-to-end generation and generalize better to unseen inputs — see `research/ObservationSelection.md`. Unseen input is TODAY's production case; every morning is new data.
-
-**Kept as durable lessons:**
-- **Insight vs. count.** An insight catches a blind corner — *"this one has a deadline you haven't clocked."* A count restates something visible — *"this has been here 5 days."* Age in particular is already printed by triage (`assets/triage.js:118`), so age-as-content fails the novelty gate everywhere in the app.
-- **Worked examples anchor.** Three examples all shaped `task + days + implication` collapsed the output space to one template — the Wallpaper Test failure mode written into the prompt. State the principle; never demonstrate the form.
-- **Negative instructions cost warmth.** Replacing *"a friend noticing, not a coach"* with *"notice the pattern, don't diagnose the person"* removed the license for acknowledgment lines (focus time, what got done) that were landing well. The positive frame already forbids diagnosis; naming diagnosis invites thinking in those terms.
-- **Salience is selection.** When a model picks from an unranked list, the most-repeated fact wins. See the v2.79.1 fix — a defect invisible in code review, obvious the moment a real payload was captured. **Capture the actual request before theorising about output.**
-
-Voice memory (`spokenLines`) shipped alongside 12b but belongs to 12a ↑.
-
----
-
-#### 12c · Observation Pool *(requires 12a — the fix for 12b)*
-
-**One ranked candidate pool feeding every surface.** Code selects the observation; the model only phrases it. `design/Personalization.md`'s own prescription (*"share candidates across surfaces"*).
-
-**Start by extending `assets/week-reflection-policy.js`, not by writing a new module.** (Its scoring constants are correct as they stand — see 3 below.) That file is already ~60% of the pool: a pure policy layer with no DOM, storage, network, or app-state dependency; it builds scored `candidates[]` with `{ kind, score, evidence, meaning }`, applies minimum-evidence thresholds, requires observations on *both sides* of a comparison, and is directly testable in Node without Puppeteer. Its `meaning` strings are already phrased as association, never causation (*"Focus days coincided with a stronger completion rhythm"*). **Preserve all four properties** — purity, thresholds, two-sided evidence, Node-testability. What it lacks: `appMemory` inputs, a novelty gate, cross-surface eligibility and cooldowns, and any consumer besides Sunday.
-
-**Shape:**
-1. **Candidate builder** — extend the existing one to read 12a slots alongside weekly stats. Lifecycle evidence only (revive, Soon-return, focus-session, let-go reason, obligation outcome), never noun themes. Rename `meaning` → `contrast` for honesty; the existing content already qualifies.
-2. **Four gates.** Three from `Personalization.md`: **evidence** (repeated behavior or a clear self-comparison), **novelty** (not already said by the list, grid, counters, triage, or `spokenLines`), **usefulness** (changes self-understanding). Plus **single-reading (added 2026-09-01):** a candidate must be statable as a bare contrast; if it only lands with an interpretation attached, the interpretation is doing the work and the app cannot support it. Any gate fails → dropped.
-   - **Candidates carry a contrast, never a cause.** Per `research/Psychology.md` — *"the observation creates space; the user fills in the meaning."* Moving causal judgment from the LLM into code relocates the overreach rather than fixing it. *"What's stopping it isn't time — it's starting"* fits the evidence; so does *"work got priority over a dreaded obligation."* When the app picks one, the user either agrees and learns nothing, or disagrees and feels misread.
-   - **Prefer category contrasts over single-task, and months over weeks.** *"12 focus sessions this month, all on tasks you chose; the 4 you framed as 'have to' got none"* is a pattern the user resolves themselves. The same contrast over one week is a coincidence. Category contrasts also clear the single-reading gate more often.
-3. **Ranking — keep the existing hand-assigned base scores; do not replace them with statistics.** Verified 2026-09-01: Tang et al.'s score combines market share with a p-value significance term, but Zeng et al. (AAAI 2019) document two failures that apply to us directly — p-values from different insight types have different null distributions and so are **not comparable across kinds**, and statistical scoring is **semantics-blind** (a statistically odd but meaningless pattern outranks an important one). Our kinds have exactly that shape. Correct division of labour:
-   - **Within a kind** — deviation from the user's own baseline as a *qualifying threshold*. `week-reflection-policy.js` already does this (`focusAvg - otherAvg >= 1 && focusAvg >= max(1.4 * otherAvg, 1.5)`).
-   - **Across kinds** — the existing hand-assigned base constants (`score: 110 + …`, `score: 100 + …`). These encode editorial judgment about which kinds matter, which is the comparability layer statistics cannot supply. Review them as an editorial decision, not a tuning exercise.
-   - **Impact** (coverage of the user's month) — a sound tiebreaker *within* a kind; the piece of Tang et al. worth borrowing.
-   - **Reject the literature's objective function.** It maximises *surprisingness*; a surprising claim about a person is exactly what the single-reading gate forbids. Take the machinery, not the goal.
-4. **Eligibility + cooldowns** — each surface (nudge, Noticed, focus, Sunday, Monday) declares which kinds it can carry and its cooldown. A candidate narrated by one surface is on cooldown for all. Notification research (`research/ObservationSelection.md`) finds receptivity is governed by volume and timing over per-message quality.
-5. **Delivery** — the winner goes to the model as evidence + contrast, phrase-only, leaving the contrast unresolved. No raw signal dump.
-6. **Output guard** — reject added facts, identity claims, causation. `_weekReflectionTextIsGrounded()` already exists; generalize it.
-7. **Abstention — per surface, not global** (corrected 2026-09-01). Where a surface exists only to observe (Noticed, Sunday), no qualifying candidate means silence. Where it also has a factual job, it abstains *to that job*: the morning nudge falls back to its existing rule-based line ("2 tasks still here from yesterday"). The north star calls the morning the signature beat; going quiet most mornings would break the ritual to protect a principle. Abstention is a design primitive, never a fallback for failed generation.
-
-**What this replaces:** 12b's signal dump; `spokenLines` as prompt material (becomes a gate input); and the original 12c (add-date on 7+ day tasks, a Noticed age line) — both were age-as-content, which fails novelty because triage already prints it.
-
-### Candidate menu — settled with Can 2026-09-01
-
-Sorted by reacting to sample output lines, not to score constants. Two rules fell out of the rejections:
-
-- **The person is the subject, never a container.** *"Every focus session went to something you chose"* works; *"the list has been growing"* does not. You cannot recognise yourself in a container's state.
-- **Name the actual list, or it isn't sayable.** Can's first objection to list-growth was *"what list is growing"* — TODAY has today's list, Soon, Past, and Trello. An observation that can't name its referent unambiguously fails on clarity.
-
-Everything that survived is a **relationship** or **lifecycle** kind; both cuts were the count-shaped ones — independent convergence on `design/Personalization.md`'s *"prefer lifecycle evidence over noun themes."*
-
-| Score | Kind | Status |
+| Score | Kind | |
 |---|---|---|
-| 115 | `focus-vs-obligation` | new — yes |
-| 110 | `focus-leverage` | existing |
-| 105 | `obligation-completion` | new — yes |
-| 100 | `habit-alignment` | existing |
-| 95 | `letgo-reason` | new — yes |
-| 90 | `recurring-day` | existing |
-| 88 | `soon-pullback` | new — yes, after rewriting the second clause to make the person the subject (*"What you defer tends to come back"*, not *"it fills faster than it empties"*) |
-| 65 | `bursts` | existing — **kept as last resort.** Same container-subject shape as the cuts, but Can's note: task context may rescue it. Naming *what* filled the busy days would give it a subject. Revisit rather than cut. |
-| — | `list-growth` | **cut** — container subject, ambiguous referent, no self-recognition |
-| — | `cognitive-weight` | **cut** — a count of what triage already prints |
+| 115 | `focus-vs-obligation` | where focus went, and where it did not |
+| 110 | `focus-leverage` | pre-existing |
+| 105 | `obligation-completion` | rate on obligation-framed vs chosen |
+| 100 | `habit-alignment` | pre-existing |
+| 95 | `letgo-reason` | one reason accounts for most of what is released |
+| 90 | `recurring-day` | pre-existing |
+| 88 | `soon-pullback` | what you defer tends to come back |
+| 65 | `bursts` | pre-existing, last resort — same container-subject shape as the cuts. Task context may rescue it: naming *what* filled the busy days would give it a subject |
+| — | `list-growth`, `cognitive-weight` | **cut** — container subject, and a count of what triage already prints |
 
-### Phase 0 · Capture *(discovered 2026-09-01 — blocks Phase 1)*
+**Two rules the cuts produced**, now also in `design/Personalization.md`: the person is the subject, never a container; and name the actual list, or the observation is not sayable.
 
-Three of the four approved kinds are **not computable from what is stored**. `focusSessions` lives on the task object and is lost at completion (`recentCompletedTasks` keeps `{ text, date }` only); the chosen-task denominator for an obligation contrast does not exist; and `letgoReasons` / `soonPulls` are **undated lifetime counters**, so no month window can be scoped.
+**Backfilled rows carry unknowns, and unknowns must stay unknown.** `focusSessions` is unknown for reconstructed history — written as `0`, `focus-vs-obligation` becomes trivially true. `obligation` is unknown for let-go and revive rows — written as `false`, they are silently counted as *chosen*. Rows carry `backfilled: true` and `obligation: null`, and partitions match on `=== true` / `=== false`, never truthiness.
 
-Every approved observation is a windowed contrast, and counters cannot produce contrasts. **This settles the raw-vs-derived question in favour of dated events** — conclusions computed at write time discard the window that makes the contrast meaningful.
+**Tests:** `scripts/observation-pool-test.mjs` (42, in `test-all`), plus pool coverage in `insights-test`, `dropbox-test` and `nudge-test`. They assert the silences as well as the firings.
 
-```
-appMemory.taskOutcomes — rolling 90 days of
-  { date, obligation: bool, focusSessions: n, outcome: 'done'|'letgo'|'soon_pull', reason }
-```
-
-Written at three call sites that already fire — `_memoryOnTaskComplete`, `_memoryOnTaskLetgo`, and the `soonPulls` increment — and it dates the two existing counters as a side effect. Needs a `dropbox.js` merge entry (union by `date` + text prefix), per the `obligationHistory` lesson.
-
-### Build order
-
-Phases 0–2 ship with **no user-visible change** — the policy module is pure and nothing consumes it — so they can land incrementally and be judged by tests rather than by mornings. The first behaviour change is Phase 3.
-
-| # | Phase | Touches | Done when |
-|---|---|---|---|
-| **0** ✅ | **Capture** ↑ *(shipped)* | `insights.js` (`taskOutcomes` slot + 3 existing call sites), `dropbox.js` (merge entry) | `taskOutcomes` populates on complete / let-go / soon-pull, survives a sync round-trip, verified in a real browser session — not just unit tests |
-| **1** ✅ | **Candidates** *(shipped)* | `week-reflection-policy.js` only | The 4 new kinds implemented; `meaning` → `contrast` renamed; Node threshold tests green; each kind demonstrably fires on seeded fixture data. Still no consumer |
-| **2** ✅ | **Novelty gate** *(shipped)* | `week-reflection-policy.js` (+ a knowledge-model argument) | Gate drops candidates already present in `spokenLines`, and anything age-shaped (triage prints it). Unit tested. Still no consumer |
-| **3** ✅ | **Wire the nudge — first behaviour change** *(shipped v2.80.0)* | `nudge.js`; 12b's three instruction lines come out here | A captured payload shows **evidence + contrast only**, no signal dump; the generalized output guard rejects invented claims; abstention falls back to the rule-based line. Other four surfaces untouched |
-| **4** ◀ **next** | **Judge, then generalize** | — then `about.js`, `focus.js`, Noticed | A 2-week wallpaper verdict on the nudge alone. Only on a pass do Noticed / focus / Sunday / Monday get wired, with cooldowns |
-
-**Why this order.** Phase 0 was discovered by checking data availability before writing candidate builders — had Phase 1 gone first, three of the four kinds would have silently never fired, and that failure presents identically to "the gates are too strict," which is near-impossible to diagnose backwards. Phase 3 before Phase 4 keeps the blast radius at one surface while the idea is still unproven.
-
-**Phase 3 shipped v2.80.0 — how it actually landed.** The pool runs *before* the task-reading nudge and wins when a candidate survives the gate; otherwise the existing path runs unchanged. Because candidates are rare by construction (four kinds, 21-day cooldowns, strict thresholds), the great majority of mornings are untouched — a deliberately small blast radius. Verified payload: 305 characters of evidence + contrast, against 2,702 for the old signal dump, with no task text, no `About you` block and no task list.
-
-**Deviation from this plan, recorded:** 12b's three instruction lines were *not* removed. They only exist on the fallback path, where `_memoryForAI('nudge')` is still sent and they remain the only guidance on how to use it; deleting them would leave a raw dump with no instruction — a regression on the majority path. They come out when the pool covers enough cases to retire the fallback, which is Phase 4 or later.
-
-**Capture completeness and backfill (v2.80.1).** Two gaps found by asking what the *old* signals were worth keeping:
-- **Revive was never recorded.** `design/Personalization.md` names Revive first among the evidence worth preferring — pulling something back from Past is a commitment you had abandoned and chose again — and Phase 0 captured done, let-go and Soon-pull but missed it. Now recorded via `_memoryOnRevive`.
-- **`taskOutcomes` started empty**, so with 30-day windows and 4+ samples per side the pool would be silent for roughly a month while weeks of dated history sat unused. `_memoryBackfillOutcomes()` seeds it once from `recentCompletedTasks` (real completion dates, obligation recoverable from the text) and the dated `letgoReasons` / `reviveReasons` day maps. `obligationHistory` is deliberately *not* a source: its `date` is the add date, not the outcome date, so importing it would place events at the wrong times.
-
-**The two honesty rules that make backfill safe** — both are the same failure in different clothes, inventing evidence out of a missing field:
-- `focusSessions` is unknown for every backfilled row. Written as `0`, `focus-vs-obligation` becomes trivially true — "all focus went to chosen work" — because every value is zero. Rows carry `backfilled: true` and focus-derived candidates exclude them, so the app's most confident observation can only come from genuinely observed focus.
-- `obligation` is unknown for let-go and revive rows, reconstructed from counts with no text to test. They carry `obligation: null`, and the partitions match on `=== true` / `=== false`, never truthiness — a `!e.obligation` test would have filed every unknown as *chosen* and quietly corrupted the completion-rate contrast.
-
-**Phases 0–2 carried no version bump and no `CHANGELOG` entry, deliberately.** Nothing user-visible changed, and Rule 31 caps the panel at three entries — spending one on invisible groundwork would evict a real user-facing line. Dev detail is in `Changelog.md` under "12c Phases 0–2". The version bump lands with Phase 3. Safe because `sw.js` is network-first: an online device always fetches current JS, so a stale `CACHE_VERSION` only affects the offline fallback.
-
-**Verify by capturing a real payload at every phase that touches a prompt.** The v2.79.1 duplicate-emission defect was invisible in code review and obvious the moment the actual request was intercepted.
-
-**Test for success:** the same pattern is never narrated twice across surfaces in a week, and surfaces genuinely go quiet on thin days rather than reaching. Does a line feel *chosen* rather than generated?
-
-**Tests:** `scripts/observation-pool-test.mjs` (36, registered in `test-all`) — asserts the *silences* as well as the firings, that no candidate asserts a cause, that a 30-day window statement is not read as an age claim, and that malformed input never throws.
-
-**Browser verification hazard, hit twice:** a port used earlier in a session serves cached JS, so new code reads as `undefined` or silently inert and looks broken. Both `spokenLines` (v2.79.0) and the Phase 0 merge appeared dead this way and were fine. Verify on a port not yet used in the session.
-
-**Prior art:** `research/ObservationSelection.md`.
-
-**Wallpaper test required before shipping.**
+**Two verification hazards, both hit more than once:**
+- **Capture the real payload before theorising about output.** The v2.79.1 duplicate-emission defect was invisible in code review and obvious the moment the request was intercepted.
+- **Verify on a port not used earlier in the session.** A reused port serves cached JS, so new code reads as `undefined` or silently inert and looks broken. `spokenLines` and the Phase 0 merge both appeared dead this way and were fine.
 
 ---
 
@@ -366,7 +266,7 @@ What TODAY knows about you, made visible and clearable.
 
 | Decision | Current | Watch for |
 |----------|---------|-----------|
-| AI/data outcome loop | **Shipped v2.72.0; viewport delivery fixed v2.72.1.** Post-add row records reason provenance and downstream outcomes after the task reaches view. Reason-level policy (`_suggestionShouldOffer`) throttles underperforming categories to 1-in-4 exploration after 4+ decisions. | Check `appMemory.suggestionOutcomes` length — if past 12 resolved offers, inspect reason totals and whether any reason is flagged `underperforming`. Did the recommendation mix change? Only extend to another action (tab focus, habit prompts) if it did and without adding noise. |
+| AI/data outcome loop | Shipped v2.72.0/v2.72.1. | Check `appMemory.suggestionOutcomes` — past 12 resolved offers, inspect whether any reason is flagged `underperforming` and whether the mix actually changed. Only extend to another action if it did. |
 | Morning nudge usefulness | **Superseded by 12c (v2.80.x).** The nudge now has two tracks: a pool-selected observation when a candidate survives the gate, otherwise the task-reading path. The instrument is no longer `suggestionOutcomes` — it is `appMemory.spokenLines` (what was said, and which `kind` produced it) and `appMemory.taskOutcomes` (what the pool had to work with). | Read `spokenLines` entries carrying a `kind`: that is the pool speaking. None after two weeks means the thresholds are too strict or `taskOutcomes` is too thin — check which before touching any prompt. |
 | Dated AI-cache sync | Four fields hand-plumbed: `day_nudge_ai`, `week_reflection`, `monday_intention`, `week_theme_ai`. `gmail_classify_*` uses a different pattern (keyed by taskId, not date) — not a fifth. | Create one declarative cache registry before a genuinely fifth dated AI field lands (e.g. `focus_companion_ai_*`). Not yet. |
 | Merge-anomaly observability | Dropbox emits a console-only `[merge-anomaly]` breadcrumb; no persisted counter or Connections metric. | Revisit only if anomalies appear during debugging or a conflict rate becomes measurable. Not live product telemetry. |
@@ -383,17 +283,16 @@ What TODAY knows about you, made visible and clearable.
 
 | Surface | Shipped | Due | Status |
 |---------|---------|-----|--------|
-| Season moments (24/year) | v2.60.0 | — | **Iterate (2026-08-21).** Line is right. Need second layer for seasonal turning-point. Solar term label shipped v2.71.0. |
-| Season moments — solar term label | v2.71.0 | 2026-09-05 | Open — does `処暑 · End of Heat` feel like context or noise after a few appearances? |
-| Focus companion question | v2.65.0 | ⚠ 2026-08-31 | Improved: taxonomy system prompt, drag-word + letgo-reason signals, word cap 18→22. Re-observe — does the question now feel like clarity rather than a check-in? |
+| Monday intention (memory-enriched) | v2.65.1 | ⚠ 2026-08-24 | Verdict (2026-08-17): synthesis is nice. Data source fixed: now includes Soon + Trello. Re-observe next Monday. |
 | About contextual CTAs | v2.64.10 | ⚠ 2026-08-25 | Open — does the bordered CTA treatment make actions clearer without pulling attention? |
 | Connections privacy reassurance | v2.64.11 | ⚠ 2026-08-26 | Open — one appearance per device when fully disconnected. Timely reassurance or policy copy interrupting setup? |
-| Sunday earned insight | v2.71.12 | 2026-09-06 | Open — does it reveal a real lever rather than paraphrasing the grid? Track abstentions as healthy. |
-| Monday intention (memory-enriched) | v2.65.1 | ⚠ 2026-08-24 | Verdict (2026-08-17): synthesis is nice. Data source fixed: now includes Soon + Trello. Re-observe next Monday. |
-| Memory panel quality gate | v2.47.0 | ⚠ 2026-09-01 | Open — are AI-generated hypotheses earning confirmation or getting dismissed? |
+| Focus companion question | v2.65.0 | ⚠ 2026-08-31 | Improved: taxonomy system prompt, drag-word + letgo-reason signals, word cap 18→22. Re-observe — does the question now feel like clarity rather than a check-in? |
 | Post-triage reflections | v2.65.7 | ⚠ 2026-08-31 | Open — real pause or rote wallpaper? Watch for: avoidance on hard days, selection bias, feeling rote after first week. |
-| Morning nudge — pool-selected observation (12c Phase 3) | v2.80.1 | 2026-09-15 | Open — **this is Phase 4.** Does a pool line feel *chosen* rather than generated? Watch for: whether any pool line appears at all (check `spokenLines` for entries with a `kind`); whether it lands as recognition or as a verdict; whether the task-reading path on other mornings still feels as good as before. A pool line that never fires and a pool line that feels like judgment are different failures with different fixes — distinguish them before changing anything. |
+| Memory panel quality gate | v2.47.0 | ⚠ 2026-09-01 | Open — are AI-generated hypotheses earning confirmation or getting dismissed? |
+| Season moments — solar term label | v2.71.0 | 2026-09-05 | Open — does `処暑 · End of Heat` feel like context or noise after a few appearances? |
+| Sunday earned insight | v2.71.12 | 2026-09-06 | Open — does it reveal a real lever rather than paraphrasing the grid? Track abstentions as healthy. |
 | Obligation language tip | v2.77.20 | 2026-09-14 | Open — "Have to — or choosing to?" Does it land as a genuine moment of reflection, or does it feel like an interruption? Watch: dismissed immediately vs. paused on. Regex tightened v2.78.0: min 3 words + "should/must be [adj]" excluded. |
+| Morning nudge — pool-selected observation (12c Phase 3) | v2.80.1 | 2026-09-15 | Open — **this is Phase 4.** Does a pool line feel *chosen* rather than generated? Watch for: whether any pool line appears at all (check `spokenLines` for entries with a `kind`); whether it lands as recognition or as a verdict; whether the task-reading path on other mornings still feels as good as before. A pool line that never fires and a pool line that feels like judgment are different failures with different fixes — distinguish them before changing anything. |
 
 ---
 

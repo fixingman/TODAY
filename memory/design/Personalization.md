@@ -39,6 +39,16 @@ The Sunday reflection is the first full implementation. `_buildWeekReflectionIns
 
 **Research basis:** perceived rather than merely actual personalization drives message effects ([Li, 2016](https://scholarship.miami.edu/esploro/outputs/journalArticle/When-does-web-based-personalization-really-work/991031577120502976)); anthropomorphic style improves calibrated trust only when it communicates useful context ([Carter, Loft & Visser, 2024](https://pmc.ncbi.nlm.nih.gov/articles/PMC11457490/)); a new preprint found unsupported user-profile inference across every tested LLM, so model self-restraint is not an adequate evidence layer ([Sun, Zhang & Sheng, 2026](https://arxiv.org/abs/2608.04570)). See `research/Psychology.md` for the evidence boundary.
 
+### Writing the instruction — rules earned the hard way (2026-09)
+
+These come from the 12b failure and the production bugs that followed. They apply to any surface where a model is given evidence and asked to phrase it.
+
+- **State the principle; never add worked examples.** Three examples of a good line, all sharing a shape, collapsed the nudge's output onto that single template — the Wallpaper Test failure mode authored directly into the prompt. The model does not need the form specified, only the goal.
+- **Keep positive framing.** Replacing *"a friend noticing, not a coach"* with *"notice the pattern, don't diagnose the person"* removed the licence for acknowledgment lines that were landing well. A positive frame already forbids diagnosis; naming diagnosis invites thinking in those terms.
+- **An insight catches a blind corner; a count restates what is already visible.** *"This one has a deadline you haven't clocked"* against *"this has been here 5 days"*. Only the first serves the north star. Age in particular is already printed by triage, so age-as-content fails novelty everywhere in the app.
+- **The person is the subject, never a container.** *"Every focus session went to something you chose"* works; *"the list has been growing"* does not — nobody recognises themselves in a container's state. And name the actual list, or the observation is not sayable: TODAY has today's list, Soon, Past and Trello.
+- **A stale premise cannot be fixed by wording.** Three production bugs in one week — a completed task reported as waiting 56 days, a let-go obligation reported as still pending, archived tasks offered as today's list — were all the model faithfully reporting what the context said. It never hallucinated. This class is invisible to prompt work, and better phrasing only produces a more convincing wrong sentence. When a line is wrong, check the evidence before the instruction.
+
 ### Where the existing symbiosis can compound next
 
 These are leverage points, not permission to add more surfaces:
