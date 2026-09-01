@@ -265,7 +265,14 @@ try {
       const pastRestored = pastTasks.length === startPastLen;
       const notDismissed = !triageDismissedToday;
       const undoBtnHidden = document.getElementById('triageUndoBtn')?.style.display === 'none';
-      return { overlayHidden, manualRestored, soonRestored, pastRestored, notDismissed, undoBtnHidden };
+      // BUG-094: the button stays on screen through the reflection step, where a bare
+      // "Undo" reads as undoing the answer rather than the sorting it actually discards.
+      // The scope has to be in the label, since the mislabelled control is the
+      // destructive one.
+      const undoLabelNamesScope = /sorting/i.test(
+        document.getElementById('triageUndoBtn')?.textContent || ''
+      );
+      return { overlayHidden, manualRestored, soonRestored, pastRestored, notDismissed, undoBtnHidden, undoLabelNamesScope };
     });
     await expectAll('undo restores state', { ...result, noErrors: errors.length === 0 });
     ok('triageUndo restores manualTasks, soonTasks, pastTasks and clears dismissed state');

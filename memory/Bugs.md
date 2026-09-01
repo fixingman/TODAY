@@ -113,6 +113,20 @@
 
 ---
 
+## BUG-094 — "Undo" persists into the reflection step, where it reads as undoing the wrong thing
+
+**Status:** ⏳ v2.80.6
+
+**Symptom:** After triage completes, the "All sorted" screen shows the reflection prompt — either the one-time opt-in ("Remember how days felt?" with *Remember* / *Not for me*) or the feeling picker. An "Undo" button sits directly beneath those choices, reading as a third, quieter option in the same group. Reported by Can: *"i see undo, what does it undo? i am not sure if that is what i expect to see as a cta at these context."*
+
+**Root cause:** `#triageUndoBtn` is shown when triage completes (`triage.js:455`) and only hidden once a feeling is selected (`reflections.js:202`), so it stays on screen through the whole reflection step — a step it has nothing to do with. Its label is the bare word "Undo" with no scope, while `triageUndo()` restores a full pre-triage snapshot: `manualTasks`, `doneIds`, `soonTasks`, `pastTasks` and the checked/unchecked id lists, then clears the dismissed flag, re-renders and pushes a Dropbox backup.
+
+The combination is what makes it a real defect rather than a wording nit: the mislabelled affordance is also the destructive one. Read as "dismiss this question" or "undo my answer" — both natural readings in that position — it silently discards every sorting decision just made.
+
+**Fix (v2.80.6):** Label changed to "Undo sorting" so the scope is explicit. Deliberately *not* hidden during the reflection step: the reflection appears immediately after triage, so those seconds are the main window in which a user would notice they mis-sorted. Removing the escape hatch to fix the ambiguity would trade one problem for another. Naming the scope fixes the reading without closing the exit.
+
+---
+
 ## BUG-093 — ↩ and ↗ enrichment indicators flash on tap on mobile
 
 **Status:** ⏳ v2.80.5
