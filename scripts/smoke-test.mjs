@@ -98,9 +98,22 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'Raphael Patkanian (trans. Alice Stone Blackwell)',
     'Claude McKay',
     'Antonio Machado (trans. Thomas Walsh)',
+    'Traditional Asante (recorded by R. S. Rattray)',
+    'Olive Schreiner',
+    'Ricardo Jaimes Freyre (trans. Alice Stone Blackwell)',
+    'Kahlil Gibran',
+  ];
+  const sixLineVoices = [
+    'Traditional Asante (recorded by R. S. Rattray)',
+    'Olive Schreiner',
+    'Ricardo Jaimes Freyre (trans. Alice Stone Blackwell)',
+    'Kahlil Gibran',
   ];
   const hasAllApprovedVoices = approvedVoices.every(author =>
     poems.some(poem => poem.author === author));
+  const newLineLimitDrift = poems.some(poem =>
+    sixLineVoices.includes(poem.author) &&
+    poem.text.split('\n').filter(line => line.trim()).length > 6);
   const hasSkippedVoice = poems.some(poem =>
     poem.author === 'José Rizal (trans. Charles Derbyshire)' ||
     poem.author.includes('Manuel José Othón') ||
@@ -110,11 +123,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     poem.source.includes("'Yesterday and Today'") ||
     poem.text.includes('The turi tree') ||
     poem.text.includes('Moon, you must shine'));
-  if (poems.length !== 119 || malformed.length || !hasAllApprovedVoices || hasSkippedVoice) {
+  if (poems.length !== 123 || malformed.length || !hasAllApprovedVoices || newLineLimitDrift || hasSkippedVoice) {
     console.error('✗ FAIL — reviewed poem corpus count, schema, or line limit drifted.');
     process.exit(1);
   }
-  console.log('  ✓ 119-poem reviewed corpus shape and approved geography');
+  console.log('  ✓ 123-poem reviewed corpus shape and approved geography');
 
   try {
     globalThis.fetch = async request => {

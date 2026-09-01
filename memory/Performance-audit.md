@@ -30,7 +30,7 @@
 | `assets/habits.js` | 18.8 KB | 5.7 KB | Habits controller extracted v2.64.33; tracked and tested |
 | `assets/task-actions.js` | 26.9 KB | 7.2 KB | Task mutations, delegated row controls, stats, and private favicon renderer; SW-precached |
 | `assets/week-reflection-policy.js` | 6.2 KB | 2.1 KB | DOM-free Sunday candidate ranker/output guard; browser global + direct Node unit-test boundary; SW-precached |
-| `assets/poems.js` | 45.9 KB | 14.5 KB | Daily poem corpus (119 reviewed poems); SW-precached |
+| `assets/poems.js` | 47.5 KB | 15.5 KB | Daily poem corpus (123 reviewed poems); SW-precached |
 | **Total app JS** | **~818 KB** | **~232 KB** | Local app shell: index.html + implemented modules + poem corpus (Brotli q5) |
 
 **Lines of code:** ~11,324 index.html + ~5,836 extracted + ~802 poem corpus (≈17,962 total)

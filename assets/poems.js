@@ -799,4 +799,29 @@ const POEMS = [
     season: null,
     source: "'The Seasons', Korea Review Vol. 6, No. 1 (January 1906), p. 1, trans. from Korean — PD in US (pre-1929) — verified verbatim vs anthony.sogang.ac.kr/KoreaReview/KoreaReviewVolume6FullText.html",
   },
+  // ── Round 35 (Sep 2026) — Ghana, South Africa, Bolivia ──
+  {
+    text: 'The stream crosses the path,\nThe path crosses the stream;\nWhich of them is the elder?',
+    author: 'Traditional Asante (recorded by R. S. Rattray)',
+    season: null,
+    source: "Asante talking-drum verse, Ashanti, recorded and translated by R. S. Rattray (Clarendon Press, 1923) — anonymous oral tradition, Rattray d. 1938, PD worldwide — verified verbatim vs the University of Ghana scan",
+  },
+  {
+    text: 'And the woman waited long:\nand she said, “Freedom!”',
+    author: 'Olive Schreiner',
+    season: null,
+    source: "'Life's Gifts', Dreams (1890), Project Gutenberg #1439 — Schreiner d. 1920, PD worldwide — verified verbatim",
+  },
+  {
+    text: 'The rivulet that passes through countries and times goes like the spirit,\npursuing a good it cannot reach by pursuing.',
+    author: 'Ricardo Jaimes Freyre (trans. Alice Stone Blackwell)',
+    season: null,
+    source: "'Inner Landscapes' / 'Los Paisajes Interiores', Some Spanish-American Poets, trans. Alice Stone Blackwell (1929), p. 454 — Jaimes Freyre d. 1933, Blackwell d. 1950, both PD worldwide — verified verbatim vs the Internet Archive scan",
+  },
+  {
+    text: 'A fox looked at his shadow at sunrise and said,\n“I will have a camel for lunch today.”\nAnd all morning he went about looking for camels.\nBut at noon he saw his shadow again—and he said,\n“A mouse will do.”',
+    author: 'Kahlil Gibran',
+    season: null,
+    source: "'The Fox', The Madman: His Parables and Poems (1918), Project Gutenberg #5616 — Gibran d. 1931, PD worldwide — verified verbatim",
+  },
 ];

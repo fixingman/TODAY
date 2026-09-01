@@ -4465,16 +4465,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '296h';
+const DEV_HOURS     = '297h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.79.2':  'Poems: four voices from Ghana, South Africa, Bolivia, and Lebanon explore perspective, deliberate choice, pursuit, and recalibration.',
   '2.79.1':  'Morning note: fixed a quirk where a long-waiting task was described twice, which made it crowd out everything else the note could have said.',
   '2.79.0':  'TODAY now remembers what it said to you. The morning note, focus question, and weekly lines no longer repeat each other or themselves.',
-  '2.78.1':  'Nudge: the morning note now draws on what came before — which things keep returning, what never got started — to judge what actually matters today.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
