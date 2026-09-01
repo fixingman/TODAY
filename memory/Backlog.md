@@ -37,7 +37,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
 | 12d | **Companion — memory surface** | Not started | "What TODAY knows about you" in the Memory panel (`#memoryPanel`, not Connections — see `design/Personalization.md` hard constraint). Inspectable, clearable. Requires 12c to have ranked observations worth showing. Detail ↓ |
 | — | **WEEK companion** | Gated | Gate is now: *12c is working and feels like a companion, not a feature.* Data accumulation is necessary but not sufficient. Detail ↓ |
-| 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 119 reviewed poems (2026-08-31). Detail ↓ |
+| 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 123 reviewed poems (2026-09-01). Detail ↓ |
 | 7 | **Season moments — solar term label** | Shipped v2.71.0 | Solar term label above evocative line; season owns full Noticed block. Wallpaper test → table below. |
 
 ---
@@ -54,7 +54,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 > **Search process:** Start with source diversity, not a familiar-poet query loop. Search national libraries, university collections, regional or bilingual historical anthologies, oral-literature archives, historical journals, and specialist author/translator archives. Generic poetry sites can identify leads but should not define the candidate pool; Gutenberg, Wikisource, Internet Archive, and original scans remain useful for exact wording and worldwide-PD verification. Once a specific poem or collection is identified, fetch only the relevant page or passage. Each round should deliberately vary poets, translators, poetic structures, and kinds of thought; do not return several familiar voices merely because they are easy to source. Region is a tiebreaker—not a quality substitute or a flags-on-a-map exercise.
 
-**Seasons:** W14 / Sp16 / Su12 / Au10 / year-round 67 — corpus 119 reviewed poems (2026-08-31).
+**Seasons:** W14 / Sp16 / Su12 / Au10 / year-round 71 — corpus 123 reviewed poems (2026-09-01).
 
 **Rotation verdict (2026-08-22):** No repetition observed — shuffle algorithm is not the lever.
 
@@ -63,6 +63,8 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 **Next search theme — an imprint of commitments:** the updated North Star adds a thematic axis alongside geography. Look for short poems about choosing, keeping, loosening, returning, and recognizing one's relationship to commitments. They should create self-recognition without pressure, shame, or a productivity moral: an imprint, not an instruction. Reject duty sermons, generic perseverance slogans, and poems that tell the reader what kind of person to be.
 
 **Curation learning (2026-08-31):** the Syria/Persia/Armenia round was the strongest of the recent rounds because broadening the discovery destinations broke the repeated-poet/repeated-tone pattern. Its three approved selections offered different intellectual shapes—quiet usefulness over spectacle, a question about genuine value, and hope through weather and endurance. Future rounds should optimize for diversity of thought and voice as well as geography, and treat repeated poets, translators, images, or emotional conclusions as a warning that the search pool is too narrow.
+
+**Curation learning (2026-09-01):** the first commitment-imprint round approved the traditional Asante stream/path verse, Olive Schreiner's deliberate choice, Ricardo Jaimes Freyre's self-defeating pursuit image, and Kahlil Gibran's complete 'The Fox'. Shortness cannot come at the cost of comprehension: Gibran's cropped ending made its camel-to-mouse recalibration unintelligible without the sunrise setup and all-morning search. The complete fable still fits the ceiling at five displayed lines, so preserve it whole rather than manufacturing brevity with stitched fragments or ellipses.
 
 Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cut.
 
@@ -257,11 +259,46 @@ Voice memory (`spokenLines`) shipped alongside 12b but belongs to 12a ↑.
 4. **Eligibility + cooldowns** — each surface (nudge, Noticed, focus, Sunday, Monday) declares which kinds it can carry and its cooldown. A candidate narrated by one surface is on cooldown for all. Notification research (`research/ObservationSelection.md`) finds receptivity is governed by volume and timing over per-message quality.
 5. **Delivery** — the winner goes to the model as evidence + contrast, phrase-only, leaving the contrast unresolved. No raw signal dump.
 6. **Output guard** — reject added facts, identity claims, causation. `_weekReflectionTextIsGrounded()` already exists; generalize it.
-7. **Abstention** — no qualifying candidate means the surface says nothing. A design primitive, never a fallback for failed generation.
+7. **Abstention — per surface, not global** (corrected 2026-09-01). Where a surface exists only to observe (Noticed, Sunday), no qualifying candidate means silence. Where it also has a factual job, it abstains *to that job*: the morning nudge falls back to its existing rule-based line ("2 tasks still here from yesterday"). The north star calls the morning the signature beat; going quiet most mornings would break the ritual to protect a principle. Abstention is a design primitive, never a fallback for failed generation.
 
 **What this replaces:** 12b's signal dump; `spokenLines` as prompt material (becomes a gate input); and the original 12c (add-date on 7+ day tasks, a Noticed age line) — both were age-as-content, which fails novelty because triage already prints it.
 
-**Suggested first cut:** wire the nudge only, leave the other four surfaces on their current paths, and judge real captured payloads before generalizing. Smaller bet, same information.
+### Candidate menu — settled with Can 2026-09-01
+
+Sorted by reacting to sample output lines, not to score constants. Two rules fell out of the rejections:
+
+- **The person is the subject, never a container.** *"Every focus session went to something you chose"* works; *"the list has been growing"* does not. You cannot recognise yourself in a container's state.
+- **Name the actual list, or it isn't sayable.** Can's first objection to list-growth was *"what list is growing"* — TODAY has today's list, Soon, Past, and Trello. An observation that can't name its referent unambiguously fails on clarity.
+
+Everything that survived is a **relationship** or **lifecycle** kind; both cuts were the count-shaped ones — independent convergence on `design/Personalization.md`'s *"prefer lifecycle evidence over noun themes."*
+
+| Score | Kind | Status |
+|---|---|---|
+| 115 | `focus-vs-obligation` | new — yes |
+| 110 | `focus-leverage` | existing |
+| 105 | `obligation-completion` | new — yes |
+| 100 | `habit-alignment` | existing |
+| 95 | `letgo-reason` | new — yes |
+| 90 | `recurring-day` | existing |
+| 88 | `soon-pullback` | new — yes, after rewriting the second clause to make the person the subject (*"What you defer tends to come back"*, not *"it fills faster than it empties"*) |
+| 65 | `bursts` | existing — **kept as last resort.** Same container-subject shape as the cuts, but Can's note: task context may rescue it. Naming *what* filled the busy days would give it a subject. Revisit rather than cut. |
+| — | `list-growth` | **cut** — container subject, ambiguous referent, no self-recognition |
+| — | `cognitive-weight` | **cut** — a count of what triage already prints |
+
+### Phase 0 · Capture *(discovered 2026-09-01 — blocks Phase 1)*
+
+Three of the four approved kinds are **not computable from what is stored**. `focusSessions` lives on the task object and is lost at completion (`recentCompletedTasks` keeps `{ text, date }` only); the chosen-task denominator for an obligation contrast does not exist; and `letgoReasons` / `soonPulls` are **undated lifetime counters**, so no month window can be scoped.
+
+Every approved observation is a windowed contrast, and counters cannot produce contrasts. **This settles the raw-vs-derived question in favour of dated events** — conclusions computed at write time discard the window that makes the contrast meaningful.
+
+```
+appMemory.taskOutcomes — rolling 90 days of
+  { date, obligation: bool, focusSessions: n, outcome: 'done'|'letgo'|'soon_pull', reason }
+```
+
+Written at three call sites that already fire — `_memoryOnTaskComplete`, `_memoryOnTaskLetgo`, and the `soonPulls` increment — and it dates the two existing counters as a side effect. Needs a `dropbox.js` merge entry (union by `date` + text prefix), per the `obligationHistory` lesson.
+
+**Suggested first cut:** after Phase 0, wire the nudge only, leave the other four surfaces on their current paths, and judge real captured payloads before generalizing. Smaller bet, same information.
 
 **Test for success:** the same pattern is never narrated twice across surfaces in a week, and surfaces genuinely go quiet on thin days rather than reaching. Does a line feel *chosen* rather than generated?
 
