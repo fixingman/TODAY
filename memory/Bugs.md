@@ -22,7 +22,7 @@
 | 092 | Task cards don't age visually on mobile — desktop-only side effect of BUG-079 fix | ⏳ v2.80.3 |
 | 091 | Gmail enrichment picks wrong email — forces person query for topic-based tasks | 🔍 Diagnosing |
 | 090 | `task-enrich` Netlify function returns 500 on every call — enrichment never loads | ✅ v2.77.7 |
-| 089 | "Open in Mail" opens browser instead of native Mail app | ⏳ v2.77.6 |
+| 089 | "Open in Mail" opens the browser before the native Mail app | ⏳ v2.81.5 |
 | 088 | Inline AI helper stays behind when its task is reordered | ✅ v2.77.3 |
 | 087 | Emoji disappear or render broken in the animated task input | ⏳ v2.77.2 |
 | 086 | Completion rate in Memory exceeds 100% — wrong denominator (4th root cause) | ✅ v2.75.13 |
@@ -172,17 +172,23 @@ openUI @ focus.js:575
 
 ---
 
-## BUG-089 — "Open in Mail" opens browser instead of native Mail app
+## BUG-089 — "Open in Mail" opens the browser before the native Mail app
 
-**Status:** ⏳ v2.77.6
+**Status:** ⏳ v2.81.5 — second attempt, awaiting real-device verification
 
-**Symptom:** Clicking "Open in Mail ↗" in the Gmail draft block inside focus mode opens the browser (Chrome/Safari) instead of the system Mail app.
+**Symptom:** Tapping "Open in Mail ↗" opens Chrome first, which then hands off to the mail client. Can, 2026-09-02: *"first opened chrome then opened the mail client app, with an email draft"*, with `mailto:notifications%40kry.se?subject=…` visible in Chrome's address bar.
 
-**Root cause:** The `<a href="mailto:...">` link had no `target` attribute. In a standalone PWA, Chrome handles `mailto:` navigation by opening a browser window rather than delegating to the OS protocol handler. Also, the link was gated behind `_isPWA` — unnecessary, since a `mailto:` link is useful in any context.
+**Root cause:** the v2.77.6 attempt added `target="_blank"` on the reasoning that it would let the PWA shell delegate to the OS Mail handler. It does the opposite: `_blank` requests a new *browsing context*, so a browser is opened by definition; the browser then sees a scheme it cannot render and forwards it to Mail. That is the two-step hop.
 
-**Fix (v2.77.6):** Added `target="_blank"` to the anchor, which signals the PWA shell to open the URL externally via the OS handler. Removed the `_isPWA` guard so the link shows in browser context too.
+**Fix (v2.81.5):** `target` removed; the click handler calls `window.location.href` instead. A same-context navigation to a non-HTTP scheme is intercepted by the OS protocol handler before any page load, so no browsing context is required. The `href` stays on the anchor so long-press and right-click → copy address still work.
 
----
+Two adjacent defects fixed in the same place:
+- **Address encoding.** The whole address was run through `encodeURIComponent`, producing `notifications%40kry.se`. Most clients decode it; it is not the correct form and not all do. `@` is now left intact in the mailto path.
+- **Silent truncation.** Handlers commonly cut `mailto` around 2 KB, mid-sentence and without error. The body is now capped at ~1900 characters. The full draft stays visible in the block with its Copy button, so nothing is lost.
+
+**Found while testing the cap:** trimming by string index can split a surrogate pair, and `encodeURIComponent` throws `URIError` on a lone surrogate — so a draft containing an emoji would have crashed the flow rather than shortened it. Now trims by grapheme via `Intl.Segmenter`, the same idiom `task-bounce.js` uses for BUG-087.
+
+**Caveat for verification:** if an iOS standalone PWA routes all outbound navigation through the default browser regardless of scheme, the hop may persist and would be a platform constraint rather than an app defect. `target="_blank"` guaranteed it, so removing it can only improve matters — but only a real device settles whether it is now direct.
 
 ## BUG-088 — Inline AI helper stays behind when its task is reordered
 
