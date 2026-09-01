@@ -150,6 +150,80 @@ if (!appMemory.taskOutcomes)                appMemory.taskOutcomes = [];
 // Retroactive fix: drop any history entries that no longer pass the current (tightened) detection
 appMemory.obligationHistory = appMemory.obligationHistory.filter(e => _aiCheckObligationLanguage(e.text));
 
+// 12c: one-time backfill of taskOutcomes from dated history that predates Phase 0.
+//
+// taskOutcomes started empty, and the candidate builders use 30-day windows with
+// 4+ samples per side — so without this the pool stays silent for roughly a month
+// while several weeks of usable dated history sit unused in appMemory.
+//
+// What is knowable differs by source, and pretending otherwise would manufacture
+// the app's most confident observation out of missing data:
+//   • focusSessions is unknown for every backfilled row. Writing 0 would make
+//     focus-vs-obligation trivially true ("all focus went to chosen work") because
+//     every value is zero. Rows carry `backfilled: true` and focus-derived
+//     candidates exclude them.
+//   • obligation is unknown for let-go and revive rows, which are stored as dated
+//     counts with no text to test. Those carry `obligation: null` — not false —
+//     and candidates that partition by obligation match on `=== true` / `=== false`
+//     so unknowns are excluded rather than silently counted as chosen.
+// obligationHistory is deliberately NOT a source: its `date` is the add date, not
+// the outcome date, so importing it would place events at the wrong times.
+function _memoryBackfillOutcomes() {
+  if (appMemory.taskOutcomesBackfilled) return;
+  appMemory.taskOutcomesBackfilled = true;
+
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
+  const rows = [];
+  const seen = new Set((appMemory.taskOutcomes || []).map(e => e.id + '|' + e.outcome + '|' + e.date));
+  const add = row => {
+    const key = row.id + '|' + row.outcome + '|' + row.date;
+    if (seen.has(key)) return;
+    seen.add(key);
+    rows.push(row);
+  };
+
+  // Completions carry their own text and a true completion date, so obligation is
+  // recoverable here even though focus is not.
+  for (const e of (appMemory.recentCompletedTasks || [])) {
+    if (!e || !e.date || new Date(e.date) < cutoff) continue;
+    add({
+      id: _memoryTextKey(e.text), date: e.date, outcome: 'done',
+      obligation: !!_aiCheckObligationLanguage(e.text),
+      focusSessions: 0, backfilled: true,
+    });
+  }
+
+  // Dated counts per reason: { reason: { days: { ISO: n } } }. No text, so obligation
+  // stays unknown. '_legacy' holds a pre-dating lifetime total and has no date.
+  const fromReasonMap = (map, outcome) => {
+    for (const [reason, entry] of Object.entries(map || {})) {
+      const days = (entry && entry.days) || {};
+      for (const [iso, count] of Object.entries(days)) {
+        if (iso === '_legacy' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) continue;
+        if (new Date(iso) < cutoff) continue;
+        for (let i = 0; i < (parseInt(count) || 0); i++) {
+          add({
+            id: 'bf_' + outcome + '_' + reason + '_' + iso + '_' + i,
+            date: iso, outcome, obligation: null,
+            focusSessions: 0, reason, backfilled: true,
+          });
+        }
+      }
+    }
+  };
+  fromReasonMap(appMemory.patterns.letgoReasons,  'letgo');
+  fromReasonMap(appMemory.patterns.reviveReasons, 'revive');
+
+  if (rows.length) {
+    appMemory.taskOutcomes = (appMemory.taskOutcomes || [])
+      .concat(rows)
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+      .slice(-300);
+  }
+  _saveMemory();
+}
+_memoryBackfillOutcomes();
+
 // Cumulative accuracy counters for meeting mode's mine/others attribution — not
 // a user-facing surface, just numbers to answer "am I getting the right tasks?"
 // when asked. mineKept/mineShown ≈ precision (of what it called yours, how much
@@ -698,6 +772,11 @@ function _memoryOnSoonPull(taskText) {
 }
 
 function _memoryOnRevive(taskText, reason) {
+  // Pulling something back from Past is among the most deliberate acts in the app —
+  // a commitment you had abandoned and chose again. design/Personalization.md names
+  // Revive first in the evidence worth preferring; Phase 0 recorded done, letgo and
+  // soon_pull but missed it.
+  _memoryRecordOutcome('revive', taskText, null, reason);
   if (reason) {
     if (!appMemory.patterns.reviveReasons) appMemory.patterns.reviveReasons = {};
     const _rvToday = _localISO();

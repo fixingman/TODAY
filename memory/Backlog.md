@@ -316,6 +316,14 @@ Phases 0–2 ship with **no user-visible change** — the policy module is pure 
 
 **Deviation from this plan, recorded:** 12b's three instruction lines were *not* removed. They only exist on the fallback path, where `_memoryForAI('nudge')` is still sent and they remain the only guidance on how to use it; deleting them would leave a raw dump with no instruction — a regression on the majority path. They come out when the pool covers enough cases to retire the fallback, which is Phase 4 or later.
 
+**Capture completeness and backfill (v2.80.1).** Two gaps found by asking what the *old* signals were worth keeping:
+- **Revive was never recorded.** `design/Personalization.md` names Revive first among the evidence worth preferring — pulling something back from Past is a commitment you had abandoned and chose again — and Phase 0 captured done, let-go and Soon-pull but missed it. Now recorded via `_memoryOnRevive`.
+- **`taskOutcomes` started empty**, so with 30-day windows and 4+ samples per side the pool would be silent for roughly a month while weeks of dated history sat unused. `_memoryBackfillOutcomes()` seeds it once from `recentCompletedTasks` (real completion dates, obligation recoverable from the text) and the dated `letgoReasons` / `reviveReasons` day maps. `obligationHistory` is deliberately *not* a source: its `date` is the add date, not the outcome date, so importing it would place events at the wrong times.
+
+**The two honesty rules that make backfill safe** — both are the same failure in different clothes, inventing evidence out of a missing field:
+- `focusSessions` is unknown for every backfilled row. Written as `0`, `focus-vs-obligation` becomes trivially true — "all focus went to chosen work" — because every value is zero. Rows carry `backfilled: true` and focus-derived candidates exclude them, so the app's most confident observation can only come from genuinely observed focus.
+- `obligation` is unknown for let-go and revive rows, reconstructed from counts with no text to test. They carry `obligation: null`, and the partitions match on `=== true` / `=== false`, never truthiness — a `!e.obligation` test would have filed every unknown as *chosen* and quietly corrupted the completion-rate contrast.
+
 **Phases 0–2 carried no version bump and no `CHANGELOG` entry, deliberately.** Nothing user-visible changed, and Rule 31 caps the panel at three entries — spending one on invisible groundwork would evict a real user-facing line. Dev detail is in `Changelog.md` under "12c Phases 0–2". The version bump lands with Phase 3. Safe because `sw.js` is network-first: an online device always fetches current JS, so a stale `CACHE_VERSION` only affects the offline fallback.
 
 **Verify by capturing a real payload at every phase that touches a prompt.** The v2.79.1 duplicate-emission defect was invisible in code review and obvious the moment the actual request was intercepted.

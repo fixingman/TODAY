@@ -144,18 +144,24 @@
     if (!win.length) return candidates;
 
     const sumFocus = list => list.reduce((n, e) => n + (Number(e.focusSessions) || 0), 0);
-    const obligation = win.filter(e => e.obligation);
-    const chosen     = win.filter(e => !e.obligation);
+    // Strict equality, never truthiness: backfilled rows carry `obligation: null`
+    // because they were reconstructed from dated counts with no text to test. A
+    // `!e.obligation` test would silently file every unknown as "chosen".
+    const obligation = win.filter(e => e.obligation === true);
+    const chosen     = win.filter(e => e.obligation === false);
 
-    // Where focus went, and where it did not. Requires observations on both sides
-    // and real focus somewhere, so a quiet month cannot manufacture it.
-    const obligationFocus = sumFocus(obligation);
-    const chosenFocus     = sumFocus(chosen);
-    if (obligation.length >= 2 && chosen.length >= 2 && chosenFocus >= 3 && obligationFocus === 0) {
+    // Where focus went, and where it did not. Observed rows only — backfilled ones
+    // have no focus data, and counting their zeros would make this trivially true
+    // ("all focus went to chosen work") out of missing data rather than evidence.
+    const obligationObserved = obligation.filter(e => !e.backfilled);
+    const chosenObserved     = chosen.filter(e => !e.backfilled);
+    const obligationFocus = sumFocus(obligationObserved);
+    const chosenFocus     = sumFocus(chosenObserved);
+    if (obligationObserved.length >= 2 && chosenObserved.length >= 2 && chosenFocus >= 3 && obligationFocus === 0) {
       candidates.push({
         kind: 'focus-vs-obligation',
         score: 115,
-        evidence: `Over 30 days, ${chosenFocus} focus sessions went to things you chose; the ${obligation.length} framed as "have to" got none.`,
+        evidence: `Over 30 days, ${chosenFocus} focus sessions went to things you chose; the ${obligationObserved.length} framed as "have to" got none.`,
         contrast: 'Where focus went, and where it did not.',
       });
     }
@@ -177,6 +183,7 @@
     }
 
     // One reason accounting for most of what gets released.
+    // Backfilled rows are fine here: reason and date are both genuinely observed.
     const letgos = win.filter(e => e.outcome === 'letgo' && e.reason);
     if (letgos.length >= 4) {
       const tally = {};

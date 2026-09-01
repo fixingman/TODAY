@@ -183,6 +183,55 @@ test('Sunday behaviour unchanged: a focus-leverage week still wins, now with con
 });
 
 
+// ── backfilled and unknown-obligation rows ──────────────────────────────────
+console.log('\nobservation pool — backfill safety\n');
+
+const bf = (o) => ({ ...out(o), backfilled: true });
+
+test('backfilled rows cannot produce focus-vs-obligation (focus is unknown, not zero)', () =>
+  !find(_buildOutcomeCandidates([
+    bf({ focusSessions: 0 }), bf({ focusSessions: 0 }), bf({ focusSessions: 0 }),
+    bf({ obligation: true }), bf({ obligation: true }),
+  ], TODAY), 'focus-vs-obligation'));
+
+test('a backfilled row cannot pad the observed side into firing', () =>
+  !find(_buildOutcomeCandidates([
+    out({ focusSessions: 3 }), bf({ focusSessions: 0 }),
+    out({ obligation: true }), bf({ obligation: true }),
+  ], TODAY), 'focus-vs-obligation'));
+
+test('observed rows still fire normally alongside backfilled ones', () =>
+  !!find(_buildOutcomeCandidates(focusSplit.concat([bf({ obligation: true })]), TODAY),
+    'focus-vs-obligation'));
+
+test('unknown obligation is not counted as chosen', () => {
+  const rows = [
+    ...Array.from({ length: 5 }, () => out({ outcome: 'done' })),
+    out({ outcome: 'letgo' }),
+    ...Array.from({ length: 4 }, () => out({ obligation: true, outcome: 'letgo' })),
+    out({ obligation: true, outcome: 'done' }),
+    // Eight unknown-obligation let-gos: if treated as chosen they would crush the
+    // chosen completion rate and suppress a real, correct observation.
+    ...Array.from({ length: 8 }, () => ({ ...out({ outcome: 'letgo' }), obligation: null, backfilled: true })),
+  ];
+  const c = find(_buildOutcomeCandidates(rows, TODAY), 'obligation-completion');
+  return !!c && c.evidence.includes('5 of 6');
+});
+
+test('backfilled let-gos still count for letgo-reason — reason and date are real', () =>
+  !!find(_buildOutcomeCandidates([
+    { ...out({ outcome: 'letgo', reason: 'no_energy' }), obligation: null, backfilled: true },
+    { ...out({ outcome: 'letgo', reason: 'no_energy' }), obligation: null, backfilled: true },
+    { ...out({ outcome: 'letgo', reason: 'no_energy' }), obligation: null, backfilled: true },
+    { ...out({ outcome: 'letgo', reason: 'replaced' }),  obligation: null, backfilled: true },
+  ], TODAY), 'letgo-reason'));
+
+test('revive rows are carried without breaking any builder', () =>
+  Array.isArray(_buildOutcomeCandidates([
+    out({ outcome: 'revive', reason: 'changed_mind' }),
+    out({ outcome: 'revive', reason: 'changed_mind' }),
+  ], TODAY)));
+
 // ── novelty gate ────────────────────────────────────────────────────────────
 console.log('\nobservation pool — novelty gate\n');
 
