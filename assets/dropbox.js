@@ -922,6 +922,25 @@
         appMemory.spokenLines.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
         appMemory.spokenLines = appMemory.spokenLines.slice(-30);
       }
+      // 12c taskOutcomes — union by id+outcome+date. Accumulated dated events; like
+      // obligationHistory it cannot self-heal from current state, so a missing merge entry
+      // would silently split the log per device and make every windowed contrast wrong.
+      if (Array.isArray(remote.taskOutcomes)) {
+        if (!Array.isArray(appMemory.taskOutcomes)) appMemory.taskOutcomes = [];
+        const seenOutcome = new Set(
+          appMemory.taskOutcomes.map(e => e.id + '|' + e.outcome + '|' + e.date)
+        );
+        for (const e of remote.taskOutcomes) {
+          if (!e || !e.date || !e.outcome) continue;
+          const key = e.id + '|' + e.outcome + '|' + e.date;
+          if (!seenOutcome.has(key)) { appMemory.taskOutcomes.push(e); seenOutcome.add(key); }
+        }
+        const _toFloor = new Date(); _toFloor.setDate(_toFloor.getDate() - 90);
+        appMemory.taskOutcomes = appMemory.taskOutcomes
+          .filter(e => new Date(e.date) >= _toFloor)
+          .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+          .slice(-300);
+      }
       // 12a obligationHistory — union by date+text, done flag OR'd (either device
       // seeing it completed settles it), 90-day window. Accumulated data, so unlike
       // returningTasks/taskAgeBuckets it cannot self-heal from the current task list.

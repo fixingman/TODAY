@@ -143,6 +143,10 @@ if (!appMemory.obligationHistory)           appMemory.obligationHistory = [];
 if (!appMemory.taskAgeBuckets)              appMemory.taskAgeBuckets = { d1to3: 0, d4to6: 0, d7to13: 0, d14plus: 0 };
 // 12b: What TODAY has said on its own initiative — the app's memory of its own voice.
 if (!appMemory.spokenLines)                 appMemory.spokenLines = [];
+// 12c Phase 0: dated task-outcome log. Every approved 12c candidate is a windowed
+// contrast, and the pre-existing stores (letgoReasons, soonPulls) are undated lifetime
+// counters — counters cannot produce a contrast.
+if (!appMemory.taskOutcomes)                appMemory.taskOutcomes = [];
 // Retroactive fix: drop any history entries that no longer pass the current (tightened) detection
 appMemory.obligationHistory = appMemory.obligationHistory.filter(e => _aiCheckObligationLanguage(e.text));
 
@@ -264,6 +268,74 @@ function _memoryRecordSpokenLine(surface, text) {
   const i = lines.findIndex(l => l.surface === surface && l.date === today);
   if (i >= 0) lines[i] = entry; else lines.push(entry);
   appMemory.spokenLines = lines.slice(-30);
+  _saveMemory();
+}
+
+// 12c Phase 0 — dated record of how each task ended.
+//
+// Why events and not conclusions: `design/Personalization.md` says store conclusions, not
+// behavior. That is right for stable traits (peakHour) and wrong here. Every observation the
+// pool is allowed to make is a *windowed contrast* — focus that went to chosen work vs.
+// obligations over 30 days, completion rate on each, how often deferrals come back. A
+// conclusion computed at write time has already discarded the window. So: bounded dated
+// events in, and the candidate builder is the transformation step.
+//
+// Deliberately does NOT store task text. Nothing downstream needs it — the contrasts are
+// computed from the obligation flag, the focus count, and the outcome — so there is no reason
+// to hold another 90-day copy of what the user wrote.
+function _memoryFocusSessionsFor(taskId, taskText) {
+  const pools = [
+    typeof manualTasks !== 'undefined' ? manualTasks : [],
+    typeof soonTasks   !== 'undefined' ? soonTasks   : [],
+    typeof pastTasks   !== 'undefined' ? pastTasks   : [],
+  ];
+  if (taskId) {
+    for (const pool of pools) {
+      for (const t of pool) if (t && t.id === taskId) return parseInt(t.focusSessions) || 0;
+    }
+  }
+  // Fallback: the let-go and Soon-pull paths receive text only. Same normalized-text match
+  // obligationHistory already uses for its done-marking.
+  const stripped = _stripTag(taskText || '').trim();
+  if (!stripped) return 0;
+  for (const pool of pools) {
+    for (const t of pool) if (t && _stripTag(t.text || '').trim() === stripped) return parseInt(t.focusSessions) || 0;
+  }
+  return 0;
+}
+
+// Stable, deterministic, non-crypto hash — used only as a dedup key, and identical across
+// devices for the same text so the sync union works. Keeps the log from becoming a second
+// 90-day copy of everything the user wrote.
+function _memoryTextKey(text) {
+  const t = _stripTag(text || '').trim().toLowerCase();
+  let h = 5381;
+  for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+  return 'txt_' + (h >>> 0).toString(36);
+}
+
+function _memoryRecordOutcome(outcome, taskText, taskId, reason) {
+  if (!outcome) return;
+  const date   = _localISO();
+  const id     = taskId || _memoryTextKey(taskText);
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
+  const log = (appMemory.taskOutcomes || []).filter(e => e && e.date && new Date(e.date) >= cutoff);
+  // One record per task per outcome per day — a re-check or a repeated Soon pull on the same
+  // day is the same event, not two.
+  const key = id + '|' + outcome + '|' + date;
+  if (!log.some(e => (e.id + '|' + e.outcome + '|' + e.date) === key)) {
+    const entry = {
+      id, date, outcome,
+      obligation: typeof _aiCheckObligationLanguage === 'function'
+        ? !!_aiCheckObligationLanguage(taskText) : false,
+      focusSessions: _memoryFocusSessionsFor(taskId, taskText),
+    };
+    if (reason) entry.reason = reason;
+    log.push(entry);
+  }
+  appMemory.taskOutcomes = log.slice(-300);
+  // Saves here rather than relying on callers: _memoryOnTaskLetgo has an early return that
+  // skips its own _saveMemory() when a task text yields no keywords.
   _saveMemory();
 }
 
@@ -572,13 +644,18 @@ function _memoryOnTaskComplete(taskText, taskId) {
     }
   }
 
+  _memoryRecordOutcome('done', taskText, taskId);
   _saveMemory();
 }
 
 // Update memory when focus session completes
 // Update memory when a task is let go at triage — captures deferred vocabulary
-function _memoryOnTaskLetgo(taskText, reason) {
+function _memoryOnTaskLetgo(taskText, reason, outcome) {
   if (!taskText) return;
+  // Recorded before the keyword logic below, which returns early when a task yields no
+  // usable words. `outcome` lets the Soon-pull path route through here without producing
+  // two records for one event.
+  _memoryRecordOutcome(outcome || 'letgo', taskText, null, reason);
   if (reason) {
     if (!appMemory.patterns.letgoReasons) appMemory.patterns.letgoReasons = {};
     const _lrToday = _localISO();
@@ -610,7 +687,7 @@ function _memoryOnTriageUndo() {
 
 function _memoryOnSoonPull(taskText) {
   appMemory.patterns.soonPulls = (appMemory.patterns.soonPulls || 0) + 1;
-  _memoryOnTaskLetgo(taskText, '');
+  _memoryOnTaskLetgo(taskText, '', 'soon_pull');
 }
 
 function _memoryOnRevive(taskText, reason) {
