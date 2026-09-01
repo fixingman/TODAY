@@ -298,7 +298,21 @@ appMemory.taskOutcomes — rolling 90 days of
 
 Written at three call sites that already fire — `_memoryOnTaskComplete`, `_memoryOnTaskLetgo`, and the `soonPulls` increment — and it dates the two existing counters as a side effect. Needs a `dropbox.js` merge entry (union by `date` + text prefix), per the `obligationHistory` lesson.
 
-**Suggested first cut:** after Phase 0, wire the nudge only, leave the other four surfaces on their current paths, and judge real captured payloads before generalizing. Smaller bet, same information.
+### Build order
+
+Phases 0–2 ship with **no user-visible change** — the policy module is pure and nothing consumes it — so they can land incrementally and be judged by tests rather than by mornings. The first behaviour change is Phase 3.
+
+| # | Phase | Touches | Done when |
+|---|---|---|---|
+| **0** | **Capture** ↑ | `insights.js` (`taskOutcomes` slot + 3 existing call sites), `dropbox.js` (merge entry) | `taskOutcomes` populates on complete / let-go / soon-pull, survives a sync round-trip, verified in a real browser session — not just unit tests |
+| **1** | **Candidates** | `week-reflection-policy.js` only | The 4 new kinds implemented; `meaning` → `contrast` renamed; Node threshold tests green; each kind demonstrably fires on seeded fixture data. Still no consumer |
+| **2** | **Novelty gate** | `week-reflection-policy.js` (+ a knowledge-model argument) | Gate drops candidates already present in `spokenLines`, and anything age-shaped (triage prints it). Unit tested. Still no consumer |
+| **3** | **Wire the nudge — first behaviour change** | `nudge.js`; 12b's three instruction lines come out here | A captured payload shows **evidence + contrast only**, no signal dump; the generalized output guard rejects invented claims; abstention falls back to the rule-based line. Other four surfaces untouched |
+| **4** | **Judge, then generalize** | — then `about.js`, `focus.js`, Noticed | A 2-week wallpaper verdict on the nudge alone. Only on a pass do Noticed / focus / Sunday / Monday get wired, with cooldowns |
+
+**Why this order.** Phase 0 was discovered by checking data availability before writing candidate builders — had Phase 1 gone first, three of the four kinds would have silently never fired, and that failure presents identically to "the gates are too strict," which is near-impossible to diagnose backwards. Phase 3 before Phase 4 keeps the blast radius at one surface while the idea is still unproven.
+
+**Verify by capturing a real payload at every phase that touches a prompt.** The v2.79.1 duplicate-emission defect was invisible in code review and obvious the moment the actual request was intercepted.
 
 **Test for success:** the same pattern is never narrated twice across surfaces in a week, and surfaces genuinely go quiet on thin days rather than reaching. Does a line feel *chosen* rather than generated?
 
