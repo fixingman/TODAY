@@ -408,6 +408,9 @@ Prior to v2.64.23, the full appMemory merge lived only in `dropboxRestore(!fromS
 - `taskKeywords`: union by task id
 - Lifetime counters: `Math.max`
 - Inline suggestion outcomes: union by stable `id`; event timestamps and generated-task IDs union so stale devices cannot erase later applied/helped/reversed evidence; newest metadata wins; completion evidence wins a cross-device outcome conflict; newest 100 offers retained (v2.72.0)
+- `obligationHistory` (12a): union by `date|text[0:40]`, `done` OR'd (either device seeing it completed settles it), 90-day window, sorted by date. Added v2.79.0 — v2.78.0 had omitted it, leaving the log silently per-device for a week
+- `spokenLines` (12a): union by `date|surface` (the one-per-surface-per-day invariant), sorted, newest 120 kept (v2.79.0; cap 30→120 v2.80.0 so a kind leaves cooldown by time, not eviction)
+- `taskOutcomes` (12c): union by `id|outcome|date`, 90-day window, sorted, newest 300 kept (v2.80.0). Accumulated dated events cannot self-heal from current state — a missing merge here would split the log per device and make every windowed contrast wrong
 
 **NOT merged:** `noticed` (device-local gate, v2.39.3). `noticedDates` merged via its own loop (earliest-date-wins).
 

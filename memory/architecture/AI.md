@@ -219,7 +219,9 @@ Morning nudge strip (before noon) shows yesterday's review if available. Falls b
 
 **AI line** (`_fetchDayNudgeAI`) fires once per day, cached as `day_nudge_ai_<date>`.
 
-### Facts sent to the AI (v2.43.x)
+**Two tracks since v2.80.0.** `_fetchDayNudgeAI` first calls `_fetchPoolNudge()` (Observation Pool, below). If a candidate survives the gate, the model receives *evidence + contrast only* — the facts table below is never sent, because selection already happened in code. Otherwise the task-reading path below runs unchanged. Both outputs pass `_observationTextIsGrounded(text, 30)`; a rejected line falls back to the rule-based strip rather than showing a claim about who the user is. The shown line is recorded to `appMemory.spokenLines` — with its `kind` on the pool track, without one on the task-reading track. Candidates are rare by construction, so most mornings still take the task-reading path.
+
+### Facts sent to the AI (v2.43.x) — task-reading track
 
 | Block | Content |
 |---|---|
@@ -247,11 +249,31 @@ Does not enumerate signal priorities. Soon tasks are included but only surfaced 
 
 ---
 
+## Observation Pool (12c, v2.80.0)
+
+One ranked candidate pool for every proactive personal line: code selects the observation through the gates, the model only phrases it. Lives in DOM-free `assets/week-reflection-policy.js` alongside Sunday's ranker, which it generalizes. Wired to the morning nudge only; Noticed, focus, Sunday and Monday wait on the Phase 4 verdict (`Backlog.md` → 12c).
+
+| Function | Role |
+|---|---|
+| `_buildObservationCandidates({ outcomes, todayISO, …weekStats })` | The pool: Sunday's week-shaped kinds plus the outcome-derived kinds, sorted by hand-assigned `score`. Proposes only — callers apply gates and per-surface eligibility. |
+| `_buildOutcomeCandidates(outcomes, todayISO)` | Four kinds from `appMemory.taskOutcomes` over a 30-day window: `focus-vs-obligation` 115, `obligation-completion` 105, `letgo-reason` 95, `soon-pullback` 88. Each is `{ kind, score, evidence, contrast }` — a contrast, never a cause; the person supplies the meaning. |
+| `_observationGateExplain(candidate, { spokenLines, todayISO })` | `null` to keep, or a human-readable drop reason: age-as-content (triage already prints every task's age) or a per-kind cooldown hit against `spokenLines` entries with the same `kind`. Cooldowns are cross-surface — a kind narrated anywhere is on cooldown everywhere: 21 days for month-window kinds, 7–14 for week-shaped. |
+| `_observationNoveltyGate(candidates, knowledge)` | Filters by the above. |
+| `_observationTextIsGrounded(text, maxWords)` | Output guard shared by every pool-fed surface and by the nudge's task-reading track: rejects identity, causal and tenure claims and overlong text. `_weekReflectionTextIsGrounded` is this at 26 words. |
+
+**Ranking is editorial, not statistical.** Base scores are hand-assigned judgment about which kinds matter; deviation from the user's own baseline is only a within-kind qualifying threshold. Cross-kind p-values are not comparable and are blind to semantics — `research/ObservationSelection.md`.
+
+**Unknowns stay unknown.** Backfilled rows (`backfilled: true`) are excluded from `focus-vs-obligation`; rows with `obligation: null` fall out of both partitions. **Abstention is per surface:** the nudge falls through to its task-reading track; a surface that exists only to observe goes silent.
+
+**Tests:** `scripts/observation-pool-test.mjs` (42) plus pool coverage in `nudge-test`, `insights-test` and `dropbox-test`. They assert the silences as well as the firings.
+
+---
+
 ## Sunday Weekly Reflection (v2.17.56; evidence contract v2.71.12)
 
 On Sundays, `#sundayBlock` may appear above the stat tiles in the About panel. The sentence is now signal-gated: `_buildWeekReflectionInsight()` ranks deterministic candidates from the same seven calendar days shown in the grid. Current candidates are focus/completion association, habit/completion association, a standout weekday that repeats across earlier instances, and concentrated two-day bursts. Relationships require observations on both sides; the burst candidate is deliberately weakest. The ranker and `_weekReflectionTextIsGrounded()` live in DOM-free `assets/week-reflection-policy.js`; the browser uses their globals while `week-reflection-unit-test.mjs` requires the same implementation directly for threshold/ranking tests.
 
-The winning object contains `{kind, score, evidence, meaning}`. `_fetchWeekReflection()` sends only that object to the AI. It no longer sends `_memoryForAI('weekly')`, lifetime days active, or `recentCompletedTasks`; the model gives a verified observation voice rather than deciding what is true from raw personal history.
+The winning object contains `{kind, score, evidence, contrast}` (`meaning` renamed v2.80.0 when the pool generalized the ranker). `_fetchWeekReflection()` sends only that object to the AI. It no longer sends `_memoryForAI('weekly')`, lifetime days active, or `recentCompletedTasks`; the model gives a verified observation voice rather than deciding what is true from raw personal history.
 
 **Voice:** one sentence, under 22 words; intentional, smart, useful, and quietly human. Light metaphor or dry wit is welcome when it clarifies the pattern. Identity claims, causal claims from correlation, tenure language, invented facts, and visible-counter paraphrases are forbidden. `_weekReflectionTextIsGrounded()` rejects identity/causal/tenure overclaims even if the model ignores the prompt.
 
@@ -300,6 +322,9 @@ Defined in `assets/insights.js`. Called from `_fetchDayNudgeAI()` (morning nudge
 | Task lifespan | `appMemory.patterns.taskLifespanSamples` | Rolling 20-sample average — "you typically close tasks in N days" |
 | 7-day rhythm | `localStorage.today_daily_history` | Avg tasks/day + focus/day, trend vs. prior week |
 | Habit context | `habitsList` + `habitCompletions` | Active habits, 7-day completion rate per habit, done-yesterday flag |
+| Returning tasks (12a) | `appMemory.returningTasks` | Tasks on the list 5+ days, by name with day count; "never opened" marker at 7+ days and zero sessions. One emission per task since v2.79.1 — repetition was manufacturing salience |
+| Obligation framing (12a) | `appMemory.obligationLanguageTally` + `obligationHistory` | Pending obligation-framed tasks by name; long-term completion rate once 10+ entries over 30 days (v2.78.0) |
+| Voice memory (12a) | `appMemory.spokenLines` | Last 8 lines TODAY said, with surface and date — "do not repeat these, do not reuse their sentence shape" (v2.79.0). The pool track uses this deterministically instead, via the novelty gate |
 
 **Task lifespan tracking:** `_memoryOnTaskComplete(taskText, taskId)` computes lifespan from `_getCreatedFromId(taskId)` on each completion and appends to `taskLifespanSamples` (capped at 20 entries).
 

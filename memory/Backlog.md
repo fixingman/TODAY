@@ -192,16 +192,25 @@ Dropbox + GDrive simultaneously · automatic cross-provider migration · OneDriv
 
 The four stages are sequenced — each builds on the previous. The arc as a whole is what delivers the north star; no individual stage alone is the companion.
 
+#### 12a · Relational Memory — shipped (v2.77.26 → v2.79.1)
+
+The `appMemory` slots the arc runs on: `returningTasks`, `obligationLanguageTally`, `obligationHistory`, `taskAgeBuckets`, `spokenLines`. Schema → `architecture/Data.md`; merge rules → `architecture/Sync.md`; what `_memoryForAI()` surfaces from them → `architecture/AI.md`. One accepted debt: `obligationHistory` stores raw events where `design/Personalization.md` says store conclusions. Left on purpose — 12c's candidate builder *is* the transformation step, so the events are its input rather than prompt material.
+
+#### 12b · Companion Voice — superseded by 12c (v2.78.1)
+
+Three instruction lines on the nudge's task-reading path telling the model to use history as judgment, not report it as counts. Still live on that path, and they stay: they are the only guidance for the `_memoryForAI` dump that path still sends. Retire them only if Phase 4 replaces the task-reading path with pool output — an outcome of the verdict, not a task before it. The lessons 12b produced live in `design/Personalization.md` → "Writing the instruction".
+
 ---
 
 #### 12c · Observation Pool — Phases 0–3 shipped, **Phase 4 next**
 
-**One ranked candidate pool feeding every surface.** Code selects the observation through four gates; the model only phrases it. Built by extending `assets/week-reflection-policy.js`, which stays pure and Node-testable. Currently wired to the **morning nudge only**. Implementation detail → `Changelog.md` (2.80.0–2.80.4); prior art → `research/ObservationSelection.md`; prompt rules → `design/Personalization.md`.
+**One ranked candidate pool feeding every surface.** Code selects the observation through four gates; the model only phrases it. Built by extending `assets/week-reflection-policy.js`, which stays pure and Node-testable. Currently wired to the **morning nudge only**. Implementation detail → `Changelog.md` (v2.80.0–v2.80.2, v2.80.4); prior art → `research/ObservationSelection.md`; prompt rules → `design/Personalization.md`.
 
 **Phase 4 — judge, then generalize.** A verdict, not code. Two weeks of real mornings on the nudge alone; only on a pass do Noticed, focus, Sunday and Monday get wired, with cooldowns. Tracked in the Wallpaper Test table below.
 
 - **The pool is silent for a while by design.** `taskOutcomes` began recording 2026-09-01 and the backfill reaches only as far as existing dated history. Thirty-day windows with 4+ samples per side mean most mornings still take the task-reading path. A quiet fortnight is expected, not a failed threshold.
 - **Distinguish the two failure modes before changing anything.** *Never fires* and *fires but feels like a verdict* have different fixes. Check `spokenLines` for entries carrying a `kind` — that is the pool speaking. None at all points at thresholds or thin `taskOutcomes`, not at the prompt.
+- **`revive` is recorded but no kind consumes it.** `_memoryRecordOutcome('revive', …)` has written since v2.80.1; none of the four outcome kinds reads it. Not a gap to close before the verdict — a kind needs a contrast, and a revive count alone is a count. A fifth kind is on the table after Phase 4 if the data suggests one.
 
 **Standing rules for wiring any further surface:**
 
@@ -244,9 +253,11 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 
 What TODAY knows about you, made visible and clearable.
 
-**In the Connections panel:** a new "What I know about you" row. Expands to show current inferences — returning tasks, obligation language patterns, focus habits. Each inference individually dismissible (clears from `appMemory` and stops influencing AI context). Full-clear option.
+**In the Memory panel (`#memoryPanel`, per the v2.47.0 decision in `design/Personalization.md`):** a new "What I know about you" block. Shows current inferences — returning tasks, obligation language patterns, focus habits. Each inference individually dismissible (clears from `appMemory` and stops influencing AI context). Full-clear option.
 
 **Constraints (non-negotiable):** individual inferences are viewable and revocable, not just bulk-deletable. Deletion traces through derived data — if a returning-task inference is dismissed, that task stops appearing in `returningTasks`. No surveillance posture: the panel confirms what TODAY sees, it does not speculate beyond the data.
+
+**Already built for it:** `_observationGateExplain()` returns a human-readable drop reason per candidate ("already said 3 days ago on morning nudge", "restates task age") precisely so this surface can show *why* TODAY stayed quiet. A silent filter is untraceable when a surface unexpectedly says nothing.
 
 **Test for success:** a user reading the panel should think *"yes, that's accurate"* — not be surprised or feel observed.
 
@@ -292,7 +303,7 @@ What TODAY knows about you, made visible and clearable.
 | Season moments — solar term label | v2.71.0 | 2026-09-05 | Open — does `処暑 · End of Heat` feel like context or noise after a few appearances? |
 | Sunday earned insight | v2.71.12 | 2026-09-06 | Open — does it reveal a real lever rather than paraphrasing the grid? Track abstentions as healthy. |
 | Obligation language tip | v2.77.20 | 2026-09-14 | Open — "Have to — or choosing to?" Does it land as a genuine moment of reflection, or does it feel like an interruption? Watch: dismissed immediately vs. paused on. Regex tightened v2.78.0: min 3 words + "should/must be [adj]" excluded. |
-| Morning nudge — pool-selected observation (12c Phase 3) | v2.80.1 | 2026-09-15 | Open — **this is Phase 4.** Does a pool line feel *chosen* rather than generated? Watch for: whether any pool line appears at all (check `spokenLines` for entries with a `kind`); whether it lands as recognition or as a verdict; whether the task-reading path on other mornings still feels as good as before. A pool line that never fires and a pool line that feels like judgment are different failures with different fixes — distinguish them before changing anything. |
+| Morning nudge — pool-selected observation (12c Phase 3) | v2.80.0 | 2026-09-15 | Open — **this is Phase 4.** Does a pool line feel *chosen* rather than generated? Watch for: whether any pool line appears at all (check `spokenLines` for entries with a `kind`); whether it lands as recognition or as a verdict; whether the task-reading path on other mornings still feels as good as before. A pool line that never fires and a pool line that feels like judgment are different failures with different fixes — distinguish them before changing anything. |
 
 ---
 

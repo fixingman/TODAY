@@ -160,8 +160,19 @@
   recentConversations: [],           // [{ date, message }] (last 3)
   recentCompletedTasks: [],          // [{ text, date }] — rolling 30-day (last 50)
   meetingAttribution: { mineShown, mineKept, othersShown, othersSelected },
+  // 12a — relational memory (v2.77.26 → v2.79.0)
+  returningTasks: {},                // { taskId: { taskId, text, firstSeen, dayCount, focusSessions } } — on the list 5+ days; rebuilt on each _memoryForAI() call, trimmed on complete/delete/let-go
+  obligationLanguageTally: { week, count, completed, tasks: [] },  // this week's obligation-framed tasks; resets Monday
+  obligationHistory: [],             // [{ text, date, done }] — 90-day log of obligation-framed tasks; re-validated against the current detector on load. `date` is the ADD date, not an outcome date
+  taskAgeBuckets: { d1to3, d4to6, d7to13, d14plus },
+  spokenLines: [],                   // [{ surface, date, text, kind? }] — what TODAY said on its own initiative; 30 days, one per surface per day, cap 120 (v2.79.0; `kind` + cap 30→120 v2.80.0)
+  // 12c — dated outcome log (v2.80.0), the observation pool's only input
+  taskOutcomes: [],                  // [{ id, date, outcome: 'done'|'letgo'|'soon_pull'|'revive', obligation: true|false|null, focusSessions, reason?, backfilled? }] — 90 days / 300 entries. No task text: id falls back to a djb2 hash of the text
+  taskOutcomesBackfilled: boolean,   // one-time seed from recentCompletedTasks + dated letgo/revive day maps has run (v2.80.1)
 }
 ```
+
+**12a/12c slots are additive; backup schema unchanged.** `taskOutcomes` is written by `_memoryRecordOutcome()` from `_memoryOnTaskComplete`, `_memoryOnTaskLetgo`, `_memoryOnSoonPull` and `_memoryOnRevive`, one record per task per outcome per day. Unknowns stay unknown: backfilled rows carry `backfilled: true` (focus sessions unknown) and let-go/revive rows from the backfill carry `obligation: null` (framing unknown); consumers partition on `=== true` / `=== false`, never truthiness. `spokenLines` is written by `_memoryRecordSpokenLine(surface, text, kind?)` from the morning nudge, focus question, Sunday reflection, week theme and Monday intention — never the assistant chat, which is user-initiated dialogue rather than the app's unprompted voice.
 
 `suggestionOutcomes` is additive inside the existing `appMemory` payload, so backup schema 5.4 does not change. Task text and the model's visible reason line are stored because they are needed to explain the offer and detect an explicit recreation of the original; both were already inside TODAY's local/synced task-memory boundary. “Clear all memory” removes outcomes, legacy suggestion history, and suggestion cooldowns. Outcome records are capped at 100 newest offers.
 
