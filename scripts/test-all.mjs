@@ -26,6 +26,7 @@ const SUITE = [
   'meeting-test',
   'memory-panel-test',
   'week-reflection-unit-test',
+  'observation-pool-test',
   'about-test',
   'reflections-test',
   'day-lifecycle-test',

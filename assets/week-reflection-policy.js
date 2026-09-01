@@ -8,13 +8,15 @@
   const policy = factory();
   root._buildWeekReflectionInsight = policy._buildWeekReflectionInsight;
   root._weekReflectionTextIsGrounded = policy._weekReflectionTextIsGrounded;
+  root._buildObservationCandidates = policy._buildObservationCandidates;
+  root._buildOutcomeCandidates = policy._buildOutcomeCandidates;
   if (typeof module === 'object' && module.exports) module.exports = policy;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function() {
   'use strict';
 
-  function _buildWeekReflectionInsight(stats) {
-    const days = (stats.days || []).filter(d => d && d.tasks !== null && d.tasks !== undefined);
-    if (days.length < 4) return null;
+  function _buildWeekCandidates(stats) {
+    const days = (((stats && stats.days) || [])).filter(d => d && d.tasks !== null && d.tasks !== undefined);
+    if (days.length < 4) return [];
 
     const candidates = [];
     const avg = (items, field) => items.length
@@ -34,7 +36,7 @@
           kind: 'focus-leverage',
           score: 110 + Math.min(20, Math.round((focusAvg - otherAvg) * 5)),
           evidence: `On ${focusDays.length} focus days this week, completions averaged ${oneDecimal(focusAvg)}; on ${otherDays.length} other recorded days, ${oneDecimal(otherAvg)}.`,
-          meaning: 'Focus days coincided with a stronger completion rhythm this week.',
+          contrast: 'Focus days coincided with a stronger completion rhythm this week.',
         });
       }
     }
@@ -52,7 +54,7 @@
           kind: 'habit-alignment',
           score: 100 + Math.min(15, Math.round((heldAvg - missedAvg) * 4)),
           evidence: `On ${heldDays.length} days every habit held, completions averaged ${oneDecimal(heldAvg)}; on ${missedDays.length} other habit days, ${oneDecimal(missedAvg)}.`,
-          meaning: 'Habit consistency and task momentum moved together this week.',
+          contrast: 'Habit consistency and task momentum moved together this week.',
         });
       }
     }
@@ -81,7 +83,7 @@
           kind: 'recurring-day',
           score: 90 + Math.min(10, sameDow.length),
           evidence: `${dayName} led this week with ${top.tasks} completions and has averaged ${oneDecimal(sameAvg)} across ${sameDow.length} earlier recorded ${dayName}s.`,
-          meaning: `${dayName} is becoming a reliably strong day, not just a one-off.`,
+          contrast: `${dayName} is becoming a reliably strong day, not just a one-off.`,
         });
       }
     }
@@ -95,11 +97,120 @@
         kind: 'bursts',
         score: 65,
         evidence: `${topTwoTasks} of ${totalTasks} completions happened on the week's two busiest days.`,
-        meaning: 'The week moved in concentrated bursts rather than at an even pace.',
+        contrast: 'The week moved in concentrated bursts rather than at an even pace.',
       });
     }
 
-    return candidates.sort((a, b) => b.score - a.score)[0] || null;
+    return candidates;
+  }
+
+  // Unchanged public behaviour for Sunday: the single best week-derived candidate.
+  function _buildWeekReflectionInsight(stats) {
+    return _buildWeekCandidates(stats || {}).sort((a, b) => b.score - a.score)[0] || null;
+  }
+
+  // ── 12c: candidates derived from appMemory.taskOutcomes ─────────────────────
+  // Every kind here is a *windowed contrast*, which is why Phase 0 records dated
+  // events rather than counters. Base scores are hand-assigned editorial judgment
+  // about which kinds matter, not tuning — statistical significance is not
+  // comparable across kinds with different null distributions, and is blind to
+  // semantics. See memory/research/ObservationSelection.md.
+  const _LETGO_LABELS = {
+    not_relevant: 'not relevant any more',
+    no_energy: 'no energy',
+    lost_interest: 'lost interest',
+    replaced: 'replaced by something else',
+  };
+
+  function _outcomesWithin(outcomes, dayCount, todayISO) {
+    if (!Array.isArray(outcomes)) return [];
+    const base = todayISO ? new Date(todayISO) : new Date();
+    if (isNaN(base.getTime())) return [];
+    const floor = new Date(base);
+    floor.setDate(floor.getDate() - dayCount);
+    return outcomes.filter(e => {
+      if (!e || !e.date) return false;
+      const d = new Date(e.date);
+      return !isNaN(d.getTime()) && d >= floor && d <= base;
+    });
+  }
+
+  function _buildOutcomeCandidates(outcomes, todayISO) {
+    const candidates = [];
+    const win = _outcomesWithin(outcomes, 30, todayISO);
+    if (!win.length) return candidates;
+
+    const sumFocus = list => list.reduce((n, e) => n + (Number(e.focusSessions) || 0), 0);
+    const obligation = win.filter(e => e.obligation);
+    const chosen     = win.filter(e => !e.obligation);
+
+    // Where focus went, and where it did not. Requires observations on both sides
+    // and real focus somewhere, so a quiet month cannot manufacture it.
+    const obligationFocus = sumFocus(obligation);
+    const chosenFocus     = sumFocus(chosen);
+    if (obligation.length >= 2 && chosen.length >= 2 && chosenFocus >= 3 && obligationFocus === 0) {
+      candidates.push({
+        kind: 'focus-vs-obligation',
+        score: 115,
+        evidence: `Over 30 days, ${chosenFocus} focus sessions went to things you chose; the ${obligation.length} framed as "have to" got none.`,
+        contrast: 'Where focus went, and where it did not.',
+      });
+    }
+
+    // Completion rate on the two kinds of commitment. Both sides need enough
+    // samples for a rate to mean anything.
+    if (obligation.length >= 4 && chosen.length >= 4) {
+      const obligationDone = obligation.filter(e => e.outcome === 'done').length;
+      const chosenDone     = chosen.filter(e => e.outcome === 'done').length;
+      const gap = (chosenDone / chosen.length) - (obligationDone / obligation.length);
+      if (gap >= 0.25) {
+        candidates.push({
+          kind: 'obligation-completion',
+          score: 105,
+          evidence: `You finished ${chosenDone} of ${chosen.length} things you chose, and ${obligationDone} of ${obligation.length} you framed as "have to".`,
+          contrast: 'Two kinds of commitment, two different rates.',
+        });
+      }
+    }
+
+    // One reason accounting for most of what gets released.
+    const letgos = win.filter(e => e.outcome === 'letgo' && e.reason);
+    if (letgos.length >= 4) {
+      const tally = {};
+      for (const e of letgos) tally[e.reason] = (tally[e.reason] || 0) + 1;
+      const [topReason, topCount] = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+      if (topCount >= 3 && topCount / letgos.length >= 0.5) {
+        const label = _LETGO_LABELS[topReason] || String(topReason).replace(/_/g, ' ');
+        candidates.push({
+          kind: 'letgo-reason',
+          score: 95,
+          evidence: `Of the ${letgos.length} things you let go this month, ${topCount} were "${label}".`,
+          contrast: 'One reason accounts for most of what you release.',
+        });
+      }
+    }
+
+    // Deferrals that come back. The person is the subject, not Soon.
+    const pulls = win.filter(e => e.outcome === 'soon_pull');
+    if (pulls.length >= 3) {
+      candidates.push({
+        kind: 'soon-pullback',
+        score: 88,
+        evidence: `You have pulled ${pulls.length} things back from Soon this month.`,
+        contrast: 'What you defer tends to come back.',
+      });
+    }
+
+    return candidates;
+  }
+
+  // The pool: every candidate from every source, ranked. Callers apply gates and
+  // per-surface eligibility; this function only proposes.
+  function _buildObservationCandidates(input) {
+    const inp = input || {};
+    return _buildWeekCandidates(inp)
+      .concat(_buildOutcomeCandidates(inp.outcomes, inp.todayISO))
+      .sort((a, b) => b.score - a.score);
   }
 
   function _weekReflectionTextIsGrounded(text) {
@@ -112,5 +223,5 @@
     return text.trim().split(/\s+/).length <= 26;
   }
 
-  return { _buildWeekReflectionInsight, _weekReflectionTextIsGrounded };
+  return { _buildWeekReflectionInsight, _weekReflectionTextIsGrounded, _buildWeekCandidates, _buildOutcomeCandidates, _buildObservationCandidates };
 });

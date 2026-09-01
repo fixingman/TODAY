@@ -477,7 +477,7 @@
         const userContent =
           'Verified observation type: ' + insight.kind + '\n' +
           'Evidence: ' + insight.evidence + '\n' +
-          'Useful meaning: ' + insight.meaning + '\n\n' +
+          'Useful meaning: ' + insight.contrast + '\n\n' +
           'Write the Sunday line. Give this observation personality and warmth, but preserve its epistemic limits. ' +
           'You may use a light metaphor or dry wit when it clarifies the pattern. Do not introduce any fact not present above.';
         const res = await fetch('/.netlify/functions/ai-assist', {
