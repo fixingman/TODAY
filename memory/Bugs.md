@@ -16,6 +16,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 093 | ↩ and ↗ enrichment indicators flash on tap on mobile — hover rule unguarded | ⏳ v2.80.5 |
 | 092 | Task cards don't age visually on mobile — desktop-only side effect of BUG-079 fix | ⏳ v2.80.3 |
 | 091 | Gmail enrichment picks wrong email — forces person query for topic-based tasks | 🔍 Diagnosing |
 | 090 | `task-enrich` Netlify function returns 500 on every call — enrichment never loads | ✅ v2.77.7 |
@@ -109,6 +110,20 @@
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-093 — ↩ and ↗ enrichment indicators flash on tap on mobile
+
+**Status:** ⏳ v2.80.5
+
+**Symptom:** On mobile, the Gmail (↩) and agent (↗) enrichment indicators briefly flash visible when tapping a task that has enrichment. The flash is random-feeling because users don't associate tapping with indicator visibility.
+
+**Root cause:** Same class as BUG-079. `.task:hover .gmail-indicator` and `.task:hover .agent-indicator` were both outside any `@media (hover: hover)` block. Touch devices briefly fire `:hover` on tap, making the indicators momentarily visible.
+
+**Fix (v2.80.4):** Both hover rules wrapped in `@media (hover: hover)`. On mobile, indicators are only visible during the arrive animation (on first enrichment) and inside focus mode.
+
+**Verification:** On mobile, tap several tasks with ↗ or ↩ enrichment — no flash. Arrive animation should still play once when enrichment first lands.
 
 ---
 
