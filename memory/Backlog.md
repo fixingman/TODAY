@@ -31,7 +31,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 |---|------|--------|-------|
 | 12a | **Companion — relational memory foundation** | Shipped v2.79.1 | `appMemory` gets relational slots: returning-task registry, obligation-language tally with 90-day named history, task-age buckets. Plus `spokenLines` (what TODAY has said), which becomes 12c's novelty-gate input. Prerequisite for the rest of the arc. Detail ↓ |
 | 12b | **Companion — voice** | Shipped v2.78.1 — **superseded by 12c** | Built the inverse of the AI/data contract: raw signals dumped into the nudge prompt, model left to judge. Not fixable in isolation; 12c is the fix. Detail ↓ |
-| 12c | **Companion — observation pool** | Not started — **next** | One ranked candidate pool feeding every surface: code selects through 4 gates, model only phrases it. Extends `week-reflection-policy.js` rather than starting fresh. Fixes 12b, replaces voice memory's post-hoc dedup, retires the age-display idea. Requires 12a. Detail ↓ |
+| 12c | **Companion — observation pool** | Phases 0–2 shipped; **Phase 3 next** | One ranked candidate pool feeding every surface: code selects through 4 gates, model only phrases it. Capture, candidates and the novelty gate are in and tested (36 tests); nothing consumes them yet. Phase 3 wires the nudge and is the first behaviour change. Detail ↓ |
 | 11 | **Task agent — enrichment at add-time** | Stages 1 & 2 shipped; Stage 3 next | External context enrichment (Gmail, web search, soon: contacts, calendar, Trello). Distinct from companion arc — enriches the task, not understanding of you. Detail ↓ |
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
@@ -304,17 +304,23 @@ Phases 0–2 ship with **no user-visible change** — the policy module is pure 
 
 | # | Phase | Touches | Done when |
 |---|---|---|---|
-| **0** | **Capture** ↑ | `insights.js` (`taskOutcomes` slot + 3 existing call sites), `dropbox.js` (merge entry) | `taskOutcomes` populates on complete / let-go / soon-pull, survives a sync round-trip, verified in a real browser session — not just unit tests |
-| **1** | **Candidates** | `week-reflection-policy.js` only | The 4 new kinds implemented; `meaning` → `contrast` renamed; Node threshold tests green; each kind demonstrably fires on seeded fixture data. Still no consumer |
-| **2** | **Novelty gate** | `week-reflection-policy.js` (+ a knowledge-model argument) | Gate drops candidates already present in `spokenLines`, and anything age-shaped (triage prints it). Unit tested. Still no consumer |
-| **3** | **Wire the nudge — first behaviour change** | `nudge.js`; 12b's three instruction lines come out here | A captured payload shows **evidence + contrast only**, no signal dump; the generalized output guard rejects invented claims; abstention falls back to the rule-based line. Other four surfaces untouched |
+| **0** ✅ | **Capture** ↑ *(shipped)* | `insights.js` (`taskOutcomes` slot + 3 existing call sites), `dropbox.js` (merge entry) | `taskOutcomes` populates on complete / let-go / soon-pull, survives a sync round-trip, verified in a real browser session — not just unit tests |
+| **1** ✅ | **Candidates** *(shipped)* | `week-reflection-policy.js` only | The 4 new kinds implemented; `meaning` → `contrast` renamed; Node threshold tests green; each kind demonstrably fires on seeded fixture data. Still no consumer |
+| **2** ✅ | **Novelty gate** *(shipped)* | `week-reflection-policy.js` (+ a knowledge-model argument) | Gate drops candidates already present in `spokenLines`, and anything age-shaped (triage prints it). Unit tested. Still no consumer |
+| **3** ◀ **next** | **Wire the nudge — first behaviour change** | `nudge.js`; 12b's three instruction lines come out here | A captured payload shows **evidence + contrast only**, no signal dump; the generalized output guard rejects invented claims; abstention falls back to the rule-based line. Other four surfaces untouched |
 | **4** | **Judge, then generalize** | — then `about.js`, `focus.js`, Noticed | A 2-week wallpaper verdict on the nudge alone. Only on a pass do Noticed / focus / Sunday / Monday get wired, with cooldowns |
 
 **Why this order.** Phase 0 was discovered by checking data availability before writing candidate builders — had Phase 1 gone first, three of the four kinds would have silently never fired, and that failure presents identically to "the gates are too strict," which is near-impossible to diagnose backwards. Phase 3 before Phase 4 keeps the blast radius at one surface while the idea is still unproven.
 
+**Phases 0–2 carry no version bump and no `CHANGELOG` entry, deliberately.** Nothing user-visible changed, and Rule 31 caps the panel at three entries — spending one on invisible groundwork would evict a real user-facing line. Dev detail is in `Changelog.md` under "12c Phases 0–2". The version bump lands with Phase 3. Safe because `sw.js` is network-first: an online device always fetches current JS, so a stale `CACHE_VERSION` only affects the offline fallback.
+
 **Verify by capturing a real payload at every phase that touches a prompt.** The v2.79.1 duplicate-emission defect was invisible in code review and obvious the moment the actual request was intercepted.
 
 **Test for success:** the same pattern is never narrated twice across surfaces in a week, and surfaces genuinely go quiet on thin days rather than reaching. Does a line feel *chosen* rather than generated?
+
+**Tests:** `scripts/observation-pool-test.mjs` (36, registered in `test-all`) — asserts the *silences* as well as the firings, that no candidate asserts a cause, that a 30-day window statement is not read as an age claim, and that malformed input never throws.
+
+**Browser verification hazard, hit twice:** a port used earlier in a session serves cached JS, so new code reads as `undefined` or silently inert and looks broken. Both `spokenLines` (v2.79.0) and the Phase 0 merge appeared dead this way and were fine. Verify on a port not yet used in the session.
 
 **Prior art:** `research/ObservationSelection.md`.
 
