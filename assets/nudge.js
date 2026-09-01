@@ -32,6 +32,9 @@ window._startNudge = (function() {
     // upgraded, once, and only from a genuinely later call, never a same-instant
     // swap while still mid-read).
     let _nudgeIsFallback = false;
+    // 12c Phase 3: set by _fetchDayNudgeAI when a pool candidate produced the line,
+    // so the spoken-line record carries the kind the novelty gate cools down on.
+    let _nudgeKind = null;
 
     // strip wrapping quotes. For plain-text responses only — _fetchTriageHints
     // expects JSON content and does its own parsing.
@@ -214,7 +217,7 @@ window._startNudge = (function() {
           fetchPromise: _fetchDayNudgeAI(review, carriedOver, cards).then(text => {
             if (text) {
               localStorage.setItem(_doneCountKey, String(doneIds.size));
-              if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('morning nudge', text);
+              if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('morning nudge', text, _nudgeKind);
             }
             return text;
           }),
@@ -265,10 +268,70 @@ window._startNudge = (function() {
     // Day nudge AI rewrite — one sentence with the single most important thing,
     // seeing both manual tasks and Trello cards (v2.19.0 merged the two fetchers).
     // Mirrors _fetchWeekReflection: silent null on any failure (rule-based stays).
+    // 12c Phase 3 — the pool track.
+    //
+    // Code selects the observation and the model only phrases it, per the AI/data
+    // contract in design/Personalization.md. Deliberately sends evidence + contrast
+    // and nothing else: no task list, no appMemory dump, nothing for the model to
+    // choose between. Selection already happened.
+    //
+    // This runs *before* the task-reading nudge below and wins when a candidate
+    // survives the gate. That is rare by construction — four kinds, 21-day
+    // cooldowns, strict thresholds — so the great majority of mornings still take
+    // the task-reading path unchanged. Small blast radius on purpose; Phase 4
+    // judges real output before any of this reaches the other four surfaces.
+    async function _fetchPoolNudge(key) {
+      if (typeof _buildObservationCandidates !== 'function'
+       || typeof _observationNoveltyGate !== 'function'
+       || typeof appMemory === 'undefined') return null;
+
+      const todayISO = _localISO();
+      const ranked = _buildObservationCandidates({
+        outcomes: appMemory.taskOutcomes,
+        todayISO,
+      });
+      // Only outcome-derived kinds are offered here: week-shaped candidates belong
+      // to Sunday, and are simply never built because no week stats are passed.
+      const winner = _observationNoveltyGate(ranked, {
+        spokenLines: appMemory.spokenLines,
+        todayISO,
+      })[0];
+      if (!winner) return null;
+
+      const res = await fetch('/.netlify/functions/ai-assist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: _aiGetProvider(),
+          apiKey: key,
+          messages: [{ role: 'user', content:
+            'Evidence: ' + winner.evidence + '\n' +
+            'Contrast: ' + winner.contrast + '\n\n' +
+            'Write the morning line. State the contrast and leave it unresolved — the ' +
+            'person supplies what it means, not you. Add no fact beyond the evidence above.' }],
+          systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). No exclamation marks, no emoji. Never wrap your reply in quotation marks. Warm, plain, grounded — a friend noticing, not a coach.',
+        }),
+      });
+      if (!res.ok) return null;
+      const text = _parseAIText(await res.json());
+      // Same guard Sunday uses, at the nudge's own word cap. Rejects identity and
+      // causal claims even when the model ignores the instruction.
+      if (!text || (typeof _observationTextIsGrounded === 'function'
+                    && !_observationTextIsGrounded(text, 30))) return null;
+      _nudgeKind = winner.kind;
+      return text;
+    }
+
     async function _fetchDayNudgeAI(review, carriedOver, cards) {
       try {
         const key = (typeof _aiGetKey === 'function') ? _aiGetKey() : null;
         if (!key || !navigator.onLine) return null;
+
+        _nudgeKind = null;
+        const pooled = await _fetchPoolNudge(key).catch(() => null);
+        if (pooled) return pooled;
+        // Abstention here is per-surface: the nudge does not go silent, it falls
+        // through to the job it already had. The morning is the signature beat.
 
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const streak = parseInt(localStorage.getItem('stat_streak') || '1');

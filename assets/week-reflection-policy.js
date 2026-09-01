@@ -12,6 +12,7 @@
   root._buildOutcomeCandidates = policy._buildOutcomeCandidates;
   root._observationNoveltyGate = policy._observationNoveltyGate;
   root._observationGateExplain = policy._observationGateExplain;
+  root._observationTextIsGrounded = policy._observationTextIsGrounded;
   if (typeof module === 'object' && module.exports) module.exports = policy;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function() {
   'use strict';
@@ -286,15 +287,22 @@
       .sort((a, b) => b.score - a.score);
   }
 
-  function _weekReflectionTextIsGrounded(text) {
+  // Generalized so every pool-fed surface shares one guard. The rules are the same
+  // wherever a model is given evidence and asked only to phrase it: identity and
+  // causal claims outrun the evidence, and are rejected even when the model ignores
+  // the prompt. Word cap varies by surface.
+  function _observationTextIsGrounded(text, maxWords) {
     if (!text || /^none\.?$/i.test(text.trim())) return false;
-    // Identity and causal claims outrun the observational evidence supplied to
-    // this surface. Reject them even if the model ignores the prompt.
     if (/\bwho you are\b|\bthat(?:'s| is) (?:just )?you\b|\byou(?:'re| are) (?:the kind|the type|someone who|a person who)\b/i.test(text)) return false;
     if (/\b(?:caused|made you|because of)\b/i.test(text)) return false;
     if (/\b\d{2,4}\s+days? in\b/i.test(text)) return false;
-    return text.trim().split(/\s+/).length <= 26;
+    return text.trim().split(/\s+/).length <= (maxWords || 26);
   }
 
-  return { _buildWeekReflectionInsight, _weekReflectionTextIsGrounded, _buildWeekCandidates, _buildOutcomeCandidates, _buildObservationCandidates, _observationNoveltyGate, _observationGateExplain };
+  // Sunday's contract, unchanged.
+  function _weekReflectionTextIsGrounded(text) {
+    return _observationTextIsGrounded(text, 26);
+  }
+
+  return { _buildWeekReflectionInsight, _weekReflectionTextIsGrounded, _observationTextIsGrounded, _buildWeekCandidates, _buildOutcomeCandidates, _buildObservationCandidates, _observationNoveltyGate, _observationGateExplain };
 });
