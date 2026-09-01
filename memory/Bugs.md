@@ -16,7 +16,7 @@
 
 | # | Description | Status |
 |---|---|---|
-| 095 | Task, habit and Ask inputs saved to the browser autofill store — no `autocomplete="off"` | 🔍 Diagnosing |
+| 095 | Task, habit and Ask inputs saved to the browser autofill store — no `autocomplete="off"` | ⏳ v2.81.5 |
 | 094 | "Undo" persists into the reflection step, reading as undoing the answer not the sorting | ⏳ v2.80.6 |
 | 093 | ↩ and ↗ enrichment indicators flash on tap on mobile — hover rule unguarded | ⏳ v2.80.5 |
 | 092 | Task cards don't age visually on mobile — desktop-only side effect of BUG-079 fix | ⏳ v2.80.3 |
@@ -61,7 +61,7 @@
 
 ## BUG-095 — Task, habit and Ask inputs are saved to the browser's autofill store
 
-**Status:** 🔍 Diagnosing — fix identified, not yet applied
+**Status:** ⏳ v2.81.5
 
 **Symptom:** A bubble appears above the add-task bar showing previously typed text. Reported by Can with a screenshot: *"there is a strange tooltip on top of the task input bar what is this, never seen it."* It is Chrome's own form-autofill suggestion list — it renders *above* the field because the add bar is pinned to the bottom of the viewport, which is why it does not look like the usual dropdown. It only appears once the browser has stored entries for that field and the typed prefix matches, which is why it had not been seen before.
 
@@ -69,9 +69,9 @@
 
 **Why this is more than cosmetic:** Rule 32 states TODAY's promise is the absence of observation, and the privacy model is that task data is local and user-owned. Without `autocomplete="off"`, every task title, habit name and question asked of the AI is copied into the browser's own autofill store — outside the app, outside Dropbox, and outside anything the app can clear. It survives disconnecting Dropbox and the Connections "Forget" flows, and it syncs to the user's Google account when Chrome sync is on. The Ask input is the most exposed of the three, since it holds free-form questions about the user's life.
 
-**Fix (identified):** add `autocomplete="off"` to the three inputs. Deliberately *not* copying the full attribute set used on the name/key fields — `spellcheck="false"` and `autocorrect="off"` make sense for names and API keys but not for task prose, where they are typing aids the user may want. That is a separate UX decision, not part of this defect.
+**Fix (v2.81.5):** added `autocomplete="off"` to all three inputs. Deliberately *not* copying the full attribute set used on the name/key fields — `spellcheck="false"` and `autocorrect="off"` make sense for names and API keys but not for task prose, where they are typing aids the user may want. That is a separate UX decision, not part of this defect.
 
-**Not yet applied:** a concurrent agent held uncommitted changes in `index.html` at the time of filing; staging is per-file, so applying it then would have bundled unrelated work into the same commit.
+**Note:** stops future storage only. Values the browser has already saved must be cleared from Chrome's own autofill settings — the app cannot reach them, which is itself part of why the gap mattered.
 
 ---
 
