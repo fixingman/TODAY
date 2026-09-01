@@ -227,6 +227,54 @@ try {
     await page.close();
   }
 
+  // 6a2. A completed task must not be reported as "waiting". Production report:
+  //      a task closed the previous day surfaced next morning as "still waiting
+  //      after 56 days", because _updateReturningTasksMemory was the only context
+  //      builder that did not filter doneIds.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const old = 'manual_' + (Date.now() - 56 * 86400000);
+      const fresh = 'manual_' + (Date.now() - 9 * 86400000);
+      manualTasks.length = 0;
+      manualTasks.push(
+        { id: old,   text: 'Move travel coasts to SEB personal', focusSessions: 0 },
+        { id: fresh, text: 'travel insurance to Italy',          focusSessions: 0 },
+      );
+      if (typeof pastTasks !== 'undefined') pastTasks.length = 0;
+      doneIds.clear();
+
+      // Before completion: the 56-day task is legitimately waiting.
+      _updateReturningTasksMemory(manualTasks, []);
+      const waitingBefore = !!appMemory.returningTasks[old];
+      const bucketsBefore = appMemory.taskAgeBuckets.d14plus;
+
+      // Completed yesterday, still present in manualTasks this morning.
+      doneIds.add(old);
+      _updateReturningTasksMemory(manualTasks, []);
+      const ctx = _memoryForAI('nudge');
+
+      // Archived to Past is likewise not waiting.
+      doneIds.clear();
+      if (typeof pastTasks !== 'undefined') pastTasks.push({ id: old, text: 'Move travel coasts to SEB personal' });
+      _updateReturningTasksMemory(manualTasks, []);
+
+      return {
+        waitingBeforeCompletion: waitingBefore,
+        countedInAgeBucketsBefore: bucketsBefore === 1,
+        droppedFromReturningWhenDone: !appMemory.returningTasks[old],
+        stillTracksTheOtherTask: !!appMemory.returningTasks[fresh],
+        notInAIContext: !ctx.includes('SEB personal'),
+        otherTaskStillInAIContext: ctx.includes('travel insurance to Italy'),
+        droppedWhenArchivedToPast: !appMemory.returningTasks[old],
+        doneNotCountedAsAmbientLoad: appMemory.taskAgeBuckets.d14plus === 0,
+      };
+    });
+    await expectAll('completed tasks are not waiting', { ...result, noErrors: errors.length === 0 });
+    ok('_updateReturningTasksMemory: done and past tasks drop out of returningTasks and age buckets');
+    await page.close();
+  }
+
   // 6b. taskOutcomes capture (12c Phase 0). Every approved pool candidate is a
   //     windowed contrast, so these dated events are the only thing standing between
   //     the pool and silence. Also pins that no task text is stored.

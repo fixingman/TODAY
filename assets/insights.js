@@ -259,6 +259,20 @@ function _updateReturningTasksMemory(manualArr, trelloArr) {
   const trelloFT = (typeof window !== 'undefined' && typeof window._getTrelloFocusTotal === 'function')
     ? window._getTrelloFocusTotal() : {};
 
+  // A finished task is not waiting. Every other context builder filters these
+  // (nudge.js, about.js x2, focus.js) and this one did not, so a task completed
+  // yesterday kept its full age and was reported the next morning as still
+  // waiting — observed in production as "still waiting after 56 days" for
+  // something closed the day before. pastTasks is excluded defensively for the
+  // same reason nudge.js does it: a stale sync can put an archived task back into
+  // manualTasks after midnight cleanup has already cleared doneIds.
+  const _doneSet = (typeof doneIds !== 'undefined' && doneIds && typeof doneIds.has === 'function')
+    ? doneIds : null;
+  const _pastSet = new Set(
+    (typeof pastTasks !== 'undefined' && Array.isArray(pastTasks) ? pastTasks : [])
+      .map(t => t && t.id).filter(Boolean)
+  );
+
   const entries = [
     ...((Array.isArray(manualArr) ? manualArr : []).map(t => ({ t, source: 'manual' }))),
     ...((Array.isArray(trelloArr) ? trelloArr : []).map(t => ({ t, source: 'trello' }))),
@@ -266,6 +280,9 @@ function _updateReturningTasksMemory(manualArr, trelloArr) {
 
   for (const { t, source } of entries) {
     if (!t.id) continue;
+    // Skipped before the age buckets too: a completed task is not ambient load.
+    if (_doneSet && _doneSet.has(t.id)) continue;
+    if (_pastSet.has(t.id)) continue;
     let created, focusSessions;
     if (source === 'manual') {
       if (!t.id.startsWith('manual_')) continue;
