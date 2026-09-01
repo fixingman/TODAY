@@ -367,7 +367,7 @@ What TODAY knows about you, made visible and clearable.
 | Decision | Current | Watch for |
 |----------|---------|-----------|
 | AI/data outcome loop | **Shipped v2.72.0; viewport delivery fixed v2.72.1.** Post-add row records reason provenance and downstream outcomes after the task reaches view. Reason-level policy (`_suggestionShouldOffer`) throttles underperforming categories to 1-in-4 exploration after 4+ decisions. | Check `appMemory.suggestionOutcomes` length — if past 12 resolved offers, inspect reason totals and whether any reason is flagged `underperforming`. Did the recommendation mix change? Only extend to another action (tab focus, habit prompts) if it did and without adding noise. |
-| Morning nudge usefulness | v2.43.5 rebalanced list vs memory context; generation runs after sync and result syncs cross-device. The right instrument is now `appMemory.suggestionOutcomes` reason stats, not About panel prose. | If reason-level policy is firing (any reason throttled), check whether it changed the mix before tuning prompts further. |
+| Morning nudge usefulness | **Superseded by 12c (v2.80.x).** The nudge now has two tracks: a pool-selected observation when a candidate survives the gate, otherwise the task-reading path. The instrument is no longer `suggestionOutcomes` — it is `appMemory.spokenLines` (what was said, and which `kind` produced it) and `appMemory.taskOutcomes` (what the pool had to work with). | Read `spokenLines` entries carrying a `kind`: that is the pool speaking. None after two weeks means the thresholds are too strict or `taskOutcomes` is too thin — check which before touching any prompt. |
 | Dated AI-cache sync | Four fields hand-plumbed: `day_nudge_ai`, `week_reflection`, `monday_intention`, `week_theme_ai`. `gmail_classify_*` uses a different pattern (keyed by taskId, not date) — not a fifth. | Create one declarative cache registry before a genuinely fifth dated AI field lands (e.g. `focus_companion_ai_*`). Not yet. |
 | Merge-anomaly observability | Dropbox emits a console-only `[merge-anomaly]` breadcrumb; no persisted counter or Connections metric. | Revisit only if anomalies appear during debugging or a conflict rate becomes measurable. Not live product telemetry. |
 | Chrome Built-in AI (Prompt API) | Research — not started | Chrome 127+ ships Gemini Nano on-device (`window.ai.languageModel`). Still in Origin Trial (Chrome-only, needs registration). Ideal long-term destination for Gmail comm-task classification: on-device, free, no API key, offline. Current approach uses `ai-assist` proxy. When Chrome Built-in AI reaches stable / broad availability, progressive enhancement: try `window.ai` first, fall back to `ai-assist`. Polyfill exists for non-Chrome browsers. Revisit when out of Origin Trial (~2026 or later). |
@@ -378,19 +378,21 @@ What TODAY knows about you, made visible and clearable.
 
 > **Rule:** resolve each row — **kept**, **iterated**, or **removed** — at the due date.
 > **Pre-registration:** in the week before each verdict, note a one-word observation each time the surface is used or skipped.
+>
+> **⚠ Overdue as of 2026-09-01 — six rows past their due date and unresolved.** These need Can's verdict, not a guess; each is marked below. An unresolved row is not a neutral state — it is a surface still shipping on an untested assumption, and the longer it sits the more it looks like a decision that was made rather than one that was skipped.
 
 | Surface | Shipped | Due | Status |
 |---------|---------|-----|--------|
 | Season moments (24/year) | v2.60.0 | — | **Iterate (2026-08-21).** Line is right. Need second layer for seasonal turning-point. Solar term label shipped v2.71.0. |
 | Season moments — solar term label | v2.71.0 | 2026-09-05 | Open — does `処暑 · End of Heat` feel like context or noise after a few appearances? |
-| Focus companion question | v2.65.0 | 2026-08-31 | Improved: taxonomy system prompt, drag-word + letgo-reason signals, word cap 18→22. Re-observe — does the question now feel like clarity rather than a check-in? |
-| About contextual CTAs | v2.64.10 | 2026-08-25 | Open — does the bordered CTA treatment make actions clearer without pulling attention? |
-| Connections privacy reassurance | v2.64.11 | 2026-08-26 | Open — one appearance per device when fully disconnected. Timely reassurance or policy copy interrupting setup? |
+| Focus companion question | v2.65.0 | ⚠ 2026-08-31 | Improved: taxonomy system prompt, drag-word + letgo-reason signals, word cap 18→22. Re-observe — does the question now feel like clarity rather than a check-in? |
+| About contextual CTAs | v2.64.10 | ⚠ 2026-08-25 | Open — does the bordered CTA treatment make actions clearer without pulling attention? |
+| Connections privacy reassurance | v2.64.11 | ⚠ 2026-08-26 | Open — one appearance per device when fully disconnected. Timely reassurance or policy copy interrupting setup? |
 | Sunday earned insight | v2.71.12 | 2026-09-06 | Open — does it reveal a real lever rather than paraphrasing the grid? Track abstentions as healthy. |
-| Monday intention (memory-enriched) | v2.65.1 | 2026-08-24 | Verdict (2026-08-17): synthesis is nice. Data source fixed: now includes Soon + Trello. Re-observe next Monday. |
-| Memory panel quality gate | v2.47.0 | 2026-09-01 | Open — are AI-generated hypotheses earning confirmation or getting dismissed? |
-| Post-triage reflections | v2.65.7 | 2026-08-31 | Open — real pause or rote wallpaper? Watch for: avoidance on hard days, selection bias, feeling rote after first week. |
-| Morning nudge — history-informed (12b) | v2.78.1 | 2026-09-15 | Open — does the accumulated history make the insight sharper, or does the nudge drift into restating counts? Watch for: template repetition (same sentence shape each morning), loss of the acknowledgment nudges that were landing, any sentence that reports a number back rather than catching a blind corner. |
+| Monday intention (memory-enriched) | v2.65.1 | ⚠ 2026-08-24 | Verdict (2026-08-17): synthesis is nice. Data source fixed: now includes Soon + Trello. Re-observe next Monday. |
+| Memory panel quality gate | v2.47.0 | ⚠ 2026-09-01 | Open — are AI-generated hypotheses earning confirmation or getting dismissed? |
+| Post-triage reflections | v2.65.7 | ⚠ 2026-08-31 | Open — real pause or rote wallpaper? Watch for: avoidance on hard days, selection bias, feeling rote after first week. |
+| Morning nudge — pool-selected observation (12c Phase 3) | v2.80.1 | 2026-09-15 | Open — **this is Phase 4.** Does a pool line feel *chosen* rather than generated? Watch for: whether any pool line appears at all (check `spokenLines` for entries with a `kind`); whether it lands as recognition or as a verdict; whether the task-reading path on other mornings still feels as good as before. A pool line that never fires and a pool line that feels like judgment are different failures with different fixes — distinguish them before changing anything. |
 | Obligation language tip | v2.77.20 | 2026-09-14 | Open — "Have to — or choosing to?" Does it land as a genuine moment of reflection, or does it feel like an interruption? Watch: dismissed immediately vs. paused on. Regex tightened v2.78.0: min 3 words + "should/must be [adj]" excluded. |
 
 ---
