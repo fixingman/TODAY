@@ -1924,11 +1924,11 @@
   .task[data-age-bucket] {
     transition: opacity var(--dur-base);
   }
+  .task[data-age-bucket="young"] { opacity: 0.75; }
+  .task[data-age-bucket="mid"]   { opacity: 0.55; }
+  .task[data-age-bucket="old"]   { opacity: 0.35; }
   @media (hover: hover) {
-    .task[data-age-bucket="young"] { opacity: 0.75; }
-    .task[data-age-bucket="mid"]   { opacity: 0.55; }
-    .task[data-age-bucket="old"]   { opacity: 0.35; }
-    .task[data-age-bucket]:hover   { opacity: 0.85; }
+    .task[data-age-bucket]:hover  { opacity: 0.85; }
   }
 
   .task-body { flex: 1; min-width: 0; }
@@ -4472,9 +4472,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.80.3':  'Fix: task cards now age visually on mobile, matching desktop.',
   '2.80.2':  'The morning note will now stay quiet rather than tell you what kind of person you are — the check that already protected one path now covers both.',
   '2.80.1':  'The morning note draws on the weeks already behind you, and now counts reviving a task — choosing something again after setting it down — as its own kind of signal.',
-  '2.80.0':  'The morning note can now tell you something about how you work — where your focus actually went this month, what you keep letting go — chosen once, then said once, never repeated.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

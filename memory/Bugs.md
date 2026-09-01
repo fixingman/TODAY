@@ -16,6 +16,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 092 | Task cards don't age visually on mobile — desktop-only side effect of BUG-079 fix | ⏳ v2.80.3 |
 | 091 | Gmail enrichment picks wrong email — forces person query for topic-based tasks | 🔍 Diagnosing |
 | 090 | `task-enrich` Netlify function returns 500 on every call — enrichment never loads | ⏳ v2.77.7 |
 | 089 | "Open in Mail" opens browser instead of native Mail app | ⏳ v2.77.6 |
@@ -108,6 +109,20 @@
 ---
 
 *Verified bugs → `archive/Bugs-archive.md`. Below: bugs still awaiting verification.*
+
+---
+
+## BUG-092 — Task cards don't age visually on mobile
+
+**Status:** ⏳ v2.80.3
+
+**Symptom:** Card aging (opacity 0.75/0.55/0.35 for young/mid/old tasks) visible on desktop PWA but absent on mobile — all cards render at full opacity regardless of age.
+
+**Root cause:** BUG-079 (v2.66.1) wrapped the age-bucket opacity rules inside `@media (hover: hover)` to fix an iOS tap-flash: touch devices briefly fire `:hover` on tap, making the tapped task appear bright (0.85) while aged neighbours stayed at 0.35 — perceived as "tasks dimming when another is tapped." The fix removed the unintended hover-restore on mobile, but also silently removed aging entirely.
+
+**Fix (v2.80.3):** Age-bucket opacity rules moved global (applied on both platforms). Only the `:hover` restore (0.85) stays inside `@media (hover: hover)` — touch devices have no `:hover` rule to misfire.
+
+**Verification:** On mobile PWA, a task added 3+ days ago should render visibly muted; a 7+ day task should render at minimum opacity. Tapping should not cause a flash-to-bright.
 
 ---
 
