@@ -18,7 +18,7 @@
 |---|---|---|
 | 092 | Task cards don't age visually on mobile — desktop-only side effect of BUG-079 fix | ⏳ v2.80.3 |
 | 091 | Gmail enrichment picks wrong email — forces person query for topic-based tasks | 🔍 Diagnosing |
-| 090 | `task-enrich` Netlify function returns 500 on every call — enrichment never loads | ⏳ v2.77.7 |
+| 090 | `task-enrich` Netlify function returns 500 on every call — enrichment never loads | ✅ v2.77.7 |
 | 089 | "Open in Mail" opens browser instead of native Mail app | ⏳ v2.77.6 |
 | 088 | Inline AI helper stays behind when its task is reordered | ✅ v2.77.3 |
 | 087 | Emoji disappear or render broken in the animated task input | ⏳ v2.77.2 |
@@ -150,7 +150,7 @@
 
 ## BUG-090 — `task-enrich` Netlify function returns 500 on every call
 
-**Status:** 🔍 Diagnosing
+**Status:** ✅ v2.77.7 — verified by Can
 **Files:** `netlify/functions/task-enrich.js`, `assets/task-enrich.js`
 
 **Symptom:** Every call to `/.netlify/functions/task-enrich` returns HTTP 500. Enrichment cards never appear on focus open or task add. The failure is consistent — not flaky — across both entry points:
