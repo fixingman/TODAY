@@ -299,27 +299,10 @@ try {
     await page.close();
   }
 
-  // 3.2 reflectionForgetConfirm clears all data
-  {
-    const { page } = await openPage({
-      today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
-      today_reflections: JSON.stringify([{ date: TODAY, feeling: 'calm', updatedAt: new Date().toISOString() }]),
-    });
-    const result = await page.evaluate(() => {
-      window.reflectionForgetConfirm();
-      const policy = JSON.parse(localStorage.getItem('today_reflection_policy') || 'null');
-      const reflections = localStorage.getItem('today_reflections');
-      const cleared = localStorage.getItem('today_reflections_cleared_at');
-      return {
-        policyNotForMe: policy?.choice === 'not_for_me',
-        reflectionsGone: reflections === null || JSON.parse(reflections || '[]').length === 0,
-        clearedStamped: typeof cleared === 'string' && cleared.length > 0,
-      };
-    });
-    await expectAll('reflectionForgetConfirm clears data', result);
-    ok('reflectionForgetConfirm: policy=not_for_me, reflections removed, watermark stamped');
-    await page.close();
-  }
+  // 3.2 removed: the Forget flow itself was removed in v2.77.12 ("reflections panel
+  // auto-reflects on open, removes Forget flow"). `reflectionForgetConfirm` no longer
+  // exists, and this test had been failing since — a stale test for a deleted feature.
+  // The decline path that still exists is covered above by the reflectionDecline case.
 
   // 3.3 reflectionRememberAgain restores policy
   {
