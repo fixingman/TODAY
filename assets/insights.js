@@ -766,6 +766,24 @@ function _memoryOnTaskLetgo(taskText, reason, outcome) {
       _lrEntry.days[_lrToday] = (_lrEntry.days[_lrToday] || 0) + 1;
     }
   }
+  // Same stale-premise bug as returningTasks: a task you let go is no longer pending,
+  // but obligationHistory only ever learned about completions, so an abandoned
+  // obligation kept showing up under "Still pending" until the 90-day prune.
+  // Deliberately a separate `letgo` flag rather than reusing `done` — a let-go is a
+  // real outcome and belongs in the completion-rate denominator, so marking it done
+  // would silently inflate the rate it feeds.
+  if (typeof _aiCheckObligationLanguage === 'function' && _aiCheckObligationLanguage(taskText)) {
+    const _lgStripped = _stripTag(taskText).trim();
+    const _lgHist = appMemory.obligationHistory || [];
+    for (let i = _lgHist.length - 1; i >= 0; i--) {
+      if (!_lgHist[i].done && !_lgHist[i].letgo
+          && _stripTag(_lgHist[i].text || '').trim() === _lgStripped) {
+        _lgHist[i].letgo = true;
+        break;
+      }
+    }
+  }
+
   const _kStopWords = new Set(['about','after','also','back','been','before','call','check','done','from','have','into','just','make','more','need','send','some','take','than','that','them','then','they','this','were','what','when','will','with','your']);
   const words = _stripTag(taskText).toLowerCase().split(/\s+/)
     .map(w => w.replace(/[^a-z]/g, ''))
@@ -1059,7 +1077,7 @@ function _memoryForAI(scope) {
     const _wkMonday = new Date(); _wkMonday.setDate(_wkMonday.getDate() - ((_wkMonday.getDay() + 6) % 7));
     const _wkStart  = _localISO(_wkMonday);
     const _pendingObl = _oblHistory
-      .filter(e => e.date >= _wkStart && !e.done)
+      .filter(e => e.date >= _wkStart && !e.done && !e.letgo)
       .map(e => `"${_stripTag(e.text)}"`);
     if (_pendingObl.length > 0) {
       lines.push(`This week: ${oblTally.count} obligation-framed tasks — ${oblCompleted} completed. Still pending: ${_pendingObl.slice(0, 5).join(', ')}.`);

@@ -275,6 +275,39 @@ try {
     await page.close();
   }
 
+  // 6a3. Same stale-premise class as 6a2, different slot: a let-go obligation must
+  //      stop being reported as pending, without being counted as a completion.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const today = _localISO();
+      appMemory.obligationLanguageTally = { week: today, count: 3, completed: 0, tasks: [] };
+      appMemory.obligationHistory = [
+        { text: 'have to call the bank', date: today, done: false },
+        { text: 'should renew the permit', date: today, done: false },
+        { text: 'must file the receipts', date: today, done: false },
+      ];
+
+      const before = _memoryForAI();
+      _memoryOnTaskLetgo('should renew the permit', 'not_relevant');
+      const after = _memoryForAI();
+
+      const entry = appMemory.obligationHistory.find(e => e.text === 'should renew the permit');
+      const rateDenominatorIntact = appMemory.obligationHistory.length === 3;
+      return {
+        pendingBeforeLetgo: before.includes('renew the permit'),
+        notPendingAfterLetgo: !after.includes('renew the permit'),
+        othersStillPending: after.includes('call the bank') && after.includes('file the receipts'),
+        markedLetgoNotDone: entry.letgo === true && entry.done !== true,
+        notCountedAsCompletion: !after.includes('3 obligation-framed tasks — 1 completed'),
+        rateDenominatorIntact,
+      };
+    });
+    await expectAll('let-go obligations stop being pending', { ...result, noErrors: errors.length === 0 });
+    ok('_memoryOnTaskLetgo: obligation marked letgo — drops from "still pending", never counts as completed');
+    await page.close();
+  }
+
   // 6b. taskOutcomes capture (12c Phase 0). Every approved pool candidate is a
   //     windowed contrast, so these dated events are the only thing standing between
   //     the pool and silence. Also pins that no task text is stored.

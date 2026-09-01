@@ -309,8 +309,12 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
 
     // Other pending tasks — gives the companion awareness of what else is waiting,
     // so it can ask about prioritisation or energy fit relative to the full list.
+    // pastTasks excluded for the same reason nudge.js and about.js do it: a stale
+    // sync can return an archived task to manualTasks after doneIds was cleared,
+    // and it would then be offered as part of "today's list".
+    const _focusPastIds = new Set((typeof pastTasks !== 'undefined' ? pastTasks : []).map(t => t && t.id));
     const _otherTasks = (typeof manualTasks !== 'undefined' ? manualTasks : [])
-      .filter(t => t.id !== uiTaskId && !doneIds.has(t.id))
+      .filter(t => t.id !== uiTaskId && !doneIds.has(t.id) && !_focusPastIds.has(t.id))
       .slice(0, 5)
       .map(t => {
         const created = typeof _getCreatedFromId === 'function' ? _getCreatedFromId(t.id) : null;
