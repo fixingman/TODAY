@@ -74,6 +74,31 @@
 
 ---
 
+## BUG-085 — NEW WEEK nudge names tasks completed before midnight
+
+**Status:** ✅ Fixed v2.71.25
+**File:** `assets/about.js` — `_fetchMondayIntention()`
+
+**Symptom:** On Monday morning, the NEW WEEK nudge (About panel, `sundayBlock`) mentioned specific task names ("Unpack", "Move travel costs") even though all tasks were completed and cleared before midnight. Nothing was pending.
+
+**Root cause:** `_fetchMondayIntention()` passes `_memoryForAI('weekly')` as context, which includes `suggestionHistory` — a log of AI suggestions made for specific tasks (with their exact text). When the task list is empty, the prompt asked the AI to be "specific, not generic," so it reached into `suggestionHistory` and named historical tasks as if they were still pending.
+
+**Fix (v2.71.25):** Added `listIsEmpty` flag derived from the filtered task arrays. When the list is empty, the task instruction explicitly says "Do not name any tasks; the list is empty and clear." When tasks are present, the instruction says "Only name tasks from the list above, not from history." System prompt updated: "Speak about how this person works, not about specific tasks unless they appear in the current list."
+## BUG-084 — Checkmark confetti offset on mobile
+
+**Status:** ✅ Verified v2.71.8
+**File:** `assets/celebration.js` — `fireEmberDrift()`
+
+**Symptom:** On mobile, checking a task draws the confetti away from its checkbox. Desktop placement is correct.
+
+**Root cause:** `.task-check.getBoundingClientRect()` supplies CSS viewport coordinates, but the celebration canvas draws in backing-buffer coordinates sized from `window.innerWidth`/`innerHeight`. Mobile Safari can render the CSS canvas at `100dvh`, a different height from that buffer, and scales the unchecked client coordinate into the wrong visible position.
+
+**Fix (v2.71.8):** `fireEmberDrift()` converts incoming client coordinates through `#celebCanvas.getBoundingClientRect()` into backing-buffer coordinates before spawning particles. The conversion also accounts for a non-zero canvas offset. Desktop and all-done origins are unchanged.
+
+**Verified:** Real-device iPhone PWA — confetti burst originates at its checkmark in both ordinary and final task flows, with browser chrome expanded and collapsed.
+
+---
+
 ## BUG-082 — Post-triage done counter shows 0 after same-day triage
 
 **Status:** ✅ Verified fixed (v2.71.34; verified 2026-08-25 by Can on real device)
@@ -87,37 +112,6 @@
 **Fix (v2.71.34):** Both graph bar (line 229) and Flow % (line 185) now call `_doneTodayCount()` — a timestamp-based counter in `dropbox.js` that reads the check/uncheck log in localStorage, survives task clearing because it never relies on `doneIds` or `manualTasks`.
 
 **Verified fixed:** ✅ 2026-08-25 (Can, real device)
-
----
-
-## BUG-076 — Splash exit leaves `O` / `AY` visible
-
-**Status:** ✅ Verified fixed (v2.65.3; verified 2026-08-20 by Can on real device)
-**Introduced:** v2.64.24 (per-letter WAAPI exit)
-**Files:** `index.html`, `assets/splash.js`, `scripts/splash-test.mjs`
-
-**Symptom:** During the staged splash dismissal, `TO` and `DAY` normally fade smoothly before the star burst, but Safari could leave `O` and `AY` visible while the poem lines continued fading. Intermittent, not reproducible in Chromium.
-
-**Root cause:** The exit created five accelerated opacity animations in two same-turn sibling batches: T/O, then D/A/Y 150ms later. Their final invisibility existed only in WAAPI `fill: 'forwards'`; no underlying opacity was written. The surviving letters match the later siblings in each batch, consistent with a WebKit compositor/fill handoff race.
-
-**Fix (v2.65.3):** Static `#splash-word-to` and `#splash-word-day` wrappers now own one animation each. `_fade()` persists `style.opacity = '0'` beneath the animation, preventing a lost fill state from revealing content. Individual letter spans own no animations.
-
-**Verified fixed:** ✅ 2026-08-20 (Can, real device)
-
----
-
-## BUG-072 — Triage flow never completes after "Let go" is tapped
-
-**Status:** ✅ Verified fixed (v2.61.6; verified 2026-08-20 by Can on real device)
-**File:** `index.html` — `triageShowReason`, `renderTriageList`
-
-**Symptom:** After making all triage decisions including "Let go" on one or more tasks, the completion screen never appeared. The overlay stayed open with decided tasks showing badges.
-
-**Root cause:** `triageShowReason(id)` only manipulated the DOM — it replaced the card's action buttons with reason chips but never set `triageDecisions[id]`. When any other card was decided, `renderTriageList()` re-rendered the entire list, wiping the reason chips. The "Let go" intent was lost; `remaining` never reached 0 and `triageApplyAll()` never fired.
-
-**Fix (v2.61.6):** `triageShowReason(id)` now commits `triageDecisions[id] = 'letgo'` immediately and calls `triageApplyAll()` or `renderTriageList()` via the normal path. `renderTriageList()` injects reason chips inline for any letgo task awaiting a reason.
-
-**Verified fixed:** ✅ 2026-08-20 (Can, real device)
 
 ---
 
@@ -142,6 +136,22 @@
 **Root cause:** `renderSoon()` and `renderPast()` in `assets/zones.js` unconditionally set `list.hidden = false`, removed the `hidden` attribute, and flipped the chevron to the open state on every call — including re-renders triggered by task pulls, stats updates, and any other action that refreshes those zones. The HTML default (`aria-expanded="false"`, `hidden` on the list) was overridden on the very first render call.
 
 **Fix (v2.69.9):** Both functions now check whether the section was previously hidden (`section.style.display === 'none'`). On first appearance only, the zone starts collapsed. On subsequent re-renders, the current expanded/collapsed state is preserved.
+
+---
+
+## BUG-076 — Splash exit leaves `O` / `AY` visible
+
+**Status:** ✅ Verified fixed (v2.65.3; verified 2026-08-20 by Can on real device)
+**Introduced:** v2.64.24 (per-letter WAAPI exit)
+**Files:** `index.html`, `assets/splash.js`, `scripts/splash-test.mjs`
+
+**Symptom:** During the staged splash dismissal, `TO` and `DAY` normally fade smoothly before the star burst, but Safari could leave `O` and `AY` visible while the poem lines continued fading. Intermittent, not reproducible in Chromium.
+
+**Root cause:** The exit created five accelerated opacity animations in two same-turn sibling batches: T/O, then D/A/Y 150ms later. Their final invisibility existed only in WAAPI `fill: 'forwards'`; no underlying opacity was written. The surviving letters match the later siblings in each batch, consistent with a WebKit compositor/fill handoff race.
+
+**Fix (v2.65.3):** Static `#splash-word-to` and `#splash-word-day` wrappers now own one animation each. `_fade()` persists `style.opacity = '0'` beneath the animation, preventing a lost fill state from revealing content. Individual letter spans own no animations.
+
+**Verified fixed:** ✅ 2026-08-20 (Can, real device)
 
 ---
 
@@ -187,6 +197,21 @@
 
 ---
 
+## BUG-072 — Triage flow never completes after "Let go" is tapped
+
+**Status:** ✅ Verified fixed (v2.61.6; verified 2026-08-20 by Can on real device)
+**File:** `index.html` — `triageShowReason`, `renderTriageList`
+
+**Symptom:** After making all triage decisions including "Let go" on one or more tasks, the completion screen never appeared. The overlay stayed open with decided tasks showing badges.
+
+**Root cause:** `triageShowReason(id)` only manipulated the DOM — it replaced the card's action buttons with reason chips but never set `triageDecisions[id]`. When any other card was decided, `renderTriageList()` re-rendered the entire list, wiping the reason chips. The "Let go" intent was lost; `remaining` never reached 0 and `triageApplyAll()` never fired.
+
+**Fix (v2.61.6):** `triageShowReason(id)` now commits `triageDecisions[id] = 'letgo'` immediately and calls `triageApplyAll()` or `renderTriageList()` via the normal path. `renderTriageList()` injects reason chips inline for any letgo task awaiting a reason.
+
+**Verified fixed:** ✅ 2026-08-20 (Can, real device)
+
+---
+
 ## BUG-070 — Undo toast reason chips unclickable on narrow screens
 
 **Status:** ✅ Verified fixed (v2.61.4; verified 2026-08-15 by Can on real device)
@@ -205,17 +230,43 @@
 
 ---
 
-## BUG-061: Sunday/habit badges silently fail to show on a fresh device
+## BUG-068: Trello card 🍅 session count resets every morning
 
-**Status: ⚠️ Stale** — fix shipped v2.37.8, never verified on real device. Condition may no longer be reproducible.
+**Status:** ✅ Verified fixed (v2.48.4)
 
-**Symptom:** Found by audit after BUG-060, not yet reported in the wild. On a genuinely fresh device, the week-reflection badge (Sun/Mon) and the habits-button badge (10pm–3am) can silently fail to light up even when real, synced data exists that should trigger them.
+**Symptom:** 🍅 badge on a Trello card showed sessions worked today but reset to zero the next morning. Manual tasks accumulated sessions indefinitely; Trello cards did not.
 
-**Root cause:** Same family as BUG-060. `checkSundayNudge()` reads `today_daily_history` and `checkHabitNudge()` reads `habitsList`/`habitCompletions` — both genuinely Dropbox-synced (backup payload + merge logic in `mergeRemoteData`), both module-level variables initialized once from local (pre-sync) `localStorage` at script-parse time. Both functions are called only from `init()` (`index.html:5251-5252`), which runs before the Dropbox restore lands — so on a fresh device they read empty/stale local state and simply return early (`if (!...length) return`), no badge. Unlike BUG-060, this is a false negative (something that should show, doesn't) rather than a false positive (something that shouldn't show, does) — same architectural gap, softer symptom. Neither function was ever added to the post-merge re-check pattern already established for `checkTriageBar()`/`checkDayNudge()`.
+**Root cause:** `today_trello_focus` served two roles — (1) daily activity signal for un-dimming aged cards (BUG-043/064), and (2) display count. Day-rollover wipe at `applyNewDayCleanup()` cleared the whole map to reset the signal, discarding the display count with it.
 
-**Fix (v2.37.8):** added `checkSundayNudge()` and `checkHabitNudge()` calls alongside the existing `checkDayNudge()` re-check, at both post-merge points (Dropbox restore path and the primary cold-start load handler).
+**Fix (v2.48.4):** Added `today_trello_focus_total` — a permanent per-card lifetime counter. `_logSession()` writes to both maps. All display reads (badge, triage AI context, triage panel) use the total. Daily map keeps its un-dim role unchanged. Syncs cross-device via MAX-merge with no date guard (same pattern as `today_trello_lastactive`). Pruned in `loadTrello()` when cards leave the board (same pattern as `today_trello_firstseen` / `today_trello_lastactive`).
 
-**Verify:** On a Sunday, Monday, or during 10pm–3am with real synced habit/week data, do a fresh PWA install / fresh Dropbox connect on a new device. The relevant badge should appear once sync settles, not require a manual refresh or reopen.
+---
+
+## BUG-067: Focused task jumps to top of viewport after focus ends
+
+**Status:** ✅ Verified fixed (v2.44.1)
+
+**Symptom:** A task that was mid-list and centered during a focus session appears at the very top of the viewport (almost out of view) once focus closes. Can: "when i came back when focus was over, the task moved to the top of the view, and almost out of viewport on the scroll list."
+
+**Root cause:** Focus mode locks scroll by setting `position:fixed; top:-${scrollY}px` on `body`, saving `scrollY` at lock time. While focus is active, `visibilitychange` on tab return fires `syncDropbox()` → `mergeRemoteData()` → `renderManual()`, which rebuilds the task list. If `renderManual()` reorders tasks (e.g. the focused task's `lastActive` was just updated to `Date.now()`, moving it toward the top), the task's document offset changes. On close, `closeUI` restores `scrollY` correctly — but the task is now at a different offset in the rebuilt DOM. At the original `scrollY`, the task now sits near the top edge rather than at center.
+
+**Fix (v2.44.1):** `openUI` saves the task's viewport Y (`getBoundingClientRect().top`) into `dataset.focusTaskTop` at lock time, after any nudge scroll. `closeUI` compares this saved Y to the task's actual viewport Y after scroll restoration. If the task drifted more than 2px, `window.scrollTo` is called a second time to compensate by exactly the delta — restoring the task to the same visual row it occupied when focus started. No change when the DOM didn't move (delta ≈ 0).
+
+---
+
+## BUG-066: Focus minutes from another device read 0, and overwrite yesterday's history
+
+**Status:** ✅ Verified fixed (v2.43.8)
+
+**Symptom:** Can worked a focus session on desktop PWA; opened mobile PWA later the same day; focus minutes showed 0.
+
+**Root cause:** `mergeRemoteData()` adopted the remote `stat_focus_mins_today` but never wrote `stat_focus_mins_date` with it. `applyNewDayCleanup()` runs *after* the Dropbox restore by explicit design (`init()` — "so we always clean the freshest data"), so it read a stale date, concluded the just-merged minutes were yesterday's, wrote them into `today_daily_history` as yesterday's entry, and zeroed today's counter. Two harms from one omission.
+
+**Not a regression.** The merge never stamped that date. Before BUG-063 (v2.42.4) the cleanup reset unconditionally and wiped harder; that fix added the right shape of guard but cannot help when nothing writes the date it reads.
+
+**Fix (v2.43.8):** stamp `stat_focus_mins_date = _getAppDay()` whenever the merge adopts a value — safe because `mergedFocusMins` only differs from local when remote's date-gated today-value won, so the merged number is definitionally today's. Plus: if the local counter was still on yesterday with unbanked minutes, hand them to `stat_focus_mins_yesterday_snapshot` (the channel BUG-063 established) so stamping today does not cost yesterday its history entry.
+
+**Lesson:** a synced value and its date guard are one unit. Writing the value without the guard leaves the next reader — here a cleanup that deliberately runs afterwards — to infer the wrong day. Sibling of the BUG-064 lesson in `Sync.md`: merge semantics are part of a key's meaning.
 
 ---
 
@@ -237,6 +288,18 @@
 
 ---
 
+## BUG-064: Focusing a Trello card un-ages it for one day, then it returns dimmed worse
+
+**Status:** ✅ Verified fixed (v2.43.6)
+
+**Symptom:** An aged Trello card brightens after a focus session, but is dimmed again the next day — and at a heavier tier than before the work. Can: "it feels like it might be broken... not sure to which level."
+
+**Root cause:** The two task types un-aged by different mechanisms. A manual task's basis is `task.lastActive || created`, and focus sets `lastActive = Date.now()` — the basis genuinely moves. A Trello card's basis is `_getTrelloFirstSeen()[id]`, which never moves; instead `taskHTML()` carried a display override (`if (focusCount > 0) ageDays = 0`) fed by `today_trello_focus` — a map wiped every midnight. Focus was a 24-hour cosmetic mask, not an age reset.
+
+**Fix:** New `today_trello_lastactive` map MAX-merging across devices, pushed forward at both focus sites — making the Trello age basis structurally identical to the manual path. BUG-043's override left in place, now harmless.
+
+**Adjacent:** BUG-059 fixed the sync half of Trello aging; this is the day-boundary half.
+
 ## BUG-063: Focus sessions completing just after midnight are not recorded
 
 **Symptom:** Can's report — focus time completed shortly after midnight "does not record till 1am." A pomodoro finished in the minutes after the day rolled over showed no focus minutes at all.
@@ -251,6 +314,32 @@
 **Related:** the shared recording path was later factored into `_recordFocusComplete()` (v2.43.0) specifically to avoid duplicating this day-boundary guard across call sites.
 
 **Verified fixed:** ✅ 2026-07-31 (Can, real device)
+
+---
+
+## BUG-062: Native share-sheet popover doesn't open near the click point
+
+**Status:** 🚫 Rejected (platform limitation)
+
+**Symptom:** Poem share (`_shareDailyPoem()`, `navigator.share()`) opens the OS/browser share sheet many pixels away from where the user actually clicked — reported across every trigger structure tried during the poem-share feature's iteration (v2.40.0 button, v2.40.4 corner overlay, v2.40.6/v2.40.7 whole-poem click target), with no change in position across any of them.
+
+**Investigation:** v2.40.7 hypothesized the popover anchors to `document.activeElement` rather than literal cursor coordinates, and added a `.focus()` call on the small corner label immediately before invoking `navigator.share()`, to bias the anchor toward a small predictable element instead of the whole poem's bounding box. Can's direct real-device test after that fix: "share sheet pop up is behaving exactly like before fix. nothing looks changed." Falsified.
+
+**Root cause:** Outside our control — `navigator.share()`'s spec gives web pages no API to influence the popover's on-screen position; it's entirely rendered and positioned by the browser/OS. The fact that its position hasn't moved across several structurally very different DOM approaches is strong evidence this is fixed OS/browser chrome behavior. The disproven `.focus()` call and its `tabindex="-1"` were removed (v2.40.8). Revisit only if a future browser API offers real position control.
+
+---
+
+## BUG-061: Sunday/habit badges silently fail to show on a fresh device
+
+**Status: ⚠️ Stale** — fix shipped v2.37.8, never verified on real device. Condition may no longer be reproducible.
+
+**Symptom:** Found by audit after BUG-060, not yet reported in the wild. On a genuinely fresh device, the week-reflection badge (Sun/Mon) and the habits-button badge (10pm–3am) can silently fail to light up even when real, synced data exists that should trigger them.
+
+**Root cause:** Same family as BUG-060. `checkSundayNudge()` reads `today_daily_history` and `checkHabitNudge()` reads `habitsList`/`habitCompletions` — both genuinely Dropbox-synced (backup payload + merge logic in `mergeRemoteData`), both module-level variables initialized once from local (pre-sync) `localStorage` at script-parse time. Both functions are called only from `init()` (`index.html:5251-5252`), which runs before the Dropbox restore lands — so on a fresh device they read empty/stale local state and simply return early (`if (!...length) return`), no badge. Unlike BUG-060, this is a false negative (something that should show, doesn't) rather than a false positive (something that shouldn't show, does) — same architectural gap, softer symptom. Neither function was ever added to the post-merge re-check pattern already established for `checkTriageBar()`/`checkDayNudge()`.
+
+**Fix (v2.37.8):** added `checkSundayNudge()` and `checkHabitNudge()` calls alongside the existing `checkDayNudge()` re-check, at both post-merge points (Dropbox restore path and the primary cold-start load handler).
+
+**Verify:** On a Sunday, Monday, or during 10pm–3am with real synced habit/week data, do a fresh PWA install / fresh Dropbox connect on a new device. The relevant badge should appear once sync settles, not require a manual refresh or reopen.
 
 ---
 
@@ -1079,104 +1168,3 @@ Architectural dead end: with a CSS animation, every `display:none/block` repaint
 
 **Fix:** On `visibilitychange` and `window.focus`, re-read `triage_dismissed` from localStorage after sync settles (3s delay). `mergeRemoteData` applies remote dismissal. `_triageBarSilent` prevents bar showing during the grace window.
 
-## BUG-064: Focusing a Trello card un-ages it for one day, then it returns dimmed worse
-
-**Status:** ✅ Verified fixed (v2.43.6)
-
-**Symptom:** An aged Trello card brightens after a focus session, but is dimmed again the next day — and at a heavier tier than before the work. Can: "it feels like it might be broken... not sure to which level."
-
-**Root cause:** The two task types un-aged by different mechanisms. A manual task's basis is `task.lastActive || created`, and focus sets `lastActive = Date.now()` — the basis genuinely moves. A Trello card's basis is `_getTrelloFirstSeen()[id]`, which never moves; instead `taskHTML()` carried a display override (`if (focusCount > 0) ageDays = 0`) fed by `today_trello_focus` — a map wiped every midnight. Focus was a 24-hour cosmetic mask, not an age reset.
-
-**Fix:** New `today_trello_lastactive` map MAX-merging across devices, pushed forward at both focus sites — making the Trello age basis structurally identical to the manual path. BUG-043's override left in place, now harmless.
-
-**Adjacent:** BUG-059 fixed the sync half of Trello aging; this is the day-boundary half.
-
-## BUG-068: Trello card 🍅 session count resets every morning
-
-**Status:** ✅ Fixed (v2.48.4)
-
-**Symptom:** 🍅 tomato badge on a Trello card showed sessions worked today but reset to zero the next morning. Manual tasks accumulated sessions indefinitely; Trello cards did not.
-
-**Root cause:** `today_trello_focus` served two roles — (1) daily activity signal for un-dimming aged cards (BUG-043/064), and (2) display count. Day-rollover logic at `applyNewDayCleanup()` wiped the whole map each morning to reset the activity signal, discarding the display count along with it.
-
-**Fix (v2.48.4):** Added `today_trello_focus_total` — a permanent per-card lifetime counter. `_logSession()` now writes to both maps. All display reads (badge, triage AI context, triage panel) switch to the total. The daily map continues its existing role as the un-dim signal only. Syncs cross-device via MAX-merge (same pattern as `today_trello_lastactive`). Pruned in `loadTrello()` when cards leave the board (same pattern as `today_trello_firstseen`/`today_trello_lastactive`).
-
----
-
-## BUG-066: Focus minutes from another device read 0, and overwrite yesterday's history
-
-**Status:** ✅ Verified fixed (v2.43.8)
-
-**Symptom:** Can worked a focus session on desktop PWA; opened mobile PWA later the same day; focus minutes showed 0.
-
-**Root cause:** `mergeRemoteData()` adopted the remote `stat_focus_mins_today` but never wrote `stat_focus_mins_date` with it. `applyNewDayCleanup()` runs *after* the Dropbox restore by explicit design (`init()` — "so we always clean the freshest data"), so it read a stale date, concluded the just-merged minutes were yesterday's, wrote them into `today_daily_history` as yesterday's entry, and zeroed today's counter. Two harms from one omission.
-
-**Not a regression.** The merge never stamped that date. Before BUG-063 (v2.42.4) the cleanup reset unconditionally and wiped harder; that fix added the right shape of guard but cannot help when nothing writes the date it reads.
-
-**Fix (v2.43.8):** stamp `stat_focus_mins_date = _getAppDay()` whenever the merge adopts a value — safe because `mergedFocusMins` only differs from local when remote's date-gated today-value won, so the merged number is definitionally today's. Plus: if the local counter was still on yesterday with unbanked minutes, hand them to `stat_focus_mins_yesterday_snapshot` (the channel BUG-063 established) so stamping today does not cost yesterday its history entry.
-
-**Lesson:** a synced value and its date guard are one unit. Writing the value without the guard leaves the next reader — here a cleanup that deliberately runs afterwards — to infer the wrong day. Sibling of the BUG-064 lesson in `Sync.md`: merge semantics are part of a key's meaning.
-
----
-
-## BUG-067: Focused task jumps to top of viewport after focus ends
-
-**Status:** ✅ Verified fixed (v2.44.1)
-
-**Symptom:** A task that was mid-list and centered during a focus session appears at the very top of the viewport (almost out of view) once focus closes. Can: "when i came back when focus was over, the task moved to the top of the view, and almost out of viewport on the scroll list."
-
-**Root cause:** Focus mode locks scroll by setting `position:fixed; top:-${scrollY}px` on `body`, saving `scrollY` at lock time. While focus is active, `visibilitychange` on tab return fires `syncDropbox()` → `mergeRemoteData()` → `renderManual()`, which rebuilds the task list. If `renderManual()` reorders tasks (e.g. the focused task's `lastActive` was just updated to `Date.now()`, moving it toward the top), the task's document offset changes. On close, `closeUI` restores `scrollY` correctly — but the task is now at a different offset in the rebuilt DOM. At the original `scrollY`, the task now sits near the top edge rather than at center.
-
-**Fix (v2.44.1):** `openUI` saves the task's viewport Y (`getBoundingClientRect().top`) into `dataset.focusTaskTop` at lock time, after any nudge scroll. `closeUI` compares this saved Y to the task's actual viewport Y after scroll restoration. If the task drifted more than 2px, `window.scrollTo` is called a second time to compensate by exactly the delta — restoring the task to the same visual row it occupied when focus started. No change when the DOM didn't move (delta ≈ 0).
-
----
-
-## BUG-062: Native share-sheet popover doesn't open near the click point
-
-**Status:** 🚫 Rejected (platform limitation)
-
-**Symptom:** Poem share (`_shareDailyPoem()`, `navigator.share()`) opens the OS/browser share sheet many pixels away from where the user actually clicked — reported across every trigger structure tried during the poem-share feature's iteration (v2.40.0 button, v2.40.4 corner overlay, v2.40.6/v2.40.7 whole-poem click target), with no change in position across any of them.
-
-**Investigation:** v2.40.7 hypothesized the popover anchors to `document.activeElement` rather than literal cursor coordinates, and added a `.focus()` call on the small corner label immediately before invoking `navigator.share()`, to bias the anchor toward a small predictable element instead of the whole poem's bounding box. Can's direct real-device test after that fix: "share sheet pop up is behaving exactly like before fix. nothing looks changed." Falsified.
-
-**Root cause:** Outside our control — `navigator.share()`'s spec gives web pages no API to influence the popover's on-screen position; it's entirely rendered and positioned by the browser/OS. The fact that its position hasn't moved across several structurally very different DOM approaches is strong evidence this is fixed OS/browser chrome behavior. The disproven `.focus()` call and its `tabindex="-1"` were removed (v2.40.8). Revisit only if a future browser API offers real position control.
-
----
-
-## BUG-068: Trello card 🍅 session count resets every morning
-
-**Status:** ✅ Verified fixed (v2.48.4)
-
-**Symptom:** 🍅 badge on a Trello card showed sessions worked today but reset to zero the next morning. Manual tasks accumulated sessions indefinitely; Trello cards did not.
-
-**Root cause:** `today_trello_focus` served two roles — (1) daily activity signal for un-dimming aged cards (BUG-043/064), and (2) display count. Day-rollover wipe at `applyNewDayCleanup()` cleared the whole map to reset the signal, discarding the display count with it.
-
-**Fix (v2.48.4):** Added `today_trello_focus_total` — a permanent per-card lifetime counter. `_logSession()` writes to both maps. All display reads (badge, triage AI context, triage panel) use the total. Daily map keeps its un-dim role unchanged. Syncs via MAX-merge, no date guard. Pruned in `loadTrello()` when cards leave the board.
-
----
-
-## BUG-084 — Checkmark confetti offset on mobile
-
-**Status:** ✅ Verified v2.71.8
-**File:** `assets/celebration.js` — `fireEmberDrift()`
-
-**Symptom:** On mobile, checking a task draws the confetti away from its checkbox. Desktop placement is correct.
-
-**Root cause:** `.task-check.getBoundingClientRect()` supplies CSS viewport coordinates, but the celebration canvas draws in backing-buffer coordinates sized from `window.innerWidth`/`innerHeight`. Mobile Safari can render the CSS canvas at `100dvh`, a different height from that buffer, and scales the unchecked client coordinate into the wrong visible position.
-
-**Fix (v2.71.8):** `fireEmberDrift()` converts incoming client coordinates through `#celebCanvas.getBoundingClientRect()` into backing-buffer coordinates before spawning particles. The conversion also accounts for a non-zero canvas offset. Desktop and all-done origins are unchanged.
-
-**Verified:** Real-device iPhone PWA — confetti burst originates at its checkmark in both ordinary and final task flows, with browser chrome expanded and collapsed.
-
----
-
-## BUG-085 — NEW WEEK nudge names tasks completed before midnight
-
-**Status:** ✅ Fixed v2.71.25
-**File:** `assets/about.js` — `_fetchMondayIntention()`
-
-**Symptom:** On Monday morning, the NEW WEEK nudge (About panel, `sundayBlock`) mentioned specific task names ("Unpack", "Move travel costs") even though all tasks were completed and cleared before midnight. Nothing was pending.
-
-**Root cause:** `_fetchMondayIntention()` passes `_memoryForAI('weekly')` as context, which includes `suggestionHistory` — a log of AI suggestions made for specific tasks (with their exact text). When the task list is empty, the prompt asked the AI to be "specific, not generic," so it reached into `suggestionHistory` and named historical tasks as if they were still pending.
-
-**Fix (v2.71.25):** Added `listIsEmpty` flag derived from the filtered task arrays. When the list is empty, the task instruction explicitly says "Do not name any tasks; the list is empty and clear." When tasks are present, the instruction says "Only name tasks from the list above, not from history." System prompt updated: "Speak about how this person works, not about specific tasks unless they appear in the current list."
