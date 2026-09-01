@@ -137,6 +137,47 @@ test('soon-pullback makes the person the subject, not Soon', () => {
 });
 
 // ── shape and contract ──────────────────────────────────────────────────────
+// ── letgo-return ────────────────────────────────────────────────────────────
+const releases = n => Array.from({ length: n }, () => out({ outcome: 'letgo', reason: 'no_energy' }));
+const returns  = n => Array.from({ length: n }, () => out({ outcome: 'revive' }));
+
+test('letgo-return fires at 4 releases and 2 returns', () =>
+  !!find(_buildOutcomeCandidates(releases(4).concat(returns(2)), TODAY), 'letgo-return'));
+
+test('letgo-return states both sides in its evidence', () => {
+  const c = find(_buildOutcomeCandidates(releases(6).concat(returns(2)), TODAY), 'letgo-return');
+  return c && /\b6\b/.test(c.evidence) && /\b2\b/.test(c.evidence);
+});
+
+test('letgo-return is silent with one return — a single revive is not a pattern', () =>
+  !find(_buildOutcomeCandidates(releases(6).concat(returns(1)), TODAY), 'letgo-return'));
+
+test('letgo-return needs release volume — 2 of 2 coming back is a coincidence', () =>
+  !find(_buildOutcomeCandidates(releases(2).concat(returns(2)), TODAY), 'letgo-return'));
+
+test('letgo-return never claims the returns were among the releases', () => {
+  const c = find(_buildOutcomeCandidates(releases(4).concat(returns(2)), TODAY), 'letgo-return');
+  return c && !/of them/i.test(c.evidence);
+});
+
+test('letgo-return accepts backfilled rows — reason and date are genuinely observed', () =>
+  !!find(_buildOutcomeCandidates(
+    releases(4).concat(returns(2)).map(e => ({ ...e, backfilled: true })), TODAY), 'letgo-return'));
+
+test('letgo-return ranks below soon-pullback', () => {
+  const k = kinds(_buildObservationCandidates({
+    outcomes: releases(4).concat(returns(2), Array.from({ length: 3 }, () => out({ outcome: 'soon_pull' }))),
+    todayISO: TODAY,
+  }));
+  return k.indexOf('soon-pullback') < k.indexOf('letgo-return');
+});
+
+test('letgo-return is on a 21-day cross-surface cooldown', () => {
+  const c = { kind: 'letgo-return', evidence: 'x', contrast: 'y' };
+  const said = d => ({ spokenLines: [{ surface: 'morning nudge', date: ago(d), kind: 'letgo-return' }], todayISO: TODAY });
+  return typeof _observationGateExplain(c, said(20)) === 'string' && _observationGateExplain(c, said(21)) === null;
+});
+
 test('every candidate carries a contrast and no meaning field', () =>
   _buildOutcomeCandidates(focusSplit.concat(letgos), TODAY)
     .every(c => typeof c.contrast === 'string' && c.contrast.length > 0 && !('meaning' in c)));

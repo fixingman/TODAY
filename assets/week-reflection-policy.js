@@ -211,6 +211,23 @@
       });
     }
 
+    // What gets released, and what comes back. `revive` is Past → Soon
+    // (`_memoryOnRevive`); `letgo` is the release. Both sides are genuinely observed,
+    // so backfilled rows count here. Needs real release volume before a return count
+    // says anything — 2 of 2 coming back is a coincidence, 2 of 6 is a pattern. The
+    // evidence deliberately does not say "of them": a revive may be of something let
+    // go before the window, and the log has no text to link the two.
+    const releases = win.filter(e => e.outcome === 'letgo');
+    const returns  = win.filter(e => e.outcome === 'revive');
+    if (releases.length >= 4 && returns.length >= 2) {
+      candidates.push({
+        kind: 'letgo-return',
+        score: 85,
+        evidence: `This month you let go of ${releases.length} things and brought ${returns.length} back.`,
+        contrast: 'What you release, and what comes back.',
+      });
+    }
+
     return candidates;
   }
 
@@ -229,6 +246,7 @@
     'obligation-completion': 21,
     'letgo-reason': 21,
     'soon-pullback': 21,
+    'letgo-return': 21,
     // Week-shaped observations belong to a weekly surface and may legitimately recur
     // week to week.
     'focus-leverage': 7,
