@@ -1328,7 +1328,8 @@ function _pickObservationToMention(observations) {
 //
 // The underlying DATA each signal reads (habit completions, focus minutes,
 // peak hour, week-theme text) is fully synced regardless, so any two devices
-// that DO show a signal always show identical content.
+// that DO show a signal always show identical content. Season moments are the
+// intentional exception: their wording follows the viewer's local hemisphere.
 function _noticedEligible(key, todayISO) {
   if (!appMemory.noticedDates) appMemory.noticedDates = {};
   const d = appMemory.noticedDates[key];
@@ -1338,6 +1339,46 @@ function _noticedStamp(key, todayISO) {
   if (!appMemory.noticedDates) appMemory.noticedDates = {};
   if (!appMemory.noticedDates[key]) appMemory.noticedDates[key] = todayISO;
 }
+
+// 24 sekki solar terms in calendar order. Southern-hemisphere viewers receive
+// the term half a year opposite (12 entries), matching their local season while
+// preserving the same sparse transition-day cadence.
+const _SEASON_MOMENTS = [
+  { date: '01-06', term: '小寒 · Minor Cold',          line: 'The light is back — a minute more each day.' },
+  { date: '01-20', term: '大寒 · Major Cold',          line: 'Coldest weeks. The world is very still.' },
+  { date: '02-04', term: '立春 · Start of Spring',     line: 'Halfway between solstice and equinox. Spring is on its way.' },
+  { date: '02-19', term: '雨水 · Rain Water',          line: 'The thaw begins.' },
+  { date: '03-06', term: '啓蟄 · Awakening of Insects', line: 'Something is waking underground.' },
+  { date: '03-21', term: '春分 · Spring Equinox',      line: 'Day and night in balance. The year tips into light.' },
+  { date: '04-05', term: '清明 · Clear and Bright',    line: 'The air is clear. Light is landing differently now.' },
+  { date: '04-20', term: '穀雨 · Grain Rain',          line: 'April rain, the long kind.' },
+  { date: '05-06', term: '立夏 · Start of Summer',     line: 'Summer starts by the old measure. Trees are finally green.' },
+  { date: '05-21', term: '小満 · Grain Buds',          line: 'Long evenings now. Light stays past dinner.' },
+  { date: '06-06', term: '芒種 · Grain in Ear',        line: 'The longest light before the solstice.' },
+  { date: '06-21', term: '夏至 · Summer Solstice',     line: "Midsummer — the year's longest day." },
+  { date: '07-07', term: '小暑 · Minor Heat',          line: 'The warmest weeks. Summer at its fullest.' },
+  { date: '07-23', term: '大暑 · Major Heat',          line: 'Peak summer. The days are already shortening.' },
+  { date: '08-07', term: '立秋 · Start of Autumn',     line: 'The sun pulls back. Autumn is on its way.' },
+  { date: '08-23', term: '処暑 · End of Heat',         line: 'Mornings have an edge to them now.' },
+  { date: '09-08', term: '白露 · White Dew',           line: 'Dew on the grass. The year is cooling.' },
+  { date: '09-23', term: '秋分 · Autumnal Equinox',    line: 'Day and night equal again. The year tips toward dark.' },
+  { date: '10-08', term: '寒露 · Cold Dew',            line: 'The leaves are turning. Cold mornings.' },
+  { date: '10-23', term: "霜降 · Frost's Descent",    line: 'First frosts. The year is giving in to winter.' },
+  { date: '11-07', term: '立冬 · Start of Winter',     line: 'The light is leaving quickly. Winter is here.' },
+  { date: '11-22', term: '小雪 · Minor Snow',          line: 'Snow possible any morning now.' },
+  { date: '12-07', term: '大雪 · Major Snow',          line: 'Dark midwinter. Almost at the stillest point of the year.' },
+  { date: '12-21', term: '冬至 · Winter Solstice',     line: "The year's shortest day. The light turns back tomorrow." },
+];
+
+function _seasonMomentForDate(todayISO, southern) {
+  const index = _SEASON_MOMENTS.findIndex(moment => moment.date === String(todayISO).slice(5));
+  if (index < 0) return null;
+  const isSouthern = southern === undefined
+    ? (typeof _isSouthernTimezone === 'function' && _isSouthernTimezone())
+    : southern;
+  return _SEASON_MOMENTS[(index + (isSouthern ? 12 : 0)) % _SEASON_MOMENTS.length];
+}
+
 function _noticedLines() {
   if (!appMemory.noticed) appMemory.noticed = {};
   const n = appMemory.noticed;
@@ -1353,33 +1394,7 @@ function _noticedLines() {
   // Each entry is { term, line } — term is the Japanese sekki name + English gloss,
   // rendered as a muted label above the evocative line. Season gets the full
   // Noticed block; other signals are deferred to the next panel open (v2.70.1).
-  const SEASON_MOMENTS = {
-    "01-06": { term: "小寒 · Minor Cold",         line: "The light is back — a minute more each day." },
-    "01-20": { term: "大寒 · Major Cold",          line: "Coldest weeks. The world is very still." },
-    "02-04": { term: "立春 · Start of Spring",     line: "Halfway between solstice and equinox. Spring is on its way." },
-    "02-19": { term: "雨水 · Rain Water",           line: "The thaw begins." },
-    "03-06": { term: "啓蟄 · Awakening of Insects", line: "Something is waking underground." },
-    "03-21": { term: "春分 · Spring Equinox",      line: "Day and night in balance. The year tips into light." },
-    "04-05": { term: "清明 · Clear and Bright",    line: "The air is clear. Light is landing differently now." },
-    "04-20": { term: "穀雨 · Grain Rain",           line: "April rain, the long kind." },
-    "05-06": { term: "立夏 · Start of Summer",     line: "Summer starts by the old measure. Trees are finally green." },
-    "05-21": { term: "小満 · Grain Buds",           line: "Long evenings now. Light stays past dinner." },
-    "06-06": { term: "芒種 · Grain in Ear",         line: "The longest light before the solstice." },
-    "06-21": { term: "夏至 · Summer Solstice",     line: "Midsummer — the year's longest day." },
-    "07-07": { term: "小暑 · Minor Heat",           line: "The warmest weeks. Summer at its fullest." },
-    "07-23": { term: "大暑 · Major Heat",           line: "Peak summer. The days are already shortening." },
-    "08-07": { term: "立秋 · Start of Autumn",     line: "The sun pulls back. Autumn is on its way." },
-    "08-23": { term: "処暑 · End of Heat",          line: "Mornings have an edge to them now." },
-    "09-08": { term: "白露 · White Dew",            line: "Dew on the grass. The year is cooling." },
-    "09-23": { term: "秋分 · Autumnal Equinox",    line: "Day and night equal again. The year tips toward dark." },
-    "10-08": { term: "寒露 · Cold Dew",             line: "The leaves are turning. Cold mornings." },
-    "10-23": { term: "霜降 · Frost's Descent", line: "First frosts. The year is giving in to winter." },
-    "11-07": { term: "立冬 · Start of Winter",     line: "The light is leaving quickly. Winter is here." },
-    "11-22": { term: "小雪 · Minor Snow",           line: "Snow possible any morning now." },
-    "12-07": { term: "大雪 · Major Snow",           line: "Dark midwinter. Almost at the stillest point of the year." },
-    "12-21": { term: "冬至 · Winter Solstice",     line: "The year's shortest day. The light turns back tomorrow." },
-  };
-  const seasonMoment = SEASON_MOMENTS[todayISO.slice(5)];
+  const seasonMoment = _seasonMomentForDate(todayISO);
   if (seasonMoment && n.seasonDate !== todayISO) {
     const seasonElig = 'season:' + todayISO;
     if (_noticedEligible(seasonElig, todayISO)) {

@@ -30,7 +30,7 @@
 | `assets/habits.js` | 18.8 KB | 5.7 KB | Habits controller extracted v2.64.33; tracked and tested |
 | `assets/task-actions.js` | 26.9 KB | 7.2 KB | Task mutations, delegated row controls, stats, and private favicon renderer; SW-precached |
 | `assets/week-reflection-policy.js` | 6.2 KB | 2.1 KB | DOM-free Sunday candidate ranker/output guard; browser global + direct Node unit-test boundary; SW-precached |
-| `assets/poems.js` | 47.5 KB | 15.5 KB | Daily poem corpus (123 reviewed poems); SW-precached |
+| `assets/poems.js` | ~50 KB | ~16 KB | Daily poem corpus (129 reviewed poems); SW-precached |
 | **Total app JS** | **~818 KB** | **~232 KB** | Local app shell: index.html + implemented modules + poem corpus (Brotli q5) |
 
 **Lines of code:** ~11,324 index.html + ~5,836 extracted + ~802 poem corpus (≈17,962 total)
@@ -270,7 +270,7 @@ v2.68.0 adds a dev-only axe-core/Puppeteer suite covering representative desktop
 | Meeting mode: filter non-mine items at capture | v2.37.2 | One extra `if` guard per extracted item, client-side. Removed dead `.meeting-owner` CSS/render/selector code — net negative line count. Negligible. **Reverted v2.37.3 — see below.** |
 | Meeting mode: v2.37.2 approach reverted, attribution fixed server-side | v2.37.3 | Client-side filter/CSS restored (net code change ~0). Server: one array `.split(',')` on name once per request, one string comparison per item. Negligible. **Refined v2.37.4 — see below.** |
 | Meeting mode: speaker-tracked attribution + accuracy counters | v2.37.4 | Prompt-only refinement (speaker-turn tracking instead of blanket unnamed-defaults-to-me) — no runtime cost change. New `appMemory.meetingAttribution`: 4 integer counters, updated once per `_meetingAccept()` call (bounded — meetings are infrequent), merged max-wins on sync like the other lifetime counters. No new localStorage key — rides inside the existing `today_memory` blob already in the Dropbox payload. Negligible. |
-| Season moments (Noticed) | v2.37.0 | One object lookup + string compare in `_noticedLines()` per About open. `noticed.seasonDate` scalar rides the existing noticed merge. Negligible. |
+| Season moments (Noticed) | v2.37.0; hemisphere fix v2.81.4 | One timezone-prefix check plus a bounded 24-entry lookup in `_noticedLines()` per About open. `noticed.seasonDate` scalar rides the existing noticed merge. Negligible. |
 | Housekeeping: CHANGELOG trim + voice fix (Rule 31) | v2.37.5 | Docs/copy only, no runtime change. |
 | Morning nudge staleness fix | v2.37.6 | `checkDayNudge()` gains one boolean param; one existing call site restricted. No new timers, no new network calls — just moves *when* the existing generation is permitted to fire. Negligible. |
 | BUG-060: Trello done-state reconciliation after merge | v2.37.7 | One new function, called once per initial Dropbox merge (cold start only) — O(n) filter over `trelloTasks` (≤20 cards typical) against a Set lookup. No extra Trello API call. Negligible. |

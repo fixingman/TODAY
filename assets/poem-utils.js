@@ -9,14 +9,18 @@ const _SOUTHERN_TZ = [
   'Africa/Lusaka', 'Africa/Harare', 'Indian/Antananarivo',
 ];
 
+function _isSouthernTimezone() {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  return _SOUTHERN_TZ.some(prefix => tz.startsWith(prefix));
+}
+
 // Returns the poem for a given YYYY-MM-DD string, or today if omitted.
 // Applies southern-hemisphere season flip via viewer timezone.
 function _poemForDate(dateStr) {
   if (typeof POEMS === 'undefined' || !POEMS.length) return null;
   const date = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
-  const tz   = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
   let m = date.getMonth();
-  if (_SOUTHERN_TZ.some(p => tz.startsWith(p))) m = (m + 6) % 12;
+  if (_isSouthernTimezone()) m = (m + 6) % 12;
   const season = m >= 2 && m <= 4 ? 'spring'
                : m >= 5 && m <= 7 ? 'summer'
                : m >= 8 && m <= 10 ? 'autumn' : 'winter';

@@ -3,7 +3,8 @@
 // Tests: fresh-state init, seeded-memory init, _stripTag, _memoryOnTaskComplete,
 //        _memoryOnFocusComplete, _memoryOnTaskLetgo, _memoryOnStreakUpdate,
 //        _memoryOnDaySummary, _memoryForAI (full + nudge), _getProactiveObservations,
-//        _pickObservationToMention (pick + cooldown), static wiring.
+//        _pickObservationToMention (pick + cooldown), hemisphere-aware season
+//        moments, static wiring.
 //
 // Run from repo root:
 //   node scripts/insights-test.mjs
@@ -555,16 +556,40 @@ try {
     await page.close();
   }
 
-  // 12. Static wiring — file reads only.
+  // 12. Season moments — same date maps to the locally correct half-year term.
+
+  {
+    const { page, errors } = await openPage();
+    const r = await page.evaluate(() => {
+      const febNorth = _seasonMomentForDate('2026-02-04', false);
+      const febSouth = _seasonMomentForDate('2026-02-04', true);
+      const junNorth = _seasonMomentForDate('2026-06-21', false);
+      const junSouth = _seasonMomentForDate('2026-06-21', true);
+      return {
+        northSpring: febNorth?.term.includes('Start of Spring'),
+        southAutumn: febSouth?.term.includes('Start of Autumn'),
+        northSummerSolstice: junNorth?.term.includes('Summer Solstice'),
+        southWinterSolstice: junSouth?.term.includes('Winter Solstice'),
+        ordinaryDayNull: _seasonMomentForDate('2026-06-22', false) === null,
+      };
+    });
+    await expectAll('_seasonMomentForDate', { ...r, noErrors: !errors.length });
+    ok('_seasonMomentForDate: transition copy rotates by half a year in the Southern Hemisphere');
+    await page.close();
+  }
+
+
+  // 13. Static wiring — file reads only.
   {
     const modSrc = await readFile(join(ROOT, 'assets/insights.js'), 'utf8');
+    const poemUtilsSrc = await readFile(join(ROOT, 'assets/poem-utils.js'), 'utf8');
     const EXPECTED_FNS = [
       '_pickAIName', '_saveMemory', '_stripTag', '_memoryOnMeetingAttribution',
       '_memoryOnTaskComplete', '_memoryOnTaskLetgo', '_memoryOnTriageUndo',
       '_memoryOnSoonPull', '_memoryOnRevive', '_memoryOnFocusComplete',
       '_memoryOnStreakUpdate', '_memoryOnDaySummary', '_memoryForAI',
       '_getProactiveObservations', '_pickObservationToMention',
-      '_noticedEligible', '_noticedStamp', '_noticedLines',
+      '_noticedEligible', '_noticedStamp', '_seasonMomentForDate', '_noticedLines',
     ];
     const wiringResult = {};
     for (const name of EXPECTED_FNS) {
@@ -573,11 +598,14 @@ try {
     // appMemory is a bare let binding shared in the global lexical scope —
     // it must NOT be assigned to window (callers access it by name across scripts).
     wiringResult.noWindowAppMemory = !modSrc.includes('window.appMemory');
+    wiringResult.noticedUsesSeasonHelper = modSrc.includes('const seasonMoment = _seasonMomentForDate(todayISO);');
+    wiringResult.sharedHemisphereDetection = poemUtilsSrc.includes('function _isSouthernTimezone()') &&
+      poemUtilsSrc.includes('if (_isSouthernTimezone()) m = (m + 6) % 12;');
     await expectAll('static wiring', wiringResult);
     ok(`static wiring: all ${EXPECTED_FNS.length} functions present, appMemory not on window`);
   }
 
-  console.log('\nInsights tests passed (12 tests).');
+  console.log('\nInsights tests passed (13 tests).');
 } finally {
   if (browser) await browser.close();
   server.close();
