@@ -29,11 +29,11 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 12c | **Companion — observation pool** | **Parked** — Phase 4 verdict: wrong surface | Built and tested (57 tests), no consumer. The morning nudge is back to its task-reading path. Blocked on two things: the usefulness gate was never implemented, and the Memory panel already produces this genus of output without landing. Detail ↓ |
+| 12c | **Companion — observation pool** | Phases 0–3 shipped; **Phase 4 running** | Two consumers: morning nudge (today-hook kinds only) and Sunday (all kinds). Eligibility, `letgo-reason` base rate and task naming fixed 2026-09-03 after the first sample. Usefulness gate still owed. Detail ↓ |
 | 11 | **Task agent — enrichment at add-time** | Stages 1 & 2 shipped; Stage 3 next | External context enrichment (Gmail, web search, soon: contacts, calendar, Trello). Distinct from companion arc — enriches the task, not understanding of you. Detail ↓ |
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
-| 12d | **Companion — memory surface** | **Blocked** | "What TODAY knows about you" in the Memory panel (`#memoryPanel`, not Connections — see `design/Personalization.md` hard constraint). Inspectable, clearable. Blocked on the same question as 12c: Can does not visit the existing Memory panel and does not find most of its inferences interesting. Diagnose that before adding a second source. Detail ↓ |
+| 12d | **Companion — memory surface** | Not started | "What TODAY knows about you" — the *data itself* (returning tasks, outcomes, obligation history), shown plainly and clearable, in the Memory panel. Distinct from the panel's AI hypotheses, which have their own open finding (Watching). Requires 12c to have observations worth showing. Detail ↓ |
 | — | **WEEK companion** | Gated | Gate is now: *12c is working and feels like a companion, not a feature.* Data accumulation is necessary but not sufficient. Detail ↓ |
 | 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 130 reviewed poems (2026-09-02). Detail ↓ |
 
@@ -210,29 +210,29 @@ Three instruction lines on the nudge's task-reading path telling the model to us
 
 ---
 
-#### 12c · Observation Pool — **Phase 4 verdict: wrong surface. Pool parked.**
+#### 12c · Observation Pool — Phases 0–3 shipped; **Phase 4 running** (restarted 2026-09-03)
 
-**One ranked candidate pool feeding every surface.** Code selects through four gates; the model only phrases. Built by extending `assets/week-reflection-policy.js`, which stays pure and Node-testable, and covered by `scripts/observation-pool-test.mjs` (57 tests). **It currently has no consumer** — the same state it was in after Phase 2.
+**One ranked candidate pool feeding two surfaces.** Code selects through four gates; the model only phrases. `assets/week-reflection-policy.js`, pure and Node-testable, 68 tests. Consumers: the **morning nudge** (only kinds that can point at today's list) and the **Sunday reflection** (every kind). Cooldowns are cross-surface, so an observation is said once wherever it lands.
 
-### Phase 4 verdict (2026-09-02) — judged on the first real pool line
+### Phase 4 — first sample, and what it changed (2026-09-02/03)
+
+First real pool line, on the morning nudge:
 
 > *"8 of 9 things you let go this month just stopped being relevant. Almost everything, one reason."*
 
-Can's reaction, which is the verdict: it read as a **month or week insight on a surface that had been about today**; the register shifted from the friendly, task-facing nudges he valued to something clinical; and it changed nothing about his morning. *"i didnt think much of it… that definetly felt like a miss."*
+Can: it read as a month insight on a surface that had been about today; the register went cold; *"i didnt think much of it."* And on the number: *"9 is not a relevant number considering how much I consume."*
 
-**Three findings, in order of how much they matter.**
+**This is one sample, not a verdict — the plan says two weeks.** The first response was to park the pool entirely, which was wrong twice over: it removed the only feedback loop the north star has, and it treated n=1 as final. Reverted the next day. What the sample *did* expose were three concrete defects, all fixed 2026-09-03:
 
-**1. Placement was wrong, and that was a design error not a wording one.** The pool was built around 30-day windows and category contrasts, then wired to the daily beat. `design/Personalization.md` already says intelligence surfaces belong on day boundaries *with a bounded moment* — a month-scale statistic is not that. The tonality shift follows from the content: an aggregate statement about the person reads colder than a note about a task they are about to choose. No prompt change fixes that, which is why the fix was removal rather than rewriting.
+1. **Per-surface eligibility was in the spec (Shape item 4) and skipped in Phase 3.** Every outcome kind went to the morning. `letgo-reason` has no today-hook, so it read like a month insight at 8am — structural, not a wording problem, which is why the fix is not a prompt change. Now `_observationEligibleFor(candidates, surface, ctx)`: the morning carries `letgo-return`, `soon-pullback`, and `focus-vs-obligation` only when an obligation-framed task is on today's list; Sunday carries every kind.
+2. **`letgo-reason` stated one thing twice** — its contrast restated its evidence. Now the evidence carries the base rate (*"You let go of 9 of the 60 things that ended this month"*) so the count reads as a share, and the contrast is the reasons that did **not** dominate (*"Energy, interest and replacement barely figured"*) — a real second side. Note the 9 was cleaner than it looked: the kind requires a chosen reason, so quick deletes and Edit-to-rewrite are excluded.
+3. **`taskTexts` had no caller.** The parallel `letgo-return` work (v2.81.3) added the parameter so the loop could be named while the task is on the list, but the consumer had been removed under it. `_memoryTaskTexts()` in `insights.js` now builds the id→text map from the live lists for both consumers.
 
-**2. The usefulness gate was never actually implemented.** Of the four gates, three are real tests in code — evidence, novelty, single-reading. **Usefulness was treated as an editorial decision about which kinds exist, not as a test any candidate must pass.** So nothing ever asked *does knowing this change what I do?* The pool optimises for true-and-new, and the line that fired was true, genuinely novel, and useless. This is the gap to close before the pool is wired anywhere.
+**Still owed — the usefulness gate.** Three gates are code: evidence, novelty, single-reading. Usefulness was treated as an editorial decision about which kinds exist, not a per-candidate test, so nothing asks *does knowing this change what I do?* Owed before the pool reaches a third surface.
 
-**3. `letgo-reason` states one thing twice.** Its `evidence` names the dominant reason and its proportion; its `contrast` — *"One reason accounts for most of what you release"* — restates that. Unlike `focus-vs-obligation`, where evidence is where focus went and contrast is where it didn't, this kind has only one side. It partly fails the single-reading gate, and was scored 95 anyway. The observation underneath is still good (*you drop things because they stopped mattering, not because you ran out of capacity* — an intake problem, not a capacity one). A truer second side would be the reasons that did **not** fire.
+**Filed separately, not as a block:** Can does not visit the Memory panel and finds most of its AI hypotheses uninteresting. That is the overdue *Memory panel quality gate* verdict — a finding about generated hypotheses, not about the pool and not about 12d's plain data view. Watching row below.
 
-**Entangled open question — do not wire the pool anywhere until this is answered.** Can reports the Memory panel already produces this genus of output, he does not visit it, and he does not find most of it interesting. That is also the overdue *Memory panel quality gate* verdict, delivered in passing. Two producers of not-quite-interesting inferences is not progress, and 12d assumes a panel worth visiting. **Diagnose why the Memory panel's inferences do not land before building a second source of the same thing.**
-
-**What was NOT done, deliberately:** the pool was not re-pointed at Sunday. Choosing another surface immediately would repeat the mistake this verdict is about — shipping a placement before judging it.
-
-**Data note.** The `9` is cleaner than it looks: `letgo-reason` requires a reason, so quick deletes and the Edit-to-rewrite path (which record with an empty reason) are excluded. Those were nine deliberate reason-chip choices. Worth confirming with Can whether chips get tapped to dismiss the toast, which would soften the evidence.
+**Phase 4 window: two weeks from 2026-09-03, both surfaces.** Wallpaper row below.
 
 ### Candidate kinds — settled with Can 2026-09-01
 
@@ -244,7 +244,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 | 110 | `focus-leverage` | pre-existing |
 | 105 | `obligation-completion` | rate on obligation-framed vs chosen |
 | 100 | `habit-alignment` | pre-existing |
-| 95 | `letgo-reason` | one reason accounts for most of what is released |
+| 95 | `letgo-reason` | which reason dominates what you let go, stated against everything that ended; the contrast is the reasons that did not |
 | 90 | `recurring-day` | pre-existing |
 | 88 | `soon-pullback` | what you defer tends to come back |
 | 85 | `letgo-return` | what you release, and what comes back — added v2.81.0 after asking why `revive` was recorded but unread. **Linked, not counted** (v2.81.3): a let-go and a revive of the same task share an id, so only returns that follow a release count, and the task is named while it is still on a list. One task cycling twice gets its own line. **45-day window** (v2.81.1), the only kind not on 30: revive is a slow signal, and slow signals earn a longer window rather than a lower floor |
@@ -293,6 +293,7 @@ What TODAY knows about you, made visible and clearable.
 |----------|---------|-----------|
 | AI/data outcome loop | Shipped v2.72.0/v2.72.1. | Check `appMemory.suggestionOutcomes` — past 12 resolved offers, inspect whether any reason is flagged `underperforming` and whether the mix actually changed. Only extend to another action if it did. |
 | Morning nudge usefulness | **Superseded by 12c (v2.80.x).** The nudge now has two tracks: a pool-selected observation when a candidate survives the gate, otherwise the task-reading path. The instrument is no longer `suggestionOutcomes` — it is `appMemory.spokenLines` (what was said, and which `kind` produced it) and `appMemory.taskOutcomes` (what the pool had to work with). | Read `spokenLines` entries carrying a `kind`: that is the pool speaking. None after two weeks means the thresholds are too strict or `taskOutcomes` is too thin — check which before touching any prompt. |
+| Memory panel — AI hypotheses | Can (2026-09-02): does not visit it, and finds most of the inferences uninteresting. This is the *quality gate* verdict that was overdue. | Before any new hypothesis generation anywhere: read `appMemory.memory.semantic/episodic/procedural` statuses — confirmed vs dismissed vs still proposed. If almost nothing is confirmed, the generator is producing guesses he does not recognise. Diagnose that; do not add sources. |
 | Dated AI-cache sync | Four fields hand-plumbed: `day_nudge_ai`, `week_reflection`, `monday_intention`, `week_theme_ai`. `gmail_classify_*` uses a different pattern (keyed by taskId, not date) — not a fifth. | Create one declarative cache registry before a genuinely fifth dated AI field lands (e.g. `focus_companion_ai_*`). Not yet. |
 | Merge-anomaly observability | Dropbox emits a console-only `[merge-anomaly]` breadcrumb; no persisted counter or Connections metric. | Revisit only if anomalies appear during debugging or a conflict rate becomes measurable. Not live product telemetry. |
 | Chrome Built-in AI (Prompt API) | Research — not started | Chrome 127+ ships Gemini Nano on-device (`window.ai.languageModel`). Still in Origin Trial (Chrome-only, needs registration). Ideal long-term destination for Gmail comm-task classification: on-device, free, no API key, offline. Current approach uses `ai-assist` proxy. When Chrome Built-in AI reaches stable / broad availability, progressive enhancement: try `window.ai` first, fall back to `ai-assist`. Polyfill exists for non-Chrome browsers. Revisit when out of Origin Trial (~2026 or later). |
@@ -313,11 +314,11 @@ What TODAY knows about you, made visible and clearable.
 | Connections privacy reassurance | v2.64.11 | ⚠ 2026-08-26 | Open — one appearance per device when fully disconnected. Timely reassurance or policy copy interrupting setup? |
 | Focus companion question | v2.65.0 | ⚠ 2026-08-31 | Improved: taxonomy system prompt, drag-word + letgo-reason signals, word cap 18→22. Re-observe — does the question now feel like clarity rather than a check-in? |
 | Post-triage reflections | v2.65.7 | ⚠ 2026-08-31 | Open — real pause or rote wallpaper? Watch for: avoidance on hard days, selection bias, feeling rote after first week. |
-| Memory panel quality gate | v2.47.0 | ⚠ 2026-09-01 | Open — are AI-generated hypotheses earning confirmation or getting dismissed? |
+| Memory panel quality gate | v2.47.0 | 2026-09-01 | **Iterate (2026-09-02).** Can: does not visit; most hypotheses uninteresting. Diagnosis owed before more generation — see Watching. |
 | Season moments — solar term label | v2.71.0 | 2026-09-05 | Open — does `処暑 · End of Heat` feel like context or noise after a few appearances? Hemisphere localization added in v2.81.4 so the term and observation now match the viewer's local season. |
 | Sunday earned insight | v2.71.12 | 2026-09-06 | Open — does it reveal a real lever rather than paraphrasing the grid? Track abstentions as healthy. |
 | Obligation language tip | v2.77.20 | 2026-09-14 | Open — "Have to — or choosing to?" Does it land as a genuine moment of reflection, or does it feel like an interruption? Watch: dismissed immediately vs. paused on. Regex tightened v2.78.0: min 3 words + "should/must be [adj]" excluded. |
-| Morning nudge — pool-selected observation (12c Phase 3) | v2.80.0 | 2026-09-15 | Open — **this is Phase 4.** Does a pool line feel *chosen* rather than generated? Watch for: whether any pool line appears at all (check `spokenLines` for entries with a `kind`); whether it lands as recognition or as a verdict; whether the task-reading path on other mornings still feels as good as before. A pool line that never fires and a pool line that feels like judgment are different failures with different fixes — distinguish them before changing anything. |
+| Observation pool — morning nudge + Sunday (12c Phase 4) | v2.82.0 | 2026-09-17 | Open — **restarted 2026-09-03 with eligibility.** Morning gets only today-hook kinds; Sunday gets every kind. Watch: does a morning pool line feel about *today*; does a Sunday line land as recognition; `spokenLines` entries carrying a `kind` show which surface spoke. Two weeks. Not one line. |
 
 ---
 

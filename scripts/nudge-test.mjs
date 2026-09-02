@@ -267,9 +267,132 @@ try {
       await page.close();
     }
 
-    // 7b/7c removed: the pool track was taken off the morning nudge (Phase 4 verdict,
-    //     2026-09-02). The pool policy itself stays fully covered by
-    //     scripts/observation-pool-test.mjs; there is simply no nudge consumer to test.
+    // 7b. 12c Phase 3 — the pool track. Selection happens in code, so the payload
+    //     must carry evidence + contrast and nothing else. A leak of the task list or
+    //     the _memoryForAI dump would silently restore the 12b architecture the pool
+    //     exists to replace.
+    {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(async () => {
+        const D = 86400000, now = Date.now();
+        const iso = d => new Date(d).toISOString().slice(0, 10);
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        localStorage.removeItem('day_nudge_ai_' + _localISO());
+        window._aiGetKey = () => 'test-key';
+
+        // Eligibility: focus-vs-obligation reaches the morning only when an
+        // obligation-framed task is on today's list.
+        manualTasks.length = 0;
+        manualTasks.push({ id: 'manual_' + (now - 9 * D), text: 'should book the dentist', focusSessions: 0 });
+        doneIds.clear();
+        appMemory.spokenLines = [];
+        appMemory.taskOutcomes = [
+          { id: 'a', date: iso(now - 4 * D), outcome: 'done', obligation: false, focusSessions: 2 },
+          { id: 'b', date: iso(now - 6 * D), outcome: 'done', obligation: false, focusSessions: 2 },
+          { id: 'c', date: iso(now - 8 * D), outcome: 'done', obligation: false, focusSessions: 1 },
+          { id: 'd', date: iso(now - 5 * D), outcome: 'letgo', obligation: true, focusSessions: 0 },
+          { id: 'e', date: iso(now - 7 * D), outcome: 'letgo', obligation: true, focusSessions: 0 },
+        ];
+
+        const calls = [];
+        const real = window.fetch;
+        window.fetch = (u, o) => {
+          if (String(u).includes('ai-assist') && o && o.body) {
+            calls.push(JSON.parse(o.body));
+            return Promise.resolve({ ok: true, json: () => Promise.resolve({ content: 'Every focus session this month went to something you chose.' }) });
+          }
+          return real.apply(window, arguments);
+        };
+
+        _nudgeOnNewDay();
+        checkDayNudge();
+        await new Promise(r => setTimeout(r, 400));
+        window.fetch = real;
+
+        const body = calls[0] ? calls[0].messages[0].content : '';
+        const spoken = appMemory.spokenLines[0] || {};
+        return {
+          onlyOneCall: calls.length === 1,
+          carriesEvidenceAndContrast: body.includes('Evidence:') && body.includes('Contrast:'),
+          noTaskListLeak: !body.includes('in the order the user arranged'),
+          noMemoryDumpLeak: !body.includes('About you'),
+          payloadStaysSmall: body.length < 800,
+          kindRecorded: spoken.kind === 'focus-vs-obligation',
+        };
+      });
+      await expectAll('pool track payload', { ...result, noErrors: errors.length === 0 });
+      ok('checkDayNudge: pool candidate sends evidence+contrast only, records its kind');
+      await page.close();
+    }
+
+    // 7c. The three ways the pool declines. Each must fall through to the task-reading
+    //     path rather than going silent — the nudge has a job beyond observation, and
+    //     the morning is the signature beat.
+    {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(async () => {
+        const D = 86400000, now = Date.now();
+        const iso = d => new Date(d).toISOString().slice(0, 10);
+        window._aiGetKey = () => 'test-key';
+        // Eligibility: focus-vs-obligation reaches the morning only when an
+        // obligation-framed task is on today's list.
+        manualTasks.length = 0;
+        manualTasks.push({ id: 'manual_' + (now - 9 * D), text: 'should book the dentist', focusSessions: 0 });
+        doneIds.clear();
+        const outcomes = [
+          { id: 'a', date: iso(now - 4 * D), outcome: 'done', obligation: false, focusSessions: 2 },
+          { id: 'b', date: iso(now - 6 * D), outcome: 'done', obligation: false, focusSessions: 2 },
+          { id: 'c', date: iso(now - 8 * D), outcome: 'done', obligation: false, focusSessions: 1 },
+          { id: 'd', date: iso(now - 5 * D), outcome: 'letgo', obligation: true, focusSessions: 0 },
+          { id: 'e', date: iso(now - 7 * D), outcome: 'letgo', obligation: true, focusSessions: 0 },
+        ];
+        const real = window.fetch;
+
+        async function run({ spoken, outs, reply }) {
+          localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+          localStorage.removeItem('day_nudge_ai_' + _localISO());
+          appMemory.spokenLines = spoken;
+          appMemory.taskOutcomes = outs;
+          const calls = [];
+          window.fetch = (u, o) => {
+            if (String(u).includes('ai-assist') && o && o.body) {
+              calls.push(JSON.parse(o.body));
+              return Promise.resolve({ ok: true, json: () => Promise.resolve({ content: reply }) });
+            }
+            return real.apply(window, arguments);
+          };
+          _nudgeOnNewDay();
+          checkDayNudge();
+          await new Promise(r => setTimeout(r, 400));
+          return calls;
+        }
+        const isPool = c => c && c.messages[0].content.startsWith('Evidence:');
+
+        // cooldown: the kind was already said today
+        const cooled = await run({
+          spoken: [{ surface: 'morning nudge', date: iso(now), text: 'said earlier', kind: 'focus-vs-obligation' }],
+          outs: outcomes, reply: 'unused',
+        });
+        // abstention: nothing to say
+        const empty = await run({ spoken: [], outs: [], reply: 'unused' });
+        // guard: pool fires but the model returns an identity claim
+        const guarded = await run({
+          spoken: [], outs: outcomes,
+          reply: "You're the kind of person who avoids obligations.",
+        });
+        window.fetch = real;
+
+        return {
+          cooldownSkipsPool: cooled.length >= 1 && !isPool(cooled[0]),
+          abstentionFallsThrough: empty.length >= 1 && !isPool(empty[0]),
+          guardRejectsIdentityClaim: guarded.length === 2 && isPool(guarded[0]) && !isPool(guarded[1]),
+          rejectedLineNotRecorded: !(appMemory.spokenLines || []).some(l => /kind of person/.test(l.text || '')),
+        };
+      });
+      await expectAll('pool declines', { ...result, noErrors: errors.length === 0 });
+      ok('checkDayNudge: cooldown, abstention and guard rejection all fall through to the task path');
+      await page.close();
+    }
 
     // 8. Offline → _fetchDayNudgeAI returns null immediately, fallback shows quickly.
     {

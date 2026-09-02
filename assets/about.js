@@ -321,7 +321,10 @@
           // own forward-looking task context and ignores this object.
           const _week  = _days.filter(d => d.tasks !== null);
           const _reflectionStats = { days: _week, history: _history };
-          const _weekInsight = _isSun ? _buildWeekReflectionInsight(_reflectionStats) : null;
+          // 12c: Sunday draws from the full observation pool — the week-shaped kinds
+          // plus the 30-day outcome kinds — through eligibility and the novelty gate.
+          // Same { kind, evidence, contrast } shape _fetchWeekReflection already reads.
+          const _weekInsight = _isSun ? _pickSundayInsight(_reflectionStats) : null;
 
           _nudgeBlockShow(_sundayBlock, _nudgeStagger++ * 60);
           const _weekPolicyKey = 'week_policy_' + _today;
@@ -468,6 +471,34 @@
       }
     }
 
+    // The pool consumer for Sunday. Sunday frames a week, so every kind is
+    // eligible here; the morning nudge is the restricted one. The week-only
+    // builder stays as the fallback so a missing pool function can never
+    // silence the surface.
+    function _pickSundayInsight(stats) {
+      if (typeof _buildObservationCandidates !== 'function'
+       || typeof _observationEligibleFor !== 'function'
+       || typeof _observationNoveltyGate !== 'function'
+       || typeof appMemory === 'undefined') {
+        return _buildWeekReflectionInsight(stats);
+      }
+      // A throw here would take the whole Sunday block down with it. The week-only
+      // builder is the floor, never silence.
+      try {
+        const todayISO = _localISO();
+        const ranked = _buildObservationCandidates({
+          days: stats.days, history: stats.history,
+          outcomes: appMemory.taskOutcomes, todayISO,
+          taskTexts: (typeof _memoryTaskTexts === 'function') ? _memoryTaskTexts() : {},
+        });
+        const eligible = _observationEligibleFor(ranked, 'sunday');
+        return _observationNoveltyGate(eligible, { spokenLines: appMemory.spokenLines, todayISO })[0] || null;
+      } catch (e) {
+        console.warn('[sunday pool]', e && e.message);
+        return _buildWeekReflectionInsight(stats);
+      }
+    }
+
     async function _fetchWeekReflection(stats) {
       try {
         const key = _aiGetKey ? _aiGetKey() : null;
@@ -493,7 +524,8 @@
         if (!res.ok) return null;
         const text = _parseAIText(await res.json());
         if (!_weekReflectionTextIsGrounded(text)) return null;
-        if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('Sunday reflection', text);
+        // Carries the kind so the cross-surface cooldown sees what Sunday said.
+        if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('Sunday reflection', text, insight.kind);
         return text;
       } catch (e) {
         return null;

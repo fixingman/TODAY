@@ -13,6 +13,7 @@
   root._observationNoveltyGate = policy._observationNoveltyGate;
   root._observationGateExplain = policy._observationGateExplain;
   root._observationTextIsGrounded = policy._observationTextIsGrounded;
+  root._observationEligibleFor = policy._observationEligibleFor;
   if (typeof module === 'object' && module.exports) module.exports = policy;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function() {
   'use strict';
@@ -124,6 +125,13 @@
     lost_interest: 'lost interest',
     replaced: 'replaced by something else',
   };
+  // Noun forms for naming the reasons that did NOT dominate.
+  const _LETGO_SHORT = {
+    not_relevant: 'relevance',
+    no_energy: 'energy',
+    lost_interest: 'interest',
+    replaced: 'replacement',
+  };
 
   function _outcomesWithin(outcomes, dayCount, todayISO) {
     if (!Array.isArray(outcomes)) return [];
@@ -185,20 +193,31 @@
       }
     }
 
-    // One reason accounting for most of what gets released.
+    // One reason accounting for most of what gets released — stated against how much
+    // actually ended, so the let-go count reads as a share and not as a verdict on
+    // volume. Can, on the first line this produced: "9 doesn't sound too bad to throw
+    // away, considering how much tasks I usually consume." The contrast is the reasons
+    // that did NOT fire — the second side this kind previously lacked; its old contrast
+    // restated its own evidence.
     // Backfilled rows are fine here: reason and date are both genuinely observed.
-    const letgos = win.filter(e => e.outcome === 'letgo' && e.reason);
+    const allLetgos = win.filter(e => e.outcome === 'letgo');
+    const letgos    = allLetgos.filter(e => e.reason);
+    const ended     = win.filter(e => e.outcome === 'done').length + allLetgos.length;
     if (letgos.length >= 4) {
       const tally = {};
       for (const e of letgos) tally[e.reason] = (tally[e.reason] || 0) + 1;
       const [topReason, topCount] = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
       if (topCount >= 3 && topCount / letgos.length >= 0.5) {
-        const label = _LETGO_LABELS[topReason] || String(topReason).replace(/_/g, ' ');
+        const label  = _LETGO_LABELS[topReason] || String(topReason).replace(/_/g, ' ');
+        const others = Object.keys(_LETGO_SHORT).filter(r => r !== topReason).map(r => _LETGO_SHORT[r]);
+        const otherList = others.length > 1
+          ? others.slice(0, -1).join(', ') + ' and ' + others[others.length - 1]
+          : others.join('');
         candidates.push({
           kind: 'letgo-reason',
           score: 95,
-          evidence: `Of the ${letgos.length} things you let go this month, ${topCount} were "${label}".`,
-          contrast: 'One reason accounts for most of what you release.',
+          evidence: `You let go of ${allLetgos.length} of the ${ended} things that ended this month; ${topCount} of those were "${label}".`,
+          contrast: otherList.charAt(0).toUpperCase() + otherList.slice(1) + ' barely figured.',
         });
       }
     }
@@ -335,6 +354,35 @@
     return null;
   }
 
+  // ── 12c: per-surface eligibility ─────────────────────────────────────────
+  // Spec item 4, skipped in Phase 3 — and the direct cause of the first pool line
+  // reading like a month insight at 8am. The morning nudge frames a day, so it may
+  // only carry kinds that can point at something on the list right now. Sunday
+  // frames a week and may carry anything. A kind eligible on both is still said
+  // once: cooldowns are cross-surface.
+  const _SURFACE_KINDS = {
+    nudge:  new Set(['letgo-return', 'soon-pullback', 'focus-vs-obligation']),
+    sunday: null, // null = every kind
+  };
+
+  function _observationEligible(candidate, surface, ctx) {
+    if (!candidate || !candidate.kind) return false;
+    const allowed = Object.prototype.hasOwnProperty.call(_SURFACE_KINDS, surface)
+      ? _SURFACE_KINDS[surface] : null;
+    if (allowed && !allowed.has(candidate.kind)) return false;
+    // focus-vs-obligation is a 30-day aggregate. On the morning it needs a hook —
+    // an obligation-framed task on today's list — or it is a month insight again.
+    if (surface === 'nudge' && candidate.kind === 'focus-vs-obligation') {
+      return !!(ctx && ctx.hasObligationOnList);
+    }
+    return true;
+  }
+
+  function _observationEligibleFor(candidates, surface, ctx) {
+    if (!Array.isArray(candidates)) return [];
+    return candidates.filter(c => _observationEligible(c, surface, ctx));
+  }
+
   // Cross-surface by design: a kind narrated by the nudge is on cooldown for Noticed,
   // focus, Sunday and Monday too. The point is that the *person* does not hear the same
   // observation twice, not that each surface avoids repeating itself.
@@ -369,5 +417,5 @@
     return _observationTextIsGrounded(text, 26);
   }
 
-  return { _buildWeekReflectionInsight, _weekReflectionTextIsGrounded, _observationTextIsGrounded, _buildWeekCandidates, _buildOutcomeCandidates, _buildObservationCandidates, _observationNoveltyGate, _observationGateExplain };
+  return { _buildWeekReflectionInsight, _weekReflectionTextIsGrounded, _observationTextIsGrounded, _buildWeekCandidates, _buildOutcomeCandidates, _buildObservationCandidates, _observationNoveltyGate, _observationGateExplain, _observationEligible, _observationEligibleFor };
 });

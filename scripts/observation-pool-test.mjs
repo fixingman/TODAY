@@ -13,6 +13,7 @@ const {
   _buildWeekReflectionInsight,
   _observationNoveltyGate,
   _observationGateExplain,
+  _observationEligibleFor,
 } = require(join(ROOT, 'assets/week-reflection-policy.js'));
 
 let passed = 0, failed = 0;
@@ -383,6 +384,73 @@ test('gate preserves ranking order of what survives', () => {
   const kept = _observationNoveltyGate(all, { spokenLines: [], todayISO: TODAY });
   return kept.every((c, i, a) => i === 0 || a[i - 1].score >= c.score);
 });
+
+
+// ── letgo-reason: base rate and a real second side ─────────────────────────
+console.log('\nobservation pool — letgo-reason shape\n');
+
+const letgosWithDones = letgos.concat(Array.from({ length: 6 }, () => out({ outcome: 'done' })));
+
+test('letgo-reason states the let-go count against everything that ended', () => {
+  const c = find(_buildOutcomeCandidates(letgosWithDones, TODAY), 'letgo-reason');
+  return !!c && c.evidence.includes('4 of the 10 things that ended');
+});
+
+test('letgo-reason contrast names the reasons that did NOT dominate', () => {
+  const c = find(_buildOutcomeCandidates(letgos, TODAY), 'letgo-reason');
+  return !!c && /energy/i.test(c.contrast) && /interest/i.test(c.contrast)
+    && /replacement/i.test(c.contrast) && !/relevan/i.test(c.contrast);
+});
+
+test('letgo-reason contrast is not a restatement of its evidence', () => {
+  const c = find(_buildOutcomeCandidates(letgos, TODAY), 'letgo-reason');
+  return !!c && !/one reason|most of what/i.test(c.contrast);
+});
+
+test('letgo-reason still fires with no completions in the window', () =>
+  !!find(_buildOutcomeCandidates(letgos, TODAY), 'letgo-reason'));
+
+// ── per-surface eligibility ────────────────────────────────────────────────
+console.log('\nobservation pool — eligibility\n');
+
+const allKinds = ['focus-vs-obligation', 'obligation-completion', 'letgo-reason',
+  'soon-pullback', 'letgo-return', 'focus-leverage', 'habit-alignment',
+  'recurring-day', 'bursts'].map(k => cand(k));
+
+test('morning nudge carries only kinds that point at the list now', () => {
+  const kept = _observationEligibleFor(allKinds, 'nudge', { hasObligationOnList: true }).map(c => c.kind);
+  return kept.length === 3
+    && kept.includes('letgo-return') && kept.includes('soon-pullback') && kept.includes('focus-vs-obligation');
+});
+
+test('morning nudge rejects the aggregate kinds that read as month insights', () => {
+  const kept = new Set(_observationEligibleFor(allKinds, 'nudge', { hasObligationOnList: true }).map(c => c.kind));
+  return !kept.has('letgo-reason') && !kept.has('obligation-completion') && !kept.has('focus-leverage')
+    && !kept.has('habit-alignment') && !kept.has('recurring-day') && !kept.has('bursts');
+});
+
+test('focus-vs-obligation needs an obligation on today\'s list to reach the morning', () => {
+  const withHook = _observationEligibleFor([cand('focus-vs-obligation')], 'nudge', { hasObligationOnList: true });
+  const without  = _observationEligibleFor([cand('focus-vs-obligation')], 'nudge', { hasObligationOnList: false });
+  const noCtx    = _observationEligibleFor([cand('focus-vs-obligation')], 'nudge');
+  return withHook.length === 1 && without.length === 0 && noCtx.length === 0;
+});
+
+test('Sunday carries every kind', () =>
+  _observationEligibleFor(allKinds, 'sunday').length === allKinds.length);
+
+test('an unknown surface is unrestricted rather than silently empty', () =>
+  _observationEligibleFor(allKinds, 'noticed').length === allKinds.length);
+
+test('eligibility preserves ranking order', () => {
+  const kept = _observationEligibleFor(allKinds, 'sunday');
+  return kept.every((c, i, a) => i === 0 || a[i - 1].score >= c.score);
+});
+
+test('eligibility tolerates malformed input and never throws', () =>
+  _observationEligibleFor(null, 'nudge').length === 0
+  && _observationEligibleFor([null, {}], 'nudge').length === 0
+  && Array.isArray(_observationEligibleFor(allKinds, undefined)));
 
 console.log('\n' + (failed === 0 ? '✓ ' : '✗ ') + passed + ' passed, ' + failed + ' failed\n');
 process.exit(failed === 0 ? 0 : 1);

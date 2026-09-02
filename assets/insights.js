@@ -412,6 +412,29 @@ function _memoryTextKey(text) {
   return 'txt_' + (h >>> 0).toString(36);
 }
 
+// 12c: the pool's outcome log stores no text, only ids (a hash of the text for
+// let-go and revive). letgo-return can name the task it is about only if the
+// caller hands it a map back from those ids to what is on the lists right now.
+// Built fresh per call from the live lists; nothing is persisted.
+function _memoryTaskTexts() {
+  const map = {};
+  const pools = [
+    typeof manualTasks !== 'undefined' ? manualTasks : [],
+    typeof soonTasks   !== 'undefined' ? soonTasks   : [],
+    typeof pastTasks   !== 'undefined' ? pastTasks   : [],
+  ];
+  for (const pool of pools) {
+    for (const t of (Array.isArray(pool) ? pool : [])) {
+      if (!t || !t.text) continue;
+      const text = _stripTag(t.text).trim();
+      if (!text) continue;
+      map[_memoryTextKey(text)] = text;
+      if (t.id) map[t.id] = text;
+    }
+  }
+  return map;
+}
+
 function _memoryRecordOutcome(outcome, taskText, taskId, reason) {
   if (!outcome) return;
   const date   = _localISO();
