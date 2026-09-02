@@ -138,35 +138,71 @@ test('soon-pullback makes the person the subject, not Soon', () => {
 
 // ── shape and contract ──────────────────────────────────────────────────────
 // ── letgo-return ────────────────────────────────────────────────────────────
-const releases = n => Array.from({ length: n }, () => out({ outcome: 'letgo', reason: 'no_energy' }));
-const returns  = n => Array.from({ length: n }, () => out({ outcome: 'revive' }));
+// A let-go and a revive of the same task share an id; that link is the evidence.
+const cycle = (id, lgDays, rvDays) => [
+  out({ id, outcome: 'letgo', reason: 'no_energy', date: ago(lgDays) }),
+  out({ id, outcome: 'revive', date: ago(rvDays) }),
+];
+const twoLoops = cycle('a', 20, 10).concat(cycle('b', 30, 5));
 
-test('letgo-return fires at 4 releases and 2 returns', () =>
-  !!find(_buildOutcomeCandidates(releases(4).concat(returns(2)), TODAY), 'letgo-return'));
+test('letgo-return fires when 2 revives link back to earlier let-gos', () =>
+  !!find(_buildOutcomeCandidates(twoLoops, TODAY), 'letgo-return'));
 
-test('letgo-return states both sides in its evidence', () => {
-  const c = find(_buildOutcomeCandidates(releases(6).concat(returns(2)), TODAY), 'letgo-return');
-  return c && /\b6\b/.test(c.evidence) && /\b2\b/.test(c.evidence);
+test('letgo-return ignores revives with no matching let-go — counting side by side was the bug', () =>
+  !find(_buildOutcomeCandidates([
+    out({ id: 'x', outcome: 'letgo', reason: 'no_energy' }), out({ id: 'y', outcome: 'letgo', reason: 'no_energy' }),
+    out({ id: 'p', outcome: 'revive' }), out({ id: 'q', outcome: 'revive' }),
+  ], TODAY), 'letgo-return'));
+
+test('letgo-return requires the let-go to precede the revive', () =>
+  !find(_buildOutcomeCandidates(cycle('a', 5, 20).concat(cycle('b', 5, 20)), TODAY), 'letgo-return'));
+
+test('letgo-return cannot link backfilled rows — synthetic ids never match', () =>
+  !find(_buildOutcomeCandidates([
+    out({ id: 'bf_letgo_no_energy_2026-07-20_0',  outcome: 'letgo',  reason: 'no_energy', date: ago(20) }),
+    out({ id: 'bf_revive_no_energy_2026-07-30_0', outcome: 'revive', date: ago(10) }),
+    out({ id: 'bf_letgo_no_energy_2026-07-20_1',  outcome: 'letgo',  reason: 'no_energy', date: ago(20) }),
+    out({ id: 'bf_revive_no_energy_2026-07-30_1', outcome: 'revive', date: ago(10) }),
+  ].map(e => ({ ...e, backfilled: true })), TODAY), 'letgo-return'));
+
+test('letgo-return links a release from before the window — only the return must be recent', () =>
+  !!find(_buildOutcomeCandidates(cycle('a', 70, 10).concat(cycle('b', 80, 5)), TODAY), 'letgo-return'));
+
+test('letgo-return ignores returns older than 45 days', () =>
+  !find(_buildOutcomeCandidates(cycle('a', 70, 46).concat(cycle('b', 80, 50)), TODAY), 'letgo-return'));
+
+test('letgo-return is silent on a single linked return — an event, not a pattern', () =>
+  !find(_buildOutcomeCandidates(cycle('a', 20, 10), TODAY), 'letgo-return'));
+
+test('letgo-return names the tasks when the live lists still hold them', () => {
+  const c = find(_buildOutcomeCandidates(twoLoops, TODAY, { a: 'call the dentist', b: 'renew passport' }), 'letgo-return');
+  return c && c.evidence.includes('"call the dentist"') && c.evidence.includes('"renew passport"');
 });
 
-test('letgo-return is silent with one return — a single revive is not a pattern', () =>
-  !find(_buildOutcomeCandidates(releases(6).concat(returns(1)), TODAY), 'letgo-return'));
-
-test('letgo-return needs release volume — 2 of 2 coming back is a coincidence', () =>
-  !find(_buildOutcomeCandidates(releases(2).concat(returns(2)), TODAY), 'letgo-return'));
-
-test('letgo-return never claims the returns were among the releases', () => {
-  const c = find(_buildOutcomeCandidates(releases(4).concat(returns(2)), TODAY), 'letgo-return');
-  return c && !/of them/i.test(c.evidence);
+test('letgo-return falls back to counts once the tasks are gone from every list', () => {
+  const c = find(_buildOutcomeCandidates(twoLoops, TODAY), 'letgo-return');
+  return c && /\b2 things you had let go came back\./.test(c.evidence) && !/of them|of the/i.test(c.evidence);
 });
 
-test('letgo-return accepts backfilled rows — reason and date are genuinely observed', () =>
-  !!find(_buildOutcomeCandidates(
-    releases(4).concat(returns(2)).map(e => ({ ...e, backfilled: true })), TODAY), 'letgo-return'));
+test('letgo-return names one task cycling twice as the loop it is', () => {
+  const c = find(_buildOutcomeCandidates(cycle('a', 40, 30).concat(cycle('a', 20, 10)), TODAY, { a: 'call the dentist' }), 'letgo-return');
+  return c && /"call the dentist" has gone out and come back 2 times\./.test(c.evidence) && c.contrast === 'Let go, and back again.';
+});
+
+test('letgo-return truncates a long task name to 40 characters', () => {
+  const long = 'x'.repeat(60);
+  const c = find(_buildOutcomeCandidates(twoLoops, TODAY, { a: long, b: 'b' }), 'letgo-return');
+  return c && c.evidence.includes('"' + 'x'.repeat(40) + '"') && !c.evidence.includes('x'.repeat(41));
+});
+
+test('letgo-return evidence names its window and never "this month"', () => {
+  const c = find(_buildOutcomeCandidates(twoLoops, TODAY), 'letgo-return');
+  return c && /45 days/.test(c.evidence) && !/this month/i.test(c.evidence);
+});
 
 test('letgo-return ranks below soon-pullback', () => {
   const k = kinds(_buildObservationCandidates({
-    outcomes: releases(4).concat(returns(2), Array.from({ length: 3 }, () => out({ outcome: 'soon_pull' }))),
+    outcomes: twoLoops.concat(Array.from({ length: 3 }, () => out({ outcome: 'soon_pull' }))),
     todayISO: TODAY,
   }));
   return k.indexOf('soon-pullback') < k.indexOf('letgo-return');
@@ -178,20 +214,8 @@ test('letgo-return is on a 30-day cross-surface cooldown — one firing per 45-d
   return typeof _observationGateExplain(c, said(29)) === 'string' && _observationGateExplain(c, said(30)) === null;
 });
 
-test('letgo-return reaches 45 days back — a slow signal earns a longer window', () => {
-  const old = releases(4).concat(returns(2)).map(e => ({ ...e, date: ago(40) }));
-  const cs = _buildOutcomeCandidates(old, TODAY);
-  return !!find(cs, 'letgo-return') && !find(cs, 'letgo-reason');
-});
-
-test('letgo-return still ignores outcomes older than 45 days', () =>
-  !find(_buildOutcomeCandidates(
-    releases(4).concat(returns(2)).map(e => ({ ...e, date: ago(46) })), TODAY), 'letgo-return'));
-
-test('letgo-return evidence names its window, not "this month"', () => {
-  const c = find(_buildOutcomeCandidates(releases(4).concat(returns(2)), TODAY), 'letgo-return');
-  return c && /45 days/.test(c.evidence) && !/this month/i.test(c.evidence);
-});
+test('pool still returns nothing when the only events are 31–45 days old and unlinked', () =>
+  _buildOutcomeCandidates([out({ outcome: 'letgo', reason: 'no_energy', date: ago(40) })], TODAY).length === 0);
 
 test('every candidate carries a contrast and no meaning field', () =>
   _buildOutcomeCandidates(focusSplit.concat(letgos), TODAY)

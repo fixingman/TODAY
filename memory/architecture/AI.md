@@ -256,7 +256,7 @@ One ranked candidate pool for every proactive personal line: code selects the ob
 | Function | Role |
 |---|---|
 | `_buildObservationCandidates({ outcomes, todayISO, …weekStats })` | The pool: Sunday's week-shaped kinds plus the outcome-derived kinds, sorted by hand-assigned `score`. Proposes only — callers apply gates and per-surface eligibility. |
-| `_buildOutcomeCandidates(outcomes, todayISO)` | Five kinds from `appMemory.taskOutcomes` over a 30-day window: `focus-vs-obligation` 115, `obligation-completion` 105, `letgo-reason` 95, `soon-pullback` 88, `letgo-return` 85 (v2.81.0; 45-day window and 30-day cooldown since v2.81.1 — revive is rare, so this kind alone reaches further back). Each is `{ kind, score, evidence, contrast }` — a contrast, never a cause; the person supplies the meaning. |
+| `_buildOutcomeCandidates(outcomes, todayISO)` | Five kinds from `appMemory.taskOutcomes` over a 30-day window: `focus-vs-obligation` 115, `obligation-completion` 105, `letgo-reason` 95, `soon-pullback` 88, `letgo-return` 85. The last one is linked, not counted: a let-go and a revive of the same task share an id (a text hash), so only revives that follow a release qualify, and 2+ are needed. It reads a 45-day window with a 30-day cooldown because revive is rare (v2.81.1), and it names the task when `taskTexts` — the live lists hashed the same way by the caller — still holds it (v2.81.3): *"call the dentist" has gone out and come back 2 times* for one task cycling, otherwise *Over 45 days, 2 things you had let go came back — "a" and "b"*. Memory never stores the text; the name is resolved at speech time and falls back to counts once the task leaves every list. Each is `{ kind, score, evidence, contrast }` — a contrast, never a cause; the person supplies the meaning. |
 | `_observationGateExplain(candidate, { spokenLines, todayISO })` | `null` to keep, or a human-readable drop reason: age-as-content (triage already prints every task's age) or a per-kind cooldown hit against `spokenLines` entries with the same `kind`. Cooldowns are cross-surface — a kind narrated anywhere is on cooldown everywhere: 21 days for month-window kinds, 30 for `letgo-return`, 7–14 for week-shaped. |
 | `_observationNoveltyGate(candidates, knowledge)` | Filters by the above. |
 | `_observationTextIsGrounded(text, maxWords)` | Output guard shared by every pool-fed surface and by the nudge's task-reading track: rejects identity, causal and tenure claims and overlong text. `_weekReflectionTextIsGrounded` is this at 26 words. |
@@ -265,7 +265,7 @@ One ranked candidate pool for every proactive personal line: code selects the ob
 
 **Unknowns stay unknown.** Backfilled rows (`backfilled: true`) are excluded from `focus-vs-obligation`; rows with `obligation: null` fall out of both partitions. **Abstention is per surface:** the nudge falls through to its task-reading track; a surface that exists only to observe goes silent.
 
-**Tests:** `scripts/observation-pool-test.mjs` (53) plus pool coverage in `nudge-test`, `insights-test` and `dropbox-test`. They assert the silences as well as the firings.
+**Tests:** `scripts/observation-pool-test.mjs` (57) plus pool coverage in `nudge-test`, `insights-test` and `dropbox-test`. They assert the silences as well as the firings.
 
 ---
 

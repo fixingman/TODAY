@@ -138,7 +138,7 @@
     });
   }
 
-  function _buildOutcomeCandidates(outcomes, todayISO) {
+  function _buildOutcomeCandidates(outcomes, todayISO, taskTexts) {
     const candidates = [];
     const win   = _outcomesWithin(outcomes, 30, todayISO);
     // letgo-return alone reads 45 days (below). The empty check must use the wider
@@ -214,26 +214,57 @@
       });
     }
 
-    // What gets released, and what comes back. `revive` is Past → Soon
-    // (`_memoryOnRevive`); `letgo` is the release. Both sides are genuinely observed,
-    // so backfilled rows count here. Needs real release volume before a return count
-    // says anything — 2 of 2 coming back is a coincidence, 2 of 6 is a pattern. The
-    // evidence deliberately does not say "of them": a revive may be of something let
-    // go before the window, and the log has no text to link the two.
+    // What gets released, and what comes back — linked, not counted side by side.
+    // A let-go and a revive of the same task share an id (a hash of the text, so it
+    // matches across devices), which is what lets the log prove the relation without
+    // storing any text. Backfilled rows carry synthetic ids and cannot link — an
+    // unknown stays unknown. The release may precede the window, so it is looked up
+    // across the whole log; only the return has to fall inside 45 days, and it has to
+    // come after its release.
     //
-    // 45-day window, not 30: revive is a slow signal — a deliberate act, maybe once
-    // a month — and slow signals earn a longer window rather than a lower floor. The
-    // floors stay; only the reach changes. The cooldown for this kind is 30 days so
-    // the same revives are not narrated twice inside one window.
-    const releases = win45.filter(e => e.outcome === 'letgo');
-    const returns  = win45.filter(e => e.outcome === 'revive');
-    if (releases.length >= 4 && returns.length >= 2) {
-      candidates.push({
-        kind: 'letgo-return',
-        score: 85,
-        evidence: `Over 45 days, you let go of ${releases.length} things and brought ${returns.length} back.`,
-        contrast: 'What you release, and what comes back.',
-      });
+    // 45 days, not 30: revive is a slow signal — a deliberate act, maybe once a month —
+    // and slow signals earn a longer window rather than a lower floor. Cooldown is 30
+    // so one window yields one firing. No release-volume floor: linking replaced it.
+    //
+    // Naming: the log has no text, but the caller may pass `taskTexts` ({ id: text })
+    // hashed from the live lists. A revived task is usually still on one, so the loop
+    // is named while it is on the list and falls back to counts once it is gone.
+    const log = Array.isArray(outcomes) ? outcomes.filter(e => e && e.id && e.date) : [];
+    const releasedBefore = (id, date) =>
+      log.some(e => e.outcome === 'letgo' && e.id === id && e.date <= date);
+    const returned = _outcomesWithin(outcomes, 45, todayISO)
+      .filter(e => e.outcome === 'revive' && e.id && releasedBefore(e.id, e.date));
+    if (returned.length >= 2) {
+      const texts = (taskTexts && typeof taskTexts === 'object') ? taskTexts : {};
+      const nameOf = id => {
+        const t = String(texts[id] || '').trim();
+        return t ? '"' + t.slice(0, 40) + '"' : null;
+      };
+      const perId = {};
+      for (const e of returned) perId[e.id] = (perId[e.id] || 0) + 1;
+      const [loopId, loopCount] = Object.entries(perId).sort((a, b) => b[1] - a[1])[0];
+      if (loopCount >= 2) {
+        // One task cycling is the sharper observation: released and retrieved, more than once.
+        const name = nameOf(loopId);
+        candidates.push({
+          kind: 'letgo-return',
+          score: 85,
+          evidence: name
+            ? `${name} has gone out and come back ${loopCount} times.`
+            : `One thing you let go has come back ${loopCount} times.`,
+          contrast: 'Let go, and back again.',
+        });
+      } else {
+        const names = Object.keys(perId).map(nameOf).filter(Boolean).slice(0, 3);
+        const list = names.length <= 1 ? names.join('')
+          : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+        candidates.push({
+          kind: 'letgo-return',
+          score: 85,
+          evidence: `Over 45 days, ${returned.length} things you had let go came back` + (list ? ' — ' + list : '') + '.',
+          contrast: 'What you release, and what comes back.',
+        });
+      }
     }
 
     return candidates;
@@ -317,7 +348,7 @@
   function _buildObservationCandidates(input) {
     const inp = input || {};
     return _buildWeekCandidates(inp)
-      .concat(_buildOutcomeCandidates(inp.outcomes, inp.todayISO))
+      .concat(_buildOutcomeCandidates(inp.outcomes, inp.todayISO, inp.taskTexts))
       .sort((a, b) => b.score - a.score);
   }
 
