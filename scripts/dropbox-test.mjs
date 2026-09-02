@@ -356,6 +356,89 @@ try {
     await page.close();
   }
 
+  // 11c. Clear watermark + hypothesis tombstones (BUG-096). "Clear all memory"
+  //      must survive sync in both directions: remote rows from before a local
+  //      clear must not union back, and a clear made on the other device must
+  //      apply here. Hypothesis items have no date and use id tombstones.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const D = 86400000, now = Date.now();
+      const iso = d => new Date(d).toISOString().slice(0, 10);
+      const base = {
+        manual_tasks: [], done_ids: [], deleted_ids: [], unchecked_ids: [], checked_ids: [],
+        soon_tasks: [], past_tasks: [], habits: [],
+      };
+
+      // A. Local cleared yesterday. Remote still holds old rows plus one written today.
+      const clearedAt = new Date(now - 1 * D).toISOString();
+      appMemory.clearedAt = clearedAt;
+      appMemory.clearedHypothesisIds = ['h_old'];
+      appMemory.taskOutcomes = []; appMemory.spokenLines = []; appMemory.obligationHistory = [];
+      appMemory.recentConversations = []; appMemory.moments = []; appMemory.recentCompletedTasks = [];
+      appMemory.memory = { semantic: [], episodic: [], procedural: [] };
+      mergeRemoteData({ ...base, memory: {
+        taskOutcomes: [
+          { id: 'old', date: iso(now - 10 * D), outcome: 'done', obligation: false, focusSessions: 0 },
+          { id: 'new', date: iso(now),          outcome: 'done', obligation: false, focusSessions: 0 },
+        ],
+        spokenLines: [
+          { surface: 'morning nudge',     date: iso(now - 5 * D), text: 'old line', kind: 'letgo-reason' },
+          { surface: 'Sunday reflection', date: iso(now),         text: 'new line', kind: 'bursts' },
+        ],
+        obligationHistory: [
+          { text: 'should call the bank', date: iso(now - 20 * D), done: false },
+          { text: 'must file receipts',   date: iso(now),          done: false },
+        ],
+        recentConversations:  [{ message: 'old question here', date: iso(now - 3 * D), time: 9 }],
+        moments:              [{ type: 'big_clear', count: 6, date: iso(now - 4 * D) }],
+        recentCompletedTasks: [{ text: 'old done task', date: iso(now - 2 * D) }],
+        memory: { semantic: [
+          { id: 'h_old', text: 'is a morning person', status: 'confirmed' },
+          { id: 'h_new', text: 'prefers short tasks', status: 'confirmed' },
+        ] },
+      }});
+      const A = {
+        oldOutcomeDropped:      !appMemory.taskOutcomes.some(e => e.id === 'old'),
+        newOutcomeKept:          appMemory.taskOutcomes.some(e => e.id === 'new'),
+        oldSpokenDropped:       !appMemory.spokenLines.some(l => l.text === 'old line'),
+        newSpokenKept:           appMemory.spokenLines.some(l => l.text === 'new line'),
+        oldObligationDropped:   !appMemory.obligationHistory.some(e => e.text === 'should call the bank'),
+        newObligationKept:       appMemory.obligationHistory.some(e => e.text === 'must file receipts'),
+        oldConversationDropped:  appMemory.recentConversations.length === 0,
+        oldMomentDropped:        appMemory.moments.length === 0,
+        oldCompletedDropped:     appMemory.recentCompletedTasks.length === 0,
+        tombstonedBlocked:      !appMemory.memory.semantic.some(i => i.id === 'h_old'),
+        freshHypothesisMerged:   appMemory.memory.semantic.some(i => i.id === 'h_new'),
+        watermarkUnchanged:      appMemory.clearedAt === clearedAt,
+      };
+
+      // B. The OTHER device cleared, after our rows were written. Its watermark must
+      //    propagate and wipe our pre-clear rows; its tombstones must apply here.
+      appMemory.clearedAt = '';
+      appMemory.clearedHypothesisIds = [];
+      appMemory.taskOutcomes = [{ id: 'mine_old', date: iso(now - 6 * D), outcome: 'letgo', obligation: null, focusSessions: 0 }];
+      appMemory.spokenLines  = [{ surface: 'morning nudge', date: iso(now - 6 * D), text: 'mine', kind: 'soon-pullback' }];
+      appMemory.memory = { semantic: [{ id: 'h_mine', text: 'works in bursts', status: 'confirmed' }], episodic: [], procedural: [] };
+      const remoteClear = new Date(now - 2 * D).toISOString();
+      mergeRemoteData({ ...base, memory: {
+        clearedAt: remoteClear, clearedHypothesisIds: ['h_mine'],
+        taskOutcomes: [], spokenLines: [], memory: { semantic: [] },
+      }});
+      const B = {
+        remoteWatermarkAdopted:    appMemory.clearedAt === remoteClear,
+        localPreClearOutcomeWiped: appMemory.taskOutcomes.length === 0,
+        localPreClearSpokenWiped:  appMemory.spokenLines.length === 0,
+        localHypothesisTombstoned: appMemory.memory.semantic.length === 0,
+        tombstonesMerged:          appMemory.clearedHypothesisIds.includes('h_mine'),
+      };
+      return { ...A, ...B };
+    });
+    await expectAll('clear watermark survives sync', { ...result, noErrors: errors.length === 0 });
+    ok('mergeRemoteData: clear watermark drops pre-clear rows both ways; hypothesis tombstones honoured');
+    await page.close();
+  }
+
   // 12. Weekly reflection sync accepts only text generated under the current
   //     evidence policy, so an older backup cannot resurrect biography drift.
   {

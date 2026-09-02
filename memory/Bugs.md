@@ -16,6 +16,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 096 | "Clear all memory" left the companion slots intact; next sync undid the rest — no clear watermark | ⏳ v2.82.1 |
 | 095 | Task, habit and Ask inputs saved to the browser autofill store — no `autocomplete="off"` | ⏳ v2.81.5 |
 | 094 | "Undo" persists into the reflection step, reading as undoing the answer not the sorting | ⏳ v2.80.6 |
 | 093 | ↩ and ↗ enrichment indicators flash on tap on mobile — hover rule unguarded | ⏳ v2.80.5 |
@@ -56,6 +57,26 @@
 ---
 
 *BUG-001 – BUG-055 → `archive/Bugs-archive.md` (summary table + full detail). Below: bugs still awaiting verification.*
+
+---
+
+## BUG-096 — "Clear all memory" left the companion slots intact, and the next sync undid the rest
+
+**Status:** ⏳ v2.82.1
+
+**Symptom:** Found while scoping 12d. Tapping *clear all memory* in the Memory panel wiped the AI hypotheses and the older pattern counters but left `returningTasks`, `taskOutcomes`, `obligationHistory`, `obligationLanguageTally`, `taskAgeBuckets`, `spokenLines` and `recentConversations` untouched — the most personal data in `appMemory`, including what the user has asked the AI. Worse: even the parts it did clear came back on the next Dropbox sync, because `_mergeAppMemory` unions every dated row and every hypothesis id from the remote copy with no notion of a clear having happened.
+
+**Root cause:** `_memoryClearConfirm` predates the 12a/12c slots and was never extended. And `appMemory` had no clear-watermark — reflections solved the same resurrection problem with `today_reflections_cleared_at`, but memory never got the equivalent, so "clear" was local-only and short-lived on any synced device. That violates the hard constraint in `design/Personalization.md`: memory must be clearable, and deletion must trace through.
+
+**Fix (v2.82.1):**
+- `_memoryClearConfirm` now clears all seven slots and `recentConversations`, keeps `taskOutcomesBackfilled` true (re-seeding would resurrect what was just cleared), sets `appMemory.clearedAt`, tombstones the cleared hypothesis ids in `clearedHypothesisIds`, and pushes a backup promptly.
+- `_mergeAppMemory` takes the max watermark across devices and drops rows from before it in all six dated-row unions (`taskOutcomes`, `spokenLines`, `obligationHistory`, `moments`, `recentCompletedTasks`, `recentConversations`) — on **both** sides, so a clear on one device propagates to the other rather than being undone by it. Hypothesis items carry no date and use the id tombstones instead.
+
+**Documented edge:** rows carry a date-only field, so the watermark compares by day; a row from the same day as the clear is accepted. A handful of same-day rows can therefore survive. Chosen over the alternative, which would drop fresh rows written after the clear.
+
+**Not changed:** max-wins scalars (`bestStreak`, `focusMinutesTotal`) still merge back. They are not personal in the way the cleared slots are, and full-clear already kept `focusMinutesTotal` deliberately.
+
+**Tests:** `memory-panel-test` seeds every slot and asserts each is cleared, tombstones recorded, watermark set. `dropbox-test` exercises the watermark in both directions and the tombstones on both sides. One assertion was initially written against `localStorage` and passed vacuously false — the harness stubs `_saveMemory`; removed.
 
 ---
 

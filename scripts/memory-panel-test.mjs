@@ -172,10 +172,34 @@ try {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
       window.__memoryTest.saveCalls = 0;
+      // BUG-096: seed everything "clear all memory" must actually clear — the
+      // 12a/12c companion slots were left untouched until v2.82.1.
+      const iso = new Date().toISOString().slice(0, 10);
+      appMemory.memory.semantic.push({ id: 'h1', text: 'is a morning person', status: 'confirmed' });
+      appMemory.memory.procedural.push({ id: 'h2', text: 'breaks things down', status: 'proposed' });
+      appMemory.returningTasks = { manual_1: { text: 'call insurance', firstSeen: iso, dayCount: 9, focusSessions: 0 } };
+      appMemory.taskAgeBuckets = { d1to3: 1, d4to6: 0, d7to13: 1, d14plus: 0 };
+      appMemory.obligationLanguageTally = { week: iso, count: 2, completed: 0, tasks: ['should call'] };
+      appMemory.obligationHistory = [{ text: 'should call the bank', date: iso, done: false }];
+      appMemory.spokenLines = [{ surface: 'morning nudge', date: iso, text: 'a line', kind: 'letgo-reason' }];
+      appMemory.taskOutcomes = [{ id: 'x', date: iso, outcome: 'done', obligation: false, focusSessions: 1 }];
+      appMemory.recentConversations = [{ message: 'what should I do first', date: iso, time: 9 }];
+      appMemory.taskOutcomesBackfilled = true;
       _memoryClearRequest();
       _memoryClearConfirm();
       const mem = appMemory.memory;
       return {
+        // BUG-096
+        returningEmpty:        Object.keys(appMemory.returningTasks).length === 0,
+        bucketsZero:           Object.values(appMemory.taskAgeBuckets).every(n => n === 0),
+        tallyReset:            appMemory.obligationLanguageTally.count === 0 && appMemory.obligationLanguageTally.tasks.length === 0,
+        obligationHistoryEmpty: appMemory.obligationHistory.length === 0,
+        spokenEmpty:           appMemory.spokenLines.length === 0,
+        outcomesLogEmpty:      appMemory.taskOutcomes.length === 0,
+        conversationsEmpty:    appMemory.recentConversations.length === 0,
+        backfillFlagKept:      appMemory.taskOutcomesBackfilled === true,
+        tombstonesRecorded:    appMemory.clearedHypothesisIds.includes('h1') && appMemory.clearedHypothesisIds.includes('h2'),
+        watermarkSet:          typeof appMemory.clearedAt === 'string' && appMemory.clearedAt.slice(0, 10) === iso,
         semanticEmpty: mem.semantic.length === 0,
         episodicEmpty: mem.episodic.length === 0,
         proceduralEmpty: mem.procedural.length === 0,
@@ -187,7 +211,7 @@ try {
       };
     });
     await expectAll('clear confirm', { ...result, noErrors: errors.length === 0 });
-    ok('_memoryClearConfirm wipes memory and saves');
+    ok('_memoryClearConfirm wipes memory, the companion slots, tombstones hypotheses, sets the watermark, and saves');
     await page.close();
   }
 

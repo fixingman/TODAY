@@ -730,6 +730,38 @@
     function _mergeAppMemory(remote) {
       if (!remote || typeof remote !== 'object') return;
       if (typeof appMemory === 'undefined' || !appMemory) return;
+
+      // Clear watermark (BUG-096, v2.82.1). A "clear all memory" on either device
+      // must survive sync. Max-wins; every dated-row union below drops rows from
+      // before it, on both sides, so the clear propagates rather than being undone.
+      // Rows carry a date-only field, so this compares by day: rows from the same
+      // day as the clear are accepted, which means a few same-day rows can survive.
+      // Documented edge, preferred over dropping fresh rows written after the clear.
+      // Hypothesis items carry no date at all and use id tombstones instead.
+      const _lc = typeof appMemory.clearedAt === 'string' ? appMemory.clearedAt : '';
+      const _rc = typeof remote.clearedAt === 'string' ? remote.clearedAt : '';
+      const _clearedAt  = _lc > _rc ? _lc : _rc;
+      const _clearedDay = _clearedAt.slice(0, 10);
+      const _afterClear = e => !_clearedDay || !e || !e.date || String(e.date).slice(0, 10) >= _clearedDay;
+      if (_clearedAt && _clearedAt !== _lc) {
+        // Remote cleared after us: apply it locally before any union.
+        appMemory.clearedAt = _clearedAt;
+        for (const k of ['taskOutcomes', 'spokenLines', 'obligationHistory', 'moments', 'recentCompletedTasks', 'recentConversations']) {
+          if (Array.isArray(appMemory[k])) appMemory[k] = appMemory[k].filter(_afterClear);
+        }
+      }
+      const _tomb = new Set([
+        ...(Array.isArray(appMemory.clearedHypothesisIds) ? appMemory.clearedHypothesisIds : []),
+        ...(Array.isArray(remote.clearedHypothesisIds)    ? remote.clearedHypothesisIds    : []),
+      ]);
+      if (_tomb.size) {
+        appMemory.clearedHypothesisIds = [..._tomb].slice(-300);
+        if (appMemory.memory) {
+          for (const t of ['semantic', 'episodic', 'procedural']) {
+            if (Array.isArray(appMemory.memory[t])) appMemory.memory[t] = appMemory.memory[t].filter(i => !i || !_tomb.has(i.id));
+          }
+        }
+      }
       // AI name: remote wins (first device to set it becomes canonical)
       if (remote.aiName) appMemory.aiName = remote.aiName;
       // Merge completionsByHour (max), then re-derive peakHour from merged data
@@ -775,6 +807,7 @@
       // Union of moments (dedupe by type+date)
       const existingKeys = new Set(appMemory.moments.map(m => m.type + m.date));
       for (const moment of (remote.moments || [])) {
+          if (!_afterClear(moment)) continue;
         if (!existingKeys.has(moment.type + moment.date)) appMemory.moments.push(moment);
       }
       appMemory.moments = appMemory.moments.slice(-20);
@@ -842,6 +875,7 @@
         const cutoff = new Date(Date.now() - 30 * 864e5);
         const existingRCT = new Set((appMemory.recentCompletedTasks || []).map(e => e.text + e.date));
         for (const entry of remote.recentCompletedTasks) {
+          if (!_afterClear(entry)) continue;
           if (!existingRCT.has(entry.text + entry.date) && new Date(entry.date) > cutoff) {
             appMemory.recentCompletedTasks.push(entry);
           }
@@ -902,6 +936,7 @@
         if (!appMemory.recentConversations) appMemory.recentConversations = [];
         const seenConv = new Set(appMemory.recentConversations.map(c => c.date + '|' + (c.message || '').slice(0, 20)));
         for (const c of remote.recentConversations) {
+          if (!_afterClear(c)) continue;
           const key = c.date + '|' + (c.message || '').slice(0, 20);
           if (!seenConv.has(key)) { appMemory.recentConversations.push(c); seenConv.add(key); }
         }
@@ -915,6 +950,7 @@
         if (!Array.isArray(appMemory.spokenLines)) appMemory.spokenLines = [];
         const seenSpoken = new Set(appMemory.spokenLines.map(l => l.date + '|' + l.surface));
         for (const l of remote.spokenLines) {
+          if (!_afterClear(l)) continue;
           if (!l || !l.date || !l.surface) continue;
           const key = l.date + '|' + l.surface;
           if (!seenSpoken.has(key)) { appMemory.spokenLines.push(l); seenSpoken.add(key); }
@@ -931,6 +967,7 @@
           appMemory.taskOutcomes.map(e => e.id + '|' + e.outcome + '|' + e.date)
         );
         for (const e of remote.taskOutcomes) {
+          if (!_afterClear(e)) continue;
           if (!e || !e.date || !e.outcome) continue;
           const key = e.id + '|' + e.outcome + '|' + e.date;
           if (!seenOutcome.has(key)) { appMemory.taskOutcomes.push(e); seenOutcome.add(key); }
@@ -950,6 +987,7 @@
           appMemory.obligationHistory.map(e => [e.date + '|' + (e.text || '').slice(0, 40), e])
         );
         for (const e of remote.obligationHistory) {
+          if (!_afterClear(e)) continue;
           if (!e || !e.date) continue;
           const key = e.date + '|' + (e.text || '').slice(0, 40);
           const local = oblIndex.get(key);
@@ -970,6 +1008,7 @@
           const existingTexts = new Set(appMemory.memory[type].map(i => (i.text || '').toLowerCase().slice(0, 8)));
           for (const item of remote.memory[type]) {
             if (!item.id || existingIds.has(item.id)) continue;
+            if (_tomb.has(item.id)) continue;
             if (existingTexts.has((item.text || '').toLowerCase().slice(0, 8))) continue;
             appMemory.memory[type].push({ ...item, isNew: false });
             existingIds.add(item.id);

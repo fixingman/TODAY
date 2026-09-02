@@ -369,14 +369,37 @@
           dayStartCount: null, dayStartDate: null, dayShapeState: null,
           inlineSuggestions: { offered: 0, applied: 0, dismissed: 0, autoDismissed: 0 },
         };
+        // Hypothesis items carry no date, so the sync merge cannot watermark them.
+        // Tombstone their ids so a remote copy cannot union them straight back.
+        const _clearedIds = ['semantic', 'episodic', 'procedural']
+          .flatMap(t => (appMemory.memory?.[t] || []).map(i => i && i.id).filter(Boolean));
+        appMemory.clearedHypothesisIds = (appMemory.clearedHypothesisIds || []).concat(_clearedIds).slice(-300);
         appMemory.memory = { semantic: [], episodic: [], procedural: [] };
         appMemory.recentCompletedTasks = [];
+        appMemory.recentConversations = [];
         appMemory.moments = [];
         appMemory.suggestionHistory = [];
         appMemory.suggestionOutcomes = [];
         appMemory.suggestionCooldowns = {};
+        // 12a/12c companion slots — the most personal data in appMemory, and the ones
+        // "clear all memory" left untouched until v2.82.1 (BUG-096). taskOutcomesBackfilled
+        // stays true: re-seeding would resurrect exactly what was just cleared.
+        appMemory.returningTasks = {};
+        appMemory.taskAgeBuckets = { d1to3: 0, d4to6: 0, d7to13: 0, d14plus: 0 };
+        appMemory.obligationLanguageTally = { week: '', count: 0, completed: 0, tasks: [] };
+        appMemory.obligationHistory = [];
+        appMemory.spokenLines = [];
+        appMemory.taskOutcomes = [];
+        // Watermark. Without it the next sync unions every dated row straight back
+        // from the remote copy and the clear is a lie. Max-wins across devices, so a
+        // clear made here also clears the other device on its next merge. Mirrors
+        // today_reflections_cleared_at.
+        appMemory.clearedAt = new Date().toISOString();
         _saveMemory();
       }
+      // Push promptly so the watermark reaches Dropbox before the next pull can
+      // resurrect anything. No-op without a token.
+      if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
       if (typeof window._reflectionClearFromAllMemory === 'function') window._reflectionClearFromAllMemory();
       renderMemoryPanel();
     }

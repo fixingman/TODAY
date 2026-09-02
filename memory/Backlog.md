@@ -271,6 +271,10 @@ What TODAY knows about you, made visible and clearable.
 
 **Constraints (non-negotiable):** individual inferences are viewable and revocable, not just bulk-deletable. Deletion traces through derived data — if a returning-task inference is dismissed, that task stops appearing in `returningTasks`. No surveillance posture: the panel confirms what TODAY sees, it does not speculate beyond the data.
 
+**Prerequisite done (v2.82.1, BUG-096):** full-clear now covers the companion slots and survives sync via `clearedAt` watermark + hypothesis tombstones. Before this, "clear all memory" was false for the most personal slots and undone by the next Dropbox pull.
+
+**Remaining, in build order:** (1) the data view — a "What TODAY knows" block showing `returningTasks`, pending obligation tasks, recent `spokenLines` with kind, and 30-day outcome counts as plain facts; (2) per-item revoke with a **persisted exclusion set** — `returningTasks` rebuilds from `manualTasks` every call, so a dismissed entry returns on the next render unless `_updateReturningTasksMemory` and the obligation history honour an exclusion list; note `dismissKey` is already computed for hypothesis items and never rendered, so the existing blocks have no per-item control either; (3) optionally, the gate-reason display below.
+
 **Already built for it:** `_observationGateExplain()` returns a human-readable drop reason per candidate ("already said 3 days ago on morning nudge", "restates task age") precisely so this surface can show *why* TODAY stayed quiet. A silent filter is untraceable when a surface unexpectedly says nothing.
 
 **Test for success:** a user reading the panel should think *"yes, that's accurate"* — not be surprised or feel observed.
