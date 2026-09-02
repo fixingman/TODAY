@@ -29,13 +29,13 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 12c | **Companion — observation pool** | Phases 0–3 shipped; **Phase 4 = judge** | Ranked candidate pool feeding every surface: code selects through 4 gates, model only phrases. Wired to the morning nudge only. Phase 4 is a verdict, not code. Detail ↓ |
+| 12c | **Companion — observation pool** | **Parked** — Phase 4 verdict: wrong surface | Built and tested (57 tests), no consumer. The morning nudge is back to its task-reading path. Blocked on two things: the usefulness gate was never implemented, and the Memory panel already produces this genus of output without landing. Detail ↓ |
 | 11 | **Task agent — enrichment at add-time** | Stages 1 & 2 shipped; Stage 3 next | External context enrichment (Gmail, web search, soon: contacts, calendar, Trello). Distinct from companion arc — enriches the task, not understanding of you. Detail ↓ |
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
-| 12d | **Companion — memory surface** | Not started | "What TODAY knows about you" in the Memory panel (`#memoryPanel`, not Connections — see `design/Personalization.md` hard constraint). Inspectable, clearable. Requires 12c to have ranked observations worth showing. Detail ↓ |
+| 12d | **Companion — memory surface** | **Blocked** | "What TODAY knows about you" in the Memory panel (`#memoryPanel`, not Connections — see `design/Personalization.md` hard constraint). Inspectable, clearable. Blocked on the same question as 12c: Can does not visit the existing Memory panel and does not find most of its inferences interesting. Diagnose that before adding a second source. Detail ↓ |
 | — | **WEEK companion** | Gated | Gate is now: *12c is working and feels like a companion, not a feature.* Data accumulation is necessary but not sufficient. Detail ↓ |
-| 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 123 reviewed poems (2026-09-01). Detail ↓ |
+| 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 127 reviewed poems (2026-09-01). Detail ↓ |
 
 ---
 
@@ -51,7 +51,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 > **Search process:** Start with source diversity, not a familiar-poet query loop. Search national libraries, university collections, regional or bilingual historical anthologies, oral-literature archives, historical journals, and specialist author/translator archives. Generic poetry sites can identify leads but should not define the candidate pool; Gutenberg, Wikisource, Internet Archive, and original scans remain useful for exact wording and worldwide-PD verification. Once a specific poem or collection is identified, fetch only the relevant page or passage. Each round should deliberately vary poets, translators, poetic structures, and kinds of thought; do not return several familiar voices merely because they are easy to source. Region is a tiebreaker—not a quality substitute or a flags-on-a-map exercise.
 
-**Seasons:** W14 / Sp16 / Su12 / Au10 / year-round 71 — corpus 123 reviewed poems (2026-09-01).
+**Seasons:** W14 / Sp17 / Su12 / Au12 / year-round 72 — corpus 127 reviewed poems (audited 2026-09-01).
 
 **Rotation verdict (2026-08-22):** No repetition observed — shuffle algorithm is not the lever.
 
@@ -61,20 +61,22 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 **Curation learning (2026-08-31):** the Syria/Persia/Armenia round was the strongest of the recent rounds because broadening the discovery destinations broke the repeated-poet/repeated-tone pattern. Its three approved selections offered different intellectual shapes—quiet usefulness over spectacle, a question about genuine value, and hope through weather and endurance. Future rounds should optimize for diversity of thought and voice as well as geography, and treat repeated poets, translators, images, or emotional conclusions as a warning that the search pool is too narrow.
 
-**Curation learning (2026-09-01):** the first commitment-imprint round approved the traditional Asante stream/path verse, Olive Schreiner's deliberate choice, Ricardo Jaimes Freyre's self-defeating pursuit image, and Kahlil Gibran's complete 'The Fox'. Shortness cannot come at the cost of comprehension: Gibran's cropped ending made its camel-to-mouse recalibration unintelligible without the sunrise setup and all-morning search. The complete fable still fits the ceiling at five displayed lines, so preserve it whole rather than manufacturing brevity with stitched fragments or ellipses.
+**Curation learning (2026-09-01):** the first commitment-imprint round approved the traditional Asante stream/path verse, Olive Schreiner's deliberate choice, Ricardo Jaimes Freyre's self-defeating pursuit image, and Kahlil Gibran's complete 'The Fox'. Shortness cannot come at the cost of comprehension: Gibran's cropped ending made its camel-to-mouse recalibration unintelligible without the sunrise setup and all-morning search. The complete fable still fits the ceiling at five displayed lines, so preserve it whole rather than manufacturing brevity with stitched fragments or ellipses. The following round approved D. H. Lawrence's boundary against self-exhaustion, John Gould Fletcher's choice of sunlight over output, Chekhov and Constance Garnett's autumn sentence resolving into forgiveness and peace, and John Shaw Neilson's quiet arrival of love. The mix confirms that commitment-imprint work can include boundaries, attention, release, and relationship without converging on a productivity lesson.
+
+**Season-tag audit (2026-09-01):** `season: null` explicitly means year-round, not unreviewed. Three literal seasonal signals had been missed or misfiled: Frost's first green/early leaf belongs to spring, Bashō's toad is a summer kigo, and Whitman's explicitly autumnal fruit belongs to autumn rather than summer. Prefer a poem's concrete scene, named season, or established kigo over a broad nature association when tagging future additions. Counts above reflect the corrected tags.
 
 Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cut.
 
 **PD notes:** US-PD-only closed (v2.35.3) — worldwide PD is the bar. Five US-PD poems kept permanently (Frost ×3, Yang-ti, Po Chü-i 'After Lunch'). Future unlocks: Milne 2027 (taste caveat: canonical "cutesy"), cummings 2033, Frost/WCW worldwide 2034, Eliot 2036. China most-represented — country tiebreaker is a lean, not a wall.
 
-**Curation rule: a cut is final.** Candidates not picked are dead — never re-proposed. (Not-picked so they aren't re-found: Ou-yang Hsiu 'Bell Hill', Yeats 'Cloths of Heaven', Landor 'Dying Speech', Moritake butterfly, Hokushi 'burnt out', Dickinson 'The Snow', Nervo 'Revenge', Nervo 'What matter hours' [untitled], Storni 'The Piety of the Cypress', Contardo 'Home of Peace and Purity', Lugones 'The Palm Tree' [32 lines, grave/loss], Lugones 'The Gift of Day' [12 lines], José Rizal 'To the Flowers of Heidelberg' [first stanza, trans. Charles Derbyshire], Manuel José Othón 'The Bell' [opening stanza, trans. Alice Stone Blackwell], the traditional Malay turi-tree pantun [trans. John Crawfurd], the traditional Nyanja night-jar song [recorded by R. S. Rattray], Egbert Martin 'A Shaded Spot' [excerpt], Sarojini Naidu 'Spring' [opening stanza], Gladys May Casely-Hayford 'Rejoice' [excerpt], and Narciso Tondreau 'Yesterday and Today' [excerpt]; all reviewed and skipped by 2026-08-31.)
+**Curation rule: a cut is final.** Candidates not picked are dead — never re-proposed. (Not-picked so they aren't re-found: Ou-yang Hsiu 'Bell Hill', Yeats 'Cloths of Heaven', Landor 'Dying Speech', Moritake butterfly, Hokushi 'burnt out', Dickinson 'The Snow', Nervo 'Revenge', Nervo 'What matter hours' [untitled], Storni 'The Piety of the Cypress', Contardo 'Home of Peace and Purity', Lugones 'The Palm Tree' [32 lines, grave/loss], Lugones 'The Gift of Day' [12 lines], José Rizal 'To the Flowers of Heidelberg' [first stanza, trans. Charles Derbyshire], Manuel José Othón 'The Bell' [opening stanza, trans. Alice Stone Blackwell], the traditional Malay turi-tree pantun [trans. John Crawfurd], the traditional Nyanja night-jar song [recorded by R. S. Rattray], Egbert Martin 'A Shaded Spot' [excerpt], Sarojini Naidu 'Spring' [opening stanza], Gladys May Casely-Hayford 'Rejoice' [excerpt], Narciso Tondreau 'Yesterday and Today' [excerpt], the traditionally attributed 'Song of Maisuna' [opening stanza, trans. Joseph Dacre Carlyle], and John Muir's 26 August frost-and-irised-crystals sentence from *My First Summer in the Sierra*; all reviewed and skipped by 2026-09-01. Skipped 2026-09-02, seasonal round: Porter's Hyakunin Isshu nos. 2 [Jitō], 81 [Sanesada], 87 [Jakuren], 31 [Korenori], 4 [Akahito]; Giles 1898 'Summer Begins' [Chu Shu-chen] and 'Summer' [Tai Fu-ku]; Cranmer-Byng 1916 'On Waking from Sleep' [Liu Ch'ang, opening], 'Rain at Dawn' and 'At Forty-one' [Po Chü-i], 'Wild Geese' [Ou-yang Hsiu, first quatrain], 'Songs on the Night' III [Ou-yang Hsiu]; Mackail 'The Woodland Well' [Nature XII]; Curtis 1907 Navajo 'Song of the Rain-Chant' [corn stanza]; Chamberlain 1902 nos. 121 [Jōsō leaf], 71 [Sute-jo clogs] and the Keirin water-wheel epigram.)
 
 **Active leads:**
 - Chamberlain 1902 (archive.org/details/basho-and-the-japanses-poetical-epigram) — productive; identifier confirmed
 - Cranmer-Byng *A Feast of Lanterns* (archive.org `in.ernet.dli.2015.282424`) — Yuan Mei, Liu Tzu-hui unproposed, available when China tiebreaker lifts
 - Carlyle, *Specimens of Arabian Poetry* (Cambridge, 1796; Carlyle d.1804) — worldwide PD, but the first targeted pass ('On Temper', 'Barmecides', 'To the Khaliph', 'On a Thunder-Storm', 'To a Dove', 'On Moderation in Our Pleasures') was ornate, preachy, bleak, or over the line limit. Do not re-propose those; other titles remain open.
 - Tirukkural (Thiruvalluvar, trans. G. U. Pope, 1886) — Wikisource has Ch. 131–133 verbatim; Ch. 110, 121–130 are redlinks. Book III love chapters have strong candidates (K1095, K1227). Pope d. 1908, worldwide PD.
-- Prose at Marcus Aurelius length (2–5 sentences): Muir *First Summer* (d.1914) worth a targeted pass; Garnett-trans. Chekhov nature prose not yet searched
+- Prose at Marcus Aurelius length (2–5 sentences): Muir *First Summer* (d.1914) remains open except for the final-cut 26 August frost sentence; Garnett-translated Chekhov produced the approved autumn sentence from 'Ionitch', while other passages remain open.
 - Africa: traditional !kun 'Prayer to the Young Moon' (recited by !nanni, recorded by L.C. Lloyd in 1880) approved by Can and shipped as its contiguous closing excerpt in v2.77.5. Digital Bleek & Lloyd metadata resolves the attribution separately from Dia!kwain's nearby 1875 Moon-and-Hare narrative.
 - Middle East / Armenia: al-Ma'arri's quiet-rain couplet (trans. Ameen Rihani), Abu-Yshac's complete 'The Roses' (trans. E. Powys Mathers), and the first two stanzas of Raphael Patkanian's 'The Sure Hope' (trans. Alice Stone Blackwell) approved by Can and prepared for v2.77.27.
 - Jamaica / Spain: the closing stanza of Claude McKay's 'Joy in the Woods' and Antonio Machado's 'Counsels' (trans. Thomas Walsh) approved by Can and prepared for v2.77.27. The six-line ceiling begins with the next search round; these already-reviewed longer selections are grandfathered.
@@ -202,23 +204,29 @@ Three instruction lines on the nudge's task-reading path telling the model to us
 
 ---
 
-#### 12c · Observation Pool — Phases 0–3 shipped, **Phase 4 next**
+#### 12c · Observation Pool — **Phase 4 verdict: wrong surface. Pool parked.**
 
-**One ranked candidate pool feeding every surface.** Code selects the observation through four gates; the model only phrases it. Built by extending `assets/week-reflection-policy.js`, which stays pure and Node-testable. Currently wired to the **morning nudge only**. Implementation detail → `Changelog.md` (v2.80.0–v2.80.2, v2.80.4); prior art → `research/ObservationSelection.md`; prompt rules → `design/Personalization.md`.
+**One ranked candidate pool feeding every surface.** Code selects through four gates; the model only phrases. Built by extending `assets/week-reflection-policy.js`, which stays pure and Node-testable, and covered by `scripts/observation-pool-test.mjs` (57 tests). **It currently has no consumer** — the same state it was in after Phase 2.
 
-**Phase 4 — judge, then generalize.** A verdict, not code. Two weeks of real mornings on the nudge alone; only on a pass do Noticed, focus, Sunday and Monday get wired, with cooldowns. Tracked in the Wallpaper Test table below.
+### Phase 4 verdict (2026-09-02) — judged on the first real pool line
 
-- **The pool is silent for a while by design.** `taskOutcomes` began recording 2026-09-01 and the backfill reaches only as far as existing dated history. Thirty-day windows with 4+ samples per side mean most mornings still take the task-reading path. A quiet fortnight is expected, not a failed threshold.
-- **Distinguish the two failure modes before changing anything.** *Never fires* and *fires but feels like a verdict* have different fixes. Check `spokenLines` for entries carrying a `kind` — that is the pool speaking. None at all points at thresholds or thin `taskOutcomes`, not at the prompt.
+> *"8 of 9 things you let go this month just stopped being relevant. Almost everything, one reason."*
 
-**Standing rules for wiring any further surface:**
+Can's reaction, which is the verdict: it read as a **month or week insight on a surface that had been about today**; the register shifted from the friendly, task-facing nudges he valued to something clinical; and it changed nothing about his morning. *"i didnt think much of it… that definetly felt like a miss."*
 
-1. **Four gates.** **Evidence** (repeated behaviour or a clear self-comparison), **novelty** (not already said by the list, grid, counters, triage, or `spokenLines`), **usefulness** (changes self-understanding), **single-reading** (statable as a bare contrast — if it only lands with an interpretation attached, the interpretation is doing the work).
-2. **Candidates carry a contrast, never a cause.** *"The observation creates space; the user fills in the meaning"* (`research/Psychology.md`). Moving causal judgment from the model into code relocates the overreach rather than fixing it.
-3. **Prefer category contrasts over single-task, and months over weeks.** A one-week contrast is a coincidence.
-4. **Ranking is editorial, not statistical.** Hand-assigned base scores stay. P-values are not comparable across kinds with different null distributions and are blind to semantics; deviation from the user's own baseline is a within-kind threshold only.
-5. **Abstention is per surface.** Where a surface exists only to observe (Noticed, Sunday) it goes silent. Where it also has a factual job, it abstains *to that job* — the nudge falls back to its rule-based line, because the morning is the signature beat.
-6. **Cooldowns are cross-surface.** A kind narrated anywhere is on cooldown everywhere; the point is that the person does not hear the same observation twice.
+**Three findings, in order of how much they matter.**
+
+**1. Placement was wrong, and that was a design error not a wording one.** The pool was built around 30-day windows and category contrasts, then wired to the daily beat. `design/Personalization.md` already says intelligence surfaces belong on day boundaries *with a bounded moment* — a month-scale statistic is not that. The tonality shift follows from the content: an aggregate statement about the person reads colder than a note about a task they are about to choose. No prompt change fixes that, which is why the fix was removal rather than rewriting.
+
+**2. The usefulness gate was never actually implemented.** Of the four gates, three are real tests in code — evidence, novelty, single-reading. **Usefulness was treated as an editorial decision about which kinds exist, not as a test any candidate must pass.** So nothing ever asked *does knowing this change what I do?* The pool optimises for true-and-new, and the line that fired was true, genuinely novel, and useless. This is the gap to close before the pool is wired anywhere.
+
+**3. `letgo-reason` states one thing twice.** Its `evidence` names the dominant reason and its proportion; its `contrast` — *"One reason accounts for most of what you release"* — restates that. Unlike `focus-vs-obligation`, where evidence is where focus went and contrast is where it didn't, this kind has only one side. It partly fails the single-reading gate, and was scored 95 anyway. The observation underneath is still good (*you drop things because they stopped mattering, not because you ran out of capacity* — an intake problem, not a capacity one). A truer second side would be the reasons that did **not** fire.
+
+**Entangled open question — do not wire the pool anywhere until this is answered.** Can reports the Memory panel already produces this genus of output, he does not visit it, and he does not find most of it interesting. That is also the overdue *Memory panel quality gate* verdict, delivered in passing. Two producers of not-quite-interesting inferences is not progress, and 12d assumes a panel worth visiting. **Diagnose why the Memory panel's inferences do not land before building a second source of the same thing.**
+
+**What was NOT done, deliberately:** the pool was not re-pointed at Sunday. Choosing another surface immediately would repeat the mistake this verdict is about — shipping a placement before judging it.
+
+**Data note.** The `9` is cleaner than it looks: `letgo-reason` requires a reason, so quick deletes and the Edit-to-rewrite path (which record with an empty reason) are excluded. Those were nine deliberate reason-chip choices. Worth confirming with Can whether chips get tapped to dismiss the toast, which would soften the evidence.
 
 ### Candidate kinds — settled with Can 2026-09-01
 
@@ -233,7 +241,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 | 95 | `letgo-reason` | one reason accounts for most of what is released |
 | 90 | `recurring-day` | pre-existing |
 | 88 | `soon-pullback` | what you defer tends to come back |
-| 85 | `letgo-return` | what you release, and what comes back — added v2.81.0 after asking why `revive` was recorded but unread. **45-day window** (v2.81.1), the only kind not on 30: revive is a slow signal, and slow signals earn a longer window rather than a lower floor |
+| 85 | `letgo-return` | what you release, and what comes back — added v2.81.0 after asking why `revive` was recorded but unread. **Linked, not counted** (v2.81.3): a let-go and a revive of the same task share an id, so only returns that follow a release count, and the task is named while it is still on a list. One task cycling twice gets its own line. **45-day window** (v2.81.1), the only kind not on 30: revive is a slow signal, and slow signals earn a longer window rather than a lower floor |
 | 65 | `bursts` | pre-existing, last resort — same container-subject shape as the cuts. Task context may rescue it: naming *what* filled the busy days would give it a subject |
 | — | `list-growth`, `cognitive-weight` | **cut** — container subject, and a count of what triage already prints |
 
@@ -241,7 +249,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 
 **Backfilled rows carry unknowns, and unknowns must stay unknown.** `focusSessions` is unknown for reconstructed history — written as `0`, `focus-vs-obligation` becomes trivially true. `obligation` is unknown for let-go and revive rows — written as `false`, they are silently counted as *chosen*. Rows carry `backfilled: true` and `obligation: null`, and partitions match on `=== true` / `=== false`, never truthiness.
 
-**Tests:** `scripts/observation-pool-test.mjs` (53, in `test-all`), plus pool coverage in `insights-test`, `dropbox-test` and `nudge-test`. They assert the silences as well as the firings.
+**Tests:** `scripts/observation-pool-test.mjs` (57, in `test-all`), plus pool coverage in `insights-test`, `dropbox-test` and `nudge-test`. They assert the silences as well as the firings.
 
 **Two verification hazards, both hit more than once:**
 - **Capture the real payload before theorising about output.** The v2.79.1 duplicate-emission defect was invisible in code review and obvious the moment the request was intercepted.
@@ -300,7 +308,7 @@ What TODAY knows about you, made visible and clearable.
 | Focus companion question | v2.65.0 | ⚠ 2026-08-31 | Improved: taxonomy system prompt, drag-word + letgo-reason signals, word cap 18→22. Re-observe — does the question now feel like clarity rather than a check-in? |
 | Post-triage reflections | v2.65.7 | ⚠ 2026-08-31 | Open — real pause or rote wallpaper? Watch for: avoidance on hard days, selection bias, feeling rote after first week. |
 | Memory panel quality gate | v2.47.0 | ⚠ 2026-09-01 | Open — are AI-generated hypotheses earning confirmation or getting dismissed? |
-| Season moments — solar term label | v2.71.0 | 2026-09-05 | Open — does `処暑 · End of Heat` feel like context or noise after a few appearances? |
+| Season moments — solar term label | v2.71.0 | 2026-09-05 | Open — does `処暑 · End of Heat` feel like context or noise after a few appearances? Hemisphere localization added in v2.81.4 so the term and observation now match the viewer's local season. |
 | Sunday earned insight | v2.71.12 | 2026-09-06 | Open — does it reveal a real lever rather than paraphrasing the grid? Track abstentions as healthy. |
 | Obligation language tip | v2.77.20 | 2026-09-14 | Open — "Have to — or choosing to?" Does it land as a genuine moment of reflection, or does it feel like an interruption? Watch: dismissed immediately vs. paused on. Regex tightened v2.78.0: min 3 words + "should/must be [adj]" excluded. |
 | Morning nudge — pool-selected observation (12c Phase 3) | v2.80.0 | 2026-09-15 | Open — **this is Phase 4.** Does a pool line feel *chosen* rather than generated? Watch for: whether any pool line appears at all (check `spokenLines` for entries with a `kind`); whether it lands as recognition or as a verdict; whether the task-reading path on other mornings still feels as good as before. A pool line that never fires and a pool line that feels like judgment are different failures with different fixes — distinguish them before changing anything. |

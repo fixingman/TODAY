@@ -39,6 +39,15 @@ The Sunday reflection is the first full implementation. `_buildWeekReflectionIns
 
 **Research basis:** perceived rather than merely actual personalization drives message effects ([Li, 2016](https://scholarship.miami.edu/esploro/outputs/journalArticle/When-does-web-based-personalization-really-work/991031577120502976)); anthropomorphic style improves calibrated trust only when it communicates useful context ([Carter, Loft & Visser, 2024](https://pmc.ncbi.nlm.nih.gov/articles/PMC11457490/)); a new preprint found unsupported user-profile inference across every tested LLM, so model self-restraint is not an adequate evidence layer ([Sun, Zhang & Sheng, 2026](https://arxiv.org/abs/2608.04570)). See `research/Psychology.md` for the evidence boundary.
 
+### Two gates that must be real, not editorial (2026-09-02)
+
+The 12c pool shipped with three of its four gates implemented as code and the fourth as a hand-wave. The result was a line that passed everything and still missed:
+
+- **Usefulness has to be a test, not a taste call.** "Which kinds of observation exist" is an editorial decision; *does knowing this change what the person does?* is a property of a specific candidate on a specific day, and nothing checked it. A pool that optimises for evidence + novelty produces statements that are true, new, and inert. **An observation earns its place only if seeing it could change a choice.**
+- **Match the timescale to the moment.** A 30-day statistic on the daily beat reads as belonging to a different surface, and the register goes cold with it — an aggregate statement *about the person* is colder than a note about a task they are about to choose, whatever the wording. The day boundary rule above is not only about *when* a surface fires; it constrains *what span* it may speak about.
+
+**Corollary, learned the same day:** when a line lands badly, check placement and usefulness before touching the prompt. Rewriting the sentence cannot fix an observation that belongs on another surface or that leads nowhere.
+
 ### Writing the instruction — rules earned the hard way (2026-09)
 
 These come from the 12b failure and the production bugs that followed. They apply to any surface where a model is given evidence and asked to phrase it.
