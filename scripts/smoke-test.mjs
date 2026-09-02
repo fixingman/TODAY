@@ -102,12 +102,21 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'Olive Schreiner',
     'Ricardo Jaimes Freyre (trans. Alice Stone Blackwell)',
     'Kahlil Gibran',
+    'D. H. Lawrence',
+    'John Gould Fletcher',
+    'Anton Chekhov (trans. Constance Garnett)',
+    'John Shaw Neilson',
+    'Joseph S. Cotter, Jr.',
   ];
   const sixLineVoices = [
     'Traditional Asante (recorded by R. S. Rattray)',
     'Olive Schreiner',
     'Ricardo Jaimes Freyre (trans. Alice Stone Blackwell)',
     'Kahlil Gibran',
+    'D. H. Lawrence',
+    'John Gould Fletcher',
+    'Anton Chekhov (trans. Constance Garnett)',
+    'John Shaw Neilson',
   ];
   const hasAllApprovedVoices = approvedVoices.every(author =>
     poems.some(poem => poem.author === author));
@@ -122,12 +131,32 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     poem.source.includes("'Rejoice'") ||
     poem.source.includes("'Yesterday and Today'") ||
     poem.text.includes('The turi tree') ||
-    poem.text.includes('Moon, you must shine'));
-  if (poems.length !== 123 || malformed.length || !hasAllApprovedVoices || newLineLimitDrift || hasSkippedVoice) {
-    console.error('✗ FAIL — reviewed poem corpus count, schema, or line limit drifted.');
+    poem.text.includes('Moon, you must shine') ||
+    poem.text.includes("The russet suit of camel's hair") ||
+    poem.text.includes('sparkling with irised crystals,—flowers of light') ||
+    poem.text.includes('Does the ||garraken flower open?') ||
+    poem.text.includes('I have made a footprint') ||
+    poem.source.includes("'Heat'") && poem.author === 'Archibald Lampman' ||
+    poem.source.includes("'Nocturne'") && poem.author.includes('Edward Powys Mathers') ||
+    poem.text.includes('The Milky Way lies there'));
+  const hasSeason = (sourcePart, season) => poems.some(poem =>
+    poem.source.includes(sourcePart) && poem.season === season);
+  const seasonTagDrift =
+    !hasSeason("'Nothing Gold Can Stay'", 'spring') ||
+    !hasSeason('Chamberlain 1902, no. 34', 'summer') ||
+    !hasSeason("'Give Me the Splendid Silent Sun'", 'autumn');
+  const seasonCounts = poems.reduce((counts, poem) => {
+    const key = poem.season || 'year-round';
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {});
+  const seasonCountDrift = seasonCounts.winter !== 15 || seasonCounts.spring !== 18 ||
+    seasonCounts.summer !== 12 || seasonCounts.autumn !== 13 || seasonCounts['year-round'] !== 72;
+  if (poems.length !== 130 || malformed.length || !hasAllApprovedVoices || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
+    console.error('✗ FAIL — reviewed poem corpus count, schema, line limit, or season tags drifted.');
     process.exit(1);
   }
-  console.log('  ✓ 123-poem reviewed corpus shape and approved geography');
+  console.log('  ✓ 130-poem reviewed corpus shape, approved geography, and audited seasons');
 
   try {
     globalThis.fetch = async request => {

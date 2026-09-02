@@ -384,7 +384,7 @@ const POEMS = [
   {
     text: "Give me the splendid silent sun with all his beams full-dazzling,\nGive me autumnal fruit ripe and red from the orchard,\nGive me a field where the unmow'd grass grows.",
     author: 'Walt Whitman',
-    season: 'summer',
+    season: 'autumn',
     source: "'Give Me the Splendid Silent Sun', Leaves of Grass (Gutenberg #1322)",
   },
   {
@@ -415,7 +415,7 @@ const POEMS = [
   {
     text: "Nature's first green is gold,\nHer hardest hue to hold.\nHer early leaf's a flower;\nBut only so an hour.\nThen leaf subsides to leaf.\nSo Eden sank to grief,\nSo dawn goes down to day.\nNothing gold can stay.",
     author: 'Robert Frost',
-    season: null,
+    season: 'spring',
     source: "'Nothing Gold Can Stay', New Hampshire, 1923 (d. 1963 — US PD only; verified Gutenberg #58611)",
   },
   {
@@ -736,7 +736,7 @@ const POEMS = [
   {
     text: '\'Tis a toad\'s croak. Come! hop away\nFrom underneath the fancier\'s house.',
     author: 'Bashō',
-    season: null,
+    season: 'summer',
     source: "Chamberlain 1902, no. 34 (archive.org/details/basho-and-the-japanses-poetical-epigram; Bashō d. 1694, Chamberlain d. 1935, both PD worldwide — verified verbatim)",
   },
   {
@@ -823,5 +823,53 @@ const POEMS = [
     author: 'Kahlil Gibran',
     season: null,
     source: "'The Fox', The Madman: His Parables and Poems (1918), Project Gutenberg #5616 — Gibran d. 1931, PD worldwide — verified verbatim",
+  },
+
+  // ── Round 36 (Sep 2026) — England, US, Russia, Australia ────────────────
+  {
+    text: 'I will not waste myself to embers for them,\nNot all for them shall the fires of my life be hot.',
+    author: 'D. H. Lawrence',
+    season: null,
+    source: "'Afternoon in School', Love Poems and Others (1915) — Lawrence d. 1930, PD worldwide — verified verbatim vs Poetry Foundation and the original edition scan",
+  },
+  {
+    text: 'Today you shall have but little song from me,\nFor I belong to the sunlight.\nThis I would not barter for any kingdom.',
+    author: 'John Gould Fletcher',
+    season: null,
+    source: "Irradiations XXXII, Irradiations; Sand and Spray (1915), Project Gutenberg #38857 — Fletcher d. 1950, PD worldwide — verified verbatim",
+  },
+  {
+    text: 'The stones and faded flowers,\ntogether with the autumn scent of the leaves,\nall told of forgiveness, melancholy, and peace.',
+    author: 'Anton Chekhov (trans. Constance Garnett)',
+    season: 'autumn',
+    source: "'Ionitch', The Lady with the Dog and Other Stories, trans. Constance Garnett, Project Gutenberg #13415 — Chekhov d. 1904, Garnett d. 1946, both PD worldwide — verified verbatim",
+  },
+  {
+    text: 'Quietly as rosebuds\nTalk to the thin air,\nLove came so lightly\nI knew not he was there.',
+    author: 'John Shaw Neilson',
+    season: null,
+    source: "'Love's Coming', Heart of Spring (1919) — Neilson d. 1942, PD worldwide — verified verbatim vs the 1919 and 1923 editions",
+  },
+
+  // ── Round 37 (Sep 2026) — seasonal fill ─────────────────────────────────
+  {
+    text: 'This lovely morn the dewdrops flash\nLike diamonds on the grass—\nA blaze of sparkling jewels! But\nThe autumn wind, alas!\nScatters them as I pass.',
+    author: 'Fun\'ya no Asayasu',
+    season: 'autumn',
+    source: "Hyakunin Isshu 37, A Hundred Verses from Old Japan, trans. William N. Porter (1909) — verified vs archive.org hundredversesfro00fujiuoft scan (Porter d. 1917, Asayasu fl. c. 900 — PD worldwide)",
+  },
+  {
+    text: 'The snow whispers about me,\nAnd my wooden clogs\nLeave holes behind me in the snow.\nBut no one will pass this way\nSeeking my footsteps,\nAnd when the temple bell rings again\nThey will be covered and gone.',
+    author: 'Amy Lowell',
+    season: 'winter',
+    source: "'Falling Snow', Lacquer Prints, Pictures of the Floating World (1919) — verified vs archive.org picturesoffloating00lowerich scan (Lowell d. 1925, PD worldwide). Seven lines: Can's exception to the six-line ceiling, 2026-09-02 — the poem needs all of them",
+  },
+
+  // ── Round 38 (Sep 2026) — Rain Water moment ────────────────────────────
+  {
+    text: 'On the dusty earth-drum\nBeats the falling rain;\nNow a whispered murmur,\nNow a louder strain.',
+    author: 'Joseph S. Cotter, Jr.',
+    season: 'spring',
+    source: "'Rain Music', The Book of American Negro Poetry, ed. James Weldon Johnson (1922), Project Gutenberg #11986 — Cotter d. 1919, PD worldwide — verified verbatim; editorially paired with Rain Water (雨水)",
   },
 ];
