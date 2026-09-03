@@ -281,12 +281,28 @@ if (!styleBlocks.length) fail('no <style> blocks found — extraction regex may 
 // real parity verification — WARN, not FAIL, since it can't see intent.
 {
   // renderTrello() lives in assets/trello.js since v2.33.5 (Roadmap #3 extraction);
-  // taskHTML() stays in index.html — the parity check spans both files.
+  // taskHTML() moved to assets/connections.js with the renderer extraction. Both are
+  // found by brace-matching from the declaration, so indentation inside an IIFE and
+  // nested blocks do not break the lookup (the old regex stopped at the first
+  // column-0 brace and silently missed the indented function).
+  const extractFn = (source, name) => {
+    const start = source.indexOf('function ' + name + '(');
+    if (start === -1) return null;
+    const open = source.indexOf('{', start);
+    if (open === -1) return null;
+    let depth = 0;
+    for (let i = open; i < source.length; i++) {
+      if (source[i] === '{') depth++;
+      else if (source[i] === '}' && --depth === 0) return source.slice(start, i + 1);
+    }
+    return null;
+  };
   const trelloSrc = await readFile(join(ROOT, 'assets', 'trello.js'), 'utf8');
-  const taskHTMLMatch = src.match(/function taskHTML\([\s\S]*?\n\}/);
-  const renderTrelloMatch = trelloSrc.match(/function renderTrello\([\s\S]*?\n\}/);
-  if (!taskHTMLMatch || !renderTrelloMatch) {
-    warn('could not locate taskHTML() (index.html) and/or renderTrello() (assets/trello.js) for Rule 27 parity check — functions may have been renamed or moved');
+  const connSrc   = await readFile(join(ROOT, 'assets', 'connections.js'), 'utf8');
+  const taskHTMLMatch = [extractFn(connSrc, 'taskHTML')];
+  const renderTrelloMatch = [extractFn(trelloSrc, 'renderTrello')];
+  if (!taskHTMLMatch[0] || !renderTrelloMatch[0]) {
+    warn('could not locate taskHTML() (assets/connections.js) and/or renderTrello() (assets/trello.js) for Rule 27 parity check — functions may have been renamed or moved');
   } else {
     const markers = ['session-count', 'badge due', 'badge checklist', 'age-bucket'];
     const missing = markers.filter(mk =>
