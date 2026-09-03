@@ -1954,6 +1954,9 @@
         const today = _getAppDay();
         if (localStorage.getItem('stat_last_visit') === today) return;
         applyNewDayCleanup();
+        // The header date is written once at init; a tab open across midnight would keep
+        // yesterday's until a reload (BUG-097). Crossfade it to the new day here.
+        if (typeof window._dateTagRefresh === 'function') window._dateTagRefresh(true);
         renderManual();
         loadTrello(true);
         updateStats();

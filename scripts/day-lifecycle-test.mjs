@@ -354,7 +354,35 @@ try {
       ok('static wiring: script tag, startup call, exports, functions removed from index.html, precached, _pruneTrelloMaps and _applyTimeTexture in module');
     }
 
-    console.log('\nDay-lifecycle tests passed (post-extraction, 11 tests).');
+    // 12. BUG-097: the header date follows the day boundary with a crossfade, no reload.
+    {
+      const { page, errors } = await openPage();
+      const r = await page.evaluate(async () => {
+        const el = document.getElementById('dateTag');
+        const expected = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase();
+        const initial = el.textContent === expected;
+        el.textContent = 'STALE DAY';
+        window._dateTagRefresh(true);
+        const oldTextDuringExit = el.textContent === 'STALE DAY';   // swap waits for the fade-out
+        const animating = typeof el.getAnimations === 'function' && el.getAnimations().length === 1;
+        await new Promise(r => setTimeout(r, 700));                 // --dur-mid + --dur-slow, with slack
+        const after = el.textContent === expected;
+        const animsCleared = typeof el.getAnimations === 'function' && el.getAnimations().length === 0;
+        window._dateTagRefresh(true);                              // same day → no-op, no animation
+        const noopNoAnim = typeof el.getAnimations === 'function' && el.getAnimations().length === 0;
+        return { initial, oldTextDuringExit, animating, after, animsCleared, noopNoAnim };
+      });
+      const dbxSrc = await readFile(join(ROOT, 'assets/dropbox.js'), 'utf8');
+      await expectAll('date tag at midnight', {
+        ...r,
+        wiredIntoCheckNewDay: dbxSrc.includes('window._dateTagRefresh(true)'),
+        noErrors: !errors.length,
+      });
+      ok('BUG-097: header date crossfades to the new day at the boundary, no reload, no-op on same day');
+      await page.close();
+    }
+
+    console.log('\nDay-lifecycle tests passed (post-extraction, 12 tests).');
   }
 } finally {
   if (browser) await browser.close();

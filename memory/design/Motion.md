@@ -87,6 +87,11 @@ One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newl
 - Timer bar pulses gently when complete
 - Controls slide up with spring easing
 
+### Date Tag at Midnight (v2.82.2, BUG-097)
+- The header date is written once at init and refreshed by `checkNewDay()` at the day boundary via `window._dateTagRefresh(true)`, so a tab left open across midnight follows the day without a reload or a return to the splash.
+- Crossfade, deliberately slower than the count flick: fade out `--dur-mid` ease-in, swap text, fade in `--dur-slow` `--ease-out` with a 3px rise. Tokens are read from `:root` at call time so JS and CSS share one clock.
+- One-shot, so WAAPI is fine (the looping rule does not apply). `fill: forwards` on the exit is cancelled before the enter so it cannot re-assert. Reduced motion swaps the text with no animation; same-day calls are no-ops.
+
 ### Idle Companion
 - Fade in over 0.6s
 - ASCII animation (creature-specific timing)

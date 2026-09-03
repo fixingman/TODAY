@@ -152,7 +152,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     poem.text.includes('I have made a footprint') ||
     poem.source.includes("'Heat'") && poem.author === 'Archibald Lampman' ||
     poem.source.includes("'Nocturne'") && poem.author.includes('Edward Powys Mathers') ||
-    poem.text.includes('The Milky Way lies there'));
+    poem.text.includes('The Milky Way lies there') ||
+    poem.source.includes("'Autumn'") && poem.author === 'T. E. Hulme' ||
+    poem.source.includes("'Snow in the Suburbs'") ||
+    poem.source.includes("'June Sunset'") ||
+    poem.source.includes("'August'") && poem.author === 'H. Cordelia Ray' ||
+    poem.source.includes("'The Indian Corn Planter'") ||
+    poem.source.includes("'It Was All for Him'"));
   const hasSeason = (sourcePart, season) => poems.some(poem =>
     poem.source.includes(sourcePart) && poem.season === season);
   const seasonTagDrift =

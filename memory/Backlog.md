@@ -77,6 +77,8 @@ Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cu
 
 **Additional final cuts (solar-term round, 2026-09-02):** the traditional |Xam flower-opening song told by Dia!kwain and recorded/translated by Lucy Lloyd; the traditional Osage planting-song opening translated by Francis La Flesche; Archibald Lampman's cricket-and-grasshopper stanza from 'Heat'; the traditional Song of Annam 'Nocturne' opening shaped by Edward Powys Mathers; and the traditional Paiute Ghost Dance snow/Milky Way song recorded by James Mooney.
 
+**Additional final cuts (solar-term round, 2026-09-03):** T. E. Hulme's 'Autumn' opening (cold in the autumn night; moon like a red-faced farmer); Thomas Hardy's 'Snow in the Suburbs' closing (the black cat comes in from the snow); Sarojini Naidu's 'June Sunset' opening (a heart finding haven as rain-fed streams awaken); H. Cordelia Ray's 'August' closing (turning from heat and turmoil to the ocean); E. Pauline Johnson's 'The Indian Corn Planter' seed-under-the-planter's-moon excerpt; and Ameen Rihani's 'It Was All for Him' rain-retouches-and-revises-writing excerpt. All six were reviewed and skipped; do not re-propose them.
+
 **Active leads:**
 - Chamberlain 1902 (archive.org/details/basho-and-the-japanses-poetical-epigram) — productive; identifier confirmed
 - Cranmer-Byng *A Feast of Lanterns* (archive.org `in.ernet.dli.2015.282424`) — Yuan Mei, Liu Tzu-hui unproposed, available when China tiebreaker lifts

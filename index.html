@@ -456,7 +456,7 @@
   }
 
   .focus-gmail-block {
-    border-top: 1px solid rgba(200,240,96,0.08);
+    border-top: 1px solid var(--accent-focus-divider);
     padding: var(--space-3) var(--space-4) var(--space-3);
     display: flex;
     flex-direction: column;
@@ -508,7 +508,7 @@
     color: var(--text);
     line-height: 1.6;
     white-space: pre-wrap;
-    border-left: 2px solid rgba(200,240,96,0.25);
+    border-left: 2px solid var(--accent-focus-draft-border);
     padding-left: var(--space-3);
     margin-top: var(--space-1);
     user-select: text;
@@ -516,7 +516,7 @@
 
   /* ── Agent focus block ─────────────────────────────────────────────────── */
   .focus-agent-block {
-    border-top: 1px solid rgba(200,240,96,0.08);
+    border-top: 1px solid var(--accent-focus-divider);
     padding: var(--space-3) var(--space-4) var(--space-3);
     display: flex;
     flex-direction: column;
@@ -620,6 +620,8 @@
     /* Focus mode accent variants — all derived from --color-accent */
     --color-accent-focus-bg:     rgba(200,240,96,0.04);  /* focused row background    */
     --color-accent-focus-border: rgba(200,240,96,0.12);  /* focused row border        */
+    --color-accent-focus-divider: rgba(200,240,96,0.08); /* focus enrichment divider  */
+    --color-accent-focus-draft-border: rgba(200,240,96,0.25); /* focus draft marker     */
     --color-accent-check:        rgba(200,240,96,0.55);  /* focused checkbox border   */
     --color-accent-check-hover:  rgba(200,240,96,0.90);  /* focused checkbox hover    */
     --color-accent-check-glow:   rgba(200,240,96,0.10);  /* focused checkbox glow     */
@@ -670,6 +672,8 @@
     /* Focus mode accent aliases */
     --accent-focus-bg:     var(--color-accent-focus-bg);
     --accent-focus-border: var(--color-accent-focus-border);
+    --accent-focus-divider: var(--color-accent-focus-divider);
+    --accent-focus-draft-border: var(--color-accent-focus-draft-border);
     --accent-check:        var(--color-accent-check);
     --accent-check-hover:  var(--color-accent-check-hover);
     --accent-check-glow:   var(--color-accent-check-glow);
@@ -4477,9 +4481,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.82.2':  'Fix: when midnight passes with the app open, the date under the logo now changes with it — a quiet fade, no reload.',
   '2.82.1':  'Fix: "clear all memory" now clears everything TODAY has noticed about how you work — and the clear sticks across your devices instead of syncing back.',
   '2.82.0':  'The morning note and the Sunday reflection now draw from one shared pool of observations. Mornings only get ones that point at today\'s list; Sunday gets the longer view. Each is said once.',
-  '2.81.6':  'Rain Music joins the daily poem rotation: falling rain shifts from a whisper to a louder beat on the dusty earth.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4596,9 +4600,37 @@ function init() {
   // Date header uses the real calendar day (midnight boundary, matches _getAppDay /
   // tasks). NOTE: habits roll at 3am (_habitTodayISO), so between midnight and 3am the
   // header shows the new day while the habit strip still belongs to the day that's ending.
-  const now = new Date();
-  document.getElementById('dateTag').textContent =
-    now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }).toUpperCase();
+  function _dateTagText() {
+    return new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }).toUpperCase();
+  }
+  // Written once here and again by checkNewDay() at the midnight boundary (BUG-097): the
+  // app stays open across midnight without a reload, so the header has to follow the day
+  // on its own. The change is a slow crossfade — Motion.md: calm, not urgent — with the
+  // durations and easing read from :root so JS and CSS keep one clock. One-shot, so WAAPI
+  // is fine; reduced motion swaps the text with no animation.
+  window._dateTagRefresh = function(animate) {
+    const el = document.getElementById('dateTag');
+    if (!el) return;
+    const next = _dateTagText();
+    if (el.textContent === next) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!animate || reduced || !el.textContent || typeof el.animate !== 'function') { el.textContent = next; return; }
+    const css  = getComputedStyle(document.documentElement);
+    const ms   = name => { const v = parseFloat(css.getPropertyValue(name)); return isNaN(v) ? null : v * 1000; };
+    const out  = ms('--dur-mid')  || 200;
+    const back = ms('--dur-slow') || 300;
+    const ease = css.getPropertyValue('--ease-out').trim() || 'ease-out';
+    const exit = el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: out, easing: 'ease-in', fill: 'forwards' });
+    exit.onfinish = function() {
+      exit.cancel(); // drop fill:forwards so it cannot re-assert after the enter finishes
+      el.textContent = next;
+      el.animate(
+        [{ opacity: 0, transform: 'translateY(3px)' }, { opacity: 1, transform: 'translateY(0)' }],
+        { duration: back, easing: ease, fill: 'none' }
+      );
+    };
+  };
+  window._dateTagRefresh(false);
 
   const saved = getSavedConfig();
   const trelloToken = localStorage.getItem('trello_token');
