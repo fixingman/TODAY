@@ -379,8 +379,9 @@ try {
       appMemory.memory = { semantic: [], episodic: [], procedural: [] };
       mergeRemoteData({ ...base, memory: {
         taskOutcomes: [
-          { id: 'old', date: iso(now - 10 * D), outcome: 'done', obligation: false, focusSessions: 0 },
-          { id: 'new', date: iso(now),          outcome: 'done', obligation: false, focusSessions: 0 },
+          { id: 'old',     date: iso(now - 10 * D), outcome: 'done', obligation: false, focusSessions: 0 },
+          { id: 'sameday', date: iso(now - 1 * D),  outcome: 'done', obligation: false, focusSessions: 0 },
+          { id: 'new',     date: iso(now),          outcome: 'done', obligation: false, focusSessions: 0 },
         ],
         spokenLines: [
           { surface: 'morning nudge',     date: iso(now - 5 * D), text: 'old line', kind: 'letgo-reason' },
@@ -401,6 +402,10 @@ try {
       const A = {
         oldOutcomeDropped:      !appMemory.taskOutcomes.some(e => e.id === 'old'),
         newOutcomeKept:          appMemory.taskOutcomes.some(e => e.id === 'new'),
+        // Rows carry a date only, so the compare is by day and a row from the clear's
+        // own day is accepted. Pinned so a future "tighten to >" cannot silently start
+        // dropping fresh rows written after the clear.
+        sameDayRowAccepted:      appMemory.taskOutcomes.some(e => e.id === 'sameday'),
         oldSpokenDropped:       !appMemory.spokenLines.some(l => l.text === 'old line'),
         newSpokenKept:           appMemory.spokenLines.some(l => l.text === 'new line'),
         oldObligationDropped:   !appMemory.obligationHistory.some(e => e.text === 'should call the bank'),

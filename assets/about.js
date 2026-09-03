@@ -764,5 +764,6 @@
     window._copyToClipboard = _copyToClipboard;
     window.renderInfoStats = renderInfoStats;
     window._fetchWeekReflection = _fetchWeekReflection;
+    window._pickSundayInsight = _pickSundayInsight; // test hook, alongside _fetchWeekReflection
   };
 })();

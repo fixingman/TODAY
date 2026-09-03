@@ -309,6 +309,42 @@ try {
     await page.close();
   }
 
+  // 6a4. _memoryTaskTexts: the map from the pool's hashed ids back to live text.
+  //      letgo-return can name a task only through this. If the key derivation ever
+  //      drifts from _memoryTextKey, naming silently stops and falls back to counts —
+  //      which looks exactly like "that task isn't on the list any more".
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      manualTasks.length = 0;
+      manualTasks.push({ id: 'manual_1', text: 'work: call the bank', focusSessions: 0 });
+      if (typeof soonTasks !== 'undefined') { soonTasks.length = 0; soonTasks.push({ id: 'manual_2', text: 'learn some rust', focusSessions: 0 }); }
+      if (typeof pastTasks !== 'undefined') { pastTasks.length = 0; pastTasks.push({ id: 'manual_3', text: 'renew the permit', focusSessions: 0 }); }
+      const map = _memoryTaskTexts();
+      const D = 86400000, now = Date.now();
+      const iso = d => new Date(d).toISOString().slice(0, 10);
+      const id = _memoryTextKey('call the bank');
+      const outcomes = [
+        { id, date: iso(now - 20 * D), outcome: 'letgo',  obligation: null, focusSessions: 0, reason: 'no_energy' },
+        { id, date: iso(now - 10 * D), outcome: 'revive', obligation: null, focusSessions: 0 },
+        { id, date: iso(now - 6 * D),  outcome: 'letgo',  obligation: null, focusSessions: 0, reason: 'no_energy' },
+        { id, date: iso(now - 2 * D),  outcome: 'revive', obligation: null, focusSessions: 0 },
+      ];
+      const c = _buildOutcomeCandidates(outcomes, iso(now), map).find(x => x.kind === 'letgo-return');
+      return {
+        tagStripped:       map[_memoryTextKey('call the bank')] === 'call the bank',
+        soonIncluded:      map[_memoryTextKey('learn some rust')] === 'learn some rust',
+        pastIncluded:      map[_memoryTextKey('renew the permit')] === 'renew the permit',
+        idAlsoKeyed:       map['manual_1'] === 'call the bank',
+        letgoReturnNames:  !!c && c.evidence.includes('"call the bank"'),
+        letgoReturnCounts: !!c && c.evidence.includes('2 times'),
+      };
+    });
+    await expectAll('_memoryTaskTexts keys match _memoryTextKey', { ...result, noErrors: errors.length === 0 });
+    ok('_memoryTaskTexts: hash keys resolve live text across all lists, tag stripped; letgo-return names the task through it');
+    await page.close();
+  }
+
   // 6b. taskOutcomes capture (12c Phase 0). Every approved pool candidate is a
   //     windowed contrast, so these dated events are the only thing standing between
   //     the pool and silence. Also pins that no task text is stored.

@@ -394,6 +394,54 @@ try {
       await page.close();
     }
 
+    // 7d. Eligibility wiring in the browser. focus-vs-obligation is a 30-day
+    //     aggregate; it may reach the morning only when an obligation-framed task is
+    //     on today's list. Same outcomes as 7b, but no such task → the task path.
+    //     The unit test covers the function; this covers the flag computed from the
+    //     real manualTasks, which is what decides whether the morning gets a month
+    //     insight again.
+    {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(async () => {
+        const D = 86400000, now = Date.now();
+        const iso = d => new Date(d).toISOString().slice(0, 10);
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        localStorage.removeItem('day_nudge_ai_' + _localISO());
+        window._aiGetKey = () => 'test-key';
+        manualTasks.length = 0;
+        manualTasks.push({ id: 'manual_' + (now - 3 * D), text: 'finish the deck', focusSessions: 2 });
+        appMemory.spokenLines = [];
+        appMemory.taskOutcomes = [
+          { id: 'a', date: iso(now - 4 * D), outcome: 'done',  obligation: false, focusSessions: 2 },
+          { id: 'b', date: iso(now - 6 * D), outcome: 'done',  obligation: false, focusSessions: 2 },
+          { id: 'c', date: iso(now - 8 * D), outcome: 'done',  obligation: false, focusSessions: 1 },
+          { id: 'd', date: iso(now - 5 * D), outcome: 'letgo', obligation: true,  focusSessions: 0 },
+          { id: 'e', date: iso(now - 7 * D), outcome: 'letgo', obligation: true,  focusSessions: 0 },
+        ];
+        const calls = [];
+        const real = window.fetch;
+        window.fetch = (u, o) => {
+          if (String(u).includes('ai-assist') && o && o.body) {
+            calls.push(JSON.parse(o.body));
+            return Promise.resolve({ ok: true, json: () => Promise.resolve({ content: 'a plain morning note' }) });
+          }
+          return real.apply(window, arguments);
+        };
+        _nudgeOnNewDay();
+        checkDayNudge();
+        await new Promise(r => setTimeout(r, 400));
+        window.fetch = real;
+        const isPool = c => c && c.messages[0].content.startsWith('Evidence:');
+        return {
+          poolSkipped:    calls.length >= 1 && !isPool(calls[0]),
+          noKindRecorded: !(appMemory.spokenLines || []).some(l => l.kind),
+        };
+      });
+      await expectAll('no obligation on list keeps the aggregate off the morning', { ...result, noErrors: errors.length === 0 });
+      ok('checkDayNudge: focus-vs-obligation stays off the morning when no obligation-framed task is on the list');
+      await page.close();
+    }
+
     // 8. Offline → _fetchDayNudgeAI returns null immediately, fallback shows quickly.
     {
       const { page, errors } = await openPage();

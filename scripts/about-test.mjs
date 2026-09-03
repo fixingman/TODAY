@@ -338,6 +338,78 @@ try {
     await page.close();
   }
 
+  // 11b. Sunday reads the observation pool (12c). With no week data and outcomes
+  //      that fire an outcome kind, the chosen insight must be that kind, the prompt
+  //      must name it, and _fetchWeekReflection must record it to spokenLines WITH
+  //      its kind — the cross-surface cooldown depends on that field. Until this
+  //      test, nothing proved an outcome kind could reach Sunday at all.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      const D = 86400000, now = Date.now();
+      const iso = d => new Date(d).toISOString().slice(0, 10);
+      appMemory.spokenLines = [];
+      appMemory.taskOutcomes = [
+        { id: 'a', date: iso(now - 4 * D), outcome: 'done',  obligation: false, focusSessions: 2 },
+        { id: 'b', date: iso(now - 6 * D), outcome: 'done',  obligation: false, focusSessions: 2 },
+        { id: 'c', date: iso(now - 8 * D), outcome: 'done',  obligation: false, focusSessions: 1 },
+        { id: 'd', date: iso(now - 5 * D), outcome: 'letgo', obligation: true,  focusSessions: 0 },
+        { id: 'e', date: iso(now - 7 * D), outcome: 'letgo', obligation: true,  focusSessions: 0 },
+      ];
+      const insight = _pickSundayInsight({ days: [], history: [] });
+      const realFetch = window.fetch, realGetKey = window._aiGetKey;
+      window._aiGetKey = () => 'stub';
+      let body = null;
+      window.fetch = async (_u, o) => {
+        body = JSON.parse(o.body);
+        return { ok: true, json: async () => ({ content: 'Every focus session this month went to something you chose; the obligations got none.' }) };
+      };
+      const text = await _fetchWeekReflection({ insight, days: [], history: [] });
+      window.fetch = realFetch; window._aiGetKey = realGetKey;
+      const prompt = body?.messages?.[0]?.content || '';
+      const spoken = (appMemory.spokenLines || []).find(l => l.surface === 'Sunday reflection');
+      return {
+        pickedOutcomeKind:     insight?.kind === 'focus-vs-obligation',
+        promptNamesKind:       prompt.includes('Verified observation type: focus-vs-obligation'),
+        promptCarriesEvidence: prompt.includes('5 focus sessions went to things you chose'),
+        returnedLine:          !!text,
+        kindRecorded:          spoken?.kind === 'focus-vs-obligation',
+      };
+    });
+    await expectAll('Sunday reads the pool', { ...result, noErrors: errors.length === 0 });
+    ok('Sunday reflection: an outcome kind reaches the prompt and is recorded to spokenLines with its kind');
+    await page.close();
+  }
+
+  // 11c. Sunday fallback: if the pool throws, Sunday must still produce the week
+  //      insight it produced before 12c — not go dark. A silent Sunday looks like
+  //      "nothing worth saying", which is the one failure the gate is meant to be
+  //      honest about, and a thrown error is not that.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const realBuild = window._buildObservationCandidates;
+      window._buildObservationCandidates = () => { throw new Error('pool exploded'); };
+      let insight = null, threw = false;
+      try {
+        insight = _pickSundayInsight({
+          days: [
+            { iso: '2026-08-17', tasks: 5, focus: 25, habitsKept: 1, habitsTotal: 1 },
+            { iso: '2026-08-18', tasks: 4, focus: 25, habitsKept: 1, habitsTotal: 1 },
+            { iso: '2026-08-19', tasks: 1, focus: 0,  habitsKept: 0, habitsTotal: 1 },
+            { iso: '2026-08-20', tasks: 1, focus: 0,  habitsKept: 0, habitsTotal: 1 },
+          ],
+          history: [],
+        });
+      } catch (e) { threw = true; }
+      window._buildObservationCandidates = realBuild;
+      return { didNotThrow: !threw, fellBackToWeekKind: insight?.kind === 'focus-leverage' };
+    });
+    await expectAll('Sunday pool fallback', { ...result, noErrors: errors.length === 0 });
+    ok('Sunday reflection: a throwing pool falls back to the week insight instead of going dark');
+    await page.close();
+  }
+
   // 12. Sunday prompt receives one verified observation, not lifetime memory or
   //     a bag of unrelated completed-task titles.
   {

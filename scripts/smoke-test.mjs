@@ -1,3 +1,4 @@
+import { readFileSync as _rfs095 } from 'node:fs';
 // TODAY — smoke test
 // Answers one question before every push: does the app basically work?
 // Boots the app in headless Chrome, waits out the splash, adds a task,
@@ -43,6 +44,19 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     process.exit(1);
   }
   console.log(`  ✓ CHANGELOG entry count (3)`);
+
+  // BUG-095: every input the user types content into must opt out of browser
+  // autofill, or task titles, habit names and AI questions get copied into a store
+  // the app cannot clear. This regresses the moment anyone adds a new input.
+  {
+    const _idx = _rfs095(new URL('../index.html', import.meta.url), 'utf8');
+    const _skip = /type="(checkbox|radio|hidden|file|range|number|submit|button)"/;
+    const _leaking = [..._idx.matchAll(/<(input|textarea)\b[^>]*>/gs)]
+      .map(m => m[0]).filter(t => !_skip.test(t) && !/\bautocomplete=/.test(t))
+      .map(t => (t.match(/id="([^"]+)"/) || [, '(no id)'])[1]);
+    if (_leaking.length) fail('inputs without autocomplete= (BUG-095): ' + _leaking.join(', '));
+    console.log('  ✓ every content input opts out of browser autofill (BUG-095)');
+  }
 
   // Focus Companion time-reference guard (BUG-073): a broad period such as
   // "late night" is not enough for the model to produce a concrete question.
