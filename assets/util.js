@@ -122,10 +122,61 @@ const _KF_BREATHE_SMALL = [
   { opacity: 1, transform: 'scale(1)' },
 ];
 
+// ── mailto draft link (BUG-089) ─────────────────────────────────────────────
+// Pure: builds the href for "Open in Mail". Lives here rather than in gmail.js so
+// it can be unit-tested in Node — the grapheme-safe truncation crashed on emoji
+// once (URIError on a split surrogate) and nothing caught it.
+//
+// - '@' stays literal in the address. encodeURIComponent gives
+//   notifications%40kry.se, which most clients decode but not all, and it is not
+//   the correct form for the mailto path.
+// - Handlers commonly truncate mailto around 2 KB, silently and mid-sentence, so
+//   the body is capped. Trim the RAW draft and re-encode; never slice the encoded
+//   string, which can cut a %XX escape in half.
+// - Trim by grapheme, not by UTF-16 index: slicing units can split a surrogate
+//   pair and encodeURIComponent throws on a lone surrogate. Same class as
+//   BUG-087; same Intl.Segmenter idiom as task-bounce.js.
+// - A lone surrogate already present in the input would throw the same way, so
+//   those are dropped first — by a plain scan, not a lookbehind regex, which is a
+//   parse-time error on older Safari and would take this whole file down with it.
+function _mailtoDraftHref(to, subject, draft, maxLen) {
+  const cap = (typeof maxLen === 'number' && maxLen > 0) ? maxLen : 1900;
+  const src = String(draft == null ? '' : draft);
+  let clean = '';
+  for (let i = 0; i < src.length; i++) {
+    const c = src.charCodeAt(i);
+    if (c >= 0xD800 && c <= 0xDBFF) {
+      const d = i + 1 < src.length ? src.charCodeAt(i + 1) : 0;
+      if (d >= 0xDC00 && d <= 0xDFFF) { clean += src[i] + src[i + 1]; i++; }
+    } else if (!(c >= 0xDC00 && c <= 0xDFFF)) {
+      clean += src[i];
+    }
+  }
+  const addr = encodeURIComponent(String(to == null ? '' : to)).replace(/%40/g, '@');
+  const head = 'mailto:' + addr
+    + '?subject=' + encodeURIComponent(String(subject == null ? '' : subject))
+    + '&body=';
+  const units = (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function')
+    ? Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(clean), u => u.segment)
+    : Array.from(clean);
+  let kept = units;
+  while (kept.length > 20 && head.length + encodeURIComponent(kept.join('')).length > cap) {
+    kept = kept.slice(0, -20);
+  }
+  return head + encodeURIComponent(kept.join(''));
+}
+
 // ── Status bar helper — used by gmail.js, dropbox.js, connections.js, and others.
-window.showStatus = function(msg, type) {
-  const el = document.getElementById('statusMsg');
-  if (!el) return;
-  el.textContent = msg;
-  el.className   = 'status-msg ' + type;
-};
+// Guarded: the only top-level DOM write in this file, and the one thing that kept
+// it from loading in Node for unit tests.
+if (typeof window !== 'undefined') {
+  window.showStatus = function(msg, type) {
+    const el = document.getElementById('statusMsg');
+    if (!el) return;
+    el.textContent = msg;
+    el.className   = 'status-msg ' + type;
+  };
+}
+
+// Node only (unit tests). A classic <script> never sees `module`.
+if (typeof module === 'object' && module.exports) module.exports = { _mailtoDraftHref };

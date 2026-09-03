@@ -16,6 +16,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 097 | Header date stays on yesterday when the app is open across midnight — written once at init | ⏳ v2.82.2 |
 | 096 | "Clear all memory" left the companion slots intact; next sync undid the rest — no clear watermark | ⏳ v2.82.1 |
 | 095 | Task, habit and Ask inputs saved to the browser autofill store — no `autocomplete="off"` | ⏳ v2.81.5 |
 | 094 | "Undo" persists into the reflection step, reading as undoing the answer not the sorting | ⏳ v2.80.6 |
@@ -57,6 +58,20 @@
 ---
 
 *BUG-001 – BUG-055 → `archive/Bugs-archive.md` (summary table + full detail). Below: bugs still awaiting verification.*
+
+---
+
+## BUG-097 — Header date stays on yesterday when the app is open across midnight
+
+**Status:** ⏳ v2.82.2
+
+**Symptom:** With the app open past midnight (common on desktop), tasks, habits and the nudge roll to the new day but the date under the TODAY logo keeps showing yesterday until a reload.
+
+**Root cause:** `#dateTag` was written once inside `init()` and nowhere else. `checkNewDay()` handles everything else at the boundary but never touched the header.
+
+**Fix (v2.82.2):** `window._dateTagRefresh(animate)` in `index.html` computes the same string and, when it differs, crossfades: fade out over `--dur-mid`, swap, fade in over `--dur-slow` with `--ease-out` and a 3px rise. `checkNewDay()` calls it with `animate = true` right after `applyNewDayCleanup()`. Reduced motion swaps without animating. Nothing reloads and the splash does not reappear. Motion notes in `design/Motion.md`; test 12 in `day-lifecycle-test`.
+
+**Verification:** Leave the app open across midnight (or set the clock forward with the tab open). The date should fade to the new day within a second of the boundary, with no flash of the splash screen.
 
 ---
 
@@ -208,6 +223,8 @@ Two adjacent defects fixed in the same place:
 - **Silent truncation.** Handlers commonly cut `mailto` around 2 KB, mid-sentence and without error. The body is now capped at ~1900 characters. The full draft stays visible in the block with its Copy button, so nothing is lost.
 
 **Found while testing the cap:** trimming by string index can split a surrogate pair, and `encodeURIComponent` throws `URIError` on a lone surrogate — so a draft containing an emoji would have crashed the flow rather than shortened it. Now trims by grapheme via `Intl.Segmenter`, the same idiom `task-bounce.js` uses for BUG-087.
+
+**Tests (post-v2.82.2):** the builder is extracted to `_mailtoDraftHref()` in `util.js` — pure, so `scripts/mailto-test.mjs` (17 cases) runs in Node with no browser: literal `@` in the address, the exact production-report form, the 1900 cap with a body that still decodes and is a prefix of the original, accents + emoji and a ZWJ family sequence trimmed on grapheme boundaries with no lone surrogate, null/empty inputs, and the 20-grapheme floor from both sides. One robustness addition beyond the refactor: a lone surrogate already present in the draft is dropped by a plain scan rather than thrown on — not a lookbehind regex, which is a parse-time error on older Safari and would take all of `util.js` down. Making `util.js` loadable in Node needed one change: its single top-level DOM write, `window.showStatus`, is now guarded.
 
 **Caveat for verification:** if an iOS standalone PWA routes all outbound navigation through the default browser regardless of scheme, the hop may persist and would be a platform constraint rather than an app defect. `target="_blank"` guaranteed it, so removing it can only improve matters — but only a real device settles whether it is now direct.
 

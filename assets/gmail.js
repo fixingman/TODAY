@@ -434,33 +434,12 @@
           // Address goes in the mailto path, where '@' is legal and expected. Running the
           // whole address through encodeURIComponent produced 'notifications%40kry.se';
           // most clients decode it, but it is not the correct form and not all do.
-          const _addr = encodeURIComponent(_toEmail).replace(/%40/g, '@');
-          const _head = 'mailto:' + _addr
-            + '?subject=' + encodeURIComponent(_subject)
-            + '&body=';
-          // Handlers commonly truncate mailto around 2 KB, silently and mid-sentence.
-          // Trim the raw draft and re-encode — never slice the encoded string, which
-          // would cut a %XX escape in half. The full draft stays visible in the block
-          // above with its Copy button, so nothing is lost when this trims.
-          //
-          // Trim by grapheme, not by string index: slicing UTF-16 units can split a
-          // surrogate pair, and encodeURIComponent throws URIError on a lone surrogate
-          // — so a draft containing an emoji would crash the flow rather than shorten.
-          // Same class as BUG-087; same Intl.Segmenter idiom as task-bounce.js.
-          const _seg = (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function')
-            ? Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(draft),
-                         _s => _s.segment)
-            : Array.from(draft);
-          let _units = _seg;
-          while (_units.length > 20 &&
-                 _head.length + encodeURIComponent(_units.join('')).length > 1900) {
-            _units = _units.slice(0, -20);
-          }
-          const _rawBody = _units.join('');
+          // Address form, 2 KB cap and grapheme-safe trimming → _mailtoDraftHref in
+          // util.js, where it is unit-tested (scripts/mailto-test.mjs).
           const _mLink = document.createElement('a');
           _mLink.className   = 'focus-gmail-mailto focus-gmail-open';
           _mLink.textContent = 'Open in Mail ↗';
-          _mLink.href        = _head + encodeURIComponent(_rawBody);
+          _mLink.href        = _mailtoDraftHref(_toEmail, _subject, draft);
           // Deliberately no target="_blank" (BUG-089, v2.77.6). That asks for a new
           // browsing context, so the browser opens first and only then hands the
           // scheme to Mail — the two-step hop Can observed. A same-context navigation
