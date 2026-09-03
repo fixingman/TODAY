@@ -42,7 +42,6 @@
 | `--color-accent-focus-bg` | `rgba(200,240,96,0.04)` | Focused row background |
 | `--color-accent-focus-border` | `rgba(200,240,96,0.12)` | Focused row border |
 | `--color-accent-focus-divider` | `rgba(200,240,96,0.08)` | Focus enrichment divider |
-| `--color-accent-focus-draft-border` | `rgba(200,240,96,0.25)` | Generated draft marker |
 | `--color-accent-check` | `rgba(200,240,96,0.55)` | Focused checkbox border |
 | `--color-accent-check-hover` | `rgba(200,240,96,0.90)` | Focused checkbox hover |
 | `--color-accent-check-glow` | `rgba(200,240,96,0.10)` | Focused checkbox glow |
@@ -50,7 +49,7 @@
 | `--color-accent-timer-fill` | `rgba(200,240,96,0.08)` | Timer progress fill |
 | `--color-accent-timer-paused` | `rgba(200,240,96,0.03)` | Timer fill when paused |
 
-**Aliases (used in components):** `--accent-focus-bg`, `--accent-focus-border`, `--accent-focus-divider`, `--accent-focus-draft-border`, `--accent-check`, `--accent-check-hover`, `--accent-check-glow`, `--accent-timer-bg`, `--accent-timer-fill`, `--accent-timer-paused` — each maps to its `--color-accent-*` form above.
+**Aliases (used in components):** `--accent-focus-bg`, `--accent-focus-border`, `--accent-focus-divider`, `--accent-check`, `--accent-check-hover`, `--accent-check-glow`, `--accent-timer-bg`, `--accent-timer-fill`, `--accent-timer-paused` — each maps to its `--color-accent-*` form above.
 
 ### Semantic Colors
 
