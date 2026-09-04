@@ -13,7 +13,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
@@ -287,6 +287,68 @@ try {
     });
     await expectAll('completion-rate daily-count sanitization', { ...result, noErrors: errors.length === 0 });
     ok('renderMemoryPanel excludes implausible restored daily task totals');
+    await page.close();
+  }
+
+  // 12d Phase A: the KNOWN and SAID blocks show the companion record as plain
+  // facts — and only open items, only the window, with the reconstruction caveat.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const D = 86400000, now = Date.now();
+      const iso = d => new Date(d).toISOString().slice(0, 10);
+      appMemory.returningTasks = {
+        manual_1: { text: 'work: call insurance', firstSeen: iso(now - 9 * D), dayCount: 9, focusSessions: 0 },
+        manual_2: { text: 'finish the deck',      firstSeen: iso(now - 6 * D), dayCount: 6, focusSessions: 2 },
+      };
+      appMemory.obligationHistory = [
+        { text: 'should call the bank',   date: iso(now - 3 * D), done: false },
+        { text: 'must file the receipts', date: iso(now - 8 * D), done: true },
+        { text: 'have to renew permit',   date: iso(now - 5 * D), done: false, letgo: true },
+      ];
+      appMemory.taskOutcomes = [
+        { id: 'a', date: iso(now - 2 * D),  outcome: 'done',      obligation: false, focusSessions: 1 },
+        { id: 'b', date: iso(now - 4 * D),  outcome: 'done',      obligation: false, focusSessions: 0, backfilled: true },
+        { id: 'c', date: iso(now - 6 * D),  outcome: 'letgo',     obligation: null,  focusSessions: 0, reason: 'no_energy' },
+        { id: 'd', date: iso(now - 7 * D),  outcome: 'soon_pull', obligation: false, focusSessions: 0 },
+        { id: 'e', date: iso(now - 9 * D),  outcome: 'revive',    obligation: null,  focusSessions: 0 },
+        { id: 'z', date: iso(now - 60 * D), outcome: 'done',      obligation: false, focusSessions: 0 },
+      ];
+      appMemory.spokenLines = [
+        { surface: 'Sunday reflection', date: iso(now - 3 * D), text: 'older line', kind: 'focus-leverage' },
+        { surface: 'morning nudge',     date: iso(now - 1 * D), text: 'the newest line', kind: 'letgo-reason' },
+      ];
+      renderMemoryPanel();
+      const text = document.getElementById('memoryContent')?.textContent || '';
+      const knownFirst = text.indexOf('KNOWN') >= 0 && text.indexOf('KNOWN') < text.indexOf('SEMANTIC');
+      const saidBeforeSemantic = text.indexOf('SAID') < text.indexOf('SEMANTIC');
+      const newestFirst = text.indexOf('the newest line') < text.indexOf('older line');
+
+      // empty state
+      appMemory.returningTasks = {}; appMemory.obligationHistory = []; appMemory.taskOutcomes = []; appMemory.spokenLines = [];
+      renderMemoryPanel();
+      const empty = document.getElementById('memoryContent')?.textContent || '';
+
+      return {
+        knownBlockFirst: knownFirst,
+        saidBlockPresent: saidBeforeSemantic,
+        returningNamedWithDays: text.includes('"call insurance" — on the list 9 days, not started'),
+        tagStrippedFromReturning: !text.includes('work: call insurance'),
+        returningWithSessions: text.includes('"finish the deck" — on the list 6 days, 2 focus sessions'),
+        openObligationListed: text.includes('"should call the bank"') && text.includes('still open'),
+        doneObligationNotListed: !text.includes('file the receipts'),
+        letgoObligationNotListed: !text.includes('renew permit'),
+        countsLine: text.includes('30 days · 2 done · 1 let go · 1 to Soon · 1 brought back'),
+        outOfWindowExcluded: text.includes('2 done'),
+        reconstructionCaveat: text.includes('1 of those reconstructed from older history'),
+        saidHasSurfaceAndKind: text.includes('morning nudge · letgo reason — the newest line'),
+        saidNewestFirst: newestFirst,
+        emptyKnownNote: empty.includes('nothing on record yet'),
+        emptySaidNote: empty.includes('nothing said on its own yet'),
+      };
+    });
+    await expectAll('12d KNOWN + SAID blocks', { ...result, noErrors: errors.length === 0 });
+    ok('renderMemoryPanel: KNOWN and SAID show the record as plain facts — open items only, 30-day window, reconstruction caveat, newest first');
     await page.close();
   }
 

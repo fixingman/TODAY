@@ -311,7 +311,52 @@
         metaItems.push({ text: `gaps: ${coverageNotes.join(' · ')}` });
       }
 
+      // ── 12d Phase A: the record itself, before any conclusion drawn from it ──
+      // Plain facts from the companion slots. No interpretation: the panel confirms
+      // what TODAY has on file, it does not speculate beyond it. The test for this
+      // block is that the reader thinks "yes, that's accurate" — not surprised, not
+      // observed. Read-only here; per-item forget is Phase B.
+      const _fmtDay = iso => {
+        const d = new Date(String(iso).slice(0, 10) + 'T00:00:00');
+        return isNaN(d.getTime()) ? String(iso) : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      };
+      const _strip = t => (typeof _stripTag === 'function' ? _stripTag(t || '') : String(t || '')).trim();
+      const knownItems = [];
+
+      const _returning = Object.values(m.returningTasks || {})
+        .filter(t => t && t.text).sort((a, b) => (b.dayCount || 0) - (a.dayCount || 0)).slice(0, 5);
+      for (const t of _returning) {
+        const n = parseInt(t.focusSessions) || 0;
+        knownItems.push({ text: `returning · "${_strip(t.text)}" — on the list ${t.dayCount} days, ` +
+          (n > 0 ? `${n} focus session${n > 1 ? 's' : ''}` : 'not started') });
+      }
+
+      const _pendingObl = (m.obligationHistory || [])
+        .filter(e => e && e.text && !e.done && !e.letgo)
+        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)).slice(0, 5);
+      for (const e of _pendingObl) {
+        knownItems.push({ text: `obligation · "${_strip(e.text)}" — added ${_fmtDay(e.date)}, still open` });
+      }
+
+      const _floor = new Date(); _floor.setDate(_floor.getDate() - 30);
+      const _win = (m.taskOutcomes || []).filter(e => e && e.date && new Date(e.date) >= _floor);
+      if (_win.length) {
+        const c = k => _win.filter(e => e.outcome === k).length;
+        knownItems.push({ text: `30 days · ${c('done')} done · ${c('letgo')} let go · ${c('soon_pull')} to Soon · ${c('revive')} brought back` });
+        const _bf = _win.filter(e => e.backfilled).length;
+        if (_bf) knownItems.push({ text: `${_bf} of those reconstructed from older history — no focus data on them` });
+      }
+
+      const saidItems = (m.spokenLines || []).filter(l => l && l.text).slice(-5).reverse().map(l => ({
+        text: `${_fmtDay(l.date)} · ${l.surface || 'unknown surface'}` +
+          (l.kind ? ` · ${String(l.kind).replace(/-/g, ' ')}` : '') + ` — ${l.text}`,
+      }));
+
       el.innerHTML =
+        typeBlock('KNOWN', '— what today has on record, not what it concludes', knownItems,
+          'nothing on record yet — this fills as tasks come and go') +
+        typeBlock('SAID', '— what today has said on its own, latest first', saidItems,
+          'nothing said on its own yet') +
         typeBlock('SEMANTIC', '— stable things today has concluded about you', semanticItems,
           'needs more data to form stable conclusions') +
         typeBlock('EPISODIC', '— what has been happening lately', episodicItems,
