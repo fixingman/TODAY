@@ -16,6 +16,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 098 | Header shoved off the top when a task near the bottom enters focus — sticky inside a fixed body | ⏳ v2.82.4 |
 | 097 | Header date stays on yesterday when the app is open across midnight — written once at init | ⏳ v2.82.2 |
 | 096 | "Clear all memory" left the companion slots intact; next sync undid the rest — no clear watermark | ⏳ v2.82.1 |
 | 095 | Task, habit and Ask inputs saved to the browser autofill store — no `autocomplete="off"` | ⏳ v2.81.5 |
@@ -58,6 +59,20 @@
 ---
 
 *BUG-001 – BUG-055 → `archive/Bugs-archive.md` (summary table + full detail). Below: bugs still awaiting verification.*
+
+---
+
+## BUG-098 — Header shoved off the top when a task near the bottom enters focus
+
+**Status:** ⏳ v2.82.4
+
+**Symptom:** Desktop. Clicking a task near the bottom of the list to enter focus makes the top nav slide up and away while the task moves into place — an awkward double motion. Tasks near the top don't show it.
+
+**Root cause:** Focus locks scroll with `body { position: fixed; top: -scrollY }` and animates `top` to nudge the task into view. The header is `position: sticky`, and sticky has nothing to stick to inside a fixed body: it sits at the top of the body, which is already off-screen by `scrollY`, and then rides the nudge. Near the top `scrollY` is small so it went unnoticed.
+
+**Fix (v2.82.4):** The lock adds `body.focus-locked`; under it the header is `position: fixed; top: 0`, exactly where sticky had it, and the body is padded by the header's height so nothing below shifts when it leaves the flow. `_doUnfix()` clears both. Alongside, the recede now covers the chrome as asked: header, morning nudge and triage bar dim and blur on the row beat; only the add bar and its mic buttons stay crisp. The header keeps pointer-events so its buttons still exit focus. Test 3b in `focus-test`.
+
+**Verification:** Scroll so a task sits near the bottom, click it. The header should stay put and soften; the task and timer should settle in one motion. Escape restores everything. Compare with a task near the top — same feel.
 
 ---
 

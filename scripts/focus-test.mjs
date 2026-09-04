@@ -167,6 +167,48 @@ try {
       await page.close();
     }
 
+    // 3b. BUG-098: the header is pinned for the lock and released on exit, and the
+    //     chrome around the task recedes while the add bar stays crisp.
+    {
+      const { page, errors } = await openPage();
+      await page.click('.task-text');
+      await page.waitForFunction(
+        () => document.querySelector('.focus-timer.open') !== null,
+        { timeout: 3000 }
+      );
+      const on = await page.evaluate(() => {
+        const hdr = document.getElementById('sticky-header');
+        const bar = document.getElementById('addTaskBar');
+        return {
+          bodyLocked:     document.body.classList.contains('focus-locked'),
+          bodyFixed:      document.body.style.position === 'fixed',
+          headerPinned:   getComputedStyle(hdr).position === 'fixed',
+          headerAtTop:    Math.abs(hdr.getBoundingClientRect().top) < 1,
+          bodyPadded:     Math.abs(parseFloat(document.body.style.paddingTop) - hdr.getBoundingClientRect().height) < 1,
+          headerReceded:  parseFloat(getComputedStyle(hdr).opacity) < 0.2,
+          headerBlurred:  getComputedStyle(hdr).filter.includes('blur'),
+          headerClickable: getComputedStyle(hdr).pointerEvents !== 'none',
+          addBarCrisp:    getComputedStyle(bar).filter === 'none' && parseFloat(getComputedStyle(bar).opacity) === 1,
+        };
+      });
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(
+        () => !document.body.classList.contains('focus-locked') && document.body.style.position === '',
+        { timeout: 3000 }
+      );
+      const off = await page.evaluate(() => {
+        const hdr = document.getElementById('sticky-header');
+        return {
+          bodyUnlocked:   !document.body.classList.contains('focus-locked'),
+          bodyUnpadded:   document.body.style.paddingTop === '',
+          headerSticky:   getComputedStyle(hdr).position === 'sticky',
+        };
+      });
+      await expectAll('BUG-098 header pin + chrome recede', { ...on, ...off, noErrors: !errors.length });
+      ok('BUG-098: header pinned, receded and clickable during focus; add bar crisp; everything released on exit');
+      await page.close();
+    }
+
     // 4. Session persisted to localStorage on timer open.
     {
       const { page, errors } = await openPage();

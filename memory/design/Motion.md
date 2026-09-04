@@ -83,7 +83,9 @@ One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newl
 - Double haptic (150ms apart)
 
 ### Focus Mode
-- Recede: non-focused tasks fade to 7% opacity
+- Recede: non-focused tasks fade to 7% opacity, dim first (120ms) then noise-blur (60ms, 120ms delay); exit reverses — blur dissolves before opacity returns, so no opaque-blurry box at any point
+- Chrome recedes on the same beat (v2.82.4): morning nudge, triage bar and the sticky header, to 8%. Only the add bar and mic stay crisp
+- The header is pinned `position: fixed` for the scroll lock (BUG-098) so it neither disappears nor rides the enter nudge; the body is padded by its height so nothing jumps
 - Timer bar pulses gently when complete
 - Controls slide up with spring easing
 

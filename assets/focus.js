@@ -640,6 +640,17 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     document.body.style.right = '0';
     document.body.dataset.scrollY     = originalScrollY;
     document.body.dataset.focusTaskTop = originalTaskTop;
+    // Pin the header for the lock (BUG-098). Sticky has nothing to stick to inside a
+    // fixed body and rode the top nudge off-screen for tasks near the bottom. The CSS
+    // makes it position:fixed under body.focus-locked; padding the body by its height
+    // keeps everything below exactly where it was when it leaves the flow. The splash
+    // leaves an inline opacity transition on it — cleared so the recede beat governs.
+    const _hdr = document.getElementById('sticky-header');
+    if (_hdr) {
+      _hdr.style.transition = '';
+      document.body.style.paddingTop = _hdr.getBoundingClientRect().height + 'px';
+    }
+    document.body.classList.add('focus-locked');
   }
 
   // ── Track actual focus time spent (not just completed sessions) ────────────
@@ -726,6 +737,8 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       document.body.style.top = '';
       document.body.style.left = '';
       document.body.style.right = '';
+      document.body.style.paddingTop = '';
+      document.body.classList.remove('focus-locked'); // header back to sticky, in flow
       window.scrollTo(0, scrollY);
       // If renderManual reordered tasks during focus, the task's DOM position shifted.
       // Correct by the exact drift so it lands at the same viewport Y as when focus opened.

@@ -74,6 +74,14 @@ Full completion still increments via `_logSession`; partial-only sessions are ca
 ### Done Tasks (during focus)
 - 3.5% opacity (`--opacity-recede-done`)
 
+### Chrome (during focus, v2.82.4)
+- The morning nudge, the triage bar and the sticky header recede to `--opacity-recede-chrome` with the same noise-blur as section headers. Only the add bar and its mic buttons stay crisp: they are the one thing you can still do.
+- The header keeps pointer-events — its buttons exit focus and open their panel (v2.75.15). Nudge and triage bar go `pointer-events: none`.
+
+### Scroll lock and the header (BUG-098)
+- Entering focus sets `body { position: fixed; top: -scrollY }` and animates `top` for the nudge. A `position: sticky` header has nothing to stick to inside a fixed body: it sits at the top of the body, which is off-screen by `scrollY`, and then rides the nudge — seen as the nav being shoved up when a task near the bottom enters focus.
+- Fix: the lock adds `body.focus-locked`, under which the header is `position: fixed; top: 0`, and pads the body by the header's height so nothing below shifts when it leaves the flow. `_doUnfix()` clears both. The lock also clears the splash's leftover inline opacity transition on the header so the recede beat governs.
+
 ---
 
 ## Sound
