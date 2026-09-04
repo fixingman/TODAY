@@ -21,7 +21,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = await readFile(join(ROOT, 'index.html'), 'utf8');
 const localRuntimeScriptPaths = [...src.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi)]
   .map(match => match[1].split(/[?#]/)[0])
-  .filter(path => path.startsWith('assets/'));
+  .filter(path => /^\/?assets\//.test(path))
+  .map(path => path.replace(/^\//, ''));
 const runtimeSources = [
   { name: 'index.html', text: src },
   ...await Promise.all(localRuntimeScriptPaths.map(async path => ({
@@ -276,9 +277,9 @@ if (!styleBlocks.length) fail('no <style> blocks found — extraction regex may 
 }
 
 // ── Check 8 (soft): Rule 27 render-path feature parity ───────────────────────
-// taskHTML() and the Trello 7s patch path must render the same feature set
-// (badges, session count, age bucket). This is a heuristic marker check, not
-// real parity verification — WARN, not FAIL, since it can't see intent.
+// taskHTML(), the Trello 7s patch path, and the two zone renderers must retain
+// their shared feature contracts. This is a heuristic marker check, not real
+// parity verification — WARN, not FAIL, since it can't see intent.
 {
   // renderTrello() lives in assets/trello.js since v2.33.5 (Roadmap #3 extraction);
   // taskHTML() moved to assets/connections.js with the renderer extraction. Both are
@@ -299,6 +300,7 @@ if (!styleBlocks.length) fail('no <style> blocks found — extraction regex may 
   };
   const trelloSrc = await readFile(join(ROOT, 'assets', 'trello.js'), 'utf8');
   const connSrc   = await readFile(join(ROOT, 'assets', 'connections.js'), 'utf8');
+  const zonesSrc  = await readFile(join(ROOT, 'assets', 'zones.js'), 'utf8');
   const taskHTMLMatch = [extractFn(connSrc, 'taskHTML')];
   const renderTrelloMatch = [extractFn(trelloSrc, 'renderTrello')];
   if (!taskHTMLMatch[0] || !renderTrelloMatch[0]) {
@@ -313,6 +315,19 @@ if (!styleBlocks.length) fail('no <style> blocks found — extraction regex may 
     } else {
       ok('taskHTML() / renderTrello() feature markers match (Rule 27, heuristic)');
     }
+  }
+
+  const zoneRenderers = ['renderSoon', 'renderPast'].map(name => ({ name, source: extractFn(zonesSrc, name) }));
+  const missingZoneFns = zoneRenderers.filter(item => !item.source).map(item => item.name);
+  if (missingZoneFns.length) {
+    warn(`could not locate zone renderer(s): ${missingZoneFns.join(', ')} (Rule 27)`);
+  } else {
+    const sharedMarkers = ['task-tag', 'task-text', 'role="listitem"'];
+    const missing = zoneRenderers.flatMap(item => sharedMarkers
+      .filter(marker => !item.source.includes(marker))
+      .map(marker => `${item.name}:${marker}`));
+    if (missing.length) warn(`zone renderer shared feature marker(s) missing: ${missing.join(', ')} (Rule 27)`);
+    else ok('renderSoon() / renderPast() shared task markers match (Rule 27, heuristic)');
   }
 }
 
