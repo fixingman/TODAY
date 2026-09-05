@@ -147,7 +147,7 @@
         el.tabIndex = 0;
         el.setAttribute('aria-describedby', `habitSummary-${h.id} reorderHelp`);
         el.innerHTML = `
-          <button type="button" class="habit-check" aria-pressed="${isDone}" aria-label="${isDone ? 'Mark incomplete' : 'Mark complete'}: ${esc(h.name)}" onclick="toggleHabitDone('${h.id}')">${CHK}</button>
+          <button type="button" class="habit-check" aria-pressed="${isDone}" aria-label="${isDone ? 'Mark incomplete' : 'Mark complete'}: ${esc(h.name)}" data-today-click="habits.toggle-done" data-habit-id="${esc(h.id)}">${CHK}</button>
           <div class="habit-body"><div class="habit-name">${esc(h.name)}${sessionBadge}</div></div>
           <div class="habit-week" aria-hidden="true">${dots}</div>
           <div class="habit-streak" title="${strength}% habit strength">
@@ -169,10 +169,10 @@
         panel.classList.remove('open');
       }
       $.configPanel.classList.remove('open');
-      _endConnectionsPrivacyVisit();
+      Today.use('connections')._endConnectionsPrivacyVisit();
       document.getElementById('infoPanel').classList.remove('open');
       $.memoryPanel?.classList.remove('open');
-      syncActiveButtons();
+      Today.use('connections').syncActiveButtons();
       window.scrollTo(0, scrollY); // Restore scroll position
       if (isOpening) {
         renderHabits();
@@ -449,19 +449,30 @@
       _archiveHabitUndo(h);
     }
 
-    window._saveHabits = _saveHabits;
-    window._getHabitStrength = _getHabitStrength;
-    window.renderHabits = renderHabits;
-    window.toggleHabits = toggleHabits;
-    window.toggleHabitEditMode = toggleHabitEditMode;
-    window._enterHabitEditMode = _enterHabitEditMode;
-    window.handleHabitEditKey = handleHabitEditKey;
-    window.toggleHabitInput = toggleHabitInput;
-    window.handleHabitKey = handleHabitKey;
-    window.addHabit = addHabit;
-    window._pulseCheck = _pulseCheck;
-    window.toggleHabitDone = toggleHabitDone;
-    window.archiveHabit = archiveHabit;
+    if (window.Today) {
+      Today.define('habits', {
+        _saveHabits,
+        _getHabitStrength,
+        renderHabits,
+        toggleHabits,
+        toggleHabitEditMode,
+        _enterHabitEditMode,
+        handleHabitEditKey,
+        toggleHabitInput,
+        handleHabitKey,
+        addHabit,
+        _pulseCheck,
+        toggleHabitDone,
+        archiveHabit,
+      });
+      Today.ui.register('click', 'habits.toggle', toggleHabits);
+      Today.ui.register('click', 'habits.add', addHabit);
+      Today.ui.register('click', 'habits.new', toggleHabitInput);
+      Today.ui.register('click', 'habits.edit', toggleHabitEditMode);
+      Today.ui.register('click', 'habits.toggle-done', (_event, button) => toggleHabitDone(button.dataset.habitId));
+      Today.ui.register('keydown', 'habits.input-key', handleHabitKey);
+    }
+
     // _getHabitDates is private (only called by renderHabits inside this module)
   };
 })();

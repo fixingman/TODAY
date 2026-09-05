@@ -27,7 +27,7 @@ function openAI(skipAutoLoad) {
   // Close other panels
   ['configPanel','habitsPanel','infoPanel'].forEach(id =>
     document.getElementById(id)?.classList.remove('open'));
-  _endConnectionsPrivacyVisit();
+  Today.use('connections')._endConnectionsPrivacyVisit();
 
   _aiPanelOpen = true;
   _aiClearBadge(); // Clear proactive badge when panel opens
@@ -47,16 +47,16 @@ function openAI(skipAutoLoad) {
   toggleClearBtn(); // drop the ✦ ask affordance — panel is open now
 
   // One-time tip: the bar-then-✦ path works without opening this panel first
-  if (_aiIsConfigured() && !localStorage.getItem('ai_bar_tip_seen')) {
+  if (Today.use('connections')._aiIsConfigured() && !localStorage.getItem('ai_bar_tip_seen')) {
     localStorage.setItem('ai_bar_tip_seen', '1');
     const tip = document.getElementById('aiBarTip');
     if (tip) tip.style.display = 'block';
   }
 
-  syncActiveButtons();
+  Today.use('connections').syncActiveButtons();
   _haptic('medium');
 
-  if (!_aiIsConfigured()) {
+  if (!Today.use('connections')._aiIsConfigured()) {
     _aiShowSetup();
   } else if (!skipAutoLoad) {
     _aiLoadedOnce = false;
@@ -103,12 +103,12 @@ function closeAI() {
   _updateBarPlaceholder();
   toggleClearBtn(); // refresh ✦ ask affordance for any text left in the bar
 
-  syncActiveButtons();
+  Today.use('connections').syncActiveButtons();
 }
 
 // ── Setup state — not yet configured ─────────────────────────────────────────
 function _aiShowSetup() {
-  const provider = _aiGetProvider();
+  const provider = Today.use('connections')._aiGetProvider();
   const isGemini = provider === 'gemini';
   // _aiSetMsg deliberately uses textContent for AI output. Build this trusted
   // setup UI with DOM APIs so links remain interactive without reopening an
@@ -132,7 +132,7 @@ function _aiShowSetup() {
     connectionsLink.addEventListener('click', event => {
       event.preventDefault();
       closeAI();
-      setTimeout(toggleConfig, 80);
+      setTimeout(Today.use('connections').toggleConfig, 80);
     });
     wrap.append(connectionsLink, ' to activate.');
     el.appendChild(wrap);
@@ -605,14 +605,14 @@ function _hideNlRow() {
 
 // ── API call ──────────────────────────────────────────────────────────────────
 async function _aiCall(messages) {
-  const key = _aiGetKey();
+  const key = Today.use('connections')._aiGetKey();
   if (!key) { _aiShowSetup(); return null; }
 
   const res = await fetch('/.netlify/functions/ai-assist', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      provider: _aiGetProvider(),
+      provider: Today.use('connections')._aiGetProvider(),
       apiKey: key,
       messages,
       systemPrompt: _aiSystemPrompt(_aiContext()),
@@ -655,7 +655,7 @@ function _aiContext() {
 
   // Calculate age for each pending manual task
   const pendingWithAge = pending.map(t => {
-    const created = t.lastActive || _getCreatedFromId(t.id);
+    const created = t.lastActive || Today.use('connections')._getCreatedFromId(t.id);
     const ageDays = Math.floor((Date.now() - created) / (1000 * 60 * 60 * 24));
     return { id: t.id, text: t.text, ageDays, revived: t.revived || 0 };
   });
@@ -698,7 +698,7 @@ function _aiContext() {
     habits: habitsList.map(h => ({
       id: h.id, name: h.name,
       doneToday: (habitCompletions[h.id] || []).includes(_habitTodayISO()),
-      strength: _getHabitStrength(h.id),
+      strength: Today.use('habits')._getHabitStrength(h.id),
     })),
     progress: manualTasks.length ? Math.round(done.length / manualTasks.length * 100) : 0,
     weeklyStats,
@@ -903,7 +903,7 @@ function _aiExecute(action) {
       const id = 'manual_' + Date.now();
       manualTasks.push({ id, text });
       _saveManual();
-      renderManual();
+      Today.use('connections').renderManual();
       _setLastLocalChange();
       dropboxAutoSave();
       // Reload suggestions with updated context after brief pause
@@ -920,7 +920,7 @@ function _aiExecute(action) {
     }
     case 'check_habit': {
       const id = action.payload?.id;
-      if (id) toggleHabitDone(id);
+      if (id) Today.use('habits').toggleHabitDone(id);
       closeAI();
       return;
     }
@@ -944,7 +944,7 @@ function _aiExecute(action) {
         manualTasks.splice(idx, 1);
         _saveManual();
       });
-      renderManual();
+      Today.use('connections').renderManual();
       updateStats();
       dropboxAutoSave();
       closeAI();
@@ -969,7 +969,7 @@ function _aiExecute(action) {
       const p = action.payload?.panel;
       // Only allow opening habits panel from AI — not connections
       if (p === 'habits') {
-        setTimeout(toggleHabits, 100);
+        setTimeout(Today.use('habits').toggleHabits, 100);
       }
       return;
     }
@@ -990,8 +990,8 @@ function _aiExecute(action) {
       // Use a minimal direct call — NOT _aiCall() — to avoid sending the full system prompt
       // which includes delete_task and other action types. The AI was using those to delete
       // the original task "helpfully" alongside the breakdown. This call only returns add_task.
-      const key = _aiGetKey();
-      const provider = _aiGetProvider();
+      const key = Today.use('connections')._aiGetKey();
+      const provider = Today.use('connections')._aiGetProvider();
       if (!key) { closeAI(); return; }
 
       fetch('/.netlify/functions/ai-assist', {
@@ -1053,7 +1053,7 @@ function _aiExecute(action) {
         _saveManual();
         _saveSoon();
       });
-      renderManual();
+      Today.use('connections').renderManual();
       renderSoon();
       updateStats();
       dropboxAutoSave();
@@ -1098,7 +1098,7 @@ function _aiAnalyzeTask(taskId, taskText) {
   _aiAnalyzeTimeout = null;
 
   // Don't analyze if AI not configured
-  if (!_aiIsConfigured()) return;
+  if (!Today.use('connections')._aiIsConfigured()) return;
   
   // Don't analyze if AI panel is open (user is explicitly using AI)
   if (_aiPanelOpen) return;
@@ -1176,8 +1176,8 @@ Rules:
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        provider: _aiGetProvider(),
-        apiKey: _aiGetKey(),
+        provider: Today.use('connections')._aiGetProvider(),
+        apiKey: Today.use('connections')._aiGetKey(),
         messages: [{ role: 'user', content: prompt }],
         systemPrompt: `You analyze tasks for a todo app. Be concise. Most tasks need no changes.${_behaviorCtx}`,
       }),
@@ -1337,7 +1337,7 @@ function _aiShowSuggestion(taskId, taskEl, data) {
 }
 
 // The suggestion is a sibling rather than part of the task row so it can span
-// the full list width. Reorders move only `.task` elements, and renderManual()
+// the full list width. Reorders move only `.task` elements, and Today.use('connections').renderManual()
 // replaces those elements wholesale; always restore the sibling relationship
 // from the stable task ID after either operation.
 function _aiReanchorSuggestion() {
@@ -1461,7 +1461,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
     // Add to DOM
     if (list) {
       const div = document.createElement('div');
-      div.innerHTML = taskHTML(task, 'manual');
+      div.innerHTML = Today.use('connections').taskHTML(task, 'manual');
       const el = div.firstElementChild;
       el.classList.add('task-new');
       el.addEventListener('animationend', () => el.classList.remove('task-new'), { once: true });
@@ -1491,15 +1491,24 @@ function _aiClearBadge() {
   _aiBadgeShown = false;
 }
 
-    // ── Exports ──
-    window.toggleAI = toggleAI;
-    window.openAI = openAI;
-    window.closeAI = closeAI;
-    window._aiAskFromPanel = _aiAskFromPanel;
-    window._aiAnalyzeTask = _aiAnalyzeTask;
-    window._aiDismissSuggestion = _aiDismissSuggestion;
-    window._aiReanchorSuggestion = _aiReanchorSuggestion;
-    window._aiSendFromInput = _aiSendFromInput;
-    window._aiApplyBreakdown = _aiApplyBreakdown;
+    if (window.Today) {
+      Today.define('assistant', {
+        toggleAI,
+        openAI,
+        closeAI,
+        _aiAskFromPanel,
+        _aiAnalyzeTask,
+        _aiDismissSuggestion,
+        _aiReanchorSuggestion,
+        _aiSendFromInput,
+        _aiApplyBreakdown,
+      });
+      Today.ui.register('click', 'assistant.close', closeAI);
+      Today.ui.register('click', 'assistant.ask', _aiAskFromPanel);
+      Today.ui.register('keydown', 'assistant.ask-key', event => {
+        if (event.key === 'Enter') _aiAskFromPanel();
+      });
+    }
+
   };
 }());

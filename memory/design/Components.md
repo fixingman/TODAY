@@ -9,7 +9,17 @@
 - Triage and meeting review are modal dialogs with initial focus, focus containment, temporary background `inert`, Escape handling, and focus restoration. The meeting-name prompt is nonmodal.
 - Shared visually-hidden live regions report meaningful completion, focus, recording, reordering, sharing, and asynchronous results without narrating every drag movement.
 - Interactive controls have a 24×24px minimum target and visible `:focus-visible` treatment. Hover-revealed PiP controls also reveal with `:focus-within`.
-- Full findings and the accepted WCAG 2.5.7 dragging exception are in `memory/Accessibility-audit.md`.
+- Full findings and the accepted completed-task contrast and pointer-drag exceptions are in `memory/Accessibility-audit.md`.
+
+---
+
+## Runtime ownership contract (v2.82.5)
+
+- `assets/runtime.js` loads before every component and exposes one frozen `window.Today` namespace. Components publish frozen APIs with `Today.define(name, api)`; consumers resolve them with `Today.use(name)`.
+- UI markup declares actions with `data-today-click`, `data-today-change`, `data-today-input`, `data-today-keydown`, `data-today-pointerdown`, or `data-today-focusout`. A single document listener per event type dispatches to the registered component owner. Static and generated markup must not use inline event attributes.
+- `scripts/component-contract-test.mjs` checks script/precache order, action declaration/registration parity, zero inline handler attributes, unique global ownership, and the transitional compatibility-assignment ceiling of 123.
+- Compatibility globals still connect the startup composition root and older cross-module paths. They are transitional: new component APIs belong on `Today`, and the compatibility count must not grow.
+- Deterministic seams live outside their DOM/network controllers: `sync-merge.js`, `suggestion-policy.js`, `noticed-model.js`, and `focus-session.js`. Their owning controllers keep rendering, persistence, provider calls, and browser lifecycle work.
 
 ---
 
@@ -57,19 +67,26 @@ Completion is a named `aria-pressed` button. The row uses the same Enter, Space,
 Fixed at bottom, outside `.app` container.
 
 ```
-┌─────────────────────────────────────┬───┐
-│ What's on your mind?                │ ✦ │
-└─────────────────────────────────────┴───┘
+┌─────────────────────────────────────┐
+│ What's on your mind?                │
+└─────────────────────────────────────┘
 ```
 
 - Input: full width minus button
 - The bounce mirror preserves the native input for focus, accessibility, IME, and storage. Its visual spans are split by Unicode grapheme cluster—not UTF-16 index—so emoji, modifiers, flags, and joined sequences shape intact.
-- ✦ button: opens AI panel (or adds task if AI not configured)
 - Enter: always adds task
+- Voice Note and Meeting buttons appear beside the input when those capabilities are available. The former ✦ AI-sheet trigger was removed in v2.49.0; inline suggestions and the focus companion remain the reachable AI surfaces.
 
 ---
 
-## AI Panel
+## AI Panel — unreachable legacy sheet
+
+There is currently no visible or keyboard trigger for `#aiPanel`; closed markup is hidden from
+the accessibility tree. `assets/assistant.js` still contains the sheet controller and the live
+post-add inline-suggestion delivery controller; deterministic reason selection and outcome
+weighting live separately in `assets/suggestion-policy.js`. Do not describe the sheet as a
+reachable surface or delete the module wholesale. Restoring a trigger is a separate product
+decision; separating/removing the dead sheet controller is a contained cleanup task.
 
 Slides up from bottom with spring easing (`--ease-spring`, `--dur-slow`).
 
@@ -191,6 +208,12 @@ Appears below focused task, replaces task row bottom area.
 - Non-focused content recedes visually and becomes inert/hidden from assistive technology while focus mode is active
 - The time is a named button; session progress is exposed as a progressbar
 - Copy feedback is session-scoped: leaving focus immediately restores `copy` and clears the success treatment
+
+### Gmail and web enrichment
+
+- Gmail classification distinguishes explicit correspondents from topic-based follow-ups. Person tasks use `from:`/`to:`; topic tasks may use quoted keywords, `subject:`, `in:sent`, and date operators. The classifier and fallback must never invent a person from topic prose.
+- Web enrichment caches both success and no-result responses; transient/network failures remain retryable. Only HTTPS actions are rendered.
+- Both indicators are screen-reader named and stay attached before the task tail across renders. Dedicated coverage lives in `gmail-test.mjs` and `task-enrich-test.mjs`.
 
 ---
 
@@ -411,7 +434,7 @@ Built by `_poemEchoHTML()` inside `updateManualEmptyState()`. Poem text is `esc(
 
 ## Daily Brief (v2.31.x, removed v2.41.0)
 
-Was triggered by tapping ✦ with an empty input — the same button rerouted to "here's what I'd tell you right now" (nudge line + today's poem) instead of "ask me something." `_showDailyBrief()`, gone; empty ✦ tap now just opens the AI panel plainly (`openAI()`), same as any other open — `_aiLoad()`'s existing proactive-suggestions default runs, nothing composed specially.
+Was triggered by tapping ✦ with an empty input — the same button rerouted to "here's what I'd tell you right now" (nudge line + today's poem) instead of "ask me something." `_showDailyBrief()` and its composed surface are gone. The remaining ✦ input trigger was removed in v2.49.0, leaving the legacy sheet unreachable; inline suggestions and focus questions are separate live paths.
 
 **Why removed, ahead of its own 2026-07-30 W3 due date:** two separate problems, surfaced the same day (2026-07-28). First, a placement/discoverability one — `#addAiBtn`'s stated identity is "Ask anything" (task entry / AI assistant); revealing a completely different feature only on an *empty* tap of that same control had no discoverable connection to what the button says it does ("doesn't really belong under that CTA"). Second, a content one — About's Today block (nudge) and Read Me (poem) already surface the identical underlying data, all day, through an honest and predictable path. Given both, the choice was between two real fixes — give the brief its own honest entry point, or accept it's redundant and cut it — and the redundancy won: fixing discoverability would only have made a duplicate surface easier to find, not a valuable one worth keeping. Same reasoning pattern as `Philosophy.md`'s week-narrative-lines removal (v2.17.66) — removal is a valid, sometimes correct outcome of a Wallpaper Test question, not just something to reach for when a feature is broken.
 

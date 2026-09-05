@@ -1,6 +1,6 @@
 # Bugs Archive
 
-> Verified fixed bugs. Full root cause + fix detail preserved here.
+> Verified fixed bugs, including reproduction-equivalent simulator runs accepted by Can. Full root cause + fix detail preserved here.
 > Active / awaiting bugs → `Bugs.md`
 > **Ordering rule:** newest first (highest BUG number on top, BUG-001 at the bottom).
 
@@ -74,6 +74,106 @@
 
 ---
 
+## BUG-094 — "Undo" persists into the reflection step, where it reads as undoing the wrong thing
+
+**Status:** ✅ Verified v2.80.6 via accepted iOS Simulator reproduction 2026-09-04
+
+**Symptom:** After triage completes, the "All sorted" screen shows the reflection prompt — either the one-time opt-in ("Remember how days felt?" with *Remember* / *Not for me*) or the feeling picker. An "Undo" button sits directly beneath those choices, reading as a third, quieter option in the same group. Reported by Can: *"i see undo, what does it undo? i am not sure if that is what i expect to see as a cta at these context."*
+
+**Root cause:** `#triageUndoBtn` is shown when triage completes (`triage.js:455`) and only hidden once a feeling is selected (`reflections.js:202`), so it stays on screen through the whole reflection step — a step it has nothing to do with. Its label is the bare word "Undo" with no scope, while `triageUndo()` restores a full pre-triage snapshot: `manualTasks`, `doneIds`, `soonTasks`, `pastTasks` and the checked/unchecked id lists, then clears the dismissed flag, re-renders and pushes a Dropbox backup.
+
+The combination is what makes it a real defect rather than a wording nit: the mislabelled affordance is also the destructive one. Read as "dismiss this question" or "undo my answer" — both natural readings in that position — it silently discards every sorting decision just made.
+
+**Fix (v2.80.6):** Label changed to "Undo sorting" so the scope is explicit. Deliberately *not* hidden during the reflection step: the reflection appears immediately after triage, so those seconds are the main window in which a user would notice they mis-sorted. Removing the escape hatch to fix the ambiguity would trade one problem for another. Naming the scope fixes the reading without closing the exit.
+
+**Verified:** The exact three-task completion flow passed in Mobile Safari 26.3 on an iPhone 17e simulator: the completion overlay remained visible and the control read “Undo sorting”. Can accepted the simulator result as sufficient verification on 2026-09-04.
+
+---
+
+## BUG-093 — ↩ and ↗ enrichment indicators flash on tap on mobile
+
+**Status:** ✅ Verified v2.80.5 via accepted iOS Simulator reproduction 2026-09-04
+
+**Symptom:** On mobile, the Gmail (↩) and agent (↗) enrichment indicators briefly flash visible when tapping a task that has enrichment. The flash is random-feeling because users don't associate tapping with indicator visibility.
+
+**Root cause:** Same class as BUG-079. `.task:hover .gmail-indicator` and `.task:hover .agent-indicator` were both outside any `@media (hover: hover)` block. Touch devices briefly fire `:hover` on tap, making the indicators momentarily visible.
+
+**Fix (v2.80.4):** Both hover rules wrapped in `@media (hover: hover)`. On mobile, indicators are only visible during the arrive animation (on first enrichment) and inside focus mode.
+
+**Verified:** Mobile Safari 26.3 on an iPhone 17e simulator rendered both indicators at opacity 0 after a synthesized tap in a non-hover touch environment. Can accepted the simulator result as sufficient verification on 2026-09-04.
+
+---
+
+## BUG-092 — Task cards don't age visually on mobile
+
+**Status:** ✅ Verified v2.80.3 via accepted iOS Simulator reproduction 2026-09-04
+
+**Symptom:** Card aging (opacity 0.75/0.55/0.35 for young/mid/old tasks) visible on desktop PWA but absent on mobile — all cards render at full opacity regardless of age.
+
+**Root cause:** BUG-079 (v2.66.1) wrapped the age-bucket opacity rules inside `@media (hover: hover)` to fix an iOS tap-flash: touch devices briefly fire `:hover` on tap, making the tapped task appear bright (0.85) while aged neighbours stayed at 0.35 — perceived as "tasks dimming when another is tapped." The fix removed the unintended hover-restore on mobile, but also silently removed aging entirely.
+
+**Fix (v2.80.3):** Age-bucket opacity rules moved global (applied on both platforms). Only the `:hover` restore (0.85) stays inside `@media (hover: hover)` — touch devices have no `:hover` rule to misfire.
+
+**Verified:** Mobile Safari 26.3 on an iPhone 17e simulator assigned an eight-day-old task the `old` bucket and computed opacity `0.35`. Can accepted the simulator result as sufficient verification on 2026-09-04.
+
+---
+
+## BUG-090 — `task-enrich` Netlify function returned 500 on every call
+
+**Status:** ✅ Verified v2.77.7
+**Files:** `netlify/functions/task-enrich.js`, `assets/task-enrich.js`
+
+**Symptom:** Every `/.netlify/functions/task-enrich` request returned HTTP 500, so enrichment cards never appeared from task-add or focus entry. The client treated 5xx as transient and retried on every later open.
+
+**Root cause:** The function required `process.env.ANTHROPIC_API_KEY`, while the user's Claude key lives client-side in Connections. It rejected the request before parsing the body, so the key could never reach the function.
+
+**Fix:** Parse the body first and resolve the key as the server environment value or the sanitized client key. The client includes `_aiGetKey('claude')`; absence of both keys is a clear 400 rather than an internal 500. Verified by Can after v2.77.7. The provider/function contract now has dedicated non-live coverage in `task-enrich-test.mjs`.
+
+---
+
+## BUG-088 — Inline AI helper stayed behind when its task was reordered
+
+**Status:** ✅ Verified v2.77.3 on real device 2026-08-29
+**Introduced:** v2.72.0
+**Files:** `assets/assistant.js`, `assets/drag.js`, `assets/connections.js`
+
+**Symptom:** Reordering a task while its inline helper was visible could leave that helper beneath a different task; a full rebuild could remove it.
+
+**Root cause:** The helper is a full-width sibling while reorder controllers move task elements only. There was no reattachment path for an already-visible helper.
+
+**Fix:** `_aiReanchorSuggestion()` resolves the owner from `_aiCurrentSuggestion.taskId` and moves the existing helper immediately after the current task element. Persisted reorder paths and `renderManual()` call it without resetting exposure or outcome state.
+
+---
+
+## BUG-087 — Emoji disappear or render broken in the animated task input
+
+**Status:** ✅ Verified v2.77.2 via Safari and accepted iOS Simulator reproduction 2026-09-04
+**Introduced:** v2.67.0 (animated task-input mirror)
+**File:** `assets/task-bounce.js`
+
+**Symptom:** Emoji typed into the task input can disappear or render as broken glyphs. The native input value is still correct, but its text is transparent while motion is enabled, so only the broken visual mirror is visible.
+
+**Root cause:** The mirror rebuilt text with `val[i]`, which indexes UTF-16 code units rather than visible characters. A surrogate-pair emoji—and the multiple code points used by modifiers, flags, and joined emoji—was split across separate DOM spans, preventing the browser from shaping it as one glyph. Length and insertion calculations used the same incorrect unit.
+
+**Fix (v2.77.2):** Segment both old and new values into Unicode grapheme clusters with `Intl.Segmenter`, use those arrays for insertion/bulk math and mirror spans, and retain `Array.from(text)` as a surrogate-safe fallback. The native input, IME path, task value, storage, and sync formats are unchanged.
+
+**Verified:** Desktop Safari 26.6 preserved complex emoji through entry, persistence, and rendering. Mobile Safari 26.3 on an iPhone 17e simulator also preserved `😀`, `👍🏽`, `🇸🇪`, and `👨‍👩‍👧‍👦` through a WebKit input event, storage, and the animated mirror. Can accepted the simulator result as sufficient verification on 2026-09-04.
+
+---
+
+## BUG-086 — Memory completion rate exceeded 100%
+
+**Status:** ✅ Verified v2.75.13
+**Files:** `assets/memory-panel.js`, `assets/day-lifecycle.js`, `assets/dropbox.js`
+
+**Symptom:** Memory could say “completes 163% of tasks added — 80 done of 49 added.”
+
+**Root cause:** The numerator counted every completion, including carried-over and Trello work, while the denominator counted only tasks manually typed that day. The two values described different populations.
+
+**Fix:** Daily history stores `dayStartCount`; both completion-rate readers use `dayStartCount + tasksAdded` when available and fall back for older rows. Dropbox merges the snapshot with `Math.max`, and the label now says “tasks on the list.” This was the fourth root cause after earlier counter-reset, migration, and sync-artifact fixes.
+
+---
+
 ## BUG-085 — NEW WEEK nudge names tasks completed before midnight
 
 **Status:** ✅ Fixed v2.71.25
@@ -84,6 +184,9 @@
 **Root cause:** `_fetchMondayIntention()` passes `_memoryForAI('weekly')` as context, which includes `suggestionHistory` — a log of AI suggestions made for specific tasks (with their exact text). When the task list is empty, the prompt asked the AI to be "specific, not generic," so it reached into `suggestionHistory` and named historical tasks as if they were still pending.
 
 **Fix (v2.71.25):** Added `listIsEmpty` flag derived from the filtered task arrays. When the list is empty, the task instruction explicitly says "Do not name any tasks; the list is empty and clear." When tasks are present, the instruction says "Only name tasks from the list above, not from history." System prompt updated: "Speak about how this person works, not about specific tasks unless they appear in the current list."
+
+---
+
 ## BUG-084 — Checkmark confetti offset on mobile
 
 **Status:** ✅ Verified v2.71.8
@@ -96,6 +199,28 @@
 **Fix (v2.71.8):** `fireEmberDrift()` converts incoming client coordinates through `#celebCanvas.getBoundingClientRect()` into backing-buffer coordinates before spawning particles. The conversion also accounts for a non-zero canvas offset. Desktop and all-done origins are unchanged.
 
 **Verified:** Real-device iPhone PWA — confetti burst originates at its checkmark in both ordinary and final task flows, with browser chrome expanded and collapsed.
+
+---
+
+## BUG-083 — Past→Soon revive causes black screen, interface unresponsive
+
+**Status:** ✅ Verified v2.77.10 via accepted iOS Simulator reproduction 2026-09-04
+**Introduced:** unknown
+**Affects:** PWA contexts with GPU compositing (confirmed: Chromium desktop; likely iOS Safari too)
+**File:** `assets/zones.js` — `reviveFromPast()`
+**Family:** BUG-004 → BUG-056 → BUG-071 → BUG-083
+
+**Symptom:** After tapping "↩ soon" on a past task and selecting a reason, the interface goes black and is completely unresponsive. Only the task input bar is faintly visible but unclickable. After page refresh, the task has correctly moved to Soon (data saves fine).
+
+**Root cause:** `renderSoon()` transitions `#soonSection` from `display:none` → `display:block` for the first time during a revive. iOS Safari's GPU compositor layer for `#main-app` goes stale on this visibility change and blacks out the screen — same mechanism as BUG-004/056/071.
+
+**Fix (v2.71.13):** `reviveFromPast()` in `zones.js` runs an inline `#main-app` display-toggle IIFE after the renders. Equivalent to `_forceRepaint()` in `dropbox.js`, but inlined since that function is scoped inside `_onWake` and not exported. Diagnostic logging was retained through verification.
+
+**Regression (confirmed v2.77.10):** The display-toggle fix itself causes a new stuck state when focus mode is active during the revive. `display:none` on `#main-app` tears down the focus UI while leaving `.focusing` on the element — result: all tasks dimmed/blurred, focus panel gone, clicks in the zone-list area blocked by the existing `.zone-list` early-return guard so the user can't escape. Only clicking the add bar (outside `.zone-list`) triggers `closeUI(false)` and restores the DOM.
+
+**Fix (v2.77.10):** Added `if (el.classList.contains('focusing')) return;` guard to the display-toggle IIFE. When the compositor is already engaged for focus mode, the `soonSection` flash risk is negligible; skipping the toggle prevents the regression.
+
+**Verified:** Two consecutive Past → Soon revives passed in Mobile Safari 26.3 on an iPhone 17e simulator; after each, `#main-app` remained displayed at opacity 1, non-inert, and the task input accepted interaction. Can accepted the simulator result as sufficient verification on 2026-09-04.
 
 ---
 
@@ -1167,4 +1292,3 @@ Architectural dead end: with a CSS animation, every `display:none/block` repaint
 **Root cause:** `triageDismissedToday` was a local boolean — not read from localStorage on wake. Other device's dismissal was in Dropbox backup but the local flag was never refreshed.
 
 **Fix:** On `visibilitychange` and `window.focus`, re-read `triage_dismissed` from localStorage after sync settles (3s delay). `mergeRemoteData` applies remote dismissal. `_triageBarSilent` prevents bar showing during the grace window.
-

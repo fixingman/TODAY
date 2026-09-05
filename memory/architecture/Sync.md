@@ -101,6 +101,12 @@ Red dot only shows for real problems: expired tokens (401), API rejections (405/
 
 ### Merge Algorithm
 
+`assets/dropbox.js` remains the network, persistence, and merge-orchestration owner. Its
+deterministic daily-history and suggestion-outcome primitives live in DOM-free
+`assets/sync-merge.js`, which is loaded before Dropbox and exercised directly by
+`scripts/sync-merge-unit-test.mjs`. This is a code boundary only: backup schema, Dropbox payloads,
+timestamps, and conflict rules are unchanged.
+
 ```javascript
 // Arrays: union by ID, prefer newer timestamps
 merged = [...local, ...remote].reduce((acc, item) => {

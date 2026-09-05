@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const AXE = await readFile(join(ROOT, 'scripts/node_modules/axe-core/axe.min.js'), 'utf8');
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json', '.png':'image/png', '.woff2':'font/woff2' };
 
@@ -63,6 +63,12 @@ try {
   await injectAxe(page);
 
   await audit(page, 'main page has no WCAG A/AA axe violations');
+
+  await page.focus('.skip-link');
+  await page.keyboard.press('Enter');
+  const skipTarget = await page.evaluate(() => document.activeElement?.id);
+  if (skipTarget !== 'main-app') fail('skip navigation did not move focus to the main task surface');
+  ok('skip navigation moves focus to the main task surface');
 
   const names = await page.evaluate(() => ({
     header: ['habitsBtn','trelloBtn','infoBtn','todayLogo'].map(id => document.getElementById(id).getAttribute('aria-label')),
@@ -129,7 +135,7 @@ try {
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => document.querySelector('.focus-timer').hidden);
 
-  await page.evaluate(() => triageExpand());
+  await page.evaluate(() => Today.use('triage').triageExpand());
   await page.waitForFunction(() => {
     const panel = document.getElementById('triagePanel');
     const active = document.activeElement;

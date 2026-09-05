@@ -8,6 +8,11 @@
 
 25-minute focus sessions with optional breaks. One task at a time.
 
+`assets/focus.js` owns DOM, sound, PiP, companion, persistence wiring, and lifecycle events.
+DOM-free session creation, elapsed-time calculation, wall-clock restore correction, and
+serialization live in `assets/focus-session.js` and are tested directly. The extraction does
+not change stored keys or focus timing behavior.
+
 ---
 
 ## States

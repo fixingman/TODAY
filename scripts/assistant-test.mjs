@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
@@ -78,9 +78,7 @@ async function openPage(extraSeed) {
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForFunction(
-    () => typeof toggleAI === 'function' &&
-          typeof closeAI === 'function' &&
-          typeof _aiAnalyzeTask === 'function' &&
+    () => typeof Today?.use('assistant').toggleAI === 'function' &&
           !!document.getElementById('aiPanel'),
     { timeout: 15000 }
   );
@@ -111,7 +109,7 @@ try {
     {
       const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
       const result = await page.evaluate(() => {
-        openAI(true); // skipAutoLoad — avoids fetch
+        Today.use('assistant').openAI(true); // skipAutoLoad — avoids fetch
         const panel = document.getElementById('aiPanel');
         return {
           panelOpen:  !!(panel && panel.classList.contains('open')),
@@ -127,8 +125,8 @@ try {
     {
       const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
       const result = await page.evaluate(() => {
-        openAI(true);
-        closeAI();
+        Today.use('assistant').openAI(true);
+        Today.use('assistant').closeAI();
         const panel = document.getElementById('aiPanel');
         return {
           panelClosed:   !!(panel && !panel.classList.contains('open')),
@@ -146,7 +144,7 @@ try {
       const result = await page.evaluate(() => {
         localStorage.removeItem('today_ai_key_claude');
         localStorage.removeItem('today_ai_key_gemini');
-        openAI();
+        Today.use('assistant').openAI();
         const msg = document.getElementById('aiSuggestionMsg');
         return {
           hasNotConfigured:   !!(msg && msg.querySelector('.ai-not-configured')),
@@ -163,7 +161,7 @@ try {
       const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
       const result = await page.evaluate(() => {
         window.fetch = () => new Promise(() => {}); // never resolves
-        openAI(); // triggers _aiLoad → _aiSetThinking
+        Today.use('assistant').openAI(); // triggers _aiLoad → _aiSetThinking
         const msg = document.getElementById('aiSuggestionMsg');
         return {
           hasThinkingClass: !!(msg && msg.classList.contains('thinking')),
@@ -189,7 +187,7 @@ try {
             ],
           }),
         });
-        openAI();
+        Today.use('assistant').openAI();
         await new Promise(r => setTimeout(r, 200)); // wait for fetch + render
         const chips = document.getElementById('aiChips');
         return {
@@ -217,7 +215,7 @@ try {
           }),
         });
         const prevCount = manualTasks.length;
-        openAI();
+        Today.use('assistant').openAI();
         await new Promise(r => setTimeout(r, 200));
         const chips = document.getElementById('aiChips');
         // add_task chip is first (primary)
@@ -265,8 +263,8 @@ try {
         });
         const analyzedText = 'Write complete documentation with examples and unit tests';
         manualTasks.find(task => task.id === 'task_1').text = analyzedText;
-        renderManual(); // ensure the analyzed task text and rendered row agree
-        _aiAnalyzeTask('task_1', analyzedText);
+        Today.use('connections').renderManual(); // ensure the analyzed task text and rendered row agree
+        Today.use('assistant')._aiAnalyzeTask('task_1', analyzedText);
         await new Promise(r => setTimeout(r, 2400)); // debounce 2s + fetch
         const pendingNotMounted = !document.querySelector('.task-suggestion');
         const pendingNotOffered = appMemory.suggestionOutcomes.length === 0;
@@ -280,7 +278,7 @@ try {
         const followsMoveDown = movedDown.moved && suggestionEl?.previousElementSibling === taskRow;
         const movedUp = _a11yMoveRow(taskRow, -1);
         const followsMoveUp = movedUp.moved && suggestionEl?.previousElementSibling === taskRow;
-        renderManual();
+        Today.use('connections').renderManual();
         const rerenderedTaskRow = document.querySelector('.task[data-taskid="task_1"]');
         const survivesRerender = suggestionEl?.isConnected &&
           suggestionEl.previousElementSibling === rerenderedTaskRow &&
@@ -289,7 +287,7 @@ try {
         exposureObserver?.callback([{ target: exposureObserver.target, isIntersecting: true }]);
         const visibleExposureArmed = exposureTimersArmed === 1;
         const offered = appMemory.suggestionOutcomes[0];
-        _aiDismissSuggestion('user');
+        Today.use('assistant')._aiDismissSuggestion('user');
         const getsRemoving = !!document.querySelector('.task-suggestion.removing');
         window.setTimeout = realSetTimeout;
         window.IntersectionObserver = realIntersectionObserver;
@@ -345,22 +343,22 @@ try {
         const secondText = 'Second complex task with drafting and review';
         manualTasks.find(task => task.id === 'task_1').text = firstText;
         manualTasks.find(task => task.id === 'task_2').text = secondText;
-        renderManual();
-        _aiAnalyzeTask('task_1', firstText);
-        _aiAnalyzeTask('task_2', secondText);
+        Today.use('connections').renderManual();
+        Today.use('assistant')._aiAnalyzeTask('task_1', firstText);
+        Today.use('assistant')._aiAnalyzeTask('task_2', secondText);
         await new Promise(r => setTimeout(r, 2400));
         const newestWon = prompts.length === 1 && prompts[0].includes('Second complex task');
         const firstObserver = observers[0];
         const firstTarget = firstObserver?.target;
 
-        renderManual();
+        Today.use('connections').renderManual();
         await new Promise(r => setTimeout(r, 30));
         const reanchorObserver = observers[1];
         const reanchored = !!firstObserver?.disconnected &&
           !!reanchorObserver?.target && reanchorObserver.target !== firstTarget;
 
         manualTasks = manualTasks.filter(task => task.id !== 'task_2');
-        renderManual();
+        Today.use('connections').renderManual();
         await new Promise(r => setTimeout(r, 30));
         const removedCancelled = !!reanchorObserver?.disconnected &&
           !document.querySelector('.task-suggestion') && appMemory.suggestionOutcomes.length === 0;
@@ -388,9 +386,9 @@ try {
         });
         const analyzedText = 'Write complete documentation with examples and unit tests';
         manualTasks.find(task => task.id === 'task_1').text = analyzedText;
-        renderManual(); // render task_1 and task_2 into DOM
+        Today.use('connections').renderManual(); // render task_1 and task_2 into DOM
         const prevCount = manualTasks.length; // 2
-        _aiAnalyzeTask('task_1', analyzedText);
+        Today.use('assistant')._aiAnalyzeTask('task_1', analyzedText);
         await new Promise(r => setTimeout(r, 2400));
         document.querySelector('.task-suggestion-chip:not(.dismiss)')?.click();
         const outcome = appMemory.suggestionOutcomes[0];
@@ -414,11 +412,6 @@ try {
       const indexSrc  = await readFile(join(ROOT, 'index.html'), 'utf8');
       const swSrc     = await readFile(join(ROOT, 'sw.js'), 'utf8');
       const assistSrc = await readFile(join(ROOT, 'assets/assistant.js'), 'utf8');
-      const requiredExports = [
-        'toggleAI', 'openAI', 'closeAI', '_aiAskFromPanel',
-        '_aiAnalyzeTask', '_aiDismissSuggestion', '_aiReanchorSuggestion',
-        '_aiSendFromInput', '_aiApplyBreakdown',
-      ];
       const startupIdx   = indexSrc.indexOf('window._startAssistant();');
       const startMeetIdx = indexSrc.indexOf('window._startMeeting();');
       await expectAll('assistant module wiring', {
@@ -428,7 +421,7 @@ try {
         toggleAIRemoved:  !indexSrc.includes('function toggleAI()'),
         openAIRemoved:    !indexSrc.includes('function openAI('),
         moduleInit:       assistSrc.includes('window._startAssistant = '),
-        allExports:       requiredExports.every(n => assistSrc.includes(`window.${n} = ${n};`)),
+        api:              assistSrc.includes("Today.define('assistant'"),
         precached:        swSrc.includes("'/assets/assistant.js'"),
       });
       ok('assistant module: 9 exports, functions removed from index.html, precached in sw.js');

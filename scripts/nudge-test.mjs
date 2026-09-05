@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
@@ -159,7 +159,7 @@ try {
       const { page, errors } = await openPage();
       const result = await page.evaluate(async () => {
         localStorage.removeItem('day_nudge_dismissed_' + _localISO());
-        window._aiGetKey = () => 'test-key';
+        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
         window.fetch = () => new Promise(r =>
           setTimeout(() => r({ ok: true, json: async () => ({ content: 'slow AI response' }) }), 2000)
         );
@@ -181,7 +181,7 @@ try {
       const { page, errors } = await openPage();
       const result = await page.evaluate(async () => {
         localStorage.removeItem('day_nudge_dismissed_' + _localISO());
-        window._aiGetKey = () => 'test-key';
+        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
         window.fetch = () => new Promise(r =>
           setTimeout(() => r({ ok: true, json: async () => ({ content: 'AI upgraded line.' }) }), 1500)
         );
@@ -278,7 +278,7 @@ try {
         const iso = d => new Date(d).toISOString().slice(0, 10);
         localStorage.removeItem('day_nudge_dismissed_' + _localISO());
         localStorage.removeItem('day_nudge_ai_' + _localISO());
-        window._aiGetKey = () => 'test-key';
+        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
 
         // Eligibility: focus-vs-obligation reaches the morning only when an
         // obligation-framed task is on today's list.
@@ -333,7 +333,7 @@ try {
       const result = await page.evaluate(async () => {
         const D = 86400000, now = Date.now();
         const iso = d => new Date(d).toISOString().slice(0, 10);
-        window._aiGetKey = () => 'test-key';
+        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
         // Eligibility: focus-vs-obligation reaches the morning only when an
         // obligation-framed task is on today's list.
         manualTasks.length = 0;
@@ -407,7 +407,7 @@ try {
         const iso = d => new Date(d).toISOString().slice(0, 10);
         localStorage.removeItem('day_nudge_dismissed_' + _localISO());
         localStorage.removeItem('day_nudge_ai_' + _localISO());
-        window._aiGetKey = () => 'test-key';
+        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
         manualTasks.length = 0;
         manualTasks.push({ id: 'manual_' + (now - 3 * D), text: 'finish the deck', focusSessions: 2 });
         appMemory.spokenLines = [];
@@ -448,7 +448,7 @@ try {
       const result = await page.evaluate(async () => {
         localStorage.removeItem('day_nudge_dismissed_' + _localISO());
         Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-        window._aiGetKey = () => 'test-key';
+        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
         checkDayNudge();
         await new Promise(r => setTimeout(r, 200));
         const nudge = document.getElementById('dayNudge');

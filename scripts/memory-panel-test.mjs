@@ -124,7 +124,7 @@ async function openPage() {
 
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForFunction(
-    () => typeof toggleMemory === 'function' && document.getElementById('memoryPanel'),
+    () => typeof Today?.use('memory').toggle === 'function' && document.getElementById('memoryPanel'),
     { timeout: 15000 }
   );
   await page.evaluate(() => {
@@ -139,9 +139,9 @@ try {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
       const panel = document.getElementById('memoryPanel');
-      toggleMemory();
+      Today.use('memory').toggle();
       const opened = panel.classList.contains('open');
-      toggleMemory();
+      Today.use('memory').toggle();
       const closed = !panel.classList.contains('open');
       return { opened, closed };
     });
@@ -154,10 +154,10 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      _memoryClearRequest();
+      Today.use('memory').requestClear();
       const footer = document.getElementById('memoryFooter');
       const confirmShown = footer?.innerHTML.includes('erase everything?');
-      _memoryClearCancel();
+      Today.use('memory').cancelClear();
       const normalRestored = !footer?.innerHTML.includes('erase everything?')
         && footer?.innerHTML.includes('clear all memory');
       return { confirmShown, normalRestored };
@@ -185,8 +185,8 @@ try {
       appMemory.taskOutcomes = [{ id: 'x', date: iso, outcome: 'done', obligation: false, focusSessions: 1 }];
       appMemory.recentConversations = [{ message: 'what should I do first', date: iso, time: 9 }];
       appMemory.taskOutcomesBackfilled = true;
-      _memoryClearRequest();
-      _memoryClearConfirm();
+      Today.use('memory').requestClear();
+      Today.use('memory').confirmClear();
       const mem = appMemory.memory;
       return {
         // BUG-096
@@ -219,10 +219,10 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      toggleMemory();
+      Today.use('memory').toggle();
       const memoryPanel = document.getElementById('memoryPanel');
       const configPanel = document.getElementById('configPanel');
-      _memoryGoToConnections();
+      Today.use('memory').openConnections();
       return {
         memoryClosed: !memoryPanel.classList.contains('open'),
         configOpen: configPanel.classList.contains('open'),
@@ -240,7 +240,7 @@ try {
       window.__memoryTest.abstractResponses.push({
         content: '[{"type":"semantic","text":"test productivity pattern"}]',
       });
-      await _memoryAbstract();
+      await Today.use('memory').abstract();
       const afterFirst = appMemory.memory.semantic.length;
       const throttleDateSet = !!appMemory.memory._lastAbstractDate;
       const requestsAfterFirst = window.__memoryTest.abstractRequests;
@@ -249,7 +249,7 @@ try {
       window.__memoryTest.abstractResponses.push({
         content: '[{"type":"semantic","text":"should not appear"}]',
       });
-      await _memoryAbstract();
+      await Today.use('memory').abstract();
       const requestsAfterSecond = window.__memoryTest.abstractRequests;
 
       return {
@@ -277,7 +277,7 @@ try {
         { date: '2026-08-24', tasksDone: 1, tasksAdded: 2, tasksAddedFixed: true },
         { date: '2026-08-25', tasksDone: 31, tasksAdded: 31, tasksAddedFixed: true },
       ]));
-      renderMemoryPanel();
+      Today.use('memory').render();
       const text = document.getElementById('memoryContent')?.textContent || '';
       return {
         correctRate: text.includes('completes 50% of tasks added'),
@@ -318,7 +318,7 @@ try {
         { surface: 'Sunday reflection', date: iso(now - 3 * D), text: 'older line', kind: 'focus-leverage' },
         { surface: 'morning nudge',     date: iso(now - 1 * D), text: 'the newest line', kind: 'letgo-reason' },
       ];
-      renderMemoryPanel();
+      Today.use('memory').render();
       const text = document.getElementById('memoryContent')?.textContent || '';
       const knownFirst = text.indexOf('KNOWN') >= 0 && text.indexOf('KNOWN') < text.indexOf('SEMANTIC');
       const saidBeforeSemantic = text.indexOf('SAID') < text.indexOf('SEMANTIC');
@@ -326,7 +326,7 @@ try {
 
       // empty state
       appMemory.returningTasks = {}; appMemory.obligationHistory = []; appMemory.taskOutcomes = []; appMemory.spokenLines = [];
-      renderMemoryPanel();
+      Today.use('memory').render();
       const empty = document.getElementById('memoryContent')?.textContent || '';
 
       return {
@@ -365,17 +365,12 @@ try {
       ok('inline Memory Panel baseline');
     } else {
       const moduleSrc = await readFile(join(ROOT, 'assets/memory-panel.js'), 'utf8');
-      const requiredExports = [
-        'toggleMemory', 'renderMemoryPanel', '_memoryGoToConnections',
-        '_memoryClearRequest', '_memoryClearCancel', '_memoryClearConfirm',
-        '_memoryAbstract', '_versionBadgeBreathe',
-      ];
       await expectAll('extracted Memory Panel module wiring', {
         moduleLoad: indexSrc.includes('<script src="assets/memory-panel.js"></script>'),
         initializer: indexSrc.includes('window._startMemoryPanel();'),
         inlineRemoved: !indexSrc.includes('// ── Memory Panel ──'),
         moduleInitializer: moduleSrc.includes('window._startMemoryPanel = function()'),
-        exports: requiredExports.every(name => moduleSrc.includes(`window.${name} = ${name};`)),
+        api: moduleSrc.includes("Today.define('memory'"),
         privateState: !indexSrc.includes('let _memoryClearPending') && !indexSrc.includes('let _memoryAbstracting'),
         precached: swSrc.includes("'/assets/memory-panel.js'"),
       });

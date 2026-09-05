@@ -42,6 +42,8 @@ Keyboard users have an alternative through Option+Up/Down, but that does not sat
 
 `node scripts/accessibility-test.mjs` uses axe-core with Puppeteer and checks representative desktop/mobile states, all reachable header disclosures, focus mode, triage, meeting review, and the poem page. It also asserts accessible names/state, dialog focus containment/restoration, skip navigation, hidden UI exclusion, keyboard reorder persistence and boundary announcements, zoom-capable viewport metadata, contrast tokens, 24px targets, and 320px reflow.
 
+On 2026-09-04, a Safari 26.6 WebDriver pass added browser-engine coverage for startup, names/roles/states, main and poem axe scans, complex emoji entry and persistence, focus isolation/Escape, all header disclosures, poem semantics/sharing, and narrow-layout overflow. It found that the documented skip link was absent and the Chromium suite did not assert it; both implementation and assertion were restored in v2.82.3. Safari's window chrome limited this run to 336 CSS pixels, so the exact 320px case remains covered by Chromium and the manual device gate below.
+
 Automated checks supplement manual testing; they cannot establish conformance on their own.
 
 ## Manual verification still required

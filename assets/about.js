@@ -31,10 +31,10 @@
         panel.classList.remove('open');
       }
       $.configPanel.classList.remove('open');
-      _endConnectionsPrivacyVisit();
+      Today.use('connections')._endConnectionsPrivacyVisit();
       $.habitsPanel.classList.remove('open');
       $.memoryPanel?.classList.remove('open');
-      syncActiveButtons();
+      Today.use('connections').syncActiveButtons();
       window.scrollTo(0, scrollY); // Restore scroll position
       if (isOpening) {
         renderInfoStats();
@@ -48,7 +48,7 @@
         if (_ib && _ib.classList.contains('btn-icon-version')) {
           _ib.classList.remove('btn-icon-version');
           localStorage.setItem('today_seen_version', APP_VERSION);
-          _versionBadgeBreathe();
+          Today.use('memory').breatheVersionBadge();
         }
       }
     }
@@ -352,7 +352,7 @@
             // still accumulating), so a morning miss would block the afternoon reveal.
             // The AI is only called when insight exists, so no extra network cost.
             _sundayBlock.style.display = 'none';
-          } else if (_isSun && (!(_aiGetKey && _aiGetKey()) || !navigator.onLine)) {
+          } else if (_isSun && (!(_aiGetKey && Today.use('connections')._aiGetKey()) || !navigator.onLine)) {
             _sundayBlock.style.display = 'none';
           } else {
             _sundayBlock.innerHTML =
@@ -501,7 +501,7 @@
 
     async function _fetchWeekReflection(stats) {
       try {
-        const key = _aiGetKey ? _aiGetKey() : null;
+        const key = _aiGetKey ? Today.use('connections')._aiGetKey() : null;
         if (!key || !navigator.onLine) return null;
         const insight = stats.insight || _buildWeekReflectionInsight(stats);
         if (!insight) return null;
@@ -515,7 +515,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            provider: _aiGetProvider(),
+            provider: Today.use('connections')._aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: userContent }],
             systemPrompt: 'One sentence only. No quotes. Under 22 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Confident voice, conservative claim. Be intentional, smart, useful, and quietly human. Never infer identity or personality, never claim causation from correlation, and never restate a visible counter without adding meaning. If the evidence cannot support a useful line, reply exactly: none.',
@@ -541,7 +541,7 @@
     // for a week with no real shape, not a forced insight.
     async function _fetchWeekThemeAI() {
       try {
-        const key = _aiGetKey ? _aiGetKey() : null;
+        const key = _aiGetKey ? Today.use('connections')._aiGetKey() : null;
         if (!key || !navigator.onLine) return null;
 
         // Build behavioral data — NOT task content (which "This week" already covers).
@@ -626,7 +626,7 @@
         const _agingTasks = (typeof manualTasks !== 'undefined' ? manualTasks : [])
           .filter(t => !doneIds.has(t.id) && !_pastIds.has(t.id))
           .map(t => {
-            const created = typeof _getCreatedFromId === 'function' ? _getCreatedFromId(t.id) : (t.lastActive || t.id.replace('manual_', '') * 1);
+            const created = typeof _getCreatedFromId === 'function' ? Today.use('connections')._getCreatedFromId(t.id) : (t.lastActive || t.id.replace('manual_', '') * 1);
             const ageDays = created ? Math.floor((Date.now() - created) / 86400000) : 0;
             const sessions = parseInt(t.focusSessions) || 0;
             return { text: t.text, ageDays, sessions };
@@ -648,7 +648,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            provider: _aiGetProvider(),
+            provider: Today.use('connections')._aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content:
               'Behavioral data (all stats are independent daily averages — timing patterns are not same-day pairs):\n' + behavioralLines.join('\n') +
@@ -673,7 +673,7 @@
 
     async function _fetchMondayIntention() {
       try {
-        const key = _aiGetKey ? _aiGetKey() : null;
+        const key = _aiGetKey ? Today.use('connections')._aiGetKey() : null;
         if (!key || !navigator.onLine) return null;
 
         const _pastIds = new Set(pastTasks.map(t => t.id));
@@ -703,7 +703,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            provider: _aiGetProvider(),
+            provider: Today.use('connections')._aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: userContent }],
             systemPrompt: 'One sentence only. No quotes. Under 20 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Plain, warm, grounded. Do not name tasks unless they appear in the current list.',
@@ -757,13 +757,19 @@
       }
     }
 
-    window.toggleInfo = toggleInfo;
-    window._poemOfTheDay = _poemOfTheDay;
-    window._onPoemTap = _onPoemTap;
-    window._shareDailyPoem = _shareDailyPoem;
-    window._copyToClipboard = _copyToClipboard;
-    window.renderInfoStats = renderInfoStats;
-    window._fetchWeekReflection = _fetchWeekReflection;
-    window._pickSundayInsight = _pickSundayInsight; // test hook, alongside _fetchWeekReflection
+    if (window.Today) {
+      Today.define('about', {
+        toggleInfo,
+        _poemOfTheDay,
+        _onPoemTap,
+        _shareDailyPoem,
+        _copyToClipboard,
+        renderInfoStats,
+        _fetchWeekReflection,
+        _pickSundayInsight,
+      });
+      Today.ui.register('click', 'about.toggle', toggleInfo);
+      Today.ui.register('click', 'about.poem', _onPoemTap);
+    }
   };
 })();

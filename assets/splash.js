@@ -32,7 +32,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
   if (Date.now() - lastShown < SPLASH_COOLDOWN) {
     const splash = document.getElementById('splash');
     if (splash) splash.remove();
-    // init() runs renderManual() synchronously before this IIFE executes,
+    // init() runs Today.use('connections').renderManual() synchronously before this IIFE executes,
     // so tasks are already in the DOM — reveal immediately with no skeleton risk.
     const stickyHdr = document.getElementById('sticky-header');
     if (stickyHdr) stickyHdr.style.opacity = '1';
@@ -58,7 +58,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
   // first splash after midnight (Rule 16 day boundary via _localISO). Decided here,
   // before the 6s anim-stall safety fires, so the hold isn't mistaken for a stall.
   const _showPoemCoda = localStorage.getItem('poem_splash_date') !== _localISO()
-    && typeof _poemOfTheDay === 'function' && !!_poemOfTheDay();
+    && !!Today.use('about')._poemOfTheDay();
   if (_showPoemCoda) {
     _splashPoemHold = true;
     // Pre-populate poem content now so #splash-inner's margin:auto 0 centres
@@ -66,7 +66,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     // later via opacity only — no layout shift, no logo jerk.
     // (localStorage key is still written at fade-in so an interrupted open
     // doesn't burn the day's coda.)
-    const _codaPoem = _poemOfTheDay();
+    const _codaPoem = Today.use('about')._poemOfTheDay();
     const _codaEl   = document.getElementById('splash-poem');
     if (_codaPoem && _codaEl) {
       _codaEl.querySelector('.splash-poem-text').innerHTML = _poemHTML(_codaPoem.text);
@@ -201,7 +201,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     const splashEl = document.getElementById('splash');
     const poemEl   = document.getElementById('splash-poem');
     if (!splashEl || !poemEl || !poemEl.querySelector('.splash-poem-text').innerHTML) { window._onSplashAnimDone(); return; }
-    const poem = _poemOfTheDay();
+    const poem = Today.use('about')._poemOfTheDay();
     if (!poem) { window._onSplashAnimDone(); return; }
     localStorage.setItem('poem_splash_date', _localISO());
     let holdTimer = null;

@@ -13,7 +13,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json',
   '.png': 'image/png', '.woff2': 'font/woff2', '.css': 'text/css' };
 
@@ -72,9 +72,7 @@ async function openPage(extraSeed) {
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForFunction(
     () => typeof window._startReflections === 'function' &&
-          typeof window._reflectionShowAfterTriage === 'function' &&
-          typeof window.reflectionRemember === 'function' &&
-          typeof window.reflectionSelect === 'function' &&
+          typeof Today?.use('reflections')._reflectionShowAfterTriage === 'function' &&
           !!document.getElementById('triageReflection'),
     { timeout: 15000 }
   );
@@ -98,7 +96,7 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      const res = window._reflectionShowAfterTriage();
+      const res = Today.use('reflections')._reflectionShowAfterTriage();
       return { visible: res.visible, hasTimeout: typeof res.timeoutMs === 'number' && res.timeoutMs > 0 };
     });
     await expectAll('no policy → visible with timeoutMs', { ...result, noErrors: !errors.length });
@@ -112,7 +110,7 @@ try {
       today_reflection_intro_seen_at: new Date(Date.now() - 2 * 86400000).toISOString(),
     });
     const result = await page.evaluate(() => {
-      const res = window._reflectionShowAfterTriage();
+      const res = Today.use('reflections')._reflectionShowAfterTriage();
       return { notVisible: !res.visible };
     });
     await expectAll('cooldown not elapsed → not visible', result);
@@ -126,7 +124,7 @@ try {
       today_reflection_policy: JSON.stringify({ choice: 'not_for_me', updatedAt: new Date().toISOString() }),
     });
     const result = await page.evaluate(() => {
-      const res = window._reflectionShowAfterTriage();
+      const res = Today.use('reflections')._reflectionShowAfterTriage();
       return { notVisible: !res.visible };
     });
     await expectAll('not_for_me → not visible', result);
@@ -140,7 +138,7 @@ try {
       today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
     });
     const result = await page.evaluate(() => {
-      const res = window._reflectionShowAfterTriage();
+      const res = Today.use('reflections')._reflectionShowAfterTriage();
       return { visible: res.visible, time6s: res.timeoutMs === 6000 };
     });
     await expectAll('policy=remember, no response → visible 6s', result);
@@ -155,7 +153,7 @@ try {
       today_reflections: JSON.stringify([{ date: TODAY, feeling: 'calm', updatedAt: new Date().toISOString() }]),
     });
     const result = await page.evaluate(() => {
-      const res = window._reflectionShowAfterTriage();
+      const res = Today.use('reflections')._reflectionShowAfterTriage();
       return { notVisible: !res.visible };
     });
     await expectAll('policy=remember, today exists → not visible', result);
@@ -167,7 +165,7 @@ try {
   {
     const { page } = await openPage();
     const result = await page.evaluate(() => {
-      window.reflectionRemember();
+      Today.use('reflections').reflectionRemember();
       const policy = JSON.parse(localStorage.getItem('today_reflection_policy') || 'null');
       const el = document.getElementById('triageReflection');
       return {
@@ -184,7 +182,7 @@ try {
   {
     const { page } = await openPage();
     const result = await page.evaluate(() => {
-      window.reflectionDecline();
+      Today.use('reflections').reflectionDecline();
       const policy = JSON.parse(localStorage.getItem('today_reflection_policy') || 'null');
       return { policyDeclined: policy?.choice === 'not_for_me' };
     });
@@ -202,7 +200,7 @@ try {
     });
     const today = TODAY;
     const result = await page.evaluate(date => {
-      window.reflectionSelect('present');
+      Today.use('reflections').reflectionSelect('present');
       const list = JSON.parse(localStorage.getItem('today_reflections') || '[]');
       const entry = list.find(r => r.date === date);
       return {
@@ -223,8 +221,8 @@ try {
     });
     const today = TODAY;
     const result = await page.evaluate(date => {
-      window.reflectionSelect('calm');
-      window.reflectionSelect('alive');
+      Today.use('reflections').reflectionSelect('calm');
+      Today.use('reflections').reflectionSelect('alive');
       const list = JSON.parse(localStorage.getItem('today_reflections') || '[]');
       const todayEntries = list.filter(r => r.date === date);
       return {
@@ -244,7 +242,7 @@ try {
     });
     const result = await page.evaluate(() => {
       const before = localStorage.getItem('today_reflections');
-      window.reflectionSelect('anxious'); // not in allowed list
+      Today.use('reflections').reflectionSelect('anxious'); // not in allowed list
       const after = localStorage.getItem('today_reflections');
       return { noWrite: before === after };
     });
@@ -270,7 +268,7 @@ try {
       }
       localStorage.setItem('today_reflections', JSON.stringify(list));
       // Trigger a selection to force a prune via save path
-      window.reflectionSelect('tense');
+      Today.use('reflections').reflectionSelect('tense');
       const saved = JSON.parse(localStorage.getItem('today_reflections') || '[]');
       return { maxThirty: saved.length <= 30 };
     });
@@ -288,7 +286,7 @@ try {
     });
     const result = await page.evaluate(() => {
       const container = document.createElement('div');
-      window._reflectionRenderMemory(container);
+      Today.use('reflections')._reflectionRenderMemory(container);
       return {
         hasBlock: container.querySelector('.reflection-memory-block') !== null,
         hasId: !!container.querySelector('#reflectionMemoryBlock'),
@@ -310,7 +308,7 @@ try {
       today_reflection_policy: JSON.stringify({ choice: 'not_for_me', updatedAt: new Date().toISOString() }),
     });
     const result = await page.evaluate(() => {
-      window.reflectionRememberAgain();
+      Today.use('reflections').reflectionRememberAgain();
       const policy = JSON.parse(localStorage.getItem('today_reflection_policy') || 'null');
       return { policyRemember: policy?.choice === 'remember' };
     });
@@ -330,7 +328,7 @@ try {
       const remoteData = {
         reflection_policy: { choice: 'not_for_me', updatedAt: '2026-08-11T12:00:00.000Z' },
       };
-      const changed = window._reflectionMergeRemote(remoteData);
+      const changed = Today.use('reflections')._reflectionMergeRemote(remoteData);
       const policy = JSON.parse(localStorage.getItem('today_reflection_policy') || 'null');
       return { changed: changed, policyUpdated: policy?.choice === 'not_for_me' };
     });
@@ -348,7 +346,7 @@ try {
       const remoteData = {
         reflection_policy: { choice: 'not_for_me', updatedAt: '2026-08-10T12:00:00.000Z' },
       };
-      window._reflectionMergeRemote(remoteData);
+      Today.use('reflections')._reflectionMergeRemote(remoteData);
       const policy = JSON.parse(localStorage.getItem('today_reflection_policy') || 'null');
       return { localKept: policy?.choice === 'remember' };
     });
@@ -367,7 +365,7 @@ try {
       const remoteData = {
         reflections: [{ date: '2026-08-16', feeling: 'alive', updatedAt: '2026-08-16T22:00:00.000Z' }],
       };
-      const changed = window._reflectionMergeRemote(remoteData);
+      const changed = Today.use('reflections')._reflectionMergeRemote(remoteData);
       const list = JSON.parse(localStorage.getItem('today_reflections') || '[]');
       return {
         changed: changed,
@@ -391,7 +389,7 @@ try {
     });
     const result = await page.evaluate(() => {
       const remoteData = { reflections_cleared_at: '2026-08-14T23:00:00.000Z' };
-      window._reflectionMergeRemote(remoteData);
+      Today.use('reflections')._reflectionMergeRemote(remoteData);
       const list = JSON.parse(localStorage.getItem('today_reflections') || '[]');
       return {
         oldEntryDiscarded: !list.some(r => r.date === '2026-08-14'),
@@ -411,7 +409,7 @@ try {
       today_reflection_intro_seen_at: new Date().toISOString(),
     });
     const result = await page.evaluate(() => {
-      const fields = window._reflectionBackupFields();
+      const fields = Today.use('reflections')._reflectionBackupFields();
       return {
         hasPolicyField: 'reflection_policy' in fields,
         hasReflections: 'reflections' in fields,
@@ -437,7 +435,7 @@ try {
       }));
       localStorage.setItem('today_reflections', JSON.stringify(list));
       const container = document.createElement('div');
-      window._reflectionRenderMemory(container);
+      Today.use('reflections')._reflectionRenderMemory(container);
       const text = container.textContent;
       return { noObservation: !text.includes('On evenings you reflected') };
     });
@@ -460,7 +458,7 @@ try {
       }));
       localStorage.setItem('today_reflections', JSON.stringify(list));
       const container = document.createElement('div');
-      window._reflectionRenderMemory(container);
+      Today.use('reflections')._reflectionRenderMemory(container);
       return { observationShown: container.textContent.includes('On evenings you reflected') };
     });
     await expectAll('dominant feeling → observation shown', result);
@@ -490,8 +488,7 @@ try {
       precached:       swSrc.includes("'/assets/reflections.js'"),
       cacheVersion:    !!appVer && swSrc.includes(`'today-v${appVer}'`),
       iife:            reflectionsSrc.includes('window._startReflections = function()'),
-      backupExport:    reflectionsSrc.includes('window._reflectionBackupFields'),
-      mergeExport:     reflectionsSrc.includes('window._reflectionMergeRemote'),
+      componentApi:    reflectionsSrc.includes("Today.define('reflections'"),
     });
     ok('static wiring: script order, DOM element, start call, precache, CACHE_VERSION, all 15 exports');
   }

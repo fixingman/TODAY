@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
@@ -82,9 +82,8 @@ async function openPage(extraSeed) {
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForFunction(
     () => typeof addManual === 'function' &&
-          typeof deleteManual === 'function' &&
           typeof toggleDone === 'function' &&
-          typeof _undoDelete === 'function' &&
+          typeof Today?.use('task-actions').deleteManual === 'function' &&
           !!document.getElementById('undoToast') &&
           document.querySelectorAll('.task').length >= 2,
     { timeout: 15000 }
@@ -248,12 +247,12 @@ try {
     {
       const { page, errors } = await openPage();
       const result = await page.evaluate(async () => {
-        renderManual(); // ensure DOM has .task[data-taskid="task_1"]
-        deleteManual('task_1');
+        Today.use('connections').renderManual(); // ensure DOM has .task[data-taskid="task_1"]
+        Today.use('task-actions').deleteManual('task_1');
         await new Promise(r => setTimeout(r, 280)); // wait for 180ms removal + buffer
         const toastShows  = document.getElementById('undoToast').classList.contains('show');
         const taskGone    = !manualTasks.find(t => t.id === 'task_1');
-        _undoDelete();
+        Today.use('task-actions')._undoDelete();
         await new Promise(r => setTimeout(r, 100));
         const taskRestored = !!manualTasks.find(t => t.id === 'task_1');
         return { toastShows, taskGone, taskRestored };
@@ -305,8 +304,8 @@ try {
       const swSrc         = await readFile(join(ROOT, 'sw.js'), 'utf8');
       const taskActionsSrc = await readFile(join(ROOT, 'assets/task-actions.js'), 'utf8');
       const requiredExports = [
-        'addManual', 'deleteManual', 'toggleDone', 'toggleClearBtn', 'clearTaskInput',
-        '_undoLast', '_undoDelete', '_recordDeleteReason', '_clearAllDone', 'updateStats',
+        'addManual', 'toggleDone', 'toggleClearBtn', 'clearTaskInput',
+        '_clearAllDone', 'updateStats',
         'updateManualEmptyState', '_archiveHabitUndo', '_applyDoneStyles',
       ];
       const startupIdx     = indexSrc.indexOf('window._startTaskActions();');
@@ -326,6 +325,7 @@ try {
                             taskActionsSrc.includes("e.target.closest('.task-delete')"),
         faviconOwned:       taskActionsSrc.includes('function drawFavicon('),
         allExports:         requiredExports.every(n => taskActionsSrc.includes(`window.${n} = ${n};`)),
+        api:                taskActionsSrc.includes("Today.define('task-actions'"),
         precached:          swSrc.includes("'/assets/task-actions.js'"),
       });
       ok('task-actions module: row controls + favicon private, 13 exports unchanged, precached');

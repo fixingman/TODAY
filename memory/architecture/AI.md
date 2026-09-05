@@ -6,7 +6,17 @@
 
 ## Overview
 
-The AI companion is accessed via the ✦ button. It reads app state, provides contextual messages, and offers action chips.
+The reachable companion appears through post-add inline task suggestions, the focus companion,
+the morning nudge, About reflections/Noticed, and meeting extraction. The former ✦ sheet has no
+visible or keyboard trigger; its closed markup remains outside the accessibility tree. Its
+legacy controller still shares `assets/assistant.js` with live inline-suggestion delivery and
+must not be described as a reachable surface.
+
+Deterministic suggestion reason classification, exploration, underperformance, and performance
+context live in DOM-free `assets/suggestion-policy.js`; `assistant.js` and `insights.js` own UI,
+outcome recording, and provider orchestration. Solar-term and milestone selection similarly
+live in `assets/noticed-model.js`, while `insights.js` owns storage and rendering. Direct unit
+tests cover both policy boundaries.
 
 **Providers:**
 - Gemini 2.5 Flash (default, free)
@@ -299,7 +309,7 @@ On Mondays, the same `#sundayBlock` slot shows an AI-generated intention prompt 
 
 ## Daily Brief — ✦ Empty-Tap
 
-**Removed in v2.41.0.** `_showDailyBrief()` and its CSS (`.brief-container` etc.) were cut entirely. Empty ✦ tap now calls plain `openAI()` — the button does what it says ("Ask anything"), no special composed surface. Removal rationale: the brief lived under a CTA whose identity is "AI assistant," making it undiscoverable; its content (day nudge + poem) is already available in About through a predictable path.
+**Removed in v2.41.0.** `_showDailyBrief()` and its CSS (`.brief-container` etc.) were cut entirely. At the time, empty ✦ fell through to `openAI()`; the input-bar ✦ itself was removed in v2.49.0. The brief's content (day nudge + poem) remains available through predictable About/poem surfaces.
 
 ---
 
@@ -334,9 +344,9 @@ See the canonical Focus Companion section above for its current context and prom
 
 ---
 
-## Sending Messages from the Main Input Bar (v2.17.64)
+## Sending Messages from the Main Input Bar (removed entry path)
 
-`_aiSendFromInput(text)` — companion to `_aiAskFromPanel`. Called when the user types text in the main task input bar and submits to AI (✦ tap with text, or Enter while AI panel is open).
+`_aiSendFromInput(text)` remains inside the orphaned sheet controller, but no reachable input-bar control calls it since v2.49.0. Treat it as dead sheet code, not a supported interaction.
 
 Same `_aiThread` / `_aiCall` / `_aiRenderResult` pattern as `_aiAskFromPanel`, but takes the already-extracted text as a parameter instead of reading `#aiNlInput`. Sets `_aiLoadedOnce = true` to prevent the concurrent panel auto-load from clobbering the response.
 

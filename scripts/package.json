@@ -1,9 +1,15 @@
 {
   "name": "today-scripts",
   "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "description": "Dev-only tooling for TODAY — not part of the app",
+  "scripts": {
+    "test": "node test-all.mjs"
+  },
   "dependencies": {
     "axe-core": "^4.13.0",
-    "puppeteer-core": "^23.0.0"
+    "puppeteer-core": "^25.10.0"
   }
 }

@@ -10,7 +10,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
 

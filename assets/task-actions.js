@@ -153,7 +153,7 @@ window._startTaskActions = (function() {
         if (!isNowDone) {
           const check = el.querySelector('.task-check');
           if (check) {
-            _pulseCheck(check);
+            Today.use('habits')._pulseCheck(check);
           }
         }
 
@@ -245,13 +245,13 @@ window._startTaskActions = (function() {
       toggleClearBtn();
 
       // Dismiss any existing AI suggestion
-      _aiDismissSuggestion();
+      Today.use('assistant')._aiDismissSuggestion();
 
       // Insert new element directly — no full re-render
       const list  = $.manualList;
       const empty = $.manualEmpty;
       const div   = document.createElement('div');
-      div.innerHTML = taskHTML(task, 'manual');
+      div.innerHTML = Today.use('connections').taskHTML(task, 'manual');
       const el = div.firstElementChild;
       el.classList.add('task-new');
       const _removeFade = e => {
@@ -264,9 +264,9 @@ window._startTaskActions = (function() {
       el.addEventListener('animationcancel', _removeFade);
       list.appendChild(el);
       const tagEl = el.querySelector('.task-tag');
-      _queueTagArrivalShimmer(tagEl);
+      Today.use('connections')._queueTagArrivalShimmer(tagEl);
       // Desktop: wire hover shimmer for new task (mobile gets add-shimmer above, skip to avoid conflict).
-      if (window.matchMedia('(hover: hover)').matches) _wireManualTagShimmer(el);
+      if (window.matchMedia('(hover: hover)').matches) Today.use('connections')._wireManualTagShimmer(el);
       if (empty) empty.style.display = 'none';
 
       $.manualCount.textContent = manualTasks.length;
@@ -274,7 +274,7 @@ window._startTaskActions = (function() {
       if (window._a11yAnnounce) _a11yAnnounce(`${task.text} added.`);
 
       // AI post-add analysis (async, non-blocking)
-      _aiAnalyzeTask(task.id, task.text);
+      Today.use('assistant')._aiAnalyzeTask(task.id, task.text);
       if (window._gmailEnrichTask) _gmailEnrichTask(task.id, task.text);
       if (window._agentEnrichTask) _agentEnrichTask(task.id, task.text);
     }
@@ -411,7 +411,7 @@ window._startTaskActions = (function() {
           ['lost_interest', 'lost interest'], ['replaced', 'replaced'],
         ];
         reasonRow.innerHTML = _reasons.map(([k, l]) =>
-          `<button class="triage-reason-btn" onclick="_recordDeleteReason('${k}',this)">${l}</button>`
+          `<button class="triage-reason-btn" data-today-click="tasks.delete-reason" data-reason="${k}">${l}</button>`
         ).join('');
         reasonRow.style.display = 'flex';
         reasonRow.style.opacity = '1';
@@ -505,7 +505,7 @@ window._startTaskActions = (function() {
       _setLastLocalChange();
       dropboxAutoSave();
 
-      renderManual();
+      Today.use('connections').renderManual();
       updateStats();
       _haptic('success');
       if (window._a11yAnnounce) _a11yAnnounce(`${task.text || 'Task'} restored.`);
@@ -536,9 +536,9 @@ window._startTaskActions = (function() {
       const habit = habitsList.find(h => h.id === snapshot.id);
       if (habit) {
         habit.archived = false;
-        _saveHabits();
-        renderHabits();
-        if (habitEditMode) _enterHabitEditMode();
+        Today.use('habits')._saveHabits();
+        Today.use('habits').renderHabits();
+        if (habitEditMode) Today.use('habits')._enterHabitEditMode();
         _haptic('success');
       }
       if (_archivedHabitStack.length > 0) {
@@ -679,21 +679,31 @@ window._startTaskActions = (function() {
     }
 
     _bindTaskActionDelegation();
+    if (window.Today) {
+      Today.define('task-actions', {
+        deleteManual,
+        _undoLast,
+        _undoDelete,
+        _recordDeleteReason,
+        _editFromToast,
+      });
+      Today.ui.register('input', 'tasks.input-change', toggleClearBtn);
+      Today.ui.register('click', 'tasks.clear-input', clearTaskInput);
+      Today.ui.register('pointerdown', 'tasks.preserve-input-focus', event => event.preventDefault());
+      Today.ui.register('click', 'tasks.edit-undo', _editFromToast);
+      Today.ui.register('click', 'tasks.undo', _undoLast);
+      Today.ui.register('click', 'tasks.delete-reason', (_event, button) => _recordDeleteReason(button.dataset.reason, button));
+    }
 
     // ── Exports ──
     window.updateManualEmptyState = updateManualEmptyState;
     window._archiveHabitUndo = _archiveHabitUndo;
     window.addManual = addManual;
-    window.deleteManual = deleteManual;
     window.toggleDone = toggleDone;
     window.toggleClearBtn = toggleClearBtn;
     window.clearTaskInput = clearTaskInput;
-    window._undoLast = _undoLast;
-    window._undoDelete = _undoDelete;
-    window._recordDeleteReason = _recordDeleteReason;
     window._clearAllDone = _clearAllDone;
     window.updateStats = updateStats;
     window._applyDoneStyles = _applyDoneStyles;
-    window._editFromToast = _editFromToast;
   };
 }());

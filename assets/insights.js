@@ -23,13 +23,6 @@
 const AI_NAMES = ['lu', 'kit', 'em', 'jo', 'pip', 'sol', 'rue', 'finn'];
 const SUGGESTION_OUTCOME_LIMIT = 100;
 const SUGGESTION_REVERSAL_GRACE_MS = 10 * 60 * 1000;
-const SUGGESTION_REASONS = [
-  'multiple_actions',
-  'long_complex_task',
-  'vague_task',
-  'other_complexity',
-  'obligation_language',
-];
 
 function _aiCheckObligationLanguage(text) {
   const t = (text || '').trim();
@@ -286,9 +279,7 @@ function _updateReturningTasksMemory(manualArr, trelloArr) {
     let created, focusSessions;
     if (source === 'manual') {
       if (!t.id.startsWith('manual_')) continue;
-      created       = typeof _getCreatedFromId === 'function'
-        ? _getCreatedFromId(t.id)
-        : parseInt(t.id.replace('manual_', '')) || now;
+      created       = Today.use('connections')._getCreatedFromId(t.id);
       focusSessions = parseInt(t.focusSessions) || 0;
     } else {
       created       = trelloFS[t.id] || now;
@@ -467,18 +458,11 @@ function _memoryRecordOutcome(outcome, taskText, taskId, reason) {
 // evidence that can change an initially applied suggestion into helped/reversed.
 
 function _suggestionNormalizeTaskText(text) {
-  return _stripTag(text || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  return Today.use('suggestion-policy').normalizeTaskText(text);
 }
 
 function _suggestionReason(data, taskText) {
-  const explicit = data?.reason;
-  if (SUGGESTION_REASONS.includes(explicit)) return explicit;
-  if (data?.type === 'clarify') return 'vague_task';
-
-  const clean = _suggestionNormalizeTaskText(taskText);
-  if (/\b(and|then|plus|after|before)\b|[,;/+]/.test(clean)) return 'multiple_actions';
-  if (clean.split(/\s+/).filter(Boolean).length > 8) return 'long_complex_task';
-  return 'other_complexity';
+  return Today.use('suggestion-policy').reason(data, taskText);
 }
 
 function _suggestionOutcomeRecord(details) {
@@ -617,58 +601,19 @@ function _suggestionReconcileOutcomes() {
 }
 
 function _suggestionOutcomeStats(reason) {
-  const records = (appMemory?.suggestionOutcomes || []).filter(record => !reason || record.reason === reason);
-  const stats = {
-    offered: records.length,
-    applied: 0,
-    dismissed: 0,
-    ignored: 0,
-    reversed: 0,
-    helped: 0,
-    retained: 0,
-    decisions: 0,
-    failures: 0,
-    underperforming: false,
-  };
-  for (const record of records) {
-    if (record.appliedAt) stats.applied++;
-    if (record.dismissedAt) stats.dismissed++;
-    if (record.ignoredAt) stats.ignored++;
-    if (record.reversedAt && !record.helpedAt) stats.reversed++;
-    if (record.helpedAt) stats.helped++;
-    if (record.appliedAt && (!record.reversedAt || record.helpedAt)) stats.retained++;
-  }
-  stats.decisions = stats.applied + stats.dismissed + stats.ignored;
-  stats.failures = stats.dismissed + stats.ignored + stats.reversed;
-  stats.underperforming = stats.decisions >= 4 && stats.failures / stats.decisions >= 0.7;
-  return stats;
+  return Today.use('suggestion-policy').stats(appMemory?.suggestionOutcomes, reason);
 }
 
 function _suggestionStableBucket(value) {
-  let hash = 0;
-  for (const char of String(value || '')) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
-  return Math.abs(hash) % 4;
+  return Today.use('suggestion-policy').stableBucket(value);
 }
 
 function _suggestionShouldOffer(reason, taskId) {
-  const stats = _suggestionOutcomeStats(reason);
-  if (!stats.underperforming) return true;
-  // Keep one-in-four exploration so a category can recover if the person's
-  // behavior changes; repeated failures reduce noise without becoming a ban.
-  return _suggestionStableBucket(reason + ':' + taskId) === 0;
+  return Today.use('suggestion-policy').shouldOffer(appMemory?.suggestionOutcomes, reason, taskId);
 }
 
 function _suggestionPerformanceContext() {
-  const lines = [];
-  for (const reason of SUGGESTION_REASONS) {
-    const stats = _suggestionOutcomeStats(reason);
-    if (stats.decisions < 3) continue;
-    const evidence = `${stats.applied}/${stats.decisions} applied, ${stats.helped} led to a completed step, ${stats.reversed} later reversed`;
-    if (stats.underperforming) lines.push(`${reason}: ${evidence}; use rarely`);
-    else if (stats.helped > 0) lines.push(`${reason}: ${evidence}; prefer when it genuinely fits`);
-    else lines.push(`${reason}: ${evidence}`);
-  }
-  return lines.length ? ' Reason performance: ' + lines.join('. ') + '.' : '';
+  return Today.use('suggestion-policy').performanceContext(appMemory?.suggestionOutcomes);
 }
 
 // Strip the "tag: " prefix before keyword-mining task text (same pattern
@@ -724,8 +669,8 @@ function _memoryOnTaskComplete(taskText, taskId) {
   _suggestionOutcomeOnTaskComplete(taskId);
 
   // Record task lifespan — days from creation to completion (manual tasks only)
-  if (taskId && taskId.startsWith('manual_') && typeof _getCreatedFromId === 'function') {
-    const created = _getCreatedFromId(taskId);
+  if (taskId && taskId.startsWith('manual_')) {
+    const created = Today.use('connections')._getCreatedFromId(taskId);
     const lifespanDays = Math.floor((Date.now() - created) / 86400000);
     if (lifespanDays >= 0 && lifespanDays <= 365) {
       appMemory.patterns.taskLifespanSamples.push(lifespanDays);
@@ -1363,43 +1308,11 @@ function _noticedStamp(key, todayISO) {
   if (!appMemory.noticedDates[key]) appMemory.noticedDates[key] = todayISO;
 }
 
-// 24 sekki solar terms in calendar order. Southern-hemisphere viewers receive
-// the term half a year opposite (12 entries), matching their local season while
-// preserving the same sparse transition-day cadence.
-const _SEASON_MOMENTS = [
-  { date: '01-06', term: '小寒 · Minor Cold',          line: 'The light is back — a minute more each day.' },
-  { date: '01-20', term: '大寒 · Major Cold',          line: 'Coldest weeks. The world is very still.' },
-  { date: '02-04', term: '立春 · Start of Spring',     line: 'Halfway between solstice and equinox. Spring is on its way.' },
-  { date: '02-19', term: '雨水 · Rain Water',          line: 'The thaw begins.' },
-  { date: '03-06', term: '啓蟄 · Awakening of Insects', line: 'Something is waking underground.' },
-  { date: '03-21', term: '春分 · Spring Equinox',      line: 'Day and night in balance. The year tips into light.' },
-  { date: '04-05', term: '清明 · Clear and Bright',    line: 'The air is clear. Light is landing differently now.' },
-  { date: '04-20', term: '穀雨 · Grain Rain',          line: 'April rain, the long kind.' },
-  { date: '05-06', term: '立夏 · Start of Summer',     line: 'Summer starts by the old measure. Trees are finally green.' },
-  { date: '05-21', term: '小満 · Grain Buds',          line: 'Long evenings now. Light stays past dinner.' },
-  { date: '06-06', term: '芒種 · Grain in Ear',        line: 'The longest light before the solstice.' },
-  { date: '06-21', term: '夏至 · Summer Solstice',     line: "Midsummer — the year's longest day." },
-  { date: '07-07', term: '小暑 · Minor Heat',          line: 'The warmest weeks. Summer at its fullest.' },
-  { date: '07-23', term: '大暑 · Major Heat',          line: 'Peak summer. The days are already shortening.' },
-  { date: '08-07', term: '立秋 · Start of Autumn',     line: 'The sun pulls back. Autumn is on its way.' },
-  { date: '08-23', term: '処暑 · End of Heat',         line: 'Mornings have an edge to them now.' },
-  { date: '09-08', term: '白露 · White Dew',           line: 'Dew on the grass. The year is cooling.' },
-  { date: '09-23', term: '秋分 · Autumnal Equinox',    line: 'Day and night equal again. The year tips toward dark.' },
-  { date: '10-08', term: '寒露 · Cold Dew',            line: 'The leaves are turning. Cold mornings.' },
-  { date: '10-23', term: "霜降 · Frost's Descent",    line: 'First frosts. The year is giving in to winter.' },
-  { date: '11-07', term: '立冬 · Start of Winter',     line: 'The light is leaving quickly. Winter is here.' },
-  { date: '11-22', term: '小雪 · Minor Snow',          line: 'Snow possible any morning now.' },
-  { date: '12-07', term: '大雪 · Major Snow',          line: 'Dark midwinter. Almost at the stillest point of the year.' },
-  { date: '12-21', term: '冬至 · Winter Solstice',     line: "The year's shortest day. The light turns back tomorrow." },
-];
-
 function _seasonMomentForDate(todayISO, southern) {
-  const index = _SEASON_MOMENTS.findIndex(moment => moment.date === String(todayISO).slice(5));
-  if (index < 0) return null;
   const isSouthern = southern === undefined
     ? (typeof _isSouthernTimezone === 'function' && _isSouthernTimezone())
     : southern;
-  return _SEASON_MOMENTS[(index + (isSouthern ? 12 : 0)) % _SEASON_MOMENTS.length];
+  return Today.use('noticed-model').seasonMomentForDate(todayISO, isSouthern);
 }
 
 function _noticedLines() {
@@ -1408,7 +1321,7 @@ function _noticedLines() {
   const lines = [];
   let dirty = false;
   const todayISO = _localISO();
-  const _hr12 = h => (h > 12 ? h - 12 : h) + (h >= 12 ? 'pm' : 'am');
+  const _hr12 = Today.use('noticed-model').formatHour;
 
   // 0 · Season moment — 24 sekki solar terms (v2.60.0, expanded from 6 in v2.37.0).
   // Astronomical — sun’s ecliptic longitude every 15°. Dates pinned to typical MM-DD;
@@ -1442,9 +1355,7 @@ function _noticedLines() {
       while (d && done.has(d)) { run++; d = _localISO(new Date(new Date(d + 'T12:00').getTime() - 864e5)); }
       // Past 100 days, keep noticing every 50 — a fixed list would otherwise
       // go silent forever once its top rung is passed (v2.40.0).
-      const crossed = run >= 100
-        ? Math.floor(run / 50) * 50
-        : [50, 30, 14, 7].find(m => run >= m);
+      const crossed = Today.use('noticed-model').habitMilestone(run);
       if (crossed && (n.habitMilestones[h.id] || 0) < crossed) {
         const habitElig = 'habit:' + h.id + ':' + crossed;
         if (_noticedEligible(habitElig, todayISO)) {
@@ -1534,9 +1445,7 @@ function _noticedLines() {
   const focusHoursTotal = Math.floor((appMemory.patterns.focusMinutesTotal || 0) / 60);
   // Past 100 hours, keep noticing every 100 — a fixed list would otherwise
   // go silent forever once its top rung is passed (v2.40.0).
-  const focusCrossed = focusHoursTotal >= 100
-    ? Math.floor(focusHoursTotal / 100) * 100
-    : [50, 25, 10].find(m => focusHoursTotal >= m);
+  const focusCrossed = Today.use('noticed-model').focusMilestone(focusHoursTotal);
   if (focusCrossed && (n.focusMilestone || 0) < focusCrossed) {
     const focusElig = 'focus:' + focusCrossed;
     if (_noticedEligible(focusElig, todayISO)) {

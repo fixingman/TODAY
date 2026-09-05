@@ -13,7 +13,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
@@ -181,7 +181,7 @@ try {
     const result = await page.evaluate(() => {
       const startSoonLen   = soonTasks.length;
       const startManualLen = manualTasks.length;
-      pullFromSoon('sr1');
+      Today.use('zones').pullFromSoon('sr1');
       const inSoon   = soonTasks.some(t => t.id === 'sr1');
       const inManual = manualTasks.find(t => t.id === 'sr1');
       const lsSoon   = JSON.parse(localStorage.getItem('today_soon') || '[]');
@@ -205,7 +205,7 @@ try {
     const result = await page.evaluate(() => {
       const startManualLen = manualTasks.length;
       const startSoonLen   = soonTasks.length;
-      moveToSoon('ma1');
+      Today.use('zones').moveToSoon('ma1');
       const inManual = manualTasks.some(t => t.id === 'ma1');
       const inSoon   = soonTasks.find(t => t.id === 'ma1');
       return {
@@ -225,7 +225,7 @@ try {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
       const startManualLen = manualTasks.length;
-      moveToPast('mb2');
+      Today.use('zones').moveToPast('mb2');
       const inManual = manualTasks.some(t => t.id === 'mb2');
       const inPast   = pastTasks.find(t => t.id === 'mb2');
       return {
@@ -247,7 +247,7 @@ try {
     const result = await page.evaluate(() => {
       const startPastLen = pastTasks.length;
       // Revive the let_go task (non-done)
-      reviveFromPast('pl2', 'still_relevant');
+      Today.use('zones').reviveFromPast('pl2', 'still_relevant');
       const stillInPast  = pastTasks.some(t => t.id === 'pl2');
       const inSoon       = soonTasks.find(t => t.id === 'pl2');
       const revivedCount = inSoon?.revived;
@@ -256,7 +256,7 @@ try {
 
       // Done task must be blocked
       const donePastLen = pastTasks.length;
-      reviveFromPast('pd1');
+      Today.use('zones').reviveFromPast('pd1');
       const doneStillInPast = pastTasks.some(t => t.id === 'pd1');
 
       return {
@@ -334,9 +334,7 @@ try {
       const zonesSrc = await readFile(join(ROOT, 'assets/zones.js'), 'utf8');
       const requiredExports = [
         '_saveSoon', '_savePast', '_saveManual', '_saveDone',
-        '_ageSoon', '_purgePast', 'toggleZone',
-        'renderSoon', 'renderPast', 'pullFromSoon',
-        'reviveFromPastShowReason', 'reviveFromPast', 'moveToSoon', 'moveToPast',
+        '_ageSoon', '_purgePast', 'renderSoon', 'renderPast',
       ];
       await expectAll('extracted zones module wiring', {
         moduleLoad:        indexSrc.includes('<script src="assets/zones.js"></script>'),
@@ -344,6 +342,7 @@ try {
         sectionRemoved:    !indexSrc.includes('// ─── Zones: Soon & Past (prototype)'),
         moduleInitializer: zonesSrc.includes('window._startZones = function()'),
         exports:           requiredExports.every(name => zonesSrc.includes(`window.${name} = ${name};`)),
+        api:               zonesSrc.includes("Today.define('zones'"),
         // state vars stay as inline globals in index.html
         soonTasksInline:   indexSrc.includes('let soonTasks'),
         pastTasksInline:   indexSrc.includes('let pastTasks'),

@@ -1,0 +1,34 @@
+name: test
+
+on:
+  push:
+    branches: [dev, master]
+  pull_request:
+    branches: [dev, master]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CHROME_PATH: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+      - name: Install test dependencies
+        run: npm ci --prefix scripts
+      - name: Verify Chrome
+        run: test -x "$CHROME_PATH"
+      - name: Run automated gate
+        run: npm test --prefix scripts
+      - name: Validate memory inventory
+        run: bash memory/validate-files.sh
+      - name: Check patch whitespace
+        run: git diff-tree --check --root -r HEAD

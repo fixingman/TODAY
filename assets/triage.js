@@ -115,8 +115,8 @@
 
         let metaText = 'from Trello';
         if (!isTrello) {
-          const created = t.lastActive || t.createdAt || _getCreatedFromId(t.id);
-          const age = _getAgeDays(created);
+          const created = t.lastActive || t.createdAt || Today.use('connections')._getCreatedFromId(t.id);
+          const age = Today.use('connections')._getAgeDays(created);
           metaText = age === 0 ? 'today' : age === 1 ? 'yesterday' : `${age} days`;
         }
 
@@ -135,20 +135,20 @@
             <span class="triage-task-text">${esc(t.text)}</span>
             <span class="triage-task-badge ${badgeClass}">${badgeText}</span>
           </div>
-          ${needsReason ? `<div class="triage-actions"><div class="triage-reason-row">${_rcs.map(([k,l])=>`<button class="triage-reason-btn" onclick="triageSetReason('${esc(t.id)}','${k}')">${l}</button>`).join('')}</div></div>` : ''}
+          ${needsReason ? `<div class="triage-actions"><div class="triage-reason-row">${_rcs.map(([k,l])=>`<button class="triage-reason-btn" data-today-click="triage.reason" data-task-id="${esc(t.id)}" data-reason="${k}">${l}</button>`).join('')}</div></div>` : ''}
         </div>
       `;
         }
 
         const actions = isTrello ? `
-      <button class="triage-btn keep" onclick="triageDecide('${esc(t.id)}','kept')">Keep</button>
-      <button class="triage-btn" onclick="triageShowReason('${esc(t.id)}')">Let go</button>
-      <button class="triage-btn done" onclick="triageDecide('${esc(t.id)}','done')">Done</button>
+      <button class="triage-btn keep" data-today-click="triage.decide" data-task-id="${esc(t.id)}" data-decision="kept">Keep</button>
+      <button class="triage-btn" data-today-click="triage.show-reason" data-task-id="${esc(t.id)}">Let go</button>
+      <button class="triage-btn done" data-today-click="triage.decide" data-task-id="${esc(t.id)}" data-decision="done">Done</button>
     ` : `
-      <button class="triage-btn keep" onclick="triageDecide('${esc(t.id)}','kept')">Keep</button>
-      <button class="triage-btn" onclick="triageDecide('${esc(t.id)}','soon')">↩&#xFE0E; Soon</button>
-      <button class="triage-btn" onclick="triageShowReason('${esc(t.id)}')">Let go</button>
-      <button class="triage-btn done" onclick="triageDecide('${esc(t.id)}','done')">Done</button>
+      <button class="triage-btn keep" data-today-click="triage.decide" data-task-id="${esc(t.id)}" data-decision="kept">Keep</button>
+      <button class="triage-btn" data-today-click="triage.decide" data-task-id="${esc(t.id)}" data-decision="soon">↩&#xFE0E; Soon</button>
+      <button class="triage-btn" data-today-click="triage.show-reason" data-task-id="${esc(t.id)}">Let go</button>
+      <button class="triage-btn done" data-today-click="triage.decide" data-task-id="${esc(t.id)}" data-decision="done">Done</button>
     `;
 
         return `
@@ -296,8 +296,8 @@
         const decision = triageDecisions[t.id];
         if (!decision) return;
 
-        const created = t.lastActive || t.createdAt || _getCreatedFromId(t.id);
-        const ageDays = _getAgeDays(created);
+        const created = t.lastActive || t.createdAt || Today.use('connections')._getCreatedFromId(t.id);
+        const ageDays = Today.use('connections')._getAgeDays(created);
         const sessions = focusData[t.id] || 0;
 
         const _letgoReason = decision === 'letgo' ? (triageDecisions[t.id + '_reason'] || '') : '';
@@ -446,7 +446,7 @@
 
       _haptic('success');
 
-      renderManual();
+      Today.use('connections').renderManual();
       renderTrello();
       renderSoon();
       renderPast();
@@ -455,16 +455,14 @@
       const undoBtn = document.getElementById('triageUndoBtn');
       if (undoBtn) undoBtn.style.display = '';
 
-      const reflectionState = typeof window._reflectionShowAfterTriage === 'function'
-        ? window._reflectionShowAfterTriage()
-        : { visible: false };
+      const reflectionState = Today.use('reflections')._reflectionShowAfterTriage();
 
       const initialMs = reflectionState.timeoutMs || 3000;
       _startAutoClose(initialMs);
 
-      if (typeof window._reflectionMountInTriage === 'function') window._reflectionMountInTriage(reflectionState);
+      Today.use('reflections')._reflectionMountInTriage(reflectionState);
 
-      if (typeof window._memoryAbstract === 'function') window._memoryAbstract();
+      Today.use('memory').abstract();
     }
 
     function _startAutoClose(durationMs) {
@@ -576,23 +574,37 @@
       const undoBtn = document.getElementById('triageUndoBtn');
       if (undoBtn) undoBtn.style.display = 'none';
       if (typeof _memoryOnTriageUndo === 'function') _memoryOnTriageUndo();
-      renderManual(); renderTrello(); renderSoon(); renderPast(); updateStats();
+      Today.use('connections').renderManual(); renderTrello(); renderSoon(); renderPast(); updateStats();
       const token = localStorage.getItem('dropbox_token');
       if (token) dropboxBackup(true);
       if (window._a11yAnnounce) _a11yAnnounce('Triage changes undone.');
     }
 
-    window.checkTriageBar = checkTriageBar;
-    window.triageExpand = triageExpand;
-    window.renderTriageList = renderTriageList;
-    window.triageShowReason = triageShowReason;
-    window.triageSetReason = triageSetReason;
-    window.triageDecide = triageDecide;
-    window.triageKeepAll = triageKeepAll;
-    window.triageApplyAll = triageApplyAll;
-    window.triageMinimize = triageMinimize;
-    window.triageClose = triageClose;
-    window.triageUndo = triageUndo;
-    window._setTriageBarSilent = v => { _triageBarSilent = v; };
+    if (window.Today) {
+      Today.define('triage', {
+        checkTriageBar,
+        triageExpand,
+        renderTriageList,
+        triageShowReason,
+        triageSetReason,
+        triageDecide,
+        triageKeepAll,
+        triageApplyAll,
+        triageMinimize,
+        triageClose,
+        triageUndo,
+        setBarSilent(value) { _triageBarSilent = value; },
+      });
+      Today.ui.register('click', 'triage.backdrop', (event, overlay) => {
+        if (event.target === overlay) triageMinimize();
+      });
+      Today.ui.register('click', 'triage.keep-all', triageKeepAll);
+      Today.ui.register('click', 'triage.undo', triageUndo);
+      Today.ui.register('click', 'triage.expand', triageExpand);
+      Today.ui.register('click', 'triage.reason', (_event, button) => triageSetReason(button.dataset.taskId, button.dataset.reason));
+      Today.ui.register('click', 'triage.show-reason', (_event, button) => triageShowReason(button.dataset.taskId));
+      Today.ui.register('click', 'triage.decide', (_event, button) => triageDecide(button.dataset.taskId, button.dataset.decision));
+    }
+
   };
 })();

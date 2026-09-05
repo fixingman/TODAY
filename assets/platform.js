@@ -160,7 +160,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
         <span class="connection-row-status">Add TODAY to your home screen</span>
       </div>
       <div class="connection-row-actions">
-        <button class="btn-sm primary" onclick="installPWA()">Install</button>
+        <button class="btn-sm primary" data-today-click="platform.install">Install</button>
       </div>
     </div>`;
     section.style.display = 'block';
@@ -251,7 +251,7 @@ function _pwaCopyLink(btn) {
         <span class="connection-row-status">Add TODAY to your home screen</span>
       </div>
       <div class="connection-row-actions">
-        <button class="btn-sm primary" onclick="_pwaShowSteps(this,'ios')">How to add ↓</button>
+        <button class="btn-sm primary" data-today-click="platform.steps" data-platform="ios">How to add ↓</button>
       </div>
     </div>`;
   } else if (_isMacSafari) {
@@ -261,7 +261,7 @@ function _pwaCopyLink(btn) {
         <span class="connection-row-status">Install TODAY as a desktop app</span>
       </div>
       <div class="connection-row-actions">
-        <button class="btn-sm primary" onclick="_pwaShowSteps(this,'mac')">How to add ↓</button>
+        <button class="btn-sm primary" data-today-click="platform.steps" data-platform="mac">How to add ↓</button>
       </div>
     </div>`;
   } else if (_isIOSNonSafari) {
@@ -271,7 +271,7 @@ function _pwaCopyLink(btn) {
         <span class="connection-row-status">Open in Safari to add to your home screen</span>
       </div>
       <div class="connection-row-actions">
-        <button class="btn-sm" onclick="_pwaCopyLink(this)">Copy link</button>
+        <button class="btn-sm" data-today-click="platform.copy-link">Copy link</button>
       </div>
     </div>`;
   } else if (_isFirefox) {
@@ -281,7 +281,7 @@ function _pwaCopyLink(btn) {
         <span class="connection-row-status">Open in Chrome or Edge to install</span>
       </div>
       <div class="connection-row-actions">
-        <button class="btn-sm" onclick="_pwaCopyLink(this)">Copy link</button>
+        <button class="btn-sm" data-today-click="platform.copy-link">Copy link</button>
       </div>
     </div>`;
   }
@@ -302,9 +302,16 @@ window.addEventListener('pageshow', (e) => {
   }
 });
 
-    // Preserve the global functions referenced by static and generated onclick handlers.
-    window.installPWA = installPWA;
-    window._pwaShowSteps = _pwaShowSteps;
-    window._pwaCopyLink = _pwaCopyLink;
+    if (window.Today) {
+      Today.define('platform', {
+        install: installPWA,
+        showSteps: _pwaShowSteps,
+        copyLink: _pwaCopyLink,
+      });
+      Today.ui.register('click', 'platform.install', installPWA);
+      Today.ui.register('click', 'platform.steps', (_event, button) => _pwaShowSteps(button, button.dataset.platform));
+      Today.ui.register('click', 'platform.copy-link', (_event, button) => _pwaCopyLink(button));
+    }
+
   };
 })();

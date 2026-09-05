@@ -139,7 +139,7 @@
         return `
         <div class="task" role="listitem" data-id="${t.id}">
           <span class="task-text">${textHTML}</span>
-          <button class="zone-badge pull-btn" onclick="pullFromSoon('${esc(t.id)}')" aria-label="Pull ${esc(t.text)} into today">← pull in</button>
+          <button class="zone-badge pull-btn" data-today-click="zones.pull" data-task-id="${esc(t.id)}" aria-label="Pull ${esc(t.text)} into today">← pull in</button>
         </div>
       `}).join('');
 
@@ -147,7 +147,7 @@
       list.querySelectorAll('.task').forEach(taskEl => {
         const tagEl = taskEl.querySelector('.task-tag');
         if (!tagEl) return;
-        const _shimmer = () => window._playTagInteractionShimmer(tagEl);
+        const _shimmer = () => Today.use('connections')._playTagInteractionShimmer(tagEl);
         if (_soonTouch) {
           const obs = new IntersectionObserver((entries, o) => {
             if (!entries[0].isIntersecting) return;
@@ -200,7 +200,7 @@
           : esc(t.text);
         const badge = t.status === 'done'
           ? `<span class="zone-badge">${t.status}</span>`
-          : `<button class="zone-badge pull-btn" onclick="reviveFromPastShowReason('${esc(t.id)}')" aria-label="Move ${esc(t.text)} back to soon">&#x21a9;&#xFE0E; soon</button>`;
+          : `<button class="zone-badge pull-btn" data-today-click="zones.revive-reason" data-task-id="${esc(t.id)}" aria-label="Move ${esc(t.text)} back to soon">&#x21a9;&#xFE0E; soon</button>`;
         return `
           <div class="task ${statusClass}" role="listitem" data-id="${t.id}">
             <div class="task-check past-check" aria-hidden="true">
@@ -229,7 +229,7 @@
       _saveManual();
 
       renderSoon();
-      renderManual();
+      Today.use('connections').renderManual();
       updateStats();
       _haptic('light');
       if (typeof _memoryOnSoonPull === 'function') _memoryOnSoonPull(task.text);
@@ -256,7 +256,7 @@
       const row = document.createElement('div');
       row.className = 'triage-reason-row past-revive-reasons';
       row.innerHTML = reasons.map(([key, label]) =>
-        `<button class="triage-reason-btn" onclick="reviveFromPast('${id}','${key}')">${label}</button>`
+        `<button class="triage-reason-btn" data-today-click="zones.revive" data-task-id="${esc(id)}" data-reason="${key}">${label}</button>`
       ).join('');
       card.querySelector('.task-body').appendChild(row);
     }
@@ -368,10 +368,10 @@
       soonTasks.unshift(task);
       _saveSoon();
 
-      renderManual();
+      Today.use('connections').renderManual();
       renderSoon();
       updateStats();
-      checkTriageBar();
+      Today.use('triage').checkTriageBar();
 
       const token = localStorage.getItem('dropbox_token');
       if (token) dropboxBackup(true);
@@ -390,13 +390,30 @@
       pastTasks.unshift(task);
       _savePast();
 
-      renderManual();
+      Today.use('connections').renderManual();
       renderPast();
       updateStats();
-      checkTriageBar();
+      Today.use('triage').checkTriageBar();
 
       const token = localStorage.getItem('dropbox_token');
       if (token) dropboxBackup(true);
+    }
+
+    if (window.Today) {
+      Today.define('zones', {
+        toggleZone,
+        renderSoon,
+        renderPast,
+        pullFromSoon,
+        reviveFromPastShowReason,
+        reviveFromPast,
+        moveToSoon,
+        moveToPast,
+      });
+      Today.ui.register('click', 'zones.toggle', (_event, button) => toggleZone(button.dataset.zone));
+      Today.ui.register('click', 'zones.pull', (_event, button) => pullFromSoon(button.dataset.taskId));
+      Today.ui.register('click', 'zones.revive-reason', (_event, button) => reviveFromPastShowReason(button.dataset.taskId));
+      Today.ui.register('click', 'zones.revive', (_event, button) => reviveFromPast(button.dataset.taskId, button.dataset.reason));
     }
 
     window._saveSoon = _saveSoon;
@@ -405,13 +422,7 @@
     window._saveDone = _saveDone;
     window._ageSoon = _ageSoon;
     window._purgePast = _purgePast;
-    window.toggleZone = toggleZone;
     window.renderSoon = renderSoon;
     window.renderPast = renderPast;
-    window.pullFromSoon = pullFromSoon;
-    window.reviveFromPastShowReason = reviveFromPastShowReason;
-    window.reviveFromPast = reviveFromPast;
-    window.moveToSoon = moveToSoon;
-    window.moveToPast = moveToPast;
   };
 })();

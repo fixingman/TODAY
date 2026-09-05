@@ -1,6 +1,6 @@
 # Connections Panel
 
-> Documents the UX and technical flows for connecting Trello, Dropbox, and AI. The panel lives at `#configPanel` (the ✦ icon in the header). Rendered by `renderConnections()`.
+> Documents the UX and technical flows for connecting Trello, Dropbox, and AI. The panel lives at `#configPanel` (the ✦ icon in the header). Rendered through the frozen `Today.use('connections')` component API; `assets/connections.js` owns its state, actions, and markup helpers.
 
 ---
 
@@ -139,9 +139,9 @@ See `architecture/Sync.md` for the full sync loop. The panel shows last activity
 
 ---
 
-## AI Assistant
+## AI provider configuration
 
-The AI panel is separate from the connections panel — it lives at `#aiPanel` (slides up from the ✦ add button). The connections panel at `#configPanel` shows AI as a service alongside Trello and Dropbox.
+The Connections panel at `#configPanel` configures AI alongside Trello, Gmail, and Dropbox. The legacy `#aiPanel` sheet has had no trigger since v2.49.0; reachable AI behavior is inline task help and the focus companion.
 
 ### Provider Selection
 
@@ -176,7 +176,7 @@ User selects provider → pastes API key into input
 
 Shows provider badge (Gemini/Claude) with key partially masked. Forget button removes both localStorage keys.
 
-The AI panel itself (`#aiPanel`) only shows when a key is connected. If not connected, the ✦ button routes to the connections panel (`toggleAI()` → `openConfigPanel()`).
+Provider state also controls the focus-companion affordance and background/inline AI calls. It does not reveal the orphaned `#aiPanel` sheet.
 
 ### Your Name (meeting mode, v2.22.0 + v2.31.0 inline capture)
 

@@ -14,7 +14,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
@@ -220,13 +220,10 @@ try {
     await page.close();
   }
 
-  // 10. mergeRemoteData: calls renderManual when tasks change.
+  // 10. mergeRemoteData: renders the merged task when tasks change.
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      let called = 0;
-      const real = window.renderManual;
-      window.renderManual = () => { called++; real && real(); };
       mergeRemoteData({
         manual_tasks: [{ id: 'remote_2', text: 'Another remote task' }],
         done_ids: [],
@@ -237,11 +234,10 @@ try {
         past_tasks: [],
         habits: [],
       });
-      window.renderManual = real;
-      return { renderCalled: called > 0 };
+      return { rendered: !!document.querySelector('.task[data-taskid="remote_2"]') };
     });
-    await expectAll('mergeRemoteData calls renderManual', { ...result, noErrors: errors.length === 0 });
-    ok('mergeRemoteData: calls renderManual when task list changes');
+    await expectAll('mergeRemoteData renders merged task', { ...result, noErrors: errors.length === 0 });
+    ok('mergeRemoteData: renders merged task when task list changes');
     await page.close();
   }
 

@@ -255,7 +255,7 @@
         localStorage.setItem('dropbox_token_expiry',  String(Date.now() + (data.expires_in - 60) * 1000));
         localStorage.removeItem('dropbox_token_expired');
         _setLastLocalChange();
-        renderConnections();
+        Today.use('connections').renderConnections();
         showStatus('Dropbox connected', 'success');
         // Fresh install: no local data — try to restore from existing Dropbox backup first.
         // Reconnect with local data: save current state (sync ticker will merge differences).
@@ -312,13 +312,13 @@
             // Clean rejection from Dropbox itself (e.g. revoked/invalid refresh token) —
             // retrying won't fix an auth failure, mark expired immediately, no retry.
             localStorage.setItem('dropbox_token_expired', '1');
-            renderConnections();
+            Today.use('connections').renderConnections();
             return;
           }
           localStorage.setItem('dropbox_token',        data.access_token);
           localStorage.setItem('dropbox_token_expiry', String(Date.now() + (data.expires_in - 60) * 1000));
           localStorage.removeItem('dropbox_token_expired');
-          renderConnections();
+          Today.use('connections').renderConnections();
           return; // success — exit loop
         } catch(e) {
           _logSyncError('Dropbox', 'Token refresh attempt ' + (attempt + 1) + ': ' + e.message);
@@ -329,7 +329,7 @@
       // above already returned) — mark expired so Connections reflects reality instead
       // of silently retrying sync against a token that's actually dead.
       localStorage.setItem('dropbox_token_expired', '1');
-      renderConnections();
+      Today.use('connections').renderConnections();
     }
 
     // ── Auto-save (debounced, called after every user action that changes state) ──
@@ -456,7 +456,7 @@
 
       // Clear stale .focusing — three checks:
       // 1. Immediate: covers clean sleep/wake where .focused was never set
-      // 2. Deferred 350ms: covers async Dropbox sync gap — renderManual() destroys
+      // 2. Deferred 350ms: covers async Dropbox sync gap — Today.use('connections').renderManual() destroys
       //    .focused element, _focusReanchor re-attaches moments later. During that
       //    gap .focusing is on but nothing is .focused → everything at 7% → blank. (BUG-004)
       // 3. Deferred 1000ms: catches late renders after Dropbox/Trello sync completes
@@ -480,15 +480,15 @@
 
       // Cold-start memory abstraction — once per day if triage hasn't already triggered it.
       if (typeof _localISO === 'function' && appMemory?.memory?._lastAbstractDate !== _localISO()) {
-        if (typeof window._memoryAbstract === 'function') window._memoryAbstract();
+        Today.use('memory').abstract();
       }
 
       // Triage silent window — prevents ticker showing bar before sync settles. (BUG-001)
-      _setTriageBarSilent(true);
+      Today.use('triage').setBarSilent(true);
       setTimeout(() => {
-        _setTriageBarSilent(false);
+        Today.use('triage').setBarSilent(false);
         triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
-        checkTriageBar();
+        Today.use('triage').checkTriageBar();
       }, 3000);
 
       // Retry pending backup — route through _scheduleBackup to share timer. (BUG-002)
@@ -498,7 +498,7 @@
       }
 
       // Re-apply offline state — navigator.onLine may have changed while sleeping.
-      if (typeof _applyOfflinePanel === 'function') _applyOfflinePanel();
+      if (typeof _applyOfflinePanel === 'function') Today.use('connections')._applyOfflinePanel();
     };
 
     // PWA standalone may not always fire visibilitychange on window restore —
@@ -602,12 +602,12 @@
         // Union-merged by date on restore so the week view matches across devices.
         daily_history:        safeJSON('today_daily_history', []),
         // User's name(s) — meeting mode attribution. Primary name in user_name for compat; full list in user_names.
-        user_name:            _getUserNames()[0] || '',
-        user_names:           _getUserNames(),
+        user_name:            Today.use('meeting')._getUserNames()[0] || '',
+        user_names:           Today.use('meeting')._getUserNames(),
         user_names_at:        localStorage.getItem('user_names_at') || '',
         // stat_last_visit intentionally excluded — it's local device state, meaningless on another device
         // Reflections — opt-in evening feelings; today_reflection_intro_seen_at intentionally excluded (local-only)
-        ...(typeof window._reflectionBackupFields === 'function' ? window._reflectionBackupFields() : {}),
+        ...Today.use('reflections')._reflectionBackupFields(),
       };
 
       try {
@@ -625,13 +625,13 @@
           if (silent) {
             // Mark token as expired so UI reflects reality
             localStorage.setItem('dropbox_token_expired', '1');
-            renderConnections();
+            Today.use('connections').renderConnections();
             return false;
           }
           localStorage.removeItem('dropbox_token');
           localStorage.removeItem('dropbox_token_expired');
-          renderConnections();
-          dropboxShowMsg('Session expired — please reconnect.', 'error'); renderConnections();
+          Today.use('connections').renderConnections();
+          dropboxShowMsg('Session expired — please reconnect.', 'error'); Today.use('connections').renderConnections();
           return false;
         }
         if (!res.ok) throw new Error(`Dropbox ${res.status}`);
@@ -678,46 +678,11 @@
     // dates merge per-field with Math.max so neither device's data is silently discarded.
     // Cap 30 days.
     function _mergeDailyHistory(localArr, remoteArr) {
-      const _cleanEntry = entry => ({
-        ...entry,
-        tasksAdded: _sanitizeDailyTasksAdded(entry.tasksAdded),
-      });
-      const byDate = new Map();
-      for (const e of (Array.isArray(localArr)  ? localArr  : [])) {
-        if (e && e.date) byDate.set(e.date, _cleanEntry(e));
-      }
-      for (const e of (Array.isArray(remoteArr) ? remoteArr : [])) {
-        if (!e || !e.date) continue;
-        const remote = _cleanEntry(e);
-        const cur = byDate.get(e.date);
-        if (!cur) { byDate.set(e.date, remote); continue; }
-        byDate.set(e.date, {
-          date:        e.date,
-          tasksDone:   Math.max(cur.tasksDone   || 0, remote.tasksDone   || 0),
-          // tasksAdded: per-day delta only — values above the shared plausibility
-          // ceiling are cumulative artifacts
-          // (the v2 migration zeroes them locally, but a sync from the other device can
-          // restore large values before that device has run the migration). Every local,
-          // remote-only, and duplicate-date entry is normalized before it reaches storage.
-          tasksAdded: (function() {
-            const _a = cur.tasksAdded, _b = remote.tasksAdded;
-            if (cur.tasksAddedFixed && remote.tasksAddedFixed) return Math.max(_a, _b);
-            if (cur.tasksAddedFixed) return _a;
-            if (remote.tasksAddedFixed) return _b;
-            return Math.max(_a, _b);
-          })(),
-          // dayStartCount: tasks on the list at day start — take the higher value so
-          // neither device's observation is discarded (added v2.75.13, BUG-086)
-          ...(cur.dayStartCount != null || remote.dayStartCount != null
-            ? { dayStartCount: Math.max(cur.dayStartCount ?? 0, remote.dayStartCount ?? 0) }
-            : {}),
-          focusMins:   Math.max(cur.focusMins   || 0, remote.focusMins   || 0),
-          habitsKept:  Math.max(cur.habitsKept  || 0, remote.habitsKept  || 0),
-          habitsTotal: Math.max(cur.habitsTotal || 0, remote.habitsTotal || 0),
-          ...(cur.tasksAddedFixed || remote.tasksAddedFixed ? { tasksAddedFixed: true } : {}),
-        });
-      }
-      return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
+      return Today.use('sync-merge').mergeDailyHistory(
+        localArr,
+        remoteArr,
+        _sanitizeDailyTasksAdded,
+      );
     }
 
     // ── Core merge logic — operates on a remote data object, no timestamp guard ───
@@ -829,46 +794,10 @@
       // offer ID and union each timestamp/result set so an older device cannot
       // erase later evidence (applied → helped/reversed) with a stale snapshot.
       if (Array.isArray(remote.suggestionOutcomes)) {
-        if (!Array.isArray(appMemory.suggestionOutcomes)) appMemory.suggestionOutcomes = [];
-        const outcomeById = new Map(appMemory.suggestionOutcomes
-          .filter(entry => entry?.id)
-          .map(entry => [entry.id, entry]));
-        const later = (a, b) => !a ? b : !b ? a : (a > b ? a : b);
-        for (const remoteEntry of remote.suggestionOutcomes) {
-          if (!remoteEntry?.id) continue;
-          const localEntry = outcomeById.get(remoteEntry.id);
-          if (!localEntry) {
-            outcomeById.set(remoteEntry.id, { ...remoteEntry });
-            continue;
-          }
-          const localNewest = (localEntry.updatedAt || localEntry.offeredAt || '') >=
-            (remoteEntry.updatedAt || remoteEntry.offeredAt || '');
-          const newest = localNewest ? localEntry : remoteEntry;
-          const merged = {
-            ...(localNewest ? remoteEntry : localEntry),
-            ...newest,
-            offeredAt: later(localEntry.offeredAt, remoteEntry.offeredAt),
-            appliedAt: later(localEntry.appliedAt, remoteEntry.appliedAt),
-            dismissedAt: later(localEntry.dismissedAt, remoteEntry.dismissedAt),
-            ignoredAt: later(localEntry.ignoredAt, remoteEntry.ignoredAt),
-            helpedAt: later(localEntry.helpedAt, remoteEntry.helpedAt),
-            reversedAt: later(localEntry.reversedAt, remoteEntry.reversedAt),
-            updatedAt: later(localEntry.updatedAt, remoteEntry.updatedAt),
-            resultTaskIds: [...new Set([
-              ...(localEntry.resultTaskIds || []),
-              ...(remoteEntry.resultTaskIds || []),
-            ])],
-          };
-          if (merged.helpedAt) merged.outcome = 'helped';
-          else if (merged.reversedAt) merged.outcome = 'reversed';
-          else if (merged.appliedAt) merged.outcome = 'applied';
-          else if (merged.dismissedAt) merged.outcome = 'dismissed';
-          else if (merged.ignoredAt) merged.outcome = 'ignored';
-          outcomeById.set(remoteEntry.id, merged);
-        }
-        appMemory.suggestionOutcomes = [...outcomeById.values()]
-          .sort((a, b) => (b.offeredAt || '').localeCompare(a.offeredAt || ''))
-          .slice(0, 100);
+        appMemory.suggestionOutcomes = Today.use('sync-merge').mergeSuggestionOutcomes(
+          appMemory.suggestionOutcomes,
+          remote.suggestionOutcomes,
+        );
       }
       // Merge recentCompletedTasks (union by text+date, 30-day window)
       if (Array.isArray(remote.recentCompletedTasks)) {
@@ -1226,7 +1155,7 @@
       localStorage.setItem('today_deleted_habit_ids', JSON.stringify([...mergedDeletedHabitIds].slice(-200)));
 
       const habitsPanel = document.getElementById('habitsPanel');
-      if (habitsPanel && habitsPanel.classList.contains('open')) renderHabits();
+      if (habitsPanel && habitsPanel.classList.contains('open')) Today.use('habits').renderHabits();
 
       // ── Trello order: newer reorder wins ─────────────────────────────────────
       // Was unconditional "remote wins" — but trello_order rides in EVERY backup, so
@@ -1386,7 +1315,7 @@
         const empty  = $.manualEmpty;
         brandNew.forEach(t => {
           const tmp = document.createElement('div');
-          tmp.innerHTML = taskHTML(t, 'manual');
+          tmp.innerHTML = Today.use('connections').taskHTML(t, 'manual');
           listEl.appendChild(tmp.firstElementChild);
         });
         if (empty) empty.style.display = 'none';
@@ -1649,7 +1578,7 @@
 
       // Full re-render if tasks were added or removed — surgical patch is not enough
       if (_changed) {
-        renderManual();
+        Today.use('connections').renderManual();
       } else {
         // Only done state changed — patch in place, no DOM rebuild needed
         document.querySelectorAll('.task[data-taskid]').forEach(el => {
@@ -1679,7 +1608,7 @@
         });
         if (trelloTasks.length !== prevLen) renderTrello();
       }
-      if (typeof window._reflectionMergeRemote === 'function' && window._reflectionMergeRemote(data)) _changed = true;
+      if (Today.use('reflections')._reflectionMergeRemote(data)) _changed = true;
 
       updateStats();
       return _changed;
@@ -1703,12 +1632,12 @@
 
         if (res.status === 401) {
           localStorage.setItem('dropbox_token_expired', '1');
-          renderConnections();
+          Today.use('connections').renderConnections();
           if (!fromSync) {
             localStorage.removeItem('dropbox_token');
             localStorage.removeItem('dropbox_token_expired');
-            renderConnections();
-            dropboxShowMsg('Session expired — please reconnect.', 'error'); renderConnections();
+            Today.use('connections').renderConnections();
+            dropboxShowMsg('Session expired — please reconnect.', 'error'); Today.use('connections').renderConnections();
           }
           return;
         }
@@ -1807,7 +1736,7 @@
             localStorage.setItem('today_habit_events',      JSON.stringify(habitEvents));
             localStorage.setItem('today_deleted_habit_ids', JSON.stringify(Array.isArray(data.deleted_habit_ids) ? data.deleted_habit_ids : []));
             const habitsPanel = document.getElementById('habitsPanel');
-            if (habitsPanel && habitsPanel.classList.contains('open')) renderHabits();
+            if (habitsPanel && habitsPanel.classList.contains('open')) Today.use('habits').renderHabits();
           }
           // Restore zones — SOON and PAST (v5.0)
           if (Array.isArray(data.soon_tasks)) {
@@ -1844,8 +1773,8 @@
           _mergeAppMemory(data.memory);
           // stat_last_visit intentionally NOT restored — it's local device state.
           // Restoring it would cause applyNewDayCleanup() to re-run and delete today's tasks.
-          if (typeof window._reflectionMergeRemote === 'function') window._reflectionMergeRemote(data);
-          renderManual();
+          Today.use('reflections')._reflectionMergeRemote(data);
+          Today.use('connections').renderManual();
           renderTrello();
           updateStats();
           // The stamp below makes this device skip its new-day cleanup, which is also
@@ -1957,7 +1886,7 @@
         // The header date is written once at init; a tab open across midnight would keep
         // yesterday's until a reload (BUG-097). Crossfade it to the new day here.
         if (typeof window._dateTagRefresh === 'function') window._dateTagRefresh(true);
-        renderManual();
+        Today.use('connections').renderManual();
         loadTrello(true);
         updateStats();
         // Refresh the nudge banner too — a tab left open across midnight (common desktop
@@ -2026,7 +1955,7 @@
           // Live meeting: verify the recorder survived suspension (iOS kills it on
           // screen lock). Direct call, not via _onWake — that path is debounced and
           // _appReady-gated; this check must run on every return to visible.
-          if (typeof _meetingHealthCheck === 'function') _meetingHealthCheck();
+          Today.use('meeting')._meetingHealthCheck();
           // Start ticker
           wakeTimer = setTimeout(() => { startTicker(); }, 2000);
         } else {
@@ -2062,7 +1991,7 @@
             }
           } catch(e) { /* push local as-is if fetch fails */ }
           await dropboxBackup(true);
-          renderManual(); // always re-render after reconnect merge — DOM may be stale
+          Today.use('connections').renderManual(); // always re-render after reconnect merge — DOM may be stale
           updateStats();
         }
 
@@ -2081,11 +2010,11 @@
       window.addEventListener('offline', () => {
         clearTimeout(wakeTimer);
         stopTicker();
-        _applyOfflinePanel();
+        Today.use('connections')._applyOfflinePanel();
       });
 
       window.addEventListener('online', () => {
-        _applyOfflinePanel();
+        Today.use('connections')._applyOfflinePanel();
       }, { capture: true });
 
       // Seed baselines before starting ticker so first tick has something to compare.
@@ -2163,12 +2092,12 @@
           // the freshest data. Running it in init() before the restore caused done
           // tasks to reappear because the Dropbox pull overwrote the cleaned state.
           applyNewDayCleanup();
-          renderManual();
+          Today.use('connections').renderManual();
           updateStats();
 
           // Re-check triage now that sync and cleanup are done — init() ran too early
           // when doneIds might not have been merged yet, causing done tasks to appear
-          checkTriageBar();
+          Today.use('triage').checkTriageBar();
           // Re-check nudge — applyNewDayCleanup() sets morning_nudge_count but init()'s
           // checkDayNudge() ran before cleanup (count may have been missing/stale).
           // Mirrors what the Dropbox restore path already does at line 8700.

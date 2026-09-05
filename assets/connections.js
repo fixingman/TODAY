@@ -117,7 +117,7 @@
         _beginConnectionsPrivacyVisit();
         renderConnections();
         setTimeout(_aiRenderConfig, 0);
-        renderMeetingNames();
+        Today.use('meeting').renderMeetingNames();
       } else {
         _endConnectionsPrivacyVisit();
         const s = document.getElementById('statusMsg');
@@ -191,14 +191,14 @@
                 <span class="connection-card-title">Trello</span>
               </div>
               <div class="connection-card-hint">Pull today's cards automatically</div>
-              <button class="btn-primary" onclick="trelloAuth()">Connect</button>
+              <button class="btn-primary" data-today-click="connections.trello-auth">Connect</button>
             </div>
             <div class="connection-card">
               <div class="connection-card-header">
                 <span class="connection-card-title">Dropbox</span>
               </div>
               <div class="connection-card-hint">Sync tasks across devices</div>
-              <button class="btn-primary" onclick="dropboxAuth()">Connect</button>
+              <button class="btn-primary" data-today-click="connections.dropbox-auth">Connect</button>
             </div>
           </div>
           ${_gmailRowHTML(gmailConnected)}`;
@@ -222,8 +222,8 @@
             </div>
             <span class="conn-check" aria-hidden="true">✓</span>
             <div class="connection-row-actions">
-              <button class="btn-sm" onclick="loadTrello()">Refresh</button>
-              <button class="btn-sm btn-forget" onclick="clearTrello()">Forget</button>
+              <button class="btn-sm" data-today-click="connections.trello-load">Refresh</button>
+              <button class="btn-sm btn-forget" data-today-click="connections.trello-clear">Forget</button>
             </div>
           </div>`;
       } else if (trelloToken) {
@@ -235,7 +235,7 @@
               <span class="connection-expanded-status">● Connected</span>
             </div>
             <label class="visually-hidden" for="boardSelect">Trello board</label>
-            <select id="boardSelect" onchange="onBoardChange()">
+            <select id="boardSelect" data-today-change="connections.board-change">
               <option value="">— select a board —</option>
             </select>
             <div id="listFieldWrap" style="display:none">
@@ -245,8 +245,8 @@
               </select>
             </div>
             <div class="connection-expanded-actions">
-              <button class="btn-sm primary" id="loadTasksBtn" onclick="saveAndLoad()">Get tasks</button>
-              <button class="btn-sm ghost" onclick="clearTrello()">Forget</button>
+              <button class="btn-sm primary" id="loadTasksBtn" data-today-click="connections.trello-save-load">Get tasks</button>
+              <button class="btn-sm ghost" data-today-click="connections.trello-clear">Forget</button>
             </div>
           </div>`;
       } else {
@@ -258,7 +258,7 @@
               <span class="connection-row-status">Pull today's cards</span>
             </div>
             <div class="connection-row-actions">
-              <button class="btn-sm primary" onclick="trelloAuth()">Connect</button>
+              <button class="btn-sm primary" data-today-click="connections.trello-auth">Connect</button>
             </div>
           </div>`;
       }
@@ -274,9 +274,9 @@
             </div>
             <span class="conn-check" aria-hidden="true">✓</span>
             <div class="connection-row-actions">
-              <button class="btn-sm" onclick="dropboxBackup()">Save</button>
-              <button class="btn-sm" onclick="dropboxRestore()">Restore</button>
-              <button class="btn-sm btn-forget" onclick="dropboxDisconnect()">Forget</button>
+              <button class="btn-sm" data-today-click="connections.dropbox-backup">Save</button>
+              <button class="btn-sm" data-today-click="connections.dropbox-restore">Restore</button>
+              <button class="btn-sm btn-forget" data-today-click="connections.dropbox-disconnect">Forget</button>
             </div>
           </div>`;
       } else if (dropboxExpired) {
@@ -288,7 +288,7 @@
               <span class="connection-row-status error">Session expired</span>
             </div>
             <div class="connection-row-actions">
-              <button class="btn-sm primary" onclick="dropboxAuth()">Reconnect</button>
+              <button class="btn-sm primary" data-today-click="connections.dropbox-auth">Reconnect</button>
             </div>
           </div>`;
       } else {
@@ -300,7 +300,7 @@
               <span class="connection-row-status">Backup & sync</span>
             </div>
             <div class="connection-row-actions">
-              <button class="btn-sm primary" onclick="dropboxAuth()">Connect</button>
+              <button class="btn-sm primary" data-today-click="connections.dropbox-auth">Connect</button>
             </div>
           </div>`;
       }
@@ -314,7 +314,7 @@
       }
 
       _applyOfflinePanel();
-      renderMeetingNames();
+      Today.use('meeting').renderMeetingNames();
     }
 
 
@@ -335,7 +335,7 @@
             </div>
             <span class="conn-check" aria-hidden="true">✓</span>
             <div class="connection-row-actions">
-              <button class="btn-sm btn-forget" onclick="gmailDisconnect()">Forget</button>
+              <button class="btn-sm btn-forget" data-today-click="connections.gmail-disconnect">Forget</button>
             </div>
           </div>`;
       }
@@ -346,7 +346,7 @@
             <span class="connection-row-status">Find email context for your tasks</span>
           </div>
           <div class="connection-row-actions">
-            <button class="btn-sm primary" onclick="gmailAuth()">Connect</button>
+            <button class="btn-sm primary" data-today-click="connections.gmail-auth">Connect</button>
           </div>
         </div>`;
     }
@@ -432,7 +432,7 @@
       _wireManualTagShimmer(list);
       if (window._gmailRestoreAllIndicators) _gmailRestoreAllIndicators();
       if (window._agentRestoreAllIndicators) _agentRestoreAllIndicators();
-      if (window._aiReanchorSuggestion) window._aiReanchorSuggestion();
+      Today.use('assistant')._aiReanchorSuggestion();
     }
 
     // Wire hover/scroll shimmer on .task-tag elements in the manual list.
@@ -592,7 +592,7 @@
       function _providerRow(id, label, hint, keyLink, keyLinkText, hasKey) {
         const isDefault = bothConnected && defaultProvider === id;
         const defaultBtn = bothConnected
-          ? `<button class="btn-sm${isDefault ? ' primary' : ''}" onclick="setDefaultProvider('${id}')">${isDefault ? '✓ ' : ''}Default</button>`
+          ? `<button class="btn-sm${isDefault ? ' primary' : ''}" data-today-click="connections.ai-default" data-provider="${id}">${isDefault ? '✓ ' : ''}Default</button>`
           : '';
 
         if (hasKey) {
@@ -603,7 +603,7 @@
         <span class="conn-check" aria-hidden="true">✓</span>
         <div class="connection-row-actions">
           ${defaultBtn}
-          <button class="btn-sm btn-forget" onclick="clearAIKey('${id}')">Forget</button>
+          <button class="btn-sm btn-forget" data-today-click="connections.ai-clear" data-provider="${id}">Forget</button>
         </div>
       </div>`;
         }
@@ -614,9 +614,9 @@
       </div>
       <div class="connection-row-actions">
         <label class="visually-hidden" for="aiKey_${id}">${label} API key</label><input class="ai-key-input" id="aiKey_${id}" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Paste key…"
-          oninput="_aiUpdateConnectBtn('${id}')"
-          onkeydown="if(event.key==='Enter')saveAIKey('${id}')" />
-        <button class="btn-sm primary" id="aiConnect_${id}" onclick="saveAIKey('${id}')" disabled>Connect</button>
+          data-today-input="connections.ai-input" data-provider="${id}"
+          data-today-keydown="connections.ai-key" />
+        <button class="btn-sm primary" id="aiConnect_${id}" data-today-click="connections.ai-save" data-provider="${id}" disabled>Connect</button>
       </div>
       <div id="aiMsg_${id}" class="status-msg" role="status" aria-live="polite" style="display:none;margin-top:var(--space-2);width:100%"></div>
     </div>`;
@@ -705,8 +705,8 @@
         }
         _aiRenderConfig();
         _updateBarPlaceholder();
-        _meetingInit();
-        _voiceNoteInit();
+        Today.use('meeting')._meetingInit();
+        Today.use('meeting')._voiceNoteInit();
 
       } catch(e) {
         localStorage.removeItem(storageKey);
@@ -725,41 +725,65 @@
       }
       _aiRenderConfig();
       _updateBarPlaceholder();
-      _meetingInit();
-      _voiceNoteInit();
+      Today.use('meeting')._meetingInit();
+      Today.use('meeting')._voiceNoteInit();
     }
 
     function setDefaultProvider(p) {
       localStorage.setItem('today_ai_provider', p);
       _aiRenderConfig();
       _updateBarPlaceholder();
-      _meetingInit();
-      _voiceNoteInit();
+      Today.use('meeting')._meetingInit();
+      Today.use('meeting')._voiceNoteInit();
     }
 
-    window.setTrelloIcon = setTrelloIcon;
-    window.syncActiveButtons = syncActiveButtons;
-    window._renderConnectionsPrivacy = _renderConnectionsPrivacy;
-    window._endConnectionsPrivacyVisit = _endConnectionsPrivacyVisit;
-    window.toggleConfig = toggleConfig;
-    window._applyOfflinePanel = _applyOfflinePanel;
-    window.renderConnections = renderConnections;
-    window.dropboxDisconnect = dropboxDisconnect;
-    window._getDueStr = _getDueStr;
-    window._queueTagArrivalShimmer = _queueTagArrivalShimmer;
-    window.renderManual = renderManual;
-    window._wireManualTagShimmer = _wireManualTagShimmer;
-    window._playTagInteractionShimmer = _playTagInteractionShimmer;
-    window.taskHTML = taskHTML;
-    window._getCreatedFromId = _getCreatedFromId;
-    window._getAgeDays = _getAgeDays;
-    window._aiGetProvider = _aiGetProvider;
-    window._aiGetKey = _aiGetKey;
-    window._aiIsConfigured = _aiIsConfigured;
-    window._aiRenderConfig = _aiRenderConfig;
-    window._aiUpdateConnectBtn = _aiUpdateConnectBtn;
-    window.saveAIKey = saveAIKey;
-    window.clearAIKey = clearAIKey;
-    window.setDefaultProvider = setDefaultProvider;
+    if (window.Today) {
+      Today.define('connections', {
+        toggleConfig,
+        _renderConnectionsPrivacy,
+        dropboxDisconnect,
+        _aiUpdateConnectBtn,
+        saveAIKey,
+        clearAIKey,
+        setDefaultProvider,
+        setTrelloIcon,
+        syncActiveButtons,
+        _endConnectionsPrivacyVisit,
+        _applyOfflinePanel,
+        renderConnections,
+        _getDueStr,
+        _queueTagArrivalShimmer,
+        renderManual,
+        _wireManualTagShimmer,
+        _playTagInteractionShimmer,
+        taskHTML,
+        _getCreatedFromId,
+        _getAgeDays,
+        _aiGetProvider,
+        _aiGetKey,
+        _aiIsConfigured,
+        _aiRenderConfig,
+      });
+      Today.ui.register('click', 'connections.toggle', toggleConfig);
+      Today.ui.register('click', 'connections.trello-auth', trelloAuth);
+      Today.ui.register('click', 'connections.trello-load', loadTrello);
+      Today.ui.register('click', 'connections.trello-clear', clearTrello);
+      Today.ui.register('change', 'connections.board-change', onBoardChange);
+      Today.ui.register('click', 'connections.trello-save-load', saveAndLoad);
+      Today.ui.register('click', 'connections.dropbox-auth', dropboxAuth);
+      Today.ui.register('click', 'connections.dropbox-backup', () => dropboxBackup());
+      Today.ui.register('click', 'connections.dropbox-restore', dropboxRestore);
+      Today.ui.register('click', 'connections.dropbox-disconnect', dropboxDisconnect);
+      Today.ui.register('click', 'connections.gmail-auth', gmailAuth);
+      Today.ui.register('click', 'connections.gmail-disconnect', gmailDisconnect);
+      Today.ui.register('click', 'connections.ai-default', (_event, button) => setDefaultProvider(button.dataset.provider));
+      Today.ui.register('click', 'connections.ai-clear', (_event, button) => clearAIKey(button.dataset.provider));
+      Today.ui.register('input', 'connections.ai-input', (_event, input) => _aiUpdateConnectBtn(input.dataset.provider));
+      Today.ui.register('keydown', 'connections.ai-key', (event, input) => {
+        if (event.key === 'Enter') saveAIKey(input.dataset.provider);
+      });
+      Today.ui.register('click', 'connections.ai-save', (_event, button) => saveAIKey(button.dataset.provider));
+    }
+
   };
 })();

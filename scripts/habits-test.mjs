@@ -14,7 +14,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
@@ -90,7 +90,7 @@ async function openPage() {
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForFunction(
-    () => typeof _saveHabits === 'function' && document.getElementById('habitList'),
+    () => typeof Today?.use('habits')._saveHabits === 'function' && document.getElementById('habitList'),
     { timeout: 15000 }
   );
   await page.evaluate(() => {
@@ -146,7 +146,7 @@ try {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
       habitsList = [];
-      renderHabits();
+      Today.use('habits').renderHabits();
       const empty = document.getElementById('habitEmpty');
       return {
         showsEmpty: !!(empty && empty.classList.contains('show')),
@@ -162,7 +162,7 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      renderHabits();
+      Today.use('habits').renderHabits();
       const rows        = document.querySelectorAll('#habitList .habit');
       const habitARow   = document.querySelector('.habit[data-habit-id="habit_a"]');
       const filledDots  = habitARow ? habitARow.querySelectorAll('.week-dot.filled').length : 0;
@@ -183,8 +183,8 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      renderHabits();
-      toggleHabitDone('habit_b');
+      Today.use('habits').renderHabits();
+      Today.use('habits').toggleHabitDone('habit_b');
       const today  = _habitTodayISO();
       const comps  = habitCompletions['habit_b'] || [];
       const ls     = JSON.parse(localStorage.getItem('today_habit_completions') || '{}');
@@ -207,9 +207,9 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      renderHabits();
-      toggleHabitDone('habit_b'); // check
-      toggleHabitDone('habit_b'); // uncheck
+      Today.use('habits').renderHabits();
+      Today.use('habits').toggleHabitDone('habit_b'); // check
+      Today.use('habits').toggleHabitDone('habit_b'); // uncheck
       const today   = _habitTodayISO();
       const comps   = habitCompletions['habit_b'] || [];
       const ls      = JSON.parse(localStorage.getItem('today_habit_completions') || '{}');
@@ -234,7 +234,7 @@ try {
       const input     = document.getElementById('habitInput');
       if (input) input.value = 'Meditate';
       const beforeLen = habitsList.length;
-      addHabit();
+      Today.use('habits').addHabit();
       const newHabit  = habitsList.find(h => h.name === 'Meditate');
       const ls        = JSON.parse(localStorage.getItem('today_habits') || '[]');
       const lsHabit   = ls.find(h => h.name === 'Meditate');
@@ -257,15 +257,15 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      renderHabits();
-      toggleHabitEditMode();
+      Today.use('habits').renderHabits();
+      Today.use('habits').toggleHabitEditMode();
       const modeEntered = habitEditMode === true;
       const inputs      = document.querySelectorAll('#habitList .habit-edit-input');
       const editBtn     = document.getElementById('habitEditBtn');
       // Rename habit_b via its input
       const inputB = document.querySelector('.habit-edit-input[data-id="habit_b"]');
       if (inputB) inputB.value = 'Run';
-      toggleHabitEditMode();
+      Today.use('habits').toggleHabitEditMode();
       const modeExited   = habitEditMode === false;
       const savedHabit   = habitsList.find(h => h.id === 'habit_b');
       const ls           = JSON.parse(localStorage.getItem('today_habits') || '[]');
@@ -288,8 +288,8 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      renderHabits();
-      archiveHabit('habit_a');
+      Today.use('habits').renderHabits();
+      Today.use('habits').archiveHabit('habit_a');
       // Capture booleans immediately — habitA is a live reference; undo will mutate it.
       const habitA       = habitsList.find(h => h.id === 'habit_a');
       const habitArchived = !!(habitA && habitA.archived === true);
@@ -298,7 +298,7 @@ try {
       const ls1          = JSON.parse(localStorage.getItem('today_habits') || '[]');
       const lsArchivedA  = ls1.find(h => h.id === 'habit_a');
 
-      _undoLast();
+      Today.use('task-actions')._undoLast();
       const habitAAfter    = habitsList.find(h => h.id === 'habit_a');
       const ls2            = JSON.parse(localStorage.getItem('today_habits') || '[]');
       const lsUnarchivedA  = ls2.find(h => h.id === 'habit_a');
@@ -319,8 +319,8 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      const strengthA = _getHabitStrength('habit_a');
-      const strengthB = _getHabitStrength('habit_b');
+      const strengthA = Today.use('habits')._getHabitStrength('habit_a');
+      const strengthB = Today.use('habits')._getHabitStrength('habit_b');
       return {
         habitAPositive:  strengthA > 0,
         habitBZero:      strengthB === 0,
@@ -337,10 +337,10 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      renderHabits();
+      Today.use('habits').renderHabits();
       let focusCalledWith = null;
       window._focusOnCheck = id => { focusCalledWith = id; };
-      toggleHabitDone('habit_b'); // habit_b has no completions → isNowDone = true
+      Today.use('habits').toggleHabitDone('habit_b'); // habit_b has no completions → isNowDone = true
       window._focusOnCheck = null;
       return { focusCalled: focusCalledWith === 'habit_b' };
     });
@@ -362,18 +362,12 @@ try {
       ok('inline habits baseline');
     } else {
       const habitsSrc = await readFile(join(ROOT, 'assets/habits.js'), 'utf8');
-      const requiredExports = [
-        '_saveHabits', '_getHabitStrength', 'renderHabits',
-        'toggleHabits', 'toggleHabitEditMode', '_enterHabitEditMode',
-        'handleHabitEditKey', 'toggleHabitInput', 'handleHabitKey',
-        'addHabit', '_pulseCheck', 'toggleHabitDone', 'archiveHabit',
-      ];
       await expectAll('extracted habits module wiring', {
         moduleLoad:              indexSrc.includes('<script src="assets/habits.js"></script>'),
         initializer:             indexSrc.includes('window._startHabits();'),
         sectionRemoved:          !indexSrc.includes('function _saveHabits()'),
         moduleInitializer:       habitsSrc.includes('window._startHabits = function()'),
-        exports:                 requiredExports.every(n => habitsSrc.includes(`window.${n} = ${n};`)),
+        api:                     habitsSrc.includes("Today.define('habits'"),
         habitsListInline:        indexSrc.includes('let habitsList'),
         habitCompletionsInline:  indexSrc.includes('let habitCompletions'),
         habitEventsInline:       indexSrc.includes('let habitEvents'),

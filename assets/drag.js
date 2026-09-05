@@ -36,10 +36,10 @@
       } else if (listId === 'habitList') {
         const ids = rows.map(el => el.dataset.habitId);
         habitsList.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-        _saveHabits();
+        Today.use('habits')._saveHabits();
         if (preserveDesktopHabitAutosave) dropboxAutoSave();
       }
-      if (window._aiReanchorSuggestion) window._aiReanchorSuggestion();
+      Today.use('assistant')._aiReanchorSuggestion();
     }
 
     window._a11yMoveRow = function(row, delta) {

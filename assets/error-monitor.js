@@ -151,3 +151,7 @@ function _toggleErrorPanel() {
     panel.classList.add('open');
   }
 }
+
+if (window.Today) {
+  Today.ui.register('click', 'errors.toggle', _toggleErrorPanel);
+}

@@ -129,8 +129,8 @@
         `<p class="reflection-intro-copy"><strong>Remember how days felt?</strong><br>` +
         `TODAY can remember these reflections for 30 days and notice patterns over time. They stay on this device, and in your Dropbox if you connect it. Your AI sees a short summary only when you ask.</p>` +
         `<div class="reflection-consent-actions">` +
-        `<button class="reflection-consent-btn accent" onclick="reflectionRemember()">Remember</button>` +
-        `<button class="reflection-consent-btn neutral" onclick="reflectionDecline()">Not for me</button>` +
+        `<button class="reflection-consent-btn accent" data-today-click="reflections.remember">Remember</button>` +
+        `<button class="reflection-consent-btn neutral" data-today-click="reflections.decline">Not for me</button>` +
         `</div></div>`;
     }
 
@@ -138,7 +138,7 @@
       return `<div class="reflection-question">Beyond what got done, how did today feel?</div>` +
         `<div class="reflection-feelings" role="group" aria-label="How today felt">` +
         VALID_FEELINGS.map(f =>
-          `<button class="reflection-feeling-btn" aria-pressed="false" onclick="reflectionSelect('${f}')">${f}</button>`
+          `<button class="reflection-feeling-btn" aria-pressed="false" data-today-click="reflections.select" data-feeling="${f}">${f}</button>`
         ).join('') +
         `</div>`;
     }
@@ -227,7 +227,7 @@
       if (!policy || policy.choice === 'not_for_me') {
         inner += `<div class="memory-item"><span class="memory-item-text">Reflections are not remembered.</span></div>` +
           `<div style="margin-top:var(--space-2);padding-bottom:var(--space-2)">` +
-          `<button class="triage-undo-btn" onclick="reflectionRememberAgain()">Remember reflections</button>` +
+          `<button class="triage-undo-btn" data-today-click="reflections.remember-again">Remember reflections</button>` +
           `</div>`;
       } else {
         // policy.choice === 'remember'
@@ -243,7 +243,7 @@
           inner += `<div class="memory-item"><span class="memory-item-text">${obs}</span></div>`;
         }
 
-        const aiReady = typeof _aiIsConfigured === 'function' && _aiIsConfigured();
+        const aiReady = typeof _aiIsConfigured === 'function' && Today.use('connections')._aiIsConfigured();
         if (list.length >= 7 && aiReady) {
           if (_reflectPending) {
             inner += `<div class="memory-item"><span class="memory-item-text memory-abstracting">reflecting…</span></div>`;
@@ -263,8 +263,7 @@
     }
 
     function _getProviderDisplayName() {
-      if (typeof _aiGetProvider !== 'function') return 'your AI';
-      const p = _aiGetProvider();
+      const p = Today.use('connections')._aiGetProvider();
       if (!p) return 'your AI';
       const names = { anthropic: 'Claude', claude: 'Claude', gemini: 'Gemini', openai: 'ChatGPT' };
       return names[p] || 'your AI';
@@ -352,7 +351,7 @@
     async function reflectionReflect() {
       const list = _loadReflections();
       if (list.length < 7) return;
-      if (typeof _aiIsConfigured !== 'function' || !_aiIsConfigured()) return;
+      if (typeof _aiIsConfigured !== 'function' || !Today.use('connections')._aiIsConfigured()) return;
       if (!navigator.onLine) return;
 
       _reflectPending = true;
@@ -383,8 +382,8 @@
           'Do not make up specific dates or tasks. ' +
           'Begin with a framing like "Looking at evenings you reflected…" or similar.';
 
-        const key      = typeof _aiGetKey      === 'function' ? _aiGetKey()      : null;
-        const provider = typeof _aiGetProvider === 'function' ? _aiGetProvider() : null;
+        const key      = typeof _aiGetKey      === 'function' ? Today.use('connections')._aiGetKey()      : null;
+        const provider = typeof _aiGetProvider === 'function' ? Today.use('connections')._aiGetProvider() : null;
         if (!key || !provider) return;
 
         const res = await fetch('/.netlify/functions/ai-assist', {
@@ -511,16 +510,25 @@
 
     // ── Public API ───────────────────────────────────────────────────────────
 
-    window._reflectionShowAfterTriage    = _reflectionShowAfterTriage;
-    window._reflectionMountInTriage      = _reflectionMountInTriage;
-    window.reflectionRemember            = reflectionRemember;
-    window.reflectionDecline             = reflectionDecline;
-    window.reflectionSelect              = reflectionSelect;
-    window._reflectionRenderMemory       = _reflectionRenderMemory;
-    window.reflectionRememberAgain       = reflectionRememberAgain;
-    window.reflectionReflect             = reflectionReflect;
-    window._reflectionBackupFields       = _reflectionBackupFields;
-    window._reflectionMergeRemote        = _reflectionMergeRemote;
-    window._reflectionClearFromAllMemory = _reflectionClearFromAllMemory;
+    if (window.Today) {
+      Today.define('reflections', {
+        _reflectionShowAfterTriage,
+        _reflectionMountInTriage,
+        reflectionRemember,
+        reflectionDecline,
+        reflectionSelect,
+        _reflectionRenderMemory,
+        reflectionRememberAgain,
+        reflectionReflect,
+        _reflectionBackupFields,
+        _reflectionMergeRemote,
+        _reflectionClearFromAllMemory,
+      });
+      Today.ui.register('click', 'reflections.remember', reflectionRemember);
+      Today.ui.register('click', 'reflections.decline', reflectionDecline);
+      Today.ui.register('click', 'reflections.select', (_event, button) => reflectionSelect(button.dataset.feeling));
+      Today.ui.register('click', 'reflections.remember-again', reflectionRememberAgain);
+    }
+
   };
 })();

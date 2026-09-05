@@ -26,10 +26,10 @@
         panel.classList.remove('open');
       }
       $.configPanel.classList.remove('open');
-      _endConnectionsPrivacyVisit();
+      Today.use('connections')._endConnectionsPrivacyVisit();
       $.habitsPanel.classList.remove('open');
       $.infoPanel.classList.remove('open');
-      syncActiveButtons();
+      Today.use('connections').syncActiveButtons();
       window.scrollTo(0, scrollY);
       if (isOpening) {
         let _anyNew = false;
@@ -365,26 +365,26 @@
           'patterns will appear after more activity') +
         typeBlock('META', '— what today has seen and how confident it is', metaItems);
 
-      if (typeof window._reflectionRenderMemory === 'function') window._reflectionRenderMemory(el);
+      Today.use('reflections')._reflectionRenderMemory(el);
 
       const footer = document.getElementById('memoryFooter');
       if (footer) footer.innerHTML = _memoryClearPending
         ? `<div class="memory-footer">` +
           `<span class="memory-confirm-msg">erase everything?</span>` +
           `<span style="display:flex;gap:var(--space-3)">` +
-          `<button class="memory-clear-btn" style="opacity:1;color:var(--danger)" onclick="_memoryClearConfirm()">yes, clear</button>` +
-          `<button class="btn-ghost memory-conn-link" onclick="_memoryClearCancel()">cancel</button>` +
+          `<button class="memory-clear-btn" style="opacity:1;color:var(--danger)" data-today-click="memory.clear-confirm">yes, clear</button>` +
+          `<button class="btn-ghost memory-conn-link" data-today-click="memory.clear-cancel">cancel</button>` +
           `</span></div>`
         : `<div class="memory-footer">` +
-          `<button class="memory-clear-btn" onclick="_memoryClearRequest()">clear all memory</button>` +
-          `<button type="button" class="memory-conn-link" onclick="_memoryGoToConnections()">Connections →</button>` +
+          `<button class="memory-clear-btn" data-today-click="memory.clear-request">clear all memory</button>` +
+          `<button type="button" class="memory-conn-link" data-today-click="memory.connections">Connections →</button>` +
           `</div>`;
     }
 
     function _memoryGoToConnections() {
       $.memoryPanel.classList.remove('open');
-      syncActiveButtons();
-      if (!$.configPanel.classList.contains('open')) toggleConfig();
+      Today.use('connections').syncActiveButtons();
+      if (!$.configPanel.classList.contains('open')) Today.use('connections').toggleConfig();
     }
 
     function _memoryClearRequest() {
@@ -394,8 +394,8 @@
         `<div class="memory-footer">` +
         `<span class="memory-confirm-msg">erase everything?</span>` +
         `<span style="display:flex;gap:var(--space-3)">` +
-        `<button class="memory-clear-btn" style="opacity:1;color:var(--danger)" onclick="_memoryClearConfirm()">yes, clear</button>` +
-        `<button class="btn-ghost memory-conn-link" onclick="_memoryClearCancel()">cancel</button>` +
+        `<button class="memory-clear-btn" style="opacity:1;color:var(--danger)" data-today-click="memory.clear-confirm">yes, clear</button>` +
+        `<button class="btn-ghost memory-conn-link" data-today-click="memory.clear-cancel">cancel</button>` +
         `</span></div>`;
     }
 
@@ -445,13 +445,13 @@
       // Push promptly so the watermark reaches Dropbox before the next pull can
       // resurrect anything. No-op without a token.
       if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
-      if (typeof window._reflectionClearFromAllMemory === 'function') window._reflectionClearFromAllMemory();
+      Today.use('reflections')._reflectionClearFromAllMemory();
       renderMemoryPanel();
     }
 
 
     async function _memoryAbstract() {
-      if (!_aiIsConfigured() || !navigator.onLine) return;
+      if (!Today.use('connections')._aiIsConfigured() || !navigator.onLine) return;
       const m = appMemory;
 
       // Throttle: once per day
@@ -576,8 +576,8 @@
         const systemPrompt = 'Analyze user data and return ONLY a valid JSON array. No prose, no code fences. The array may be empty. Each item: {"type":"semantic"|"episodic"|"procedural","text":"..."}.';
         const userMsg = `Productivity app behavioral data:\n${dataLines}\n\nGenerate 2–3 observations a rule-based system would miss — look especially for cross-variable correlations (focus vs output, habits vs tasks, time-of-day vs lifespan) and surprises. type=semantic for stable traits, episodic for recent patterns (last few days), procedural for recurring work habits (weeks). If recent tasks look unusually different from the keyword patterns, surface that as episodic. Text ≤15 words, lowercase, no period, surfaces a pattern useful for deciding what to work on or when to start. Skip thin data. Avoid restating confirmed list. Return [] if nothing new.`;
 
-        const key = _aiGetKey();
-        const provider = _aiGetProvider();
+        const key = Today.use('connections')._aiGetKey();
+        const provider = Today.use('connections')._aiGetProvider();
         const res = await fetch('/.netlify/functions/ai-assist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -644,13 +644,23 @@
       io.observe(badge);
     }
 
-    window.toggleMemory = toggleMemory;
-    window.renderMemoryPanel = renderMemoryPanel;
-    window._memoryGoToConnections = _memoryGoToConnections;
-    window._memoryClearRequest = _memoryClearRequest;
-    window._memoryClearCancel = _memoryClearCancel;
-    window._memoryClearConfirm = _memoryClearConfirm;
-    window._memoryAbstract = _memoryAbstract;
-    window._versionBadgeBreathe = _versionBadgeBreathe;
+    if (window.Today) {
+      Today.define('memory', {
+        toggle: toggleMemory,
+        render: renderMemoryPanel,
+        openConnections: _memoryGoToConnections,
+        requestClear: _memoryClearRequest,
+        cancelClear: _memoryClearCancel,
+        confirmClear: _memoryClearConfirm,
+        abstract: _memoryAbstract,
+        breatheVersionBadge: _versionBadgeBreathe,
+      });
+      Today.ui.register('click', 'memory.toggle', toggleMemory);
+      Today.ui.register('click', 'memory.connections', _memoryGoToConnections);
+      Today.ui.register('click', 'memory.clear-request', _memoryClearRequest);
+      Today.ui.register('click', 'memory.clear-cancel', _memoryClearCancel);
+      Today.ui.register('click', 'memory.clear-confirm', _memoryClearConfirm);
+    }
+
   };
 })();

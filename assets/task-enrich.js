@@ -35,7 +35,7 @@
     _inflight.add(taskId);
 
     try {
-      const apiKey = typeof _aiGetKey === 'function' ? _aiGetKey('claude') : '';
+      const apiKey = Today.use('connections')._aiGetKey('claude');
       const res = await fetch('/.netlify/functions/task-enrich', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },

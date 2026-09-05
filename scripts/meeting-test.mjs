@@ -13,7 +13,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
@@ -198,8 +198,8 @@ async function openPage(options = {}) {
   }, options);
 
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
-  await page.waitForFunction(() => typeof toggleMeeting === 'function'
-    && typeof toggleVoiceNote === 'function' && document.getElementById('meetingBtn'), { timeout: 15000 });
+  await page.waitForFunction(() => typeof Today?.use('meeting').toggleMeeting === 'function'
+    && document.getElementById('meetingBtn'), { timeout: 15000 });
   await page.evaluate(() => {
     window.__meetingTest.autosaves = 0;
     window.__meetingTest.attribution = null;
@@ -242,28 +242,28 @@ try {
     const { page, errors } = await openPage({ names: false });
     const result = await page.evaluate(async () => {
       localStorage.setItem('today_user_name', 'Legacy');
-      renderMeetingNames();
-      const migratedRead = _getUserNames();
+      Today.use('meeting').renderMeetingNames();
+      const migratedRead = Today.use('meeting')._getUserNames();
       const input = document.getElementById('meetingNameInput');
       input.value = '  Can,  ';
-      addMeetingName();
+      Today.use('meeting').addMeetingName();
       document.getElementById('meetingNameInput').value = 'Can';
-      addMeetingName();
-      const afterAdd = _getUserNames();
-      removeMeetingName(0);
-      const afterRemove = _getUserNames();
+      Today.use('meeting').addMeetingName();
+      const afterAdd = Today.use('meeting')._getUserNames();
+      Today.use('meeting').removeMeetingName(0);
+      const afterRemove = Today.use('meeting')._getUserNames();
 
       localStorage.removeItem('today_user_names');
       localStorage.removeItem('today_user_name');
       window.__meetingTest.rejectGetUserMedia = true;
-      toggleMeeting();
+      Today.use('meeting').toggleMeeting();
       const promptShown = document.getElementById('meetingNamePrompt').classList.contains('show');
-      _meetingNamePromptKey({ key: 'Escape', preventDefault() {} });
+      Today.use('meeting')._meetingNamePromptKey({ key: 'Escape', preventDefault() {} });
       await new Promise(resolve => setTimeout(resolve, 320));
       const escapeClosed = !document.getElementById('meetingNamePrompt').classList.contains('show');
-      toggleMeeting();
+      Today.use('meeting').toggleMeeting();
       document.getElementById('meetingNamePromptInput').value = 'Robin';
-      _meetingNamePromptKey({ key: 'Enter', preventDefault() {} });
+      Today.use('meeting')._meetingNamePromptKey({ key: 'Enter', preventDefault() {} });
       await new Promise(resolve => setTimeout(resolve, 0));
       return {
         migratedRead: migratedRead.join('|') === 'Legacy',
@@ -287,7 +287,7 @@ try {
     const { page, errors } = await openPage({ supported: ['audio/webm;codecs=opus'], pip: true });
     const result = await page.evaluate(async () => {
       window.__meetingTest.deferGetUserMedia = true;
-      toggleMeeting(); toggleMeeting();
+      Today.use('meeting').toggleMeeting(); Today.use('meeting').toggleMeeting();
       const guarded = window.__meetingTest.getUserMediaCalls === 1;
       window.__meetingTest.resolveGetUserMedia();
       await new Promise(resolve => setTimeout(resolve, 20));
@@ -302,7 +302,7 @@ try {
         { text: 'Send the notes', owner: 'Can', mine: true },
         { text: 'Book the room', owner: 'Robin', mine: false },
       ] });
-      toggleMeeting();
+      Today.use('meeting').toggleMeeting();
       // FileReader + mocked fetch + final render cross several async queues.
       // Wait for the observable review state instead of assuming 40ms is enough.
       for (let i = 0; i < 30 && document.querySelectorAll('#meetingItems .meeting-item').length < 2; i++) {
@@ -316,7 +316,7 @@ try {
         .some(value => value.includes('Send the notes') || value.includes('kept context'));
       if (rows[1]) rows[1].click();
       const count = document.getElementById('meetingAddBtn').textContent.trim() === 'Add 2 tasks';
-      _meetingAccept();
+      Today.use('meeting')._meetingAccept();
       const stored = JSON.parse(localStorage.getItem('today_manual') || '[]');
       return {
         guarded, started, policy,
@@ -351,7 +351,7 @@ try {
         ] },
         { updatedContext: 'final', actionItems: [] },
       );
-      toggleMeeting();
+      Today.use('meeting').toggleMeeting();
       await new Promise(resolve => setTimeout(resolve, 10));
       const first = window.__meetingTest.recorders[0];
       const iosPolicy = first.options.audioBitsPerSecond === 32000 && first.options.mimeType === 'audio/mp4';
@@ -361,7 +361,7 @@ try {
       second.stop();
       await new Promise(resolve => setTimeout(resolve, 30));
       const third = window.__meetingTest.recorders[2];
-      toggleMeeting();
+      Today.use('meeting').toggleMeeting();
       await new Promise(resolve => setTimeout(resolve, 40));
       const texts = [...document.querySelectorAll('#meetingItems .meeting-item .meeting-item-text')]
         .map(el => el.textContent.trim());
@@ -393,9 +393,9 @@ try {
     const result = await page.evaluate(async cfg => {
       window.__meetingTest.meetingResponses.push(...cfg.responses);
       window.__meetingTest.nextBlobSize = cfg.blobSize;
-      toggleMeeting();
+      Today.use('meeting').toggleMeeting();
       await new Promise(resolve => setTimeout(resolve, 10));
-      toggleMeeting();
+      Today.use('meeting').toggleMeeting();
       await new Promise(resolve => setTimeout(resolve, 60));
       return {
         requests: window.__meetingTest.meetingRequests.length,
@@ -416,9 +416,9 @@ try {
     const { page, errors } = await openPage();
     const result = await page.evaluate(async () => {
       window.__meetingTest.rejectGetUserMedia = true;
-      toggleMeeting();
+      Today.use('meeting').toggleMeeting();
       await new Promise(resolve => setTimeout(resolve, 0));
-      toggleMeeting();
+      Today.use('meeting').toggleMeeting();
       await new Promise(resolve => setTimeout(resolve, 0));
       return {
         retriable: window.__meetingTest.getUserMediaCalls === 2,
@@ -436,7 +436,7 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(async () => {
-      toggleMeeting();
+      Today.use('meeting').toggleMeeting();
       await new Promise(resolve => setTimeout(resolve, 10));
       const first = window.__meetingTest.recorders[0];
       window.__meetingTest.setVisibility('hidden');
@@ -472,7 +472,7 @@ try {
   {
     const { page, errors } = await openPage({ pip: true });
     const result = await page.evaluate(async () => {
-      toggleMeeting();
+      Today.use('meeting').toggleMeeting();
       await new Promise(resolve => setTimeout(resolve, 10));
       window.__meetingTest.setVisibility('hidden');
       await new Promise(resolve => setTimeout(resolve, 30));
@@ -504,13 +504,13 @@ try {
       const input = document.getElementById('newTask');
       input.value = 'draft task';
       window.__meetingTest.voiceResponses.push(cfg.response);
-      toggleVoiceNote();
+      Today.use('meeting').toggleVoiceNote();
       await new Promise(resolve => setTimeout(resolve, 10));
       const rec = window.__meetingTest.recorders[0];
       const started = rec?.state === 'recording'
         && document.getElementById('voicePill').classList.contains('show')
         && document.getElementById('voiceNoteBtn').classList.contains('live');
-      toggleVoiceNote();
+      Today.use('meeting').toggleVoiceNote();
       await new Promise(resolve => setTimeout(resolve, 40));
       return {
         started,
@@ -529,7 +529,7 @@ try {
     const result = await page.evaluate(async () => {
       const realNow = Date.now;
       const base = realNow();
-      toggleVoiceNote();
+      Today.use('meeting').toggleVoiceNote();
       await new Promise(resolve => setTimeout(resolve, 20));
       Date.now = () => base + 91000;
       await new Promise(resolve => setTimeout(resolve, 1100));
@@ -560,16 +560,12 @@ try {
       ok('inline Meeting/Voice ownership baseline');
     } else {
       const meetingSrc = await readFile(join(ROOT, 'assets/meeting.js'), 'utf8');
-      const requiredExports = ['toggleMeeting', '_meetingStop', 'renderMeetingNames', 'addMeetingName',
-        'removeMeetingName', '_meetingNamePromptKey', '_meetingNamePromptSubmit', '_meetingAccept',
-        '_meetingDiscard', '_meetingInit', '_meetingHealthCheck', 'toggleVoiceNote', '_voiceNoteStop',
-        '_voiceNoteInit'];
       await expectAll('extracted Meeting module wiring', {
         moduleLoad: indexSrc.includes('<script src="assets/meeting.js"></script>'),
         initializer: indexSrc.includes('window._startMeeting();'),
         inlineRemoved: !indexSrc.includes('// ── Meeting mode (v2.22.0 desktop, v2.28.0 mobile)'),
         moduleInitializer: meetingSrc.includes('window._startMeeting = function()'),
-        exports: requiredExports.every(name => meetingSrc.includes(`window.${name} = ${name};`)),
+        api: meetingSrc.includes("Today.define('meeting'"),
         privateState: !indexSrc.includes('let _mtg =') && !indexSrc.includes('let _vn ='),
         precached: swSrc.includes("'/assets/meeting.js'"),
       });

@@ -6,11 +6,16 @@
 
 ## Pre-Release Checklist (REQUIRED)
 
-Automated baseline: `node scripts/test-all.mjs` runs all 24 local suites. The live
-`scripts/ai-test.mjs` remains the sole explicit exclusion because it requires an API key and
-real provider calls. The runner verifies this inventory before execution. A suite that passes
-only on its diagnostic retry is reported as flaky and fails the gate. Run `design-lint.mjs`
-and `memory/validate-files.sh` separately; they are intentionally not part of `test-all.mjs`.
+Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 33 local
+test suites (34 checks total). The live `scripts/ai-test.mjs` remains the sole explicit
+exclusion because it requires an API key and real provider calls. The runner verifies the test
+inventory and the explicitly registered non-test check before execution. A check that passes
+only on its diagnostic retry is reported as flaky and fails the gate; each attempt is capped at
+120 seconds. Tooling requires Node >=22.12 and Puppeteer 25. The last dual-runtime assurance
+pass was clean on Node 22.23.2 and 24.14.0; the current 34-check result is recorded in the
+v2.82.5 changelog. GitHub Actions runs the same gate on pushes
+and pull requests to `dev`/`master`. Run
+`memory/validate-files.sh` separately; it remains outside `test-all.mjs`.
 
 Run these **before every GitHub push**:
 
@@ -221,7 +226,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 7.7 | PiP: timer completes while minimized | PiP shows 00:00, bar full, button switches Breathe→Again |
 | 7.8 | Completion — bar state | Bar fills and immediately starts pulsing "again?" (no static pause, BUG-028) |
 | 7.9 | Window return with completed bar | Bar pulses on return with no flash (BUG-028b) |
-| 7.10 | AI send from input bar | Type text, tap ✦ → AI responds (no ReferenceError, BUG-029) |
+| 7.10 | Focus companion with AI configured | Start focus and use “✦ ask”; one bounded question appears without opening the orphaned AI sheet |
 | 7.11 | _onWake rapid double-fire | Alt-tab away and back quickly multiple times — no repaint glitches |
 
 ### 8. Network Edge Cases (7 tests)
@@ -258,7 +263,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 10.7 | Review panel — auto-select | Items where `mine: true` start pre-selected; others start unticked; tapping toggles |
 | 10.8 | Accept selected items | Selected items added to task list; sync fires; review panel closes |
 
-### 11. Poem & Daily Brief (8 tests)
+### 11. Poem & sharing (8 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -266,9 +271,9 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 11.2 | Splash — second open same day | Poem coda skipped; splash dismisses normally |
 | 11.3 | Empty task list | Day's poem displayed (clean-slate echo — not static text) |
 | 11.4 | All tasks done | ✦ star above day's poem (done echo) |
-| 11.5 | ✦ empty tap (no text in input) | Daily brief opens: AI nudge line + today's poem |
-| 11.6 | ✦ empty tap — no nudge cache, no poem | Falls through to proactive AI suggestions |
-| 11.7 | Run smoke guard against `assets/poems.js` | Exactly 129 reviewed entries; every entry has text/author/source, a valid season, and 2–11 nonblank lines; approved voices including Cotter's Rain Water pairing and audited season tags are pinned; final-cut passages remain absent |
+| 11.5 | Share today's poem where native sharing is available | Native share receives the poem, author, and canonical dated URL; visible and announced feedback begins immediately |
+| 11.6 | Share today's poem without native sharing | Clipboard receives the same text and URL; the control reports copied state without stale feedback |
+| 11.7 | Run smoke guard against `assets/poems.js` | Exactly 130 reviewed entries; every entry has text/author/source, a valid season, and 2–11 nonblank lines; approved voices including Cotter's Rain Water pairing and audited season tags are pinned; final-cut passages remain absent |
 | 11.8 | Open About on a solar-term date in Northern and Southern Hemisphere time zones | Noticed keeps the same transition-day cadence but rotates the term and observation by half a year (for example, June 21 is Summer Solstice in the north and Winter Solstice in the south) |
 
 ### 12. PAST Revive (3 tests)
@@ -293,22 +298,10 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 
 ## Test Summary
 
-| Category | Count | Critical |
-|----------|-------|----------|
-| Manual Tasks | 16 | 5 |
-| Zones | 17 | 8 |
-| Habits | 12 | 5 |
-| Done State | 7 | 4 |
-| Stats/Memory | 16 | 6 |
-| Trello | 8 | 3 |
-| Focus | 11 | 4 |
-| Network | 7 | 4 |
-| Destructive | 4 | 2 |
-| Meeting Mode | 8 | 4 |
-| Poem & Daily Brief | 8 | 3 |
-| PAST Revive | 3 | 2 |
-| About Sunday/Monday | 5 | 3 |
-| **Total** | **120** | **53** |
+The numbered scenarios below are the manual acceptance catalogue, not a hand-maintained test
+count. The executable inventory is authoritative: `test-all.mjs` currently runs 34 checks and
+fails if a new `*-test.mjs` suite is omitted. This avoids the old summary drifting whenever a
+later section or automated suite was added.
 
 ---
 
@@ -442,6 +435,10 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 
 ### Manual keyboard and screen-reader gate
 
+Safari 26.6 WebDriver baseline (2026-09-04): 14 checks passed for startup, semantic state, main/poem axe scans, complex emoji, focus isolation/Escape, disclosures, sharing support, and overflow at Safari's 336px minimum content width. This supplements rather than closes the keyboard, VoiceOver, sleep/wake, and installed-PWA items below.
+
+Mobile Safari 26.3 on an iPhone 17e simulator (2026-09-04): 10 targeted checks passed for touch/non-hover media state, mobile card aging, enrichment-indicator taps, complex emoji shaping/persistence, repeated Past → Soon revive responsiveness, and post-triage “Undo sorting”. Can accepted this reproduction-equivalent run to verify BUG-094/093/092/087/083. Simulator evidence does not replace the remaining VoiceOver, physical-PWA wake/background, AutoFill, live-account, or OS-handoff checks.
+
 - [ ] macOS Safari keyboard-only: skip link; add, complete, delete, undo; disclosures; focus; triage; meeting selection/review; Option+Arrow reorder.
 - [ ] macOS Chrome keyboard-only: repeat the same flow and confirm focus indication/restoration.
 - [ ] VoiceOver in Safari and Chrome: names, headings/lists, pressed/expanded/busy/progress state, live announcements, dialog containment, and poem sharing.
@@ -453,4 +450,18 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 
 Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 and 1.4.11 remain unmet for that state. Pointer reorder remains drag-only, so criterion 2.5.7 also remains unmet. Do not record the product as fully WCAG-conformant. See `Accessibility-audit.md`.
 
-*Last updated: v2.71.18 · Aug 2026*
+---
+
+## 16. Component contracts and deterministic cores (v2.82.5)
+
+| # | Scenario | Expected |
+|---|---|---|
+| 16.1 | Run `node scripts/component-contract-test.mjs` | `runtime.js` loads first, is precached, and every declared `data-today-*` action has exactly one registered owner with no unused registrations |
+| 16.2 | Scan static and generated runtime markup | No inline event-handler attributes are present |
+| 16.3 | Audit top-level compatibility assignments | No duplicate owner outside the explicit transitional allowlist; total assignments remain at or below 123 |
+| 16.4 | Run `node scripts/sync-merge-unit-test.mjs` | Daily history and suggestion outcomes merge deterministically without DOM, storage, or Dropbox access |
+| 16.5 | Run `node scripts/suggestion-policy-unit-test.mjs` | Reason classification, performance context, exploration, and underperformance decisions are deterministic |
+| 16.6 | Run `node scripts/noticed-model-unit-test.mjs` | Solar-term hemisphere mapping, milestone thresholds, and time formatting are deterministic |
+| 16.7 | Run `node scripts/focus-session-unit-test.mjs` | Session creation, wall-clock restore, elapsed time, and serialization are deterministic |
+
+*Last updated: v2.82.5 · Sep 2026*

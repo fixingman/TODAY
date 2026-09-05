@@ -13,7 +13,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
@@ -76,7 +76,7 @@ async function openPage(opts = {}) {
 
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForFunction(
-    () => typeof checkTriageBar === 'function' && document.getElementById('triageBar'),
+    () => typeof Today?.use('triage').checkTriageBar === 'function' && document.getElementById('triageBar'),
     { timeout: 15000 }
   );
   // Stub side-effect functions — no Dropbox, no AI memory mutations affecting assertions
@@ -110,19 +110,19 @@ try {
       const bar = document.getElementById('triageBar');
       triageDismissedToday = false;
       localStorage.removeItem('triage_dismissed');
-      checkTriageBar();
+      Today.use('triage').checkTriageBar();
       await new Promise(r => requestAnimationFrame(r));
       const showsInWindow = bar.classList.contains('visible');
 
       triageDismissedToday = true;
       localStorage.setItem('triage_dismissed', _getAppDay());
-      checkTriageBar();
+      Today.use('triage').checkTriageBar();
       const hiddenWhenDismissed = !bar.classList.contains('visible');
 
       triageDismissedToday = false;
       localStorage.removeItem('triage_dismissed');
       Date.prototype.getHours = function() { return 10; };
-      checkTriageBar();
+      Today.use('triage').checkTriageBar();
       const hiddenOutsideWindow = !bar.classList.contains('visible');
 
       return { showsInWindow, hiddenWhenDismissed, hiddenOutsideWindow };
@@ -136,7 +136,7 @@ try {
   {
     const { page, errors } = await openPage({ hour: 21 });
     const result = await page.evaluate(() => {
-      triageExpand();
+      Today.use('triage').triageExpand();
       const overlay = document.getElementById('triageOverlay');
       const rows = document.querySelectorAll('#triageList .triage-task');
       return {
@@ -153,10 +153,10 @@ try {
   {
     const { page, errors } = await openPage({ tasks: [TASK_A, TASK_B, TASK_C, { id: 'tx4', text: 'guard task', createdAt: '2026-08-10T10:00:00.000Z' }], hour: 21 });
     const result = await page.evaluate(async () => {
-      triageExpand();
-      triageDecide('ta1', 'kept');
-      triageDecide('tb2', 'soon');
-      triageDecide('tc3', 'letgo');
+      Today.use('triage').triageExpand();
+      Today.use('triage').triageDecide('ta1', 'kept');
+      Today.use('triage').triageDecide('tb2', 'soon');
+      Today.use('triage').triageDecide('tc3', 'letgo');
       // tx4 is undecided, so triageApplyAll won't fire yet
       await new Promise(r => setTimeout(r, 180));
       const list = document.getElementById('triageList');
@@ -178,10 +178,10 @@ try {
   {
     const { page, errors } = await openPage({ tasks: [TASK_A, TASK_C], hour: 21 });
     const result = await page.evaluate(async () => {
-      triageExpand();
+      Today.use('triage').triageExpand();
       // Decide TASK_A so TASK_C is the last undecided — triageShowReason fires apply
-      triageDecide('ta1', 'kept');
-      triageShowReason('tc3'); // commits letgo, fires triageApplyAll (all decided)
+      Today.use('triage').triageDecide('ta1', 'kept');
+      Today.use('triage').triageShowReason('tc3'); // commits letgo, fires triageApplyAll (all decided)
       await new Promise(r => setTimeout(r, 180));
       // completion screen appears when triageApplyAll ran
       const completionShown = !document.getElementById('triageComplete').classList.contains('hidden');
@@ -202,8 +202,8 @@ try {
   {
     const { page, errors } = await openPage({ tasks: [TASK_A, TASK_B], hour: 21 });
     const result = await page.evaluate(() => {
-      triageExpand();
-      triageKeepAll();
+      Today.use('triage').triageExpand();
+      Today.use('triage').triageKeepAll();
       const complete = document.getElementById('triageComplete');
       const list = document.getElementById('triageList');
       return {
@@ -222,10 +222,10 @@ try {
     const result = await page.evaluate(async () => {
       const startManualLen = manualTasks.length;
       const startSoonLen = soonTasks.length;
-      triageExpand();
-      triageDecide('ta1', 'kept');
-      triageDecide('tb2', 'soon');
-      triageDecide('tc3', 'letgo'); // last task — triggers triageApplyAll
+      Today.use('triage').triageExpand();
+      Today.use('triage').triageDecide('ta1', 'kept');
+      Today.use('triage').triageDecide('tb2', 'soon');
+      Today.use('triage').triageDecide('tc3', 'letgo'); // last task — triggers triageApplyAll
       await new Promise(r => setTimeout(r, 180));
       // triageApplyAll runs after the decision animation.
       const completionShown = !document.getElementById('triageComplete').classList.contains('hidden');
@@ -251,13 +251,13 @@ try {
       const startManualLen = manualTasks.length;
       const startSoonLen = soonTasks.length;
       const startPastLen = pastTasks.length;
-      triageExpand();
-      triageDecide('ta1', 'kept');
-      triageDecide('tb2', 'soon');
-      triageDecide('tc3', 'letgo'); // triggers apply
+      Today.use('triage').triageExpand();
+      Today.use('triage').triageDecide('ta1', 'kept');
+      Today.use('triage').triageDecide('tb2', 'soon');
+      Today.use('triage').triageDecide('tc3', 'letgo'); // triggers apply
       await new Promise(r => setTimeout(r, 180));
       // Apply ran after the decision animation — now undo.
-      triageUndo();
+      Today.use('triage').triageUndo();
       await new Promise(r => setTimeout(r, 20));
       const overlayHidden = document.getElementById('triageOverlay').classList.contains('hidden');
       const manualRestored = manualTasks.length === startManualLen;
@@ -283,10 +283,10 @@ try {
   {
     const { page, errors } = await openPage({ hour: 21 });
     const result = await page.evaluate(async () => {
-      triageExpand();
-      triageDecide('ta1', 'kept');
-      triageDecide('tb2', 'soon');
-      triageDecide('tc3', 'letgo'); // triggers apply
+      Today.use('triage').triageExpand();
+      Today.use('triage').triageDecide('ta1', 'kept');
+      Today.use('triage').triageDecide('tb2', 'soon');
+      Today.use('triage').triageDecide('tc3', 'letgo'); // triggers apply
       await new Promise(r => setTimeout(r, 180));
       const history = JSON.parse(localStorage.getItem('today_triage_history') || '[]');
       const hasKept  = history.some(e => e.decision === 'kept');
@@ -304,16 +304,16 @@ try {
   {
     const { page, errors } = await openPage({ hour: 21 });
     const result = await page.evaluate(async () => {
-      triageExpand();
+      Today.use('triage').triageExpand();
       const overlay = document.getElementById('triageOverlay');
       const bar = document.getElementById('triageBar');
-      triageMinimize();
+      Today.use('triage').triageMinimize();
       await new Promise(r => setTimeout(r, 0));
       const overlayHiddenAfterMin = overlay.classList.contains('hidden');
       const barRestoredAfterMin = !overlay.classList.contains('hidden') === false; // bar visibility is RAF-async
       // Re-expand to test close
-      triageExpand();
-      triageClose();
+      Today.use('triage').triageExpand();
+      Today.use('triage').triageClose();
       await new Promise(r => setTimeout(r, 400)); // wait for bar fade-out setTimeout
       const overlayHiddenAfterClose = overlay.classList.contains('hidden');
       const dismissedAfterClose = triageDismissedToday === true;
@@ -338,21 +338,15 @@ try {
     } else {
       const triageSrc  = await readFile(join(ROOT, 'assets/triage.js'), 'utf8');
       const dropboxSrc = await readFile(join(ROOT, 'assets/dropbox.js'), 'utf8');
-      const requiredExports = [
-        'checkTriageBar', 'triageExpand', 'renderTriageList',
-        'triageShowReason', 'triageSetReason', 'triageDecide',
-        'triageKeepAll', 'triageApplyAll', 'triageMinimize', 'triageClose', 'triageUndo',
-      ];
       await expectAll('extracted triage module wiring', {
         moduleLoad: indexSrc.includes('<script src="assets/triage.js"></script>'),
         initializer: indexSrc.includes('window._startTriage();'),
         inlineRemoved: !indexSrc.includes('// Evening triage (per-task)'),
         moduleInitializer: triageSrc.includes('window._startTriage = function()'),
-        exports: requiredExports.every(name => triageSrc.includes(`window.${name} = ${name};`)),
-        setterExported: triageSrc.includes('window._setTriageBarSilent'),
+        api: triageSrc.includes("Today.define('triage'"),
         privateState: !indexSrc.includes('let triageDecisions') && !indexSrc.includes('let _triageBarSilent'),
         // _setTriageBarSilent may be called from index.html or from dropbox.js (extracted)
-        setterCalled: indexSrc.includes('_setTriageBarSilent(') || dropboxSrc.includes('_setTriageBarSilent('),
+        setterCalled: dropboxSrc.includes("Today.use('triage').setBarSilent("),
         precached: swSrc.includes("'/assets/triage.js'"),
       });
       ok('extracted triage wiring, exports, private state, setter, and precache');

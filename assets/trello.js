@@ -1,12 +1,12 @@
 // TODAY — Trello integration (Roadmap #3, fifth module extraction)
 //
 // Auth, config, board/list pickers, card loading + filtering, and the section
-// renderer (incl. the 7s patch path — Rule 27: must mirror taskHTML() features;
+// renderer (incl. the 7s patch path — Rule 27: must mirror Today.use('connections').taskHTML() features;
 // scripts/design-lint.mjs checks parity across index.html AND this file).
 //
 // Classic <script>, loaded after util.js and before the main inline script —
 // the established extraction pattern: function declarations land on the shared
-// global environment (inline onclick handlers in renderConnections() HTML call
+// global environment (inline onclick handlers in Today.use('connections').renderConnections() HTML call
 // trelloAuth/saveAndLoad/onBoardChange/clearTrello/loadTrello directly), and all
 // cross-references into main-script globals (trelloTasks, trelloConnected,
 // doneIds, $, taskHTML, showStatus, renderConnections, setTrelloIcon, _breathe,
@@ -63,9 +63,9 @@ function trelloAuth() {
           localStorage.setItem('trello_token', token);
           trelloConnected = true;
           // _syncToken update handled by next _refreshSyncCache() tick (<7s)
-          setTrelloIcon(true);
+          Today.use('connections').setTrelloIcon(true);
           showStatus('Connected. Loading your boards…', 'success');
-          renderConnections();
+          Today.use('connections').renderConnections();
           loadTrelloBoards();
         } else {
           showStatus('Trello authorisation cancelled.', 'error');
@@ -86,10 +86,10 @@ async function loadTrelloBoards() {
     });
     if (!res.ok) throw new Error(res.status);
     const boards = await res.json();
-    // boardSelect is already in the DOM — renderConnections() always runs before this
+    // boardSelect is already in the DOM — Today.use('connections').renderConnections() always runs before this
     // function is called (panel-open path: renderConnections→loadTrelloBoards at line ~5459;
     // post-auth path: renderConnections at line ~5520, then loadTrelloBoards at line ~5521).
-    // Calling renderConnections() here caused a re-render loop: renderConnections → loadTrelloBoards
+    // Calling Today.use('connections').renderConnections() here caused a re-render loop: renderConnections → loadTrelloBoards
     // → renderConnections → … wiping and rebuilding the panel on every board API response.
     const sel = document.getElementById('boardSelect');
     if (!sel) return;
@@ -152,7 +152,7 @@ function saveAndLoad() {
   localStorage.setItem('trello_config', JSON.stringify(config));
   // _syncCfg update handled by next _refreshSyncCache() tick (<7s)
   loadTrello();
-  renderConnections(); // Switch to compact connected view
+  Today.use('connections').renderConnections(); // Switch to compact connected view
 }
 
 function clearTrello() {
@@ -161,8 +161,8 @@ function clearTrello() {
   localStorage.removeItem('today_trello_cache');
   trelloTasks = [];
   trelloConnected = false;
-  setTrelloIcon(false);
-  renderConnections();
+  Today.use('connections').setTrelloIcon(false);
+  Today.use('connections').renderConnections();
   renderTrello();
   updateStats();
   showStatus('Trello disconnected.', 'success');
@@ -318,19 +318,19 @@ async function loadTrello(fromSync) {
 
     renderTrello();
     updateStats();
-    checkTriageBar();  // Re-check now that Trello tasks are loaded
+    Today.use('triage').checkTriageBar();  // Re-check now that Trello tasks are loaded
 
     const label = config.todayList ? `"${config.todayList}"` : 'your today list';
     const msg   = trelloTasks.length === 0
       ? `Connected. No cards found due today or in ${label}.`
       : `Loaded ${trelloTasks.length} card${trelloTasks.length !== 1 ? 's' : ''} from Trello.`;
 
-    setTrelloIcon(true);
+    Today.use('connections').setTrelloIcon(true);
 
     // Only show status in panel if it's already open
     if ($.configPanel.classList.contains('open')) {
       showStatus(msg, 'success');
-      setTimeout(() => { $.configPanel.classList.remove('open'); syncActiveButtons(); }, 1800);
+      setTimeout(() => { $.configPanel.classList.remove('open'); Today.use('connections').syncActiveButtons(); }, 1800);
     }
 
   } catch(e) {
@@ -357,12 +357,12 @@ async function loadTrello(fromSync) {
       _logSyncError('Trello', 'Load: ' + (e.message || msg));
     }
 
-    setTrelloIcon(false);
+    Today.use('connections').setTrelloIcon(false);
 
     // Only open config panel on manual load — don't interrupt user on background sync
     if (!fromSync) {
       $.configPanel.classList.add('open');
-      syncActiveButtons();
+      Today.use('connections').syncActiveButtons();
       showStatus(msg, 'error');
       emptyEl.textContent = 'Couldn\'t reach Trello — check above';
       emptyEl.style.display = 'block';
@@ -452,7 +452,7 @@ function renderTrello() {
       : '';
     // Include session badge in text comparison so patch doesn't destroy it (BUG-005).
     // Due/checklist badges (task-meta) are built into the same string, in the
-    // same order taskHTML() uses (text+link, then task-meta, then session
+    // same order Today.use('connections').taskHTML() uses (text+link, then task-meta, then session
     // last) — a single full-replace comparison, rather than patching task-meta
     // separately, so the two render paths can't silently drift out of order
     // with each other (Rule 27) the way they did when this was two patches.
@@ -460,13 +460,13 @@ function renderTrello() {
     const _sessionBadge = _focusCount > 0
       ? `<span class="session-count has-sessions">${_focusCount} 🍅</span>`
       : `<span class="session-count"></span>`;
-    const dueStr = _getDueStr(task);
+    const dueStr = Today.use('connections')._getDueStr(task);
     const _clBadge = task.checklist
       ? `<span class="badge checklist">${task.checklist.done}/${task.checklist.total} ✓</span>`
       : '';
     const newBadge = `${dueStr ? `<span class="badge due">due ${esc(dueStr)}</span>` : ''}${_clBadge}`;
     const newMeta = newBadge ? `<span class="task-meta">${newBadge}</span>` : '';
-    // Wrapped in .task-tail to mirror taskHTML() exactly (Rule 27) — the wrapper is
+    // Wrapped in .task-tail to mirror Today.use('connections').taskHTML() exactly (Rule 27) — the wrapper is
     // what keeps the badge pair from splitting across a line break on mobile.
     const newText = _textPart + _link + '<span class="task-tail">' + newMeta + _sessionBadge + '</span>';
 
@@ -480,7 +480,7 @@ function renderTrello() {
       el.classList.toggle('done', doneIds.has(id));
       _applyDoneStyles(el, doneIds.has(id));
 
-      // Keep age-bucket in sync — patch cycle doesn't re-call taskHTML() so update here
+      // Keep age-bucket in sync — patch cycle doesn't re-call Today.use('connections').taskHTML() so update here
       const _patchBucket = (() => {
         if (doneIds.has(id)) return '';
         if ((_getTrelloFocus()[task.id] || 0) > 0) return ''; // focused today — active (BUG-043)
@@ -505,7 +505,7 @@ function renderTrello() {
     } else {
       // New task — build and slide in
       const tmp = document.createElement('div');
-      tmp.innerHTML = taskHTML(task, 'trello');
+      tmp.innerHTML = Today.use('connections').taskHTML(task, 'trello');
       el = tmp.firstElementChild;
       _applyDoneStyles(el, doneIds.has(id));
       el.classList.add('task-slide-in');
@@ -518,7 +518,7 @@ function renderTrello() {
   });
   // Re-anchor focus timer if active — Trello patch may have replaced the focused task element
   if (window._focusReanchor) window._focusReanchor();
-  // Restore a persisted focus session — Trello tasks aren't available during renderManual()
+  // Restore a persisted focus session — Trello tasks aren't available during Today.use('connections').renderManual()
   if (window._tryRestoreFocusSession) window._tryRestoreFocusSession();
   if (typeof checkDayNudge === 'function') checkDayNudge();
 }

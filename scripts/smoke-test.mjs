@@ -211,7 +211,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
   }
 }
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 let puppeteer;
 try {
@@ -263,6 +263,11 @@ try {
   // blank and trips that timeout, which is more reliable than error-string matching.
   const pageErrors = [];
   page.on('pageerror', e => pageErrors.push(e.message));
+  // Splash timing has its own dedicated suite; keep this broad smoke focused
+  // on application startup and interactions rather than today's poem cadence.
+  await page.evaluateOnNewDocument(() => {
+    localStorage.setItem('splash_shown_at', String(Date.now()));
+  });
 
   // ── 1. App boots ────────────────────────────────────────────────────────
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -289,15 +294,15 @@ try {
       credentialKeys.forEach(key => localStorage.removeItem(key));
       localStorage.removeItem('today_connections_privacy_seen');
       document.getElementById('configPanel').classList.remove('open');
-      _endConnectionsPrivacyVisit();
+      Today.use('connections')._endConnectionsPrivacyVisit();
     };
     const isVisible = () => getComputedStyle(document.getElementById('connectionsPrivacyNote')).display !== 'none';
     const open = async () => {
-      toggleConfig();
+      Today.use('connections').toggleConfig();
       await new Promise(resolve => setTimeout(resolve, 10));
     };
     const close = () => {
-      if (document.getElementById('configPanel').classList.contains('open')) toggleConfig();
+      if (document.getElementById('configPanel').classList.contains('open')) Today.use('connections').toggleConfig();
     };
 
     reset();
@@ -320,9 +325,9 @@ try {
 
     reset();
     await open();
-    toggleInfo();
+    Today.use('about').toggleInfo();
     const hiddenAfterOtherPanel = !isVisible() && !document.getElementById('configPanel').classList.contains('open');
-    if (document.getElementById('infoPanel').classList.contains('open')) toggleInfo();
+    if (document.getElementById('infoPanel').classList.contains('open')) Today.use('about').toggleInfo();
 
     const cases = [
       ['trello token', 'trello_token', 'token'],
@@ -348,7 +353,7 @@ try {
     await open();
     const localStateDoesNotSuppress = isVisible();
     localStorage.setItem('today_ai_key_gemini', 'key');
-    _aiRenderConfig();
+    Today.use('connections')._aiRenderConfig();
     const hiddenAfterAIConnect = !isVisible();
     close();
 
@@ -370,8 +375,8 @@ try {
   const privacyMobile = await page.evaluate(async () => {
     localStorage.removeItem('today_connections_privacy_seen');
     document.getElementById('configPanel').classList.remove('open');
-    _endConnectionsPrivacyVisit();
-    toggleConfig();
+    Today.use('connections')._endConnectionsPrivacyVisit();
+    Today.use('connections').toggleConfig();
     await new Promise(resolve => setTimeout(resolve, 10));
     const panel = document.getElementById('configPanel').getBoundingClientRect();
     const note = document.getElementById('connectionsPrivacyNote').getBoundingClientRect();
@@ -380,7 +385,7 @@ try {
     const banner = bannerEl.getBoundingClientRect();
     const fits = note.left >= panel.left && note.right <= panel.right && note.bottom <= banner.top;
     bannerEl.classList.remove('visible');
-    toggleConfig();
+    Today.use('connections').toggleConfig();
     return fits;
   });
   if (!privacyMobile) fail('Connections privacy reassurance does not fit the narrow layout with offline banner');

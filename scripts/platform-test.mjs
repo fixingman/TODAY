@@ -10,7 +10,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT   = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const MIME   = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
                  '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
 
@@ -147,9 +147,7 @@ try {
     if (!indexSrc.includes('window._startPlatform();')) failures.push('initializer call');
     if (indexSrc.includes('// Mobile Keyboard Handling') || indexSrc.includes('// PWA Install Prompt (Android only)')) failures.push('duplicate inline platform block');
     if (!platformSrc.includes('window._startPlatform = function()')) failures.push('module initializer export');
-    for (const name of ['installPWA', '_pwaShowSteps', '_pwaCopyLink']) {
-      if (!platformSrc.includes(`window.${name} = ${name};`)) failures.push(`${name} window export`);
-    }
+    if (!platformSrc.includes("Today.define('platform'")) failures.push('Today platform API');
     if (!platformSrc.includes("navigator.serviceWorker.register('/sw.js')")) failures.push('service-worker registration');
     if (!platformSrc.includes("window.addEventListener('pageshow'")) failures.push('bfcache handler');
     if (!swSrc.includes("'/assets/platform.js'")) failures.push('service-worker precache');
@@ -173,16 +171,16 @@ try {
       const shown = visible(document.getElementById('installBtn'))
         && visible(document.getElementById('pwaInstallSection'))
         && document.querySelector('#pwaInstallSection button')?.textContent.trim() === 'Install';
-      installPWA();
+      Today.use('platform').install();
       await new Promise(resolve => setTimeout(resolve, 0));
       const acceptedHidden = !visible(document.getElementById('installBtn'))
         && !visible(document.getElementById('pwaInstallSection'));
-      installPWA();
+      Today.use('platform').install();
       const consumed = window.__platformTest.promptCalls === 1;
 
       const second = makePrompt('dismissed');
       window.dispatchEvent(new Event('appinstalled'));
-      installPWA();
+      Today.use('platform').install();
       const installedHidden = !visible(document.getElementById('installBtn'))
         && !visible(document.getElementById('pwaInstallSection'))
         && window.__platformTest.promptCalls === 1;
@@ -203,7 +201,7 @@ try {
   ]) {
     const { page, errors } = await openPage(testCase);
     const result = await page.evaluate(expected => {
-      if (!document.getElementById('configPanel').classList.contains('open')) toggleConfig();
+      if (!document.getElementById('configPanel').classList.contains('open')) Today.use('connections').toggleConfig();
       const row = document.querySelector('#pwaInstallSection .connection-row');
       const button = row?.querySelector('button');
       const before = row?.getBoundingClientRect().height || 0;

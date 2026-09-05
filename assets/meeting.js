@@ -58,13 +58,13 @@
       if (!list) return;
       const names = _getUserNames();
       list.innerHTML = names.map((n, i) =>
-        `<span class="name-chip">${esc(n)}<button class="name-chip-remove" onclick="removeMeetingName(${i})" aria-label="Remove ${esc(n)}">×</button></span>`
+        `<span class="name-chip">${esc(n)}<button class="name-chip-remove" data-today-click="meeting.remove-name" data-name-index="${i}" aria-label="Remove ${esc(n)}">×</button></span>`
       ).join('') +
       `<label class="visually-hidden" for="meetingNameInput">Add a meeting name</label><input id="meetingNameInput" type="text" maxlength="60"
         autocomplete="off" autocorrect="off" spellcheck="false"
         placeholder="${names.length ? 'Add another…' : 'First name…'}"
-        onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();addMeetingName()}"
-        onblur="addMeetingName()" />`;
+        data-today-keydown="meeting.add-name-key"
+        data-today-focusout="meeting.add-name" />`;
     }
     function addMeetingName() {
       const input = document.getElementById('meetingNameInput');
@@ -90,7 +90,7 @@
     function _meetingInit() {
       const btn = document.getElementById('meetingBtn');
       if (!btn) return;
-      const ok = _meetingSupported() && !!_aiGetKey('gemini');
+      const ok = _meetingSupported() && !!Today.use('connections')._aiGetKey('gemini');
       btn.style.display = ok ? 'flex' : 'none';
     }
 
@@ -491,7 +491,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            apiKey: _aiGetKey('gemini'),
+            apiKey: Today.use('connections')._aiGetKey('gemini'),
             audioChunk: b64,
             mimeType: blob.type || 'audio/webm',
             userName: _getUserNames().join(', '),
@@ -624,7 +624,7 @@
       if (actions) actions.classList.remove('no-add');
 
       const itemsHTML = state.items.map((item, i) => `
-        <button type="button" class="meeting-item${item.mine ? ' selected' : ''}" data-idx="${i}" aria-pressed="${item.mine}" onclick="this.classList.toggle('selected');this.setAttribute('aria-pressed',String(this.classList.contains('selected')));_meetingUpdateCount()">
+        <button type="button" class="meeting-item${item.mine ? ' selected' : ''}" data-idx="${i}" aria-pressed="${item.mine}" data-today-click="meeting.toggle-item">
           <span class="meeting-tick" aria-hidden="true"></span>
           <span class="meeting-item-text">${esc(item.text)}</span>
           ${item.owner ? '<span class="meeting-owner">' + esc(item.owner) + '</span>' : ''}
@@ -675,7 +675,7 @@
       });
       if (picked.length) {
         _saveManual();
-        renderManual();
+        Today.use('connections').renderManual();
         _setLastLocalChange();
         dropboxAutoSave();
       }
@@ -715,14 +715,14 @@
       return ('ontouchstart' in window)
         && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
         && typeof MediaRecorder !== 'undefined'
-        && !!_aiGetKey('gemini');
+        && !!Today.use('connections')._aiGetKey('gemini');
     }
 
     function _voiceNoteInit() {
       const btn = document.getElementById('voiceNoteBtn');
       if (!btn) return;
       // Hide voice note when meeting mode is also available — avoid two mic CTAs on mobile
-      const meetingAvailable = _meetingSupported() && !!_aiGetKey('gemini');
+      const meetingAvailable = _meetingSupported() && !!Today.use('connections')._aiGetKey('gemini');
       btn.style.display = (_voiceNoteSupported() && !meetingAvailable) ? 'flex' : 'none';
     }
 
@@ -829,7 +829,7 @@
           const res = await fetch('/.netlify/functions/transcribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ audioData: base64, mimeType, apiKey: _aiGetKey('gemini') }),
+            body: JSON.stringify({ audioData: base64, mimeType, apiKey: Today.use('connections')._aiGetKey('gemini') }),
           });
           const data = await res.json();
           input.value = data.text || prev;
@@ -842,22 +842,48 @@
       reader.readAsDataURL(blob);
     }
 
-    // Exports — called from HTML inline handlers and init()
-    window._getUserNames = _getUserNames;
-    window._meetingUpdateCount = _meetingUpdateCount;
-    window.toggleMeeting = toggleMeeting;
-    window._meetingStop = _meetingStop;
-    window.renderMeetingNames = renderMeetingNames;
-    window.addMeetingName = addMeetingName;
-    window.removeMeetingName = removeMeetingName;
-    window._meetingNamePromptKey = _meetingNamePromptKey;
-    window._meetingNamePromptSubmit = _meetingNamePromptSubmit;
-    window._meetingAccept = _meetingAccept;
-    window._meetingDiscard = _meetingDiscard;
-    window._meetingInit = _meetingInit;
-    window._meetingHealthCheck = _meetingHealthCheck;
-    window.toggleVoiceNote = toggleVoiceNote;
-    window._voiceNoteStop = _voiceNoteStop;
-    window._voiceNoteInit = _voiceNoteInit;
+    if (window.Today) {
+      Today.define('meeting', {
+        _getUserNames,
+        _meetingUpdateCount,
+        toggleMeeting,
+        _meetingStop,
+        renderMeetingNames,
+        addMeetingName,
+        removeMeetingName,
+        _meetingNamePromptKey,
+        _meetingNamePromptSubmit,
+        _meetingAccept,
+        _meetingDiscard,
+        _meetingInit,
+        _meetingHealthCheck,
+        toggleVoiceNote,
+        _voiceNoteStop,
+        _voiceNoteInit,
+      });
+      Today.ui.register('click', 'meeting.toggle', toggleMeeting);
+      Today.ui.register('click', 'meeting.stop', _meetingStop);
+      Today.ui.register('click', 'meeting.toggle-voice', toggleVoiceNote);
+      Today.ui.register('click', 'meeting.stop-voice', _voiceNoteStop);
+      Today.ui.register('keydown', 'meeting.name-key', _meetingNamePromptKey);
+      Today.ui.register('click', 'meeting.name-submit', _meetingNamePromptSubmit);
+      Today.ui.register('click', 'meeting.accept', _meetingAccept);
+      Today.ui.register('click', 'meeting.discard', _meetingDiscard);
+      Today.ui.register('click', 'meeting.remove-name', (_event, button) => removeMeetingName(Number(button.dataset.nameIndex)));
+      Today.ui.register('keydown', 'meeting.add-name-key', event => {
+        if (event.key === 'Enter' || event.key === ',') {
+          event.preventDefault();
+          addMeetingName();
+        }
+      });
+      Today.ui.register('focusout', 'meeting.add-name', addMeetingName);
+      Today.ui.register('click', 'meeting.toggle-item', (_event, button) => {
+        button.classList.toggle('selected');
+        button.setAttribute('aria-pressed', String(button.classList.contains('selected')));
+        _meetingUpdateCount();
+      });
+    }
+
+    // Compatibility exports used by startup and integration tests.
   };
 })();

@@ -188,7 +188,7 @@ window._startDayLifecycle = (function() {
 
       // Habits: completions are append-only ISO date strings — no data is deleted.
       // Re-render so the new day's dot appears and yesterday's checks show as history.
-      renderHabits();
+      Today.use('habits').renderHabits();
 
       // Age old SOON items → PAST (30+ days)
       _ageSoon();

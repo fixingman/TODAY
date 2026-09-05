@@ -12,23 +12,22 @@ Most task apps have the same bug: they remember everything, and opening them fee
 
 **The day**
 - Add tasks for today, check them off, drag to reorder — desktop and mobile
-- **Evening triage** — review what didn't happen: keep, move to soon, or let go. Ask ✦ to open it any time ("help me go through what's left")
+- **Evening triage** — review what didn't happen: keep, move to soon, or let go; the review appears once in the evening when unfinished work remains
 - **Zones** — SOON holds deferred tasks, PAST holds the finished and the let-go. Parked tasks quietly age away if you never reach for them; anything you bring back from PAST is treated as important *because you rescued it*
 - **Morning nudge** — one AI line about what carried over, quoting your tasks verbatim. Read it, dismiss it, done
 - **Focus mode** — tap any task for a 25-minute timer with Picture-in-Picture; sessions count toward the task
 - **Habits** — daily checks with a 21-day strip and a strength score. Streaks are acknowledgment, never pressure
 
 **The companion (optional AI — Gemini free tier or Claude)**
-- **✦ ask anything** — type in the task bar and tap ✦: add steps, break a task down, park things, start focus, open triage
-- **✦ daily brief** — tap ✦ empty: this morning's nudge and the day's poem, all day
+- **Inline task help** — after a task is added, a quiet helper can suggest a useful next action; outcomes feed back into which kinds of help are offered
 - **About digest** — the day's line, a weekly reflection on Sundays, an intention on Mondays, and a "Noticed" block that surfaces what TODAY has learned (peak hour, streak proximity, recurring themes) — only when something changes, never as filler
 - **Meeting mode** — record an in-room meeting (desktop or iPhone), get action items extracted in the meeting's own language, with your items pre-selected
 - The AI observes, it never coaches: "usually", never "should"
 
 **The frame**
-- **Daily poem** — human-written, worldwide public domain, rotating by day and season (90+ poems, Bashō to Dickinson); greets you on the day's first open
+- **Daily poem** — 130 reviewed, human-written, worldwide-public-domain selections rotating by day and season; greets you on the day's first open
 - Pull in cards from a Trello board (read-only) so work tasks aren't re-typed
-- **Gmail enrichment** — add a task with a name and action verb ("email Johannes about the invoice") and TODAY finds the matching thread; focus mode surfaces the snippet and offers a draft reply
+- **Gmail enrichment** — person-based and topic-based follow-ups find the matching thread; focus mode surfaces the snippet and offers a draft reply
 - Idle companions — small creatures that wander the screen when you step away
 - Sync across devices via **your own Dropbox** — no account, no server-side data
 - Installs as a desktop or mobile app (PWA), works offline after first load
@@ -50,12 +49,12 @@ Most task apps have the same bug: they remember everything, and opening them fee
 
 No framework, no build step, no bundler. Vanilla JS + CSS.
 
-- `index.html` — the app (~13K lines), plus small classic-script modules in `/assets/`: `util`, `poems`, `idle`, `sound`, `celebration`, `trello`, `insights`
+- `index.html` — the 4.8K-line HTML/CSS shell and startup composition; 36 ordered classic-script modules in `/assets/` own component behavior
 - `sw.js` — service worker: offline support, background updates
 - `manifest.json` — PWA installation
-- Six Netlify Functions: Dropbox OAuth (`dropbox-token`, `dropbox-refresh`), Gmail OAuth (`gmail-token`), AI proxy (`ai-assist`), meeting extraction (`meeting-extract`), voice transcription (`transcribe`)
+- Seven Netlify Functions cover Dropbox/Gmail OAuth, AI, meeting/voice extraction, and task enrichment; one Edge Function injects poem sharing metadata
 - Fonts self-hosted (Syne + DM Mono)
-- `scripts/` — headless smoke test and design lint, run as a pre-commit gate
+- `scripts/` — 33 non-live test suites plus design lint (34 checks total); the same gate runs locally and in GitHub Actions
 
 ---
 
@@ -146,7 +145,7 @@ Your key is stored locally in your browser and sent only through your own Netlif
 
 Each device stores state in `localStorage`. Dropbox holds a single JSON backup file (`/today-backup.json`). On startup and every 7 seconds the app does a cheap metadata check — a full sync only happens if the file actually changed.
 
-Concurrent edits are handled with union merge: tasks and habits added on two devices offline both survive. Deletes, check/uncheck operations, and zone moves carry timestamps so the most recent intent wins; purged tasks leave tombstones so stale devices can't resurrect them. Backup schema version `5.3`.
+Concurrent edits are handled with union merge: tasks and habits added on two devices offline both survive. Deletes, check/uncheck operations, and zone moves carry timestamps so the most recent intent wins; purged tasks leave tombstones so stale devices can't resurrect them. Backup schema version `5.4`.
 
 ---
 
@@ -154,13 +153,25 @@ Concurrent edits are handled with union merge: tasks and habits added on two dev
 
 No build step. Open `index.html` in a browser — or better, deploy a preview branch to Netlify since absolute paths (`/fonts/`, `/.netlify/functions/`) don't resolve from `file:///`.
 
+Install the reproducible development dependencies and run the complete local gate:
+
+Development tooling requires Node.js 22.12 or newer; Node 24 is the recommended local runtime.
+
+```sh
+npm ci --prefix scripts
+npm test --prefix scripts
+bash memory/validate-files.sh
+```
+
+Browser suites use the installed Google Chrome on macOS. Set `CHROME_PATH` for another executable; CI uses `/usr/bin/google-chrome`.
+
 Documentation lives in `/memory/`. Start with `Rules.md` — it has a file guide for what to read based on your task.
 
 When making changes:
 - Add the new version as the **top entry of the `CHANGELOG` object** in `index.html` — `APP_VERSION` is derived from it, never edited directly
 - Update the `CACHE_VERSION` in `sw.js` to match (the one hand-synced value; the smoke test fails on drift)
 - Mirror the entry into `memory/Changelog.md`
-- Run `node scripts/smoke-test.mjs` and `node scripts/design-lint.mjs` (both also run pre-commit)
+- Run `npm test --prefix scripts`; it includes design lint and every non-live suite, enforces inventory, and fails on retries/flakes
 
 ---
 

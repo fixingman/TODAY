@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> v2.68.0 accessibility delta on the v2.64.33 baseline · Aug 2026
+> Current source-level snapshot: v2.82.5 · Sep 2026
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -9,8 +9,9 @@
 
 | Asset | Raw (decoded) | Brotli | Notes |
 |---|---|---|---|
-| `index.html` | 517 KB | 142 KB | Single HTML file — no build step (v2.64.33 local state, Brotli q5) |
-| `sw.js` | 6.1 KB | 2.5 KB | Service worker — cache strategy, precache list, offline fallback |
+| `index.html` | 211 KB | 64 KB | HTML/CSS shell + startup composition root (Brotli q5) |
+| `sw.js` | 7.2 KB | 2.5 KB | Service worker — cache strategy, precache list, offline fallback |
+| `assets/runtime.js` | 2.0 KB | — | Frozen component namespace + one delegated listener per declared event type; loaded first and SW-precached |
 | `assets/util.js` | 4.4 KB | 2.3 KB | Pure utility helpers extracted v2.17.122; SW-precached |
 | `assets/accessibility.js` | 6.8 KB | — | Shared semantics, announcements, dialog/disclosure focus handling, and row keyboard layer; SW-precached |
 | `assets/idle.js` | 6.2 KB | 2.1 KB | Idle companion IIFE extracted v2.17.124; SW-precached |
@@ -24,26 +25,41 @@
 | `assets/platform.js` | 12.1 KB | 3.2 KB | PWA, mobile keyboard, SW registration, and bfcache controller extracted v2.64.26 (Roadmap #3); SW-precached |
 | `assets/drag.js` | 12.4 KB | 2.3 KB | Desktop + touch reorder controllers extracted v2.64.27 (Roadmap #3); SW-precached |
 | `assets/meeting.js` | 35.7 KB | 10.4 KB | Meeting + Voice Note extracted v2.64.29; automated and desktop/mobile verified; tracked and SW-precached |
-| `assets/memory-panel.js` | 28.2 KB | 7.3 KB | Memory panel extracted locally for v2.64.30; tests pass, but asset/test are not yet tracked |
-| `assets/triage.js` | 19.9 KB | 4.0 KB | Triage extracted locally for v2.64.31; tests pass, but asset/test are not yet tracked |
-| `assets/zones.js` | 11.0 KB | 3.0 KB | Soon/Past controller extracted locally for v2.64.32; tests pass, but asset/test are not yet tracked |
+| `assets/memory-panel.js` | ~31 KB | ~8 KB | Memory panel; tracked, SW-precached, dedicated browser suite |
+| `assets/triage.js` | ~30 KB | ~6 KB | Triage; tracked, SW-precached, dedicated browser suite |
+| `assets/zones.js` | ~18 KB | ~4 KB | Soon/Past controller; tracked, SW-precached, dedicated browser suite |
 | `assets/habits.js` | 18.8 KB | 5.7 KB | Habits controller extracted v2.64.33; tracked and tested |
 | `assets/task-actions.js` | 26.9 KB | 7.2 KB | Task mutations, delegated row controls, stats, and private favicon renderer; SW-precached |
+| `assets/sync-merge.js` | 4.0 KB | — | DOM-free daily-history and suggestion-outcome merge primitives; directly unit-tested |
+| `assets/suggestion-policy.js` | 3.2 KB | — | DOM-free suggestion reason/performance policy; directly unit-tested |
+| `assets/noticed-model.js` | 3.6 KB | — | DOM-free solar-term and milestone policy; directly unit-tested |
+| `assets/focus-session.js` | 1.1 KB | — | DOM-free focus-session state and wall-clock math; directly unit-tested |
 | `assets/week-reflection-policy.js` | 6.2 KB | 2.1 KB | DOM-free Sunday candidate ranker/output guard; browser global + direct Node unit-test boundary; SW-precached |
-| `assets/poems.js` | ~50 KB | ~16 KB | Daily poem corpus (129 reviewed poems); SW-precached |
-| **Total app JS** | **~818 KB** | **~232 KB** | Local app shell: index.html + implemented modules + poem corpus (Brotli q5) |
+| `assets/poems.js` | 52 KB | 16 KB | Daily poem corpus (130 reviewed poems); SW-precached |
+| **Runtime shell** | **1.11 MB** | **317 KB** | `index.html` + `sw.js` + all 36 same-origin JS modules (Brotli q5) |
 
-**Lines of code:** ~11,324 index.html + ~5,836 extracted + ~802 poem corpus (≈17,962 total)
-— util.js: 97 · idle.js: 289 · sound.js: 224 · celebration.js: 163 · trello.js: 519 · insights.js: 825 · error-monitor.js: 145 · poem-utils.js: 45 · splash.js: 403 · platform.js: 310 · drag.js: 292 · meeting.js: 746 · memory-panel.js: 540 · triage.js: 504 · zones.js: 303 · habits.js: 431 · poems.js: 802
+**Shape:** `index.html` is 4,854 lines and remains the HTML/CSS shell plus intentional startup
+composition root. Behavior lives in 36 classic-script modules; the largest are `dropbox.js`
+(2,150 lines), `focus.js` (1,686), `assistant.js` (1,514), and `insights.js` (1,461).
+Extraction reduced ownership ambiguity, not total payload.
 
-**External scripts:** 0. All assets same-origin, SW-cached; no CDN, no analytics SDK. `scripts/design-lint.mjs` rejects external runtime script tags and known analytics/replay markers (Rule 32).
+**Third-party runtime scripts:** 0. All 36 scripts are same-origin and every one is present in
+the service-worker precache. No CDN or analytics SDK. `scripts/design-lint.mjs` rejects external
+runtime script tags and known analytics/replay markers (Rule 32).
 **External fonts on first visit:** 6 files (self-hosted, pre-cached by SW). Zero Google Fonts pings.  
 **External fonts on repeat visits:** 0 — all served from SW cache.  
 **@font-face declarations:** 9 total — 6 in main doc (DM Mono ×3, Syne ×3), 2 injected into PiP window, 1 in offline fallback HTML in SW.
 
-**Extraction status:** complete. v2.71.15 moved the remaining task-row action delegation and favicon renderer into the existing task-actions owner. Shared state, initialization, and startup sequencing remain inline as the intentional composition root.
+**Extraction status:** component behavior is file-separated; v2.82.5 adds an explicit runtime
+ownership contract and extracts deterministic sync, suggestion, Noticed, and focus-session
+cores. Large controllers remain where DOM/network/lifecycle orchestration is inherently coupled;
+shared state, initialization, and startup sequencing remain inline as the intentional
+composition root.
 
-**Assessment (v2.64.33 local state):** index.html is 517 KB decoded / 142 KB Brotli-q5; total app JavaScript is ~807 KB decoded / ~228 KB compressed because extraction changes ownership rather than payload. Meeting and Habits are tracked. Memory panel, Triage, and Zones pass locally but were omitted from the commit, so deployed `dev` cannot be considered healthy until those 404s are repaired.
+**Assessment (v2.82.5):** module loading and offline precache are in exact parity. Runtime-first
+ordering, declarative-action ownership, and a 123-assignment compatibility ceiling are now
+enforced. The current watch item is the 1.11 MB raw shell and the remaining transitional globals,
+not a missing-asset failure.
 
 ---
 
@@ -53,11 +69,11 @@
 
 | Metric | Count | Δ from v2.32.0 | Notes |
 |---|---|---|---|
-| `getElementById` | 221 | −11 | Moved to trello.js/insights.js |
-| `querySelector` | 55 | −4 | Moved to extracted modules |
-| `querySelectorAll` | 27 | −3 | Moved to extracted modules |
-| **Total DOM queries** | **303** | **−18** | Extraction reduced main-file query count |
-| `innerHTML =` assignments | 43 | −8 | Meeting + insights render moved to modules |
+| `getElementById` | 311 | — | Source-level call sites across `index.html` + `assets/*.js` |
+| `querySelector` | 102 | — | Source-level call sites |
+| `querySelectorAll` | 38 | — | Source-level call sites |
+| **Total DOM queries** | **451** | — | Not runtime frequency; repeated render calls dominate |
+| `innerHTML =` assignments | 77 | — | Free-text paths remain subject to the XSS review below |
 | Cached element usage | via `$` object | — | Elements cached at init in `_cacheElements()` |
 | `safeJSON()` call sites | 56 | 0 | Centralises try/catch + fallback for all reads |
 
@@ -65,8 +81,8 @@
 
 | Metric | Count | Δ from v2.32.0 | Notes |
 |---|---|---|---|
-| `localStorage.getItem` | 97 | −1 | |
-| `localStorage.setItem` | 155 | −8 | Several moved to insights.js |
+| `localStorage.getItem` | 149 | — | Source-level call sites across the current runtime |
+| `localStorage.setItem` | 187 | — | Source-level call sites across the current runtime |
 | Raw `JSON.parse(localStorage…)` | 0 outside `safeJSON()` | — | `safeJSON()` centralises try/catch |
 | **Quota failures** | **caught (v2.17.70)** | — | Global `setItem` wrapper; quota errors route to red dot |
 
@@ -95,11 +111,9 @@
 | 500ms | Dropbox auth poll | Only while OAuth popup open |
 | 30min | SW update check | Runs continuously |
 
-**setInterval count: 5** (unchanged)
-
-**setTimeout count: 72** (index.html; −2 since v2.32.0 — moved to extracted modules)
-
-**requestAnimationFrame count: 23** (unchanged)
+**Source-level timing call sites:** 7 `setInterval`, 100 `setTimeout`, and 34
+`requestAnimationFrame` across `index.html` + runtime modules. These are call sites, not the
+number simultaneously active; transient OAuth, animation, and testable UI timers are included.
 
 **WAAPI: `_breathe()` 11 call sites** (−1 since v2.32.0); **`_pulseComplete()` 8 call sites** (unchanged). All compositor-driven; all survive `_forceRepaint` display toggles.
 
@@ -139,7 +153,7 @@
 
 ---
 
-## 3. Security — re-audited 2026-07-29 (v2.42.2), not just re-asserted
+## 3. Security — re-audited 2026-09-04 (v2.82.4), not just re-asserted
 
 Previously flagged "unchanged since v2.32.0" without being re-checked against everything shipped since — many versions had landed (Noticed sync, poem share, meeting mode, error-monitor extraction, Trello template reorder). Re-verified every claim below against current code rather than trusting the old note.
 
@@ -156,6 +170,11 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 - `DROPBOX_APP_KEY` / `TRELLO_APP_KEY`: client-visible (standard for PKCE / Trello's model).
 - App secret in Netlify env vars only (`DROPBOX_CLIENT_SECRET`).
 - AI API keys: stored in localStorage, relayed via Netlify proxy — never sent directly from client to provider.
+
+### Development dependencies
+- `scripts/` is development-only and does not ship with the PWA. Its reproducible tree is locked by `scripts/package-lock.json`.
+- The 2026-09-04 audit found `extract-zip@2.0.1` through Puppeteer 23's browser helper (GHSA-jmr9-qjv8-65gv, high). Puppeteer Core moved to 25.10.0 / `@puppeteer/browsers` 3.2.2, which removes that package; Node >=22.12 is now explicit.
+- The complete gate passed 29/29 with zero flakes under Node 22.23.2 and Node 24.14.0. npm's advisory endpoint remained intermittently unavailable, so the exact locked versions were also checked against OSV's batch API; all 26 package records returned no advisories.
 
 ### Missing: Content Security Policy
 - No CSP. Inline-heavy single-file app makes strict CSP complex. **Low priority for personal tool.**
@@ -195,7 +214,7 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 
 > **All test cases in `Test-matrix.md`** — comprehensive matrix covering sync, UI, security, zones, habits, and edge cases.
 
-v2.68.0 adds a dev-only axe-core/Puppeteer suite covering representative desktop/mobile states, disclosures, focus mode, triage, meeting review, poem semantics, keyboard reorder persistence, dialog focus behavior, hidden-tree exclusion, contrast tokens, target size, zoom metadata, and 320px reflow. It adds no production dependency or runtime network request. Manual VoiceOver and real Picture-in-Picture verification remain release gates.
+The default v2.82.5 gate runs design lint plus 33 non-live suites: 24 browser suites and nine direct Node/static suites. Inventory is enforced, retries are reported as flakes and fail, and each attempt has a 120-second ceiling. The component contract checks runtime/precache order, declarative-action parity, inline-handler absence, global ownership, and the compatibility ceiling. Sync merge, suggestion policy, Noticed policy, and focus-session math now have direct unit coverage. A tracked lockfile and `CHROME_PATH` make the same gate runnable in GitHub Actions. Manual VoiceOver, installed-PWA behavior, and real Picture-in-Picture verification remain release gates.
 
 ---
 
@@ -213,7 +232,7 @@ v2.68.0 adds a dev-only axe-core/Puppeteer suite covering representative desktop
 | `localStorage` disabled | Low | `safeJSON` reads catch SecurityError; global `setItem` wrapper IIFE may throw before installing if storage fully blocked. App loads with red dot, data not persisted. |
 | `renderTrello()` runs every 7s tick unconditionally | Low | v2.18.12 — diff-patch bounds cost (≤20 cards). Only item in history that adds baseline per-tick work. Revisit if Trello card counts grow much larger than ~20. |
 | BUG-004 repaint ceiling | Low | Extended to 5000ms (v2.31.9). If a very long sleep still leaves GPU unready past 5s, a 7th pass or a fallback `click` simulation may be needed. |
-| index.html growth | Watch | 517 KB decoded / 142 KB brotli (v2.64.33 local Brotli-q5 state). Sixteen modules are implemented locally; repair the three omitted module files before extracting `focus.js` (~1,332). Direct sync extraction remains deferred because its live sync/wake cluster is ~1,968 tightly coupled lines. |
+| Runtime shell growth | Watch | 1.11 MB decoded / 317 KB Brotli-q5 across the HTML, service worker, and 36 modules. `index.html` itself is 211 KB / 64 KB. All modules are tracked and precached; revisit payload only when first-load measurements show a real cost. |
 | BUG-041: iOS PWA splash white flash | Platform limitation | Closed 2026-07-24 after a fourth investigation pass ruled out every app-code explanation: splash launch-image colors correct (RGB 14,14,16, matches `--bg`), iPhone 14 Pro's exact spec present in the `apple-touch-startup-image` list, latest build confirmed running, no render-blocking `<head>` resource. What remains is the gap between iOS's static launch image ending and the WebView's first painted frame — a handoff with no hook available from web content. Reopen only if light/dark-mode correlation is confirmed, or the flash appears on a warm/backgrounded reopen (not just true cold start) — either would point back at in-page code. Full four-pass history → `archive/Bugs-archive.md`. |
 
 ---
@@ -222,7 +241,7 @@ v2.68.0 adds a dev-only axe-core/Puppeteer suite covering representative desktop
 
 | Area | Score | Notes |
 |---|---|---|
-| Load performance | ✅ Good | 614 KB index.html (165 KB brotli) + ~139 KB extracted modules decoded (~42 KB brotli), fonts cached, 313 KB total cold transfer, offline-capable |
+| Load performance | ✅ Good | 211 KB index.html (64 KB Brotli); 1.11 MB / 317 KB complete runtime shell; same-origin and offline-cached |
 | Runtime performance | ✅ Good | Cached elements, cheap ticker, incremental DOM, debounced `_onWake` |
 | CSS token hygiene | ✅ Good | 116 `:root` vars, 0 violations (design-lint enforced) |
 | XSS protection | ✅ Good | `esc()` on all user content |
@@ -294,7 +313,7 @@ v2.68.0 adds a dev-only axe-core/Puppeteer suite covering representative desktop
 | Fix: habit/focus milestone ceiling | v2.40.0 | Swapped a bounded `.find()` over a fixed array for one `Math.floor` division past the top tier — same or fewer ops per check. Negligible. |
 | Fix: BUG-060 reconcile extended to two more merge sites | v2.40.1 | `_reconcileTrelloAfterMerge()` is a pure local read (bounded by `trelloTasks.length`, typically <20) with no network call — adding it to two more call sites is the same negligible cost as the one it already ran at, just paid more often (every ~7s tick when Dropbox's rev changes, versus once at cold start). |
 | Poem share design iteration (color/weight, hover-reveal, `.task-copy` mirroring, click feedback) | v2.40.2–v2.40.8 | Pure CSS/small-DOM-handler changes throughout — no new network calls, no new storage keys, no measurable runtime cost at any point in the arc. Negligible. |
-| Removed: ✦ Daily brief | v2.41.0 | Net negative work — one function (`_showDailyBrief()`) and its supporting CSS deleted outright, not replaced with anything heavier. Empty ✦ tap now runs the AI panel's pre-existing `_aiLoad()` path, already paid for elsewhere. |
+| Removed: ✦ Daily brief | v2.41.0 | Net negative work — one function (`_showDailyBrief()`) and its supporting CSS deleted outright. The remaining input-bar ✦ entry path was removed in v2.49.0; the legacy sheet controller is still bundled with live inline-suggestion code. |
 | Roadmap #3: `error-monitor.js` extracted (seventh module) | v2.41.1 | ~6 KB moved out of `index.html` into an SW-precached file. Zero runtime cost change — same functions, same call sites, only the physical file boundary moved. First extraction with no Non-Delegation concerns at all (dev-aid only, no sync/merge logic). |
 | Roadmap #3: `splash.js` extracted (ninth module) | v2.64.25 | ~20 KB moved out of `index.html` into an SW-precached classic script. It stays inert until called at the original post-`init()` boundary, so execution timing and runtime cost are unchanged. |
 | Roadmap #3: `platform.js` extracted (tenth module) | v2.64.26 | ~12 KB moved out of `index.html` into an SW-precached classic script. One end-of-script initializer preserves listener timing and runtime work. Cost: one additional same-origin app-shell request on an uncached first load; repeat/offline loads come from the SW cache. |
@@ -308,4 +327,4 @@ v2.68.0 adds a dev-only axe-core/Puppeteer suite covering representative desktop
 
 ---
 
-*Last updated: v2.68.2 accessibility refinement · Aug 2026*
+*Last updated: v2.82.5 component boundary pass · Sep 2026*

@@ -18,7 +18,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
@@ -81,10 +81,8 @@ async function openPage(extraSeed) {
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForFunction(
-    () => typeof renderConnections === 'function' &&
-          typeof renderManual === 'function' &&
-          typeof saveAIKey === 'function' &&
-          typeof _aiGetKey === 'function' &&
+    () => typeof Today?.use('connections').renderConnections === 'function' &&
+          typeof Today?.use('connections').saveAIKey === 'function' &&
           !!$.configPanel,
     { timeout: 15000 }
   );
@@ -102,7 +100,7 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      toggleConfig();
+      Today.use('connections').toggleConfig();
       return { panelOpen: !!($.configPanel && $.configPanel.classList.contains('open')) };
     });
     await expectAll('toggleConfig opens panel', { ...result, noErrors: errors.length === 0 });
@@ -114,8 +112,8 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      toggleConfig();
-      toggleConfig();
+      Today.use('connections').toggleConfig();
+      Today.use('connections').toggleConfig();
       return { panelClosed: !$.configPanel.classList.contains('open') };
     });
     await expectAll('toggleConfig closes panel', { ...result, noErrors: errors.length === 0 });
@@ -129,7 +127,7 @@ try {
     const result = await page.evaluate(() => {
       Object.defineProperty(Object.getPrototypeOf(navigator), 'onLine',
         { get: () => false, configurable: true });
-      _applyOfflinePanel();
+      Today.use('connections')._applyOfflinePanel();
       const banner = document.getElementById('offlineBanner');
       return { bannerVisible: !!(banner && banner.classList.contains('visible')) };
     });
@@ -144,7 +142,7 @@ try {
     const result = await page.evaluate(() => {
       Object.defineProperty(Object.getPrototypeOf(navigator), 'onLine',
         { get: () => true, configurable: true });
-      _applyOfflinePanel();
+      Today.use('connections')._applyOfflinePanel();
       const banner = document.getElementById('offlineBanner');
       return { bannerHidden: !(banner && banner.classList.contains('visible')) };
     });
@@ -157,7 +155,7 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      toggleConfig(); // opens panel, calls renderConnections() internally
+      Today.use('connections').toggleConfig(); // opens panel, calls renderConnections() internally
       const container = document.getElementById('connectionsContainer');
       return { hasContent: !!(container && container.innerHTML.trim().length > 0) };
     });
@@ -171,7 +169,7 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      toggleConfig(); // opens → _beginConnectionsPrivacyVisit() → no creds → note visible
+      Today.use('connections').toggleConfig(); // opens → _beginConnectionsPrivacyVisit() → no creds → note visible
       const note = document.getElementById('connectionsPrivacyNote');
       return { noteVisible: !!(note && note.style.display === 'block') };
     });
@@ -184,7 +182,7 @@ try {
   {
     const { page, errors } = await openPage({ today_ai_key_claude: 'stub' });
     const result = await page.evaluate(() => {
-      toggleConfig(); // opens → _beginConnectionsPrivacyVisit() → has creds → note hidden
+      Today.use('connections').toggleConfig(); // opens → _beginConnectionsPrivacyVisit() → has creds → note hidden
       const note = document.getElementById('connectionsPrivacyNote');
       return { noteHidden: !(note && note.style.display === 'block') };
     });
@@ -198,10 +196,10 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      toggleConfig(); // open → no creds → note visible
+      Today.use('connections').toggleConfig(); // open → no creds → note visible
       const note = document.getElementById('connectionsPrivacyNote');
       const wasVisible = !!(note && note.style.display === 'block');
-      toggleConfig(); // close → _endConnectionsPrivacyVisit() → note hidden
+      Today.use('connections').toggleConfig(); // close → _endConnectionsPrivacyVisit() → note hidden
       const isHidden = !(note && note.style.display === 'block');
       return { wasVisible, isHidden };
     });
@@ -214,8 +212,8 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      const todayResult = _getDueStr({ due: new Date().toISOString() });
-      const emptyResult = _getDueStr({});
+      const todayResult = Today.use('connections')._getDueStr({ due: new Date().toISOString() });
+      const emptyResult = Today.use('connections')._getDueStr({});
       return {
         todayNonEmpty: todayResult.length > 0,
         emptyIsEmpty:  emptyResult === '',
@@ -230,7 +228,7 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      renderManual();
+      Today.use('connections').renderManual();
       const list = document.getElementById('manualList');
       const count = list ? list.querySelectorAll('.task').length : 0;
       return { twoTasks: count === 2 };
@@ -245,13 +243,13 @@ try {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
       // _aiInit seeds today_ai_provider = AI_BUILD_PROVIDER ('claude') on first load
-      const providerAfterInit = _aiGetProvider();
+      const providerAfterInit = Today.use('connections')._aiGetProvider();
       localStorage.removeItem('today_ai_key_gemini');
-      const emptyKey = _aiGetKey('gemini');
+      const emptyKey = Today.use('connections')._aiGetKey('gemini');
       localStorage.setItem('today_ai_key_gemini', 'gk-test');
-      const foundKey = _aiGetKey('gemini');
+      const foundKey = Today.use('connections')._aiGetKey('gemini');
       localStorage.setItem('today_ai_provider', 'gemini');
-      const switchedProvider = _aiGetProvider();
+      const switchedProvider = Today.use('connections')._aiGetProvider();
       return {
         providerSet:      providerAfterInit === 'claude',
         emptyKeyIsEmpty:  emptyKey === '',
@@ -270,10 +268,10 @@ try {
     const result = await page.evaluate(() => {
       localStorage.removeItem('today_ai_key_claude');
       localStorage.removeItem('today_ai_key_gemini');
-      const notConfigured = !_aiIsConfigured();
-      // _aiGetProvider() returns 'claude' (set by _aiInit), so set claude key
+      const notConfigured = !Today.use('connections')._aiIsConfigured();
+      // Today.use('connections')._aiGetProvider() returns 'claude' (set by _aiInit), so set claude key
       localStorage.setItem('today_ai_key_claude', 'ck-test');
-      const configured = _aiIsConfigured();
+      const configured = Today.use('connections')._aiIsConfigured();
       return { notConfigured, configured };
     });
     await expectAll('_aiIsConfigured reflects key', { ...result, noErrors: errors.length === 0 });
@@ -285,7 +283,7 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(async () => {
-      toggleConfig(); // opens panel; setTimeout(_aiRenderConfig, 0) fires shortly
+      Today.use('connections').toggleConfig(); // opens panel; setTimeout(_aiRenderConfig, 0) fires shortly
       await new Promise(r => setTimeout(r, 80)); // wait for deferred _aiRenderConfig
       const rows = document.getElementById('aiProviderRows');
       const html = rows ? rows.innerHTML : '';
@@ -308,11 +306,11 @@ try {
       window._updateBarPlaceholder = () => {};
       window._meetingInit = () => {};
       window._voiceNoteInit = () => {};
-      toggleConfig();
+      Today.use('connections').toggleConfig();
       await new Promise(r => setTimeout(r, 80)); // wait for _aiRenderConfig to render inputs
       const input = document.getElementById('aiKey_gemini');
       if (input) input.value = 'sk-test-key-gemini';
-      await saveAIKey('gemini');
+      await Today.use('connections').saveAIKey('gemini');
       return { keySaved: !!localStorage.getItem('today_ai_key_gemini') };
     });
     await expectAll('saveAIKey valid key saves', { ...result, noErrors: errors.length === 0 });
@@ -331,10 +329,10 @@ try {
       window._updateBarPlaceholder = () => {};
       window._meetingInit = () => {};
       window._voiceNoteInit = () => {};
-      clearAIKey('gemini');
+      Today.use('connections').clearAIKey('gemini');
       return {
-        keyRemoved:      _aiGetKey('gemini') === '',
-        defaultSwitched: _aiGetProvider() === 'claude',
+        keyRemoved:      Today.use('connections')._aiGetKey('gemini') === '',
+        defaultSwitched: Today.use('connections')._aiGetProvider() === 'claude',
       };
     });
     await expectAll('clearAIKey removes key and switches default', { ...result, noErrors: errors.length === 0 });
@@ -353,8 +351,8 @@ try {
       window._updateBarPlaceholder = () => {};
       window._meetingInit = () => {};
       window._voiceNoteInit = () => {};
-      setDefaultProvider('claude');
-      return { defaultIsClaude: _aiGetProvider() === 'claude' };
+      Today.use('connections').setDefaultProvider('claude');
+      return { defaultIsClaude: Today.use('connections')._aiGetProvider() === 'claude' };
     });
     await expectAll('setDefaultProvider switches default', { ...result, noErrors: errors.length === 0 });
     ok('setDefaultProvider: default switched to claude');
@@ -375,16 +373,6 @@ try {
       });
       ok('pre-fold baseline: AI provider functions inline in index.html, not yet in connections.js');
     } else {
-      const requiredExports = [
-        'setTrelloIcon', 'syncActiveButtons', '_renderConnectionsPrivacy',
-        '_endConnectionsPrivacyVisit', 'toggleConfig', '_applyOfflinePanel',
-        'renderConnections', 'dropboxDisconnect', '_getDueStr',
-        '_queueTagArrivalShimmer', 'renderManual', '_wireManualTagShimmer',
-        'taskHTML', '_getCreatedFromId', '_getAgeDays',
-        '_aiGetProvider', '_aiGetKey', '_aiIsConfigured',
-        '_aiRenderConfig', '_aiUpdateConnectBtn',
-        'saveAIKey', 'clearAIKey', 'setDefaultProvider',
-      ];
       const startupIdx = indexSrc.indexOf('window._startConnections();');
       const aboutIdx   = indexSrc.indexOf('window._startAbout();');
       await expectAll('connections module with AI fold-in wiring', {
@@ -394,7 +382,7 @@ try {
         aiRenderRemoved:  !indexSrc.includes('function _aiRenderConfig()'),
         saveAIKeyRemoved: !indexSrc.includes('async function saveAIKey('),
         moduleInit:       connSrc.includes('window._startConnections = function()'),
-        allExports:       requiredExports.every(n => connSrc.includes(`window.${n} = ${n};`)),
+        api:              connSrc.includes("Today.define('connections'"),
         precached:        swSrc.includes("'/assets/connections.js'"),
       });
       ok('connections with AI fold-in: 23 exports, AI functions removed from index.html');

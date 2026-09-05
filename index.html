@@ -811,6 +811,21 @@
     border: 0 !important;
   }
 
+  .skip-link {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
+    left: 12px;
+    z-index: 10000;
+    padding: 8px 12px;
+    color: var(--text);
+    background: var(--surface2);
+    border: 1px solid var(--color-control-border-elevated);
+    border-radius: var(--radius-sm);
+    transform: translateY(calc(-100% - 20px));
+  }
+
+  .skip-link:focus { transform: translateY(0); }
+
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 3px;
@@ -4095,8 +4110,9 @@
 <div id="a11yPolite" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
 <div id="a11yAssertive" class="visually-hidden" role="alert" aria-live="assertive" aria-atomic="true"></div>
 <div id="reorderHelp" class="visually-hidden">Enter starts focus. Space changes completion. Option plus Up or Down Arrow moves this item.</div>
+<a class="skip-link" href="#main-app">Skip to tasks</a>
 <!-- Error indicator (dev aid) -->
-<button id="errorIndicator" type="button" data-count="0" onclick="_toggleErrorPanel()" aria-label="Open error log" aria-controls="errorPanel" aria-expanded="false"></button>
+<button id="errorIndicator" type="button" data-count="0" data-today-click="errors.toggle" aria-label="Open error log" aria-controls="errorPanel" aria-expanded="false"></button>
 <div id="errorPanel" role="log" aria-live="polite" aria-label="Error log" hidden></div>
 <!-- SVG noise filter for focus mode depth effect -->
 <svg style="position:absolute;width:0;height:0;pointer-events:none" aria-hidden="true">
@@ -4135,12 +4151,12 @@
   <div class="sticky-header-inner">
     <div class="header">
       <div class="header-left">
-        <h1 class="today-brand"><button class="today-logo" id="todayLogo" type="button" onclick="toggleMemory()" aria-label="Open memory" aria-controls="memoryPanel" aria-expanded="false">TO<span>DAY</span></button></h1>
+        <h1 class="today-brand"><button class="today-logo" id="todayLogo" type="button" data-today-click="memory.toggle" aria-label="Open memory" aria-controls="memoryPanel" aria-expanded="false">TO<span>DAY</span></button></h1>
       </div>
       <div class="header-actions">
-        <button class="btn-icon" id="habitsBtn" type="button" aria-label="Open habits" aria-controls="habitsPanel" aria-expanded="false" onclick="toggleHabits()">◎&#xFE0E;</button>
-        <button class="btn-icon" id="trelloBtn" type="button" aria-label="Open connections" aria-controls="configPanel" aria-expanded="false" onclick="toggleConfig()">✧</button>
-        <button class="btn-icon" id="infoBtn" type="button" aria-label="Open about" aria-controls="infoPanel" aria-expanded="false" onclick="toggleInfo()">ℹ&#xFE0E;</button>
+        <button class="btn-icon" id="habitsBtn" type="button" aria-label="Open habits" aria-controls="habitsPanel" aria-expanded="false" data-today-click="habits.toggle">◎&#xFE0E;</button>
+        <button class="btn-icon" id="trelloBtn" type="button" aria-label="Open connections" aria-controls="configPanel" aria-expanded="false" data-today-click="connections.toggle">✧</button>
+        <button class="btn-icon" id="infoBtn" type="button" aria-label="Open about" aria-controls="infoPanel" aria-expanded="false" data-today-click="about.toggle">ℹ&#xFE0E;</button>
       </div>
     </div>
     <!-- Subheader: date + progress bar -->
@@ -4157,7 +4173,7 @@
 </div>
 
 <!-- AI panel: reads your day, presents concrete action chips -->
-<div class="app" id="main-app" role="main" style="opacity:0">
+<div class="app" id="main-app" role="main" tabindex="-1" style="opacity:0">
 
   <!-- Habits panel -->
   <section class="config-panel" id="habitsPanel" aria-labelledby="habitsTitle" hidden>
@@ -4170,12 +4186,12 @@
     <div class="habit-add-row" id="habitAddRow">
       <label class="visually-hidden" for="habitInput">Habit name</label>
       <input class="habit-input" id="habitInput" type="text" autocomplete="off" maxlength="100"
-        placeholder="Name the habit…" onkeydown="handleHabitKey(event)">
-      <button class="habit-add-btn" onclick="addHabit()">Add</button>
+        placeholder="Name the habit…" data-today-keydown="habits.input-key">
+      <button class="habit-add-btn" data-today-click="habits.add">Add</button>
     </div>
     <div class="config-actions">
-      <button class="btn-ghost" id="habitNewBtn" onclick="toggleHabitInput()">New habit</button>
-      <button class="btn-ghost" id="habitEditBtn" onclick="toggleHabitEditMode()" style="display:none">Edit</button>
+      <button class="btn-ghost" id="habitNewBtn" data-today-click="habits.new">New habit</button>
+      <button class="btn-ghost" id="habitEditBtn" data-today-click="habits.edit" style="display:none">Edit</button>
     </div>
   </section>
 
@@ -4200,7 +4216,7 @@
     <div class="panel-section" id="aiConfigSection">
       <div class="config-title">✦&#xFE0E; AI ASSISTANT</div>
 
-      <!-- Provider rows rendered by _aiRenderConfig() -->
+      <!-- Provider rows rendered by Today.use('connections')._aiRenderConfig() -->
       <div id="aiProviderRows" style="margin-top:var(--space-3)"></div>
     </div>
 
@@ -4228,7 +4244,7 @@
 
     <div class="panel-section" id="weekSection" style="display:none">
       <div class="config-label">This week</div>
-      <button id="weekMoreBtn" class="copy-cta" onclick="toggleMemory()" aria-label="Open memory">see more</button>
+      <button id="weekMoreBtn" class="copy-cta" data-today-click="memory.toggle" aria-label="Open memory">see more</button>
       <div id="weekGrid"></div>
     </div>
 
@@ -4236,7 +4252,7 @@
       <div class="config-label">Read me</div>
       <div class="panel-haiku">
         <button type="button" class="poem-block" id="poemBlock" aria-label="Share today's poem"
-             onclick="_onPoemTap(event)">
+             data-today-click="about.poem">
           <div id="dailyPoem">
             Only today shows<br>
             Done rests, quietly proud<br>
@@ -4244,7 +4260,7 @@
           </div>
           <span id="poemShareBtn" class="btn-poem-share copy-cta" aria-hidden="true">share</span>
         </button>
-        <button id="installBtn" class="btn-install" style="display:none;margin-top:var(--space-3)" onclick="installPWA()">
+        <button id="installBtn" class="btn-install" style="display:none;margin-top:var(--space-3)" data-today-click="platform.install">
           <span class="install-icon">⬇&#xFE0E;</span> Install app
         </button>
       </div>
@@ -4273,7 +4289,7 @@
 
   <!-- SOON section (collapsed by default) -->
   <div class="section zone-section" id="soonSection" style="display:none">
-    <button class="section-header zone-header" id="soonToggle" type="button" onclick="toggleZone('soon')" aria-controls="soonList" aria-expanded="false">
+    <button class="section-header zone-header" id="soonToggle" type="button" data-today-click="zones.toggle" data-zone="soon" aria-controls="soonList" aria-expanded="false">
       <span class="section-label">Soon</span>
       <span class="section-count" id="soonCount">0</span>
       <span class="zone-chevron" id="soonChevron" aria-hidden="true">+</span>
@@ -4307,7 +4323,7 @@
 
   <!-- PAST section (collapsed by default) -->
   <div class="section zone-section" id="pastSection" style="display:none">
-    <button class="section-header zone-header" id="pastToggle" type="button" onclick="toggleZone('past')" aria-controls="pastList" aria-expanded="false">
+    <button class="section-header zone-header" id="pastToggle" type="button" data-today-click="zones.toggle" data-zone="past" aria-controls="pastList" aria-expanded="false">
       <span class="section-label">Past</span>
       <span class="section-count" id="pastCount">0</span>
       <span class="zone-chevron" id="pastChevron" aria-hidden="true">+</span>
@@ -4318,18 +4334,18 @@
 </div>
 
 <!-- Evening triage panel (appears after 8pm with undone tasks) -->
-<div id="triageOverlay" class="hidden" hidden aria-hidden="true" onclick="if(event.target===this)triageMinimize()">
+<div id="triageOverlay" class="hidden" hidden aria-hidden="true" data-today-click="triage.backdrop">
   <div id="triagePanel" role="dialog" aria-modal="true" aria-labelledby="triageTitle">
     <div class="triage-header">
       <h2 id="triageTitle">3 didn't happen</h2>
-      <button class="triage-header-btn" onclick="triageKeepAll()">Keep all</button>
+      <button class="triage-header-btn" data-today-click="triage.keep-all">Keep all</button>
     </div>
     <div id="triageList"></div>
     <div id="triageComplete" class="hidden">
       <div class="triage-complete-msg">All sorted</div>
       <div id="triageSummary"></div>
       <div id="triageReflection" aria-live="polite"></div>
-      <button id="triageUndoBtn" onclick="triageUndo()" class="triage-undo-btn" style="display:none">Undo sorting</button>
+      <button id="triageUndoBtn" data-today-click="triage.undo" class="triage-undo-btn" style="display:none">Undo sorting</button>
     </div>
   </div>
 </div>
@@ -4337,7 +4353,7 @@
 <!-- Triage trigger bar (minimized state) -->
 <div id="triageBar" class="hidden" role="status">
   <span class="triage-msg"><span id="triageCount">0</span> didn't happen</span>
-  <button class="triage-btn primary" id="triageReviewBtn" type="button" onclick="triageExpand()">Review</button>
+  <button class="triage-btn primary" id="triageReviewBtn" type="button" data-today-click="triage.expand">Review</button>
 </div>
 
 <!-- Add task bar: outside .app so transforms on .section don't break position:fixed -->
@@ -4347,12 +4363,12 @@
     <input class="add-task-input" id="newTask" maxlength="500" type="text"
       autocomplete="off"
       placeholder="What's on your mind?"
-      onkeydown="handleBarKey(event)" oninput="toggleClearBtn()" />
+      data-today-keydown="tasks.input-key" data-today-input="tasks.input-change" />
     <div id="newTaskMirror" aria-hidden="true"></div>
-    <button id="clearTaskBtn" type="button" aria-label="Clear task input" onclick="clearTaskInput()" onpointerdown="event.preventDefault()" class="clear-input-btn" style="display:none">×</button>
+    <button id="clearTaskBtn" type="button" aria-label="Clear task input" data-today-click="tasks.clear-input" data-today-pointerdown="tasks.preserve-input-focus" class="clear-input-btn" style="display:none">×</button>
   </div>
   <!-- Voice note mic (mobile-only, revealed by _voiceNoteInit) — v2.24.0 -->
-  <button class="add-mic-btn" id="voiceNoteBtn" type="button" onclick="toggleVoiceNote()" aria-label="Record a voice note" aria-pressed="false">
+  <button class="add-mic-btn" id="voiceNoteBtn" type="button" data-today-click="meeting.toggle-voice" aria-label="Record a voice note" aria-pressed="false">
     <svg width="15" height="20" viewBox="0 0 15 20" fill="none" aria-hidden="true" focusable="false">
       <rect x="4.75" y="1" width="5.5" height="10.5" rx="2.75" stroke="currentColor" stroke-width="1.5"/>
       <path d="M1.5 8.5v1a6 6 0 0 0 12 0v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -4360,14 +4376,14 @@
     </svg>
   </button>
   <!-- Meeting mode mic (revealed by _meetingInit when supported) — v2.22.0/v2.28.0 -->
-  <button class="add-mic-btn" id="meetingBtn" type="button" onclick="toggleMeeting()" aria-label="Start meeting recording" aria-pressed="false">
+  <button class="add-mic-btn" id="meetingBtn" type="button" data-today-click="meeting.toggle" aria-label="Start meeting recording" aria-pressed="false">
     <svg width="15" height="20" viewBox="0 0 15 20" fill="none" aria-hidden="true" focusable="false">
       <rect x="4.75" y="1" width="5.5" height="10.5" rx="2.75" stroke="currentColor" stroke-width="1.5"/>
       <path d="M1.5 8.5v1a6 6 0 0 0 12 0v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       <path d="M7.5 15.5V19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
   </button>
-  <!-- Single ✦: Enter = add task, tap = AI (or add task if AI not configured) -->
+  <!-- Enter always adds. Voice/meeting controls are capability-gated beside the input. -->
 </div>
 
 <!-- Voice note: recording pill (v2.24.0) -->
@@ -4375,14 +4391,14 @@
   <div class="voice-pill-dot" aria-hidden="true"></div>
   <span class="voice-pill-time" id="voicePillTime" role="timer">0:00</span>
   <span class="voice-pill-cap" id="voicePillCap"></span>
-  <button class="voice-pill-stop" type="button" onclick="_voiceNoteStop()">Stop</button>
+  <button class="voice-pill-stop" type="button" data-today-click="meeting.stop-voice">Stop</button>
 </div>
 
 <!-- Meeting mode: non-blocking listening pill (v2.22.0) -->
 <div id="meetingPill" role="status" aria-label="Meeting recording" hidden aria-hidden="true">
   <div class="meeting-pill-dot" aria-hidden="true"></div>
   <span class="meeting-pill-time" id="meetingPillTime" role="timer">00:00</span>
-  <button class="meeting-pill-stop" type="button" onclick="_meetingStop()">Stop</button>
+  <button class="meeting-pill-stop" type="button" data-today-click="meeting.stop">Stop</button>
 </div>
 
 <!-- Meeting mode: first-use name prompt — shown when no name is set and mic is tapped -->
@@ -4392,8 +4408,8 @@
   <input id="meetingNamePromptInput" type="text" maxlength="60"
     autocomplete="off" autocorrect="off" spellcheck="false"
     placeholder="Your first name — to spot your tasks"
-    onkeydown="_meetingNamePromptKey(event)" />
-  <button class="meeting-name-prompt-start" onclick="_meetingNamePromptSubmit()">start</button>
+    data-today-keydown="meeting.name-key" />
+  <button class="meeting-name-prompt-start" data-today-click="meeting.name-submit">start</button>
 </div>
 
 <!-- Meeting mode: end-of-meeting review overlay (v2.22.0) -->
@@ -4406,14 +4422,14 @@
     </div>
     <div id="meetingItems"></div>
     <div class="meeting-review-actions">
-      <button class="meeting-review-add" id="meetingAddBtn" onclick="_meetingAccept()">Add tasks</button>
-      <button class="meeting-review-discard" onclick="_meetingDiscard()">Discard</button>
+      <button class="meeting-review-add" id="meetingAddBtn" data-today-click="meeting.accept">Add tasks</button>
+      <button class="meeting-review-discard" data-today-click="meeting.discard">Discard</button>
     </div>
   </div>
 </div>
 
 <!-- AI chat panel — slides up from bottom -->
-<div id="aiBackdrop" onclick="closeAI()" hidden aria-hidden="true"></div>
+<div id="aiBackdrop" data-today-click="assistant.close" hidden aria-hidden="true"></div>
 <div class="config-panel" id="aiPanel" hidden aria-hidden="true">
   <div class="ai-panel-body">
     <div class="ai-suggestion-msg" id="aiSuggestionMsg"></div>
@@ -4423,17 +4439,17 @@
       <label class="visually-hidden" for="aiNlInput">Ask TODAY</label>
       <input class="ai-nl-input" id="aiNlInput" type="text" autocomplete="off"
         placeholder="Tell me what's on your mind…"
-        onkeydown="if(event.key==='Enter')_aiAskFromPanel()" />
-      <button class="ai-nl-btn" type="button" aria-label="Send question" onclick="_aiAskFromPanel()">→</button>
+        data-today-keydown="assistant.ask-key" />
+      <button class="ai-nl-btn" type="button" aria-label="Send question" data-today-click="assistant.ask">→</button>
     </div>
-    <div class="ai-bar-tip" id="aiBarTip" style="display:none">tip — next time, type in the bar below and tap ✦ to ask directly</div>
+    <div class="ai-bar-tip" id="aiBarTip" style="display:none">tip — focused tasks can ask one bounded question</div>
   </div>
 </div>
 <div id="undoToast" role="region" aria-label="Undo removal" hidden aria-hidden="true">
   <div class="undo-main">
     <span id="undoMsg" role="status" aria-live="polite">Task removed</span>
-    <button id="undoEditBtn" type="button" onclick="_editFromToast()" hidden>Edit</button>
-    <button type="button" onclick="_undoLast()">Undo</button>
+    <button id="undoEditBtn" type="button" data-today-click="tasks.edit-undo" hidden>Edit</button>
+    <button type="button" data-today-click="tasks.undo">Undo</button>
   </div>
   <div id="undoReasonRow" class="triage-reason-row" style="display:none"></div>
   <div class="toast-countdown" id="undoCountdown" aria-hidden="true"></div>
@@ -4441,6 +4457,7 @@
 
 <canvas id="celebCanvas" aria-hidden="true"></canvas>
 
+<script src="assets/runtime.js"></script>
 <script src="assets/util.js"></script>
 <script src="assets/accessibility.js"></script>
 <script src="assets/poems.js"></script>
@@ -4449,11 +4466,14 @@
 <script src="assets/sound.js"></script>
 <script src="assets/celebration.js"></script>
 <script src="assets/connections.js"></script>
+<script src="assets/sync-merge.js"></script>
 <script src="assets/dropbox.js"></script>
 <script src="assets/gmail.js"></script>
 <script src="/assets/task-enrich.js"></script>
 <script src="assets/reflections.js"></script>
 <script src="assets/trello.js"></script>
+<script src="assets/suggestion-policy.js"></script>
+<script src="assets/noticed-model.js"></script>
 <script src="assets/insights.js"></script>
 <script src="assets/error-monitor.js"></script>
 <script src="assets/splash.js"></script>
@@ -4468,6 +4488,7 @@
 <script src="/assets/assistant.js"></script>
 <script src="/assets/nudge.js"></script>
 <script src="/assets/day-lifecycle.js"></script>
+<script src="/assets/focus-session.js"></script>
 <script src="/assets/focus.js"></script>
 <script src="assets/week-reflection-policy.js"></script>
 <script src="assets/about.js"></script>
@@ -4501,16 +4522,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '306h';
+const DEV_HOURS     = '309h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.82.5':  'Internal maintenance: component behavior is now more consistently isolated, with no change to your tasks, sync, or controls.',
   '2.82.4':  'Fix: entering focus on a task near the bottom no longer shoves the header off the top. Everything around the task now softens, except the add bar and the mic.',
-  '2.82.2':  'Fix: when midnight passes with the app open, the date under the logo now changes with it — a quiet fade, no reload.',
-  '2.82.1':  'Fix: "clear all memory" now clears everything TODAY has noticed about how you work — and the clear sticks across your devices instead of syncing back.',
+  '2.82.3':  'Fix: email follow-up context now searches the subject when no person is named, and skip-to-tasks keyboard navigation is restored.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4669,7 +4690,7 @@ function init() {
   // ── Time texture (accent + empty-state text) — moved to assets/day-lifecycle.js
   _applyTimeTexture();
 
-  renderManual();
+  Today.use('connections').renderManual();
   renderSoon();
   renderPast();
   _suggestionReconcileOutcomes();
@@ -4677,7 +4698,7 @@ function init() {
   _cleanupDeletedIds();   // Remove invalid deleted_ids that match zone tasks
   _cleanupHabitEvents();  // Purge habit_events older than 30 days
   updateStats();
-  checkTriageBar();
+  Today.use('triage').checkTriageBar();
   // allowGenerate: false — this runs before the Dropbox sync pull lands (see comment
   // above), so a fresh cross-device snapshot isn't available yet. Show whatever's
   // already cached, but don't generate for the first time from stale data; the
@@ -4686,11 +4707,11 @@ function init() {
   checkSundayNudge();
   checkHabitNudge();
   checkVersionNudge();
-  _meetingInit();
-  _voiceNoteInit();
+  Today.use('meeting')._meetingInit();
+  Today.use('meeting')._voiceNoteInit();
 
   if (saved.boardId && trelloToken) {
-    setTrelloIcon(true);
+    Today.use('connections').setTrelloIcon(true);
 
     // Seed from cache immediately so the UI isn't blank while API loads
     // Cache is validated by date AND boardId — stale date or board change = ignored
@@ -4706,11 +4727,11 @@ function init() {
     renderTrello();
   }
 
-  _applyOfflinePanel();
+  Today.use('connections')._applyOfflinePanel();
 
   // Version and AI config
   console.log('[TODAY] Version:', APP_VERSION);
-  _aiRenderConfig();
+  Today.use('connections')._aiRenderConfig();
 
   // Dev hours display
   const devHoursEl = document.querySelector('.dev-hours-val');
@@ -4756,18 +4777,18 @@ let habitEditMode     = false;
 // ── TASK ACTIONS (add, check, delete, undo, stats) — moved to assets/task-actions.js
 
 // ── Bar submit logic ─────────────────────────────────────────────────────────
-// One input, one ✦ button.
-// Enter → always add task (fast, zero friction).
-// ✦ tap → AI if configured (with or without text); task if not configured.
+// One task input. Enter always adds (fast, zero friction).
+// The legacy AI-sheet sender remains in assistant.js but has no input-bar trigger.
 function handleBarKey(e) {
-  if (e.key === 'Escape' && _aiPanelOpen) { closeAI(); return; }
+  if (e.key === 'Escape' && _aiPanelOpen) { Today.use('assistant').closeAI(); return; }
   if (e.key === 'Enter') addManual();
 }
 
+Today.ui.register('keydown', 'tasks.input-key', handleBarKey);
+
 let _aiPanelOpen = false; // declared here (not in the AI module) — init() needs it via _updateBarPlaceholder()
 
-// Input bar placeholder advertises the ✦ ask path once AI is connected —
-// the type-then-✦ flow is otherwise invisible (Backlog: input bar discoverability)
+// Keep the task-entry placeholder stable regardless of optional integrations.
 function _updateBarPlaceholder() {
   const input = document.getElementById('newTask');
   if (input) input.placeholder = "What's on your mind?";
@@ -4819,7 +4840,7 @@ window._startFocus();
 
 // Esc closes panel
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && _aiPanelOpen) closeAI();
+  if (e.key === 'Escape' && _aiPanelOpen) Today.use('assistant').closeAI();
 });
 
 

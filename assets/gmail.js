@@ -124,7 +124,7 @@
         localStorage.setItem('gmail_access_token', data.access_token);
         if (data.refresh_token) localStorage.setItem('gmail_refresh_token', data.refresh_token);
         localStorage.setItem('gmail_token_expiry', String(Date.now() + (data.expires_in - 60) * 1000));
-        renderConnections();
+        Today.use('connections').renderConnections();
         showStatus('Gmail connected', 'success');
         _gmailRestoreAllIndicators();
       } catch(e) {
@@ -157,7 +157,7 @@
         .filter(k => k.startsWith('gmail_enrichment_') || k.startsWith('gmail_classify_'))
         .forEach(k => localStorage.removeItem(k));
       document.querySelectorAll('.gmail-indicator').forEach(el => el.remove());
-      renderConnections();
+      Today.use('connections').renderConnections();
       showStatus('Gmail disconnected.', 'success');
     }
 
@@ -180,13 +180,41 @@
 
     // Regex fallback for when AI classification is unavailable.
     function _buildQueryFallback(taskText) {
-      const name = taskText
-        .replace(/\b(reply|email|answer|call|contact|follow[\s-]?up|message|write to|respond|ping|reach out|get back to|answer to|send)\b/gi, '')
-        .replace(/^\s*(to|with|for|about)\s+/i, '')
-        .replace(/\s+/g, ' ').trim();
-      if (!name) return '';
-      const q = name.includes(' ') ? ('"' + name + '"') : name;
-      return 'from:' + q + ' OR to:' + q;
+      const text = String(taskText || '').replace(/\s+/g, ' ').trim();
+      if (!text) return '';
+      const quote = value => value.includes(' ') ? ('"' + value.replace(/"/g, '') + '"') : value;
+
+      // "Follow up on/about …" names a subject, not a correspondent. Keep the
+      // useful noun phrase and, when the task refers to something we sent, search
+      // Sent rather than inventing a person from the remaining words (BUG-091).
+      const topicMatch = text.match(/\b(?:follow[\s-]?up|check\s+in)\s+(?:on|about)\s+(.+)$/i);
+      if (topicMatch) {
+        const sent = /\b(?:i|we)\s+(?:sent|shared)\b|\bour\b/i.test(topicMatch[1]);
+        const topic = topicMatch[1]
+          .replace(/\b(?:i|we)\s+(?:sent|shared)(?:\s+(?:last|this))?\s+(?:week|month|year)?\s*$/i, '')
+          .replace(/\b(?:last|this)\s+(?:week|month|year)\s*$/i, '')
+          .replace(/^the\s+/i, '').trim();
+        if (topic) return sent ? (quote(topic) + ' in:sent') : ('subject:' + quote(topic));
+      }
+
+      // Explicit addressee forms are safe to express as from:/to:. Stop before
+      // an "about …" subject so it does not become part of the contact name.
+      const personMatch = text.match(/\b(?:reply|respond|answer|write|get\s+back)\s+to\s+(.+?)(?=\s+(?:about|regarding|on)\b|$)/i)
+        || text.match(/\bfollow[\s-]?up\s+with\s+(.+?)(?=\s+(?:about|regarding|on)\b|$)/i)
+        || text.match(/\b(?:email|call|contact|message|ping)\s+(?:to\s+)?(.+?)(?=\s+(?:about|regarding|on)\b|$)/i)
+        || text.match(/\breach\s+out\s+to\s+(.+?)(?=\s+(?:about|regarding|on)\b|$)/i);
+      if (personMatch && personMatch[1].trim()) {
+        const q = quote(personMatch[1].trim());
+        return 'from:' + q + ' OR to:' + q;
+      }
+
+      // A communication verb without a trustworthy addressee is still better as
+      // a subject query than as from:"the whole task".
+      const topic = text
+        .replace(/\b(reply|email|answer|call|contact|follow[\s-]?up|message|write\s+to|respond|ping|reach\s+out|get\s+back\s+to|answer\s+to|send)\b/gi, '')
+        .replace(/^\s*(to|with|for|about|on)\s+/i, '')
+        .replace(/^the\s+/i, '').trim();
+      return topic ? ('subject:' + quote(topic)) : '';
     }
 
     // AI-backed classification — returns { isComm, searchQuery }.
@@ -202,7 +230,7 @@
           const hit = JSON.parse(raw);
           // Invalidate old-format cache entries (plain name, no from:/to: operators)
           // so existing wrong matches get re-queried with the correct Gmail operators.
-          const hasOp = !hit.searchQuery || /\b(from:|to:|subject:|label:)/.test(hit.searchQuery);
+          const hasOp = !hit.searchQuery || /\b(from:|to:|subject:|label:|in:|after:|before:|newer:|older:|is:|has:|filename:)/.test(hit.searchQuery);
           if (typeof hit.isComm === 'boolean' && hasOp) return hit;
           // Old format detected — clear both classify and enrichment caches
           try { localStorage.removeItem('gmail_classify_' + taskId); } catch(e) {}
@@ -211,15 +239,15 @@
       } catch(e) {}
 
       try {
-        const provider = typeof _aiGetProvider === 'function' ? _aiGetProvider() : 'gemini';
-        const apiKey   = typeof _aiGetKey === 'function' ? _aiGetKey() : '';
+        const provider = typeof _aiGetProvider === 'function' ? Today.use('connections')._aiGetProvider() : 'gemini';
+        const apiKey   = typeof _aiGetKey === 'function' ? Today.use('connections')._aiGetKey() : '';
         const res = await fetch('/.netlify/functions/ai-assist', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             provider:     provider || 'gemini',
             apiKey,
-            systemPrompt: 'Return ONLY valid JSON: {"isComm":true,"searchQuery":"gmail_query"}. isComm=true when the task involves contacting or replying to a specific person or organization. searchQuery must be a Gmail search string using from:/to: operators — e.g. for a person named Johanna: "from:Johanna OR to:Johanna". For a multi-word name: \'from:"First Last" OR to:"First Last"\'. For a company: "from:company.com". If isComm=false set searchQuery to "".',
+            systemPrompt: 'Return ONLY valid JSON: {"isComm":true,"searchQuery":"gmail_query"}. isComm=true when the task involves contacting, replying, or following up by email. Build the query from what the task actually names. Person-targeted: use from:/to: plus subject terms when useful. Topic-targeted: use subject:, quoted keywords, in:sent, and date operators such as after: when useful; never invent a person. Include at least one Gmail operator. If no useful email search is possible, set isComm=false and searchQuery to "".',
             messages:     [{ role: 'user', content: taskText }],
           }),
         });
@@ -399,8 +427,8 @@
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            provider:     _aiGetProvider(),
-            apiKey:       _aiGetKey(),
+            provider:     Today.use('connections')._aiGetProvider(),
+            apiKey:       Today.use('connections')._aiGetKey(),
             messages:     [{ role: 'user', content: 'My task: "' + taskText + '". Their last message: "' + snippet + '"' }],
             systemPrompt: 'Draft a brief, natural reply. Under 3 sentences. Use first name only if greeting. No subject line. No sign-off.',
           }),
@@ -467,5 +495,6 @@
     window._gmailRenderFocusBlock       = _gmailRenderFocusBlock;
     window._gmailRestoreAllIndicators   = _gmailRestoreAllIndicators;
     window._gmailUpdateIndicator        = _gmailUpdateIndicator;
+    window._gmailBuildQueryFallback     = _buildQueryFallback;
   };
 })();

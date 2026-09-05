@@ -10,6 +10,7 @@ window._startFocus = (function() {
   if (!window.matchMedia('(hover: hover)').matches) return;
 
   const TOTAL  = 25 * 60;
+  const FocusSession = Today.use('focus-session');
   const appEl  = document.getElementById('main-app');
 
   function _parseAIText(data) {
@@ -60,11 +61,11 @@ window._startFocus = (function() {
 
   // Re-anchor timer bar after DOM rebuild (e.g. renderManual from sync)
   // Finds the new task element by ID and re-positions timerEl after it.
-  // Called by renderManual() and renderTrello() after tasks are in the DOM.
+  // Called by Today.use('connections').renderManual() and renderTrello() after tasks are in the DOM.
   // If localStorage has a persisted session: re-open the timer with remaining
   // time, or silently record the full 25 min if it would already have completed.
   window._tryRestoreFocusSession = function() {
-    // One decision per page load. renderManual()/renderTrello() call this on every
+    // One decision per page load. Today.use('connections').renderManual()/renderTrello() call this on every
     // render (7s sync tick included) — without this gate, leaving focus by any route
     // that is not "check the task off" leaves a session in localStorage and the very
     // next render silently re-opens focus mode on it. (BUG-065)
@@ -83,8 +84,12 @@ window._startFocus = (function() {
       return;
     }
 
-    const elapsed = paused ? 0 : Math.max(0, Math.floor((Date.now() - savedAt) / 1000));
-    const adjustedRem = Math.max(0, rem - elapsed);
+    const restored = FocusSession.restore({ taskId, rem, savedAt, paused });
+    if (!restored) {
+      localStorage.removeItem('today_focus_session');
+      return;
+    }
+    const adjustedRem = restored.rem;
 
     if (!paused && adjustedRem <= 0) {
       // Session completed while the app was away — silently record it, no UI
@@ -94,11 +99,7 @@ window._startFocus = (function() {
 
     // Restore timer state and re-open UI
     const st = getState(taskId);
-    st.rem      = paused ? rem : adjustedRem;
-    st.running  = !paused;
-    st.paused   = !!paused;
-    st.wallStart = paused ? null : Date.now();
-    st.tracked  = false;
+    Object.assign(st, restored);
 
     openUI(taskEl, taskId);
     syncDisplay(taskId, taskEl);
@@ -135,7 +136,7 @@ window._startFocus = (function() {
   const taskStates = {};
 
   function getState(taskId) {
-    if (!taskStates[taskId]) taskStates[taskId] = { rem: TOTAL, running: false, paused: false, wallStart: null, tracked: false };
+    if (!taskStates[taskId]) taskStates[taskId] = FocusSession.create(TOTAL);
     return taskStates[taskId];
   }
   function clearState(taskId) { delete taskStates[taskId]; }
@@ -177,7 +178,7 @@ window._startFocus = (function() {
       if (_ctaLink) { window.open(_ctaLink.href, '_blank', 'noopener'); return; }
     }
 
-    if (!_aiIsConfigured()) return;
+    if (!Today.use('connections')._aiIsConfigured()) return;
 
     const taskText = (uiTaskEl && uiTaskEl.querySelector('.task-text')?.textContent?.trim()) || '';
     if (!taskText) return;
@@ -191,8 +192,8 @@ window._startFocus = (function() {
       : (typeof _getTrelloFocusTotal === 'function' ? (_getTrelloFocusTotal()[uiTaskId] || 0) : 0);
 
     // Age of the task in days (from creation or last-active, whichever is available)
-    const _ageDays = _taskObj && typeof _getCreatedFromId === 'function'
-      ? Math.floor((Date.now() - (_taskObj.lastActive || _getCreatedFromId(uiTaskId))) / 86400000)
+    const _ageDays = _taskObj
+      ? Math.floor((Date.now() - (_taskObj.lastActive || Today.use('connections')._getCreatedFromId(uiTaskId))) / 86400000)
       : 0;
 
     const _revived  = !!(_taskObj && _taskObj.revived);
@@ -317,7 +318,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       .filter(t => t.id !== uiTaskId && !doneIds.has(t.id) && !_focusPastIds.has(t.id))
       .slice(0, 5)
       .map(t => {
-        const created = typeof _getCreatedFromId === 'function' ? _getCreatedFromId(t.id) : null;
+        const created = typeof _getCreatedFromId === 'function' ? Today.use('connections')._getCreatedFromId(t.id) : null;
         const age = created ? Math.floor((Date.now() - created) / 86400000) : 0;
         const s = parseInt(t.focusSessions) || 0;
         const sig = [];
@@ -332,8 +333,8 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     const _focusCtrl = new AbortController();
     const _focusAbortTimer = setTimeout(() => _focusCtrl.abort(), 25000);
     try {
-      const key      = _aiGetKey();
-      const provider = _aiGetProvider();
+      const key      = Today.use('connections')._aiGetKey();
+      const provider = Today.use('connections')._aiGetProvider();
       const res = await fetch('/.netlify/functions/ai-assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -944,9 +945,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
   // On reload, _tryRestoreFocusSession re-opens the timer or silently records.
   function _saveSession(taskId, st) {
     try {
-      localStorage.setItem('today_focus_session', JSON.stringify({
-        taskId, rem: st.rem, savedAt: Date.now(), paused: !!st.paused,
-      }));
+      localStorage.setItem('today_focus_session', JSON.stringify(FocusSession.serialize(taskId, st)));
     } catch (e) { /* quota — skip */ }
   }
 
@@ -1045,7 +1044,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     const habitIdx = habitsList.findIndex(h => h.id === taskId);
     if (habitIdx !== -1) {
       habitsList[habitIdx].focusSessions = (parseInt(habitsList[habitIdx].focusSessions) || 0) + 1;
-      _saveHabits();
+      Today.use('habits')._saveHabits();
       // Update badge if visible
       const habitDom = document.querySelector('.habit[data-habit-id="' + CSS.escape(taskId) + '"]');
       const badge = habitDom ? habitDom.querySelector('.session-count') : null;
@@ -1085,7 +1084,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     Object.keys(taskStates).forEach(function(taskId) {
       const st = taskStates[taskId];
       if (!st.running || !st.wallStart) return;
-      const elapsed = Math.floor((Date.now() - st.wallStart) / 1000);
+      const elapsed = FocusSession.wallElapsed(st);
       st.wallStart  = Date.now();
       st.rem        = Math.max(0, st.rem - elapsed);
       clearTimeout(tickHandle);

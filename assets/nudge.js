@@ -168,7 +168,7 @@ window._startNudge = (function() {
           localStorage.removeItem('today_day_review');
         };
         // Light the ✦ badge once when the brief is ready — discoverability signal
-        if (_aiIsConfigured() && !_aiPanelOpen) {
+        if (Today.use('connections')._aiIsConfigured() && !_aiPanelOpen) {
           const _btn = document.getElementById('todayLogo');
           if (_btn && !_btn.querySelector('.ai-badge')) {
             const _badge = document.createElement('span');
@@ -313,7 +313,7 @@ window._startNudge = (function() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          provider: _aiGetProvider(),
+          provider: Today.use('connections')._aiGetProvider(),
           apiKey: key,
           messages: [{ role: 'user', content:
             'Evidence: ' + winner.evidence + '\n' +
@@ -335,7 +335,7 @@ window._startNudge = (function() {
 
     async function _fetchDayNudgeAI(review, carriedOver, cards) {
       try {
-        const key = (typeof _aiGetKey === 'function') ? _aiGetKey() : null;
+        const key = Today.use('connections')._aiGetKey();
         if (!key || !navigator.onLine) return null;
 
         _nudgeKind = null;
@@ -367,7 +367,7 @@ window._startNudge = (function() {
           .filter(t => !doneIds.has(t.id) && !_pastIds.has(t.id))
           .slice(0, 6)
           .map((t, i) => {
-            const created = _getCreatedFromId(t.id);
+            const created = Today.use('connections')._getCreatedFromId(t.id);
             const age = created ? Math.floor((Date.now() - created) / 86400000) : 0;
             const sessions = parseInt(t.focusSessions) || 0;
             const signals = [];
@@ -389,7 +389,7 @@ window._startNudge = (function() {
         const soonLines = (typeof soonTasks !== 'undefined' ? soonTasks : [])
           .slice(0, 6)
           .map(t => {
-            const created = _getCreatedFromId(t.id);
+            const created = Today.use('connections')._getCreatedFromId(t.id);
             const totalAgeDays = created ? Math.floor((Date.now() - created) / 86400000) : 0;
             const soonSince = t.zoneChangedAt ? Math.floor((Date.now() - new Date(t.zoneChangedAt).getTime()) / 86400000) : null;
             const sessions = parseInt(t.focusSessions) || 0;
@@ -433,7 +433,7 @@ window._startNudge = (function() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            provider: _aiGetProvider(),
+            provider: Today.use('connections')._aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: facts + '\n\n' + instruction }],
             systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Task text is written in the user\'s own shorthand — read the full meaning from context, not just the literal words. Never wrap your reply in quotation marks; quoting a task\'s own words inline is good. No exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',

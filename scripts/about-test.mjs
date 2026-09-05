@@ -15,7 +15,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
@@ -89,7 +89,7 @@ async function openPage() {
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   // Wait until both functions exist AND $ is populated (init() has run)
   await page.waitForFunction(
-    () => typeof toggleInfo === 'function' && typeof renderInfoStats === 'function' && !!$.infoPanel,
+    () => typeof Today?.use('about').toggleInfo === 'function' && !!$.infoPanel,
     { timeout: 15000 }
   );
   await page.evaluate(() => {
@@ -109,7 +109,7 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      toggleInfo();
+      Today.use('about').toggleInfo();
       const panel = document.getElementById('infoPanel');
       return { panelOpen: !!(panel && panel.classList.contains('open')) };
     });
@@ -122,7 +122,7 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      const poem = _poemOfTheDay();
+      const poem = Today.use('about')._poemOfTheDay();
       return {
         isObject:  typeof poem === 'object' && poem !== null,
         hasText:   !!(poem && poem.text),
@@ -138,7 +138,7 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      toggleInfo(); // internally calls renderDailyPoem()
+      Today.use('about').toggleInfo(); // internally calls renderDailyPoem()
       const el = document.getElementById('dailyPoem');
       return { hasContent: !!(el && el.innerHTML.length > 0) };
     });
@@ -165,7 +165,7 @@ try {
 
       const block = document.getElementById('poemBlock');
       const beforeTap     = !(block && block.classList.contains('revealed'));
-      _onPoemTap(); // first tap → adds 'revealed'
+      Today.use('about')._onPoemTap(); // first tap → adds 'revealed'
       const afterFirstTap = !!(block && block.classList.contains('revealed'));
       // Simulate outside click — dispatch from body so e.target is an Element
       // (other click listeners call e.target.closest(), which Document lacks).
@@ -190,7 +190,7 @@ try {
         value: { writeText: () => Promise.resolve() },
         configurable: true, writable: true,
       });
-      _copyToClipboard('hello world', () => { copied = true; });
+      Today.use('about')._copyToClipboard('hello world', () => { copied = true; });
       await new Promise(r => setTimeout(r, 50));
       return { copied };
     });
@@ -209,7 +209,7 @@ try {
         configurable: true, writable: true,
       });
       Object.defineProperty(navigator, 'share', { value: null, configurable: true, writable: true });
-      _shareDailyPoem();
+      Today.use('about')._shareDailyPoem();
       await new Promise(r => setTimeout(r, 50));
       return {
         clipboardInvoked: clipboardText.length > 0,
@@ -225,7 +225,7 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      renderInfoStats();
+      Today.use('about').renderInfoStats();
       const grid  = document.getElementById('weekGrid');
       const cols  = grid ? grid.querySelectorAll('.week-col').length : 0;
       const stats = document.getElementById('infoStats');
@@ -246,7 +246,7 @@ try {
       // Keep fixed-date solar moments from replacing the fixture on their day.
       if (!appMemory.noticed) appMemory.noticed = {};
       appMemory.noticed.seasonDate = _localISO();
-      renderInfoStats();
+      Today.use('about').renderInfoStats();
       const el = document.getElementById('noticedBlock');
       return {
         visible: !!(el && el.style.display !== 'none'),
@@ -268,7 +268,7 @@ try {
       localStorage.setItem('week_policy_' + today, _weekReflectionPolicy);
       const orig = Date.prototype.getDay;
       Date.prototype.getDay = () => 0; // Sunday
-      renderInfoStats();
+      Today.use('about').renderInfoStats();
       Date.prototype.getDay = orig;
       const el = document.getElementById('sundayBlock');
       return {
@@ -290,7 +290,7 @@ try {
       localStorage.setItem('monday_intention_' + today, 'Focus on the important thing.');
       const orig = Date.prototype.getDay;
       Date.prototype.getDay = () => 1; // Monday
-      renderInfoStats();
+      Today.use('about').renderInfoStats();
       Date.prototype.getDay = orig;
       const el = document.getElementById('sundayBlock');
       return {
@@ -356,7 +356,7 @@ try {
         { id: 'd', date: iso(now - 5 * D), outcome: 'letgo', obligation: true,  focusSessions: 0 },
         { id: 'e', date: iso(now - 7 * D), outcome: 'letgo', obligation: true,  focusSessions: 0 },
       ];
-      const insight = _pickSundayInsight({ days: [], history: [] });
+      const insight = Today.use('about')._pickSundayInsight({ days: [], history: [] });
       const realFetch = window.fetch, realGetKey = window._aiGetKey;
       window._aiGetKey = () => 'stub';
       let body = null;
@@ -364,7 +364,7 @@ try {
         body = JSON.parse(o.body);
         return { ok: true, json: async () => ({ content: 'Every focus session this month went to something you chose; the obligations got none.' }) };
       };
-      const text = await _fetchWeekReflection({ insight, days: [], history: [] });
+      const text = await Today.use('about')._fetchWeekReflection({ insight, days: [], history: [] });
       window.fetch = realFetch; window._aiGetKey = realGetKey;
       const prompt = body?.messages?.[0]?.content || '';
       const spoken = (appMemory.spokenLines || []).find(l => l.surface === 'Sunday reflection');
@@ -392,7 +392,7 @@ try {
       window._buildObservationCandidates = () => { throw new Error('pool exploded'); };
       let insight = null, threw = false;
       try {
-        insight = _pickSundayInsight({
+        insight = Today.use('about')._pickSundayInsight({
           days: [
             { iso: '2026-08-17', tasks: 5, focus: 25, habitsKept: 1, habitsTotal: 1 },
             { iso: '2026-08-18', tasks: 4, focus: 25, habitsKept: 1, habitsTotal: 1 },
@@ -432,7 +432,7 @@ try {
         evidence: 'On 2 focus days this week, completions averaged 4.5; on 5 other recorded days, 0.6.',
         meaning: 'Focus days coincided with a stronger completion rhythm this week.',
       };
-      const text = await _fetchWeekReflection({ insight, days: [], history: [] });
+      const text = await Today.use('about')._fetchWeekReflection({ insight, days: [], history: [] });
       window.fetch = realFetch;
       window._aiGetKey = realGetKey;
       const prompt = requestBody?.messages?.[0]?.content || '';
@@ -459,7 +459,7 @@ try {
       localStorage.removeItem('week_policy_' + today);
       const orig = Date.prototype.getDay;
       Date.prototype.getDay = () => 0;
-      renderInfoStats();
+      Today.use('about').renderInfoStats();
       Date.prototype.getDay = orig;
       const el = document.getElementById('sundayBlock');
       return {
@@ -488,11 +488,6 @@ try {
     } else {
       const aboutSrc = await readFile(join(ROOT, 'assets/about.js'), 'utf8');
       const policySrc = await readFile(join(ROOT, 'assets/week-reflection-policy.js'), 'utf8');
-      const aboutExports = [
-        'toggleInfo', '_poemOfTheDay', '_onPoemTap',
-        '_shareDailyPoem', '_copyToClipboard', 'renderInfoStats',
-        '_fetchWeekReflection',
-      ];
       await expectAll('extracted about module wiring', {
         moduleLoad:              indexSrc.includes('<script src="assets/about.js"></script>'),
         policyLoad:              indexSrc.includes('<script src="assets/week-reflection-policy.js"></script>'),
@@ -500,7 +495,7 @@ try {
         initializer:             indexSrc.includes('window._startAbout();'),
         sectionRemoved:          !indexSrc.includes('function toggleInfo()'),
         moduleInit:              aboutSrc.includes('window._startAbout = function()'),
-        exports:                 aboutExports.every(n => aboutSrc.includes(`window.${n} = ${n};`)),
+        api:                     aboutSrc.includes("Today.define('about'"),
         policyExports:           ['_buildWeekReflectionInsight', '_weekReflectionTextIsGrounded']
           .every(n => policySrc.includes(`root.${n} = policy.${n};`)),
         precached:               swSrc.includes("'/assets/about.js'"),

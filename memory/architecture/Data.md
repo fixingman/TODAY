@@ -95,7 +95,7 @@
 | `stat_focus_mins_alltime` | string | Lifetime focus minutes |
 | `morning_nudge_count` | string | Carried-over tasks from yesterday (set by `applyNewDayCleanup`) |
 | `today_day_review` | JSON | Yesterday's day-end stats `{done, focusMins, habits, habitsTotal, streak, kept, soon, letgo, date}` — saved at triage, consumed by morning nudge, auto-cleared after noon |
-| `day_nudge_ai_<date>` | string | Cached AI day nudge line (`_fetchDayNudgeAI`); one per day; read by the nudge strip, the daily brief (✦ empty-tap), and About's Today block. Stale keys pruned on write; lives until midnight since v2.33.0 (noon delete removed — dated key self-expires at day change). (v2.19.0 — unified from the separate `morning_nudge_ai_*` and `trello_nudge_ai_*` keys) |
+| `day_nudge_ai_<date>` | string | Cached AI day nudge line (`_fetchDayNudgeAI`); one per day; read by the nudge strip and About's Today block. Stale keys are pruned on write; the current dated value lives until midnight. (v2.19.0 — unified from the separate `morning_nudge_ai_*` and `trello_nudge_ai_*` keys) |
 | `day_nudge_dismissed_<date>` | string | Per-day dismiss flag for the unified day nudge — synced via `_DISMISS_SYNC` registry (v2.19.0). Legacy keys `morning_nudge_dismissed_*` and `trello_nudge_dismissed_*` remain as registry alias rows for pre-2.19.0 devices |
 
 ### History & Reports

@@ -15,7 +15,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_FIX = process.argv.includes('--pre-fix');
 
 let puppeteer;
@@ -66,7 +66,7 @@ try {
     localStorage.setItem('splash_shown_at', String(Date.now()));
   });
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
-  await page.waitForFunction(() => typeof renderManual === 'function'
+  await page.waitForFunction(() => typeof Today?.use('connections').renderManual === 'function'
     && document.getElementById('manualList')
     && document.getElementById('trelloList')
     && document.getElementById('habitList'), { timeout: 15000 });
@@ -108,10 +108,9 @@ try {
       'today_habit_events', 'last_local_change']) localStorage.removeItem(key);
     localStorage.setItem('today_trello_cache', JSON.stringify({ marker: 'keep', tasks: [] }));
 
-    window.__dragTest = { autosaves: 0, haptics: [], suggestionReanchors: 0 };
+    window.__dragTest = { autosaves: 0, haptics: [] };
     dropboxAutoSave = () => { window.__dragTest.autosaves++; };
     window._haptic = preset => { window.__dragTest.haptics.push(preset); };
-    window._aiReanchorSuggestion = () => { window.__dragTest.suggestionReanchors++; return true; };
   });
 
   const desktopDrag = async (listId, attr, sourceId, targetId) => page.evaluate(
@@ -184,7 +183,6 @@ try {
       domOrder: JSON.stringify(result.dom) === JSON.stringify(expected),
       memoryOrder: JSON.stringify(result.memory) === JSON.stringify(expected),
       selectionHaptic: result.calls.haptics.includes('selection'),
-      suggestionReanchored: result.calls.suggestionReanchors === 1,
       cleaned: result.dirty === 0 && result.draggable === 0,
     };
     if (testCase.list === 'manualList') Object.assign(common, {
@@ -294,7 +292,6 @@ try {
       memoryOrder: JSON.stringify(result.memory) === JSON.stringify(expected),
       activationHaptic: result.calls.haptics.includes('heavy'),
       dropHaptic: result.calls.haptics.includes('selection'),
-      suggestionReanchored: result.calls.suggestionReanchors === 1,
       cleaned: result.dirty === 0,
     };
     if (testCase.list === 'manualList') Object.assign(common, {

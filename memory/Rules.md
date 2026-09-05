@@ -4,19 +4,15 @@
 ---
 
 ## Current Focus (update each session)
-- **Working on:** Poem corpus curation — geographic balance and tone consistency.
-- **Recent (2026-09-02):** v2.81.6 adds Joseph S. Cotter, Jr.'s four-line 'Rain Music' opening, editorially paired with Rain Water (雨水), bringing the corpus to 130 (W15 / Sp18 / Su12 / Au13 / year-round 72). Solar terms are a discovery and seasonal-pairing lens, never a claim about a poem's original subject. New candidates stay capped at 6 displayed lines and must carry enough setup to stand alone.
+- **Working on:** Component boundaries and test assurance — explicit runtime ownership, deterministic policy/state seams, and contract checks that prevent architectural drift.
+- **Recent (2026-09-05):** v2.82.5 removes all 85 inline event attributes, moves ten component surfaces behind frozen `Today` APIs, cuts top-level compatibility assignments from 247 to 123, and adds direct tests for sync merge, suggestion policy, Noticed logic, and focus-session state. The complete gate is now 34 checks. No UI, data, sync, or provider-routing behavior changed; the 130-poem corpus is unchanged.
 - **Module extraction (Roadmap #3): COMPLETE.** focus.js done (v2.65.13, ~1,400 lines). All modules extracted: dropbox, connections (+ AI provider config), assistant, task-actions, nudge, day-lifecycle, focus. Startup composition root (~350 lines inline) remains as intended. Full inventory → `Backlog.md` §3.
 - **Machine routing guard:** before any agent changes Headroom, a model provider/base URL, proxy/wrapper, port/mode, runtime override, or Headroom version, read `/Users/can/.headroom/ROUTING-GUARD.md` and obtain Can's explicit approval for that exact change. Keep Codex on explicit `127.0.0.1`, not `localhost`. Do not run `headroom learn --verbosity --apply`: v0.35.0 learns from Claude history only but hot-enables a proxy-global output shaper that can also affect Codex.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
-  - **BUG-088 ⏳ v2.77.3** — verify on desktop and iPhone PWA: while an inline AI helper is visible, move its task above and below another task; the helper must remain immediately below its owner.
-  - **BUG-087 ⏳ v2.77.2** — verify on iPhone PWA and desktop Safari: type and save a plain emoji, skin-tone emoji, flag, and joined emoji; each must remain visible and intact in the input and saved row.
-  - **BUG-076 ⏳ v2.65.3** — force at least ten poem-coda exits on Safari/iPhone PWA; TO and DAY must fade as complete groups with no `O` / `AY` residue while the poem disappears.
   - **v2.64.23 ⏳** — verify appMemory convergence across two devices after a few 7s sync cycles: `today_memory.semantic.length` and newly confirmed inferences should match without manual Restore Backup.
   - **v2.64.22 ⏳** — verify overnight sync hardening: streak does not re-inflate from yesterday, newest check/uncheck wins, and Trello configuration reaches the second device.
   - **v2.62.1 ⏳** — verify: `appMemory.patterns.triageUndos` increments on triage undo; `soonPulls` increments on pull-from-soon; `reviveReasons` populated on revive; letting the undo toast expire records letgoReasons.
   - **v2.62.0 ⏳** — verify: triage → completion screen → list is already clean behind overlay → Undo button visible → tap Undo → state fully restored → triage bar reappears. Also: wait 3s without tapping Undo → overlay closes → list stays clean.
-  - **BUG-072 ⏳ v2.61.6** — verify: open triage → “Let go” a non-last task → decide another task → chips survive re-render; decide all → completion screen appears. Also: “Let go” last remaining task → completion fires immediately.
   - **BUG-071 ⏳ v2.61.5** — verify: focus mode active → PWA background → return → app not blank. Also: Mac long sleep (5–15 min) → wake → focused task still in viewport.
   - **Meeting attribution accuracy — ask Can:** after a few real meetings, ask "how's meeting attribution doing?" and read `appMemory.meetingAttribution` (`mineKept/mineShown` precision, `othersSelected/othersShown` recall).
   - **Noticed 7-signal expansion (v2.38.0)** — if it still reads as noise, ask whether Noticed needs a different shape.
@@ -70,13 +66,13 @@
 
 ## Bug Lifecycle
 
-When Can says a bug is verified:
+When Can says a bug is verified, including acceptance of a reproduction-equivalent simulator run:
 1. **`Bugs.md` status table** — change ⏳ to ✅, keep the version number, no date (e.g. `✅ v2.18.27`)
-2. **`Bugs.md` detail block** — move the full `## BUG-XXX` section to `archive/Bugs-archive.md` (ascending numeric order; keep the `---` separator). Remove it from `Bugs.md`.
+2. **`Bugs.md` detail block** — move the full `## BUG-XXX` section to `archive/Bugs-archive.md` (newest first / descending numeric order; keep the `---` separator). Remove it from `Bugs.md`.
 3. **`Rules.md` Watch for** — remove the bug's entry from the Watch for line.
 
 Status symbols used throughout:
-- ⏳ = fix shipped, awaiting real-device verify
+- ⏳ = fix shipped, awaiting an accepted verification pass
 - ✅ = verified fixed (date noted)
 
 ---
@@ -123,10 +119,10 @@ Status symbols used throughout:
 
 ## Build Rules
 
-24. Single-file app — all code in `index.html`, no build step
+24. No build step: `index.html` owns the HTML/CSS shell and startup composition; ordered classic scripts in `assets/` own component behavior. New runtime modules must be loaded in `index.html` and precached in `sw.js`. Component APIs publish through `Today.define()` and are consumed through `Today.use()`; UI actions use registered `data-today-*` delegation, never inline event attributes. Compatibility globals are transitional and must not grow beyond the contract-test ceiling.
 25. SW cache version must match app version: `today-v{VERSION}`
 26. **`_cacheElements()` must run at START of `init()`** — before any rendering
-27. **All render paths must match `taskHTML()` features** — tags, badges, session counts, etc. Three places render tasks independently: `taskHTML()` (new tasks), `renderTrello()` patch path (existing Trello tasks, every 7s), and zone renderers (SOON/PAST). When adding a feature to `taskHTML()`, also add it to the Trello patch path and zone renderers.
+27. **All render paths must retain their applicable task features.** `taskHTML()` and the `renderTrello()` patch path must match tags, links, badges, session counts, age state, and tail structure. SOON/PAST rows have different actions and intentionally omit current-list-only metadata, but must retain shared task text, tag, list semantics, and named zone actions. `scripts/design-lint.mjs` checks both contracts heuristically; behavioral suites remain authoritative.
 28. **Every code change requires memory review** — ask: "Does this affect documented behavior?" Update relevant memory files.
 29. **Looping animations → WAAPI (`_breathe`/`_pulseComplete`), never CSS** — `_forceRepaint` display toggles restart CSS animations from keyframe 0 (visible flash, unfixable by suppression — BUG-028 ×4). CSS is fine for one-shots. See `design/Motion.md`.
 
