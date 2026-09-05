@@ -1882,11 +1882,20 @@
         // stale if the app stays open past midnight without a reload.
         const today = _getAppDay();
         if (localStorage.getItem('stat_last_visit') === today) return;
+        // New-day settle (v2.83.0): snapshot the rows before the cleanup so graduating
+        // ones can fade and collapse first, and age-bucket changes can ease after the
+        // re-render instead of snapping. Helpers live in day-lifecycle.js.
+        const _snap = (typeof window._newDaySnapshot === 'function') ? window._newDaySnapshot() : null;
         applyNewDayCleanup();
         // The header date is written once at init; a tab open across midnight would keep
         // yesterday's until a reload (BUG-097). Crossfade it to the new day here.
         if (typeof window._dateTagRefresh === 'function') window._dateTagRefresh(true);
-        Today.use('connections').renderManual();
+        const _renderDay = () => {
+          Today.use('connections').renderManual();
+          if (_snap && typeof window._newDaySettle === 'function') window._newDaySettle(_snap);
+        };
+        if (_snap && typeof window._newDayCollapse === 'function') window._newDayCollapse(_snap, _renderDay);
+        else _renderDay();
         loadTrello(true);
         updateStats();
         // Refresh the nudge banner too — a tab left open across midnight (common desktop

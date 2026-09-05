@@ -231,7 +231,83 @@ window._startDayLifecycle = (function() {
       }
     }
 
+    // ── New-day settle (v2.83.0) ──────────────────────────────────────────
+    // At the boundary the list used to snap: done rows vanished into Past and age
+    // buckets stepped to their next opacity in one frame. Two beats instead, so time
+    // passing is something you see rather than infer:
+    //   1. rows about to graduate fade and collapse over --dur-slow;
+    //   2. after the re-render, rows whose age bucket changed ease from the old
+    //      opacity to the new over 1.2s — deliberately long. Today you only ever see
+    //      the result of age dimming; this is the first time you see it happen.
+    // Both are WAAPI: the wake repaint that often coincides with midnight toggles
+    // display and would restart a CSS animation from keyframe 0 (Motion.md).
+    function _settleReduced() {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        || typeof Element.prototype.animate !== 'function';
+    }
+    function _settleToken(name, fallback) {
+      const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
+      return isNaN(v) ? fallback : v * 1000;
+    }
+    function _settleEase() {
+      return getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim() || 'ease-out';
+    }
+    function _newDaySnapshot() {
+      const rows = {};
+      document.querySelectorAll('#manualList .task[data-taskid]').forEach(el => {
+        rows[el.dataset.taskid] = { el, bucket: el.dataset.ageBucket || '' };
+      });
+      return rows;
+    }
+    // Rows in the snapshot that are no longer in manualTasks are graduating. Fade and
+    // collapse them, then hand back to the caller for the real re-render. The rows are
+    // about to be replaced wholesale, so fill:forwards is fine — nothing to clean up.
+    function _newDayCollapse(snapshot, then) {
+      const live = new Set((typeof manualTasks !== 'undefined' ? manualTasks : []).map(t => t.id));
+      const leaving = Object.keys(snapshot || {}).filter(id => !live.has(id)).map(id => snapshot[id].el)
+        .filter(el => el && el.isConnected);
+      if (!leaving.length || _settleReduced()) { then(); return; }
+      const dur = _settleToken('--dur-slow', 300), ease = _settleEase();
+      let pending = leaving.length;
+      leaving.forEach(el => {
+        const cs = getComputedStyle(el);
+        el.style.overflow = 'hidden';
+        el.style.pointerEvents = 'none';
+        const a = el.animate(
+          [{ opacity: cs.opacity, height: el.getBoundingClientRect().height + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom },
+           { opacity: 0, height: '0px', paddingTop: '0px', paddingBottom: '0px' }],
+          { duration: dur, easing: ease, fill: 'forwards' }
+        );
+        a.onfinish = a.oncancel = () => { if (--pending === 0) then(); };
+      });
+    }
+    // After the re-render: rows whose bucket changed ease to the new opacity. The old
+    // value is read from the stylesheet by briefly restoring the old bucket, so the
+    // numbers live in one place. The CSS transition on the attribute is muted for the
+    // swap so it cannot fight the animation.
+    function _newDaySettle(snapshot) {
+      if (_settleReduced()) return;
+      const ease = _settleEase();
+      document.querySelectorAll('#manualList .task[data-taskid]').forEach(el => {
+        const prev = snapshot && snapshot[el.dataset.taskid];
+        if (!prev) return;
+        const next = el.dataset.ageBucket || '';
+        if (prev.bucket === next) return;
+        el.style.transition = 'none';
+        if (prev.bucket) el.dataset.ageBucket = prev.bucket; else delete el.dataset.ageBucket;
+        const from = getComputedStyle(el).opacity;
+        if (next) el.dataset.ageBucket = next; else delete el.dataset.ageBucket;
+        const to = getComputedStyle(el).opacity;
+        el.style.transition = '';
+        if (from === to) return;
+        el.animate([{ opacity: from }, { opacity: to }], { duration: 1200, easing: ease, fill: 'none' });
+      });
+    }
+
     window.applyNewDayCleanup = applyNewDayCleanup;
     window._applyTimeTexture   = _applyTimeTexture;
+    window._newDaySnapshot     = _newDaySnapshot;
+    window._newDayCollapse     = _newDayCollapse;
+    window._newDaySettle       = _newDaySettle;
   };
 }());

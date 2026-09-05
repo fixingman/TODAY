@@ -382,7 +382,58 @@ try {
       await page.close();
     }
 
-    console.log('\nDay-lifecycle tests passed (post-extraction, 12 tests).');
+    // 13. New-day settle (v2.83.0): graduating rows collapse before the re-render,
+    //     and a changed age bucket eases over 1.2s instead of snapping.
+    {
+      const D = 86400000;
+      const oldId  = 'manual_' + (Date.now() - 8 * D);   // renders as age bucket "old"
+      const doneId = 'manual_' + (Date.now() - 2 * D);
+      const { page, errors } = await openPage({
+        extraSeed: {
+          'today_manual': JSON.stringify([{ id: oldId, text: 'Old task' }, { id: doneId, text: 'Done task' }]),
+          'today_done':   JSON.stringify([doneId]),
+        },
+      });
+      const r = await page.evaluate(async ({ yesterdayDs, oldId, doneId }) => {
+        const q = id => document.querySelector(`#manualList .task[data-taskid="${id}"]`);
+        const snap = window._newDaySnapshot();
+        const snapHasBoth = !!(snap[oldId] && snap[doneId]);
+        // Pretend the old row was "young" yesterday so the settle has a bucket change to ease.
+        snap[oldId].bucket = 'young';
+        localStorage.setItem('stat_last_visit', yesterdayDs);
+        applyNewDayCleanup();                                   // doneId graduates to PAST
+        const doneEl = q(doneId);
+        let renderedAt = 0; const t0 = performance.now();
+        window._newDayCollapse(snap, () => {
+          renderedAt = performance.now() - t0;
+          Today.use('connections').renderManual();
+          window._newDaySettle(snap);
+        });
+        const collapsing = doneEl.getAnimations().length === 1 && doneEl.style.overflow === 'hidden';
+        await new Promise(r => setTimeout(r, 120));
+        const midCollapseH = doneEl.getBoundingClientRect().height;   // shrinking, not yet 0
+        await new Promise(r => setTimeout(r, 400));
+        const renderedAfterCollapse = renderedAt >= 250 && renderedAt < 600;
+        const doneGone = !q(doneId);
+        const oldEl = q(oldId);
+        const easing = !!oldEl && oldEl.dataset.ageBucket === 'old' && oldEl.getAnimations().length === 1;
+        const midOpacity = oldEl ? parseFloat(getComputedStyle(oldEl).opacity) : -1;
+        await new Promise(r => setTimeout(r, 1300));
+        const settled = oldEl && oldEl.getAnimations().length === 0 && parseFloat(getComputedStyle(oldEl).opacity) === 0.35;
+        return {
+          snapHasBoth, collapsing,
+          collapseInFlight: midCollapseH > 0 && midCollapseH < 40,
+          renderedAfterCollapse, doneGone, easing,
+          easeInFlight: midOpacity > 0.36 && midOpacity < 0.75,
+          settled,
+        };
+      }, { yesterdayDs: YESTERDAY_DS, oldId, doneId });
+      await expectAll('new-day settle', { ...r, noErrors: !errors.length });
+      ok('new-day settle: graduating row collapses over --dur-slow, then the re-render; changed age bucket eases over 1.2s to its stylesheet value');
+      await page.close();
+    }
+
+    console.log('\nDay-lifecycle tests passed (post-extraction, 13 tests).');
   }
 } finally {
   if (browser) await browser.close();

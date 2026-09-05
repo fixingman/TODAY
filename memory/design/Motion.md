@@ -94,6 +94,12 @@ One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newl
 - Crossfade, deliberately slower than the count flick: fade out `--dur-mid` ease-in, swap text, fade in `--dur-slow` `--ease-out` with a 3px rise. Tokens are read from `:root` at call time so JS and CSS share one clock.
 - One-shot, so WAAPI is fine (the looping rule does not apply). `fill: forwards` on the exit is cancelled before the enter so it cannot re-assert. Reduced motion swaps the text with no animation; same-day calls are no-ops.
 
+### New-Day Settle (v2.83.0)
+- At the midnight boundary the list used to snap: done rows vanished into Past and age buckets stepped in one frame. Now two beats on the same clock as the date crossfade.
+- **Graduation:** rows leaving for Past fade and collapse height and padding to zero over `--dur-slow` / `--ease-out`; the re-render waits for the last one. `fill: forwards` is fine because the rows are replaced wholesale.
+- **Age:** after the re-render, rows whose bucket changed ease from the old opacity to the new over a deliberately long 1.2s. The old value is read from the stylesheet by briefly restoring the old bucket, so the opacities live in one place. This is the only time age dimming is visible as motion; every other day you only see its result.
+- Both WAAPI: midnight often coincides with a wake repaint, whose display toggle would restart a CSS animation from keyframe 0. Reduced motion skips both. Helpers `_newDaySnapshot` / `_newDayCollapse` / `_newDaySettle` in `day-lifecycle.js`, wired in `checkNewDay()`.
+
 ### Idle Companion
 - Fade in over 0.6s
 - ASCII animation (creature-specific timing)
