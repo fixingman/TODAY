@@ -6,14 +6,14 @@
 
 ## Pre-Release Checklist (REQUIRED)
 
-Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 33 local
-test suites (34 checks total). The live `scripts/ai-test.mjs` remains the sole explicit
+Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 34 local
+test suites (35 checks total). The live `scripts/ai-test.mjs` remains the sole explicit
 exclusion because it requires an API key and real provider calls. The runner verifies the test
 inventory and the explicitly registered non-test check before execution. A check that passes
 only on its diagnostic retry is reported as flaky and fails the gate; each attempt is capped at
 120 seconds. Tooling requires Node >=22.12 and Puppeteer 25. The last dual-runtime assurance
-pass was clean on Node 22.23.2 and 24.14.0; the current 34-check result is recorded in the
-v2.82.5 changelog. GitHub Actions runs the same gate on pushes
+pass was clean on Node 22.23.2 and 24.14.0; the current 35-check result is recorded in the
+v2.83.1 changelog. GitHub Actions runs the same gate on pushes
 and pull requests to `dev`/`master`. Run
 `memory/validate-files.sh` separately; it remains outside `test-all.mjs`.
 
@@ -226,7 +226,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 7.7 | PiP: timer completes while minimized | PiP shows 00:00, bar full, button switches Breathe→Again |
 | 7.8 | Completion — bar state | Bar fills and immediately starts pulsing "again?" (no static pause, BUG-028) |
 | 7.9 | Window return with completed bar | Bar pulses on return with no flash (BUG-028b) |
-| 7.10 | Focus companion with AI configured | Start focus and use “✦ ask”; one bounded question appears without opening the orphaned AI sheet |
+| 7.10 | Focus companion with AI configured | Start focus and use “✦ ask”; one bounded question appears inline without opening another surface |
 | 7.11 | _onWake rapid double-fire | Alt-tab away and back quickly multiple times — no repaint glitches |
 
 ### 8. Network Edge Cases (7 tests)
@@ -299,7 +299,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 ## Test Summary
 
 The numbered scenarios below are the manual acceptance catalogue, not a hand-maintained test
-count. The executable inventory is authoritative: `test-all.mjs` currently runs 34 checks and
+count. The executable inventory is authoritative: `test-all.mjs` currently runs 35 checks and
 fails if a new `*-test.mjs` suite is omitted. This avoids the old summary drifting whenever a
 later section or automated suite was added.
 
@@ -458,10 +458,13 @@ Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 an
 |---|---|---|
 | 16.1 | Run `node scripts/component-contract-test.mjs` | `runtime.js` loads first, is precached, and every declared `data-today-*` action has exactly one registered owner with no unused registrations |
 | 16.2 | Scan static and generated runtime markup | No inline event-handler attributes are present |
-| 16.3 | Audit top-level compatibility assignments | No duplicate owner outside the explicit transitional allowlist; total assignments remain at or below 123 |
+| 16.3 | Audit top-level compatibility assignments | No duplicate owner outside the explicit transitional allowlist; total assignments remain at or below 117 |
 | 16.4 | Run `node scripts/sync-merge-unit-test.mjs` | Daily history and suggestion outcomes merge deterministically without DOM, storage, or Dropbox access |
 | 16.5 | Run `node scripts/suggestion-policy-unit-test.mjs` | Reason classification, performance context, exploration, and underperformance decisions are deterministic |
 | 16.6 | Run `node scripts/noticed-model-unit-test.mjs` | Solar-term hemisphere mapping, milestone thresholds, and time formatting are deterministic |
 | 16.7 | Run `node scripts/focus-session-unit-test.mjs` | Session creation, wall-clock restore, elapsed time, and serialization are deterministic |
+| 16.8 | Run `node scripts/token-parity-test.mjs` | Canvas constants and focus/meeting PiP colors derive from canonical computed tokens; poem/offline literals stay in parity |
+| 16.9 | Run `node scripts/assistant-test.mjs` | Reachable post-add suggestions work; retired AI sheet code, state, CSS, backdrop, and markup remain absent |
+| 16.10 | Run `node scripts/dropbox-test.mjs` cadence case | Unchanged seven-second sync performs no Trello render; a day boundary and wake each reconcile once |
 
-*Last updated: v2.82.5 · Sep 2026*
+*Last updated: v2.83.1 · Sep 2026*

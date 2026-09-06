@@ -5,7 +5,7 @@
 
 ## Current Focus (update each session)
 - **Working on:** Component boundaries and test assurance — explicit runtime ownership, deterministic policy/state seams, and contract checks that prevent architectural drift.
-- **Recent (2026-09-05):** v2.82.5 removes all 85 inline event attributes, moves ten component surfaces behind frozen `Today` APIs, cuts top-level compatibility assignments from 247 to 123, and adds direct tests for sync merge, suggestion policy, Noticed logic, and focus-session state. The complete gate is now 34 checks. No UI, data, sync, or provider-routing behavior changed; the 130-poem corpus is unchanged.
+- **Recent (2026-09-06):** v2.83.1 removes the unreachable AI sheet, stops unchanged seven-second sync ticks from repainting Trello, derives canvas/PiP colors from canonical computed tokens, cuts the compatibility ceiling to 117, and adds token-parity plus cadence coverage. The complete gate is now 35 checks. No storage, sync payload, Trello API, or provider-routing interface changed.
 - **Module extraction (Roadmap #3): COMPLETE.** focus.js done (v2.65.13, ~1,400 lines). All modules extracted: dropbox, connections (+ AI provider config), assistant, task-actions, nudge, day-lifecycle, focus. Startup composition root (~350 lines inline) remains as intended. Full inventory → `Backlog.md` §3.
 - **Machine routing guard:** before any agent changes Headroom, a model provider/base URL, proxy/wrapper, port/mode, runtime override, or Headroom version, read `/Users/can/.headroom/ROUTING-GUARD.md` and obtain Can's explicit approval for that exact change. Keep Codex on explicit `127.0.0.1`, not `localhost`. Do not run `headroom learn --verbosity --apply`: v0.35.0 learns from Claude history only but hot-enables a proxy-global output shaper that can also affect Codex.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
@@ -90,8 +90,8 @@ Status symbols used throughout:
 ## Interaction Rules
 
 6. **Enter key = always add task** (no mode switching, no routing)
-7. **✦ button = AI route** (with or without text in input)
-8. `_aiLoadedOnce` prevents re-fetch on panel toggle — reset only on error
+7. **AI configuration does not create a general chat surface.** Reachable AI behavior stays contextual: post-add task suggestions, focus questions, nudges, reflections/Noticed, enrichment, and meeting extraction.
+8. **Post-add suggestions belong to their task ID, not their DOM position.** Pending delivery waits for viewport entry; list renders and reorders must re-anchor a visible helper without creating a second offer or exposure lifecycle.
 9. Uncheck = neutral (no celebration, no sound)
 10. Check = celebration (sound, particles, haptic)
 10a. **Keyboard row contract:** Enter starts focus, Space toggles completion, and Option+Up/Down reorders manual tasks, Trello tasks, and habits through their existing persistence paths.

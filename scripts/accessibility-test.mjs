@@ -73,7 +73,7 @@ try {
   const names = await page.evaluate(() => ({
     header: ['habitsBtn','trelloBtn','infoBtn','todayLogo'].map(id => document.getElementById(id).getAttribute('aria-label')),
     taskPressed: document.querySelector('.task-check')?.getAttribute('aria-pressed'),
-    inactiveHidden: ['undoToast','meetingOverlay','triageOverlay','meetingPill','voicePill','aiPanel']
+    inactiveHidden: ['undoToast','meetingOverlay','triageOverlay','meetingPill','voicePill']
       .every(id => document.getElementById(id)?.hidden),
   }));
   if (names.header.some(name => !name) || names.taskPressed !== 'false' || !names.inactiveHidden) fail('names, states, or inactive hidden-state contract missing');

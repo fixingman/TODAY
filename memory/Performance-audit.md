@@ -1,5 +1,5 @@
 # TODAY — Performance & Security Audit
-> Current source-level snapshot: v2.82.5 · Sep 2026
+> Current source-level snapshot: v2.83.1 · Sep 2026
 > Runtime performance, security posture, and privacy review.
 > Test cases: See `Test-matrix.md`
 
@@ -9,10 +9,10 @@
 
 | Asset | Raw (decoded) | Brotli | Notes |
 |---|---|---|---|
-| `index.html` | 211 KB | 64 KB | HTML/CSS shell + startup composition root (Brotli q5) |
+| `index.html` | 206 KB | 63 KB | HTML/CSS shell + startup composition root (Brotli q5) |
 | `sw.js` | 7.2 KB | 2.5 KB | Service worker — cache strategy, precache list, offline fallback |
 | `assets/runtime.js` | 2.0 KB | — | Frozen component namespace + one delegated listener per declared event type; loaded first and SW-precached |
-| `assets/util.js` | 4.4 KB | 2.3 KB | Pure utility helpers extracted v2.17.122; SW-precached |
+| `assets/util.js` | 9.8 KB | 4.1 KB | Shared helpers, including computed token resolution for canvas/PiP; SW-precached |
 | `assets/accessibility.js` | 6.8 KB | — | Shared semantics, announcements, dialog/disclosure focus handling, and row keyboard layer; SW-precached |
 | `assets/idle.js` | 6.2 KB | 2.1 KB | Idle companion IIFE extracted v2.17.124; SW-precached |
 | `assets/sound.js` | 10.0 KB | 3.5 KB | Sound + haptics module extracted v2.23.1 (Roadmap #3); SW-precached |
@@ -36,11 +36,12 @@
 | `assets/focus-session.js` | 1.1 KB | — | DOM-free focus-session state and wall-clock math; directly unit-tested |
 | `assets/week-reflection-policy.js` | 6.2 KB | 2.1 KB | DOM-free Sunday candidate ranker/output guard; browser global + direct Node unit-test boundary; SW-precached |
 | `assets/poems.js` | 52 KB | 16 KB | Daily poem corpus (130 reviewed poems); SW-precached |
-| **Runtime shell** | **1.11 MB** | **317 KB** | `index.html` + `sw.js` + all 36 same-origin JS modules (Brotli q5) |
+| `assets/assistant.js` | 14.9 KB | 4.4 KB | Reachable post-add suggestion controller; unreachable sheet removed in v2.83.1 |
+| **Runtime shell** | **1.06 MB** | **305 KB** | `index.html` + `sw.js` + all 36 same-origin JS modules (Brotli q5) |
 
-**Shape:** `index.html` is 4,854 lines and remains the HTML/CSS shell plus intentional startup
+**Shape:** `index.html` is 4,678 lines and remains the HTML/CSS shell plus intentional startup
 composition root. Behavior lives in 36 classic-script modules; the largest are `dropbox.js`
-(2,150 lines), `focus.js` (1,686), `assistant.js` (1,514), and `insights.js` (1,461).
+(2,158 lines), `focus.js` (1,687), `insights.js` (1,461), and `meeting.js` (890).
 Extraction reduced ownership ambiguity, not total payload.
 
 **Third-party runtime scripts:** 0. All 36 scripts are same-origin and every one is present in
@@ -56,9 +57,9 @@ cores. Large controllers remain where DOM/network/lifecycle orchestration is inh
 shared state, initialization, and startup sequencing remain inline as the intentional
 composition root.
 
-**Assessment (v2.82.5):** module loading and offline precache are in exact parity. Runtime-first
-ordering, declarative-action ownership, and a 123-assignment compatibility ceiling are now
-enforced. The current watch item is the 1.11 MB raw shell and the remaining transitional globals,
+**Assessment (v2.83.1):** module loading and offline precache are in exact parity. Runtime-first
+ordering, declarative-action ownership, and a 117-assignment compatibility ceiling are now
+enforced. The current watch item is the 1.06 MB raw shell and the remaining transitional globals,
 not a missing-asset failure.
 
 ---
@@ -69,11 +70,11 @@ not a missing-asset failure.
 
 | Metric | Count | Δ from v2.32.0 | Notes |
 |---|---|---|---|
-| `getElementById` | 311 | — | Source-level call sites across `index.html` + `assets/*.js` |
-| `querySelector` | 102 | — | Source-level call sites |
-| `querySelectorAll` | 38 | — | Source-level call sites |
-| **Total DOM queries** | **451** | — | Not runtime frequency; repeated render calls dominate |
-| `innerHTML =` assignments | 77 | — | Free-text paths remain subject to the XSS review below |
+| `getElementById` | 297 | — | Source-level call sites across `index.html` + `assets/*.js` |
+| `querySelector` | 99 | — | Source-level call sites |
+| `querySelectorAll` | 40 | — | Source-level call sites |
+| **Total DOM queries** | **436** | — | Not runtime frequency; repeated render calls dominate |
+| `innerHTML =` assignments | 75 | — | Free-text paths remain subject to the XSS review below |
 | Cached element usage | via `$` object | — | Elements cached at init in `_cacheElements()` |
 | `safeJSON()` call sites | 56 | 0 | Centralises try/catch + fallback for all reads |
 
@@ -81,7 +82,7 @@ not a missing-asset failure.
 
 | Metric | Count | Δ from v2.32.0 | Notes |
 |---|---|---|---|
-| `localStorage.getItem` | 149 | — | Source-level call sites across the current runtime |
+| `localStorage.getItem` | 142 | — | Source-level call sites across the current runtime |
 | `localStorage.setItem` | 187 | — | Source-level call sites across the current runtime |
 | Raw `JSON.parse(localStorage…)` | 0 outside `safeJSON()` | — | `safeJSON()` centralises try/catch |
 | **Quota failures** | **caught (v2.17.70)** | — | Global `setItem` wrapper; quota errors route to red dot |
@@ -111,15 +112,20 @@ not a missing-asset failure.
 | 500ms | Dropbox auth poll | Only while OAuth popup open |
 | 30min | SW update check | Runs continuously |
 
-**Source-level timing call sites:** 7 `setInterval`, 100 `setTimeout`, and 34
+**Source-level timing call sites:** 7 `setInterval`, 95 `setTimeout`, and 34
 `requestAnimationFrame` across `index.html` + runtime modules. These are call sites, not the
 number simultaneously active; transient OAuth, animation, and testable UI timers are included.
 
-**WAAPI: `_breathe()` 11 call sites** (−1 since v2.32.0); **`_pulseComplete()` 8 call sites** (unchanged). All compositor-driven; all survive `_forceRepaint` display toggles.
+**WAAPI: `_breathe()` 10 call sites**; **`_pulseComplete()` 9 call sites**. All compositor-driven; all survive `_forceRepaint` display toggles.
 
-### Ticker (every 7s) — unchanged from v2.32.0
+### Ticker (every 7s)
 
-`syncAll()` → `checkNewDay()` → `syncTrello()` → `syncDropbox()`. Trello: `dateLastActivity` only (~1 KB); full fetch only if changed. Dropbox: metadata only (~300 B); full download only if `rev` changed. **`renderTrello()` runs unconditionally every tick** (v2.18.12 — diff-patch, ≤20 cards typical; cost bounded but baseline). Ticker stops on hide; resumes after 2s on restore.
+`syncAll()` → `checkNewDay()` → `syncTrello()` → `syncDropbox()`. Trello checks
+`dateLastActivity` only (~1 KB) and fetches/renders cards only when that state changes. Dropbox
+downloads only when `rev` changes. The old unconditional `renderTrello()` on every tick was
+removed in v2.83.1: age buckets reconcile at a real day boundary and once on wake, while task,
+focus, ordering, and merge paths render on their own state changes. The ticker stops on hide and
+resumes after two seconds on restore.
 
 ### DOM Rendering — unchanged since v2.32.0
 
@@ -139,10 +145,11 @@ number simultaneously active; transient OAuth, animation, and testable UI timers
 
 | Metric | Status |
 |---|---|
-| CSS custom properties in `:root` | 116 vars (unchanged) |
+| CSS custom properties in `:root` | 123 vars |
 | `transition: all` | 0 |
 | Hardcoded hex/rgba outside `:root` | 0 CSS violations (design-lint enforced) |
 | Undefined-token uses | 0 (design-lint enforced) |
+| Isolated-document parity | Canvas mappings, focus/meeting PiP, poem, and offline shell guarded by `token-parity-test.mjs` |
 
 ### Memory — changes since v2.32.0
 
@@ -214,7 +221,13 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 
 > **All test cases in `Test-matrix.md`** — comprehensive matrix covering sync, UI, security, zones, habits, and edge cases.
 
-The default v2.82.5 gate runs design lint plus 33 non-live suites: 24 browser suites and nine direct Node/static suites. Inventory is enforced, retries are reported as flakes and fail, and each attempt has a 120-second ceiling. The component contract checks runtime/precache order, declarative-action parity, inline-handler absence, global ownership, and the compatibility ceiling. Sync merge, suggestion policy, Noticed policy, and focus-session math now have direct unit coverage. A tracked lockfile and `CHROME_PATH` make the same gate runnable in GitHub Actions. Manual VoiceOver, installed-PWA behavior, and real Picture-in-Picture verification remain release gates.
+The default v2.83.1 gate runs design lint plus 34 non-live suites (35 checks total). Inventory is
+enforced, retries are reported as flakes and fail, and each attempt has a 120-second ceiling.
+The component contract checks runtime/precache order, declarative-action parity, inline-handler
+absence, global ownership, and the compatibility ceiling. The token-parity suite guards canvas,
+PiP, poem, and offline-shell color ownership. A tracked lockfile and `CHROME_PATH` make the same
+gate runnable in GitHub Actions. Manual VoiceOver, installed-PWA behavior, and real
+Picture-in-Picture verification remain release gates.
 
 ---
 
@@ -230,9 +243,8 @@ The default v2.82.5 gate runs design lint plus 33 non-live suites: 24 browser su
 | 9 `@font-face` declarations | Low | 2 in PiP block duplicate main doc; loaded in isolated window, no waste |
 | `habitsKept` snapshot 1–3am edge | Very low | Check at 1–3am counts toward yesterday (3am boundary); live strip always correct |
 | `localStorage` disabled | Low | `safeJSON` reads catch SecurityError; global `setItem` wrapper IIFE may throw before installing if storage fully blocked. App loads with red dot, data not persisted. |
-| `renderTrello()` runs every 7s tick unconditionally | Low | v2.18.12 — diff-patch bounds cost (≤20 cards). Only item in history that adds baseline per-tick work. Revisit if Trello card counts grow much larger than ~20. |
 | BUG-004 repaint ceiling | Low | Extended to 5000ms (v2.31.9). If a very long sleep still leaves GPU unready past 5s, a 7th pass or a fallback `click` simulation may be needed. |
-| Runtime shell growth | Watch | 1.11 MB decoded / 317 KB Brotli-q5 across the HTML, service worker, and 36 modules. `index.html` itself is 211 KB / 64 KB. All modules are tracked and precached; revisit payload only when first-load measurements show a real cost. |
+| Runtime shell growth | Watch | 1.06 MB decoded / 305 KB Brotli-q5 across the HTML, service worker, and 36 modules. `index.html` itself is 206 KB / 63 KB. All modules are tracked and precached; revisit payload only when first-load measurements show a real cost. |
 | BUG-041: iOS PWA splash white flash | Platform limitation | Closed 2026-07-24 after a fourth investigation pass ruled out every app-code explanation: splash launch-image colors correct (RGB 14,14,16, matches `--bg`), iPhone 14 Pro's exact spec present in the `apple-touch-startup-image` list, latest build confirmed running, no render-blocking `<head>` resource. What remains is the gap between iOS's static launch image ending and the WebView's first painted frame — a handoff with no hook available from web content. Reopen only if light/dark-mode correlation is confirmed, or the flash appears on a warm/backgrounded reopen (not just true cold start) — either would point back at in-page code. Full four-pass history → `archive/Bugs-archive.md`. |
 
 ---
@@ -241,9 +253,9 @@ The default v2.82.5 gate runs design lint plus 33 non-live suites: 24 browser su
 
 | Area | Score | Notes |
 |---|---|---|
-| Load performance | ✅ Good | 211 KB index.html (64 KB Brotli); 1.11 MB / 317 KB complete runtime shell; same-origin and offline-cached |
+| Load performance | ✅ Good | 206 KB index.html (63 KB Brotli); 1.06 MB / 305 KB complete runtime shell; same-origin and offline-cached |
 | Runtime performance | ✅ Good | Cached elements, cheap ticker, incremental DOM, debounced `_onWake` |
-| CSS token hygiene | ✅ Good | 116 `:root` vars, 0 violations (design-lint enforced) |
+| CSS token hygiene | ✅ Good | 123 `:root` vars, 0 lint violations; isolated-document parity is tested |
 | XSS protection | ✅ Good | `esc()` on all user content |
 | CSRF protection | ✅ Good | PKCE state verified |
 | Privacy | ✅ Good | No analytics; data stays local or in user's own Dropbox |
@@ -256,7 +268,16 @@ The default v2.82.5 gate runs design lint plus 33 non-live suites: 24 browser su
 
 ---
 
-## 8. Changes since last audit (v2.32.0 → v2.64.23)
+## 8. Historical changes since the v2.32.0 baseline
+
+### v2.83.1 maintenance
+
+- Removed the unreachable assistant sheet controller, state, CSS, backdrop, and markup while
+  preserving the live post-add suggestion module API. Runtime shell raw size fell by about 50 KB.
+- Removed the unconditional seven-second Trello repaint. Day and wake reconcile age buckets;
+  actual Trello/task/sync mutations retain their existing render paths.
+- Made the main computed palette authoritative for canvas and focus/meeting PiP colors, with a
+  dedicated parity suite covering isolated documents and literal first-paint/offline copies.
 
 ### v2.64.21 – v2.64.23 additions
 

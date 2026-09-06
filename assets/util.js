@@ -96,11 +96,35 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// Color constants for canvas / JS where CSS vars don't apply (kept in sync with :root)
-const COLOR_ACCENT = '#c8f060';
-const COLOR_BG     = '#0e0e10';
-const COLOR_MUTED  = '#6b6b78';
-const COLOR_BORDER = '#2a2a30';
+// Resolve the authoritative CSS palette for canvas and isolated PiP documents.
+// Node-only utility tests do not have a document and never consume these values.
+function _cssToken(name) {
+  if (typeof document === 'undefined' || typeof getComputedStyle !== 'function') return '';
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (!value) throw new Error(`Missing required CSS token: ${name}`);
+  return value;
+}
+
+function _pipTokens() {
+  return {
+    bg:             _cssToken('--color-bg'),
+    accent:         _cssToken('--color-accent'),
+    text:           _cssToken('--color-text'),
+    muted:          _cssToken('--color-pip-muted'),
+    fillTrack:      _cssToken('--color-accent-timer-fill'),
+    fillBar:        _cssToken('--color-pip-fill-bar'),
+    overlay:        _cssToken('--color-pip-overlay'),
+    btnBg:          _cssToken('--color-pip-btn-bg'),
+    btnBorder:      _cssToken('--color-pip-btn-border'),
+    btnHoverBg:     _cssToken('--color-pip-btn-hover-bg'),
+    btnHoverBorder: _cssToken('--color-pip-btn-hover-border'),
+  };
+}
+
+const COLOR_ACCENT = _cssToken('--color-accent');
+const COLOR_BG     = _cssToken('--color-bg');
+const COLOR_MUTED  = _cssToken('--color-art-muted');
+const COLOR_BORDER = _cssToken('--color-border');
 
 // Looping animations must be WAAPI, never CSS: _forceRepaint's display toggles
 // restart CSS animations from keyframe 0 (visible flash), a WAAPI timeline is

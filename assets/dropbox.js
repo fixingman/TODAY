@@ -1896,6 +1896,9 @@
         };
         if (_snap && typeof window._newDayCollapse === 'function') window._newDayCollapse(_snap, _renderDay);
         else _renderDay();
+        // Trello age is a day-scale signal. Reconcile once at the actual day
+        // boundary; network/state changes render through their owning paths.
+        renderTrello();
         loadTrello(true);
         updateStats();
         // Refresh the nudge banner too — a tab left open across midnight (common desktop
@@ -1921,10 +1924,6 @@
         checkNewDay();
         syncTrello();
         syncDropbox();
-        // Age-bucket patch runs every tick — time-based dimming is independent of Trello
-        // board activity. syncTrello() only calls loadTrello() (and thus renderTrello()) when
-        // dateLastActivity changes on the server; cards age silently between board events.
-        renderTrello();
       }
 
       function startTicker() {
@@ -1957,7 +1956,7 @@
           _wakeSyncSilent = true;
           syncDropbox();
           syncTrello();
-          renderTrello(); // age-buckets are time-based — update immediately on wake
+          renderTrello(); // reconcile day-scale age buckets immediately on wake
           setTimeout(() => { _wakeSyncSilent = false; }, 3000);
           // Unified wake handler — repaint, focus cleanup, triage, pending backup
           if (window._onWake) window._onWake();

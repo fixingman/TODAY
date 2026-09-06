@@ -17,7 +17,7 @@
 
 - `assets/runtime.js` loads before every component and exposes one frozen `window.Today` namespace. Components publish frozen APIs with `Today.define(name, api)`; consumers resolve them with `Today.use(name)`.
 - UI markup declares actions with `data-today-click`, `data-today-change`, `data-today-input`, `data-today-keydown`, `data-today-pointerdown`, or `data-today-focusout`. A single document listener per event type dispatches to the registered component owner. Static and generated markup must not use inline event attributes.
-- `scripts/component-contract-test.mjs` checks script/precache order, action declaration/registration parity, zero inline handler attributes, unique global ownership, and the transitional compatibility-assignment ceiling of 123.
+- `scripts/component-contract-test.mjs` checks script/precache order, action declaration/registration parity, zero inline handler attributes, unique global ownership, and the transitional compatibility-assignment ceiling of 117.
 - Compatibility globals still connect the startup composition root and older cross-module paths. They are transitional: new component APIs belong on `Today`, and the compatibility count must not grow.
 - Deterministic seams live outside their DOM/network controllers: `sync-merge.js`, `suggestion-policy.js`, `noticed-model.js`, and `focus-session.js`. Their owning controllers keep rendering, persistence, provider calls, and browser lifecycle work.
 
@@ -75,32 +75,7 @@ Fixed at bottom, outside `.app` container.
 - Input: full width minus button
 - The bounce mirror preserves the native input for focus, accessibility, IME, and storage. Its visual spans are split by Unicode grapheme cluster—not UTF-16 index—so emoji, modifiers, flags, and joined sequences shape intact.
 - Enter: always adds task
-- Voice Note and Meeting buttons appear beside the input when those capabilities are available. The former ✦ AI-sheet trigger was removed in v2.49.0; inline suggestions and the focus companion remain the reachable AI surfaces.
-
----
-
-## AI Panel — unreachable legacy sheet
-
-There is currently no visible or keyboard trigger for `#aiPanel`; closed markup is hidden from
-the accessibility tree. `assets/assistant.js` still contains the sheet controller and the live
-post-add inline-suggestion delivery controller; deterministic reason selection and outcome
-weighting live separately in `assets/suggestion-policy.js`. Do not describe the sheet as a
-reachable surface or delete the module wholesale. Restoring a trigger is a separate product
-decision; separating/removing the dead sheet controller is a contained cleanup task.
-
-Slides up from bottom with spring easing (`--ease-spring`, `--dur-slow`).
-
-```
-┌─────────────────────────────────────────┐
-│ AI message here...                      │
-│                                         │
-│ [Action chip] [Action chip] [Dismiss]   │
-└─────────────────────────────────────────┘
-```
-
-- Background: `--color-surface`
-- Max height: 45vh, scrollable
-- Actions: rendered as chips, execute immediately
+- Voice Note and Meeting buttons appear beside the input when those capabilities are available. Inline suggestions and the focus companion remain the task-level AI surfaces; the unreachable legacy AI sheet was fully removed in v2.83.1.
 
 ---
 

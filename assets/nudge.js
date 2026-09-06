@@ -167,17 +167,6 @@ window._startNudge = (function() {
           localStorage.removeItem('morning_nudge_count');
           localStorage.removeItem('today_day_review');
         };
-        // Light the ✦ badge once when the brief is ready — discoverability signal
-        if (Today.use('connections')._aiIsConfigured() && !_aiPanelOpen) {
-          const _btn = document.getElementById('todayLogo');
-          if (_btn && !_btn.querySelector('.ai-badge')) {
-            const _badge = document.createElement('span');
-            _badge.className = 'ai-badge';
-            _btn.appendChild(_badge);
-            _breathe(_badge, _KF_BREATHE_SMALL, 2400);
-            _aiBadgeShown = true;
-          }
-        }
       };
 
       // Once the real AI line has shown, no further call site may render again —

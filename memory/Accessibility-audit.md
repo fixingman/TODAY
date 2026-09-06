@@ -4,7 +4,7 @@
 
 ## Scope
 
-Reviewed surfaces: the main PWA at desktop and mobile widths, task and habit lists, Soon/Past sections, Connections, About, Memory, focus mode, triage, meeting capture/review, Voice Note, focus and meeting Picture-in-Picture, and the shared poem page. The closed, unreachable AI sheet remains outside reachable-flow acceptance; it has no trigger and is removed from the accessibility tree while closed.
+Reviewed surfaces: the main PWA at desktop and mobile widths, task and habit lists, Soon/Past sections, Connections, About, Memory, focus mode, triage, meeting capture/review, Voice Note, focus and meeting Picture-in-Picture, and the shared poem page. The unreachable legacy AI sheet was removed in v2.83.1; it is no longer an excluded surface or hidden-tree concern.
 
 The implementation follows the [Astryx `VisuallyHidden` guide](https://astryx.atmeta.com/components/VisuallyHidden): screen-reader-only content remains in the document flow with clipping rather than `display:none`, while content that is actually closed uses `hidden`, `aria-hidden`, and/or `inert` as appropriate. Visually-hidden content is limited to labels, supplementary instructions, and block-level live regions—not interactive controls.
 
@@ -16,7 +16,7 @@ The implementation follows the [Astryx `VisuallyHidden` guide](https://astryx.at
 | Keyboard operation | Rows and pointer reordering were not keyboard-operable. | Rows are focusable. Enter starts focus, Space toggles completion, and Option+Up/Down reorders manual tasks, Trello tasks, and habits through their existing persistence paths. Moves and boundaries are announced. |
 | Navigation | There was no skip navigation or reliable semantic section structure. | Added a skip link, main landmark target, section headings, and list/listitem structure. |
 | Dialogs and disclosures | Triage and meeting review did not contain/restore focus; header panels did not consistently expose state. | Added shared disclosure synchronization, modal focus containment/restoration, temporary background `inert`, Escape handling, and a nonmodal meeting-name prompt. |
-| Hidden UI | Closed panels, toasts, backdrops, parked timers, and the unreachable AI sheet could remain discoverable. | Closed UI is hidden from both tab order and accessibility tree. Receded focus-mode content becomes inert while the active row and timer remain available. |
+| Hidden UI | Closed panels, toasts, backdrops, and parked timers could remain discoverable. | Closed UI is hidden from both tab order and accessibility tree. Receded focus-mode content becomes inert while the active row and timer remain available. The unreachable legacy AI sheet was removed entirely in v2.83.1. |
 | Status and async feedback | Several visual-only updates were silent to assistive technology. | Added polite and urgent visually-hidden live regions for task, focus, recording, reorder, share, and async-result updates. Pointer drag does not announce intermediate movement. |
 | Forms and history | Some inputs and habit history lacked explicit labels or a usable summary. | Added programmatic form labels and accessible habit-history summaries. |
 | Focus and targets | Focus indication and small icon targets were inconsistent. | Added visible `:focus-visible` treatment and a 24×24 CSS-pixel minimum for interactive controls. PiP hover controls also reveal on `:focus-within`. |

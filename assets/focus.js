@@ -1329,21 +1329,22 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
         const taskName = getTaskName(uiTaskId);
         const st = getState(uiTaskId);
         const baseUrl = window.location.origin;
+        const pip = _pipTokens();
 
         // Full 300×200 design — big centered timer, full-width progress bar
         pipWindow.document.body.innerHTML = `
           <style>
             :root {
-              --pip-bg:               #0e0e10;
-              --pip-accent:           #c8f060;
-              --pip-text-muted:       rgba(255,255,255,0.50);
-              --pip-fill-track:       rgba(200,240,96,0.08);
-              --pip-fill-bar:         rgba(200,240,96,0.20);
-              --pip-overlay:          rgba(14,14,16,0.85);
-              --pip-btn-bg:           rgba(200,240,96,0.15);
-              --pip-btn-border:       rgba(200,240,96,0.30);
-              --pip-btn-hover-bg:     rgba(200,240,96,0.25);
-              --pip-btn-hover-border: rgba(200,240,96,0.50);
+              --pip-bg:               ${pip.bg};
+              --pip-accent:           ${pip.accent};
+              --pip-text-muted:       ${pip.muted};
+              --pip-fill-track:       ${pip.fillTrack};
+              --pip-fill-bar:         ${pip.fillBar};
+              --pip-overlay:          ${pip.overlay};
+              --pip-btn-bg:           ${pip.btnBg};
+              --pip-btn-border:       ${pip.btnBorder};
+              --pip-btn-hover-bg:     ${pip.btnHoverBg};
+              --pip-btn-hover-border: ${pip.btnHoverBorder};
             }
             * { box-sizing: border-box; margin: 0; padding: 0; }
             @font-face {

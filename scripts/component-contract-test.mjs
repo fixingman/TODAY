@@ -59,7 +59,7 @@ const duplicateOwnerShims = new Set([
   '_triageResetAutoClose',
 ]);
 for (const [path, source] of sources) {
-  for (const match of source.matchAll(/window\.([A-Za-z_$][\w$]*)\s*=/g)) {
+  for (const match of source.matchAll(/window\.([A-Za-z_$][\w$]*)\s*=(?!=)/g)) {
     globalAssignments.push(`${path}:${match[1]}`);
     if (!globalOwners.has(match[1])) globalOwners.set(match[1], new Set());
     globalOwners.get(match[1]).add(path);
@@ -71,7 +71,7 @@ const duplicateOwners = [...globalOwners]
 
 assert.deepEqual(duplicateOwners, [], 'a global compatibility export may have only one owning module');
 assert.ok(
-  globalAssignments.length <= 123,
+  globalAssignments.length <= 117,
   `global compatibility surface grew to ${globalAssignments.length}; migrate through Today.define/use instead`,
 );
 

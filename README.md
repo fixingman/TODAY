@@ -54,7 +54,7 @@ No framework, no build step, no bundler. Vanilla JS + CSS.
 - `manifest.json` — PWA installation
 - Seven Netlify Functions cover Dropbox/Gmail OAuth, AI, meeting/voice extraction, and task enrichment; one Edge Function injects poem sharing metadata
 - Fonts self-hosted (Syne + DM Mono)
-- `scripts/` — 33 non-live test suites plus design lint (34 checks total); the same gate runs locally and in GitHub Actions
+- `scripts/` — 34 non-live test suites plus design lint (35 checks total); the same gate runs locally and in GitHub Actions
 
 ---
 

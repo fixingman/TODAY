@@ -130,12 +130,13 @@
       } catch (e) { _mtgPipWin = null; return; }
 
       const baseUrl = window.location.origin;
+      const pip = _pipTokens();
       // PiP documents inherit no styles from the opener, so tokens are re-declared here —
       // same approach as the focus timer PiP.
       _mtgPipWin.document.body.innerHTML =
         '<style>' +
-        ':root{--pip-bg:#0e0e10;--pip-accent:#c8f060;--pip-text:#e8e8ec;--pip-muted:rgba(255,255,255,0.50);' +
-        '--pip-btn-bg:rgba(200,240,96,0.15);--pip-btn-border:rgba(200,240,96,0.30);--pip-btn-hover-bg:rgba(200,240,96,0.25);}' +
+        ':root{--pip-bg:' + pip.bg + ';--pip-accent:' + pip.accent + ';--pip-text:' + pip.text + ';--pip-muted:' + pip.muted + ';' +
+        '--pip-btn-bg:' + pip.btnBg + ';--pip-btn-border:' + pip.btnBorder + ';--pip-btn-hover-bg:' + pip.btnHoverBg + ';}' +
         '*{box-sizing:border-box;margin:0;padding:0;}' +
         '@font-face{font-family:"DM Mono";src:url("' + baseUrl + '/fonts/DM%20Mono/dm-mono-v16-latin-300.woff2") format("woff2");font-weight:300;}' +
         'html,body{width:100%;height:100%;background:var(--pip-bg);overflow:hidden;' +

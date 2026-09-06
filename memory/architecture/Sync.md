@@ -66,7 +66,7 @@ Three handlers remain in their own closures — not merged, they need private va
 2. Each repaint pass suppresses persistent CSS animations so they don't restart on `display:none/block` cycle:
    - `.config-panel.open` → `fadeIn` (BUG-023), cleared on next user-open
    - `.complete` → `timerCompletePulse` (BUG-025)
-   - `.ai-badge`, `.done-star`, `#errorIndicator.open`, `.loading-dots span`, `.ai-suggestion-msg.thinking`
+   - `.done-star`, `#errorIndicator.open`, `.loading-dots span`
    - After the final 1500ms pass, all except `.config-panel.open` are restored via rAF
 3. Single-play animation classes cleared once on wake (not per-pass): `.task-slide-in`, `.removing`, `.just-checked`, `.milestone-pulse`, `.dot-ripple`, `#manualEmpty.fading-in`
 4. Clear stale `.focusing` immediately, at 350ms, and at 1000ms — guarded by `window._focusUIActive` to prevent premature removal when re-anchor is in progress (race condition: Dropbox sync may call `renderManual` which destroys `.focused` before `_focusReanchor` re-attaches it)
@@ -86,8 +86,9 @@ Three handlers remain in their own closures — not merged, they need private va
 2. `checkNewDay()`
 3. `lastDropboxRev = null` + `_refreshSyncCache()`
 4. `_wakeSyncSilent = true` → `syncDropbox()` + `syncTrello()`
-5. `window._onWake()`
-6. `wakeTimer` → `startTicker()` after 2s
+5. `renderTrello()` once to reconcile day-scale age buckets
+6. `window._onWake()`
+7. `wakeTimer` → `startTicker()` after 2s
 
 ### Error Handling (v2.13.4 + v2.14.1)
 

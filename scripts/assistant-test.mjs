@@ -1,22 +1,18 @@
-// TODAY — AI assistant panel and post-add suggestion regression test
+// TODAY — post-add AI suggestion regression test
 //
-// Flow: panel open/close, setup screen when not configured, thinking state,
-// chips render, add_task action mutates state, post-add analyze + suggest,
-// dismissal, breakdown apply, static wiring check.
+// Flow: analyze + viewport delivery, dismissal, re-anchor, breakdown apply,
+// dead-sheet absence, and static wiring.
 //
 // Run from repo root:
-//   node scripts/assistant-test.mjs --pre-extraction   # pre-extraction baseline
-//   node scripts/assistant-test.mjs                    # post-extraction (9 tests)
+//   node scripts/assistant-test.mjs
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { existsSync } from 'node:fs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
 
@@ -78,8 +74,7 @@ async function openPage(extraSeed) {
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForFunction(
-    () => typeof Today?.use('assistant').toggleAI === 'function' &&
-          !!document.getElementById('aiPanel'),
+    () => typeof Today?.use('assistant')._aiAnalyzeTask === 'function',
     { timeout: 15000 }
   );
   await page.evaluate(() => {
@@ -94,148 +89,10 @@ async function openPage(extraSeed) {
 }
 
 try {
-  if (PRE_EXTRACTION) {
-    // Pre-extraction baseline: functions are inline in index.html; assistant.js does not yet exist.
-    const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
-    await expectAll('pre-extraction baseline', {
-      toggleAIInline:    indexSrc.includes('function toggleAI()'),
-      openAIInline:      indexSrc.includes('function openAI('),
-      noAssistantModule: !existsSync(join(ROOT, 'assets/assistant.js')),
-    });
-    ok('pre-extraction: toggleAI/openAI inline in index.html; assets/assistant.js not yet created');
-    console.log('\nAssistant tests passed (pre-extraction baseline, 1 check).');
-  } else {
-    // 1. Panel open: openAI(skipAutoLoad) → #aiPanel gets .open, body gets ai-chat-open.
-    {
-      const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
-      const result = await page.evaluate(() => {
-        Today.use('assistant').openAI(true); // skipAutoLoad — avoids fetch
-        const panel = document.getElementById('aiPanel');
-        return {
-          panelOpen:  !!(panel && panel.classList.contains('open')),
-          bodyClass:  document.body.classList.contains('ai-chat-open'),
-        };
-      });
-      await expectAll('panel open', { ...result, noErrors: errors.length === 0 });
-      ok('panel open: #aiPanel gains .open, body gains ai-chat-open');
-      await page.close();
-    }
-
-    // 2. Panel close: closeAI() removes open state.
-    {
-      const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
-      const result = await page.evaluate(() => {
-        Today.use('assistant').openAI(true);
-        Today.use('assistant').closeAI();
-        const panel = document.getElementById('aiPanel');
-        return {
-          panelClosed:   !!(panel && !panel.classList.contains('open')),
-          bodyClassGone: !document.body.classList.contains('ai-chat-open'),
-        };
-      });
-      await expectAll('panel close', { ...result, noErrors: errors.length === 0 });
-      ok('panel close: #aiPanel loses .open, body loses ai-chat-open');
-      await page.close();
-    }
-
-    // 3. Setup screen: no AI key → openAI() shows not-configured message with Connections link.
-    {
-      const { page, errors } = await openPage();
-      const result = await page.evaluate(() => {
-        localStorage.removeItem('today_ai_key_claude');
-        localStorage.removeItem('today_ai_key_gemini');
-        Today.use('assistant').openAI();
-        const msg = document.getElementById('aiSuggestionMsg');
-        return {
-          hasNotConfigured:   !!(msg && msg.querySelector('.ai-not-configured')),
-          hasConnectionsText: !!(msg && msg.textContent.includes('Connections')),
-        };
-      });
-      await expectAll('setup screen', { ...result, noErrors: errors.length === 0 });
-      ok('setup screen: .ai-not-configured with Connections link when no API key');
-      await page.close();
-    }
-
-    // 4. Thinking state: fetch hangs → #aiSuggestionMsg immediately gets class "thinking".
-    {
-      const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
-      const result = await page.evaluate(() => {
-        window.fetch = () => new Promise(() => {}); // never resolves
-        Today.use('assistant').openAI(); // triggers _aiLoad → _aiSetThinking
-        const msg = document.getElementById('aiSuggestionMsg');
-        return {
-          hasThinkingClass: !!(msg && msg.classList.contains('thinking')),
-          hasThinkingDots:  !!(msg && msg.querySelector('.ai-thinking-dots')),
-        };
-      });
-      await expectAll('thinking state', { ...result, noErrors: errors.length === 0 });
-      ok('thinking state: #aiSuggestionMsg gets class "thinking" while fetch is pending');
-      await page.close();
-    }
-
-    // 5. Chips render: mocked fetch → openAI() → #aiChips has button children.
-    {
-      const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
-      const result = await page.evaluate(async () => {
-        window.fetch = async () => ({
-          ok: true,
-          text: async () => JSON.stringify({
-            message: 'Two tasks on your list. What matters most?',
-            actions: [
-              { label: 'Focus', type: 'start_focus', payload: { id: 'task_1' } },
-              { label: 'Dismiss', type: 'dismiss', payload: {} },
-            ],
-          }),
-        });
-        Today.use('assistant').openAI();
-        await new Promise(r => setTimeout(r, 200)); // wait for fetch + render
-        const chips = document.getElementById('aiChips');
-        return {
-          hasChips:  !!(chips && chips.querySelectorAll('button').length >= 2),
-          chipCount: chips ? chips.querySelectorAll('button').length : 0,
-        };
-      });
-      await expectAll('chips render', { ...result, noErrors: errors.length === 0 });
-      ok(`chips render: #aiChips has ${result.chipCount} button(s) after fetch resolves`);
-      await page.close();
-    }
-
-    // 6. add_task action: clicking chip adds entry to manualTasks.
-    {
-      const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
-      const result = await page.evaluate(async () => {
-        window.fetch = async () => ({
-          ok: true,
-          text: async () => JSON.stringify({
-            message: 'Add this.',
-            actions: [
-              { label: 'Add task', type: 'add_task', payload: { text: 'write tests for AI' } },
-              { label: 'Dismiss', type: 'dismiss', payload: {} },
-            ],
-          }),
-        });
-        const prevCount = manualTasks.length;
-        Today.use('assistant').openAI();
-        await new Promise(r => setTimeout(r, 200));
-        const chips = document.getElementById('aiChips');
-        // add_task chip is first (primary)
-        const addBtn = chips ? chips.querySelectorAll('button')[0] : null;
-        if (addBtn) addBtn.click();
-        return {
-          taskAdded:   manualTasks.length === prevCount + 1,
-          taskPresent: manualTasks.some(t => t.text === 'write tests for AI'),
-        };
-      });
-      await expectAll('add_task action', { ...result, noErrors: errors.length === 0 });
-      ok('add_task action: clicking chip adds task to manualTasks');
-      await page.close();
-    }
-
-    // 7+8. Post-add suggestion waits for viewport delivery, follows its task
-    // through reordering/re-rendering, then measures exposure and dismissal.
-    //   _aiAnalyzeTask debounces 2s then calls _aiDoAnalyze which calls fetch.
-    //   After suggestion appears, _aiDismissSuggestion applies .removing class.
-    {
+  // 1. Post-add suggestion waits for viewport delivery, follows its task
+  // through reordering/re-rendering, then measures exposure and dismissal.
+  // _aiAnalyzeTask debounces 2s, then _aiDoAnalyze calls fetch.
+  {
       const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
       const result = await page.evaluate(async () => {
         const realSetTimeout = window.setTimeout;
@@ -312,7 +169,7 @@ try {
       await page.close();
     }
 
-    // 9. Pending delivery follows the newest task, survives a list re-render by
+    // 2. Pending delivery follows the newest task, survives a list re-render by
     // task ID, and cancels if that task disappears before viewport entry.
     {
       const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
@@ -370,7 +227,7 @@ try {
       await page.close();
     }
 
-    // 10. Breakdown apply: _aiApplyBreakdown removes original task, adds subtasks.
+    // 3. Breakdown apply: _aiApplyBreakdown removes original task, adds subtasks.
     {
       const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
       const result = await page.evaluate(async () => {
@@ -407,7 +264,7 @@ try {
       await page.close();
     }
 
-    // 11. Static wiring: 9 exports in assistant.js, functions removed from index.html, precached.
+    // 4. Static wiring: live API remains; the unreachable sheet is fully absent.
     {
       const indexSrc  = await readFile(join(ROOT, 'index.html'), 'utf8');
       const swSrc     = await readFile(join(ROOT, 'sw.js'), 'utf8');
@@ -418,17 +275,18 @@ try {
         moduleLoad:       indexSrc.includes('<script src="/assets/assistant.js"></script>'),
         startupCall:      startupIdx !== -1,
         beforeMeeting:    startupIdx !== -1 && startMeetIdx !== -1 && startupIdx < startMeetIdx,
-        toggleAIRemoved:  !indexSrc.includes('function toggleAI()'),
-        openAIRemoved:    !indexSrc.includes('function openAI('),
+        sheetDomRemoved:  !indexSrc.includes('id="aiPanel"') && !indexSrc.includes('id="aiBackdrop"'),
+        sheetCssRemoved:  !indexSrc.includes('#aiPanel') && !indexSrc.includes('ai-chat-open'),
+        sheetStateRemoved: !indexSrc.includes('_aiPanelOpen'),
+        sheetCodeRemoved: !/\b(?:toggleAI|openAI|closeAI|_aiAskFromPanel|_aiSendFromInput)\b/.test(assistSrc),
         moduleInit:       assistSrc.includes('window._startAssistant = '),
         api:              assistSrc.includes("Today.define('assistant'"),
         precached:        swSrc.includes("'/assets/assistant.js'"),
       });
-      ok('assistant module: 9 exports, functions removed from index.html, precached in sw.js');
+      ok('assistant module: reachable suggestion API remains; sheet code, state, CSS, and DOM are absent');
     }
 
-    console.log('\nAssistant tests passed (post-extraction, 10 behavior groups + wiring).');
-  }
+  console.log('\nAssistant tests passed (3 behavior groups + wiring).');
 } finally {
   if (browser) await browser.close();
   server.close();

@@ -19,6 +19,7 @@
 | `--color-text` | `#e8e8ec` | Primary text |
 | `--color-muted` | `#80808d` | Secondary / placeholder text on the main surface |
 | `--color-muted-elevated` | `#858594` | Secondary / placeholder text on elevated panels |
+| `--color-art-muted` | `#6b6b78` | Muted stroke/text for canvas-rendered statistics |
 
 **Aliases:** `--bg`, `--surface`, `--surface2`, `--border`, `--control-border`, `--text`, `--muted`
 
@@ -80,20 +81,28 @@
 
 ### PiP Window Tokens
 
-PiP runs in a separate `document` and cannot inherit the main page's CSS custom properties. The injected `<style>` block defines a local `:root` with these tokens as literal values. They mirror the main palette — update both if values change.
+PiP runs in a separate `document` and cannot inherit the main page's CSS custom properties.
+`_pipTokens()` reads the canonical computed values from the opener, then each focus/meeting PiP
+document injects local aliases from that object. There is no second literal palette to update.
 
-| Token | Value | Maps to |
-|---|---|---|
-| `--pip-bg` | `#0e0e10` | `--color-bg` |
-| `--pip-accent` | `#c8f060` | `--color-accent` |
-| `--pip-text-muted` | `rgba(255,255,255,0.50)` | (no main equiv) |
-| `--pip-fill-track` | `rgba(200,240,96,0.08)` | `--color-accent-timer-fill` |
-| `--pip-fill-bar` | `rgba(200,240,96,0.20)` | (between dim and hover) |
-| `--pip-overlay` | `rgba(14,14,16,0.85)` | `--color-bg-glass` (0.92 in main) |
-| `--pip-btn-bg` | `rgba(200,240,96,0.15)` | (between dim and hover) |
-| `--pip-btn-border` | `rgba(200,240,96,0.30)` | `--color-accent-glow` (0.28 in main) |
-| `--pip-btn-hover-bg` | `rgba(200,240,96,0.25)` | (between hover and glow) |
-| `--pip-btn-hover-border` | `rgba(200,240,96,0.50)` | (between check and check-hover) |
+| Local PiP alias | Canonical opener token |
+|---|---|
+| `--pip-bg` | `--color-bg` |
+| `--pip-accent` | `--color-accent` |
+| `--pip-text` | `--color-text` |
+| `--pip-text-muted` | `--color-pip-muted` |
+| `--pip-fill-track` | `--color-accent-timer-fill` |
+| `--pip-fill-bar` | `--color-pip-fill-bar` |
+| `--pip-overlay` | `--color-pip-overlay` |
+| `--pip-btn-bg` | `--color-pip-btn-bg` |
+| `--pip-btn-border` | `--color-pip-btn-border` |
+| `--pip-btn-hover-bg` | `--color-pip-btn-hover-bg` |
+| `--pip-btn-hover-border` | `--color-pip-btn-hover-border` |
+
+Canvas constants likewise resolve through `_cssToken()` instead of duplicating color literals.
+`scripts/token-parity-test.mjs` locks those mappings and verifies that the standalone poem and
+service-worker offline shell retain the main background/accent values where CSS inheritance is
+impossible.
 
 ---
 
@@ -216,7 +225,6 @@ Scale is numeric, 4px base:
 | `5` | `#statusBarScrim` (v2.33.1) | Above content (1), below section headers (9) and glass header (10) — covers the iOS safe-area strip |
 | `9` | `.section-header` sticky | One below the glass header it slides under |
 | `50` | Idle companion | Between header and modal |
-| `90` | `#aiPanel` | Below modal (100), above header (10) |
 | `600` | Splash canvas (star burst) | Above splash overlay (500); burst fires on top of the splash |
 | `9998` | Error panel | Above all app content |
 | `9999` | Error dot | Always on top |

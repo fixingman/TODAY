@@ -9,6 +9,7 @@ const DIR = dirname(fileURLToPath(import.meta.url));
 
 const SUITE = [
   'design-lint',
+  'token-parity-test',
   'component-contract-test',
   'smoke-test',
   'accessibility-test',

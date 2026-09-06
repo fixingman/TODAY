@@ -511,7 +511,42 @@ try {
     await page.close();
   }
 
-  // 14. Static wiring checks.
+  // 14. The seven-second sync path does not repaint Trello on an unchanged day.
+  //     Day boundaries and wake are the two age-bucket reconciliation points.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      const originalRenderTrello = window.renderTrello;
+      let renderCount = 0;
+      window.renderTrello = () => { renderCount++; };
+
+      localStorage.setItem('stat_last_visit', _getAppDay());
+      _dbxSyncNow();
+      await new Promise(resolve => setTimeout(resolve, 20));
+      const unchangedTickQuiet = renderCount === 0;
+
+      localStorage.setItem('stat_last_visit', '1900-01-01');
+      _dbxSyncNow();
+      await new Promise(resolve => setTimeout(resolve, 20));
+      const dayBoundaryRendered = renderCount === 1;
+
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        value: 'visible',
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+      await new Promise(resolve => setTimeout(resolve, 20));
+      const wakeRendered = renderCount === 2;
+
+      window.renderTrello = originalRenderTrello;
+      return { unchangedTickQuiet, dayBoundaryRendered, wakeRendered };
+    });
+    await expectAll('Trello age-render cadence', { ...result, noErrors: errors.length === 0 });
+    ok('sync cadence: unchanged ticks are render-free; day and wake reconcile Trello age');
+    await page.close();
+  }
+
+  // 15. Static wiring checks.
   {
     const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
     const swSrc    = await readFile(join(ROOT, 'sw.js'), 'utf8');

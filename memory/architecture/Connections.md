@@ -141,7 +141,10 @@ See `architecture/Sync.md` for the full sync loop. The panel shows last activity
 
 ## AI provider configuration
 
-The Connections panel at `#configPanel` configures AI alongside Trello, Gmail, and Dropbox. The legacy `#aiPanel` sheet has had no trigger since v2.49.0; reachable AI behavior is inline task help and the focus companion.
+The Connections panel at `#configPanel` configures AI alongside Trello, Gmail, and Dropbox. AI
+credentials feed contextual features such as inline task help, focus questions, nudges,
+reflections, enrichment, and meeting extraction. The unreachable legacy sheet was removed in
+v2.83.1; configuring a provider does not reveal a general chat surface.
 
 ### Provider Selection
 
@@ -176,7 +179,8 @@ User selects provider → pastes API key into input
 
 Shows provider badge (Gemini/Claude) with key partially masked. Forget button removes both localStorage keys.
 
-Provider state also controls the focus-companion affordance and background/inline AI calls. It does not reveal the orphaned `#aiPanel` sheet.
+Provider state also controls the focus-companion affordance and background/inline AI calls. It
+does not reveal a standalone assistant panel.
 
 ### Your Name (meeting mode, v2.22.0 + v2.31.0 inline capture)
 

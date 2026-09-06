@@ -7,10 +7,9 @@
 ## Overview
 
 The reachable companion appears through post-add inline task suggestions, the focus companion,
-the morning nudge, About reflections/Noticed, and meeting extraction. The former ✦ sheet has no
-visible or keyboard trigger; its closed markup remains outside the accessibility tree. Its
-legacy controller still shares `assets/assistant.js` with live inline-suggestion delivery and
-must not be described as a reachable surface.
+the morning nudge, About reflections/Noticed, and meeting extraction. The former ✦ sheet had no
+trigger after v2.49.0; its controller, state, CSS, backdrop, and markup were removed in v2.83.1.
+`assets/assistant.js` now owns only the live post-add suggestion lifecycle.
 
 Deterministic suggestion reason classification, exploration, underperformance, and performance
 context live in DOM-free `assets/suggestion-policy.js`; `assistant.js` and `insights.js` own UI,
@@ -27,6 +26,11 @@ tests cover both policy boundaries.
 ---
 
 ## Context Object
+
+> Historical standalone-sheet contract, removed in v2.83.1. The context, intro-priority,
+> special-moment, proactive-observation, energy, action-chip, and personality sections through
+> “Personality” below describe the retired sheet and are retained only until the audit/history
+> documentation is split. They are not current interfaces.
 
 ```javascript
 {
@@ -153,7 +157,7 @@ Available in handlers but not offered by AI (kept for edge cases):
 
 A separate AI surface that lives inside the focus timer bar. Triggered by the ✦ ask button (dynamically created inside the focus IIFE). Returns a single question under 18 words that the user reads before starting a 25-minute session.
 
-**Does NOT use** `_memoryForAI()` or the main AI panel's context object — it builds its own `_ctx` array.
+**Does NOT use** `_memoryForAI()` or the retired sheet context object — it builds its own `_ctx` array.
 
 ### Signals sent (as `_ctx` array in user message)
 
@@ -192,9 +196,12 @@ Up to 4 confirmed inferences from `appMemory.memory` (semantic + episodic + proc
 
 Word cap increased to 22 (was 18). Bad-question list added to system prompt: vague check-ins, affirmations, obvious yes/no questions. If the question mentions time, must use the supplied exact local time.
 
-### Note on orphaned AI panel
+### Removed standalone AI sheet
 
-`toggleAI()`, `openAI()`, `_aiSendFromInput()` exist but are unreachable since v2.49.0 removed the ✦ button from the input bar. The `#aiPanel` DOM element exists but has no trigger. The TODAY logo opens the Memory panel (`toggleMemory()`). These functions are dead code — left in place to avoid regressions if any edge path references them.
+The input-bar trigger was removed in v2.49.0. In v2.83.1, the remaining `toggleAI()`,
+`openAI()`, `_aiSendFromInput()`, rendering/action helpers, state, styles, backdrop, and panel
+markup were deleted. The TODAY logo continues to open Memory; no replacement chat surface was
+introduced.
 
 ---
 
@@ -344,17 +351,18 @@ See the canonical Focus Companion section above for its current context and prom
 
 ---
 
-## Sending Messages from the Main Input Bar (removed entry path)
+## Sending Messages from the Main Input Bar (removed)
 
-`_aiSendFromInput(text)` remains inside the orphaned sheet controller, but no reachable input-bar control calls it since v2.49.0. Treat it as dead sheet code, not a supported interaction.
-
-Same `_aiThread` / `_aiCall` / `_aiRenderResult` pattern as `_aiAskFromPanel`, but takes the already-extracted text as a parameter instead of reading `#aiNlInput`. Sets `_aiLoadedOnce = true` to prevent the concurrent panel auto-load from clobbering the response.
+The input-bar ✦ entry path became unreachable in v2.49.0. Its `_aiSendFromInput()`, thread,
+panel-call, and result-rendering code was removed with the standalone sheet in v2.83.1.
 
 ---
 
-## Suggestion Cooldown + History
+## Legacy Suggestion Cooldown + History
 
-Prevents the AI from repeatedly suggesting the same aging task.
+These fields were written by the removed sheet's aging-task suggestions. They remain readable,
+mergeable, and clearable for backup compatibility and for context from older installations, but
+the current app does not append new entries to them.
 
 **Cooldown (`appMemory.suggestionCooldowns`):**
 - Format: `{ taskId: 'YYYY-MM-DD' }` — date last suggested
@@ -372,11 +380,11 @@ Prevents the AI from repeatedly suggesting the same aging task.
 
 ## Post-add Inline Outcome Loop (v2.72.0)
 
-This is separate from the assistant panel's aging-task history above. It learns on the existing row shown after a newly added task; it adds no panel, badge, setting, or recurring message.
+This learns on the existing row shown after a newly added task; it adds no panel, badge, setting, or recurring message.
 
 Each shown offer appends one `appMemory.suggestionOutcomes` record with a stable ID, task/pattern, explicit reason (`multiple_actions`, `long_complex_task`, `vague_task`, or `other_complexity`), the visible reason text, and an ISO `offeredAt`. The model is asked for the enum; deterministic text/type rules classify older or malformed responses.
 
-**Viewport delivery (v2.72.1):** generation and delivery are separate. The provider may finish while a newly added task is outside the viewport, but the result stays in closure-only pending state: no DOM row, animation, `offered` count, persisted outcome, or exposure timer exists yet. The task row is observed with a 64px bottom reserve so the action has room to appear; on entry, the row mounts and the normal outcome lifecycle begins. A mutation observer re-anchors the pending result when task rendering or sync replaces the DOM node. Pending delivery is discarded if a newer analysis supersedes it, the task text changes, the task is completed/removed/moved, or the user opens the AI panel. Provider responses carry an analysis sequence guard, preventing an older slow response from surfacing after a newer task. Browsers without `IntersectionObserver` use the same geometry check on scroll, resize, and foreground return.
+**Viewport delivery (v2.72.1):** generation and delivery are separate. The provider may finish while a newly added task is outside the viewport, but the result stays in closure-only pending state: no DOM row, animation, `offered` count, persisted outcome, or exposure timer exists yet. The task row is observed with a 64px bottom reserve so the action has room to appear; on entry, the row mounts and the normal outcome lifecycle begins. A mutation observer re-anchors the pending result when task rendering or sync replaces the DOM node. Pending delivery is discarded if a newer analysis supersedes it, the task text changes, or the task is completed, removed, or moved. Provider responses carry an analysis sequence guard, preventing an older slow response from surfacing after a newer task. Browsers without `IntersectionObserver` use the same geometry check on scroll, resize, and foreground return.
 
 **Visible-row ownership (v2.77.3):** once shown, the full-width helper remains a sibling of its task but is owned by stable task ID rather than DOM position. `_aiReanchorSuggestion()` runs after pointer/touch/Option+Arrow persistence and after `renderManual()` rebuilds, moving the existing helper element immediately after its owner without creating a second offer or restarting its outcome lifecycle.
 
