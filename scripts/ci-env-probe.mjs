@@ -73,6 +73,19 @@ try {
     return { accent: col, tagGradient: tag ? getComputedStyle(tag).backgroundImage.slice(0, 120) : '(no tag)' };
   }));
   say('page_errors', errors);
+  // Second launch WITH the desktop-input flag the harnesses use — does Blink honour
+  // it on this platform? On macOS it flips hover/pointer in both directions.
+  await page.close();
+  const flagged = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
+    args: ['--no-first-run', '--disable-extensions', '--blink-settings=availableHoverTypes=2,primaryHoverType=2,availablePointerTypes=4,primaryPointerType=4'] });
+  try {
+    const fp = await flagged.newPage(); await fp.setViewport({ width: 1200, height: 900 });
+    await fp.evaluateOnNewDocument(() => { localStorage.setItem('splash_shown_at', String(Date.now())); localStorage.setItem('today_manual', JSON.stringify([{ id: 'task_1', text: 'probe task' }])); });
+    await fp.goto('http://localhost:' + srv.address().port + '/', { waitUntil: 'load' });
+    await fp.waitForFunction(() => document.querySelector('#manualList .task'), { timeout: 8000 }).catch(() => {});
+    say('media_flagged', await fp.evaluate(() => ({ hover: matchMedia('(hover: hover)').matches, pointerFine: matchMedia('(pointer: fine)').matches,
+      copyDisplay: (() => { const c = document.querySelector('#manualList .task .task-copy'); return c ? getComputedStyle(c).display : '(none)'; })() })));
+  } finally { await flagged.close().catch(() => {}); }
 } catch (e) {
   say('probe_error', e.message.split('\n')[0]);
 } finally {
