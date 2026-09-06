@@ -23,7 +23,14 @@ const server = createServer(async (req, res) => {
 await new Promise(resolve => server.listen(0, resolve));
 const BASE = `http://localhost:${server.address().port}`;
 
-const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-first-run', '--disable-extensions'] });
+// CI's headless Linux Chrome reports no pointing device at all — (hover: hover) false,
+// (pointer: fine) false, (pointer: coarse) false — so @media (hover: hover) never matches
+// there and the copy button and hover shimmer never render. Media emulation cannot
+// change hover/pointer (Puppeteer rejects the names; CDP ignores them), but Blink's
+// launch-time input settings can. Declare the desktop these assertions assume:
+// hover=2 (hover), pointer=4 (fine). Verified both directions on macOS 2026-09-06.
+const DESKTOP_INPUT = '--blink-settings=availableHoverTypes=2,primaryHoverType=2,availablePointerTypes=4,primaryPointerType=4';
+const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-first-run', '--disable-extensions', DESKTOP_INPUT] });
 const fail = message => { throw new Error(message); };
 const ok = message => console.log('  ✓ ' + message);
 
