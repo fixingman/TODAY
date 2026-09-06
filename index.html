@@ -868,6 +868,17 @@
     0%, 100% { box-shadow: 0 0 0 0 var(--color-danger-pulse); }
     50%       { box-shadow: 0 0 0 4px transparent; }
   }
+  @media (min-width: 640px) {
+    #errorIndicator {
+      width: 12px;
+      height: 12px;
+      border-width: 3px;
+    }
+    @keyframes errorPulse {
+      0%, 100% { box-shadow: 0 0 0 0 var(--color-danger-pulse); }
+      50%       { box-shadow: 0 0 0 2px transparent; }
+    }
+  }
   #errorPanel {
     position: fixed;
     top: calc(env(safe-area-inset-top, 0px) + 24px);
