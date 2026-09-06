@@ -26,6 +26,8 @@ jobs:
         run: npm ci --prefix scripts
       - name: Verify Chrome
         run: test -x "$CHROME_PATH"
+      - name: Environment probe (diagnostic, never fails)
+        run: node scripts/ci-env-probe.mjs
       - name: Run automated gate
         run: npm test --prefix scripts
       - name: Validate memory inventory

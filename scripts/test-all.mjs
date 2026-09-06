@@ -35,7 +35,6 @@ const SUITE = [
   'week-reflection-unit-test',
   'observation-pool-test',
   'mailto-test',
-  'ci-env-probe',
   'about-test',
   'reflections-test',
   'day-lifecycle-test',
