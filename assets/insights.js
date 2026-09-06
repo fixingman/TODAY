@@ -442,6 +442,11 @@ function _memoryRecordOutcome(outcome, taskText, taskId, reason) {
         ? !!_aiCheckObligationLanguage(taskText) : false,
       focusSessions: _memoryFocusSessionsFor(taskId, taskText),
     };
+    // v2.84.0: text-hash key on every row. done rows are keyed by the live task id
+    // while let-go/revive rows use the hash, so the completion side of a let-go →
+    // return → done loop could not link by id. Older rows have no key and simply
+    // do not link; the 45-day window heals that without a migration.
+    if (taskText) entry.key = _memoryTextKey(taskText);
     if (reason) entry.reason = reason;
     log.push(entry);
   }
@@ -1416,27 +1421,12 @@ function _noticedLines() {
     }
   }
 
-  // 5 · Revived task finished — a task deliberately brought back got done today.
-  // Extends v2.35.2's nudge signal ("the choice was theirs, already made") into
-  // a one-time Noticed moment — rare by construction (needs a revive AND a same-
-  // day completion), never restates once shown.
-  if (typeof manualTasks !== 'undefined' && typeof doneIds !== 'undefined') {
-    if (!n.revivedDone) n.revivedDone = {};
-    const checkedIds = safeJSON('today_checked_ids', []);
-    const allTasks = [...manualTasks, ...(typeof trelloTasks !== 'undefined' ? trelloTasks : [])];
-    for (const t of allTasks) {
-      if (!t.revived || !doneIds.has(t.id) || n.revivedDone[t.id]) continue;
-      const entry = checkedIds.find(e => e.id === t.id);
-      if (!entry || !entry.at || _localISO(new Date(entry.at)) !== todayISO) continue;
-      const revivedElig = 'revived:' + t.id;
-      if (!_noticedEligible(revivedElig, todayISO)) continue;
-      n.revivedDone[t.id] = true;
-      dirty = true;
-      _noticedStamp(revivedElig, todayISO);
-      lines.push('Brought back, and finished — “' + _stripTag(t.text).slice(0, 40) + '”.');
-      break; // at most one per day — keep it rare
-    }
-  }
+  // 5 · (retired v2.84.0) "Brought back, and finished — …" fired the day a revived task
+  //     got done: a fact about something the user completed hours earlier, with no
+  //     second side and nothing to change. Can: "I am aware, it's a fact, but anything
+  //     for me?" The pattern across revivals — what comes back, and whether it gets
+  //     finished — is the observation that is for them; it lives in the pool as
+  //     `return-finished` and reaches Sunday. `n.revivedDone` is left in place, inert.
 
   // 6 · Total focus milestone — crossed a round number of lifetime focus hours,
   // once per threshold. Parallel structure to the habit-streak milestone above;

@@ -167,7 +167,7 @@
   taskAgeBuckets: { d1to3, d4to6, d7to13, d14plus },
   spokenLines: [],                   // [{ surface, date, text, kind? }] — what TODAY said on its own initiative; 30 days, one per surface per day, cap 120 (v2.79.0; `kind` + cap 30→120 v2.80.0)
   // 12c — dated outcome log (v2.80.0), the observation pool's only input
-  taskOutcomes: [],                  // [{ id, date, outcome: 'done'|'letgo'|'soon_pull'|'revive', obligation: true|false|null, focusSessions, reason?, backfilled? }] — 90 days / 300 entries. No task text: id falls back to a djb2 hash of the text
+  taskOutcomes: [],                  // [{ id, date, outcome: 'done'|'letgo'|'soon_pull'|'revive', obligation: true|false|null, focusSessions, reason?, backfilled?, key? }] — 90 days / 300 entries. No task text: id falls back to a djb2 hash of the text; `key` (v2.84.0) is that hash on every row, so done rows (keyed by live id) link to let-go/revive rows (keyed by hash)
   taskOutcomesBackfilled: boolean,   // one-time seed from recentCompletedTasks + dated letgo/revive day maps has run (v2.80.1)
   // clear watermark (BUG-096, v2.82.1) — makes "clear all memory" survive sync
   clearedAt: '',                     // ISO timestamp of the last full clear; max-wins across devices

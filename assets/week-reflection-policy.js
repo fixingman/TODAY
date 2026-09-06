@@ -286,6 +286,50 @@
       }
     }
 
+    // What comes back, and whether it gets finished — the completion side of the loop
+    // above, and the more useful one: it is evidence on whether letting go is safe.
+    // Same linking (release → return), then a `done` for the same key on or after the
+    // return. Done rows are keyed by the live task id, so from v2.84.0 every row also
+    // carries `key` (the text hash) to link across that boundary; older done rows have
+    // no key and simply do not link — the 45-day window heals it, no migration.
+    // Threshold is 3 distinct tasks, stricter than letgo-return: two is a coincidence.
+    // Replaces the same-day Noticed line "Brought back, and finished — …": a fact about
+    // a task the user completed hours earlier, with no second side.
+    const keyOf = e => e.key || e.id;
+    const returnedKeys = [...new Set(returned.map(keyOf))];
+    if (returnedKeys.length >= 3) {
+      const finishedKeys = returnedKeys.filter(k =>
+        returned.some(r => keyOf(r) === k &&
+          log.some(e => e.outcome === 'done' && keyOf(e) === k && e.date >= r.date)));
+      const total = returnedKeys.length, finished = finishedKeys.length;
+      const texts = (taskTexts && typeof taskTexts === 'object') ? taskTexts : {};
+      const names = finishedKeys.map(k => String(texts[k] || '').trim()).filter(Boolean)
+        .map(t => '"' + t.slice(0, 40) + '"').slice(0, 3);
+      const list = names.length <= 1 ? names.join('')
+        : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+      if (finished === total) {
+        candidates.push({
+          kind: 'return-finished',
+          score: 92,
+          evidence: `Over 45 days, ${total} things you had let go came back` + (list ? ' — ' + list : '') + `. All ${total} got done.`,
+          contrast: 'Let go, brought back, finished.',
+        });
+      } else if (finished >= 1) {
+        candidates.push({
+          kind: 'return-finished',
+          score: 92,
+          evidence: `Over 45 days, ${total} things you had let go came back; ${finished} of them got done` + (list ? ' — ' + list : '') + '.',
+          contrast: 'Brought back is not the same as finished.',
+        });
+      }
+      // finished === 0: silence. "Came back, none finished" is verdict-shaped.
+    }
+
+    // Same revives, sharper reading — never offer both in one build.
+    if (candidates.some(c => c.kind === 'return-finished')) {
+      return candidates.filter(c => c.kind !== 'letgo-return');
+    }
+
     return candidates;
   }
 
@@ -306,6 +350,7 @@
     'soon-pullback': 21,
     // 45-day window — see _buildOutcomeCandidates. 30 keeps one firing per window.
     'letgo-return': 30,
+    'return-finished': 30,
     // Week-shaped observations belong to a weekly surface and may legitimately recur
     // week to week.
     'focus-leverage': 7,

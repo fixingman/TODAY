@@ -248,6 +248,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 | 100 | `habit-alignment` | pre-existing |
 | 95 | `letgo-reason` | which reason dominates what you let go, stated against everything that ended; the contrast is the reasons that did not |
 | 90 | `recurring-day` | pre-existing |
+| 92 | `return-finished` | what comes back, and whether it gets finished — the evidence on whether letting go is safe. Added v2.84.0, replacing the same-day Noticed line; withholds `letgo-return` when both would fire |
 | 88 | `soon-pullback` | what you defer tends to come back |
 | 85 | `letgo-return` | what you release, and what comes back — added v2.81.0 after asking why `revive` was recorded but unread. **Linked, not counted** (v2.81.3): a let-go and a revive of the same task share an id, so only returns that follow a release count, and the task is named while it is still on a list. One task cycling twice gets its own line. **45-day window** (v2.81.1), the only kind not on 30: revive is a slow signal, and slow signals earn a longer window rather than a lower floor |
 | 65 | `bursts` | pre-existing, last resort — same container-subject shape as the cuts. Task context may rescue it: naming *what* filled the busy days would give it a subject |

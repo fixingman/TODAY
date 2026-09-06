@@ -313,6 +313,67 @@ test('revive rows are carried without breaking any builder', () =>
     out({ outcome: 'revive', reason: 'changed_mind' }),
   ], TODAY)));
 
+// ── return-finished ─────────────────────────────────────────────────────────
+console.log('\nobservation pool — return-finished\n');
+
+// let-go → revive → done for three distinct tasks. Done rows use the live id but
+// carry `key`; let-go/revive rows use the hash as id. Linking must cross that.
+const loop = (k, lg, rv, dn) => [
+  { id: k, key: k, date: ago(lg), outcome: 'letgo',  obligation: null, focusSessions: 0, reason: 'no_energy' },
+  { id: k, key: k, date: ago(rv), outcome: 'revive', obligation: null, focusSessions: 0 },
+  ...(dn == null ? [] : [{ id: 'manual_' + k, key: k, date: ago(dn), outcome: 'done', obligation: false, focusSessions: 1 }]),
+];
+const threeDone = [...loop('h1', 30, 20, 10), ...loop('h2', 28, 18, 8), ...loop('h3', 26, 16, 6)];
+const texts = { h1: 'call insurance', h2: 'renew the permit', h3: 'fix the bike' };
+
+test('fires when 3 distinct returned tasks all got done, linking done by key across the id boundary', () => {
+  const c = find(_buildOutcomeCandidates(threeDone, TODAY, texts), 'return-finished');
+  return !!c && c.evidence.includes('3 things you had let go came back') && c.evidence.includes('All 3 got done')
+    && c.evidence.includes('"call insurance"') && c.contrast === 'Let go, brought back, finished.';
+});
+
+test('silent at 2 returned tasks — that is letgo-return territory', () =>
+  !find(_buildOutcomeCandidates([...loop('h1', 30, 20, 10), ...loop('h2', 28, 18, 8)], TODAY), 'return-finished'));
+
+test('partial: 3 returned, 1 finished → the second reading', () => {
+  const c = find(_buildOutcomeCandidates([...loop('h1', 30, 20, 10), ...loop('h2', 28, 18, null), ...loop('h3', 26, 16, null)], TODAY), 'return-finished');
+  return !!c && c.evidence.includes('3 things you had let go came back; 1 of them got done') && c.contrast === 'Brought back is not the same as finished.';
+});
+
+test('silent when nothing that came back got finished — verdict-shaped', () =>
+  !find(_buildOutcomeCandidates([...loop('h1', 30, 20, null), ...loop('h2', 28, 18, null), ...loop('h3', 26, 16, null)], TODAY), 'return-finished'));
+
+test('a done BEFORE the revive does not count as finishing it', () =>
+  !find(_buildOutcomeCandidates([...loop('h1', 30, 20, 25), ...loop('h2', 28, 18, 22), ...loop('h3', 26, 16, 19)], TODAY), 'return-finished'));
+
+test('a done for a different key does not count', () => {
+  const rows = [...loop('h1', 30, 20, null), ...loop('h2', 28, 18, null), ...loop('h3', 26, 16, null),
+    { id: 'manual_x', key: 'hx', date: ago(5), outcome: 'done', obligation: false, focusSessions: 0 }];
+  return !find(_buildOutcomeCandidates(rows, TODAY), 'return-finished');
+});
+
+test('when it fires, letgo-return is not offered alongside it — same revives', () => {
+  const ks = kinds(_buildOutcomeCandidates(threeDone, TODAY));
+  return ks.includes('return-finished') && !ks.includes('letgo-return');
+});
+
+test('ranks above letgo-return and recurring-day, below letgo-reason', () => {
+  const c = find(_buildOutcomeCandidates(threeDone, TODAY), 'return-finished');
+  return c.score > 85 && c.score > 90 && c.score < 95;
+});
+
+test('aggregate kind: not eligible on the morning, eligible on Sunday', () => {
+  const c = find(_buildOutcomeCandidates(threeDone, TODAY), 'return-finished');
+  return _observationEligibleFor([c], 'nudge', { hasObligationOnList: true }).length === 0
+    && _observationEligibleFor([c], 'sunday').length === 1;
+});
+
+test('has its own cooldown — a fresh firing is dropped for 30 days', () =>
+  _observationNoveltyGate([{ kind: 'return-finished', score: 92, evidence: 'x', contrast: 'y' }],
+    { spokenLines: [{ surface: 'Sunday reflection', date: ago(20), text: 'said', kind: 'return-finished' }], todayISO: TODAY }).length === 0 &&
+  _observationNoveltyGate([{ kind: 'return-finished', score: 92, evidence: 'x', contrast: 'y' }],
+    { spokenLines: [{ surface: 'Sunday reflection', date: ago(31), text: 'said', kind: 'return-finished' }], todayISO: TODAY }).length === 1);
+
 // ── novelty gate ────────────────────────────────────────────────────────────
 console.log('\nobservation pool — novelty gate\n');
 

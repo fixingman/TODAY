@@ -380,6 +380,8 @@ try {
         obligationDetectedFromText: byOutcome('letgo')[0].obligation === true,
         obligationFalseForPlainTask: byOutcome('done')[0].obligation === false,
         reasonCaptured: byOutcome('letgo')[0].reason === 'no_energy',
+        keyOnDoneRow: byOutcome('done')[0].key === _memoryTextKey('finish the deck'),
+        keyOnLetgoRow: byOutcome('letgo')[0].key === _memoryTextKey('should book the dentist'),
         noTaskTextStored: !/dentist|plumber|deck/.test(serialized),
         persisted: (JSON.parse(localStorage.getItem('today_memory')).taskOutcomes || []).length === 4,
       };
