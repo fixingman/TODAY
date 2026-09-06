@@ -426,6 +426,34 @@ function _memoryTaskTexts() {
   return map;
 }
 
+// v2.84.1: give older outcome rows the text-hash `key` retroactively, wherever the
+// text can still be found. Before this, rows written before v2.84.0 could not close a
+// let-go → return → done loop until they aged out of the 45-day window — so
+// `return-finished` sat silent for six weeks on loops that had already closed.
+//
+// Cannot run at page load: the task lists are not loaded yet, so there is no text to
+// resolve against. Runs where the pool runs (top of _memoryForAI and both pool call
+// sites), only touches rows without a key, and saves only when something changed.
+//   - hash-keyed rows (`txt_…`): the id IS the text identity → key = id, no text needed
+//   - live-id rows (`manual_…`, Trello): key = hash of the text, if a list still has it
+//   - backfill rows (`bf_…`): reconstructed from counts, no text ever existed → left alone
+function _memoryStampOutcomeKeys() {
+  const rows = appMemory && Array.isArray(appMemory.taskOutcomes) ? appMemory.taskOutcomes : [];
+  if (!rows.some(r => r && !r.key)) return 0;
+  const texts = (typeof _memoryTaskTexts === 'function') ? _memoryTaskTexts() : {};
+  let changed = 0;
+  for (const r of rows) {
+    if (!r || r.key || !r.id) continue;
+    const id = String(r.id);
+    if (id.startsWith('txt_')) { r.key = id; changed++; continue; }
+    if (id.startsWith('bf_')) continue;
+    const text = texts[id];
+    if (text) { r.key = _memoryTextKey(text); changed++; }
+  }
+  if (changed) _saveMemory();
+  return changed;
+}
+
 function _memoryRecordOutcome(outcome, taskText, taskId, reason) {
   if (!outcome) return;
   const date   = _localISO();
@@ -844,6 +872,7 @@ function _memoryOnDaySummary(tasksCompleted) {
 // gets everything: there, "your best streak was 14" is legitimate color.
 function _memoryForAI(scope) {
   if (typeof manualTasks !== 'undefined') {
+    _memoryStampOutcomeKeys();
     _updateReturningTasksMemory(
       manualTasks,
       typeof trelloTasks !== 'undefined' ? trelloTasks : []

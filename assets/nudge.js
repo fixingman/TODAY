@@ -275,6 +275,7 @@ window._startNudge = (function() {
        || typeof appMemory === 'undefined') return null;
 
       const todayISO = _localISO();
+      if (typeof _memoryStampOutcomeKeys === 'function') _memoryStampOutcomeKeys();
       const ranked = _buildObservationCandidates({
         outcomes: appMemory.taskOutcomes,
         todayISO,

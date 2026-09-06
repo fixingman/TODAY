@@ -374,6 +374,27 @@ test('has its own cooldown — a fresh firing is dropped for 30 days', () =>
   _observationNoveltyGate([{ kind: 'return-finished', score: 92, evidence: 'x', contrast: 'y' }],
     { spokenLines: [{ surface: 'Sunday reflection', date: ago(31), text: 'said', kind: 'return-finished' }], todayISO: TODAY }).length === 1);
 
+test('a backfilled done row (hash as id, no key) still links — the key||id fallback', () => {
+  const rows = [
+    ...loop('h1', 30, 20, null), ...loop('h2', 28, 18, null), ...loop('h3', 26, 16, null),
+    { id: 'h1', date: ago(10), outcome: 'done', obligation: false, focusSessions: 0, backfilled: true },
+    { id: 'h2', date: ago(8),  outcome: 'done', obligation: false, focusSessions: 0, backfilled: true },
+    { id: 'h3', date: ago(6),  outcome: 'done', obligation: false, focusSessions: 0, backfilled: true },
+  ];
+  const c = find(_buildOutcomeCandidates(rows, TODAY), 'return-finished');
+  return !!c && c.evidence.includes('All 3 got done');
+});
+
+test('an old live-id done row with no key does NOT link — and must never be "fixed" by matching names', () => {
+  const rows = [
+    ...loop('h1', 30, 20, null), ...loop('h2', 28, 18, null), ...loop('h3', 26, 16, null),
+    { id: 'manual_111', date: ago(10), outcome: 'done', obligation: false, focusSessions: 0 },
+    { id: 'manual_222', date: ago(8),  outcome: 'done', obligation: false, focusSessions: 0 },
+    { id: 'manual_333', date: ago(6),  outcome: 'done', obligation: false, focusSessions: 0 },
+  ];
+  return !find(_buildOutcomeCandidates(rows, TODAY), 'return-finished');
+});
+
 // ── novelty gate ────────────────────────────────────────────────────────────
 console.log('\nobservation pool — novelty gate\n');
 

@@ -486,7 +486,8 @@
       // builder is the floor, never silence.
       try {
         const todayISO = _localISO();
-        const ranked = _buildObservationCandidates({
+        if (typeof _memoryStampOutcomeKeys === 'function') _memoryStampOutcomeKeys();
+      const ranked = _buildObservationCandidates({
           days: stats.days, history: stats.history,
           outcomes: appMemory.taskOutcomes, todayISO,
           taskTexts: (typeof _memoryTaskTexts === 'function') ? _memoryTaskTexts() : {},

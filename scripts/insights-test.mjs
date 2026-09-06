@@ -345,6 +345,43 @@ try {
     await page.close();
   }
 
+  // 6a5. _memoryStampOutcomeKeys (v2.84.1): older rows get the text-hash key wherever
+  //      the text can still be found, so loops that already closed count now rather
+  //      than after the 45-day window.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const D = 86400000, now = Date.now();
+      const iso = d => new Date(d).toISOString().slice(0, 10);
+      if (typeof pastTasks !== 'undefined') { pastTasks.length = 0; pastTasks.push({ id: 'manual_777', text: 'call the bank' }); }
+      manualTasks.length = 0;
+      appMemory.taskOutcomes = [
+        { id: 'manual_777',  date: iso(now - 3 * D), outcome: 'done',   obligation: false, focusSessions: 0 },      // live id, text on Past
+        { id: 'manual_gone', date: iso(now - 4 * D), outcome: 'done',   obligation: false, focusSessions: 0 },      // live id, task gone
+        { id: 'txt_abc123',  date: iso(now - 5 * D), outcome: 'revive', obligation: null,  focusSessions: 0 },      // hash id
+        { id: 'bf_letgo_no_energy_2026-08-01_0', date: iso(now - 6 * D), outcome: 'letgo', obligation: null, focusSessions: 0, reason: 'no_energy', backfilled: true },
+        { id: 'manual_888',  date: iso(now - 2 * D), outcome: 'done',   obligation: false, focusSessions: 0, key: 'keep_me' }, // already keyed
+      ];
+      const first = _memoryStampOutcomeKeys();
+      const snap = JSON.stringify(appMemory.taskOutcomes);
+      const second = _memoryStampOutcomeKeys();
+      const byId = id => appMemory.taskOutcomes.find(r => r.id === id);
+      return {
+        stampedTwo: first === 2,
+        liveIdResolvedViaPast: byId('manual_777').key === _memoryTextKey('call the bank'),
+        goneTaskLeftKeyless: !('key' in byId('manual_gone')),
+        hashIdKeyedToItself: byId('txt_abc123').key === 'txt_abc123',
+        backfillRowUntouched: !('key' in byId('bf_letgo_no_energy_2026-08-01_0')),
+        existingKeyPreserved: byId('manual_888').key === 'keep_me',
+        idempotent: second === 0 && JSON.stringify(appMemory.taskOutcomes) === snap,
+        persisted: (JSON.parse(localStorage.getItem('today_memory')).taskOutcomes.find(r => r.id === 'manual_777') || {}).key === _memoryTextKey('call the bank'),
+      };
+    });
+    await expectAll('_memoryStampOutcomeKeys', { ...result, noErrors: errors.length === 0 });
+    ok('_memoryStampOutcomeKeys: stamps live-id rows via list text and hash-id rows to themselves; leaves gone, backfill and keyed rows alone; idempotent');
+    await page.close();
+  }
+
   // 6b. taskOutcomes capture (12c Phase 0). Every approved pool candidate is a
   //     windowed contrast, so these dated events are the only thing standing between
   //     the pool and silence. Also pins that no task text is stored.
