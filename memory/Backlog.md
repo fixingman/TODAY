@@ -33,7 +33,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 | 11 | **Task agent — enrichment at add-time** | Stages 1 & 2 shipped; Stage 3 next | External context enrichment (Gmail, web search, soon: contacts, calendar, Trello). Distinct from companion arc — enriches the task, not understanding of you. Detail ↓ |
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
-| 12d | **Companion — memory surface** | Not started | "What TODAY knows about you" — the *data itself* (returning tasks, outcomes, obligation history), shown plainly and clearable, in the Memory panel. Distinct from the panel's AI hypotheses, which have their own open finding (Watching). Requires 12c to have observations worth showing. Detail ↓ |
+| 12d | **Companion — memory surface** | Phase A shipped (in v2.82.4); **Phase B next** | "What TODAY knows about you" — the *data itself* (returning tasks, outcomes, obligation history), shown plainly and clearable, in the Memory panel. Distinct from the panel's AI hypotheses, which have their own open finding (Watching). Requires 12c to have observations worth showing. Detail ↓ |
 | — | **WEEK companion** | Gated | Gate is now: *12c is working and feels like a companion, not a feature.* Data accumulation is necessary but not sufficient. Detail ↓ |
 | 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 130 reviewed poems (2026-09-02). Detail ↓ |
 
@@ -275,7 +275,9 @@ What TODAY knows about you, made visible and clearable.
 
 **Prerequisite done (v2.82.1, BUG-096):** full-clear now covers the companion slots and survives sync via `clearedAt` watermark + hypothesis tombstones. Before this, "clear all memory" was false for the most personal slots and undone by the next Dropbox pull.
 
-**Remaining, in build order:** (1) the data view — a "What TODAY knows" block showing `returningTasks`, pending obligation tasks, recent `spokenLines` with kind, and 30-day outcome counts as plain facts; (2) per-item revoke with a **persisted exclusion set** — `returningTasks` rebuilds from `manualTasks` every call, so a dismissed entry returns on the next render unless `_updateReturningTasksMemory` and the obligation history honour an exclusion list; note `dismissKey` is already computed for hypothesis items and never rendered, so the existing blocks have no per-item control either; (3) optionally, the gate-reason display below.
+**Phase A shipped (commit `fa4566b`, inside the v2.82.4 cut — unlisted, see `Changelog.md`):** KNOWN and SAID blocks open the Memory panel — returning tasks with days and sessions, open obligation-framed tasks, 30-day outcome counts with a reconstruction caveat, and the last five lines TODAY said with surface and kind. Read-only. Placed before the hypotheses on purpose: the record comes before any conclusion drawn from it.
+
+**Remaining, in build order:** (1) ~~the data view~~ done above — a "What TODAY knows" block showing `returningTasks`, pending obligation tasks, recent `spokenLines` with kind, and 30-day outcome counts as plain facts; (2) per-item revoke with a **persisted exclusion set** — `returningTasks` rebuilds from `manualTasks` every call, so a dismissed entry returns on the next render unless `_updateReturningTasksMemory` and the obligation history honour an exclusion list; note `dismissKey` is already computed for hypothesis items and never rendered, so the existing blocks have no per-item control either; (3) optionally, the gate-reason display below.
 
 **Already built for it:** `_observationGateExplain()` returns a human-readable drop reason per candidate ("already said 3 days ago on morning nudge", "restates task age") precisely so this surface can show *why* TODAY stayed quiet. A silent filter is untraceable when a surface unexpectedly says nothing.
 
@@ -325,6 +327,7 @@ What TODAY knows about you, made visible and clearable.
 | Sunday earned insight | v2.71.12 | 2026-09-06 | Open — does it reveal a real lever rather than paraphrasing the grid? Track abstentions as healthy. |
 | Obligation language tip | v2.77.20 | 2026-09-14 | Open — "Have to — or choosing to?" Does it land as a genuine moment of reflection, or does it feel like an interruption? Watch: dismissed immediately vs. paused on. Regex tightened v2.78.0: min 3 words + "should/must be [adj]" excluded. |
 | Observation pool — morning nudge + Sunday (12c Phase 4) | v2.82.0 | 2026-09-17 | Open — **restarted 2026-09-03 with eligibility.** Morning gets only today-hook kinds; Sunday gets every kind. Watch: does a morning pool line feel about *today*; does a Sunday line land as recognition; `spokenLines` entries carrying a `kind` show which surface spoke. Two weeks. Not one line. |
+| Memory panel — KNOWN + SAID record blocks (12d Phase A) | v2.82.4 (`fa4566b`, 2026-09-03) | 2026-09-17 | Open — does the record read as *yes, that's accurate* rather than feeling observed? And is it visited at all, given the panel's own discoverability finding above? A block nobody opens has no wallpaper problem and no value either. |
 
 ---
 

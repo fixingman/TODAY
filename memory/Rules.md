@@ -201,3 +201,8 @@ These areas are error-prone — always read the relevant file and double-check l
 | **A** (Major) | Breaking change, full redesign, data migration | 2.x.x → 3.0.0 |
 
 **Reset rule:** When BB bumps, reset CC to 0. When A bumps, reset both BB and CC to 0.
+
+## Parallel Sessions
+
+33. **Two sessions share this worktree; a clean-path check before editing is not enough.** Stage by explicit path, never `-A`. Before every commit, read `git diff --cached` for each shared file (`index.html`, `sw.js`, anything under `memory/`) and confirm every added line is yours — a foreign BUG number, a version you did not cut, a section you did not write means the other session edited the file between your check and your `git add`. If so, unstage and re-apply only your hunk. **An abort may only unstage.** Never `git checkout --` or `git restore` a working-tree file the other session may hold: that discards their uncommitted work, and the whole point of aborting was to leave it alone. If every version-carrying file is under the other session's active edit, do not bump — hand the changelog line to that session. *(Both failure modes happened on 2026-09-03; the second was recovered only because `git add` had already written the blob.)*
+

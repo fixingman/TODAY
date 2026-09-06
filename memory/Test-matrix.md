@@ -468,3 +468,13 @@ Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 an
 | 16.10 | Run `node scripts/dropbox-test.mjs` cadence case | Unchanged seven-second sync performs no Trello render; a day boundary and wake each reconcile once |
 
 *Last updated: v2.83.1 · Sep 2026*
+
+## 17. Observation pool, memory record, mailto builder (v2.80.x–v2.82.x)
+
+| # | Scenario | Expected |
+|---|---|---|
+| 17.1 | Run `node scripts/observation-pool-test.mjs` | Pure, no browser. Candidate kinds fire on seeded outcomes and stay silent below threshold; backfilled rows never produce `focus-vs-obligation`; unknown obligation is never counted as chosen; eligibility restricts the morning to today-hook kinds; novelty gate drops a kind inside its cross-surface cooldown and any age claim; explain returns a reason |
+| 17.2 | Run `node scripts/memory-panel-test.mjs` | KNOWN and SAID blocks render the record as plain facts (open items only, 30-day window, reconstruction caveat, newest first, both empty notes); full-clear wipes every companion slot, tombstones hypotheses, sets the watermark |
+| 17.3 | Run `node scripts/mailto-test.mjs` | Pure, no browser. `_mailtoDraftHref`: literal `@`, exact production form, 1900 cap with a body that decodes and is a prefix of the original, grapheme-safe trimming on emoji and ZWJ sequences, lone surrogates dropped not thrown, null inputs, the 20-grapheme floor from both sides |
+| 17.4 | `dropbox-test` merge cases (11b, 11c) | `taskOutcomes` / `spokenLines` / `obligationHistory` union, dedup, prune; clear watermark drops pre-clear rows in both directions and accepts same-day rows; hypothesis tombstones honoured |
+

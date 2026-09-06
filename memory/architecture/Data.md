@@ -169,10 +169,15 @@
   // 12c — dated outcome log (v2.80.0), the observation pool's only input
   taskOutcomes: [],                  // [{ id, date, outcome: 'done'|'letgo'|'soon_pull'|'revive', obligation: true|false|null, focusSessions, reason?, backfilled? }] — 90 days / 300 entries. No task text: id falls back to a djb2 hash of the text
   taskOutcomesBackfilled: boolean,   // one-time seed from recentCompletedTasks + dated letgo/revive day maps has run (v2.80.1)
+  // clear watermark (BUG-096, v2.82.1) — makes "clear all memory" survive sync
+  clearedAt: '',                     // ISO timestamp of the last full clear; max-wins across devices
+  clearedHypothesisIds: [],          // ids of AI hypotheses cleared locally — they carry no date, so the merge tombstones them by id (cap 300)
 }
 ```
 
 **12a/12c slots are additive; backup schema unchanged.** `taskOutcomes` is written by `_memoryRecordOutcome()` from `_memoryOnTaskComplete`, `_memoryOnTaskLetgo`, `_memoryOnSoonPull` and `_memoryOnRevive`, one record per task per outcome per day. Unknowns stay unknown: backfilled rows carry `backfilled: true` (focus sessions unknown) and let-go/revive rows from the backfill carry `obligation: null` (framing unknown); consumers partition on `=== true` / `=== false`, never truthiness. `spokenLines` is written by `_memoryRecordSpokenLine(surface, text, kind?)` from the morning nudge, focus question, Sunday reflection, week theme and Monday intention — never the assistant chat, which is user-initiated dialogue rather than the app's unprompted voice.
+
+**Clear watermark (BUG-096, v2.82.1).** `_memoryClearConfirm` wipes the 12a/12c slots and `recentConversations`, sets `clearedAt`, tombstones the cleared hypothesis ids, and pushes a backup. `_mergeAppMemory` adopts the max `clearedAt` across devices and drops rows dated before it in every dated-row union (`taskOutcomes`, `spokenLines`, `obligationHistory`, `moments`, `recentCompletedTasks`, `recentConversations`) on **both** sides, so a clear made on one device propagates rather than being undone. Rows carry a date-only field, so the compare is by day: a row from the clear's own day is accepted (documented edge, preferred over dropping fresh post-clear rows). `taskOutcomesBackfilled` stays true after a clear so the seed cannot resurrect what was just erased.
 
 `suggestionOutcomes` is additive inside the existing `appMemory` payload, so backup schema 5.4 does not change. Task text and the model's visible reason line are stored because they are needed to explain the offer and detect an explicit recreation of the original; both were already inside TODAY's local/synced task-memory boundary. “Clear all memory” removes outcomes, legacy suggestion history, and suggestion cooldowns. Outcome records are capped at 100 newest offers.
 
