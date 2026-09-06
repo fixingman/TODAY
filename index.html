@@ -655,6 +655,18 @@
     --color-accent-timer-paused: rgba(200,240,96,0.03);  /* timer fill when paused    */
     --color-accent-stat:         rgba(200,240,96,0.60);  /* accomplishment stats readout */
 
+    /* ── Isolated-document palette ──────────────────────────────
+       Focus/meeting PiP read these computed values before building their
+       separate documents. They cannot inherit the opener's custom properties. */
+    --color-art-muted:            #6b6b78;
+    --color-pip-muted:            rgba(255,255,255,0.50);
+    --color-pip-fill-bar:         rgba(200,240,96,0.20);
+    --color-pip-overlay:          rgba(14,14,16,0.85);
+    --color-pip-btn-bg:           rgba(200,240,96,0.15);
+    --color-pip-btn-border:       rgba(200,240,96,0.30);
+    --color-pip-btn-hover-bg:     rgba(200,240,96,0.25);
+    --color-pip-btn-hover-border: rgba(200,240,96,0.50);
+
     /* ── Color: Semantic ─────────────────────────────────────── */
     --color-danger:      #ff5f5f;   /* error / delete              */
     --color-danger-dim:  rgba(255,95,95,0.10);  /* danger bg tint  */
@@ -670,7 +682,6 @@
     --color-muted-dim:   rgba(107,107,120,0.12); /* muted bg tint  */
     --color-bg-glass:    rgba(14,14,16,0.92);    /* sticky header frosted bg */
     --color-overlay:     rgba(0,0,0,0.6);        /* modal backdrop */
-    --color-overlay-dim: rgba(0,0,0,0.45);       /* lighter backdrop (AI panel) */
     --color-breathe:     rgba(22,26,20,0.88);    /* focus breathe rest */
     --color-breathe-active: rgba(28,34,24,0.92); /* focus breathe active */
     --shadow-float:      0 8px 24px rgba(0,0,0,0.4); /* floating element shadow */
@@ -1429,6 +1440,7 @@
     width: 100%;
     max-width: 420px;
     max-height: 70vh;
+    overflow-x: hidden;
     overflow-y: auto;
     padding: var(--space-4);
     padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
@@ -2422,16 +2434,6 @@
     .mirror-char-new {
       animation: charBounce 120ms ease-out both;
     }
-  }
-
-  /* When AI panel is open, input bar transforms into chat mode */
-  body.ai-chat-open .add-task-input {
-    border-color: var(--accent);
-    background: var(--surface2);
-  }
-  body.ai-chat-open .add-task-input::placeholder {
-    color: var(--accent);
-    opacity: 0.6;
   }
 
 
@@ -3930,156 +3932,6 @@
     position: relative; top: -1px;
   }
 
-  #aiPanel {
-    position: fixed !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    top: auto !important;
-    z-index: 90;
-    padding: 0 !important;
-    margin: 0 !important;
-    max-width: none !important;
-    width: 100% !important;
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0 !important;
-    pointer-events: none;
-    overflow: visible !important;
-  }
-  #aiPanel.open {
-    display: block;
-    pointer-events: auto;
-    animation: none;
-  }
-  
-  /* Backdrop — dims page behind the panel; tap to close */
-  #aiBackdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 89;
-    background: var(--color-overlay-dim);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--dur-mid) ease-out;
-  }
-  #aiBackdrop.open {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  /* Chat container — slides up from bottom */
-  .ai-panel-body {
-    max-width: 680px;
-    margin: 0 auto;
-    padding: var(--space-5);
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-5));
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-bottom: none;
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    max-height: 45vh;
-    overflow-y: auto;
-    overscroll-behavior: none;
-    transform: translateY(100%);
-    opacity: 0;
-    transition: transform var(--dur-slow) var(--ease-spring), opacity var(--dur-mid) ease-out;
-    box-shadow: var(--shadow-triage);
-  }
-  #aiPanel.open .ai-panel-body {
-    transform: translateY(0);
-    opacity: 1;
-  }
-
-  /* Suggestion message */
-  .ai-suggestion-msg {
-    font-size: var(--text-md);
-    color: var(--text);
-    line-height: 1.7;
-    margin-bottom: var(--space-4);
-    min-height: 24px;
-  }
-  .ai-suggestion-msg.thinking {
-    color: var(--muted);
-  }
-  /* Ellipsis is a real span (.ai-thinking-dots) with a WAAPI blink — ::after
-     can't be animated via WAAPI and inline suppression never reached it anyway */
-
-  /* Action chips — horizontal scroll on mobile */
-  .ai-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    margin-bottom: var(--space-4);
-  }
-  .ai-chip {
-    padding: var(--space-2) var(--space-4);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-full);
-    background: var(--surface2);
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: var(--text-sm2);
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), transform var(--dur-fast);
-    white-space: nowrap;
-  }
-  .ai-chip:hover { color: var(--text); border-color: var(--muted); background: var(--border); }
-  .ai-chip:active { transform: scale(0.97); }
-  .ai-chip.primary {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--accent-dim);
-  }
-  .ai-chip.primary:hover { background: var(--accent-hover); }
-
-  /* One-time discoverability tip — shown on first panel open only */
-  .ai-bar-tip {
-    margin-top: var(--space-2);
-    font-size: var(--text-xs);
-    color: var(--muted);
-    opacity: var(--opacity-muted);
-    letter-spacing: 0.02em;
-  }
-
-  /* Natural language input row — shown after first chip interaction or typing */
-  .ai-nl-row {
-    display: flex;
-    gap: var(--space-2);
-    margin-top: var(--space-3);
-    padding-top: var(--space-3);
-    border-top: 1px solid var(--border);
-  }
-  .ai-nl-input {
-    flex: 1;
-    background: none;
-    border: none;
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: var(--text-md);
-    padding: 0;
-    outline: none;
-    -webkit-font-smoothing: antialiased;
-  }
-  .ai-nl-input::placeholder { color: var(--muted); }
-  .ai-nl-btn {
-    background: none;
-    border: none;
-    color: var(--muted);
-    font-size: var(--text-base);
-    cursor: pointer;
-    padding: 0 var(--space-1);
-    transition: color var(--dur-fast);
-  }
-  .ai-nl-btn:hover { color: var(--accent); }
-
-  .ai-not-configured {
-    font-size: var(--text-sm);
-    color: var(--muted);
-    line-height: 1.6;
-  }
-  .ai-not-configured a { color: var(--highlight-ui); text-decoration: none; }
 
   /* ── Accessibility: Reduced Motion ─────────────────────────────────── */
   /* Respect user preference for reduced motion — skip decorative animations */
@@ -4428,23 +4280,6 @@
   </div>
 </div>
 
-<!-- AI chat panel — slides up from bottom -->
-<div id="aiBackdrop" data-today-click="assistant.close" hidden aria-hidden="true"></div>
-<div class="config-panel" id="aiPanel" hidden aria-hidden="true">
-  <div class="ai-panel-body">
-    <div class="ai-suggestion-msg" id="aiSuggestionMsg"></div>
-    <div class="ai-chips" id="aiChips"></div>
-    <!-- Natural language input — for stuck mode / explicit requests -->
-    <div class="ai-nl-row" id="aiNlRow" style="display:none">
-      <label class="visually-hidden" for="aiNlInput">Ask TODAY</label>
-      <input class="ai-nl-input" id="aiNlInput" type="text" autocomplete="off"
-        placeholder="Tell me what's on your mind…"
-        data-today-keydown="assistant.ask-key" />
-      <button class="ai-nl-btn" type="button" aria-label="Send question" data-today-click="assistant.ask">→</button>
-    </div>
-    <div class="ai-bar-tip" id="aiBarTip" style="display:none">tip — focused tasks can ask one bounded question</div>
-  </div>
-</div>
 <div id="undoToast" role="region" aria-label="Undo removal" hidden aria-hidden="true">
   <div class="undo-main">
     <span id="undoMsg" role="status" aria-live="polite">Task removed</span>
@@ -4590,8 +4425,6 @@ let triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppD
 
 
 // ── NUDGE (morning AI banner, version/Sunday/habit badge nudges) — moved to assets/nudge.js
-
-let _aiBadgeShown = false;
 
 // ─── Memory System → assets/insights.js (Roadmap #3, sixth extraction) ─────
 // appMemory + _memoryOn* writers + _memoryForAI + proactive observations.
@@ -4778,15 +4611,11 @@ let habitEditMode     = false;
 
 // ── Bar submit logic ─────────────────────────────────────────────────────────
 // One task input. Enter always adds (fast, zero friction).
-// The legacy AI-sheet sender remains in assistant.js but has no input-bar trigger.
 function handleBarKey(e) {
-  if (e.key === 'Escape' && _aiPanelOpen) { Today.use('assistant').closeAI(); return; }
   if (e.key === 'Enter') addManual();
 }
 
 Today.ui.register('keydown', 'tasks.input-key', handleBarKey);
-
-let _aiPanelOpen = false; // declared here (not in the AI module) — init() needs it via _updateBarPlaceholder()
 
 // Keep the task-entry placeholder stable regardless of optional integrations.
 function _updateBarPlaceholder() {
@@ -4836,12 +4665,7 @@ window._startFocus();
 
 
 
-// ── AI ASSISTANT + AI POST-ADD ENHANCEMENT — moved to assets/assistant.js
-
-// Esc closes panel
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && _aiPanelOpen) Today.use('assistant').closeAI();
-});
+// ── AI POST-ADD ENHANCEMENT — moved to assets/assistant.js
 
 
 // ── FOCUS MODE (Pomodoro timer, PiP session, AI companion) — moved to assets/focus.js

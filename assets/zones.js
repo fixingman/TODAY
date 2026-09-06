@@ -310,6 +310,12 @@
       const task = pastTasks.find(t => t.id === id);
       if (!task || task.status === 'done') return;
 
+      // Remove the reason-row DOM node now so renderPast()'s sync-guard doesn't
+      // see it and bail — the guard blocks background renders during selection,
+      // but we're past selection and need the post-revive rebuild to run.
+      const reasonRow = document.querySelector('#pastList .past-revive-reasons');
+      if (reasonRow) reasonRow.remove();
+
       _reviveDiag('before');
 
       pastTasks = pastTasks.filter(t => t.id !== id);
