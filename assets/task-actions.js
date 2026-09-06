@@ -283,7 +283,7 @@ window._startTaskActions = (function() {
     // the same one the splash coda showed. Falls back to the plain lines if the corpus
     // is missing.
     function _poemEchoHTML() {
-      const poem = (typeof _poemOfTheDay === 'function') ? _poemOfTheDay() : null;
+      const poem = window.Today?.use('about')?._poemOfTheDay?.() ?? null;
       if (!poem) return null;
       return '<div class="empty-poem">' + _poemHTML(poem.text) + '</div>'
         + '<div class="poem-author">' + esc(poem.author) + '</div>';

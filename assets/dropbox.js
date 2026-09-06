@@ -1574,7 +1574,7 @@
         localStorage.setItem('week_theme_ai_' + _curWeekKey, data.week_theme_ai);
         _weekBlockSynced = true;
       }
-      if (_weekBlockSynced && $.infoPanel && $.infoPanel.classList.contains('open')) renderInfoStats();
+      if (_weekBlockSynced && $.infoPanel && $.infoPanel.classList.contains('open')) Today.use('about').renderInfoStats();
 
       // Full re-render if tasks were added or removed — surgical patch is not enough
       if (_changed) {
