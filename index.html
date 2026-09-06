@@ -822,20 +822,6 @@
     border: 0 !important;
   }
 
-  .skip-link {
-    position: fixed;
-    top: calc(env(safe-area-inset-top, 0px) + 8px);
-    left: 12px;
-    z-index: 10000;
-    padding: 8px 12px;
-    color: var(--text);
-    background: var(--surface2);
-    border: 1px solid var(--color-control-border-elevated);
-    border-radius: var(--radius-sm);
-    transform: translateY(calc(-100% - 20px));
-  }
-
-  .skip-link:focus { transform: translateY(0); }
 
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
     outline: 2px solid var(--accent);
@@ -3973,7 +3959,6 @@
 <div id="a11yPolite" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
 <div id="a11yAssertive" class="visually-hidden" role="alert" aria-live="assertive" aria-atomic="true"></div>
 <div id="reorderHelp" class="visually-hidden">Enter starts focus. Space changes completion. Option plus Up or Down Arrow moves this item.</div>
-<a class="skip-link" href="#main-app">Skip to tasks</a>
 <!-- Error indicator (dev aid) -->
 <button id="errorIndicator" type="button" data-count="0" data-today-click="errors.toggle" aria-label="Open error log" aria-controls="errorPanel" aria-expanded="false"></button>
 <div id="errorPanel" role="log" aria-live="polite" aria-label="Error log" hidden></div>
