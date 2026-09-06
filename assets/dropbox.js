@@ -1394,7 +1394,7 @@
         localStorage.setItem('stat_focus_mins_today', String(mergedFocusMins));
         localStorage.setItem('stat_focus_mins_date', _getAppDay());
         _changed = true;
-        if ($.infoPanel && $.infoPanel.classList.contains('open')) renderInfoStats();
+        if ($.infoPanel && $.infoPanel.classList.contains('open')) Today.use('about').renderInfoStats();
       }
       if (mergedStreak !== localStreak || mergedStreakDate !== localStreakDate) {
         localStorage.setItem('stat_streak', String(mergedStreak));
@@ -1541,7 +1541,7 @@
         localStorage.setItem(_aiNudgeKey, data.day_nudge_ai);
         if (typeof checkDayNudge === 'function') checkDayNudge();
         // About's Today block shows this line — refresh live if the panel is open
-        if ($.infoPanel && $.infoPanel.classList.contains('open')) renderInfoStats();
+        if ($.infoPanel && $.infoPanel.classList.contains('open')) Today.use('about').renderInfoStats();
       }
       // Sunday reflection / Monday intention: remote always wins, same reasoning as
       // day_nudge_ai — one device's generated text becomes the day's text everywhere
