@@ -16,10 +16,10 @@
 
 | # | Description | Status |
 |---|---|---|
-| 098 | Header shoved off the top when a task near the bottom enters focus — sticky inside a fixed body | ⏳ v2.82.4 |
-| 097 | Header date stays on yesterday when the app is open across midnight — written once at init | ⏳ v2.82.2 |
-| 096 | "Clear all memory" left the companion slots intact; next sync undid the rest — no clear watermark | ⏳ v2.82.1 |
-| 095 | Task, habit and Ask inputs saved to the browser autofill store — no `autocomplete="off"` | ⏳ v2.81.5 |
+| 098 | Header shoved off the top when a task near the bottom enters focus — sticky inside a fixed body | ✅ v2.82.4 |
+| 097 | Header date stays on yesterday when the app is open across midnight — written once at init | ✅ v2.82.2 |
+| 096 | "Clear all memory" left the companion slots intact; next sync undid the rest — no clear watermark | ✅ v2.82.1 |
+| 095 | Task, habit and Ask inputs saved to the browser autofill store — no `autocomplete="off"` | ✅ v2.81.5 |
 | 094 | "Undo" persists into the reflection step, reading as undoing the answer not the sorting | ✅ v2.80.6 |
 | 093 | ↩ and ↗ enrichment indicators flash on tap on mobile — hover rule unguarded | ✅ v2.80.5 |
 | 092 | Task cards don't age visually on mobile — desktop-only side effect of BUG-079 fix | ✅ v2.80.3 |
@@ -39,7 +39,7 @@
 | 074 | Shared `/poem.html` links crash in Netlify Edge Function before static page loads | ✅ v2.64.12 |
 | 073 | Focus Ask says “this late” without supplying the actual local time | ✅ v2.64.9 |
 | 072 | Triage flow never completes — “Let go” tapped but completion screen never appears | ✅ v2.61.6  |
-| 071 | App goes blank on wake/PWA background return while in focus mode (BUG-004/056 recurrence) | ⏳ v2.61.5  |
+| 071 | App goes blank on wake/PWA background return while in focus mode (BUG-004/056 recurrence) | ✅ v2.61.5  |
 | 070 | Undo toast reason chips unclickable on narrow screens | ✅ v2.61.4  |
 | 069 | Poem OG preview may show wrong poem for southern-hemisphere users | 🚫 Rejected  |
 | 068 | Trello card 🍅 session count resets every morning | ✅ v2.52.1  |
@@ -75,11 +75,15 @@ An iPhone 17e simulator running Mobile Safari 26.3 then passed 10 targeted check
 - External integrations: BUG-096 across two Dropbox devices, BUG-091 with real Gmail threads, and BUG-089 through the native Mail handoff.
 - BUG-061 remains stale and needs a fresh-device Sunday/habit badge check before deciding whether to close or reproduce it.
 
+## Verification batch — 2026-09-07
+
+Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. All five are now ✅. Remaining open from the 2026-09-04 batch: BUG-091 (real Gmail), BUG-089 (native Mail handoff), and BUG-061 (stale, Sunday/habit badge).
+
 ---
 
 ## BUG-098 — Header shoved off the top when a task near the bottom enters focus
 
-**Status:** ⏳ v2.82.4
+**Status:** ✅ v2.82.4 — verified 2026-09-07
 
 **Symptom:** Desktop. Clicking a task near the bottom of the list to enter focus makes the top nav slide up and away while the task moves into place — an awkward double motion. Tasks near the top don't show it.
 
@@ -93,7 +97,7 @@ An iPhone 17e simulator running Mobile Safari 26.3 then passed 10 targeted check
 
 ## BUG-097 — Header date stays on yesterday when the app is open across midnight
 
-**Status:** ⏳ v2.82.2
+**Status:** ✅ v2.82.2 — verified 2026-09-07
 
 **Symptom:** With the app open past midnight (common on desktop), tasks, habits and the nudge roll to the new day but the date under the TODAY logo keeps showing yesterday until a reload.
 
@@ -107,7 +111,7 @@ An iPhone 17e simulator running Mobile Safari 26.3 then passed 10 targeted check
 
 ## BUG-096 — "Clear all memory" left the companion slots intact, and the next sync undid the rest
 
-**Status:** ⏳ v2.82.1
+**Status:** ✅ v2.82.1 — verified 2026-09-07
 
 **Symptom:** Found while scoping 12d. Tapping *clear all memory* in the Memory panel wiped the AI hypotheses and the older pattern counters but left `returningTasks`, `taskOutcomes`, `obligationHistory`, `obligationLanguageTally`, `taskAgeBuckets`, `spokenLines` and `recentConversations` untouched — the most personal data in `appMemory`, including what the user has asked the AI. Worse: even the parts it did clear came back on the next Dropbox sync, because `_mergeAppMemory` unions every dated row and every hypothesis id from the remote copy with no notion of a clear having happened.
 
@@ -127,7 +131,7 @@ An iPhone 17e simulator running Mobile Safari 26.3 then passed 10 targeted check
 
 ## BUG-095 — Task, habit and Ask inputs are saved to the browser's autofill store
 
-**Status:** ⏳ v2.81.5
+**Status:** ✅ v2.81.5 — verified 2026-09-07
 
 **Symptom:** A bubble appears above the add-task bar showing previously typed text. Reported by Can with a screenshot: *"there is a strange tooltip on top of the task input bar what is this, never seen it."* It is Chrome's own form-autofill suggestion list — it renders *above* the field because the add bar is pinned to the bottom of the viewport, which is why it does not look like the usual dropdown. It only appears once the browser has stored entries for that field and the typed prefix matches, which is why it had not been seen before.
 
@@ -189,7 +193,7 @@ Two adjacent defects fixed in the same place:
 
 ## BUG-071 — App blank on wake / PWA background return during focus mode
 
-**Status:** ⏳ v2.61.5 (fix shipped — awaiting real-device verification)
+**Status:** ✅ v2.61.5 — verified 2026-09-07
 **Family:** BUG-004 → BUG-056 → BUG-071 (third recurrence)
 **File:** `index.html` — `_onWake`, `_forceRepaint`
 
