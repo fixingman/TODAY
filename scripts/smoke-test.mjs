@@ -489,7 +489,7 @@ try {
       gradient: getComputedStyle(tag).backgroundImage
     };
   });
-  if (tagHover.state !== 'interaction' || tagHover.arrival || !tagHover.interaction || tagHover.gradient !== tagArrival.gradient) {
+  if (tagHover.state !== 'interaction' || tagHover.arrival || !tagHover.interaction || !tagHover.gradient.includes(tagArrival.accentChannels)) {
     fail('tag hover shimmer does not reuse the stable arrival colour treatment');
   }
   ok('tag arrival and hover shimmers stay exclusive and colour-consistent');
