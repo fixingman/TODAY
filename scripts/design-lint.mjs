@@ -331,6 +331,36 @@ if (!styleBlocks.length) fail('no <style> blocks found — extraction regex may 
   }
 }
 
+// ── Check 9: innerHTML = with template interpolation but no esc() on same line ─
+// Catches the XSS-prone pattern: element.innerHTML = `...${raw}...` where raw
+// has not been passed through esc(). Empty-string clears and assignments that
+// already have esc() on the same line are excluded. The cap matches the audited
+// baseline; bump it only after manually verifying a new site is safe.
+{
+  const KNOWN_SAFE_CAP = 4;
+  const hits = [];
+  for (const unit of runtimeSources) {
+    const lines = unit.text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!/\.innerHTML\s*=/.test(line)) continue;
+      // Extract the RHS after the last = on this line
+      const eqIdx = line.lastIndexOf('=');
+      const rhs = line.slice(eqIdx + 1).trim();
+      if (!rhs || rhs === "''" || rhs === '""' || rhs === '``') continue;
+      if (line.includes('esc(')) continue;
+      if (!line.includes('${')) continue;
+      hits.push({ file: unit.name, line: i + 1, rhs: rhs.slice(0, 60) });
+    }
+  }
+  if (hits.length > KNOWN_SAFE_CAP) {
+    fail(`${hits.length} innerHTML assignments use template interpolation without esc() (cap ${KNOWN_SAFE_CAP}) — new sites must be audited:`);
+    for (const h of hits) console.error(`    ${h.file}:${h.line}: ${h.rhs}`);
+  } else {
+    ok(`innerHTML interpolation sites within audited cap (${hits.length}/${KNOWN_SAFE_CAP})`);
+  }
+}
+
 console.log('');
 if (failures) {
   console.error(`✗ DESIGN LINT FAILED — ${failures} check(s) failed${warnings ? `, ${warnings} warning(s)` : ''}`);
