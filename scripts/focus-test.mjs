@@ -183,6 +183,13 @@ try {
         () => document.querySelector('.focus-timer.open') !== null,
         { timeout: 3000 }
       );
+      // The CSS opacity recede transition takes 120ms; wait for it to settle
+      // before sampling — especially important on headless Linux where frame
+      // timing differs from macOS.
+      await page.waitForFunction(
+        () => parseFloat(getComputedStyle(document.getElementById('sticky-header')).opacity) < 0.2,
+        { timeout: 500 }
+      );
       const on = await page.evaluate(() => {
         const hdr = document.getElementById('sticky-header');
         const bar = document.getElementById('addTaskBar');

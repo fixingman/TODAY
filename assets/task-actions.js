@@ -73,7 +73,7 @@ window._startTaskActions = (function() {
               }, 1800);
             }
 
-            Today.use('about')._copyToClipboard(text, _showCopied);
+            _copyToClipboard(text, _showCopied);
           }
           return;
         }

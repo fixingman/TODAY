@@ -772,5 +772,6 @@
       Today.ui.register('click', 'about.toggle', toggleInfo);
       Today.ui.register('click', 'about.poem', _onPoemTap);
     }
+    window._copyToClipboard = _copyToClipboard;
   };
 })();

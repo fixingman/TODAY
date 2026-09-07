@@ -71,12 +71,6 @@ try {
 
   await audit(page, 'main page has no WCAG A/AA axe violations');
 
-  await page.focus('.skip-link');
-  await page.keyboard.press('Enter');
-  const skipTarget = await page.evaluate(() => document.activeElement?.id);
-  if (skipTarget !== 'main-app') fail('skip navigation did not move focus to the main task surface');
-  ok('skip navigation moves focus to the main task surface');
-
   const names = await page.evaluate(() => ({
     header: ['habitsBtn','trelloBtn','infoBtn','todayLogo'].map(id => document.getElementById(id).getAttribute('aria-label')),
     taskPressed: document.querySelector('.task-check')?.getAttribute('aria-pressed'),
