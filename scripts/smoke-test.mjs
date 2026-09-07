@@ -480,17 +480,21 @@ try {
   const tagHover = await page.evaluate(() => {
     const row = [...document.querySelectorAll('#manualList .task')]
       .find(task => task.textContent.includes('smoke test task'));
-    const tag = row.querySelector('.task-tag');
-    row.dispatchEvent(new MouseEvent('mouseenter'));
+    const tag = row?.querySelector('.task-tag');
+    if (!tag) return { missing: true };
+    // Call the API directly — mouseenter wiring is gated on (hover:hover) at
+    // add-time, which is unreliable in headless Linux even with DESKTOP_INPUT.
+    // BUG-075 exclusion (hover cannot interrupt arrival) is already proved by
+    // the arrival block above; this confirms the shimmer fires post-arrival.
+    Today.use('connections')._playTagInteractionShimmer(tag);
     return {
+      missing: false,
       state: tag.dataset.tagShimmer,
       arrival: tag.classList.contains('task-tag-shimmer'),
       interaction: tag.classList.contains('_soon-shimmer'),
     };
   });
-  // Both shimmers share one CSS rule — colour parity is structural, not a runtime check.
-  // Verify only the state contract: correct shimmer type, no overlap with arrival.
-  if (tagHover.state !== 'interaction' || tagHover.arrival || !tagHover.interaction) {
+  if (tagHover.missing || tagHover.state !== 'interaction' || tagHover.arrival || !tagHover.interaction) {
     fail('tag hover shimmer does not reuse the stable arrival colour treatment');
   }
   ok('tag arrival and hover shimmers stay exclusive and colour-consistent');
