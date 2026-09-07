@@ -2890,6 +2890,28 @@
   .week-label { font-size: var(--text-micro); color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 3px; }
   .week-summary { font-size: var(--text-base); color: var(--text); line-height: 1.5; }
   .week-summary.loading { color: var(--muted); font-style: italic; }
+  .week-summary.reactable { cursor: pointer; }
+  /* 12e — two-state reaction under a spoken line (v2.86.0). Collapsed until the
+     sentence is tapped or a button takes focus, so the surface stays a sentence.
+     Buttons are real buttons: keyboard reaches them through :focus-within. */
+  .nudge-react {
+    display: flex; gap: var(--space-4); align-items: center;
+    max-height: 0; opacity: 0; overflow: hidden;
+    transition: max-height var(--dur-fast), opacity var(--dur-fast), margin-top var(--dur-fast);
+  }
+  .nudge-react.open, .nudge-react:focus-within { max-height: 32px; opacity: 1; margin-top: 2px; }
+  .nudge-react-btn {
+    background: none; border: 0; padding: 6px 0; min-height: 28px;
+    font-family: var(--font-mono); font-size: var(--text-micro);
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); cursor: pointer;
+    transition: color var(--dur-fast);
+  }
+  .nudge-react-btn:hover, .nudge-react-btn:focus-visible { color: var(--text); }
+  .nudge-react-btn.on { color: var(--accent); }
+  .morning-nudge-react { display: none; padding: 0 var(--space-4); }
+  .morning-nudge-react.open { display: block; }
+  .morning-nudge-react .nudge-react { margin-top: 0; }
   .noticed-term { display: block; font-size: var(--text-xs); color: var(--muted); margin-bottom: 2px; }
   @keyframes _nudgeBlockIn {
     from { opacity: 0; transform: translateY(6px); }
@@ -4149,6 +4171,10 @@
   <!-- Unified morning nudge (v2.19.0) — one surface for carried-over tasks,
        Trello cards, and yesterday's review; leads with what matters most -->
   <button class="morning-nudge" id="dayNudge" type="button" aria-label="Dismiss morning summary"></button>
+  <!-- 12e (v2.86.0): two-state reaction to the morning line. Sibling, not child — the
+       strip is a button and buttons cannot nest. Filled by nudge.js only when today's
+       line is a spoken one; opened by the first tap on the strip. -->
+  <div class="morning-nudge-react" id="dayNudgeReact"></div>
 
   <!-- Trello section -->
   <div class="section" id="trelloSection">
@@ -4361,9 +4387,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.86.0':  'You can now tell TODAY whether a line landed. Tap the morning line, the Sunday or Monday line, or the Today line in About, and two quiet choices appear: landed, or not really. A kind of observation you mark as not really twice stops being offered. Your answer stays on your device and in your memory record; it is never sent anywhere.',
   '2.85.0':  'Sunday no longer reports completion statistics. The four number-shaped week notes (focus days versus other days, habit days, strong weekdays, busy bursts) are gone; Sunday now speaks only when it has something to say about your commitments, and otherwise stays quiet.',
   '2.84.1':  'The Sunday note about things you brought back and finished can now draw on the history you already have, instead of waiting six weeks for new events.',
-  '2.84.0':  'Sunday can now notice when the things you brought back from Past actually got finished — a sign that letting go is safe for you. The same-day "Brought back, and finished" note is gone; it only told you what you had just done.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

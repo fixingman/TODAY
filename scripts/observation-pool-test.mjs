@@ -432,6 +432,29 @@ test('an unknown kind gets the 14-day default cooldown', () =>
   _observationNoveltyGate([cand('some-future-kind')],
     { spokenLines: [said('some-future-kind', 13)], todayISO: TODAY }).length === 0);
 
+// 12e — the person's verdicts, stored on the lines
+const reacted = (kind, daysAgo, reaction, surface) => ({ ...said(kind, daysAgo, surface), reaction, reactedAt: ago(daysAgo) });
+
+test('12e: one missed reaction doubles the kind\'s cooldown (letgo-reason 21 → 42)', () =>
+  _observationNoveltyGate([cand('letgo-reason')],
+    { spokenLines: [reacted('letgo-reason', 30, 'missed')], todayISO: TODAY }).length === 0 &&
+  _observationNoveltyGate([cand('letgo-reason')],
+    { spokenLines: [reacted('letgo-reason', 43, 'missed')], todayISO: TODAY }).length === 1);
+
+test('12e: two missed reactions retire the kind, whatever the surfaces', () =>
+  _observationGateExplain(cand('letgo-reason'), { spokenLines: [
+    reacted('letgo-reason', 60, 'missed'),
+    reacted('letgo-reason', 90, 'missed', 'Sunday reflection'),
+  ], todayISO: TODAY }) === 'marked as not landing twice');
+
+test('12e: landed never blocks — recognition is not a reason to repeat', () =>
+  _observationNoveltyGate([cand('letgo-reason')],
+    { spokenLines: [reacted('letgo-reason', 25, 'landed'), reacted('letgo-reason', 50, 'landed')], todayISO: TODAY }).length === 1);
+
+test('12e: a miss on one kind does not touch another', () =>
+  _observationNoveltyGate([cand('soon-pullback')],
+    { spokenLines: [reacted('letgo-reason', 5, 'missed'), reacted('letgo-reason', 40, 'missed')], todayISO: TODAY }).length === 1);
+
 test('lines with no kind are ignored by the gate', () =>
   _observationNoveltyGate([cand('focus-vs-obligation')],
     { spokenLines: [{ surface: 'morning nudge', date: ago(1), text: 'an old untagged line' }], todayISO: TODAY }).length === 1);

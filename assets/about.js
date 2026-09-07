@@ -164,6 +164,50 @@
         }, { once: true });
       }
     }
+    // 12e — two-state reaction on a spoken line (v2.86.0). Hidden until the sentence
+    // is tapped, so the surface stays a sentence for anyone who never touches it.
+    // Renders nothing when there is no spokenLines entry for (surface, today): a
+    // rule-based fallback line was never "said" and has nothing to react to.
+    function _reactionHTML(surface) {
+      if (typeof _memoryLineFor !== 'function') return '';
+      const line = _memoryLineFor(surface, _localISO());
+      if (!line) return '';
+      const btn = (r, label) => '<button type="button" class="nudge-react-btn' + (line.reaction === r ? ' on' : '') + '"' +
+        ' data-react="' + r + '" data-surface="' + esc(surface) + '" aria-pressed="' + (line.reaction === r) + '">' + label + '</button>';
+      return '<div class="nudge-react' + (line.reaction ? ' open' : '') + '" role="group" aria-label="Did this land?">' +
+        btn('landed', 'landed') + btn('missed', 'not really') + '</div>';
+    }
+    // One delegated listener for every block in the panel. Tap the sentence to
+    // reveal; tap a state to record it (again to clear). The group stays open once
+    // a state is held so the mark is visible on the next open.
+    function _wireReactions(panel) {
+      if (!panel || panel._reactWired) return;
+      panel._reactWired = true;
+      panel.addEventListener('click', e => {
+        const btn = e.target.closest('.nudge-react-btn');
+        if (btn) {
+          const now = _memoryReactToLine(btn.dataset.surface, _localISO(), btn.dataset.react);
+          const group = btn.parentElement;
+          group.querySelectorAll('.nudge-react-btn').forEach(b => {
+            const on = b.dataset.react === now;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-pressed', String(on));
+          });
+          group.classList.toggle('open', true);
+          if (typeof _haptic === 'function') _haptic();
+          return;
+        }
+        const line = e.target.closest('.week-summary');
+        if (!line) return;
+        const group = line.parentElement && line.parentElement.querySelector('.nudge-react');
+        if (group) group.classList.toggle('open');
+      });
+    }
+    function _summaryHTML(text, surface) {
+      const react = _reactionHTML(surface);
+      return '<div class="week-summary' + (react ? ' reactable' : '') + '">' + esc(text) + '</div>' + react;
+    }
+
     // Animate an element's text landing in place (async resolve — "reflecting…" → real content).
     function _nudgeTextResolve(el) {
       el.classList.remove('_nudge-text-resolving');
@@ -174,6 +218,7 @@
 
     function renderInfoStats() {
       let _nudgeStagger = 0; // increments per visible block for staggered entrance
+      _wireReactions($.infoPanel || document.getElementById('infoPanel'));
       // Pull stats from localStorage
       const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
       const streak = parseInt(localStorage.getItem('stat_streak') || '1');
@@ -339,10 +384,11 @@
             localStorage.setItem(_weekPolicyKey, WEEK_REFLECTION_POLICY);
             _cached = null;
           }
+          const _weekSurface = _isSun ? 'Sunday reflection' : 'Monday intention';
           if (_cached) {
             _sundayBlock.innerHTML =
               '<div class="week-label">' + _weekLabel + '</div>' +
-              '<div class="week-summary">' + esc(_cached) + '</div>';
+              _summaryHTML(_cached, _weekSurface);
           } else if (_isSun && _weekPolicyCurrent && !_weekInsight) {
             // Policy current but no evidence yet — hide without permanent block
             // so evidence accumulating during the day can still trigger a fetch.
@@ -370,7 +416,11 @@
                 localStorage.setItem(_cacheKey, text);
                 _pruneLS(_isSun ? 'week_reflection_' : 'monday_intention_', _cacheKey);
                 const el = _sundayBlock.querySelector('.week-summary');
-                if (el) { el.textContent = text; el.classList.remove('loading'); _nudgeTextResolve(el); }
+                if (el) {
+                  el.textContent = text; el.classList.remove('loading'); _nudgeTextResolve(el);
+                  const react = _reactionHTML(_weekSurface);
+                  if (react) { el.classList.add('reactable'); el.insertAdjacentHTML('afterend', react); }
+                }
               } else {
                 _sundayBlock.style.display = 'none';
               }
@@ -416,7 +466,7 @@
         if (_dayLine) {
           _nudgeBlock.innerHTML =
             '<div class="week-label">Today</div>' +
-            '<div class="week-summary">' + esc(_dayLine) + '</div>';
+            _summaryHTML(_dayLine, 'morning nudge');
           _nudgeBlockShow(_nudgeBlock, _nudgeStagger++ * 60);
         } else {
           _nudgeBlock.style.display = 'none';
@@ -769,6 +819,7 @@
         renderInfoStats,
         _fetchWeekReflection,
         _pickSundayInsight,
+        _reactionHTML,
       });
       Today.ui.register('click', 'about.toggle', toggleInfo);
       Today.ui.register('click', 'about.poem', _onPoemTap);

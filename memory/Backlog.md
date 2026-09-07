@@ -33,6 +33,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 | 11 | **Task agent — enrichment at add-time** | Stages 1 & 2 shipped; Stage 3 next | External context enrichment (Gmail, web search, soon: contacts, calendar, Trello). Distinct from companion arc — enriches the task, not understanding of you. Detail ↓ |
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
+| 12e | **Companion — reactions** | **Shipped v2.86.0** | Two-state verdict on every spoken line (*landed* / *not really*), the usefulness gate with the person as judge. Feeds `_observationGateExplain`: one miss doubles a kind's cooldown, two retire it. Not on Noticed or the focus question. Detail ↓ |
 | 12d | **Companion — memory surface** | Phase A shipped (in v2.82.4); **Phase B next** | "What TODAY knows about you" — the *data itself* (returning tasks, outcomes, obligation history), shown plainly and clearable, in the Memory panel. Distinct from the panel's AI hypotheses, which have their own open finding (Watching). Requires 12c to have observations worth showing. Detail ↓ |
 | — | **WEEK companion** | Gated | Gate is now: *12c is working and feels like a companion, not a feature.* Data accumulation is necessary but not sufficient. Detail ↓ |
 | 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 130 reviewed poems (2026-09-02). Detail ↓ |
@@ -230,7 +231,7 @@ Can: it read as a month insight on a surface that had been about today; the regi
 2. **`letgo-reason` stated one thing twice** — its contrast restated its evidence. Now the evidence carries the base rate (*"You let go of 9 of the 60 things that ended this month"*) so the count reads as a share, and the contrast is the reasons that did **not** dominate (*"Energy, interest and replacement barely figured"*) — a real second side. Note the 9 was cleaner than it looked: the kind requires a chosen reason, so quick deletes and Edit-to-rewrite are excluded.
 3. **`taskTexts` had no caller.** The parallel `letgo-return` work (v2.81.3) added the parameter so the loop could be named while the task is on the list, but the consumer had been removed under it. `_memoryTaskTexts()` in `insights.js` now builds the id→text map from the live lists for both consumers.
 
-**Still owed — the usefulness gate.** Three gates are code: evidence, novelty, single-reading. Usefulness was treated as an editorial decision about which kinds exist, not a per-candidate test, so nothing asks *does knowing this change what I do?* Owed before the pool reaches a third surface.
+**~~Still owed — the usefulness gate.~~ Resolved by 12e (v2.86.0).** Three gates are code: evidence, novelty, single-reading. Usefulness was treated as an editorial decision about which kinds exist, not a per-candidate test, so nothing asked *does knowing this change what I do?* The second sample settled how: it cannot be code, because only the person can answer it. The person's reaction is the gate — see 12e below.
 
 **Filed separately, not as a block:** Can does not visit the Memory panel and finds most of its AI hypotheses uninteresting. That is the overdue *Memory panel quality gate* verdict — a finding about generated hypotheses, not about the pool and not about 12d's plain data view. Watching row below.
 
@@ -293,6 +294,20 @@ What TODAY knows about you, made visible and clearable.
 
 ---
 
+#### 12e · Reactions — shipped v2.86.0
+
+**The usefulness gate, with the person as judge.** Every spoken line can carry a two-state verdict: *landed* or *not really*. Tap the sentence and the two states appear beneath it; tap one to record, tap it again to clear. Nothing shows for anyone who never touches the line — the surface stays a sentence.
+
+**Where it lives:** the Sunday, Monday and Today blocks in About (`_summaryHTML` / `_reactionHTML`, one delegated listener on the panel), and the morning strip. The strip is a `<button>` and buttons cannot nest, so its states live in a sibling `#dayNudgeReact`: the first tap opens them instead of dismissing, a state records and dismisses, a second tap on the sentence dismisses without a verdict. **Not wired:** Noticed (rule-based, several lines a day, no `spokenLines` entry to hang a verdict on) and the focus question. A control renders only when a `spokenLines` entry exists for that surface today; a rule-based fallback line was never said and gets none.
+
+**What it serves as.** (1) A verdict record — the Phase 4 verdict stops being reconstructed from conversation; each reaction sits on the line, with its kind, visible in the Memory panel's SAID block. (2) A gate the pool reads — `_observationGateExplain` doubles a kind's cooldown after one miss and retires it (`marked as not landing twice`) after two; *landed* never blocks, recognition is not a reason to repeat. (3) Continuous evidence for the Watching table. It never reaches the model: it changes which observations are chosen, not how they are phrased.
+
+**Decided with Can 2026-09-07:** yes to a control on the reading surfaces, as a tap that reveals two states — not a visible rating, not a form. Stored on the `spokenLines` entry (`reaction`, `reactedAt`), cleared with the lines by "clear all memory", newest `reactedAt` wins a sync collision. Reactions age out with the 30-day spokenLines window, so a retired kind can return after a quiet month — deliberate; a permanent kill-list would need its own surface to undo.
+
+**Tests:** `observation-pool-test` (gate, 84), `insights-test` 6e (setter), `about-test` 13b (About blocks), `nudge-test` 6b (strip), `dropbox-test` (merge).
+
+---
+
 ### WEEK — Companion Surface *(gated)*
 
 **Vision (revised Aug 2026):** not a planning tool — a longitudinal companion surface. The same relational awareness as 12a–12d, extended to a weekly rhythm. TODAY = the daily moment; WEEK = the accumulated pattern.
@@ -334,7 +349,7 @@ What TODAY knows about you, made visible and clearable.
 | Season moments — solar term label | v2.71.0 | 2026-09-05 | Open — does `処暑 · End of Heat` feel like context or noise after a few appearances? Hemisphere localization added in v2.81.4 so the term and observation now match the viewer's local season. |
 | Sunday earned insight | v2.71.12 | 2026-09-06 | Open — does it reveal a real lever rather than paraphrasing the grid? Track abstentions as healthy. |
 | Obligation language tip | v2.77.20 | 2026-09-14 | Open — "Have to — or choosing to?" Does it land as a genuine moment of reflection, or does it feel like an interruption? Watch: dismissed immediately vs. paused on. Regex tightened v2.78.0: min 3 words + "should/must be [adj]" excluded. |
-| Observation pool — morning nudge + Sunday (12c Phase 4) | v2.82.0 | 2026-09-17 | Open — **restarted 2026-09-03 with eligibility.** Morning gets only today-hook kinds; Sunday gets every outcome kind (statistical week kinds retired 2026-09-07 after sample 2). Watch: does a morning pool line feel about *today*; does a Sunday line land as recognition; `spokenLines` entries carrying a `kind` show which surface spoke. Two weeks. Not one line. |
+| Observation pool — morning nudge + Sunday (12c Phase 4) | v2.82.0 | 2026-09-17 | Open — **restarted 2026-09-03 with eligibility.** Morning gets only today-hook kinds; Sunday gets every outcome kind (statistical week kinds retired 2026-09-07 after sample 2). **From v2.86.0 the verdict channel is the reaction on the line** — read `spokenLines` entries with `reaction` at verdict time instead of reconstructing from chat. Watch: does a morning pool line feel about *today*; does a Sunday line land as recognition; `spokenLines` entries carrying a `kind` show which surface spoke. Two weeks. Not one line. |
 | Memory panel — KNOWN + SAID record blocks (12d Phase A) | v2.82.4 (`fa4566b`, 2026-09-03) | 2026-09-17 | Open — does the record read as *yes, that's accurate* rather than feeling observed? And is it visited at all, given the panel's own discoverability finding above? A block nobody opens has no wallpaper problem and no value either. |
 
 ---

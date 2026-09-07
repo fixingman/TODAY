@@ -360,6 +360,24 @@ function _memoryRecordSpokenLine(surface, text, kind) {
   _saveMemory();
 }
 
+// 12e — the person's verdict on a line, stored on the line itself (v2.86.0).
+// Two states, `landed` or `missed`; the same state again clears it. This is the
+// usefulness gate: code can test evidence and novelty, only the person can say
+// whether a line meant anything. Never sent to the model — read by
+// _observationGateExplain so a kind marked as missed is offered less, then not at all.
+function _memoryLineFor(surface, date) {
+  return (appMemory.spokenLines || []).find(l => l && l.surface === surface && l.date === date) || null;
+}
+function _memoryReactToLine(surface, date, reaction) {
+  const entry = _memoryLineFor(surface, date);
+  if (!entry) return null;
+  const next = (reaction === 'landed' || reaction === 'missed') ? reaction : null;
+  if (!next || entry.reaction === next) { delete entry.reaction; delete entry.reactedAt; }
+  else { entry.reaction = next; entry.reactedAt = _localISO(); }
+  _saveMemory();
+  return entry.reaction || null;
+}
+
 // 12c Phase 0 — dated record of how each task ended.
 //
 // Why events and not conclusions: `design/Personalization.md` says store conclusions, not

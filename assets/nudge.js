@@ -158,14 +158,44 @@ window._startNudge = (function() {
           nudgeEl.classList.add('show');
           requestAnimationFrame(() => nudgeEl.classList.add('visible'));
         }
-        nudgeEl.onclick = () => {
+        const _dismiss = () => {
           nudgeEl.classList.remove('visible');
           setTimeout(() => nudgeEl.classList.remove('show'), 300);
+          if (reactEl) reactEl.classList.remove('open');
           // Prune stale dismiss flags from prior days, then set today's. (BUG-040)
           _pruneLS('day_nudge_dismissed_', _dismissKey);
           localStorage.setItem(_dismissKey, '1');
           localStorage.removeItem('morning_nudge_count');
           localStorage.removeItem('today_day_review');
+        };
+        // 12e (v2.86.0): when today's line is a spoken one, the first tap reveals the
+        // two states in the sibling strip instead of dismissing; a state records and
+        // dismisses; tapping the sentence again dismisses without a verdict. The strip
+        // is a <button>, so the states live in a sibling — never nested buttons.
+        const reactEl = document.getElementById('dayNudgeReact');
+        const spokenToday = isAI && typeof _memoryLineFor === 'function'
+          ? _memoryLineFor('morning nudge', _localISO()) : null;
+        if (reactEl) {
+          reactEl.classList.remove('open');
+          reactEl.innerHTML = '';
+          if (spokenToday) {
+            const btn = (r, label) => `<button type="button" class="nudge-react-btn${spokenToday.reaction === r ? ' on' : ''}" data-react="${r}" aria-pressed="${spokenToday.reaction === r}">${label}</button>`;
+            reactEl.innerHTML = `<div class="nudge-react open" role="group" aria-label="Did this land?">${btn('landed', 'landed')}${btn('missed', 'not really')}</div>`;
+            reactEl.onclick = e => {
+              const b = e.target.closest('.nudge-react-btn');
+              if (!b) return;
+              if (typeof _memoryReactToLine === 'function') _memoryReactToLine('morning nudge', _localISO(), b.dataset.react);
+              if (typeof _haptic === 'function') _haptic();
+              _dismiss();
+            };
+          }
+        }
+        nudgeEl.onclick = () => {
+          if (spokenToday && reactEl && !reactEl.classList.contains('open')) {
+            reactEl.classList.add('open');
+            return;
+          }
+          _dismiss();
         };
       };
 

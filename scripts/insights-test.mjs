@@ -495,6 +495,30 @@ try {
     await page.close();
   }
 
+  // 6e. 12e reactions live on the line: stored with the day, switched, cleared on
+  //     repeat, null for a line that was never said, persisted to today_memory.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      appMemory.spokenLines = [];
+      _memoryRecordSpokenLine('Sunday reflection', 'a line', 'letgo-reason');
+      const today = _localISO();
+      const line = () => appMemory.spokenLines.find(l => l.surface === 'Sunday reflection');
+      const first = _memoryReactToLine('Sunday reflection', today, 'missed') === 'missed';
+      const stored = line().reaction === 'missed' && line().reactedAt === today;
+      const switched = _memoryReactToLine('Sunday reflection', today, 'landed') === 'landed';
+      const cleared = _memoryReactToLine('Sunday reflection', today, 'landed') === null && !('reaction' in line());
+      const unknownLine = _memoryReactToLine('morning nudge', today, 'landed') === null;
+      const badValue = _memoryReactToLine('Sunday reflection', today, 'meh') === null;
+      _memoryReactToLine('Sunday reflection', today, 'missed');
+      const persisted = JSON.parse(localStorage.getItem('today_memory')).spokenLines[0].reaction === 'missed';
+      return { first, stored, switched, cleared, unknownLine, badValue, persisted };
+    });
+    await expectAll('spokenLines reaction', { ...result, noErrors: errors.length === 0 });
+    ok('_memoryReactToLine: stores with day, switches, clears on repeat, ignores unknown lines and values, persists');
+    await page.close();
+  }
+
   // 7. _memoryOnStreakUpdate — updates bestStreak and records streak_milestone moment.
   {
     const { page, errors } = await openPage({

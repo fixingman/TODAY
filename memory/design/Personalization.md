@@ -48,6 +48,8 @@ The 12c pool shipped with three of its four gates implemented as code and the fo
 
 **Corollary, learned the same day:** when a line lands badly, check placement and usefulness before touching the prompt. Rewriting the sentence cannot fix an observation that belongs on another surface or that leads nowhere.
 
+**Resolved 2026-09-07 (v2.86.0): the usefulness gate is the person.** The second Phase 4 sample (a completions-per-day line on Sunday) passed evidence, novelty and single-reading and was, in Can's words, absolutely useless. Code can test the properties of the data; only the person can say whether a line meant anything. So the gate is a two-state reaction on every spoken line — *landed* / *not really* — stored on the line and read by `_observationGateExplain`: one miss doubles a kind's cooldown, two retire it. The reaction shapes which observations are chosen; it never reaches the model and never changes phrasing. What code still does before speaking is the structural half: every surviving kind must point at a lever the person could pull, which the statistical kinds never did.
+
 ### Writing the instruction — rules earned the hard way (2026-09)
 
 These come from the 12b failure and the production bugs that followed. They apply to any surface where a model is given evidence and asked to phrase it.

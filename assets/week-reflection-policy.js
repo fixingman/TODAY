@@ -288,11 +288,20 @@
       return 'restates task age, which triage already prints';
     }
 
-    const cooldown = Object.prototype.hasOwnProperty.call(_KIND_COOLDOWN_DAYS, candidate.kind)
-      ? _KIND_COOLDOWN_DAYS[candidate.kind]
-      : _DEFAULT_COOLDOWN_DAYS;
+    const spoken = Array.isArray(k.spokenLines) ? k.spokenLines : [];
 
-    for (const line of (Array.isArray(k.spokenLines) ? k.spokenLines : [])) {
+    // 12e — the person's own verdicts, recorded on the lines (v2.86.0). One `missed`
+    // doubles the kind's cooldown; two retire it until memory is cleared or the
+    // reactions age out of the 30-day window. `landed` never blocks: recognition is
+    // not a reason to repeat.
+    const misses = spoken.filter(l => l && l.kind === candidate.kind && l.reaction === 'missed').length;
+    if (misses >= 2) return 'marked as not landing twice';
+
+    const cooldown = (Object.prototype.hasOwnProperty.call(_KIND_COOLDOWN_DAYS, candidate.kind)
+      ? _KIND_COOLDOWN_DAYS[candidate.kind]
+      : _DEFAULT_COOLDOWN_DAYS) * (misses ? 2 : 1);
+
+    for (const line of spoken) {
       if (!line || !line.date || line.kind !== candidate.kind) continue;
       const age = _daysBetweenISO(line.date, today);
       if (age >= 0 && age < cooldown) {

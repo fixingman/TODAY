@@ -316,8 +316,9 @@ try {
           ],
           spokenLines: [
             // same surface+day as local — one entry per surface per day
-            { surface: 'morning nudge', date: iso(now), text: 'remote line', kind: 'focus-vs-obligation' },
-            { surface: 'Sunday reflection', date: iso(now - 1 * D), text: 'sunday line', kind: 'habit-alignment' },
+            // …but it carries a reaction the other device tapped, which must win (12e)
+            { surface: 'morning nudge', date: iso(now), text: 'remote line', kind: 'focus-vs-obligation', reaction: 'missed', reactedAt: iso(now) },
+            { surface: 'Sunday reflection', date: iso(now - 1 * D), text: 'sunday line', kind: 'obligation-completion' },
           ],
           obligationHistory: [
             // same entry, but the other device saw it completed — done must win
@@ -342,6 +343,8 @@ try {
           appMemory.spokenLines.filter(l => l.surface === 'morning nudge' && l.date === iso(now)).length === 1,
         spokenRemoteSurfaceMerged: appMemory.spokenLines.some(l => l.surface === 'Sunday reflection'),
         spokenKindPreserved: appMemory.spokenLines.every(l => typeof l.kind === 'string'),
+        spokenReactionMergedIn:
+          appMemory.spokenLines.find(l => l.surface === 'morning nudge' && l.date === iso(now))?.reaction === 'missed',
         obligationDoneFlagOred: insurance && insurance.done === true,
         obligationRemoteOnlyMerged: oblig.some(e => e.text === 'should email landlord'),
         obligationNotDoubled: oblig.filter(e => e.text === 'call insurance').length === 1,

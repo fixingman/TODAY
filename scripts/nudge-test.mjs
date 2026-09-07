@@ -249,6 +249,43 @@ try {
       await page.close();
     }
 
+    // 6b. 12e: when today's line was spoken (a spokenLines entry exists), the first
+    //     tap reveals the two states instead of dismissing; choosing one records the
+    //     reaction on the line and dismisses the strip.
+    {
+      // No cache at init, so init() renders nothing; the line is recorded through
+      // the app's own recorder (a partial today_memory seed would strip the other
+      // slots' defaults), then checkDayNudge renders from cache as a spoken line.
+      const { page, errors } = await openPage({ skipDismiss: true });
+      await page.evaluate(() => {
+        localStorage.setItem('day_nudge_ai_' + _localISO(), 'A spoken line.');
+        _memoryRecordSpokenLine('morning nudge', 'A spoken line.', 'letgo-return');
+        checkDayNudge(false);
+      });
+      await page.waitForFunction(
+        () => document.getElementById('dayNudge')?.classList.contains('visible'),
+        { timeout: 5000 }
+      );
+      await page.click('#dayNudge');
+      await new Promise(r => setTimeout(r, 120));
+      const afterFirst = await page.evaluate(() => ({
+        stillVisible:  document.getElementById('dayNudge').classList.contains('visible'),
+        revealed:      document.getElementById('dayNudgeReact').classList.contains('open'),
+        notDismissed:  !localStorage.getItem('day_nudge_dismissed_' + _localISO()),
+      }));
+      await page.click('#dayNudgeReact [data-react="missed"]');
+      await new Promise(r => setTimeout(r, 450));
+      const afterChoice = await page.evaluate(() => ({
+        recorded:  appMemory.spokenLines.find(l => l.surface === 'morning nudge')?.reaction === 'missed',
+        dismissed: !!localStorage.getItem('day_nudge_dismissed_' + _localISO()),
+        hidden:    !document.getElementById('dayNudge').classList.contains('visible')
+                && !document.getElementById('dayNudgeReact').classList.contains('open'),
+      }));
+      await expectAll('nudge reaction', { ...afterFirst, ...afterChoice, noErrors: errors.length === 0 });
+      ok('checkDayNudge: a spoken line reveals two states on first tap; a state records and dismisses');
+      await page.close();
+    }
+
     // 7. Already dismissed → nudge stays hidden on subsequent checkDayNudge() calls.
     {
       const { page, errors } = await openPage({

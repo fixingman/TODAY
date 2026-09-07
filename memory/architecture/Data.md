@@ -165,7 +165,7 @@
   obligationLanguageTally: { week, count, completed, tasks: [] },  // this week's obligation-framed tasks; resets Monday
   obligationHistory: [],             // [{ text, date, done }] — 90-day log of obligation-framed tasks; re-validated against the current detector on load. `date` is the ADD date, not an outcome date
   taskAgeBuckets: { d1to3, d4to6, d7to13, d14plus },
-  spokenLines: [],                   // [{ surface, date, text, kind? }] — what TODAY said on its own initiative; 30 days, one per surface per day, cap 120 (v2.79.0; `kind` + cap 30→120 v2.80.0)
+  spokenLines: [],                   // [{ surface, date, text, kind?, reaction?, reactedAt? }] — what TODAY said on its own initiative; 30 days, one per surface per day, cap 120 (v2.79.0; `kind` + cap 30→120 v2.80.0; `reaction` 'landed'|'missed' + `reactedAt` v2.86.0 — the person's verdict, set by `_memoryReactToLine`, never sent to the model)
   // 12c — dated outcome log (v2.80.0), the observation pool's only input
   taskOutcomes: [],                  // [{ id, date, outcome: 'done'|'letgo'|'soon_pull'|'revive', obligation: true|false|null, focusSessions, reason?, backfilled?, key? }] — 90 days / 300 entries. No task text: id falls back to a djb2 hash of the text; `key` (v2.84.0) is that hash on every row, so done rows (keyed by live id) link to let-go/revive rows (keyed by hash); `_memoryStampOutcomeKeys()` (v2.84.1) back-fills it on older rows wherever the text is still resolvable, at the pool call sites rather than page load
   taskOutcomesBackfilled: boolean,   // one-time seed from recentCompletedTasks + dated letgo/revive day maps has run (v2.80.1)

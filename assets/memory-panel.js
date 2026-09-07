@@ -349,7 +349,8 @@
 
       const saidItems = (m.spokenLines || []).filter(l => l && l.text).slice(-5).reverse().map(l => ({
         text: `${_fmtDay(l.date)} · ${l.surface || 'unknown surface'}` +
-          (l.kind ? ` · ${String(l.kind).replace(/-/g, ' ')}` : '') + ` — ${l.text}`,
+          (l.kind ? ` · ${String(l.kind).replace(/-/g, ' ')}` : '') + ` — ${l.text}` +
+          (l.reaction ? ` — you said: ${l.reaction === 'landed' ? 'landed' : 'not really'}` : ''),
       }));
 
       el.innerHTML =

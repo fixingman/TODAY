@@ -476,6 +476,45 @@ try {
     await page.close();
   }
 
+  // 13b. 12e reaction on a spoken Sunday line: collapsed until the sentence is
+  //      tapped, a state records to the spokenLines entry, a repeat clears it. The
+  //      Today block, with no spoken line behind it, gets no control at all.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const today = _localISO();
+      const said = 'The things you call musts are the ones that stay open.';
+      localStorage.setItem('week_reflection_' + today, said);
+      localStorage.setItem('week_policy_' + today, _weekReflectionPolicy);
+      localStorage.setItem('day_nudge_ai_' + today, 'A rule line nobody recorded.');
+      appMemory.spokenLines = [{ surface: 'Sunday reflection', date: today, text: said, kind: 'obligation-completion' }];
+      const orig = Date.prototype.getDay;
+      Date.prototype.getDay = () => 0;
+      Today.use('about').renderInfoStats();
+      Date.prototype.getDay = orig;
+      const block = document.getElementById('sundayBlock');
+      const group = block.querySelector('.nudge-react');
+      const collapsedAtFirst = !!group && !group.classList.contains('open');
+      block.querySelector('.week-summary').click();
+      const revealed = !!group && group.classList.contains('open');
+      block.querySelector('[data-react="missed"]').click();
+      const line = () => appMemory.spokenLines[0];
+      const recorded = line().reaction === 'missed'
+        && block.querySelector('[data-react="missed"]').getAttribute('aria-pressed') === 'true'
+        && block.querySelector('[data-react="landed"]').getAttribute('aria-pressed') === 'false';
+      block.querySelector('[data-react="missed"]').click();
+      const cleared = !line().reaction;
+      const todayBlock = document.getElementById('todayNudgeBlock');
+      return {
+        collapsedAtFirst, revealed, recorded, cleared,
+        noControlWithoutSpokenLine: !!todayBlock.querySelector('.week-summary') && !todayBlock.querySelector('.nudge-react'),
+      };
+    });
+    await expectAll('Sunday reaction', { ...result, noErrors: errors.length === 0 });
+    ok('Sunday reflection: tap reveals two states; a state records to the line; repeat clears; unspoken lines get none');
+    await page.close();
+  }
+
   // 14. Static wiring checks.
   {
     const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
