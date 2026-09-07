@@ -55,7 +55,9 @@
           ? items.map(item => `<div class="memory-item">` +
                 (item.isNew ? `<span class="memory-item-new"></span>` : '') +
                 `<span class="memory-item-text">${esc(item.text)}</span>` +
-                (item.action ? `<button type="button" class="memory-item-btn" data-today-click="${item.action.click}" data-kind="${esc(item.action.kind)}">${esc(item.action.label)}</button>` : '') +
+                // Action name is a literal, not a variable: component-contract-test
+                // reads data-today-click values from source to match registrations.
+                (item.action ? `<button type="button" class="memory-item-btn" data-today-click="memory.kind-restore" data-kind="${esc(item.action.kind)}">${esc(item.action.label)}</button>` : '') +
                 `</div>`
             ).join('')
           : pendingNote
@@ -362,7 +364,7 @@
         .sort((a, b) => String(b[1].retired).localeCompare(String(a[1].retired)))
         .map(([kind, v]) => ({
           text: `${String(kind).replace(/-/g, ' ')} — retired ${_fmtDay(v.retired)}, after ${v.missed} "not really"`,
-          action: { label: 'bring back', click: 'memory.kind-restore', kind },
+          action: { label: 'bring back', kind },
         }));
 
       el.innerHTML =
