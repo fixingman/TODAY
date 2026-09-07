@@ -5,7 +5,7 @@
   // Bumps when the evidence contract for the Sunday sentence changes. The dated
   // companion key prevents a previously cached, less-grounded line from surviving
   // a policy change or being restored by an older Dropbox backup.
-  const WEEK_REFLECTION_POLICY = 'earned-v1';
+  const WEEK_REFLECTION_POLICY = 'earned-v2';
   window._weekReflectionPolicy = WEEK_REFLECTION_POLICY;
   let started = false;
   window._startAbout = function() {
@@ -321,8 +321,8 @@
           // own forward-looking task context and ignores this object.
           const _week  = _days.filter(d => d.tasks !== null);
           const _reflectionStats = { days: _week, history: _history };
-          // 12c: Sunday draws from the full observation pool — the week-shaped kinds
-          // plus the 30-day outcome kinds — through eligibility and the novelty gate.
+          // 12c: Sunday draws from the observation pool — outcome kinds only, since
+          // v2.85.0 — through eligibility and the novelty gate.
           // Same { kind, evidence, contrast } shape _fetchWeekReflection already reads.
           const _weekInsight = _isSun ? _pickSundayInsight(_reflectionStats) : null;
 
@@ -480,10 +480,11 @@
        || typeof _observationEligibleFor !== 'function'
        || typeof _observationNoveltyGate !== 'function'
        || typeof appMemory === 'undefined') {
-        return _buildWeekReflectionInsight(stats);
+        return null;
       }
-      // A throw here would take the whole Sunday block down with it. The week-only
-      // builder is the floor, never silence.
+      // A throw here must not take the whole Sunday block down with it. Silence is
+      // the floor: the block hides, and the north star says hold space rather than
+      // fill it with a statistic.
       try {
         const todayISO = _localISO();
         if (typeof _memoryStampOutcomeKeys === 'function') _memoryStampOutcomeKeys();
@@ -496,7 +497,7 @@
         return _observationNoveltyGate(eligible, { spokenLines: appMemory.spokenLines, todayISO })[0] || null;
       } catch (e) {
         console.warn('[sunday pool]', e && e.message);
-        return _buildWeekReflectionInsight(stats);
+        return null;
       }
     }
 
@@ -504,7 +505,7 @@
       try {
         const key = _aiGetKey ? Today.use('connections')._aiGetKey() : null;
         if (!key || !navigator.onLine) return null;
-        const insight = stats.insight || _buildWeekReflectionInsight(stats);
+        const insight = stats.insight;
         if (!insight) return null;
         const userContent =
           'Verified observation type: ' + insight.kind + '\n' +

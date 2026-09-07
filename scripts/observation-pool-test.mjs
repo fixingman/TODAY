@@ -10,7 +10,6 @@ const require = createRequire(import.meta.url);
 const {
   _buildOutcomeCandidates,
   _buildObservationCandidates,
-  _buildWeekReflectionInsight,
   _observationNoveltyGate,
   _observationGateExplain,
   _observationEligibleFor,
@@ -249,18 +248,23 @@ test('pool returns candidates sorted by score descending', () => {
 test('pool tolerates no input at all', () =>
   Array.isArray(_buildObservationCandidates()) && _buildObservationCandidates().length === 0);
 
-test('Sunday behaviour unchanged: too few days still returns null', () =>
-  _buildWeekReflectionInsight({ days: [{ iso: '2026-08-31', tasks: 3 }] }) === null);
-
-test('Sunday behaviour unchanged: a focus-leverage week still wins, now with contrast', () => {
+test('the statistical week kinds are retired: a lopsided focus week alone yields nothing', () => {
   const days = [
-    { iso: ago(6), tasks: 4, focus: 30, habitsKept: 0, habitsTotal: 0 },
-    { iso: ago(5), tasks: 4, focus: 25, habitsKept: 0, habitsTotal: 0 },
-    { iso: ago(4), tasks: 1, focus: 0,  habitsKept: 0, habitsTotal: 0 },
-    { iso: ago(3), tasks: 1, focus: 0,  habitsKept: 0, habitsTotal: 0 },
+    { iso: ago(6), tasks: 4, focus: 30, habitsKept: 1, habitsTotal: 1 },
+    { iso: ago(5), tasks: 4, focus: 25, habitsKept: 1, habitsTotal: 1 },
+    { iso: ago(4), tasks: 1, focus: 0,  habitsKept: 0, habitsTotal: 1 },
+    { iso: ago(3), tasks: 1, focus: 0,  habitsKept: 0, habitsTotal: 1 },
+    { iso: ago(2), tasks: 0, focus: 0,  habitsKept: 0, habitsTotal: 0 },
+    { iso: ago(1), tasks: 0, focus: 0,  habitsKept: 0, habitsTotal: 0 },
   ];
-  const insight = _buildWeekReflectionInsight({ days, history: [] });
-  return insight && insight.kind === 'focus-leverage' && typeof insight.contrast === 'string';
+  const kinds = _buildObservationCandidates({ days, history: [], outcomes: [], todayISO: TODAY }).map(c => c.kind);
+  return kinds.length === 0;
+});
+
+test('no candidate kind is a productivity stat', () => {
+  const retired = new Set(['focus-leverage', 'habit-alignment', 'recurring-day', 'bursts']);
+  const src = require('node:fs').readFileSync(join(ROOT, 'assets/week-reflection-policy.js'), 'utf8');
+  return ![...retired].some(k => src.includes(`kind: '${k}'`));
 });
 
 
@@ -357,7 +361,7 @@ test('when it fires, letgo-return is not offered alongside it — same revives',
   return ks.includes('return-finished') && !ks.includes('letgo-return');
 });
 
-test('ranks above letgo-return and recurring-day, below letgo-reason', () => {
+test('ranks above letgo-return, below letgo-reason', () => {
   const c = find(_buildOutcomeCandidates(threeDone, TODAY), 'return-finished');
   return c.score > 85 && c.score > 90 && c.score < 95;
 });
@@ -422,11 +426,11 @@ test('cooldown is cross-surface — Sunday blocks the nudge', () =>
   _observationNoveltyGate([cand('letgo-reason')],
     { spokenLines: [said('letgo-reason', 3, 'Sunday reflection')], todayISO: TODAY }).length === 0);
 
-test('week kinds get the shorter 7-day cooldown', () =>
-  _observationNoveltyGate([cand('focus-leverage')],
-    { spokenLines: [said('focus-leverage', 8)], todayISO: TODAY }).length === 1 &&
-  _observationNoveltyGate([cand('focus-leverage')],
-    { spokenLines: [said('focus-leverage', 3)], todayISO: TODAY }).length === 0);
+test('an unknown kind gets the 14-day default cooldown', () =>
+  _observationNoveltyGate([cand('some-future-kind')],
+    { spokenLines: [said('some-future-kind', 15)], todayISO: TODAY }).length === 1 &&
+  _observationNoveltyGate([cand('some-future-kind')],
+    { spokenLines: [said('some-future-kind', 13)], todayISO: TODAY }).length === 0);
 
 test('lines with no kind are ignored by the gate', () =>
   _observationNoveltyGate([cand('focus-vs-obligation')],
@@ -496,8 +500,7 @@ test('letgo-reason still fires with no completions in the window', () =>
 console.log('\nobservation pool — eligibility\n');
 
 const allKinds = ['focus-vs-obligation', 'obligation-completion', 'letgo-reason',
-  'soon-pullback', 'letgo-return', 'focus-leverage', 'habit-alignment',
-  'recurring-day', 'bursts'].map(k => cand(k));
+  'soon-pullback', 'letgo-return', 'return-finished'].map(k => cand(k));
 
 test('morning nudge carries only kinds that point at the list now', () => {
   const kept = _observationEligibleFor(allKinds, 'nudge', { hasObligationOnList: true }).map(c => c.kind);
@@ -507,8 +510,7 @@ test('morning nudge carries only kinds that point at the list now', () => {
 
 test('morning nudge rejects the aggregate kinds that read as month insights', () => {
   const kept = new Set(_observationEligibleFor(allKinds, 'nudge', { hasObligationOnList: true }).map(c => c.kind));
-  return !kept.has('letgo-reason') && !kept.has('obligation-completion') && !kept.has('focus-leverage')
-    && !kept.has('habit-alignment') && !kept.has('recurring-day') && !kept.has('bursts');
+  return !kept.has('letgo-reason') && !kept.has('obligation-completion') && !kept.has('return-finished');
 });
 
 test('focus-vs-obligation needs an obligation on today\'s list to reach the morning', () => {

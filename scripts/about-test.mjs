@@ -303,12 +303,15 @@ try {
     await page.close();
   }
 
-  // 11. Sunday evidence gate: prefer a supported focus relationship and abstain
-  //     when the week only supplies a flat counter summary.
+  // 11. Sunday evidence gate (v2.85.0): a week that only supplies completion
+  //     statistics — even a striking focus/completion split — yields no candidate.
+  //     That was the focus-leverage line Can rejected on 2026-09-07 as a
+  //     productivity stat. The output guards still hold.
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      const focusPattern = _buildWeekReflectionInsight({
+      const focusPattern = _buildObservationCandidates({
+        outcomes: [], todayISO: _localISO(),
         days: [
           { iso:'2026-08-17', tasks:5, focus:25, habitsKept:1, habitsTotal:1 },
           { iso:'2026-08-18', tasks:4, focus:25, habitsKept:1, habitsTotal:1 },
@@ -320,21 +323,21 @@ try {
         ],
         history: [],
       });
-      const flatWeek = _buildWeekReflectionInsight({
+      const flatWeek = _buildObservationCandidates({
+        outcomes: [], todayISO: _localISO(),
         days: [0,1,2,3,4,5,6].map(i => ({ iso:'2026-08-' + String(17 + i).padStart(2, '0'), tasks:1, focus:0, habitsKept:0, habitsTotal:0 })),
         history: [],
       });
       return {
-        choseFocus: focusPattern?.kind === 'focus-leverage',
-        evidenceNamed: !!focusPattern?.evidence.includes('focus days'),
-        flatAbstains: flatWeek === null,
+        statWeekAbstains: focusPattern.length === 0,
+        flatAbstains: flatWeek.length === 0,
         rejectsIdentity: !_weekReflectionTextIsGrounded("That's just who you are now."),
         rejectsCausation: !_weekReflectionTextIsGrounded('Focus caused you to finish more.'),
         acceptsVoice: _weekReflectionTextIsGrounded('Focus days did the heavy lifting; the week moved differently when you made room for them.'),
       };
     });
     await expectAll('Sunday earned-insight gate', { ...result, noErrors: errors.length === 0 });
-    ok('Sunday reflection: supported patterns pass; flat summaries and overclaims abstain');
+    ok('Sunday reflection: statistic-only weeks abstain; overclaims are rejected');
     await page.close();
   }
 
@@ -381,10 +384,9 @@ try {
     await page.close();
   }
 
-  // 11c. Sunday fallback: if the pool throws, Sunday must still produce the week
-  //      insight it produced before 12c — not go dark. A silent Sunday looks like
-  //      "nothing worth saying", which is the one failure the gate is meant to be
-  //      honest about, and a thrown error is not that.
+  // 11c. Sunday fallback: if the pool throws, _pickSundayInsight must return null
+  //      without propagating — the block hides. Since v2.85.0 there is no
+  //      statistical week insight to fall back to; silence is the floor.
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
@@ -403,10 +405,10 @@ try {
         });
       } catch (e) { threw = true; }
       window._buildObservationCandidates = realBuild;
-      return { didNotThrow: !threw, fellBackToWeekKind: insight?.kind === 'focus-leverage' };
+      return { didNotThrow: !threw, silent: insight === null };
     });
     await expectAll('Sunday pool fallback', { ...result, noErrors: errors.length === 0 });
-    ok('Sunday reflection: a throwing pool falls back to the week insight instead of going dark');
+    ok('Sunday reflection: a throwing pool is caught and Sunday holds space');
     await page.close();
   }
 
@@ -428,9 +430,9 @@ try {
         return { ok: true, json: async () => ({ content: 'Focus days did the heavy lifting; the week moved differently when you made room for them.' }) };
       };
       const insight = {
-        kind: 'focus-leverage',
-        evidence: 'On 2 focus days this week, completions averaged 4.5; on 5 other recorded days, 0.6.',
-        meaning: 'Focus days coincided with a stronger completion rhythm this week.',
+        kind: 'obligation-completion',
+        evidence: 'Over 30 days, 3 of 9 obligation-framed tasks were finished; 14 of 20 chosen ones were.',
+        contrast: 'The things you frame as musts are the ones most likely to stay open.',
       };
       const text = await Today.use('about')._fetchWeekReflection({ insight, days: [], history: [] });
       window.fetch = realFetch;
@@ -438,7 +440,7 @@ try {
       const prompt = requestBody?.messages?.[0]?.content || '';
       return {
         returnedLine: text?.startsWith('Focus days did the heavy lifting'),
-        hasEvidence: prompt.includes('On 2 focus days this week'),
+        hasEvidence: prompt.includes('3 of 9 obligation-framed tasks'),
         noLifetimeProfile: !prompt.includes('About this person'),
         noTaskNouns: !prompt.includes('avios') && !prompt.includes('manicure'),
         voiceAllowed: prompt.includes('light metaphor or dry wit'),
@@ -496,7 +498,7 @@ try {
         sectionRemoved:          !indexSrc.includes('function toggleInfo()'),
         moduleInit:              aboutSrc.includes('window._startAbout = function()'),
         api:                     aboutSrc.includes("Today.define('about'"),
-        policyExports:           ['_buildWeekReflectionInsight', '_weekReflectionTextIsGrounded']
+        policyExports:           ['_buildObservationCandidates', '_weekReflectionTextIsGrounded']
           .every(n => policySrc.includes(`root.${n} = policy.${n};`)),
         precached:               swSrc.includes("'/assets/about.js'"),
         policyPrecached:         swSrc.includes("'/assets/week-reflection-policy.js'"),

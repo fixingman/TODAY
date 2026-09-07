@@ -29,7 +29,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 12c | **Companion — observation pool** | Phases 0–3 shipped; **Phase 4 running** | Two consumers: morning nudge (today-hook kinds only) and Sunday (all kinds). Eligibility, `letgo-reason` base rate and task naming fixed 2026-09-03 after the first sample. Usefulness gate still owed. Detail ↓ |
+| 12c | **Companion — observation pool** | Phases 0–3 shipped; **Phase 4 running** | Two consumers: morning nudge (today-hook kinds only) and Sunday (every outcome kind). Eligibility, `letgo-reason` base rate and task naming fixed 2026-09-03 after the first sample; the four statistical week kinds retired 2026-09-07 after the second. Usefulness gate still owed. Detail ↓ |
 | 11 | **Task agent — enrichment at add-time** | Stages 1 & 2 shipped; Stage 3 next | External context enrichment (Gmail, web search, soon: contacts, calendar, Trello). Distinct from companion arc — enriches the task, not understanding of you. Detail ↓ |
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
@@ -234,31 +234,38 @@ Can: it read as a month insight on a surface that had been about today; the regi
 
 **Filed separately, not as a block:** Can does not visit the Memory panel and finds most of its AI hypotheses uninteresting. That is the overdue *Memory panel quality gate* verdict — a finding about generated hypotheses, not about the pool and not about 12d's plain data view. Watching row below.
 
+### Phase 4 — second sample, and what it changed (2026-09-07)
+
+Sunday reflection:
+
+> *"You hit a 6.6 completions/day stride on 5 focus days this week, compared to just 0.5 on the other 2."*
+
+Can: *"i dont like this statistics insight, especially for the week nudge on Sunday. absolutely useless. You know our northstar, we worked hard to deduct it, and this is the result?"*
+
+He is right, and the cause is structural, not phrasing. The line was `focus-leverage` at its ceiling score of 130, above every commitment observation. Its subject is completions per day — a productivity stat, which the north star rules out in its first paragraph. The four "pre-existing" kinds in the table below were carried into the pool from the pre-north-star week reflection with the highest base scores and were never re-judged against it; the table itself already flagged `bursts` as "same container-subject shape as the cuts". **All four retired in v2.85.0.** The pool is outcome kinds only; Sunday holds space when none is sayable. This is also the concrete case for the still-owed usefulness gate: nothing asked *does knowing this change what I do?*
+
 **Phase 4 window: two weeks from 2026-09-03, both surfaces.** Wallpaper row below.
 
 ### Candidate kinds — settled with Can 2026-09-01
 
-Sorted by reacting to sample output lines rather than score constants, which is the artifact worth putting in front of a person. Everything that survived is a **relationship** or **lifecycle** kind; both cuts were count-shaped.
+Sorted by reacting to sample output lines rather than score constants, which is the artifact worth putting in front of a person. Everything that survived is a **relationship** or **lifecycle** kind; both cuts were count-shaped. *(2026-09-07: the four "pre-existing" statistical kinds that had been grandfathered in were cut too, after the second sample — see above.)*
 
 | Score | Kind | |
 |---|---|---|
 | 115 | `focus-vs-obligation` | where focus went, and where it did not |
-| 110 | `focus-leverage` | pre-existing |
 | 105 | `obligation-completion` | rate on obligation-framed vs chosen |
-| 100 | `habit-alignment` | pre-existing |
 | 95 | `letgo-reason` | which reason dominates what you let go, stated against everything that ended; the contrast is the reasons that did not |
-| 90 | `recurring-day` | pre-existing |
 | 92 | `return-finished` | what comes back, and whether it gets finished — the evidence on whether letting go is safe. Added v2.84.0, replacing the same-day Noticed line; withholds `letgo-return` when both would fire |
 | 88 | `soon-pullback` | what you defer tends to come back |
 | 85 | `letgo-return` | what you release, and what comes back — added v2.81.0 after asking why `revive` was recorded but unread. **Linked, not counted** (v2.81.3): a let-go and a revive of the same task share an id, so only returns that follow a release count, and the task is named while it is still on a list. One task cycling twice gets its own line. **45-day window** (v2.81.1), the only kind not on 30: revive is a slow signal, and slow signals earn a longer window rather than a lower floor |
-| 65 | `bursts` | pre-existing, last resort — same container-subject shape as the cuts. Task context may rescue it: naming *what* filled the busy days would give it a subject |
 | — | `list-growth`, `cognitive-weight` | **cut** — container subject, and a count of what triage already prints |
+| — | `focus-leverage`, `habit-alignment`, `recurring-day`, `bursts` | **cut 2026-09-07 (v2.85.0)** — completions-per-day statistics inherited from the pre-north-star week reflection; grandfathered in with the highest scores and never re-judged |
 
 **Two rules the cuts produced**, now also in `design/Personalization.md`: the person is the subject, never a container; and name the actual list, or the observation is not sayable.
 
 **Backfilled rows carry unknowns, and unknowns must stay unknown.** `focusSessions` is unknown for reconstructed history — written as `0`, `focus-vs-obligation` becomes trivially true. `obligation` is unknown for let-go and revive rows — written as `false`, they are silently counted as *chosen*. Rows carry `backfilled: true` and `obligation: null`, and partitions match on `=== true` / `=== false`, never truthiness.
 
-**Tests:** `scripts/observation-pool-test.mjs` (57, in `test-all`), plus pool coverage in `insights-test`, `dropbox-test` and `nudge-test`. They assert the silences as well as the firings.
+**Tests:** `scripts/observation-pool-test.mjs` (80, in `test-all`), plus pool coverage in `insights-test`, `dropbox-test` and `nudge-test`. They assert the silences as well as the firings.
 
 **Two verification hazards, both hit more than once:**
 - **Capture the real payload before theorising about output.** The v2.79.1 duplicate-emission defect was invisible in code review and obvious the moment the request was intercepted.
@@ -327,7 +334,7 @@ What TODAY knows about you, made visible and clearable.
 | Season moments — solar term label | v2.71.0 | 2026-09-05 | Open — does `処暑 · End of Heat` feel like context or noise after a few appearances? Hemisphere localization added in v2.81.4 so the term and observation now match the viewer's local season. |
 | Sunday earned insight | v2.71.12 | 2026-09-06 | Open — does it reveal a real lever rather than paraphrasing the grid? Track abstentions as healthy. |
 | Obligation language tip | v2.77.20 | 2026-09-14 | Open — "Have to — or choosing to?" Does it land as a genuine moment of reflection, or does it feel like an interruption? Watch: dismissed immediately vs. paused on. Regex tightened v2.78.0: min 3 words + "should/must be [adj]" excluded. |
-| Observation pool — morning nudge + Sunday (12c Phase 4) | v2.82.0 | 2026-09-17 | Open — **restarted 2026-09-03 with eligibility.** Morning gets only today-hook kinds; Sunday gets every kind. Watch: does a morning pool line feel about *today*; does a Sunday line land as recognition; `spokenLines` entries carrying a `kind` show which surface spoke. Two weeks. Not one line. |
+| Observation pool — morning nudge + Sunday (12c Phase 4) | v2.82.0 | 2026-09-17 | Open — **restarted 2026-09-03 with eligibility.** Morning gets only today-hook kinds; Sunday gets every outcome kind (statistical week kinds retired 2026-09-07 after sample 2). Watch: does a morning pool line feel about *today*; does a Sunday line land as recognition; `spokenLines` entries carrying a `kind` show which surface spoke. Two weeks. Not one line. |
 | Memory panel — KNOWN + SAID record blocks (12d Phase A) | v2.82.4 (`fa4566b`, 2026-09-03) | 2026-09-17 | Open — does the record read as *yes, that's accurate* rather than feeling observed? And is it visited at all, given the panel's own discoverability finding above? A block nobody opens has no wallpaper problem and no value either. |
 
 ---
