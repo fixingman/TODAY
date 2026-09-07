@@ -325,6 +325,7 @@ window._startNudge = (function() {
         : [];
       const winner = _observationNoveltyGate(eligible, {
         spokenLines: appMemory.spokenLines,
+        kindVerdicts: appMemory.kindVerdicts,
         todayISO,
       })[0];
       if (!winner) return null;

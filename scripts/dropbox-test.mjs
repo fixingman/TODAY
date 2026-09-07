@@ -294,6 +294,7 @@ try {
       appMemory.taskOutcomes = [
         { id: 'local_1', date: iso(now), outcome: 'done', obligation: false, focusSessions: 2 },
       ];
+      appMemory.kindVerdicts = { 'letgo-reason': { landed: 1, missed: 1, retired: null, updated: '2026-09-01T10:00:00.000Z' } };
       appMemory.spokenLines = [
         { surface: 'morning nudge', date: iso(now), text: 'local line', kind: 'letgo-reason' },
       ];
@@ -325,6 +326,12 @@ try {
             { text: 'call insurance', date: iso(now - 3 * D), done: true },
             { text: 'should email landlord', date: iso(now - 6 * D), done: false },
           ],
+          // 12e: remote retired a kind more recently than our copy — newer `updated` wins;
+          // a kind only remote knows is adopted
+          kindVerdicts: {
+            'letgo-reason':  { landed: 0, missed: 2, retired: iso(now), updated: '2026-09-07T10:00:00.000Z' },
+            'soon-pullback': { landed: 1, missed: 0, retired: null,     updated: '2026-09-06T10:00:00.000Z' },
+          },
         },
       });
 
@@ -343,6 +350,8 @@ try {
           appMemory.spokenLines.filter(l => l.surface === 'morning nudge' && l.date === iso(now)).length === 1,
         spokenRemoteSurfaceMerged: appMemory.spokenLines.some(l => l.surface === 'Sunday reflection'),
         spokenKindPreserved: appMemory.spokenLines.every(l => typeof l.kind === 'string'),
+        verdictNewerRemoteWins: appMemory.kindVerdicts['letgo-reason'].retired === iso(now),
+        verdictRemoteOnlyAdopted: appMemory.kindVerdicts['soon-pullback'].landed === 1,
         spokenReactionMergedIn:
           appMemory.spokenLines.find(l => l.surface === 'morning nudge' && l.date === iso(now))?.reaction === 'missed',
         obligationDoneFlagOred: insurance && insurance.done === true,

@@ -714,6 +714,11 @@
         for (const k of ['taskOutcomes', 'spokenLines', 'obligationHistory', 'moments', 'recentCompletedTasks', 'recentConversations']) {
           if (Array.isArray(appMemory[k])) appMemory[k] = appMemory[k].filter(_afterClear);
         }
+        if (appMemory.kindVerdicts && typeof appMemory.kindVerdicts === 'object') {
+          for (const k of Object.keys(appMemory.kindVerdicts)) {
+            if (!_afterClear({ date: appMemory.kindVerdicts[k] && appMemory.kindVerdicts[k].updated })) delete appMemory.kindVerdicts[k];
+          }
+        }
       }
       const _tomb = new Set([
         ...(Array.isArray(appMemory.clearedHypothesisIds) ? appMemory.clearedHypothesisIds : []),
@@ -893,6 +898,18 @@
         }
         appMemory.spokenLines.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
         appMemory.spokenLines = appMemory.spokenLines.slice(-120);
+      }
+      // 12e kindVerdicts (v2.87.0) — per kind, the entry with the newer `updated`
+      // wins, so a "bring back" on one device is not undone by the other's stale
+      // retirement. Entries updated before the clear watermark are dropped.
+      if (remote.kindVerdicts && typeof remote.kindVerdicts === 'object') {
+        if (!appMemory.kindVerdicts || typeof appMemory.kindVerdicts !== 'object') appMemory.kindVerdicts = {};
+        for (const [kind, rv] of Object.entries(remote.kindVerdicts)) {
+          if (!rv || typeof rv !== 'object') continue;
+          if (!_afterClear({ date: rv.updated })) continue;
+          const mine = appMemory.kindVerdicts[kind];
+          if (!mine || String(rv.updated || '') > String(mine.updated || '')) appMemory.kindVerdicts[kind] = rv;
+        }
       }
       // 12c taskOutcomes — union by id+outcome+date. Accumulated dated events; like
       // obligationHistory it cannot self-heal from current state, so a missing merge entry

@@ -451,6 +451,19 @@ test('12e: landed never blocks — recognition is not a reason to repeat', () =>
   _observationNoveltyGate([cand('letgo-reason')],
     { spokenLines: [reacted('letgo-reason', 25, 'landed'), reacted('letgo-reason', 50, 'landed')], todayISO: TODAY }).length === 1);
 
+test('12e: a retired kind in kindVerdicts is dropped with a dated reason', () =>
+  _observationGateExplain(cand('letgo-reason'), { spokenLines: [],
+    kindVerdicts: { 'letgo-reason': { landed: 0, missed: 2, retired: '2026-09-07', updated: 'x' } }, todayISO: TODAY })
+    === 'retired by you on 2026-09-07');
+
+test('12e: kindVerdicts misses double the cooldown even when the reacted lines have aged out', () =>
+  _observationNoveltyGate([cand('letgo-reason')], { spokenLines: [said('letgo-reason', 30)],
+    kindVerdicts: { 'letgo-reason': { landed: 0, missed: 1, retired: null, updated: 'x' } }, todayISO: TODAY }).length === 0);
+
+test('12e: a brought-back kind (retired null, missed 0) is offered again', () =>
+  _observationNoveltyGate([cand('letgo-reason')], { spokenLines: [],
+    kindVerdicts: { 'letgo-reason': { landed: 0, missed: 0, retired: null, updated: 'x' } }, todayISO: TODAY }).length === 1);
+
 test('12e: a miss on one kind does not touch another', () =>
   _observationNoveltyGate([cand('soon-pullback')],
     { spokenLines: [reacted('letgo-reason', 5, 'missed'), reacted('letgo-reason', 40, 'missed')], todayISO: TODAY }).length === 1);

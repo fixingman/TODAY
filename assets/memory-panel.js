@@ -55,6 +55,7 @@
           ? items.map(item => `<div class="memory-item">` +
                 (item.isNew ? `<span class="memory-item-new"></span>` : '') +
                 `<span class="memory-item-text">${esc(item.text)}</span>` +
+                (item.action ? `<button type="button" class="memory-item-btn" data-today-click="${item.action.click}" data-kind="${esc(item.action.kind)}">${esc(item.action.label)}</button>` : '') +
                 `</div>`
             ).join('')
           : pendingNote
@@ -353,11 +354,24 @@
           (l.reaction ? ` — you said: ${l.reaction === 'landed' ? 'landed' : 'not really'}` : ''),
       }));
 
+      // 12e (v2.87.0): the permanent verdicts. Only retired kinds are listed — a
+      // tally of landed lines is praise, not a record worth reading. "bring back"
+      // is the single way a retired kind returns.
+      const retiredItems = Object.entries(m.kindVerdicts || {})
+        .filter(([, v]) => v && v.retired)
+        .sort((a, b) => String(b[1].retired).localeCompare(String(a[1].retired)))
+        .map(([kind, v]) => ({
+          text: `${String(kind).replace(/-/g, ' ')} — retired ${_fmtDay(v.retired)}, after ${v.missed} "not really"`,
+          action: { label: 'bring back', click: 'memory.kind-restore', kind },
+        }));
+
       el.innerHTML =
         typeBlock('KNOWN', '— what today has on record, not what it concludes', knownItems,
           'nothing on record yet — this fills as tasks come and go') +
         typeBlock('SAID', '— what today has said on its own, latest first', saidItems,
           'nothing said on its own yet') +
+        typeBlock('RETIRED', '— kinds of observation you said did not land; today stops offering them', retiredItems,
+          'nothing retired — a kind lands here after two "not really"') +
         typeBlock('SEMANTIC', '— stable things today has concluded about you', semanticItems,
           'needs more data to form stable conclusions') +
         typeBlock('EPISODIC', '— what has been happening lately', episodicItems,
@@ -436,6 +450,7 @@
         appMemory.obligationHistory = [];
         appMemory.spokenLines = [];
         appMemory.taskOutcomes = [];
+        appMemory.kindVerdicts = {};
         // Watermark. Without it the next sync unions every dated row straight back
         // from the remote copy and the clear is a lie. Max-wins across devices, so a
         // clear made here also clears the other device on its next merge. Mirrors
@@ -646,6 +661,12 @@
     }
 
     if (window.Today) {
+      function _memoryKindRestore(kind) {
+        if (typeof _memoryRestoreKind !== 'function' || !kind) return;
+        _memoryRestoreKind(kind);
+        renderMemoryPanel();
+      }
+
       Today.define('memory', {
         toggle: toggleMemory,
         render: renderMemoryPanel,
@@ -655,7 +676,9 @@
         confirmClear: _memoryClearConfirm,
         abstract: _memoryAbstract,
         breatheVersionBadge: _versionBadgeBreathe,
+        restoreKind: _memoryKindRestore,
       });
+      Today.ui.register('click', 'memory.kind-restore', (e, el) => _memoryKindRestore(el && el.dataset.kind));
       Today.ui.register('click', 'memory.toggle', toggleMemory);
       Today.ui.register('click', 'memory.connections', _memoryGoToConnections);
       Today.ui.register('click', 'memory.clear-request', _memoryClearRequest);

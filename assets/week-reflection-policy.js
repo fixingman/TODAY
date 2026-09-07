@@ -290,11 +290,16 @@
 
     const spoken = Array.isArray(k.spokenLines) ? k.spokenLines : [];
 
-    // 12e — the person's own verdicts, recorded on the lines (v2.86.0). One `missed`
-    // doubles the kind's cooldown; two retire it until memory is cleared or the
-    // reactions age out of the 30-day window. `landed` never blocks: recognition is
-    // not a reason to repeat.
-    const misses = spoken.filter(l => l && l.kind === candidate.kind && l.reaction === 'missed').length;
+    // 12e — the person's own verdicts. kindVerdicts (v2.87.0) is the permanent
+    // record: a retired kind stays out until "bring back" in the Memory panel. The
+    // reactions on the 30-day spokenLines are read too, so the gate works without
+    // the slot. One `missed` doubles the kind's cooldown; two retire it. `landed`
+    // never blocks: recognition is not a reason to repeat.
+    const verdict = k.kindVerdicts && k.kindVerdicts[candidate.kind];
+    if (verdict && verdict.retired) return 'retired by you on ' + verdict.retired;
+    const misses = Math.max(
+      verdict ? (Number(verdict.missed) || 0) : 0,
+      spoken.filter(l => l && l.kind === candidate.kind && l.reaction === 'missed').length);
     if (misses >= 2) return 'marked as not landing twice';
 
     const cooldown = (Object.prototype.hasOwnProperty.call(_KIND_COOLDOWN_DAYS, candidate.kind)

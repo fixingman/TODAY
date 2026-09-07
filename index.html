@@ -3926,6 +3926,14 @@
     transition: opacity var(--dur-fast), color var(--dur-fast);
   }
   .memory-clear-btn:hover { opacity: 1; color: var(--danger); }
+  /* 12e — per-item action in the Memory panel ("bring back" on a retired kind, v2.87.0) */
+  .memory-item-btn {
+    background: none; border: 0; padding: 2px 0 2px var(--space-3); min-height: 24px; flex-shrink: 0;
+    font-family: var(--font-mono); font-size: var(--text-micro);
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); cursor: pointer; transition: color var(--dur-fast);
+  }
+  .memory-item-btn:hover, .memory-item-btn:focus-visible { color: var(--accent); }
   .memory-conn-link {
     font-size: var(--text-xs);
     font-family: var(--font-mono);
@@ -4387,9 +4395,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.87.0':  'Your verdicts now stick. A kind of observation you mark "not really" twice stays retired for good, not just for a month, and the Memory panel lists it with a "bring back" for when you change your mind.',
   '2.86.0':  'You can now tell TODAY whether a line landed. Tap the morning line, the Sunday or Monday line, or the Today line in About, and two quiet choices appear: landed, or not really. A kind of observation you mark as not really twice stops being offered. Your answer stays on your device and in your memory record; it is never sent anywhere.',
   '2.85.0':  'Sunday no longer reports completion statistics. The four number-shaped week notes (focus days versus other days, habit days, strong weekdays, busy bursts) are gone; Sunday now speaks only when it has something to say about your commitments, and otherwise stays quiet.',
-  '2.84.1':  'The Sunday note about things you brought back and finished can now draw on the history you already have, instead of waiting six weeks for new events.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

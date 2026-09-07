@@ -33,7 +33,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 | 11 | **Task agent — enrichment at add-time** | Stages 1 & 2 shipped; Stage 3 next | External context enrichment (Gmail, web search, soon: contacts, calendar, Trello). Distinct from companion arc — enriches the task, not understanding of you. Detail ↓ |
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
-| 12e | **Companion — reactions** | **Shipped v2.86.0** | Two-state verdict on every spoken line (*landed* / *not really*), the usefulness gate with the person as judge. Feeds `_observationGateExplain`: one miss doubles a kind's cooldown, two retire it. Not on Noticed or the focus question. Detail ↓ |
+| 12e | **Companion — reactions** | **Shipped v2.86.0 → v2.87.0** | Two-state verdict on every spoken line (*landed* / *not really*), the usefulness gate with the person as judge. Feeds `_observationGateExplain`: one miss doubles a kind's cooldown, two retire it — permanently (`kindVerdicts`), with "bring back" in the Memory panel's RETIRED block. Not on Noticed or the focus question. Detail ↓ |
 | 12d | **Companion — memory surface** | Phase A shipped (in v2.82.4); **Phase B next** | "What TODAY knows about you" — the *data itself* (returning tasks, outcomes, obligation history), shown plainly and clearable, in the Memory panel. Distinct from the panel's AI hypotheses, which have their own open finding (Watching). Requires 12c to have observations worth showing. Detail ↓ |
 | — | **WEEK companion** | Gated | Gate is now: *12c is working and feels like a companion, not a feature.* Data accumulation is necessary but not sufficient. Detail ↓ |
 | 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 130 reviewed poems (2026-09-02). Detail ↓ |
@@ -294,7 +294,7 @@ What TODAY knows about you, made visible and clearable.
 
 ---
 
-#### 12e · Reactions — shipped v2.86.0
+#### 12e · Reactions — shipped v2.86.0, made permanent v2.87.0
 
 **The usefulness gate, with the person as judge.** Every spoken line can carry a two-state verdict: *landed* or *not really*. Tap the sentence and the two states appear beneath it; tap one to record, tap it again to clear. Nothing shows for anyone who never touches the line — the surface stays a sentence.
 
@@ -302,9 +302,11 @@ What TODAY knows about you, made visible and clearable.
 
 **What it serves as.** (1) A verdict record — the Phase 4 verdict stops being reconstructed from conversation; each reaction sits on the line, with its kind, visible in the Memory panel's SAID block. (2) A gate the pool reads — `_observationGateExplain` doubles a kind's cooldown after one miss and retires it (`marked as not landing twice`) after two; *landed* never blocks, recognition is not a reason to repeat. (3) Continuous evidence for the Watching table. It never reaches the model: it changes which observations are chosen, not how they are phrased.
 
-**Decided with Can 2026-09-07:** yes to a control on the reading surfaces, as a tap that reveals two states — not a visible rating, not a form. Stored on the `spokenLines` entry (`reaction`, `reactedAt`), cleared with the lines by "clear all memory", newest `reactedAt` wins a sync collision. Reactions age out with the 30-day spokenLines window, so a retired kind can return after a quiet month — deliberate; a permanent kill-list would need its own surface to undo.
+**Decided with Can 2026-09-07:** yes to a control on the reading surfaces, as a tap that reveals two states — not a visible rating, not a form. Stored on the `spokenLines` entry (`reaction`, `reactedAt`), cleared with the lines by "clear all memory", newest `reactedAt` wins a sync collision.
 
-**Tests:** `observation-pool-test` (gate, 84), `insights-test` 6e (setter), `about-test` 13b (About blocks), `nudge-test` 6b (strip), `dropbox-test` (merge).
+**Permanent from v2.87.0.** v2.86.0 shipped with reactions ageing out on the 30-day spokenLines window, so a retired kind could creep back after a quiet month. Can: *"do it, we need an evolving ai."* `appMemory.kindVerdicts` is the permanent tally per kind — landed, missed, the day retired — kept in step with every reaction change, and the gate reads it first. The undo surface is the Memory panel's **RETIRED** block: each retired kind with its day and count, and a `bring back` that zeroes the misses. Retirement follows the count: revising a "not really" to "landed" on the line itself also lifts it; `bring back` covers the case where the reacted lines have aged out. Otherwise only clearing all memory resets it. Synced newer-`updated`-wins and watermark-aware.
+
+**Tests:** `observation-pool-test` (gate, 87), `insights-test` 6e (setter) + 6f (tally, restore), `about-test` 13b (About blocks), `nudge-test` 6b (strip), `memory-panel-test` (RETIRED block, clear), `dropbox-test` (merge).
 
 ---
 

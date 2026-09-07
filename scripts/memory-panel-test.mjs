@@ -185,6 +185,7 @@ try {
       appMemory.taskOutcomes = [{ id: 'x', date: iso, outcome: 'done', obligation: false, focusSessions: 1 }];
       appMemory.recentConversations = [{ message: 'what should I do first', date: iso, time: 9 }];
       appMemory.taskOutcomesBackfilled = true;
+      appMemory.kindVerdicts = { 'letgo-reason': { landed: 0, missed: 2, retired: iso, updated: 'x' } };
       Today.use('memory').requestClear();
       Today.use('memory').confirmClear();
       const mem = appMemory.memory;
@@ -195,6 +196,7 @@ try {
         tallyReset:            appMemory.obligationLanguageTally.count === 0 && appMemory.obligationLanguageTally.tasks.length === 0,
         obligationHistoryEmpty: appMemory.obligationHistory.length === 0,
         spokenEmpty:           appMemory.spokenLines.length === 0,
+        verdictsEmpty:         Object.keys(appMemory.kindVerdicts).length === 0,
         outcomesLogEmpty:      appMemory.taskOutcomes.length === 0,
         conversationsEmpty:    appMemory.recentConversations.length === 0,
         backfillFlagKept:      appMemory.taskOutcomesBackfilled === true,
@@ -349,6 +351,32 @@ try {
     });
     await expectAll('12d KNOWN + SAID blocks', { ...result, noErrors: errors.length === 0 });
     ok('renderMemoryPanel: KNOWN and SAID show the record as plain facts — open items only, 30-day window, reconstruction caveat, newest first');
+    await page.close();
+  }
+
+  // 12e RETIRED block: a retired kind is listed with its day and a "bring back"
+  // action; clicking it un-retires through the registered UI action and re-renders.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      appMemory.kindVerdicts = {
+        'letgo-reason':   { landed: 0, missed: 2, retired: '2026-09-07', updated: 'x' },
+        'soon-pullback':  { landed: 3, missed: 0, retired: null,         updated: 'x' },
+      };
+      Today.use('memory').render();
+      const content = () => document.getElementById('memoryContent');
+      const text = content().textContent;
+      const listed = text.includes('RETIRED') && text.includes('letgo reason — retired Sep 7, after 2 "not really"');
+      const landedNotListed = !text.includes('soon pullback');
+      const btn = content().querySelector('.memory-item-btn[data-kind="letgo-reason"]');
+      const hasAction = !!btn && btn.textContent === 'bring back' && btn.dataset.todayClick === 'memory.kind-restore';
+      btn.click();
+      const restored = appMemory.kindVerdicts['letgo-reason'].retired === null && appMemory.kindVerdicts['letgo-reason'].missed === 0;
+      const rerendered = content().textContent.includes('nothing retired');
+      return { listed, landedNotListed, hasAction, restored, rerendered };
+    });
+    await expectAll('12e RETIRED block', { ...result, noErrors: errors.length === 0 });
+    ok('renderMemoryPanel: RETIRED lists retired kinds only; "bring back" un-retires through the UI action and re-renders');
     await page.close();
   }
 

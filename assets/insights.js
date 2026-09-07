@@ -371,11 +371,43 @@ function _memoryLineFor(surface, date) {
 function _memoryReactToLine(surface, date, reaction) {
   const entry = _memoryLineFor(surface, date);
   if (!entry) return null;
+  const prev = entry.reaction || null;
   const next = (reaction === 'landed' || reaction === 'missed') ? reaction : null;
   if (!next || entry.reaction === next) { delete entry.reaction; delete entry.reactedAt; }
   else { entry.reaction = next; entry.reactedAt = _localISO(); }
+  _memoryTallyReaction(entry.kind, prev, entry.reaction || null);
   _saveMemory();
   return entry.reaction || null;
+}
+
+// 12e — the permanent record behind the reactions (v2.87.0). spokenLines keep 30
+// days, so a verdict on a line alone would lapse and a retired kind would creep
+// back after a quiet month. kindVerdicts never age out: per kind, how many lines
+// landed, how many missed, and the day it was retired. Two misses retire a kind;
+// it returns when the misses drop below two (a revised reaction) or through
+// "bring back" in the Memory panel. Cleared with the rest.
+function _memoryKindVerdict(kind) {
+  if (!appMemory.kindVerdicts || typeof appMemory.kindVerdicts !== 'object') appMemory.kindVerdicts = {};
+  return appMemory.kindVerdicts[kind] || (appMemory.kindVerdicts[kind] = { landed: 0, missed: 0, retired: null, updated: '' });
+}
+function _memoryTallyReaction(kind, prev, next) {
+  if (!kind || prev === next) return;
+  const v = _memoryKindVerdict(kind);
+  if (prev) v[prev] = Math.max(0, (v[prev] || 0) - 1);
+  if (next) v[next] = (v[next] || 0) + 1;
+  // Retirement follows the count: revising a "not really" on the line itself lifts
+  // it; "bring back" covers the case where the reacted lines have aged out.
+  v.retired = v.missed >= 2 ? (v.retired || _localISO()) : null;
+  v.updated = new Date().toISOString();
+}
+function _memoryRestoreKind(kind) {
+  const v = appMemory.kindVerdicts && appMemory.kindVerdicts[kind];
+  if (!v) return false;
+  v.retired = null;
+  v.missed = 0;
+  v.updated = new Date().toISOString();
+  _saveMemory();
+  return true;
 }
 
 // 12c Phase 0 — dated record of how each task ended.

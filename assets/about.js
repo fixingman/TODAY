@@ -544,7 +544,7 @@
           taskTexts: (typeof _memoryTaskTexts === 'function') ? _memoryTaskTexts() : {},
         });
         const eligible = _observationEligibleFor(ranked, 'sunday');
-        return _observationNoveltyGate(eligible, { spokenLines: appMemory.spokenLines, todayISO })[0] || null;
+        return _observationNoveltyGate(eligible, { spokenLines: appMemory.spokenLines, kindVerdicts: appMemory.kindVerdicts, todayISO })[0] || null;
       } catch (e) {
         console.warn('[sunday pool]', e && e.message);
         return null;

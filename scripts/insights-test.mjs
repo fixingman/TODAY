@@ -519,6 +519,37 @@ try {
     await page.close();
   }
 
+  // 6f. 12e kindVerdicts: the permanent tally behind the reactions. Two misses on
+  //     one kind retire it; switching a reaction moves the count; _memoryRestoreKind
+  //     un-retires and zeroes the misses.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      appMemory.spokenLines = []; appMemory.kindVerdicts = {};
+      const today = _localISO();
+      appMemory.spokenLines = [
+        { surface: 'morning nudge',     date: today, text: 'one', kind: 'letgo-reason' },
+        { surface: 'Sunday reflection', date: today, text: 'two', kind: 'letgo-reason' },
+      ];
+      _memoryReactToLine('morning nudge', today, 'missed');
+      const v = () => appMemory.kindVerdicts['letgo-reason'];
+      const oneMiss = v().missed === 1 && v().retired === null;
+      _memoryReactToLine('Sunday reflection', today, 'missed');
+      const retired = v().missed === 2 && v().retired === today;
+      _memoryReactToLine('Sunday reflection', today, 'landed');
+      const switched = v().missed === 1 && v().landed === 1 && v().retired === null;
+      _memoryReactToLine('Sunday reflection', today, 'missed');
+      const retiredAgain = v().retired === today;
+      const restored = _memoryRestoreKind('letgo-reason') === true && v().retired === null && v().missed === 0;
+      const unknown = _memoryRestoreKind('no-such-kind') === false;
+      const persisted = JSON.parse(localStorage.getItem('today_memory')).kindVerdicts['letgo-reason'].missed === 0;
+      return { oneMiss, retired, switched, retiredAgain, restored, unknown, persisted };
+    });
+    await expectAll('kindVerdicts tally', { ...result, noErrors: errors.length === 0 });
+    ok('_memoryTallyReaction / _memoryRestoreKind: two misses retire, switching moves the count, bring back zeroes and persists');
+    await page.close();
+  }
+
   // 7. _memoryOnStreakUpdate — updates bestStreak and records streak_milestone moment.
   {
     const { page, errors } = await openPage({
