@@ -719,6 +719,9 @@
             if (!_afterClear({ date: appMemory.kindVerdicts[k] && appMemory.kindVerdicts[k].updated })) delete appMemory.kindVerdicts[k];
           }
         }
+        // 12d Phase B: revoke set has no per-entry dates — wipe it on clear adoption
+        // so pre-clear dismissals don't survive. The remote also cleared its copy.
+        appMemory.revokedKnownItems = {};
       }
       const _tomb = new Set([
         ...(Array.isArray(appMemory.clearedHypothesisIds) ? appMemory.clearedHypothesisIds : []),
@@ -951,6 +954,14 @@
         appMemory.obligationHistory = appMemory.obligationHistory
           .filter(e => new Date(e.date) >= _oblFloor)
           .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+      }
+      // 12d Phase B: revokedKnownItems — union (revocations never shrink across devices;
+      // wipe on clear-watermark adoption above handles resets)
+      if (remote.revokedKnownItems && typeof remote.revokedKnownItems === 'object') {
+        if (!appMemory.revokedKnownItems) appMemory.revokedKnownItems = {};
+        for (const [k, v] of Object.entries(remote.revokedKnownItems)) {
+          if (!appMemory.revokedKnownItems[k]) appMemory.revokedKnownItems[k] = v;
+        }
       }
       // BUG-073 AI inferences — union by id, dedup by text prefix
       if (remote.memory && appMemory.memory) {

@@ -55,9 +55,10 @@
           ? items.map(item => `<div class="memory-item">` +
                 (item.isNew ? `<span class="memory-item-new"></span>` : '') +
                 `<span class="memory-item-text">${esc(item.text)}</span>` +
-                // Action name is a literal, not a variable: component-contract-test
+                // Action names are literals, not variables: component-contract-test
                 // reads data-today-click values from source to match registrations.
                 (item.action ? `<button type="button" class="memory-item-btn" data-today-click="memory.kind-restore" data-kind="${esc(item.action.kind)}">${esc(item.action.label)}</button>` : '') +
+                (item.revokeKey ? `<button type="button" class="memory-item-btn" data-today-click="memory.item-revoke" data-revoke-key="${esc(item.revokeKey)}">dismiss</button>` : '') +
                 `</div>`
             ).join('')
           : pendingNote
@@ -326,19 +327,25 @@
       const _strip = t => (typeof _stripTag === 'function' ? _stripTag(t || '') : String(t || '')).trim();
       const knownItems = [];
 
-      const _returning = Object.values(m.returningTasks || {})
-        .filter(t => t && t.text).sort((a, b) => (b.dayCount || 0) - (a.dayCount || 0)).slice(0, 5);
-      for (const t of _returning) {
+      const _revoked = m.revokedKnownItems || {};
+      const _returning = Object.entries(m.returningTasks || {})
+        .filter(([id, t]) => t && t.text && !_revoked['rt:' + id])
+        .sort(([, a], [, b]) => (b.dayCount || 0) - (a.dayCount || 0))
+        .slice(0, 5);
+      for (const [_rtId, t] of _returning) {
         const n = parseInt(t.focusSessions) || 0;
         knownItems.push({ text: `returning · "${_strip(t.text)}" — on the list ${t.dayCount} days, ` +
-          (n > 0 ? `${n} focus session${n > 1 ? 's' : ''}` : 'not started') });
+          (n > 0 ? `${n} focus session${n > 1 ? 's' : ''}` : 'not started'),
+          revokeKey: 'rt:' + _rtId });
       }
 
       const _pendingObl = (m.obligationHistory || [])
         .filter(e => e && e.text && !e.done && !e.letgo)
+        .filter(e => !_revoked['oh:' + e.date + '|' + (e.text || '').slice(0, 40)])
         .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)).slice(0, 5);
       for (const e of _pendingObl) {
-        knownItems.push({ text: `obligation · "${_strip(e.text)}" — added ${_fmtDay(e.date)}, still open` });
+        knownItems.push({ text: `obligation · "${_strip(e.text)}" — added ${_fmtDay(e.date)}, still open`,
+          revokeKey: 'oh:' + e.date + '|' + (e.text || '').slice(0, 40) });
       }
 
       const _floor = new Date(); _floor.setDate(_floor.getDate() - 30);
@@ -450,6 +457,7 @@
         appMemory.taskAgeBuckets = { d1to3: 0, d4to6: 0, d7to13: 0, d14plus: 0 };
         appMemory.obligationLanguageTally = { week: '', count: 0, completed: 0, tasks: [] };
         appMemory.obligationHistory = [];
+        appMemory.revokedKnownItems = {};
         appMemory.spokenLines = [];
         appMemory.taskOutcomes = [];
         appMemory.kindVerdicts = {};
@@ -669,6 +677,14 @@
         renderMemoryPanel();
       }
 
+      function _memoryItemRevoke(revokeKey) {
+        if (!revokeKey || !appMemory) return;
+        if (!appMemory.revokedKnownItems) appMemory.revokedKnownItems = {};
+        appMemory.revokedKnownItems[revokeKey] = new Date().toISOString();
+        _saveMemory();
+        renderMemoryPanel();
+      }
+
       Today.define('memory', {
         toggle: toggleMemory,
         render: renderMemoryPanel,
@@ -681,6 +697,7 @@
         restoreKind: _memoryKindRestore,
       });
       Today.ui.register('click', 'memory.kind-restore', (e, el) => _memoryKindRestore(el && el.dataset.kind));
+      Today.ui.register('click', 'memory.item-revoke', (e, el) => _memoryItemRevoke(el && el.dataset.revokeKey));
       Today.ui.register('click', 'memory.toggle', toggleMemory);
       Today.ui.register('click', 'memory.connections', _memoryGoToConnections);
       Today.ui.register('click', 'memory.clear-request', _memoryClearRequest);

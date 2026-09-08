@@ -134,6 +134,8 @@ if (appMemory.obligationLanguageTally.completed === undefined) appMemory.obligat
 if (!appMemory.obligationLanguageTally.tasks) appMemory.obligationLanguageTally.tasks = [];
 if (!appMemory.obligationHistory)           appMemory.obligationHistory = [];
 if (!appMemory.taskAgeBuckets)              appMemory.taskAgeBuckets = { d1to3: 0, d4to6: 0, d7to13: 0, d14plus: 0 };
+// 12d Phase B: per-item revoke — { 'rt:<taskId>': ISO, 'oh:<date>|<text40>': ISO }
+if (!appMemory.revokedKnownItems)           appMemory.revokedKnownItems = {};
 // 12b: What TODAY has said on its own initiative — the app's memory of its own voice.
 if (!appMemory.spokenLines)                 appMemory.spokenLines = [];
 // 12c Phase 0: dated task-outcome log. Every approved 12c candidate is a windowed
@@ -293,7 +295,7 @@ function _updateReturningTasksMemory(manualArr, trelloArr) {
     else if (ageDays <= 13) buckets.d7to13++;
     else                    buckets.d14plus++;
 
-    if (ageDays >= 5) {
+    if (ageDays >= 5 && !(appMemory.revokedKnownItems || {})['rt:' + t.id]) {
       updated[t.id] = {
         text:          t.text || '',
         firstSeen:     prior[t.id] ? prior[t.id].firstSeen : todayISO,
