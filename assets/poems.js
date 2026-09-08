@@ -872,4 +872,24 @@ const POEMS = [
     season: 'spring',
     source: "'Rain Music', The Book of American Negro Poetry, ed. James Weldon Johnson (1922), Project Gutenberg #11986 — Cotter d. 1919, PD worldwide — verified verbatim; editorially paired with Rain Water (雨水)",
   },
+
+  // ── Round 39 (Sep 2026) — Mexico, India, Bengal ─────────────────────────
+  {
+    text: 'This can mine inn give: shade your head to bless.\nWine for your thirst, peace for your weariness.\n’Tis not enough? There is no more. Pass on!',
+    author: 'Enrique González Martínez (trans. Alice Stone Blackwell)',
+    season: null,
+    source: "'To the Traveller' / 'Al Viajero', Some Spanish-American Poets, trans. Alice Stone Blackwell (1929), p. 116 — González Martínez d. 1952, Blackwell d. 1950, both PD worldwide — complete final stanza, verified verbatim vs the Internet Archive scan",
+  },
+  {
+    text: 'The earth is his delightful couch,\nthe arms of the creepers are his pillow,\nthe heaven is his canopy, the winds his fan,\nthe moon is his twinkling lamp.\nThe sage, rejoicing because he has been freed from desire,\nlives in peace and happiness, as though he were the lord of the universe.',
+    author: 'Bhartrihari (trans. B. Hale Wortham)',
+    season: null,
+    source: "Vairāgya Śataka 79, The Śatakas of Bhartrihari, trans. B. Hale Wortham (1886), p. 50 — Bhartrihari c. 5th century, Wortham d. 1928, both PD worldwide — complete prose verse reflowed to six displayed lines; verified verbatim vs the 1886 scan",
+  },
+  {
+    text: 'My day is done, and I am like a boat drawn on the beach,\nlistening to the dance-music of the tide in the evening.',
+    author: 'Rabindranath Tagore',
+    season: null,
+    source: 'Stray Birds 55 (1916), Wikisource / Project Gutenberg #6524 — Tagore d. 1941, PD worldwide — complete aphorism reflowed to two displayed lines; verified verbatim',
+  },
 ];

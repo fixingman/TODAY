@@ -4388,16 +4388,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '311h';
+const DEV_HOURS     = '312h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.89.0':  'Any entry in the Memory panel\'s KNOWN block — a task that keeps returning, an obligation still open — can now be dismissed with a single tap. The dismissal sticks across renders and syncs across devices.',
+  '2.88.0':  'Three reviewed poems join the daily rotation: an inn offering rest without persuasion, Bhartrihari finding abundance in an earth-and-moon bed, and Tagore listening at the quiet edge of a completed day.',
   '2.87.0':  'Your verdicts now stick. A kind of observation you mark "not really" twice stays retired for good, not just for a month, and the Memory panel lists it with a "bring back" for when you change your mind.',
-  '2.86.0':  'You can now tell TODAY whether a line landed. Tap the morning line, the Sunday or Monday line, or the Today line in About, and two quiet choices appear: landed, or not really. A kind of observation you mark as not really twice stops being offered. Your answer stays on your device and in your memory record; it is never sent anywhere.',
-  '2.85.0':  'Sunday no longer reports completion statistics. The four number-shaped week notes (focus days versus other days, habit days, strong weekdays, busy bursts) are gone; Sunday now speaks only when it has something to say about your commitments, and otherwise stays quiet.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

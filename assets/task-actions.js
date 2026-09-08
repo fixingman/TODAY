@@ -19,6 +19,9 @@ window._startTaskActions = (function() {
     // ── Functions ──
 
     function _applyDoneStyles(el, isDone) {
+      // Fade concurrent with focus-mode scroll-back; without this the task snaps to 0.25 while the viewport is still moving.
+      el.style.transition = 'opacity 200ms ease-out';
+      setTimeout(() => { if (el) el.style.transition = ''; }, 220);
       el.style.opacity = isDone ? '0.25' : '';
       const textEl = el.querySelector('.task-text');
       if (textEl) {

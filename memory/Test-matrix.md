@@ -273,7 +273,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 11.4 | All tasks done | ✦ star above day's poem (done echo) |
 | 11.5 | Share today's poem where native sharing is available | Native share receives the poem, author, and canonical dated URL; visible and announced feedback begins immediately |
 | 11.6 | Share today's poem without native sharing | Clipboard receives the same text and URL; the control reports copied state without stale feedback |
-| 11.7 | Run smoke guard against `assets/poems.js` | Exactly 130 reviewed entries; every entry has text/author/source, a valid season, and 2–11 nonblank lines; approved voices including Cotter's Rain Water pairing and audited season tags are pinned; final-cut passages remain absent |
+| 11.7 | Run smoke guard against `assets/poems.js` | Exactly 133 reviewed entries; every entry has text/author/source, a valid season, and 2–11 nonblank lines; approved voices including the ordinary-time round, Cotter's Rain Water pairing, and audited season tags are pinned; final-cut passages remain absent |
 | 11.8 | Open About on a solar-term date in Northern and Southern Hemisphere time zones | Noticed keeps the same transition-day cadence but rotates the term and observation by half a year (for example, June 21 is Summer Solstice in the north and Winter Solstice in the south) |
 
 ### 12. PAST Revive (3 tests)
@@ -477,4 +477,3 @@ Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 an
 | 17.2 | Run `node scripts/memory-panel-test.mjs` | KNOWN and SAID blocks render the record as plain facts (open items only, 30-day window, reconstruction caveat, newest first, both empty notes); full-clear wipes every companion slot, tombstones hypotheses, sets the watermark |
 | 17.3 | Run `node scripts/mailto-test.mjs` | Pure, no browser. `_mailtoDraftHref`: literal `@`, exact production form, 1900 cap with a body that decodes and is a prefix of the original, grapheme-safe trimming on emoji and ZWJ sequences, lone surrogates dropped not thrown, null inputs, the 20-grapheme floor from both sides |
 | 17.4 | `dropbox-test` merge cases (11b, 11c) | `taskOutcomes` / `spokenLines` / `obligationHistory` union, dedup, prune; clear watermark drops pre-clear rows in both directions and accepts same-day rows; hypothesis tombstones honoured |
-

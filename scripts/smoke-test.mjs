@@ -121,6 +121,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'Anton Chekhov (trans. Constance Garnett)',
     'John Shaw Neilson',
     'Joseph S. Cotter, Jr.',
+    'Enrique González Martínez (trans. Alice Stone Blackwell)',
+    'Bhartrihari (trans. B. Hale Wortham)',
+    'Rabindranath Tagore',
   ];
   const sixLineVoices = [
     'Traditional Asante (recorded by R. S. Rattray)',
@@ -131,6 +134,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'John Gould Fletcher',
     'Anton Chekhov (trans. Constance Garnett)',
     'John Shaw Neilson',
+    'Enrique González Martínez (trans. Alice Stone Blackwell)',
+    'Bhartrihari (trans. B. Hale Wortham)',
+    'Rabindranath Tagore',
   ];
   const hasAllApprovedVoices = approvedVoices.every(author =>
     poems.some(poem => poem.author === author));
@@ -171,12 +177,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     return counts;
   }, {});
   const seasonCountDrift = seasonCounts.winter !== 15 || seasonCounts.spring !== 18 ||
-    seasonCounts.summer !== 12 || seasonCounts.autumn !== 13 || seasonCounts['year-round'] !== 72;
-  if (poems.length !== 130 || malformed.length || !hasAllApprovedVoices || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
+    seasonCounts.summer !== 12 || seasonCounts.autumn !== 13 || seasonCounts['year-round'] !== 75;
+  if (poems.length !== 133 || malformed.length || !hasAllApprovedVoices || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
     console.error('✗ FAIL — reviewed poem corpus count, schema, line limit, or season tags drifted.');
     process.exit(1);
   }
-  console.log('  ✓ 130-poem reviewed corpus shape, approved geography, and audited seasons');
+  console.log('  ✓ 133-poem reviewed corpus shape, approved geography, and audited seasons');
 
   try {
     globalThis.fetch = async request => {

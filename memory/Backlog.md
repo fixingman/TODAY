@@ -36,7 +36,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 | 12e | **Companion — reactions** | **Shipped v2.86.0 → v2.87.0** | Two-state verdict on every spoken line (*landed* / *not really*), the usefulness gate with the person as judge. Feeds `_observationGateExplain`: one miss doubles a kind's cooldown, two retire it — permanently (`kindVerdicts`), with "bring back" in the Memory panel's RETIRED block. Not on Noticed or the focus question. Detail ↓ |
 | 12d | **Companion — memory surface** | Phase A shipped (in v2.82.4); **Phase B next** | "What TODAY knows about you" — the *data itself* (returning tasks, outcomes, obligation history), shown plainly and clearable, in the Memory panel. Distinct from the panel's AI hypotheses, which have their own open finding (Watching). Requires 12c to have observations worth showing. Detail ↓ |
 | — | **WEEK companion** | Gated | Gate is now: *12c is working and feels like a companion, not a feature.* Data accumulation is necessary but not sufficient. Detail ↓ |
-| 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 130 reviewed poems (2026-09-02). Detail ↓ |
+| 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 133 reviewed poems (2026-09-08). Detail ↓ |
 
 ---
 
@@ -52,7 +52,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 > **Search process:** Start with source diversity, not a familiar-poet query loop. Search national libraries, university collections, regional or bilingual historical anthologies, oral-literature archives, historical journals, and specialist author/translator archives. Generic poetry sites can identify leads but should not define the candidate pool; Gutenberg, Wikisource, Internet Archive, and original scans remain useful for exact wording and worldwide-PD verification. Once a specific poem or collection is identified, fetch only the relevant page or passage. Each round should deliberately vary poets, translators, poetic structures, and kinds of thought; do not return several familiar voices merely because they are easy to source. Region is a tiebreaker—not a quality substitute or a flags-on-a-map exercise.
 
-**Seasons:** W15 / Sp18 / Su12 / Au13 / year-round 72 — corpus 130 reviewed poems (2026-09-02). Target is 16 per season: summer needs 4, autumn 3, winter 1; spring is 2 over.
+**Seasons:** W15 / Sp18 / Su12 / Au13 / year-round 75 — corpus 133 reviewed poems (2026-09-08). Target is 16 per season: summer needs 4, autumn 3, winter 1; spring is 2 over.
 
 **Rotation verdict (2026-08-22):** No repetition observed — shuffle algorithm is not the lever.
 
@@ -68,6 +68,8 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 **Curation learning (2026-09-02):** two seasonal passes, 31 candidates, two approved — Fun'ya no Asayasu's dewdrops the autumn wind scatters "as I pass" (Porter no. 37) and Amy Lowell's 'Falling Snow', clog-holes the temple bell will see covered. Both put a person inside the season and let a small trace not last, without complaint. Everything cut was scene without a person in it (Jitō, Korenori, Akahito, the Chinese summer quatrains, Lowell's dragonfly-or-leaf) or a person without a season doing anything to them (the Greek invitations to rest, the Navajo rain chant, Noguchi by the fire). Lesson: for seasonal fills, the season has to act on someone. 'Falling Snow' is the first post-ceiling seven-line entry, admitted because the last two lines are the poem — the same reasoning as Gibran's 'The Fox'. The ceiling stays; the exception is per-poem and Can's.
 
+**Curation learning (2026-09-08):** Po Chü-i's 'After Lunch' clarified another successful shape: an ordinary bodily rhythm, a noticed change in light or surroundings, then a philosophical turn that does not instruct the reader. Can approved González Martínez's inn offering rest without persuasion, Bhartrihari's earth-and-moon abundance, and Tagore's completed day at the tide. Search beyond those authors and translators next; the reusable quality is the movement from lived detail into perspective, not merely poems about rest, evening, or contentment.
+
 **Solar-term pairing (2026-09-02):** the 24 terms are an editorial discovery lens, not an attribution claim. A poem may enter a term's seasonal pool when its concrete moment genuinely fits; documentation must say “editorially paired,” never imply that a poet wrote about the East Asian calendar. Joseph S. Cotter, Jr.'s complete opening stanza of 'Rain Music' is the first approved example, paired with Rain Water (雨水): rain changes the dusty ground and grows audibly from murmur to strain.
 
 Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cut. Lowell's *Pictures of the Floating World* (Lacquer Prints) remains the richest short-form source found this round; the three cut Lowells are dead, the rest of the section is open.
@@ -79,6 +81,10 @@ Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cu
 **Additional final cuts (solar-term round, 2026-09-02):** the traditional |Xam flower-opening song told by Dia!kwain and recorded/translated by Lucy Lloyd; the traditional Osage planting-song opening translated by Francis La Flesche; Archibald Lampman's cricket-and-grasshopper stanza from 'Heat'; the traditional Song of Annam 'Nocturne' opening shaped by Edward Powys Mathers; and the traditional Paiute Ghost Dance snow/Milky Way song recorded by James Mooney.
 
 **Additional final cuts (solar-term round, 2026-09-03):** T. E. Hulme's 'Autumn' opening (cold in the autumn night; moon like a red-faced farmer); Thomas Hardy's 'Snow in the Suburbs' closing (the black cat comes in from the snow); Sarojini Naidu's 'June Sunset' opening (a heart finding haven as rain-fed streams awaken); H. Cordelia Ray's 'August' closing (turning from heat and turmoil to the ocean); E. Pauline Johnson's 'The Indian Corn Planter' seed-under-the-planter's-moon excerpt; and Ameen Rihani's 'It Was All for Him' rain-retouches-and-revises-writing excerpt. All six were reviewed and skipped; do not re-propose them.
+
+**Additional final cuts (ordinary-time round, 2026-09-08):** the opening stanza of the traditional Song of Annam 'The Bamboo Garden' shaped by Edward Powys Mathers; the closing dove stanza from Manuel Gutiérrez Nájera's 'To Francisco de Garay Justiniani' translated by Alice Stone Blackwell; and the opening stanza of W. H. Davies's 'A Great Time'. All three were reviewed and skipped; do not re-propose them.
+
+**Additional final cuts (ordinary-time follow-up, 2026-09-08):** Sumangalā's Mother's shade stanza translated by C. A. F. Rhys Davids; the distant-rays couplet from the Great Hymn to the Aten translated by James Henry Breasted; the closing goat-and-world-poem couplet from Alfonso Guillén Zelaya's 'Lord, I Ask a Garden' translated by William George Williams; the traditional Ndau dock-workers' 'Money in Kamben'' passage recorded from C. Kamba Simango; the opening movement of Uvavnuk's 'The Great Sea' translated through Knud Rasmussen's expedition; and the refreshed-by-sleep passage from Mary Lamb's 'Breakfast'. All six were reviewed and skipped; do not re-propose them.
 
 **Active leads:**
 - Chamberlain 1902 (archive.org/details/basho-and-the-japanses-poetical-epigram) — productive; identifier confirmed
