@@ -570,6 +570,12 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     const _priorSt = getState(taskId);
     if (_priorSt.rem === 0 && !_priorSt.running) clearState(taskId);
 
+    // Start the header fade before any setup work so the logo dims at the same
+    // frame the tap registers — not after _setFocusInert loops over every task.
+    const _hdr = document.getElementById('sticky-header');
+    if (_hdr) _hdr.style.transition = ''; // clear splash's inline transition
+    document.body.classList.add('focus-locked');
+
     appEl.classList.add('focusing');
     taskEl.classList.add('focused');
     _setFocusInert(true, taskEl);
@@ -644,14 +650,11 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     // Pin the header for the lock (BUG-098). Sticky has nothing to stick to inside a
     // fixed body and rode the top nudge off-screen for tasks near the bottom. The CSS
     // makes it position:fixed under body.focus-locked; padding the body by its height
-    // keeps everything below exactly where it was when it leaves the flow. The splash
-    // leaves an inline opacity transition on it — cleared so the recede beat governs.
-    const _hdr = document.getElementById('sticky-header');
+    // keeps everything below exactly where it was when it leaves the flow.
+    // (_hdr captured and focus-locked already applied at the top of this function.)
     if (_hdr) {
-      _hdr.style.transition = '';
       document.body.style.paddingTop = _hdr.getBoundingClientRect().height + 'px';
     }
-    document.body.classList.add('focus-locked');
   }
 
   // ── Track actual focus time spent (not just completed sessions) ────────────

@@ -184,7 +184,7 @@
        the rows. The header keeps pointer-events: its buttons exit focus (v2.75.15). */
     .focusing .morning-nudge,
     body.focus-locked #triageBar {
-      transition: opacity 120ms ease, filter 60ms ease 120ms;
+      transition: opacity 120ms ease-out, filter 60ms ease 120ms;
       opacity: var(--opacity-recede-chrome) !important;
       filter: url(#noise) blur(6px);
       pointer-events: none;
@@ -199,7 +199,7 @@
       position: fixed;
       top: 0;
       left: 0;
-      transition: opacity 120ms ease, filter 60ms ease 120ms;
+      transition: opacity 120ms ease-out, filter 60ms ease 120ms;
       opacity: var(--opacity-recede-chrome) !important;
       filter: url(#noise) blur(6px);
     }
