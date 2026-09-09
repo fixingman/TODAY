@@ -292,8 +292,8 @@ try {
     await page.close();
   }
 
-  // 12d Phase A: the KNOWN and SAID blocks show the companion record as plain
-  // facts — and only open items, only the window, with the reconstruction caveat.
+  // 12d Phase A: the KNOWN block shows the companion record as plain
+  // facts — open items only, only the window, with the reconstruction caveat.
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
@@ -316,24 +316,18 @@ try {
         { id: 'e', date: iso(now - 9 * D),  outcome: 'revive',    obligation: null,  focusSessions: 0 },
         { id: 'z', date: iso(now - 60 * D), outcome: 'done',      obligation: false, focusSessions: 0 },
       ];
-      appMemory.spokenLines = [
-        { surface: 'Sunday reflection', date: iso(now - 3 * D), text: 'older line', kind: 'focus-leverage' },
-        { surface: 'morning nudge',     date: iso(now - 1 * D), text: 'the newest line', kind: 'letgo-reason' },
-      ];
       Today.use('memory').render();
       const text = document.getElementById('memoryContent')?.textContent || '';
       const knownFirst = text.indexOf('KNOWN') >= 0 && text.indexOf('KNOWN') < text.indexOf('SEMANTIC');
-      const saidBeforeSemantic = text.indexOf('SAID') < text.indexOf('SEMANTIC');
-      const newestFirst = text.indexOf('the newest line') < text.indexOf('older line');
 
       // empty state
-      appMemory.returningTasks = {}; appMemory.obligationHistory = []; appMemory.taskOutcomes = []; appMemory.spokenLines = [];
+      appMemory.returningTasks = {}; appMemory.obligationHistory = []; appMemory.taskOutcomes = [];
       Today.use('memory').render();
       const empty = document.getElementById('memoryContent')?.textContent || '';
 
       return {
         knownBlockFirst: knownFirst,
-        saidBlockPresent: saidBeforeSemantic,
+        saidBlockAbsent: !text.includes('SAID'),
         returningNamedWithDays: text.includes('"call insurance" — on the list 9 days, not started'),
         tagStrippedFromReturning: !text.includes('work: call insurance'),
         returningWithSessions: text.includes('"finish the deck" — on the list 6 days, 2 focus sessions'),
@@ -343,14 +337,11 @@ try {
         countsLine: text.includes('30 days · 2 done · 1 let go · 1 to Soon · 1 brought back'),
         outOfWindowExcluded: text.includes('2 done'),
         reconstructionCaveat: text.includes('1 of those reconstructed from older history'),
-        saidHasSurfaceAndKind: text.includes('morning nudge · letgo reason — the newest line'),
-        saidNewestFirst: newestFirst,
         emptyKnownNote: empty.includes('nothing on record yet'),
-        emptySaidNote: empty.includes('nothing said on its own yet'),
       };
     });
-    await expectAll('12d KNOWN + SAID blocks', { ...result, noErrors: errors.length === 0 });
-    ok('renderMemoryPanel: KNOWN and SAID show the record as plain facts — open items only, 30-day window, reconstruction caveat, newest first');
+    await expectAll('12d KNOWN block', { ...result, noErrors: errors.length === 0 });
+    ok('renderMemoryPanel: KNOWN shows the record as plain facts — open items only, 30-day window, reconstruction caveat, newest first');
     await page.close();
   }
 

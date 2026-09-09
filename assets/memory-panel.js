@@ -357,12 +357,6 @@
         if (_bf) knownItems.push({ text: `${_bf} of those reconstructed from older history — no focus data on them` });
       }
 
-      const saidItems = (m.spokenLines || []).filter(l => l && l.text).slice(-5).reverse().map(l => ({
-        text: `${_fmtDay(l.date)} · ${l.surface || 'unknown surface'}` +
-          (l.kind ? ` · ${String(l.kind).replace(/-/g, ' ')}` : '') + ` — ${l.text}` +
-          (l.reaction ? ` — you said: ${l.reaction === 'landed' ? 'landed' : 'not really'}` : ''),
-      }));
-
       // 12e (v2.87.0): the permanent verdicts. Only retired kinds are listed — a
       // tally of landed lines is praise, not a record worth reading. "bring back"
       // is the single way a retired kind returns.
@@ -377,8 +371,6 @@
       el.innerHTML =
         typeBlock('KNOWN', '— what today has on record, not what it concludes', knownItems,
           'nothing on record yet — this fills as tasks come and go') +
-        typeBlock('SAID', '— what today has said on its own, latest first', saidItems,
-          'nothing said on its own yet') +
         typeBlock('RETIRED', '— kinds of observation you said did not land; today stops offering them', retiredItems,
           'nothing retired — a kind lands here after two "not really"') +
         typeBlock('SEMANTIC', '— stable things today has concluded about you', semanticItems,
