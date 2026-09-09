@@ -714,18 +714,18 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     // Close PiP widget if open
     if (window._pipClose) window._pipClose();
 
-    // Task-check path: pull the timer out of the task list immediately so the
-    // layout is stable before scroll is restored. If the timer collapses in-place
-    // for 200ms (the CSS transition), bottom tasks shift upward as the space is
-    // freed — visible as an odd jump on the checked task. Moving it to body first
-    // means the reflow happens now, not 200ms from now when toggleDone has already
-    // run and the user sees the final position.
+    // Task-check path: remove .focusing immediately so the done-opacity transition
+    // in _applyDoneStyles fires correctly. While .focusing is active, the CSS rule
+    // `.focusing .task.focused { opacity: 1 !important }` overrides any inline
+    // opacity change — so the task snaps from 1 to 0.25 at 200ms (when .focusing
+    // is normally removed) rather than fading. Removing it here lets the transition
+    // work from t=0, and also unblurs background tasks concurrent with scroll-back
+    // (filter 200ms matches the scroll duration exactly — everything settles together).
+    // The timer stays in the DOM and collapses via its existing CSS transition
+    // (--dur-fast, 150ms) rather than being yanked out instantly, eliminating the
+    // layout-shift jump that made bottom-of-list checks feel abrupt.
     if (doResetState) {
-      document.body.appendChild(timerEl);
-      timerEl.hidden = true;
-      timerEl.setAttribute('aria-hidden', 'true');
-      kbdHint.hidden = true;
-      kbdHint.setAttribute('aria-hidden', 'true');
+      appEl.classList.remove('focusing');
     }
 
     // Unlock scroll — slide back to original position if there was a nudge,
@@ -825,15 +825,16 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       // session — leave it alone rather than reparenting it to <body>. (BUG-065)
       if (myGen !== focusGen) return;
 
-      appEl.classList.remove('focusing');
-      // Timer already moved to body on task-check; only move it here for other close paths.
-      if (!doResetState) {
-        document.body.appendChild(timerEl);
-        timerEl.hidden = true;
-        timerEl.setAttribute('aria-hidden', 'true');
-        kbdHint.hidden = true;
-        kbdHint.setAttribute('aria-hidden', 'true');
-      }
+      // ESC/click-outside: remove .focusing now (check path removed it immediately above).
+      if (!doResetState) appEl.classList.remove('focusing');
+      // Move timer to body for all close paths. On check path, the timer has already
+      // collapsed via CSS (150ms) by the time we reach here (200ms), so this is a
+      // quiet cleanup with no visible layout shift.
+      document.body.appendChild(timerEl);
+      timerEl.hidden = true;
+      timerEl.setAttribute('aria-hidden', 'true');
+      kbdHint.hidden = true;
+      kbdHint.setAttribute('aria-hidden', 'true');
 
       if (doResetState && closingTaskId) {
         clearState(closingTaskId);

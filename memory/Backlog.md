@@ -10,8 +10,9 @@
 | Context | Use |
 |---------|-----|
 | Searching Coda | `/browse` skill — not raw WebFetch or grep |
-| Poem curation search | Broaden discovery before narrowing candidates: national libraries, university digital collections, regional/bilingual anthologies, oral-literature archives, historical journals, and author/translator archives. Use generic poetry sites only as leads or cross-checks; use Gutenberg, Wikisource, and Internet Archive mainly for exact text and public-domain verification. WebSearch to identify a specific poem or collection → targeted fetch of the relevant page; no indiscriminate bulk-fetching. Work inline in the main conversation, not via agents. |
-| Poem display in chat | Always use real line breaks — one line per line, in a blockquote. Never use `/` as an inline line separator. |
+| Poem display in chat | Real line breaks, one per line, in a blockquote. Never `/` as an inline separator. |
+
+**Poem curation search process:** Broaden discovery before narrowing candidates — national libraries, university digital collections, regional/bilingual anthologies, oral-literature archives, historical journals, author/translator archives. Generic poetry sites only as leads or cross-checks; Gutenberg, Wikisource, and Internet Archive for exact text and PD verification. WebSearch to identify a specific poem or collection → targeted fetch of the relevant page only; no bulk-fetching. Work inline in the main conversation, not via agents.
 
 ---
 
@@ -29,14 +30,14 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 12c | **Companion — observation pool** | Phases 0–3 shipped; **Phase 4 running** | Two consumers: morning nudge (today-hook kinds only) and Sunday (every outcome kind). Eligibility, `letgo-reason` base rate and task naming fixed 2026-09-03 after the first sample; the four statistical week kinds retired 2026-09-07 after the second. Usefulness gate still owed. Detail ↓ |
-| 11 | **Task agent — enrichment at add-time** | Stages 1 & 2 shipped; Stage 3 next | External context enrichment (Gmail, web search, soon: contacts, calendar, Trello). Distinct from companion arc — enriches the task, not understanding of you. Detail ↓ |
-| 10 | **Meeting mode & calendar capture** | In progress / gated | Granola integration MVP before native capture. Calendar = input only, never output. Detail ↓ |
-| 9 | **Google Drive sync** | Parked — spec ready | Second sync backend alongside Dropbox; user picks one. Full spec ↓ |
-| 12e | **Companion — reactions** | **Shipped v2.86.0 → v2.87.0** | Two-state verdict on every spoken line (*landed* / *not really*), the usefulness gate with the person as judge. Feeds `_observationGateExplain`: one miss doubles a kind's cooldown, two retire it — permanently (`kindVerdicts`), with "bring back" in the Memory panel's RETIRED block. Not on Noticed or the focus question. Detail ↓ |
-| 12d | **Companion — memory surface** | Phase A shipped (in v2.82.4); **Phase B next** | "What TODAY knows about you" — the *data itself* (returning tasks, outcomes, obligation history), shown plainly and clearable, in the Memory panel. Distinct from the panel's AI hypotheses, which have their own open finding (Watching). Requires 12c to have observations worth showing. Detail ↓ |
-| — | **WEEK companion** | Gated | Gate is now: *12c is working and feels like a companion, not a feature.* Data accumulation is necessary but not sufficient. Detail ↓ |
-| 2 | **Poem corpus — iterate** | In progress | Expand geography, voice, and forms of self-recognition. Corpus 133 reviewed poems (2026-09-08). Detail ↓ |
+| 12c | **Companion — observation pool** | Phases 0–3 shipped; **Phase 4 running** | Morning (today-hook kinds) + Sunday (all outcome kinds). Detail ↓ |
+| 11 | **Task agent — enrichment at add-time** | Stages 1–3 shipped | Stage 3 (v2.90.0): `search_trello` custom tool. Contacts + calendar remain out of scope until those integrations exist. Detail ↓ |
+| 10 | **Meeting mode & calendar capture** | In progress / gated | Granola MVP first; calendar = input only. Detail ↓ |
+| 9 | **Google Drive sync** | Parked — spec ready | Second sync backend; user picks one provider. Full spec ↓ |
+| 12e | **Companion — reactions** | **Shipped v2.86.0 → v2.87.0** | Two-state verdict on every spoken line; permanent via `kindVerdicts`. Detail ↓ |
+| 12d | **Companion — memory surface** | Phase A shipped (v2.82.4); **Phase B shipped (v2.89.0)** | Plain "what I know" view in Memory panel, per-item clearable. Detail ↓ |
+| — | **WEEK companion** | Gated | Gate: 12c must feel like a companion, not a feature. Detail ↓ |
+| 2 | **Poem corpus — iterate** | In progress | Corpus 133; expand geography and voice. Detail ↓ |
 
 ---
 
@@ -195,9 +196,9 @@ Dropbox + GDrive simultaneously · automatic cross-provider migration · OneDriv
 
 **Stage 1 shipped (v2.76.0+):** Tool-use agent fires on task add for actionable tasks. Netlify function calls `claude-sonnet-5` with `web_search_20250305` server tool; handles multi-turn `pause_turn`/`tool_use` continuation; returns validated card `{ icon, headline, body, cta }`. ↗ indicator in task row; card renders in `#focusAgentBlock` on focus open. Timeout set to 26s (v2.76.4), beta header dropped, focus block clip fixed (v2.76.2).
 
-**Next: Stage 3 — expand tool registry**
+**Stage 3 shipped (v2.90.0):** `search_trello` custom tool added. When Trello is connected, Claude checks the user's board first (existing card link > web result). `pause_turn` (server/web_search) and `tool_use` (custom/search_trello) are now handled in separate branches. MAX_TURNS 3 → 5. Client passes `trelloToken` + `trelloBoardId` on every call.
 
-`search_contacts`, `read_calendar`, `search_trello`. One task can trigger multiple tools; Claude decides the sequence.
+`search_contacts` and `read_calendar` remain deferred — those integrations don't exist yet.
 
 **Out of scope:** autonomous execution without review · importing others' email as tasks · always-on background agent (trigger-on-add only)
 
@@ -257,16 +258,16 @@ He is right, and the cause is structural, not phrasing. The line was `focus-leve
 
 Sorted by reacting to sample output lines rather than score constants, which is the artifact worth putting in front of a person. Everything that survived is a **relationship** or **lifecycle** kind; both cuts were count-shaped. *(2026-09-07: the four "pre-existing" statistical kinds that had been grandfathered in were cut too, after the second sample — see above.)*
 
-| Score | Kind | |
+| Score | Kind | Signal |
 |---|---|---|
 | 115 | `focus-vs-obligation` | where focus went, and where it did not |
 | 105 | `obligation-completion` | rate on obligation-framed vs chosen |
-| 95 | `letgo-reason` | which reason dominates what you let go, stated against everything that ended; the contrast is the reasons that did not |
-| 92 | `return-finished` | what comes back, and whether it gets finished — the evidence on whether letting go is safe. Added v2.84.0, replacing the same-day Noticed line; withholds `letgo-return` when both would fire |
+| 95 | `letgo-reason` | dominant let-go reason vs. what didn't dominate |
+| 92 | `return-finished` | what comes back, and whether it gets done (withholds `letgo-return` when both fire) |
 | 88 | `soon-pullback` | what you defer tends to come back |
-| 85 | `letgo-return` | what you release, and what comes back — added v2.81.0 after asking why `revive` was recorded but unread. **Linked, not counted** (v2.81.3): a let-go and a revive of the same task share an id, so only returns that follow a release count, and the task is named while it is still on a list. One task cycling twice gets its own line. **45-day window** (v2.81.1), the only kind not on 30: revive is a slow signal, and slow signals earn a longer window rather than a lower floor |
-| — | `list-growth`, `cognitive-weight` | **cut** — container subject, and a count of what triage already prints |
-| — | `focus-leverage`, `habit-alignment`, `recurring-day`, `bursts` | **cut 2026-09-07 (v2.85.0)** — completions-per-day statistics inherited from the pre-north-star week reflection; grandfathered in with the highest scores and never re-judged |
+| 85 | `letgo-return` | what you release and what returns — linked by id, 45-day window |
+| — | `list-growth`, `cognitive-weight` | **cut** — container subject |
+| — | `focus-leverage`, `habit-alignment`, `recurring-day`, `bursts` | **cut v2.85.0** — productivity stats, never re-judged against the north star |
 
 **Two rules the cuts produced**, now also in `design/Personalization.md`: the person is the subject, never a container; and name the actual list, or the observation is not sayable.
 
@@ -328,14 +329,17 @@ What TODAY knows about you, made visible and clearable.
 
 ## Watching
 
-| Decision | Current | Watch for |
-|----------|---------|-----------|
-| AI/data outcome loop | Shipped v2.72.0/v2.72.1. | Check `appMemory.suggestionOutcomes` — past 12 resolved offers, inspect whether any reason is flagged `underperforming` and whether the mix actually changed. Only extend to another action if it did. |
-| Morning nudge usefulness | **Superseded by 12c (v2.80.x).** The nudge now has two tracks: a pool-selected observation when a candidate survives the gate, otherwise the task-reading path. The instrument is no longer `suggestionOutcomes` — it is `appMemory.spokenLines` (what was said, and which `kind` produced it) and `appMemory.taskOutcomes` (what the pool had to work with). | Read `spokenLines` entries carrying a `kind`: that is the pool speaking. None after two weeks means the thresholds are too strict or `taskOutcomes` is too thin — check which before touching any prompt. |
-| Memory panel — AI hypotheses | Can (2026-09-02): does not visit it, and finds most of the inferences uninteresting. This is the *quality gate* verdict that was overdue. | Before any new hypothesis generation anywhere: read `appMemory.memory.semantic/episodic/procedural` statuses — confirmed vs dismissed vs still proposed. If almost nothing is confirmed, the generator is producing guesses he does not recognise. Diagnose that; do not add sources. |
-| Dated AI-cache sync | Four fields hand-plumbed: `day_nudge_ai`, `week_reflection`, `monday_intention`, `week_theme_ai`. `gmail_classify_*` uses a different pattern (keyed by taskId, not date) — not a fifth. | Create one declarative cache registry before a genuinely fifth dated AI field lands (e.g. `focus_companion_ai_*`). Not yet. |
-| Merge-anomaly observability | Dropbox emits a console-only `[merge-anomaly]` breadcrumb; no persisted counter or Connections metric. | Revisit only if anomalies appear during debugging or a conflict rate becomes measurable. Not live product telemetry. |
-| Chrome Built-in AI (Prompt API) | Research — not started | Chrome 127+ ships Gemini Nano on-device (`window.ai.languageModel`). Still in Origin Trial (Chrome-only, needs registration). Ideal long-term destination for Gmail comm-task classification: on-device, free, no API key, offline. Current approach uses `ai-assist` proxy. When Chrome Built-in AI reaches stable / broad availability, progressive enhancement: try `window.ai` first, fall back to `ai-assist`. Polyfill exists for non-Chrome browsers. Revisit when out of Origin Trial (~2026 or later). |
+**AI/data outcome loop** *(v2.72.0)* — `suggestionOutcomes` holds the last 12 resolved offers. Extend only if `underperforming` appears and the action mix actually changed.
+
+**Morning nudge** *(superseded by 12c, v2.80.x)* — Instrument is now `spokenLines` (which `kind` produced each line) and `taskOutcomes` (what the pool had to work with). No pool line after two weeks means thresholds too strict or data too thin — check which before touching any prompt.
+
+**Memory panel — AI hypotheses** — Can does not visit; most inferences uninteresting. Before any new hypothesis generation: read `appMemory.memory.semantic/episodic/procedural` statuses. If almost nothing confirmed, the generator is producing unrecognised guesses — diagnose that before adding sources.
+
+**Dated AI-cache sync** — Four fields hand-plumbed: `day_nudge_ai`, `week_reflection`, `monday_intention`, `week_theme_ai`. (`gmail_classify_*` is keyed by taskId, not date — not a fifth.) Create a declarative registry before a genuinely fifth dated AI field lands. Not yet.
+
+**Merge-anomaly observability** — Console-only `[merge-anomaly]` breadcrumb; no persisted counter. Revisit only if anomalies appear during debugging.
+
+**Chrome Built-in AI (Prompt API)** — Chrome 127+ ships Gemini Nano on-device; still Origin Trial (Chrome-only). Ideal for Gmail comm-task classification: on-device, free, offline. Progressive enhancement when stable: try `window.ai` first, fall back to `ai-assist`. Revisit when out of trial (~2026 or later).
 
 ---
 
@@ -346,19 +350,19 @@ What TODAY knows about you, made visible and clearable.
 >
 > **⚠ Overdue as of 2026-09-01 — six rows past their due date and unresolved.** These need Can's verdict, not a guess; each is marked below. An unresolved row is not a neutral state — it is a surface still shipping on an untested assumption, and the longer it sits the more it looks like a decision that was made rather than one that was skipped.
 
-| Surface | Shipped | Due | Status |
-|---------|---------|-----|--------|
-| Monday intention (memory-enriched) | v2.65.1 | ⚠ 2026-08-24 | Verdict (2026-08-17): synthesis is nice. Data source fixed: now includes Soon + Trello. Re-observe next Monday. |
-| About contextual CTAs | v2.64.10 | ⚠ 2026-08-25 | Open — does the bordered CTA treatment make actions clearer without pulling attention? |
-| Connections privacy reassurance | v2.64.11 | ⚠ 2026-08-26 | Open — one appearance per device when fully disconnected. Timely reassurance or policy copy interrupting setup? |
-| Focus companion question | v2.65.0 | ⚠ 2026-08-31 | Improved: taxonomy system prompt, drag-word + letgo-reason signals, word cap 18→22. Re-observe — does the question now feel like clarity rather than a check-in? |
-| Post-triage reflections | v2.65.7 | ⚠ 2026-08-31 | Open — real pause or rote wallpaper? Watch for: avoidance on hard days, selection bias, feeling rote after first week. |
-| Memory panel quality gate | v2.47.0 | 2026-09-01 | **Iterate (2026-09-02).** Can: does not visit; most hypotheses uninteresting. Diagnosis owed before more generation — see Watching. |
-| Season moments — solar term label | v2.71.0 | 2026-09-05 | Open — does `処暑 · End of Heat` feel like context or noise after a few appearances? Hemisphere localization added in v2.81.4 so the term and observation now match the viewer's local season. |
-| Sunday earned insight | v2.71.12 | 2026-09-06 | Open — does it reveal a real lever rather than paraphrasing the grid? Track abstentions as healthy. |
-| Obligation language tip | v2.77.20 | 2026-09-14 | Open — "Have to — or choosing to?" Does it land as a genuine moment of reflection, or does it feel like an interruption? Watch: dismissed immediately vs. paused on. Regex tightened v2.78.0: min 3 words + "should/must be [adj]" excluded. |
-| Observation pool — morning nudge + Sunday (12c Phase 4) | v2.82.0 | 2026-09-17 | Open — **restarted 2026-09-03 with eligibility.** Morning gets only today-hook kinds; Sunday gets every outcome kind (statistical week kinds retired 2026-09-07 after sample 2). **From v2.86.0 the verdict channel is the reaction on the line** — read `spokenLines` entries with `reaction` at verdict time instead of reconstructing from chat. Watch: does a morning pool line feel about *today*; does a Sunday line land as recognition; `spokenLines` entries carrying a `kind` show which surface spoke. Two weeks. Not one line. |
-| Memory panel — KNOWN + SAID record blocks (12d Phase A) | v2.82.4 (`fa4566b`, 2026-09-03) | 2026-09-17 | Open — does the record read as *yes, that's accurate* rather than feeling observed? And is it visited at all, given the panel's own discoverability finding above? A block nobody opens has no wallpaper problem and no value either. |
+| Surface | Due | Status |
+|---------|-----|--------|
+| Monday intention (memory-enriched) | ⚠ 2026-08-24 | Re-observing — data source fixed (Soon + Trello added) |
+| About contextual CTAs | ⚠ 2026-08-25 | Open — do bordered CTAs clarify actions without pulling attention? |
+| Connections privacy reassurance | ⚠ 2026-08-26 | Open — timely reassurance, or policy copy interrupting setup? |
+| Focus companion question | ⚠ 2026-08-31 | Re-observing — clarity vs. check-in feel? Taxonomy prompt + word cap updated |
+| Post-triage reflections | ⚠ 2026-08-31 | Open — real pause or rote? Watch for avoidance on hard days |
+| Memory panel quality gate | 2026-09-01 | **Iterate (2026-09-02)** — diagnose generator before adding sources; see Watching |
+| Solar term label | 2026-09-05 | Open — context or noise? Hemisphere-aware since v2.81.4 |
+| Sunday earned insight | 2026-09-06 | Open — reveals a real lever, or paraphrases the grid? |
+| Obligation language tip | 2026-09-14 | Open — reflection or interruption? Regex tightened v2.78.0 |
+| Observation pool — morning + Sunday (12c Phase 4) | 2026-09-17 | Open — reactions are the verdict channel from v2.86.0. Two weeks, not one line. |
+| Memory panel KNOWN + SAID (12d Phase A) | 2026-09-17 | Open — "yes, that's accurate" vs. feeling observed? Also: is it visited at all? |
 
 ---
 
@@ -368,8 +372,8 @@ What TODAY knows about you, made visible and clearable.
 
 | Decision | Rationale |
 |---|---|
-| Full-contrast completed tasks | Completed rows deliberately recede to 25% opacity. WCAG 1.4.3/1.4.11 are accepted exceptions; semantics remain intact. |
-| Visible pointer reorder controls | Drag-only. Option+Arrow available for keyboards. WCAG 2.2 criterion 2.5.7 accepted exception. |
+| Full-contrast completed tasks | Rows recede to 25% opacity. WCAG 1.4.3/1.4.11 accepted exceptions; semantics intact. |
+| Visible pointer reorder controls | Drag-only; Option+Arrow for keyboards. WCAG 2.2 criterion 2.5.7 accepted exception. |
 | Weather-aware nudges | **Rejected 2026-08-17.** Adds external-data dependency + new privacy boundary with no demonstrated need. Do not re-propose. |
 | Truncating task text | **Rejected 2026-08-01.** Task text is primary content. Wrapping is correct; do not re-propose clamping. |
 | Keyboard shortcuts (desktop) | No demonstrated need — revisit only if a real workflow gap shows up. |
@@ -377,8 +381,8 @@ What TODAY knows about you, made visible and clearable.
 | Quick capture (without opening app) | No good cross-platform path. iOS has no PWA share target; Siri needs a native app. |
 | Microsoft Notes integration | No clear user need. |
 | Momentum integration | No public API; ICS is inbound-only. |
-| Calendar integration as agenda | Rejected as a displayed surface. Meeting mode reads calendar as INPUT only — never rendered back. Not a planner. |
-| Slack / stream extraction | Wrong trust model + renders other people's demands into the calm list. Gmail *enrichment* (readonly, client-side PKCE, surfaces below your own task) shipped v2.75.1 — distinct from extraction. |
+| Calendar integration as agenda | Calendar = input only, never displayed. Meeting mode reads it; TODAY is not a planner. |
+| Slack / stream extraction | Wrong trust model; renders others' demands into the calm list. Gmail enrichment (v2.75.1) is readonly and distinct. |
 | Todoist integration | **Rejected 2026-08-21.** No demonstrated need for a second task-integration lane. Do not re-propose. |
 | Push notifications | **Rejected 2026-08-21.** No demonstrated need. Needs server infra with no validated payoff. Do not re-propose. |
 | In-app analytics / session replay | **Rejected 2026-08-11.** TODAY promises no observation. A tracker can expose OAuth tokens. Separate public landing surface only. |

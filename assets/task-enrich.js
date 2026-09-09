@@ -1,4 +1,4 @@
-// TODAY — Task agent enrichment (Stage 1: web search via Claude server tools).
+// TODAY — Task agent enrichment (Stage 1: web search; Stage 3: Trello search).
 // Fires on task add; shows ↗ indicator on task row; expands in focus mode.
 (function() {
   'use strict';
@@ -35,11 +35,14 @@
     _inflight.add(taskId);
 
     try {
-      const apiKey = Today.use('connections')._aiGetKey('claude');
+      const apiKey        = Today.use('connections')._aiGetKey('claude');
+      const trelloToken   = localStorage.getItem('trello_token') || '';
+      const trelloConfig  = safeJSON('trello_config', {});
+      const trelloBoardId = trelloConfig.boardId || '';
       const res = await fetch('/.netlify/functions/task-enrich', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ taskText, apiKey }),
+        body:    JSON.stringify({ taskText, apiKey, trelloToken, trelloBoardId }),
       });
 
       if (res.status === 429 || res.status >= 500) return; // transient — don't cache
