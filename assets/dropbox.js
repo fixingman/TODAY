@@ -395,6 +395,7 @@
       // that would replay on each pass (panels visibly flash, BUG-023) — suppress it;
       // it's restored when the user next opens a panel.
       function _forceRepaint() {
+        if (window._focusJustExited) return; // focus just exited — scroll is settling, don't cement it
         if (document.visibilityState === 'hidden') return; // re-slept before this pass fired
         const appEl = document.getElementById('main-app');
         if (!appEl) return;

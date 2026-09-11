@@ -570,6 +570,29 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     const _priorSt = getState(taskId);
     if (_priorSt.rem === 0 && !_priorSt.running) clearState(taskId);
 
+    // Capture scroll and task top BEFORE focus-locked removes the header from flow.
+    // focus-locked makes the header position:fixed (out of flow), shifting all content
+    // up by ~headerHeight. Measuring after that gives an originalTaskTop too small by
+    // that amount, causing the exit drift-correction to over-scroll on every exit.
+    const originalScrollY = window.scrollY;
+    const originalTaskTop = taskEl.getBoundingClientRect().top;
+
+    // Compute nudge delta with the header still sticky (normal pre-focus layout).
+    // _targetScrollY is captured in the rAF closure below.
+    const rect = taskEl.getBoundingClientRect();
+    const viewportH = window.innerHeight;
+    const timerHeight = 260;
+    const footerH = 70;
+    const headerH = 80;
+    const GUTTER = 12;
+    let _enterDelta = 0;
+    if (rect.bottom + timerHeight > viewportH - footerH) {
+      _enterDelta = (rect.bottom + timerHeight + GUTTER) - (viewportH - footerH);
+    } else if (rect.top < headerH) {
+      _enterDelta = rect.top - headerH - GUTTER;
+    }
+    const _targetScrollY = Math.max(0, originalScrollY + _enterDelta);
+
     // Start the header fade before any setup work so the logo dims at the same
     // frame the tap registers — not after _setFocusInert loops over every task.
     const _hdr = document.getElementById('sticky-header');
@@ -619,26 +642,6 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       const focusName = taskEl.querySelector('.task-text,.habit-name')?.textContent?.trim() || 'item';
       _a11yAnnounce(`Focus started for ${focusName}.`);
     }
-    
-    // Save original scroll and task position — restore target on close.
-    const originalScrollY = window.scrollY;
-    const originalTaskTop = taskEl.getBoundingClientRect().top;
-
-    // Compute nudge delta without instant-scrolling — the rAF above animates body.top
-    // to the target concurrent with blur-in, so enter and exit feel matched.
-    const rect = taskEl.getBoundingClientRect();
-    const viewportH = window.innerHeight;
-    const timerHeight = 260;
-    const footerH = 70;
-    const headerH = 80;
-    const GUTTER = 12;
-    let _enterDelta = 0;
-    if (rect.bottom + timerHeight > viewportH - footerH) {
-      _enterDelta = (rect.bottom + timerHeight + GUTTER) - (viewportH - footerH);
-    } else if (rect.top < headerH) {
-      _enterDelta = rect.top - headerH - GUTTER;
-    }
-    const _targetScrollY = Math.max(0, originalScrollY + _enterDelta);
 
     // Lock scroll immediately at current position; animation to target fires in the rAF above.
     document.body.style.position = 'fixed';
@@ -651,7 +654,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     // fixed body and rode the top nudge off-screen for tasks near the bottom. The CSS
     // makes it position:fixed under body.focus-locked; padding the body by its height
     // keeps everything below exactly where it was when it leaves the flow.
-    // (_hdr captured and focus-locked already applied at the top of this function.)
+    // (_hdr captured above, focus-locked applied above.)
     if (_hdr) {
       document.body.style.paddingTop = _hdr.getBoundingClientRect().height + 'px';
     }
@@ -728,11 +731,12 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       appEl.classList.remove('focusing');
     }
 
-    // Unlock scroll — slide back to original position if there was a nudge,
-    // so enter (instant small nudge) and exit feel matched in character.
+    // Unlock scroll — stay at the nudge-adjusted position (lockY) rather than
+    // animating back to the original scrollY. This eliminates the reverse-scroll
+    // motion on exit: the task stays visually where it was during focus.
     const scrollY      = parseInt(document.body.dataset.scrollY || '0');
     const lockY        = Math.abs(parseInt(document.body.style.top || '0'));
-    const _driftAnchor = uiTaskEl; // capture before uiTaskEl is cleared at line 810
+    const _driftAnchor = uiTaskEl; // capture before uiTaskEl is cleared below
     const _savedTaskTop = parseFloat(document.body.dataset.focusTaskTop || '-1');
 
     function _doUnfix() {
@@ -743,25 +747,23 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       document.body.style.right = '';
       document.body.style.paddingTop = '';
       document.body.classList.remove('focus-locked'); // header back to sticky, in flow
-      window.scrollTo(0, scrollY);
-      // If renderManual reordered tasks during focus, the task's DOM position shifted.
-      // Correct by the exact drift so it lands at the same viewport Y as when focus opened.
+      // Stay at lockY (the effective scroll during focus). Going back to scrollY
+      // would animate the page toward the pre-focus position — that's the hijack.
+      window.scrollTo(0, lockY);
+      // Drift correction: if renderManual reordered tasks during focus, adjust.
+      // Expected viewport Y at lockY = savedTaskTop offset by the nudge delta.
       if (_savedTaskTop >= 0 && _driftAnchor) {
-        const _drift = _driftAnchor.getBoundingClientRect().top - _savedTaskTop;
-        if (Math.abs(_drift) > 2) window.scrollTo(0, scrollY + _drift);
+        const _expectedY = _savedTaskTop - (lockY - scrollY);
+        const _drift = _driftAnchor.getBoundingClientRect().top - _expectedY;
+        if (Math.abs(_drift) > 2) window.scrollTo(0, lockY + _drift);
       }
+      // Prevent _forceRepaint (dropbox wake handler) from reading savedScrollY and
+      // cementing it — the flag expires after the last timer pass we care about (1500ms).
+      window._focusJustExited = true;
+      setTimeout(() => { window._focusJustExited = false; }, 2000);
     }
 
-    if (Math.abs(lockY - scrollY) > 2) {
-      // Animate the fixed body to the original scroll position (ease-out, 200ms —
-      // matches focus exit animation). Visual position is correct at end, so the
-      // subsequent scrollTo in _doUnfix causes no visible snap.
-      document.body.style.transition = 'top 200ms cubic-bezier(0.16, 1, 0.3, 1)';
-      document.body.style.top = `-${scrollY}px`;
-      setTimeout(_doUnfix, 210);
-    } else {
-      _doUnfix();
-    }
+    _doUnfix();
 
     const closingTask   = uiTaskEl;
     const closingTaskId = uiTaskId;

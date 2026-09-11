@@ -4390,9 +4390,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.1':  'Fix: when a focused task near the bottom triggers a nudge to bring it into view, checking it done now holds the page at the nudged scroll position — a background timer was resetting it to where the page was before focus.',
   '2.90.0':  'When your Trello board is connected, the task enrichment agent can now search it directly — so if you add a task that matches a card already there, you get the link in focus mode rather than a web result.',
   '2.89.1':  'Fix: marking a focused task done now fades smoothly — the opacity transition fires from the moment you check it, concurrent with the scroll-back, with no layout jump from the timer collapsing.',
-  '2.89.0':  'Any entry in the Memory panel\'s KNOWN block — a task that keeps returning, an obligation still open — can now be dismissed with a single tap. The dismissal sticks across renders and syncs across devices.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
