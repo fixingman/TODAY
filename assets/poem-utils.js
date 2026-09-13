@@ -26,8 +26,10 @@ function _poemForDate(dateStr) {
                : m >= 8 && m <= 10 ? 'autumn' : 'winter';
   const pool = POEMS.filter(p => !p.season || p.season === season);
   if (!pool.length) return null;
-  const appDay = date.toDateString();
-  const days   = Math.floor(new Date(appDay).getTime() / 86400000);
+  // Use UTC-noon day count from local date components so edge function (UTC) and
+  // client (any TZ) agree: new Date(toDateString()) parses as local midnight,
+  // which is UTC-offset from edge UTC midnight → different day index.
+  const days = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
   return pool[days % pool.length];
 }
 

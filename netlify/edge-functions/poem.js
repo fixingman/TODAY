@@ -60,8 +60,7 @@ function poemForDate(POEMS, dateParam) {
                : m >= 8 && m <= 10 ? 'autumn' : 'winter';
   const pool   = POEMS.filter(p => !p.season || p.season === season);
   if (!pool.length) return null;
-  const appDay = date.toDateString();
-  const days   = Math.floor(new Date(appDay).getTime() / 86400000);
+  const days = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
   return pool[days % pool.length];
 }
 

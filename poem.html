@@ -207,8 +207,10 @@
       return out;
     }
 
+    let _sharingInProgress = false;
     async function _shareAsImage() {
-      if (!poem) return;
+      if (!poem || _sharingInProgress) return;
+      _sharingInProgress = true;
       await document.fonts.ready;
 
       const W = 1080, H = 1350;
@@ -219,17 +221,6 @@
       // background
       ctx.fillStyle = '#0e0e10';
       ctx.fillRect(0, 0, W, H);
-
-      // ✦ mark
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#c8f060';
-      ctx.font = '400 52px "DM Mono","Courier New",monospace';
-      ctx.fillText('❖', W / 2, 148);
-
-      // TODAY brand
-      ctx.fillStyle = '#242424';
-      ctx.font = '400 18px "DM Mono","Courier New",monospace';
-      ctx.fillText('T O D A Y', W / 2, 190);
 
       // poem text — centered block
       const PAD = 112, POEM_SIZE = 32, LINE_H = Math.round(POEM_SIZE * 1.9);
@@ -276,6 +267,8 @@
             console.warn('[poem] share failed', e);
             document.getElementById('shareStatus').textContent = 'Could not share the poem image.';
           }
+        } finally {
+          _sharingInProgress = false;
         }
       }, 'image/png');
     }
