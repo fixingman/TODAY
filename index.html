@@ -4383,17 +4383,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '315h';
+const DEV_HOURS     = '316h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.8':  'Poem share image: add the TODAY wordmark (star + TO·DAY split-colour) as a small top mark on the exported canvas.',
+  '2.90.7':  'Fix: How Days Felt now speaks only when reflected evenings reveal a supported relationship with how commitments were handled; frequency recaps and clipped replies stay silent.',
   '2.90.6':  'Fix: poem page OG meta now shows the correct poet in every timezone; the shared poem image no longer includes the TODAY logo; rapid taps on “save as image” no longer export the image twice.',
-  '2.90.5':  'Richard Watson Gilder joins the daily poems with the closing of “Because the Rose Must Fade”—six lines finding eternity in what passes.',
-  '2.90.4':  'Emily Dickinson joins the daily poems: four quiet lines beginning “Forever is composed of Nows”—a companion to Khayyám’s Here and Now.',
-  '2.90.3':  'Fix: How Days Felt now turns your saved evening check-ins into a reflection again when AI is connected, instead of continuing to show only the number remembered.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

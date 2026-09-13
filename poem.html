@@ -222,6 +222,33 @@
       ctx.fillStyle = '#0e0e10';
       ctx.fillRect(0, 0, W, H);
 
+      // TODAY wordmark — small, centered at top
+      const LOGO_SIZE = 20, STAR_PX = 14, LOGO_GAP = 9;
+      ctx.textAlign = 'left';
+      ctx.font = '400 ' + LOGO_SIZE + 'px "DM Mono","Courier New",monospace';
+      const toW  = ctx.measureText('TO').width;
+      const dayW = ctx.measureText('DAY').width;
+      const logoW = STAR_PX + LOGO_GAP + toW + dayW;
+      const logoX = (W - logoW) / 2;
+      const logoBaseline = 88;
+      // 4-pointed star (same path as #splash-star SVG, 40×40 viewBox → STAR_PX)
+      const sc = STAR_PX / 40;
+      ctx.save();
+      ctx.translate(logoX + STAR_PX / 2, logoBaseline - LOGO_SIZE * 0.35);
+      ctx.scale(sc, sc);
+      ctx.translate(-20, -20);
+      ctx.beginPath();
+      ctx.moveTo(20, 2); ctx.lineTo(22.4, 17.6); ctx.lineTo(38, 20);
+      ctx.lineTo(22.4, 22.4); ctx.lineTo(20, 38); ctx.lineTo(17.6, 22.4);
+      ctx.lineTo(2, 20); ctx.lineTo(17.6, 17.6); ctx.closePath();
+      ctx.fillStyle = '#c8f060';
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = '#555';
+      ctx.fillText('TO', logoX + STAR_PX + LOGO_GAP, logoBaseline);
+      ctx.fillStyle = '#c8f060';
+      ctx.fillText('DAY', logoX + STAR_PX + LOGO_GAP + toW, logoBaseline);
+
       // poem text — centered block
       const PAD = 112, POEM_SIZE = 32, LINE_H = Math.round(POEM_SIZE * 1.9);
       const maxW = W - PAD * 2;
