@@ -37,7 +37,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 | 12e | **Companion — reactions** | **Shipped v2.86.0 → v2.87.0** | Two-state verdict on every spoken line; permanent via `kindVerdicts`. Detail ↓ |
 | 12d | **Companion — memory surface** | Phase A shipped (v2.82.4); **Phase B shipped (v2.89.0)** | Plain "what I know" view in Memory panel, per-item clearable. Detail ↓ |
 | — | **WEEK companion** | Gated | Gate: 12c must feel like a companion, not a feature. Detail ↓ |
-| 2 | **Poem corpus — iterate** | In progress | Corpus 133; expand geography and voice. Detail ↓ |
+| 2 | **Poem corpus — iterate** | In progress | Corpus 135; expand geography and voice. Detail ↓ |
 
 ---
 
@@ -53,7 +53,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 > **Search process:** Start with source diversity, not a familiar-poet query loop. Search national libraries, university collections, regional or bilingual historical anthologies, oral-literature archives, historical journals, and specialist author/translator archives. Generic poetry sites can identify leads but should not define the candidate pool; Gutenberg, Wikisource, Internet Archive, and original scans remain useful for exact wording and worldwide-PD verification. Once a specific poem or collection is identified, fetch only the relevant page or passage. Each round should deliberately vary poets, translators, poetic structures, and kinds of thought; do not return several familiar voices merely because they are easy to source. Region is a tiebreaker—not a quality substitute or a flags-on-a-map exercise.
 
-**Seasons:** W15 / Sp18 / Su12 / Au13 / year-round 75 — corpus 133 reviewed poems (2026-09-08). Target is 16 per season: summer needs 4, autumn 3, winter 1; spring is 2 over.
+**Seasons:** W15 / Sp18 / Su12 / Au13 / year-round 77 — corpus 135 reviewed poems (2026-09-13). Target is 16 per season: summer needs 4, autumn 3, winter 1; spring is 2 over.
 
 **Rotation verdict (2026-08-22):** No repetition observed — shuffle algorithm is not the lever.
 
@@ -70,6 +70,10 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 **Curation learning (2026-09-02):** two seasonal passes, 31 candidates, two approved — Fun'ya no Asayasu's dewdrops the autumn wind scatters "as I pass" (Porter no. 37) and Amy Lowell's 'Falling Snow', clog-holes the temple bell will see covered. Both put a person inside the season and let a small trace not last, without complaint. Everything cut was scene without a person in it (Jitō, Korenori, Akahito, the Chinese summer quatrains, Lowell's dragonfly-or-leaf) or a person without a season doing anything to them (the Greek invitations to rest, the Navajo rain chant, Noguchi by the fire). Lesson: for seasonal fills, the season has to act on someone. 'Falling Snow' is the first post-ceiling seven-line entry, admitted because the last two lines are the poem — the same reasoning as Gibran's 'The Fox'. The ceiling stays; the exception is per-poem and Can's.
 
 **Curation learning (2026-09-08):** Po Chü-i's 'After Lunch' clarified another successful shape: an ordinary bodily rhythm, a noticed change in light or surroundings, then a philosophical turn that does not instruct the reader. Can approved González Martínez's inn offering rest without persuasion, Bhartrihari's earth-and-moon abundance, and Tagore's completed day at the tide. Search beyond those authors and translators next; the reusable quality is the movement from lived detail into perspective, not merely poems about rest, evening, or contentment.
+
+**Present-moment follow-up (2026-09-13):** Can approved the four-line opening of Emily Dickinson's 'Forever is composed of Nows' after the corpus surfaced Le Gallienne's Khayyám line about the magic words "Here and Now." Dickinson is the quieter sister thought: not an instruction to seize the day, but a widening of the present into eternity. Added year-round; exact selection pinned in smoke coverage so another Dickinson poem cannot satisfy the check accidentally.
+
+**Present-through-transience follow-up (2026-09-13):** Can also approved the complete closing stanza of Richard Watson Gilder's 'Because the Rose Must Fade'. Its rose, sunset, winter, and dying music reach the present moment through impermanence—a concrete complement to Khayyám and Dickinson rather than another direct instruction to seize the day. Added year-round; the exact six lines are pinned in smoke coverage.
 
 **Solar-term pairing (2026-09-02):** the 24 terms are an editorial discovery lens, not an attribution claim. A poem may enter a term's seasonal pool when its concrete moment genuinely fits; documentation must say “editorially paired,” never imply that a poet wrote about the East Asian calendar. Joseph S. Cotter, Jr.'s complete opening stanza of 'Rain Music' is the first approved example, paired with Rain Water (雨水): rain changes the dusty ground and grows audibly from murmur to strain.
 

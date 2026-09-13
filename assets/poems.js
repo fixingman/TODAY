@@ -892,4 +892,20 @@ const POEMS = [
     season: null,
     source: 'Stray Birds 55 (1916), Wikisource / Project Gutenberg #6524 — Tagore d. 1941, PD worldwide — complete aphorism reflowed to two displayed lines; verified verbatim',
   },
+
+  // ── Round 40 (Sep 2026) — the present moment ────────────────────────────
+  {
+    text: 'Forever is composed of Nows —\n’Tis not a different time,\nExcept for infiniteness\nAnd latitude of home.',
+    author: 'Emily Dickinson',
+    season: null,
+    source: "'Forever is composed of Nows' (25), The Further Poems of Emily Dickinson (1929) — Dickinson d. 1886, PD worldwide; four-line opening verified against the Academy of American Poets public-domain text",
+  },
+
+  // ── Round 41 (Sep 2026) — the present through transience ───────────────────
+  {
+    text: 'Ah, yes, because the rose\nFades like the sunset skies;\nBecause rude winter blows\nAll bare, and music dies—\nTherefore, now is to me\nEternity!',
+    author: 'Richard Watson Gilder',
+    season: null,
+    source: "'Because the Rose Must Fade', The Poems of Richard Watson Gilder (1908), p. 232 — Gilder d. 1909, PD worldwide; complete closing stanza verified verbatim against the 1908 edition scan",
+  },
 ];

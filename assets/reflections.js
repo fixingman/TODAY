@@ -27,6 +27,11 @@
     let _reflectPending = false;
     let _reflectTriggered = false; // auto-trigger fires once per session
 
+    function _parseAIText(data) {
+      if (data.error) return null;
+      return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
+    }
+
     // ── Storage helpers ──────────────────────────────────────────────────────
 
     function _loadPolicy() {
@@ -213,7 +218,6 @@
 
       const policy   = _loadPolicy();
       const list     = _loadReflections();
-      const provider = _getProviderDisplayName();
 
       const block = document.createElement('div');
       block.className = 'memory-type-block reflection-memory-block';
@@ -243,7 +247,7 @@
           inner += `<div class="memory-item"><span class="memory-item-text">${obs}</span></div>`;
         }
 
-        const aiReady = typeof _aiIsConfigured === 'function' && Today.use('connections')._aiIsConfigured();
+        const aiReady = Today.use('connections')._aiIsConfigured();
         if (list.length >= 7 && aiReady) {
           if (_reflectPending) {
             inner += `<div class="memory-item"><span class="memory-item-text memory-abstracting">reflecting…</span></div>`;
@@ -260,13 +264,6 @@
 
       block.innerHTML = inner;
       container.appendChild(block);
-    }
-
-    function _getProviderDisplayName() {
-      const p = Today.use('connections')._aiGetProvider();
-      if (!p) return 'your AI';
-      const names = { anthropic: 'Claude', claude: 'Claude', gemini: 'Gemini', openai: 'ChatGPT' };
-      return names[p] || 'your AI';
     }
 
     // ── On-device observation ────────────────────────────────────────────────
@@ -351,7 +348,7 @@
     async function reflectionReflect() {
       const list = _loadReflections();
       if (list.length < 7) return;
-      if (typeof _aiIsConfigured !== 'function' || !Today.use('connections')._aiIsConfigured()) return;
+      if (!Today.use('connections')._aiIsConfigured()) return;
       if (!navigator.onLine) return;
 
       _reflectPending = true;
@@ -382,8 +379,8 @@
           'Do not make up specific dates or tasks. ' +
           'Begin with a framing like "Looking at evenings you reflected…" or similar.';
 
-        const key      = typeof _aiGetKey      === 'function' ? Today.use('connections')._aiGetKey()      : null;
-        const provider = typeof _aiGetProvider === 'function' ? Today.use('connections')._aiGetProvider() : null;
+        const key      = Today.use('connections')._aiGetKey();
+        const provider = Today.use('connections')._aiGetProvider();
         if (!key || !provider) return;
 
         const res = await fetch('/.netlify/functions/ai-assist', {
@@ -401,7 +398,7 @@
         }
 
         const data = await res.json();
-        const text = typeof _parseAIText === 'function' ? _parseAIText(data)?.trim() : null;
+        const text = _parseAIText(data)?.trim();
         _reflectResult = text || null;
       } catch (_e) {
         // silent

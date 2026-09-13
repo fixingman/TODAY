@@ -280,14 +280,15 @@ Appended after the four main `typeBlock` sections by `_reflectionRenderMemory(el
 
 | Condition | Content |
 |-----------|---------|
-| Forget confirm pending | "Forget these reflections?" + Yes / Cancel |
 | Policy = `not_for_me` or absent | "Reflections are not remembered." + "Remember reflections" button |
-| Policy = `remember`, < 7 reflections | "Remembering the last 30 days." + count sentence |
-| Policy = `remember`, ≥ 7 entries + AI configured | Count + on-device observation + "Reflect" button (AI, user-initiated, aggregate only) |
-| `_reflectPending` | "reflecting…" spinner sentence in place of Reflect button |
-| `_reflectResult` set | AI-generated text in place of Reflect button |
+| Policy = `remember`, 0 reflections | "Remembering the last 30 days." |
+| Policy = `remember`, 1–6 reflections | Count sentence |
+| Policy = `remember`, ≥ 7 entries + AI configured | Count, then auto-reflect on panel open using aggregate feeling counts only |
+| Policy = `remember`, ≥ 14 entries + qualifying on-device pattern | Count + deterministic observation, whether or not AI is configured |
+| `_reflectPending` | "reflecting…" sentence |
+| `_reflectResult` set | AI-generated text |
 
-"Forget reflections" button shows whenever `list.length > 0`. "Remember reflections" button shows when policy is `not_for_me`. These two buttons are mutually exclusive.
+The reflection result is session-only and is never persisted or synced. The raw entries remain a separate 30-day record; the AI receives counts, not dates or task text. Reflection deletion is part of Memory's global clear flow. "Remember reflections" appears only when the policy is `not_for_me` or absent.
 
 ---
 

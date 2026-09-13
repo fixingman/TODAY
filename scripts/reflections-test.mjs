@@ -466,6 +466,53 @@ try {
     await page.close();
   }
 
+  // 5.3 Configured AI + 16 reflections → reflection runs and replaces the count-only state
+  {
+    const { page, errors } = await openPage({
+      today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
+      today_ai_provider: 'claude',
+      today_ai_key_claude: 'test-key',
+    });
+    const result = await page.evaluate(async () => {
+      const list = Array.from({ length: 16 }, (_, i) => ({
+        date: `2026-08-${String(i + 1).padStart(2, '0')}`,
+        feeling: ['drained', 'tense', 'present', 'off', 'calm', 'alive'][i % 6],
+        updatedAt: new Date().toISOString(),
+      }));
+      localStorage.setItem('today_reflections', JSON.stringify(list));
+
+      let request = null;
+      window.fetch = async (_url, options) => {
+        request = JSON.parse(options.body);
+        return {
+          ok: true,
+          json: async () => ({ content: 'Looking at evenings you reflected, the mix has stayed varied.' }),
+        };
+      };
+
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      Today.use('reflections')._reflectionRenderMemory(container);
+      const started = container.textContent.includes('reflecting…');
+
+      await new Promise(resolve => setTimeout(resolve, 50));
+      const text = document.getElementById('reflectionMemoryBlock')?.textContent || '';
+      return {
+        started,
+        resultShown: text.includes('the mix has stayed varied'),
+        requestSent: request?.provider === 'claude' && request?.apiKey === 'test-key',
+        aggregateOnly: request?.messages?.[0]?.content?.includes('"evenings_count":16') &&
+          !request.messages[0].content.includes('2026-08-'),
+      };
+    });
+    await expectAll('configured AI + 16 reflections → reflection shown', {
+      ...result,
+      noErrors: !errors.length,
+    });
+    ok('configured AI + 16 reflections → aggregate reflection replaces count-only state');
+    await page.close();
+  }
+
   // ── 6. Static wiring ────────────────────────────────────────────────────
 
   {
@@ -490,10 +537,10 @@ try {
       iife:            reflectionsSrc.includes('window._startReflections = function()'),
       componentApi:    reflectionsSrc.includes("Today.define('reflections'"),
     });
-    ok('static wiring: script order, DOM element, start call, precache, CACHE_VERSION, all 15 exports');
+    ok('static wiring: script order, DOM element, start call, precache, CACHE_VERSION, component API');
   }
 
-  console.log('\nReflections tests passed (24 tests).');
+  console.log('\nReflections tests passed (25 tests).');
 } finally {
   if (browser) await browser.close();
   server.close();

@@ -273,7 +273,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 11.4 | All tasks done | ✦ star above day's poem (done echo) |
 | 11.5 | Share today's poem where native sharing is available | Native share receives the poem, author, and canonical dated URL; visible and announced feedback begins immediately |
 | 11.6 | Share today's poem without native sharing | Clipboard receives the same text and URL; the control reports copied state without stale feedback |
-| 11.7 | Run smoke guard against `assets/poems.js` | Exactly 133 reviewed entries; every entry has text/author/source, a valid season, and 2–11 nonblank lines; approved voices including the ordinary-time round, Cotter's Rain Water pairing, and audited season tags are pinned; final-cut passages remain absent |
+| 11.7 | Run smoke guard against `assets/poems.js` | Exactly 135 reviewed entries; every entry has text/author/source, a valid season, and 2–11 nonblank lines; approved selections including Dickinson's four-line 'Forever is composed of Nows', Gilder's six-line closing stanza, the ordinary-time round, Cotter's Rain Water pairing, and audited season tags are pinned; final-cut passages remain absent |
 | 11.8 | Open About on a solar-term date in Northern and Southern Hemisphere time zones | Noticed keeps the same transition-day cadence but rotates the term and observation by half a year (for example, June 21 is Summer Solstice in the north and Winter Solstice in the south) |
 
 ### 12. PAST Revive (3 tests)

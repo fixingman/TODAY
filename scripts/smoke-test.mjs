@@ -124,6 +124,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'Enrique González Martínez (trans. Alice Stone Blackwell)',
     'Bhartrihari (trans. B. Hale Wortham)',
     'Rabindranath Tagore',
+    'Richard Watson Gilder',
   ];
   const sixLineVoices = [
     'Traditional Asante (recorded by R. S. Rattray)',
@@ -137,9 +138,16 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'Enrique González Martínez (trans. Alice Stone Blackwell)',
     'Bhartrihari (trans. B. Hale Wortham)',
     'Rabindranath Tagore',
+    'Richard Watson Gilder',
   ];
   const hasAllApprovedVoices = approvedVoices.every(author =>
     poems.some(poem => poem.author === author));
+  const hasForeverNows = poems.some(poem =>
+    poem.author === 'Emily Dickinson' &&
+    poem.text === 'Forever is composed of Nows —\n’Tis not a different time,\nExcept for infiniteness\nAnd latitude of home.');
+  const hasBecauseRose = poems.some(poem =>
+    poem.author === 'Richard Watson Gilder' &&
+    poem.text === 'Ah, yes, because the rose\nFades like the sunset skies;\nBecause rude winter blows\nAll bare, and music dies—\nTherefore, now is to me\nEternity!');
   const newLineLimitDrift = poems.some(poem =>
     sixLineVoices.includes(poem.author) &&
     poem.text.split('\n').filter(line => line.trim()).length > 6);
@@ -177,12 +185,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     return counts;
   }, {});
   const seasonCountDrift = seasonCounts.winter !== 15 || seasonCounts.spring !== 18 ||
-    seasonCounts.summer !== 12 || seasonCounts.autumn !== 13 || seasonCounts['year-round'] !== 75;
-  if (poems.length !== 133 || malformed.length || !hasAllApprovedVoices || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
+    seasonCounts.summer !== 12 || seasonCounts.autumn !== 13 || seasonCounts['year-round'] !== 77;
+  if (poems.length !== 135 || malformed.length || !hasAllApprovedVoices || !hasForeverNows || !hasBecauseRose || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
     console.error('✗ FAIL — reviewed poem corpus count, schema, line limit, or season tags drifted.');
     process.exit(1);
   }
-  console.log('  ✓ 133-poem reviewed corpus shape, approved geography, and audited seasons');
+  console.log('  ✓ 135-poem reviewed corpus shape, approved selections, and audited seasons');
 
   try {
     globalThis.fetch = async request => {
