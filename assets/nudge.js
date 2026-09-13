@@ -111,8 +111,9 @@ window._startNudge = (function() {
         catch(e) { return null; }
       })();
 
-      // Only show review if it's from yesterday (not stale)
-      const isReviewFresh = review && review.date && review.date !== _localISO();
+      // Only show review if it's specifically from yesterday (not 2+ days old)
+      const _yd = new Date(); _yd.setDate(_yd.getDate() - 1);
+      const isReviewFresh = review && review.date && review.date === _localISO(_yd);
 
       if (carriedOver === 0 && cards.length === 0 && !isReviewFresh) {
         nudgeEl.classList.remove('visible', 'show');
@@ -369,9 +370,11 @@ window._startNudge = (function() {
         const streak = parseInt(localStorage.getItem('stat_streak') || '1');
         const todayStr = _localISO();
 
-        // Yesterday line from the day review (may be absent)
+        // Yesterday line from the day review — only if it's specifically from yesterday
+        const _ydAI = new Date(); _ydAI.setDate(_ydAI.getDate() - 1);
+        const _reviewFreshAI = review && review.date && review.date === _localISO(_ydAI);
         let yLine = 'no record of yesterday';
-        if (review && review.date) {
+        if (_reviewFreshAI) {
           const yp = [];
           if (review.done > 0)        yp.push(review.done + ' done');
           if (review.focusMins >= 5)  yp.push(_formatFocusTime(review.focusMins) + ' focused');

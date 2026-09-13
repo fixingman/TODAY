@@ -523,6 +523,39 @@ try {
     await page.close();
   }
 
+  // 14b. day_nudge_ai_date guard: stale cross-day nudge is NOT written to today's cache.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const today = _localISO();
+      const yesterday = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return _localISO(d); })();
+      const base = {
+        manual_tasks: [], done_ids: [], deleted_ids: [], unchecked_ids: [], checked_ids: [],
+        soon_tasks: [], past_tasks: [], habits: [],
+      };
+
+      // Stale nudge with yesterday's date — should NOT be applied to today's cache.
+      localStorage.removeItem('day_nudge_ai_' + today);
+      mergeRemoteData({ ...base, day_nudge_ai: 'Stale Friday text.', day_nudge_ai_date: yesterday });
+      const staleRejected = !localStorage.getItem('day_nudge_ai_' + today);
+
+      // Old payload with no date field — should also be rejected.
+      localStorage.removeItem('day_nudge_ai_' + today);
+      mergeRemoteData({ ...base, day_nudge_ai: 'Undated text.' });
+      const undatedRejected = !localStorage.getItem('day_nudge_ai_' + today);
+
+      // Same-day nudge — should be accepted.
+      localStorage.removeItem('day_nudge_ai_' + today);
+      mergeRemoteData({ ...base, day_nudge_ai: "Today's real line.", day_nudge_ai_date: today });
+      const sameDayAccepted = localStorage.getItem('day_nudge_ai_' + today) === "Today's real line.";
+
+      return { staleRejected, undatedRejected, sameDayAccepted };
+    });
+    await expectAll('day_nudge_ai cross-day date guard', { ...result, noErrors: errors.length === 0 });
+    ok('mergeRemoteData: stale day_nudge_ai (wrong date or no date) not written to today key');
+    await page.close();
+  }
+
   // 14. The seven-second sync path does not repaint Trello on an unchanged day.
   //     Day boundaries and wake are the two age-bucket reconciliation points.
   {

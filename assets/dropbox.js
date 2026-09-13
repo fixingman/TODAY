@@ -589,7 +589,8 @@
         // Day review + AI nudge — sync so morning nudge shows consistently across devices.
         // Fill-if-empty on merge: first device to compute wins for the day.
         day_review:   safeJSON('today_day_review', null),
-        day_nudge_ai: localStorage.getItem('day_nudge_ai_' + _localISO()) || '',
+        day_nudge_ai:      localStorage.getItem('day_nudge_ai_' + _localISO()) || '',
+        day_nudge_ai_date: _localISO(),
         // Sunday reflection / Monday intention in About — same cross-device story as
         // day_nudge_ai (BUG-057): without sync each device generates its own AI text
         week_reflection:  localStorage.getItem('week_reflection_'  + _localISO()) || '',
@@ -1573,7 +1574,10 @@
       // Fill-if-empty caused each device to independently generate and keep its own
       // AI line, making the nudge differ across PWA instances on the same day.
       const _aiNudgeKey = 'day_nudge_ai_' + _todayISO;
-      if (data.day_nudge_ai) {
+      // day_nudge_ai_date guards against cross-day contamination: without it, Day D's
+      // text gets written to Day D+1's cache key on sync and re-uploaded, perpetuating
+      // indefinitely. Old Dropbox files (no date field) get undefined ≠ _todayISO → skip.
+      if (data.day_nudge_ai && data.day_nudge_ai_date === _todayISO) {
         localStorage.setItem(_aiNudgeKey, data.day_nudge_ai);
         if (typeof checkDayNudge === 'function') checkDayNudge();
         // About's Today block shows this line — refresh live if the panel is open
