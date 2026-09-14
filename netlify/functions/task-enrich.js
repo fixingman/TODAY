@@ -1,5 +1,5 @@
 // netlify/functions/task-enrich.js
-// Agentic task enrichment — Claude Sonnet 5 with web_search (server tool) and
+// Agentic task enrichment — Claude Haiku 4.5 with web_search (server tool) and
 // search_trello (custom tool, when Trello is connected).
 // Returns a card object for the focus block, or { card: null } if nothing useful.
 
@@ -11,7 +11,7 @@ const CORS_HEADERS = {
 
 const ANTHROPIC_URL  = 'https://api.anthropic.com/v1/messages';
 const TRELLO_API_KEY = 'f24cb0d938ae01e9cbf3feff20df8c1a';
-const MAX_TURNS  = 5;   // up from 3 — allows search_trello + web_search in one session
+const MAX_TURNS  = 3;   // web search turn + synthesis; reverted from 5 to reduce cost
 const TIMEOUT_MS = 24000; // leave 2s headroom inside Netlify's 26s function limit
 
 const SYSTEM_PROMPT_BASE = `You are a task enrichment assistant. For the given task, use available tools to find ONE specific actionable piece of information — a phone number, address, price, hours, booking URL, or a directly relevant Trello card. Return ONLY valid JSON in exactly this format:
@@ -86,7 +86,7 @@ exports.handler = async function(event) {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-5',
+          model: 'claude-haiku-4-5-20251001',
           max_tokens: 512,
           system: systemPrompt,
           tools,

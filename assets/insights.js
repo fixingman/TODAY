@@ -1158,7 +1158,7 @@ function _memoryForAI(scope) {
   // yesterday, and the focus question at 2pm could not know the nudge had already
   // named that task at 8am. Last 8 is enough to cover roughly a week of mornings
   // plus the current day's other surfaces.
-  const spoken = (m.spokenLines || []).slice(-8);
+  const spoken = (m.spokenLines || []).slice(-4);
   if (spoken.length > 0) {
     const spokenLines = spoken.map(l => `[${l.date} · ${l.surface}] ${l.text}`);
     lines.push(

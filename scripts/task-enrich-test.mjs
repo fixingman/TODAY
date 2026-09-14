@@ -47,7 +47,7 @@ try {
   const card = JSON.parse(success.body).card;
   const sent = JSON.parse(providerRequest.body);
   assert(success.statusCode === 200 && providerRequest.headers['x-api-key'] === 'client-key'
-      && sent.model === 'claude-sonnet-5' && sent.tools[0].type === 'web_search_20260209',
+      && sent.model === 'claude-haiku-4-5-20251001' && sent.tools[0].type === 'web_search_20260209',
     'function forwards the sanitized client key and expected provider contract');
   assert(card.headline.length === 40 && card.body.length === 80 && card.cta.label.length === 10
       && card.cta.href === 'https://example.com/item',
