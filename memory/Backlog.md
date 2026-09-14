@@ -363,10 +363,10 @@ What TODAY knows about you, made visible and clearable.
 | Post-triage reflections | ⚠ 2026-08-31 | Open — real pause or rote? Watch for avoidance on hard days |
 | Memory panel quality gate | 2026-09-01 | **Iterate (2026-09-02)** — diagnose generator before adding sources; see Watching |
 | HOW DAYS FELT insight | 2026-09-28 | Re-observing after v2.90.7 — a useful commitment relationship or silence, never a feeling-frequency recap? |
-| Solar term label | 2026-09-05 | Open — context or noise? Hemisphere-aware since v2.81.4 |
+| Solar term label | 2026-09-05 | **Kept (2026-09-14)** — well-appreciated delight; not noise. |
 | Sunday earned insight | 2026-09-06 | Open — reveals a real lever, or paraphrases the grid? |
-| Obligation language tip | 2026-09-14 | Open — reflection or interruption? Regex tightened v2.78.0 |
-| Observation pool — morning + Sunday (12c Phase 4) | 2026-09-17 | Open — reactions are the verdict channel from v2.86.0. Two weeks, not one line. |
+| Obligation language tip | 2026-09-14 | **Kept (2026-09-14)** — hasn't appeared lately; Can thinks it's already affected how tasks are written. Working when silent is working. Keep rolling. |
+| Observation pool — morning + Sunday (12c Phase 4) | 2026-10-01 | Re-observing — not sure yet; extend to 2026-10-01. Reactions are the verdict channel. |
 | Memory panel KNOWN + SAID (12d Phase A) | 2026-09-17 | Open — "yes, that's accurate" vs. feeling observed? Also: is it visited at all? |
 
 ---
