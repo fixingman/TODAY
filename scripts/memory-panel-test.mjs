@@ -293,7 +293,7 @@ try {
   }
 
   // 12d Phase A: the KNOWN block shows the companion record as plain
-  // facts — open items only, only the window, with the reconstruction caveat.
+  // facts — open items only, only the window. No reconstruction caveat (removed v2.90.13).
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
@@ -336,12 +336,12 @@ try {
         letgoObligationNotListed: !text.includes('renew permit'),
         countsLine: text.includes('30 days · 2 done · 1 let go · 1 to Soon · 1 brought back'),
         outOfWindowExcluded: text.includes('2 done'),
-        reconstructionCaveat: text.includes('1 of those reconstructed from older history'),
+        noReconstructionCaveat: !text.includes('reconstructed from older history'),
         emptyKnownNote: empty.includes('nothing on record yet'),
       };
     });
     await expectAll('12d KNOWN block', { ...result, noErrors: errors.length === 0 });
-    ok('renderMemoryPanel: KNOWN shows the record as plain facts — open items only, 30-day window, reconstruction caveat, newest first');
+    ok('renderMemoryPanel: KNOWN shows the record as plain facts — open items only, 30-day window, no reconstruction caveat');
     await page.close();
   }
 

@@ -353,8 +353,6 @@
       if (_win.length) {
         const c = k => _win.filter(e => e.outcome === k).length;
         knownItems.push({ text: `30 days · ${c('done')} done · ${c('letgo')} let go · ${c('soon_pull')} to Soon · ${c('revive')} brought back` });
-        const _bf = _win.filter(e => e.backfilled).length;
-        if (_bf) knownItems.push({ text: `${_bf} of those reconstructed from older history — no focus data on them` });
       }
 
       // 12e (v2.87.0): the permanent verdicts. Only retired kinds are listed — a

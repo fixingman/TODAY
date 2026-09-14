@@ -367,7 +367,7 @@ What TODAY knows about you, made visible and clearable.
 | Sunday earned insight | 2026-09-06 | Open — reveals a real lever, or paraphrases the grid? |
 | Obligation language tip | 2026-09-14 | **Kept (2026-09-14)** — hasn't appeared lately; Can thinks it's already affected how tasks are written. Working when silent is working. Keep rolling. |
 | Observation pool — morning + Sunday (12c Phase 4) | 2026-10-01 | Re-observing — not sure yet; extend to 2026-10-01. Reactions are the verdict channel. |
-| Memory panel KNOWN + SAID (12d Phase A) | 2026-09-17 | Open — "yes, that's accurate" vs. feeling observed? Also: is it visited at all? |
+| Memory panel KNOWN + SAID (12d Phase A) | 2026-10-01 | Re-observing — reconstruction caveat removed (2026-09-14); outcome counts kept. Re-evaluate by 2026-10-01. |
 
 ---
 
