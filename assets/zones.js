@@ -250,8 +250,6 @@
       const reasons = [
         ['still_relevant', 'still relevant'],
         ['new_context',    'new context'],
-        ['too_hasty',      'too hasty'],
-        ['came_up_again',  'came up again'],
       ];
       const row = document.createElement('div');
       row.className = 'triage-reason-row past-revive-reasons';
