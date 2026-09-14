@@ -105,6 +105,19 @@ function _cssToken(name) {
   return value;
 }
 
+// WAAPI cannot consume CSS time tokens directly. Keep JavaScript motion on the
+// same clock as CSS by resolving the canonical token at the moment motion starts.
+function _motionDuration(name) {
+  const value = _cssToken(name);
+  const amount = parseFloat(value);
+  if (!Number.isFinite(amount)) throw new Error(`Invalid motion duration token: ${name}`);
+  return value.endsWith('ms') ? amount : amount * 1000;
+}
+
+function _motionEasing(name) {
+  return _cssToken(name);
+}
+
 function _pipTokens() {
   return {
     bg:             _cssToken('--color-bg'),

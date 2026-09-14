@@ -159,7 +159,9 @@ Rendered inside `#triageReflection` (between summary and Undo button). Three sta
 └─────────────────────────────────────────┘
 ```
 
-After selection: feeling button accent-selected, choices hidden, auto-close resets to 3s.
+After selection: the chosen whole word acknowledges the tap, travels into its
+confirmation, and the other choices recede. The state is already saved while this
+plays; reduced motion swaps directly to the confirmation. Auto-close resets to 3s.
 
 **Conditions where `#triageReflection` is empty:** policy = `not_for_me`, policy = `remember` and response already exists for today, or intro cooldown has not elapsed.
 

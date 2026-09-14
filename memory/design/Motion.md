@@ -39,6 +39,10 @@ The opacity-only 1→0.65→1 / 1800ms form is for larger surfaces where luminan
 | `--dur-mid` | 0.20s | Focus mode exit, fades |
 | `--dur-slow` | 0.30s | Recede/reveal, slide-up panels |
 
+JavaScript-owned motion must resolve these CSS tokens at animation time through
+`_motionDuration()` and `_motionEasing()` in `assets/util.js`. Do not duplicate
+their current millisecond or cubic-bezier values in WAAPI options.
+
 ---
 
 ## Easing
@@ -83,11 +87,25 @@ One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newl
 - Double haptic (150ms apart)
 
 ### Focus Mode
-- Recede: non-focused tasks fade to 7% opacity, dim first (120ms) then noise-blur (60ms, 120ms delay); exit reverses — blur dissolves before opacity returns, so no opaque-blurry box at any point
+- Recede begins at the selected row and travels outward: the nearest non-focused row starts immediately and the farthest starts one `--dur-fast` later, with intermediate delays derived from visual distance. Each row dims over `--dur-fast` / `--ease-out`; its noise-blur follows one `--dur-fast` beat later. The focused row stays still. Exit reverses without a stagger — blur dissolves before opacity returns, so no opaque-blurry box appears.
 - Chrome recedes on the same beat (v2.82.4): morning nudge, triage bar and the sticky header, to 8%. Only the add bar and mic stay crisp
 - The header is pinned `position: fixed` for the scroll lock (BUG-098) so it neither disappears nor rides the enter nudge; the body is padded by its height so nothing jumps
 - Timer bar pulses gently when complete
 - Controls slide up with spring easing
+- Reduced motion skips the outward delay and applies the focused state immediately.
+
+### Feeling Choice Continuity (v2.90.15)
+- After the evening reflection choice, unselected words and the question recede over `--dur-fast` / `--ease-out`; the selected whole word acknowledges the tap over `--dur-base` / `--ease-spring`.
+- The selected word then travels as one fixed-position clone into the confirmation word over `--dur-mid` / `--ease-out`. Never split the word into letters: the continuity is semantic, and whole-word motion avoids the Safari shaping failures that character transforms caused elsewhere.
+- Storage and haptics happen synchronously. Motion only explains the state change; it never delays or owns it.
+- Reduced motion swaps directly to the confirmation.
+
+### Reorder Settle (v2.90.15)
+- Mouse, touch, and Option+Arrow moves share one FLIP path. Every affected row is measured before and after the DOM move, then visually settles over `--dur-mid`.
+- Neighboring rows use `--ease-out`; the moved row uses `--ease-spring`, giving the landing a small acknowledgement without making the list feel elastic.
+- Touch keeps the floating row under the finger and, on release, settles that ghost to the real row before fading it away over `--dur-mid` / `--ease-spring`.
+- Rapid touch moves cancel the preceding FLIP only after measuring its current visual position, so movement continues from what the person saw rather than stacking transforms.
+- Reduced motion keeps the reorder and persistence behavior but skips FLIP and ghost-settle animation.
 
 ### Date Tag at Midnight (v2.82.2, BUG-097)
 - The header date is written once at init and refreshed by `checkNewDay()` at the day boundary via `window._dateTagRefresh(true)`, so a tab left open across midnight follows the day without a reload or a return to the splash.

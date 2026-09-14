@@ -223,6 +223,74 @@ try {
       await page.close();
     }
 
+    // 3c. Focus starts as an outward row wave, derived from existing motion tokens.
+    {
+      const { page, errors } = await openPage();
+      await page.evaluate(() => {
+        const list = document.getElementById('manualList');
+        const first = list.querySelector('.task[data-taskid="manual_t1"]');
+        ['manual_t2', 'manual_t3'].forEach((id, index) => {
+          const row = first.cloneNode(true);
+          row.dataset.taskid = id;
+          row.querySelector('.task-text').textContent = index ? 'Third task' : 'Second task';
+          list.appendChild(row);
+        });
+        const hidden = first.cloneNode(true);
+        hidden.dataset.taskid = 'manual_hidden';
+        hidden.style.display = 'none';
+        hidden.querySelector('.task-text').textContent = 'Hidden task';
+        list.appendChild(hidden);
+      });
+      await page.click('.task-text');
+      const on = await page.evaluate(() => {
+        const rows = [...document.querySelectorAll('#manualList .task:not(.focused)')]
+          .filter(row => row.getClientRects().length);
+        const delays = rows.map(row => parseFloat(row.style.getPropertyValue('--focus-wave-delay')));
+        return {
+          twoRecedingRows: delays.length === 2,
+          nearestStartsFirst: delays[0] === 0 && delays[1] > delays[0],
+          farthestUsesFastToken: delays[1] === _motionDuration('--dur-fast'),
+          cssUsesWaveDelay: getComputedStyle(rows[1]).transitionDelay.includes((delays[1] / 1000) + 's'),
+          hiddenRowIgnored: !document.querySelector('[data-taskid="manual_hidden"]')
+            .style.getPropertyValue('--focus-wave-delay'),
+        };
+      });
+      await page.keyboard.press('Escape');
+      await new Promise(resolve => setTimeout(resolve, 250));
+      const cleared = await page.evaluate(() => ({
+        waveCleared: ![...document.querySelectorAll('.task,.habit')]
+          .some(row => row.style.getPropertyValue('--focus-wave-delay')),
+      }));
+      await expectAll('focus outward wave', { ...on, ...cleared, noErrors: !errors.length });
+      ok('focus entry: nearby rows recede before farther rows on the existing fast/out easing clock');
+      await page.close();
+    }
+
+    // 3d. Reduced motion keeps the focus state change immediate and unstaggered.
+    {
+      const { page, errors } = await openPage();
+      const r = await page.evaluate(() => {
+        const list = document.getElementById('manualList');
+        const first = list.querySelector('.task[data-taskid="manual_t1"]');
+        const second = first.cloneNode(true);
+        second.dataset.taskid = 'manual_t2';
+        second.querySelector('.task-text').textContent = 'Second task';
+        list.appendChild(second);
+        const original = window.matchMedia;
+        window.matchMedia = query => query === '(prefers-reduced-motion: reduce)'
+          ? { matches: true, media: query }
+          : original.call(window, query);
+        first.querySelector('.task-text').click();
+        return {
+          focusStarted: document.getElementById('main-app').classList.contains('focusing'),
+          noWaveDelay: !second.style.getPropertyValue('--focus-wave-delay'),
+        };
+      });
+      await expectAll('focus wave reduced motion', { ...r, noErrors: !errors.length });
+      ok('focus entry: reduced motion skips the outward stagger');
+      await page.close();
+    }
+
     // 4. Session persisted to localStorage on timer open.
     {
       const { page, errors } = await openPage();
@@ -483,7 +551,7 @@ try {
       await page.close();
     }
 
-    console.log('\nFocus tests passed (post-extraction, 13 tests).');
+    console.log('\nFocus tests passed (post-extraction, 15 tests).');
   }
 } finally {
   if (browser) await browser.close();

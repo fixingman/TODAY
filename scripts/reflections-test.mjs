@@ -218,7 +218,67 @@ try {
     await page.close();
   }
 
-  // 2.2 Second reflectionSelect same day replaces entry
+  // 2.2 Selected feeling becomes the confirmation with a whole-word transition
+  {
+    const { page, errors } = await openPage({
+      today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
+    });
+    const result = await page.evaluate(async () => {
+      const api = Today.use('reflections');
+      api._reflectionMountInTriage({ visible: true });
+      api.reflectionSelect('calm');
+      const selectedFirst = document.querySelector('.reflection-feeling-btn.selected')?.dataset.feeling === 'calm';
+      const storedImmediately = JSON.parse(localStorage.getItem('today_reflections') || '[]')
+        .some(entry => entry.feeling === 'calm');
+
+      await new Promise(resolve => setTimeout(resolve, _motionDuration('--dur-base') + 20));
+      const flight = document.querySelector('.reflection-choice-flight');
+      const timing = flight?.getAnimations()[0]?.effect?.getTiming?.();
+      const inFlight = {
+        wholeWordFlight: flight?.textContent === 'calm',
+        confirmationMounted: !!document.querySelector('.reflection-confirmed-word'),
+        usesMidToken: timing?.duration === _motionDuration('--dur-mid'),
+        usesOutToken: timing?.easing === _motionEasing('--ease-out'),
+      };
+
+      await new Promise(resolve => setTimeout(resolve, _motionDuration('--dur-mid') + 30));
+      return {
+        selectedFirst,
+        storedImmediately,
+        ...inFlight,
+        flightRemoved: !document.querySelector('.reflection-choice-flight'),
+        confirmationVisible: getComputedStyle(document.querySelector('.reflection-confirmed-word')).opacity === '1',
+      };
+    });
+    await expectAll('feeling choice becomes confirmation', { ...result, noErrors: !errors.length });
+    ok('feeling choice: selected whole word settles into confirmation on existing motion tokens');
+    await page.close();
+  }
+
+  // 2.3 Reduced motion swaps directly to the confirmation
+  {
+    const { page, errors } = await openPage({
+      today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
+    });
+    const result = await page.evaluate(() => {
+      const api = Today.use('reflections');
+      api._reflectionMountInTriage({ visible: true });
+      const original = window.matchMedia;
+      window.matchMedia = query => query === '(prefers-reduced-motion: reduce)'
+        ? { matches: true, media: query }
+        : original.call(window, query);
+      api.reflectionSelect('alive');
+      return {
+        confirmationImmediate: document.querySelector('.reflection-confirmed-word')?.textContent === 'alive',
+        noFlight: !document.querySelector('.reflection-choice-flight'),
+      };
+    });
+    await expectAll('feeling choice reduced motion', { ...result, noErrors: !errors.length });
+    ok('feeling choice: reduced motion swaps directly to confirmation');
+    await page.close();
+  }
+
+  // 2.4 Second reflectionSelect same day replaces entry
   {
     const { page } = await openPage({
       today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
@@ -239,7 +299,7 @@ try {
     await page.close();
   }
 
-  // 2.3 Invalid feeling ignored
+  // 2.5 Invalid feeling ignored
   {
     const { page } = await openPage({
       today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
@@ -255,7 +315,7 @@ try {
     await page.close();
   }
 
-  // 2.4 Pruning to 30 days
+  // 2.6 Pruning to 30 days
   {
     const { page } = await openPage({
       today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
@@ -813,7 +873,7 @@ try {
     ok('static wiring: script order, DOM element, start call, precache, CACHE_VERSION, component API');
   }
 
-  console.log('\nReflections tests passed (27 tests).');
+  console.log('\nReflections tests passed (29 tests).');
 } finally {
   if (browser) await browser.close();
   server.close();

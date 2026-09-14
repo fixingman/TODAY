@@ -206,6 +206,80 @@
 
     // ── Feeling selection ────────────────────────────────────────────────────
 
+    function _showReflectionConfirmation(el, feeling) {
+      if (el) el.innerHTML = _buildConfirmedHTML(feeling);
+    }
+
+    function _animateReflectionChoice(el, button, feeling) {
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!el || !button || reduced || typeof button.animate !== 'function') {
+        _showReflectionConfirmation(el, feeling);
+        return;
+      }
+
+      el.querySelectorAll('.reflection-feeling-btn').forEach(choice => { choice.disabled = true; });
+      button.classList.add('selected');
+      button.setAttribute('aria-pressed', 'true');
+
+      const fast   = _motionDuration('--dur-fast');
+      const base   = _motionDuration('--dur-base');
+      const mid    = _motionDuration('--dur-mid');
+      const out    = _motionEasing('--ease-out');
+      const spring = _motionEasing('--ease-spring');
+      const exits  = [...el.querySelectorAll('.reflection-feeling-btn:not(.selected), .reflection-question')]
+        .map(node => node.animate(
+          [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.96)' }],
+          { duration: fast, easing: out, fill: 'forwards' }
+        ));
+      const choice = button.animate(
+        [{ transform: 'scale(1)' }, { transform: 'scale(1.04)' }, { transform: 'scale(1)' }],
+        { duration: base, easing: spring, fill: 'none' }
+      );
+
+      Promise.allSettled([...exits.map(a => a.finished), choice.finished]).then(() => {
+        if (!button.isConnected) return;
+        const source = button.getBoundingClientRect();
+        _showReflectionConfirmation(el, feeling);
+        const target = el.querySelector('.reflection-confirmed-word');
+        if (!target) return;
+        const destination = target.getBoundingClientRect();
+        target.style.opacity = '0';
+
+        const flight = document.createElement('span');
+        flight.className = 'reflection-choice-flight';
+        flight.textContent = feeling;
+        flight.style.left   = source.left + 'px';
+        flight.style.top    = source.top + 'px';
+        flight.style.width  = source.width + 'px';
+        flight.style.height = source.height + 'px';
+        document.body.appendChild(flight);
+
+        const dx = destination.left + destination.width / 2 - (source.left + source.width / 2);
+        const dy = destination.top  + destination.height / 2 - (source.top  + source.height / 2);
+        const targetReveal = target.animate(
+          [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.65 }, { opacity: 1, offset: 1 }],
+          { duration: mid, easing: out, fill: 'forwards' }
+        );
+        const settle = flight.animate(
+          [
+            { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+            { transform: `translate(${dx}px, ${dy}px) scale(0.86)`, opacity: 1, offset: 0.72 },
+            { transform: `translate(${dx}px, ${dy}px) scale(0.86)`, opacity: 0 },
+          ],
+          { duration: mid, easing: out, fill: 'forwards' }
+        );
+        const finish = () => {
+          if (target.isConnected) {
+            targetReveal.cancel();
+            target.style.opacity = '';
+          }
+          flight.remove();
+        };
+        settle.onfinish = finish;
+        settle.oncancel = finish;
+      });
+    }
+
     function reflectionSelect(feeling) {
       if (!VALID_FEELINGS.includes(feeling)) return;
 
@@ -221,11 +295,11 @@
       if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
       if (typeof _haptic === 'function') _haptic('light');
 
-      // Replace question+buttons with a brief confirmation of the selected feeling
+      // The selected whole word becomes the confirmation; storage and feedback are
+      // immediate, while the visual transition remains non-blocking.
       const el = document.getElementById('triageReflection');
-      if (el) {
-        el.innerHTML = _buildConfirmedHTML(feeling);
-      }
+      const button = el?.querySelector(`.reflection-feeling-btn[data-feeling="${feeling}"]`);
+      _animateReflectionChoice(el, button, feeling);
       const undoBtn = document.getElementById('triageUndoBtn');
       if (undoBtn) undoBtn.style.display = 'none';
 

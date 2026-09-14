@@ -559,6 +559,35 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     // (logo, habits, connections, about) exit focus and open their panel on click.
   }
 
+  function _clearFocusWave() {
+    document.querySelectorAll('.task,.habit').forEach(row =>
+      row.style.removeProperty('--focus-wave-delay'));
+  }
+
+  function _stageFocusWave(activeRow) {
+    _clearFocusWave();
+    if (!activeRow || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const activeRect = activeRow.getBoundingClientRect();
+    const activeY = activeRect.top + activeRect.height / 2;
+    const rows = [...document.querySelectorAll('.task,.habit')]
+      .filter(row => row !== activeRow && row.isConnected && !row.hidden)
+      .map(row => {
+        const rect = row.getBoundingClientRect();
+        if (!rect.width && !rect.height) return null;
+        return { row, distance: Math.abs(rect.top + rect.height / 2 - activeY) };
+      })
+      .filter(Boolean);
+    if (!rows.length) return;
+    const nearest = Math.min(...rows.map(item => item.distance));
+    const farthest = Math.max(...rows.map(item => item.distance));
+    const span = farthest - nearest;
+    const wave = _motionDuration('--dur-fast');
+    rows.forEach(item => {
+      const delay = span > 0 ? Math.round(((item.distance - nearest) / span) * wave) : 0;
+      item.row.style.setProperty('--focus-wave-delay', delay + 'ms');
+    });
+  }
+
   function _resetCopyFeedback(taskEl) {
     const copyButton = taskEl?.querySelector('.task-copy');
     if (!copyButton) return;
@@ -615,6 +644,10 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       _enterDelta = rect.top - headerH - GUTTER;
     }
     const _targetScrollY = Math.max(0, originalScrollY + _enterDelta);
+
+    // Stage row delays while every item is still in its normal geometry. Nearby
+    // commitments recede first; farther ones follow within one --dur-fast beat.
+    _stageFocusWave(taskEl);
 
     // Start the header fade before any setup work so the logo dims at the same
     // frame the tap registers — not after _setFocusInert loops over every task.
@@ -752,6 +785,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     // layout-shift jump that made bottom-of-list checks feel abrupt.
     if (doResetState) {
       appEl.classList.remove('focusing');
+      _clearFocusWave();
     }
 
     // Unlock scroll — stay at the nudge-adjusted position (lockY) rather than
@@ -851,7 +885,10 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       if (myGen !== focusGen) return;
 
       // ESC/click-outside: remove .focusing now (check path removed it immediately above).
-      if (!doResetState) appEl.classList.remove('focusing');
+      if (!doResetState) {
+        appEl.classList.remove('focusing');
+        _clearFocusWave();
+      }
       // Move timer to body for all close paths. On check path, the timer has already
       // collapsed via CSS (150ms) by the time we reach here (200ms), so this is a
       // quiet cleanup with no visible layout shift.

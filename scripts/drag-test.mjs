@@ -102,6 +102,16 @@ try {
       <div class="habit" data-habit-id="h-a"><span class="habit-check"></span><span class="habit-name">alpha</span></div>
       <div class="habit" data-habit-id="h-b"><span class="habit-check"></span><span class="habit-name">beta</span></div>
       <div class="habit" data-habit-id="h-c"><span class="habit-check"></span><span class="habit-name">gamma</span></div>`;
+    // Config/Trello parents may be hidden in the test shell. Give every fixture row
+    // stable geometry so FLIP behavior is exercised for all three collections.
+    document.querySelectorAll('#manualList .task, #trelloList .task, #habitList .habit').forEach(row => {
+      row.getBoundingClientRect = function() {
+        const siblings = [...this.parentElement.children].filter(el =>
+          el.matches('.task[data-taskid],.habit[data-habit-id]'));
+        const top = siblings.indexOf(this) * 48;
+        return { left: 0, top, right: 320, bottom: top + 40, width: 320, height: 40, x: 0, y: top };
+      };
+    });
 
     for (const key of ['today_manual', 'today_manual_order_at', 'today_trello_order',
       'today_trello_order_at', 'today_habits', 'today_habit_completions',
@@ -136,7 +146,18 @@ try {
       fire(target, 'drop', { dataTransfer });
       fire(source, 'dragend', { dataTransfer });
       document.dispatchEvent(new Event('mouseup', { bubbles: true }));
-      return { armed, started, highlighted, dataTransfer: dataTransfer.value };
+      const timings = [...document.querySelectorAll(`#${listId} [data-${attr}]`)]
+        .flatMap(row => row.getAnimations().map(animation => animation.effect?.getTiming?.()))
+        .filter(Boolean);
+      return {
+        armed, started, highlighted, dataTransfer: dataTransfer.value,
+        tokenMotion: timings.some(timing =>
+          timing.duration === _motionDuration('--dur-mid') &&
+          [
+            _motionEasing('--ease-out'),
+            _motionEasing('--ease-spring'),
+          ].includes(timing.easing)),
+      };
     }, { listId, attr, sourceId, targetId });
 
   const state = async (listId, attr) => page.evaluate(({ listId, attr }) => {
@@ -180,6 +201,7 @@ try {
       started: gesture.started,
       highlighted: gesture.highlighted,
       transferNamesListAndRow: gesture.dataTransfer.includes(`${testCase.list}:${testCase.source}`),
+      tokenMotion: gesture.tokenMotion,
       domOrder: JSON.stringify(result.dom) === JSON.stringify(expected),
       memoryOrder: JSON.stringify(result.memory) === JSON.stringify(expected),
       selectionHaptic: result.calls.haptics.includes('selection'),
@@ -206,6 +228,43 @@ try {
     await expectAll(`desktop ${testCase.label} reorder`, common);
     ok(`desktop ${testCase.label} reorder persists and cleans up`);
   }
+
+  // Keyboard reorder uses the same physical continuity as pointer reorder.
+  await reset();
+  const keyboardMotion = await page.evaluate(() => {
+    const row = document.querySelector('#manualList [data-taskid="m-a"]');
+    const result = window._a11yMoveRow(row, 1);
+    const timing = row.getAnimations()[0]?.effect?.getTiming?.();
+    return {
+      moved: result.moved && result.position === 2,
+      order: [...document.querySelectorAll('#manualList [data-taskid]')]
+        .map(el => el.dataset.taskid).join(',') === 'm-b,m-a,m-c',
+      tokenMotion: timing?.duration === _motionDuration('--dur-mid') &&
+        timing?.easing === _motionEasing('--ease-spring'),
+    };
+  });
+  await expectAll('keyboard reorder motion', keyboardMotion);
+  ok('keyboard reorder shares the token-driven row settle');
+
+  await reset();
+  const reducedMotion = await page.evaluate(() => {
+    const original = window.matchMedia;
+    window.matchMedia = query => query === '(prefers-reduced-motion: reduce)'
+      ? { matches: true, media: query }
+      : original.call(window, query);
+    const row = document.querySelector('#manualList [data-taskid="m-a"]');
+    const result = window._a11yMoveRow(row, 1);
+    const answer = {
+      moved: result.moved,
+      order: [...document.querySelectorAll('#manualList [data-taskid]')]
+        .map(el => el.dataset.taskid).join(',') === 'm-b,m-a,m-c',
+      noMotion: row.getAnimations().length === 0,
+    };
+    window.matchMedia = original;
+    return answer;
+  });
+  await expectAll('keyboard reorder reduced motion', reducedMotion);
+  ok('reorder: reduced motion keeps the state change and skips FLIP');
 
   // Desktop guards and list ownership.
   await reset();
@@ -270,8 +329,13 @@ try {
       document.elementFromPoint = originalElementFromPoint;
       const highlighted = target.classList.contains('drag-over');
       fire(source, finish, []);
-      await new Promise(resolve => setTimeout(resolve, 10));
-      return { activated, highlighted, movePrevented: move.defaultPrevented };
+      const settle = document.querySelector('.touch-drag-ghost')?.getAnimations()[0];
+      const timing = settle?.effect?.getTiming?.();
+      const settlingUsesTokens = finish === 'touchend' && !!settle &&
+        timing.duration === _motionDuration('--dur-mid') &&
+        timing.easing === _motionEasing('--ease-spring');
+      await new Promise(resolve => setTimeout(resolve, _motionDuration('--dur-mid') + 50));
+      return { activated, highlighted, movePrevented: move.defaultPrevented, settlingUsesTokens };
     }, { listId, attr, sourceId, targetId, finish });
 
   // Touch: long-press, ghost movement, persistence, haptics, and cleanup.
@@ -292,6 +356,7 @@ try {
       memoryOrder: JSON.stringify(result.memory) === JSON.stringify(expected),
       activationHaptic: result.calls.haptics.includes('heavy'),
       dropHaptic: result.calls.haptics.includes('selection'),
+      settlingUsesTokens: gesture.settlingUsesTokens,
       cleaned: result.dirty === 0,
     };
     if (testCase.list === 'manualList') Object.assign(common, {
@@ -383,6 +448,7 @@ try {
     document.elementFromPoint = originalElementFromPoint;
     const crossListUnmarked = !document.querySelector('#trelloList .drag-over');
     fire(manual, 'touchend', []);
+    await new Promise(resolve => setTimeout(resolve, _motionDuration('--dur-mid') + 50));
     return {
       interactiveBlocked,
       editingBlocked,

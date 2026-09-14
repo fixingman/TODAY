@@ -51,6 +51,17 @@ for (const [constant, cssToken] of Object.entries(canvasMappings)) {
   );
 }
 
+assert.match(
+  util,
+  /function\s+_motionDuration\(name\)[\s\S]*?_cssToken\(name\)/,
+  'WAAPI durations must resolve canonical CSS tokens through _motionDuration',
+);
+assert.match(
+  util,
+  /function\s+_motionEasing\(name\)[\s\S]*?_cssToken\(name\)/,
+  'WAAPI easings must resolve canonical CSS tokens through _motionEasing',
+);
+
 for (const [name, source] of [['focus', focus], ['meeting', meeting]]) {
   assert.match(source, /const pip = _pipTokens\(\)/, `${name} PiP must use the shared computed palette`);
   assert.doesNotMatch(
@@ -70,5 +81,6 @@ assert.ok(sw.includes(`background: ${bg}`), 'offline background must match --col
 assert.ok(sw.includes(`color: ${accent}`), 'offline mark must match --color-accent');
 
 console.log(`  ✓ ${required.length} canonical tokens own canvas and PiP colors`);
+console.log('  ✓ JavaScript motion resolves the canonical CSS timing and easing tokens');
 console.log('  ✓ poem and offline base/accent colors match the main palette');
 console.log('✓ TOKEN PARITY TEST PASSED');

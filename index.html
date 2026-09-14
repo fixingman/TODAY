@@ -76,9 +76,10 @@
   /* ══════════════════════════════════════════════════════════════════
      FOCUS MODE (Pomodoro) — desktop only (@media hover:hover)
      Animation contract — sequenced to avoid the blurry-opaque-box artifact:
-       Enter:  focused bg+border snap in (no transition). Others: opacity drops
-               120ms (dim first), then blur applies 60ms at 120ms delay. Blur only
-               ever touches an already-dim element — no visible blurry box.
+       Enter:  focused bg+border snap in (no transition). Others recede outward
+               from the chosen row across one --dur-fast delay span; each row dims
+               over --dur-fast, then blur follows one --dur-fast beat later. Blur
+               only ever touches an already-dim element — no visible blurry box.
        Exit:   blur dissolves 200ms (clarity first), opacity returns 260ms at
                80ms delay. Blur is gone before opacity rises high — no opaque+blurry
                box at any point in the sequence.
@@ -141,20 +142,25 @@
     }
 
     /* Recede — opacity + noise filter for depth, pointer-events off.
-       Enter: opacity drops first (120ms) → blur applies after on an already-dim element
-       (60ms, 120ms delay). Dim-then-blur avoids the blurry-opaque-box artifact.
+       Enter: rows dim outward from the focused item using --focus-wave-delay;
+       blur follows one --dur-fast beat later on an already-dim element.
+       Dim-then-blur avoids the blurry-opaque-box artifact.
        Exit: governed by base .task rule — blur dissolves first (200ms), then opacity
        returns (260ms, 80ms delay). Blur is gone before opacity rises, so no
        opaque+blurry rectangle at any point. */
     .focusing .task:not(.focused),
     .focusing .habit:not(.focused) {
-      transition: opacity 120ms ease, filter 60ms ease 120ms;
+      transition:
+        opacity var(--dur-fast) var(--ease-out) var(--focus-wave-delay, 0ms),
+        filter var(--dur-fast) var(--ease-out) calc(var(--focus-wave-delay, 0ms) + var(--dur-fast));
       opacity: var(--opacity-recede) !important;
       pointer-events: none;
       filter: url(#noise) blur(8px);
     }
     .focusing .task.done:not(.focused) {
-      transition: opacity 120ms ease, filter 60ms ease 120ms;
+      transition:
+        opacity var(--dur-fast) var(--ease-out) var(--focus-wave-delay, 0ms),
+        filter var(--dur-fast) var(--ease-out) calc(var(--focus-wave-delay, 0ms) + var(--dur-fast));
       opacity: var(--opacity-recede-done) !important;
       filter: url(#noise) blur(10px);
     }
@@ -760,6 +766,7 @@
     --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
     --ease-std:   ease;
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* subtle overshoot for slide-up panels */
+    --focus-wave-delay: 0ms; /* per-row focus-entry state, derived from visual distance */
 
     /* ── Z-index scale ───────────────────────────────────────── */
     --z-base:    1;
@@ -1767,6 +1774,25 @@
     font-size: var(--text-xs);
     color: var(--muted);
     opacity: 0.6;
+  }
+  /* Whole-word shared transition from the chosen feeling pill into its
+     confirmation. The fixed clone owns motion; the real confirmation remains
+     semantic and is revealed when the clone settles. */
+  .reflection-choice-flight {
+    position: fixed;
+    z-index: var(--z-modal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--accent-glow);
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm2);
+    pointer-events: none;
+    will-change: transform, opacity;
   }
 
   /* Task item */
@@ -4408,16 +4434,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '318h';
+const DEV_HOURS     = '320h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.15': 'Motion: feeling choices settle into their confirmation, reordered rows make space and land, and focus recedes outward from the selected task.',
   '2.90.14': 'Focus companion: long questions now scroll pendulum-style instead of truncating — ease forward, pause, ease back, repeat.',
   '2.90.13': 'Memory panel: remove reconstruction caveat from the 30-day outcome count — the data quality note is noise, not signal.',
-  '2.90.12': 'Post-triage reflection: countdown progress bar at the bottom of the completion panel — pauses on hover, resumes on leave, resets when the timer is extended by reflection actions.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

@@ -10,6 +10,56 @@
     if (started) return;
     started = true;
 
+    function _reorderReduced() {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+        typeof Element.prototype.animate !== 'function';
+    }
+
+    function _snapshotRows(list, selector) {
+      if (!list || _reorderReduced()) return null;
+      const rows = [...list.querySelectorAll(selector)];
+      const positions = new Map(rows.map(row => [row, row.getBoundingClientRect()]));
+      // Rapid touch moves may arrive before the previous FLIP finishes. Capture the
+      // current visual position first, then cancel, so the next motion continues from
+      // what the finger actually saw rather than stacking transforms.
+      rows.forEach(row => row._todayReorderAnimation?.cancel());
+      return positions;
+    }
+
+    function _animateReorder(snapshot, movedRow) {
+      if (!snapshot || _reorderReduced()) return;
+      const duration  = _motionDuration('--dur-mid');
+      const easeOut   = _motionEasing('--ease-out');
+      const easeSpring = _motionEasing('--ease-spring');
+      snapshot.forEach((before, row) => {
+        if (!row.isConnected) return;
+        const after = row.getBoundingClientRect();
+        const dx = before.left - after.left;
+        const dy = before.top  - after.top;
+        if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+        row.style.willChange = 'transform';
+        const animation = row.animate(
+          [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0, 0)' }],
+          { duration, easing: row === movedRow ? easeSpring : easeOut, fill: 'none' }
+        );
+        row._todayReorderAnimation = animation;
+        const finish = () => {
+          if (row._todayReorderAnimation !== animation) return;
+          delete row._todayReorderAnimation;
+          row.style.willChange = '';
+        };
+        animation.onfinish = finish;
+        animation.oncancel = finish;
+      });
+    }
+
+    function _moveRowWithMotion(list, selector, source, target, afterTarget) {
+      const snapshot = _snapshotRows(list, selector);
+      if (afterTarget) list.insertBefore(source, target.nextSibling);
+      else list.insertBefore(source, target);
+      _animateReorder(snapshot, source);
+    }
+
     function _saveReorderedList(listId, preserveDesktopHabitAutosave) {
       const sel = listId === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]';
       const list = document.getElementById(listId);
@@ -57,8 +107,10 @@
       if (from < 0 || to < 0 || to >= rows.length) {
         return { moved: false, message: delta < 0 ? 'Already first in the list.' : 'Already last in the list.' };
       }
+      const snapshot = _snapshotRows(list, selector);
       if (delta < 0) list.insertBefore(row, rows[to]);
       else list.insertBefore(rows[to], row);
+      _animateReorder(snapshot, row);
       _saveReorderedList(list.id);
       _haptic('selection');
       return { moved: true, position: to + 1, total: rows.length };
@@ -157,8 +209,7 @@
         const tgtIdx = rows.indexOf(cfg.row);
         if (srcIdx === -1 || tgtIdx === -1) return;
 
-        if (srcIdx < tgtIdx) list.insertBefore(dragSrc, cfg.row.nextSibling);
-        else                  list.insertBefore(dragSrc, cfg.row);
+        _moveRowWithMotion(list, sel, dragSrc, cfg.row, srcIdx < tgtIdx);
         _haptic('selection');
 
         _saveReorderedList(cfg.listId, cfg.listId === 'habitList');
@@ -229,6 +280,27 @@
         touchSrc = null; touchListId = null;
       }
 
+      function _settleGhost(row, floating) {
+        if (!row || !floating) return;
+        row.classList.remove('dragging');
+        if (_reorderReduced()) { floating.remove(); return; }
+        const rect = row.getBoundingClientRect();
+        const animation = floating.animate(
+          [
+            { transform: floating.style.transform, opacity: 0.85 },
+            { transform: `translate(${rect.left}px, ${rect.top}px) scale(1)`, opacity: 0 },
+          ],
+          {
+            duration: _motionDuration('--dur-mid'),
+            easing: _motionEasing('--ease-spring'),
+            fill: 'forwards',
+          }
+        );
+        const finish = () => floating.remove();
+        animation.onfinish = finish;
+        animation.oncancel = finish;
+      }
+
       document.addEventListener('touchstart', function(e) {
         if (!(e.target instanceof Element)) return;
         const cfg = _rowCfgTouch(e.target);
@@ -271,8 +343,7 @@
           const si   = rows.indexOf(touchSrc);
           const ti   = rows.indexOf(over);
           if (si !== -1 && ti !== -1) {
-            if (si < ti) list.insertBefore(touchSrc, over.nextSibling);
-            else         list.insertBefore(touchSrc, over);
+            _moveRowWithMotion(list, sel, touchSrc, over, si < ti);
           }
         }
       }, { passive: false });
@@ -282,7 +353,11 @@
         if (!touchSrc) return;
         _haptic('selection');
         _saveReorderedList(touchListId);
-        _cleanup();
+        const settledRow = touchSrc;
+        const settledGhost = ghost;
+        if (lastOver) lastOver.classList.remove('drag-over');
+        ghost = null; touchSrc = null; touchListId = null; lastOver = null;
+        _settleGhost(settledRow, settledGhost);
       }, { passive: true });
 
       document.addEventListener('touchcancel', function() {

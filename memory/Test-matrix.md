@@ -58,7 +58,8 @@ If testing **focus mode** changes:
 
 If testing **task or habit reorder** changes:
 - [ ] Run `node scripts/drag-test.mjs` first — it covers desktop and touch ordering,
-      persistence and sync timestamps, guards, long-press cancellation, and cleanup.
+      keyboard ordering, persistence and sync timestamps, guards, long-press
+      cancellation, token-driven FLIP/ghost settle, reduced motion, and cleanup.
 
 If testing **task actions** (add, copy, complete, delete, undo, or stats/favicon):
 - [ ] Run `node scripts/task-actions-test.mjs` first — it covers direct mutations,
@@ -213,7 +214,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 6.7 | Trello checklist badge | Card with checklist shows "N/M ✓" in meta row |
 | 6.8 | Trello focus — complete, dismiss, re-click | Fresh 25:00 starts on first click (BUG-027) |
 
-### 7. Focus Mode (11 tests)
+### 7. Focus Mode (13 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -228,6 +229,8 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 7.9 | Window return with completed bar | Bar pulses on return with no flash (BUG-028b) |
 | 7.10 | Focus companion with AI configured | Start focus and use “✦ ask”; one bounded question appears inline without opening another surface |
 | 7.11 | _onWake rapid double-fire | Alt-tab away and back quickly multiple times — no repaint glitches |
+| 7.12 | Start focus among rows at different distances | Nearby rows recede before farther rows; the full delay wave spans exactly `--dur-fast` and the selected row stays stable |
+| 7.13 | Start focus with reduced motion | Focus state applies without per-row wave delays |
 
 ### 8. Network Edge Cases (7 tests)
 
@@ -364,6 +367,8 @@ later section or automated suite was added.
 | 14.13 | Tap second feeling same day | Entry replaced (not appended) |
 | 14.14 | 31 reflections across 31 days | Oldest entry pruned; list stays at 30 |
 | 14.15 | Invalid `feeling` value passed to `reflectionSelect` | Silently ignored, no write |
+| 14.15a | Select a feeling with motion enabled | Other words recede; the selected whole word acknowledges the tap and settles into the confirmation using `--dur-fast/base/mid`, `--ease-out`, and `--ease-spring` |
+| 14.15b | Select a feeling with reduced motion | Entry still saves; confirmation replaces the question immediately and no flight clone is created |
 
 ### Memory panel & deletion
 
