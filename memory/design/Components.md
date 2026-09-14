@@ -369,6 +369,18 @@ Header: `.meeting-eyebrow` ("Meeting", 9px muted caps) + `.meeting-review-title`
 
 ---
 
+## Quick Voice Capture (v2.90.18)
+
+**Entry:** hold Shift+Space outside text fields; release either key to finish. Window blur also finishes so a lost keyup cannot leave the microphone active. This is one spoken task, not a voice-memo library or meeting mode.
+
+**Capture order:** the pill appears immediately as `Getting ready…`, becomes `Listening…` only after capture starts, then `Finding the words…` on release and finally `Added`. Empty audio, missing capability/connection, and transcription failure remain visible briefly instead of disappearing silently. The app behind the pill stays usable; no modal or review step is introduced for a single task.
+
+**Privacy and fallback:** use Web Speech only when the browser confirms the active language is installed for `processLocally: true`; the recognition instance is also explicitly marked local and continuous. Otherwise, with a Gemini connection, capture one self-contained MediaRecorder blob (32 kbps, 45-second ceiling) and send it to the existing `/transcribe` function. Never use the legacy browser-cloud recognition default, never split a quick note into meeting chunks, and never persist its audio or transcript. The returned text enters through `Today.use('task-actions').addTaskFromText()` so it follows the same storage, sync, memory, motion, and enrichment path as typing.
+
+**Motion:** the 8px listening dot uses the established small-element breath, `_breathe(..., _KF_BREATHE_SMALL, 2400)`, through WAAPI; processing and outcome states cancel it. Reduced motion is inherited from `_breathe`.
+
+---
+
 ## Week Summary (About panel)
 
 Lives in `#infoPanel` under "This week". Rendered by `renderInfoStats()`. Hidden entirely

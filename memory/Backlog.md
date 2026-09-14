@@ -310,6 +310,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 | Focus companion question | ⚠ 2026-08-31 | Re-observing — clarity vs. check-in feel? Taxonomy prompt + word cap updated |
 | Post-triage reflections | 2026-10-01 | **Iterate (2026-09-14)** — countdown progress bar added (v2.90.12); re-observe. |
 | Choice, reorder, and focus motion | 2026-10-15 | Open — do the transitions clarify where state went without becoming noticeable choreography? |
+| Shift+Space quick voice capture | 2026-09-29 | Open — does holding the chord remain genuinely faster than typing, and do the brief capture states clarify progress without lingering? |
 | HOW DAYS FELT insight | 2026-09-28 | Re-observing after v2.90.7 — a useful commitment relationship or silence, never a feeling-frequency recap? |
 | Sunday earned insight | 2026-10-15 | Re-observing — was blocked lately; give more rounds before verdict. |
 | Observation pool — morning + Sunday (12c Phase 4) | 2026-10-01 | Re-observing — not sure yet; extend to 2026-10-01. Reactions are the verdict channel. |

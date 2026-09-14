@@ -197,6 +197,12 @@ does not reveal a standalone assistant panel.
 - **No voice ID, ever.** Attribution comes from `today_user_name` + conversational content + the user's review tap. Storing a voice fingerprint was explicitly rejected — it would be the most privacy-hostile artifact the feature could create.
 - **Audio leaves the device only as in-flight chunks** to the user's own Netlify function → Gemini, using the user's own key. Same trust model as every other AI call in the app.
 
+### Quick Voice Capture Privacy (v2.90.18)
+
+- Shift+Space uses Web Speech only when the browser explicitly reports the active language as available on-device and the recognition instance has `processLocally = true`. The legacy browser-cloud default is never invoked.
+- When local recognition is unavailable, one short, self-contained audio blob goes to the existing Netlify `/transcribe` function → Gemini using the user's configured Gemini key. The blob lives only through that request; it is neither chunked nor persisted. The returned transcript is committed as an ordinary manual task and is not stored separately.
+- Without either verified local recognition or a Gemini connection, no microphone opens. The pill explains that Gemini is needed.
+
 ---
 
 ## First-Run / Onboarding

@@ -81,6 +81,11 @@ One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newl
 - Mirror spans and insertion ranges use Unicode grapheme clusters. Never split input with `value[i]` or raw `.length`: those are UTF-16 units and can break emoji, skin-tone modifiers, flags, and ZWJ sequences across DOM nodes.
 - IME composition and bulk input remain unanimated; reduced motion skips the mirror module entirely.
 
+### Quick Voice Capture
+- While Shift+Space is actively listening, the 8px red dot uses `_breathe` with `_KF_BREATHE_SMALL`; persistent capture motion is WAAPI, not a CSS keyframe loop.
+- Opening, transcription, success, empty, unavailable, and failure states are communicated by text and colour without looping motion. Leaving `listening` cancels the dot animation immediately.
+- `_breathe` owns the reduced-motion gate, so the red dot stays visible but still when motion is reduced.
+
 ### All-Done Celebration
 - Accent glow pulse (radial, 1.2s fade)
 - Extra particle burst

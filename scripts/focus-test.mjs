@@ -2,7 +2,7 @@
 //
 // Tests: mobile guard, desktop exports, task click opens timer, session persist,
 //        space-to-pause, escape-to-close, _focusOnCheck (no-session + active-session),
-//        session restore, _focusReanchor no-throw, static wiring.
+//        session restore, _focusReanchor no-throw, Document PiP lifecycle, static wiring.
 //
 // Run from repo root:
 //   node scripts/focus-test.mjs --pre-extraction
@@ -65,12 +65,12 @@ browser = await puppeteer.launch({
 
 // openPage — emulates a desktop (hover:hover) or mobile (no hover) environment.
 // Seeds localStorage with a single manual task so the task list renders.
-async function openPage({ hoverHover = true, extraSeed = {} } = {}) {
+async function openPage({ hoverHover = true, extraSeed = {}, pip = false } = {}) {
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 900 });
   const errors = [];
   page.on('pageerror', err => errors.push(err.message));
-  await page.evaluateOnNewDocument(({ seed, hoverHover }) => {
+  await page.evaluateOnNewDocument(({ seed, hoverHover, pip }) => {
     // Stub matchMedia so the hover:hover guard is deterministic in headless Chrome.
     const _orig = window.matchMedia.bind(window);
     window.matchMedia = (query) => {
@@ -82,13 +82,58 @@ async function openPage({ hoverHover = true, extraSeed = {} } = {}) {
       }
       return _orig(query);
     };
+    if (pip) {
+      const state = window.__focusPipTest = {
+        requests: [],
+        windows: [],
+        openerFocusCalls: 0,
+      };
+      let visibility = 'visible';
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => visibility,
+      });
+      Object.defineProperty(document, 'hidden', {
+        configurable: true,
+        get: () => visibility === 'hidden',
+      });
+      state.setVisibility = value => {
+        visibility = value;
+        document.dispatchEvent(new Event('visibilitychange'));
+      };
+      window.focus = () => { state.openerFocusCalls++; };
+      Object.defineProperty(window, 'documentPictureInPicture', {
+        configurable: true,
+        value: {
+          requestWindow: async options => {
+            state.requests.push(options);
+            const listeners = {};
+            const pipDocument = document.implementation.createHTMLDocument('TODAY');
+            const pipWindow = {
+              document: pipDocument,
+              closed: false,
+              addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
+              requestAnimationFrame(fn) { return window.requestAnimationFrame(fn); },
+              cancelAnimationFrame(id) { window.cancelAnimationFrame(id); },
+              close() {
+                if (this.closed) return;
+                this.closed = true;
+                (listeners.pagehide || []).forEach(fn => fn());
+              },
+            };
+            state.windows.push(pipWindow);
+            return pipWindow;
+          },
+        },
+      });
+    }
     localStorage.clear();
     localStorage.setItem('splash_shown_at', String(Date.now()));
     localStorage.setItem('today_manual', JSON.stringify([
       { id: 'manual_t1', text: 'Write the tests', addedAt: '' }
     ]));
     for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, v);
-  }, { seed: extraSeed, hoverHover });
+  }, { seed: extraSeed, hoverHover, pip });
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   if (hoverHover) {
     await page.waitForFunction(
@@ -471,7 +516,75 @@ try {
       await page.close();
     }
 
-    // 12. Static wiring — file reads only.
+    // 12. Document PiP: real focus state drives the floating document and all
+    //     three controls feed back into the main session lifecycle.
+    {
+      const { page, errors } = await openPage({ pip: true });
+      await page.click('.task-text');
+      await page.waitForFunction(
+        () => document.querySelector('.focus-timer.open') !== null,
+        { timeout: 3000 }
+      );
+      const result = await page.evaluate(async () => {
+        const state = window.__focusPipTest;
+        state.setVisibility('hidden');
+        await new Promise(resolve => setTimeout(resolve, 40));
+        const pip = state.windows[0];
+        const doc = pip?.document;
+        const open = doc?.getElementById('pipOpen');
+        const pause = doc?.getElementById('pipPause');
+        const rest = doc?.getElementById('pipClose');
+        const initial = {
+          openedOnce: state.requests.length === 1,
+          requestedSize: state.requests[0]?.width === 300 && state.requests[0]?.height === 200,
+          taskMirrored: doc?.getElementById('pipTask')?.textContent === 'Write the tests',
+          timerMirrored: doc?.getElementById('pipTime')?.textContent === '25:00',
+          controlsNamed: open?.getAttribute('aria-label') === 'Open TODAY'
+            && pause?.getAttribute('aria-label') === 'Pause focus timer'
+            && rest?.getAttribute('aria-label') === 'End focus session',
+        };
+
+        open.click();
+        pause.click();
+        const paused = pause.textContent === 'Resume'
+          && pause.getAttribute('aria-pressed') === 'true'
+          && document.getElementById('focusPaused')?.classList.contains('show');
+        pause.click();
+        const resumed = pause.textContent === 'Breathe'
+          && pause.getAttribute('aria-pressed') === 'false'
+          && !document.getElementById('focusPaused')?.classList.contains('show');
+
+        window._pipSync(0, 1500);
+        const complete = doc.getElementById('pipTime')?.textContent === '00:00'
+          && pause.textContent === 'Again'
+          && doc.querySelector('.pip-bar')?.classList.contains('complete')
+          && doc.getElementById('pipFill')?.getAttribute('aria-valuenow') === '1500';
+        pause.click();
+        await new Promise(resolve => setTimeout(resolve, 30));
+        const restarted = doc.getElementById('pipTime')?.textContent === '25:00'
+          && pause.textContent === 'Breathe'
+          && !doc.querySelector('.pip-bar')?.classList.contains('complete');
+
+        rest.click();
+        await new Promise(resolve => setTimeout(resolve, 260));
+        return {
+          ...initial,
+          openReturnsToApp: state.openerFocusCalls === 1,
+          paused,
+          resumed,
+          complete,
+          restarted,
+          pipClosed: pip.closed === true,
+          focusClosed: !document.querySelector('.focus-timer.open'),
+          sessionCleared: localStorage.getItem('today_focus_session') === null,
+        };
+      });
+      await expectAll('focus Document PiP lifecycle', { ...result, noErrors: !errors.length });
+      ok('focus Document PiP mirrors state and Open/Breathe/Again/Rest preserve the session lifecycle');
+      await page.close();
+    }
+
+    // 13. Static wiring — file reads only.
     {
       const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
       const swSrc    = await readFile(join(ROOT, 'sw.js'), 'utf8');
@@ -499,7 +612,7 @@ try {
       ok('static wiring: script tag, startup call, IIFE removed, all exports present, precached');
     }
 
-    // 13. _focusExpandTimer overflow correction: when the timer's projected bottom
+    // 14. _focusExpandTimer overflow correction: when the timer's projected bottom
     //     exceeds (viewport - footer - 8px) during scroll-lock, body.top shifts up.
     {
       const { page, errors } = await openPage();
@@ -551,7 +664,7 @@ try {
       await page.close();
     }
 
-    console.log('\nFocus tests passed (post-extraction, 15 tests).');
+    console.log('\nFocus tests passed (post-extraction, 17 checks).');
   }
 } finally {
   if (browser) await browser.close();

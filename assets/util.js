@@ -20,8 +20,8 @@ function safeJSON(key, fallback) {
 // Habits roll over at 3am instead (see _habitTodayISO / _habitNow) — a deliberate,
 // consistent grace window, not the v2.12.74 lag bug (that was an *unintended*
 // mismatch where the strip refreshed on a different boundary than checking).
-function _getAppDay() {
-  return new Date().toDateString();
+function _getAppDay(d) {
+  return new Date(d == null ? Date.now() : d).toDateString();
 }
 
 // Unified local date helper — returns YYYY-MM-DD in local timezone.
@@ -63,11 +63,16 @@ function _lrCount(v) {
 }
 
 const HABIT_ROLLOVER_HOURS = 3;
-function _habitNow() {
-  return new Date(Date.now() - HABIT_ROLLOVER_HOURS * 60 * 60 * 1000);
+function _habitNow(d) {
+  const shifted = new Date(d == null ? Date.now() : d);
+  // Shift in local wall-clock hours, not elapsed milliseconds. An absolute
+  // three-hour subtraction makes the boundary 4am after spring-forward and
+  // 2am after fall-back; setHours keeps the promised local 3am boundary.
+  shifted.setHours(shifted.getHours() - HABIT_ROLLOVER_HOURS);
+  return shifted;
 }
-function _habitTodayISO() {
-  return _localISO(_habitNow());
+function _habitTodayISO(d) {
+  return _localISO(_habitNow(d));
 }
 
 // Remove all localStorage keys with a given prefix except one — used by the
@@ -216,4 +221,10 @@ if (typeof window !== 'undefined') {
 }
 
 // Node only (unit tests). A classic <script> never sees `module`.
-if (typeof module === 'object' && module.exports) module.exports = { _mailtoDraftHref };
+if (typeof module === 'object' && module.exports) module.exports = {
+  _getAppDay,
+  _localISO,
+  _habitNow,
+  _habitTodayISO,
+  _mailtoDraftHref,
+};

@@ -2,7 +2,8 @@
 // Voice note transcription for TODAY (v2.24.0).
 // Receives a short audio clip (base64), sends to Gemini, returns plain text.
 // Unlike meeting-extract.js there is no chunking, no context, no action-item
-// extraction — just "what was said", dropped straight into the add-bar input.
+// extraction — just "what was said". The mobile Voice Note places it in the
+// add-bar input; Shift+Space quick capture commits it as a task.
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || 'https://today-here.netlify.app',

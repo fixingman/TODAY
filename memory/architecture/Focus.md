@@ -120,6 +120,11 @@ Optional floating timer window:
 Supported: Chrome, Edge (Chromium)
 Not supported: Safari, Firefox (behind flag)
 
+`scripts/focus-test.mjs` provides a deterministic Document PiP window and covers
+open-on-hide, task/time and accessible-control mirroring, Open, pause/resume,
+completion→Again, restart, Rest, close, and persisted-session cleanup. A real
+browser PiP pass remains required because the fake cannot reproduce OS window policy.
+
 ---
 
 ## Session Persistence (v2.43.0)

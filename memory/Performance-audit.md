@@ -206,6 +206,7 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 | **Trello API** | OAuth token + board/list IDs; receives card data | On tick if `dateLastActivity` changed | `read` scope only. |
 | **Netlify AI proxy** | Prompt (task names, ages, patterns from appMemory) + provider key | On ✦ call, daily nudge, week reflection, monday intention, meeting chunk | One nudge/day max, cached. Key never sent to provider from client directly. |
 | **Netlify meeting-extract** | Base64 audio chunk (~6min) + userName + rolling context + captured mine items | Per audio chunk during meeting mode | Gemini only. Transcript produced inside Gemini, never returned. Tasks only. |
+| **Netlify transcribe** | One ephemeral audio clip + the user's Gemini key | On Shift+Space release when verified on-device recognition is unavailable; on mobile Voice Note stop | No browser-cloud recognition fallback. Audio and transcript are not persisted; the returned text becomes a task or fills the add bar. |
 | **Netlify RUM** (server-injected) | Page-load timing only — no user content | Page load, if not ad-blocked | Only non-user-initiated egress. Ad blockers prevent it. |
 | **OS share sheet / clipboard** (poem share, v2.40.0) | The day's poem text + author + app URL | Only when the user explicitly taps to share/copy the poem | Not a fixed server destination — user picks the recipient (Messages, Mail, Notes, etc.) via the OS, or it's copied to the local clipboard. No task/personal data involved, only the public poem text. Listed here for completeness, not because it's a new risk. |
 
@@ -221,7 +222,7 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 
 > **All test cases in `Test-matrix.md`** — comprehensive matrix covering sync, UI, security, zones, habits, and edge cases.
 
-The default v2.83.1 gate runs design lint plus 34 non-live suites (35 checks total). Inventory is
+The default gate runs design lint plus 36 non-live suites (37 checks total). Inventory is
 enforced, retries are reported as flakes and fail, and each attempt has a 120-second ceiling.
 The component contract checks runtime/precache order, declarative-action parity, inline-handler
 absence, global ownership, and the compatibility ceiling. The token-parity suite guards canvas,
@@ -243,7 +244,7 @@ Picture-in-Picture verification remain release gates.
 | 9 `@font-face` declarations | Low | 2 in PiP block duplicate main doc; loaded in isolated window, no waste |
 | `habitsKept` snapshot 1–3am edge | Very low | Check at 1–3am counts toward yesterday (3am boundary); live strip always correct |
 | `localStorage` disabled | Low | `safeJSON` reads catch SecurityError; global `setItem` wrapper IIFE may throw before installing if storage fully blocked. App loads with red dot, data not persisted. |
-| BUG-004 repaint ceiling | Low | Extended to 5000ms (v2.31.9). If a very long sleep still leaves GPU unready past 5s, a 7th pass or a fallback `click` simulation may be needed. |
+| Wake repaint ceiling (BUG-004/056/071 family) | Low | Retry schedule now reaches 12000ms (v2.61.5: 500 / 1500 / 3000 / 5000 / 8000 / 12000ms) and was verified on a real device on 2026-09-07. Reopen only if the blank wake state recurs after the final pass. |
 | Runtime shell growth | Watch | 1.06 MB decoded / 305 KB Brotli-q5 across the HTML, service worker, and 36 modules. `index.html` itself is 206 KB / 63 KB. All modules are tracked and precached; revisit payload only when first-load measurements show a real cost. |
 | BUG-041: iOS PWA splash white flash | Platform limitation | Closed 2026-07-24 after a fourth investigation pass ruled out every app-code explanation: splash launch-image colors correct (RGB 14,14,16, matches `--bg`), iPhone 14 Pro's exact spec present in the `apple-touch-startup-image` list, latest build confirmed running, no render-blocking `<head>` resource. What remains is the gap between iOS's static launch image ending and the WebView's first painted frame — a handoff with no hook available from web content. Reopen only if light/dark-mode correlation is confirmed, or the flash appears on a warm/backgrounded reopen (not just true cold start) — either would point back at in-page code. Full four-pass history → `archive/Bugs-archive.md`. |
 

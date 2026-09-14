@@ -2662,12 +2662,12 @@
   .vc-dot {
     width: var(--space-2); height: var(--space-2); border-radius: 50%;
     background: var(--accent); flex-shrink: 0;
-    animation: vc-pulse 1.2s ease-in-out infinite;
+    transition: background var(--dur-fast), opacity var(--dur-fast);
   }
-  @keyframes vc-pulse {
-    0%, 100% { opacity: 0.4; transform: scale(0.8); }
-    50%       { opacity: 1;   transform: scale(1.2); }
-  }
+  #voiceCapturePill[data-state="listening"] .vc-dot { background: var(--danger); }
+  #voiceCapturePill[data-state="empty"] .vc-dot,
+  #voiceCapturePill[data-state="error"] .vc-dot,
+  #voiceCapturePill[data-state="unavailable"] .vc-dot { opacity: var(--opacity-muted); }
 
   #meetingOverlay {
     position: fixed;
@@ -4470,16 +4470,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '323h';
+const DEV_HOURS     = '326h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.18': 'Quick voice capture: verified on-device recognition first, otherwise one ephemeral clip through your Gemini connection — with clear listening, transcription, success, and failure states.',
   '2.90.17': 'Voice capture: hold Shift+Space anywhere to speak a task — release to transcribe and add it instantly.',
   '2.90.16': 'Tests: real service-worker install, upgrade and offline coverage; pinned timezone and DST boundaries; behavioral focus Picture-in-Picture lifecycle coverage.',
-  '2.90.15': 'Motion: feeling choices settle into their confirmation, reordered rows make space and land, and focus recedes outward from the selected task.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

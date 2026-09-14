@@ -266,7 +266,7 @@ Tasks, zones, streak, and focus roll at midnight. **Habits roll at 3am** (v2.17.
 |---------|----------|--------|----------|
 | Task/streak/focus day boundary | `_getAppDay()` | `"Fri Apr 18 2026"` | Local midnight |
 | Date-only strings (YYYY-MM-DD) | `_localISO(d)` | `"2026-04-18"` | Local |
-| Habit today (3am roll) | `_habitTodayISO()` | `_localISO(_habitNow())` | Local — `_habitNow()` = `Date.now() - 3h` |
+| Habit today (3am roll) | `_habitTodayISO()` | `_localISO(_habitNow())` | Local — `_habitNow()` subtracts 3 local wall-clock hours with `setHours` so DST does not move the boundary |
 | Habit 21-day strip | `_getHabitDates()` | uses `_habitNow()` | Same shift — **must stay in lockstep with `_habitTodayISO()`** |
 | Full timestamps (sync ordering) | `new Date().toISOString()` | `"2026-04-18T01:23:45Z"` | UTC |
 

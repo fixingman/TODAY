@@ -6,14 +6,14 @@
 
 ## Pre-Release Checklist (REQUIRED)
 
-Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 34 local
-test suites (35 checks total). The live `scripts/ai-test.mjs` remains the sole explicit
+Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 36 local
+test suites (37 checks total). The live `scripts/ai-test.mjs` remains the sole explicit
 exclusion because it requires an API key and real provider calls. The runner verifies the test
 inventory and the explicitly registered non-test check before execution. A check that passes
 only on its diagnostic retry is reported as flaky and fails the gate; each attempt is capped at
 120 seconds. Tooling requires Node >=22.12 and Puppeteer 25. The last dual-runtime assurance
-pass was clean on Node 22.23.2 and 24.14.0; the current 35-check result is recorded in the
-v2.83.1 changelog. GitHub Actions runs the same gate on pushes
+pass was clean on Node 22.23.2 and 24.14.0; the current result is recorded in the latest
+changelog entry. GitHub Actions runs the same gate on pushes
 and pull requests to `dev`/`master`. Run
 `memory/validate-files.sh` separately; it remains outside `test-all.mjs`.
 
@@ -214,7 +214,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 6.7 | Trello checklist badge | Card with checklist shows "N/M ✓" in meta row |
 | 6.8 | Trello focus — complete, dismiss, re-click | Fresh 25:00 starts on first click (BUG-027) |
 
-### 7. Focus Mode (13 tests)
+### 7. Focus Mode (14 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -231,6 +231,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 7.11 | _onWake rapid double-fire | Alt-tab away and back quickly multiple times — no repaint glitches |
 | 7.12 | Start focus among rows at different distances | Nearby rows recede before farther rows; the full delay wave spans exactly `--dur-fast` and the selected row stays stable |
 | 7.13 | Start focus with reduced motion | Focus state applies without per-row wave delays |
+| 7.14 | Focus with mocked Document PiP, then hide the page | PiP opens once; mirrors task/time and accessible controls; Open, pause/resume, complete/Again, restart, and Rest remain synchronized with the main session and clean up storage |
 
 ### 8. Network Edge Cases (7 tests)
 
@@ -302,19 +303,19 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 ## Test Summary
 
 The numbered scenarios below are the manual acceptance catalogue, not a hand-maintained test
-count. The executable inventory is authoritative: `test-all.mjs` currently runs 35 checks and
+count. The executable inventory is authoritative: `test-all.mjs` currently runs 37 checks and
 fails if a new `*-test.mjs` suite is omitted. This avoids the old summary drifting whenever a
 later section or automated suite was added.
 
 ---
 
-## Edge Cases: Time & Timezone (needs testing)
+## Edge Cases: Time & Timezone (partly automated)
 
 | # | Scenario | Risk | Mitigation |
 |---|----------|------|------------|
 | T1 | **Timezone change (travel)** | Date string changes mid-day → unexpected cleanup | `stat_last_visit` is local-only, but date shift could trigger `applyNewDayCleanup()` |
-| T2 | **DST spring forward** (2am→3am) | No risk — midnight boundary already passed | Cleanup ran at last midnight |
-| T3 | **DST fall back** (2am→1am) | No risk — midnight boundary already passed | Cleanup ran at last midnight |
+| T2 | **DST spring forward** (2am→3am) | Habit grace must still roll at local 3am | Automated in `timezone-test.mjs` |
+| T3 | **DST fall back** (2am→1am) | Repeated 1am hour must not roll habits twice | Automated in `timezone-test.mjs` |
 | T4 | **Multi-timezone sync** | Device A/B have different "today" | `stat_last_visit` not synced — each device manages own day |
 | T5 | **Manual restore after travel** | `toDateString()` uses device timezone | Equivalent to `_getAppDay()` post-v2.12.74 — no separate bug |
 
@@ -482,3 +483,20 @@ Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 an
 | 17.2 | Run `node scripts/memory-panel-test.mjs` | KNOWN block renders the record as plain facts (open items only, 30-day window, reconstruction caveat, newest first, empty note); SAID block absent; full-clear wipes every companion slot, tombstones hypotheses, sets the watermark |
 | 17.3 | Run `node scripts/mailto-test.mjs` | Pure, no browser. `_mailtoDraftHref`: literal `@`, exact production form, 1900 cap with a body that decodes and is a prefix of the original, grapheme-safe trimming on emoji and ZWJ sequences, lone surrogates dropped not thrown, null inputs, the 20-grapheme floor from both sides |
 | 17.4 | `dropbox-test` merge cases (11b, 11c) | `taskOutcomes` / `spokenLines` / `obligationHistory` union, dedup, prune; clear watermark drops pre-clear rows in both directions and accepts same-day rows; hypothesis tombstones honoured |
+
+---
+
+## 18. Platform lifecycle (v2.90.16)
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 18.1 | Run `node scripts/service-worker-test.mjs` | Real worker controls a fresh page, caches every declared shell resource, purges a legacy cache, activates an updated worker, and serves both the app shell and branded navigation fallback without network access |
+| 18.2 | Run `node scripts/timezone-test.mjs` | Pinned Los Angeles, Kiritimati, and Kathmandu processes use local dates; spring-forward, both fall-back 1am hours, date-line, and fractional-offset cases preserve the local 3am habit boundary |
+
+---
+
+## 19. Quick voice capture (v2.90.18)
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 19.1 | Run `node scripts/voice-capture-test.mjs` | Shift+Space prefers explicitly on-device continuous recognition; otherwise one ephemeral blob uses the configured Gemini transcription route. Releasing Shift or Space ends capture, input focus and repeats stay inert, media is stopped, a successful transcript adds exactly one task, and a failure adds none while remaining visible. |
