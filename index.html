@@ -438,6 +438,9 @@
       letter-spacing: 0.04em;
       cursor: default;
     }
+    /* Question text longer than the bar: clip instead of ellipsis, inner span scrolls */
+    .focus-timer.ai-active .focus-ai-timer-btn.question-scroll { text-overflow: clip; }
+    .focus-q-text { display: inline-block; }
 
   } /* end @media (hover: hover) */
 
@@ -4412,9 +4415,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.14': 'Focus companion: long questions now scroll pendulum-style instead of truncating — ease forward, pause, ease back, repeat.',
   '2.90.13': 'Memory panel: remove reconstruction caveat from the 30-day outcome count — the data quality note is noise, not signal.',
   '2.90.12': 'Post-triage reflection: countdown progress bar at the bottom of the completion panel — pauses on hover, resumes on leave, resets when the timer is extended by reflection actions.',
-  '2.90.11': 'How Days Felt: expand the commitment picture — focus sessions and task revival now join obligation and letting-go as feeling-comparison axes.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

@@ -155,7 +155,7 @@ window._startFocus = (function() {
     if (_thinkAnim) { _thinkAnim.cancel(); _thinkAnim = null; }
     timerEl.classList.remove('ai-active');
     if (focusAIBtn) {
-      focusAIBtn.classList.remove('loading');
+      focusAIBtn.classList.remove('loading', 'question-scroll');
       focusAIBtn.textContent = '\u2726\ufe0e ask';
       // Block hover for one frame so dismissing insight doesn't leave btn in hover state
       focusAIBtn.style.pointerEvents = 'none';
@@ -358,9 +358,32 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       const q = _parseAIText(data)?.trim();
       if (q) {
         if (_thinkAnim) { _thinkAnim.cancel(); _thinkAnim = null; }
-        focusAIBtn.classList.remove('loading');
+        focusAIBtn.classList.remove('loading', 'question-scroll');
         focusAIBtn.textContent = q;
         if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('focus question', q);
+        // Scroll long questions rather than truncating with ellipsis.
+        // rAF lets the browser compute layout with the actual question text
+        // before we measure overflow. Guard: skip if AI state was already cleared.
+        requestAnimationFrame(() => {
+          if (!focusAIBtn || !timerEl.classList.contains('ai-active')) return;
+          if (focusAIBtn.textContent !== q) return;
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+          const overflow = focusAIBtn.scrollWidth - focusAIBtn.clientWidth;
+          if (overflow <= 4) return;
+          focusAIBtn.innerHTML = `<span class="focus-q-text">${esc(q)}</span>`;
+          focusAIBtn.classList.add('question-scroll');
+          const span = focusAIBtn.querySelector('.focus-q-text');
+          const pauseA = 1800, scrollMs = Math.max(1500, overflow * 28), pauseB = 1200;
+          const total  = pauseA + scrollMs + pauseB + scrollMs + pauseA;
+          span.animate([
+            { transform: 'translateX(0)',                   easing: 'linear', offset: 0 },
+            { transform: 'translateX(0)',                   easing: 'ease',   offset: pauseA / total },
+            { transform: `translateX(-${overflow}px)`,     easing: 'linear', offset: (pauseA + scrollMs) / total },
+            { transform: `translateX(-${overflow}px)`,     easing: 'ease',   offset: (pauseA + scrollMs + pauseB) / total },
+            { transform: 'translateX(0)',                   easing: 'linear', offset: 1 - pauseA / total },
+            { transform: 'translateX(0)',                                     offset: 1 },
+          ], { duration: total, iterations: Infinity });
+        });
       } else {
         _focusResetAI();
       }
