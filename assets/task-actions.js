@@ -195,61 +195,43 @@ window._startTaskActions = (function() {
       }
     }
 
-    function addManual() {
-      const input = $.newTask;
-      if (!input) return;
-      let text = input.value.trim();
-      if (!text) return;
-
-      // Enforce max length
-      if (text.length > MAX_TASK_LENGTH) {
-        text = text.slice(0, MAX_TASK_LENGTH);
-      }
-
-      // Extract URL from text — keep in task.text for inline rendering,
-      // but also store separately in task.url for copy, AI context, and filters.
+    function _buildTask(rawText) {
+      let text = rawText.trim().slice(0, MAX_TASK_LENGTH);
+      if (!text) return null;
+      // Extract URL — keep in task.text for inline rendering, also store in task.url
       const urlMatch = text.match(/(https?:\/\/[^\s]+)/i);
       let url = null;
       if (urlMatch) {
         url = urlMatch[1];
-        // If user pasted just a URL with no other text, use the domain as display text
-        // and don't keep the raw URL in task.text (it would be the entire text)
         const textWithoutUrl = text.replace(urlMatch[1], '').trim();
         if (!textWithoutUrl) {
           try { text = new URL(url).hostname.replace(/^www\./, ''); }
           catch(e) { text = url; }
         }
-        // Otherwise: leave URL in task.text — rendered inline at its position
       }
-
       const task = { id: 'manual_' + Date.now(), text };
       if (url) task.url = url;
+      return task;
+    }
+
+    function _commitTask(task) {
       manualTasks.push(task);
       _saveManual();
       _setLastLocalChange();
       dropboxAutoSave();
-
       // Track reactive (mid-day) additions for emergent vs planned insight
-      // Only track additions after the first hour of the day (≥8am) to exclude morning planning
       const addHour = new Date().getHours();
       if (appMemory?.patterns) {
         appMemory.patterns.tasksAddedToday = (appMemory.patterns.tasksAddedToday || 0) + 1;
         if (addHour >= 8) {
           if (!appMemory.patterns.lateAdditions) appMemory.patterns.lateAdditions = [];
           appMemory.patterns.lateAdditions.push({ h: addHour, date: _localISO() });
-          if (appMemory.patterns.lateAdditions.length > 50) {
+          if (appMemory.patterns.lateAdditions.length > 50)
             appMemory.patterns.lateAdditions = appMemory.patterns.lateAdditions.slice(-50);
-          }
         }
         _saveMemory();
       }
-      input.value = '';
-      input.focus();
-      toggleClearBtn();
-
-      // Dismiss any existing AI suggestion
       Today.use('assistant')._aiDismissSuggestion();
-
       // Insert new element directly — no full re-render
       const list  = $.manualList;
       const empty = $.manualEmpty;
@@ -271,15 +253,28 @@ window._startTaskActions = (function() {
       // Desktop: wire hover shimmer for new task (mobile gets add-shimmer above, skip to avoid conflict).
       if (window.matchMedia('(hover: hover)').matches) Today.use('connections')._wireManualTagShimmer(el);
       if (empty) empty.style.display = 'none';
-
       $.manualCount.textContent = manualTasks.length;
       updateStats();
       if (window._a11yAnnounce) _a11yAnnounce(`${task.text} added.`);
-
-      // AI post-add analysis (async, non-blocking)
       Today.use('assistant')._aiAnalyzeTask(task.id, task.text);
       if (window._gmailEnrichTask) _gmailEnrichTask(task.id, task.text);
       if (window._agentEnrichTask) _agentEnrichTask(task.id, task.text);
+    }
+
+    function addManual() {
+      const input = $.newTask;
+      if (!input) return;
+      const task = _buildTask(input.value);
+      if (!task) return;
+      _commitTask(task);
+      input.value = '';
+      input.focus();
+      toggleClearBtn();
+    }
+
+    function addTaskFromText(text) {
+      const task = _buildTask(text);
+      if (task) _commitTask(task);
     }
 
     // Clean-slate echo (Roadmap #2) — the calm states re-surface the morning's poem,
@@ -689,6 +684,7 @@ window._startTaskActions = (function() {
         _undoDelete,
         _recordDeleteReason,
         _editFromToast,
+        addTaskFromText,
       });
       Today.ui.register('input', 'tasks.input-change', toggleClearBtn);
       Today.ui.register('click', 'tasks.clear-input', clearTaskInput);
