@@ -600,6 +600,146 @@ try {
     await page.close();
   }
 
+  // 5.4b Focus sessions vs no-focus evenings is a third commitment axis
+  {
+    const { page, errors } = await openPage({
+      today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
+      today_ai_provider: 'claude',
+      today_ai_key_claude: 'test-key',
+    });
+    const result = await page.evaluate(async () => {
+      const list = Array.from({ length: 8 }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        return {
+          date,
+          feeling: i < 4 ? (i < 3 ? 'alive' : 'off') : ['tense', 'present', 'calm', 'drained'][i - 4],
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      localStorage.setItem('today_reflections', JSON.stringify(list));
+      appMemory.taskOutcomes = list.map((r, i) => ({
+        id: 'focus_' + i,
+        date: r.date,
+        outcome: 'done',
+        obligation: false,
+        focusSessions: i < 4 ? 2 : 0,
+        backfilled: false,
+      }));
+      let request = null;
+      window.fetch = async (_url, options) => {
+        request = JSON.parse(options.body);
+        return {
+          ok: true,
+          json: async () => ({
+            message: 'On evenings you reflected, alive appeared more often after a focused day than after a day without focus.',
+          }),
+        };
+      };
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      Today.use('reflections')._reflectionRenderMemory(container);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      const text = document.getElementById('reflectionMemoryBlock')?.textContent || '';
+      return {
+        focusSelected: request?.messages?.[0]?.content?.includes('"kind":"feeling-vs-focus"'),
+        resultShown: text.includes('alive appeared more often after a focused day'),
+      };
+    });
+    await expectAll('focus sessions vs no-focus → relationship shown', { ...result, noErrors: !errors.length });
+    ok('focus vs no-focus → third commitment relationship is selected and phrased');
+    await page.close();
+  }
+
+  // 5.4b-backfill Backfilled rows are excluded from focus partitions
+  {
+    const { page, errors } = await openPage({
+      today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
+      today_ai_provider: 'claude',
+      today_ai_key_claude: 'test-key',
+    });
+    const result = await page.evaluate(async () => {
+      const list = Array.from({ length: 8 }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        return { date, feeling: i < 4 ? 'alive' : 'tense', updatedAt: new Date().toISOString() };
+      });
+      localStorage.setItem('today_reflections', JSON.stringify(list));
+      // All rows backfilled — focusSessions: 0 is unknown, so no focus candidate
+      appMemory.taskOutcomes = list.map((r, i) => ({
+        id: 'bf_' + i,
+        date: r.date,
+        outcome: 'done',
+        obligation: false,
+        focusSessions: 0,
+        backfilled: true,
+      }));
+      let request = null;
+      window.fetch = async (_url, options) => { request = JSON.parse(options.body); return { ok: true, json: async () => ({ message: '' }) }; };
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      Today.use('reflections')._reflectionRenderMemory(container);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      return {
+        focusNotSelected: !request?.messages?.[0]?.content?.includes('"kind":"feeling-vs-focus"'),
+      };
+    });
+    await expectAll('backfilled rows excluded from focus partition', { ...result, noErrors: !errors.length });
+    ok('backfilled focusSessions: 0 → focus axis is silent');
+    await page.close();
+  }
+
+  // 5.4c Reviving a task vs finishing-only is a fourth commitment axis
+  {
+    const { page, errors } = await openPage({
+      today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
+      today_ai_provider: 'claude',
+      today_ai_key_claude: 'test-key',
+    });
+    const result = await page.evaluate(async () => {
+      const list = Array.from({ length: 8 }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        return {
+          date,
+          feeling: i < 4 ? (i < 3 ? 'present' : 'off') : ['tense', 'drained', 'alive', 'calm'][i - 4],
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      localStorage.setItem('today_reflections', JSON.stringify(list));
+      appMemory.taskOutcomes = list.map((r, i) => ({
+        id: 'revive_' + i,
+        date: r.date,
+        outcome: i < 4 ? 'revive' : 'done',
+        obligation: null,
+        focusSessions: 0,
+        backfilled: true,
+      }));
+      let request = null;
+      window.fetch = async (_url, options) => {
+        request = JSON.parse(options.body);
+        return {
+          ok: true,
+          json: async () => ({
+            message: 'On evenings you reflected, present appeared more often after reviving something than after finishing without reviving anything.',
+          }),
+        };
+      };
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      Today.use('reflections')._reflectionRenderMemory(container);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      const text = document.getElementById('reflectionMemoryBlock')?.textContent || '';
+      return {
+        reviveSelected: request?.messages?.[0]?.content?.includes('"kind":"feeling-vs-revive"'),
+        resultShown: text.includes('present appeared more often after reviving something'),
+      };
+    });
+    await expectAll('reviving vs finishing-only → relationship shown', { ...result, noErrors: !errors.length });
+    ok('revive vs finish-only → fourth commitment relationship is selected and phrased');
+    await page.close();
+  }
+
   // 5.5 A truncated response is withheld instead of shown mid-sentence
   {
     const { page, errors } = await openPage({

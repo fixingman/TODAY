@@ -355,6 +355,35 @@
         'after finishing without letting anything go');
       if (releaseCandidate) candidates.push(releaseCandidate);
 
+      // Focus sessions are a distinct commitment signal — applying deliberate
+      // attention to a task. Backfilled rows carry focusSessions: 0 (unknown),
+      // so only evenings with at least one real (non-backfilled) outcome row
+      // contribute to this partition; evenings with only backfilled rows are excluded.
+      const focusEvenings = group(rows => {
+        const real = rows.filter(e => !e.backfilled);
+        return real.length > 0 && real.some(e => e.focusSessions > 0);
+      });
+      const noFocusEvenings = group(rows => {
+        const real = rows.filter(e => !e.backfilled);
+        return real.length > 0 && real.every(e => e.focusSessions === 0);
+      });
+      const focusCandidate = _buildFeelingComparison(
+        'feeling-vs-focus', 105, focusEvenings, noFocusEvenings,
+        'after a focused day',
+        'after a day without focus');
+      if (focusCandidate) candidates.push(focusCandidate);
+
+      // Reviving a task is re-committing to something previously released.
+      // Contrast with evenings that had completions but no revivals.
+      const reviveEvenings = group(rows => rows.some(e => e.outcome === 'revive'));
+      const finishedNoRevive = group(rows =>
+        rows.some(e => e.outcome === 'done') && !rows.some(e => e.outcome === 'revive'));
+      const reviveCandidate = _buildFeelingComparison(
+        'feeling-vs-revive', 90, reviveEvenings, finishedNoRevive,
+        'after reviving something',
+        'after finishing without reviving anything');
+      if (reviveCandidate) candidates.push(reviveCandidate);
+
       return candidates.sort((a, b) => b.score - a.score)[0] || null;
     }
 
