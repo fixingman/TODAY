@@ -15,12 +15,12 @@
     const MAX_DAYS        = 30;
     const OFFER_COOLDOWN_DAYS = 7;
 
-    // Observation thresholds — defined once here, covered by tests, never tuned
-    // against live user data.
-    const OBS_MIN_TOTAL          = 14;   // reflections needed before any observation
-    const OBS_MIN_GROUP          = 4;    // per comparison group
-    const OBS_DISTRIBUTION_RATE  = 0.45; // one feeling ≥ 45% = clearly recurrent
-    const OBS_FOCUS_DIFF_RATIO   = 0.30; // focus groups must differ by ≥ 30 pp
+    // Relationship thresholds — defined once here, covered by tests, never tuned
+    // against live user data. A feeling frequency by itself is not an insight: both
+    // sides must be commitment-shaped evenings before HOW DAYS FELT may speak.
+    const INSIGHT_MIN_GROUP       = 4;
+    const INSIGHT_MIN_FEELING     = 3;
+    const INSIGHT_MIN_DIFF_RATIO  = 0.30;
 
     // Transient session-only state (never persisted)
     let _reflectResult  = null;
@@ -30,6 +30,28 @@
     function _parseAIText(data) {
       if (data.error) return null;
       return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
+    }
+
+    function _usableReflectionText(text, candidate) {
+      const clean = text?.trim();
+      if (!clean || clean.toLowerCase() === 'none') return null;
+      if (clean.split(/\s+/).length > 24) return null;
+      if (!/[.!?…]$/.test(clean)) return null;
+      if (!/\b(reflected|reflections)\b/i.test(clean)) return null;
+      if (!candidate || !new RegExp('\\b' + candidate.feeling + '\\b', 'i').test(clean)) return null;
+      const comparisonAt = clean.search(/\bmore often\b|\bmore common\b|\bshowed up more\b|\bstood out more\b/i);
+      if (comparisonAt < 0) return null;
+      if (/\b(?:caused|made you|because of|means you|should|try to|diagnos)/i.test(clean)) return null;
+      const namedFeelings = VALID_FEELINGS.filter(feeling =>
+        new RegExp('\\b' + feeling + '\\b', 'i').test(clean));
+      if (namedFeelings.length !== 1) return null;
+      const normalize = value => String(value).toLowerCase().replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+      const normalized = normalize(clean);
+      const moreAt = normalized.indexOf(normalize(candidate.more_context));
+      const lessAt = normalized.indexOf(normalize(candidate.less_context));
+      if (moreAt < comparisonAt || lessAt <= moreAt) return null;
+      if (!/\bthan\b/i.test(clean.slice(moreAt, lessAt))) return null;
+      return clean;
     }
 
     // ── Storage helpers ──────────────────────────────────────────────────────
@@ -132,7 +154,7 @@
     function _buildIntroHTML() {
       return `<div class="reflection-intro">` +
         `<p class="reflection-intro-copy"><strong>Remember how days felt?</strong><br>` +
-        `TODAY can remember these reflections for 30 days and notice patterns over time. They stay on this device, and in your Dropbox if you connect it. Your AI sees a short summary only when you ask.</p>` +
+        `TODAY can remember these reflections for 30 days and notice patterns over time. They stay on this device, and in your Dropbox if you connect it. If you connect AI, it sees one combined pattern—not individual evenings—when you open Memory.</p>` +
         `<div class="reflection-consent-actions">` +
         `<button class="reflection-consent-btn accent" data-today-click="reflections.remember">Remember</button>` +
         `<button class="reflection-consent-btn neutral" data-today-click="reflections.decline">Not for me</button>` +
@@ -242,13 +264,9 @@
             : `Remembering the last ${MAX_DAYS} days.`
         }</span></div>`;
 
-        const obs = _computeObservation(list);
-        if (obs) {
-          inner += `<div class="memory-item"><span class="memory-item-text">${obs}</span></div>`;
-        }
-
+        const candidate = _buildReflectionCandidate(list);
         const aiReady = Today.use('connections')._aiIsConfigured();
-        if (list.length >= 7 && aiReady) {
+        if (candidate && aiReady) {
           if (_reflectPending) {
             inner += `<div class="memory-item"><span class="memory-item-text memory-abstracting">reflecting…</span></div>`;
           } else if (_reflectResult) {
@@ -257,7 +275,7 @@
             // Auto-trigger once per session — show placeholder immediately, fire async
             inner += `<div class="memory-item"><span class="memory-item-text memory-abstracting">reflecting…</span></div>`;
             _reflectTriggered = true;
-            setTimeout(reflectionReflect, 0);
+            setTimeout(() => reflectionReflect(candidate), 0);
           }
         }
       }
@@ -266,47 +284,78 @@
       container.appendChild(block);
     }
 
-    // ── On-device observation ────────────────────────────────────────────────
-    // Deterministic — no AI, no tuning. Thresholds are fixed constants above.
+    // ── On-device relationship selection ────────────────────────────────────
+    // The sensitive records are joined only here, by date, and never persisted.
+    // A frequency table is not a candidate. Both sides must describe a different
+    // relationship with commitments; the AI receives only the winning aggregate.
 
-    function _computeObservation(list) {
-      if (list.length < OBS_MIN_TOTAL) return null;
+    function _buildFeelingComparison(kind, baseScore, groupA, groupB, contextA, contextB) {
+      if (groupA.length < INSIGHT_MIN_GROUP || groupB.length < INSIGHT_MIN_GROUP) return null;
+      let winner = null;
+      for (const feeling of VALID_FEELINGS) {
+        const countA = groupA.filter(r => r.feeling === feeling).length;
+        const countB = groupB.filter(r => r.feeling === feeling).length;
+        const diff   = (countA / groupA.length) - (countB / groupB.length);
+        if (Math.abs(diff) < INSIGHT_MIN_DIFF_RATIO) continue;
+        const moreIsA  = diff > 0;
+        const moreCount = moreIsA ? countA : countB;
+        if (moreCount < INSIGHT_MIN_FEELING) continue;
+        const candidate = {
+          kind,
+          feeling,
+          score: baseScore + Math.round(Math.abs(diff) * 100),
+          more_context: moreIsA ? contextA : contextB,
+          less_context: moreIsA ? contextB : contextA,
+          more_count: moreCount,
+          more_total: moreIsA ? groupA.length : groupB.length,
+          less_count: moreIsA ? countB : countA,
+          less_total: moreIsA ? groupB.length : groupA.length,
+        };
+        if (!winner || candidate.score > winner.score) winner = candidate;
+      }
+      return winner;
+    }
 
-      // Priority 1: one feeling is clearly recurrent
-      const counts = {};
-      VALID_FEELINGS.forEach(f => { counts[f] = 0; });
-      list.forEach(r => { if (r.feeling in counts) counts[r.feeling]++; });
-      const [topFeeling, topCount] = Object.entries(counts).sort(([,a],[,b]) => b - a)[0];
-      if (topCount / list.length >= OBS_DISTRIBUTION_RATE) {
-        return `On evenings you reflected, ${topFeeling} was the most common feeling.`;
+    function _buildReflectionCandidate(list) {
+      if (list.length < INSIGHT_MIN_GROUP * 2 || typeof appMemory === 'undefined') return null;
+      const reflectionByDate = new Map(list.map(r => [r.date, r]));
+      const outcomesByDate   = new Map();
+      for (const outcome of (appMemory.taskOutcomes || [])) {
+        if (!outcome || !reflectionByDate.has(outcome.date)) continue;
+        if (!outcomesByDate.has(outcome.date)) outcomesByDate.set(outcome.date, []);
+        outcomesByDate.get(outcome.date).push(outcome);
       }
 
-      // Priority 2: focus association
-      const history = safeJSON('today_daily_history', []);
-      if (!history.length) return null;
-      const histByDate = new Map(history.map(e => [e.date, e]));
-      const lowGroup  = []; // focusMins === 0
-      const longGroup = []; // focusMins >= 60
-      list.forEach(r => {
-        const h = histByDate.get(r.date);
-        if (!h) return;
-        const mins = h.focusMins || 0;
-        if (mins === 0) lowGroup.push(r.feeling);
-        else if (mins >= 60) longGroup.push(r.feeling);
-      });
-      if (lowGroup.length >= OBS_MIN_GROUP && longGroup.length >= OBS_MIN_GROUP) {
-        const DRAINING = ['drained', 'tense'];
-        const lowRate  = lowGroup.filter(f  => DRAINING.includes(f)).length / lowGroup.length;
-        const longRate = longGroup.filter(f => DRAINING.includes(f)).length / longGroup.length;
-        const diff     = longRate - lowRate;
-        if (Math.abs(diff) >= OBS_FOCUS_DIFF_RATIO) {
-          return diff > 0
-            ? `On evenings you reflected, longer focus days have more often felt draining.`
-            : `On evenings you reflected, focus days have more often felt calm or alive.`;
-        }
-      }
+      const candidates = [];
+      const group = predicate => list.filter(r => predicate(outcomesByDate.get(r.date) || []));
 
-      return null;
+      // Cleanly separate evenings with only one kind of completed commitment.
+      // Mixed evenings belong to neither side: assigning them to both would blur
+      // the contrast and make a stronger-looking result out of ambiguous evidence.
+      const obligationDone = group(rows =>
+        rows.some(e => e.outcome === 'done' && e.obligation === true) &&
+        !rows.some(e => e.outcome === 'done' && e.obligation === false));
+      const chosenDone = group(rows =>
+        rows.some(e => e.outcome === 'done' && e.obligation === false) &&
+        !rows.some(e => e.outcome === 'done' && e.obligation === true));
+      const obligationCandidate = _buildFeelingComparison(
+        'feeling-vs-obligation', 110, obligationDone, chosenDone,
+        'after finishing a "have to"',
+        'after finishing something you chose');
+      if (obligationCandidate) candidates.push(obligationCandidate);
+
+      // Letting go is itself a decision about a commitment. Contrast it with
+      // evenings that contain a completion and no release, not with inactive days.
+      const letgo = group(rows => rows.some(e => e.outcome === 'letgo'));
+      const finishedWithoutLetgo = group(rows =>
+        rows.some(e => e.outcome === 'done') && !rows.some(e => e.outcome === 'letgo'));
+      const releaseCandidate = _buildFeelingComparison(
+        'feeling-vs-release', 100, letgo, finishedWithoutLetgo,
+        'after letting something go',
+        'after finishing without letting anything go');
+      if (releaseCandidate) candidates.push(releaseCandidate);
+
+      return candidates.sort((a, b) => b.score - a.score)[0] || null;
     }
 
     function _reflectionClearFromAllMemory() {
@@ -345,9 +394,10 @@
 
     // ── AI reflection ────────────────────────────────────────────────────────
 
-    async function reflectionReflect() {
+    async function reflectionReflect(selectedCandidate) {
       const list = _loadReflections();
-      if (list.length < 7) return;
+      const candidate = selectedCandidate || _buildReflectionCandidate(list);
+      if (!candidate) return;
       if (!Today.use('connections')._aiIsConfigured()) return;
       if (!navigator.onLine) return;
 
@@ -356,28 +406,30 @@
       _refreshMemoryBlock();
 
       try {
-        // Aggregate counts only — no task text, raw dates, identifiers
-        const counts = {};
-        VALID_FEELINGS.forEach(f => { counts[f] = 0; });
-        list.forEach(r => { if (r.feeling in counts) counts[r.feeling]++; });
-
-        const obs      = _computeObservation(list);
-        const focusTot = _buildFocusGroupTotals(list);
-
+        // One code-selected aggregate relationship only — no task text, full
+        // feeling distribution, raw dates, identifiers, or unselected candidates.
         const payload = {
-          evenings_count:  list.length,
-          feeling_counts:  counts,
-          ...(obs      ? { on_device_observation: obs }       : {}),
-          ...(focusTot ? { focus_groups:          focusTot }  : {}),
+          reflected_evenings_count: list.length,
+          relationship: {
+            kind:         candidate.kind,
+            feeling:      candidate.feeling,
+            more_context: candidate.more_context,
+            less_context: candidate.less_context,
+            more_evenings: { matching: candidate.more_count, total: candidate.more_total },
+            less_evenings: { matching: candidate.less_count, total: candidate.less_total },
+          },
         };
 
         const systemPrompt =
-          'You see aggregate data from a personal productivity app\'s post-triage reflection feature. ' +
-          'The user opted in to reflect on how evenings felt after completing task triage. ' +
-          'Write one short (2–3 sentence), tentative, non-clinical reflection based only on the patterns visible in the data. ' +
+          'Code has selected one evidence-backed relationship between evening reflections and how the user handled commitments that day. ' +
+          'Phrase only that relationship; do not search for another pattern. ' +
+          'Write exactly one complete sentence under 24 words. ' +
+          'Begin "On evenings you reflected," and say the named feeling appeared more often. ' +
+          'Copy more_context and less_context verbatim, in that order, joined by "than". ' +
+          'Do not narrate the numbers or mention any other feeling. ' +
           'Forbidden: causal language, diagnosis, scores, streaks, advice, predictions, clinical interpretation. ' +
           'Do not make up specific dates or tasks. ' +
-          'Begin with a framing like "Looking at evenings you reflected…" or similar.';
+          'Reply only as valid JSON in the exact shape {"message":"your sentence"}.';
 
         const key      = Today.use('connections')._aiGetKey();
         const provider = Today.use('connections')._aiGetProvider();
@@ -399,30 +451,13 @@
 
         const data = await res.json();
         const text = _parseAIText(data)?.trim();
-        _reflectResult = text || null;
+        _reflectResult = _usableReflectionText(text, candidate);
       } catch (_e) {
         // silent
       } finally {
         _reflectPending = false;
         _refreshMemoryBlock();
       }
-    }
-
-    function _buildFocusGroupTotals(list) {
-      const history = safeJSON('today_daily_history', []);
-      if (!history.length) return null;
-      const histByDate = new Map(history.map(e => [e.date, e]));
-      const low  = { count: 0, feelings: Object.fromEntries(VALID_FEELINGS.map(f => [f, 0])) };
-      const long = { count: 0, feelings: Object.fromEntries(VALID_FEELINGS.map(f => [f, 0])) };
-      list.forEach(r => {
-        const h = histByDate.get(r.date);
-        if (!h) return;
-        const mins = h.focusMins || 0;
-        if (mins === 0)    { low.count++;  if (r.feeling in low.feelings)  low.feelings[r.feeling]++;  }
-        else if (mins >= 60) { long.count++; if (r.feeling in long.feelings) long.feelings[r.feeling]++; }
-      });
-      if (low.count < OBS_MIN_GROUP && long.count < OBS_MIN_GROUP) return null;
-      return { low_focus_evenings: low, long_focus_evenings: long };
     }
 
     // ── Dropbox sync ─────────────────────────────────────────────────────────

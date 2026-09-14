@@ -282,13 +282,14 @@ Appended after the four main `typeBlock` sections by `_reflectionRenderMemory(el
 |-----------|---------|
 | Policy = `not_for_me` or absent | "Reflections are not remembered." + "Remember reflections" button |
 | Policy = `remember`, 0 reflections | "Remembering the last 30 days." |
-| Policy = `remember`, 1–6 reflections | Count sentence |
-| Policy = `remember`, ≥ 7 entries + AI configured | Count, then auto-reflect on panel open using aggregate feeling counts only |
-| Policy = `remember`, ≥ 14 entries + qualifying on-device pattern | Count + deterministic observation, whether or not AI is configured |
+| Policy = `remember`, reflections but no qualifying relationship | Count sentence only |
+| Policy = `remember`, AI configured + qualifying relationship | Count, then auto-reflect on panel open |
 | `_reflectPending` | "reflecting…" sentence |
-| `_reflectResult` set | AI-generated text |
+| `_reflectResult` set | One complete AI-generated sentence under 24 requested words |
 
-The reflection result is session-only and is never persisted or synced. The raw entries remain a separate 30-day record; the AI receives counts, not dates or task text. Reflection deletion is part of Memory's global clear flow. "Remember reflections" appears only when the policy is `not_for_me` or absent.
+The reflection result is session-only and is never persisted or synced. On-device code temporarily joins reflection dates to date-only `taskOutcomes` and proposes only commitment-shaped comparisons: feelings after finishing something framed as “have to” versus something chosen, or after letting something go versus finishing without a release. Each side needs at least four reflected evenings; the named feeling needs at least three appearances on the stronger side and a ≥30 percentage-point gap. Mixed obligation/chosen evenings are excluded from that comparison. A dominant feeling or focus-duration split is not an insight and no longer produces a line.
+
+The AI receives only the winning aggregate relationship—not raw dates, task text, identifiers, the full feeling distribution, or alternate candidates—and phrases it rather than choosing what matters. Its sentence must stay within 24 words and name the single selected feeling, both supplied commitment contexts, and the selected population (“On evenings you reflected…”). Overlong, incomplete, causal, multi-feeling, or context-swapping replies are withheld, leaving the inspectable count. Reflection deletion remains part of Memory's global clear flow. “Remember reflections” appears only when the policy is `not_for_me` or absent.
 
 ---
 

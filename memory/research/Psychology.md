@@ -95,13 +95,13 @@ likewise supports putting feelings into words more directly than selecting an un
 **TODAY's product/privacy decision (v2.65.7):** opt-in evening reflections shipped. The explicit choices made, each driven by the above tensions:
 
 - **Opt-in with two-tap consent** — prompt shown once after triage; “Remember” or “Not for me.” Consent is local, revocable at any time from the Memory panel.
-- **Whole-history deletion** — “Forget reflections” clears policy, history, and watermark in one step; an immediate silent Dropbox backup propagates deletion to all devices.
+- **Whole-history deletion** — Memory's global clear wipes reflection policy and history, stamps the watermark, and immediately sends a silent Dropbox backup so deletion propagates to all devices.
 - **Six categorical words only** — drained · tense · present · off · calm · alive. No scores, no sliders, no unlabeled ratings, no emojis. Affect-labeling benefit without numeric-score baggage.
 - **30-day local retention** — responses stay on device and in Dropbox if connected; they do not accumulate indefinitely.
 - **Selected-population wording** — all in-app observations say “On evenings you reflected…” to acknowledge the selection bias: the sample is not a random cross-section of all evenings.
-- **Conservative on-device observations** — purely deterministic, no AI. Require ≥14 reflections total, ≥4 per comparison group. Only two patterns surfaced: a dominant feeling (≥45% share) or a focus-association (≥30 pp difference between low-focus and long-focus groups). One observation maximum.
-- **User-initiated AI only** — the “Reflect” button is shown only when the AI is configured and ≥7 reflections exist; sends aggregate counts and the on-device observation, never task text, raw dates, or identifiers; result is session-only and never stored.
-- **No streaks, no trends** — no counts displayed, no completion indicators, no comparison across weeks.
+- **Commitment relationship or silence** — a dominant feeling and a focus-duration split were retired in v2.90.7: both turn the person into a frequency or productivity statistic. On-device code now requires two groups of ≥4 reflected evenings tied to different ways of handling commitments, a ≥30 percentage-point feeling difference, and ≥3 appearances on the stronger side. Mixed obligation/chosen evenings are excluded rather than made to support both sides.
+- **Code selects; AI phrases** — when a relationship qualifies, opening Memory automatically asks the configured AI to phrase that one candidate. The request contains only aggregate group sizes, the selected feeling, and the two commitment contexts—never task text, raw dates, identifiers, the full feeling distribution, or alternative candidates. The result is session-only and never stored.
+- **No streaks or trends** — the panel shows the inspectable count for the rolling 30-day record, but no completion indicator, streak, score, or comparison across weeks.
 
 **Evidence boundary (research pass, 2026-08):** mood-monitoring RCT meta-analysis found no robust
 benefit or harm ([Astill Wright et al.](https://pmc.ncbi.nlm.nih.gov/articles/PMC12779106/)); a brief

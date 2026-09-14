@@ -369,10 +369,10 @@ later section or automated suite was added.
 
 | # | Scenario | Expected |
 |---|----------|----------|
-| 14.16 | Open Memory panel, policy = `remember`, 3 entries | "Remembering last 30 days." shown; count sentence; no observation (< 14) |
-| 14.17 | 14+ entries with dominant feeling (≥45%) | On-device observation shown |
-| 14.18 | 7+ entries + AI configured | "Reflect" button shown |
-| 14.19 | Tap "Forget reflections" → "Yes, forget" | Policy = `not_for_me`, `today_reflections` removed, `reflections_cleared_at` stamped |
+| 14.16 | Open Memory panel, policy = `remember`, 3 entries | Count sentence shown; no inferred message |
+| 14.17 | Dominant feeling but no qualifying commitment comparison | Count only; no AI request |
+| 14.18 | AI configured + qualifying commitment relationship | Panel sends only the selected aggregate; one complete relationship sentence replaces `reflecting…` |
+| 14.19 | AI returns over 24 words, no terminal punctuation, multiple feelings, causal language, or swaps the supplied contexts | Output withheld; count remains; no clipped or ungrounded prose shown |
 | 14.20 | Policy = `not_for_me` in panel | "Remember reflections" button shown |
 | 14.21 | Tap "Remember reflections" | Policy = `remember`, Memory block re-renders |
 
@@ -388,20 +388,20 @@ later section or automated suite was added.
 | 14.27 | Remote `reflections_cleared_at` newer | Watermark adopted; entries ≤ watermark discarded |
 | 14.28 | Backup payload | `reflection_policy`, `reflections`, `reflections_cleared_at` present; `today_reflection_intro_seen_at` absent |
 
-### Observation thresholds
+### Relationship thresholds
 
 | # | Scenario | Expected |
 |---|----------|----------|
-| 14.29 | 13 reflections | No observation |
-| 14.30 | 14 reflections, top feeling 44% | No observation (below 45%) |
-| 14.31 | 14 reflections, top feeling 45% | Observation: "On evenings you reflected, `<feeling>` was the most common feeling." |
-| 14.32 | 14 reflections, no dominant, no focus history | No observation |
+| 14.29 | Fewer than 4 reflected evenings on either comparison side | Count only |
+| 14.30 | Two groups of 4+, but feeling-rate gap <30 pp | Count only |
+| 14.31 | Gap ≥30 pp, but named feeling appears fewer than 3 times on stronger side | Count only |
+| 14.32 | Obligation and chosen completion groups qualify; mixed evenings also exist | Mixed evenings excluded; one strongest supported candidate at most |
 
 ### AI reflection privacy
 
 | # | Scenario | Expected |
 |---|----------|----------|
-| 14.33 | Tap "Reflect" | Network request body contains only `evenings_count`, `feeling_counts`, optional `on_device_observation`, optional `focus_groups` — no task text, no raw dates, no names |
+| 14.33 | Qualified relationship auto-reflects | Network request contains `reflected_evenings_count` plus one aggregate `relationship`; no task text, raw dates, identifiers, full distribution, or alternate candidates |
 | 14.34 | Result returned | Session-only; `_reflectResult` set; not written to localStorage |
 | 14.35 | Page reload after AI reflection | No `_reflectResult` in fresh session |
 

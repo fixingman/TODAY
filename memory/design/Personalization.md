@@ -121,13 +121,14 @@ Run ProductThinking's "what already exists?" reflex against this table before ad
 
 ## Sensitive-data boundary — post-triage reflections (v2.65.7)
 
-Evening reflections (five categorical feelings after triage) are a **separate sensitive record** from the main `appMemory` object. They live in four dedicated localStorage keys (`today_reflection_policy`, `today_reflections`, `today_reflections_cleared_at`, `today_reflection_intro_seen_at`) backed up under matching keys in Dropbox.
+Evening reflections (six categorical feelings after triage) are a **separate sensitive record** from the main `appMemory` object. They live in four dedicated localStorage keys (`today_reflection_policy`, `today_reflections`, `today_reflections_cleared_at`, `today_reflection_intro_seen_at`) backed up under matching keys in Dropbox.
 
 Design decisions:
 
 - **Opt-in with visible payoff**: a one-time consent prompt after the user's first eligible triage; nothing is collected before "Remember" is tapped.
-- **No automatic AI inclusion**: the `_memoryForAI()` function does NOT include reflection history. The user triggers AI via a "Reflect" button in the Memory panel, which sends only aggregate counts — never the feeling words attached to specific dates.
+- **No general AI inclusion**: `_memoryForAI()` does NOT include reflection history, and no reflection data reaches other AI surfaces. HOW DAYS FELT may temporarily join reflection dates to date-only task outcomes on-device; the AI receives only one selected aggregate relationship, never dates, task text, identifiers, the full feeling distribution, or alternate candidates.
 - **Selected-population wording required**: any surface that analyses reflection data must say "On evenings you reflected…" — the sample is never claimed to be representative of all evenings.
+- **A relationship, or silence**: a feeling frequency is a record, not self-understanding. Code first requires two sufficiently observed ways of handling commitments (currently obligation-framed versus chosen completions, or letting go versus finishing without a release) and a material difference between them. The model phrases only that selected evidence. If no relationship qualifies—or the reply is incomplete, causal, or ungrounded—the visible 30-day count stands alone.
 - **Whole-history deletion**: clearing also sends an immediate silent Dropbox backup so the deletion propagates to all devices without waiting for the next scheduled sync.
 - **Deliberate exclusion from `#memoryPanel` main blocks**: the reflection block is appended _after_ the four main `typeBlock` sections by a separate `_reflectionRenderMemory(el)` call, so it can never be accidentally included in a memory-reset flow that doesn't also call `_reflectionClearFromAllMemory`.
 

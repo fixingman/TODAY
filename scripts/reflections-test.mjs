@@ -1,7 +1,7 @@
 // TODAY — post-triage reflections regression test
 //
 // Covers consent lifecycle, timer delegation, response validation,
-// memory panel & deletion, Dropbox sync invariants, observation thresholds,
+// memory panel & deletion, Dropbox sync invariants, relationship thresholds,
 // AI reflection privacy, and static wiring.
 //
 // Run from repo root:
@@ -50,6 +50,10 @@ const expectAll = async (label, result) => {
 const TODAY = new Date().getFullYear() + '-' +
   String(new Date().getMonth() + 1).padStart(2, '0') + '-' +
   String(new Date().getDate()).padStart(2, '0');
+const _yesterday = new Date(); _yesterday.setDate(_yesterday.getDate() - 1);
+const YESTERDAY = _yesterday.getFullYear() + '-' +
+  String(_yesterday.getMonth() + 1).padStart(2, '0') + '-' +
+  String(_yesterday.getDate()).padStart(2, '0');
 
 browser = await puppeteer.launch({
   executablePath: CHROME,
@@ -359,18 +363,18 @@ try {
   {
     const { page } = await openPage({
       today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
-      today_reflections: JSON.stringify([{ date: '2026-08-15', feeling: 'calm', updatedAt: '2026-08-15T22:00:00.000Z' }]),
+      today_reflections: JSON.stringify([{ date: YESTERDAY, feeling: 'calm', updatedAt: '2026-08-15T22:00:00.000Z' }]),
     });
     const result = await page.evaluate(() => {
       const remoteData = {
-        reflections: [{ date: '2026-08-16', feeling: 'alive', updatedAt: '2026-08-16T22:00:00.000Z' }],
+        reflections: [{ date: _localISO(), feeling: 'alive', updatedAt: '2026-08-16T22:00:00.000Z' }],
       };
       const changed = Today.use('reflections')._reflectionMergeRemote(remoteData);
       const list = JSON.parse(localStorage.getItem('today_reflections') || '[]');
       return {
         changed: changed,
         hasBoth: list.length >= 2,
-        remoteEntryPresent: list.some(r => r.date === '2026-08-16' && r.feeling === 'alive'),
+        remoteEntryPresent: list.some(r => r.feeling === 'alive'),
       };
     });
     await expectAll('response union — remote entry merged', result);
@@ -383,8 +387,8 @@ try {
     const { page } = await openPage({
       today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: '2026-08-10T12:00:00.000Z' }),
       today_reflections: JSON.stringify([
-        { date: '2026-08-14', feeling: 'tense', updatedAt: '2026-08-14T22:00:00.000Z' },
-        { date: '2026-08-15', feeling: 'calm',  updatedAt: '2026-08-15T22:00:00.000Z' },
+        { date: YESTERDAY, feeling: 'tense', updatedAt: '2026-08-14T22:00:00.000Z' },
+        { date: TODAY,     feeling: 'calm',  updatedAt: '2026-08-15T22:00:00.000Z' },
       ]),
     });
     const result = await page.evaluate(() => {
@@ -392,8 +396,8 @@ try {
       Today.use('reflections')._reflectionMergeRemote(remoteData);
       const list = JSON.parse(localStorage.getItem('today_reflections') || '[]');
       return {
-        oldEntryDiscarded: !list.some(r => r.date === '2026-08-14'),
-        newEntryKept: list.some(r => r.date === '2026-08-15'),
+        oldEntryDiscarded: !list.some(r => r.feeling === 'tense'),
+        newEntryKept: list.some(r => r.feeling === 'calm'),
       };
     });
     await expectAll('watermark discards old entries', result);
@@ -422,11 +426,13 @@ try {
     await page.close();
   }
 
-  // ── 5. Observation thresholds ────────────────────────────────────────────
+  // ── 5. Relationship thresholds ───────────────────────────────────────────
 
-  // 5.1 < 14 reflections → no observation
+  // 5.1 A small reflection record stays a record, without faux insight
   {
-    const { page } = await openPage();
+    const { page } = await openPage({
+      today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
+    });
     const result = await page.evaluate(() => {
       const list = Array.from({ length: 13 }, (_, i) => ({
         date: `2026-08-${String(i + 1).padStart(2, '0')}`,
@@ -437,19 +443,21 @@ try {
       const container = document.createElement('div');
       Today.use('reflections')._reflectionRenderMemory(container);
       const text = container.textContent;
-      return { noObservation: !text.includes('On evenings you reflected') };
+      return { countOnly: text.includes('13 evenings') && !text.includes('On evenings you reflected') };
     });
-    await expectAll('< 14 entries → no observation', result);
-    ok('< 14 reflections → no on-device observation shown');
+    await expectAll('small reflection record → count only', result);
+    ok('small reflection record → count only');
     await page.close();
   }
 
-  // 5.2 ≥ 14 reflections with dominant feeling (≥45%) → observation shown
+  // 5.2 A dominant feeling alone is still a frequency table, so stay silent
   {
     const { page } = await openPage({
       today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
+      today_ai_provider: 'claude',
+      today_ai_key_claude: 'test-key',
     });
-    const result = await page.evaluate(() => {
+    const result = await page.evaluate(async () => {
       // 14 reflections: 8 'calm' (57%), 6 others
       const list = Array.from({ length: 14 }, (_, i) => ({
         date: `2026-08-${String(i + 1).padStart(2, '0')}`,
@@ -457,16 +465,23 @@ try {
         updatedAt: new Date().toISOString(),
       }));
       localStorage.setItem('today_reflections', JSON.stringify(list));
+      let fetches = 0;
+      window.fetch = async () => { fetches++; return { ok: true, json: async () => ({ message: 'unused' }) }; };
       const container = document.createElement('div');
       Today.use('reflections')._reflectionRenderMemory(container);
-      return { observationShown: container.textContent.includes('On evenings you reflected') };
+      await new Promise(resolve => setTimeout(resolve, 20));
+      return {
+        countShown: container.textContent.includes('14 evenings'),
+        noFrequencyInference: !container.textContent.includes('On evenings you reflected'),
+        noAIRequest: fetches === 0,
+      };
     });
-    await expectAll('dominant feeling → observation shown', result);
-    ok('≥14 reflections with dominant feeling → observation shown');
+    await expectAll('dominant feeling without commitment contrast → silence', result);
+    ok('dominant feeling alone → count remains, no frequency-table inference');
     await page.close();
   }
 
-  // 5.3 Configured AI + 16 reflections → reflection runs and replaces the count-only state
+  // 5.3 Configured AI + a code-qualified commitment relationship → one line
   {
     const { page, errors } = await openPage({
       today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
@@ -474,19 +489,33 @@ try {
       today_ai_key_claude: 'test-key',
     });
     const result = await page.evaluate(async () => {
-      const list = Array.from({ length: 16 }, (_, i) => ({
-        date: `2026-08-${String(i + 1).padStart(2, '0')}`,
-        feeling: ['drained', 'tense', 'present', 'off', 'calm', 'alive'][i % 6],
-        updatedAt: new Date().toISOString(),
-      }));
+      const list = Array.from({ length: 16 }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        const chosenFeelings = ['drained', 'present', 'off', 'calm', 'alive', 'tense', 'present', 'off'];
+        return {
+          date,
+          feeling: i < 8 ? (i < 6 ? 'drained' : 'calm') : chosenFeelings[i - 8],
+          updatedAt: new Date().toISOString(),
+        };
+      });
       localStorage.setItem('today_reflections', JSON.stringify(list));
+      appMemory.taskOutcomes = list.map((r, i) => ({
+        id: 'outcome_' + i,
+        date: r.date,
+        outcome: 'done',
+        obligation: i < 8,
+        focusSessions: 0,
+      }));
 
       let request = null;
       window.fetch = async (_url, options) => {
         request = JSON.parse(options.body);
         return {
           ok: true,
-          json: async () => ({ content: 'Looking at evenings you reflected, the mix has stayed varied.' }),
+          json: async () => ({
+            message: 'On evenings you reflected, drained appeared more often after finishing a “have to” than after finishing something you chose.',
+          }),
         };
       };
 
@@ -499,17 +528,121 @@ try {
       const text = document.getElementById('reflectionMemoryBlock')?.textContent || '';
       return {
         started,
-        resultShown: text.includes('the mix has stayed varied'),
+        resultShown: text.includes('drained appeared more often'),
         requestSent: request?.provider === 'claude' && request?.apiKey === 'test-key',
-        aggregateOnly: request?.messages?.[0]?.content?.includes('"evenings_count":16') &&
-          !request.messages[0].content.includes('2026-08-'),
+        aggregateOnly: request?.messages?.[0]?.content?.includes('"reflected_evenings_count":16') &&
+          request.messages[0].content.includes('"kind":"feeling-vs-obligation"') &&
+          !request.messages[0].content.includes('outcome_') &&
+          !request.messages[0].content.includes(list[0].date) &&
+          !request.messages[0].content.includes('feeling_counts'),
+        insightPrompt: request?.systemPrompt?.includes('exactly one complete sentence under 24 words') &&
+          request.systemPrompt.includes('Phrase only that relationship') &&
+          request.systemPrompt.includes('Copy more_context and less_context verbatim') &&
+          request.systemPrompt.includes('Reply only as valid JSON'),
       };
     });
     await expectAll('configured AI + 16 reflections → reflection shown', {
       ...result,
       noErrors: !errors.length,
     });
-    ok('configured AI + 16 reflections → aggregate reflection replaces count-only state');
+    ok('qualified commitment relationship → selected aggregate is phrased, raw records stay local');
+    await page.close();
+  }
+
+  // 5.4 Letting go vs finishing is the second commitment-shaped candidate
+  {
+    const { page, errors } = await openPage({
+      today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
+      today_ai_provider: 'claude',
+      today_ai_key_claude: 'test-key',
+    });
+    const result = await page.evaluate(async () => {
+      const list = Array.from({ length: 8 }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        return {
+          date,
+          feeling: i < 4 ? (i < 3 ? 'calm' : 'drained') : ['present', 'off', 'alive', 'tense'][i - 4],
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      localStorage.setItem('today_reflections', JSON.stringify(list));
+      appMemory.taskOutcomes = list.map((r, i) => ({
+        id: 'release_' + i,
+        date: r.date,
+        outcome: i < 4 ? 'letgo' : 'done',
+        obligation: false,
+        focusSessions: 0,
+      }));
+      let request = null;
+      window.fetch = async (_url, options) => {
+        request = JSON.parse(options.body);
+        return {
+          ok: true,
+          json: async () => ({
+            message: 'On evenings you reflected, calm appeared more often after letting something go than after finishing without letting anything go.',
+          }),
+        };
+      };
+
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      Today.use('reflections')._reflectionRenderMemory(container);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      const text = document.getElementById('reflectionMemoryBlock')?.textContent || '';
+      return {
+        releaseSelected: request?.messages?.[0]?.content?.includes('"kind":"feeling-vs-release"'),
+        resultShown: text.includes('calm appeared more often after letting something go'),
+      };
+    });
+    await expectAll('letting go vs finishing → relationship shown', { ...result, noErrors: !errors.length });
+    ok('letting go vs finishing → second commitment relationship is selected and phrased');
+    await page.close();
+  }
+
+  // 5.5 A truncated response is withheld instead of shown mid-sentence
+  {
+    const { page, errors } = await openPage({
+      today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
+      today_ai_provider: 'claude',
+      today_ai_key_claude: 'test-key',
+    });
+    const result = await page.evaluate(async () => {
+      const list = Array.from({ length: 16 }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        return {
+          date,
+          feeling: i < 8 ? (i < 6 ? 'drained' : 'calm') : ['drained', 'present', 'off', 'calm', 'alive', 'tense', 'present', 'off'][i - 8],
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      localStorage.setItem('today_reflections', JSON.stringify(list));
+      appMemory.taskOutcomes = list.map((r, i) => ({
+        id: 'outcome_' + i,
+        date: r.date,
+        outcome: 'done',
+        obligation: i < 8,
+        focusSessions: 0,
+      }));
+      window.fetch = async () => ({
+        ok: true,
+        json: async () => ({ message: 'Looking at evenings you reflected, drained and present appear most often, followed by calm and' }),
+      });
+
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      Today.use('reflections')._reflectionRenderMemory(container);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      const text = document.getElementById('reflectionMemoryBlock')?.textContent || '';
+      return {
+        partialHidden: !text.includes('followed by calm and'),
+        pendingCleared: !text.includes('reflecting…'),
+        countKept: text.includes('16 evenings'),
+      };
+    });
+    await expectAll('truncated reflection → withheld', { ...result, noErrors: !errors.length });
+    ok('truncated reflection → incomplete sentence withheld, count retained');
     await page.close();
   }
 
@@ -540,7 +673,7 @@ try {
     ok('static wiring: script order, DOM element, start call, precache, CACHE_VERSION, component API');
   }
 
-  console.log('\nReflections tests passed (25 tests).');
+  console.log('\nReflections tests passed (27 tests).');
 } finally {
   if (browser) await browser.close();
   server.close();

@@ -362,6 +362,7 @@ What TODAY knows about you, made visible and clearable.
 | Focus companion question | ⚠ 2026-08-31 | Re-observing — clarity vs. check-in feel? Taxonomy prompt + word cap updated |
 | Post-triage reflections | ⚠ 2026-08-31 | Open — real pause or rote? Watch for avoidance on hard days |
 | Memory panel quality gate | 2026-09-01 | **Iterate (2026-09-02)** — diagnose generator before adding sources; see Watching |
+| HOW DAYS FELT insight | 2026-09-28 | Re-observing after v2.90.7 — a useful commitment relationship or silence, never a feeling-frequency recap? |
 | Solar term label | 2026-09-05 | Open — context or noise? Hemisphere-aware since v2.81.4 |
 | Sunday earned insight | 2026-09-06 | Open — reveals a real lever, or paraphrases the grid? |
 | Obligation language tip | 2026-09-14 | Open — reflection or interruption? Regex tightened v2.78.0 |
