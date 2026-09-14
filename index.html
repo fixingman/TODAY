@@ -1562,6 +1562,8 @@
   .past-revive-reasons { margin-top: var(--space-2); animation: none; }
   #undoReasonRow.triage-reason-row { gap: var(--space-1); border-top: 1px solid var(--border); padding-top: var(--space-2); width: 100%; }
   #triageComplete {
+    position: relative;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1572,6 +1574,25 @@
   }
   #triageComplete.hidden {
     display: none;
+  }
+  .triage-countdown {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--muted);
+    opacity: 0.4;
+    transform-origin: left;
+    transform: scaleX(1);
+    animation-name: triage-countdown;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+    animation-play-state: paused;
+  }
+  @keyframes triage-countdown {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
   }
   .triage-complete-msg {
     font-family: var(--font-mono);
@@ -4224,6 +4245,7 @@
       <div id="triageSummary"></div>
       <div id="triageReflection" aria-live="polite"></div>
       <button id="triageUndoBtn" data-today-click="triage.undo" class="triage-undo-btn" style="display:none">Undo sorting</button>
+      <div id="triageCountdown" class="triage-countdown" aria-hidden="true"></div>
     </div>
   </div>
 </div>
@@ -4390,9 +4412,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.12': 'Post-triage reflection: countdown progress bar at the bottom of the completion panel — pauses on hover, resumes on leave, resets when the timer is extended by reflection actions.',
   '2.90.11': 'How Days Felt: expand the commitment picture — focus sessions and task revival now join obligation and letting-go as feeling-comparison axes.',
   '2.90.10': 'Fix: How Days Felt no longer shows a feeling-frequency recap — the service worker cache now picks up the relationship-only logic shipped in v2.90.7.',
-  '2.90.9':  'Revive from Past: trim the reason menu to two clear options — “still relevant” and “new context” — removing “too hasty” and “came up again”.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

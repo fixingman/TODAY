@@ -465,6 +465,16 @@
       Today.use('memory').abstract();
     }
 
+    function _startCountdown(ms) {
+      const bar = document.getElementById('triageCountdown');
+      if (!bar) return;
+      bar.style.animationDuration = ms + 'ms';
+      bar.style.animationName = 'none';
+      void bar.offsetWidth;
+      bar.style.animationName = '';
+      bar.style.animationPlayState = 'running';
+    }
+
     function _startAutoClose(durationMs) {
       if (_triageAutoCloseTimer) clearTimeout(_triageAutoCloseTimer);
       _triageAutoCloseRemaining = durationMs;
@@ -474,6 +484,8 @@
         triageClose();
       }, durationMs);
 
+      _startCountdown(durationMs);
+
       const _triageCompleteEl = document.getElementById('triageComplete');
       if (_triageCompleteEl && !_triageCompleteEl._hoverWired) {
         _triageCompleteEl._hoverWired = true;
@@ -482,10 +494,14 @@
           clearTimeout(_triageAutoCloseTimer);
           _triageAutoCloseTimer = null;
           _triageAutoCloseRemaining -= (Date.now() - _triageAutoCloseStart);
+          const bar = document.getElementById('triageCountdown');
+          if (bar) bar.style.animationPlayState = 'paused';
         });
         _triageCompleteEl.addEventListener('mouseleave', () => {
           if (!_triageSnapshot) return;
           _triageAutoCloseStart = Date.now();
+          const bar = document.getElementById('triageCountdown');
+          if (bar) bar.style.animationPlayState = 'running';
           _triageAutoCloseTimer = setTimeout(() => {
             _triageSnapshot = null;
             triageClose();
@@ -502,6 +518,7 @@
         _triageSnapshot = null;
         triageClose();
       }, ms);
+      _startCountdown(ms);
     }
 
     window._triageResetAutoClose = _triageResetAutoClose;
