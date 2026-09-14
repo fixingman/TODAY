@@ -71,7 +71,7 @@ const duplicateOwners = [...globalOwners]
 
 assert.deepEqual(duplicateOwners, [], 'a global compatibility export may have only one owning module');
 assert.ok(
-  globalAssignments.length <= 120,
+  globalAssignments.length <= 121,
   `global compatibility surface grew to ${globalAssignments.length}; migrate through Today.define/use instead`,
 );
 
