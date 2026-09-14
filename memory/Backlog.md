@@ -34,8 +34,6 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 | 11 | **Task agent — enrichment at add-time** | Stages 1–3 shipped | Stage 3 (v2.90.0): `search_trello` custom tool. Contacts + calendar remain out of scope until those integrations exist. Detail ↓ |
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola MVP first; calendar = input only. Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend; user picks one provider. Full spec ↓ |
-| 12e | **Companion — reactions** | **Shipped v2.86.0 → v2.87.0** | Two-state verdict on every spoken line; permanent via `kindVerdicts`. Detail ↓ |
-| 12d | **Companion — memory surface** | Phase A shipped (v2.82.4); **Phase B shipped (v2.89.0)** | Plain "what I know" view in Memory panel, per-item clearable. Detail ↓ |
 | — | **WEEK companion** | Gated | Gate: 12c must feel like a companion, not a feature. Detail ↓ |
 | 2 | **Poem corpus — iterate** | In progress | Corpus 135; expand geography and voice. Detail ↓ |
 
@@ -212,18 +210,6 @@ Dropbox + GDrive simultaneously · automatic cross-provider migration · OneDriv
 
 ### 12 · Companion Arc
 
-The four stages are sequenced — each builds on the previous. The arc as a whole is what delivers the north star; no individual stage alone is the companion.
-
-#### 12a · Relational Memory — shipped (v2.77.26 → v2.79.1)
-
-The `appMemory` slots the arc runs on: `returningTasks`, `obligationLanguageTally`, `obligationHistory`, `taskAgeBuckets`, `spokenLines`. Schema → `architecture/Data.md`; merge rules → `architecture/Sync.md`; what `_memoryForAI()` surfaces from them → `architecture/AI.md`. One accepted debt: `obligationHistory` stores raw events where `design/Personalization.md` says store conclusions. Left on purpose — 12c's candidate builder *is* the transformation step, so the events are its input rather than prompt material.
-
-#### 12b · Companion Voice — superseded by 12c (v2.78.1)
-
-Three instruction lines on the nudge's task-reading path telling the model to use history as judgment, not report it as counts. Still live on that path, and they stay: they are the only guidance for the `_memoryForAI` dump that path still sends. Retire them only if Phase 4 replaces the task-reading path with pool output — an outcome of the verdict, not a task before it. The lessons 12b produced live in `design/Personalization.md` → "Writing the instruction".
-
----
-
 #### 12c · Observation Pool — Phases 0–3 shipped; **Phase 4 running** (restarted 2026-09-03)
 
 **One ranked candidate pool feeding two surfaces.** Code selects through four gates; the model only phrases. `assets/week-reflection-policy.js`, pure and Node-testable, 68 tests. Consumers: the **morning nudge** (only kinds that can point at today's list) and the **Sunday reflection** (every kind). Cooldowns are cross-surface, so an observation is said once wherever it lands.
@@ -283,47 +269,10 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 - **Capture the real payload before theorising about output.** The v2.79.1 duplicate-emission defect was invisible in code review and obvious the moment the request was intercepted.
 - **Verify on a port not used earlier in the session.** A reused port serves cached JS, so new code reads as `undefined` or silently inert and looks broken. `spokenLines` and the Phase 0 merge both appeared dead this way and were fine.
 
----
-
-#### 12d · Memory Surface *(requires 12c)*
-
-What TODAY knows about you, made visible and clearable.
-
-**In the Memory panel (`#memoryPanel`, per the v2.47.0 decision in `design/Personalization.md`):** a new "What I know about you" block. Shows current inferences — returning tasks, obligation language patterns, focus habits. Each inference individually dismissible (clears from `appMemory` and stops influencing AI context). Full-clear option.
-
-**Constraints (non-negotiable):** individual inferences are viewable and revocable, not just bulk-deletable. Deletion traces through derived data — if a returning-task inference is dismissed, that task stops appearing in `returningTasks`. No surveillance posture: the panel confirms what TODAY sees, it does not speculate beyond the data.
-
-**Prerequisite done (v2.82.1, BUG-096):** full-clear now covers the companion slots and survives sync via `clearedAt` watermark + hypothesis tombstones. Before this, "clear all memory" was false for the most personal slots and undone by the next Dropbox pull.
-
-**Phase A shipped (commit `fa4566b`, inside the v2.82.4 cut — unlisted, see `Changelog.md`):** KNOWN and SAID blocks open the Memory panel — returning tasks with days and sessions, open obligation-framed tasks, 30-day outcome counts with a reconstruction caveat, and the last five lines TODAY said with surface and kind. Read-only. Placed before the hypotheses on purpose: the record comes before any conclusion drawn from it.
-
-**Remaining, in build order:** (1) ~~the data view~~ done above — a "What TODAY knows" block showing `returningTasks`, pending obligation tasks, recent `spokenLines` with kind, and 30-day outcome counts as plain facts; (2) per-item revoke with a **persisted exclusion set** — `returningTasks` rebuilds from `manualTasks` every call, so a dismissed entry returns on the next render unless `_updateReturningTasksMemory` and the obligation history honour an exclusion list; note `dismissKey` is already computed for hypothesis items and never rendered, so the existing blocks have no per-item control either; (3) optionally, the gate-reason display below.
-
-**Already built for it:** `_observationGateExplain()` returns a human-readable drop reason per candidate ("already said 3 days ago on morning nudge", "restates task age") precisely so this surface can show *why* TODAY stayed quiet. A silent filter is untraceable when a surface unexpectedly says nothing.
-
-**Test for success:** a user reading the panel should think *"yes, that's accurate"* — not be surprised or feel observed.
-
----
-
-#### 12e · Reactions — shipped v2.86.0, made permanent v2.87.0
-
-**The usefulness gate, with the person as judge.** Every spoken line can carry a two-state verdict: *landed* or *not really*. Tap the sentence and the two states appear beneath it; tap one to record, tap it again to clear. Nothing shows for anyone who never touches the line — the surface stays a sentence.
-
-**Where it lives:** the Sunday, Monday and Today blocks in About (`_summaryHTML` / `_reactionHTML`, one delegated listener on the panel), and the morning strip. The strip is a `<button>` and buttons cannot nest, so its states live in a sibling `#dayNudgeReact`: the first tap opens them instead of dismissing, a state records and dismisses, a second tap on the sentence dismisses without a verdict. **Not wired:** Noticed (rule-based, several lines a day, no `spokenLines` entry to hang a verdict on) and the focus question. A control renders only when a `spokenLines` entry exists for that surface today; a rule-based fallback line was never said and gets none.
-
-**What it serves as.** (1) A verdict record — the Phase 4 verdict stops being reconstructed from conversation; each reaction sits on the line, with its kind, visible in the Memory panel's SAID block. (2) A gate the pool reads — `_observationGateExplain` doubles a kind's cooldown after one miss and retires it (`marked as not landing twice`) after two; *landed* never blocks, recognition is not a reason to repeat. (3) Continuous evidence for the Watching table. It never reaches the model: it changes which observations are chosen, not how they are phrased.
-
-**Decided with Can 2026-09-07:** yes to a control on the reading surfaces, as a tap that reveals two states — not a visible rating, not a form. Stored on the `spokenLines` entry (`reaction`, `reactedAt`), cleared with the lines by "clear all memory", newest `reactedAt` wins a sync collision.
-
-**Permanent from v2.87.0.** v2.86.0 shipped with reactions ageing out on the 30-day spokenLines window, so a retired kind could creep back after a quiet month. Can: *"do it, we need an evolving ai."* `appMemory.kindVerdicts` is the permanent tally per kind — landed, missed, the day retired — kept in step with every reaction change, and the gate reads it first. The undo surface is the Memory panel's **RETIRED** block: each retired kind with its day and count, and a `bring back` that zeroes the misses. Retirement follows the count: revising a "not really" to "landed" on the line itself also lifts it; `bring back` covers the case where the reacted lines have aged out. Otherwise only clearing all memory resets it. Synced newer-`updated`-wins and watermark-aware.
-
-**Tests:** `observation-pool-test` (gate, 87), `insights-test` 6e (setter) + 6f (tally, restore), `about-test` 13b (About blocks), `nudge-test` 6b (strip), `memory-panel-test` (RETIRED block, clear), `dropbox-test` (merge).
-
----
 
 ### WEEK — Companion Surface *(gated)*
 
-**Vision (revised Aug 2026):** not a planning tool — a longitudinal companion surface. The same relational awareness as 12a–12d, extended to a weekly rhythm. TODAY = the daily moment; WEEK = the accumulated pattern.
+**Vision (revised Aug 2026):** not a planning tool — a longitudinal companion surface. The same relational awareness as 12c, extended to a weekly rhythm. TODAY = the daily moment; WEEK = the accumulated pattern.
 
 **Gate (revised):** 12c is working and genuinely feels like a companion — not a feature. Data accumulation matters but the emotional test is the gate, not the calendar.
 
@@ -352,7 +301,6 @@ What TODAY knows about you, made visible and clearable.
 > **Rule:** resolve each row — **kept**, **iterated**, or **removed** — at the due date.
 > **Pre-registration:** in the week before each verdict, note a one-word observation each time the surface is used or skipped.
 >
-> **⚠ Overdue as of 2026-09-01 — six rows past their due date and unresolved.** These need Can's verdict, not a guess; each is marked below. An unresolved row is not a neutral state — it is a surface still shipping on an untested assumption, and the longer it sits the more it looks like a decision that was made rather than one that was skipped.
 
 | Surface | Due | Status |
 |---------|-----|--------|
@@ -362,7 +310,6 @@ What TODAY knows about you, made visible and clearable.
 | Focus companion question | ⚠ 2026-08-31 | Re-observing — clarity vs. check-in feel? Taxonomy prompt + word cap updated |
 | Post-triage reflections | 2026-10-01 | **Iterate (2026-09-14)** — countdown progress bar added (v2.90.12); re-observe. |
 | Choice, reorder, and focus motion | 2026-10-15 | Open — do the transitions clarify where state went without becoming noticeable choreography? |
-| Memory panel quality gate | 2026-09-01 | **Iterate (2026-09-02)** — diagnose generator before adding sources; see Watching |
 | HOW DAYS FELT insight | 2026-09-28 | Re-observing after v2.90.7 — a useful commitment relationship or silence, never a feeling-frequency recap? |
 | Sunday earned insight | 2026-10-15 | Re-observing — was blocked lately; give more rounds before verdict. |
 | Observation pool — morning + Sunday (12c Phase 4) | 2026-10-01 | Re-observing — not sure yet; extend to 2026-10-01. Reactions are the verdict channel. |
