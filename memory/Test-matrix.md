@@ -499,4 +499,4 @@ Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 an
 
 | # | Scenario | Expected |
 |---|----------|----------|
-| 19.1 | Run `node scripts/voice-capture-test.mjs` | Shift+Space prefers explicitly on-device continuous recognition; otherwise one ephemeral blob uses the configured Gemini transcription route. Releasing Shift or Space ends capture, input focus and repeats stay inert, media is stopped, a successful transcript adds exactly one task, and a failure adds none while remaining visible. |
+| 19.1 | Run `node scripts/voice-capture-test.mjs` | Shift+Space prefers explicitly on-device continuous recognition; otherwise one ephemeral blob uses the configured Gemini transcription route. Releasing Shift or Space ends capture, input focus and repeats stay inert, media and metering are stopped, audible speech adds exactly one task, silence makes no request and shows “Nothing heard,” the endpoint converts its no-speech marker to empty text, and a failure adds no task while remaining visible. |

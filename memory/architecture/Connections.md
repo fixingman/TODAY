@@ -201,6 +201,7 @@ does not reveal a standalone assistant panel.
 
 - Shift+Space uses Web Speech only when the browser explicitly reports the active language as available on-device and the recognition instance has `processLocally = true`. The legacy browser-cloud default is never invoked.
 - When local recognition is unavailable, one short, self-contained audio blob goes to the existing Netlify `/transcribe` function → Gemini using the user's configured Gemini key. The blob lives only through that request; it is neither chunked nor persisted. The returned transcript is committed as an ordinary manual task and is not stored separately.
+- Before that fallback can send, a local in-memory activity meter rejects silence and room noise without a network request. A quick-capture-only no-speech instruction guards environments where Web Audio metering is unavailable. Its marker is converted to empty text; mobile Voice Note does not opt into this contract.
 - Without either verified local recognition or a Gemini connection, no microphone opens. The pill explains that Gemini is needed.
 
 ---

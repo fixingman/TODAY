@@ -6,6 +6,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -27,6 +28,8 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const URL_BASE = `http://127.0.0.1:${server.address().port}`;
+const require = createRequire(import.meta.url);
+const transcribeHandler = require('../netlify/functions/transcribe.js').handler;
 
 let browser;
 const ok = message => console.log('  ✓ ' + message);
@@ -59,7 +62,7 @@ async function openPage(options = {}) {
 
     const state = window.__voiceCaptureTest = {
       availableCalls: [], recognitions: [], localStarts: 0, localStops: 0,
-      getUserMediaCalls: 0, streams: [], recorders: [], requests: [],
+      getUserMediaCalls: 0, streams: [], recorders: [], requests: [], audioContexts: [],
     };
 
     class FakeSpeechRecognition {
@@ -137,6 +140,28 @@ async function openPage(options = {}) {
     }
     window.MediaRecorder = FakeMediaRecorder;
 
+    class FakeAudioContext {
+      constructor() { this.closed = false; state.audioContexts.push(this); }
+      createMediaStreamSource() {
+        return { connect() {}, disconnect() {} };
+      }
+      createAnalyser() {
+        return {
+          fftSize: 0,
+          smoothingTimeConstant: 0,
+          connect() {},
+          disconnect() {},
+          getFloatTimeDomainData(buffer) {
+            buffer.fill(opts.voiceActivity === false ? 0.001 : 0.04);
+          },
+        };
+      }
+      resume() { return Promise.resolve(); }
+      close() { this.closed = true; return Promise.resolve(); }
+    }
+    window.AudioContext = FakeAudioContext;
+    window.webkitAudioContext = undefined;
+
     const originalFetch = window.fetch.bind(window);
     window.fetch = async (url, fetchOptions = {}) => {
       if (!String(url).includes('/.netlify/functions/transcribe')) {
@@ -172,17 +197,56 @@ async function pressChord(page) {
     code: 'Space', key: ' ', shiftKey: true, bubbles: true,
   })));
   await page.waitForFunction(() => document.getElementById('voiceCapturePill')?.dataset.state === 'listening');
+  // Let the quick-capture activity meter observe enough sustained signal.
+  await new Promise(resolve => setTimeout(resolve, 220));
 }
 
 async function release(page, code) {
-  await page.evaluate(releaseCode => document.dispatchEvent(new KeyboardEvent('keyup', {
-    code: releaseCode, key: releaseCode.startsWith('Shift') ? 'Shift' : ' ',
-    shiftKey: false, bubbles: true,
-  })), code);
-  await page.waitForFunction(() => document.getElementById('voiceCapturePill')?.dataset.state === 'transcribing');
+  const state = await page.evaluate(releaseCode => {
+    document.dispatchEvent(new KeyboardEvent('keyup', {
+      code: releaseCode, key: releaseCode.startsWith('Shift') ? 'Shift' : ' ',
+      shiftKey: false, bubbles: true,
+    }));
+    return document.getElementById('voiceCapturePill')?.dataset.state;
+  }, code);
+  if (state !== 'transcribing') await fail('release enters transcription state', { state, code });
 }
 
 try {
+  // The endpoint applies its silence contract only when quick capture asks for
+  // it, preserving the separate mobile Voice Note transcription behavior.
+  {
+    const originalFetch = globalThis.fetch;
+    let prompt = '';
+    globalThis.fetch = async (_url, options) => {
+      prompt = JSON.parse(options.body).contents[0].parts[0].text;
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ candidates: [{
+          content: { parts: [{ text: '[NO_SPEECH]' }] },
+        }] }),
+      };
+    };
+    try {
+      const response = await transcribeHandler({
+        httpMethod: 'POST',
+        body: JSON.stringify({
+          audioData: 'AQ==', mimeType: 'audio/webm', apiKey: 'test-key', rejectSilence: true,
+        }),
+      });
+      const parsed = JSON.parse(response.body);
+      await expectAll('quick-capture endpoint silence contract', {
+        success: response.statusCode === 200,
+        emptyText: parsed.text === '',
+        conservativePrompt: prompt.includes('Never guess or invent words'),
+      });
+      ok('quick-capture endpoint converts Gemini’s no-speech marker to empty text');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  }
+
   // Verified local recognition wins even when Gemini is configured. It is continuous,
   // explicitly local, accumulates final segments, and Shift-first release still stops.
   {
@@ -230,14 +294,37 @@ try {
         oneBlob: !!request?.audioData && request.audioData.length > 0,
         explicitKey: request?.apiKey === 'test-gemini-key',
         explicitMime: request?.mimeType === 'audio/webm;codecs=opus',
+        rejectsSilence: request?.rejectSilence === true,
         speechBitrate: rec?.options?.audioBitsPerSecond === 32000,
         trackStopped: __voiceCaptureTest.streams[0]?.track?.stops === 1,
+        meterClosed: __voiceCaptureTest.audioContexts[0]?.closed === true,
         noCloudRecognizer: __voiceCaptureTest.recognitions.length === 0,
         addedOnce: manualTasks.filter(task => task.text === 'Send the revised proposal').length === 1,
       };
     });
     await expectAll('Gemini one-blob fallback', { ...result, noErrors: errors.length === 0 });
     ok('Gemini fallback sends one ephemeral blob, stops media, and adds the task');
+    await page.close();
+  }
+
+  // A valid recorder blob containing only silence/room noise is discarded
+  // locally. It never reaches Gemini and cannot become an invented task.
+  {
+    const { page, errors } = await openPage({
+      local: false, gemini: true, voiceActivity: false,
+    });
+    await pressChord(page);
+    await release(page, 'Space');
+    await page.waitForFunction(() => document.getElementById('voiceCapturePill')?.dataset.state === 'empty');
+    const result = await page.evaluate(() => ({
+      noRequest: __voiceCaptureTest.requests.length === 0,
+      noTask: manualTasks.length === 0,
+      trackStopped: __voiceCaptureTest.streams[0]?.track?.stops === 1,
+      meterClosed: __voiceCaptureTest.audioContexts[0]?.closed === true,
+      honestFeedback: document.querySelector('#voiceCapturePill .vc-label')?.textContent === 'Nothing heard',
+    }));
+    await expectAll('silent quick capture', { ...result, noErrors: errors.length === 0 });
+    ok('silence stays local, creates no task, and reports Nothing heard');
     await page.close();
   }
 
@@ -293,7 +380,7 @@ try {
     await page.close();
   }
 
-  console.log('\nVoice capture tests passed (4 scenarios).');
+  console.log('\nVoice capture tests passed (6 scenarios).');
 } finally {
   if (browser) await browser.close();
   server.close();

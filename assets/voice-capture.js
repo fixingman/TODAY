@@ -9,6 +9,9 @@ window._startVoiceCapture = (function() {
 
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     const MAX_CAPTURE_MS = 45000;
+    const ACTIVITY_SAMPLE_MS = 40;
+    const SPEECH_RMS_THRESHOLD = 0.012;
+    const MIN_VOICED_MS = 160;
     const lang = navigator.language || 'en-US';
     let _held = false;
     let _starting = false;
@@ -88,10 +91,63 @@ window._startVoiceCapture = (function() {
       return candidates.find(type => MediaRecorder.isTypeSupported(type)) || null;
     }
 
+    // MediaRecorder happily produces a valid blob for silence. Sending that to
+    // a generative transcriber can turn room noise into a plausible sentence,
+    // so quick capture requires a small amount of sustained acoustic activity.
+    // If Web Audio is unavailable, the request-level no-speech instruction is
+    // still applied by /transcribe; this meter is the earlier, local guard.
+    function _startActivityMeter(session, stream) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      try {
+        const context = new Ctx();
+        session.audioContext = context;
+        const source = context.createMediaStreamSource(stream);
+        const analyser = context.createAnalyser();
+        analyser.fftSize = 512;
+        analyser.smoothingTimeConstant = 0.2;
+        source.connect(analyser);
+        const samples = new Float32Array(analyser.fftSize);
+        session.audioSource = source;
+        session.audioAnalyser = analyser;
+        session.activityAvailable = typeof analyser.getFloatTimeDomainData === 'function';
+        session.voicedMs = 0;
+        if (!session.activityAvailable) return;
+        Promise.resolve(context.resume?.()).then(() => {
+          if (context.state === 'suspended') session.activityAvailable = false;
+        }).catch(() => { session.activityAvailable = false; });
+        session.activityTimer = setInterval(() => {
+          analyser.getFloatTimeDomainData(samples);
+          let sum = 0;
+          for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
+          if (Math.sqrt(sum / samples.length) >= SPEECH_RMS_THRESHOLD) {
+            session.voicedMs += ACTIVITY_SAMPLE_MS;
+          }
+        }, ACTIVITY_SAMPLE_MS);
+      } catch (_) {
+        session.activityAvailable = false;
+        _stopActivityMeter(session);
+      }
+    }
+
+    function _stopActivityMeter(session) {
+      if (!session) return null;
+      clearInterval(session.activityTimer);
+      try { session.audioSource?.disconnect(); } catch (_) {}
+      try { session.audioAnalyser?.disconnect(); } catch (_) {}
+      try { session.audioContext?.close()?.catch(() => {}); } catch (_) {}
+      session.activityTimer = null;
+      session.audioSource = null;
+      session.audioAnalyser = null;
+      session.audioContext = null;
+      return session.activityAvailable ? session.voicedMs >= MIN_VOICED_MS : null;
+    }
+
     function _finish(session, text, outcome) {
       if (!session || session.finalized) return;
       session.finalized = true;
       clearTimeout(session.capTimer);
+      _stopActivityMeter(session);
       session.stream?.getTracks().forEach(track => track.stop());
       if (_session === session) _session = null;
       _starting = false;
@@ -126,7 +182,9 @@ window._startVoiceCapture = (function() {
         const res = await fetch('/.netlify/functions/transcribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ audioData, mimeType, apiKey: session.apiKey }),
+          body: JSON.stringify({
+            audioData, mimeType, apiKey: session.apiKey, rejectSilence: true,
+          }),
         });
         const data = await res.json();
         if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
@@ -178,6 +236,8 @@ window._startVoiceCapture = (function() {
       const session = {
         mode: 'recorder', apiKey, mimeType, recorder: null, stream: null,
         parts: [], finalized: false, stopRequested: false, capTimer: null,
+        activityTimer: null, activityAvailable: false, voicedMs: 0,
+        audioContext: null, audioSource: null, audioAnalyser: null,
       };
       _session = session;
       try {
@@ -194,12 +254,14 @@ window._startVoiceCapture = (function() {
         if (mimeType) options.mimeType = mimeType;
         const recorder = new MediaRecorder(stream, options);
         session.recorder = recorder;
+        _startActivityMeter(session, stream);
         recorder.addEventListener('dataavailable', event => {
           if (event.data && event.data.size) session.parts.push(event.data);
         });
         recorder.addEventListener('stop', () => {
           const type = mimeType || recorder.mimeType || 'audio/webm';
-          _transcribe(session, new Blob(session.parts, { type }), type);
+          if (session.speechDetected === false) _finish(session, '', 'empty');
+          else _transcribe(session, new Blob(session.parts, { type }), type);
         });
         recorder.addEventListener('error', () => _finish(session, '', 'error'));
         recorder.start();
@@ -236,7 +298,10 @@ window._startVoiceCapture = (function() {
       _setPillState('transcribing');
       try {
         if (session.mode === 'local') session.recognition.stop();
-        else if (session.recorder?.state === 'recording') session.recorder.stop();
+        else if (session.recorder?.state === 'recording') {
+          session.speechDetected = _stopActivityMeter(session);
+          session.recorder.stop();
+        }
         else _finish(session, '', 'error');
       } catch (_) {
         _finish(session, '', 'error');

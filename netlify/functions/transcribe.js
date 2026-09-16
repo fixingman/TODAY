@@ -32,7 +32,7 @@ exports.handler = async function(event) {
     return _json(400, { error: 'Invalid JSON in request body' });
   }
 
-  const { audioData, mimeType, apiKey: rawClientKey } = body;
+  const { audioData, mimeType, apiKey: rawClientKey, rejectSilence } = body;
   if (!audioData || typeof audioData !== 'string') {
     return _json(400, { error: 'Missing audioData (base64 string)' });
   }
@@ -45,12 +45,16 @@ exports.handler = async function(event) {
     return _json(400, { error: 'No API key — enter your Gemini key in Connections' });
   }
 
+  const silenceInstruction = rejectSilence === true
+    ? 'If there are no clearly intelligible spoken words — only silence, breathing, handling sounds, or background noise — return exactly [NO_SPEECH]. Never guess or invent words. '
+    : '';
   const geminiBody = {
     contents: [{
       role: 'user',
       parts: [
         {
           text: 'Transcribe exactly what is spoken in this audio. ' +
+                silenceInstruction +
                 'Return only the spoken words — no punctuation choices, no commentary, ' +
                 'no formatting. Just the words as they were said.',
         },
@@ -98,7 +102,8 @@ exports.handler = async function(event) {
       return _json(502, { error: 'Invalid response from Gemini' });
     }
 
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    let text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    if (rejectSilence === true && /^\[?NO[_ -]?SPEECH\]?[.!\s]*$/i.test(text)) text = '';
     return _json(200, { text });
 
   } catch (e) {

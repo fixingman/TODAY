@@ -377,6 +377,8 @@ Header: `.meeting-eyebrow` ("Meeting", 9px muted caps) + `.meeting-review-title`
 
 **Privacy and fallback:** use Web Speech only when the browser confirms the active language is installed for `processLocally: true`; the recognition instance is also explicitly marked local and continuous. Otherwise, with a Gemini connection, capture one self-contained MediaRecorder blob (32 kbps, 45-second ceiling) and send it to the existing `/transcribe` function. Never use the legacy browser-cloud recognition default, never split a quick note into meeting chunks, and never persist its audio or transcript. The returned text enters through `Today.use('task-actions').addTaskFromText()` so it follows the same storage, sync, memory, motion, and enrichment path as typing.
 
+**Silence guard (v2.90.19):** while the recorder fallback is active, an in-memory Web Audio analyser samples RMS every 40ms. At least 160ms of detected activity must clear the 0.012 speech floor before the blob can leave the device; otherwise the outcome is `Nothing heard`. A quick-capture-only request flag also instructs Gemini to return a no-speech marker for silence or unintelligible noise, and the endpoint converts that marker to empty text. The analyser is disconnected and its AudioContext closed on every finish path. Mobile Voice Note does not send this flag and is unchanged.
+
 **Motion:** the 8px listening dot uses the established small-element breath, `_breathe(..., _KF_BREATHE_SMALL, 2400)`, through WAAPI; processing and outcome states cancel it. Reduced motion is inherited from `_breathe`.
 
 ---
