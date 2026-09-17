@@ -111,7 +111,6 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'Abu-Yshac (trans. E. Powys Mathers)',
     'Raphael Patkanian (trans. Alice Stone Blackwell)',
     'Claude McKay',
-    'Antonio Machado (trans. Thomas Walsh)',
     'Traditional Asante (recorded by R. S. Rattray)',
     'Olive Schreiner',
     'Ricardo Jaimes Freyre (trans. Alice Stone Blackwell)',
@@ -121,10 +120,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'Anton Chekhov (trans. Constance Garnett)',
     'John Shaw Neilson',
     'Joseph S. Cotter, Jr.',
-    'Enrique González Martínez (trans. Alice Stone Blackwell)',
     'Bhartrihari (trans. B. Hale Wortham)',
     'Rabindranath Tagore',
     'Richard Watson Gilder',
+    'Friedrich Nietzsche (trans. Thomas Common)',
+    'Henry David Thoreau',
+    'Friedrich Nietzsche (trans. Alexander Tille)',
+    'Thiruvalluvar (trans. V. V. S. Aiyar)',
   ];
   const sixLineVoices = [
     'Traditional Asante (recorded by R. S. Rattray)',
@@ -135,10 +137,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'John Gould Fletcher',
     'Anton Chekhov (trans. Constance Garnett)',
     'John Shaw Neilson',
-    'Enrique González Martínez (trans. Alice Stone Blackwell)',
     'Bhartrihari (trans. B. Hale Wortham)',
     'Rabindranath Tagore',
     'Richard Watson Gilder',
+    'Friedrich Nietzsche (trans. Thomas Common)',
+    'Henry David Thoreau',
+    'Friedrich Nietzsche (trans. Alexander Tille)',
+    'Thiruvalluvar (trans. V. V. S. Aiyar)',
   ];
   const hasAllApprovedVoices = approvedVoices.every(author =>
     poems.some(poem => poem.author === author));
@@ -148,6 +153,21 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
   const hasBecauseRose = poems.some(poem =>
     poem.author === 'Richard Watson Gilder' &&
     poem.text === 'Ah, yes, because the rose\nFades like the sunset skies;\nBecause rude winter blows\nAll bare, and music dies—\nTherefore, now is to me\nEternity!');
+  const hasNietzscheStory = poems.some(poem =>
+    poem.author === 'Friedrich Nietzsche (trans. Thomas Common)' &&
+    poem.text === 'Meanwhile do I talk to myself as one who hath time.\nNo one telleth me anything new,\nso I tell myself mine own story.');
+  const hasThoreauLifePoem = poems.some(poem =>
+    poem.author === 'Henry David Thoreau' &&
+    poem.text === 'My life has been the poem I would have writ,\nBut I could not both live and utter it.');
+  const hasNietzscheLove = poems.some(poem =>
+    poem.author === 'Friedrich Nietzsche (trans. Alexander Tille)' &&
+    poem.text === 'It is true: we love life,\nnot because we are accustomed to life,\nbut because we are accustomed to love.');
+  const hasNietzscheStar = poems.some(poem =>
+    poem.author === 'Friedrich Nietzsche (trans. Alexander Tille)' &&
+    poem.text === 'Thou great star! What would be thy happiness,\nwere it not for those for whom thou shinest.');
+  const hasAiyarSneeze = poems.some(poem =>
+    poem.author === 'Thiruvalluvar (trans. V. V. S. Aiyar)' &&
+    poem.text === 'I was in the sulks: he then sneezed,\nfor he thought that I would bless him saying,\nLong live my beloved!');
   const newLineLimitDrift = poems.some(poem =>
     sixLineVoices.includes(poem.author) &&
     poem.text.split('\n').filter(line => line.trim()).length > 6);
@@ -172,7 +192,19 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     poem.source.includes("'June Sunset'") ||
     poem.source.includes("'August'") && poem.author === 'H. Cordelia Ray' ||
     poem.source.includes("'The Indian Corn Planter'") ||
-    poem.source.includes("'It Was All for Him'"));
+    poem.source.includes("'It Was All for Him'") ||
+    poem.text.includes('A stem of grass, whereon in vain') ||
+    poem.text.includes('what boots it to repeat') ||
+    poem.text.includes("cleave the torrent's thread with steel") ||
+    poem.text.includes('The Lady Moon is my lover') ||
+    poem.text.includes('Come, Leila, fill the goblet up') ||
+    poem.text.includes('The lordly vulture gnaws the corse') ||
+    poem.text.includes('This can mine inn give') ||
+    poem.text.includes('Dick the shepherd blows his nail') ||
+    poem.text.includes('skies of couple-colour as a brinded cow') ||
+    poem.text.includes('wins victory for bride') ||
+    poem.text.includes('The loveless soul, the very joys of life may know') ||
+    poem.text.includes('One day we silent sulked'));
   const hasSeason = (sourcePart, season) => poems.some(poem =>
     poem.source.includes(sourcePart) && poem.season === season);
   const seasonTagDrift =
@@ -184,13 +216,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     counts[key] = (counts[key] || 0) + 1;
     return counts;
   }, {});
-  const seasonCountDrift = seasonCounts.winter !== 15 || seasonCounts.spring !== 18 ||
-    seasonCounts.summer !== 12 || seasonCounts.autumn !== 13 || seasonCounts['year-round'] !== 77;
-  if (poems.length !== 135 || malformed.length || !hasAllApprovedVoices || !hasForeverNows || !hasBecauseRose || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
+  const seasonCountDrift = seasonCounts.winter !== 14 || seasonCounts.spring !== 18 ||
+    seasonCounts.summer !== 12 || seasonCounts.autumn !== 12 || seasonCounts['year-round'] !== 72;
+  if (poems.length !== 128 || malformed.length || !hasAllApprovedVoices || !hasForeverNows || !hasBecauseRose || !hasNietzscheStory || !hasThoreauLifePoem || !hasNietzscheLove || !hasNietzscheStar || !hasAiyarSneeze || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
     console.error('✗ FAIL — reviewed poem corpus count, schema, line limit, or season tags drifted.');
     process.exit(1);
   }
-  console.log('  ✓ 135-poem reviewed corpus shape, approved selections, and audited seasons');
+  console.log('  ✓ 128-poem reviewed corpus shape, approved selections, and audited seasons');
 
   try {
     globalThis.fetch = async request => {

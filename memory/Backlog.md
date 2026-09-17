@@ -35,7 +35,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola MVP first; calendar = input only. Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend; user picks one provider. Full spec ↓ |
 | — | **WEEK companion** | Gated | Gate: 12c must feel like a companion, not a feature. Detail ↓ |
-| 2 | **Poem corpus — iterate** | In progress | Corpus 135; expand geography and voice. Detail ↓ |
+| 2 | **Poem corpus — iterate** | In progress | Corpus 128; expand geography and voice. Detail ↓ |
 
 ---
 
@@ -51,7 +51,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 > **Search process:** Start with source diversity, not a familiar-poet query loop. Search national libraries, university collections, regional or bilingual historical anthologies, oral-literature archives, historical journals, and specialist author/translator archives. Generic poetry sites can identify leads but should not define the candidate pool; Gutenberg, Wikisource, Internet Archive, and original scans remain useful for exact wording and worldwide-PD verification. Once a specific poem or collection is identified, fetch only the relevant page or passage. Each round should deliberately vary poets, translators, poetic structures, and kinds of thought; do not return several familiar voices merely because they are easy to source. Region is a tiebreaker—not a quality substitute or a flags-on-a-map exercise.
 
-**Seasons:** W15 / Sp18 / Su12 / Au13 / year-round 77 — corpus 135 reviewed poems (2026-09-13). Target is 16 per season: summer needs 4, autumn 3, winter 1; spring is 2 over.
+**Seasons:** W14 / Sp18 / Su12 / Au12 / year-round 72 — corpus 128 reviewed poems (2026-09-18). Target is 16 per season: summer and autumn need 4 each, winter 2; spring is 2 over.
 
 **Rotation verdict (2026-08-22):** No repetition observed — shuffle algorithm is not the lever.
 
@@ -73,6 +73,18 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 **Present-through-transience follow-up (2026-09-13):** Can also approved the complete closing stanza of Richard Watson Gilder's 'Because the Rose Must Fade'. Its rose, sunset, winter, and dying music reach the present moment through impermanence—a concrete complement to Khayyám and Dickinson rather than another direct instruction to seize the day. Added year-round; the exact six lines are pinned in smoke coverage.
 
+**Existential follow-up (2026-09-18):** Can approved Nietzsche's quiet self-narration from 'Old and New Tables' in Thomas Common's translation: speaking to oneself "as one who hath time" and telling one's own story. Added year-round as a contiguous prose passage reflowed to three displayed lines and pinned exactly in smoke coverage. Continue with the narrower discovery lens: existential clarity that remains calm, concrete, and life-affirming—not bleakness used as gravitas. Copyright must be checked at the translation level; Nietzsche/Common are eligible, while Sartre and the principal twentieth-century existentialists are not yet compatible with the worldwide-PD rule.
+
+**Life-as-poem follow-up (2026-09-18):** Can approved Thoreau's complete two-line passage from *A Week on the Concord and Merrimack Rivers*: a life can itself be the poem that living leaves no distance to write. Added year-round in the published 1849 wording—retaining the period word “writ,” not modernizing it—and pinned exactly in smoke coverage. Thoreau's earlier journal draft differs; the corpus follows the version he published in his lifetime.
+
+**Nietzsche/Tille follow-up (2026-09-18):** Can approved the complete sentence “we love life, not because we are accustomed to life, but because we are accustomed to love” from 'Of Reading and Writing' in Alexander Tille's 1896 translation. Tille's wording removes the comprehension friction of Thomas Common's “wont” without silently modernizing the text. Added year-round as three displayed lines and pinned exactly in smoke coverage. Continue checking Tille directly: his earlier translation is worldwide-PD and sometimes plainer than Common, but its diction and interpretive choices still need selection-by-selection review.
+
+**Tille search pass (2026-09-18):** Read the full 1896 *Thus Spake Zarathustra* OCR and checked the strongest short passages against their page scans. Can approved the sun-opening question (“Thou great star! What would be thy happiness…”); it is added year-round as two displayed lines and pinned exactly in smoke coverage. Still pending review: the two complete noon-field sentences from 'At Noon' and the two-sentence death/blossoming cycle from 'The Convalescent One'. Also surfaced but held back: Tille's 'Night-Song' opening (Common's wording is more musical), the present/past line from 'Of Great Longing' (too archaic), and “life was dearer unto me than all my wisdom” (strong conclusion, but loses its green-meadow scene when shortened to the line limit). Tille appears to have translated *Zarathustra* and edited the broader English Nietzsche series; do not attribute the other volumes' translations to him without checking their individual title pages.
+
+**Archaic-language audit (2026-09-18):** Removed seven selections whose historical English now obstructs comprehension: Bashō's dragonfly (“whereon…essayed”), FitzGerald's Khayyám (“what boots it”), Cranmer-Byng's Li Po (“doth war”) and Chang Chih-ho (“liefer…ken…godhead”), Carlyle's Abd Alsalam (“'twere…draught…thine”) and Al-Shafi'i (“corse…yon…nor want”), and Blackwell's González Martínez (“This can mine inn give”). A source-by-source check found no materially clearer published English rendering that is also safely worldwide-PD: modern Bashō and Li Po versions are copyrighted; the two Arabic poems and Chang Chih-ho resolve to the same old translations; Blackwell is the only located published English version of González Martínez; and older Khayyám alternatives retain similarly archaic diction while duplicating the corpus's clearer “Here and Now” selection. These seven wordings are permanent cuts and are guarded in the smoke test; do not silently modernize them or re-add an unattributed web paraphrase.
+
+**Archaic-language audit, second pass (2026-09-18):** Removed Shakespeare's winter excerpt (“blows his nail”) and Hopkins's *Pied Beauty* excerpt (“couple-colour…brinded…rose-moles…stipple”); both are English originals, so a clearer translation would be an invented modernization. Removed Thomas Walsh's Machado *Counsels* and Pope's Tirukkural 78 after no clearer worldwide-PD published rendering passed the same test—Aiyar's kural 78 is even more biblical (“loveth…putteth forth”). Replaced only Pope's syntactically opaque Tirukkural 1312 with V. V. S. Aiyar's complete 1916 prose rendering, which makes the sneeze-and-blessing joke explicit; exact wording is pinned in smoke coverage. The four removed wordings are permanent cuts.
+
 **Solar-term pairing (2026-09-02):** the 24 terms are an editorial discovery lens, not an attribution claim. A poem may enter a term's seasonal pool when its concrete moment genuinely fits; documentation must say “editorially paired,” never imply that a poet wrote about the East Asian calendar. Joseph S. Cotter, Jr.'s complete opening stanza of 'Rain Music' is the first approved example, paired with Rain Water (雨水): rain changes the dusty ground and grows audibly from murmur to strain.
 
 Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cut. Lowell's *Pictures of the Floating World* (Lacquer Prints) remains the richest short-form source found this round; the three cut Lowells are dead, the rest of the section is open.
@@ -88,6 +100,8 @@ Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cu
 **Additional final cuts (ordinary-time round, 2026-09-08):** the opening stanza of the traditional Song of Annam 'The Bamboo Garden' shaped by Edward Powys Mathers; the closing dove stanza from Manuel Gutiérrez Nájera's 'To Francisco de Garay Justiniani' translated by Alice Stone Blackwell; and the opening stanza of W. H. Davies's 'A Great Time'. All three were reviewed and skipped; do not re-propose them.
 
 **Additional final cuts (ordinary-time follow-up, 2026-09-08):** Sumangalā's Mother's shade stanza translated by C. A. F. Rhys Davids; the distant-rays couplet from the Great Hymn to the Aten translated by James Henry Breasted; the closing goat-and-world-poem couplet from Alfonso Guillén Zelaya's 'Lord, I Ask a Garden' translated by William George Williams; the traditional Ndau dock-workers' 'Money in Kamben'' passage recorded from C. Kamba Simango; the opening movement of Uvavnuk's 'The Great Sea' translated through Knud Rasmussen's expedition; and the refreshed-by-sleep passage from Mary Lamb's 'Breakfast'. All six were reviewed and skipped; do not re-propose them.
+
+**Additional final cuts (commitment-imprint follow-up, 2026-09-17):** the closing three lines of the traditional Kurdish love ballad 'Paradise' shaped by Edward Powys Mathers; the traditional Malay lamp-and-wick pantun recorded by William Marsden; the palm-frond couplet from Gladys May Casely Hayford's 'Nativity'; and the traditional Jambi pomegranate pantun translated by John Crawfurd. All four were reviewed and skipped; do not re-propose them.
 
 **Active leads:**
 - Chamberlain 1902 (archive.org/details/basho-and-the-japanses-poetical-epigram) — productive; identifier confirmed
@@ -307,7 +321,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 | Monday intention (memory-enriched) | 2026-10-01 | Re-observing — data source fixed (Soon + Trello added); extended after further updates. |
 | About contextual CTAs | ⚠ 2026-08-25 | Open — do bordered CTAs clarify actions without pulling attention? |
 | Connections privacy reassurance | 2026-10-01 | Deferred — Can has all connections active so the surface never triggers; can’t evaluate until a fresh setup. Re-check 2026-10-01. |
-| Focus companion question | ⚠ 2026-08-31 | Re-observing — clarity vs. check-in feel? Taxonomy prompt + word cap updated |
+| Focus companion question | 2026-10-15 | Re-observing — v2.90.21 highlights the ask button when context signals align; extended to observe the updated CTA. |
 | Post-triage reflections | 2026-10-01 | **Iterate (2026-09-14)** — countdown progress bar added (v2.90.12); re-observe. |
 | Choice, reorder, and focus motion | 2026-10-15 | Open — do the transitions clarify where state went without becoming noticeable choreography? |
 | Shift+Space quick voice capture | 2026-09-29 | Open — does holding the chord remain genuinely faster than typing, and do the brief capture states clarify progress without lingering? |

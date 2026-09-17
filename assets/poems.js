@@ -40,13 +40,6 @@ const POEMS = [
     season: 'winter',
     source: 'Kokinshū tanka, trans. Chamberlain 1902 — the "blossoms" are snowflakes',
   },
-  {
-    text: 'A stem of grass, whereon in vain\nA dragon-fly essayed to light!',
-    author: 'Bashō',
-    season: 'autumn',
-    source: 'Chamberlain 1902, no. 47 (attribution marked uncertain by Chamberlain)',
-  },
-
   // ── English originals ─────────────────────────────────────────────────────
   {
     text: "He who binds to himself a joy\nDoes the winged life destroy;\nBut he who kisses the joy as it flies\nLives in eternity's sun rise.",
@@ -85,12 +78,6 @@ const POEMS = [
     source: 'Rubáiyát, trans. Edward FitzGerald, 1859',
   },
   {
-    text: 'Ah, fill the Cup:—what boots it to repeat\nHow Time is slipping underneath our Feet:\nUnborn To-morrow, and dead Yesterday,\nWhy fret about them if To-day be sweet!',
-    author: 'Omar Khayyám',
-    season: null,
-    source: 'Rubáiyát, trans. Edward FitzGerald, 1859',
-  },
-  {
     text: 'Gather ye rosebuds while ye may,\nOld Time is still a-flying;\nAnd this same flower that smiles to-day\nTo-morrow will be dying.',
     author: 'Robert Herrick',
     season: 'spring',
@@ -107,12 +94,6 @@ const POEMS = [
     author: 'Henry van Dyke',
     season: null,
     source: "'Katrina's Sun-Dial', 1901",
-  },
-  {
-    text: 'When icicles hang by the wall,\nAnd Dick the shepherd blows his nail,\nAnd Tom bears logs into the hall,\nAnd milk comes frozen home in pail.',
-    author: 'William Shakespeare',
-    season: 'winter',
-    source: "winter song, Love's Labour's Lost, c. 1595",
   },
   {
     text: 'Fall, leaves, fall; die, flowers, away;\nLengthen night and shorten day;\nEvery leaf speaks bliss to me\nFluttering from the autumn tree.',
@@ -163,12 +144,6 @@ const POEMS = [
     author: 'Rupert Brooke',
     season: null,
     source: "'The Great Lover', 1914 (d. 1915)",
-  },
-  {
-    text: 'Glory be to God for dappled things—\nFor skies of couple-colour as a brinded cow;\nFor rose-moles all in stipple upon trout that swim.',
-    author: 'Gerard Manley Hopkins',
-    season: null,
-    source: "'Pied Beauty', 1877 (d. 1889)",
   },
   {
     text: 'Greatly shining,\nThe Autumn moon floats in the thin sky;\nAnd the fish-ponds shake their backs and flash their dragon scales\nAs she passes over them.',
@@ -310,12 +285,6 @@ const POEMS = [
     author: 'Li Po',
     season: 'autumn',
     source: "'Drifting', A Lute of Jade, trans. L. Cranmer-Byng, 1909 (Gutenberg #390; d. 1945)",
-  },
-  {
-    text: "In vain we cleave the torrent's thread with steel,\nIn vain we drink to drown the grief we feel;\nWhen man's desire with fate doth war this, this avails alone—\nTo hoist the sail and let the gale and the waters bear us on.",
-    author: 'Li Po',
-    season: null,
-    source: "'Drifting', A Lute of Jade, trans. L. Cranmer-Byng, 1909 (Gutenberg #390)",
   },
   {
     text: 'Oh! she is good, the little rain! and well she knows our need\nWho cometh in the time of spring to aid the sun-drawn seed;\nShe wanders with a friendly wind through silent nights unseen,\nThe furrows feel her happy tears, and lo! the land is green.',
@@ -688,34 +657,19 @@ const POEMS = [
     source: "'The Sure Hope' (first two of three stanzas), Armenian Poems, Rendered into English Verse, trans. Alice Stone Blackwell (1917), p. 250 — Patkanian d. 1892, Blackwell d. 1950, both PD worldwide — verified verbatim vs Internet Archive/Wikimedia scan",
   },
 
-  // ── Round 34 (Aug 2026) — Jamaica, Spain ───────────────────────────────
+  // ── Round 34 (Aug 2026) — Jamaica ──────────────────────────────────────
   {
     text: 'But oh! for the woods, the flowers\nOf natural, sweet perfume,\nThe heartening, summer showers\nAnd the smiling shrubs in bloom,\nDust-free, dew-tinted at morn,\nThe fresh and life-giving air,\nThe billowing waves of corn\nAnd the birds’ notes rich and clear:—\nFor a man-machine toil-tired\nMay crave beauty too—though he’s hired.',
     author: 'Claude McKay',
     season: 'summer',
     source: "'Joy in the Woods' (closing stanza), Workers' Dreadnought, 10 April 1920 (signed 'Hugh Hope') — McKay d. 1948, PD worldwide — verified verbatim vs the Workers' Dreadnought scan and Academy of American Poets",
   },
-  {
-    text: 'Learn how to hope, to wait the proper tide—\nAs on the coast a bark—then part without a care;\nHe who knows how to wait wins victory for bride;\nFor life is long and art a plaything there.\n\nBut should your life prove short\nAnd never come a tide,\nWait still, unsailing, hope is on your side—\nArt may be long or, else, of no import.',
-    author: 'Antonio Machado (trans. Thomas Walsh)',
-    season: null,
-    source: "'Counsels', Hispanic Anthology, trans. Thomas Walsh (G. P. Putnam's Sons, 1920), p. 663 — Machado d. 1939, Walsh d. 1928, both PD worldwide — verified verbatim vs the Internet Archive scan",
-  },
-
   // ── Round 32 (Aug 2026) — !kun oral tradition ──────────────────────────
   {
     text: 'Tell me of something.\nHail, hail!\nWhen the sun rises,\nThou must speak to me,\nThat I may eat something.\nThou must speak to me about a little thing,\nThat I may eat.\nHail, hail,\nYoung Moon!',
     author: 'Traditional !kun (recited by !nanni)',
     season: null,
     source: "'Prayer to the Young Moon' (closing excerpt), recited by !nanni from his father's prayer and recorded by L.C. Lloyd on 8 June 1880, Specimens of Bushman Folklore (1911) — anonymous !kun oral tradition, Lloyd d. 1914, PD worldwide — verified verbatim vs sacred-texts.com/afr/sbf/sbf85.htm and Digital Bleek & Lloyd story 1040",
-  },
-
-  // ── Round 31 (Aug 2026) — Chinese (trans. L. Cranmer-Byng 1909) ─────────
-  {
-    text: 'The Lady Moon is my lover,\nMy friends are the oceans four,\nThe heavens have roofed me over,\nAnd the dawn is my golden door\nI would liefer follow the condor\nOr the seagull, soaring from ken,\nThan bury my godhead yonder\nIn the dust of the whirl of men.',
-    author: 'Chang Chih-ho (Chinese, Tang dynasty, trans. L. Cranmer-Byng)',
-    season: null,
-    source: 'A Lute of Jade, L. Cranmer-Byng (1909), Gutenberg #390 (Chang Chih-ho c. 750, Cranmer-Byng d. 1945 — PD worldwide — verified verbatim)',
   },
 
   // ── Round 30 (Aug 2026) — Chinese (trans. H.A. Giles 1898) + Sappho (trans. Bliss Carman 1904) ──
@@ -752,18 +706,12 @@ const POEMS = [
     source: "Chamberlain 1902 essay example, Danrin school (archive.org/details/basho-and-the-japanses-poetical-epigram; anonymous 17th-c. Japanese, Chamberlain d. 1935, PD worldwide — verified verbatim)",
   },
 
-  // ── Round 28 (Aug 2026) — Tamil (Tirukkural, trans. Pope 1886) ──────────────
+  // ── Round 28 (Aug 2026) — Tamil (Tirukkural, Pope 1886 / Aiyar 1916) ────────
   {
     text: 'The loveless to themselves belong alone;\nThe loving men are others\' to the very bone.',
     author: 'Thiruvalluvar (trans. G. U. Pope)',
     season: null,
     source: "'Possession of Love', kural 72, Tirukkural (Clarendon Press, Oxford, 1886) — Thiruvalluvar ~300 CE (classical Tamil), Pope d. 1908, both PD worldwide — verified verbatim",
-  },
-  {
-    text: 'The loveless soul, the very joys of life may know,\nWhen flowers, in barren soil, on sapless trees, shall blow.',
-    author: 'Thiruvalluvar (trans. G. U. Pope)',
-    season: null,
-    source: "'Possession of Love', kural 78, Tirukkural (Clarendon Press, Oxford, 1886) — Thiruvalluvar ~300 CE (classical Tamil), Pope d. 1908, both PD worldwide — verified verbatim",
   },
   {
     text: 'Love without hatred is ripened fruit;\nWithout some lesser strife, fruit immature.',
@@ -772,27 +720,13 @@ const POEMS = [
     source: "'Pouting', kural 1306, Tirukural (trans. G. U. Pope, Clarendon Press, 1886) — Thiruvalluvar ~300 CE (classical Tamil), Pope d. 1908, both PD worldwide — verified verbatim",
   },
   {
-    text: 'One day we silent sulked; he sneezed: The reason well I knew;\nHe thought that I, to speak well pleased, Would say, \'Long life to you!\'',
-    author: 'Thiruvalluvar (trans. G. U. Pope)',
+    text: 'I was in the sulks: he then sneezed,\nfor he thought that I would bless him saying,\nLong live my beloved!',
+    author: 'Thiruvalluvar (trans. V. V. S. Aiyar)',
     season: null,
-    source: "'Feigned Anger', kural 1312, Tirukural (trans. G. U. Pope, Clarendon Press, 1886) — Thiruvalluvar ~300 CE (classical Tamil), Pope d. 1908, both PD worldwide — verified verbatim",
+    source: "'The Finesses of Bouderie', kural 1312, The Kural or the Maxims of Tiruvalluvar, trans. V. V. S. Aiyar (1916) — Thiruvalluvar ~300 CE, Aiyar d. 1925, both PD worldwide; complete prose rendering reflowed to three displayed lines, punctuation spacing normalized; verified against the 1916 scan",
   },
 
-  // ── Round 27 (Aug 2026) — Arabic (Carlyle 1796) ───────────────────────────
-  {
-    text: 'Come, Leila, fill the goblet up,\nReach round the rosy wine,\nThink not that we will take the cup\nFrom any hand but thine.\n\nA draught like this \'twere vain to seek,\nNo grape can such supply;\nIt steals its tint from Leila\'s cheek,\nIts brightness from her eye.',
-    author: 'Abd Alsalam Ben Raghib',
-    season: null,
-    source: "'To a Female Cupbearer' (trans. J. D. Carlyle), Specimens of Arabian Poetry (Cambridge, 1796); repr. Clouston, Arabian Poetry for English Readers (Glasgow, 1881) — classical Arabic poet, Carlyle d. 1804, both PD worldwide — verified verbatim",
-  },
-
-  // ── Round 26 (Aug 2026) — Arabic (Carlyle 1796) + Korea Review 1906 ──────
-  {
-    text: 'Not always wealth, not always force,\nA splendid destiny commands;\nThe lordly vulture gnaws the corse\nThat rots upon yon barren sands.\n\nNor want nor weakness still conspires\nTo bind us to a sordid state;\nThe fly, that with a touch expires,\nSips honey from the royal plate.',
-    author: 'Imam Al-Shafi\'i',
-    season: null,
-    source: "'On Fatalism' (trans. J. D. Carlyle), Specimens of Arabian Poetry (Cambridge, 1796); repr. Clouston, Arabian Poetry for English Readers (Glasgow, 1881) — Al-Shafi'i d. 820 CE, Carlyle d. 1804, both PD worldwide — verified verbatim",
-  },
+  // ── Round 26 (Aug 2026) — Korea Review 1906 ─────────────────────────────
   {
     text: 'The rivulets of spring o\'erflow with sudden showers,\nIn the distant summer cloud a magic mountain towers,\nAbove the autumn night the frosty moon shines clear,\nLone on a wintry hill a pine-tree standeth drear.',
     author: 'John Mikson',
@@ -873,13 +807,7 @@ const POEMS = [
     source: "'Rain Music', The Book of American Negro Poetry, ed. James Weldon Johnson (1922), Project Gutenberg #11986 — Cotter d. 1919, PD worldwide — verified verbatim; editorially paired with Rain Water (雨水)",
   },
 
-  // ── Round 39 (Sep 2026) — Mexico, India, Bengal ─────────────────────────
-  {
-    text: 'This can mine inn give: shade your head to bless.\nWine for your thirst, peace for your weariness.\n’Tis not enough? There is no more. Pass on!',
-    author: 'Enrique González Martínez (trans. Alice Stone Blackwell)',
-    season: null,
-    source: "'To the Traveller' / 'Al Viajero', Some Spanish-American Poets, trans. Alice Stone Blackwell (1929), p. 116 — González Martínez d. 1952, Blackwell d. 1950, both PD worldwide — complete final stanza, verified verbatim vs the Internet Archive scan",
-  },
+  // ── Round 39 (Sep 2026) — India, Bengal ─────────────────────────────────
   {
     text: 'The earth is his delightful couch,\nthe arms of the creepers are his pillow,\nthe heaven is his canopy, the winds his fan,\nthe moon is his twinkling lamp.\nThe sage, rejoicing because he has been freed from desire,\nlives in peace and happiness, as though he were the lord of the universe.',
     author: 'Bhartrihari (trans. B. Hale Wortham)',
@@ -907,5 +835,37 @@ const POEMS = [
     author: 'Richard Watson Gilder',
     season: null,
     source: "'Because the Rose Must Fade', The Poems of Richard Watson Gilder (1908), p. 232 — Gilder d. 1909, PD worldwide; complete closing stanza verified verbatim against the 1908 edition scan",
+  },
+
+  // ── Round 42 (Sep 2026) — existential self-observation ──────────────────
+  {
+    text: 'Meanwhile do I talk to myself as one who hath time.\nNo one telleth me anything new,\nso I tell myself mine own story.',
+    author: 'Friedrich Nietzsche (trans. Thomas Common)',
+    season: null,
+    source: "'Old and New Tables' 1, Thus Spake Zarathustra, Part III, trans. Thomas Common (1917) — Nietzsche d. 1900, Common d. 1919, both PD worldwide; contiguous prose passage reflowed to three displayed lines, wording verified verbatim against the validated Wikisource scan",
+  },
+
+  // ── Round 43 (Sep 2026) — life as the unwritten poem ───────────────────
+  {
+    text: 'My life has been the poem I would have writ,\nBut I could not both live and utter it.',
+    author: 'Henry David Thoreau',
+    season: null,
+    source: "A Week on the Concord and Merrimack Rivers (1849) — Thoreau d. 1862, PD worldwide; complete two-line passage, verified verbatim against the 1895 Poems of Nature edition and the Academy of American Poets public-domain text",
+  },
+
+  // ── Round 44 (Sep 2026) — love as the source of life's value ───────────
+  {
+    text: 'It is true: we love life,\nnot because we are accustomed to life,\nbut because we are accustomed to love.',
+    author: 'Friedrich Nietzsche (trans. Alexander Tille)',
+    season: null,
+    source: "'Of Reading and Writing', Thus Spake Zarathustra, Part I, trans. Alexander Tille (1896), p. 49 — Nietzsche d. 1900, Tille d. 1912, both PD worldwide; complete contiguous sentence reflowed to three displayed lines, verified verbatim against the 1896 scan",
+  },
+
+  // ── Round 45 (Sep 2026) — happiness through giving light ───────────────
+  {
+    text: 'Thou great star! What would be thy happiness,\nwere it not for those for whom thou shinest.',
+    author: 'Friedrich Nietzsche (trans. Alexander Tille)',
+    season: null,
+    source: "Thus Spake Zarathustra, Prologue 1, trans. Alexander Tille (1896), p. 1 — Nietzsche d. 1900, Tille d. 1912, both PD worldwide; complete opening question reflowed to two displayed lines, verified verbatim against the validated 1896 scan",
   },
 ];
