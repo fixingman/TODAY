@@ -398,7 +398,7 @@
             // still accumulating), so a morning miss would block the afternoon reveal.
             // The AI is only called when insight exists, so no extra network cost.
             _sundayBlock.style.display = 'none';
-          } else if (_isSun && (!(_aiGetKey && Today.use('connections')._aiGetKey()) || !navigator.onLine)) {
+          } else if (_isSun && (!Today.use('connections')._aiGetKey() || !navigator.onLine)) {
             _sundayBlock.style.display = 'none';
           } else {
             _sundayBlock.innerHTML =
@@ -553,7 +553,7 @@
 
     async function _fetchWeekReflection(stats) {
       try {
-        const key = _aiGetKey ? Today.use('connections')._aiGetKey() : null;
+        const key = Today.use('connections')._aiGetKey();
         if (!key || !navigator.onLine) return null;
         const insight = stats.insight;
         if (!insight) return null;
@@ -593,7 +593,7 @@
     // for a week with no real shape, not a forced insight.
     async function _fetchWeekThemeAI() {
       try {
-        const key = _aiGetKey ? Today.use('connections')._aiGetKey() : null;
+        const key = Today.use('connections')._aiGetKey();
         if (!key || !navigator.onLine) return null;
 
         // Build behavioral data — NOT task content (which "This week" already covers).
@@ -725,7 +725,7 @@
 
     async function _fetchMondayIntention() {
       try {
-        const key = _aiGetKey ? Today.use('connections')._aiGetKey() : null;
+        const key = Today.use('connections')._aiGetKey();
         if (!key || !navigator.onLine) return null;
 
         const _pastIds = new Set(pastTasks.map(t => t.id));
