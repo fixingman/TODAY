@@ -411,6 +411,11 @@
       pointer-events: auto;
     }
     .focus-ai-timer-btn:hover { opacity: 1; color: var(--text); border-color: var(--border); }
+    /* High-signal: 3+ task-specific context signals converged — worth asking */
+    .focus-ai-timer-btn.high-signal {
+      opacity: 1; color: var(--accent); border-color: var(--accent);
+    }
+    .focus-ai-timer-btn.high-signal:hover { color: var(--accent); border-color: var(--accent); }
     /* Hide when paused text is showing (they share the left position) */
     #focusPaused.show ~ .focus-ai-timer-btn { opacity: 0; pointer-events: none; }
     /* Hide when session is complete — bar turns into restart prompt */
@@ -4483,9 +4488,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.21': 'Focus companion: ask button highlights when 3+ context signals align on the focused task.',
   '2.90.20': 'Sunday reflection: fix silent block that prevented week theme and Monday intention from loading when a fresh AI call was needed.',
   '2.90.19': 'Quick voice capture: silence and room noise now resolve as Nothing heard instead of becoming an invented task.',
-  '2.90.18': 'Quick voice capture: verified on-device recognition first, otherwise one ephemeral clip through your Gemini connection — with clear listening, transcription, success, and failure states.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

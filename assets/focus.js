@@ -151,11 +151,47 @@ window._startFocus = (function() {
   let focusAIBtn;   // assigned after timerEl is created (button lives in the timer bar)
   let _thinkAnim = null; // WAAPI animation for thinking\u2026 pulse \u2014 stored so it can be cancelled in both paths
 
+  // Counts task-specific signals that make a focus question especially worth asking.
+  // Time-of-day signals deliberately excluded \u2014 they fire too broadly and produce
+  // repetitive "it's late" questions without task-specific insight.
+  function _computeSignalDensity(taskObj, taskText) {
+    if (!taskObj) return 0;
+    let score = 0;
+    const sessions = parseInt(taskObj.focusSessions) || 0;
+    if (sessions >= 2) score++;
+    if (sessions >= 4) score++;
+    const created = parseInt((taskObj.id || '').replace('manual_', '')) || 0;
+    const ageDays = created ? Math.floor((Date.now() - created) / 86400000) : 0;
+    if (ageDays >= 5) score++;
+    const lastActive = taskObj.lastActive || null;
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const lastActiveStr = lastActive ? new Date(lastActive).toLocaleDateString('en-CA') : null;
+    const workedToday = lastActiveStr === todayStr;
+    const lastWorkedDaysAgo = (!workedToday && lastActive)
+      ? Math.floor((Date.now() - lastActive) / 86400000) : null;
+    if (workedToday && sessions > 0) score++;
+    if (lastWorkedDaysAgo !== null && lastWorkedDaysAgo >= 2) score++;
+    if (taskObj.wasRevived) score++;
+    if (taskObj.zoneChangedAt) score++;
+    const dragRaw = (typeof appMemory !== 'undefined' && appMemory?.preferences?.dragKeywords) || [];
+    const dragFreq = {};
+    dragRaw.forEach(w => { dragFreq[w] = (dragFreq[w] || 0) + 1; });
+    const taskWords = (taskText || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
+    if (taskWords.some(w => w.length > 3 && (dragFreq[w] || 0) >= 2)) score++;
+    const letgoRaw = (typeof appMemory !== 'undefined' && appMemory?.patterns?.letgoReasons) || {};
+    const letgoTotal = Object.values(letgoRaw).reduce((a, b) => a + b, 0);
+    if (letgoTotal >= 8) {
+      const top = Object.entries(letgoRaw).sort((a, b) => b[1] - a[1])[0];
+      if (top && top[1] / letgoTotal >= 0.35) score++;
+    }
+    return score;
+  }
+
   function _focusResetAI() {
     if (_thinkAnim) { _thinkAnim.cancel(); _thinkAnim = null; }
     timerEl.classList.remove('ai-active');
     if (focusAIBtn) {
-      focusAIBtn.classList.remove('loading', 'question-scroll');
+      focusAIBtn.classList.remove('loading', 'question-scroll', 'high-signal');
       focusAIBtn.textContent = '\u2726\ufe0e ask';
       // Block hover for one frame so dismissing insight doesn't leave btn in hover state
       focusAIBtn.style.pointerEvents = 'none';
@@ -302,6 +338,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
 
     // ── Fetch ─────────────────────────────────────────────────────────────────
     timerEl.classList.add('ai-active');
+    focusAIBtn.classList.remove('high-signal');
     focusAIBtn.textContent = 'thinking…';
     focusAIBtn.classList.add('loading');
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -665,6 +702,8 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
 
     const _focusTaskObj  = (typeof manualTasks !== 'undefined' ? manualTasks : []).find(t => t.id === taskId);
     const _focusTaskText = _focusTaskObj ? _focusTaskObj.text : '';
+    // Highlight ask button when 3+ task-specific signals converge — before user clicks
+    if (focusAIBtn) focusAIBtn.classList.toggle('high-signal', _computeSignalDensity(_focusTaskObj, _focusTaskText) >= 3);
     if (window._gmailRenderFocusBlock) _gmailRenderFocusBlock(taskId, _focusTaskText);
     if (window._agentRenderFocusBlock) _agentRenderFocusBlock(taskId, _focusTaskText);
 
