@@ -343,7 +343,7 @@ try {
     await page.close();
   }
 
-  // 11b. Sunday reads the observation pool (12c). With no week data and outcomes
+  // 12. Sunday reads the observation pool (12c). With no week data and outcomes
   //      that fire an outcome kind, the chosen insight must be that kind, the prompt
   //      must name it, and _fetchWeekReflection must record it to spokenLines WITH
   //      its kind — the cross-surface cooldown depends on that field. Until this
@@ -385,7 +385,7 @@ try {
     await page.close();
   }
 
-  // 11c. Sunday fallback: if the pool throws, _pickSundayInsight must return null
+  // 13. Sunday fallback: if the pool throws, _pickSundayInsight must return null
   //      without propagating — the block hides. Since v2.85.0 there is no
   //      statistical week insight to fall back to; silence is the floor.
   {
@@ -413,7 +413,7 @@ try {
     await page.close();
   }
 
-  // 12. Sunday prompt receives one verified observation, not lifetime memory or
+  // 14. Sunday prompt receives one verified observation, not lifetime memory or
   //     a bag of unrelated completed-task titles.
   {
     const { page, errors } = await openPage();
@@ -449,7 +449,7 @@ try {
     await page.close();
   }
 
-  // 12a. _fetchWeekThemeAI reaches the AI endpoint and passes the key from
+  // 15. _fetchWeekThemeAI reaches the AI endpoint and passes the key from
   //      Today.use('connections')._aiGetKey(), not the removed window._aiGetKey global.
   //      Before the v2.90.20 fix, the bare _aiGetKey guard evaluated to undefined →
   //      falsy → the function returned null before ever calling fetch.
@@ -504,7 +504,7 @@ try {
     await page.close();
   }
 
-  // 12b. _fetchMondayIntention reaches the AI endpoint and passes the key from
+  // 16. _fetchMondayIntention reaches the AI endpoint and passes the key from
   //      Today.use('connections')._aiGetKey(), not the removed window._aiGetKey global.
   //      Before the v2.90.20 fix, same bare guard silenced Monday intention.
   {
@@ -551,7 +551,7 @@ try {
     await page.close();
   }
 
-  // 13. A pre-policy cached line is invalidated instead of surviving the new
+  // 17. A pre-policy cached line is invalidated instead of surviving the new
   //     evidence contract. With no qualifying pattern, the block stays silent.
   {
     const { page, errors } = await openPage();
@@ -576,7 +576,7 @@ try {
     await page.close();
   }
 
-  // 13b. Reaction on a spoken Sunday line: collapsed until the sentence is
+  // 18. Reaction on a spoken Sunday line: collapsed until the sentence is
   //      tapped, a state records to the spokenLines entry, a repeat clears it. The
   //      Today block, with no spoken line behind it, gets no control at all.
   {
@@ -615,7 +615,7 @@ try {
     await page.close();
   }
 
-  // 14. Static wiring checks.
+  // 19. Static wiring checks.
   {
     const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
     const swSrc    = await readFile(join(ROOT, 'sw.js'), 'utf8');
