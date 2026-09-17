@@ -451,6 +451,86 @@ try {
     await page.close();
   }
 
+  // 12a. _fetchWeekThemeAI reaches the AI endpoint and passes the key from
+  //      Today.use('connections')._aiGetKey(), not the removed window._aiGetKey global.
+  //      Before the v2.90.20 fix, the bare _aiGetKey guard evaluated to undefined →
+  //      falsy → the function returned null before ever calling fetch.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      // Provide two behavioral signals so the function doesn't bail on insufficient data.
+      // peakHour → "Peak completion hour: 9am"
+      // lateAdditions (≥5 entries) → "X% of additions happen after 2pm"
+      appMemory.preferences = { ...appMemory.preferences, peakHour: 9 };
+      appMemory.patterns    = { ...appMemory.patterns, lateAdditions: [15, 16, 9, 17, 10, 14] };
+
+      const today = _localISO();
+      const weekKey = today.slice(0, 8) + Math.ceil(new Date().getDate() / 7);
+      localStorage.removeItem('week_theme_ai_' + weekKey);
+      localStorage.removeItem('week_theme_tried_' + weekKey);
+
+      const realFetch = window.fetch;
+      let body = null;
+      window.fetch = async (_u, o) => {
+        body = JSON.parse(o.body);
+        return { ok: true, json: async () => ({ content: 'You wrap up most things by noon.' }) };
+      };
+
+      // Use Wednesday so Sunday/Monday blocks don't co-fire
+      const origGetDay = Date.prototype.getDay;
+      Date.prototype.getDay = () => 3;
+      Today.use('about').renderInfoStats();
+      Date.prototype.getDay = origGetDay;
+      await new Promise(r => setTimeout(r, 150));
+
+      window.fetch = realFetch;
+      return {
+        fetchCalled:          body !== null,
+        keyPassedFromModule:  body?.apiKey === 'stub',
+        behavioralDataSent:   (body?.messages?.[0]?.content || '').includes('Behavioral data'),
+        peakHourInPrompt:     (body?.messages?.[0]?.content || '').includes('Peak completion hour'),
+      };
+    });
+    await expectAll('_fetchWeekThemeAI reaches AI', { ...result, noErrors: errors.length === 0 });
+    ok('_fetchWeekThemeAI: key from Today.use(connections) reaches AI endpoint with behavioral data');
+    await page.close();
+  }
+
+  // 12b. _fetchMondayIntention reaches the AI endpoint and passes the key from
+  //      Today.use('connections')._aiGetKey(), not the removed window._aiGetKey global.
+  //      Before the v2.90.20 fix, same bare guard silenced Monday intention.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      const today = _localISO();
+      localStorage.removeItem('monday_intention_' + today);
+
+      const realFetch = window.fetch;
+      let body = null;
+      window.fetch = async (_u, o) => {
+        body = JSON.parse(o.body);
+        return { ok: true, json: async () => ({ content: 'Start with the one thing you keep pushing off.' }) };
+      };
+
+      const origGetDay = Date.prototype.getDay;
+      Date.prototype.getDay = () => 1; // Monday
+      Today.use('about').renderInfoStats();
+      Date.prototype.getDay = origGetDay;
+      await new Promise(r => setTimeout(r, 150));
+
+      window.fetch = realFetch;
+      const prompt = body?.messages?.[0]?.content || '';
+      return {
+        fetchCalled:         body !== null,
+        keyPassedFromModule: body?.apiKey === 'stub',
+        mondayPrompt:        prompt.includes('Monday') || prompt.includes('week'),
+      };
+    });
+    await expectAll('_fetchMondayIntention reaches AI', { ...result, noErrors: errors.length === 0 });
+    ok('_fetchMondayIntention: key from Today.use(connections) reaches AI endpoint on Monday');
+    await page.close();
+  }
+
   // 13. A pre-policy cached line is invalidated instead of surviving the new
   //     evidence contract. With no qualifying pattern, the block stays silent.
   {
