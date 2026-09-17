@@ -81,7 +81,8 @@ async function openPage() {
       ]));
       // Noticed cache — pre-seeded so renderInfoStats shows the Noticed block
       localStorage.setItem('noticed_lines_' + today, JSON.stringify(['noticed something interesting']));
-      // Stub AI key — causes AI fetch to fail gracefully (no real API hit)
+      // Stub AI key — truthy so the key check passes; fetch proceeds but 404s on
+      // the test server, which the code handles gracefully (no real API hit).
       localStorage.setItem('today_ai_key_claude', 'stub');
     },
     { today: TODAY, yesterday: YESTERDAY }
@@ -477,7 +478,10 @@ try {
       Date.prototype.getDay = () => 3;
       Today.use('about').renderInfoStats();
       Date.prototype.getDay = origGetDay;
-      await new Promise(r => setTimeout(r, 150));
+      const deadline = Date.now() + 1000;
+      while (body === null && Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 20));
+      }
 
       window.fetch = realFetch;
       return {
@@ -512,14 +516,17 @@ try {
       Date.prototype.getDay = () => 1; // Monday
       Today.use('about').renderInfoStats();
       Date.prototype.getDay = origGetDay;
-      await new Promise(r => setTimeout(r, 150));
+      const deadline = Date.now() + 1000;
+      while (body === null && Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 20));
+      }
 
       window.fetch = realFetch;
       const prompt = body?.messages?.[0]?.content || '';
       return {
         fetchCalled:         body !== null,
         keyPassedFromModule: body?.apiKey === 'stub',
-        mondayPrompt:        prompt.includes('Monday') || prompt.includes('week'),
+        mondayPrompt:        prompt.includes('Monday') && prompt.includes('week'),
       };
     });
     await expectAll('_fetchMondayIntention reaches AI', { ...result, noErrors: errors.length === 0 });
@@ -552,7 +559,7 @@ try {
     await page.close();
   }
 
-  // 13b. 12e reaction on a spoken Sunday line: collapsed until the sentence is
+  // 13b. Reaction on a spoken Sunday line: collapsed until the sentence is
   //      tapped, a state records to the spokenLines entry, a repeat clears it. The
   //      Today block, with no spoken line behind it, gets no control at all.
   {
