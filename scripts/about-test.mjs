@@ -3,7 +3,8 @@
 // Flow: toggleInfo opens panel, _poemOfTheDay, renderDailyPoem via toggleInfo,
 // _onPoemTap reveal + outside-click collapse, _copyToClipboard callback,
 // _shareDailyPoem clipboard path, renderInfoStats week grid, Noticed block,
-// Sunday earned-insight gate/prompt/cache, Monday intention block (day=1), module wiring.
+// Sunday earned-insight gate/prompt/cache, Monday intention block (day=1),
+// _fetchWeekThemeAI and _fetchMondayIntention key + cache contract, module wiring.
 //
 // Run from repo root:
 //   node scripts/about-test.mjs --pre-extraction
@@ -484,11 +485,18 @@ try {
       }
 
       window.fetch = realFetch;
+      // Poll for the cache write — the .then() callback runs after fetch resolves
+      const cacheKey = 'week_theme_ai_' + weekKey;
+      const cacheDeadline = Date.now() + 500;
+      while (!localStorage.getItem(cacheKey) && Date.now() < cacheDeadline) {
+        await new Promise(r => setTimeout(r, 20));
+      }
       return {
         fetchCalled:          body !== null,
         keyPassedFromModule:  body?.apiKey === 'stub',
         behavioralDataSent:   (body?.messages?.[0]?.content || '').includes('Behavioral data'),
         peakHourInPrompt:     (body?.messages?.[0]?.content || '').includes('Peak completion hour'),
+        resultCached:         localStorage.getItem(cacheKey) === 'You wrap up most things by noon.',
       };
     });
     await expectAll('_fetchWeekThemeAI reaches AI', { ...result, noErrors: errors.length === 0 });
@@ -522,11 +530,20 @@ try {
       }
 
       window.fetch = realFetch;
+      // Poll for the cache write — the .then() callback runs after fetch resolves
+      const cacheKey = 'monday_intention_' + today;
+      const cacheDeadline = Date.now() + 500;
+      while (!localStorage.getItem(cacheKey) && Date.now() < cacheDeadline) {
+        await new Promise(r => setTimeout(r, 20));
+      }
       const prompt = body?.messages?.[0]?.content || '';
+      const summaryEl = document.getElementById('sundayBlock')?.querySelector('.week-summary');
       return {
         fetchCalled:         body !== null,
         keyPassedFromModule: body?.apiKey === 'stub',
         mondayPrompt:        prompt.includes('Monday') && prompt.includes('week'),
+        resultCached:        localStorage.getItem(cacheKey) === 'Start with the one thing you keep pushing off.',
+        domUpdated:          summaryEl?.textContent === 'Start with the one thing you keep pushing off.',
       };
     });
     await expectAll('_fetchMondayIntention reaches AI', { ...result, noErrors: errors.length === 0 });
