@@ -743,6 +743,7 @@
     --space-8:  32px;
     --space-20: 80px;
     --add-task-bar-height: 72px; /* clearance for the fixed bottom add-task bar */
+    --panel-max-width: 420px;   /* bottom sheets and overlay panels */
 
     /* ── Radius scale ────────────────────────────────────────── */
     --radius-sm:   4px;   /* badge, tag                          */
@@ -1454,7 +1455,7 @@
     background: var(--surface2);
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     width: 100%;
-    max-width: 420px;
+    max-width: var(--panel-max-width);
     max-height: 70vh;
     overflow-x: hidden;
     overflow-y: auto;
@@ -2696,7 +2697,7 @@
     background: var(--surface2);
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     width: 100%;
-    max-width: 420px;
+    max-width: var(--panel-max-width);
     max-height: 70vh;
     display: flex;
     flex-direction: column;
@@ -3250,7 +3251,7 @@
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-2);
-    max-width: min(420px, calc(100vw - 32px));
+    max-width: min(var(--panel-max-width), calc(100vw - 32px));
     width: max-content;
     box-shadow: var(--shadow-panel-sm);
     opacity: 0;
@@ -4491,9 +4492,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.25': 'Introduce --panel-max-width token (420px) shared by triage panel, meeting panel, and undo toast.',
   '2.90.24': 'Introduce --add-task-bar-height token; triage bar, undo toast, and scroll clearance now share one value.',
   '2.90.23': 'Tokenize two hardcoded font-sizes: nudge star and meeting review title.',
-  '2.90.22': 'Soon and Past section labels brighten on hover, matching the chevron.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

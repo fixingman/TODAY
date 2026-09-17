@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.90.25** | **`--panel-max-width` token.** `420px` appeared independently in `#triagePanel`, `#meetingPanel`, and `#undoToast`; now one token. |
 | **2.90.24** | **`--add-task-bar-height` token.** Three separate hardcoded values (72px × 1, 70px × 2) all meaning "clearance for the fixed bottom bar" are now one token at 72px: main app scroll clearance, triage bar bottom, and undo toast bottom. |
 | **2.90.23** | **Tokenize two hardcoded font-sizes.** Nudge star `11px` → `var(--text-sm)`; meeting review title `15px` → `var(--text-md)` (14px, 1px imperceptible). Design-lint now catches all font-size escapes. |
 | **2.90.22** | **Soon and Past section labels brighten on hover.** Added `transition: color var(--dur-fast)` to `.section-label` and `.zone-header:hover .section-label { color: var(--text) }` — title text now travels to full color alongside the expand chevron. |
