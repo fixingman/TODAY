@@ -1308,6 +1308,7 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--muted);
+    transition: color var(--dur-fast);
   }
 
   .section-count {
@@ -1337,6 +1338,7 @@
     color: var(--text);
     border-color: var(--muted);
   }
+  .zone-header:hover .section-label { color: var(--text); }
   .zone-chevron {
     margin-left: auto;
     color: var(--muted);
@@ -4488,6 +4490,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.22': 'Soon and Past section labels brighten on hover, matching the chevron.',
   '2.90.21': 'Focus companion: ask button highlights when 3+ context signals align on the focused task.',
   '2.90.20': 'Sunday reflection: fix silent block that prevented week theme and Monday intention from loading when a fresh AI call was needed.',
   '2.90.19': 'Quick voice capture: silence and room noise now resolve as Nothing heard instead of becoming an invented task.',
