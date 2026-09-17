@@ -742,6 +742,7 @@
     --space-6:  24px;
     --space-8:  32px;
     --space-20: 80px;
+    --add-task-bar-height: 72px; /* clearance for the fixed bottom add-task bar */
 
     /* ── Radius scale ────────────────────────────────────────── */
     --radius-sm:   4px;   /* badge, tag                          */
@@ -1055,7 +1056,7 @@
     margin: 0 auto;
     /* No top padding — sticky header sits directly above */
     padding: 0 var(--space-6) 0;
-    padding-bottom: 72px; /* space for fixed bottom bar */
+    padding-bottom: var(--add-task-bar-height);
     /* No overflow clipping here (BUG-050 sixth pass): even overflow-x: clip on an
        ancestor demotes position:sticky descendants to main-thread positioning on
        iOS WebKit — the section headers lagged the compositor scroll by a frame
@@ -1644,7 +1645,7 @@
   /* Trigger bar (minimized) */
   #triageBar {
     position: fixed;
-    bottom: 70px;
+    bottom: var(--add-task-bar-height);
     left: 50%;
     transform: translateX(-50%);
     background: var(--surface2);
@@ -3236,7 +3237,7 @@
   /* Undo toast — appears at bottom of screen */
   #undoToast {
     position: fixed;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 70px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--add-task-bar-height));
     left: 50%;
     transform: translateX(-50%) translateY(100px);
     background: var(--surface);
@@ -4490,9 +4491,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.24': 'Introduce --add-task-bar-height token; triage bar, undo toast, and scroll clearance now share one value.',
   '2.90.23': 'Tokenize two hardcoded font-sizes: nudge star and meeting review title.',
   '2.90.22': 'Soon and Past section labels brighten on hover, matching the chevron.',
-  '2.90.21': 'Focus companion: ask button highlights when 3+ context signals align on the focused task.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
