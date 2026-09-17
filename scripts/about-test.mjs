@@ -360,15 +360,14 @@ try {
         { id: 'e', date: iso(now - 7 * D), outcome: 'letgo', obligation: true,  focusSessions: 0 },
       ];
       const insight = Today.use('about')._pickSundayInsight({ days: [], history: [] });
-      const realFetch = window.fetch, realGetKey = window._aiGetKey;
-      window._aiGetKey = () => 'stub';
+      const realFetch = window.fetch;
       let body = null;
       window.fetch = async (_u, o) => {
         body = JSON.parse(o.body);
         return { ok: true, json: async () => ({ content: 'Every focus session this month went to something you chose; the obligations got none.' }) };
       };
       const text = await Today.use('about')._fetchWeekReflection({ insight, days: [], history: [] });
-      window.fetch = realFetch; window._aiGetKey = realGetKey;
+      window.fetch = realFetch;
       const prompt = body?.messages?.[0]?.content || '';
       const spoken = (appMemory.spokenLines || []).find(l => l.surface === 'Sunday reflection');
       return {
@@ -418,9 +417,7 @@ try {
     const { page, errors } = await openPage();
     const result = await page.evaluate(async () => {
       const realFetch = window.fetch;
-      const realGetKey = window._aiGetKey;
       let requestBody = null;
-      window._aiGetKey = () => 'stub';
       appMemory.recentCompletedTasks = [
         { text: 'fix avios video', date: '2026-08-22' },
         { text: 'book manicure', date: '2026-08-23' },
@@ -436,7 +433,6 @@ try {
       };
       const text = await Today.use('about')._fetchWeekReflection({ insight, days: [], history: [] });
       window.fetch = realFetch;
-      window._aiGetKey = realGetKey;
       const prompt = requestBody?.messages?.[0]?.content || '';
       return {
         returnedLine: text?.startsWith('Focus days did the heavy lifting'),
