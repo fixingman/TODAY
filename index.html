@@ -2341,7 +2341,7 @@
   .morning-nudge.show.visible { opacity: 1; pointer-events: auto; }
   .morning-nudge:hover { border-color: var(--border); }
   .morning-nudge .nudge-star {
-    font-size: 11px;
+    font-size: var(--text-sm);
     color: var(--accent); /* breathes via _breathe() at creation site — WAAPI, never CSS (BUG-028 lesson) */
     flex-shrink: 0;
     line-height: 1;
@@ -2715,7 +2715,7 @@
     margin-bottom: 6px;
   }
   .meeting-review-title {
-    font-size: 15px;
+    font-size: var(--text-md);
     color: var(--text);
     font-weight: 400;
     letter-spacing: 0.01em;
@@ -4490,10 +4490,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.23': 'Tokenize two hardcoded font-sizes: nudge star and meeting review title.',
   '2.90.22': 'Soon and Past section labels brighten on hover, matching the chevron.',
   '2.90.21': 'Focus companion: ask button highlights when 3+ context signals align on the focused task.',
-  '2.90.20': 'Sunday reflection: fix silent block that prevented week theme and Monday intention from loading when a fresh AI call was needed.',
-  '2.90.19': 'Quick voice capture: silence and room noise now resolve as Nothing heard instead of becoming an invented task.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
