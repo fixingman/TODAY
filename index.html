@@ -3102,7 +3102,7 @@
     /* iOS auto-zooms the page when a focused input's font-size is under 16px —
        the viewport meta cannot prevent it without maximum-scale (an a11y cost).
        Every focusable text input gets 16px (--text-lg) on mobile instead. */
-    .add-task-input, .habit-input, .ai-nl-input, .ai-key-input,
+    .add-task-input, .habit-input, .habit-edit-input, .ai-nl-input, .ai-key-input,
     #meetingNamePromptInput, #meetingNameInput, .config-input {
       font-size: var(--text-lg);
     }
@@ -3678,6 +3678,11 @@
   .habit.editing { background: transparent; border-color: transparent; }
   .habit.editing:hover { background: var(--surface2); border-color: var(--border); }
   .habit.editing .habit-check { visibility: hidden; }
+  /* Accent left bar signals the list is in edit mode */
+  #habitList:has(.habit.editing) {
+    border-left: 2px solid var(--accent);
+    padding-left: calc(var(--space-3) - 2px);
+  }
 
   .habit-check {
     width: 18px; height: 18px; flex-shrink: 0;
@@ -3776,9 +3781,10 @@
   .habit-edit-input {
     display: block; flex: 1; min-width: 0; width: 100%;
     background: transparent; border: none;
-    color: var(--text); font-family: var(--font-mono); font-size: 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text); font-family: var(--font-mono); font-size: var(--text-task);
     outline: none; padding: 0; margin: 0; line-height: 1.4;
-    height: calc(16px * 1.4);
+    height: calc(1em * 1.4);
     box-sizing: content-box;
   }
   .habit-edit-input::placeholder { color: var(--muted); }
