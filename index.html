@@ -4489,9 +4489,10 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.28': 'Focus companion: delay thinking WAAPI so CSS high-signal transitions complete first; graceful pulse-complete exit prevents opacity snap on timer restart.',
+  '2.90.27': 'Add repeatable performance and visual regression checks for loading, task interactions, focus entry, payload growth, and six canonical layouts.',
   '2.90.26': 'Habits edit mode: replace left-bar chrome with persistent surface2 rows; fix edit input to use established box-border pattern matching habit-input.',
   '2.90.25': 'Introduce --panel-max-width token (420px) shared by triage panel, meeting panel, and undo toast.',
-  '2.90.24': 'Introduce --add-task-bar-height token; triage bar, undo toast, and scroll clearance now share one value.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4720,6 +4721,8 @@ function init() {
     ctx.clearRect(0, 0, c.width, c.height);
   }, 2000);
 
+  performance.mark('today:morning-ready');
+
 }
 
 // ─── Sound + haptics ── moved to assets/sound.js (self-contained, browser APIs only).
@@ -4797,6 +4800,7 @@ window._startFocus();
 // ── FOCUS MODE (Pomodoro timer, PiP session, AI companion) — moved to assets/focus.js
 
 window._startPlatform();
+performance.mark('today:interactive');
 
 
 </script>

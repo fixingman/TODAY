@@ -341,8 +341,13 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
     focusAIBtn.classList.remove('high-signal');
     focusAIBtn.textContent = 'thinking…';
     focusAIBtn.classList.add('loading');
+    // Delay WAAPI so the CSS opacity/color transitions from high-signal → loading
+    // complete before WAAPI overrides opacity (WAAPI wins over CSS transitions).
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      _thinkAnim = focusAIBtn.animate([{ opacity: 0.25 }, { opacity: 0.65 }, { opacity: 0.25 }], { duration: 2400, easing: 'ease-in-out', iterations: Infinity });
+      setTimeout(function() {
+        if (!timerEl.classList.contains('ai-active')) return;
+        _thinkAnim = focusAIBtn.animate([{ opacity: 0.25 }, { opacity: 0.65 }, { opacity: 0.25 }], { duration: 2400, easing: 'ease-in-out', iterations: Infinity });
+      }, 150);
     }
 
     // Other pending tasks — gives the companion awareness of what else is waiting,
@@ -484,7 +489,20 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
   // pulse needs no suppress/restore at wake (and cannot flash).
   function _pulseComplete(el, on) {
     if (!el) return;
-    if (el._pulseAnim) { el._pulseAnim.cancel(); el._pulseAnim = null; }
+    if (el._pulseAnim) {
+      if (!on) {
+        // Capture current WAAPI-driven opacity before cancel so it doesn't snap to CSS base.
+        const cur = parseFloat(getComputedStyle(el).opacity);
+        el._pulseAnim.cancel();
+        el._pulseAnim = null;
+        if (isFinite(cur) && cur < 0.98) {
+          el.animate([{ opacity: cur }, { opacity: 1 }], { duration: 120, easing: 'ease-out' });
+        }
+        return;
+      }
+      el._pulseAnim.cancel();
+      el._pulseAnim = null;
+    }
     if (on && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       el._pulseAnim = el.animate(
         [{ opacity: 1 }, { opacity: 0.65 }, { opacity: 1 }],
