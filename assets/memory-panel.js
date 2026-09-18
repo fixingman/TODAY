@@ -123,12 +123,10 @@
         const _peakRun = _runs.find(r => r.includes(parseInt(peakHour))) || [parseInt(peakHour)];
         if (_peakRun.length >= 2) {
           const _s = _peakRun[0], _e = _peakRun[_peakRun.length - 1];
-          const _period = _s < 12 ? 'morning' : _s < 17 ? 'afternoon' : 'evening';
-          semanticItems.push({ text: `most productive between ${_fmtH(_s)}–${_fmtH(_e)} — a ${_period} person` });
+          semanticItems.push({ text: `most completions between ${_fmtH(_s)}–${_fmtH(_e)}` });
         } else {
           const h = parseInt(peakHour);
-          const period = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
-          semanticItems.push({ text: `tends to get most done around ${_fmtH(h)} — a ${period} person` });
+          semanticItems.push({ text: `most completions around ${_fmtH(h)}` });
         }
       }
       const samples = m.patterns?.taskLifespanSamples || [];
@@ -223,37 +221,6 @@
         .map(([w]) => w);
       if (topWords.length >= 2) {
         proceduralItems.push({ text: `often works on: ${topWords.join(', ')}` });
-      }
-      // Completion rate: tasksDone vs tasks available (dayStartCount + tasksAdded).
-      // dayStartCount was added in v2.75.13; older entries fall back to tasksAdded alone.
-      const _effectiveDenom = e => e.dayStartCount != null
-        ? Math.max(0, e.dayStartCount) + _sanitizeDailyTasksAdded(e.tasksAdded)
-        : _sanitizeDailyTasksAdded(e.tasksAdded);
-      const rateHistory = allDailyHistory.filter(e => _effectiveDenom(e) > 0);
-      if (rateHistory.length >= 5) {
-        const totalAvailable = rateHistory.reduce((s, e) => s + _effectiveDenom(e), 0);
-        const totalDone      = rateHistory.reduce((s, e) => s + e.tasksDone,        0);
-        const rate = Math.round((totalDone / totalAvailable) * 100);
-        proceduralItems.push({ text: `completes ${rate}% of tasks added — ${totalDone} done of ${totalAvailable} added` });
-      }
-      // Habit cross-variable: tasks done on full-habit days vs partial/missed days
-      const _habitDays = allDailyHistory.filter(e => e.habitsTotal > 0);
-      if (_habitDays.length >= 7) {
-        const _fullHabitDays = _habitDays.filter(e => e.habitsKept >= e.habitsTotal);
-        const _partialHabitDays = _habitDays.filter(e => e.habitsKept < e.habitsTotal);
-        if (_fullHabitDays.length >= 3 && _partialHabitDays.length >= 3) {
-          const _fhAvg = (_fullHabitDays.reduce((s, e) => s + e.tasksDone, 0) / _fullHabitDays.length).toFixed(1);
-          const _phAvg = (_partialHabitDays.reduce((s, e) => s + e.tasksDone, 0) / _partialHabitDays.length).toFixed(1);
-          proceduralItems.push({ text: `all habits done: ${_fhAvg} tasks avg vs ${_phAvg} on days with missed habits` });
-        }
-      }
-      // Focus cross-variable: tasks done on focus days vs days without a session (all-time pattern)
-      const _focusDays = allDailyHistory.filter(e => (e.focusMins || 0) > 0);
-      const _noFocusDays = allDailyHistory.filter(e => (e.focusMins || 0) === 0 && e.tasksDone > 0);
-      if (_focusDays.length >= 5 && _noFocusDays.length >= 5) {
-        const _fAvg = (_focusDays.reduce((s, e) => s + e.tasksDone, 0) / _focusDays.length).toFixed(1);
-        const _nfAvg = (_noFocusDays.reduce((s, e) => s + e.tasksDone, 0) / _noFocusDays.length).toFixed(1);
-        proceduralItems.push({ text: `focus days average ${_fAvg} tasks done vs ${_nfAvg} without a session` });
       }
       // Deferred vocabulary: words that keep getting let go at triage
       const _deferWords = m.preferences?.dragKeywords || [];
@@ -371,7 +338,7 @@
           'nothing on record yet — this fills as tasks come and go') +
         typeBlock('RETIRED', '— kinds of observation you said did not land; today stops offering them', retiredItems,
           'nothing retired — a kind lands here after two "not really"') +
-        typeBlock('SEMANTIC', '— stable things today has concluded about you', semanticItems,
+        typeBlock('SEMANTIC', '— patterns observed over time', semanticItems,
           'needs more data to form stable conclusions') +
         typeBlock('EPISODIC', '— what has been happening lately', episodicItems,
           'no recent activity to report') +
