@@ -151,6 +151,13 @@ Scale is numeric, 4px base:
 | `--space-8` | `32px` |
 | `--space-20` | `80px` |
 
+### Layout Constants
+
+| Token | Value | Usage |
+|---|---|---|
+| `--add-task-bar-height` | `72px` | Clearance for the fixed bottom add-task bar (scroll padding, triage bar bottom, undo toast bottom) |
+| `--panel-max-width` | `420px` | Max width for bottom-sheet panels and overlay panels (triage, meeting, undo toast) |
+
 ---
 
 ## Radius

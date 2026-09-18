@@ -161,7 +161,9 @@ A `✦ ask` button lives inside the focus timer bar. Tapping it asks the AI for 
 
 **Trigger:** click `.focus-ai-timer-btn` → sets `ai-active` on `.focus-timer` → `_focusAskAI()` replaces the button label with `thinking…`, then with the returned question. Tapping the question again dismisses it and restores `✦ ask`.
 
-**Prompt shape:** task text plus contextual signals: total sessions on the task, age, revived/deferred state, exact device-local time with broad period, peak-hour match, sessions completed today, and up to four confirmed memory inferences. The model returns one question under 18 words. If it refers to time, it must name the supplied clock value rather than say something vague such as “this late.”
+**Prompt shape:** task text plus contextual signals: total sessions on the task, age, revived/deferred state, exact device-local time with broad period, peak-hour match, sessions completed today, and up to four confirmed memory inferences. The model returns one question under 22 words. If it refers to time, it must name the supplied clock value rather than say something vague such as “this late.” Time-of-day signals are intentionally excluded from the routing taxonomy to prevent repetitive “it's late” questions.
+
+**Signal density highlight (v2.90.21):** `_computeSignalDensity(taskObj, taskText)` runs at session open and counts task-specific signals only (session count ≥2, session count ≥4, age ≥5 days, worked today, last worked ≥2 days ago, revived, deferred from Soon, drag-word match, dominant letgo pattern). When ≥3 signals converge, the `✦ ask` button turns accent before the user clicks — `.high-signal` CSS class, cleared immediately on click, reset, or close.
 
 **State:** question state is per-session, not persisted. `closeUI` resets it (`ai-active` cleared and button label restored). Silent fail if AI is not configured.
 
