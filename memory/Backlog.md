@@ -319,13 +319,13 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 | Surface | Due | Status |
 |---------|-----|--------|
 | Monday intention (memory-enriched) | 2026-10-01 | Re-observing — data source fixed (Soon + Trello added); extended after further updates. |
-| About contextual CTAs | ⚠ 2026-08-25 | Open — do bordered CTAs clarify actions without pulling attention? |
+| About contextual CTAs | 2026-10-08 | Re-observing — extended 20 days from 2026-09-18. Do bordered CTAs clarify actions without pulling attention? |
 | Connections privacy reassurance | 2026-10-01 | Deferred — Can has all connections active so the surface never triggers; can’t evaluate until a fresh setup. Re-check 2026-10-01. |
 | Focus companion question | 2026-10-15 | Re-observing — v2.90.21 highlights the ask button when context signals align; extended to observe the updated CTA. |
 | Post-triage reflections | 2026-10-01 | **Iterate (2026-09-14)** — countdown progress bar added (v2.90.12); re-observe. |
 | Choice, reorder, and focus motion | 2026-10-15 | Open — do the transitions clarify where state went without becoming noticeable choreography? |
 | Shift+Space quick voice capture | 2026-09-29 | Open — does holding the chord remain genuinely faster than typing, and do the brief capture states clarify progress without lingering? |
-| HOW DAYS FELT insight | 2026-09-28 | Re-observing after v2.90.7 — a useful commitment relationship or silence, never a feeling-frequency recap? |
+| HOW DAYS FELT insight | 2026-10-08 | Re-observing — extended 20 days from 2026-09-18 while data populates. A useful commitment relationship or silence, never a feeling-frequency recap? |
 | Sunday earned insight | 2026-10-15 | Re-observing — was blocked lately; give more rounds before verdict. |
 | Observation pool — morning + Sunday (12c Phase 4) | 2026-10-01 | Re-observing — not sure yet; extend to 2026-10-01. Reactions are the verdict channel. |
 | Memory panel KNOWN + SAID (12d Phase A) | 2026-10-01 | Re-observing — reconstruction caveat removed (2026-09-14); outcome counts kept. Re-evaluate by 2026-10-01. |
@@ -333,6 +333,14 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 ---
 
 ## Decisions & Boundaries
+
+### Open decisions
+
+| Decision | Status | Notes |
+|---|---|---|
+| **First-run / onboarding** | Open — needs a decision before building | A new user sees an empty list, a poem, and no explanation. Triage is invisible until 8pm. SOON/PAST are hidden until populated. The `✦ ask` companion is discoverable only by chance. **The question:** is this deliberate (philosophy: fastest path to add, calm over instruction) or unbuilt? If deliberate, record it here and close. If not, define the minimum orientation surface — the decision shapes every future AI surface and feature introduction. Do not build onboarding before the decision is written down. |
+
+---
 
 ### Not implementing
 
