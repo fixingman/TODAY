@@ -3683,15 +3683,10 @@
   .habit-new { animation: fadeIn var(--dur-slow) var(--ease-std); }
   .habit:hover { background: var(--surface2); border-color: var(--border); }
 
-  /* Edit mode: no global box — rows reveal individually on hover */
-  .habit.editing { background: transparent; border-color: transparent; }
+  /* Edit mode: persistent surface on each row so editable state is obvious */
+  .habit.editing { background: var(--surface2); border-color: transparent; }
   .habit.editing:hover { background: var(--surface2); border-color: var(--border); }
   .habit.editing .habit-check { visibility: hidden; }
-  /* Accent left bar signals the list is in edit mode */
-  #habitList:has(.habit.editing) {
-    border-left: 2px solid var(--accent);
-    padding-left: calc(var(--space-3) - 2px);
-  }
 
   .habit-check {
     width: 18px; height: 18px; flex-shrink: 0;
@@ -3789,13 +3784,15 @@
 
   .habit-edit-input {
     display: block; flex: 1; min-width: 0; width: 100%;
-    background: transparent; border: none;
-    border-bottom: 1px solid var(--border);
+    background: transparent;
+    border: 1px solid var(--control-border); border-radius: var(--radius-md);
     color: var(--text); font-family: var(--font-mono); font-size: var(--text-task);
-    outline: none; padding: 0; margin: 0; line-height: 1.4;
+    outline: none; padding: 0 var(--space-1); margin: 0; line-height: 1.4;
     height: calc(1em * 1.4);
     box-sizing: content-box;
+    transition: border-color var(--dur-fast);
   }
+  .habit-edit-input:focus { border-color: var(--accent); }
   .habit-edit-input::placeholder { color: var(--muted); }
   .habit-edit-delete {
     background: none; border: none; color: var(--muted);
