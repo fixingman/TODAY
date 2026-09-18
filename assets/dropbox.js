@@ -536,6 +536,20 @@
       { field: 'sunday_nudge_seen', prefix: 'sunday_nudge_seen_', el: '' },                 // BUG-073 Fix 8
     ];
 
+    // Build the AI-surfaces fragment of the Dropbox backup payload. Driven by
+    // _AI_SURFACES so adding a new synced surface here requires only one registry
+    // entry — the payload field appears automatically.
+    function _aiSyncPayload() {
+      const today = _localISO();
+      const out = {};
+      for (const s of _AI_SURFACES) {
+        if (!s.syncField) continue;
+        out[s.syncField] = _aiSurfaceGet(s.key);
+        if (s.syncDateField) out[s.syncDateField] = today;
+      }
+      return out;
+    }
+
     // ── Backup ────────────────────────────────────────────────────────────────────
     async function dropboxBackup(silent) {
       await _dropboxEnsureToken();
@@ -589,17 +603,11 @@
         // Day review + AI nudge — sync so morning nudge shows consistently across devices.
         // Fill-if-empty on merge: first device to compute wins for the day.
         day_review:   safeJSON('today_day_review', null),
-        day_nudge_ai:      localStorage.getItem('day_nudge_ai_' + _localISO()) || '',
-        day_nudge_ai_date: _localISO(),
-        // Sunday reflection / Monday intention in About — same cross-device story as
-        // day_nudge_ai (BUG-057): without sync each device generates its own AI text
-        week_reflection:  localStorage.getItem('week_reflection_'  + _localISO()) || '',
+        // AI-generated text fields — driven by _AI_SURFACES (util.js). Remote-always-wins
+        // so one device's generated line becomes the canonical text everywhere (BUG-057).
+        // week_reflection_policy is a meta/validation field, not AI-generated — stays manual.
+        ..._aiSyncPayload(),
         week_reflection_policy: localStorage.getItem('week_policy_' + _localISO()) || '',
-        monday_intention: localStorage.getItem('monday_intention_' + _localISO()) || '',
-        // Week theme for Noticed (v2.39.0) — same cross-device story, keyed per calendar
-        // week rather than per day (Sunday/Monday-only surfaces use _localISO(); this
-        // one needs to stay stable across all 7 days of the week it was generated in).
-        week_theme_ai: localStorage.getItem('week_theme_ai_' + (_localISO().slice(0, 8) + Math.ceil(new Date().getDate() / 7))) || '',
         // Daily history — per-day snapshots the week grid reads for past days (v5.3, BUG-036).
         // Union-merged by date on restore so the week view matches across devices.
         daily_history:        safeJSON('today_daily_history', []),
@@ -1601,17 +1609,15 @@
           _weekBlockSynced = true;
         }
       }
-      if (data.monday_intention && data.monday_intention !== localStorage.getItem('monday_intention_' + _todayISO)) {
-        localStorage.setItem('monday_intention_' + _todayISO, data.monday_intention);
-        _pruneLS('monday_intention_', 'monday_intention_' + _todayISO);
+      if (data.monday_intention && data.monday_intention !== _aiSurfaceGet('monday_intention')) {
+        _aiSurfaceSet('monday_intention', data.monday_intention);
         _weekBlockSynced = true;
       }
       // Week theme for Noticed (v2.39.0) — same remote-always-wins reasoning, keyed
-      // per calendar week (see the backup-payload comment for why the key differs
-      // from week_reflection/monday_intention's per-day key).
-      const _curWeekKey = _todayISO.slice(0, 8) + Math.ceil(new Date().getDate() / 7);
-      if (data.week_theme_ai && data.week_theme_ai !== localStorage.getItem('week_theme_ai_' + _curWeekKey)) {
-        localStorage.setItem('week_theme_ai_' + _curWeekKey, data.week_theme_ai);
+      // per calendar week via _aiWeekKey (see backup-payload comment; key differs from
+      // week_reflection/monday_intention's per-day key). _aiSurfaceSet handles prune.
+      if (data.week_theme_ai && data.week_theme_ai !== _aiSurfaceGet('week_theme_ai')) {
+        _aiSurfaceSet('week_theme_ai', data.week_theme_ai);
         _weekBlockSynced = true;
       }
       if (_weekBlockSynced && $.infoPanel && $.infoPanel.classList.contains('open')) Today.use('about').renderInfoStats();

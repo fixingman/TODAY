@@ -147,8 +147,8 @@ window._startNudge = (function() {
       // If not cached, race the AI fetch against a 1s timeout. AI wins → show Tier 2 from
       // the start. Timeout wins → show rule-based and never swap mid-display (BUG-034).
       // No content is ever replaced while the user is reading.
-      const _aiCacheKey = 'day_nudge_ai_' + _localISO();
-      const _aiCached = localStorage.getItem(_aiCacheKey);
+      const _nudgeCacheKey = _aiCacheKey('day_nudge_ai');
+      const _aiCached = _aiSurfaceGet('day_nudge_ai');
 
       const _showNudge = (text, isAI) => {
         _nudgeRendered = true;
@@ -222,7 +222,7 @@ window._startNudge = (function() {
         const _generatedDoneCount = parseInt(localStorage.getItem(_doneCountKey) || '-1', 10);
         if (_generatedDoneCount >= 0 && doneIds.size > _generatedDoneCount) {
           _cacheValid = false;
-          localStorage.removeItem(_aiCacheKey);
+          localStorage.removeItem(_nudgeCacheKey);
           localStorage.removeItem(_doneCountKey);
         }
       }
@@ -232,8 +232,8 @@ window._startNudge = (function() {
       } else if (allowGenerate && !_nudgeRacing) {
         _nudgeRacing = true;
         _raceAINudge({
-          cacheKey: _aiCacheKey,
-          cachePrefix: 'day_nudge_ai_',
+          cacheKey: _nudgeCacheKey,
+          cachePrefix: _AI_SURFACES.find(s => s.key === 'day_nudge_ai').prefix,
           fetchPromise: _fetchDayNudgeAI(review, carriedOver, cards).then(text => {
             if (text) {
               localStorage.setItem(_doneCountKey, String(doneIds.size));

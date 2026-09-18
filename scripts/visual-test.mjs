@@ -1,11 +1,14 @@
 // TODAY — visual regression test
-// Takes screenshots of 6 canonical UI states and diffs against stored PNG baselines.
+// Takes repeat screenshots of 6 canonical UI states and diffs against stored PNG baselines.
 // Catches layout, colour, and spacing regressions that DOM assertions cannot.
 //
 // Usage:
 //   node scripts/visual-test.mjs               — compare against baselines
 //   node scripts/visual-test.mjs --update      — regenerate all baselines
 //   node scripts/visual-test.mjs --scene morning  — run one scene only
+//   node scripts/visual-test.mjs --repeat 3     — take 3 captures per scene
+//   node scripts/visual-test.mjs --probe-page-error --scene morning --repeat 1
+//                                               — prove uncaught errors fail the harness
 //
 // Baselines live in scripts/visual-baselines/ and are committed to git.
 // First run: node scripts/visual-test.mjs --update  then commit the PNGs.
@@ -20,9 +23,24 @@ const DIR       = dirname(fileURLToPath(import.meta.url));
 const ROOT      = join(DIR, '..');
 const BASELINES = join(DIR, 'visual-baselines');
 const UPDATE    = process.argv.includes('--update');
+const PROBE_PAGE_ERROR = process.argv.includes('--probe-page-error');
 const ONLY      = process.argv.find((_, i) => process.argv[i - 1] === '--scene');
+const REPEAT_ARG = process.argv.find((_, i) => process.argv[i - 1] === '--repeat');
+const REPEAT     = UPDATE ? 1 : Number(REPEAT_ARG || 2);
 const CHROME    = process.env.CHROME_PATH
   || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+
+if (!Number.isInteger(REPEAT) || REPEAT < 1 || REPEAT > 5) {
+  console.error('✗ --repeat must be an integer between 1 and 5');
+  process.exit(1);
+}
+
+// A Monday with no special day-boundary meaning. Constructed in the runner's
+// local timezone so the page sees the same date and hour on macOS and Linux.
+const FIXED_YEAR = 2026;
+const FIXED_MONTH_INDEX = 8; // September
+const FIXED_DAY = 14;
+const fixedNowForHour = hour => new Date(FIXED_YEAR, FIXED_MONTH_INDEX, FIXED_DAY, hour, 0, 0, 0).getTime();
 
 // Pixel comparison settings
 // threshold: per-channel colour tolerance (0–1); 0.1 absorbs font-hinting drift
@@ -85,6 +103,7 @@ async function waitForApp(page) {
     },
     { timeout: 15000 },
   ).catch(() => { throw new Error('app never became ready (add bar never appeared)'); });
+  await page.evaluate(() => document.fonts?.ready || Promise.resolve());
   // Flush any pending microtasks / rAFs (animations already disabled via reduced-motion)
   await new Promise(r => setTimeout(r, 120));
 }
@@ -97,50 +116,95 @@ async function captureScene(name, {
 } = {}) {
   const page   = await browser.newPage();
   const errors = [];
-  page.on('pageerror', e => errors.push(e.message));
+  page.on('pageerror', error => errors.push(error.stack || error.message));
+  const fixedNow = fixedNowForHour(hour);
 
   // Disable all CSS animations/transitions — deterministic screenshots with no
   // in-flight animation state.  The app already respects prefers-reduced-motion.
   await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
   await page.setViewport(viewport);
 
-  await page.evaluateOnNewDocument((h, seedData) => {
+  await page.evaluateOnNewDocument((now, seedData) => {
+    // Freeze the complete clock, not just getHours(). The visible date header,
+    // day keys, focus restore math, and seasonal copy must be identical tomorrow
+    // and on CI. Explicit Date arguments still construct their requested value.
+    const NativeDate = Date;
+    function FixedDate(...dateArgs) {
+      if (!new.target) return new NativeDate(now).toString();
+      return new NativeDate(...(dateArgs.length ? dateArgs : [now]));
+    }
+    Object.setPrototypeOf(FixedDate, NativeDate);
+    FixedDate.prototype = NativeDate.prototype;
+    FixedDate.now = () => now;
+    window.Date = FixedDate;
+
     // Dismiss splash so the main UI is immediately visible
     localStorage.setItem('splash_shown_at', String(Date.now()));
-
-    // Freeze the hour returned by new Date().getHours() without touching Date.now()
-    // or ISO-string construction (focus session restore and zone-change timestamps
-    // both use Date.now() / new Date().toISOString(), which must stay real).
-    const _orig = Date.prototype.getHours;
-    Date.prototype.getHours = function () {
-      return window.__VT_HOUR__ !== undefined ? window.__VT_HOUR__ : _orig.call(this);
-    };
-    window.__VT_HOUR__ = h;
 
     // Seed app state
     for (const [k, v] of Object.entries(seedData)) {
       localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
     }
-  }, hour, seed);
+  }, fixedNow, seed);
 
-  await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
-  await waitForApp(page);
+  try {
+    await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await waitForApp(page);
 
-  if (interact) {
-    await interact(page);
-    await new Promise(r => setTimeout(r, 80)); // rAF settle after interaction
+    const clock = await page.evaluate(expectedNow => {
+      const expectedDate = new Date(expectedNow).toLocaleDateString('en-US', {
+        weekday: 'long', month: 'long', day: 'numeric',
+      }).toUpperCase();
+      return {
+        dateNow: Date.now(),
+        constructedNow: new Date().getTime(),
+        header: document.getElementById('dateTag')?.textContent || '',
+        expectedDate,
+      };
+    }, fixedNow);
+    if (clock.dateNow !== fixedNow || clock.constructedNow !== fixedNow || clock.header !== clock.expectedDate) {
+      throw new Error(`visual clock drift in "${name}": ${JSON.stringify(clock)}`);
+    }
+
+    if (interact) {
+      await interact(page);
+      await new Promise(r => setTimeout(r, 80)); // rAF settle after interaction
+    }
+
+    if (PROBE_PAGE_ERROR) {
+      await page.evaluate(() => setTimeout(() => { throw new Error('visual harness page-error probe'); }, 0));
+      await new Promise(r => setTimeout(r, 25));
+    }
+
+    const buf = await page.screenshot({ type: 'png' });
+    if (errors.length) {
+      throw new Error(`uncaught page error(s) in "${name}":\n  ${errors.slice(0, 3).join('\n  ')}`);
+    }
+    return buf;
+  } finally {
+    await page.close();
   }
-
-  const buf = await page.screenshot({ type: 'png' });
-  await page.close();
-
-  if (errors.length) {
-    console.warn(`  ⚠ page error(s) in "${name}": ${errors.slice(0, 3).join(' | ')}`);
-  }
-  return buf;
 }
 
-async function compareOrSave(name, actual) {
+function imageDifference(expected, actual, label) {
+  const base = PNG.sync.read(expected);
+  const shot = PNG.sync.read(actual);
+
+  if (base.width !== shot.width || base.height !== shot.height) {
+    throw new Error(
+      `${label}: viewport size changed`
+      + ` (expected ${base.width}×${base.height}, got ${shot.width}×${shot.height})`
+    );
+  }
+
+  const diff = pixelmatch(base.data, shot.data, null, base.width, base.height, {
+    threshold: DIFF_THRESHOLD,
+    includeAA: false, // ignore anti-aliasing differences
+  });
+  return { diff, pixels: base.width * base.height };
+}
+
+async function compareOrSave(name, actual, label = name) {
   const path = join(BASELINES, name + '.png');
 
   if (UPDATE) {
@@ -154,32 +218,33 @@ async function compareOrSave(name, actual) {
     return false;
   }
 
-  const base = PNG.sync.read(await readFile(path));
-  const shot = PNG.sync.read(actual);
-
-  if (base.width !== shot.width || base.height !== shot.height) {
-    console.error(
-      `  ✗ ${name}: viewport size changed`
-      + ` (baseline ${base.width}×${base.height}, got ${shot.width}×${shot.height})`
-    );
-    return false;
-  }
-
-  const diff = pixelmatch(base.data, shot.data, null, base.width, base.height, {
-    threshold:  DIFF_THRESHOLD,
-    includeAA:  false, // ignore anti-aliasing differences
-  });
+  let comparison;
+  try { comparison = imageDifference(await readFile(path), actual, label); }
+  catch (error) { console.error(`  ✗ ${error.message}`); return false; }
+  const { diff, pixels } = comparison;
 
   if (diff > MAX_DIFF_PX) {
-    const pct = ((diff / (base.width * base.height)) * 100).toFixed(2);
+    const pct = ((diff / pixels) * 100).toFixed(2);
     console.error(
-      `  ✗ ${name}: ${diff} px differ (${pct}%) — limit is ${MAX_DIFF_PX} px`
+      `  ✗ ${label}: ${diff} px differ (${pct}%) — limit is ${MAX_DIFF_PX} px`
     );
     return false;
   }
 
   const note = diff > 0 ? ` (${diff} px diff, within limit)` : '';
-  console.log(`  ✓ ${name}${note}`);
+  console.log(`  ✓ ${label}${note}`);
+  return true;
+}
+
+function compareRepeat(name, first, actual, iteration) {
+  let comparison;
+  try { comparison = imageDifference(first, actual, `${name} repeat ${iteration}`); }
+  catch (error) { console.error(`  ✗ ${error.message}`); return false; }
+  if (comparison.diff > MAX_DIFF_PX) {
+    const pct = ((comparison.diff / comparison.pixels) * 100).toFixed(2);
+    console.error(`  ✗ ${name} repeat ${iteration}: ${comparison.diff} px differ (${pct}%) from repeat 1`);
+    return false;
+  }
   return true;
 }
 
@@ -234,7 +299,7 @@ const SCENES = {
         today_done:   [],
         // savedAt as numeric ms — restore() uses Date.now() comparison; paused:true makes
         // elapsed=0 so the value doesn't affect the displayed time, but must be a number.
-        today_focus_session: { taskId: 'vt_focus', rem: 1200, savedAt: Date.now(), paused: true },
+        today_focus_session: { taskId: 'vt_focus', rem: 1200, savedAt: fixedNowForHour(10), paused: true },
       },
       interact: async (page) => {
         // Focus UI is restored during renderManual(); waitForApp() already covers that,
@@ -332,9 +397,22 @@ try {
       failed++;
       continue;
     }
-    const buf = await SCENES[name]();
-    const ok  = await compareOrSave(name, buf);
-    if (ok) passed++; else failed++;
+    let firstCapture = null;
+    let scenePassed = true;
+    for (let iteration = 1; iteration <= REPEAT; iteration++) {
+      try {
+        const buf = await SCENES[name]();
+        const label = REPEAT > 1 ? `${name} [${iteration}/${REPEAT}]` : name;
+        const baselineOk = await compareOrSave(name, buf, label);
+        const repeatOk = firstCapture ? compareRepeat(name, firstCapture, buf, iteration) : true;
+        if (!firstCapture) firstCapture = buf;
+        if (!baselineOk || !repeatOk) scenePassed = false;
+      } catch (error) {
+        console.error(`  ✗ ${name}: ${error.message}`);
+        scenePassed = false;
+      }
+    }
+    if (scenePassed) passed++; else failed++;
   }
 } finally {
   await browser.close();
@@ -342,5 +420,6 @@ try {
 }
 
 const verb = UPDATE ? 'saved' : 'passed';
-console.log(`\n${failed === 0 ? '✓' : '✗'} ${passed} ${verb}, ${failed} failed (${names.length} total)\n`);
+const repeatNote = REPEAT > 1 ? `; ${REPEAT} captures per scene` : '';
+console.log(`\n${failed === 0 ? '✓' : '✗'} ${passed} ${verb}, ${failed} failed (${names.length} scenes${repeatNote})\n`);
 if (failed > 0) process.exit(1);

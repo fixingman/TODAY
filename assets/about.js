@@ -360,7 +360,7 @@
       if (_sundayBlock) {
         if ((_isSun || _isMon) && _history.length > 0) {
           const _weekLabel = _isSun ? 'This week' : 'New week';
-          const _cacheKey  = _isSun ? 'week_reflection_' + _today : 'monday_intention_' + _today;
+          const _cacheKey  = _aiCacheKey(_isSun ? 'week_reflection' : 'monday_intention');
 
           // Structured week data for the Sunday evidence gate. Monday uses its
           // own forward-looking task context and ignores this object.
@@ -413,8 +413,7 @@
               : _fetchMondayIntention();
             _fetcher.then(text => {
               if (text) {
-                localStorage.setItem(_cacheKey, text);
-                _pruneLS(_isSun ? 'week_reflection_' : 'monday_intention_', _cacheKey);
+                _aiSurfaceSet(_isSun ? 'week_reflection' : 'monday_intention', text);
                 const el = _sundayBlock.querySelector('.week-summary');
                 if (el) {
                   el.textContent = text; el.classList.remove('loading'); _nudgeTextResolve(el);
@@ -437,14 +436,13 @@
       // re-firing the AI call for a week that genuinely has no pattern — that's
       // the common case by design, not something to keep retrying.
       {
-        const _weekKey = _today.slice(0, 8) + Math.ceil(new Date().getDate() / 7);
-        const _themeKey = 'week_theme_ai_' + _weekKey;
+        const _themeKey = _aiCacheKey('week_theme_ai');
+        const _weekKey  = _aiWeekKey();
         const _themeTriedKey = 'week_theme_tried_' + _weekKey;
-        if (!localStorage.getItem(_themeKey) && !localStorage.getItem(_themeTriedKey) && _history.length > 0) {
+        if (!_aiSurfaceGet('week_theme_ai') && !localStorage.getItem(_themeTriedKey) && _history.length > 0) {
           _fetchWeekThemeAI().then(text => {
             if (text) {
-              _pruneLS('week_theme_ai_', _themeKey);
-              localStorage.setItem(_themeKey, text);
+              _aiSurfaceSet('week_theme_ai', text);
               if ($.infoPanel && $.infoPanel.classList.contains('open')) renderInfoStats();
             } else if (navigator.onLine) {
               // AI was reachable but had nothing genuine to say — negative-cache for the week.
@@ -462,7 +460,7 @@
       // pattern the Roadmap #1 verdict confirmed. Hidden when no line exists.
       const _nudgeBlock = document.getElementById('todayNudgeBlock');
       if (_nudgeBlock) {
-        const _dayLine = localStorage.getItem('day_nudge_ai_' + _today) || '';
+        const _dayLine = _aiSurfaceGet('day_nudge_ai');
         if (_dayLine) {
           _nudgeBlock.innerHTML =
             '<div class="week-label">Today</div>' +

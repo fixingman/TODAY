@@ -85,6 +85,105 @@ function _pruneLS(prefix, exceptKey) {
   }
 }
 
+// ── AI surfaces registry ─────────────────────────────────────────────────────
+// Declarative catalog of every dated AI-generated text field. Adding a new
+// surface is one entry here; cache read/write and Dropbox sync follow the same
+// helpers automatically. Adding a surface without an entry here is the smell
+// that triggers the T1 ticket — the registry IS the gate.
+//
+// expiry:        'daily'   → suffix is YYYY-MM-DD (_localISO)
+//                'weekly'  → suffix is YYYY-MM-W  (_aiWeekKey)
+//                'session' → no localStorage cache (prefix: null)
+// syncField:     field name in the Dropbox payload; null = not synced
+// syncDateField: a companion date-guard sent alongside (day_nudge_ai only); null = none
+// syncMerge:     'remote-wins' | false
+// spokenSurface: the string passed to _memoryRecordSpokenLine
+// fallback:      'rule-based' | 'hidden' | 'silent'
+const _AI_SURFACES = [
+  {
+    key:           'day_nudge_ai',
+    prefix:        'day_nudge_ai_',
+    expiry:        'daily',
+    syncField:     'day_nudge_ai',
+    syncDateField: 'day_nudge_ai_date',
+    syncMerge:     'remote-wins',
+    spokenSurface: 'morning nudge',
+    fallback:      'rule-based',
+  },
+  {
+    key:           'week_reflection',
+    prefix:        'week_reflection_',
+    expiry:        'daily',
+    syncField:     'week_reflection',
+    syncDateField: null,
+    syncMerge:     'remote-wins',
+    spokenSurface: 'Sunday reflection',
+    fallback:      'hidden',
+  },
+  {
+    key:           'monday_intention',
+    prefix:        'monday_intention_',
+    expiry:        'daily',
+    syncField:     'monday_intention',
+    syncDateField: null,
+    syncMerge:     'remote-wins',
+    spokenSurface: 'Monday intention',
+    fallback:      'hidden',
+  },
+  {
+    key:           'week_theme_ai',
+    prefix:        'week_theme_ai_',
+    expiry:        'weekly',
+    syncField:     'week_theme_ai',
+    syncDateField: null,
+    syncMerge:     'remote-wins',
+    spokenSurface: 'week theme',
+    fallback:      'hidden',
+  },
+  {
+    key:           'focus_question',
+    prefix:        null,
+    expiry:        'session',
+    syncField:     null,
+    syncDateField: null,
+    syncMerge:     false,
+    spokenSurface: 'focus question',
+    fallback:      'silent',
+  },
+];
+
+// Week key formula: YYYY-MM-W (e.g. "2026-09-3"). Week 1–5 of the month,
+// derived from getDate() rather than ISO week number so it stays stable
+// across timezone boundaries without UTC conversion. Centralised here to
+// replace three previously divergent copies in about.js and dropbox.js.
+function _aiWeekKey(d) {
+  const dd = d || new Date();
+  return _localISO(dd).slice(0, 8) + Math.ceil(dd.getDate() / 7);
+}
+
+// Compute the full localStorage key for a surface (prefix + date suffix).
+// Returns null for session-only surfaces (prefix: null).
+function _aiCacheKey(key) {
+  const s = _AI_SURFACES.find(e => e.key === key);
+  if (!s || !s.prefix) return null;
+  return s.prefix + (s.expiry === 'weekly' ? _aiWeekKey() : _localISO());
+}
+
+// Read the current cached value for a surface ('') when absent or session-only.
+function _aiSurfaceGet(key) {
+  const k = _aiCacheKey(key);
+  return k ? (localStorage.getItem(k) || '') : '';
+}
+
+// Write a value and prune stale keys for the same prefix.
+function _aiSurfaceSet(key, value) {
+  const s = _AI_SURFACES.find(e => e.key === key);
+  if (!s || !s.prefix) return;
+  const k = _aiCacheKey(key);
+  _pruneLS(s.prefix, k);
+  localStorage.setItem(k, value);
+}
+
 // Minutes → compact "Hh Mm" / "Hh" / "Mm"
 function _formatFocusTime(mins) {
   if (mins >= 60) {
@@ -227,4 +326,7 @@ if (typeof module === 'object' && module.exports) module.exports = {
   _habitNow,
   _habitTodayISO,
   _mailtoDraftHref,
+  _aiWeekKey,
+  _aiCacheKey,
+  _AI_SURFACES,
 };
