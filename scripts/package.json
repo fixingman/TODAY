@@ -6,10 +6,16 @@
   },
   "description": "Dev-only tooling for TODAY — not part of the app",
   "scripts": {
-    "test": "node test-all.mjs"
+    "test": "node test-all.mjs",
+    "performance": "node performance-test.mjs",
+    "performance:write": "node performance-test.mjs --write",
+    "visual": "node visual-test.mjs",
+    "visual:update": "node visual-test.mjs --update"
   },
   "dependencies": {
     "axe-core": "^4.13.0",
+    "pixelmatch": "^6.0.0",
+    "pngjs": "^7.0.0",
     "puppeteer-core": "^25.10.0"
   }
 }
