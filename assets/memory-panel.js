@@ -189,7 +189,13 @@
         const avg = activeDays.reduce((s, e) => s + e.tasksDone, 0) / activeDays.length;
         episodicItems.push({ text: `averaging ${avg.toFixed(1)} tasks on active days this week` });
       }
-      // Focus correlation: tasks done on focus days vs non-focus days
+      // Started-but-not-closed: returning tasks that already have focus sessions
+      const _startedStillOpen = Object.values(m.returningTasks || {})
+        .filter(t => t && (parseInt(t.focusSessions) || 0) > 0);
+      if (_startedStillOpen.length >= 2) {
+        const _sn = _startedStillOpen.length;
+        episodicItems.push({ text: `${_sn} task${_sn === 1 ? '' : 's'} started — still open` });
+      }
       (m.memory?.episodic || []).filter(i => i.status === 'confirmed').forEach(i => {
         episodicItems.push({ text: i.text, forgetKey: `episodic:${i.id}` });
       });
@@ -244,6 +250,37 @@
         const _lrPct = Math.round((_lrCount(_lrTop[1]) / _lrTotal) * 100);
         if (_lrPct >= 35) {
           proceduralItems.push({ text: `most let-go decisions: ${_lrLabels[_lrTop[0]] || _lrTop[0]} (${_lrPct}%)` });
+        }
+      }
+      // Obligation completion rate
+      const _oblResolved = (m.obligationHistory || []).filter(e => e.done || e.letgo);
+      if (_oblResolved.length >= 8) {
+        const _oblDone = _oblResolved.filter(e => e.done).length;
+        const _oblRate = Math.round(_oblDone / _oblResolved.length * 100);
+        const _oblEffDenom = e => e.dayStartCount != null
+          ? Math.max(0, e.dayStartCount) + _sanitizeDailyTasksAdded(e.tasksAdded)
+          : _sanitizeDailyTasksAdded(e.tasksAdded);
+        const _oblRateHist = allDailyHistory.filter(e => _oblEffDenom(e) > 0);
+        if (_oblRateHist.length >= 5) {
+          const _oblOverall = Math.round(
+            _oblRateHist.reduce((s, e) => s + e.tasksDone, 0) /
+            _oblRateHist.reduce((s, e) => s + _oblEffDenom(e), 0) * 100
+          );
+          proceduralItems.push({ text: `obligation tasks: ${_oblRate}% complete vs ${_oblOverall}% overall` });
+        } else if (_oblResolved.length >= 10) {
+          proceduralItems.push({ text: `obligation-framed tasks: ${_oblRate}% complete (${_oblDone} of ${_oblResolved.length})` });
+        }
+      }
+      // Let-go return rate
+      const _lgFloor30 = new Date(Date.now() - 30 * 86400000);
+      const _lgWin = (m.taskOutcomes || []).filter(e => e && e.date && new Date(e.date) >= _lgFloor30);
+      const _lgCount = _lgWin.filter(e => e.outcome === 'letgo').length;
+      const _rvCount = _lgWin.filter(e => e.outcome === 'revive').length;
+      if (_lgCount + _rvCount >= 10 && _rvCount > 0) {
+        const _retRate = _rvCount / (_lgCount + _rvCount);
+        if (_retRate >= 0.15) {
+          const _retN = Math.round(1 / _retRate);
+          proceduralItems.push({ text: `1 in ${_retN} let-go tasks comes back` });
         }
       }
       (m.memory?.procedural || []).filter(i => i.status === 'confirmed').forEach(i => {
