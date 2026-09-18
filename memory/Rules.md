@@ -29,6 +29,11 @@
 | `Bugs.md` | Known bugs & verification status |
 | `Changelog.md` | Recent changes (last ~20 versions) |
 
+### Design entry point
+| Task | Read first |
+|------|------------|
+| Any design, UI, AI surface, or copy decision | `DESIGN.md` (repo root) — north star, token index, component rules, motion rules, AI surface rules, links to all detail files |
+
 ### Tier 2 — Read when task requires
 | Task | Read |
 |------|------|
