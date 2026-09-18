@@ -84,7 +84,25 @@ const SEEDED_MEMORY = {
     episodic: [],
     procedural: [],
   },
-  recentCompletedTasks: [],
+  recentCompletedTasks: [
+    { text: 'write quarterly report', date: '2026-09-10' },
+    { text: 'send project update email', date: '2026-09-11' },
+    { text: 'review pull request', date: '2026-09-12' },
+    { text: 'prepare meeting agenda', date: '2026-09-13' },
+    { text: 'fix login bug', date: '2026-09-14' },
+  ],
+  obligationHistory: [
+    { text: 'need to call dentist', date: '2026-09-01', done: false, letgo: true },
+    { text: 'should update resume', date: '2026-09-02', done: false, letgo: true },
+    { text: 'must finish taxes', date: '2026-09-03', done: true, letgo: false },
+    { text: 'need to reply to landlord', date: '2026-09-05', done: false, letgo: true },
+    { text: 'should call mom', date: '2026-09-06', done: true, letgo: false },
+  ],
+  returningTasks: {
+    'rt1': { text: 'reorganize workspace', dayCount: 8, focusSessions: 1 },
+    'rt2': { text: 'read design patterns book', dayCount: 12, focusSessions: 0 },
+  },
+  taskOutcomes: [],
   moments: [],
   suggestionHistory: [{ taskId: 'manual_old', taskText: 'Old', suggested: '2026-08-20', action: 'break_down' }],
   suggestionOutcomes: [{ id: 'inline_old', taskId: 'manual_old', reason: 'multiple_actions', offeredAt: '2026-08-20T09:00:00.000Z' }],
@@ -235,33 +253,37 @@ try {
     await page.close();
   }
 
-  // Abstraction: items added as pending on first call; second call same day throttled.
+  // Abstraction: items added as pending; array response parsed directly; second call throttled.
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(async () => {
-      window.__memoryTest.abstractResponses.push({
-        content: '[{"type":"semantic","text":"test productivity pattern"}]',
-      });
+      // Real server response shape: ai-assist.js returns the parsed array directly.
+      window.__memoryTest.abstractResponses.push(
+        [{ type: 'semantic', text: 'test productivity pattern' }]
+      );
       await Today.use('memory').abstract();
       const afterFirst = appMemory.memory.semantic.length;
       const throttleDateSet = !!appMemory.memory._lastAbstractDate;
       const requestsAfterFirst = window.__memoryTest.abstractRequests;
+      const newItem = appMemory.memory.semantic.find(i => i.source === 'ai_abstract');
+      const isPending = newItem?.status === 'pending';
 
       // Second call same day — should be throttled (no new request).
-      window.__memoryTest.abstractResponses.push({
-        content: '[{"type":"semantic","text":"should not appear"}]',
-      });
+      window.__memoryTest.abstractResponses.push(
+        [{ type: 'semantic', text: 'should not appear' }]
+      );
       await Today.use('memory').abstract();
       const requestsAfterSecond = window.__memoryTest.abstractRequests;
 
       return {
         itemAdded: afterFirst > 2,
+        isPending,
         throttleDateSet,
         throttled: requestsAfterSecond === requestsAfterFirst,
       };
     });
     await expectAll('abstraction and throttle', { ...result, noErrors: errors.length === 0 });
-    ok('_memoryAbstract adds items and throttles to once per day');
+    ok('_memoryAbstract adds pending items via array response and throttles to once per day');
     await page.close();
   }
 
