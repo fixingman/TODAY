@@ -46,6 +46,8 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     if (meetingPill) meetingPill.classList.add('visible');
     const meetingOverlay = document.getElementById('meetingOverlay');
     if (meetingOverlay) meetingOverlay.classList.add('visible');
+    performance.mark('today:shell-visible');
+    performance.mark('today:splash-dismissed');
     _splashAnimDone = true;
     _appLoadDone = true;
     // Enable wake detection after load settles (no splash path — _appReady never set otherwise)
@@ -307,6 +309,8 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
         const _mtgOvl  = document.getElementById('meetingOverlay');
         if (_mtgPill) _mtgPill.classList.add('visible');
         if (_mtgOvl)  _mtgOvl.classList.add('visible');
+        performance.mark('today:shell-visible');
+        performance.mark('today:splash-dismissed');
 
         setTimeout(() => { if (typeof updateStats === 'function') updateStats(); }, FADE_OUT + 30);
       }, FADE_OUT + 30);

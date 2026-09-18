@@ -9,6 +9,7 @@ npm-debug.log*
 
 # Logs
 *.log
+performance-nightly.json
 
 # Editor
 .vscode/

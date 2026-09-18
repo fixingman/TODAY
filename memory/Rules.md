@@ -57,7 +57,7 @@
 | Quick capture | `research/Quick-capture.md` |
 | Competitor analysis | `research/Landscape.md` |
 | Testing | `Test-matrix.md` |
-| Performance | `Performance-audit.md` |
+| Performance | `Performance-audit.md` (generated summary) + `performance-baseline.json` (raw five-run evidence) |
 | Historical bugs (verified, closed) | `archive/Bugs-archive.md` |
 | Full changelog history | `archive/Changelog-archive.md` |
 | Legacy architecture doc (pre-split) | `archive/Architecture.md` |

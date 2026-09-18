@@ -265,8 +265,8 @@ try {
     await page.close();
   }
 
-  // Completion-rate memory ignores an implausible restored day while keeping
-  // plausible per-day counts at the shared data-integrity boundary.
+  // Memory avoids productivity-score outputs and identity claims. Peak-hour
+  // evidence remains available as a neutral observed pattern.
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
@@ -282,13 +282,15 @@ try {
       Today.use('memory').render();
       const text = document.getElementById('memoryContent')?.textContent || '';
       return {
-        correctRate: text.includes('completes 50% of tasks added'),
-        correctEvidence: text.includes('5 done of 10 added'),
-        corruptDayExcluded: !text.includes('36 done of 41 added'),
+        completionRateRemoved: !text.includes('completes 50% of tasks added')
+          && !text.includes('5 done of 10 added'),
+        peakEvidenceKept: text.includes('most completions between 9am–10am'),
+        identityClaimRemoved: !text.includes('a morning person'),
+        semanticFramingUpdated: text.includes('patterns observed over time'),
       };
     });
-    await expectAll('completion-rate daily-count sanitization', { ...result, noErrors: errors.length === 0 });
-    ok('renderMemoryPanel excludes implausible restored daily task totals');
+    await expectAll('Memory output-stat cleanup', { ...result, noErrors: errors.length === 0 });
+    ok('renderMemoryPanel keeps neutral evidence without productivity scores or identity claims');
     await page.close();
   }
 

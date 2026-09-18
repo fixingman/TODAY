@@ -12,7 +12,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       CHROME_PATH: /usr/bin/google-chrome
     steps:
@@ -30,6 +30,8 @@ jobs:
         run: test -x "$CHROME_PATH"
       - name: Run automated gate
         run: npm test --prefix scripts
+      - name: Run performance budgets
+        run: npm run performance --prefix scripts
       - name: Validate memory inventory
         run: bash memory/validate-files.sh
       - name: Check patch whitespace

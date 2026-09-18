@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "iterations": 5,
+  "payload": {
+    "runtimeShellRaw": 1228800,
+    "runtimeShellBrotli": 358400,
+    "indexBrotli": 71680,
+    "fontBytes": 102400,
+    "eagerScripts": 37
+  },
+  "targets": {
+    "cold.fcp": 1800,
+    "cold.lcp": 2500,
+    "cold.cls": 0.1
+  },
+  "timing": {
+    "cold.ttfb": 1000,
+    "cold.fcp": 1800,
+    "cold.lcp": 10500,
+    "cold.cls": 0.1,
+    "cold.tbt": 200,
+    "cold.domContentLoaded": 7000,
+    "cold.interactive": 7000,
+    "cold.splashDismissed": 19000,
+    "warm.fcp": 500,
+    "warm.lcp": 500,
+    "warm.cls": 0.1,
+    "warm.interactive": 500,
+    "interactions.addTask": 100,
+    "interactions.enterFocus": 300
+  }
+}

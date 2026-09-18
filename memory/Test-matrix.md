@@ -6,16 +6,43 @@
 
 ## Pre-Release Checklist (REQUIRED)
 
-Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 36 local
-test suites (37 checks total). The live `scripts/ai-test.mjs` remains the sole explicit
-exclusion because it requires an API key and real provider calls. The runner verifies the test
+Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 37 local
+test suites (38 checks total), including six-scene visual regression coverage. The live
+`scripts/ai-test.mjs` and five-run
+`scripts/performance-test.mjs` are explicit exclusions: the former requires an API key and real
+provider calls; the latter runs as its own push/nightly gate. The runner verifies the test
 inventory and the explicitly registered non-test check before execution. A check that passes
 only on its diagnostic retry is reported as flaky and fails the gate; each attempt is capped at
 120 seconds. Tooling requires Node >=22.12 and Puppeteer 25. The last dual-runtime assurance
 pass was clean on Node 22.23.2 and 24.14.0; the current result is recorded in the latest
-changelog entry. GitHub Actions runs the same gate on pushes
-and pull requests to `dev`/`master`. Run
+changelog entry. GitHub Actions runs the same gate plus `npm run performance --prefix scripts`
+on pushes and pull requests to `dev`/`master`. A scheduled workflow measures the deployed dev
+URL and retains its JSON for 30 days. Run
 `memory/validate-files.sh` separately; it remains outside `test-all.mjs`.
+
+### Performance evidence gate
+
+- `npm run performance --prefix scripts` runs five cold/warm mobile-like load pairs and five
+  desktop interaction passes, then checks worst-run timing and deterministic payload budgets.
+- `npm run performance:write --prefix scripts` refreshes `performance-baseline.json` and the
+  generated block in `Performance-audit.md`; use it when the app version or payload changes.
+- Cold/warm evidence includes TTFB, FCP, LCP, CLS, total blocking time, long tasks, load timing,
+  TODAY's four lifecycle marks, transferred/encoded/decoded bytes, and service-worker control.
+  Interaction evidence measures task addition and entry into focus.
+- The 1.8s FCP, 2.5s LCP, and 0.1 CLS targets remain visible separately from calibrated
+  regression ceilings. A current target miss cannot disappear behind a generous regression
+  budget.
+
+### Visual regression gate
+
+- `npm run visual --prefix scripts` compares six canonical states with tracked PNG baselines:
+  morning, populated tasks, focus, triage, Memory, and the 320px mobile layout.
+- The suite disables motion, freezes the complete local clock to 2026-09-14, waits for fonts,
+  and takes two captures per scene. Each capture must match its baseline and repeat 2 must also
+  match repeat 1, tolerating only anti-aliasing noise plus 200 changed pixels. Missing baselines,
+  clock drift, viewport drift, larger visual differences, or uncaught page errors fail the test.
+- `npm run visual:update --prefix scripts` deliberately replaces the baselines after a reviewed
+  design change; it is never run by CI.
 
 Run these **before every GitHub push**:
 
@@ -303,7 +330,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 ## Test Summary
 
 The numbered scenarios below are the manual acceptance catalogue, not a hand-maintained test
-count. The executable inventory is authoritative: `test-all.mjs` currently runs 37 checks and
+count. The executable inventory is authoritative: `test-all.mjs` currently runs 38 checks and
 fails if a new `*-test.mjs` suite is omitted. This avoids the old summary drifting whenever a
 later section or automated suite was added.
 

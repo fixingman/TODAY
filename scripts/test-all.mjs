@@ -14,6 +14,7 @@ const SUITE = [
   'component-contract-test',
   'smoke-test',
   'accessibility-test',
+  'visual-test',
   'splash-test',
   'platform-test',
   'service-worker-test',
@@ -49,6 +50,7 @@ const SUITE = [
 
 const EXCLUDED = new Set([
   'ai-test', // Requires ANTHROPIC_API_KEY and makes real provider calls.
+  'performance-test', // Five-run browser benchmark; run separately on every push and nightly.
 ]);
 
 // Repository checks that belong in the default gate but do not follow the
