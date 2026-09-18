@@ -324,6 +324,8 @@ try {
           obligationHistory: [
             // same entry, but the other device saw it completed — done must win
             { text: 'call insurance', date: iso(now - 3 * D), done: true },
+            // same entry, but the other device let it go — letgo must also OR
+            { text: 'call insurance', date: iso(now - 3 * D), done: false, letgo: true },
             { text: 'should email landlord', date: iso(now - 6 * D), done: false },
           ],
           // 12e: remote retired a kind more recently than our copy — newer `updated` wins;
@@ -355,12 +357,67 @@ try {
         spokenReactionMergedIn:
           appMemory.spokenLines.find(l => l.surface === 'morning nudge' && l.date === iso(now))?.reaction === 'missed',
         obligationDoneFlagOred: insurance && insurance.done === true,
+        obligationLetgoFlagOred: insurance && insurance.letgo === true,
         obligationRemoteOnlyMerged: oblig.some(e => e.text === 'should email landlord'),
         obligationNotDoubled: oblig.filter(e => e.text === 'call insurance').length === 1,
       };
     });
     await expectAll('appMemory relational slot merges', { ...result, noErrors: errors.length === 0 });
-    ok('mergeRemoteData: taskOutcomes / spokenLines / obligationHistory union, dedup, prune, done-flag OR');
+    ok('mergeRemoteData: taskOutcomes / spokenLines / obligationHistory union, dedup, done+letgo-flag OR');
+    await page.close();
+  }
+
+  // 11b-ext. AI inference merge: _lastAbstractDate max-wins; cross-slot dedup by full text.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const base = {
+        manual_tasks: [], done_ids: [], deleted_ids: [], unchecked_ids: [], checked_ids: [],
+        soon_tasks: [], past_tasks: [], habits: [],
+      };
+
+      // Remote already ran abstraction today — local has not.
+      appMemory.memory = {
+        semantic: [{ id: 's1', text: 'works in short bursts', status: 'confirmed' }],
+        episodic: [],
+        procedural: [],
+        _lastAbstractDate: null,
+      };
+
+      mergeRemoteData({ ...base, memory: {
+        taskOutcomes: [], spokenLines: [], obligationHistory: [], recentCompletedTasks: [],
+        moments: [], recentConversations: [],
+        memory: {
+          _lastAbstractDate: '2026-09-19',
+          semantic: [
+            // exact dup by id — must not double
+            { id: 's1', text: 'works in short bursts', status: 'confirmed' },
+            // near-dup by normalized text (same words, extra punctuation) — must not double
+            { id: 's2', text: 'works in short bursts!', status: 'confirmed' },
+            // genuinely new semantic item
+            { id: 's3', text: 'prefers concrete tasks', status: 'pending' },
+          ],
+          episodic: [
+            // text matches a semantic slot entry — cross-slot dedup must block it
+            { id: 'e1', text: 'works in short bursts', status: 'pending' },
+            // genuinely new episodic item
+            { id: 'e2', text: 'heavy week for meetings', status: 'pending' },
+          ],
+          procedural: [],
+        },
+      }});
+
+      return {
+        lastAbstractDateMerged: appMemory.memory._lastAbstractDate === '2026-09-19',
+        exactDupById: appMemory.memory.semantic.filter(i => i.id === 's1').length === 1,
+        nearDupByTextBlocked: !appMemory.memory.semantic.some(i => i.id === 's2'),
+        newSemanticMerged: appMemory.memory.semantic.some(i => i.id === 's3'),
+        crossSlotDupBlocked: !appMemory.memory.episodic.some(i => i.id === 'e1'),
+        newEpisodicMerged: appMemory.memory.episodic.some(i => i.id === 'e2'),
+      };
+    });
+    await expectAll('AI inference merge: _lastAbstractDate max-wins; cross-slot dedup', { ...result, noErrors: errors.length === 0 });
+    ok('mergeRemoteData: _lastAbstractDate max-wins; inference dedup by full normalized text across slots');
     await page.close();
   }
 

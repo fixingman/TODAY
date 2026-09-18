@@ -958,7 +958,7 @@
           const key = e.date + '|' + (e.text || '').slice(0, 40);
           const local = oblIndex.get(key);
           if (!local) { appMemory.obligationHistory.push(e); oblIndex.set(key, e); }
-          else if (e.done) local.done = true;
+          else { if (e.done) local.done = true; if (e.letgo) local.letgo = true; }
         }
         const _oblFloor = new Date(); _oblFloor.setDate(_oblFloor.getDate() - 90);
         appMemory.obligationHistory = appMemory.obligationHistory
@@ -973,21 +973,31 @@
           if (!appMemory.revokedKnownItems[k]) appMemory.revokedKnownItems[k] = v;
         }
       }
-      // BUG-073 AI inferences — union by id, dedup by text prefix
+      // BUG-073 AI inferences — union by id, dedup by full normalized text across all slots
       if (remote.memory && appMemory.memory) {
+        const _normText = s => (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+        const existingNormAll = new Set(
+          ['semantic', 'episodic', 'procedural'].flatMap(t =>
+            (appMemory.memory[t] || []).map(i => _normText(i.text))
+          )
+        );
         for (const type of ['semantic', 'episodic', 'procedural']) {
           if (!Array.isArray(remote.memory[type])) continue;
           if (!Array.isArray(appMemory.memory[type])) appMemory.memory[type] = [];
-          const existingIds   = new Set(appMemory.memory[type].map(i => i.id));
-          const existingTexts = new Set(appMemory.memory[type].map(i => (i.text || '').toLowerCase().slice(0, 8)));
+          const existingIds = new Set(appMemory.memory[type].map(i => i.id));
           for (const item of remote.memory[type]) {
             if (!item.id || existingIds.has(item.id)) continue;
             if (_tomb.has(item.id)) continue;
-            if (existingTexts.has((item.text || '').toLowerCase().slice(0, 8))) continue;
+            if (existingNormAll.has(_normText(item.text))) continue;
             appMemory.memory[type].push({ ...item, isNew: false });
             existingIds.add(item.id);
-            existingTexts.add((item.text || '').toLowerCase().slice(0, 8));
+            existingNormAll.add(_normText(item.text));
           }
+        }
+        // _lastAbstractDate: max-wins so whichever device already ran today blocks the other
+        const remoteAbstractDate = remote.memory._lastAbstractDate;
+        if (remoteAbstractDate && (!appMemory.memory._lastAbstractDate || remoteAbstractDate > appMemory.memory._lastAbstractDate)) {
+          appMemory.memory._lastAbstractDate = remoteAbstractDate;
         }
       }
       _saveMemory();
