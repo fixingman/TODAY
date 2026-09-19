@@ -231,7 +231,19 @@ try {
       const storedImmediately = JSON.parse(localStorage.getItem('today_reflections') || '[]')
         .some(entry => entry.feeling === 'calm');
 
-      await new Promise(resolve => setTimeout(resolve, _motionDuration('--dur-base') + 20));
+      const waitFor = (predicate, timeout) => new Promise((resolve, reject) => {
+        const started = performance.now();
+        const check = () => {
+          if (predicate()) return resolve();
+          if (performance.now() - started >= timeout) return reject(new Error('reflection animation state timed out'));
+          requestAnimationFrame(check);
+        };
+        check();
+      });
+      await waitFor(
+        () => document.querySelector('.reflection-choice-flight'),
+        _motionDuration('--dur-base') + 500,
+      );
       const flight = document.querySelector('.reflection-choice-flight');
       const timing = flight?.getAnimations()[0]?.effect?.getTiming?.();
       const inFlight = {
@@ -241,7 +253,10 @@ try {
         usesOutToken: timing?.easing === _motionEasing('--ease-out'),
       };
 
-      await new Promise(resolve => setTimeout(resolve, _motionDuration('--dur-mid') + 30));
+      await waitFor(
+        () => !document.querySelector('.reflection-choice-flight'),
+        _motionDuration('--dur-mid') + 500,
+      );
       return {
         selectedFirst,
         storedImmediately,
