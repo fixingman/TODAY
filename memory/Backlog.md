@@ -258,6 +258,18 @@ He is right, and the cause is structural, not phrasing. The line was `focus-leve
 
 **Phase 4 window: two weeks from 2026-09-03, both surfaces.** Wallpaper row below.
 
+### Phase 4 — third sample, and what it changed (2026-09-20)
+
+Sunday reflection:
+
+> *"You closed out 41 of 206 threads this month, and 17 simply outlived their relevance—not burnout, just expiration."*
+
+Can could not understand it, then made the more important diagnosis: even decoded, it was still statistics rather than much insight. This was not repaired as a local wording exception. It exposed a missing pipeline stage. The pool selected evidence and handed the model a loose contrast; the model still had to invent the human reading, making it the epistemologist after the architecture said it was only the writer.
+
+**Resolved in v2.90.36:** every candidate now separates `evidence` from a code-owned `insight`. Evidence establishes that a relationship qualifies; insight states the conservative reading that could change self-understanding or a choice. For this sample, the supported reading is that letting go has been keeping commitments current, rather than reflecting depleted energy or interest. Sunday asks the model to phrase that reading, not summarize the counts. Its output guard is candidate-aware: it must retain the selected relationship and literal app actions, so a fluent generic line fails too. The change applies to all six kinds and to the shared morning-pool payload—not only `letgo-reason`.
+
+This preserves the product's three recognition depths instead of making Sunday absorb all of them: **Noticed** speaks once when a state changes; **Sunday/morning pool** surfaces evidence-backed relationships in the current commitment history; **confirmed Memory inferences** may carry longer-lived semantic or procedural understanding after the person ratifies them. Sunday may be warm or memorable, but it cannot promote an unconfirmed hypothesis into biography.
+
 ### Candidate kinds — settled with Can 2026-09-01
 
 Sorted by reacting to sample output lines rather than score constants, which is the artifact worth putting in front of a person. Everything that survived is a **relationship** or **lifecycle** kind; both cuts were count-shaped. *(2026-09-07: the four "pre-existing" statistical kinds that had been grandfathered in were cut too, after the second sample — see above.)*
@@ -266,7 +278,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 |---|---|---|
 | 115 | `focus-vs-obligation` | where focus went, and where it did not |
 | 105 | `obligation-completion` | rate on obligation-framed vs chosen |
-| 95 | `letgo-reason` | dominant let-go reason vs. what didn't dominate |
+| 95 | `letgo-reason` | what letting go is doing in the commitment relationship, grounded by the dominant stated reason and its contrast |
 | 92 | `return-finished` | what comes back, and whether it gets done (withholds `letgo-return` when both fire) |
 | 88 | `soon-pullback` | what you defer tends to come back |
 | 85 | `letgo-return` | what you release and what returns — linked by id, 45-day window |

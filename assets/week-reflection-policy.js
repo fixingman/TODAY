@@ -25,7 +25,7 @@
   // person's commitments. When none is sayable, Sunday holds space.
 
   // ── 12c: candidates derived from appMemory.taskOutcomes ─────────────────────
-  // Every kind here is a *windowed contrast*, which is why Phase 0 records dated
+  // Every kind here is a *windowed relationship*, which is why Phase 0 records dated
   // events rather than counters. Base scores are hand-assigned editorial judgment
   // about which kinds matter, not tuning — statistical significance is not
   // comparable across kinds with different null distributions, and is blind to
@@ -36,12 +36,14 @@
     lost_interest: 'lost interest',
     replaced: 'replaced by something else',
   };
-  // Noun forms for naming the reasons that did NOT dominate.
-  const _LETGO_SHORT = {
-    not_relevant: 'relevance',
-    no_energy: 'energy',
-    lost_interest: 'interest',
-    replaced: 'replacement',
+  // The evidence proves the relationship; the insight states its bounded human
+  // reading. Keeping this in policy code means the model phrases meaning selected
+  // by the product instead of trying to discover meaning from a table of counts.
+  const _LETGO_INSIGHT = {
+    not_relevant: 'Letting go has mostly kept your commitments current; it has rarely been about low energy or lost interest.',
+    no_energy: 'What leaves your list has mostly reflected limited energy, rather than changing relevance or replacement.',
+    lost_interest: 'What leaves your list has mostly reflected lost interest, rather than limited energy or replacement.',
+    replaced: 'Letting go has mostly made room for something else, rather than reflecting low energy or lost interest.',
   };
 
   function _outcomesWithin(outcomes, dayCount, todayISO) {
@@ -85,7 +87,7 @@
         score: 115,
         signal: { chosenObserved: chosenObserved.length, obligationObserved: obligationObserved.length, chosenFocus, obligationFocus },
         evidence: `Over 30 days, ${chosenFocus} focus sessions went to things you chose; the ${obligationObserved.length} framed as "have to" got none.`,
-        contrast: 'Where focus went, and where it did not.',
+        insight: 'Your attention has followed work you chose, while "have to" work has stayed outside your focus.',
       });
     }
 
@@ -101,17 +103,14 @@
           score: 105,
           signal: { chosen: chosen.length, obligations: obligation.length, chosenDone, obligationDone, gap: Number(gap.toFixed(3)) },
           evidence: `You finished ${chosenDone} of ${chosen.length} things you chose, and ${obligationDone} of ${obligation.length} you framed as "have to".`,
-          contrast: 'Two kinds of commitment, two different rates.',
+          insight: 'Chosen and "have to" commitments have not held equally; work you chose has been more likely to finish.',
         });
       }
     }
 
-    // One reason accounting for most of what gets released — stated against how much
-    // actually ended, so the let-go count reads as a share and not as a verdict on
-    // volume. Can, on the first line this produced: "9 doesn't sound too bad to throw
-    // away, considering how much tasks I usually consume." The contrast is the reasons
-    // that did NOT fire — the second side this kind previously lacked; its old contrast
-    // restated its own evidence.
+    // One reason accounting for most of what gets released. The output deliberately
+    // describes the reason mix rather than reporting let-go volume: the subject is why
+    // commitments stopped belonging, not a productivity denominator.
     // Backfilled rows are fine here: reason and date are both genuinely observed.
     const allLetgos = win.filter(e => e.outcome === 'letgo');
     const letgos    = allLetgos.filter(e => e.reason);
@@ -122,16 +121,13 @@
       const [topReason, topCount] = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
       if (topCount >= 3 && topCount / letgos.length >= 0.5) {
         const label  = _LETGO_LABELS[topReason] || String(topReason).replace(/_/g, ' ');
-        const others = Object.keys(_LETGO_SHORT).filter(r => r !== topReason).map(r => _LETGO_SHORT[r]);
-        const otherList = others.length > 1
-          ? others.slice(0, -1).join(', ') + ' and ' + others[others.length - 1]
-          : others.join('');
         candidates.push({
           kind: 'letgo-reason',
           score: 95,
           signal: { reason: topReason, reasonedLetgos: letgos.length, dominantCount: topCount, allLetgos: allLetgos.length, ended },
-          evidence: `You let go of ${allLetgos.length} of the ${ended} things that ended this month; ${topCount} of those were "${label}".`,
-          contrast: otherList.charAt(0).toUpperCase() + otherList.slice(1) + ' barely figured.',
+          evidence: `Among the reasons you gave for letting things go this month, "${label}" was the majority.`,
+          insight: _LETGO_INSIGHT[topReason]
+            || `Letting go has followed one stated reason much more often than the others.`,
         });
       }
     }
@@ -144,7 +140,7 @@
         score: 88,
         signal: { pullbacks: pulls.length },
         evidence: `You have pulled ${pulls.length} things back from Soon this month.`,
-        contrast: 'What you defer tends to come back.',
+        insight: 'Soon has often been a pause rather than a release; deferred work has kept returning to today.',
       });
     }
 
@@ -187,7 +183,9 @@
           evidence: name
             ? `${name} has gone out and come back ${loopCount} times.`
             : `One thing you let go has come back ${loopCount} times.`,
-          contrast: 'Let go, and back again.',
+          insight: name
+            ? `${name} has not stayed released; you have let it go and brought it back more than once.`
+            : 'One commitment has not stayed released; you have let it go and brought it back more than once.',
         });
       } else {
         const names = Object.keys(perId).map(nameOf).filter(Boolean).slice(0, 3);
@@ -198,7 +196,7 @@
           score: 85,
           signal: { linkedReturns: returned.length, distinctReturned: Object.keys(perId).length, maxLoop: loopCount },
           evidence: `Over 45 days, ${returned.length} things you had let go came back` + (list ? ' — ' + list : '') + '.',
-          contrast: 'What you release, and what comes back.',
+          insight: 'Letting go has not always settled a commitment; some things have returned to your list.',
         });
       }
     }
@@ -230,7 +228,7 @@
           score: 92,
           signal: { distinctReturned: total, finishedReturned: finished },
           evidence: `Over 45 days, ${total} things you had let go came back` + (list ? ' — ' + list : '') + `. All ${total} got done.`,
-          contrast: 'Let go, brought back, finished.',
+          insight: 'Letting go did not end these commitments; when you brought them back, you finished them.',
         });
       } else if (finished >= 1) {
         candidates.push({
@@ -238,7 +236,7 @@
           score: 92,
           signal: { distinctReturned: total, finishedReturned: finished },
           evidence: `Over 45 days, ${total} things you had let go came back; ${finished} of them got done` + (list ? ' — ' + list : '') + '.',
-          contrast: 'Brought back is not the same as finished.',
+          insight: 'Bringing work back has not been the same as finishing it; the return itself was only one decision.',
         });
       }
       // finished === 0: silence. "Came back, none finished" is verdict-shaped.
@@ -335,7 +333,7 @@
     const k = knowledge || {};
     const today = k.todayISO || new Date().toISOString().slice(0, 10);
 
-    if (_AGE_CLAIM.test(String(candidate.evidence || '') + ' ' + String(candidate.contrast || ''))) {
+    if (_AGE_CLAIM.test(String(candidate.evidence || '') + ' ' + String(candidate.insight || ''))) {
       return 'restates task age, which triage already prints';
     }
 
@@ -540,12 +538,14 @@
         score: candidate.score,
         eligible,
         gateReason,
-        selected: eligible && gateReason === null,
+        survivesGate: eligible && gateReason === null,
+        selected: false,
         reopenedByMaterialChange: !!(eligible && gateReason === null && latestPrior
           && _surfaceGroup(latestPrior.line.surface) !== _surfaceGroup(surface || 'sunday')),
       };
     });
-    const selected = candidateRows.find(row => row.selected);
+    const selected = candidateRows.find(row => row.survivesGate);
+    if (selected) selected.selected = true;
     const recentSpoken = _outcomesWithin(k.spokenLines, 45, date).map(line => ({
       date: line.date,
       surface: line.surface || null,
@@ -605,9 +605,50 @@
     return text.trim().split(/\s+/).length <= (maxWords || 26);
   }
 
-  // Sunday's contract, unchanged.
-  function _weekReflectionTextIsGrounded(text) {
-    return _observationTextIsGrounded(text, 26);
+  function _weekReflectionCarriesInsight(text, candidate) {
+    if (!candidate || !candidate.kind) return true;
+    const s = String(text || '');
+    const has = re => re.test(s);
+    switch (candidate.kind) {
+      case 'focus-vs-obligation':
+        return has(/\b(?:focus|attention)\b/i)
+          && has(/\b(?:chose|chosen)\b/i)
+          && has(/\b(?:have to|obligations?)\b/i);
+      case 'obligation-completion':
+        return has(/\b(?:finish|finished|done|complete|completed)\b/i)
+          && has(/\b(?:chose|chosen)\b/i)
+          && has(/\b(?:have to|obligations?)\b/i);
+      case 'letgo-reason': {
+        if (!has(/\b(?:let go|letting go|leave|leaves|left)\b/i)) return false;
+        const reason = candidate.signal && candidate.signal.reason;
+        if (reason === 'not_relevant') return has(/\b(?:relevant|relevance|current|belong|belongs|belonged)\b/i);
+        if (reason === 'no_energy') return has(/\b(?:energy|tired|capacity)\b/i);
+        if (reason === 'lost_interest') return has(/\binterest\b/i);
+        if (reason === 'replaced') return has(/\b(?:replace|replaced|replacement|room for something else)\b/i);
+        return true;
+      }
+      case 'soon-pullback':
+        return has(/\bSoon\b/) && has(/\b(?:back|return|returned|returns|returning)\b/i);
+      case 'letgo-return':
+        return has(/\b(?:let go|letting go|release|released)\b/i)
+          && has(/\b(?:back|return|returned|returns|returning)\b/i);
+      case 'return-finished':
+        return has(/\b(?:let go|letting go|release|released)\b/i)
+          && has(/\b(?:back|return|returned|returns|returning|brought)\b/i)
+          && has(/\b(?:finish|finished|done|complete|completed)\b/i);
+      default:
+        return true;
+    }
+  }
+
+  // Sunday may be warm and memorable, but the sentence must still carry the exact
+  // supported relationship. This is candidate-aware so semantic drift cannot pass
+  // merely by avoiding a short list of bad words.
+  function _weekReflectionTextIsGrounded(text, candidate) {
+    if (!_observationTextIsGrounded(text, 24)) return false;
+    // Sunday is an insight, not the evidence table rendered as prose.
+    if (/\d|%/.test(text)) return false;
+    return _weekReflectionCarriesInsight(text, candidate);
   }
 
   return { _weekReflectionTextIsGrounded, _observationTextIsGrounded, _buildOutcomeCandidates, _buildObservationCandidates, _observationNoveltyGate, _observationGateExplain, _observationEligible, _observationEligibleFor, _observationPoolAudit };

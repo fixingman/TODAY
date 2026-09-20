@@ -303,7 +303,8 @@ window._startNudge = (function() {
     // 12c Phase 3 — the pool track.
     //
     // Code selects the observation and the model only phrases it, per the AI/data
-    // contract in design/Personalization.md. Deliberately sends evidence + contrast
+    // contract in design/Personalization.md. Deliberately sends evidence + the
+    // code-owned supported insight
     // and nothing else: no task list, no appMemory dump, nothing for the model to
     // choose between. Selection already happened.
     //
@@ -353,8 +354,8 @@ window._startNudge = (function() {
           apiKey: key,
           messages: [{ role: 'user', content:
             'Evidence: ' + winner.evidence + '\n' +
-            'Contrast: ' + winner.contrast + '\n\n' +
-            'Write the morning line. State the contrast and leave it unresolved — the ' +
+            'Supported insight: ' + winner.insight + '\n\n' +
+            'Write the morning line. Preserve the supported insight and leave its implication unresolved — the ' +
             'person supplies what it means, not you. Add no fact beyond the evidence above.' }],
           systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). No exclamation marks, no emoji. Never wrap your reply in quotation marks. Warm, plain, grounded — a friend noticing, not a coach.',
         }),

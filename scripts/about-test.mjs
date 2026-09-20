@@ -335,7 +335,8 @@ try {
         flatAbstains: flatWeek.length === 0,
         rejectsIdentity: !_weekReflectionTextIsGrounded("That's just who you are now."),
         rejectsCausation: !_weekReflectionTextIsGrounded('Focus caused you to finish more.'),
-        acceptsVoice: _weekReflectionTextIsGrounded('Focus days did the heavy lifting; the week moved differently when you made room for them.'),
+        rejectsReportedLine: !_weekReflectionTextIsGrounded('You closed out 41 of 206 threads; 17 expired.'),
+        acceptsVoice: _weekReflectionTextIsGrounded('You gave your focus to chosen work, while obligations received none.'),
       };
     });
     await expectAll('Sunday earned-insight gate', { ...result, noErrors: errors.length === 0 });
@@ -366,7 +367,7 @@ try {
       let body = null;
       window.fetch = async (_u, o) => {
         body = JSON.parse(o.body);
-        return { ok: true, json: async () => ({ content: 'Every focus session this month went to something you chose; the obligations got none.' }) };
+        return { ok: true, json: async () => ({ content: 'You gave your focus to chosen work, while obligations received none.' }) };
       };
       const text = await Today.use('about')._fetchWeekReflection({ insight, days: [], history: [] });
       window.fetch = realFetch;
@@ -376,15 +377,47 @@ try {
       return {
         pickedOutcomeKind:     insight?.kind === 'focus-vs-obligation',
         promptNamesKind:       prompt.includes('Verified observation type: focus-vs-obligation'),
-        promptCarriesEvidence: prompt.includes('5 focus sessions went to things you chose'),
+        promptCarriesInsight:  prompt.includes('Your attention has followed work you chose'),
+        promptOmitsEvidence:   !prompt.includes('5 focus sessions went to things you chose'),
         returnedLine:          !!text,
         kindRecorded:          spoken?.kind === 'focus-vs-obligation',
+        policyRecorded:        spoken?.policy === window._weekReflectionPolicy,
         generationRecorded:    audit?.generation?.status === 'accepted'
                                && audit?.generation?.kind === 'focus-vs-obligation',
       };
     });
     await expectAll('Sunday reads the pool', { ...result, noErrors: errors.length === 0 });
     ok('Sunday reflection: an outcome kind reaches the prompt and is recorded to spokenLines with its kind');
+    await page.close();
+  }
+
+  // 12c. A same-day Sunday line from an older wording policy must not block its
+  //      replacement; once tagged with the current policy, normal cooldown resumes.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const D = 86400000, now = Date.now();
+      const iso = d => new Date(d).toISOString().slice(0, 10);
+      appMemory.taskOutcomes = [
+        { id: 'a', date: iso(now - 4 * D), outcome: 'done',  obligation: false, focusSessions: 2 },
+        { id: 'b', date: iso(now - 6 * D), outcome: 'done',  obligation: false, focusSessions: 2 },
+        { id: 'c', date: iso(now - 8 * D), outcome: 'done',  obligation: false, focusSessions: 1 },
+        { id: 'd', date: iso(now - 5 * D), outcome: 'letgo', obligation: true,  focusSessions: 0 },
+        { id: 'e', date: iso(now - 7 * D), outcome: 'letgo', obligation: true,  focusSessions: 0 },
+      ];
+      appMemory.spokenLines = [{
+        date: _localISO(), surface: 'Sunday reflection', kind: 'focus-vs-obligation', text: 'old wording',
+      }];
+      const staleIgnored = Today.use('about')._pickSundayInsight({ days: [], history: [] });
+      appMemory.spokenLines[0].policy = window._weekReflectionPolicy;
+      const currentBlocks = Today.use('about')._pickSundayInsight({ days: [], history: [] });
+      return {
+        staleIgnored: staleIgnored?.kind === 'focus-vs-obligation',
+        currentBlocks: currentBlocks === null,
+      };
+    });
+    await expectAll('Sunday wording-policy replacement', { ...result, noErrors: errors.length === 0 });
+    ok('Sunday reflection: stale same-day wording can be replaced once; current policy then cools down normally');
     await page.close();
   }
 
@@ -460,22 +493,26 @@ try {
       ];
       window.fetch = async (_url, options) => {
         requestBody = JSON.parse(options.body);
-        return { ok: true, json: async () => ({ content: 'Focus days did the heavy lifting; the week moved differently when you made room for them.' }) };
+        return { ok: true, json: async () => ({ content: 'Work you chose was more likely to finish than work framed as an obligation.' }) };
       };
       const insight = {
         kind: 'obligation-completion',
         evidence: 'Over 30 days, 3 of 9 obligation-framed tasks were finished; 14 of 20 chosen ones were.',
-        contrast: 'The things you frame as musts are the ones most likely to stay open.',
+        insight: 'Chosen and "have to" commitments have not held equally; work you chose has been more likely to finish.',
       };
       const text = await Today.use('about')._fetchWeekReflection({ insight, days: [], history: [] });
       window.fetch = realFetch;
       const prompt = requestBody?.messages?.[0]?.content || '';
       return {
-        returnedLine: text?.startsWith('Focus days did the heavy lifting'),
-        hasEvidence: prompt.includes('3 of 9 obligation-framed tasks'),
+        returnedLine: text?.startsWith('Work you chose was more likely'),
+        hasSupportedInsight: prompt.includes('Chosen and "have to" commitments have not held equally'),
+        noEvidenceCounts: !prompt.includes('3 of 9 obligation-framed tasks'),
         noLifetimeProfile: !prompt.includes('About this person'),
         noTaskNouns: !prompt.includes('avios') && !prompt.includes('manicure'),
-        voiceAllowed: prompt.includes('light metaphor or dry wit'),
+        supportedReadingContract: prompt.includes('Supported insight:')
+          && prompt.includes('instead of summarizing the evidence')
+          && requestBody?.systemPrompt?.includes('not totals, ratios, percentages')
+          && requestBody?.systemPrompt?.includes('one light metaphor'),
       };
     });
     await expectAll('Sunday evidence-only prompt', { ...result, noErrors: errors.length === 0 });

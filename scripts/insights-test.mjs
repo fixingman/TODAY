@@ -481,13 +481,15 @@ try {
       _memoryRecordSpokenLine('morning nudge', 'a pool line', 'focus-vs-obligation');
       _memoryRecordSpokenLine('focus question', 'an untagged line');
       _memoryRecordSpokenLine('morning nudge', 'regenerated same day', 'letgo-reason');
+      _memoryRecordSpokenLine('Sunday reflection', 'a current-policy line', 'letgo-reason', 'earned-v4');
       const l = appMemory.spokenLines;
       return {
         kindStored: l[0].kind === 'letgo-reason',
         untaggedHasNoKind: !('kind' in l.find(e => e.surface === 'focus question')),
         onePerSurfacePerDay: l.filter(e => e.surface === 'morning nudge').length === 1,
         regeneratedReplaced: l[0].text === 'regenerated same day',
-        persisted: (JSON.parse(localStorage.getItem('today_memory')).spokenLines || []).length === 2,
+        policyStored: l.find(e => e.surface === 'Sunday reflection')?.policy === 'earned-v4',
+        persisted: (JSON.parse(localStorage.getItem('today_memory')).spokenLines || []).length === 3,
       };
     });
     await expectAll('spokenLines kind', { ...result, noErrors: errors.length === 0 });

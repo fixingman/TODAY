@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
 const {
+  _weekReflectionTextIsGrounded,
   _buildOutcomeCandidates,
   _buildObservationCandidates,
   _observationNoveltyGate,
@@ -187,7 +188,8 @@ test('letgo-return falls back to counts once the tasks are gone from every list'
 
 test('letgo-return names one task cycling twice as the loop it is', () => {
   const c = find(_buildOutcomeCandidates(cycle('a', 40, 30).concat(cycle('a', 20, 10)), TODAY, { a: 'call the dentist' }), 'letgo-return');
-  return c && /"call the dentist" has gone out and come back 2 times\./.test(c.evidence) && c.contrast === 'Let go, and back again.';
+  return c && /"call the dentist" has gone out and come back 2 times\./.test(c.evidence)
+    && /has not stayed released/.test(c.insight) && /brought it back/.test(c.insight);
 });
 
 test('letgo-return truncates a long task name to 40 characters', () => {
@@ -210,7 +212,7 @@ test('letgo-return ranks below soon-pullback', () => {
 });
 
 test('letgo-return is on a 30-day cross-surface cooldown — one firing per 45-day window', () => {
-  const c = { kind: 'letgo-return', evidence: 'x', contrast: 'y' };
+  const c = { kind: 'letgo-return', evidence: 'x', insight: 'y' };
   const said = d => ({ spokenLines: [{ surface: 'morning nudge', date: ago(d), kind: 'letgo-return' }], todayISO: TODAY });
   return typeof _observationGateExplain(c, said(29)) === 'string' && _observationGateExplain(c, said(30)) === null;
 });
@@ -218,13 +220,13 @@ test('letgo-return is on a 30-day cross-surface cooldown — one firing per 45-d
 test('pool still returns nothing when the only events are 31–45 days old and unlinked', () =>
   _buildOutcomeCandidates([out({ outcome: 'letgo', reason: 'no_energy', date: ago(40) })], TODAY).length === 0);
 
-test('every candidate carries a contrast and no meaning field', () =>
+test('every candidate carries a code-owned supported insight and no legacy contrast field', () =>
   _buildOutcomeCandidates(focusSplit.concat(letgos), TODAY)
-    .every(c => typeof c.contrast === 'string' && c.contrast.length > 0 && !('meaning' in c)));
+    .every(c => typeof c.insight === 'string' && c.insight.length > 0 && !('contrast' in c)));
 
 test('no candidate asserts a cause', () =>
   _buildOutcomeCandidates(focusSplit.concat(letgos, rateSplit), TODAY)
-    .every(c => !/\bbecause\b|\bcaused\b|\bmade you\b|\bavoid/i.test(c.contrast + ' ' + c.evidence)));
+    .every(c => !/\bbecause\b|\bcaused\b|\bmade you\b|\bavoid/i.test(c.insight + ' ' + c.evidence)));
 
 test('empty and malformed input yields no candidates, never throws', () =>
   _buildOutcomeCandidates([], TODAY).length === 0 &&
@@ -334,7 +336,7 @@ const texts = { h1: 'call insurance', h2: 'renew the permit', h3: 'fix the bike'
 test('fires when 3 distinct returned tasks all got done, linking done by key across the id boundary', () => {
   const c = find(_buildOutcomeCandidates(threeDone, TODAY, texts), 'return-finished');
   return !!c && c.evidence.includes('3 things you had let go came back') && c.evidence.includes('All 3 got done')
-    && c.evidence.includes('"call insurance"') && c.contrast === 'Let go, brought back, finished.';
+    && c.evidence.includes('"call insurance"') && /when you brought them back, you finished them/.test(c.insight);
 });
 
 test('silent at 2 returned tasks — that is letgo-return territory', () =>
@@ -342,7 +344,8 @@ test('silent at 2 returned tasks — that is letgo-return territory', () =>
 
 test('partial: 3 returned, 1 finished → the second reading', () => {
   const c = find(_buildOutcomeCandidates([...loop('h1', 30, 20, 10), ...loop('h2', 28, 18, null), ...loop('h3', 26, 16, null)], TODAY), 'return-finished');
-  return !!c && c.evidence.includes('3 things you had let go came back; 1 of them got done') && c.contrast === 'Brought back is not the same as finished.';
+  return !!c && c.evidence.includes('3 things you had let go came back; 1 of them got done')
+    && /not been the same as finishing/.test(c.insight);
 });
 
 test('silent when nothing that came back got finished — verdict-shaped', () =>
@@ -374,9 +377,9 @@ test('aggregate kind: not eligible on the morning, eligible on Sunday', () => {
 });
 
 test('has its own cooldown — a fresh firing is dropped for 30 days', () =>
-  _observationNoveltyGate([{ kind: 'return-finished', score: 92, evidence: 'x', contrast: 'y' }],
+  _observationNoveltyGate([{ kind: 'return-finished', score: 92, evidence: 'x', insight: 'y' }],
     { spokenLines: [{ surface: 'Sunday reflection', date: ago(20), text: 'said', kind: 'return-finished' }], todayISO: TODAY }).length === 0 &&
-  _observationNoveltyGate([{ kind: 'return-finished', score: 92, evidence: 'x', contrast: 'y' }],
+  _observationNoveltyGate([{ kind: 'return-finished', score: 92, evidence: 'x', insight: 'y' }],
     { spokenLines: [{ surface: 'Sunday reflection', date: ago(31), text: 'said', kind: 'return-finished' }], todayISO: TODAY }).length === 1);
 
 test('a backfilled done row (hash as id, no key) still links — the key||id fallback', () => {
@@ -406,7 +409,7 @@ console.log('\nobservation pool — novelty gate\n');
 const said = (kind, daysAgo, surface = 'morning nudge') =>
   ({ surface, date: ago(daysAgo), text: 'whatever it said', kind });
 const cand = (kind, extra = {}) =>
-  ({ kind, score: 100, evidence: extra.evidence || 'Some grounded evidence.', contrast: extra.contrast || 'A contrast.' });
+  ({ kind, score: 100, evidence: extra.evidence || 'Some grounded evidence.', insight: extra.insight || 'A supported insight.' });
 
 test('keeps a candidate never said before', () =>
   _observationNoveltyGate([cand('focus-vs-obligation')], { spokenLines: [], todayISO: TODAY }).length === 1);
@@ -574,29 +577,53 @@ test('gate preserves ranking order of what survives', () => {
 });
 
 
-// ── letgo-reason: base rate and a real second side ─────────────────────────
+// ── letgo-reason: plain meaning, not a statistics report ──────────────────
 console.log('\nobservation pool — letgo-reason shape\n');
 
 const letgosWithDones = letgos.concat(Array.from({ length: 6 }, () => out({ outcome: 'done' })));
 
-test('letgo-reason states the let-go count against everything that ended', () => {
+test('letgo-reason states the verified majority without reporting counts', () => {
   const c = find(_buildOutcomeCandidates(letgosWithDones, TODAY), 'letgo-reason');
-  return !!c && c.evidence.includes('4 of the 10 things that ended');
+  return !!c && /majority/.test(c.evidence) && /not relevant any more/.test(c.evidence)
+    && !/\d/.test(c.evidence);
 });
 
-test('letgo-reason contrast names the reasons that did NOT dominate', () => {
+test('letgo-reason insight gives the bounded human reading', () => {
   const c = find(_buildOutcomeCandidates(letgos, TODAY), 'letgo-reason');
-  return !!c && /energy/i.test(c.contrast) && /interest/i.test(c.contrast)
-    && /replacement/i.test(c.contrast) && !/relevan/i.test(c.contrast);
+  return !!c && /commitments current/i.test(c.insight)
+    && /energy/i.test(c.insight) && /interest/i.test(c.insight) && !/\d/.test(c.insight);
 });
 
-test('letgo-reason contrast is not a restatement of its evidence', () => {
+test('letgo-reason insight is not a restatement of its evidence', () => {
   const c = find(_buildOutcomeCandidates(letgos, TODAY), 'letgo-reason');
-  return !!c && !/one reason|most of what/i.test(c.contrast);
+  return !!c && !/majority|this month/i.test(c.insight);
 });
 
 test('letgo-reason still fires with no completions in the window', () =>
   !!find(_buildOutcomeCandidates(letgos, TODAY), 'letgo-reason'));
+
+const letgoCandidate = find(_buildOutcomeCandidates(letgos, TODAY), 'letgo-reason');
+
+test('Sunday wording guard rejects the reported statistics line', () =>
+  !_weekReflectionTextIsGrounded('You closed out 41 of 206 threads this month, and 17 simply outlived their relevance—not burnout, just expiration.', letgoCandidate));
+
+test('Sunday wording guard accepts the supported insight without statistics', () =>
+  _weekReflectionTextIsGrounded('Letting go has kept your commitments current, rather than reflecting low energy or lost interest.', letgoCandidate));
+
+test('Sunday wording guard rejects a fluent line that drops the selected relationship', () =>
+  !_weekReflectionTextIsGrounded('You have been making thoughtful choices about your work.', letgoCandidate));
+
+test('every observation kind supplies an insight that passes its own semantic guard', () => {
+  const candidates = [
+    find(_buildOutcomeCandidates(focusSplit, TODAY), 'focus-vs-obligation'),
+    find(_buildOutcomeCandidates(rateSplit, TODAY), 'obligation-completion'),
+    letgoCandidate,
+    find(_buildOutcomeCandidates(Array.from({ length: 3 }, () => out({ outcome: 'soon_pull' })), TODAY), 'soon-pullback'),
+    find(_buildOutcomeCandidates(twoLoops, TODAY), 'letgo-return'),
+    find(_buildOutcomeCandidates(threeDone, TODAY), 'return-finished'),
+  ];
+  return candidates.every(c => c && _weekReflectionTextIsGrounded(c.insight, c));
+});
 
 // ── per-surface eligibility ────────────────────────────────────────────────
 console.log('\nobservation pool — eligibility\n');
@@ -662,6 +689,17 @@ test('audit labels a cross-surface candidate reopened by material evidence', () 
   });
   const candidate = audit.candidates.find(row => row.kind === 'soon-pullback');
   return candidate?.selected === true && candidate.reopenedByMaterialChange === true;
+});
+
+test('audit marks only the highest-ranked survivor as selected', () => {
+  const outcomes = letgos.concat(Array.from({ length: 3 }, (_, i) =>
+    out({ id: 'audit-pull-' + i, outcome: 'soon_pull' })));
+  const audit = _observationPoolAudit({ outcomes, todayISO: TODAY }, 'sunday', {});
+  const reason = audit.candidates.find(row => row.kind === 'letgo-reason');
+  const pull = audit.candidates.find(row => row.kind === 'soon-pullback');
+  return reason?.survivesGate === true && reason.selected === true
+    && pull?.survivesGate === true && pull.selected === false
+    && audit.selectedKind === 'letgo-reason';
 });
 
 test('audit distinguishes evidence from a cooldown-suppressed candidate', () => {

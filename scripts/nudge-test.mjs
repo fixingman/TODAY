@@ -331,7 +331,7 @@ try {
     }
 
     // 7b. 12c Phase 3 — the pool track. Selection happens in code, so the payload
-    //     must carry evidence + contrast and nothing else. A leak of the task list or
+    //     must carry evidence + the code-owned insight and nothing else. A leak of the task list or
     //     the _memoryForAI dump would silently restore the 12b architecture the pool
     //     exists to replace.
     {
@@ -376,7 +376,7 @@ try {
         const spoken = appMemory.spokenLines[0] || {};
         return {
           onlyOneCall: calls.length === 1,
-          carriesEvidenceAndContrast: body.includes('Evidence:') && body.includes('Contrast:'),
+          carriesEvidenceAndInsight: body.includes('Evidence:') && body.includes('Supported insight:'),
           noTaskListLeak: !body.includes('in the order the user arranged'),
           noMemoryDumpLeak: !body.includes('About you'),
           payloadStaysSmall: body.length < 800,
@@ -384,7 +384,7 @@ try {
         };
       });
       await expectAll('pool track payload', { ...result, noErrors: errors.length === 0 });
-      ok('checkDayNudge: pool candidate sends evidence+contrast only, records its kind');
+      ok('checkDayNudge: pool candidate sends evidence+supported insight only, records its kind');
       await page.close();
     }
 

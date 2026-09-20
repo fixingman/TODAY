@@ -340,7 +340,7 @@ function _incrementObligationTally(taskText) {
 // voice could never accumulate. _memoryForAI() feeds these back to every surface.
 // Deliberately NOT the assistant chat — that's user-initiated dialogue, not the app's
 // unprompted voice, and its replies are long and situational.
-function _memoryRecordSpokenLine(surface, text, kind) {
+function _memoryRecordSpokenLine(surface, text, kind, policy) {
   if (!surface || !text) return;
   const clean = String(text).trim();
   if (!clean) return;
@@ -352,6 +352,7 @@ function _memoryRecordSpokenLine(surface, text, kind) {
   // Optional — lines from surfaces not yet wired to the pool simply carry no kind.
   const entry = { surface, date: today, text: clean.slice(0, 200) };
   if (kind) entry.kind = kind;
+  if (policy) entry.policy = policy;
   // One entry per surface per day — a regenerated line replaces, never stacks
   const i = lines.findIndex(l => l.surface === surface && l.date === today);
   if (i >= 0) lines[i] = entry; else lines.push(entry);

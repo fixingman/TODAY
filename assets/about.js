@@ -5,7 +5,7 @@
   // Bumps when the evidence contract for the Sunday sentence changes. The dated
   // companion key prevents a previously cached, less-grounded line from surviving
   // a policy change or being restored by an older Dropbox backup.
-  const WEEK_REFLECTION_POLICY = 'earned-v3';
+  const WEEK_REFLECTION_POLICY = 'earned-v4';
   window._weekReflectionPolicy = WEEK_REFLECTION_POLICY;
   let started = false;
   window._startAbout = function() {
@@ -368,7 +368,7 @@
           const _reflectionStats = { days: _week, history: _history };
           // 12c: Sunday draws from the observation pool — outcome kinds only, since
           // v2.85.0 — through eligibility and the novelty gate.
-          // Same { kind, evidence, contrast } shape _fetchWeekReflection already reads.
+          // Same { kind, evidence, insight } shape _fetchWeekReflection already reads.
           const _weekInsight = _isSun ? _pickSundayInsight(_reflectionStats) : null;
           if (_isSun) _debugSundayAudit(_today);
 
@@ -600,8 +600,14 @@
           taskTexts: (typeof _memoryTaskTexts === 'function') ? _memoryTaskTexts() : {},
         });
         const eligible = _observationEligibleFor(ranked, 'sunday');
+        // A same-day line produced under an older wording/evidence contract must not
+        // block its replacement. Current-policy lines carry the policy marker; legacy
+        // lines do not. Older days remain part of normal cooldown history.
+        const spokenLines = (appMemory.spokenLines || []).filter(line =>
+          !(line && line.surface === 'Sunday reflection' && line.date === todayISO
+            && line.policy !== WEEK_REFLECTION_POLICY));
         return _observationNoveltyGate(eligible, {
-          spokenLines: appMemory.spokenLines,
+          spokenLines,
           kindVerdicts: appMemory.kindVerdicts,
           outcomes: appMemory.taskOutcomes,
           surface: 'sunday',
@@ -632,10 +638,10 @@
         _setSundayAuditGeneration('requesting', { kind: insight.kind });
         const userContent =
           'Verified observation type: ' + insight.kind + '\n' +
-          'Evidence: ' + insight.evidence + '\n' +
-          'Useful meaning: ' + insight.contrast + '\n\n' +
-          'Write the Sunday line. Give this observation personality and warmth, but preserve its epistemic limits. ' +
-          'You may use a light metaphor or dry wit when it clarifies the pattern. Do not introduce any fact not present above.';
+          'Supported insight: ' + insight.insight + '\n\n' +
+          'Write the Sunday observation in clear everyday language. Preserve the supported insight instead of summarizing the evidence. ' +
+          'Use the app\'s action words literally (for example, "let go" stays "let go"). ' +
+          'Do not introduce any fact or interpretation not present above.';
         const res = await fetch('/.netlify/functions/ai-assist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -643,7 +649,7 @@
             provider: Today.use('connections')._aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: userContent }],
-            systemPrompt: 'One sentence only. No quotes. Under 22 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Confident voice, conservative claim. Be intentional, smart, useful, and quietly human. Never infer identity or personality, never claim causation from correlation, and never restate a visible counter without adding meaning. If the evidence cannot support a useful line, reply exactly: none.',
+            systemPrompt: 'One or two short sentences. No quotes. Under 24 words total. Second person — address the user as "you". Clear everyday language. Express the supported insight, not totals, ratios, percentages, sample sizes, or time windows. Preserve literal app actions such as "let go". Warmth, rhythm, dry wit, or one light metaphor are welcome only when they make the insight clearer. Confident voice, conservative claim. Never infer identity or personality and never claim causation beyond the supplied insight. If the insight cannot be made immediately understandable, reply exactly: none.',
           }),
         });
         if (!res.ok) {
@@ -655,12 +661,14 @@
           _setSundayAuditGeneration('empty-response', { kind: insight.kind });
           return null;
         }
-        if (!_weekReflectionTextIsGrounded(text)) {
+        if (!_weekReflectionTextIsGrounded(text, insight)) {
           _setSundayAuditGeneration('rejected-output', { kind: insight.kind });
           return null;
         }
         // Carries the kind so the cross-surface cooldown sees what Sunday said.
-        if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('Sunday reflection', text, insight.kind);
+        if (typeof _memoryRecordSpokenLine === 'function') {
+          _memoryRecordSpokenLine('Sunday reflection', text, insight.kind, WEEK_REFLECTION_POLICY);
+        }
         _setSundayAuditGeneration('accepted', { kind: insight.kind });
         return text;
       } catch (e) {
