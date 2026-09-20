@@ -528,7 +528,7 @@ try {
       const result = await page.evaluate(async () => {
         const state = window.__focusPipTest;
         state.setVisibility('hidden');
-        await new Promise(resolve => setTimeout(resolve, 40));
+        await new Promise(resolve => setTimeout(resolve, 150));
         const pip = state.windows[0];
         const doc = pip?.document;
         const open = doc?.getElementById('pipOpen');
@@ -560,7 +560,7 @@ try {
           && doc.querySelector('.pip-bar')?.classList.contains('complete')
           && doc.getElementById('pipFill')?.getAttribute('aria-valuenow') === '1500';
         pause.click();
-        await new Promise(resolve => setTimeout(resolve, 30));
+        await new Promise(resolve => setTimeout(resolve, 100));
         const restarted = doc.getElementById('pipTime')?.textContent === '25:00'
           && pause.textContent === 'Breathe'
           && !doc.querySelector('.pip-bar')?.classList.contains('complete');
