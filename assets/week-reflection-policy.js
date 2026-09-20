@@ -13,6 +13,7 @@
   root._observationGateExplain = policy._observationGateExplain;
   root._observationTextIsGrounded = policy._observationTextIsGrounded;
   root._observationEligibleFor = policy._observationEligibleFor;
+  root._observationPoolAudit = policy._observationPoolAudit;
   if (typeof module === 'object' && module.exports) module.exports = policy;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function() {
   'use strict';
@@ -363,6 +364,152 @@
       .sort((a, b) => b.score - a.score);
   }
 
+  // Local-only diagnostic for an unexpectedly quiet observation surface. It mirrors
+  // the pool's evidence windows and gates, but deliberately returns aggregates and
+  // kind names only: no task text, task ids, candidate prose, or model payload. This
+  // makes a saved audit useful without turning it into another memory store.
+  function _observationPoolAudit(input, surface, knowledge, ctx) {
+    const inp = input || {};
+    const date = inp.todayISO || new Date().toISOString().slice(0, 10);
+    const outcomes = Array.isArray(inp.outcomes) ? inp.outcomes : [];
+    const win30 = _outcomesWithin(outcomes, 30, date);
+    const win45 = _outcomesWithin(outcomes, 45, date);
+    const countBy = (list, field) => list.reduce((all, row) => {
+      const key = row && row[field] != null ? String(row[field]) : 'unknown';
+      all[key] = (all[key] || 0) + 1;
+      return all;
+    }, {});
+    const focus = list => list.reduce((n, row) => n + (Number(row.focusSessions) || 0), 0);
+    const chosen = win30.filter(row => row.obligation === false);
+    const obligations = win30.filter(row => row.obligation === true);
+    const chosenObserved = chosen.filter(row => !row.backfilled);
+    const obligationObserved = obligations.filter(row => !row.backfilled);
+    const chosenDone = chosen.filter(row => row.outcome === 'done').length;
+    const obligationDone = obligations.filter(row => row.outcome === 'done').length;
+    const completionGap = chosen.length && obligations.length
+      ? (chosenDone / chosen.length) - (obligationDone / obligations.length) : null;
+    const reasonedLetgos = win30.filter(row => row.outcome === 'letgo' && row.reason);
+    const reasonCounts = countBy(reasonedLetgos, 'reason');
+    const dominantReason = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1])[0] || [null, 0];
+
+    const log = outcomes.filter(row => row && row.id && row.date);
+    const releasedBefore = (id, rowDate) =>
+      log.some(row => row.outcome === 'letgo' && row.id === id && row.date <= rowDate);
+    const returned = win45.filter(row =>
+      row.outcome === 'revive' && row.id && releasedBefore(row.id, row.date));
+    const keyOf = row => row.key || row.id;
+    const returnedKeys = [...new Set(returned.map(keyOf).filter(Boolean))];
+    const finishedKeys = returnedKeys.filter(key =>
+      returned.some(revival => keyOf(revival) === key &&
+        log.some(row => row.outcome === 'done' && keyOf(row) === key && row.date >= revival.date)));
+
+    const thresholdRows = [
+      {
+        kind: 'focus-vs-obligation',
+        met: obligationObserved.length >= 2 && chosenObserved.length >= 2
+          && focus(chosenObserved) >= 3 && focus(obligationObserved) === 0,
+        requires: '2 observed chosen + 2 observed obligations; chosen focus >=3; obligation focus =0',
+        observed: {
+          chosen: chosenObserved.length, obligations: obligationObserved.length,
+          chosenFocus: focus(chosenObserved), obligationFocus: focus(obligationObserved),
+        },
+      },
+      {
+        kind: 'obligation-completion',
+        met: chosen.length >= 4 && obligations.length >= 4 && completionGap >= 0.25,
+        requires: '4 chosen + 4 obligations; chosen completion-rate gap >=0.25',
+        observed: {
+          chosen: chosen.length, obligations: obligations.length,
+          chosenDone, obligationDone,
+          completionGap: completionGap == null ? null : Number(completionGap.toFixed(3)),
+        },
+      },
+      {
+        kind: 'letgo-reason',
+        met: reasonedLetgos.length >= 4 && dominantReason[1] >= 3
+          && dominantReason[1] / reasonedLetgos.length >= 0.5,
+        requires: '4 reasoned let-gos; dominant reason >=3 and >=50%',
+        observed: {
+          reasonedLetgos: reasonedLetgos.length,
+          dominantReason: dominantReason[0], dominantCount: dominantReason[1],
+        },
+      },
+      {
+        kind: 'soon-pullback',
+        met: win30.filter(row => row.outcome === 'soon_pull').length >= 3,
+        requires: '3 Soon pullbacks in 30 days',
+        observed: { pullbacks: win30.filter(row => row.outcome === 'soon_pull').length },
+      },
+      {
+        kind: 'letgo-return',
+        met: returned.length >= 2,
+        requires: '2 linked release-to-return events in 45 days',
+        observed: { linkedReturns: returned.length, distinctReturned: returnedKeys.length },
+      },
+      {
+        kind: 'return-finished',
+        met: returnedKeys.length >= 3 && finishedKeys.length >= 1,
+        requires: '3 distinct returned commitments; at least 1 later finished',
+        observed: { distinctReturned: returnedKeys.length, finishedReturned: finishedKeys.length },
+      },
+    ];
+
+    // Never pass taskTexts: candidate generation may use them to name a task, while
+    // this diagnostic must be structurally unable to retain one.
+    const ranked = _buildObservationCandidates({ outcomes, todayISO: date });
+    const k = { ...(knowledge || {}), todayISO: date };
+    const candidateRows = ranked.map(candidate => {
+      const eligible = _observationEligible(candidate, surface || 'sunday', ctx);
+      const gateReason = eligible ? _observationGateExplain(candidate, k) : 'not eligible on this surface';
+      return {
+        kind: candidate.kind,
+        score: candidate.score,
+        eligible,
+        gateReason,
+        selected: eligible && gateReason === null,
+      };
+    });
+    const selected = candidateRows.find(row => row.selected);
+    const recentSpoken = _outcomesWithin(k.spokenLines, 45, date).map(line => ({
+      date: line.date,
+      surface: line.surface || null,
+      kind: line.kind || null,
+      reaction: line.reaction || null,
+    }));
+
+    return {
+      schema: 1,
+      date,
+      surface: surface || 'sunday',
+      evidence: {
+        totalRecords: outcomes.length,
+        within30: win30.length,
+        within45: win45.length,
+        outcomes30: countBy(win30, 'outcome'),
+        framing30: {
+          chosen: chosen.length,
+          obligations: obligations.length,
+          unknown: win30.length - chosen.length - obligations.length,
+          chosenObserved: chosenObserved.length,
+          obligationObserved: obligationObserved.length,
+        },
+        focusSessions30: {
+          chosen: focus(chosenObserved), obligation: focus(obligationObserved),
+        },
+        letgoReasons30: reasonCounts,
+        linkedReturns45: returned.length,
+        distinctReturned45: returnedKeys.length,
+        finishedReturned45: finishedKeys.length,
+      },
+      thresholds: thresholdRows,
+      candidates: candidateRows,
+      selectedKind: selected ? selected.kind : null,
+      result: selected ? 'candidate-ready'
+        : (candidateRows.length ? 'all-candidates-gated' : 'no-candidate'),
+      recentSpoken,
+    };
+  }
+
   // Generalized so every pool-fed surface shares one guard. The rules are the same
   // wherever a model is given evidence and asked only to phrase it: identity and
   // causal claims outrun the evidence, and are rejected even when the model ignores
@@ -380,5 +527,5 @@
     return _observationTextIsGrounded(text, 26);
   }
 
-  return { _weekReflectionTextIsGrounded, _observationTextIsGrounded, _buildOutcomeCandidates, _buildObservationCandidates, _observationNoveltyGate, _observationGateExplain, _observationEligible, _observationEligibleFor };
+  return { _weekReflectionTextIsGrounded, _observationTextIsGrounded, _buildOutcomeCandidates, _buildObservationCandidates, _observationNoveltyGate, _observationGateExplain, _observationEligible, _observationEligibleFor, _observationPoolAudit };
 });

@@ -519,16 +519,17 @@ try {
         Date.prototype.getDay = () => 0; // Sunday
         checkSundayNudge();
         const weekBadge = !!document.getElementById('infoBtn')?.classList.contains('btn-icon-week');
+        const sundayAudit = !!localStorage.getItem('sunday_observation_audit_' + today);
 
         // ── Habit badge ──
         Date.prototype.getHours = () => 22; // Evening
         checkHabitNudge();
         const habitBadge = !!document.getElementById('habitsBtn')?.classList.contains('btn-icon-habits');
 
-        return { versionBadge, weekBadge, habitBadge };
+        return { versionBadge, weekBadge, sundayAudit, habitBadge };
       });
       await expectAll('badge nudges', { ...result, noErrors: errors.length === 0 });
-      ok('checkVersionNudge / checkSundayNudge / checkHabitNudge: all three badges fire');
+      ok('checkVersionNudge / checkSundayNudge / checkHabitNudge: badges fire and Sunday captures its local audit');
       await page.close();
     }
 

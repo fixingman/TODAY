@@ -4489,9 +4489,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.34': 'Sunday reflection diagnostics: a local, aggregate-only audit now explains missing evidence, threshold failures, cooldowns, and AI generation outcomes without changing what the app says.',
   '2.90.33': 'Dropbox sync: OR letgo flag on obligationHistory merge; max-wins _lastAbstractDate so both devices do not re-run abstraction on the same day; upgrade AI inference dedup from 8-char prefix to full normalized text across all three slots.',
   '2.90.32': 'Memory panel AI abstraction redesign: replace compressed stat inputs with raw text+outcome data; fix array response parser; store new items as pending; harden deduplication and prompt-injection defense.',
-  '2.90.31': 'Memory panel: add three new rule-based items — obligation completion rate vs overall, let-go return rate, and started-but-still-open task count.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

@@ -370,6 +370,7 @@
           // v2.85.0 — through eligibility and the novelty gate.
           // Same { kind, evidence, contrast } shape _fetchWeekReflection already reads.
           const _weekInsight = _isSun ? _pickSundayInsight(_reflectionStats) : null;
+          if (_isSun) _debugSundayAudit(_today);
 
           _nudgeBlockShow(_sundayBlock, _nudgeStagger++ * 60);
           const _weekPolicyKey = 'week_policy_' + _today;
@@ -386,19 +387,26 @@
           }
           const _weekSurface = _isSun ? 'Sunday reflection' : 'Monday intention';
           if (_cached) {
+            if (_isSun) _setSundayAuditGeneration('cache-hit', {
+              kind: _weekInsight ? _weekInsight.kind : null,
+            });
             _sundayBlock.innerHTML =
               '<div class="week-label">' + _weekLabel + '</div>' +
               _summaryHTML(_cached, _weekSurface);
           } else if (_isSun && _weekPolicyCurrent && !_weekInsight) {
+            _setSundayAuditGeneration('blocked-no-insight');
             // Policy current but no evidence yet — hide without permanent block
             // so evidence accumulating during the day can still trigger a fetch.
             _sundayBlock.style.display = 'none';
           } else if (_isSun && !_weekInsight) {
+            _setSundayAuditGeneration('blocked-no-insight');
             // Don't cache the negative — Sunday's data is live (today's completions
             // still accumulating), so a morning miss would block the afternoon reveal.
             // The AI is only called when insight exists, so no extra network cost.
             _sundayBlock.style.display = 'none';
           } else if (_isSun && (!Today.use('connections')._aiGetKey() || !navigator.onLine)) {
+            _setSundayAuditGeneration(Today.use('connections')._aiGetKey()
+              ? 'blocked-offline' : 'blocked-no-ai-key', { kind: _weekInsight.kind });
             _sundayBlock.style.display = 'none';
           } else {
             _sundayBlock.innerHTML =
@@ -523,6 +531,56 @@
     // eligible here; the morning nudge is the restricted one. The week-only
     // builder stays as the fallback so a missing pool function can never
     // silence the surface.
+    const SUNDAY_AUDIT_PREFIX = 'sunday_observation_audit_';
+
+    function _debugSundayAudit(dateISO) {
+      const date = dateISO || _localISO();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)
+       || isNaN(new Date(date + 'T12:00:00').getTime())) {
+        throw new Error('Sunday audit date must be YYYY-MM-DD');
+      }
+      if (typeof _observationPoolAudit !== 'function'
+       || typeof appMemory === 'undefined') return null;
+      if (typeof _memoryStampOutcomeKeys === 'function') _memoryStampOutcomeKeys();
+
+      const key = SUNDAY_AUDIT_PREFIX + date;
+      const prior = safeJSON(key, null);
+      const report = _observationPoolAudit(
+        { outcomes: appMemory.taskOutcomes, todayISO: date },
+        'sunday',
+        { spokenLines: appMemory.spokenLines, kindVerdicts: appMemory.kindVerdicts, todayISO: date }
+      );
+      report.capturedAt = new Date().toISOString();
+      report.runtime = {
+        appVersion: typeof APP_VERSION === 'undefined' ? null : APP_VERSION,
+        aiConfigured: !!Today.use('connections')._aiGetKey(),
+        online: !!navigator.onLine,
+        historyDays: safeJSON('today_daily_history', [])
+          .filter(row => row && row.date && row.date <= date).length,
+        cachePresent: !!localStorage.getItem('week_reflection_' + date),
+        policy: localStorage.getItem('week_policy_' + date),
+      };
+      report.generation = prior && prior.generation
+        ? prior.generation : { status: 'not-requested', updatedAt: report.capturedAt };
+      localStorage.setItem(key, JSON.stringify(report));
+      console.info('[Sunday observation audit ' + date + ']', report);
+      return report;
+    }
+
+    function _setSundayAuditGeneration(status, detail, dateISO) {
+      const date = dateISO || _localISO();
+      let report = safeJSON(SUNDAY_AUDIT_PREFIX + date, null);
+      if (!report) report = _debugSundayAudit(date);
+      if (!report) return null;
+      report.generation = {
+        status,
+        updatedAt: new Date().toISOString(),
+        ...(detail || {}),
+      };
+      localStorage.setItem(SUNDAY_AUDIT_PREFIX + date, JSON.stringify(report));
+      return report;
+    }
+
     function _pickSundayInsight(stats) {
       if (typeof _buildObservationCandidates !== 'function'
        || typeof _observationEligibleFor !== 'function'
@@ -552,9 +610,20 @@
     async function _fetchWeekReflection(stats) {
       try {
         const key = Today.use('connections')._aiGetKey();
-        if (!key || !navigator.onLine) return null;
+        if (!key) {
+          _setSundayAuditGeneration('blocked-no-ai-key');
+          return null;
+        }
+        if (!navigator.onLine) {
+          _setSundayAuditGeneration('blocked-offline');
+          return null;
+        }
         const insight = stats.insight;
-        if (!insight) return null;
+        if (!insight) {
+          _setSundayAuditGeneration('blocked-no-insight');
+          return null;
+        }
+        _setSundayAuditGeneration('requesting', { kind: insight.kind });
         const userContent =
           'Verified observation type: ' + insight.kind + '\n' +
           'Evidence: ' + insight.evidence + '\n' +
@@ -571,13 +640,25 @@
             systemPrompt: 'One sentence only. No quotes. Under 22 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Confident voice, conservative claim. Be intentional, smart, useful, and quietly human. Never infer identity or personality, never claim causation from correlation, and never restate a visible counter without adding meaning. If the evidence cannot support a useful line, reply exactly: none.',
           }),
         });
-        if (!res.ok) return null;
+        if (!res.ok) {
+          _setSundayAuditGeneration('http-error', { kind: insight.kind, httpStatus: res.status });
+          return null;
+        }
         const text = _parseAIText(await res.json());
-        if (!_weekReflectionTextIsGrounded(text)) return null;
+        if (!text) {
+          _setSundayAuditGeneration('empty-response', { kind: insight.kind });
+          return null;
+        }
+        if (!_weekReflectionTextIsGrounded(text)) {
+          _setSundayAuditGeneration('rejected-output', { kind: insight.kind });
+          return null;
+        }
         // Carries the kind so the cross-surface cooldown sees what Sunday said.
         if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('Sunday reflection', text, insight.kind);
+        _setSundayAuditGeneration('accepted', { kind: insight.kind });
         return text;
       } catch (e) {
+        _setSundayAuditGeneration('exception', { errorName: e && e.name ? e.name : 'Error' });
         return null;
       }
     }
@@ -817,6 +898,7 @@
         renderInfoStats,
         _fetchWeekReflection,
         _pickSundayInsight,
+        _debugSundayAudit,
         _reactionHTML,
       });
       Today.ui.register('click', 'about.toggle', toggleInfo);

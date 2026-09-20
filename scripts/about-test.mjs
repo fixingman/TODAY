@@ -372,16 +372,50 @@ try {
       window.fetch = realFetch;
       const prompt = body?.messages?.[0]?.content || '';
       const spoken = (appMemory.spokenLines || []).find(l => l.surface === 'Sunday reflection');
+      const audit = JSON.parse(localStorage.getItem('sunday_observation_audit_' + _localISO()) || 'null');
       return {
         pickedOutcomeKind:     insight?.kind === 'focus-vs-obligation',
         promptNamesKind:       prompt.includes('Verified observation type: focus-vs-obligation'),
         promptCarriesEvidence: prompt.includes('5 focus sessions went to things you chose'),
         returnedLine:          !!text,
         kindRecorded:          spoken?.kind === 'focus-vs-obligation',
+        generationRecorded:    audit?.generation?.status === 'accepted'
+                               && audit?.generation?.kind === 'focus-vs-obligation',
       };
     });
     await expectAll('Sunday reads the pool', { ...result, noErrors: errors.length === 0 });
     ok('Sunday reflection: an outcome kind reaches the prompt and is recorded to spokenLines with its kind');
+    await page.close();
+  }
+
+  // 12b. The local Sunday audit remains callable for an explicit past date, stores
+  //      aggregates only, and never retains task ids or spoken-line text.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const date = '2026-09-20';
+      appMemory.taskOutcomes = [
+        { id: 'PRIVATE-a', date: '2026-09-16', outcome: 'done',  obligation: false, focusSessions: 2 },
+        { id: 'PRIVATE-b', date: '2026-09-15', outcome: 'done',  obligation: false, focusSessions: 2 },
+        { id: 'PRIVATE-c', date: '2026-09-14', outcome: 'done',  obligation: false, focusSessions: 1 },
+        { id: 'PRIVATE-d', date: '2026-09-13', outcome: 'letgo', obligation: true,  focusSessions: 0 },
+        { id: 'PRIVATE-e', date: '2026-09-12', outcome: 'letgo', obligation: true,  focusSessions: 0 },
+      ];
+      appMemory.spokenLines = [{
+        date: '2026-09-10', surface: 'Focus companion', kind: 'other', text: 'PRIVATE SPOKEN TEXT',
+      }];
+      const audit = Today.use('about')._debugSundayAudit(date);
+      const stored = localStorage.getItem('sunday_observation_audit_' + date) || '';
+      return {
+        explicitDate: audit?.date === date,
+        selected: audit?.selectedKind === 'focus-vs-obligation',
+        stored: !!stored,
+        aggregateOnly: !stored.includes('PRIVATE') && !stored.includes('focus sessions went'),
+        apiExposed: typeof Today.use('about')._debugSundayAudit === 'function',
+      };
+    });
+    await expectAll('Sunday local diagnostic', { ...result, noErrors: errors.length === 0 });
+    ok('Sunday diagnostic: explicit-date audit stores aggregate evidence only');
     await page.close();
   }
 
@@ -637,7 +671,7 @@ try {
         sectionRemoved:          !indexSrc.includes('function toggleInfo()'),
         moduleInit:              aboutSrc.includes('window._startAbout = function()'),
         api:                     aboutSrc.includes("Today.define('about'"),
-        policyExports:           ['_buildObservationCandidates', '_weekReflectionTextIsGrounded']
+        policyExports:           ['_buildObservationCandidates', '_weekReflectionTextIsGrounded', '_observationPoolAudit']
           .every(n => policySrc.includes(`root.${n} = policy.${n};`)),
         precached:               swSrc.includes("'/assets/about.js'"),
         policyPrecached:         swSrc.includes("'/assets/week-reflection-policy.js'"),

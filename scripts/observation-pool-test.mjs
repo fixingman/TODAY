@@ -13,6 +13,7 @@ const {
   _observationNoveltyGate,
   _observationGateExplain,
   _observationEligibleFor,
+  _observationPoolAudit,
 } = require(join(ROOT, 'assets/week-reflection-policy.js'));
 
 let passed = 0, failed = 0;
@@ -571,6 +572,45 @@ test('eligibility tolerates malformed input and never throws', () =>
   _observationEligibleFor(null, 'nudge').length === 0
   && _observationEligibleFor([null, {}], 'nudge').length === 0
   && Array.isArray(_observationEligibleFor(allKinds, undefined)));
+
+// ── local-only Sunday diagnostic ───────────────────────────────────────────
+console.log('\nobservation pool — Sunday diagnostic\n');
+
+test('audit explains sparse evidence without inventing a candidate', () => {
+  const audit = _observationPoolAudit({ outcomes: [], todayISO: TODAY }, 'sunday', {});
+  return audit.result === 'no-candidate' && audit.selectedKind === null
+    && audit.thresholds.length === 6 && audit.thresholds.every(row => !row.met);
+});
+
+test('audit identifies the candidate that is ready for Sunday', () => {
+  const audit = _observationPoolAudit({ outcomes: focusSplit, todayISO: TODAY }, 'sunday', {
+    spokenLines: [], todayISO: TODAY,
+  });
+  return audit.result === 'candidate-ready'
+    && audit.selectedKind === 'focus-vs-obligation'
+    && audit.thresholds.find(row => row.kind === 'focus-vs-obligation')?.met === true;
+});
+
+test('audit distinguishes evidence from a cooldown-suppressed candidate', () => {
+  const audit = _observationPoolAudit({ outcomes: focusSplit, todayISO: TODAY }, 'sunday', {
+    spokenLines: [{ date: TODAY, surface: 'Morning nudge', kind: 'focus-vs-obligation' }],
+    todayISO: TODAY,
+  });
+  const candidate = audit.candidates.find(row => row.kind === 'focus-vs-obligation');
+  return audit.result === 'all-candidates-gated' && !candidate.selected
+    && /already said today on Morning nudge/.test(candidate.gateReason);
+});
+
+test('audit never retains task ids, text, evidence prose, or spoken prose', () => {
+  const privateId = 'PRIVATE-TASK-TEXT-HASH';
+  const outcomes = focusSplit.map((row, i) => ({ ...row, id: privateId + i }));
+  const audit = _observationPoolAudit({ outcomes, todayISO: TODAY }, 'sunday', {
+    spokenLines: [{ date: ago(2), surface: 'Focus companion', kind: 'other', text: 'PRIVATE SPOKEN TEXT' }],
+  });
+  const serialized = JSON.stringify(audit);
+  return !serialized.includes('PRIVATE') && !serialized.includes('Evidence:')
+    && audit.recentSpoken[0].surface === 'Focus companion';
+});
 
 console.log('\n' + (failed === 0 ? '✓ ' : '✗ ') + passed + ' passed, ' + failed + ' failed\n');
 process.exit(failed === 0 ? 0 : 1);

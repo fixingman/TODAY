@@ -264,6 +264,13 @@ window._startNudge = (function() {
     function checkSundayNudge() {
       const _day = new Date().getDay();
       if (_day !== 0 && _day !== 1) return;  // Sunday or Monday only
+      // Sunday's diagnostic is local-only and runs before badge/history guards so
+      // an absent badge cannot hide why the deeper reflection stayed quiet. This
+      // function runs again after Dropbox sync, replacing the pre-sync snapshot.
+      if (_day === 0) {
+        try { Today.use('about')._debugSundayAudit(_localISO()); }
+        catch (e) { console.warn('[Sunday observation audit]', e && e.message); }
+      }
       if (localStorage.getItem('sunday_nudge_seen_' + _localISO())) return;
       if (!safeJSON('today_daily_history', []).length) return;
       const btn = document.getElementById('infoBtn');
