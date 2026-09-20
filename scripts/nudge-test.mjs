@@ -154,6 +154,32 @@ try {
       await page.close();
     }
 
+    // 2b. Cold-start callers cannot generate before Dropbox has merged spokenLines.
+    {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(async () => {
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        localStorage.setItem('today_ai_key_claude', 'test-key');
+        localStorage.setItem('today_ai_provider', 'claude');
+        let calls = 0;
+        window.fetch = async () => {
+          calls++;
+          return { ok: true, json: async () => ({ content: 'A synced morning line.' }) };
+        };
+        checkDayNudge._setMemoryReady(false);
+        checkDayNudge();
+        await new Promise(r => setTimeout(r, 50));
+        const beforeReady = calls;
+        checkDayNudge._setMemoryReady();
+        checkDayNudge();
+        await new Promise(r => setTimeout(r, 100));
+        return { heldBeforeMerge: beforeReady === 0, generatedAfterMerge: calls === 1 };
+      });
+      await expectAll('nudge memory readiness', { ...result, noErrors: errors.length === 0 });
+      ok('checkDayNudge: generation waits until synced spokenLines are ready');
+      await page.close();
+    }
+
     // 3. 1s fallback: slow AI (2s) → rule-based text shows after ~1s timer fires.
     {
       const { page, errors } = await openPage();
@@ -538,6 +564,7 @@ try {
       const indexSrc  = await readFile(join(ROOT, 'index.html'), 'utf8');
       const swSrc     = await readFile(join(ROOT, 'sw.js'), 'utf8');
       const nudgeSrc  = await readFile(join(ROOT, 'assets/nudge.js'), 'utf8');
+      const dropboxSrc = await readFile(join(ROOT, 'assets/dropbox.js'), 'utf8');
       const startNudgeIdx  = indexSrc.indexOf('window._startNudge();');
       const startAssistIdx = indexSrc.indexOf('window._startAssistant();');
       await expectAll('nudge module wiring', {
@@ -549,6 +576,8 @@ try {
         moduleInit:           nudgeSrc.includes('window._startNudge = '),
         allExports:           ['checkDayNudge', 'checkVersionNudge', 'checkSundayNudge', 'checkHabitNudge']
                                 .every(n => nudgeSrc.includes(`window.${n} = ${n};`)),
+        memoryReadyHook:      nudgeSrc.includes('checkDayNudge._setMemoryReady ='),
+        readyAfterSync:       dropboxSrc.includes("typeof checkDayNudge._setMemoryReady === 'function'"),
         precached:            swSrc.includes("'/assets/nudge.js'"),
       });
       ok('nudge module: 4 exports, functions removed from index.html, precached in sw.js');

@@ -2165,6 +2165,10 @@
           // Re-check nudge — applyNewDayCleanup() sets morning_nudge_count but init()'s
           // checkDayNudge() ran before cleanup (count may have been missing/stale).
           // Mirrors what the Dropbox restore path already does at line 8700.
+          // Mark the observation memory ready only now: Trello and other cold-start
+          // callers may finish earlier, but generation must see the merged spokenLines.
+          if (typeof checkDayNudge === 'function'
+           && typeof checkDayNudge._setMemoryReady === 'function') checkDayNudge._setMemoryReady();
           if (typeof checkDayNudge === 'function') checkDayNudge();
           // Same fix, same reason, for the Sunday/habit badges — both read
           // Dropbox-synced state (today_daily_history, habitsList/habitCompletions)

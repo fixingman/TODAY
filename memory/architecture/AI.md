@@ -268,13 +268,13 @@ Does not enumerate signal priorities. Soon tasks are included but only surfaced 
 
 ## Observation Pool (12c, v2.80.0)
 
-One ranked candidate pool for every proactive personal line: code selects the observation through the gates, the model only phrases it. Lives in DOM-free `assets/week-reflection-policy.js` alongside Sunday's ranker, which it generalizes. Wired to the morning nudge only; Noticed, focus, Sunday and Monday wait on the Phase 4 verdict (`Backlog.md` → 12c).
+One ranked candidate pool for proactive personal lines: code selects the observation through the gates, the model only phrases it. It lives in DOM-free `assets/week-reflection-policy.js` and feeds the morning nudge and Sunday reflection; Noticed, focus, and Monday retain their separate jobs.
 
 | Function | Role |
 |---|---|
-| `_buildObservationCandidates({ outcomes, todayISO, …weekStats })` | The pool: Sunday's week-shaped kinds plus the outcome-derived kinds, sorted by hand-assigned `score`. Proposes only — callers apply gates and per-surface eligibility. |
-| `_buildOutcomeCandidates(outcomes, todayISO)` | Five kinds from `appMemory.taskOutcomes` over a 30-day window: `focus-vs-obligation` 115, `obligation-completion` 105, `letgo-reason` 95, `soon-pullback` 88, `letgo-return` 85. The last one is linked, not counted: a let-go and a revive of the same task share an id (a text hash), so only revives that follow a release qualify, and 2+ are needed. It reads a 45-day window with a 30-day cooldown because revive is rare (v2.81.1), and it names the task when `taskTexts` — the live lists hashed the same way by the caller — still holds it (v2.81.3): *"call the dentist" has gone out and come back 2 times* for one task cycling, otherwise *Over 45 days, 2 things you had let go came back — "a" and "b"*. Memory never stores the text; the name is resolved at speech time and falls back to counts once the task leaves every list. Each is `{ kind, score, evidence, contrast }` — a contrast, never a cause; the person supplies the meaning. |
-| `_observationGateExplain(candidate, { spokenLines, todayISO })` | `null` to keep, or a human-readable drop reason: age-as-content (triage already prints every task's age), a per-kind cooldown hit against `spokenLines` entries with the same `kind`, or `marked as not landing twice` (12e, v2.86.0) / `retired by you on <date>` (from `kindVerdicts`, v2.87.0 — the permanent record; `knowledge.kindVerdicts` is read first, the 30-day `spokenLines` reactions second). Cooldowns are cross-surface — a kind narrated anywhere is on cooldown everywhere: 21 days for month-window kinds, 30 for `letgo-return` and `return-finished`. One `missed` reaction on a kind doubles its cooldown; two retire it for good — until "bring back" in the Memory panel's RETIRED block or a full memory clear. `landed` never blocks. |
+| `_buildObservationCandidates({ outcomes, todayISO })` | Six outcome kinds sorted by hand-assigned `score`; the old week-grid productivity kinds are retired. Proposes only — callers apply gates and per-surface eligibility. |
+| `_buildOutcomeCandidates(outcomes, todayISO)` | Six kinds from `appMemory.taskOutcomes`: `focus-vs-obligation` 115, `obligation-completion` 105, `letgo-reason` 95, `return-finished` 92, `soon-pullback` 88, and `letgo-return` 85. Return kinds link release → revive (and optionally done) by privacy-safe text hash over 45 days; the others use 30 days. Each candidate carries `{ kind, score, evidence, contrast, signal }`. `signal` is aggregate, text-free evidence used only by the deterministic material-change gate; the AI receives evidence and contrast, never the signal or raw log. |
+| `_observationGateExplain(candidate, { spokenLines, outcomes, surface, todayISO })` | `null` to keep, or a human-readable drop reason. Same-surface repetition stays blocked for the full per-kind cooldown (21 days for month-window kinds, 30 for return kinds). A different surface can revisit the kind only after 7 days and only if rebuilding the earlier candidate from the retained outcome log proves a material per-kind delta; no extra snapshot is stored. The newest matching line is reported as the blocker. Age-as-content, reactions, and permanent verdicts still take precedence: one `missed` doubles the cooldown and disables the material override; two misses retire the kind until “bring back.” `landed` never blocks. |
 | `_observationNoveltyGate(candidates, knowledge)` | Filters by the above. |
 | `_observationTextIsGrounded(text, maxWords)` | Output guard shared by every pool-fed surface and by the nudge's task-reading track: rejects identity, causal and tenure claims and overlong text. `_weekReflectionTextIsGrounded` is this at 26 words. |
 
@@ -282,7 +282,9 @@ One ranked candidate pool for every proactive personal line: code selects the ob
 
 **Unknowns stay unknown.** Backfilled rows (`backfilled: true`) are excluded from `focus-vs-obligation`; rows with `obligation: null` fall out of both partitions. **Abstention is per surface:** the nudge falls through to its task-reading track; a surface that exists only to observe goes silent.
 
-**Tests:** `scripts/observation-pool-test.mjs` (57) plus pool coverage in `nudge-test`, `insights-test` and `dropbox-test`. They assert the silences as well as the firings.
+**Cold-start ordering (v2.90.35):** the morning may display a synced cached line immediately, but it cannot generate a new one until Dropbox's initial merge has settled and `checkDayNudge._setMemoryReady()` opens the internal gate. Trello finishing early can no longer select against stale device-local `spokenLines`.
+
+**Tests:** `scripts/observation-pool-test.mjs` plus pool coverage in `nudge-test`, `insights-test` and `dropbox-test`. They assert silences, firings, material deltas, strict same-surface cooldown, and post-sync generation ordering.
 
 ---
 
@@ -292,6 +294,8 @@ On Sundays, `#sundayBlock` may appear above the stat tiles in the About panel. T
 
 **Quiet-surface diagnostic (v2.90.34):** `_observationPoolAudit()` mirrors the Sunday evidence windows, thresholds, eligibility and novelty gate but returns aggregate counts and kind names only. `_debugSundayAudit(date)` stores that report locally as `sunday_observation_audit_<date>` on Sunday startup, after the sync re-check, and when About renders. AI request stages update the same report (`blocked-no-insight`, cooldown/gate reason, missing key, offline, HTTP/rejection/exception, or accepted). It adds no network call and changes no selection or silence behavior. An explicit historical date can reconstruct Sunday while the underlying 30/45-day outcome window remains in `appMemory`; audit records are not synced and contain no task text, ids, candidate prose, or spoken prose.
 
+v2.90.35 labels a selected candidate when material cross-surface evidence reopened it, and adds observed/backfilled revive provenance. This distinguishes legacy synthetic revive rows—which cannot link by design—from observed revives whose missing release pair would indicate a current extraction problem.
+
 The winning object contains `{kind, score, evidence, contrast}` (`meaning` renamed v2.80.0 when the pool generalized the ranker). `_fetchWeekReflection()` sends only that object to the AI. It no longer sends `_memoryForAI('weekly')`, lifetime days active, or `recentCompletedTasks`; the model gives a verified observation voice rather than deciding what is true from raw personal history.
 
 **Reactions (12e, v2.86.0):** tapping the sentence (Sunday, Monday and Today blocks in About; the morning strip, where the states open in the sibling `#dayNudgeReact` instead of dismissing) reveals two states, *landed* / *not really*, written to the line's `spokenLines` entry by `_memoryReactToLine`. This is the usefulness gate with the person as judge: it changes which kinds get chosen, never how a line is phrased, and it is never sent to the model. A control renders only when a spokenLines entry exists for that surface today; rule-based fallback lines get none.
@@ -300,7 +304,7 @@ The winning object contains `{kind, score, evidence, contrast}` (`meaning` renam
 
 **Abstention:** no qualifying candidate, `none`, missing AI, offline, or an invalid response hides the sentence. There is no factual fallback; the week grid already carries that information.
 
-**Cache:** text remains `week_reflection_YYYY-MM-DD`. `week_policy_YYYY-MM-DD = earned-v1` is a policy/negative-cache companion, Dropbox-backed as `week_reflection_policy`. A current marker with no text means the evidence gate intentionally abstained. Old reflection text without the current marker is deleted and ignored during sync, preventing the reported “202 days in … that's who you are” line from surviving the new contract.
+**Cache:** text remains `week_reflection_YYYY-MM-DD`. `week_policy_YYYY-MM-DD = earned-v3` is a policy/negative-cache companion, Dropbox-backed as `week_reflection_policy`. A current marker with no text means the evidence gate intentionally abstained. Old reflection text without the current marker is deleted and ignored during sync; `earned-v3` marks the material-change contract.
 
 **Entry point:** `_fetchWeekReflection({days, history, insight})` via `/.netlify/functions/ai-assist`.
 

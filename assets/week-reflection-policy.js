@@ -83,6 +83,7 @@
       candidates.push({
         kind: 'focus-vs-obligation',
         score: 115,
+        signal: { chosenObserved: chosenObserved.length, obligationObserved: obligationObserved.length, chosenFocus, obligationFocus },
         evidence: `Over 30 days, ${chosenFocus} focus sessions went to things you chose; the ${obligationObserved.length} framed as "have to" got none.`,
         contrast: 'Where focus went, and where it did not.',
       });
@@ -98,6 +99,7 @@
         candidates.push({
           kind: 'obligation-completion',
           score: 105,
+          signal: { chosen: chosen.length, obligations: obligation.length, chosenDone, obligationDone, gap: Number(gap.toFixed(3)) },
           evidence: `You finished ${chosenDone} of ${chosen.length} things you chose, and ${obligationDone} of ${obligation.length} you framed as "have to".`,
           contrast: 'Two kinds of commitment, two different rates.',
         });
@@ -127,6 +129,7 @@
         candidates.push({
           kind: 'letgo-reason',
           score: 95,
+          signal: { reason: topReason, reasonedLetgos: letgos.length, dominantCount: topCount, allLetgos: allLetgos.length, ended },
           evidence: `You let go of ${allLetgos.length} of the ${ended} things that ended this month; ${topCount} of those were "${label}".`,
           contrast: otherList.charAt(0).toUpperCase() + otherList.slice(1) + ' barely figured.',
         });
@@ -139,6 +142,7 @@
       candidates.push({
         kind: 'soon-pullback',
         score: 88,
+        signal: { pullbacks: pulls.length },
         evidence: `You have pulled ${pulls.length} things back from Soon this month.`,
         contrast: 'What you defer tends to come back.',
       });
@@ -179,6 +183,7 @@
         candidates.push({
           kind: 'letgo-return',
           score: 85,
+          signal: { linkedReturns: returned.length, distinctReturned: Object.keys(perId).length, maxLoop: loopCount },
           evidence: name
             ? `${name} has gone out and come back ${loopCount} times.`
             : `One thing you let go has come back ${loopCount} times.`,
@@ -191,6 +196,7 @@
         candidates.push({
           kind: 'letgo-return',
           score: 85,
+          signal: { linkedReturns: returned.length, distinctReturned: Object.keys(perId).length, maxLoop: loopCount },
           evidence: `Over 45 days, ${returned.length} things you had let go came back` + (list ? ' — ' + list : '') + '.',
           contrast: 'What you release, and what comes back.',
         });
@@ -222,6 +228,7 @@
         candidates.push({
           kind: 'return-finished',
           score: 92,
+          signal: { distinctReturned: total, finishedReturned: finished },
           evidence: `Over 45 days, ${total} things you had let go came back` + (list ? ' — ' + list : '') + `. All ${total} got done.`,
           contrast: 'Let go, brought back, finished.',
         });
@@ -229,6 +236,7 @@
         candidates.push({
           kind: 'return-finished',
           score: 92,
+          signal: { distinctReturned: total, finishedReturned: finished },
           evidence: `Over 45 days, ${total} things you had let go came back; ${finished} of them got done` + (list ? ' — ' + list : '') + '.',
           contrast: 'Brought back is not the same as finished.',
         });
@@ -277,6 +285,48 @@
     return Math.round((b - a) / 86400000);
   }
 
+  const _CROSS_SURFACE_MIN_DAYS = 7;
+
+  function _surfaceGroup(surface) {
+    const s = String(surface || '').toLowerCase();
+    if (s === 'nudge' || s.includes('morning nudge')) return 'nudge';
+    if (s === 'sunday' || s.includes('sunday reflection')) return 'sunday';
+    return s || null;
+  }
+
+  // A different surface may revisit a kind inside its long cooldown only after a
+  // full week and only when the underlying evidence has genuinely accumulated.
+  // Reconstruct the earlier candidate from the retained outcome log instead of
+  // storing another snapshot in spokenLines. taskOutcomes lasts 90 days; the longest
+  // cooldown is 30, so every comparison needed here remains reconstructible.
+  function _observationMateriallyChanged(candidate, outcomes, priorISO) {
+    if (!candidate || !candidate.kind || !candidate.signal || !Array.isArray(outcomes)) return false;
+    const prior = _buildOutcomeCandidates(outcomes, priorISO)
+      .find(row => row.kind === candidate.kind);
+    if (!prior || !prior.signal) return false;
+    const before = prior.signal;
+    const now = candidate.signal;
+    switch (candidate.kind) {
+      case 'focus-vs-obligation':
+        return now.chosenFocus >= before.chosenFocus + 3;
+      case 'obligation-completion':
+        return (now.chosen + now.obligations) >= (before.chosen + before.obligations) + 4;
+      case 'letgo-reason':
+        return now.reason !== before.reason
+          || (now.dominantCount >= before.dominantCount + 3
+            && now.reasonedLetgos >= before.reasonedLetgos + 4);
+      case 'soon-pullback':
+        return now.pullbacks >= before.pullbacks + 3;
+      case 'letgo-return':
+        return now.linkedReturns >= before.linkedReturns + 2;
+      case 'return-finished':
+        return now.finishedReturned >= before.finishedReturned + 1
+          && now.distinctReturned >= before.distinctReturned;
+      default:
+        return false;
+    }
+  }
+
   // Returns null to keep, or a human-readable reason to drop. A reason rather than a
   // boolean so Phase 3 can log why a surface went quiet, and so 12d can show it — a
   // silent filter is untraceable when a surface unexpectedly says nothing.
@@ -307,13 +357,31 @@
       ? _KIND_COOLDOWN_DAYS[candidate.kind]
       : _DEFAULT_COOLDOWN_DAYS) * (misses ? 2 : 1);
 
-    for (const line of spoken) {
-      if (!line || !line.date || line.kind !== candidate.kind) continue;
-      const age = _daysBetweenISO(line.date, today);
-      if (age >= 0 && age < cooldown) {
-        const when = age === 0 ? 'today' : age + ' day' + (age === 1 ? '' : 's') + ' ago';
-        return 'already said ' + when + ' on ' + (line.surface || 'another surface');
-      }
+    const active = spoken
+      .filter(line => line && line.date && line.kind === candidate.kind)
+      .map(line => ({ line, age: _daysBetweenISO(line.date, today) }))
+      .filter(item => item.age >= 0 && item.age < cooldown)
+      .sort((a, b) => a.age - b.age); // newest first: the real effective blocker
+    if (!active.length) return null;
+
+    const explain = item => {
+      const when = item.age === 0 ? 'today'
+        : item.age + ' day' + (item.age === 1 ? '' : 's') + ' ago';
+      return 'already said ' + when + ' on ' + (item.line.surface || 'another surface');
+    };
+    const currentSurface = _surfaceGroup(k.surface);
+    if (!currentSurface || misses) return explain(active[0]);
+
+    // Same-surface repetition stays on the full kind cooldown, even when counts grew.
+    const sameSurface = active.find(item => _surfaceGroup(item.line.surface) === currentSurface);
+    if (sameSurface) return explain(sameSurface);
+
+    // Cross-surface is not a free retry. A week must have passed, and the exact
+    // candidate's privacy-safe evidence signal must have crossed a material delta.
+    const latest = active[0];
+    if (latest.age < _CROSS_SURFACE_MIN_DAYS
+     || !_observationMateriallyChanged(candidate, k.outcomes, latest.line.date)) {
+      return explain(latest);
     }
     return null;
   }
@@ -347,9 +415,8 @@
     return candidates.filter(c => _observationEligible(c, surface, ctx));
   }
 
-  // Cross-surface by design: a kind narrated by the nudge is on cooldown for Noticed,
-  // focus, Sunday and Monday too. The point is that the *person* does not hear the same
-  // observation twice, not that each surface avoids repeating itself.
+  // Same-surface cooldowns are strict. Cross-surface cooldowns reopen only after a
+  // week plus material new evidence; a different container is not itself novelty.
   function _observationNoveltyGate(candidates, knowledge) {
     if (!Array.isArray(candidates)) return [];
     return candidates.filter(c => _observationGateExplain(c, knowledge) === null);
@@ -457,16 +524,25 @@
     // Never pass taskTexts: candidate generation may use them to name a task, while
     // this diagnostic must be structurally unable to retain one.
     const ranked = _buildObservationCandidates({ outcomes, todayISO: date });
-    const k = { ...(knowledge || {}), todayISO: date };
+    const k = { ...(knowledge || {}), todayISO: date, surface: surface || 'sunday', outcomes };
     const candidateRows = ranked.map(candidate => {
       const eligible = _observationEligible(candidate, surface || 'sunday', ctx);
       const gateReason = eligible ? _observationGateExplain(candidate, k) : 'not eligible on this surface';
+      const cooldown = Object.prototype.hasOwnProperty.call(_KIND_COOLDOWN_DAYS, candidate.kind)
+        ? _KIND_COOLDOWN_DAYS[candidate.kind] : _DEFAULT_COOLDOWN_DAYS;
+      const latestPrior = (Array.isArray(k.spokenLines) ? k.spokenLines : [])
+        .filter(line => line && line.date && line.kind === candidate.kind)
+        .map(line => ({ line, age: _daysBetweenISO(line.date, date) }))
+        .filter(item => item.age >= 0 && item.age < cooldown)
+        .sort((a, b) => a.age - b.age)[0];
       return {
         kind: candidate.kind,
         score: candidate.score,
         eligible,
         gateReason,
         selected: eligible && gateReason === null,
+        reopenedByMaterialChange: !!(eligible && gateReason === null && latestPrior
+          && _surfaceGroup(latestPrior.line.surface) !== _surfaceGroup(surface || 'sunday')),
       };
     });
     const selected = candidateRows.find(row => row.selected);
@@ -486,6 +562,7 @@
         within30: win30.length,
         within45: win45.length,
         outcomes30: countBy(win30, 'outcome'),
+        backfilledOutcomes30: countBy(win30.filter(row => row.backfilled), 'outcome'),
         framing30: {
           chosen: chosen.length,
           obligations: obligations.length,
@@ -498,6 +575,12 @@
         },
         letgoReasons30: reasonCounts,
         linkedReturns45: returned.length,
+        reviveLinkage45: {
+          total: win45.filter(row => row.outcome === 'revive').length,
+          observed: win45.filter(row => row.outcome === 'revive' && !row.backfilled).length,
+          backfilled: win45.filter(row => row.outcome === 'revive' && row.backfilled).length,
+          linked: returned.length,
+        },
         distinctReturned45: returnedKeys.length,
         finishedReturned45: finishedKeys.length,
       },

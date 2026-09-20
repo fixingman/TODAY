@@ -16,6 +16,11 @@ window._startNudge = (function() {
     // site from starting its own parallel race while one is already in flight.
     let _nudgeRendered = false;
     let _nudgeRacing   = false;
+    // Cold-start callers such as Trello can finish before Dropbox has merged
+    // appMemory.spokenLines. They may render a synced cache, but must not generate
+    // a new line until the initial merge has settled; otherwise two devices can
+    // independently speak the same kind inside its cooldown.
+    let _memoryReady   = false;
     // Tracks whether the CURRENTLY shown nudge is the generic rule-based fallback
     // (true) or the real AI line (false). Diagnosed 2026-07-29: the AI nudge was
     // generating and caching correctly every day (About's Today block, which
@@ -229,7 +234,7 @@ window._startNudge = (function() {
 
       if (_cacheValid) {
         _showNudge(_aiCached, true);
-      } else if (allowGenerate && !_nudgeRacing) {
+      } else if (allowGenerate && _memoryReady && !_nudgeRacing) {
         _nudgeRacing = true;
         _raceAINudge({
           cacheKey: _nudgeCacheKey,
@@ -334,6 +339,8 @@ window._startNudge = (function() {
       const winner = _observationNoveltyGate(eligible, {
         spokenLines: appMemory.spokenLines,
         kindVerdicts: appMemory.kindVerdicts,
+        outcomes: appMemory.taskOutcomes,
+        surface: 'nudge',
         todayISO,
       })[0];
       if (!winner) return null;
@@ -485,6 +492,7 @@ window._startNudge = (function() {
     }
 
     window.checkDayNudge = checkDayNudge;
+    checkDayNudge._setMemoryReady = function(ready = true) { _memoryReady = !!ready; };
     window.checkVersionNudge = checkVersionNudge;
     window.checkSundayNudge = checkSundayNudge;
     window.checkHabitNudge = checkHabitNudge;

@@ -5,7 +5,7 @@
   // Bumps when the evidence contract for the Sunday sentence changes. The dated
   // companion key prevents a previously cached, less-grounded line from surviving
   // a policy change or being restored by an older Dropbox backup.
-  const WEEK_REFLECTION_POLICY = 'earned-v2';
+  const WEEK_REFLECTION_POLICY = 'earned-v3';
   window._weekReflectionPolicy = WEEK_REFLECTION_POLICY;
   let started = false;
   window._startAbout = function() {
@@ -600,7 +600,13 @@
           taskTexts: (typeof _memoryTaskTexts === 'function') ? _memoryTaskTexts() : {},
         });
         const eligible = _observationEligibleFor(ranked, 'sunday');
-        return _observationNoveltyGate(eligible, { spokenLines: appMemory.spokenLines, kindVerdicts: appMemory.kindVerdicts, todayISO })[0] || null;
+        return _observationNoveltyGate(eligible, {
+          spokenLines: appMemory.spokenLines,
+          kindVerdicts: appMemory.kindVerdicts,
+          outcomes: appMemory.taskOutcomes,
+          surface: 'sunday',
+          todayISO,
+        })[0] || null;
       } catch (e) {
         console.warn('[sunday pool]', e && e.message);
         return null;

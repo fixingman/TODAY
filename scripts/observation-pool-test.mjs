@@ -427,6 +427,71 @@ test('cooldown is cross-surface — Sunday blocks the nudge', () =>
   _observationNoveltyGate([cand('letgo-reason')],
     { spokenLines: [said('letgo-reason', 3, 'Sunday reflection')], todayISO: TODAY }).length === 0);
 
+const pullbackHistory = [12, 11, 10, 5, 4, 3]
+  .map((daysAgo, i) => out({ id: 'pull-' + i, outcome: 'soon_pull', date: ago(daysAgo) }));
+const pullbackCandidate = find(_buildOutcomeCandidates(pullbackHistory, TODAY), 'soon-pullback');
+
+test('cross-surface cooldown reopens after a week when 3 new events materially strengthen the evidence', () =>
+  _observationNoveltyGate([pullbackCandidate], {
+    spokenLines: [said('soon-pullback', 10, 'morning nudge')],
+    outcomes: pullbackHistory, surface: 'sunday', todayISO: TODAY,
+  }).length === 1);
+
+test('Sunday can deepen an older morning let-go reason after 4 new reasoned releases', () => {
+  const rows = [
+    out({ id: 'old-a', outcome: 'letgo', reason: 'not_relevant', date: ago(21) }),
+    out({ id: 'old-b', outcome: 'letgo', reason: 'not_relevant', date: ago(20) }),
+    out({ id: 'old-c', outcome: 'letgo', reason: 'not_relevant', date: ago(19) }),
+    out({ id: 'old-d', outcome: 'letgo', reason: 'no_energy', date: ago(18) }),
+    out({ id: 'new-a', outcome: 'letgo', reason: 'not_relevant', date: ago(9) }),
+    out({ id: 'new-b', outcome: 'letgo', reason: 'not_relevant', date: ago(8) }),
+    out({ id: 'new-c', outcome: 'letgo', reason: 'not_relevant', date: ago(7) }),
+    out({ id: 'new-d', outcome: 'letgo', reason: 'replaced', date: ago(6) }),
+  ];
+  const candidate = find(_buildOutcomeCandidates(rows, TODAY), 'letgo-reason');
+  return _observationNoveltyGate([candidate], {
+    spokenLines: [said('letgo-reason', 18, 'morning nudge')],
+    outcomes: rows, surface: 'sunday', todayISO: TODAY,
+  }).length === 1;
+});
+
+test('cross-surface cooldown stays closed when evidence has not materially changed', () => {
+  const rows = pullbackHistory.slice(0, 5); // only 2 new pullbacks after the prior line
+  const candidate = find(_buildOutcomeCandidates(rows, TODAY), 'soon-pullback');
+  return _observationNoveltyGate([candidate], {
+    spokenLines: [said('soon-pullback', 10, 'morning nudge')],
+    outcomes: rows, surface: 'sunday', todayISO: TODAY,
+  }).length === 0;
+});
+
+test('cross-surface material change still waits a full week', () => {
+  const rows = [7, 6, 5, 4, 3, 2]
+    .map((daysAgo, i) => out({ id: 'recent-pull-' + i, outcome: 'soon_pull', date: ago(daysAgo) }));
+  const candidate = find(_buildOutcomeCandidates(rows, TODAY), 'soon-pullback');
+  return _observationNoveltyGate([candidate], {
+    spokenLines: [said('soon-pullback', 5, 'morning nudge')],
+    outcomes: rows, surface: 'sunday', todayISO: TODAY,
+  }).length === 0;
+});
+
+test('same-surface cooldown remains strict even after material change', () =>
+  _observationNoveltyGate([pullbackCandidate], {
+    spokenLines: [said('soon-pullback', 10, 'Sunday reflection')],
+    outcomes: pullbackHistory, surface: 'sunday', todayISO: TODAY,
+  }).length === 0);
+
+test('a missed verdict disables the cross-surface material-change override', () =>
+  _observationNoveltyGate([pullbackCandidate], {
+    spokenLines: [{ ...said('soon-pullback', 10, 'morning nudge'), reaction: 'missed' }],
+    outcomes: pullbackHistory, surface: 'sunday', todayISO: TODAY,
+  }).length === 0);
+
+test('cooldown explanation names the most recent blocker, not the first stored line', () =>
+  /10 days ago/.test(_observationGateExplain(pullbackCandidate, {
+    spokenLines: [said('soon-pullback', 16), said('soon-pullback', 10)],
+    outcomes: pullbackHistory, surface: 'nudge', todayISO: TODAY,
+  })));
+
 test('an unknown kind gets the 14-day default cooldown', () =>
   _observationNoveltyGate([cand('some-future-kind')],
     { spokenLines: [said('some-future-kind', 15)], todayISO: TODAY }).length === 1 &&
@@ -591,6 +656,14 @@ test('audit identifies the candidate that is ready for Sunday', () => {
     && audit.thresholds.find(row => row.kind === 'focus-vs-obligation')?.met === true;
 });
 
+test('audit labels a cross-surface candidate reopened by material evidence', () => {
+  const audit = _observationPoolAudit({ outcomes: pullbackHistory, todayISO: TODAY }, 'sunday', {
+    spokenLines: [said('soon-pullback', 10, 'morning nudge')],
+  });
+  const candidate = audit.candidates.find(row => row.kind === 'soon-pullback');
+  return candidate?.selected === true && candidate.reopenedByMaterialChange === true;
+});
+
 test('audit distinguishes evidence from a cooldown-suppressed candidate', () => {
   const audit = _observationPoolAudit({ outcomes: focusSplit, todayISO: TODAY }, 'sunday', {
     spokenLines: [{ date: TODAY, surface: 'Morning nudge', kind: 'focus-vs-obligation' }],
@@ -610,6 +683,17 @@ test('audit never retains task ids, text, evidence prose, or spoken prose', () =
   const serialized = JSON.stringify(audit);
   return !serialized.includes('PRIVATE') && !serialized.includes('Evidence:')
     && audit.recentSpoken[0].surface === 'Focus companion';
+});
+
+test('audit separates backfilled revives from observed-but-unlinked revives', () => {
+  const audit = _observationPoolAudit({ outcomes: [
+    { id: 'bf_revive_x', date: ago(4), outcome: 'revive', backfilled: true },
+    { id: 'txt_observed', date: ago(3), outcome: 'revive', backfilled: false },
+  ], todayISO: TODAY }, 'sunday', {});
+  return audit.evidence.reviveLinkage45.total === 2
+    && audit.evidence.reviveLinkage45.backfilled === 1
+    && audit.evidence.reviveLinkage45.observed === 1
+    && audit.evidence.reviveLinkage45.linked === 0;
 });
 
 console.log('\n' + (failed === 0 ? '✓ ' : '✗ ') + passed + ' passed, ' + failed + ' failed\n');
