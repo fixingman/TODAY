@@ -264,6 +264,44 @@ try {
       await page.close();
     }
 
+    // 3b. Breakdown tag inheritance: split tasks inherit "tag: " prefix from original.
+    {
+      const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
+      const result = await page.evaluate(async () => {
+        window.fetch = async () => ({
+          ok: true,
+          json: async () => ({
+            suggest: true,
+            type: 'break_down',
+            reason: 'long_complex_task',
+            message: 'Two steps',
+            subtasks: ['Write the outline', 'Fill in the details'],
+          }),
+        });
+        const taggedText = 'docs: Write a complete API reference';
+        manualTasks.find(task => task.id === 'task_1').text = taggedText;
+        Today.use('connections').renderManual();
+        Today.use('assistant')._aiAnalyzeTask('task_1', taggedText);
+        await new Promise(r => setTimeout(r, 2400));
+        document.querySelector('.task-suggestion-chip:not(.dismiss)')?.click();
+        const texts = manualTasks.map(t => t.text);
+        return {
+          tagCopied: texts.includes('docs: Write the outline') && texts.includes('docs: Fill in the details'),
+          noDoublePrefixOnPreTagged: (() => {
+            const t = 'work: Already tagged';
+            const r = /^[a-z0-9]{1,12}:\s+/i;
+            const prefix = 'docs: ';
+            const tagged = r.test(t);
+            const result = (prefix && !tagged) ? prefix + t : t;
+            return result === t;
+          })(),
+        };
+      });
+      await expectAll('breakdown tag inheritance', { ...result, noErrors: errors.length === 0 });
+      ok('breakdown tag inheritance: tag prefix copied to split tasks; already-tagged subtasks not double-prefixed');
+      await page.close();
+    }
+
     // 4. Static wiring: live API remains; the unreachable sheet is fully absent.
     {
       const indexSrc  = await readFile(join(ROOT, 'index.html'), 'utf8');

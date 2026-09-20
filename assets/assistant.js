@@ -352,27 +352,33 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
   // Find and remove original task
   const idx = manualTasks.findIndex(t => t.id === originalTaskId);
   if (idx === -1) return;
-  
+
+  // Capture tag prefix ("tag: ") from original so split tasks inherit it
+  const _origText = manualTasks[idx].text;
+  const _tagPrefixMatch = _origText.match(/^([a-z0-9]{1,12}):\s+/i);
+  const _tagPrefix = _tagPrefixMatch ? _tagPrefixMatch[0] : '';
+
   // Remove from DOM
   const oldEl = document.querySelector(`.task[data-taskid="${CSS.escape(originalTaskId)}"]`);
   if (oldEl) {
     oldEl.classList.add('removing');
     oldEl.addEventListener('animationend', () => oldEl.remove(), { once: true });
   }
-  
+
   // Remove from data
   manualTasks.splice(idx, 1);
-  
+
   // Track deletion for sync
   const deleted = safeJSON('today_deleted_ids', []);
   deleted.push({ id: originalTaskId, at: new Date().toISOString() });
   localStorage.setItem('today_deleted_ids', JSON.stringify(deleted));
-  
+
   // Add subtasks
   const list = $.manualList;
   const resultTaskIds = [];
   subtasks.forEach((text, i) => {
-    const task = { id: 'manual_' + (Date.now() + i), text };
+    const alreadyTagged = /^[a-z0-9]{1,12}:\s+/i.test(text);
+    const task = { id: 'manual_' + (Date.now() + i), text: (_tagPrefix && !alreadyTagged) ? _tagPrefix + text : text };
     manualTasks.push(task);
     resultTaskIds.push(task.id);
     
