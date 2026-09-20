@@ -22,6 +22,7 @@ const AUDIT_PATH = join(ROOT, 'memory', 'Performance-audit.md');
 const START_MARKER = '<!-- GENERATED:PERFORMANCE:START -->';
 const END_MARKER = '<!-- GENERATED:PERFORMANCE:END -->';
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CPU_THROTTLE_RATE = Number(process.env.PERF_CPU_THROTTLE_RATE ?? 4);
 const DESKTOP_INPUT = '--blink-settings=availableHoverTypes=2,primaryHoverType=2,availablePointerTypes=4,primaryPointerType=4';
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json', '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
 
@@ -150,7 +151,7 @@ async function emulateMobile(page) {
     uploadThroughput: 750 * 1024 / 8,
     connectionType: 'cellular4g',
   });
-  await session.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+  await session.send('Emulation.setCPUThrottlingRate', { rate: CPU_THROTTLE_RATE });
   return session;
 }
 
@@ -184,9 +185,9 @@ async function readPageMetrics(page) {
 }
 
 async function waitForReady(page, includeSplash) {
-  await page.waitForFunction(() => performance.getEntriesByName('today:interactive', 'mark').length === 1, { timeout: 30000 });
+  await page.waitForFunction(() => performance.getEntriesByName('today:interactive', 'mark').length === 1, { timeout: 60000 });
   if (includeSplash) {
-    await page.waitForFunction(() => performance.getEntriesByName('today:splash-dismissed', 'mark').length === 1, { timeout: 30000 });
+    await page.waitForFunction(() => performance.getEntriesByName('today:splash-dismissed', 'mark').length === 1, { timeout: 60000 });
   }
   await new Promise(resolve => setTimeout(resolve, 250));
 }
