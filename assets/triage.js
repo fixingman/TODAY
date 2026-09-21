@@ -383,10 +383,10 @@
       if (soonCount > 0) _saveSoon();
       if (letgoCount > 0 || _postTriageDone.length > 0) _savePast();
 
-      if (movedIds.length > 0 || doneCount > 0 || _postTriageDone.length > 0) {
-        const token = localStorage.getItem('dropbox_token');
-        if (token) dropboxBackup(true);
-      }
+      // Completing triage is itself synced state, even when every task was kept.
+      // Enter the normal pending/retry queue immediately; a one-shot direct upload
+      // can be lost if the app is suspended on the completion screen.
+      if (typeof dropboxAutoSave === 'function') dropboxAutoSave(0);
 
       const triageParts = [];
       if (keptCount > 0) triageParts.push(`${keptCount} kept`);
@@ -564,8 +564,7 @@
         setTimeout(() => _tbClose.classList.add('hidden'), 300);
       }
 
-      const token = localStorage.getItem('dropbox_token');
-      if (token) dropboxBackup(true);
+      if (typeof dropboxAutoSave === 'function') dropboxAutoSave(0);
     }
 
     function triageUndo() {
@@ -592,8 +591,7 @@
       if (undoBtn) undoBtn.style.display = 'none';
       if (typeof _memoryOnTriageUndo === 'function') _memoryOnTriageUndo();
       Today.use('connections').renderManual(); renderTrello(); renderSoon(); renderPast(); updateStats();
-      const token = localStorage.getItem('dropbox_token');
-      if (token) dropboxBackup(true);
+      if (typeof dropboxAutoSave === 'function') dropboxAutoSave(0);
       if (window._a11yAnnounce) _a11yAnnounce('Triage changes undone.');
     }
 

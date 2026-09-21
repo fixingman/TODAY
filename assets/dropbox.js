@@ -357,12 +357,13 @@
       }, delay);
     }
 
-    function dropboxAutoSave() {
+    function dropboxAutoSave(delay) {
       const token = localStorage.getItem('dropbox_token');
       if (!token) return;
       _pendingBackup = true;
       _backupAttempt = 0; // Reset — new user change, start fresh
-      _scheduleBackup(800);
+      const wait = Number.isFinite(delay) ? Math.max(0, delay) : 800;
+      _scheduleBackup(wait);
     }
 
     // Retry pending backup when tab becomes visible
@@ -1539,11 +1540,17 @@
       if (remoteDismissed === today && localDismissed !== today) {
         localStorage.setItem('triage_dismissed', remoteDismissed);
         triageDismissedToday = true;
+        _changed = true;
         // Hide triage bar AND overlay if showing
         const triageBar = document.getElementById('triageBar');
         const triageOverlay = document.getElementById('triageOverlay');
         if (triageBar) { triageBar.classList.remove('visible'); triageBar.classList.add('hidden'); }
         if (triageOverlay) triageOverlay.classList.add('hidden');
+      } else if (localDismissed === today && remoteDismissed !== today) {
+        // A stale device can overwrite the single Dropbox snapshot without today's
+        // dismissal. Keep the local completion and report a merge change so the
+        // normal retrying autosave path heals the remote copy.
+        _changed = true;
       }
 
       // ── User names: last-write-wins via user_names_at timestamp ──

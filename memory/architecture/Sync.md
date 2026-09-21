@@ -224,6 +224,10 @@ setTimeout(() => {
 **v2.12.60:** Deferred triage check 3s so sync can pull dismissal state first.  
 **v2.14.0:** Added `_triageBarSilent` flag to suppress ticker during the grace window.
 
+**v2.90.37 — completion is the sync event, not the later close.** `triageApplyAll()` queues `dropboxAutoSave(0)` unconditionally after persisting the result, including an all-`Keep` pass. Triage close and undo use the same retry-aware entry point; they no longer make untracked one-shot uploads. `dropboxAutoSave()` keeps 800ms as its default for ordinary mutations and accepts an optional delay only for state that must cross devices immediately.
+
+The same-day merge is self-healing. Remote `triage_dismissed === today` applies locally and counts as a merge change. Local `triage_dismissed === today` against a blank/older remote also counts as changed, so `dropboxRestore(true)` schedules the merged snapshot back to Dropbox. This is required because Dropbox stores one overwritten snapshot: a stale device can briefly erase a field even though another device still has the authoritative same-day completion.
+
 ### Deletion Persistence (v2.12.35+)
 
 **Critical:** `deleted_ids` must persist across days. Never clear it on new-day cleanup.

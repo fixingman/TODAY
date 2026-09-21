@@ -89,7 +89,11 @@ async function openPage(opts = {}) {
     if (typeof _memoryOnTriageUndo === 'function') {
       window._memoryOnTriageUndo = () => {};
     }
-    window.__triageTest = { saveCalls: 0 };
+    window.__triageTest = { saveCalls: 0, autoSaveCalls: 0, autoSaveDelay: null };
+    dropboxAutoSave = delay => {
+      window.__triageTest.autoSaveCalls++;
+      window.__triageTest.autoSaveDelay = delay;
+    };
     const _origSaveManual = window.drawGhost || (() => {});
     // track _saveManual calls
     const _sm = typeof _saveManual === 'function' ? _saveManual : null;
@@ -209,10 +213,13 @@ try {
       return {
         completionShown: !complete.classList.contains('hidden'),
         listCleared: list.innerHTML === '',
+        dismissalStored: localStorage.getItem('triage_dismissed') === _getAppDay(),
+        immediateSyncQueued: window.__triageTest.autoSaveCalls === 1
+          && window.__triageTest.autoSaveDelay === 0,
       };
     });
     await expectAll('keep all', { ...result, noErrors: errors.length === 0 });
-    ok('triageKeepAll marks all kept and shows completion screen');
+    ok('triageKeepAll marks all kept, stores dismissal, and immediately queues retrying sync');
     await page.close();
   }
 

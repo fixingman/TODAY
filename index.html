@@ -2261,9 +2261,9 @@
   .task { position: relative; }
   .habit { position: relative; }
   .task.dragging,
-  .habit.dragging  { opacity: 0.35; cursor: grabbing; }
+  .habit.dragging  { opacity: 0.4; background: var(--surface2); border-color: var(--border); cursor: grabbing; }
   .task.drag-over,
-  .habit.drag-over { border-color: var(--accent); background: var(--color-accent-dim); }
+  .habit.drag-over { border-color: var(--accent); }
 
   /* Touch drag — floating clone follows finger */
   .touch-drag-ghost {
@@ -4489,9 +4489,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.38': 'Drag reordering is more decisive: touch placement now uses row midpoints instead of hit-testing, ending the jitter when two tasks overlap during a drag. The dragging row shows a lighter lifted fill and the target shows a clean accent border.',
+  '2.90.37': 'Triage completion now syncs immediately and retryably even when every task is kept. A completed device also repairs a stale blank Dropbox dismissal so another device cannot ask again that evening.',
   '2.90.36': 'Sunday observations now separate verified evidence from a code-owned supported insight, so AI phrases the meaning instead of inventing it from statistics. Validation preserves the selected relationship, and diagnostics distinguish gate survivors from the single winner.',
-  '2.90.35': 'Sunday recognition now distinguishes repetition from accumulation: same-surface cooldowns stay strict; cross-surface observations reopen only after a week and material new evidence. Morning generation waits for synced voice memory.',
-  '2.90.34': 'Sunday reflection diagnostics: a local, aggregate-only audit now explains missing evidence, threshold failures, cooldowns, and AI generation outcomes without changing what the app says.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

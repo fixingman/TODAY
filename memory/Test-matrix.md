@@ -171,6 +171,8 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 2.12 | **SYNC: Missing zoneChangedAt** | Graceful fallback (no crash) |
 | 2.13 | **SYNC: Schema v5.0 vs v5.1** | Backward compatible |
 | 2.14 | **SYNC: Race condition triage** | Last zoneChangedAt wins |
+| 2.14a | **SYNC: all-Keep triage completion** | Stores today's dismissal and immediately queues retrying autosave |
+| 2.14b | **SYNC: stale blank triage dismissal** | Local same-day completion survives and marks merge changed so Dropbox is healed |
 | 2.16 | Triage summary (5+ done) | Shows "Solid day" + stats |
 | 2.17 | Triage summary (0 done) | Shows "All sorted" |
 | 2.18 | Triage summary saves review | `today_day_review` in localStorage |

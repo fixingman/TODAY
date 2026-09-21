@@ -119,7 +119,8 @@
     // ── Drag-to-reorder — manual tasks, trello tasks, habits ────────────────
     (function() {
       let dragSrc    = null;
-      let dragListId = null; // which list the drag started in
+      let dragListId = null;
+      let dragOver   = null; // currently highlighted target row
 
       // Identify which draggable list a row belongs to, and return its config
       function _rowConfig(el) {
@@ -175,7 +176,7 @@
           cfg.row.removeAttribute('draggable');
           cfg.row.style.userSelect = '';
         }
-        document.querySelectorAll('.task.drag-over, .habit.drag-over').forEach(el => el.classList.remove('drag-over'));
+        if (dragOver) { dragOver.classList.remove('drag-over'); dragOver = null; }
         dragSrc = null; dragListId = null;
       });
 
@@ -185,14 +186,22 @@
         if (!cfg || cfg.row === dragSrc || cfg.listId !== dragListId) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        document.querySelectorAll('.task.drag-over, .habit.drag-over').forEach(el => el.classList.remove('drag-over'));
+        // Skip if already highlighting this row — avoids clearing/re-adding on every mousemove
+        if (dragOver === cfg.row) return;
+        if (dragOver) dragOver.classList.remove('drag-over');
         cfg.row.classList.add('drag-over');
+        dragOver = cfg.row;
       });
 
       document.addEventListener('dragleave', function(e) {
         if (!(e.target instanceof Element)) return;
         const cfg = _rowConfig(e.target);
-        if (cfg) cfg.row.classList.remove('drag-over');
+        // Only remove when the pointer truly leaves the row, not when it moves to a child
+        // element within it (which triggers dragleave on the child's parent)
+        if (cfg && !cfg.row.contains(e.relatedTarget)) {
+          cfg.row.classList.remove('drag-over');
+          if (dragOver === cfg.row) dragOver = null;
+        }
       });
 
       document.addEventListener('drop', function(e) {
@@ -200,7 +209,7 @@
         const cfg = _rowConfig(e.target);
         if (!cfg || !dragSrc || cfg.row === dragSrc || cfg.listId !== dragListId) return;
         e.preventDefault();
-        cfg.row.classList.remove('drag-over');
+        if (dragOver) { dragOver.classList.remove('drag-over'); dragOver = null; }
 
         const list   = document.getElementById(cfg.listId);
         const sel    = cfg.listId === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]';
@@ -221,7 +230,6 @@
       const LONG_PRESS_MS = 380;
       let pressTimer = null, touchSrc = null, touchListId = null;
       let ghost = null, ghostOffX = 0, ghostOffY = 0;
-      let lastOver = null;
 
       function _rowCfgTouch(el) {
         if (!el) return null;
@@ -260,23 +268,22 @@
         ghost.style.transform = `translate(${touchX - ghostOffX}px, ${touchY - ghostOffY}px) scale(1.03)`;
       }
 
-      function _findRowAt(x, y, listId, sel) {
-        if (ghost) ghost.style.display = 'none';
-        const el = document.elementFromPoint(x, y);
-        if (ghost) ghost.style.display = '';
-        if (!el) return null;
-        const list = document.getElementById(listId);
-        if (!list) return null;
-        const row = el.closest(listId === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]');
-        if (!row || !list.contains(row) || row === touchSrc) return null;
-        return row;
+      // Returns the row to insert touchSrc BEFORE, or null to append at end.
+      // Uses each row's midpoint so the decision is stable: only changes when the
+      // finger crosses a midpoint, not every time the DOM shifts after a reorder.
+      function _findSlot(fingerY, list, sel) {
+        const rows = [...list.querySelectorAll(sel)].filter(r => r !== touchSrc);
+        for (const row of rows) {
+          const rect = row.getBoundingClientRect();
+          if (fingerY < rect.top + rect.height / 2) return row;
+        }
+        return null;
       }
 
       function _cleanup() {
         _cancelPress();
         if (ghost) { ghost.remove(); ghost = null; }
         if (touchSrc) { touchSrc.classList.remove('dragging'); }
-        if (lastOver) { lastOver.classList.remove('drag-over'); lastOver = null; }
         touchSrc = null; touchListId = null;
       }
 
@@ -329,22 +336,18 @@
         const t  = e.touches[0];
         _moveGhost(t.clientX, t.clientY);
 
-        const over = _findRowAt(t.clientX, t.clientY, touchListId,
-          touchListId === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]');
-        if (over !== lastOver) {
-          if (lastOver) lastOver.classList.remove('drag-over');
-          if (over)     over.classList.add('drag-over');
-          lastOver = over;
-        }
-        if (over) {
-          const list = document.getElementById(touchListId);
-          const sel  = touchListId === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]';
-          const rows = [...list.querySelectorAll(sel)];
-          const si   = rows.indexOf(touchSrc);
-          const ti   = rows.indexOf(over);
-          if (si !== -1 && ti !== -1) {
-            _moveRowWithMotion(list, sel, touchSrc, over, si < ti);
-          }
+        const list = document.getElementById(touchListId);
+        const sel  = touchListId === 'habitList' ? '.habit[data-habit-id]' : '.task[data-taskid]';
+        const slot = _findSlot(t.clientY, list, sel);
+        // Only move if source isn't already in the right place
+        const alreadyThere = slot === null
+          ? list.lastElementChild === touchSrc
+          : touchSrc.nextSibling === slot;
+        if (!alreadyThere) {
+          const snapshot = _snapshotRows(list, sel);
+          if (slot) list.insertBefore(touchSrc, slot);
+          else list.appendChild(touchSrc);
+          _animateReorder(snapshot, touchSrc);
         }
       }, { passive: false });
 
@@ -355,8 +358,7 @@
         _saveReorderedList(touchListId);
         const settledRow = touchSrc;
         const settledGhost = ghost;
-        if (lastOver) lastOver.classList.remove('drag-over');
-        ghost = null; touchSrc = null; touchListId = null; lastOver = null;
+        ghost = null; touchSrc = null; touchListId = null;
         _settleGhost(settledRow, settledGhost);
       }, { passive: true });
 

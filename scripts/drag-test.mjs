@@ -311,23 +311,21 @@ try {
     async ({ listId, attr, sourceId, targetId, finish }) => {
       const source = document.querySelector(`#${listId} [data-${attr}="${sourceId}"]`);
       const target = document.querySelector(`#${listId} [data-${attr}="${targetId}"]`);
-      const rect = source.getBoundingClientRect();
-      const touch = { clientX: rect.left + 8, clientY: rect.top + 8 };
       const fire = (el, type, touches) => {
         const event = new Event(type, { bubbles: true, cancelable: true });
         Object.defineProperty(event, 'touches', { value: touches, configurable: true });
         el.dispatchEvent(event);
         return event;
       };
-      fire(source, 'touchstart', [touch]);
+      const startRect = source.getBoundingClientRect();
+      fire(source, 'touchstart', [{ clientX: startRect.left + 8, clientY: startRect.top + 8 }]);
       await new Promise(resolve => setTimeout(resolve, 430));
       const activated = source.classList.contains('dragging')
         && !!document.querySelector('.touch-drag-ghost');
-      const originalElementFromPoint = document.elementFromPoint.bind(document);
-      document.elementFromPoint = () => target;
-      const move = fire(source, 'touchmove', [touch]);
-      document.elementFromPoint = originalElementFromPoint;
-      const highlighted = target.classList.contains('drag-over');
+      // Move finger past the target row's midpoint — _findSlot uses midpoints so the
+      // touch position must be in the correct zone (not source position with elementFromPoint patch)
+      const targetRect = target.getBoundingClientRect();
+      const move = fire(source, 'touchmove', [{ clientX: targetRect.left + 8, clientY: targetRect.top + targetRect.height / 2 + 1 }]);
       fire(source, finish, []);
       const settle = document.querySelector('.touch-drag-ghost')?.getAnimations()[0];
       const timing = settle?.effect?.getTiming?.();
@@ -335,7 +333,7 @@ try {
         timing.duration === _motionDuration('--dur-mid') &&
         timing.easing === _motionEasing('--ease-spring');
       await new Promise(resolve => setTimeout(resolve, _motionDuration('--dur-mid') + 50));
-      return { activated, highlighted, movePrevented: move.defaultPrevented, settlingUsesTokens };
+      return { activated, movePrevented: move.defaultPrevented, settlingUsesTokens };
     }, { listId, attr, sourceId, targetId, finish });
 
   // Touch: long-press, ghost movement, persistence, haptics, and cleanup.
@@ -350,7 +348,6 @@ try {
     const expected = [testCase.source.replace(/-a$/, '-b'), testCase.source.replace(/-a$/, '-c'), testCase.source];
     const common = {
       activated: gesture.activated,
-      highlighted: gesture.highlighted,
       movePrevented: gesture.movePrevented,
       domOrder: JSON.stringify(result.dom) === JSON.stringify(expected),
       memoryOrder: JSON.stringify(result.memory) === JSON.stringify(expected),

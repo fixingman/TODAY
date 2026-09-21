@@ -16,6 +16,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 099 | Completed triage can ask again on another device — all-`Keep` skipped immediate sync and stale blank snapshots were not healed | ⏳ v2.90.37 |
 | 098 | Header shoved off the top when a task near the bottom enters focus — sticky inside a fixed body | ✅ v2.82.4 |
 | 097 | Header date stays on yesterday when the app is open across midnight — written once at init | ✅ v2.82.2 |
 | 096 | "Clear all memory" left the companion slots intact; next sync undid the rest — no clear watermark | ✅ v2.82.1 |
@@ -59,6 +60,16 @@
 ---
 
 *BUG-001 – BUG-055 → `archive/Bugs-archive.md` (summary table + full detail). Below: bugs still awaiting verification.*
+
+---
+
+## BUG-099 — Completed triage asks again on another device
+
+**Symptom:** Triage was completed on one device, then appeared again on another device during the same evening. First reported 2026-09-21; an all-`Keep` pass was the likely path.
+
+**Root cause:** completion stored `triage_dismissed` locally, but `triageApplyAll()` made its immediate one-shot Dropbox upload conditional on a task moving or being marked done. All-`Keep` therefore waited for `triageClose()` after the completion-summary timer; suspending or closing the first device in that interval left no remote dismissal. The direct `dropboxBackup(true)` calls also bypassed the normal pending/retry queue. Separately, merge only adopted a remote dismissal: if a stale device overwrote the single Dropbox snapshot with a blank field, a device that still held today's completion did not mark the merge changed and therefore did not restore the remote copy.
+
+**Fix (v2.90.37):** completion, close, and undo now queue the retrying autosave path immediately. Same-day dismissal merge works in both directions: a remote completion applies locally, while a local completion against a blank remote reports a merge change and heals Dropbox. Browser tests cover all-`Keep` immediate scheduling and both merge directions. Awaiting real two-device verification.
 
 ---
 

@@ -241,6 +241,37 @@ try {
     await page.close();
   }
 
+  // 10b. Triage completion is a same-day monotonic sync fact. A remote completion
+  //      hides this device; a stale blank remote is reported as changed so the
+  //      caller pushes the local completion back instead of silently losing it.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const base = {
+        manual_tasks: [], done_ids: [], deleted_ids: [], unchecked_ids: [], checked_ids: [],
+        soon_tasks: [], past_tasks: [], habits: [],
+      };
+      const today = _getAppDay();
+
+      localStorage.removeItem('triage_dismissed');
+      triageDismissedToday = false;
+      const adoptedRemote = mergeRemoteData({ ...base, triage_dismissed: today });
+      const remoteApplied = localStorage.getItem('triage_dismissed') === today
+        && triageDismissedToday === true;
+
+      // Simulate a later stale snapshot from another device. The local completion
+      // must survive and the true return value asks dropboxRestore to push it back.
+      const healsStaleRemote = mergeRemoteData({ ...base, triage_dismissed: '' });
+      const localPreserved = localStorage.getItem('triage_dismissed') === today
+        && triageDismissedToday === true;
+
+      return { adoptedRemote, remoteApplied, healsStaleRemote, localPreserved };
+    });
+    await expectAll('triage dismissal merge', { ...result, noErrors: errors.length === 0 });
+    ok('mergeRemoteData: triage dismissal applies remotely and heals a stale blank snapshot');
+    await page.close();
+  }
+
   // 11. Daily-history merge keeps plausible per-day counts at the boundary and
   //     sanitizes corrupt local, duplicate-date, and remote-only values.
   {
