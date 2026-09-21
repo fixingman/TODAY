@@ -1925,7 +1925,9 @@
     border-radius: var(--radius-md);
     font-size: var(--text-xs);
     color: var(--muted);
-    animation: slideDown var(--dur-fast) var(--ease-std);
+    animation:
+      slideDown var(--dur-fast) var(--ease-std),
+      chipPulse 0.5s var(--ease-std) var(--dur-fast);
   }
   .task-suggestion.removing {
     animation: fadeOut var(--dur-fast) var(--ease-std) forwards;
@@ -1963,6 +1965,10 @@
   @keyframes slideDown {
     from { opacity: 0; transform: translateY(-8px); }
     to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes chipPulse {
+    0%, 100% { box-shadow: 0 0 0 0   var(--accent-glow); }
+    50%      { box-shadow: 0 0 0 2px var(--accent-glow); }
   }
 
   /* AI Proactive suggestions (appear after checking tasks) */
@@ -4489,9 +4495,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.39': 'AI suggestion chips pulse a soft accent ring once after they arrive, drawing your eye to wherever in the list they landed without pushing any content.',
   '2.90.38': 'Drag reordering is more decisive: touch placement now uses row midpoints instead of hit-testing, ending the jitter when two tasks overlap during a drag. The dragging row shows a lighter lifted fill and the target shows a clean accent border.',
   '2.90.37': 'Triage completion now syncs immediately and retryably even when every task is kept. A completed device also repairs a stale blank Dropbox dismissal so another device cannot ask again that evening.',
-  '2.90.36': 'Sunday observations now separate verified evidence from a code-owned supported insight, so AI phrases the meaning instead of inventing it from statistics. Validation preserves the selected relationship, and diagnostics distinguish gate survivors from the single winner.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
