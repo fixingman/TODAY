@@ -544,6 +544,8 @@
   .focus-gmail-draft-btn:hover,
   .focus-gmail-open:hover { opacity: 1; }
   .focus-gmail-draft-btn:disabled { opacity: var(--opacity-dim); cursor: default; }
+  .focus-gmail-draft-label { transition: opacity var(--dur-fast) var(--ease-std); }
+  .focus-gmail-draft-label.changing { opacity: 0; }
   .focus-gmail-draft {
     font-size: var(--text-xs);
     color: var(--text);
@@ -4512,9 +4514,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.41': 'Gmail draft button labels now crossfade between states — Draft reply, drafting…, Copy, Copied ✓ — inside a stable reserved width so the actions row never shifts.',
   '2.90.40': 'Voice capture confirmation: after transcription the listening dot transitions into a lime check, confirming the addition before the pill fades.',
   '2.90.39': 'AI suggestion chips pulse a soft accent ring once after they arrive, drawing your eye to wherever in the list they landed without pushing any content.',
-  '2.90.38': 'Drag reordering is more decisive: touch placement now uses row midpoints instead of hit-testing, ending the jitter when two tasks overlap during a drag. The dragging row shows a lighter lifted fill and the target shows a clean accent border.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

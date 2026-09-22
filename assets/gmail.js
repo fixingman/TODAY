@@ -370,7 +370,7 @@
           '</div>' +
           '<div class="focus-gmail-snippet">&ldquo;' + esc(snippet) + (snippet.length >= 200 ? '…' : '') + '&rdquo;</div>' +
           '<div class="focus-gmail-actions">' +
-            '<button class="focus-gmail-draft-btn">Draft reply</button>' +
+            '<button class="focus-gmail-draft-btn"><span class="focus-gmail-draft-label">Draft reply</span></button>' +
             '<a class="focus-gmail-open" href="' + esc(gmailUrl) + '" target="_blank" rel="noopener">Open ↗</a>' +
           '</div>' +
           '<div class="focus-gmail-draft" hidden></div>' +
@@ -414,12 +414,23 @@
       });
     }
 
+    function _setBtnLabel(btn, text) {
+      const label = btn.querySelector('.focus-gmail-draft-label');
+      if (!label) { btn.textContent = text; return; }
+      if (!btn.dataset.minWidthLocked) {
+        btn.style.minWidth = btn.getBoundingClientRect().width + 'px';
+        btn.dataset.minWidthLocked = '1';
+      }
+      label.classList.add('changing');
+      setTimeout(() => { label.textContent = text; label.classList.remove('changing'); }, 150);
+    }
+
     async function _fetchDraft(taskText, snippet, block) {
       const btn     = block.querySelector('.focus-gmail-draft-btn');
       const draftEl = block.querySelector('.focus-gmail-draft');
       if (!btn || !draftEl) return;
 
-      btn.textContent = 'drafting…';
+      _setBtnLabel(btn, 'drafting…');
       btn.disabled    = true;
 
       try {
@@ -435,21 +446,21 @@
         });
         if (!res.ok) {
           res.json().then(e => console.warn('[draft reply]', res.status, e?.error)).catch(() => {});
-          btn.textContent = 'Draft reply'; btn.disabled = false; return;
+          _setBtnLabel(btn, 'Draft reply'); btn.disabled = false; return;
         }
         const data  = await res.json();
         const draft = (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '');
-        if (!draft)  { btn.textContent = 'Draft reply'; btn.disabled = false; return; }
+        if (!draft)  { _setBtnLabel(btn, 'Draft reply'); btn.disabled = false; return; }
 
         draftEl.textContent = draft;
         draftEl.hidden      = false;
         if (window._focusExpandTimer) _focusExpandTimer();
-        btn.textContent     = 'Copy';
+        _setBtnLabel(btn, 'Copy');
         btn.disabled        = false;
         btn.addEventListener('click', function copyOnce() {
           navigator.clipboard?.writeText(draft).then(() => {
-            btn.textContent = 'Copied ✓';
-            setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+            _setBtnLabel(btn, 'Copied ✓');
+            setTimeout(() => { _setBtnLabel(btn, 'Copy'); }, 2000);
           });
           btn.removeEventListener('click', copyOnce);
         });
