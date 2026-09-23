@@ -86,8 +86,15 @@
       if (triageHdrReset) triageHdrReset.style.display = '';
 
       renderTriageList();
+
       const overlay = $.triageOverlay || document.getElementById('triageOverlay');
+      const panel   = document.getElementById('triagePanel');
+
+      // Arm morph classes before overlay appears so the animation fires from frame 0.
+      if (panel) panel.classList.add('triage-morph-active', 'triage-morph-opening');
+
       if (overlay) {
+        overlay.classList.add('triage-bg-fade'); // backdrop starts transparent
         overlay.hidden = false;
         overlay.classList.remove('hidden');
         if (window._a11yOpenDialog) _a11yOpenDialog(overlay, {
@@ -96,7 +103,18 @@
           returnFocus: document.getElementById('triageReviewBtn'),
           onEscape: triageMinimize
         });
+        // Backdrop fades in after overlay is rendered once at transparent
+        requestAnimationFrame(() => overlay.classList.remove('triage-bg-fade'));
       }
+
+      // Reveal panel content once the shell has settled (~200ms into 300ms morph)
+      setTimeout(() => {
+        if (!panel) return;
+        const els = panel.querySelectorAll('.triage-header-btn, #triageList');
+        els.forEach(el => { el.style.transition = 'opacity 0.13s var(--ease-out)'; });
+        panel.classList.remove('triage-morph-active', 'triage-morph-opening');
+        setTimeout(() => els.forEach(el => { el.style.transition = ''; }), 150);
+      }, 200);
     }
 
     function renderTriageList() {
@@ -543,11 +561,28 @@
       }
       _triageActive = false;
       const overlay = document.getElementById('triageOverlay');
-      overlay.classList.add('hidden');
+      const panel   = document.getElementById('triagePanel');
+
+      // Hide content instantly then play collapse animation
+      if (panel) {
+        const els = panel.querySelectorAll('.triage-header-btn, #triageList, #triageComplete');
+        els.forEach(el => { el.style.transition = 'none'; });
+        panel.classList.add('triage-morph-active', 'triage-morph-closing');
+      }
+      // Mark hidden immediately so tests/a11y see the right state;
+      // .triage-morph-closing on overlay overrides display:none during animation.
+      overlay.classList.add('hidden', 'triage-morph-closing', 'triage-bg-fade');
       if (window._a11yCloseDialog) _a11yCloseDialog(overlay);
-      else overlay.hidden = true;
-      const _tbMin = document.getElementById('triageBar');
-      if (_tbMin) { _tbMin.classList.remove('hidden'); requestAnimationFrame(() => _tbMin.classList.add('visible')); }
+
+      setTimeout(() => {
+        if (panel) panel.classList.remove('triage-morph-active', 'triage-morph-closing');
+        overlay.classList.remove('triage-morph-closing', 'triage-bg-fade');
+        overlay.hidden = true;
+        const els = panel ? panel.querySelectorAll('.triage-header-btn, #triageList, #triageComplete') : [];
+        els.forEach(el => { el.style.transition = ''; });
+        const _tbMin = document.getElementById('triageBar');
+        if (_tbMin) { _tbMin.classList.remove('hidden'); requestAnimationFrame(() => _tbMin.classList.add('visible')); }
+      }, 350);
     }
 
     function triageClose() {

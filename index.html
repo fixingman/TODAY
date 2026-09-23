@@ -1444,7 +1444,8 @@
   #triageOverlay {
     position: fixed;
     inset: 0;
-    background: var(--color-overlay);
+    background-color: var(--color-overlay);
+    transition: background-color var(--dur-slow) var(--ease-out);
     z-index: var(--z-overlay); /* 999 — above everything including triageBar */
     display: flex;
     align-items: flex-end;
@@ -1452,6 +1453,13 @@
   }
   #triageOverlay.hidden {
     display: none;
+  }
+  /* Keep overlay alive during the collapse animation even though .hidden is set immediately */
+  #triageOverlay.hidden.triage-morph-closing {
+    display: flex;
+  }
+  #triageOverlay.triage-bg-fade {
+    background-color: transparent;
   }
   #triagePanel {
     background: var(--surface2);
@@ -1469,6 +1477,56 @@
   @keyframes slideUp {
     from { transform: translateY(100%); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
+  }
+  /* ── Triage bar → sheet morph ──────────────────────────── */
+  /* transform-origin at center-bottom so the shell grows from
+     where the bar pill sits (72px above the add-task bar). */
+  #triagePanel.triage-morph-opening,
+  #triagePanel.triage-morph-closing {
+    transform-origin: center bottom;
+  }
+  #triagePanel.triage-morph-opening {
+    animation: triageMorphUp var(--dur-slow) var(--ease-out) both;
+  }
+  #triagePanel.triage-morph-closing {
+    animation: triageMorphDown var(--dur-slow) var(--ease-out) both;
+    pointer-events: none;
+  }
+  @keyframes triageMorphUp {
+    from {
+      transform: translateY(-72px) scaleX(0.60) scaleY(0.13);
+      border-radius: var(--radius-xl);
+      opacity: 0.95;
+    }
+    to {
+      transform: translateY(0) scaleX(1) scaleY(1);
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+      opacity: 1;
+    }
+  }
+  @keyframes triageMorphDown {
+    from {
+      transform: translateY(0) scaleX(1) scaleY(1);
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+      opacity: 1;
+    }
+    to {
+      transform: translateY(-72px) scaleX(0.60) scaleY(0.13);
+      border-radius: var(--radius-xl);
+      opacity: 0;
+    }
+  }
+  /* During morph: keep title visible as identity anchor;
+     hide buttons and list until shell settles. */
+  #triagePanel.triage-morph-active .triage-header-btn,
+  #triagePanel.triage-morph-active #triageList {
+    opacity: 0;
+    pointer-events: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #triagePanel.triage-morph-opening { animation: slideUp var(--dur-slow) var(--ease-out); }
+    #triagePanel.triage-morph-closing { animation: none; opacity: 0; }
+    #triageOverlay { transition: none; }
   }
   .triage-header {
     display: flex;
@@ -4514,9 +4572,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.42': 'Triage bar morphs into the review sheet: the pill expands from its position at the bottom into the full panel, with a matching collapse on minimise.',
   '2.90.41': 'Gmail draft button labels now crossfade between states — Draft reply, drafting…, Copy, Copied ✓ — inside a stable reserved width so the actions row never shifts.',
   '2.90.40': 'Voice capture confirmation: after transcription the listening dot transitions into a lime check, confirming the addition before the pill fades.',
-  '2.90.39': 'AI suggestion chips pulse a soft accent ring once after they arrive, drawing your eye to wherever in the list they landed without pushing any content.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
