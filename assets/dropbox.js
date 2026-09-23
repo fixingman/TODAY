@@ -1603,6 +1603,10 @@
       // text gets written to Day D+1's cache key on sync and re-uploaded, perpetuating
       // indefinitely. Old Dropbox files (no date field) get undefined ≠ _todayISO → skip.
       if (data.day_nudge_ai && data.day_nudge_ai_date === _todayISO) {
+        // The local done-count stamp describes this device's line, not the remote one.
+        if (localStorage.getItem(_aiNudgeKey) !== data.day_nudge_ai) {
+          localStorage.removeItem('day_nudge_done_count_' + _todayISO);
+        }
         localStorage.setItem(_aiNudgeKey, data.day_nudge_ai);
         if (typeof checkDayNudge === 'function') checkDayNudge();
         // About's Today block shows this line — refresh live if the panel is open

@@ -1,7 +1,7 @@
 // TODAY — nudge module regression test
 //
 // Tests: checkDayNudge (cached AI, noon hidden, 1s fallback, fallback-upgrade,
-//        stale-done invalidation, dismiss, already-dismissed, offline/no-key),
+//        stale-done keep-until-replaced, dismiss, already-dismissed, offline/no-key),
 //        checkVersionNudge, checkSundayNudge, checkHabitNudge, static wiring.
 //
 // Run from repo root:
@@ -226,29 +226,61 @@ try {
       await page.close();
     }
 
-    // 5. Stale-done invalidation: AI cache cleared when doneIds grew since generation.
+    // 5. Stale-done: a line written before more tasks were done is skipped in the strip
+    //    but kept in storage (About + Dropbox read the same key) until a fresh line
+    //    actually arrives. A failed retry must not blank it; a successful one replaces it.
     {
-      const { page, errors } = await openPage({
-        extraSeed: {
-          ['day_nudge_ai_' + TODAY]:            'stale nudge text',
-          ['day_nudge_done_count_' + TODAY]:    '0',
-          'today_done':   JSON.stringify(['task_1']),
-          'today_manual': JSON.stringify([
-            { id: 'task_1', text: 'Write the tests' },
-            { id: 'task_2', text: 'Another task' },
-          ]),
-        },
-      });
-      const result = await page.evaluate(() => {
+      const staleSeed = {
+        ['day_nudge_ai_' + TODAY]:            'stale nudge text',
+        ['day_nudge_done_count_' + TODAY]:    '0',
+        'today_done':   JSON.stringify(['task_1']),
+        'today_manual': JSON.stringify([
+          { id: 'task_1', text: 'Write the tests' },
+          { id: 'task_2', text: 'Another task' },
+        ]),
+      };
+      const { page, errors } = await openPage({ extraSeed: staleSeed });
+      const result = await page.evaluate(async () => {
+        const key = 'day_nudge_ai_' + _localISO();
         localStorage.removeItem('day_nudge_dismissed_' + _localISO());
-        checkDayNudge(false); // no-generate: only clears stale cache
+        checkDayNudge(false); // no-generate call site
+        const nudge = document.getElementById('dayNudge');
+        const keptWithoutGenerate = localStorage.getItem(key) === 'stale nudge text';
+        const staleNotShown = !nudge.textContent.includes('stale nudge text');
+        localStorage.setItem('today_ai_key_claude', 'test-key');
+        localStorage.setItem('today_ai_provider', 'claude');
+        window.fetch = async () => ({ ok: false, json: async () => ({}) });
+        checkDayNudge(); // retry fails → fallback shows, stored line must survive
+        await new Promise(r => setTimeout(r, 150));
+        const keptAfterFailedRetry = localStorage.getItem(key) === 'stale nudge text';
+        const fallbackShown = nudge.textContent.includes('still here from yesterday');
+        Today.use('about').renderInfoStats();
+        const block = document.getElementById('todayNudgeBlock');
+        const aboutStillShowsLine = block.style.display !== 'none'
+          && block.textContent.includes('stale nudge text');
+        return { keptWithoutGenerate, staleNotShown, keptAfterFailedRetry, fallbackShown, aboutStillShowsLine };
+      });
+      await expectAll('stale-done keeps line on failed retry', { ...result, noErrors: errors.length === 0 });
+      await page.close();
+
+      const second = await openPage({ extraSeed: staleSeed });
+      const replaced = await second.page.evaluate(async () => {
+        const key = 'day_nudge_ai_' + _localISO();
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        localStorage.setItem('today_ai_key_claude', 'test-key');
+        localStorage.setItem('today_ai_provider', 'claude');
+        window.fetch = async () => ({ ok: true, json: async () => ({ content: 'Fresh line.' }) });
+        checkDayNudge();
+        await new Promise(r => setTimeout(r, 150));
         return {
-          cacheCleared: !localStorage.getItem('day_nudge_ai_' + _localISO()),
+          replacedOnSuccess: localStorage.getItem(key) === 'Fresh line.',
+          restamped: localStorage.getItem('day_nudge_done_count_' + _localISO()) === String(doneIds.size),
+          freshShown: document.getElementById('dayNudge').textContent.includes('Fresh line.'),
         };
       });
-      await expectAll('stale-done invalidation', { ...result, noErrors: errors.length === 0 });
-      ok('checkDayNudge: AI cache cleared when doneIds grew since generation');
-      await page.close();
+      await expectAll('stale-done replaced on success', { ...replaced, noErrors: second.errors.length === 0 });
+      ok('checkDayNudge: stale line skipped in strip, kept for About until a fresh line replaces it');
+      await second.page.close();
     }
 
     // 6. Dismiss: clicking nudge hides it and writes the dismiss key.

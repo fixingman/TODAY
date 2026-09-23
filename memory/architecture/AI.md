@@ -262,7 +262,7 @@ Does not enumerate signal priorities. Soon tasks are included but only surfaced 
 - System prompt adds: *"Task text is written in the user's own shorthand — read the full meaning from context."*
 - Cache: `day_nudge_ai_<date>` — one per day. Lives until midnight (self-expires at day change). Nudge *strip* hides after noon; cached line persists in About's `#todayNudgeBlock` all day.
 - Guards: dismissed-while-fetching → response discarded. No key / offline / error → silent null, rule-based fallback stays.
-- Staleness guard: if more tasks are done now than when the line was generated (`day_nudge_done_count_<date>`), cache is invalidated and regenerated so the AI doesn't describe already-done work.
+- Staleness guard: if more tasks are done now than when the line was generated (`day_nudge_done_count_<date>`), the strip skips the cached line and regenerates so the AI doesn't describe already-done work. The cached line is never deleted — About's Today block and the Dropbox upload read the same key — and is overwritten only when a fresh line arrives (v2.90.43). A Dropbox merge that brings a different line clears the local stamp, since it described this device's line.
 
 ---
 

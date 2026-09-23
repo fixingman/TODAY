@@ -219,17 +219,17 @@ window._startNudge = (function() {
       // (the AI only quotes a short fragment, not the full task string), so instead
       // stamp doneIds.size at generation time and compare against the current count:
       // if more tasks are done now than when the text was written, something the AI
-      // saw as pending may since be finished — discard and regenerate rather than
-      // show a sentence that might be about finished work.
+      // saw as pending may since be finished — regenerate rather than show a
+      // sentence that might be about finished work.
+      // The stale line is skipped here but never deleted: About's Today block and the
+      // Dropbox upload read the same key, so deleting it before a replacement lands let
+      // a failed retry blank the line for the rest of the day on every device.
+      // _raceAINudge overwrites it only when a fresh line arrives.
       const _doneCountKey = 'day_nudge_done_count_' + _localISO();
       let _cacheValid = !!_aiCached;
       if (_aiCached) {
         const _generatedDoneCount = parseInt(localStorage.getItem(_doneCountKey) || '-1', 10);
-        if (_generatedDoneCount >= 0 && doneIds.size > _generatedDoneCount) {
-          _cacheValid = false;
-          localStorage.removeItem(_nudgeCacheKey);
-          localStorage.removeItem(_doneCountKey);
-        }
+        if (_generatedDoneCount >= 0 && doneIds.size > _generatedDoneCount) _cacheValid = false;
       }
 
       if (_cacheValid) {
