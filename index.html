@@ -4405,7 +4405,7 @@
 </div>
 
 <!-- Triage trigger bar (minimized state) -->
-<div id="triageBar" class="hidden" role="status">
+<div id="triageBar" class="hidden" role="status" data-today-click="triage.expand">
   <span class="triage-msg"><span id="triageCount">0</span> didn't happen</span>
   <button class="triage-btn primary" id="triageReviewBtn" type="button" data-today-click="triage.expand">Review</button>
 </div>
@@ -4572,9 +4572,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.45': 'Tapping anywhere on the evening triage bar opens the review again, and the sheet now rises once from the bar instead of dropping and rising a second time.',
   '2.90.44': 'Finishing triage on one device now stays finished on another device that is opening for the first time today, instead of asking again.',
   '2.90.43': 'Today\'s morning line stays in About for the rest of the day, even after finishing a task sent the morning strip looking for a fresher line that never arrived.',
-  '2.90.42': 'Triage bar morphs into the review sheet: the pill expands from its position at the bottom into the full panel, with a matching collapse on minimise.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

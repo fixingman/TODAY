@@ -153,6 +153,48 @@ try {
     await page.close();
   }
 
+  // The whole bar opens triage, not only its Review button, and the sheet opens in a
+  // single morph: removing the opening class mid-sheet swapped the panel back to its
+  // base slideUp animation, which replayed from off-screen (drop, then rise again).
+  {
+    const { page, errors } = await openPage({ hour: 21 });
+    await page.evaluate(() => Today.use('triage').checkTriageBar());
+    await page.waitForFunction(() => document.getElementById('triageBar').classList.contains('visible'), { timeout: 5000 });
+    const msg = await page.$eval('.triage-msg', m => { const r = m.getBoundingClientRect(); return { x: r.x + 5, y: r.y + r.height / 2 }; });
+    await page.evaluate(() => {
+      window.__panelTops = [];
+      const p = document.getElementById('triagePanel'); const t0 = performance.now();
+      const tick = () => { if (!document.getElementById('triageOverlay').classList.contains('hidden')) window.__panelTops.push(p.getBoundingClientRect().top);
+        if (performance.now() - t0 < 600) requestAnimationFrame(tick); };
+      requestAnimationFrame(tick);
+    });
+    await page.mouse.click(msg.x, msg.y);
+    await new Promise(r => setTimeout(r, 260));
+    const mid = await page.evaluate(() => {
+      const p = document.getElementById('triagePanel');
+      return {
+        openedFromBarText: !document.getElementById('triageOverlay').classList.contains('hidden'),
+        morphStillOwnsAnimation: getComputedStyle(p).animationName === 'triageMorphUp',
+        contentRevealed: !p.classList.contains('triage-morph-active'),
+      };
+    });
+    await new Promise(r => setTimeout(r, 450));
+    const settled = await page.evaluate(() => {
+      const tops = window.__panelTops;
+      let drops = 0; for (let i = 1; i < tops.length; i++) if (tops[i] - tops[i - 1] > 40) drops++;
+      return { noReplayDrop: tops.length > 5 && drops === 0 };
+    });
+    await page.keyboard.press('Escape');
+    await new Promise(r => setTimeout(r, 450));
+    const closed = await page.evaluate(() => ({
+      openingClassCleared: !document.getElementById('triagePanel').classList.contains('triage-morph-opening'),
+      barBack: document.getElementById('triageBar').classList.contains('visible'),
+    }));
+    await expectAll('bar click + single morph', { ...mid, ...settled, ...closed, noErrors: errors.length === 0 });
+    ok('whole triage bar opens the sheet; sheet opens in one morph without replaying slideUp');
+    await page.close();
+  }
+
   // Decisions recorded per type (3-task page, decide 2, leave 1 undecided to prevent auto-apply).
   {
     const { page, errors } = await openPage({ tasks: [TASK_A, TASK_B, TASK_C, { id: 'tx4', text: 'guard task', createdAt: '2026-08-10T10:00:00.000Z' }], hour: 21 });

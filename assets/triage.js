@@ -15,6 +15,7 @@
     let _triageActive = false;
     let _triageBarSilent = false;
     let _triageBarShown = false;
+    let _triageRevealTimer = null;
     const TRIAGE_HISTORY_MAX = 50;
 
     function _undoneTasks() {
@@ -91,7 +92,13 @@
       const panel   = document.getElementById('triagePanel');
 
       // Arm morph classes before overlay appears so the animation fires from frame 0.
-      if (panel) panel.classList.add('triage-morph-active', 'triage-morph-opening');
+      // triage-morph-opening stays on while the sheet is open: removing it swaps the
+      // panel back to its base slideUp animation, which replays from off-screen.
+      clearTimeout(_triageRevealTimer);
+      if (panel) {
+        panel.classList.remove('triage-morph-closing');
+        panel.classList.add('triage-morph-active', 'triage-morph-opening');
+      }
 
       if (overlay) {
         overlay.classList.add('triage-bg-fade'); // backdrop starts transparent
@@ -108,11 +115,11 @@
       }
 
       // Reveal panel content once the shell has settled (~200ms into 300ms morph)
-      setTimeout(() => {
+      _triageRevealTimer = setTimeout(() => {
         if (!panel) return;
         const els = panel.querySelectorAll('.triage-header-btn, #triageList');
         els.forEach(el => { el.style.transition = 'opacity 0.13s var(--ease-out)'; });
-        panel.classList.remove('triage-morph-active', 'triage-morph-opening');
+        panel.classList.remove('triage-morph-active');
         setTimeout(() => els.forEach(el => { el.style.transition = ''; }), 150);
       }, 200);
     }
@@ -567,6 +574,8 @@
       if (panel) {
         const els = panel.querySelectorAll('.triage-header-btn, #triageList, #triageComplete');
         els.forEach(el => { el.style.transition = 'none'; });
+        clearTimeout(_triageRevealTimer);
+        panel.classList.remove('triage-morph-opening');
         panel.classList.add('triage-morph-active', 'triage-morph-closing');
       }
       // Mark hidden immediately so tests/a11y see the right state;
@@ -590,6 +599,8 @@
       triageDismissedToday = true;
       localStorage.setItem('triage_dismissed', _getAppDay());
       const overlay = document.getElementById('triageOverlay');
+      clearTimeout(_triageRevealTimer);
+      document.getElementById('triagePanel')?.classList.remove('triage-morph-active', 'triage-morph-opening');
       overlay.classList.add('hidden');
       if (window._a11yCloseDialog) _a11yCloseDialog(overlay);
       else overlay.hidden = true;
