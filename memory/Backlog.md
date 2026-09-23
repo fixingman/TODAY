@@ -110,8 +110,8 @@ Poet notes: Teasdale (*Stars To-night*) rich for future rounds. Crapsey fully cu
 - Tirukkural (Thiruvalluvar, trans. G. U. Pope, 1886) — Wikisource has Ch. 131–133 verbatim; Ch. 110, 121–130 are redlinks. Book III love chapters have strong candidates (K1095, K1227). Pope d. 1908, worldwide PD.
 - Prose at Marcus Aurelius length (2–5 sentences): Muir *First Summer* (d.1914) remains open except for the final-cut 26 August frost sentence; Garnett-translated Chekhov produced the approved autumn sentence from 'Ionitch', while other passages remain open.
 - Africa: traditional !kun 'Prayer to the Young Moon' (recited by !nanni, recorded by L.C. Lloyd in 1880) approved by Can and shipped as its contiguous closing excerpt in v2.77.5. Digital Bleek & Lloyd metadata resolves the attribution separately from Dia!kwain's nearby 1875 Moon-and-Hare narrative.
-- Middle East / Armenia: al-Ma'arri's quiet-rain couplet (trans. Ameen Rihani), Abu-Yshac's complete 'The Roses' (trans. E. Powys Mathers), and the first two stanzas of Raphael Patkanian's 'The Sure Hope' (trans. Alice Stone Blackwell) approved by Can and prepared for v2.77.27.
-- Jamaica / Spain: the closing stanza of Claude McKay's 'Joy in the Woods' and Antonio Machado's 'Counsels' (trans. Thomas Walsh) approved by Can and prepared for v2.77.27. The six-line ceiling begins with the next search round; these already-reviewed longer selections are grandfathered.
+- Middle East / Armenia: al-Ma'arri's quiet-rain couplet (trans. Ameen Rihani), Abu-Yshac's complete 'The Roses' (trans. E. Powys Mathers), and the first two stanzas of Raphael Patkanian's 'The Sure Hope' (trans. Alice Stone Blackwell) shipped in v2.77.27. Search beyond these approved voices.
+- Jamaica / Spain: Claude McKay's 'Joy in the Woods' shipped in v2.77.27. Antonio Machado's 'Counsels' (trans. Thomas Walsh) shipped then but was removed in the 2026-09-18 archaic-language audit; do not re-propose that wording.
 - Southeast Asia: José Rizal's 'To the Flowers of Heidelberg' first stanza (trans. Charles Derbyshire) was reviewed and skipped; do not re-propose it. Continue searching beyond the Philippines.
 - Closed: London Snow (too long), Turkish/Sufi (no worldwide-PD English), Poe (anguished), 'The Broken String' (bleak/unresolved)
 - Modern CC0: no viable candidates found after exhaustive search. Path exists in principle.
@@ -226,7 +226,7 @@ Dropbox + GDrive simultaneously · automatic cross-provider migration · OneDriv
 
 #### 12c · Observation Pool — Phases 0–3 shipped; **Phase 4 running** (restarted 2026-09-03)
 
-**One ranked candidate pool feeding two surfaces.** Code selects through four gates; the model only phrases. `assets/week-reflection-policy.js`, pure and Node-testable, 68 tests. Consumers: the **morning nudge** (only kinds that can point at today's list) and the **Sunday reflection** (every kind). Cooldowns are cross-surface, so an observation is said once wherever it lands.
+**One ranked candidate pool feeding two surfaces.** Code selects through four gates; the model only phrases. `assets/week-reflection-policy.js` is pure and Node-testable. Consumers: the **morning nudge** (only kinds that can point at today's list) and the **Sunday reflection** (every kind). Cooldowns and material-change reopening are cross-surface; see `architecture/AI.md` for the current gate.
 
 ### Phase 4 — first sample, and what it changed (2026-09-02/03)
 
@@ -314,8 +314,6 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 
 **Memory panel — AI hypotheses** — Can does not visit; most inferences uninteresting. Before any new hypothesis generation: read `appMemory.memory.semantic/episodic/procedural` statuses. If almost nothing confirmed, the generator is producing unrecognised guesses — diagnose that before adding sources.
 
-**Dated AI-cache sync** — Four fields hand-plumbed: `day_nudge_ai`, `week_reflection`, `monday_intention`, `week_theme_ai`. (`gmail_classify_*` is keyed by taskId, not date — not a fifth.) Create a declarative registry before a genuinely fifth dated AI field lands. Not yet.
-
 **Merge-anomaly observability** — Console-only `[merge-anomaly]` breadcrumb; no persisted counter. Revisit only if anomalies appear during debugging.
 
 **Chrome Built-in AI (Prompt API)** — Chrome 127+ ships Gemini Nano on-device; still Origin Trial (Chrome-only). Ideal for Gmail comm-task classification: on-device, free, offline. Progressive enhancement when stable: try `window.ai` first, fall back to `ai-assist`. Revisit when out of trial (~2026 or later).
@@ -340,7 +338,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 | HOW DAYS FELT insight | 2026-10-08 | Re-observing — extended 20 days from 2026-09-18 while data populates. A useful commitment relationship or silence, never a feeling-frequency recap? |
 | Sunday earned insight | 2026-10-15 | Re-observing — was blocked lately; give more rounds before verdict. |
 | Observation pool — morning + Sunday (12c Phase 4) | 2026-10-01 | Re-observing — not sure yet; extend to 2026-10-01. Reactions are the verdict channel. |
-| Memory panel KNOWN + SAID (12d Phase A) | 2026-10-01 | Re-observing — reconstruction caveat removed (2026-09-14); outcome counts kept. Re-evaluate by 2026-10-01. |
+| Memory panel KNOWN record (12d Phase A) | 2026-10-01 | Re-observing — SAID and the reconstruction caveat were removed; outcome counts kept. Re-evaluate whether the remaining record earns a visit. |
 
 ---
 

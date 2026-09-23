@@ -161,9 +161,11 @@ window._startDayLifecycle = (function() {
       if (_todayChecks.length)   localStorage.setItem('today_checked_ids',   JSON.stringify(_todayChecks));
       if (_todayUnchecks.length) localStorage.setItem('today_unchecked_ids', JSON.stringify(_todayUnchecks));
 
-      // Reset triage dismissed flag
-      localStorage.removeItem('triage_dismissed');
-      triageDismissedToday = false;
+      // A second device can pull today's completed triage before its own first
+      // new-day cleanup runs. Only yesterday's dismissal should roll over.
+      const triageDismissedForToday = localStorage.getItem('triage_dismissed') === today;
+      if (!triageDismissedForToday) localStorage.removeItem('triage_dismissed');
+      triageDismissedToday = triageDismissedForToday;
       _triageBarShown = false; // Reset for the new evening
 
       // Prune suggestion cooldowns for tasks that no longer exist (manual OR Trello)

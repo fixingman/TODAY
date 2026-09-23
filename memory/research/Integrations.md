@@ -1,6 +1,6 @@
 # Integration Research
 
-> API complexity, implementation status, and priorities.
+> Historical API feasibility notes. Current product decisions and priority live in `Backlog.md`; recheck external API details before implementation.
 
 ---
 
@@ -15,20 +15,17 @@
 
 ---
 
-## Priority Ranking
+## Current Decisions
 
-| Integration | Complexity | Priority | Reasoning |
-|-------------|------------|----------|-----------|
-| Todoist | ~1.5× | **High** | Biggest power-user overlap |
-| Microsoft To Do | ~2× | Medium | Best M365 path |
-| Google Drive | ~2× | Medium | Dropbox alternative |
-| TickTick | ~2× | Low | API still maturing |
-| iCloud | ~2.5× | Low | Apple-only |
-| Jira | ~3× | Low | Enterprise complexity |
+| Integration | Decision | Reasoning |
+|-------------|----------|-----------|
+| Google Drive | Parked; spec in `Backlog.md` §9 | Alternative sync provider, chosen explicitly at setup |
+| Todoist | Rejected 2026-08-21 | No demonstrated need for a second task-integration lane |
+| Microsoft To Do, TickTick, iCloud, Jira | No active plan | Feasibility notes below are historical, not a build order |
 
 ---
 
-## Todoist Integration (planned)
+## Todoist Feasibility (historical; rejected)
 
 ### API Overview
 - REST API v2

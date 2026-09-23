@@ -4,8 +4,8 @@
 
 ## Status key
 
-| Badge | Meaning |
-|-------|---------|
+| Badge            | Meaning                                                                                          |
+|------------------|--------------------------------------------------------------------------------------------------|
 | ✅ `vX.X.X`  | Fixed and verified by Can on a real device, or by an accepted reproduction-equivalent simulator run |
 | ⏳ `vX.X.X`  | Fix shipped — awaiting an accepted verification pass |
 | 🔍 Diagnosing | Root cause not yet confirmed — investigation in progress |
@@ -14,9 +14,9 @@
 
 ## Status Summary
 
-| # | Description | Status |
-|---|---|---|
-| 099 | Completed triage can ask again on another device — all-`Keep` skipped immediate sync and stale blank snapshots were not healed | ⏳ v2.90.37 |
+| #   | Description                                                                            | Status               |
+|-----|----------------------------------------------------------------------------------------|----------------------|
+| 099 | Completed triage can ask again on another device — first-open cleanup erased an adopted same-day dismissal | ⏳ fix prepared |
 | 098 | Header shoved off the top when a task near the bottom enters focus — sticky inside a fixed body | ✅ v2.82.4 |
 | 097 | Header date stays on yesterday when the app is open across midnight — written once at init | ✅ v2.82.2 |
 | 096 | "Clear all memory" left the companion slots intact; next sync undid the rest — no clear watermark | ✅ v2.82.1 |
@@ -69,7 +69,11 @@
 
 **Root cause:** completion stored `triage_dismissed` locally, but `triageApplyAll()` made its immediate one-shot Dropbox upload conditional on a task moving or being marked done. All-`Keep` therefore waited for `triageClose()` after the completion-summary timer; suspending or closing the first device in that interval left no remote dismissal. The direct `dropboxBackup(true)` calls also bypassed the normal pending/retry queue. Separately, merge only adopted a remote dismissal: if a stale device overwrote the single Dropbox snapshot with a blank field, a device that still held today's completion did not mark the merge changed and therefore did not restore the remote copy.
 
-**Fix (v2.90.37):** completion, close, and undo now queue the retrying autosave path immediately. Same-day dismissal merge works in both directions: a remote completion applies locally, while a local completion against a blank remote reports a merge change and heals Dropbox. Browser tests cover all-`Keep` immediate scheduling and both merge directions. Awaiting real two-device verification.
+**First fix (v2.90.37):** completion, close, and undo queue the retrying autosave path immediately. Same-day dismissal merge works in both directions: a remote completion applies locally, while a local completion against a blank remote reports a merge change and heals Dropbox. Browser tests cover all-`Keep` immediate scheduling and both merge directions.
+
+**Recurrence (2026-09-23):** phone completed triage, but the computer's prompt stayed visible beyond 10 seconds. On a desktop's first open since the previous day, cold-start sync merged today's dismissal, then `applyNewDayCleanup()` unconditionally removed it. Deferred sync bookkeeping could upload that blank field back to Dropbox. A failing browser reproduction confirmed both the lost local dismissal and the blank upload. This ordering and reset predate module extraction; the v2.90.37 merge's changed flag could make the blank upload sooner, but was not the underlying bug.
+
+**Follow-up fix (v2.90.44):** new-day cleanup retains a dismissal dated today and clears only older/invalid dates. The browser regression runs the real first-open pull → cleanup → backup sequence with mocked Dropbox and checks the local flag, hidden prompt, and upload payload. A separate test confirms yesterday's dismissal still clears. Targeted suites passed; the full gate recorded an unrelated focus-mode accessibility flake. Real two-device verification remains open.
 
 ---
 

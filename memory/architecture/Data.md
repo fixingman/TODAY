@@ -182,7 +182,7 @@
 
 **Clear watermark (BUG-096, v2.82.1).** `_memoryClearConfirm` wipes the 12a/12c slots and `recentConversations`, sets `clearedAt`, tombstones the cleared hypothesis ids, and pushes a backup. `_mergeAppMemory` adopts the max `clearedAt` across devices and drops rows dated before it in every dated-row union (`taskOutcomes`, `spokenLines`, `obligationHistory`, `moments`, `recentCompletedTasks`, `recentConversations`) on **both** sides, so a clear made on one device propagates rather than being undone. Rows carry a date-only field, so the compare is by day: a row from the clear's own day is accepted (documented edge, preferred over dropping fresh post-clear rows). `taskOutcomesBackfilled` stays true after a clear so the seed cannot resurrect what was just erased.
 
-`suggestionOutcomes` is additive inside the existing `appMemory` payload, so backup schema 5.4 does not change. Task text and the model's visible reason line are stored because they are needed to explain the offer and detect an explicit recreation of the original; both were already inside TODAY's local/synced task-memory boundary. “Clear all memory” removes outcomes, legacy suggestion history, and suggestion cooldowns. Outcome records are capped at 100 newest offers.
+`suggestionOutcomes` was additive inside the existing `appMemory` payload, so its introduction did not bump the then-current backup schema 5.4. Task text and the model's visible reason line are stored because they are needed to explain the offer and detect an explicit recreation of the original; both were already inside TODAY's local/synced task-memory boundary. “Clear all memory” removes outcomes, legacy suggestion history, and suggestion cooldowns. Outcome records are capped at 100 newest offers.
 
 ---
 
@@ -211,7 +211,7 @@
 
 ```javascript
 {
-  version: '5.4',
+  version: '5.5',
   manual: [...],
   habits: [...],
   habitCompletions: {...},

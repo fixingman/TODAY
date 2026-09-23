@@ -2,7 +2,8 @@
 //
 // Tests: applyNewDayCleanup (first-open guard, same-day guard, done→PAST graduation,
 //        BUG-055 cross-device timestamp, BUG-063 midnight focus snapshot, streak+,
-//        streak break, tombstone purge, SOON→PAST aging, delayed backup), static wiring.
+//        streak break, tombstone purge, SOON→PAST aging, triage first-open sync,
+//        delayed backup), static wiring.
 //
 // Run from repo root:
 //   node scripts/day-lifecycle-test.mjs --pre-extraction
@@ -154,6 +155,80 @@ try {
       });
       await expectAll('same-day guard', { ...r, noErrors: !errors.length });
       ok('same-day guard: no-op when stat_last_visit = today');
+      await page.close();
+    }
+
+    // A real day rollover must clear yesterday's triage dismissal.
+    {
+      const { page, errors } = await openPage({
+        extraSeed: { triage_dismissed: YESTERDAY_DS },
+      });
+      const r = await page.evaluate(({ yesterdayDs }) => {
+        localStorage.setItem('stat_last_visit', yesterdayDs);
+        applyNewDayCleanup();
+        return {
+          oldDismissalCleared: localStorage.getItem('triage_dismissed') === null,
+          triageAvailableToday: triageDismissedToday === false,
+        };
+      }, { yesterdayDs: YESTERDAY_DS });
+      await expectAll('yesterday triage dismissal clears', { ...r, noErrors: !errors.length });
+      ok('yesterday triage dismissal clears on a genuine day rollover');
+      await page.close();
+    }
+
+    // Cold start on a second device: pull today's dismissal, run yesterday's
+    // local cleanup, then upload. The dismissal must survive every stage.
+    {
+      const page = await browser.newPage();
+      const errors = [];
+      page.on('pageerror', err => errors.push(err.message));
+      await page.evaluateOnNewDocument(({ yesterdayDs, todayDs }) => {
+        localStorage.clear();
+        localStorage.setItem('splash_shown_at', String(Date.now()));
+        localStorage.setItem('stat_last_visit', yesterdayDs);
+        localStorage.setItem('today_manual', JSON.stringify([{ id: 'manual_triage_sync', text: 'Carryover task' }]));
+        localStorage.setItem('dropbox_token', 'mock-token');
+        window.__triageSyncUploads = [];
+        const realFetch = window.fetch.bind(window);
+        window.fetch = (input, options) => {
+          const url = String(input);
+          if (url.endsWith('/2/files/download')) {
+            return Promise.resolve(new Response(JSON.stringify({
+              manual_tasks: [{ id: 'manual_triage_sync', text: 'Carryover task' }],
+              done_ids: [], deleted_ids: [], unchecked_ids: [], checked_ids: [],
+              soon_tasks: [], past_tasks: [], habits: [],
+              triage_dismissed: todayDs,
+            }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+          }
+          if (url.endsWith('/2/files/upload')) {
+            window.__triageSyncUploads.push(JSON.parse(options.body));
+            return Promise.resolve(new Response(JSON.stringify({ rev: 'mock-rev-2' }), { status: 200 }));
+          }
+          if (url.endsWith('/2/files/get_metadata')) {
+            return Promise.resolve(new Response(JSON.stringify({ rev: 'mock-rev-1' }), { status: 200 }));
+          }
+          return realFetch(input, options);
+        };
+        Date.prototype.getHours = function() { return 21; };
+      }, { yesterdayDs: YESTERDAY_DS, todayDs: TODAY_DS });
+      await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      await page.waitForFunction(() =>
+        localStorage.getItem('stat_last_visit') === new Date().toDateString()
+        && window.__triageSyncUploads?.length > 0,
+      { timeout: 15000 });
+      const r = await page.evaluate(async ({ todayDs }) => {
+        Today.use('triage').setBarSilent(false);
+        Today.use('triage').checkTriageBar();
+        await new Promise(requestAnimationFrame);
+        return {
+          dismissalKept: localStorage.getItem('triage_dismissed') === todayDs,
+          inMemoryDismissed: triageDismissedToday === true,
+          promptHidden: !document.getElementById('triageBar').classList.contains('visible'),
+          allUploadsKeepDismissal: window.__triageSyncUploads.every(data => data.triage_dismissed === todayDs),
+        };
+      }, { todayDs: TODAY_DS });
+      await expectAll('cold-start triage dismissal survives cleanup and backup', { ...r, noErrors: !errors.length });
+      ok('second-device first open keeps today’s triage dismissal through cleanup and upload');
       await page.close();
     }
 
@@ -433,7 +508,7 @@ try {
       await page.close();
     }
 
-    console.log('\nDay-lifecycle tests passed (post-extraction, 13 tests).');
+    console.log('\nDay-lifecycle tests passed (post-extraction, 15 tests).');
   }
 } finally {
   if (browser) await browser.close();

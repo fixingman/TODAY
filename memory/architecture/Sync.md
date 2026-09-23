@@ -226,6 +226,8 @@ setTimeout(() => {
 
 **v2.90.37 — completion is the sync event, not the later close.** `triageApplyAll()` queues `dropboxAutoSave(0)` unconditionally after persisting the result, including an all-`Keep` pass. Triage close and undo use the same retry-aware entry point; they no longer make untracked one-shot uploads. `dropboxAutoSave()` keeps 800ms as its default for ordinary mutations and accepts an optional delay only for state that must cross devices immediately.
 
+**First-open cleanup follow-up (v2.90.44).** Cold start pulls and merges Dropbox before `applyNewDayCleanup()`. A device last opened yesterday can therefore hold today's dismissal from another device when cleanup runs. Cleanup now removes `triage_dismissed` only when its stored day is not today; the in-memory flag follows that date check. Otherwise the subsequent push-back could upload an erased dismissal. A browser test covers pull → cleanup → backup and genuine day rollover.
+
 The same-day merge is self-healing. Remote `triage_dismissed === today` applies locally and counts as a merge change. Local `triage_dismissed === today` against a blank/older remote also counts as changed, so `dropboxRestore(true)` schedules the merged snapshot back to Dropbox. This is required because Dropbox stores one overwritten snapshot: a stale device can briefly erase a field even though another device still has the authoritative same-day completion.
 
 ### Deletion Persistence (v2.12.35+)

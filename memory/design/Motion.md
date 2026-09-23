@@ -83,8 +83,13 @@ One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newl
 
 ### Quick Voice Capture
 - While Shift+Space is actively listening, the 8px red dot uses `_breathe` with `_KF_BREATHE_SMALL`; persistent capture motion is WAAPI, not a CSS keyframe loop.
-- Opening, transcription, success, empty, unavailable, and failure states are communicated by text and colour without looping motion. Leaving `listening` cancels the dot animation immediately.
+- Leaving `listening` cancels the dot animation immediately. Opening, transcription, empty, unavailable, and failure states use text and colour without looping motion.
+- Only after a task is actually added, the dot's red fill clears and its `::after` corner fades into an accent check (v2.90.40). This one-shot confirmation does not delay capture or task storage; reduced motion shows the check without transition.
 - `_breathe` owns the reduced-motion gate, so the red dot stays visible but still when motion is reduced.
+
+### Async Suggestion and Action States
+- A newly delivered inline suggestion completes its `slideDown`, then gives one 0.5s accent-glow ring pulse (`chipPulse`, v2.90.39). The pulse uses `box-shadow`, changes no layout, and is disabled by reduced motion.
+- The Gmail draft button crossfades its inner label over `--dur-fast` between Draft reply, drafting…, Copy, and Copied ✓ (v2.90.41). Its width is reserved from the initial label so async progress and confirmation do not move neighboring actions. Reduced motion swaps the label directly.
 
 ### All-Done Celebration
 - Accent glow pulse (radial, 1.2s fade)

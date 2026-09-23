@@ -28,7 +28,7 @@ Then read Tier 2 files relevant to the task (see `Rules.md` File Guide).
 
 ## Post-Session Checklist
 
-> **Ownership:** Steps 1–5 are Claude's responsibility. Step 6 (production tests) is Can's responsibility — Claude cannot run the app.
+> **Ownership:** The agent maintains the docs and runs local automated/browser checks. Can verifies flows that require his live accounts, installed PWA, or real-device experience.
 
 ### 1. Update both Changelogs (per version bump — not just at session end)
 **The two changelogs have different audiences — write them differently:**
@@ -107,7 +107,7 @@ See `Rules.md` § Operating Mode for the full discipline-vs-gate split.
 
 ## Production Tests (Can's responsibility)
 
-> Run after deploying to production. Claude cannot do these — they require the live app.
+> Run after deploying to production. Local automation covers many flows, while connected-account and real-device checks still need Can.
 > **See `Test-matrix.md` → Pre-Release Checklist (9 tests)**
 
 Quick smoke test after any deploy:
@@ -128,7 +128,6 @@ Quick smoke test after any deploy:
 - Review `Backlog.md` — any stale items to close or move to Not Implementing?
 - Check `Bugs.md` — any "awaiting" bugs that have been soaking for 3+ sessions? Follow up with Can.
 - **Wallpaper audit (W3):** any recurring surface shipped ~2+ weeks ago — ask Can whether it still delivers each time it appears, or has become skippable. Iterate or remove (removal is a valid outcome).
-- **Clean plan files:** `ls ~/.claude/plans/` — delete completed plans and any that belong to other projects (unrecognized subject matter). Completed plan = its fix is already shipped. Foreign plan = content clearly unrelated to TODAY.
 
 ### Occasionally: Documentation Audit
 - Any architecture doc drifting from reality? Spot-check against code
@@ -152,21 +151,9 @@ No hard limits — but when files get large they slow down Tier 1 reads. Use jud
 
 ## Code Reading Discipline
 
-> Applies during every session. Token cost from `view` calls accumulates permanently in context.
-
-**Before viewing any code, ask: is this section already in context?**
-- If I viewed it earlier this session AND no edit has touched that section since → trust the in-context version, skip the re-read
-- If any `str_replace` or `create_file` has touched that section since the last view → re-read before acting on it
-- If in doubt → re-read (a 300-token view is cheaper than a bad edit that needs reverting)
-
-**Prefer grep over view when possible**
-`grep -n "funcName"` gives line number and enough context for many tasks. Only `view` when surrounding code is genuinely needed.
-
-**Read wider ranges once, not narrow ranges repeatedly**
-If lines 100–120 and 130–150 are both needed, read 100–155 once.
-
-**Trust edits — don't confirm with a view unless something looks wrong**
-After `str_replace`, the new content is known. No need to re-read the result unless the edit was complex or uncertain.
+- Search filenames and symbols before opening large files; use `rg` when available, otherwise `grep`/`find`.
+- Read a useful surrounding range once. Re-read it if another session or an edit may have changed it.
+- Inspect the final diff before handoff, especially in files shared with another session.
 
 ---
 
@@ -181,9 +168,9 @@ After `str_replace`, the new content is known. No need to re-read the result unl
 - [ ] **Run timezone test** (any change touching `_getAppDay`, `_localISO`, habit rollover, or date boundaries): `node scripts/timezone-test.mjs` — fixed instants across Los Angeles, Kiritimati, and Kathmandu, including spring-forward and both fall-back 1am hours.
 - [ ] **Run voice capture test** (any change touching `voice-capture.js`, its Shift+Space gesture, microphone fallback, or transcription states): `node scripts/voice-capture-test.mjs` — verifies explicit on-device recognition, the one-blob Gemini fallback, both modifier-release orders, input/repeat guards, media cleanup, success, and honest failure.
 - [ ] **Run focus test** (any change touching the focus IIFE, `trello.js`, or the renderers): `node scripts/focus-test.mjs` — ~40s, silent on success. **How it works:** focus mode has exactly two legal states — OFF (no `.focused`, no `.focusing`, no persisted session, timer parked in `<body>`) and ON (exactly one `.focused` task that owns the timer, the persisted session and `.focusing`). Anything else is a bug, and every focus bug on record is one of those two being violated. The test defines both states once and re-checks after *every* operation, so it catches bugs we have not had yet — rather than scripting one assertion per past bug. A 12-row operation matrix walks all four reachable exit paths (escape, click-outside, task switch, check-off — BUG-065's root cause was that *every* exit leaked, so testing one would miss the rest), interleaving a render tick after each, plus rapid A→B→A inside the 200ms teardown window. Then: the invariant survives a reload, a render never resurrects focus (cold-start-only restore), cold-start restore still works, a session for an already-done task is discarded, background auto-complete records 25 min silently, and post-midnight completion preserves yesterday (BUG-063). Section 4 adds a **cross-device axis**: `mergeRemoteData()` takes a plain object, so another device is simulated with no Dropbox and no network — a value adopted from another device must arrive stamped as today's and survive the cleanup that runs after the restore (BUG-066), max must still win, and remote's yesterday total must never restore as today (BUG-024). **Why this area:** focus is 16 of 59 recorded bugs (27%). Teeth verified by reverting each of the four real fixes independently — all produce exit 1. Document PiP is behaviorally faked in-page to cover open-on-hide, mirrored state/accessibility, Open, Breathe/Resume, complete/Again, restart, Rest, close, and storage cleanup; real browser PiP remains a manual release check. Not covered (needs `taskStates` internals): `.complete` bleed (BUG-022/028), frozen 00:00 on re-open (BUG-027) — human checks in `Test-matrix.md`. Skip for docs/poem/prompt-only commits. If it goes flaky, delete it rather than nurse it.
-- [ ] **Run design lint** (any change touching CSS or user-facing strings): `node scripts/design-lint.mjs` — static analysis, no browser, ~1s. Catches hardcoded hex/rgba outside `:root` (Rule 19), `transition: all`, undefined CSS vars, banned vocabulary (Philosophy.md), exclamation marks in strings, missing `U+FE0E` emoji selectors (Rule 20, self-calibrated — flags a glyph if the *same* glyph carries the selector elsewhere in the file but this occurrence doesn't), and a soft Rule 27 render-path parity check. Mechanical only — does not judge voice/taste/philosophy fit, that's `/design-review` (see below).
+- [ ] **Run design lint** (any change touching CSS or user-facing strings): `node scripts/design-lint.mjs` — static analysis, no browser, ~1s. Catches hardcoded hex/rgba outside `:root` (Rule 19), `transition: all`, undefined CSS vars, banned vocabulary (Philosophy.md), exclamation marks in strings, missing `U+FE0E` emoji selectors (Rule 20, self-calibrated — flags a glyph if the *same* glyph carries the selector elsewhere in the file but this occurrence doesn't), and a soft Rule 27 render-path parity check. Mechanical only — it does not judge voice, taste, or philosophy fit.
 - [ ] **Run accessibility test** (any change touching reachable UI, semantics, contrast, focus, dialogs, or reordering): `node scripts/accessibility-test.mjs` — axe-core plus keyboard/state, hidden-tree, zoom, target-size, and 320px reflow assertions. Manual VoiceOver and real PiP passes remain required for releases that touch those surfaces.
-- [ ] **For anything touching voice, a new/changed recurring surface, or component design** — run `/design-review` (`.claude/commands/design-review.md`) before shipping. Judgment-based: reviews against Philosophy.md/Tokens.md/Components.md/Motion.md/Psychology.md, including the Wallpaper Test for recurring surfaces. Not a blocking gate like smoke-test/design-lint — a structured second opinion, called on demand.
+- [ ] **For anything touching voice, a new/changed recurring surface, or component design** — review against `DESIGN.md` and its linked Philosophy, Tokens, Components, Motion, and Psychology notes, including the Wallpaper Test for recurring surfaces. Claude sessions may use `.claude/commands/design-review.md` for the same judgment review. This complements the mechanical gates.
 - [ ] No console.log debugging left
 - [ ] No hardcoded test values (like 10s idle timer)
 - [ ] Version numbers match across files

@@ -1,7 +1,7 @@
 # Archive
 
-> Legacy documentation files moved out of `memory/` to reduce token usage.
-> Location: `/TODAY/_archive/` (project root, not inside memory)
+> Legacy documentation kept under `memory/archive/` so current guidance can stay concise.
+> Location: `memory/archive/` in this repository.
 
 ## Files
 

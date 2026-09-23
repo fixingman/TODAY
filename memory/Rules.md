@@ -3,10 +3,10 @@
 
 ---
 
-## Current Focus (update each session)
-- **Working on:** Component boundaries and test assurance — explicit runtime ownership, deterministic policy/state seams, and contract checks that prevent architectural drift.
-- **Recent (2026-09-18):** v2.90.25 — tokenization pass: `--add-task-bar-height` and `--panel-max-width` layout tokens; `--text-sm` and `--text-md` font-size tokens. Habits edit mode keeps font size, adds accent left-border indicator. Focus companion `✦ ask` button highlights accent when ≥3 task signals converge (signal density). Soon/Past section labels pick up hover color to match expand button.
-- **Module extraction (Roadmap #3): COMPLETE.** focus.js done (v2.65.13; subsequently expanded as focus behavior evolved). All modules extracted: dropbox, connections (+ AI provider config), assistant, task-actions, nudge, day-lifecycle, focus. Startup composition root (~350 lines inline) remains as intended. Full inventory → `Backlog.md` §3.
+## Current Focus (reviewed 2026-09-22)
+- **Working on:** Verify the observation pool and recent interaction motion in real use. Follow the dated Wallpaper verdicts in `Backlog.md`; current implementation and release details live in `Changelog.md`.
+- **Recent:** v2.90.34–41 made Sunday silence diagnosable, gave observations code-owned interpretations, hardened triage sync, and added the suggestion, voice-confirmation, and Gmail-label transitions. See `Changelog.md` for the exact behavior.
+- **Module extraction: COMPLETE.** Runtime ownership and the startup composition boundary are documented in `design/Components.md`; new behavior belongs in the owning module and its component contract.
 - **Machine routing guard:** before any agent changes Headroom, a model provider/base URL, proxy/wrapper, port/mode, runtime override, or Headroom version, read `/Users/can/.headroom/ROUTING-GUARD.md` and obtain Can's explicit approval for that exact change. Keep Codex on explicit `127.0.0.1`, not `localhost`. Do not run `headroom learn --verbosity --apply`: v0.35.0 learns from Claude history only but hot-enables a proxy-global output shaper that can also affect Codex.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
   - **v2.64.23 ⏳** — verify appMemory convergence across two devices after a few 7s sync cycles: `today_memory.semantic.length` and newly confirmed inferences should match without manual Restore Backup.
@@ -105,7 +105,7 @@ Status symbols used throughout:
 ## Data Rules
 
 11. `manualTasks` and `habitsList` preserve drag order — **never re-sort**
-12. Backup schema version: **5.4** (5.3 + `manual_order_at` — recency-aware manual order merge, drag jump-back fix, v2.38.7). Additive keys that need no bump: `trello_order_at` (BUG-042), `today_trello_lastactive` (BUG-064)
+12. Backup schema version: **5.5** (5.4 + opt-in post-triage reflection policy, records, and deletion watermark). `manual_order_at` arrived in 5.4; additive keys that needed no bump include `trello_order_at` (BUG-042) and `today_trello_lastactive` (BUG-064). The authoritative payload is in `architecture/Sync.md`.
 13. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
 14. All timestamps: ISO strings (UTC for sync ordering). **Date-only strings: use `_localISO()`** (local YYYY-MM-DD) — never `toISOString().slice(0,10)` which returns UTC and diverges near midnight (BUG-010).
 15. **State variables must be declared before functions that use them** — `let` has temporal dead zone

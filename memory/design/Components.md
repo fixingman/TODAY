@@ -189,6 +189,7 @@ Appears below focused task, replaces task row bottom area.
 ### Gmail and web enrichment
 
 - Gmail classification distinguishes explicit correspondents from topic-based follow-ups. Person tasks use `from:`/`to:`; topic tasks may use quoted keywords, `subject:`, `in:sent`, and date operators. The classifier and fallback must never invent a person from topic prose.
+- The Gmail draft action reserves its initial label width and crossfades the inner text through Draft reply, drafting…, Copy, and Copied ✓ (v2.90.41). Async feedback must not shift the neighboring controls.
 - Web enrichment caches both success and no-result responses; transient/network failures remain retryable. Only HTTPS actions are rendered.
 - Both indicators are screen-reader named and stay attached before the task tail across renders. Dedicated coverage lives in `gmail-test.mjs` and `task-enrich-test.mjs`.
 
@@ -379,7 +380,7 @@ Header: `.meeting-eyebrow` ("Meeting", 9px muted caps) + `.meeting-review-title`
 
 **Silence guard (v2.90.19):** while the recorder fallback is active, an in-memory Web Audio analyser samples RMS every 40ms. At least 160ms of detected activity must clear the 0.012 speech floor before the blob can leave the device; otherwise the outcome is `Nothing heard`. A quick-capture-only request flag also instructs Gemini to return a no-speech marker for silence or unintelligible noise, and the endpoint converts that marker to empty text. The analyser is disconnected and its AudioContext closed on every finish path. Mobile Voice Note does not send this flag and is unchanged.
 
-**Motion:** the 8px listening dot uses the established small-element breath, `_breathe(..., _KF_BREATHE_SMALL, 2400)`, through WAAPI; processing and outcome states cancel it. Reduced motion is inherited from `_breathe`.
+**Motion:** the 8px listening dot uses the established small-element breath, `_breathe(..., _KF_BREATHE_SMALL, 2400)`, through WAAPI; processing and outcome states cancel it. After a confirmed add, its red fill becomes a small accent check before the pill fades (v2.90.40). The check has a one-shot CSS transition; reduced motion shows it immediately.
 
 ---
 

@@ -14,8 +14,8 @@ provider calls; the latter runs as its own push/nightly gate. The runner verifie
 inventory and the explicitly registered non-test check before execution. A check that passes
 only on its diagnostic retry is reported as flaky and fails the gate; each attempt is capped at
 120 seconds. Tooling requires Node >=22.12 and Puppeteer 25. The last dual-runtime assurance
-pass was clean on Node 22.23.2 and 24.14.0; the current result is recorded in the latest
-changelog entry. GitHub Actions runs the same gate plus `npm run performance --prefix scripts`
+pass was clean on Node 22.23.2 and 24.14.0; current measured performance evidence is in
+`Performance-audit.md`. GitHub Actions runs the same gate plus `npm run performance --prefix scripts`
 on pushes and pull requests to `dev`/`master`. A scheduled workflow measures the deployed dev
 URL and retains its JSON for 30 days. Run
 `memory/validate-files.sh` separately; it remains outside `test-all.mjs`.
@@ -30,8 +30,9 @@ URL and retains its JSON for 30 days. Run
   TODAY's four lifecycle marks, transferred/encoded/decoded bytes, and service-worker control.
   Interaction evidence measures task addition and entry into focus.
 - The 1.8s FCP, 2.5s LCP, and 0.1 CLS targets remain visible separately from calibrated
-  regression ceilings. A current target miss cannot disappear behind a generous regression
-  budget.
+  regression ceilings. The splash-dismiss ceiling covers the corpus's longest intentional
+  poem reading hold and line-by-line exit; compare interactive timing separately. A current
+  target miss cannot disappear behind a generous regression budget.
 
 ### Visual regression gate
 
@@ -173,6 +174,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 2.14 | **SYNC: Race condition triage** | Last zoneChangedAt wins |
 | 2.14a | **SYNC: all-Keep triage completion** | Stores today's dismissal and immediately queues retrying autosave |
 | 2.14b | **SYNC: stale blank triage dismissal** | Local same-day completion survives and marks merge changed so Dropbox is healed |
+| 2.14c | **SYNC: first open after phone triage** | Yesterday's desktop visit plus today's remote dismissal survives cold-start cleanup, keeps the prompt hidden, and remains in the next Dropbox upload; yesterday's dismissal still clears |
 | 2.16 | Triage summary (5+ done) | Shows "Solid day" + stats |
 | 2.17 | Triage summary (0 done) | Shows "All sorted" |
 | 2.18 | Triage summary saves review | `today_day_review` in localStorage |
@@ -502,14 +504,14 @@ Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 an
 | 16.9 | Run `node scripts/assistant-test.mjs` | Reachable post-add suggestions work; retired AI sheet code, state, CSS, backdrop, and markup remain absent |
 | 16.10 | Run `node scripts/dropbox-test.mjs` cadence case | Unchanged seven-second sync performs no Trello render; a day boundary and wake each reconcile once |
 
-*Last updated: v2.83.1 · Sep 2026*
+*Component-contract cases above were recorded at v2.83.1; newer cases follow below.*
 
 ## 17. Observation pool, memory record, mailto builder (v2.80.x–v2.82.x)
 
 | # | Scenario | Expected |
 |---|---|---|
 | 17.1 | Run `node scripts/observation-pool-test.mjs` | Pure, no browser. Candidate kinds fire on seeded outcomes and stay silent below threshold; backfilled rows never produce `focus-vs-obligation`; unknown obligation is never counted as chosen; eligibility restricts the morning to today-hook kinds; novelty gate drops a kind inside its cross-surface cooldown and any age claim; explain returns a reason |
-| 17.2 | Run `node scripts/memory-panel-test.mjs` | KNOWN block renders the record as plain facts (open items only, 30-day window, reconstruction caveat, newest first, empty note); SAID block absent; full-clear wipes every companion slot, tombstones hypotheses, sets the watermark |
+| 17.2 | Run `node scripts/memory-panel-test.mjs` | KNOWN block renders open items and 30-day outcomes as plain facts, newest first, without the removed reconstruction caveat; SAID block absent; full-clear wipes every companion slot, tombstones hypotheses, sets the watermark |
 | 17.3 | Run `node scripts/mailto-test.mjs` | Pure, no browser. `_mailtoDraftHref`: literal `@`, exact production form, 1900 cap with a body that decodes and is a prefix of the original, grapheme-safe trimming on emoji and ZWJ sequences, lone surrogates dropped not thrown, null inputs, the 20-grapheme floor from both sides |
 | 17.4 | `dropbox-test` merge cases (11b, 11c) | `taskOutcomes` / `spokenLines` / `obligationHistory` union, dedup, prune; clear watermark drops pre-clear rows in both directions and accepts same-day rows; hypothesis tombstones honoured |
 
@@ -529,3 +531,4 @@ Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 an
 | # | Scenario | Expected |
 |---|----------|----------|
 | 19.1 | Run `node scripts/voice-capture-test.mjs` | Shift+Space prefers explicitly on-device continuous recognition; otherwise one ephemeral blob uses the configured Gemini transcription route. Releasing Shift or Space ends capture, input focus and repeats stay inert, media and metering are stopped, audible speech adds exactly one task, silence makes no request and shows “Nothing heard,” the endpoint converts its no-speech marker to empty text, and a failure adds no task while remaining visible. |
+| 19.2 | Manual reduced-motion check | A successful add changes the listening dot into an accent check before the pill disappears; empty, unavailable, and failure paths never show success. With reduced motion, the state remains clear without a transition. |

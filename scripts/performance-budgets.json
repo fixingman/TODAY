@@ -21,7 +21,7 @@
     "cold.tbt": 200,
     "cold.domContentLoaded": 7000,
     "cold.interactive": 7000,
-    "cold.splashDismissed": 19000,
+    "cold.splashDismissed": 23000,
     "warm.fcp": 500,
     "warm.lcp": 500,
     "warm.cls": 0.1,

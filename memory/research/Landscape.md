@@ -1,6 +1,6 @@
 # Competitive Landscape
 
-> Apps that share TODAY's emotional positioning — anti-anxiety, anti-pressure, calm productivity. Not feature competitors but philosophy competitors.
+> May 2026 research snapshot of apps that share TODAY's emotional positioning. Competitor details and pricing are historical; current TODAY decisions live in `Backlog.md`.
 
 The Todoist / Things / TickTick category is NOT TODAY's competitive set. Those apps optimize for capture and project management. TODAY (and the apps below) optimize for emotional sustainability — the user's relationship with their list.
 
@@ -107,18 +107,20 @@ The two apps answer different questions:
 
 ---
 
-## What TODAY Could Borrow
+## Candidates from the May 2026 Review
+
+Subsequent decisions: Let-go reasons shipped in v2.62; optional evening reflections shipped in v2.65.7 using words rather than a five-emoji scale. Sunday now uses a gated commitment observation pool (v2.90.36), not the four-question retrospective proposed below. The remaining ideas in this section are historical candidates, not active roadmap items.
 
 ### High value, low friction
 
-**Skip-reason on letgo (priority)**
-TODAY's triage has Keep / Soon / Letgo. Letgo currently asks nothing. A one-tap reason picker — *Not relevant anymore*, *No energy*, *Lost interest*, *Replaced by something else* — would give the AI massive insight into user patterns. Lowest-friction, highest-leverage addition. Tracked in Backlog.
+**Skip-reason on letgo — shipped**
+Triage now offers a one-tap reason picker after Let go. Its reasons feed the observation pool under evidence and novelty gates.
 
 **Energy-Aware AI Suggestions**
-TODAY already tracks `peakHour` in `appMemory.preferences`. The AI prompt has generic energy language. Tighten so the AI explicitly ties task suggestions to the rhythm: "You usually peak around 2pm — save the report for then." System prompt change only. Tracked in Backlog.
+TODAY already tracks `peakHour` in `appMemory.preferences`. The May proposal was to tie task suggestions to that rhythm. It was not adopted as an active backlog item; a future proposal would need evidence that such a line helps a choice instead of repeating a statistic.
 
-**"How did today feel?" emoji**
-Once a day, after triage. Five-emoji prompt (mirrors Momentum's 5-point scale). One tap, optional, feeds AI memory. Compounds over time.
+**"How did today feel?" — revised and shipped**
+The optional post-triage reflection uses feeling words and separate, opt-in sensitive storage. HOW DAYS FELT speaks only when feelings differ across sufficiently observed ways of handling commitments.
 
 ### Medium consideration
 
