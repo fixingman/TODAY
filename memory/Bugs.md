@@ -18,6 +18,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 102 | Triage review initially focused Keep all, making the bulk action look preselected and Enter-ready | ✅ v2.90.49 |
 | 101 | Open morning-nudge reaction choices stayed bright and focusable during focus | ✅ v2.90.47 |
 | 100 | Evening triage Review stayed keyboard-reachable and failed contrast while visually receded in focus mode | ✅ v2.90.46 |
 | 099 | Completed triage can ask again on another device — first-open cleanup erased an adopted same-day dismissal | ⏳ v2.90.44 |
@@ -64,6 +65,16 @@
 ---
 
 *BUG-001 – BUG-055 → `archive/Bugs-archive.md` (summary table + full detail). Below: bugs still awaiting verification.*
+
+---
+
+## BUG-102 — Triage review opened on Keep all
+
+**Symptom:** Opening evening review by keyboard put the accent focus ring on Keep all immediately. It looked like the bulk decision was selected, and a second Enter would apply it without the user moving to that action.
+
+**Root cause:** `triageExpand()` passed the Keep all button as `_a11yOpenDialog()`'s `initialFocus`. The dialog title already supplies the accessible name but was not programmatically focusable.
+
+**Fix (v2.90.49):** The title is a programmatic-only (`tabindex="-1"`) focus target with no action-style ring. Tab reaches Keep all deliberately; Enter on the title does nothing. The shared dialog trap now handles Tab/Shift+Tab from a static initial target and excludes display-hidden controls from its focusable set. Browser regression covers entry, both Tab directions, harmless Enter, axe, and Escape. Sheet spacing is unchanged.
 
 ---
 

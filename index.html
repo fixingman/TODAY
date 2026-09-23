@@ -1541,12 +1541,15 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding-inline: var(--space-3);
     margin-bottom: var(--space-4);
   }
   #triageTitle {
     font-size: var(--text-md);
     font-weight: 500;
   }
+  /* Programmatic dialog entry point, not a Tab stop or an actionable control. */
+  #triageTitle:focus-visible { outline: none; }
   .triage-header-btn {
     font-size: var(--text-xs);
     padding: var(--space-2) var(--space-3);
@@ -4399,7 +4402,7 @@
 <div id="triageOverlay" class="hidden" hidden aria-hidden="true" data-today-click="triage.backdrop">
   <div id="triagePanel" role="dialog" aria-modal="true" aria-labelledby="triageTitle">
     <div class="triage-header">
-      <h2 id="triageTitle">3 didn't happen</h2>
+      <h2 id="triageTitle" tabindex="-1">3 didn't happen</h2>
       <button class="triage-header-btn" data-today-click="triage.keep-all">Keep all</button>
     </div>
     <div id="triageList"></div>
@@ -4574,16 +4577,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '332h';
+const DEV_HOURS     = '334h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.50': 'The evening review title and Keep all button now line up with the task content on desktop and phone.',
+  '2.90.49': 'Evening review now opens on its title instead of placing keyboard focus on Keep all. Tab still reaches the actions, and Enter cannot accidentally keep everything.',
   '2.90.48': 'Tapping outside the triage review now plays the opening in reverse: the sheet shrinks back into the bar and the bar takes over, instead of the sheet vanishing.',
-  '2.90.47': 'If you open the morning nudge’s reaction choices before starting focus, they now quiet down with the nudge and return when you leave focus.',
-  '2.90.46': 'During focus, the evening Review prompt stays quietly in the background and no longer interrupts keyboard or screen-reader navigation. It is available again when focus ends.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

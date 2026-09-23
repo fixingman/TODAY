@@ -111,6 +111,8 @@ Slides up from bottom (same as AI panel). Full-screen backdrop.
 ```
 
 - **Done** (v2.18.0) = completed but never checked off → marks done (counts toward today's total via `_markDoneInTriage`), no celebration. Order: `Keep / ↩ Soon / Let go / Done` (Trello cards drop Soon → `Keep / Let go / Done`). **Done sits last and is neutral as of v2.18.19** — only Keep carries the accent treatment; Soon, Let go, and Done are neutral. (Previously Done led and shared Keep's accent green; moved + neutralised so the row's positive accent points only at "Keep".)
+- **Keyboard entry (v2.90.49):** opening the modal focuses its static title, not the bulk Keep all action. Enter on entry is harmless; Tab reaches Keep all, Shift+Tab wraps to the last visible action, and Escape returns to Review. The title is not in the ordinary tab order and has no action-style focus ring.
+- **Header alignment (v2.90.50):** `.triage-header` uses `--space-3` inline padding so its title and Keep all action align with the task cards' inner text and action edges on desktop and narrow screens. Keep the spacing token rather than a one-off offset.
 - The leading `○` checkbox marker was removed (v2.18.1) so the four buttons get the full row width and stay one line on phones; rows are flush to the section edge.
 - Backdrop tap → `triageMinimize()` → returns to callout bar.
 - **Entrance:** the evening callout bar appears from 8pm–midnight; tapping Review opens the overlay. The former hidden AI `open_triage` action (v2.36.0) was removed in v2.64.28, so natural-language requests no longer open triage.

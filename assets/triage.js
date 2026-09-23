@@ -126,7 +126,7 @@
         overlay.classList.remove('hidden');
         if (window._a11yOpenDialog) _a11yOpenDialog(overlay, {
           modal: true,
-          initialFocus: overlay.querySelector('.triage-header-btn'),
+          initialFocus: titleEl,
           returnFocus: document.getElementById('triageReviewBtn'),
           onEscape: triageMinimize
         });

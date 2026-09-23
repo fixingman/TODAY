@@ -211,6 +211,24 @@ try {
     const active = document.activeElement;
     return panel?.getAttribute('aria-modal') === 'true' && active instanceof Element && !!active.closest('#triageOverlay');
   });
+  const triageInitial = await page.evaluate(() => document.activeElement?.id);
+  if (triageInitial !== 'triageTitle') fail('triage review initially focused an action instead of its heading: ' + triageInitial);
+  await page.keyboard.down('Shift');
+  await page.keyboard.press('Tab');
+  await page.keyboard.up('Shift');
+  const reverseTabStayedInside = await page.evaluate(() => {
+    const active = document.activeElement;
+    return active?.matches('button') && !!active.closest('#triageOverlay') && active.getClientRects().length > 0;
+  });
+  if (!reverseTabStayedInside) fail('Shift+Tab from the triage heading escaped the dialog or reached a hidden action');
+  await page.focus('#triageTitle');
+  await page.keyboard.press('Enter');
+  const bulkApplied = await page.evaluate(() => !document.getElementById('triageComplete').classList.contains('hidden'));
+  if (bulkApplied) fail('Enter on the triage heading accidentally applied Keep all');
+  await page.keyboard.press('Tab');
+  const triageFirstAction = await page.evaluate(() => document.activeElement?.classList.contains('triage-header-btn'));
+  if (!triageFirstAction) fail('Tab from the triage heading did not reach Keep all');
+  ok('triage opens on its heading; Enter is harmless and Tab reaches the first action');
   await audit(page, 'triage dialog passes axe', '#triageOverlay');
   const triageModal = await page.evaluate(() => document.getElementById('triagePanel').getAttribute('aria-modal') === 'true' && document.activeElement.closest('#triageOverlay'));
   if (!triageModal) fail('triage dialog did not receive modal focus');

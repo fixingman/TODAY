@@ -14,7 +14,8 @@
     return [...root.querySelectorAll(
       'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),' +
       'textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
-    )].filter(el => !el.hidden && !el.closest('[hidden]') && getComputedStyle(el).visibility !== 'hidden');
+    )].filter(el => !el.hidden && !el.closest('[hidden]')
+      && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden');
   }
 
   function _setBackgroundInert(dialogRoot, on) {
@@ -157,6 +158,13 @@
     if (!items.length) { e.preventDefault(); return; }
     const first = items[0];
     const last = items[items.length - 1];
+    // A dialog may initially focus a static heading (tabindex=-1). From there,
+    // both Tab directions must enter the dialog's actionable tab loop.
+    if (activeDialog.contains(document.activeElement) && !items.includes(document.activeElement)) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+      return;
+    }
     if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   }

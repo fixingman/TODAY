@@ -42,6 +42,8 @@ URL and retains its JSON for 30 days. Run
   and takes two captures per scene. Each capture must match its baseline and repeat 2 must also
   match repeat 1, tolerating only anti-aliasing noise plus 200 changed pixels. Missing baselines,
   clock drift, viewport drift, larger visual differences, or uncaught page errors fail the test.
+- The triage scene waits until its sheet entrance and content reveal finish, then captures the
+  full review. `triage-test.mjs` also checks token-based header-to-card alignment at 1200px and 390px.
 - `npm run visual:update --prefix scripts` deliberately replaces the baselines after a reviewed
   design change; it is never run by CI.
 
@@ -98,6 +100,9 @@ If testing **zone** changes:
 - [ ] Triage bar appears 8pm–midnight
 - [ ] Zone moves trigger sync
 - [ ] Other device receives changes
+
+If testing **triage review keyboard entry**:
+- [ ] Run `node scripts/accessibility-test.mjs` — the dialog opens on its static title; Enter does not apply Keep all, Tab reaches the first action, Shift+Tab stays inside the visible action loop, and Escape returns to Review.
 
 ---
 

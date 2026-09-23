@@ -350,6 +350,13 @@ const SCENES = {
         () => !document.getElementById('triageOverlay')?.classList.contains('hidden'),
         { timeout: 5000 },
       );
+      // The sheet's reduced-motion entrance still runs slideUp and reveals its
+      // content after 200ms. Capture the usable review, not a title-only frame.
+      await page.waitForFunction(() => {
+        const panel = document.getElementById('triagePanel');
+        return panel && !panel.classList.contains('triage-morph-active')
+          && panel.getAnimations({ subtree: true }).every(animation => animation.playState !== 'running');
+      }, { timeout: 2000 });
     },
   }),
 

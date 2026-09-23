@@ -150,6 +150,36 @@ try {
     });
     await expectAll('expand and render', { ...result, noErrors: errors.length === 0 });
     ok('triageExpand shows overlay with correct task count');
+
+    // The header's title and bulk action should align to the task card's inner
+    // content, not the card's outer edge, at both desktop and narrow widths.
+    await wait(400); // let the sheet morph finish before sampling box geometry
+    const measureAlignment = () => {
+      const title = document.getElementById('triageTitle').getBoundingClientRect();
+      const bulk = document.querySelector('.triage-header-btn').getBoundingClientRect();
+      const text = document.querySelector('.triage-task-text').getBoundingClientRect();
+      const actions = document.querySelector('.triage-actions').getBoundingClientRect();
+      const header = getComputedStyle(document.querySelector('.triage-header'));
+      const token = getComputedStyle(document.documentElement).getPropertyValue('--space-3').trim();
+      return {
+        leftAligned: Math.abs(title.left - text.left) <= 1,
+        rightAligned: Math.abs(bulk.right - actions.right) <= 1,
+        tokenPadding: header.paddingLeft === token && header.paddingRight === token,
+      };
+    };
+    const desktopAlignment = await page.evaluate(measureAlignment);
+    await page.setViewport({ width: 390, height: 844 });
+    const mobileAlignment = await page.evaluate(measureAlignment);
+    await expectAll('triage header inner alignment', {
+      desktopLeft: desktopAlignment.leftAligned,
+      desktopRight: desktopAlignment.rightAligned,
+      desktopToken: desktopAlignment.tokenPadding,
+      mobileLeft: mobileAlignment.leftAligned,
+      mobileRight: mobileAlignment.rightAligned,
+      mobileToken: mobileAlignment.tokenPadding,
+      noErrors: errors.length === 0,
+    });
+    ok('triage title and Keep all align with card content on desktop and mobile');
     await page.close();
   }
 
