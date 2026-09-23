@@ -16,7 +16,7 @@
 
 | #   | Description                                                                            | Status               |
 |-----|----------------------------------------------------------------------------------------|----------------------|
-| 099 | Completed triage can ask again on another device — first-open cleanup erased an adopted same-day dismissal | ⏳ fix prepared |
+| 099 | Completed triage can ask again on another device — first-open cleanup erased an adopted same-day dismissal | ⏳ v2.90.44 |
 | 098 | Header shoved off the top when a task near the bottom enters focus — sticky inside a fixed body | ✅ v2.82.4 |
 | 097 | Header date stays on yesterday when the app is open across midnight — written once at init | ✅ v2.82.2 |
 | 096 | "Clear all memory" left the companion slots intact; next sync undid the rest — no clear watermark | ✅ v2.82.1 |
