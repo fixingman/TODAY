@@ -14,48 +14,50 @@
 
 ## Status Summary
 
+> Status cells join badge and version with a non-breaking space, so a long description can't squeeze the Status column into wrapping the badge.
+
 | # | Description | Status |
 |---|---|---|
-| 099 | Completed triage can ask again on another device — first-open cleanup erased an adopted same-day dismissal | ⏳ v2.90.44 |
-| 098 | Header shoved off the top when a task near the bottom enters focus — sticky inside a fixed body | ✅ v2.82.4 |
-| 097 | Header date stays on yesterday when the app is open across midnight — written once at init | ✅ v2.82.2 |
-| 096 | "Clear all memory" left the companion slots intact; next sync undid the rest — no clear watermark | ✅ v2.82.1 |
-| 095 | Task, habit and Ask inputs saved to the browser autofill store — no `autocomplete="off"` | ✅ v2.81.5 |
-| 094 | "Undo" persists into the reflection step, reading as undoing the answer not the sorting | ✅ v2.80.6 |
-| 093 | ↩ and ↗ enrichment indicators flash on tap on mobile — hover rule unguarded | ✅ v2.80.5 |
-| 092 | Task cards don't age visually on mobile — desktop-only side effect of BUG-079 fix | ✅ v2.80.3 |
-| 091 | Gmail enrichment picks wrong email — forces person query for topic-based tasks | ⏳ v2.82.3 |
-| 090 | `task-enrich` Netlify function returns 500 on every call — enrichment never loads | ✅ v2.77.7 |
-| 089 | "Open in Mail" opens the browser before the native Mail app | ⏳ v2.81.5 |
-| 088 | Inline AI helper stays behind when its task is reordered | ✅ v2.77.3 |
-| 087 | Emoji disappear or render broken in the animated task input | ✅ v2.77.2 |
-| 086 | Completion rate in Memory exceeds 100% — wrong denominator (4th root cause) | ✅ v2.75.13 |
-| 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
-| 083 | Past→Soon revive causes black screen — interface unresponsive until refresh | ✅ v2.77.10 |
-| 082 | Post-triage done counter shows 0 after same-day triage | ✅ v2.71.34 |
-| 078 | `TRIAGE_HISTORY_MAX` out of scope — `ReferenceError` on Dropbox pull/restore | ✅ v2.65.17 |
-| 077 | Trello “Network error” flash on Dropbox reconnect or midnight boundary | ✅ v2.65.4 |
-| 076 | Splash exit leaves `O` and `AY` visible while poem coda disappears | ✅ v2.65.3 |
-| 075 | Tagged task flashes or shimmer-timing changes when hover overlaps arrival animation | ✅ v2.64.20 |
-| 074 | Shared `/poem.html` links crash in Netlify Edge Function before static page loads | ✅ v2.64.12 |
-| 073 | Focus Ask says “this late” without supplying the actual local time | ✅ v2.64.9 |
-| 072 | Triage flow never completes — “Let go” tapped but completion screen never appears | ✅ v2.61.6  |
-| 071 | App goes blank on wake/PWA background return while in focus mode (BUG-004/056 recurrence) | ✅ v2.61.5  |
-| 070 | Undo toast reason chips unclickable on narrow screens | ✅ v2.61.4  |
-| 069 | Poem OG preview may show wrong poem for southern-hemisphere users | 🚫 Rejected  |
-| 068 | Trello card 🍅 session count resets every morning | ✅ v2.52.1  |
-| 067 | Focused task jumps near top of viewport after focus ends | ✅ v2.44.1  |
-| 066 | Focus minutes from another device read 0 on second-device open | ✅ v2.43.8  |
-| 065 | Focus mode re-opened after leaving; timer bar torn loose on fast task switch | ✅ v2.43.7  |
-| 064 | Focused Trello card un-ages for one day then returns at a heavier dim tier | ✅ v2.43.6  |
-| 063 | Focus sessions near midnight wiped by new-day reset race | ✅ v2.42.4  |
-| 062 | Native share-sheet popover opens far from the poem's click point, not fixable from page DOM | 🚫 Rejected  |
-| 061 | Sunday/habit badges silently fail to show on a fresh device (same root cause as BUG-060) | ⚠️ Stale  |
-| 060 | Completed Trello card reappears as active after daily sync | ✅ v2.40.1  |
-| 059 | Task card age reset by sync after focus — card re-dims on refresh | ✅ v2.36.5  |
-| 058 | Noticed block in About shows different content between devices | ✅ v2.36.3  |
-| 057 | About "This week" / "New week" AI text differs between devices (cache never synced) | ✅ v2.36.1  |
-| 056 | BUG-004 recurrence — blank app after long Mac sleep (GPU wakeup too slow for 1500ms repaint ceiling) | ✅ v2.31.9  |
+| 099 | Completed triage can ask again on another device — first-open cleanup erased an adopted same-day dismissal | ⏳ v2.90.44 |
+| 098 | Header shoved off the top when a task near the bottom enters focus — sticky inside a fixed body | ✅ v2.82.4 |
+| 097 | Header date stays on yesterday when the app is open across midnight — written once at init | ✅ v2.82.2 |
+| 096 | "Clear all memory" left the companion slots intact; next sync undid the rest — no clear watermark | ✅ v2.82.1 |
+| 095 | Task, habit and Ask inputs saved to the browser autofill store — no `autocomplete="off"` | ✅ v2.81.5 |
+| 094 | "Undo" persists into the reflection step, reading as undoing the answer not the sorting | ✅ v2.80.6 |
+| 093 | ↩ and ↗ enrichment indicators flash on tap on mobile — hover rule unguarded | ✅ v2.80.5 |
+| 092 | Task cards don't age visually on mobile — desktop-only side effect of BUG-079 fix | ✅ v2.80.3 |
+| 091 | Gmail enrichment picks wrong email — forces person query for topic-based tasks | ⏳ v2.82.3 |
+| 090 | `task-enrich` Netlify function returns 500 on every call — enrichment never loads | ✅ v2.77.7 |
+| 089 | "Open in Mail" opens the browser before the native Mail app | ⏳ v2.81.5 |
+| 088 | Inline AI helper stays behind when its task is reordered | ✅ v2.77.3 |
+| 087 | Emoji disappear or render broken in the animated task input | ✅ v2.77.2 |
+| 086 | Completion rate in Memory exceeds 100% — wrong denominator (4th root cause) | ✅ v2.75.13 |
+| 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
+| 083 | Past→Soon revive causes black screen — interface unresponsive until refresh | ✅ v2.77.10 |
+| 082 | Post-triage done counter shows 0 after same-day triage | ✅ v2.71.34 |
+| 078 | `TRIAGE_HISTORY_MAX` out of scope — `ReferenceError` on Dropbox pull/restore | ✅ v2.65.17 |
+| 077 | Trello “Network error” flash on Dropbox reconnect or midnight boundary | ✅ v2.65.4 |
+| 076 | Splash exit leaves `O` and `AY` visible while poem coda disappears | ✅ v2.65.3 |
+| 075 | Tagged task flashes or shimmer-timing changes when hover overlaps arrival animation | ✅ v2.64.20 |
+| 074 | Shared `/poem.html` links crash in Netlify Edge Function before static page loads | ✅ v2.64.12 |
+| 073 | Focus Ask says “this late” without supplying the actual local time | ✅ v2.64.9 |
+| 072 | Triage flow never completes — “Let go” tapped but completion screen never appears | ✅ v2.61.6 |
+| 071 | App goes blank on wake/PWA background return while in focus mode (BUG-004/056 recurrence) | ✅ v2.61.5 |
+| 070 | Undo toast reason chips unclickable on narrow screens | ✅ v2.61.4 |
+| 069 | Poem OG preview may show wrong poem for southern-hemisphere users | 🚫 Rejected |
+| 068 | Trello card 🍅 session count resets every morning | ✅ v2.52.1 |
+| 067 | Focused task jumps near top of viewport after focus ends | ✅ v2.44.1 |
+| 066 | Focus minutes from another device read 0 on second-device open | ✅ v2.43.8 |
+| 065 | Focus mode re-opened after leaving; timer bar torn loose on fast task switch | ✅ v2.43.7 |
+| 064 | Focused Trello card un-ages for one day then returns at a heavier dim tier | ✅ v2.43.6 |
+| 063 | Focus sessions near midnight wiped by new-day reset race | ✅ v2.42.4 |
+| 062 | Native share-sheet popover opens far from the poem's click point, not fixable from page DOM | 🚫 Rejected |
+| 061 | Sunday/habit badges silently fail to show on a fresh device (same root cause as BUG-060) | ⚠️ Stale |
+| 060 | Completed Trello card reappears as active after daily sync | ✅ v2.40.1 |
+| 059 | Task card age reset by sync after focus — card re-dims on refresh | ✅ v2.36.5 |
+| 058 | Noticed block in About shows different content between devices | ✅ v2.36.3 |
+| 057 | About "This week" / "New week" AI text differs between devices (cache never synced) | ✅ v2.36.1 |
+| 056 | BUG-004 recurrence — blank app after long Mac sleep (GPU wakeup too slow for 1500ms repaint ceiling) | ✅ v2.31.9 |
 
 ---
 
