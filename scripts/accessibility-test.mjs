@@ -38,6 +38,19 @@ async function injectAxe(page) {
   await page.addScriptTag({ content: AXE });
 }
 
+// Audit settled components, not a low-opacity frame of their entrance. About's
+// blocks share a staggered 300ms animation; focus controls also transition.
+// Ignore infinite animations, but keep every contrast assertion after finite motion.
+async function waitForFiniteMotion(page, selector, subtree = true) {
+  await page.waitForFunction(({ rootSelector, includeDescendants }) => {
+    const root = document.querySelector(rootSelector);
+    return !!root && root.getAnimations({ subtree: includeDescendants }).every(animation => {
+      const endTime = animation.effect?.getComputedTiming().endTime;
+      return !Number.isFinite(endTime) || (!animation.pending && animation.playState !== 'running');
+    });
+  }, { timeout: 3000 }, { rootSelector: selector, includeDescendants: subtree });
+}
+
 async function audit(page, label, context = 'body') {
   const violations = await page.evaluate(async selector => {
     const result = await axe.run(document.querySelector(selector), {
@@ -87,7 +100,7 @@ try {
     ['todayLogo','memoryPanel','memory disclosure'],
   ]) {
     await page.click('#' + button);
-    await new Promise(resolve => setTimeout(resolve, 250));
+    await waitForFiniteMotion(page, '#' + panel);
     const open = await page.evaluate((b, p) => document.getElementById(b).getAttribute('aria-expanded') === 'true' && !document.getElementById(p).hidden, button, panel);
     if (!open) fail(label + ' did not synchronize expanded/hidden state');
     await audit(page, label + ' passes axe');
@@ -125,16 +138,72 @@ try {
   if (reordered.ids.join(',') !== 'manual_1002,manual_1001' || reordered.active !== 'manual_1001' || !reordered.live.includes('position 2 of 2')) fail('Option+Arrow reorder did not persist, retain focus, and announce: ' + JSON.stringify(reordered));
   ok('Option+Arrow reorder persists and announces');
 
+  // Reproduce a spoken morning line whose reaction choices were opened just
+  // before focus. checkDayNudge has a morning cutoff, so hold only this call at 9.
+  await page.evaluate(() => {
+    const getHours = Date.prototype.getHours;
+    Date.prototype.getHours = () => 9;
+    try {
+      localStorage.setItem('day_nudge_ai_' + _localISO(), 'A spoken morning line.');
+      _memoryRecordSpokenLine('morning nudge', 'A spoken morning line.', 'letgo-return');
+      checkDayNudge(false);
+    } finally { Date.prototype.getHours = getHours; }
+  });
+  await page.waitForFunction(() => document.getElementById('dayNudge').classList.contains('visible'));
+  await page.click('#dayNudge');
+  await page.waitForFunction(() => document.getElementById('dayNudgeReact').classList.contains('open'));
+  await waitForFiniteMotion(page, '#dayNudgeReact');
+
+  // Keep the evening callout present regardless of the test runner's local hour.
+  // Its focus isolation must not depend on whether the real clock has passed 20:00.
+  await page.evaluate(() => {
+    const bar = document.getElementById('triageBar');
+    bar.classList.remove('hidden');
+    bar.classList.add('visible');
+  });
+  await page.focus('#manualList .task[data-taskid="manual_1001"]');
   await page.keyboard.press('Enter');
   await page.waitForSelector('.focus-timer:not([hidden])');
-  const focusState = await page.evaluate(() => ({
-    timer: !document.querySelector('.focus-timer').hidden,
-    othersHidden: [...document.querySelectorAll('.task:not(.focused)')].every(el => el.inert && el.getAttribute('aria-hidden') === 'true'),
-  }));
-  if (!focusState.timer || !focusState.othersHidden) fail('focus mode did not isolate inactive content');
+  const focusState = await page.evaluate(() => {
+    const bar = document.getElementById('triageBar');
+    const review = document.getElementById('triageReviewBtn');
+    const reaction = document.getElementById('dayNudgeReact');
+    const reactionButton = reaction.querySelector('.nudge-react-btn');
+    review.focus();
+    reactionButton.focus();
+    return {
+      timer: !document.querySelector('.focus-timer').hidden,
+      othersHidden: [...document.querySelectorAll('.task:not(.focused)')].every(el => el.inert && el.getAttribute('aria-hidden') === 'true'),
+      triageHidden: bar.classList.contains('visible') && bar.inert
+        && bar.getAttribute('aria-hidden') === 'true' && document.activeElement !== review,
+      reactionHidden: reaction.classList.contains('open') && reaction.inert
+        && reaction.getAttribute('aria-hidden') === 'true' && document.activeElement !== reactionButton,
+    };
+  });
+  if (!focusState.timer || !focusState.othersHidden || !focusState.triageHidden || !focusState.reactionHidden) fail('focus mode did not isolate inactive content: ' + JSON.stringify(focusState));
+  await waitForFiniteMotion(page, '.task.focused');
+  await waitForFiniteMotion(page, '.focus-timer', false);
+  await waitForFiniteMotion(page, '#focusTime', false);
+  await waitForFiniteMotion(page, '#triageBar');
+  await waitForFiniteMotion(page, '#dayNudgeReact');
+  const reactionOpacity = await page.evaluate(() => parseFloat(getComputedStyle(document.getElementById('dayNudgeReact')).opacity));
+  if (reactionOpacity > 0.1) fail('opened nudge reactions did not recede with the nudge during focus');
   await audit(page, 'focus mode passes axe');
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => document.querySelector('.focus-timer').hidden);
+  const triageRestored = await page.evaluate(() => {
+    const bar = document.getElementById('triageBar');
+    const review = document.getElementById('triageReviewBtn');
+    const reaction = document.getElementById('dayNudgeReact');
+    const reactionButton = reaction.querySelector('.nudge-react-btn');
+    review.focus();
+    const reviewRestored = !bar.inert && !bar.hasAttribute('aria-hidden') && document.activeElement === review;
+    reactionButton.focus();
+    return reviewRestored && !reaction.inert && !reaction.hasAttribute('aria-hidden')
+      && document.activeElement === reactionButton;
+  });
+  if (!triageRestored) fail('triage Review or nudge reactions did not return to keyboard navigation after focus');
+  ok('triage Review and nudge reactions leave and return to keyboard navigation with focus mode');
 
   await page.evaluate(() => Today.use('triage').triageExpand());
   await page.waitForFunction(() => {

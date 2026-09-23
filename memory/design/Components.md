@@ -91,6 +91,7 @@ Fixed, centered above the input bar. 8pm–midnight when undone tasks exist.
 
 - Background: `--surface2`, border: `--accent-glow`
 - Entire bar is tappable → opens triage overlay
+- During focus, it keeps its receded visual treatment but is inert and hidden from assistive technology; Review returns to keyboard navigation when focus ends
 - Controlled by `_triageActive`, `_triageBarSilent`, `_triageBarShown` flags
 - Dismissed for the day on triage completion or `triageClose()`
 
@@ -248,6 +249,7 @@ Single `.morning-nudge` strip (`#dayNudge`) positioned **between the SOON and Tr
 - **AI tier 2** (`_fetchDayNudgeAI`) — sees both manual tasks (with ages) and Trello cards (with overdue/checklist markers) in one prompt; asked to name the single most important thing. Races a 1s timeout via `_raceAINudge` — a real Netlify+LLM round trip routinely loses that race, so the fallback showing first is the *common* case, not rare. Cached per day either way; no mid-race swap (BUG-034) — but see v2.42.3 below, a fallback specifically *can* still upgrade to the AI line later that day, once, via a genuinely separate later call site (never a same-instant swap).
 - **Fallback→AI upgrade (v2.42.3)** — diagnosed from real usage: the AI line was generating and caching correctly every day (proven by About's Today block, which reads the identical cache with no race and showed it fine), but the task-list nudge was stuck on the fallback because `_nudgeRendered` blocked *any* further render once anything had shown, forever, for that page load — even after the real line arrived in the same cache moments later. New `_nudgeIsFallback` flag narrows that lock: once the real AI text has shown, nothing can ever replace it (BUG-034 stays fully intact); but if only the fallback has shown, a later, separate call site (wake, a later sync tick) may still pick up the AI line if it's arrived by then.
 - **Dismiss** — tap sets `day_nudge_dismissed_<date>` (per-day, clears at midnight). Synced cross-device via `_DISMISS_SYNC` registry. Legacy `trello_nudge_dismissed` / `morning_nudge_dismissed` fields kept as transition rows in registry for mixed-version devices — remove once all devices ≥ v2.19.0.
+- **Reaction strip in focus:** `#dayNudgeReact` is a sibling of the nudge button so it can hold real buttons. If opened before focus, it recedes and becomes inert/hidden from assistive technology with the nudge, then returns on focus exit (v2.90.47).
 - **Presence:** same `.morning-nudge` CSS as before — `--surface` panel, 2px `--accent-dim` left edge, `radius-md`, `padding: 7px var(--space-3)`. Breathing `--accent` dot via `_breathe(_KF_BREATHE_SMALL, 2400ms)` (opacity 1→0.5 + scale 1→0.85 — small-element treatment per Motion.md).
 - Noon cutoff: `checkDayNudge()` hides the strip at `hour >= 12`. Since v2.33.0 the cached AI line (`day_nudge_ai_<date>`) survives past noon — it lives on in About's Today block until the dated key expires at midnight. (The ✦ brief also used to read this cache — removed v2.41.0, see the Daily Brief section below.)
 

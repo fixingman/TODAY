@@ -597,7 +597,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
   }
 
   function _setFocusInert(on, activeRow) {
-    const selectors = '.task,.habit,.section-header,.empty,.config-panel,.morning-nudge';
+    const selectors = '.task,.habit,.section-header,.empty,.config-panel,.morning-nudge,#dayNudgeReact,#triageBar';
     document.querySelectorAll(selectors).forEach(el => {
       if (on && (el === activeRow || el.contains(activeRow))) return;
       if (on) {

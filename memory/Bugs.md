@@ -18,6 +18,8 @@
 
 | # | Description | Status |
 |---|---|---|
+| 101 | Open morning-nudge reaction choices stayed bright and focusable during focus | ✅ v2.90.47 |
+| 100 | Evening triage Review stayed keyboard-reachable and failed contrast while visually receded in focus mode | ✅ v2.90.46 |
 | 099 | Completed triage can ask again on another device — first-open cleanup erased an adopted same-day dismissal | ⏳ v2.90.44 |
 | 098 | Header shoved off the top when a task near the bottom enters focus — sticky inside a fixed body | ✅ v2.82.4 |
 | 097 | Header date stays on yesterday when the app is open across midnight — written once at init | ✅ v2.82.2 |
@@ -62,6 +64,26 @@
 ---
 
 *BUG-001 – BUG-055 → `archive/Bugs-archive.md` (summary table + full detail). Below: bugs still awaiting verification.*
+
+---
+
+## BUG-101 — Morning-nudge reactions remained active during focus
+
+**Symptom:** Tap a spoken morning nudge to reveal “landed / not really”, then start focus. The sentence receded, but the reaction choices stayed bright, pointer-active, and keyboard-focusable.
+
+**Root cause:** `#dayNudgeReact` is a sibling of the nudge button (correctly avoiding nested buttons), so the `.morning-nudge` focus selector did not cover it visually or in `_setFocusInert()`.
+
+**Fix (v2.90.47):** The sibling reaction strip joins the nudge’s existing focus recede treatment and the reversible `inert`/`aria-hidden` state. A browser regression opens a real spoken-line reaction, starts focus, verifies the strip recedes and cannot take focus, then verifies the choices return after Escape. Task-list mutation handling is unchanged.
+
+---
+
+## BUG-100 — Evening triage Review remained reachable during focus
+
+**Symptom:** In focus mode, the evening triage bar receded to 8% opacity and ignored pointer input, but its Review button still appeared in keyboard and assistive-technology navigation. Axe then reported low contrast for the bar text and button, even after focus-entry motion had settled.
+
+**Root cause:** `_setFocusInert()` isolated non-focused rows, panels, and the morning nudge but omitted `#triageBar`; the CSS recede treatment alone did not change its accessibility state.
+
+**Fix (v2.90.46):** The bar joins the existing reversible `inert`/`aria-hidden` focus state. Its visual treatment does not change. A clock-independent browser regression forces the bar visible, proves the previous omission fails, then verifies focus-mode axe and that Review returns to keyboard navigation after Escape.
 
 ---
 

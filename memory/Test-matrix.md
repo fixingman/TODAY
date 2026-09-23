@@ -73,6 +73,7 @@ Mental checklist after **any code change** — verify before moving on:
 
 If testing **focus mode** changes:
 - [ ] Run `node scripts/focus-test.mjs` first — it covers the lifecycle automatically
+- [ ] Run `node scripts/accessibility-test.mjs` — with the evening triage bar present and spoken morning-nudge reactions open, Review and “landed / not really” must recede and leave keyboard/assistive-technology navigation during focus, then return on exit
       (cold-start restore, escape leaves no session, switch keeps the timer anchored,
       rapid A→B→A, render during a live session). The checks below are the ones it
       cannot reach.

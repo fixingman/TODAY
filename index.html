@@ -185,10 +185,11 @@
     .config-panel { transition: filter 320ms ease, opacity 220ms ease; }
 
     /* Everything around the task recedes, not just the list (v2.82.4): the morning
-       nudge, the triage bar and the sticky header. Only the add bar and its mic buttons
+       nudge and its sibling reactions, the triage bar and the sticky header. Only the add bar and its mic buttons
        stay crisp — they are the one thing you can still do. Same dim-then-blur beat as
        the rows. The header keeps pointer-events: its buttons exit focus (v2.75.15). */
     .focusing .morning-nudge,
+    .focusing .morning-nudge-react,
     body.focus-locked #triageBar {
       transition: opacity 120ms ease-out, filter 60ms ease 120ms;
       opacity: var(--opacity-recede-chrome) !important;
@@ -4565,16 +4566,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '330h';
+const DEV_HOURS     = '332h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.47': 'If you open the morning nudge’s reaction choices before starting focus, they now quiet down with the nudge and return when you leave focus.',
+  '2.90.46': 'During focus, the evening Review prompt stays quietly in the background and no longer interrupts keyboard or screen-reader navigation. It is available again when focus ends.',
   '2.90.45': 'Tapping anywhere on the evening triage bar opens the review again, and the sheet now rises once from the bar instead of dropping and rising a second time.',
-  '2.90.44': 'Finishing triage on one device now stays finished on another device that is opening for the first time today, instead of asking again.',
-  '2.90.43': 'Today\'s morning line stays in About for the rest of the day, even after finishing a task sent the morning strip looking for a fresher line that never arrived.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
