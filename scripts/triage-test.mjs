@@ -195,6 +195,47 @@ try {
     await page.close();
   }
 
+  // Tapping outside the sheet plays the opening in reverse: the collapse must stay on
+  // screen (the dialog helper's `hidden` attribute used to cut it on the first frame),
+  // end on the bar's real box, and hand straight to the bar. Escape returns focus to Review.
+  {
+    const { page, errors } = await openPage({ hour: 21 });
+    await page.evaluate(() => Today.use('triage').checkTriageBar());
+    await page.waitForFunction(() => document.getElementById('triageBar').classList.contains('visible'), { timeout: 5000 });
+    await new Promise(r => setTimeout(r, 400));
+    const barBox = await page.$eval('#triageBar', b => { const r = b.getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; });
+    await page.click('#triageBar .triage-msg');
+    await new Promise(r => setTimeout(r, 600));
+    await page.evaluate(() => {
+      window.__collapse = [];
+      const p = document.getElementById('triagePanel'), o = document.getElementById('triageOverlay'); const t0 = performance.now();
+      const tick = () => { const r = p.getBoundingClientRect();
+        if (getComputedStyle(o).display !== 'none' && r.width) window.__collapse.push([r.left, r.top, r.width, r.height]);
+        if (performance.now() - t0 < 600) requestAnimationFrame(tick); };
+      requestAnimationFrame(tick);
+    });
+    await page.mouse.click(20, 40); // backdrop, above the sheet
+    await new Promise(r => setTimeout(r, 650));
+    const after = await page.evaluate(box => {
+      const frames = window.__collapse, last = frames[frames.length - 1] || [0, 0, 0, 0];
+      const near = (a, b) => Math.abs(a - b) <= 3;
+      return {
+        collapseVisibleForSeveralFrames: frames.length >= 5,
+        endsOnBarBox: last.every((v, i) => near(v, box[i])),
+        overlayHiddenAfter: document.getElementById('triageOverlay').hidden === true,
+        barVisibleAfter: document.getElementById('triageBar').classList.contains('visible'),
+      };
+    }, barBox);
+    await page.click('#triageBar .triage-msg');
+    await new Promise(r => setTimeout(r, 600));
+    await page.keyboard.press('Escape');
+    await new Promise(r => setTimeout(r, 650));
+    const focusBack = await page.evaluate(() => ({ escapeReturnsFocusToReview: document.activeElement?.id === 'triageReviewBtn' }));
+    await expectAll('reverse morph on outside tap', { ...after, ...focusBack, noErrors: errors.length === 0 });
+    ok('outside tap collapses the sheet back into the bar, visibly, and hands off to it');
+    await page.close();
+  }
+
   // Decisions recorded per type (3-task page, decide 2, leave 1 undecided to prevent auto-apply).
   {
     const { page, errors } = await openPage({ tasks: [TASK_A, TASK_B, TASK_C, { id: 'tx4', text: 'guard task', createdAt: '2026-08-10T10:00:00.000Z' }], hour: 21 });

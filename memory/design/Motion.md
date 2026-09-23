@@ -128,11 +128,12 @@ One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newl
 - **Age:** after the re-render, rows whose bucket changed ease from the old opacity to the new over a deliberately long 1.2s. The old value is read from the stylesheet by briefly restoring the old bucket, so the opacities live in one place. This is the only time age dimming is visible as motion; every other day you only see its result.
 - Both WAAPI: midnight often coincides with a wake repaint, whose display toggle would restart a CSS animation from keyframe 0. Reduced motion skips both. Helpers `_newDaySnapshot` / `_newDayCollapse` / `_newDaySettle` in `day-lifecycle.js`, wired in `checkNewDay()`.
 
-### Triage Bar → Sheet Morph (v2.90.42, fixed v2.90.45)
-- Opening: `#triagePanel.triage-morph-opening` runs `triageMorphUp` (300ms, `--ease-out`), scaling from the bar's position with `transform-origin: center bottom`; the backdrop fades in over the same beat. Buttons and list stay hidden (`.triage-morph-active`) until 200ms, then fade in over 130ms.
-- `triage-morph-opening` stays on for as long as the sheet is open. The panel's base rule is `animation: slideUp`; removing the class swaps the animation back to `slideUp`, which replays from `translateY(100%)` — the sheet drops off-screen and rises again (the v2.90.42 defect). The class is cleared only when the sheet closes (minimise adds `triage-morph-closing`; `triageClose()` hides instantly).
-- Minimise: `triageMorphDown` collapses back toward the bar over 350ms, content hidden immediately; the pending 200ms reveal timer is cancelled so a mid-open minimise never shows content during the collapse.
-- Reduced motion: opening falls back to `slideUp`, closing to an instant hide.
+### Triage Bar → Sheet Morph (v2.90.42, fixed v2.90.45, v2.90.48)
+- Geometry: both keyframes read `--triage-morph-x/y/sx/sy`, set by `_setMorphGeometry()` from the bar's real box (captured when the bar is tapped) against the panel's untransformed `offset*` box, with `transform-origin: center bottom`. The sheet starts and ends exactly as the bar. CSS defaults (`0, -72px, 0.60, 0.13`) apply only if the bar was never laid out.
+- Opening: `#triagePanel.triage-morph-opening` runs `triageMorphUp` (`--dur-slow`, `--ease-out`); the backdrop fades in on the same beat. Buttons and list stay hidden (`.triage-morph-active`) until 200ms, then fade in over 130ms.
+- `triage-morph-opening` stays on for as long as the sheet is open. The panel's base rule is `animation: slideUp`; removing the class swaps the animation back to `slideUp`, which replays from `translateY(100%)` — the sheet drops off-screen and rises again (the v2.90.42 defect).
+- Minimise (outside tap, Escape): the exact reverse. `triageMorphDown` shrinks the opaque sheet (ends at 0.95, matching the opening's start) into the bar's box while the backdrop fades; content hides immediately. After `--dur-slow` the bar appears in the same frame with its fade transition suppressed, the overlay is hidden, and focus returns to Review if it was inside the sheet. `_a11yCloseDialog` is called with `hide: false` — the `hidden` attribute hits `[hidden] { display: none !important }`, which beat the `.triage-morph-closing` override and cut the collapse on its first frame (the v2.90.42–47 defect). Re-opening mid-collapse cancels the pending hand-off.
+- Reduced motion: opening falls back to `slideUp`; closing hides instantly and hands off to the bar with no delay.
 
 ### Idle Companion
 - Fade in over 0.6s

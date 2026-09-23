@@ -16,6 +16,23 @@
     let _triageBarSilent = false;
     let _triageBarShown = false;
     let _triageRevealTimer = null;
+    let _triageCollapseTimer = null;
+    let _triageBarRect = null;
+
+    // Point the morph keyframes at the bar's real box, so the sheet starts and ends
+    // exactly as the bar. transform-origin is center bottom; offset* ignores the
+    // running transform. Falls back to the CSS defaults when the bar was never laid out.
+    function _setMorphGeometry(panel) {
+      const b = _triageBarRect;
+      if (!panel || !b || !b.width || !panel.offsetWidth) return;
+      const left = panel.offsetLeft, top = panel.offsetTop; // overlay is fixed at 0,0
+      const w = panel.offsetWidth, h = panel.offsetHeight;
+      const style = panel.style;
+      style.setProperty('--triage-morph-sx', (b.width / w).toFixed(4));
+      style.setProperty('--triage-morph-sy', (b.height / h).toFixed(4));
+      style.setProperty('--triage-morph-x', ((b.left + b.width / 2) - (left + w / 2)).toFixed(1) + 'px');
+      style.setProperty('--triage-morph-y', ((b.top + b.height) - (top + h)).toFixed(1) + 'px');
+    }
     const TRIAGE_HISTORY_MAX = 50;
 
     function _undoneTasks() {
@@ -79,6 +96,7 @@
       const totalUndone = undoneManual.length + undoneTrello.length;
 
       const bar = $.triageBar || document.getElementById('triageBar');
+      if (bar && bar.classList.contains('visible')) _triageBarRect = bar.getBoundingClientRect();
       if (bar) { bar.classList.remove('visible'); bar.classList.add('hidden'); }
       const titleEl = $.triageTitle || document.getElementById('triageTitle');
       if (titleEl) titleEl.textContent = `${totalUndone} didn't happen`;
@@ -95,6 +113,8 @@
       // triage-morph-opening stays on while the sheet is open: removing it swaps the
       // panel back to its base slideUp animation, which replays from off-screen.
       clearTimeout(_triageRevealTimer);
+      clearTimeout(_triageCollapseTimer);
+      if (overlay) overlay.classList.remove('triage-morph-closing');
       if (panel) {
         panel.classList.remove('triage-morph-closing');
         panel.classList.add('triage-morph-active', 'triage-morph-opening');
@@ -110,6 +130,7 @@
           returnFocus: document.getElementById('triageReviewBtn'),
           onEscape: triageMinimize
         });
+        _setMorphGeometry(panel);
         // Backdrop fades in after overlay is rendered once at transparent
         requestAnimationFrame(() => overlay.classList.remove('triage-bg-fade'));
       }
@@ -575,23 +596,36 @@
         const els = panel.querySelectorAll('.triage-header-btn, #triageList, #triageComplete');
         els.forEach(el => { el.style.transition = 'none'; });
         clearTimeout(_triageRevealTimer);
+        _setMorphGeometry(panel);
         panel.classList.remove('triage-morph-opening');
         panel.classList.add('triage-morph-active', 'triage-morph-closing');
       }
-      // Mark hidden immediately so tests/a11y see the right state;
-      // .triage-morph-closing on overlay overrides display:none during animation.
+      // Mark hidden immediately so tests/a11y see the right state. The dialog helper
+      // must not set the `hidden` attribute yet: `[hidden]` is display:none !important
+      // and would cut the collapse before its first frame. The overlay is hidden for
+      // real once the sheet has shrunk into the bar's shape.
       overlay.classList.add('hidden', 'triage-morph-closing', 'triage-bg-fade');
-      if (window._a11yCloseDialog) _a11yCloseDialog(overlay);
+      if (window._a11yCloseDialog) _a11yCloseDialog(overlay, { hide: false, restoreFocus: false });
+      const focusWasInSheet = overlay.contains(document.activeElement);
 
-      setTimeout(() => {
+      _triageCollapseTimer = setTimeout(() => {
+        // Mirror of the opening: the sheet ends as the bar, and the bar takes over in
+        // the same frame instead of fading in after an empty beat.
+        const bar = document.getElementById('triageBar');
+        if (bar) {
+          bar.style.transition = 'none';
+          bar.classList.remove('hidden');
+          bar.classList.add('visible');
+          void bar.offsetWidth;
+          bar.style.transition = '';
+        }
         if (panel) panel.classList.remove('triage-morph-active', 'triage-morph-closing');
         overlay.classList.remove('triage-morph-closing', 'triage-bg-fade');
         overlay.hidden = true;
         const els = panel ? panel.querySelectorAll('.triage-header-btn, #triageList, #triageComplete') : [];
         els.forEach(el => { el.style.transition = ''; });
-        const _tbMin = document.getElementById('triageBar');
-        if (_tbMin) { _tbMin.classList.remove('hidden'); requestAnimationFrame(() => _tbMin.classList.add('visible')); }
-      }, 350);
+        if (focusWasInSheet) document.getElementById('triageReviewBtn')?.focus({ preventScroll: true });
+      }, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : _motionDuration('--dur-slow'));
     }
 
     function triageClose() {
@@ -600,7 +634,9 @@
       localStorage.setItem('triage_dismissed', _getAppDay());
       const overlay = document.getElementById('triageOverlay');
       clearTimeout(_triageRevealTimer);
-      document.getElementById('triagePanel')?.classList.remove('triage-morph-active', 'triage-morph-opening');
+      clearTimeout(_triageCollapseTimer);
+      overlay.classList.remove('triage-morph-closing', 'triage-bg-fade');
+      document.getElementById('triagePanel')?.classList.remove('triage-morph-active', 'triage-morph-opening', 'triage-morph-closing');
       overlay.classList.add('hidden');
       if (window._a11yCloseDialog) _a11yCloseDialog(overlay);
       else overlay.hidden = true;

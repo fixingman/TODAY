@@ -1486,6 +1486,14 @@
   #triagePanel.triage-morph-closing {
     transform-origin: center bottom;
   }
+  /* Bar-box geometry for the morph, set from the bar's measured box by
+     _setMorphGeometry(); these approximations apply only if it never laid out. */
+  #triagePanel {
+    --triage-morph-x: 0px;
+    --triage-morph-y: -72px;
+    --triage-morph-sx: 0.60;
+    --triage-morph-sy: 0.13;
+  }
   #triagePanel.triage-morph-opening {
     animation: triageMorphUp var(--dur-slow) var(--ease-out) both;
   }
@@ -1495,26 +1503,26 @@
   }
   @keyframes triageMorphUp {
     from {
-      transform: translateY(-72px) scaleX(0.60) scaleY(0.13);
+      transform: translate(var(--triage-morph-x), var(--triage-morph-y)) scale(var(--triage-morph-sx), var(--triage-morph-sy));
       border-radius: var(--radius-xl);
       opacity: 0.95;
     }
     to {
-      transform: translateY(0) scaleX(1) scaleY(1);
+      transform: translate(0, 0) scale(1, 1);
       border-radius: var(--radius-xl) var(--radius-xl) 0 0;
       opacity: 1;
     }
   }
   @keyframes triageMorphDown {
     from {
-      transform: translateY(0) scaleX(1) scaleY(1);
+      transform: translate(0, 0) scale(1, 1);
       border-radius: var(--radius-xl) var(--radius-xl) 0 0;
       opacity: 1;
     }
     to {
-      transform: translateY(-72px) scaleX(0.60) scaleY(0.13);
+      transform: translate(var(--triage-morph-x), var(--triage-morph-y)) scale(var(--triage-morph-sx), var(--triage-morph-sy));
       border-radius: var(--radius-xl);
-      opacity: 0;
+      opacity: 0.95;
     }
   }
   /* During morph: keep title visible as identity anchor;
@@ -4573,9 +4581,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.48': 'Tapping outside the triage review now plays the opening in reverse: the sheet shrinks back into the bar and the bar takes over, instead of the sheet vanishing.',
   '2.90.47': 'If you open the morning nudge’s reaction choices before starting focus, they now quiet down with the nudge and return when you leave focus.',
   '2.90.46': 'During focus, the evening Review prompt stays quietly in the background and no longer interrupts keyboard or screen-reader navigation. It is available again when focus ends.',
-  '2.90.45': 'Tapping anywhere on the evening triage bar opens the review again, and the sheet now rises once from the bar instead of dropping and rising a second time.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
