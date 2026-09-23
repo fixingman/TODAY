@@ -4,8 +4,8 @@
 
 ## Status key
 
-| Badge            | Meaning                                                                                          |
-|------------------|--------------------------------------------------------------------------------------------------|
+| Badge | Meaning |
+|-------|---------|
 | ✅ `vX.X.X`  | Fixed and verified by Can on a real device, or by an accepted reproduction-equivalent simulator run |
 | ⏳ `vX.X.X`  | Fix shipped — awaiting an accepted verification pass |
 | 🔍 Diagnosing | Root cause not yet confirmed — investigation in progress |
@@ -14,8 +14,8 @@
 
 ## Status Summary
 
-| #   | Description                                                                            | Status               |
-|-----|----------------------------------------------------------------------------------------|----------------------|
+| # | Description | Status |
+|---|---|---|
 | 099 | Completed triage can ask again on another device — first-open cleanup erased an adopted same-day dismissal | ⏳ v2.90.44 |
 | 098 | Header shoved off the top when a task near the bottom enters focus — sticky inside a fixed body | ✅ v2.82.4 |
 | 097 | Header date stays on yesterday when the app is open across midnight — written once at init | ✅ v2.82.2 |
