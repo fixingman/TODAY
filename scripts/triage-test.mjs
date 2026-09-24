@@ -244,8 +244,12 @@ try {
         if (performance.now() - t0 < 600) requestAnimationFrame(tick); };
       requestAnimationFrame(tick);
     });
+    const titleSettled = await page.$eval('#triageTitle', t => getComputedStyle(t).opacity === '1');
     await page.mouse.click(20, 40); // backdrop, above the sheet
-    await new Promise(r => setTimeout(r, 650));
+    await new Promise(r => setTimeout(r, 120));
+    // The non-uniform scale squashes text, so the title hides with the rest mid-collapse.
+    const titleHiddenMidCollapse = await page.$eval('#triageTitle', t => getComputedStyle(t).opacity === '0');
+    await new Promise(r => setTimeout(r, 530));
     const after = await page.evaluate(box => {
       const frames = window.__collapse, last = frames[frames.length - 1] || [0, 0, 0, 0];
       const near = (a, b) => Math.abs(a - b) <= 3;
@@ -261,7 +265,7 @@ try {
     await page.keyboard.press('Escape');
     await new Promise(r => setTimeout(r, 650));
     const focusBack = await page.evaluate(() => ({ escapeReturnsFocusToReview: document.activeElement?.id === 'triageReviewBtn' }));
-    await expectAll('reverse morph on outside tap', { ...after, ...focusBack, noErrors: errors.length === 0 });
+    await expectAll('reverse morph on outside tap', { ...after, ...focusBack, titleSettled, titleHiddenMidCollapse, noErrors: errors.length === 0 });
     ok('outside tap collapses the sheet back into the bar, visibly, and hands off to it');
     await page.close();
   }

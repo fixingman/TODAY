@@ -1525,8 +1525,9 @@
       opacity: 0.95;
     }
   }
-  /* During morph: keep title visible as identity anchor;
-     hide buttons and list until shell settles. */
+  /* During morph the shell is only a shape: the non-uniform scale squashes any
+     text inside it, so title, buttons and list all wait for the shell to settle. */
+  #triagePanel.triage-morph-active #triageTitle,
   #triagePanel.triage-morph-active .triage-header-btn,
   #triagePanel.triage-morph-active #triageList {
     opacity: 0;
@@ -4584,9 +4585,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.90.51': 'The triage sheet now opens and collapses as a plain shape; its title no longer shows squashed while the sheet is between the bar and full size.',
   '2.90.50': 'The evening review title and Keep all button now line up with the task content on desktop and phone.',
   '2.90.49': 'Evening review now opens on its title instead of placing keyboard focus on Keep all. Tab still reaches the actions, and Enter cannot accidentally keep everything.',
-  '2.90.48': 'Tapping outside the triage review now plays the opening in reverse: the sheet shrinks back into the bar and the bar takes over, instead of the sheet vanishing.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

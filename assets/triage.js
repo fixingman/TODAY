@@ -138,7 +138,7 @@
       // Reveal panel content once the shell has settled (~200ms into 300ms morph)
       _triageRevealTimer = setTimeout(() => {
         if (!panel) return;
-        const els = panel.querySelectorAll('.triage-header-btn, #triageList');
+        const els = panel.querySelectorAll('#triageTitle, .triage-header-btn, #triageList');
         els.forEach(el => { el.style.transition = 'opacity 0.13s var(--ease-out)'; });
         panel.classList.remove('triage-morph-active');
         setTimeout(() => els.forEach(el => { el.style.transition = ''; }), 150);
@@ -593,7 +593,7 @@
 
       // Hide content instantly then play collapse animation
       if (panel) {
-        const els = panel.querySelectorAll('.triage-header-btn, #triageList, #triageComplete');
+        const els = panel.querySelectorAll('#triageTitle, .triage-header-btn, #triageList, #triageComplete');
         els.forEach(el => { el.style.transition = 'none'; });
         clearTimeout(_triageRevealTimer);
         _setMorphGeometry(panel);
@@ -622,7 +622,7 @@
         if (panel) panel.classList.remove('triage-morph-active', 'triage-morph-closing');
         overlay.classList.remove('triage-morph-closing', 'triage-bg-fade');
         overlay.hidden = true;
-        const els = panel ? panel.querySelectorAll('.triage-header-btn, #triageList, #triageComplete') : [];
+        const els = panel ? panel.querySelectorAll('#triageTitle, .triage-header-btn, #triageList, #triageComplete') : [];
         els.forEach(el => { el.style.transition = ''; });
         if (focusWasInSheet) document.getElementById('triageReviewBtn')?.focus({ preventScroll: true });
       }, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : _motionDuration('--dur-slow'));
