@@ -231,7 +231,9 @@
           // Invalidate old-format cache entries (plain name, no from:/to: operators)
           // so existing wrong matches get re-queried with the correct Gmail operators.
           const hasOp = !hit.searchQuery || /\b(from:|to:|subject:|label:|in:|after:|before:|newer:|older:|is:|has:|filename:)/.test(hit.searchQuery);
-          if (typeof hit.isComm === 'boolean' && hasOp) return hit;
+          // Before v2.90.52 the classifier never reached the AI (stale global guard) and
+          // cached its regex fallback; only AI-sourced entries are trusted.
+          if (typeof hit.isComm === 'boolean' && hasOp && hit.source === 'ai') return hit;
           // Old format detected — clear both classify and enrichment caches
           try { localStorage.removeItem('gmail_classify_' + taskId); } catch(e) {}
           try { localStorage.removeItem('gmail_enrichment_' + taskId); } catch(e) {}
@@ -239,13 +241,14 @@
       } catch(e) {}
 
       try {
-        const provider = typeof _aiGetProvider === 'function' ? Today.use('connections')._aiGetProvider() : 'gemini';
-        const apiKey   = typeof _aiGetKey === 'function' ? Today.use('connections')._aiGetKey() : '';
+        const connections = Today.use('connections');
+        const provider = connections._aiGetProvider();
+        const apiKey   = connections._aiGetKey();
         const res = await fetch('/.netlify/functions/ai-assist', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            provider:     provider || 'gemini',
+            provider,
             apiKey,
             systemPrompt: 'Return ONLY valid JSON: {"isComm":true,"searchQuery":"gmail_query"}. isComm=true when the task involves contacting, replying, or following up by email. Build the query from what the task actually names. Person-targeted: use from:/to: plus subject terms when useful. Topic-targeted: use subject:, quoted keywords, in:sent, and date operators such as after: when useful; never invent a person. Include at least one Gmail operator. If no useful email search is possible, set isComm=false and searchQuery to "".',
             messages:     [{ role: 'user', content: taskText }],
@@ -254,15 +257,15 @@
         if (res.ok) {
           const data = await res.json();
           if (typeof data.isComm === 'boolean' && typeof data.searchQuery === 'string') {
-            try { localStorage.setItem('gmail_classify_' + taskId, JSON.stringify(data)); } catch(e) {}
-            return data;
+            const hit = { isComm: data.isComm, searchQuery: data.searchQuery, source: 'ai' };
+            try { localStorage.setItem('gmail_classify_' + taskId, JSON.stringify(hit)); } catch(e) {}
+            return hit;
           }
         }
       } catch(e) {}
 
-      const result = { isComm: true, searchQuery: _buildQueryFallback(taskText) };
-      try { localStorage.setItem('gmail_classify_' + taskId, JSON.stringify(result)); } catch(e) {}
-      return result;
+      // Not cached: a failed classification should be retried, not kept.
+      return { isComm: true, searchQuery: _buildQueryFallback(taskText) };
     }
 
     async function _gmailSearch(searchQuery) {

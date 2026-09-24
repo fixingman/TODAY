@@ -42,6 +42,8 @@ try {
     localStorage.setItem('gmail_access_token', 'access-test');
     localStorage.setItem('gmail_refresh_token', 'refresh-test');
     localStorage.setItem('gmail_token_expiry', String(Date.now() + 3600000));
+    localStorage.setItem('today_ai_provider', 'claude');
+    localStorage.setItem('today_ai_key_claude', 'claude-test-key');
   });
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof window._gmailBuildQueryFallback === 'function');
@@ -64,6 +66,10 @@ try {
     window.fetch = async (url, options = {}) => {
       calls.push({ url: String(url), body: options.body || '' });
       if (String(url).includes('/ai-assist')) {
+        const sent = JSON.parse(options.body || '{}');
+        if (sent.provider !== 'claude' || sent.apiKey !== 'claude-test-key') {
+          return { ok: false, status: 400, json: async () => ({ error: 'No API key' }) };
+        }
         return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: '"three proposals" in:sent' }) };
       }
       return { ok: true, status: 200, json: async () => ({ threads: [] }) };
@@ -71,8 +77,11 @@ try {
     await _gmailEnrichTask('gmail_topic_ai', 'Follow up on the three proposals we sent last week');
     const ai = calls.find(c => c.url.includes('/ai-assist'));
     const gmail = calls.find(c => c.url.includes('gmail.googleapis.com'));
-    return { prompt: JSON.parse(ai.body).systemPrompt, gmailUrl: gmail.url };
+    return { prompt: JSON.parse(ai.body).systemPrompt, provider: JSON.parse(ai.body).provider, gmailUrl: gmail.url,
+      cached: JSON.parse(localStorage.getItem('gmail_classify_gmail_topic_ai')) };
   });
+  assert(classified.provider === 'claude' && classified.cached?.source === 'ai',
+    'classifier sends the configured provider and key, and marks AI results in the cache', classified);
   const classifiedQuery = new URL(classified.gmailUrl).searchParams.get('q');
   assert(classified.prompt.includes('Topic-targeted') && classified.prompt.includes('never invent a person')
       && classifiedQuery === '"three proposals" in:sent',
@@ -89,14 +98,14 @@ try {
     const gmail = calls.find(url => url.includes('gmail.googleapis.com'));
     return {
       query: new URL(gmail).searchParams.get('q'),
-      cached: JSON.parse(localStorage.getItem('gmail_classify_gmail_topic_fallback')),
+      cached: localStorage.getItem('gmail_classify_gmail_topic_fallback'),
     };
   });
-  assert(degraded.query === '"three proposals" in:sent' && degraded.cached.searchQuery === degraded.query,
-    'AI failure falls back to the same topic-safe query and caches the classification', degraded);
+  assert(degraded.query === '"three proposals" in:sent' && degraded.cached === null,
+    'AI failure falls back to the same topic-safe query without caching it, so the next attempt retries the AI', degraded);
 
   const cache = await page.evaluate(async () => {
-    localStorage.setItem('gmail_classify_gmail_cached', JSON.stringify({ isComm: true, searchQuery: '"renewal" in:sent' }));
+    localStorage.setItem('gmail_classify_gmail_cached', JSON.stringify({ isComm: true, searchQuery: '"renewal" in:sent', source: 'ai' }));
     const calls = [];
     window.fetch = async (url) => {
       calls.push(String(url));
@@ -107,6 +116,21 @@ try {
   });
   assert(cache.length === 1 && cache[0].includes('gmail.googleapis.com') && !cache[0].includes('/ai-assist'),
     'topic-operator classifications remain valid cache entries', cache);
+
+  const legacy = await page.evaluate(async () => {
+    // Written before v2.90.52, when the classifier never reached the AI.
+    localStorage.setItem('gmail_classify_gmail_legacy', JSON.stringify({ isComm: true, searchQuery: 'from:Maria OR to:Maria' }));
+    const calls = [];
+    window.fetch = async (url) => {
+      calls.push(String(url));
+      if (String(url).includes('/ai-assist')) return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'from:maria@example.com' }) };
+      return { ok: true, status: 200, json: async () => ({ threads: [] }) };
+    };
+    await _gmailEnrichTask('gmail_legacy', 'Reply to Maria');
+    return { reclassified: calls.some(u => u.includes('/ai-assist')), cached: JSON.parse(localStorage.getItem('gmail_classify_gmail_legacy')) };
+  });
+  assert(legacy.reclassified && legacy.cached.source === 'ai' && legacy.cached.searchQuery === 'from:maria@example.com',
+    'unmarked legacy classifications are reclassified once by the AI', legacy);
 
   const nonCommCalls = await page.evaluate(async () => {
     let calls = 0;

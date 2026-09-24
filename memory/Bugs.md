@@ -18,6 +18,8 @@
 
 | # | Description | Status |
 |---|---|---|
+| 105 | Gmail classifier never reached the AI — guarded on removed `_aiGetProvider`/`_aiGetKey` globals, cached its regex fallback | ⏳ v2.90.53 |
+| 104 | Web enrichment (↗) always empty — Haiku 4.5 sent an unsupported web search tool version; failures cached as no result | ⏳ v2.90.53 |
 | 102 | Triage review initially focused Keep all, making the bulk action look preselected and Enter-ready | ✅ v2.90.49 |
 | 101 | Open morning-nudge reaction choices stayed bright and focusable during focus | ✅ v2.90.47 |
 | 100 | Evening triage Review stayed keyboard-reachable and failed contrast while visually receded in focus mode | ✅ v2.90.46 |
@@ -65,6 +67,26 @@
 ---
 
 *BUG-001 – BUG-055 → `archive/Bugs-archive.md` (summary table + full detail). Below: bugs still awaiting verification.*
+
+---
+
+## BUG-105 — Gmail enrichment never used the AI classifier
+
+**Symptom:** Communication tasks rarely showed ↩ or matched the wrong thread, with no error.
+
+**Root cause:** the 2026-09-05 boundary refactor (`906e71b6`) removed the `_aiGetProvider`/`_aiGetKey` globals. `_classifyTask()` still guarded on `typeof _aiGetProvider === 'function'`, so it sent provider `gemini` with an empty key; `ai-assist` returned 400 and the regex fallback query was cached as the task's classification. `gmail-test` mocked `ai-assist` as succeeding whatever it was sent.
+
+**Fix (v2.90.53):** read provider and key from `Today.use('connections')`; cache only AI results (`source: 'ai'`), reclassify unmarked entries once, never cache the fallback. The test mock now rejects calls without the configured provider and key. Four more guards on names that are no longer global were found at the same time (`dropbox.js:503`, `about.js:774`, `focus.js:363`, `meeting.js:169`) and are not fixed here.
+
+---
+
+## BUG-104 — Web enrichment (↗) always came back empty
+
+**Symptom:** No ↗ indicator or focus card for any task since mid-September.
+
+**Root cause:** `5ee16211` (2026-09-14) switched `task-enrich` to Claude Haiku 4.5 but kept `web_search_20260209`, which needs Opus 4.6+/Sonnet 4.6+/Sonnet 5. Every request was rejected; the function logged it, broke out of its loop and returned `200 {card:null}`, which the client caches permanently as `no_result`. `task-enrich-test` asserted both the incompatible pair and the `200 null` degradation.
+
+**Fix (v2.90.53):** `web_search_20250305` for Haiku; provider errors return 502 (429 passed through) so they stay retryable; client cache entries carry `v: 2` and unversioned `no_result` entries are retried once.
 
 ---
 

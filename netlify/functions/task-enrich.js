@@ -55,7 +55,9 @@ exports.handler = async function(event) {
   const trelloBoardId = body.trelloBoardId ? String(body.trelloBoardId).replace(/[^\w]/g, '').slice(0, 32) : '';
   const hasTrello = !!(trelloToken && trelloBoardId);
 
-  const tools = [{ type: 'web_search_20260209', name: 'web_search' }];
+  // Haiku 4.5 only supports the basic web search variant; web_search_20260209
+  // (dynamic filtering) requires Opus 4.6+ / Sonnet 4.6+ and is rejected here.
+  const tools = [{ type: 'web_search_20250305', name: 'web_search' }];
   if (hasTrello) {
     tools.push({
       name: 'search_trello',
@@ -97,7 +99,12 @@ exports.handler = async function(event) {
       if (!res.ok) {
         const errBody = await res.text().catch(() => '');
         console.error('[task-enrich] API error', res.status, errBody);
-        break;
+        // Not "nothing found": the client caches a 200 { card: null } for good.
+        return {
+          statusCode: res.status === 429 ? 429 : 502,
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'Enrichment unavailable (' + res.status + ')' }),
+        };
       }
 
       const data = await res.json();

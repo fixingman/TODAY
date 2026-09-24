@@ -6,12 +6,17 @@
   const CACHE_PREFIX = 'agent_enrichment_';
   const TRIGGER_RE   = /https?:\/\/|\b(book|order|where|directions|price|hours|find|look\s+up|compare|research|navigate|reserve|schedule|answer|reply|call|contact|email|message|reach\s+out|follow\s+up|respond|check\s+in)\b/i;
   const _inflight    = new Set();
+  const CACHE_VERSION = 2;
 
   // ── Cache helpers ──────────────────────────────────────────────────────────
   function _getCache(taskId) {
     try {
       const raw = localStorage.getItem(CACHE_PREFIX + taskId);
-      return raw ? JSON.parse(raw) : null;
+      const entry = raw ? JSON.parse(raw) : null;
+      // From 2026-09-14 until v2.90.52 every lookup failed at the API and was
+      // stored as no_result; unversioned no_result entries are not real answers.
+      if (entry && entry.state === 'no_result' && entry.v !== CACHE_VERSION) return null;
+      return entry;
     } catch(e) { return null; }
   }
 
@@ -50,7 +55,7 @@
 
       const data  = await res.json();
       const state = data.card ? 'success' : 'no_result';
-      _setCache(taskId, { state, card: data.card || null, taskText, fetchedAt: Date.now() });
+      _setCache(taskId, { v: CACHE_VERSION, state, card: data.card || null, taskText, fetchedAt: Date.now() });
 
       if (data.card) _agentUpdateIndicator(taskId, true);
     } catch(e) {

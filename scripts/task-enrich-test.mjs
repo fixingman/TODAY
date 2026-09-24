@@ -47,8 +47,8 @@ try {
   const card = JSON.parse(success.body).card;
   const sent = JSON.parse(providerRequest.body);
   assert(success.statusCode === 200 && providerRequest.headers['x-api-key'] === 'client-key'
-      && sent.model === 'claude-haiku-4-5-20251001' && sent.tools[0].type === 'web_search_20260209',
-    'function forwards the sanitized client key and expected provider contract');
+      && sent.model === 'claude-haiku-4-5-20251001' && sent.tools[0].type === 'web_search_20250305',
+    'function forwards the sanitized client key; Haiku 4.5 gets the basic web search variant it supports');
   assert(card.headline.length === 40 && card.body.length === 80 && card.cta.label.length === 10
       && card.cta.href === 'https://example.com/item',
     'provider cards are length-bounded and retain HTTPS actions', card);
@@ -62,8 +62,12 @@ try {
 
   global.fetch = async () => ({ ok: false, status: 500, text: async () => 'provider down' });
   const degraded = await handler(event({ taskText: 'Find a thing', apiKey: 'key' }));
-  assert(degraded.statusCode === 200 && JSON.parse(degraded.body).card === null,
-    'provider failure degrades to a null card instead of a function error');
+  assert(degraded.statusCode === 502 && JSON.parse(degraded.body).card === undefined,
+    'provider failure is reported as an error, not a "nothing found" card the client would cache', degraded);
+
+  global.fetch = async () => ({ ok: false, status: 400, text: async () => 'tool type not supported for this model' });
+  const rejected = await handler(event({ taskText: 'Find a thing', apiKey: 'key' }));
+  assert(rejected.statusCode === 502, 'a rejected request (e.g. unsupported tool version) is not reported as no result', rejected);
 } finally {
   global.fetch = oldFetch;
   if (oldEnvKey === undefined) delete process.env.ANTHROPIC_API_KEY;
@@ -125,6 +129,16 @@ try {
   });
   assert(noResult.calls === 1 && noResult.cached.state === 'no_result',
     'no-result responses are cached and not requested repeatedly', noResult);
+
+  const poisoned = await page.evaluate(async () => {
+    let calls = 0;
+    window.fetch = async () => { calls++; return { ok: true, status: 200, json: async () => ({ card: null }) }; };
+    localStorage.setItem('agent_enrichment_agent_old', JSON.stringify({ state: 'no_result', card: null, fetchedAt: Date.UTC(2026, 8, 20) }));
+    await _agentEnrichTask('agent_old', 'Book a table for Friday');
+    return { calls, refreshed: JSON.parse(localStorage.getItem('agent_enrichment_agent_old')).v === 2 };
+  });
+  assert(poisoned.calls === 1 && poisoned.refreshed,
+    'no-result entries written while every lookup failed (before v2.90.52) are retried once', poisoned);
 
   const transient = await page.evaluate(async () => {
     let calls = 0;
