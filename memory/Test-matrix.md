@@ -104,6 +104,9 @@ If testing **zone** changes:
 If testing **triage review keyboard entry**:
 - [ ] Run `node scripts/accessibility-test.mjs` — the dialog opens on its static title; Enter does not apply Keep all, Tab reaches the first action, Shift+Tab stays inside the visible action loop, and Escape returns to Review.
 
+If testing **new-day nudge sync**:
+- [ ] Run `node scripts/dropbox-test.mjs` — yesterday’s dated or undated dismissal must not suppress today’s nudge; a current-day dismissal must still sync, and uploads must include its source-local date.
+
 ---
 
 ## Design Review Gate: The Wallpaper Test
@@ -167,7 +170,8 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 2.6 | PAST purge (letgo 30d) | Auto-removed |
 | 2.7 | Morning nudge (no review) | Shows carried-over count |
 | 2.7a | Morning nudge (with review) | Shows "Yesterday: X done, Ym focused" |
-| 2.7b | Morning nudge after noon | Hidden, review cleared + AI cache cleared |
+| 2.7b | Morning nudge after noon | Hidden, review cleared; dated AI line remains available in About until midnight |
+| 2.7f | **SYNC: new day after yesterday’s nudge dismissal** | Prior-day or undated remote flag cannot become today’s dismissal; same-day dated flag still applies |
 | 2.7c | Morning nudge AI upgrade (v2.17.73) | Rule-based line renders instantly, AI sentence fades in when ready; cached — same sentence on re-open that morning |
 | 2.7d | Morning nudge AI — no key / offline | Rule-based line stays, no error, no loading state |
 | 2.7e | Morning nudge dismissed while AI fetching | Stays dismissed — AI response does not resurrect it |

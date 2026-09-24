@@ -20,6 +20,7 @@
 |---|---|---|
 | 105 | Gmail classifier never reached the AI — guarded on removed `_aiGetProvider`/`_aiGetKey` globals, cached its regex fallback | ⏳ v2.90.53 |
 | 104 | Web enrichment (↗) always empty — Haiku 4.5 sent an unsupported web search tool version; failures cached as no result | ⏳ v2.90.53 |
+| 103 | Yesterday’s undated Dropbox nudge dismissal can hide the new daily nudge after midnight | ⏳ v2.90.54 |
 | 102 | Triage review initially focused Keep all, making the bulk action look preselected and Enter-ready | ✅ v2.90.49 |
 | 101 | Open morning-nudge reaction choices stayed bright and focusable during focus | ✅ v2.90.47 |
 | 100 | Evening triage Review stayed keyboard-reachable and failed contrast while visually receded in focus mode | ✅ v2.90.46 |
@@ -87,6 +88,16 @@
 **Root cause:** `5ee16211` (2026-09-14) switched `task-enrich` to Claude Haiku 4.5 but kept `web_search_20260209`, which needs Opus 4.6+/Sonnet 4.6+/Sonnet 5. Every request was rejected; the function logged it, broke out of its loop and returned `200 {card:null}`, which the client caches permanently as `no_result`. `task-enrich-test` asserted both the incompatible pair and the `200 null` degradation.
 
 **Fix (v2.90.53):** `web_search_20250305` for Haiku; provider errors return 502 (429 passed through) so they stay retryable; client cache entries carry `v: 2` and unversioned `no_result` entries are retried once.
+
+---
+
+## BUG-103 — Yesterday’s dismissal hides today’s nudge
+
+**Symptom:** A new daily nudge failed to appear on the task list after midnight, even with open tasks and a line visible in About.
+
+**Root cause:** `_DISMISS_SYNC` sent only `'1'` for a per-day dismissal, with no source day. `mergeRemoteData()` wrote any incoming `'1'` to `day_nudge_dismissed_<today>`, so yesterday’s last Dropbox snapshot could suppress today’s strip. The same flaw applied to its legacy aliases and the Sunday badge seen flag. The live report’s exact local flag was not available, but the old merge reproduced the mechanism in a failing browser test.
+
+**Fix (v2.90.54):** Backups carry one source-local `per_day_dismiss_date`; only a matching current-day date allows registry flags to merge. Undated old snapshots are ignored; deliberate same-day dismissal still propagates. The browser test covers stale, undated, and current-day input plus the outgoing date. An already-written local flag is not automatically removed, since it could reflect an intentional tap. Verify on two updated devices across a day boundary.
 
 ---
 

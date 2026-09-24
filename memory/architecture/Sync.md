@@ -171,6 +171,7 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   // Triage (v5.1)
   triage_history: [{id, decision, at}, ...],
   triage_dismissed: 'YYYY-MM-DD',  // synced to prevent repeat prompts
+  per_day_dismiss_date: 'YYYY-MM-DD',  // source-local date for day_nudge_dismissed, legacy aliases, sunday_nudge_seen
   // Daily history — per-day snapshots the week grid reads for past days (v5.3, BUG-036)
   daily_history: [{date: 'YYYY-MM-DD', tasksDone: 0, tasksAdded: 0, focusMins: 0, habitsKept: 0, habitsTotal: 0, tasksAddedFixed?: true}]
 }
@@ -382,7 +383,7 @@ All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UT
 | PAST tasks | Union by ID, newer zoneChangedAt wins, age-based purge only (done >7d, let_go/aged >30d) — no count cap (v2.17.47) |
 | Stats | Max wins; streak uses `Math.max` only when `remoteStreakDate >= localStreakDate` — prevents ticker-reversed device from re-inflating yesterday's count after midnight reset (v2.64.22) |
 | Triage dismissed | If remote = today, apply locally |
-| Nudge dismissal (unified day nudge) | If remote = `'1'` and local key unset for today, set + hide element. Payload field AND merge block are both driven by the `_DISMISS_SYNC` registry (v2.18.40) — new per-day dismissable surface = one registry row (BUG-051/053 lesson). v2.19.0 merged the two nudges into one `dayNudge` (`day_nudge_dismissed`); the legacy `trello_nudge_dismissed`/`morning_nudge_dismissed` fields remain as registry rows mapped to the new key for pre-2.19.0 devices — remove once all devices updated. `sunday_nudge_seen_<date>` added to registry v2.64.22 so Sunday nudge dismissal propagates cross-device |
+| Nudge dismissal (unified day nudge) | `_DISMISS_SYNC` payload carries `per_day_dismiss_date` (source-local YYYY-MM-DD) alongside day-nudge, legacy alias, and Sunday seen flags. A remote `'1'` is adopted only when that date equals the receiving device’s current local day; old/undated snapshots are ignored (BUG-103, v2.90.54). Local same-day flags are never cleared by stale remote data. The legacy `trello_nudge_dismissed`/`morning_nudge_dismissed` fields remain mapped to the unified `dayNudge` key for pre-2.19.0 devices; all registry fields share the same date guard. |
 | Memory | `_mergeAppMemory(remote.memory)` called from both `mergeRemoteData()` (every 7s tick, v2.64.23) and `dropboxRestore(!fromSync)` (manual restore). Merges: patterns (union of counted objects by key, max wins), AI inferences (`semantic`/`episodic`/`procedural` — union by id), moments (union by id), task keywords (union). `recentConversations` union-merged in `mergeRemoteData()` (v2.64.22). `suggestionOutcomes` union by stable offer ID, with monotonic timestamp/result-ID preservation and a 100-record cap (v2.72.0). `appMemory.noticed` NOT merged (device-local, v2.39.3). `appMemory.noticedDates` IS merged, earliest-date-wins (v2.39.4) |
 
 ### Stat Merge — Date Guards

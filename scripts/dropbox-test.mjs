@@ -272,6 +272,66 @@ try {
     await page.close();
   }
 
+  // 10c. An undated per-day dismissal from yesterday's Dropbox snapshot must
+  //      never become today's nudge dismissal. Same-day dismissal still syncs.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      const base = {
+        manual_tasks: [], done_ids: [], deleted_ids: [], unchecked_ids: [], checked_ids: [],
+        soon_tasks: [], past_tasks: [], habits: [],
+      };
+      const today = _localISO();
+      const previous = new Date(); previous.setDate(previous.getDate() - 1);
+      const yesterday = _localISO(previous);
+      const nudgeKey = 'day_nudge_dismissed_' + today;
+      const sundayKey = 'sunday_nudge_seen_' + today;
+      localStorage.removeItem(nudgeKey);
+      localStorage.removeItem(sundayKey);
+
+      const stale = {
+        ...base, day_nudge_dismissed: '1', trello_nudge_dismissed: '1',
+        morning_nudge_dismissed: '1', sunday_nudge_seen: '1',
+      };
+      mergeRemoteData({ ...stale, per_day_dismiss_date: yesterday });
+      const yesterdayIgnored = !localStorage.getItem(nudgeKey) && !localStorage.getItem(sundayKey);
+      mergeRemoteData(stale); // legacy backup has no source day
+      const undatedIgnored = !localStorage.getItem(nudgeKey) && !localStorage.getItem(sundayKey);
+      mergeRemoteData({ ...stale, per_day_dismiss_date: today });
+      const todayApplied = localStorage.getItem(nudgeKey) === '1'
+        && localStorage.getItem(sundayKey) === '1';
+      mergeRemoteData({ ...stale, per_day_dismiss_date: yesterday });
+      const localTodayPreserved = localStorage.getItem(nudgeKey) === '1';
+      localStorage.removeItem(nudgeKey);
+      mergeRemoteData({ ...base, per_day_dismiss_date: today, trello_nudge_dismissed: '1' });
+      const datedLegacyAliasApplied = localStorage.getItem(nudgeKey) === '1';
+
+      localStorage.setItem('dropbox_token', 'test-token');
+      let uploaded = null;
+      window.fetch = async (input, options) => {
+        if (String(input).endsWith('/2/files/upload')) {
+          uploaded = JSON.parse(options.body);
+          return new Response('{}', { status: 200 });
+        }
+        return new Response(JSON.stringify({ rev: 'test-rev' }), { status: 200 });
+      };
+      const saved = await dropboxBackup(true);
+      return {
+        yesterdayIgnored,
+        undatedIgnored,
+        todayApplied,
+        localTodayPreserved,
+        datedLegacyAliasApplied,
+        backupSaved: saved === true,
+        backupDated: uploaded?.per_day_dismiss_date === today,
+        backupKeepsFlag: uploaded?.day_nudge_dismissed === '1',
+      };
+    });
+    await expectAll('per-day dismissal sync date', { ...result, noErrors: errors.length === 0 });
+    ok('per-day dismissal sync ignores yesterday/undated flags and accepts today');
+    await page.close();
+  }
+
   // 11. Daily-history merge keeps plausible per-day counts at the boundary and
   //     sanitizes corrupt local, duplicate-date, and remote-only values.
   {
@@ -533,10 +593,40 @@ try {
         localHypothesisTombstoned: appMemory.memory.semantic.length === 0,
         tombstonesMerged:          appMemory.clearedHypothesisIds.includes('h_mine'),
       };
-      return { ...A, ...B };
+
+      // C. Hypothesis lifecycle across devices: the same item re-supported on the other
+      //    device unions its weeks and takes the later sighting; "not me" rejections
+      //    union by text and respect the clear watermark.
+      appMemory.clearedAt = '';
+      appMemory.clearedHypothesisIds = [];
+      appMemory.rejectedHypotheses = [{ text: 'mine rejected', date: iso(now - 1 * D) }];
+      appMemory.memory = { semantic: [
+        { id: 'h_life', text: 'chosen work closes fast', status: 'pending', seenWeeks: ['2026-09-07'], lastSeen: '2026-09-08' },
+      ], episodic: [], procedural: [] };
+      mergeRemoteData({ ...base, memory: {
+        clearedAt: new Date(now - 3 * D).toISOString(),
+        rejectedHypotheses: [
+          { text: 'MINE rejected', date: iso(now - 1 * D) },
+          { text: 'theirs rejected', date: iso(now) },
+          { text: 'pre-clear rejection', date: iso(now - 9 * D) },
+        ],
+        memory: { semantic: [
+          { id: 'h_life', text: 'chosen work closes fast', status: 'confirmed', seenWeeks: ['2026-09-14', '2026-09-21'], lastSeen: '2026-09-22' },
+        ] },
+      }});
+      const life = appMemory.memory.semantic.find(i => i.id === 'h_life');
+      const C = {
+        weeksUnioned:       JSON.stringify(life?.seenWeeks) === JSON.stringify(['2026-09-07', '2026-09-14', '2026-09-21']),
+        laterSightingWins:  life?.lastSeen === '2026-09-22',
+        confirmedCarried:   life?.status === 'confirmed',
+        rejectionsUnioned:  appMemory.rejectedHypotheses.length === 2
+          && appMemory.rejectedHypotheses.some(r => r.text === 'theirs rejected'),
+        preClearRejectionDropped: !appMemory.rejectedHypotheses.some(r => r.text === 'pre-clear rejection'),
+      };
+      return { ...A, ...B, ...C };
     });
     await expectAll('clear watermark survives sync', { ...result, noErrors: errors.length === 0 });
-    ok('mergeRemoteData: clear watermark drops pre-clear rows both ways; hypothesis tombstones honoured');
+    ok('mergeRemoteData: clear watermark drops pre-clear rows both ways; hypothesis tombstones honoured; lifecycle weeks and rejections merge');
     await page.close();
   }
 

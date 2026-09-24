@@ -132,6 +132,7 @@ async function openPage() {
     window.fetch = async (url, opts) => {
       if (String(url).includes('/.netlify/functions/ai-assist')) {
         state.abstractRequests++;
+        state.lastBody = opts && opts.body;
         const response = state.abstractResponses.shift();
         if (!response) return { ok: false, status: 500, json: async () => ({}) };
         return { ok: true, status: 200, json: async () => response };
@@ -262,7 +263,7 @@ try {
         [{ type: 'semantic', text: 'test productivity pattern' }]
       );
       await Today.use('memory').abstract();
-      const afterFirst = appMemory.memory.semantic.length;
+      const afterFirst = appMemory.memory.semantic.filter(i => Array.isArray(i.seenWeeks)).length;
       const throttleDateSet = !!appMemory.memory._lastAbstractDate;
       const requestsAfterFirst = window.__memoryTest.abstractRequests;
       const newItem = appMemory.memory.semantic.find(i => i.source === 'ai_abstract');
@@ -276,7 +277,7 @@ try {
       const requestsAfterSecond = window.__memoryTest.abstractRequests;
 
       return {
-        itemAdded: afterFirst > 2,
+        itemAdded: afterFirst === 1,
         isPending,
         throttleDateSet,
         throttled: requestsAfterSecond === requestsAfterFirst,
@@ -284,6 +285,111 @@ try {
     });
     await expectAll('abstraction and throttle', { ...result, noErrors: errors.length === 0 });
     ok('_memoryAbstract adds pending items via array response and throttles to once per day');
+    await page.close();
+  }
+
+  // Abstraction quality: long lines kept whole up to the cap and cut on a word beyond
+  // it; a rewording of a current item keeps that item; prompt asks for contrasts, not topics.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      const today = _localISO();
+      const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      const wk = _localISO(d);
+      appMemory.memory.episodic = [{ id: 'x1', text: 'some ui/ux feedback tasks are repeated, indicating persistent issues', type: 'episodic', status: 'pending', seenWeeks: [wk], lastSeen: today }];
+      delete appMemory.memory._lastAbstractDate;
+      const longText = 'obligation-framed errands stay open for weeks while chosen work on the app closes the same day it is added, even when both are marked today';
+      const tooLong = 'word '.repeat(50).trim();
+      window.__memoryTest.abstractResponses.push({ still: [], new: [
+        { type: 'episodic', text: 'repeated ui/ux feedback tasks indicate persistent issues with suggestions' },
+        { type: 'semantic', text: longText },
+        { type: 'procedural', text: tooLong },
+      ] });
+      await Today.use('memory').abstract();
+      const all = ['semantic', 'episodic', 'procedural'].flatMap(t => appMemory.memory[t].map(i => i.text));
+      const clipped = all.find(t => t.startsWith('word word'));
+      const body = JSON.parse(window.__memoryTest.lastBody || '{}');
+      const msg = body.messages?.[0]?.content || '';
+      return {
+        rewordingKeepsOriginal: appMemory.memory.episodic.length === 1 && appMemory.memory.episodic[0].id === 'x1',
+        longLineKeptWhole: all.includes(longText),
+        overCapCutOnWord: !!clipped && clipped.length <= 161 && clipped.endsWith('…') && !/wor…$/.test(clipped),
+        promptAsksForContrast: msg.includes('must contrast outcomes') && !msg.includes('what themes appear'),
+      };
+    });
+    await expectAll('abstraction quality', { ...result, noErrors: errors.length === 0 });
+    ok('_memoryAbstract keeps long lines whole, cuts only past the cap on a word, treats rewordings as recurrence, asks for contrasts');
+    await page.close();
+  }
+
+  // Hypothesis lifecycle: episodic replaced each run; stable items confirm after three
+  // separate weeks of support and fade after four weeks without; old-schema records
+  // are dropped; "not me" removes, tombstones and teaches the prompt.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      const today = _localISO();
+      const back = n => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() - n); return _localISO(d); };
+      const monday = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return _localISO(d); };
+      appMemory.clearedHypothesisIds = [];
+      appMemory.rejectedHypotheses = [{ text: 'avoids phone calls until the last possible moment', date: back(3) }];
+      appMemory.memory = {
+        semantic: [
+          { id: 'A', text: 'chosen work closes fast while errands for others linger', type: 'semantic', status: 'pending', seenWeeks: [monday(back(14)), monday(back(7))], lastSeen: back(7) },
+          { id: 'OLD', text: 'pre-lifecycle record without weeks', type: 'semantic', status: 'pending' },
+        ],
+        episodic: [
+          { id: 'E1', text: 'this week admin tasks got let go while design work finished', type: 'episodic', status: 'pending', seenWeeks: [monday(back(1))], lastSeen: back(1) },
+        ],
+        procedural: [
+          { id: 'B', text: 'starts focus sessions on tasks already carried several days', type: 'procedural', status: 'confirmed', seenWeeks: [monday(back(40))], lastSeen: back(30) },
+        ],
+      };
+      window.__memoryTest.abstractResponses.push({
+        still: ['s0'],
+        new: [
+          { type: 'episodic', text: 'health errands wait while invoices get paid within a day of arriving' },
+          { type: 'semantic', text: 'avoids phone calls until the very last possible moment' },
+          { type: 'procedural', text: 'releases obligation tasks at triage but revives chosen ones within a week' },
+        ],
+      });
+      await Today.use('memory').abstract();
+      const body = JSON.parse(window.__memoryTest.lastBody || '{}');
+      const msg = body.messages?.[0]?.content || '';
+      const A = appMemory.memory.semantic.find(i => i.id === 'A');
+      const tomb = new Set(appMemory.clearedHypothesisIds);
+      const all = ['semantic', 'episodic', 'procedural'].flatMap(t => appMemory.memory[t]);
+
+      Today.use('memory').render();
+      const panel = document.getElementById('memoryContent');
+      const text = panel.textContent;
+      const btn = [...panel.querySelectorAll('[data-today-click="memory.hypothesis-reject"]')]
+        .find(b => b.dataset.hypothesis === 'semantic:A');
+      const shown = {
+        confirmedShown: text.includes('chosen work closes fast'),
+        newEpisodicShown: text.includes('health errands wait'),
+        pendingStableHidden: !text.includes('releases obligation tasks at triage'),
+      };
+      btn?.click();
+      return {
+        stableConfirmedOnThirdWeek: A?.status === 'confirmed' && A.seenWeeks.length === 3 && A.lastSeen === today,
+        fadedStableRemoved: !all.some(i => i.id === 'B') && tomb.has('B'),
+        oldSchemaRemoved: !all.some(i => i.id === 'OLD') && tomb.has('OLD'),
+        episodicReplaced: !all.some(i => i.id === 'E1') && tomb.has('E1') && appMemory.memory.episodic.length === 1,
+        rejectedRewordingSkipped: !all.some(i => /phone calls/.test(i.text)),
+        newStablePending: appMemory.memory.procedural.some(i => i.status === 'pending' && i.seenWeeks.length === 1),
+        promptCarriesStableRefs: msg.includes('"ref":"s0"') && msg.includes('chosen work closes fast'),
+        promptCarriesRejections: msg.includes('wrong about them') && msg.includes('avoids phone calls'),
+        ...shown,
+        rejectButtonPresent: !!btn,
+        rejectRemoves: !appMemory.memory.semantic.some(i => i.id === 'A'),
+        rejectTombstones: appMemory.clearedHypothesisIds.includes('A'),
+        rejectRecorded: appMemory.rejectedHypotheses.some(r => r.text.startsWith('chosen work closes fast')),
+        rerendered: !document.getElementById('memoryContent').textContent.includes('chosen work closes fast'),
+      };
+    });
+    await expectAll('hypothesis lifecycle', { ...result, noErrors: errors.length === 0 });
+    ok('_memoryAbstract lifecycle: episodic replaced, stable confirm at 3 weeks and fade at 4, old records dropped, "not me" rejects and teaches the prompt');
     await page.close();
   }
 
@@ -340,12 +446,20 @@ try {
         { id: 'e', date: iso(now - 9 * D),  outcome: 'revive',    obligation: null,  focusSessions: 0 },
         { id: 'z', date: iso(now - 60 * D), outcome: 'done',      obligation: false, focusSessions: 0 },
       ];
+      const ago = d => new Date(now - d * D).toISOString();
+      soonTasks = [
+        { id: 'manual_s1', text: 'home: book blood test', zone: 'soon', zoneChangedAt: ago(12) },
+        { id: 'manual_s2', text: 'fresh soon item',       zone: 'soon', zoneChangedAt: ago(3) },
+        { id: 'manual_s3', text: 'dismissed soon item',   zone: 'soon', zoneChangedAt: ago(20) },
+      ];
+      appMemory.revokedKnownItems = { 'sn:manual_s3': new Date().toISOString() };
       Today.use('memory').render();
       const text = document.getElementById('memoryContent')?.textContent || '';
       const knownFirst = text.indexOf('KNOWN') >= 0 && text.indexOf('KNOWN') < text.indexOf('SEMANTIC');
 
       // empty state
       appMemory.returningTasks = {}; appMemory.obligationHistory = []; appMemory.taskOutcomes = [];
+      soonTasks = [];
       Today.use('memory').render();
       const empty = document.getElementById('memoryContent')?.textContent || '';
 
@@ -355,6 +469,9 @@ try {
         returningNamedWithDays: text.includes('"call insurance" — on the list 9 days, not started'),
         tagStrippedFromReturning: !text.includes('work: call insurance'),
         returningWithSessions: text.includes('"finish the deck" — on the list 6 days, 2 focus sessions'),
+        soonWaitingListed: text.includes('in Soon · "book blood test" — waiting 12 days'),
+        freshSoonNotListed: !text.includes('fresh soon item'),
+        revokedSoonNotListed: !text.includes('dismissed soon item'),
         openObligationListed: text.includes('"should call the bank"') && text.includes('still open'),
         doneObligationNotListed: !text.includes('file the receipts'),
         letgoObligationNotListed: !text.includes('renew permit'),
@@ -365,7 +482,7 @@ try {
       };
     });
     await expectAll('12d KNOWN block', { ...result, noErrors: errors.length === 0 });
-    ok('renderMemoryPanel: KNOWN shows the record as plain facts — open items only, 30-day window, no reconstruction caveat');
+    ok('renderMemoryPanel: KNOWN shows the record as plain facts — open items, Soon waits ≥7 days, 30-day window, no reconstruction caveat');
     await page.close();
   }
 

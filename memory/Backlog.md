@@ -328,6 +328,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 
 | Surface | Due | Status |
 |---------|-----|--------|
+| Morning nudge after midnight (v2.90.54) | 2026-10-09 | Open — W1: the daily line remains the morning’s useful imprint; W2: once per day, contextual or deliberately silent. Verify a fresh line can appear across devices after yesterday’s dismissal, without reappearing after a deliberate dismissal today. |
 | Triage bar morph (v2.90.42) | 2026-10-07 | Open — does the pill expanding into the sheet feel like one continuous thing, or does it just look like an animation? Does the collapse on minimise read as returning to the bar? |
 | Monday intention (memory-enriched) | 2026-10-01 | Re-observing — data source fixed (Soon + Trello added); extended after further updates. |
 | About contextual CTAs | 2026-10-08 | Re-observing — extended 20 days from 2026-09-18. Do bordered CTAs clarify actions without pulling attention? |
@@ -339,7 +340,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 | HOW DAYS FELT insight | 2026-10-08 | Re-observing — extended 20 days from 2026-09-18 while data populates. A useful commitment relationship or silence, never a feeling-frequency recap? |
 | Sunday earned insight | 2026-10-15 | Re-observing — was blocked lately; give more rounds before verdict. |
 | Observation pool — morning + Sunday (12c Phase 4) | 2026-10-01 | Re-observing — not sure yet; extend to 2026-10-01. Reactions are the verdict channel. |
-| Memory panel KNOWN record (12d Phase A) | 2026-10-01 | Re-observing — SAID and the reconstruction caveat were removed; outcome counts kept. Re-evaluate whether the remaining record earns a visit. |
+| Memory panel KNOWN record (12d Phase A) | 2026-10-09 | Re-observing — v2.91.0 adds waiting Soon tasks to KNOWN and gives AI observations a lifecycle (episodic refreshed daily, stable shown only after 3 weeks of support, "not me" rejects). Extended from 2026-10-01: stable items need ~15 days to appear. Does the panel now earn a visit? |
 
 ---
 

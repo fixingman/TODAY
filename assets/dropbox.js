@@ -522,8 +522,10 @@
     // forgotten for one nudge. A new dismissable surface (e.g. a future digest card)
     // is one row here; payload and merge follow automatically.
     // Model: localStorage key `<prefix>YYYY-MM-DD` (local day, _localISO), value '1';
-    // payload carries '1' if dismissed today else ''. No full-restore handling needed —
-    // the next 7s merge tick applies it (BUG-051 decision).
+    // payload carries '1' if dismissed today else '', alongside the source device's
+    // local day. Without that date, yesterday's backup could dismiss today's nudge
+    // when first pulled after midnight. No full-restore handling needed — the next
+    // 7s merge tick applies a same-day dismissal (BUG-051 decision).
     // Triage dismissal is intentionally NOT here: different model (single key holding
     // the app-day string, plus the triageDismissedToday global and two elements) —
     // migrating it would be a backup-schema change with no user payoff.
@@ -559,6 +561,7 @@
       if (!silent) dropboxShowMsg('Saving backup…', 'success');
 
       const now = new Date().toISOString();
+      const backupDay = _localISO();
       const data = {
         version:      '5.5', // 5.5: + reflection_policy, reflections, reflections_cleared_at
         saved_at:     now,
@@ -599,8 +602,10 @@
         // Triage dismissed — synced so triage doesn't re-prompt on other devices
         triage_dismissed:        localStorage.getItem('triage_dismissed') || '',
         // Per-day nudge dismiss flags (BUG-051/053) — fields driven by _DISMISS_SYNC,
-        // the same registry that applies them in mergeRemoteData
-        ...Object.fromEntries(_DISMISS_SYNC.map(d => [d.field, localStorage.getItem(d.prefix + _localISO()) || ''])),
+        // the same registry that applies them in mergeRemoteData. The source-local
+        // date is required so an old snapshot cannot dismiss a new day's surface.
+        per_day_dismiss_date: backupDay,
+        ...Object.fromEntries(_DISMISS_SYNC.map(d => [d.field, localStorage.getItem(d.prefix + backupDay) || ''])),
         // Day review + AI nudge — sync so morning nudge shows consistently across devices.
         // Fill-if-empty on merge: first device to compute wins for the day.
         day_review:   safeJSON('today_day_review', null),
@@ -722,7 +727,7 @@
       if (_clearedAt && _clearedAt !== _lc) {
         // Remote cleared after us: apply it locally before any union.
         appMemory.clearedAt = _clearedAt;
-        for (const k of ['taskOutcomes', 'spokenLines', 'obligationHistory', 'moments', 'recentCompletedTasks', 'recentConversations']) {
+        for (const k of ['taskOutcomes', 'spokenLines', 'obligationHistory', 'moments', 'recentCompletedTasks', 'recentConversations', 'rejectedHypotheses']) {
           if (Array.isArray(appMemory[k])) appMemory[k] = appMemory[k].filter(_afterClear);
         }
         if (appMemory.kindVerdicts && typeof appMemory.kindVerdicts === 'object') {
@@ -987,13 +992,34 @@
           if (!Array.isArray(appMemory.memory[type])) appMemory.memory[type] = [];
           const existingIds = new Set(appMemory.memory[type].map(i => i.id));
           for (const item of remote.memory[type]) {
-            if (!item.id || existingIds.has(item.id)) continue;
+            if (!item || !item.id) continue;
+            if (existingIds.has(item.id)) {
+              // Same hypothesis re-supported on either device: weeks union, latest sighting wins.
+              const local = appMemory.memory[type].find(i => i.id === item.id);
+              if (local && Array.isArray(item.seenWeeks)) {
+                local.seenWeeks = [...new Set([...(local.seenWeeks || []), ...item.seenWeeks])].sort().slice(-8);
+                if (item.lastSeen && (!local.lastSeen || item.lastSeen > local.lastSeen)) local.lastSeen = item.lastSeen;
+                if (item.status === 'confirmed') local.status = 'confirmed';
+              }
+              continue;
+            }
             if (_tomb.has(item.id)) continue;
             if (existingNormAll.has(_normText(item.text))) continue;
             appMemory.memory[type].push({ ...item, isNew: false });
             existingIds.add(item.id);
             existingNormAll.add(_normText(item.text));
           }
+        }
+        // "not me" rejections — union by text, respecting the clear watermark.
+        if (Array.isArray(remote.rejectedHypotheses)) {
+          if (!Array.isArray(appMemory.rejectedHypotheses)) appMemory.rejectedHypotheses = [];
+          const seenRej = new Set(appMemory.rejectedHypotheses.map(r => _normText(r && r.text)));
+          for (const r of remote.rejectedHypotheses) {
+            if (!r || !r.text || !_afterClear(r) || seenRej.has(_normText(r.text))) continue;
+            appMemory.rejectedHypotheses.push(r);
+            seenRej.add(_normText(r.text));
+          }
+          appMemory.rejectedHypotheses = appMemory.rejectedHypotheses.slice(-60);
         }
         // _lastAbstractDate: max-wins so whichever device already ran today blocks the other
         const remoteAbstractDate = remote.memory._lastAbstractDate;
@@ -1574,12 +1600,17 @@
       // Driven by _DISMISS_SYNC — the same registry that puts these fields in the
       // backup payload, so payload and merge can't drift apart per surface again.
       const _todayISO = _localISO();
-      _DISMISS_SYNC.forEach(d => {
-        if ((data[d.field] || '') === '1' && !localStorage.getItem(d.prefix + _todayISO)) {
-          localStorage.setItem(d.prefix + _todayISO, '1');
-          if ($[d.el]) $[d.el].classList.remove('visible', 'show');
-        }
-      });
+      // Legacy backups have no source day. Ignore their flags rather than turning
+      // a prior-day dismissal into today's; an updated device will write a dated
+      // snapshot on its next backup.
+      if (data.per_day_dismiss_date === _todayISO) {
+        _DISMISS_SYNC.forEach(d => {
+          if ((data[d.field] || '') === '1' && !localStorage.getItem(d.prefix + _todayISO)) {
+            localStorage.setItem(d.prefix + _todayISO, '1');
+            if ($[d.el]) $[d.el].classList.remove('visible', 'show');
+          }
+        });
+      }
 
       // ── Trello config: fill-if-empty so a new device picks up existing Trello setup ──
       if (!localStorage.getItem('trello_config') && data.trello_config && typeof data.trello_config === 'object' && Object.keys(data.trello_config).length) {
