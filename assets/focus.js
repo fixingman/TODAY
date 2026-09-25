@@ -360,7 +360,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
       .filter(t => t.id !== uiTaskId && !doneIds.has(t.id) && !_focusPastIds.has(t.id))
       .slice(0, 5)
       .map(t => {
-        const created = typeof _getCreatedFromId === 'function' ? Today.use('connections')._getCreatedFromId(t.id) : null;
+        const created = t.lastActive || t.createdAt || Today.use('connections')._getCreatedFromId(t.id);
         const age = created ? Math.floor((Date.now() - created) / 86400000) : 0;
         const s = parseInt(t.focusSessions) || 0;
         const sig = [];

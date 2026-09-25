@@ -771,7 +771,7 @@
         const _agingTasks = (typeof manualTasks !== 'undefined' ? manualTasks : [])
           .filter(t => !doneIds.has(t.id) && !_pastIds.has(t.id))
           .map(t => {
-            const created = typeof _getCreatedFromId === 'function' ? Today.use('connections')._getCreatedFromId(t.id) : (t.lastActive || t.id.replace('manual_', '') * 1);
+            const created = t.lastActive || t.createdAt || Today.use('connections')._getCreatedFromId(t.id);
             const ageDays = created ? Math.floor((Date.now() - created) / 86400000) : 0;
             const sessions = parseInt(t.focusSessions) || 0;
             return { text: t.text, ageDays, sessions };

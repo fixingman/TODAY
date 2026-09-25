@@ -500,7 +500,7 @@
       }
 
       // Re-apply offline state — navigator.onLine may have changed while sleeping.
-      if (typeof _applyOfflinePanel === 'function') Today.use('connections')._applyOfflinePanel();
+      Today.use('connections')._applyOfflinePanel();
     };
 
     // PWA standalone may not always fire visibilitychange on window restore —

@@ -18,6 +18,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 106 | Focus task ages, weekly aging list, and wake offline banner fell back silently — guards on functions moved into modules | ⏳ v2.91.1 |
 | 105 | Gmail classifier never reached the AI — guarded on removed `_aiGetProvider`/`_aiGetKey` globals, cached its regex fallback | ⏳ v2.90.53 |
 | 104 | Web enrichment (↗) always empty — Haiku 4.5 sent an unsupported web search tool version; failures cached as no result | ⏳ v2.90.53 |
 | 103 | Yesterday’s undated Dropbox nudge dismissal can hide the new daily nudge after midnight | ⏳ v2.90.54 |
@@ -71,13 +72,23 @@
 
 ---
 
+## BUG-106 — Three more features guarded on functions that moved into modules
+
+**Symptom:** The focus companion never mentioned how long other tasks had waited; the offline banner could stay stale after the app woke from sleep.
+
+**Root cause:** same pattern as BUG-105 — `typeof _getCreatedFromId === 'function'` (`focus.js`, `about.js`) and `typeof _applyOfflinePanel === 'function'` (`dropbox.js`) name functions that live only inside `connections.js` since the 2026-09-05 refactor, so the guard is always false. Focus sent every task's age as 0; About ignored `createdAt`; the wake handler skipped the offline refresh.
+
+**Fix (v2.91.1):** call `Today.use('connections')` directly; ages use `lastActive || createdAt || _getCreatedFromId(id)`, as triage does. `meeting.js:169` was checked and is correct (same-closure function). `component-contract-test` now rejects any `typeof _x === 'function'` guard whose name is not declared in the same file or published as a property.
+
+---
+
 ## BUG-105 — Gmail enrichment never used the AI classifier
 
 **Symptom:** Communication tasks rarely showed ↩ or matched the wrong thread, with no error.
 
 **Root cause:** the 2026-09-05 boundary refactor (`906e71b6`) removed the `_aiGetProvider`/`_aiGetKey` globals. `_classifyTask()` still guarded on `typeof _aiGetProvider === 'function'`, so it sent provider `gemini` with an empty key; `ai-assist` returned 400 and the regex fallback query was cached as the task's classification. `gmail-test` mocked `ai-assist` as succeeding whatever it was sent.
 
-**Fix (v2.90.53):** read provider and key from `Today.use('connections')`; cache only AI results (`source: 'ai'`), reclassify unmarked entries once, never cache the fallback. The test mock now rejects calls without the configured provider and key. Four more guards on names that are no longer global were found at the same time (`dropbox.js:503`, `about.js:774`, `focus.js:363`, `meeting.js:169`) and are not fixed here.
+**Fix (v2.90.53):** read provider and key from `Today.use('connections')`; cache only AI results (`source: 'ai'`), reclassify unmarked entries once, never cache the fallback. The test mock now rejects calls without the configured provider and key. Four more suspect guards were found at the same time; three were real and are fixed as BUG-106, `meeting.js:169` was a false positive.
 
 ---
 

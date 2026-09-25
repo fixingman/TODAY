@@ -75,7 +75,26 @@ assert.ok(
   `global compatibility surface grew to ${globalAssignments.length}; migrate through Today.define/use instead`,
 );
 
+// A `typeof _x === 'function'` guard must name something reachable from where it
+// runs: declared in the same file (closure-scoped) or published as a property
+// (window._x = / root._x =). Guards on names that moved into Today modules are
+// always false, so the feature silently does nothing (BUG-105, BUG-106).
+const allSources = [...sources.values()].join('\n');
+const staleGuards = [];
+let guardCount = 0;
+for (const [path, source] of sources) {
+  for (const match of source.matchAll(/typeof\s+(_[A-Za-z0-9_]+)\s*===\s*['"]function['"]/g)) {
+    guardCount++;
+    const name = match[1];
+    const local = new RegExp(`function\\s+${name}\\b|(?:const|let|var)\\s+${name}\\s*=`).test(source);
+    const published = new RegExp(`\\.${name}\\s*=[^=]|^function\\s+${name}\\b`, 'm').test(allSources);
+    if (!local && !published) staleGuards.push(`${path}:${source.slice(0, match.index).split('\n').length} ${name}`);
+  }
+}
+assert.deepEqual(staleGuards, [], 'typeof function guards must name a same-file or published function');
+
 console.log(`  ✓ ${declaredActions.size} delegated UI actions have one component registration`);
 console.log(`  ✓ no inline event handlers across ${sources.size} runtime sources`);
 console.log(`  ✓ ${globalAssignments.length} compatibility assignments have single owners`);
+console.log(`  ✓ ${guardCount} typeof-function guards name reachable functions`);
 console.log('✓ COMPONENT CONTRACT TEST PASSED');
