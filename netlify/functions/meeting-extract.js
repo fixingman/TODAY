@@ -69,6 +69,7 @@ exports.handler = async function(event) {
     `- Do not repeat items already listed in the prior context or in the already-captured list below.\n` +
     (alreadyCaptured ? `Already captured tasks for ${name} — do not re-add these or close variations:\n${alreadyCaptured}\n` : '') +
     `- updatedContext: carry forward the prior context, appending this segment's speaker hints (who is who) and any open threads, max 150 words total. Plain text, no transcript.\n` +
+    `- A dream account narrates what the speaker experienced while asleep. Waking events described as dreamlike or nightmarish, and hopes or ambitions called dreams, are not dream accounts.\n` +
     `- dream: when the segment is a person recounting a dream they had, set dream to a faithful first-person retelling in the language spoken, max 150 words, keeping its images, people, places, and feelings without adding or interpreting anything. Things that happen inside the dream are not action items; only a real commitment the speaker states about waking life is. When the segment is not a dream account, dream is "".\n` +
     `Reply ONLY with JSON: {"actionItems":[{"text":"...","owner":"...","mine":true}],"updatedContext":"...","dream":""}\n` +
     `If the segment contains no action items, reply {"actionItems":[],"updatedContext":"...","dream":""}.`;

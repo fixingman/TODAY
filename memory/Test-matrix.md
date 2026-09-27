@@ -6,8 +6,8 @@
 
 ## Pre-Release Checklist (REQUIRED)
 
-Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 37 local
-test suites (38 checks total), including six-scene visual regression coverage. The live
+Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 38 local
+test suites (39 checks total), including six-scene visual regression coverage. The live
 `scripts/ai-test.mjs`, the live `scripts/dream-live-test.mjs`, and five-run
 `scripts/performance-test.mjs` are explicit exclusions: the first two require API keys and real
 provider calls; the last runs as its own push/nightly gate. `dream-live-test` (macOS: `say` +
@@ -349,7 +349,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 ## Test Summary
 
 The numbered scenarios below are the manual acceptance catalogue, not a hand-maintained test
-count. The executable inventory is authoritative: `test-all.mjs` currently runs 38 checks and
+count. The executable inventory is authoritative: `test-all.mjs` currently runs 39 checks and
 fails if a new `*-test.mjs` suite is omitted. This avoids the old summary drifting whenever a
 later section or automated suite was added.
 

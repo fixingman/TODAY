@@ -59,9 +59,16 @@ const clip = (c) => {
   execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', aiff, '-c:a', 'libopus', '-b:a', '32k', webm]);
   return readFileSync(webm).toString('base64');
 };
+// Provider overload (503/429) says nothing about the prompt; retry with backoff.
 const call = async (handler, body) => {
-  const res = await handler({ httpMethod: 'POST', body: JSON.stringify(body) });
-  return { status: res.statusCode, body: JSON.parse(res.body) };
+  let out;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt) await new Promise(r => setTimeout(r, 2000 * 2 ** (attempt - 1)));
+    const res = await handler({ httpMethod: 'POST', body: JSON.stringify(body) });
+    out = { status: res.statusCode, body: JSON.parse(res.body) };
+    if (out.status !== 503 && out.status !== 429) break;
+  }
+  return out;
 };
 // A rejected key makes every case fail the same way; stop once with a clear cause.
 const keyRejected = (res, provider, envName) => {

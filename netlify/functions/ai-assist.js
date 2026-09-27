@@ -157,6 +157,9 @@ exports.handler = async function(event) {
         body: JSON.stringify({
           model: 'claude-sonnet-5',
           max_tokens: 512,
+          // Short writing tasks, same as the Gemini branch's thinkingBudget 0. Sonnet 5
+          // thinks adaptively by default, which puts a thinking block ahead of the text.
+          thinking: { type: 'disabled' },
           system: systemPrompt || '',
           messages: messages.map(m => ({ role: m.role, content: m.content })),
         }),
@@ -192,7 +195,7 @@ exports.handler = async function(event) {
         };
       }
       
-      responseText = data?.content?.[0]?.text || '';
+      responseText = (data?.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
     }
 
     else {
@@ -210,7 +213,9 @@ exports.handler = async function(event) {
       parsed = JSON.parse(clean);
     } catch(e) {
       // If AI didn't return valid JSON, wrap the text
-      parsed = { message: responseText.slice(0, 200), actions: [{ label: 'Dismiss', type: 'dismiss', payload: {} }] };
+      // content is the full reply; every plain-text surface reads content first.
+      // message keeps its old 200-char shape for the suggestion chip.
+      parsed = { content: responseText, message: responseText.slice(0, 200), actions: [{ label: 'Dismiss', type: 'dismiss', payload: {} }] };
     }
 
     return {
