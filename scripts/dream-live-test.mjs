@@ -86,6 +86,8 @@ const looksTurkish = s => /[çğıöşü]/i.test(s)
   || String(s).toLowerCase().split(/\s+/).map(w => w.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, ''))
        .filter(w => TR_WORDS.has(w)).length >= 2;
 const sentences = s => s.split(/(?<=[.?])\s+/).filter(x => x.trim()).length;
+// A reply that stops mid-sentence was cut by a token or length limit.
+const endsWhole = s => /[.?!…"”')\]]\s*$/.test(String(s).trim());
 const PREDICTIVE = /\b(will happen|is going to happen|means you will|predicts?|omen|diagnos)/i;
 
 let failed = 0;
@@ -107,6 +109,7 @@ try {
     if (e.itemMatch && !items.some(t => e.itemMatch.test(t))) problems.push('real commitment lost: ' + JSON.stringify(items));
     if (e.noDreamItems && items.some(t => e.noDreamItems.test(t))) problems.push('dream content became a task: ' + items.join(' | '));
     if (e.lang === 'tr' && dream && !looksTurkish(dream)) problems.push('retelling not in Turkish');
+    if (dream && !endsWhole(dream)) problems.push('retelling cut off mid-sentence');
 
     let reading = '';
     if (dream) {
@@ -117,6 +120,7 @@ try {
       else {
         const n = sentences(reading);
         if (n < 2 || n > 6) problems.push(`reading has ${n} sentences`);
+        if (!endsWhole(reading)) problems.push('reading cut off mid-sentence');
         if (reading.includes('!')) problems.push('reading uses an exclamation mark');
         if (PREDICTIVE.test(reading)) problems.push('reading predicts or diagnoses');
         if (e.lang === 'tr' && !looksTurkish(reading)) problems.push('reading not in Turkish');
@@ -127,9 +131,10 @@ try {
     const mark = problems.length ? '✗' : '✓';
     if (problems.length) failed++;
     console.log(`${mark} ${c.id}`);
-    console.log(`    dream:   ${dream ? dream.slice(0, 140) + (dream.length > 140 ? '…' : '') : '(none)'}`);
+    // Printed in full: a display trim would hide a real cut-off.
+    console.log(`    dream:   ${dream || '(none)'}`);
     console.log(`    tasks:   ${items.length ? items.join(' | ') : '(none)'}`);
-    if (reading) console.log(`    reading: ${reading.slice(0, 220)}${reading.length > 220 ? '…' : ''}`);
+    if (reading) console.log(`    reading: ${reading}  [${reading.length} chars]`);
     problems.forEach(p => console.log('    → ' + p));
   }
 } finally {
