@@ -1160,6 +1160,10 @@
   }
 
   .btn-icon {
+    /* iOS standalone can retain native button chrome above our custom fill/border. */
+    -webkit-appearance: none;
+    appearance: none;
+    box-shadow: none;
     background: var(--surface);
     border: 1px solid var(--control-border);
     color: var(--muted);
@@ -4602,16 +4606,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '335h';
+const DEV_HOURS     = '336h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.92.2': 'The three buttons beside the TODAY logo no longer show a raised shadow in the mobile app.',
   '2.92.1': 'AI-written text is no longer cut off at 200 characters, so dream readings, email drafts, and weekly reflections arrive whole. Work described as a bad dream is no longer read as a dream.',
   '2.92.0': 'Tell the mic a dream when you wake up and TODAY gives you a short, gentle reading of it instead of tasks. Copy it if you want to keep it; nothing is saved.',
-  '2.91.1': 'Focus questions and the weekly reflection know how long your tasks have been waiting again, and the offline notice updates when the app wakes from sleep.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

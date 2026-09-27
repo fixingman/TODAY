@@ -18,6 +18,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 107 | Three header icon buttons have a raised halo in the iPhone PWA | 🔍 Diagnosing |
 | 106 | Focus task ages, weekly aging list, and wake offline banner fell back silently — guards on functions moved into modules | ⏳ v2.91.1 |
 | 105 | Gmail classifier never reached the AI — guarded on removed `_aiGetProvider`/`_aiGetKey` globals, cached its regex fallback | ⏳ v2.90.53 |
 | 104 | Web enrichment (↗) always empty — Haiku 4.5 sent an unsupported web search tool version; failures cached as no result | ⏳ v2.90.53 |
@@ -69,6 +70,16 @@
 ---
 
 *BUG-001 – BUG-055 → `archive/Bugs-archive.md` (summary table + full detail). Below: bugs still awaiting verification.*
+
+---
+
+## BUG-107 — Raised halo on mobile PWA header buttons
+
+**Symptom:** On Can's iPhone screenshot, the three controls beside the TODAY logo show a soft raised edge/shadow absent from the intended flat design.
+
+**Working cause / fix prepared (v2.92.2):** The custom `.btn-icon` background and border had no authored shadow, but the controls retained native `appearance: auto`. They now explicitly disable native appearance and box shadow. The header gradient is below the controls and was left unchanged. Chromium's standalone CSS contract test fails before the change and passes after it; Chromium cannot reproduce the iPhone's native paint.
+
+**Verification:** On an updated iPhone PWA, compare the three buttons at first open and after scrolling. Their flat border should remain, without the raised halo. If it persists, capture the same crop and revisit the header's WebKit compositing instead of changing unrelated layers.
 
 ---
 

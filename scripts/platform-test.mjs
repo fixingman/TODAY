@@ -254,8 +254,18 @@ try {
       getComputedStyle(document.getElementById('installBtn')).display === 'none'
       && getComputedStyle(document.getElementById('pwaInstallSection')).display === 'none');
     if (!suppressed) await fail('standalone mode did not suppress install promotion');
+    // CSS contract only: Chromium cannot reproduce iOS WebKit's native control paint,
+    // but these three custom controls must explicitly opt out of it.
+    const headerButtons = await page.evaluate(() =>
+      ['habitsBtn', 'trelloBtn', 'infoBtn'].map(id => {
+        const style = getComputedStyle(document.getElementById(id));
+        return { id, appearance: style.appearance, shadow: style.boxShadow };
+      }));
+    if (headerButtons.some(button => button.appearance !== 'none' || button.shadow !== 'none')) {
+      await fail('standalone header buttons retain native appearance or shadow', headerButtons);
+    }
     if (errors.length) await fail('uncaught errors in standalone mode', errors);
-    ok('standalone mode suppresses install promotion');
+    ok('standalone mode suppresses install promotion and native header-button chrome');
     await page.close();
   }
 
