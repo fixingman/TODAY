@@ -374,6 +374,10 @@ Header: `.meeting-eyebrow` ("Meeting", 9px muted caps) + `.meeting-review-title`
 
 ---
 
+### Dream reading (v2.92.0)
+
+Recounting a dream into the mic produces a reading instead of tasks. `meeting-extract` returns `dream` (a faithful retelling) when the segment is a dream account; items said inside the dream are not tasks. After the final chunk, `_meetingFinalize()` sends the retelling once to `ai-assist` (configured provider/key) with a principles-only prompt: hedged readings of images and feelings, never verdicts, predictions, or diagnoses; the dream's language; three to five sentences; no exclamation marks. The review sheet switches to eyebrow **Dream**, title **Your dream**: the reading leads (`.dream-reading`, `--text-task`), the retelling sits below in muted type with a left rule (`.dream-told`), loading shows `reading` dots, and a failed call shows an honest note with the retelling still visible. Actions become **Copy** (retelling + reading to the clipboard) and **Done**; Add tasks appears only if a real waking-life commitment was also stated. Ephemeral like meetings — nothing stored. Detection is by content, not time of day, so it works from the same mobile mic with no new control.
+
 ## Quick Voice Capture (v2.90.18)
 
 **Entry:** hold Shift+Space outside text fields; release either key to finish. Window blur also finishes so a lost keyup cannot leave the microphone active. This is one spoken task, not a voice-memo library or meeting mode.

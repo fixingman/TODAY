@@ -401,17 +401,13 @@
           if (!wasLive) {
             send.then(() => {
               const ovl = document.getElementById('meetingOverlay');
-              if (_mtg && !_mtg.live && ovl && !ovl.classList.contains('hidden')) {
-                if (_mtg) _mtg.processingFinalChunk = false;
-                _meetingRenderReview(_mtg);
-              }
+              if (_mtg && !_mtg.live && ovl && !ovl.classList.contains('hidden')) _meetingFinalize(_mtg);
             });
           }
         } else if (!wasLive && _mtg) {
           // No audio in final chunk (stopped right as a new chunk started) — clear banner immediately.
           // _mtg guard: a quick Discard can null it before this onstop fires.
-          _mtg.processingFinalChunk = false;
-          _meetingRenderReview(_mtg);
+          _meetingFinalize(_mtg);
         }
         // Identity guard (same pattern as the chunk timer below): a suspended recorder's
         // late onstop must not restart when _meetingHealthCheck already started a fresh
@@ -506,6 +502,9 @@
         catch (_) { throw new Error(rawText.replace(/<[^>]+>/g, '').trim().slice(0, 120) || `HTTP ${res.status}`); }
         if (data.error) throw new Error(data.error);
         if (typeof data.updatedContext === 'string') state.context = data.updatedContext;
+        if (typeof data.dream === 'string' && data.dream.trim()) {
+          state.dream = (state.dream ? state.dream + '\n\n' : '') + data.dream.trim();
+        }
         (data.actionItems || []).forEach(item => {
           // Dedupe on normalized text — the prompt asks Gemini not to repeat, this backstops it
           const norm = item.text.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
@@ -583,6 +582,56 @@
       }
     }
 
+    // Capture is fully digested. A recounted dream gets one interpretation request;
+    // the retelling and the reading live only in _mtg and die in _meetingTeardown().
+    function _meetingFinalize(state) {
+      state.processingFinalChunk = false;
+      if (state.dream && !state.dreamRequested) _meetingInterpretDream(state);
+      _meetingRenderReview(state);
+    }
+
+    const _DREAM_SYSTEM =
+      'Someone has just woken up and told you a dream. Offer a short reading of what its images, ' +
+      'people, and feelings might reflect in their waking life. Hold every reading lightly: ' +
+      'possibilities, never verdicts, predictions, or diagnoses. Speak to them directly, plainly ' +
+      'and warmly, like a calm friend. Answer in the language the dream was told in. ' +
+      'Three to five sentences, no headings or lists, no exclamation marks.';
+
+    async function _meetingInterpretDream(state) {
+      state.dreamRequested = true;
+      const connections = Today.use('connections');
+      let text = '';
+      try {
+        const res = await fetch('/.netlify/functions/ai-assist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            provider: connections._aiGetProvider(),
+            apiKey: connections._aiGetKey(),
+            systemPrompt: _DREAM_SYSTEM,
+            messages: [{ role: 'user', content: state.dream }],
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          text = String(data.content || data.message || '').trim();
+        }
+      } catch (e) { /* shown below as an honest note */ }
+      if (_mtg !== state) return; // discarded while waiting
+      state.dreamReading = text || null;
+      state.dreamFailed = !text;
+      _meetingRenderReview(state);
+    }
+
+    function _meetingCopyDream() {
+      if (!_mtg || !_mtg.dream) return;
+      const out = _mtg.dream + (_mtg.dreamReading ? '\n\n' + _mtg.dreamReading : '');
+      navigator.clipboard?.writeText(out).then(() => {
+        const btn = document.getElementById('meetingCopyBtn');
+        if (btn) btn.textContent = 'Copied';
+      }).catch(() => {});
+    }
+
     function _meetingRenderReview(state) {
       const list  = document.getElementById('meetingItems');
       const title = document.getElementById('meetingReviewTitle');
@@ -600,6 +649,41 @@
         ? `<div class="meeting-suspend-note">${esc(state.suspendNote)}</div>` : '';
 
       const actions = document.querySelector('.meeting-review-actions');
+      const eyebrow = document.querySelector('#meetingPanel .meeting-eyebrow');
+      const copy    = document.getElementById('meetingCopyBtn');
+      const discard = document.querySelector('.meeting-review-discard');
+      const dream   = !!state.dream && !processing;
+      if (eyebrow) eyebrow.textContent = dream ? 'Dream' : 'Meeting';
+      if (copy) copy.hidden = !dream;
+      if (discard) discard.textContent = dream ? 'Done' : 'Discard';
+
+      if (dream) {
+        if (title) title.textContent = 'Your dream';
+        if (sub) sub.style.display = 'none';
+        const reading = state.dreamReading
+          ? `<p class="dream-reading">${esc(state.dreamReading)}</p>`
+          : state.dreamFailed
+            ? '<p class="dream-reading dream-reading-note">Could not read it right now. Your dream is below.</p>'
+            : `<div class="meeting-processing-center">
+                <span class="loading-dots"><span></span><span></span><span></span></span>
+                <span class="meeting-processing-label">reading</span>
+              </div>`;
+        const told = `<p class="dream-told">${esc(state.dream)}</p>`;
+        const hasItems = state.items.length > 0;
+        const itemsHTML = hasItems ? '<div class="meeting-review-rule"></div>' + state.items.map((item, i) => `
+        <button type="button" class="meeting-item${item.mine ? ' selected' : ''}" data-idx="${i}" aria-pressed="${item.mine}" data-today-click="meeting.toggle-item">
+          <span class="meeting-tick" aria-hidden="true"></span>
+          <span class="meeting-item-text">${esc(item.text)}</span>
+          ${item.owner ? '<span class="meeting-owner">' + esc(item.owner) + '</span>' : ''}
+        </button>`).join('') : '';
+        list.innerHTML = note + reading + told + itemsHTML;
+        if (add) { add.style.display = hasItems ? '' : 'none'; add.disabled = false; }
+        if (actions) actions.classList.toggle('no-add', !hasItems);
+        list.querySelectorAll('.loading-dots span').forEach((s, i) => _breathe(s, _KF_BLINK, 1200, [0, 180, 400][i]));
+        if (hasItems) _meetingUpdateCount();
+        return;
+      }
+
       if (!state.items.length) {
         // State 1 — digesting with no prior items, or empty result
         if (title) title.textContent = processing ? 'Digesting…' : 'From your call';
@@ -866,6 +950,7 @@
       Today.ui.register('click', 'meeting.stop', _meetingStop);
       Today.ui.register('click', 'meeting.toggle-voice', toggleVoiceNote);
       Today.ui.register('click', 'meeting.stop-voice', _voiceNoteStop);
+      Today.ui.register('click', 'meeting.copy-dream', _meetingCopyDream);
       Today.ui.register('keydown', 'meeting.name-key', _meetingNamePromptKey);
       Today.ui.register('click', 'meeting.name-submit', _meetingNamePromptSubmit);
       Today.ui.register('click', 'meeting.accept', _meetingAccept);

@@ -1,5 +1,6 @@
 // netlify/functions/meeting-extract.js
-// Meeting mode audio → action items, for TODAY (v2.22.0).
+// Meeting mode audio → action items, for TODAY (v2.22.0). A recounted dream comes
+// back as a retelling instead (v2.92.0).
 // Gemini-only: it is the sole supported provider with native audio input.
 // Receives one ~6-min audio chunk per call plus the rolling context from previous
 // chunks; returns extracted action items and an updated context. The transcript
@@ -68,8 +69,9 @@ exports.handler = async function(event) {
     `- Do not repeat items already listed in the prior context or in the already-captured list below.\n` +
     (alreadyCaptured ? `Already captured tasks for ${name} — do not re-add these or close variations:\n${alreadyCaptured}\n` : '') +
     `- updatedContext: carry forward the prior context, appending this segment's speaker hints (who is who) and any open threads, max 150 words total. Plain text, no transcript.\n` +
-    `Reply ONLY with JSON: {"actionItems":[{"text":"...","owner":"...","mine":true}],"updatedContext":"..."}\n` +
-    `If the segment contains no action items, reply {"actionItems":[],"updatedContext":"..."}.`;
+    `- dream: when the segment is a person recounting a dream they had, set dream to a faithful first-person retelling in the language spoken, max 150 words, keeping its images, people, places, and feelings without adding or interpreting anything. Things that happen inside the dream are not action items; only a real commitment the speaker states about waking life is. When the segment is not a dream account, dream is "".\n` +
+    `Reply ONLY with JSON: {"actionItems":[{"text":"...","owner":"...","mine":true}],"updatedContext":"...","dream":""}\n` +
+    `If the segment contains no action items, reply {"actionItems":[],"updatedContext":"...","dream":""}.`;
 
   const geminiBody = {
     contents: [{
@@ -81,7 +83,7 @@ exports.handler = async function(event) {
     }],
     systemInstruction: { parts: [{ text: systemPrompt }] },
     generationConfig: {
-      maxOutputTokens: 512,
+      maxOutputTokens: 1024, // room for a dream retelling alongside the items
       temperature: 0.3,
       thinkingConfig: { thinkingBudget: 0 }, // Disable thinking — prevents Netlify 10s timeout
     },
@@ -136,7 +138,7 @@ exports.handler = async function(event) {
     const responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     if (!responseText) {
       // A blocked/empty chunk is not fatal to the meeting — return an empty result
-      return _json(200, { actionItems: [], updatedContext: context });
+      return _json(200, { actionItems: [], updatedContext: context, dream: '' });
     }
 
     let parsed;
@@ -144,7 +146,7 @@ exports.handler = async function(event) {
       const clean = responseText.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
       parsed = JSON.parse(clean);
     } catch (e) {
-      return _json(200, { actionItems: [], updatedContext: context });
+      return _json(200, { actionItems: [], updatedContext: context, dream: '' });
     }
 
     const items = Array.isArray(parsed.actionItems) ? parsed.actionItems : [];
@@ -168,6 +170,7 @@ exports.handler = async function(event) {
           };
         }),
       updatedContext: (typeof parsed.updatedContext === 'string' ? parsed.updatedContext : context).slice(0, 4000),
+      dream: (typeof parsed.dream === 'string' ? parsed.dream.trim() : '').slice(0, 1500),
     });
   } catch (e) {
     return _json(500, { error: 'Server error: ' + (e.message || 'unknown') });

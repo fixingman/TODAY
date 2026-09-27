@@ -75,6 +75,7 @@ async function openPage(options = {}) {
       getUserMediaCalls: 0, deferGetUserMedia: false, rejectGetUserMedia: false,
       streams: [], recorders: [], wakeRequests: 0, wakeReleases: 0,
       meetingResponses: [], voiceResponses: [], meetingRequests: [], voiceRequests: [],
+      aiResponses: [], aiRequests: [],
       errors: [], pipRequests: 0, pipWindows: [], nextBlobSize: 16,
     };
 
@@ -185,6 +186,13 @@ async function openPage(options = {}) {
         if (response.throw) throw new Error(response.throw);
         const raw = response.raw !== undefined ? response.raw : JSON.stringify(response.body || response);
         return { ok: response.ok !== false, status: response.status || 200, text: async () => raw };
+      }
+      if (String(url).includes('/.netlify/functions/ai-assist')) {
+        const body = JSON.parse(fetchOptions.body || '{}');
+        state.aiRequests.push(body);
+        const response = state.aiResponses.shift() || { content: '' };
+        if (response.gate) await response.gate;
+        return { ok: response.ok !== false, status: response.status || 200, json: async () => response.body || response };
       }
       if (String(url).includes('/.netlify/functions/transcribe')) {
         const body = JSON.parse(fetchOptions.body || '{}');
@@ -336,6 +344,75 @@ try {
     });
     await expectAll('meeting lifecycle and acceptance', { ...result, noErrors: errors.length === 0 });
     ok('meeting lifecycle, review attribution, acceptance, sync, and teardown');
+    await page.close();
+  }
+
+  // A recounted dream becomes a reading, not tasks: one interpretation request with the
+  // retelling, a loading state, the reading above the retelling, Copy, and nothing stored.
+  {
+    const { page, errors } = await openPage({ supported: ['audio/webm;codecs=opus'] });
+    await page.evaluate(() => { navigator.clipboard.writeText = async text => { window.__meetingTest.copied = text; }; });
+    const result = await page.evaluate(async () => {
+      const t = window.__meetingTest;
+      const until = async fn => { for (let i = 0; i < 60 && !fn(); i++) await new Promise(r => setTimeout(r, 10)); };
+      localStorage.setItem('today_ai_provider', 'claude');
+      localStorage.setItem('today_ai_key_claude', 'claude-key');
+      Today.use('meeting').toggleMeeting();
+      await new Promise(r => setTimeout(r, 20));
+      const dream = 'I was in my grandmother\'s kitchen and the floor was water. I felt calm.';
+      t.meetingResponses.push({ updatedContext: '', actionItems: [], dream });
+      let release; t.aiResponses.push({ gate: new Promise(r => { release = r; }), content: 'The water floor may point to something that feels unsettled yet safe.' });
+      Today.use('meeting').toggleMeeting();
+      await until(() => t.aiRequests.length === 1);
+      const loading = document.getElementById('meetingReviewTitle').textContent === 'Your dream'
+        && !!document.querySelector('#meetingItems .loading-dots');
+      release();
+      await until(() => !!document.querySelector('#meetingItems .dream-reading'));
+      const req = t.aiRequests[0];
+      const copyBtn = document.getElementById('meetingCopyBtn');
+      const reviewText = document.getElementById('meetingItems').textContent;
+      const shown = {
+        eyebrow: document.querySelector('#meetingPanel .meeting-eyebrow').textContent === 'Dream',
+        readingFirst: document.querySelector('#meetingItems .dream-reading').textContent.startsWith('The water floor'),
+        toldShown: reviewText.includes('grandmother'),
+        noTaskRows: !document.querySelector('#meetingItems .meeting-item'),
+        addHidden: document.getElementById('meetingAddBtn').style.display === 'none',
+        copyShown: !copyBtn.hidden,
+        doneLabel: document.querySelector('.meeting-review-discard').textContent === 'Done',
+      };
+      copyBtn.click();
+      await until(() => !!t.copied);
+      const stored = [...Array(localStorage.length).keys()].map(i => localStorage.getItem(localStorage.key(i)) || '');
+      const ephemeral = !stored.some(v => v.includes('grandmother') || v.includes('water floor'));
+      Today.use('meeting')._meetingDiscard();
+      await new Promise(r => setTimeout(r, 350));
+      return {
+        loading, ...shown, ephemeral,
+        oneRequest: t.aiRequests.length === 1,
+        sentRetelling: req.messages?.[0]?.content === dream && req.provider === 'claude' && req.apiKey === 'claude-key',
+        principlesPrompt: /possibilities/.test(req.systemPrompt) && /language the dream was told in/.test(req.systemPrompt),
+        copied: t.copied.includes('grandmother') && t.copied.includes('water floor'),
+        copyLabel: copyBtn.textContent === 'Copied',
+        noTasks: JSON.parse(localStorage.getItem('today_manual') || '[]').length === 0,
+        clearedOnClose: document.getElementById('meetingItems').innerHTML === '',
+      };
+    });
+    const meetingChrome = await page.evaluate(async () => {
+      const t = window.__meetingTest;
+      Today.use('meeting').toggleMeeting();
+      await new Promise(r => setTimeout(r, 20));
+      t.meetingResponses.push({ updatedContext: '', actionItems: [{ text: 'Send the notes', owner: '', mine: true }] });
+      Today.use('meeting').toggleMeeting();
+      for (let i = 0; i < 60 && !document.querySelector('#meetingItems .meeting-item'); i++) await new Promise(r => setTimeout(r, 10));
+      return {
+        meetingEyebrowRestored: document.querySelector('#meetingPanel .meeting-eyebrow').textContent === 'Meeting',
+        copyHiddenAgain: document.getElementById('meetingCopyBtn').hidden,
+        discardRestored: document.querySelector('.meeting-review-discard').textContent === 'Discard',
+        noExtraAiCall: t.aiRequests.length === 1,
+      };
+    });
+    await expectAll('dream reading', { ...result, ...meetingChrome, noErrors: errors.length === 0 });
+    ok('a recounted dream shows a reading instead of tasks, copies, and leaves nothing stored');
     await page.close();
   }
 
