@@ -79,8 +79,12 @@ const keyRejected = (res, provider, envName) => {
   return true;
 };
 
-// Turkish-specific letters / common function words distinguish it from English.
-const looksTurkish = s => /[çğıöşü]/i.test(s) || /\b(ve|bir|bu|ama|gibi|olabilir)\b/i.test(s);
+// Turkish-specific letters, or at least two Turkish function words as whole
+// whitespace-separated tokens (a \b match would find "ve" inside "you've").
+const TR_WORDS = new Set(['ve', 'bir', 'bu', 'ama', 'gibi', 'olabilir', 'için', 'daha']);
+const looksTurkish = s => /[çğıöşü]/i.test(s)
+  || String(s).toLowerCase().split(/\s+/).map(w => w.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, ''))
+       .filter(w => TR_WORDS.has(w)).length >= 2;
 const sentences = s => s.split(/(?<=[.?])\s+/).filter(x => x.trim()).length;
 const PREDICTIVE = /\b(will happen|is going to happen|means you will|predicts?|omen|diagnos)/i;
 
