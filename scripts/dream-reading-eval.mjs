@@ -9,7 +9,9 @@
 //   usefulness  — 1–5: leaves something worth reflecting on today, held lightly.
 //
 // Run:      ANTHROPIC_API_KEY=... node scripts/dream-reading-eval.mjs
-// Compare:  ... node scripts/dream-reading-eval.mjs --prompt=path/to/candidate.txt
+// Score:    ... node scripts/dream-reading-eval.mjs --prompt=path/to/candidate.txt
+// Head-to-head (current vs candidate, judge picks the better reading per dream):
+//            ... node scripts/dream-reading-eval.mjs --versus=scripts/dream-prompts/candidate-1.txt
 // Options:  --runs=N (readings per dream, default 1)   --out=results.json
 // Not part of the test gate: it spends real tokens (~36 calls per run at runs=1).
 
@@ -33,6 +35,7 @@ const CURRENT = [...meetingSrc.match(/const _DREAM_SYSTEM =([\s\S]*?);\n/)[1].ma
 const promptPath = arg('prompt');
 const PROMPT = promptPath ? readFileSync(promptPath, 'utf8').trim() : CURRENT;
 const RUNS = Math.max(1, parseInt(arg('runs') || '1', 10));
+const versusPath = arg('versus');
 
 // Retellings as meeting-extract returns them: first person, faithful, no interpretation.
 // Each dream names a distractor on a similar theme, so the swap test can't be passed
@@ -90,7 +93,43 @@ const SCORE_JUDGE =
   'Also list up to three phrases from the reading that could appear unchanged in a reading of an unrelated dream. ' +
   'Reply ONLY with JSON: {"specificity":n,"usefulness":n,"generic":["..."]}.';
 
+const PAIR_JUDGE =
+  'You will see a dream and two readings of it, 1 and 2, written for someone who has just woken up. ' +
+  'Choose the reading that would help them more: the one that finds what is most alive or strange in this ' +
+  'particular dream and leaves them a question worth carrying into the day, without padding, stock symbolism, ' +
+  'or guesses about their life that the dream does not support. Judge substance, not length. ' +
+  'Reply ONLY with JSON: {"better":1} or {"better":2}.';
+
 const byId = Object.fromEntries(DREAMS.map(d => [d.id, d]));
+const words = s => s.split(/\s+/).filter(Boolean).length;
+
+if (versusPath) {
+  const CANDIDATE = readFileSync(versusPath, 'utf8').trim();
+  console.log(`Dream reading head-to-head — current vs ${versusPath}, runs=${RUNS}\n`);
+  const pairs = [];
+  for (let run = 0; run < RUNS; run++) {
+    for (const [i, d] of DREAMS.entries()) {
+      const current = text(await call(CURRENT, d.text));
+      const candidate = text(await call(CANDIDATE, d.text));
+      // Alternate which reading is shown first so position bias cancels out.
+      const candidateFirst = (i + run) % 2 === 0;
+      const [one, two] = candidateFirst ? [candidate, current] : [current, candidate];
+      const verdict = await call(PAIR_JUDGE, `Dream:\n${d.text}\n\nReading 1:\n${one}\n\nReading 2:\n${two}`);
+      const pick = Number(verdict.better);
+      const candidateWins = pick === (candidateFirst ? 1 : 2);
+      pairs.push({ id: d.id, run, candidateWins, current, candidate, currentWords: words(current), candidateWords: words(candidate) });
+      console.log(`${candidateWins ? 'candidate' : 'current  '}  ${d.id.padEnd(17)} ${words(current)} → ${words(candidate)} words`);
+      console.log(`    current:   ${current}`);
+      console.log(`    candidate: ${candidate}`);
+    }
+  }
+  const wins = pairs.filter(p => p.candidateWins).length;
+  const avg = key => Math.round(pairs.reduce((s, p) => s + p[key], 0) / pairs.length);
+  console.log(`\nCandidate preferred in ${wins}/${pairs.length} (${Math.round(wins / pairs.length * 100)}%) · average length ${avg('currentWords')} → ${avg('candidateWords')} words`);
+  const out = arg('out');
+  if (out) { writeFileSync(out, JSON.stringify({ versus: versusPath, candidate: CANDIDATE, wins, pairs }, null, 2)); console.log(`Saved ${out}`); }
+  process.exit(0);
+}
 const rows = [];
 console.log(`Dream reading eval — ${promptPath ? 'candidate prompt ' + promptPath : 'current prompt (assets/meeting.js)'}, runs=${RUNS}\n`);
 

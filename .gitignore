@@ -20,3 +20,7 @@ performance-nightly.json
 .env
 .env.local
 .env.production
+
+# Local eval outputs (dream-reading-eval --out)
+/baseline*.json
+/*-eval*.json
