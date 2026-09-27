@@ -37,7 +37,8 @@ process.env.ANTHROPIC_API_KEY = CLAUDE;
 const extract = require(join(ROOT, 'netlify/functions/meeting-extract.js')).handler;
 const assist  = require(join(ROOT, 'netlify/functions/ai-assist.js')).handler;
 const meetingSrc = readFileSync(join(ROOT, 'assets/meeting.js'), 'utf8');
-const DREAM_SYSTEM = [...meetingSrc.match(/const _DREAM_SYSTEM =([\s\S]*?);\n/)[1].matchAll(/'([^']*)'/g)].map(m => m[1]).join('');
+// Escape-aware: the prompt contains dream\'s.
+const DREAM_SYSTEM = [...meetingSrc.match(/const _DREAM_SYSTEM =([\s\S]*?);\n/)[1].matchAll(/'((?:[^'\\]|\\.)*)'/g)].map(m => m[1].replace(/\\'/g, "'")).join('');
 
 const CASES = [
   { id: 'dream-en', voice: 'Samantha', expect: { dream: true, noItems: true, lang: 'en' },

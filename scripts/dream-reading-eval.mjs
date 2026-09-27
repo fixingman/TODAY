@@ -31,7 +31,8 @@ if (!process.env.ANTHROPIC_API_KEY) {
 const { handler } = require(join(ROOT, 'netlify/functions/ai-assist.js'));
 
 const meetingSrc = readFileSync(join(ROOT, 'assets/meeting.js'), 'utf8');
-const CURRENT = [...meetingSrc.match(/const _DREAM_SYSTEM =([\s\S]*?);\n/)[1].matchAll(/'([^']*)'/g)].map(m => m[1]).join('');
+// Escape-aware: the prompt contains dream\'s.
+const CURRENT = [...meetingSrc.match(/const _DREAM_SYSTEM =([\s\S]*?);\n/)[1].matchAll(/'((?:[^'\\]|\\.)*)'/g)].map(m => m[1].replace(/\\'/g, "'")).join('');
 const promptPath = arg('prompt');
 const PROMPT = promptPath ? readFileSync(promptPath, 'utf8').trim() : CURRENT;
 const RUNS = Math.max(1, parseInt(arg('runs') || '1', 10));

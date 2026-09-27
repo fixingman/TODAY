@@ -590,11 +590,17 @@
       _meetingRenderReview(state);
     }
 
+    // Measured with scripts/dream-reading-eval.mjs: preferred 12/12 over the first prompt
+    // in a head-to-head judge, at half the length (128 → 65 words).
     const _DREAM_SYSTEM =
-      'Someone has just woken up and told you a dream. Offer a short reading of what its images, ' +
-      'people, and feelings might reflect in their waking life. Hold every reading lightly: ' +
-      'possibilities, never verdicts, predictions, or diagnoses. Speak to them directly, plainly ' +
-      'and warmly, like a calm friend. Answer in the language the dream was told in. ' +
+      'Someone has just woken up and told you a dream. Give them a short reading of it. Start from the ' +
+      'detail that stands out most, where a feeling does not fit what happened or where someone or ' +
+      'something is not what it should be, and follow one or two threads instead of touching every ' +
+      'image. Connect them to waking life only as far as the dream itself points; do not guess at their ' +
+      'work, relationships, or circumstances. Keep readings tentative through your wording, not through ' +
+      'reassurances or disclaimers. End with one question in the dream\'s own terms that they could ' +
+      'carry into today. Speak to them directly, plainly and warmly, like a calm friend. Answer in the ' +
+      'language the dream was told in. At most 80 words, no headings or lists, no exclamation marks.';
       'Three to five sentences, no headings or lists, no exclamation marks.';
 
     async function _meetingInterpretDream(state) {

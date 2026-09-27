@@ -390,7 +390,8 @@ try {
         loading, ...shown, ephemeral,
         oneRequest: t.aiRequests.length === 1,
         sentRetelling: req.messages?.[0]?.content === dream && req.provider === 'claude' && req.apiKey === 'claude-key',
-        principlesPrompt: /possibilities/.test(req.systemPrompt) && /language the dream was told in/.test(req.systemPrompt),
+        principlesPrompt: /do not guess at their/.test(req.systemPrompt) && /language the dream was told in/.test(req.systemPrompt)
+          && /At most 80 words/.test(req.systemPrompt),
         copied: t.copied.includes('grandmother') && t.copied.includes('water floor'),
         copyLabel: copyBtn.textContent === 'Copied',
         noTasks: JSON.parse(localStorage.getItem('today_manual') || '[]').length === 0,
