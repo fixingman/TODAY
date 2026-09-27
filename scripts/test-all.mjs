@@ -50,6 +50,7 @@ const SUITE = [
 
 const EXCLUDED = new Set([
   'ai-test', // Requires ANTHROPIC_API_KEY and makes real provider calls.
+  'dream-live-test', // Requires GEMINI_API_KEY + ANTHROPIC_API_KEY and real provider calls.
   'performance-test', // Five-run browser benchmark; run separately on every push and nightly.
 ]);
 

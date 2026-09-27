@@ -1,0 +1,119 @@
+// TODAY — live synthetic test for dream reading (v2.92.0).
+//
+// Speaks scripted clips with macOS `say`, encodes them the way the phone does
+// (32 kbps Opus WebM), and runs them through the real meeting-extract and
+// ai-assist handlers in-process: Gemini decides whether each clip is a dream,
+// then the configured model reads the dreams. No deploy needed.
+//
+// Run:       GEMINI_API_KEY=... ANTHROPIC_API_KEY=... node scripts/dream-live-test.mjs
+// Exit 0 = pass or skip (missing key or macOS audio tools). Exit 1 = a case failed.
+// Excluded from the default gate: it spends real provider tokens.
+
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const require = createRequire(import.meta.url);
+const GEMINI = process.env.GEMINI_API_KEY || '';
+const CLAUDE = process.env.ANTHROPIC_API_KEY || '';
+
+const has = cmd => { try { execFileSync('which', [cmd], { stdio: 'ignore' }); return true; } catch { return false; } };
+if (!GEMINI || !CLAUDE) {
+  console.log('⚠ skipped — set GEMINI_API_KEY and ANTHROPIC_API_KEY to run the live dream test');
+  process.exit(0);
+}
+if (!has('say') || !has('ffmpeg')) {
+  console.log('⚠ skipped — needs macOS `say` and ffmpeg to synthesize speech');
+  process.exit(0);
+}
+
+// The handlers read these as server-side fallbacks; the client never sends keys here.
+process.env.GEMINI_API_KEY = GEMINI;
+process.env.ANTHROPIC_API_KEY = CLAUDE;
+const extract = require(join(ROOT, 'netlify/functions/meeting-extract.js')).handler;
+const assist  = require(join(ROOT, 'netlify/functions/ai-assist.js')).handler;
+const meetingSrc = readFileSync(join(ROOT, 'assets/meeting.js'), 'utf8');
+const DREAM_SYSTEM = [...meetingSrc.match(/const _DREAM_SYSTEM =([\s\S]*?);\n/)[1].matchAll(/'([^']*)'/g)].map(m => m[1]).join('');
+
+const CASES = [
+  { id: 'dream-en', voice: 'Samantha', expect: { dream: true, noItems: true, lang: 'en' },
+    text: "I just woke up. I dreamt I was in my grandmother's kitchen, but the floor was water and I could walk on it. An old school friend was baking bread and didn't recognise me. I wasn't scared, just a bit sad." },
+  { id: 'dream-tr', voice: 'Yelda', expect: { dream: true, noItems: true, lang: 'tr' },
+    text: 'Az önce uyandım. Rüyamda eski evimizdeydim, merdivenler hiç bitmiyordu ve yukarı çıktıkça ev büyüyordu. Annem bir kapının arkasından bana sesleniyordu ama kapıyı bulamıyordum.' },
+  { id: 'dream-with-task', voice: 'Samantha', expect: { dream: true, itemMatch: /mum|mom|mother/i, noDreamItems: /flight|airport|plane/i },
+    text: "Okay, I dreamt I missed a flight because the airport kept moving further away, and I had to catch a plane I never reached. Anyway, remind me to call mum today about her birthday." },
+  { id: 'planning', voice: 'Samantha', expect: { dream: false, minItems: 1 },
+    text: "Quick notes for today. I need to call the bank about the card, send the invoice to Robin by noon, and book a table for Friday dinner." },
+  { id: 'figurative', voice: 'Samantha', expect: { dream: false },
+    text: "Yesterday at work felt like a bad dream. I was drowning in emails all afternoon and the meeting went on forever. My dream is to take a long holiday one day." },
+];
+
+const work = mkdtempSync(join(tmpdir(), 'dream-live-'));
+const clip = (c) => {
+  const aiff = join(work, c.id + '.aiff'), webm = join(work, c.id + '.webm');
+  execFileSync('say', ['-v', c.voice, '-o', aiff, c.text]);
+  execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', aiff, '-c:a', 'libopus', '-b:a', '32k', webm]);
+  return readFileSync(webm).toString('base64');
+};
+const call = async (handler, body) => {
+  const res = await handler({ httpMethod: 'POST', body: JSON.stringify(body) });
+  return { status: res.statusCode, body: JSON.parse(res.body) };
+};
+
+// Turkish-specific letters / common function words distinguish it from English.
+const looksTurkish = s => /[çğıöşü]/i.test(s) || /\b(ve|bir|bu|ama|gibi|olabilir)\b/i.test(s);
+const sentences = s => s.split(/(?<=[.?])\s+/).filter(x => x.trim()).length;
+const PREDICTIVE = /\b(will happen|is going to happen|means you will|predicts?|omen|diagnos)/i;
+
+let failed = 0;
+console.log('Dream live test — Gemini extraction + model reading\n');
+try {
+  for (const c of CASES) {
+    const audioChunk = clip(c);
+    const ex = await call(extract, { audioChunk, mimeType: 'audio/webm;codecs=opus', userName: 'Can' });
+    const problems = [];
+    if (ex.status !== 200) problems.push(`extract HTTP ${ex.status}: ${JSON.stringify(ex.body).slice(0, 120)}`);
+    const dream = String(ex.body.dream || '');
+    const items = (ex.body.actionItems || []).map(i => i.text);
+    const e = c.expect;
+    if (e.dream && !dream) problems.push('dream not detected');
+    if (e.dream === false && dream) problems.push('non-dream read as a dream');
+    if (e.noItems && items.length) problems.push('tasks from inside the dream: ' + items.join(' | '));
+    if (e.minItems && items.length < e.minItems) problems.push('expected tasks, got none');
+    if (e.itemMatch && !items.some(t => e.itemMatch.test(t))) problems.push('real commitment lost: ' + JSON.stringify(items));
+    if (e.noDreamItems && items.some(t => e.noDreamItems.test(t))) problems.push('dream content became a task: ' + items.join(' | '));
+    if (e.lang === 'tr' && dream && !looksTurkish(dream)) problems.push('retelling not in Turkish');
+
+    let reading = '';
+    if (dream) {
+      const r = await call(assist, { provider: 'claude', systemPrompt: DREAM_SYSTEM, messages: [{ role: 'user', content: dream }] });
+      reading = String(r.body.content || r.body.message || '').trim();
+      if (r.status !== 200 || !reading) problems.push(`reading failed (HTTP ${r.status})`);
+      else {
+        const n = sentences(reading);
+        if (n < 2 || n > 6) problems.push(`reading has ${n} sentences`);
+        if (reading.includes('!')) problems.push('reading uses an exclamation mark');
+        if (PREDICTIVE.test(reading)) problems.push('reading predicts or diagnoses');
+        if (e.lang === 'tr' && !looksTurkish(reading)) problems.push('reading not in Turkish');
+        if (e.lang === 'en' && looksTurkish(reading)) problems.push('reading not in English');
+      }
+    }
+
+    const mark = problems.length ? '✗' : '✓';
+    if (problems.length) failed++;
+    console.log(`${mark} ${c.id}`);
+    console.log(`    dream:   ${dream ? dream.slice(0, 140) + (dream.length > 140 ? '…' : '') : '(none)'}`);
+    console.log(`    tasks:   ${items.length ? items.join(' | ') : '(none)'}`);
+    if (reading) console.log(`    reading: ${reading.slice(0, 220)}${reading.length > 220 ? '…' : ''}`);
+    problems.forEach(p => console.log('    → ' + p));
+  }
+} finally {
+  rmSync(work, { recursive: true, force: true });
+}
+
+console.log(failed ? `\n✗ ${failed} of ${CASES.length} cases failed` : `\n✓ all ${CASES.length} cases passed`);
+process.exit(failed ? 1 : 0);

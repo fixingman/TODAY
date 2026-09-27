@@ -8,9 +8,14 @@
 
 Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 37 local
 test suites (38 checks total), including six-scene visual regression coverage. The live
-`scripts/ai-test.mjs` and five-run
-`scripts/performance-test.mjs` are explicit exclusions: the former requires an API key and real
-provider calls; the latter runs as its own push/nightly gate. The runner verifies the test
+`scripts/ai-test.mjs`, the live `scripts/dream-live-test.mjs`, and five-run
+`scripts/performance-test.mjs` are explicit exclusions: the first two require API keys and real
+provider calls; the last runs as its own push/nightly gate. `dream-live-test` (macOS: `say` +
+ffmpeg) speaks five scripted clips — English dream, Turkish dream, dream plus a real commitment,
+plain planning, figurative "bad dream" talk — through the real `meeting-extract` and
+`ai-assist` handlers and checks detection, task separation, language, and reading tone. Run it
+after any change to the dream or meeting prompts:
+`GEMINI_API_KEY=… ANTHROPIC_API_KEY=… node scripts/dream-live-test.mjs`. The runner verifies the test
 inventory and the explicitly registered non-test check before execution. A check that passes
 only on its diagnostic retry is reported as flaky and fails the gate; each attempt is capped at
 120 seconds. Tooling requires Node >=22.12 and Puppeteer 25. The last dual-runtime assurance
