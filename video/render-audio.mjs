@@ -6,12 +6,14 @@
 // Usage (from video/):
 //   node render-audio.mjs              — writes audio/*.wav
 //   node render-audio.mjs --length 32  — bed length in seconds (default 32)
+//   node render-audio.mjs --length 80 --bed bed-80.wav   — another length, own file
 //
 // Output (committed — ours by construction, no licence question):
 //   audio/bed.wav            ambient pad, slow, warm, resolves downward
 //   audio/sfx-complete.wav   task checked
 //   audio/sfx-start.wav      focus session starts
 //   audio/sfx-chime.wav      session end / closing sting
+//   audio/sfx-habit.wav      habit checked
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname }              from 'node:path';
@@ -21,6 +23,7 @@ import puppeteer                      from 'puppeteer-core';
 const DIR    = dirname(fileURLToPath(import.meta.url));
 const OUT    = join(DIR, 'audio');
 const LENGTH = Number(process.argv.find((_, i) => process.argv[i - 1] === '--length') || 32);
+const BED    = process.argv.find((_, i) => process.argv[i - 1] === '--bed') || 'bed.wav';
 const CHROME = process.env.CHROME_PATH
   || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const RATE   = 48000;
@@ -134,13 +137,14 @@ const bed = await page.evaluate(async (RATE, LENGTH) => {
 }, RATE, LENGTH);
 
 await mkdir(OUT, { recursive: true });
-await writeFile(join(OUT, 'bed.wav'), Buffer.from(bed, 'base64'));
-console.log(`  ✓ bed.wav (${LENGTH}s)`);
+await writeFile(join(OUT, BED), Buffer.from(bed, 'base64'));
+console.log(`  ✓ ${BED} (${LENGTH}s)`);
 
 for (const [file, fn, secs] of [
   ['sfx-complete.wav', 'playCompleteSound', 0.4],
   ['sfx-start.wav',    'playStartSound',    0.3],
   ['sfx-chime.wav',    'playChime',         1.3],
+  ['sfx-habit.wav',    'playHabitDoneSound', 0.45],
 ]) {
   await writeFile(join(OUT, file), Buffer.from(await page.evaluate((f, s) => window.__renderSfx(f, s), fn, secs), 'base64'));
   console.log(`  ✓ ${file}`);

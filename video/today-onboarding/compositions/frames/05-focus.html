@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body>
+<template>
+  <style>
+    @font-face { font-family: "Syne"; font-weight: 700; src: url("assets/fonts/syne-700.woff2") format("woff2"); }
+    @font-face { font-family: "Syne"; font-weight: 800; src: url("assets/fonts/syne-800.woff2") format("woff2"); }
+    @font-face { font-family: "DM Mono"; font-weight: 400; src: url("assets/fonts/dm-mono-400.woff2") format("woff2"); }
+    #o05 { position: absolute; inset: 0; background: #0e0e10; container-type: size; overflow: hidden; }
+    #o05 .window { position: absolute; top: 6cqw; left: 7cqw; height: calc(100cqh - 12cqw); aspect-ratio: 4 / 5; border: 1px solid #2a2a30; overflow: hidden; background: #0e0e10; }
+    #o05 .zoom { position: absolute; inset: 0; transform-origin: 50% 0%; }
+    #o05 .zoom video, #o05 .zoom img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    #o05 .caption { position: absolute; left: 50cqw; right: 7cqw; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; }
+    #o05 .kicker { font-family: "DM Mono"; font-size: 0.95cqw; letter-spacing: 0.3em; text-transform: uppercase; color: #80808d; margin-bottom: 2cqw; }
+    #o05 .line { font-family: "Syne"; font-weight: 700; line-height: 1.08; letter-spacing: -0.01em; color: #e8e8ec; margin-bottom: 1cqw; }
+    #o05 .big { font-size: 3.6cqw; }
+    #o05 .mid { font-size: 2.6cqw; }
+    #o05 .note { font-family: "DM Mono"; font-weight: 400; font-size: 1.35cqw; line-height: 1.5; letter-spacing: 0.01em; color: #80808d; margin-top: 1cqw; }
+    #o05 .accent { color: #c8f060; }
+    #o05 code { font-family: "DM Mono"; color: #c8f060; }
+  </style>
+
+  <div data-hf-id="hf-utun" id="o05" data-composition-id="o05" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-6r44" class="window">
+      <div data-hf-id="hf-ybnw" class="zoom" id="o05-zoom" data-layout-allow-overflow="">
+          <video data-hf-id="hf-wls9" id="o05-clip" class="clip" src="assets/focus.mp4" data-start="0" data-duration="9" data-track-index="0" muted playsinline></video>
+      </div>
+    </div>
+    <div data-hf-id="hf-fqbc" class="caption" data-layout-allow-overlap="">
+      <div data-hf-id="hf-sabe" class="kicker" id="o05-k">05 — Focus</div>
+      <div data-hf-id="hf-33qj" class="line big" id="o05-l0">Tap a task to focus.</div>
+      <div data-hf-id="hf-2eno" class="line mid" id="o05-l1">25 minutes, just this.</div>
+      <div data-hf-id="hf-vlzn" class="line note" id="o05-l2">Space to breathe. Esc to rest.</div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const ease = "expo.out";
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#o05-k", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 0.2);
+      tl.fromTo("#o05-l0", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease }, 0.4);
+      tl.fromTo("#o05-l1", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease }, 2.4);
+      tl.fromTo("#o05-l2", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease }, 4.6);
+      window.__timelines["o05"] = tl;
+    })();
+  </script>
+</template>
+</body>
+</html>

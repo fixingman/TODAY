@@ -16,6 +16,8 @@ Most task apps have the same bug: they remember everything, and opening them fee
 
 ## What it does
 
+▶︎ **[How a day works](https://today-here.netlify.app/docs/media/today-onboarding.mp4)** — a 79-second walkthrough, from the morning poem to a clean tomorrow.
+
 **The day**
 - Add tasks for today, check them off, drag to reorder — desktop and mobile
 - **Evening triage** — review what didn't happen: keep, move to soon, or let go; the review appears once in the evening when unfinished work remains

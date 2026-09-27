@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body>
+<template>
+  <style>
+    @font-face { font-family: "DM Mono"; font-weight: 400; src: url("assets/fonts/dm-mono-400.woff2") format("woff2"); }
+    #o11 { position: absolute; inset: 0; background: #0e0e10; container-type: size; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #o11 .line { font-family: "DM Mono"; font-size: 2.2cqw; letter-spacing: 0.02em; color: #e8e8ec; }
+    #o11 .rule { width: 18cqw; height: 1px; background: #e8e8ec; margin-top: 2cqw; transform-origin: center; }
+  </style>
+
+  <div data-hf-id="hf-ys3b" id="o11" data-composition-id="o11" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-dfqk" class="line" id="o11-line">Your device. Your Dropbox. No account.</div>
+    <div data-hf-id="hf-dbhc" class="rule" id="o11-rule"></div>
+  </div>
+
+  <script>
+    (function () {
+      // The held frame: one fade, one rule, then nothing moves.
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#o11-line", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "sine.out" }, 0.1);
+      tl.fromTo("#o11-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: "expo.out" }, 0.7);
+      window.__timelines["o11"] = tl;
+    })();
+  </script>
+</template>
+</body>
+</html>

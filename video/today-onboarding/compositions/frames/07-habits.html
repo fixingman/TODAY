@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body>
+<template>
+  <style>
+    @font-face { font-family: "Syne"; font-weight: 700; src: url("assets/fonts/syne-700.woff2") format("woff2"); }
+    @font-face { font-family: "Syne"; font-weight: 800; src: url("assets/fonts/syne-800.woff2") format("woff2"); }
+    @font-face { font-family: "DM Mono"; font-weight: 400; src: url("assets/fonts/dm-mono-400.woff2") format("woff2"); }
+    #o07 { position: absolute; inset: 0; background: #0e0e10; container-type: size; overflow: hidden; }
+    #o07 .window { position: absolute; top: 6cqw; left: 7cqw; height: calc(100cqh - 12cqw); aspect-ratio: 4 / 5; border: 1px solid #2a2a30; overflow: hidden; background: #0e0e10; }
+    #o07 .zoom { position: absolute; inset: 0; transform-origin: 50% 0%; }
+    #o07 .zoom video, #o07 .zoom img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    #o07 .caption { position: absolute; left: 50cqw; right: 7cqw; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; }
+    #o07 .kicker { font-family: "DM Mono"; font-size: 0.95cqw; letter-spacing: 0.3em; text-transform: uppercase; color: #80808d; margin-bottom: 2cqw; }
+    #o07 .line { font-family: "Syne"; font-weight: 700; line-height: 1.08; letter-spacing: -0.01em; color: #e8e8ec; margin-bottom: 1cqw; }
+    #o07 .big { font-size: 3.6cqw; }
+    #o07 .mid { font-size: 2.6cqw; }
+    #o07 .note { font-family: "DM Mono"; font-weight: 400; font-size: 1.35cqw; line-height: 1.5; letter-spacing: 0.01em; color: #80808d; margin-top: 1cqw; }
+    #o07 .accent { color: #c8f060; }
+    #o07 code { font-family: "DM Mono"; color: #c8f060; }
+  </style>
+
+  <div data-hf-id="hf-njmn" id="o07" data-composition-id="o07" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-6r44" class="window">
+      <div data-hf-id="hf-hgge" class="zoom" id="o07-zoom" data-layout-allow-overflow="">
+          <video data-hf-id="hf-sn1z" id="o07-clip" class="clip" src="assets/habits.mp4" data-start="0" data-duration="8" data-track-index="0" muted playsinline></video>
+      </div>
+    </div>
+    <div data-hf-id="hf-fqbc" class="caption" data-layout-allow-overlap="">
+      <div data-hf-id="hf-pu1t" class="kicker" id="o07-k">07 — Habits</div>
+      <div data-hf-id="hf-ilop" class="line big" id="o07-l0">Habits get one<br data-hf-id="hf-x5px">check a day.</div>
+      <div data-hf-id="hf-ct0t" class="line note" id="o07-l1">Streaks are noticed, never demanded.</div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const ease = "expo.out";
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#o07-k", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 0.2);
+      tl.fromTo("#o07-l0", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease }, 0.5);
+      tl.fromTo("#o07-l1", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease }, 3.6);
+      window.__timelines["o07"] = tl;
+    })();
+  </script>
+</template>
+</body>
+</html>

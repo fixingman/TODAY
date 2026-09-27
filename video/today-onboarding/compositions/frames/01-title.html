@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body>
+<template>
+  <style>
+    @font-face { font-family: "Syne"; font-weight: 700; src: url("assets/fonts/syne-700.woff2") format("woff2"); }
+    #o01 { position: absolute; inset: 0; background: #0e0e10; container-type: size; overflow: hidden; }
+    #o01 .ring { position: absolute; width: 46cqw; height: 46cqw; right: -12cqw; top: -10cqw; border-radius: 50%; border: 1px solid #2a2a30; opacity: 0.5; }
+    #o01 .hair { position: absolute; left: 7cqw; right: 7cqw; bottom: 6cqw; height: 1px; background: #2a2a30; transform-origin: left center; }
+    #o01 .lines { position: absolute; left: 7cqw; right: 7cqw; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; }
+    #o01 .line { font-family: "Syne"; font-weight: 700; font-size: 5.6cqw; line-height: 1.08; letter-spacing: -0.01em; color: #e8e8ec; }
+    #o01 .line + .line { margin-top: 1.4cqw; }
+    #o01 .ch { display: inline-block; white-space: pre; }
+    #o01 .accent { color: #c8f060; }
+  </style>
+
+  <div data-hf-id="hf-0rsv" id="o01" data-composition-id="o01" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-r30r" class="ring" data-layout-allow-overflow=""></div>
+    <div data-hf-id="hf-bs9l" class="lines" data-layout-allow-overlap="">
+      <div data-hf-id="hf-pvp2" class="line" id="o01-l1"></div>
+      <div data-hf-id="hf-dae0" class="line" id="o01-l2">One day, start to <span data-hf-id="hf-8jy2" class="accent">finish.</span></div>
+    </div>
+    <div data-hf-id="hf-riwl" class="hair" id="o01-hair"></div>
+  </div>
+
+  <script>
+    (function () {
+      // Line one arrives a character at a time — typed, calmly.
+      const l1 = document.getElementById("o01-l1");
+      for (const c of "How TODAY works.") {
+        const s = document.createElement("span");
+        s.className = "ch";
+        s.textContent = c;
+        l1.appendChild(s);
+      }
+      const ease = "expo.out"; // ≈ the app's cubic-bezier(0.16,1,0.3,1)
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#o01-hair", { scaleX: 0 }, { scaleX: 1, duration: 1.2, ease }, 0.1);
+      tl.fromTo("#o01-l1 .ch", { opacity: 0 }, { opacity: 1, duration: 0.01, stagger: 0.042 }, 0.1);
+      tl.fromTo("#o01-l2", { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.7, ease }, 1.6);
+      window.__timelines["o01"] = tl;
+    })();
+  </script>
+</template>
+</body>
+</html>

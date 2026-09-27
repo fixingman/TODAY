@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #0e0e10; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: #0e0e10; }
+      .scene { position: absolute; inset: 0; }
+    </style>
+  </head>
+  <body>
+    <!--
+      TODAY onboarding — 79s, 1920×1080. Twelve steps of one day (STORYBOARD.md), each a
+      sub-composition owning its real-app footage and copy. Seams are 1s soft dissolves, as in
+      the promo: the outgoing host runs 1s past its cut, the incoming host fades up over it.
+      Audio: an 80s sine bed + the app's own SFX, rendered by ../render-audio.mjs.
+    -->
+    <div data-hf-id="hf-j7xa" id="root" data-composition-id="main" data-start="0" data-duration="79" data-width="1920" data-height="1080">
+
+      <div data-hf-id="hf-rfa2" id="s01" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="o01" data-composition-src="compositions/frames/01-title.html" data-start="0" data-duration="5" data-track-index="0" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-o7yi" id="s02" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="o02" data-composition-src="compositions/frames/02-morning.html" data-start="4" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-yzh8" id="s03" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="o03" data-composition-src="compositions/frames/03-add.html" data-start="10" data-duration="9" data-track-index="0" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-1rxj" id="s04" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="o04" data-composition-src="compositions/frames/04-order.html" data-start="18" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-d8iu" id="s05" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="o05" data-composition-src="compositions/frames/05-focus.html" data-start="24" data-duration="9" data-track-index="0" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-h4lp" id="s06" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="o06" data-composition-src="compositions/frames/06-done.html" data-start="32" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-l68l" id="s07" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="o07" data-composition-src="compositions/frames/07-habits.html" data-start="38" data-duration="8" data-track-index="0" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-3chw" id="s08" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="o08" data-composition-src="compositions/frames/08-evening.html" data-start="45" data-duration="11" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-lg7v" id="s09" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="o09" data-composition-src="compositions/frames/09-soon-past.html" data-start="55" data-duration="8" data-track-index="0" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-7orq" id="s10" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="o10" data-composition-src="compositions/frames/10-noticed.html" data-start="62" data-duration="8" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-s4jo" id="s11" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="o11" data-composition-src="compositions/frames/11-yours.html" data-start="69" data-duration="5" data-track-index="0" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-xqw1" id="s12" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="o12" data-composition-src="compositions/frames/12-tomorrow.html" data-start="73" data-duration="6" data-track-index="1" data-width="1920" data-height="1080"></div>
+
+      <audio data-hf-id="hf-ri6b" id="bed" src="assets/audio/bed-80.wav" data-start="0" data-duration="79" data-track-index="10" data-volume="0.8" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:1},{&quot;t&quot;:77,&quot;v&quot;:1},{&quot;t&quot;:79,&quot;v&quot;:0}]}]}"></audio>
+
+      <!-- The app's own sounds, on the moments they belong to. -->
+      <audio data-hf-id="hf-gxkc" id="sfx-focus" src="assets/audio/sfx-start.wav" data-start="24.8" data-duration="0.3" data-track-index="20" data-volume="0.9"></audio>
+      <audio data-hf-id="hf-jz6f" id="sfx-done-1" src="assets/audio/sfx-complete.wav" data-start="33.2" data-duration="0.4" data-track-index="21" data-volume="0.9"></audio>
+      <audio data-hf-id="hf-d6fv" id="sfx-done-2" src="assets/audio/sfx-complete.wav" data-start="35.13" data-duration="0.4" data-track-index="22" data-volume="0.9"></audio>
+      <audio data-hf-id="hf-nxsn" id="sfx-habit-1" src="assets/audio/sfx-habit.wav" data-start="40" data-duration="0.45" data-track-index="23" data-volume="0.9"></audio>
+      <audio data-hf-id="hf-c4s7" id="sfx-habit-2" src="assets/audio/sfx-habit.wav" data-start="43.07" data-duration="0.45" data-track-index="24" data-volume="0.9"></audio>
+      <audio data-hf-id="hf-9moe" id="sfx-tomorrow-1" src="assets/audio/sfx-complete.wav" data-start="73.37" data-duration="0.4" data-track-index="25" data-volume="0.9"></audio>
+      <audio data-hf-id="hf-8yss" id="sfx-tomorrow-2" src="assets/audio/sfx-complete.wav" data-start="75.33" data-duration="0.4" data-track-index="26" data-volume="0.9"></audio>
+      <audio data-hf-id="hf-s125" id="sfx-chime" src="assets/audio/sfx-chime.wav" data-start="76.7" data-duration="1.3" data-track-index="27" data-volume="0.8"></audio>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      const T = 1.0;
+      const dissolve = (from, to, at) => {
+        tl.fromTo(to, { opacity: 0, filter: "blur(10px)", scale: 1.015 },
+          { opacity: 1, filter: "blur(0px)", scale: 1, duration: T, ease: "sine.inOut" }, at);
+        tl.fromTo(from, { opacity: 1, filter: "blur(0px)" },
+          { opacity: 0, filter: "blur(6px)", duration: 0.6, ease: "sine.in", immediateRender: false }, at);
+      };
+      dissolve("#s01", "#s02", 4);
+      dissolve("#s02", "#s03", 10);
+      dissolve("#s03", "#s04", 18);
+      dissolve("#s04", "#s05", 24);
+      dissolve("#s05", "#s06", 32);
+      dissolve("#s06", "#s07", 38);
+      dissolve("#s07", "#s08", 45);
+      dissolve("#s08", "#s09", 55);
+      dissolve("#s09", "#s10", 62);
+      dissolve("#s10", "#s11", 69);
+      dissolve("#s11", "#s12", 73);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

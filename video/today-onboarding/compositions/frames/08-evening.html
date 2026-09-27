@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body>
+<template>
+  <style>
+    @font-face { font-family: "Syne"; font-weight: 700; src: url("assets/fonts/syne-700.woff2") format("woff2"); }
+    @font-face { font-family: "Syne"; font-weight: 800; src: url("assets/fonts/syne-800.woff2") format("woff2"); }
+    @font-face { font-family: "DM Mono"; font-weight: 400; src: url("assets/fonts/dm-mono-400.woff2") format("woff2"); }
+    #o08 { position: absolute; inset: 0; background: #0e0e10; container-type: size; overflow: hidden; }
+    #o08 .window { position: absolute; top: 6cqw; left: 7cqw; height: calc(100cqh - 12cqw); aspect-ratio: 4 / 5; border: 1px solid #2a2a30; overflow: hidden; background: #0e0e10; }
+    #o08 .zoom { position: absolute; inset: 0; transform-origin: 50% 0%; }
+    #o08 .zoom video, #o08 .zoom img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    #o08 .caption { position: absolute; left: 50cqw; right: 7cqw; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; }
+    #o08 .kicker { font-family: "DM Mono"; font-size: 0.95cqw; letter-spacing: 0.3em; text-transform: uppercase; color: #80808d; margin-bottom: 2cqw; }
+    #o08 .line { font-family: "Syne"; font-weight: 700; line-height: 1.08; letter-spacing: -0.01em; color: #e8e8ec; margin-bottom: 1cqw; }
+    #o08 .big { font-size: 3.6cqw; }
+    #o08 .mid { font-size: 2.6cqw; }
+    #o08 .note { font-family: "DM Mono"; font-weight: 400; font-size: 1.35cqw; line-height: 1.5; letter-spacing: 0.01em; color: #80808d; margin-top: 1cqw; }
+    #o08 .accent { color: #c8f060; }
+    #o08 code { font-family: "DM Mono"; color: #c8f060; }
+  </style>
+
+  <div data-hf-id="hf-znp3" id="o08" data-composition-id="o08" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-6r44" class="window">
+      <div data-hf-id="hf-crz7" class="zoom" id="o08-zoom" data-layout-allow-overflow="">
+          <video data-hf-id="hf-np4t" id="o08-clip" class="clip" src="assets/evening.mp4" data-start="0" data-duration="10.533" data-track-index="0" muted playsinline></video>
+          <img data-hf-id="hf-xb4b" id="o08-hold" class="clip" src="assets/evening-hold.jpg" alt="" data-start="10.533" data-duration="0.467" data-track-index="1">
+      </div>
+    </div>
+    <div data-hf-id="hf-fqbc" class="caption" data-layout-allow-overlap="">
+      <div data-hf-id="hf-sk4c" class="kicker" id="o08-k">08 — Evening</div>
+      <div data-hf-id="hf-vhn2" class="line note" id="o08-l0">One question in the evening:</div>
+      <div data-hf-id="hf-5j0o" class="line big" id="o08-l1">What didn't happen?</div>
+      <div data-hf-id="hf-zbjc" class="line mid" id="o08-l2">Keep it.</div>
+      <div data-hf-id="hf-39bp" class="line mid" id="o08-l3">Move it to Soon.</div>
+      <div data-hf-id="hf-uam3" class="line mid" id="o08-l4">Or <span data-hf-id="hf-dyo1" class="accent">let it go.</span></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const ease = "expo.out";
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#o08-k", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 0.2);
+      tl.fromTo("#o08-l0", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease }, 0.4);
+      tl.fromTo("#o08-l1", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease }, 1.2);
+      tl.fromTo("#o08-l2", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease }, 3.3);
+      tl.fromTo("#o08-l3", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease }, 4.8);
+      tl.fromTo("#o08-l4", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease }, 6.3);
+      window.__timelines["o08"] = tl;
+    })();
+  </script>
+</template>
+</body>
+</html>

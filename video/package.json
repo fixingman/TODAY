@@ -6,7 +6,7 @@
   "scripts": {
     "capture": "node capture.mjs",
     "capture:mobile": "node capture.mjs --mobile",
-    "audio": "node render-audio.mjs"
+    "audio": "node render-audio.mjs && node render-audio.mjs --length 80 --bed bed-80.wav"
   },
   "dependencies": {
     "puppeteer-core": "^25.10.0"

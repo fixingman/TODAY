@@ -98,6 +98,32 @@ const EVENING_TASKS = [
   task('renew the domain name', 2),
 ];
 
+// Onboarding fixtures. Habit completions are ISO days before the fixed Monday.
+const isoDaysBack = n => { const d = new Date(...DAY); d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const range = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => isoDaysBack(from + i));
+const HABITS = [
+  { id: 'h_read',  name: 'Read',          created_at: isoDaysBack(30), archived: false },
+  { id: 'h_walk',  name: 'Walk outside',  created_at: isoDaysBack(30), archived: false },
+  { id: 'h_water', name: 'Water plants',  created_at: isoDaysBack(30), archived: false },
+];
+const HABIT_DAYS = {
+  h_read:  range(1, 13),
+  h_walk:  [1, 2, 4, 5, 7, 9, 10, 12, 15, 16].map(isoDaysBack),
+  h_water: [3, 6, 10, 13, 17, 20].map(isoDaysBack),
+};
+const zoneAt = daysAgo => new Date(at(18) - daysAgo * DAYS).toISOString();
+const SOON = [
+  { ...task('plan the autumn trip', 6), zone: 'soon', zoneChangedAt: zoneAt(4) },
+  { ...task('fix the bike light', 3),   zone: 'soon', zoneChangedAt: zoneAt(2) },
+  { ...task('work: draft Q4 goals', 9), zone: 'soon', zoneChangedAt: zoneAt(7) },
+];
+const PAST = [
+  { ...task('return the library books', 2), zone: 'past', status: 'done',   zoneChangedAt: zoneAt(1) },
+  { ...task('learn the ukulele', 40),       zone: 'past', status: 'let_go', zoneChangedAt: zoneAt(1) },
+  { ...task('call the bank', 1),            zone: 'past', status: 'done',   zoneChangedAt: zoneAt(2) },
+];
+
 // ── Recorder ─────────────────────────────────────────────────────────────────
 // Raw CDP screencast rather than page.screencast(): Puppeteer's recorder crops
 // to CSS pixels, which throws away the 3× phone frames the 9:16 cut needs.
@@ -304,6 +330,104 @@ const SCENES = {
       await page.evaluate(() => window.__advance(50_000));
       await page.waitForSelector('.idle-companion, #idleCompanion', { timeout: 8000 / rate }).catch(() => {});
       await sleep(7000);
+    },
+  }),
+
+  // ── Onboarding-only scenes ────────────────────────────────────────────────
+
+  // Drag a task to the top — the order is yours. Same synthetic drag events the
+  // app's drag-test uses (headless HTML5 drag can't be driven by the mouse).
+  reorder: () => record('reorder', {
+    hour: 9, seed: { today_manual: DAY_TASKS },
+    run: async page => {
+      await ready(page); await sleep(1200);
+      const fire = (id, type) => page.evaluate((id, type) => {
+        const el = document.querySelector(`#manualList .task[data-taskid="${id}"]`);
+        const e = new Event(type, { bubbles: true, cancelable: true });
+        e.dataTransfer = { effectAllowed: '', dropEffect: '', setData() {} };
+        el.dispatchEvent(e);
+        if (type === 'dragend') document.dispatchEvent(new Event('mouseup', { bubbles: true }));
+      }, id, type);
+      const [src, over] = [DAY_TASKS[3].id, DAY_TASKS[0].id];
+      await fire(src, 'mousedown'); await fire(src, 'dragstart'); await sleep(600);
+      await fire(DAY_TASKS[2].id, 'dragover'); await sleep(350);
+      await fire(DAY_TASKS[1].id, 'dragover'); await sleep(350);
+      await fire(over, 'dragover'); await sleep(700);
+      await fire(over, 'drop'); await fire(src, 'dragend');
+      await sleep(2000);
+    },
+  }),
+
+  // Habits: one check a day, a strip that fills.
+  habits: () => record('habits', {
+    hour: 9, seed: {
+      today_manual: DAY_TASKS.slice(0, 3),
+      today_habits: HABITS,
+      today_habit_completions: HABIT_DAYS,
+      today_habit_events: {},
+    },
+    run: async page => {
+      await ready(page); await sleep(900);
+      await page.click('#habitsBtn');
+      await page.waitForFunction(() => !document.getElementById('habitsPanel')?.hidden);
+      await sleep(1400);
+      await page.click('#habitList [data-habit-id="h_read"] .habit-check'); await sleep(1500);
+      await page.click('#habitList [data-habit-id="h_walk"] .habit-check'); await sleep(2000);
+    },
+  }),
+
+  // Soon holds what can wait; pull one back in. Past holds what's finished.
+  zones: () => record('zones', {
+    hour: 10, seed: {
+      today_manual: DAY_TASKS.slice(0, 2),
+      today_soon: SOON,
+      today_past: PAST,
+    },
+    run: async page => {
+      await ready(page); await sleep(900);
+      await page.click('#soonToggle'); await sleep(1500);
+      await page.click(`#soonList [data-task-id="${SOON[1].id}"]`); await sleep(1600);
+      await page.click('#pastToggle'); await sleep(2200);
+    },
+  }),
+
+  // Evening review with every choice visible: keep, soon, let go (+ reason).
+  // A fourth task stays undecided so the sheet never collapses to "All sorted".
+  evening: () => record('evening', {
+    hour: 21, seed: { today_manual: [...EVENING_TASKS, task('buy a birthday card', 1)] },
+    run: async page => {
+      await ready(page);
+      await page.waitForFunction(() => document.getElementById('triageBar')?.classList.contains('visible'));
+      await sleep(1000);
+      await page.click('#triageReviewBtn');
+      await page.waitForFunction(() => !document.getElementById('triageOverlay')?.classList.contains('hidden'));
+      await sleep(1600);
+      const decide = async (t, sel) => {
+        const target = `#triageList [data-task-id="${t.id}"]${sel}`;
+        await page.waitForSelector(target, { visible: true, timeout: 5000 / rate });
+        await page.click(target); await sleep(1300);
+      };
+      await decide(EVENING_TASKS[0], '[data-decision="kept"]');
+      await decide(EVENING_TASKS[2], '[data-decision="soon"]');
+      await decide(HAUNTING, '[data-today-click="triage.show-reason"]');
+      await decide(HAUNTING, '[data-reason="lost_interest"]');
+      await sleep(1500);
+    },
+  }),
+
+  // Over time: the About panel's Noticed block (real line templates, seeded).
+  noticed: () => record('noticed', {
+    hour: 10, seed: {
+      today_manual: DAY_TASKS.slice(0, 3),
+      today_habits: HABITS,
+      today_habit_completions: HABIT_DAYS,
+      'noticed_lines_2026-09-14': ['Most things get done around 10am.', 'Read — 14 days now.'],
+    },
+    run: async page => {
+      await ready(page); await sleep(900);
+      await page.click('#infoBtn');
+      await page.waitForFunction(() => document.getElementById('noticedBlock')?.style.display !== 'none', { timeout: 5000 / rate }).catch(() => {});
+      await sleep(3500);
     },
   }),
 };
