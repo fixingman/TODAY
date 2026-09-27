@@ -63,6 +63,14 @@ const call = async (handler, body) => {
   const res = await handler({ httpMethod: 'POST', body: JSON.stringify(body) });
   return { status: res.statusCode, body: JSON.parse(res.body) };
 };
+// A rejected key makes every case fail the same way; stop once with a clear cause.
+const keyRejected = (res, provider, envName) => {
+  const msg = String(res.body?.error || '');
+  if (![400, 401, 403].includes(res.status) || !/key|auth|permission/i.test(msg)) return false;
+  console.log(`✗ ${provider} rejected ${envName}: ${msg.slice(0, 120)}`);
+  console.log(`  Check the value you passed (no quotes, brackets, or spaces) and rerun. No cases were tested.`);
+  return true;
+};
 
 // Turkish-specific letters / common function words distinguish it from English.
 const looksTurkish = s => /[çğıöşü]/i.test(s) || /\b(ve|bir|bu|ama|gibi|olabilir)\b/i.test(s);
@@ -75,6 +83,7 @@ try {
   for (const c of CASES) {
     const audioChunk = clip(c);
     const ex = await call(extract, { audioChunk, mimeType: 'audio/webm;codecs=opus', userName: 'Can' });
+    if (keyRejected(ex, 'Gemini', 'GEMINI_API_KEY')) { failed = -1; break; }
     const problems = [];
     if (ex.status !== 200) problems.push(`extract HTTP ${ex.status}: ${JSON.stringify(ex.body).slice(0, 120)}`);
     const dream = String(ex.body.dream || '');
@@ -91,6 +100,7 @@ try {
     let reading = '';
     if (dream) {
       const r = await call(assist, { provider: 'claude', systemPrompt: DREAM_SYSTEM, messages: [{ role: 'user', content: dream }] });
+      if (keyRejected(r, 'Claude', 'ANTHROPIC_API_KEY')) { failed = -1; break; }
       reading = String(r.body.content || r.body.message || '').trim();
       if (r.status !== 200 || !reading) problems.push(`reading failed (HTTP ${r.status})`);
       else {
@@ -115,5 +125,6 @@ try {
   rmSync(work, { recursive: true, force: true });
 }
 
+if (failed === -1) process.exit(1);
 console.log(failed ? `\n✗ ${failed} of ${CASES.length} cases failed` : `\n✓ all ${CASES.length} cases passed`);
 process.exit(failed ? 1 : 0);
