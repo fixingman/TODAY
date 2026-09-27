@@ -7,7 +7,7 @@ Most task apps have the same bug: they remember everything, and opening them fee
 **[today-here.netlify.app](https://today-here.netlify.app)**
 
 <p align="center">
-  <a href="https://today-here.netlify.app/docs/media/today-promo.mp4"><img src="docs/media/today-let-it-go.gif" width="800" alt="TODAY's evening review: letting go of a task that has waited 34 days"></a>
+  <a href="https://today-here.netlify.app/docs/media/today-promo.mp4"><img src="docs/media/today-story.gif" width="800" alt="TODAY in four beats: most task apps keep score, this one ends; a day's list checked off; letting go of what didn't happen; the empty list as the reward"></a>
   <br>
   <sub><a href="https://today-here.netlify.app/docs/media/today-promo.mp4">Watch the 32-second promo, with sound</a></sub>
 </p>

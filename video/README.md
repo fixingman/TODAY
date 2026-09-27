@@ -30,11 +30,20 @@ npm run check                               # lint, layout, contrast
 npx hyperframes render --quality high --output renders/today-promo-16x9.mp4
 ```
 
-The published copy lives at `docs/media/today-promo.mp4` (README links it); the README GIF is
-seconds 20–26 of the render:
+The published copy lives at `docs/media/today-promo.mp4` (README links it). The README GIF is
+the story in four beats — hook, check-offs, let go, reward + wordmark — joined by 0.5s fades:
 
 ```sh
-ffmpeg -ss 20 -t 6 -i renders/today-promo-16x9.mp4 -vf "fps=12,scale=800:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=64:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" -loop 0 ../../docs/media/today-let-it-go.gif
+ffmpeg -i renders/today-promo-16x9.mp4 -filter_complex "
+[0:v]trim=1.0:4.2,setpts=PTS-STARTPTS,fps=12,scale=800:-1:flags=lanczos[a];
+[0:v]trim=7.4:10.9,setpts=PTS-STARTPTS,fps=12,scale=800:-1:flags=lanczos[b];
+[0:v]trim=22.3:26.0,setpts=PTS-STARTPTS,fps=12,scale=800:-1:flags=lanczos[c];
+[0:v]trim=28.3:32.0,setpts=PTS-STARTPTS,fps=12,scale=800:-1:flags=lanczos[d];
+[a][b]xfade=transition=fade:duration=0.5:offset=2.7[ab];
+[ab][c]xfade=transition=fade:duration=0.5:offset=5.7[abc];
+[abc][d]xfade=transition=fade:duration=0.5:offset=8.9[v];
+[v]split[s1][s2];[s1]palettegen=max_colors=64:stats_mode=diff[p];[s2][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" \
+  -loop 0 ../../docs/media/today-story.gif
 ```
 
 ## Embedding, muted by default
