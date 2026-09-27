@@ -154,36 +154,40 @@ window._startFocus = (function() {
   // Counts task-specific signals that make a focus question especially worth asking.
   // Time-of-day signals deliberately excluded \u2014 they fire too broadly and produce
   // repetitive "it's late" questions without task-specific insight.
-  function _computeSignalDensity(taskObj, taskText) {
-    if (!taskObj) return 0;
-    let score = 0;
-    const sessions = parseInt(taskObj.focusSessions) || 0;
-    if (sessions >= 2) score++;
-    if (sessions >= 4) score++;
-    const created = parseInt((taskObj.id || '').replace('manual_', '')) || 0;
-    const ageDays = created ? Math.floor((Date.now() - created) / 86400000) : 0;
-    if (ageDays >= 5) score++;
-    const lastActive = taskObj.lastActive || null;
+  // Facts about this task's history, shared by the highlight and the ask context so
+  // the two can never disagree about what happened.
+  function _focusTaskHistory(taskObj, taskText) {
+    const sessions = parseInt(taskObj?.focusSessions) || 0;
+    const created = taskObj ? Today.use('connections')._getCreatedFromId(taskObj.id) : 0;
+    const ageDays = created ? Math.max(0, Math.floor((Date.now() - created) / 86400000)) : 0;
+    const lastActive = taskObj?.lastActive || null;
     const todayStr = new Date().toLocaleDateString('en-CA');
-    const lastActiveStr = lastActive ? new Date(lastActive).toLocaleDateString('en-CA') : null;
-    const workedToday = lastActiveStr === todayStr;
-    const lastWorkedDaysAgo = (!workedToday && lastActive)
+    const workedToday = !!lastActive && new Date(lastActive).toLocaleDateString('en-CA') === todayStr;
+    const lastWorkedDaysAgo = (!workedToday && lastActive && sessions > 0)
       ? Math.floor((Date.now() - lastActive) / 86400000) : null;
-    if (workedToday && sessions > 0) score++;
-    if (lastWorkedDaysAgo !== null && lastWorkedDaysAgo >= 2) score++;
-    if (taskObj.wasRevived) score++;
-    if (taskObj.zoneChangedAt) score++;
+    const revived = (parseInt(taskObj?.revived) || 0) > 0;
+    const backFromSoon = taskObj?.returnedFrom === 'soon';
     const dragRaw = (typeof appMemory !== 'undefined' && appMemory?.preferences?.dragKeywords) || [];
     const dragFreq = {};
     dragRaw.forEach(w => { dragFreq[w] = (dragFreq[w] || 0) + 1; });
-    const taskWords = (taskText || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
-    if (taskWords.some(w => w.length > 3 && (dragFreq[w] || 0) >= 2)) score++;
-    const letgoRaw = (typeof appMemory !== 'undefined' && appMemory?.patterns?.letgoReasons) || {};
-    const letgoTotal = Object.values(letgoRaw).reduce((a, b) => a + b, 0);
-    if (letgoTotal >= 8) {
-      const top = Object.entries(letgoRaw).sort((a, b) => b[1] - a[1])[0];
-      if (top && top[1] / letgoTotal >= 0.35) score++;
-    }
+    const words = (taskText || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
+    const deferWords = words.filter(w => w.length > 3 && (dragFreq[w] || 0) >= 2);
+    return { sessions, ageDays, workedToday, lastWorkedDaysAgo, revived, backFromSoon, deferWords };
+  }
+
+  // Highlight only when this task shows it is stuck or keeps coming back — never for
+  // facts that describe the person in general or restate one another.
+  function _computeSignalDensity(taskObj, taskText) {
+    if (!taskObj) return 0;
+    const h = _focusTaskHistory(taskObj, taskText);
+    let score = 0;
+    if (h.sessions >= 2) score++;
+    if (h.sessions >= 4) score++;
+    if (h.ageDays >= 5) score++;
+    if (h.lastWorkedDaysAgo !== null && h.lastWorkedDaysAgo >= 2) score++;
+    if (h.revived) score++;
+    if (h.backFromSoon) score++;
+    if (h.deferWords.length) score++;
     return score;
   }
 
@@ -222,42 +226,18 @@ window._startFocus = (function() {
     // ── Task history signals ──────────────────────────────────────────────────
     const _taskObj = (typeof manualTasks !== 'undefined' && manualTasks.find(t => t.id === uiTaskId)) || null;
 
-    // Total pomodoros on this task (cumulative across all time)
+    const _h = _focusTaskHistory(_taskObj, taskText);
     const _sessions = _taskObj
-      ? (parseInt(_taskObj.focusSessions) || 0)
+      ? _h.sessions
       : (typeof _getTrelloFocusTotal === 'function' ? (_getTrelloFocusTotal()[uiTaskId] || 0) : 0);
 
-    // Age of the task in days (from creation or last-active, whichever is available)
-    const _ageDays = _taskObj
-      ? Math.floor((Date.now() - (_taskObj.lastActive || Today.use('connections')._getCreatedFromId(uiTaskId))) / 86400000)
-      : 0;
-
-    const _revived  = !!(_taskObj && _taskObj.revived);
-    const _deferred = !!(_taskObj && _taskObj.zoneChangedAt);
-
-    // Last-worked recency: was it worked on today, or how many days ago?
-    const _lastActive = _taskObj ? (_taskObj.lastActive || null) : null;
-    const _todayDateStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
-    const _lastActiveDateStr = _lastActive ? new Date(_lastActive).toLocaleDateString('en-CA') : null;
-    const _workedToday = _lastActiveDateStr === _todayDateStr;
-    const _lastWorkedDaysAgo = (!_workedToday && _lastActive)
-      ? Math.floor((Date.now() - _lastActive) / 86400000)
-      : null;
-
-    // Drag-word match: task words the person historically tends to defer
-    const _dragRaw = appMemory?.preferences?.dragKeywords || [];
-    const _dragFreq = {};
-    _dragRaw.forEach(w => { _dragFreq[w] = (_dragFreq[w] || 0) + 1; });
-    const _taskWords = taskText.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
-    const _matchedDrag = _taskWords.filter(w => w.length > 3 && (_dragFreq[w] || 0) >= 2);
-
-    // Dominant letgo reason (only if one reason is clearly dominant ≥35% of total ≥8 letgos)
+    // Dominant let-go reason — describes the person, so context only, never the highlight
     const _letgoRaw = appMemory?.patterns?.letgoReasons || {};
-    const _letgoTotal = Object.values(_letgoRaw).reduce((a, b) => a + b, 0);
+    const _letgoTotal = Object.values(_letgoRaw).reduce((a, v) => a + _lrCount(v), 0);
     let _dominantLetgo = null;
     if (_letgoTotal >= 8) {
-      const _top = Object.entries(_letgoRaw).sort((a, b) => b[1] - a[1])[0];
-      if (_top && _top[1] / _letgoTotal >= 0.35) _dominantLetgo = _top[0];
+      const _top = Object.entries(_letgoRaw).sort((a, b) => _lrCount(b[1]) - _lrCount(a[1]))[0];
+      if (_top && _lrCount(_top[1]) / _letgoTotal >= 0.35) _dominantLetgo = _top[0];
     }
 
     // ── Build context array ───────────────────────────────────────────────────
@@ -265,24 +245,21 @@ window._startFocus = (function() {
 
     // Pomodoro history (total sessions + recency)
     if (_sessions > 0) {
-      _ctx.push(_sessions + ' total pomodoro' + (_sessions > 1 ? 's' : '') + ' on this task');
-      if (_workedToday) {
-        _ctx.push('already worked on this task earlier today');
-      } else if (_lastWorkedDaysAgo !== null && _lastWorkedDaysAgo >= 2) {
-        _ctx.push('last session was ' + _lastWorkedDaysAgo + ' days ago');
+      _ctx.push(_sessions + ' earlier focus session' + (_sessions > 1 ? 's' : '') + ' on this task');
+      if (_h.workedToday) {
+        _ctx.push('one of them earlier today');
+      } else if (_h.lastWorkedDaysAgo !== null && _h.lastWorkedDaysAgo >= 2) {
+        _ctx.push('last session ' + _h.lastWorkedDaysAgo + ' days ago');
       }
+    } else {
+      _ctx.push('never focused on before');
     }
 
-    // Age on the list
-    if (_ageDays >= 3) _ctx.push(_ageDays + ' days on the list');
-
-    // Status flags
-    if (_revived) _ctx.push('revived — person let it go and came back');
-    if (_deferred) _ctx.push('deferred to Soon, then returned to today');
-
-    // Procrastination signal: task contains words this person tends to defer
-    if (_matchedDrag.length > 0) {
-      _ctx.push('task contains words they tend to defer: ' + _matchedDrag.slice(0, 3).join(', '));
+    if (_h.ageDays >= 3) _ctx.push('on the list ' + _h.ageDays + ' days');
+    if (_h.revived) _ctx.push('once let go, then brought back');
+    if (_h.backFromSoon) _ctx.push('was put off to Soon, then pulled back to today');
+    if (_h.deferWords.length) {
+      _ctx.push('contains words they usually put off: ' + _h.deferWords.slice(0, 3).join(', '));
     }
 
     // Energy/pattern: dominant reason they let tasks go
@@ -310,31 +287,17 @@ window._startFocus = (function() {
     const _inferCtx = _inferences.length ? '\n\nWhat we know about the user: ' + _inferences.join('. ') + '.' : '';
 
     // ── System prompt ─────────────────────────────────────────────────────────
-    const _systemPrompt = `You are a focus catalyst in a minimal task app. The user is about to start a 25-minute session. Ask exactly one question that creates a moment of clarity they wouldn't have reached on their own — not a friendly check-in.
+    const _systemPrompt = `The person is about to spend 25 minutes on one task in a minimal task app. Ask one question that changes how they spend those minutes — something they would not have asked themselves.
 
-A useful question does one of these things:
-— Names what done looks like for this sitting (not the full task — just these 25 minutes)
-— Surfaces the likely obstacle before it happens
-— Challenges the scope (too much? the right size for one session?)
-— Names the very first physical action to take
+The question belongs to this task. Build it from the task's own words: its object, its verb, the person or thing it involves. A question that would fit any task is a failure.
 
-Never ask: vague check-ins ("how's it going?"), affirmations ("ready to dive in?"), anything they've already decided, yes/no questions with obvious answers.
+The history is there to aim the question, not to be read back. Never repeat a count, a number of days, or a label from it. A task that keeps returning or keeps getting worked on without closing usually hides one unmade decision or one unclear first step; ask about that. A task that is new needs its finish line for these 25 minutes. The rest of the list matters only if something on it should come first.
 
-Use the context to choose the right type:
-— No prior sessions, fresh task → define the 25-minute outcome
-— 2–3 total sessions → what's actually in the way?
-— 4+ total sessions → is there a smaller version that would close it today?
-— Last session 2+ days ago → what do you need to pick up before starting?
-— Already worked on it today → what shifted since the last session?
-— Revived from past → what's different this time that makes it worth doing?
-— Deferred from Soon → is this the right moment, or is energy the real issue?
-— Contains words they tend to defer → name the avoidance pattern directly
-— Dominant letgo reason is "no energy" → ask whether energy fits this task right now
-— Peak hour → what's the hardest part to tackle while sharp?
-— 3+ sessions today or late evening → is this the right task for where they are now?
+Ask about the work, not about their mood or motivation. No check-ins, no encouragement, no yes/no question with an obvious answer, nothing they have already decided.
 
 If you refer to the time, use the supplied exact local time — never a vague phrase like "this late."
-One question only. Under 22 words. No preamble. No quotation marks. No emoji. No exclamation marks.` + _inferCtx;
+
+One question, under 20 words. No preamble, quotation marks, emoji, or exclamation marks.` + _inferCtx;
 
     // ── Fetch ─────────────────────────────────────────────────────────────────
     timerEl.classList.add('ai-active');
@@ -720,7 +683,7 @@ One question only. Under 22 words. No preamble. No quotation marks. No emoji. No
 
     const _focusTaskObj  = (typeof manualTasks !== 'undefined' ? manualTasks : []).find(t => t.id === taskId);
     const _focusTaskText = _focusTaskObj ? _focusTaskObj.text : '';
-    // Highlight ask button when 3+ task-specific signals converge — before user clicks
+    // Hint at ask when the task itself looks stuck or keeps returning — before user clicks
     if (focusAIBtn) focusAIBtn.classList.toggle('high-signal', _computeSignalDensity(_focusTaskObj, _focusTaskText) >= 3);
     if (window._gmailRenderFocusBlock) _gmailRenderFocusBlock(taskId, _focusTaskText);
     if (window._agentRenderFocusBlock) _agentRenderFocusBlock(taskId, _focusTaskText);

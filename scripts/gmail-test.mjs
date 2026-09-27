@@ -53,13 +53,23 @@ try {
     topicUnsent: _gmailBuildQueryFallback('Follow up on renewal'),
     person: _gmailBuildQueryFallback('Reply to Maria about the contract'),
     multi: _gmailBuildQueryFallback('Email Ada Lovelace about the draft'),
+    gaia: _gmailBuildQueryFallback('email to gaia for reservation'),
+    gaiaArticle: _gmailBuildQueryFallback('Email to Gaia for the reservation'),
+    plainPerson: _gmailBuildQueryFallback('Email Gaia'),
+    organization: _gmailBuildQueryFallback('Email Center for Reproductive Rights'),
     empty: _gmailBuildQueryFallback(''),
   }));
   assert(fallback.topic === '"three proposals" in:sent' && fallback.topicUnsent === 'subject:renewal'
       && !fallback.topic.includes('from:'),
     'topic fallback searches the subject matter in Sent instead of inventing a person', fallback);
-  assert(fallback.person === 'from:Maria OR to:Maria' && fallback.multi === 'from:"Ada Lovelace" OR to:"Ada Lovelace"' && fallback.empty === '',
-    'person fallback keeps explicit addressees and handles empty input', fallback);
+  assert(fallback.person === '{from:Maria to:Maria} contract'
+      && fallback.multi === '{from:"Ada Lovelace" to:"Ada Lovelace"} draft'
+      && fallback.gaia === '{from:gaia to:gaia} reservation'
+      && fallback.gaiaArticle === '{from:Gaia to:Gaia} reservation'
+      && fallback.plainPerson === 'from:Gaia OR to:Gaia'
+      && fallback.organization === 'from:"Center for Reproductive Rights" OR to:"Center for Reproductive Rights"'
+      && fallback.empty === '',
+    'person fallback separates addressee from about/for topic and handles empty input', fallback);
 
   const classified = await page.evaluate(async () => {
     const calls = [];
@@ -84,6 +94,7 @@ try {
     'classifier sends the configured provider and key, and marks AI results in the cache', classified);
   const classifiedQuery = new URL(classified.gmailUrl).searchParams.get('q');
   assert(classified.prompt.includes('Topic-targeted') && classified.prompt.includes('never invent a person')
+      && classified.prompt.includes('email to NAME for TOPIC')
       && classifiedQuery === '"three proposals" in:sent',
     'AI classifier permits topic/date operators and the resulting Gmail query is preserved', { ...classified, classifiedQuery });
 
@@ -104,6 +115,127 @@ try {
   assert(degraded.query === '"three proposals" in:sent' && degraded.cached === null,
     'AI failure falls back to the same topic-safe query without caching it, so the next attempt retries the AI', degraded);
 
+  const gaiaRetry = await page.evaluate(async () => {
+    const queries = [];
+    window.fetch = async (url) => {
+      const request = String(url);
+      if (request.includes('/ai-assist'))
+        return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'subject:too-narrow' }) };
+      if (request.includes('/threads?q=')) {
+        const query = new URL(request).searchParams.get('q');
+        queries.push(query);
+        return { ok: true, status: 200, json: async () => ({ threads: query === '{from:gaia to:gaia} reservation' ? [{ id: 'gaia-thread' }] : [] }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ messages: [{ payload: { headers: [
+        { name: 'Subject', value: 'Reservation' }, { name: 'From', value: 'Gaia <gaia@example.com>' },
+      ] }, snippet: 'Reservation confirmed' }] }) };
+    };
+    await _gmailEnrichTask('gmail_gaia_ai_retry', 'email to gaia for reservation');
+    return {
+      queries,
+      enrichment: JSON.parse(localStorage.getItem('gmail_enrichment_gmail_gaia_ai_retry')),
+      diagnostic: Today.use('gmail').observationAudit().entries.at(-1),
+      diagnosticStorage: localStorage.getItem('gmail_diagnostics_v1'),
+    };
+  });
+  assert(gaiaRetry.queries.join('|') === 'subject:too-narrow|{from:gaia to:gaia} reservation'
+      && gaiaRetry.enrichment?.threadId === 'gaia-thread'
+      && gaiaRetry.enrichment.searchQuery === '{from:gaia to:gaia} reservation'
+      && gaiaRetry.diagnostic?.status === 'found'
+      && gaiaRetry.diagnostic.attempts.map(a => a.status).join('|') === 'no-thread|found'
+      && !/from:gaia|reservation|example\.com|too-narrow|email to gaia/i.test(gaiaRetry.diagnosticStorage),
+    'explicit email task retries a no-match AI query with person + topic; diagnostic retains no content', gaiaRetry);
+
+  const gaiaDeclined = await page.evaluate(async () => {
+    const queries = [];
+    window.fetch = async (url) => {
+      const request = String(url);
+      if (request.includes('/ai-assist'))
+        return { ok: true, status: 200, json: async () => ({ isComm: false, searchQuery: '' }) };
+      if (request.includes('/threads?q=')) queries.push(new URL(request).searchParams.get('q'));
+      return { ok: true, status: 200, json: async () => ({ threads: [] }) };
+    };
+    await _gmailEnrichTask('gmail_gaia_declined', 'email to gaia for reservation');
+    return { queries, cached: localStorage.getItem('gmail_classify_gmail_gaia_declined'),
+      diagnostic: Today.use('gmail').observationAudit().entries.at(-1) };
+  });
+  assert(gaiaDeclined.queries.join('|') === '{from:gaia to:gaia} reservation'
+      && gaiaDeclined.cached === null && gaiaDeclined.diagnostic?.reason === 'ai-declined-email',
+    'an explicit email task still searches when AI declines, without caching the false negative', gaiaDeclined);
+
+  const invalidQuery = await page.evaluate(async () => {
+    const queries = [];
+    window.fetch = async (url) => {
+      const request = String(url);
+      if (request.includes('/ai-assist'))
+        return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'gaia reservation' }) };
+      if (request.includes('/threads?q=')) queries.push(new URL(request).searchParams.get('q'));
+      return { ok: true, status: 200, json: async () => ({ threads: [] }) };
+    };
+    await _gmailEnrichTask('gmail_gaia_invalid_query', 'email to gaia for reservation');
+    return { queries, cached: localStorage.getItem('gmail_classify_gmail_gaia_invalid_query'),
+      reason: Today.use('gmail').observationAudit().entries.at(-1)?.reason };
+  });
+  assert(invalidQuery.queries.join('|') === '{from:gaia to:gaia} reservation'
+      && invalidQuery.cached === null && invalidQuery.reason === 'ai-invalid-query',
+    'an AI query without a Gmail operator cannot match an unrelated broad result', invalidQuery);
+
+  const cachedDecline = await page.evaluate(async () => {
+    localStorage.setItem('gmail_classify_gmail_gaia_old_decline', JSON.stringify({ isComm: false, searchQuery: '', source: 'ai' }));
+    let aiCalls = 0;
+    window.fetch = async (url) => {
+      if (String(url).includes('/ai-assist')) {
+        aiCalls++;
+        return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'subject:reservation' }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ threads: [] }) };
+    };
+    await _gmailEnrichTask('gmail_gaia_old_decline', 'email to gaia for reservation');
+    return { aiCalls, cached: JSON.parse(localStorage.getItem('gmail_classify_gmail_gaia_old_decline')) };
+  });
+  assert(cachedDecline.aiCalls === 1 && cachedDecline.cached?.isComm === true,
+    'an older cached AI false negative is reclassified for explicit email intent', cachedDecline);
+
+  const gmailError = await page.evaluate(async () => {
+    let gmailCalls = 0;
+    window.fetch = async (url) => {
+      if (String(url).includes('/ai-assist'))
+        return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'subject:reservation' }) };
+      gmailCalls++;
+      return { ok: false, status: 403 };
+    };
+    await _gmailEnrichTask('gmail_gaia_403', 'email to gaia for reservation');
+    return { gmailCalls, diagnostic: Today.use('gmail').observationAudit().entries.at(-1) };
+  });
+  assert(gmailError.gmailCalls === 1 && gmailError.diagnostic?.status === 'http-403'
+      && gmailError.diagnostic.attempts.length === 1,
+    'Gmail API failure is diagnosed and never mistaken for a no-match retry', gmailError);
+
+  const focusRetry = await page.evaluate(() => {
+    window.fetch = async (url) => {
+      const request = String(url);
+      if (request.includes('/ai-assist'))
+        return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'subject:too-narrow' }) };
+      if (request.includes('/threads?q=')) {
+        const query = new URL(request).searchParams.get('q');
+        return { ok: true, status: 200, json: async () => ({ threads: query === '{from:gaia to:gaia} reservation' ? [{ id: 'focus-gaia' }] : [] }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ messages: [{ payload: { headers: [
+        { name: 'Subject', value: 'Reservation' }, { name: 'From', value: 'Gaia <gaia@example.com>' },
+      ] }, snippet: 'Reservation confirmed' }] }) };
+    };
+    _gmailRenderFocusBlock('gmail_gaia_focus', 'email to gaia for reservation');
+    return !!document.getElementById('focusGmailBlock');
+  });
+  assert(focusRetry, 'focus Gmail block exists for an on-demand no-match retry');
+  await page.waitForFunction(() => !!document.querySelector('#focusGmailBlock .focus-gmail-thread'));
+  const focusResult = await page.evaluate(() => ({
+    threadId: JSON.parse(localStorage.getItem('gmail_enrichment_gmail_gaia_focus'))?.threadId,
+    diagnostic: Today.use('gmail').observationAudit().entries.at(-1),
+  }));
+  assert(focusResult.threadId === 'focus-gaia' && focusResult.diagnostic?.status === 'found',
+    'focus on-demand enrichment uses the same safe retry path', focusResult);
+
   const cache = await page.evaluate(async () => {
     localStorage.setItem('gmail_classify_gmail_cached', JSON.stringify({ isComm: true, searchQuery: '"renewal" in:sent', source: 'ai' }));
     const calls = [];
@@ -114,8 +246,9 @@ try {
     await _gmailEnrichTask('gmail_cached', 'Follow up on renewal');
     return calls;
   });
-  assert(cache.length === 1 && cache[0].includes('gmail.googleapis.com') && !cache[0].includes('/ai-assist'),
-    'topic-operator classifications remain valid cache entries', cache);
+  assert(cache.length === 2 && cache.every(url => url.includes('gmail.googleapis.com'))
+      && new URL(cache[1]).searchParams.get('q') === 'subject:renewal',
+    'cached AI classifications remain valid, with a topic-safe no-match retry', cache);
 
   const legacy = await page.evaluate(async () => {
     // Written before v2.90.52, when the classifier never reached the AI.
@@ -152,6 +285,19 @@ try {
   });
   assert(indicator?.label === 'Email context available — start a focus session' && indicator.beforeTail,
     'email indicator is named and remains attached before the task tail', indicator);
+
+  const diagnostics = await page.evaluate(async () => {
+    window.fetch = async () => ({ ok: true, status: 200, json: async () => ({ isComm: false, searchQuery: '' }) });
+    for (let i = 0; i < 22; i++) await _gmailEnrichTask('gmail_diagnostic_' + i, 'Call aunt');
+    const before = Today.use('gmail').observationAudit();
+    gmailDisconnect();
+    return { schema: before.schema, count: before.entries.length,
+      firstTask: before.entries[0]?.taskId, lastTask: before.entries.at(-1)?.taskId,
+      cleared: localStorage.getItem('gmail_diagnostics_v1') === null };
+  });
+  assert(diagnostics.schema === 1 && diagnostics.count === 20
+      && diagnostics.lastTask === 'gmail_diagnostic_21' && diagnostics.cleared,
+    'local Gmail diagnostic is bounded and cleared with the connection', diagnostics);
 
   console.log(`\nGmail tests passed (${passed} checks).`);
 } finally {

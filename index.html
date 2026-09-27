@@ -412,11 +412,10 @@
       pointer-events: auto;
     }
     .focus-ai-timer-btn:hover { opacity: 1; color: var(--text); border-color: var(--border); }
-    /* High-signal: 3+ task-specific context signals converged — worth asking */
-    .focus-ai-timer-btn.high-signal {
-      opacity: 1; color: var(--accent); border-color: var(--accent);
-    }
-    .focus-ai-timer-btn.high-signal:hover { color: var(--accent); border-color: var(--accent); }
+    /* High-signal: this task is stuck or keeps returning — a hint, not a call to action.
+       Accent text only, just above the resting label; the border appears on hover. */
+    .focus-ai-timer-btn.high-signal { opacity: 0.8; color: var(--accent); }
+    .focus-ai-timer-btn.high-signal:hover { opacity: 1; border-color: var(--accent-glow); }
     /* Hide when paused text is showing (they share the left position) */
     #focusPaused.show ~ .focus-ai-timer-btn { opacity: 0; pointer-events: none; }
     /* Hide when session is complete — bar turns into restart prompt */
@@ -1372,8 +1371,8 @@
   .zone-list .task {
     opacity: var(--opacity-soft);
   }
-  .zone-list .task:hover {
-    opacity: var(--opacity-hover);
+  @media (hover: hover) {
+    .zone-list .task:hover { opacity: var(--opacity-hover); }
   }
   /* PAST check icon — matches task-check dimensions */
   #pastList .task-check.past-check {
@@ -1393,9 +1392,9 @@
   #pastList .task.aged {
     opacity: var(--opacity-label);
   }
-  #pastList .task.let-go:hover,
-  #pastList .task.aged:hover {
-    opacity: var(--opacity-hover);
+  @media (hover: hover) {
+    #pastList .task.let-go:hover,
+    #pastList .task.aged:hover { opacity: var(--opacity-hover); }
   }
   .task .zone-badge {
     font-size: var(--text-xs);
@@ -1415,8 +1414,8 @@
     background: none;
     transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
   }
-  .zone-list .task:hover .zone-badge.pull-btn {
-    opacity: 1;
+  @media (hover: hover) {
+    .zone-list .task:hover .zone-badge.pull-btn { opacity: 1; }
   }
   .zone-list .task:focus-within .zone-badge.pull-btn { opacity: 1; }
   .task .zone-badge.pull-btn:hover {
@@ -1973,9 +1972,13 @@
     will-change: transform, opacity;
   }
 
-  .task:hover {
-    background: var(--surface);
-    border-color: var(--border);
+  /* Guarded: on touch, :hover sticks to whichever row is last hit-tested under the
+     finger — after a drag reorder that is often a neighbour, left painted. */
+  @media (hover: hover) {
+    .task:hover {
+      background: var(--surface);
+      border-color: var(--border);
+    }
   }
   .task:focus-visible,
   .habit:focus-visible {
@@ -2212,8 +2215,10 @@
     align-self: center;
   }
 
-  .task:hover .task-delete { opacity: 1; }
-  .task-delete:hover { color: var(--danger); }
+  @media (hover: hover) {
+    .task:hover .task-delete { opacity: 1; }
+    .task-delete:hover { color: var(--danger); }
+  }
   .clear-input-btn:hover, .clear-input-btn:active { color: var(--danger); }
   /* ── Component: Dev Hours Tracker ──────────────────────────────────────── */
   .dev-hours {
@@ -2320,9 +2325,11 @@
 
   /* ── Drag-to-reorder — row-level cue, no extra element ── */
   /* Grab cursor + subtle left accent line on hover for all draggable rows */
-  #manualList .task:not(.done):hover,
-  #trelloList .task:hover,
-  #habitList .habit:hover  { cursor: grab; }
+  @media (hover: hover) {
+    #manualList .task:not(.done):hover,
+    #trelloList .task:hover,
+    #habitList .habit:hover  { cursor: grab; }
+  }
 
   /* In focus mode: focused task gets default cursor (drag disabled, text selectable) */
   .focusing .task.focused,
@@ -2337,9 +2344,13 @@
     background: var(--border);
     opacity: 0; transition: opacity var(--dur-fast);
   }
-  #manualList .task:not(.done):hover::before,
-  #trelloList .task:hover::before,
-  #habitList .habit:hover::before { opacity: 1; }
+  /* Pointer-only: on touch this line stuck to the row left under the finger after a
+     drag reorder, reading as a second selected task. */
+  @media (hover: hover) {
+    #manualList .task:not(.done):hover::before,
+    #trelloList .task:hover::before,
+    #habitList .habit:hover::before { opacity: 1; }
+  }
 
   .task { position: relative; }
   .habit { position: relative; }
@@ -3744,7 +3755,9 @@
     pointer-events: none;
     white-space: nowrap;
   }
-  .task:hover .session-count.has-sessions { opacity: var(--opacity-soft); }  /* 0.60 */
+  @media (hover: hover) {
+    .task:hover .session-count.has-sessions { opacity: var(--opacity-soft); }  /* 0.60 */
+  }
   .task.done  .session-count.has-sessions { opacity: var(--opacity-dim); }
 
   .panel-haiku {
@@ -3813,11 +3826,15 @@
     transition: background var(--dur-fast), border-color var(--dur-fast);
   }
   .habit-new { animation: fadeIn var(--dur-slow) var(--ease-std); }
-  .habit:hover { background: var(--surface2); border-color: var(--border); }
+  @media (hover: hover) {
+    .habit:hover { background: var(--surface2); border-color: var(--border); }
+  }
 
   /* Edit mode: persistent surface on each row so editable state is obvious */
   .habit.editing { background: var(--surface2); border-color: transparent; }
-  .habit.editing:hover { background: var(--surface2); border-color: var(--border); }
+  @media (hover: hover) {
+    .habit.editing:hover { background: var(--surface2); border-color: var(--border); }
+  }
   .habit.editing .habit-check { visibility: hidden; }
 
   .habit-check {
@@ -4622,9 +4639,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.92.5': 'Email tasks search the named person and topic more reliably. Focus questions draw on this task’s history, and touch reordering no longer leaves a stuck hover cue.',
   '2.92.4': 'Dream readings are shorter and sharper: they start from the one detail that stands out and end with a question you can carry into the day.',
   '2.92.3': 'The mobile header now uses a solid background instead of a frosted layer behind the logo and buttons.',
-  '2.92.2': 'The three buttons beside the TODAY logo no longer show a raised shadow in the mobile app.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

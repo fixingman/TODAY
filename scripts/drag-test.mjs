@@ -480,6 +480,29 @@ try {
     ok('module loads, starts once, owns both controllers, and is SW-precached');
   }
 
+  // Touch has no real hover: a :hover rule sticks to whichever row the browser last
+  // hit-tested under the finger. After a drag reorder that is often a neighbour, which
+  // stays painted as if selected. Every row :hover rule must sit inside (hover: hover).
+  const unguardedRowHover = await page.evaluate(() => {
+    const out = [];
+    const walk = (rules, guarded) => {
+      for (const r of rules) {
+        if (r instanceof CSSMediaRule) walk(r.cssRules, guarded || /\(hover:\s*hover\)/.test(r.conditionText));
+        else if (r instanceof CSSStyleRule && !guarded) {
+          for (const sel of r.selectorText.split(',')) {
+            if (/\.(task|habit)(?![\w-])[^\s]*:hover/.test(sel) && !/(^|\s)\.focusing\b/.test(sel)) out.push(sel.trim());
+          }
+        }
+      }
+    };
+    for (const sheet of document.styleSheets) {
+      try { walk(sheet.cssRules, false); } catch (_) {}
+    }
+    return out;
+  });
+  if (unguardedRowHover.length) await fail('row :hover rules outside @media (hover: hover) stick on touch after a drag', unguardedRowHover);
+  ok('every task/habit row :hover rule is guarded by (hover: hover)');
+
   if (pageErrors.length) await fail('uncaught browser errors', pageErrors);
   ok('no uncaught browser errors');
 } finally {

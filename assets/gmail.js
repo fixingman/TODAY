@@ -11,6 +11,28 @@
     const GMAIL_AUTH_URL  = 'https://accounts.google.com/o/oauth2/v2/auth';
     const GMAIL_API_BASE  = 'https://gmail.googleapis.com/gmail/v1/users/me';
     const GMAIL_SCOPE     = 'https://www.googleapis.com/auth/gmail.readonly';
+    const GMAIL_DIAGNOSTICS_KEY = 'gmail_diagnostics_v1';
+    const GMAIL_OPERATOR_RE = /\b(?:from:|to:|subject:|label:|in:|after:|before:|newer:|older:|is:|has:|filename:)/;
+
+    // Local, bounded and deliberately content-free: a deleted task can still be
+    // diagnosed without retaining its text, Gmail query, message or credentials.
+    function _gmailNote(taskId, status, source, attempts, reason) {
+      try {
+        const previous = JSON.parse(localStorage.getItem(GMAIL_DIAGNOSTICS_KEY) || '[]');
+        const entries = Array.isArray(previous) ? previous : [];
+        entries.push({ taskId, status, source: source || null, reason: reason || null, attempts: attempts || [], at: Date.now() });
+        localStorage.setItem(GMAIL_DIAGNOSTICS_KEY, JSON.stringify(entries.slice(-20)));
+      } catch(e) {}
+    }
+
+    function _gmailObservationAudit() {
+      let entries = [];
+      try {
+        const stored = JSON.parse(localStorage.getItem(GMAIL_DIAGNOSTICS_KEY) || '[]');
+        if (Array.isArray(stored)) entries = stored;
+      } catch(e) {}
+      return { schema: 1, capturedAt: new Date().toISOString(), entries };
+    }
 
     // ── Stored values ─────────────────────────────────────────────────────────
     let _cachedClientId = null;
@@ -156,6 +178,7 @@
       Object.keys(localStorage)
         .filter(k => k.startsWith('gmail_enrichment_') || k.startsWith('gmail_classify_'))
         .forEach(k => localStorage.removeItem(k));
+      localStorage.removeItem(GMAIL_DIAGNOSTICS_KEY);
       document.querySelectorAll('.gmail-indicator').forEach(el => el.remove());
       Today.use('connections').renderConnections();
       showStatus('Gmail disconnected.', 'success');
@@ -166,19 +189,22 @@
       if (retry === undefined) retry = true;
       if (_isExpired()) {
         const ok = await _gmailRefreshTokens();
-        if (!ok) return null;
+        if (!ok) return { data: null, status: 'auth-refresh-failed' };
       }
-      const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + _accessToken() } });
+      let res;
+      try { res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + _accessToken() } }); }
+      catch(e) { return { data: null, status: 'network-error' }; }
       if (res.status === 401 && retry) {
         const ok = await _gmailRefreshTokens();
-        if (!ok) return null;
+        if (!ok) return { data: null, status: 'auth-refresh-failed' };
         return _gmailFetch(url, false);
       }
-      if (!res.ok) return null;
-      return res.json();
+      if (!res.ok) return { data: null, status: 'http-' + res.status };
+      try { return { data: await res.json(), status: 'ok' }; }
+      catch(e) { return { data: null, status: 'invalid-json' }; }
     }
 
-    // Regex fallback for when AI classification is unavailable.
+    // Conservative query for AI failure, false negatives and no-match retries.
     function _buildQueryFallback(taskText) {
       const text = String(taskText || '').replace(/\s+/g, ' ').trim();
       if (!text) return '';
@@ -197,14 +223,21 @@
         if (topic) return sent ? (quote(topic) + ' in:sent') : ('subject:' + quote(topic));
       }
 
-      // Explicit addressee forms are safe to express as from:/to:. Stop before
-      // an "about …" subject so it does not become part of the contact name.
-      const personMatch = text.match(/\b(?:reply|respond|answer|write|get\s+back)\s+to\s+(.+?)(?=\s+(?:about|regarding|on)\b|$)/i)
+      // Explicit addressee forms are safe to express as from:/to:. "For …"
+      // introduces a topic after an explicit "to"/"with" recipient; without
+      // that cue it can be part of an organisation's name ("Center for …").
+      const personMatch = text.match(/\b(?:email|reply|respond|answer|write|get\s+back|call|contact|message|ping)\s+to\s+(.+?)(?=\s+for\b)/i)
+        || text.match(/\bfollow[\s-]?up\s+with\s+(.+?)(?=\s+for\b)/i)
+        || text.match(/\b(?:reply|respond|answer|write|get\s+back)\s+to\s+(.+?)(?=\s+(?:about|regarding|on)\b|$)/i)
         || text.match(/\bfollow[\s-]?up\s+with\s+(.+?)(?=\s+(?:about|regarding|on)\b|$)/i)
         || text.match(/\b(?:email|call|contact|message|ping)\s+(?:to\s+)?(.+?)(?=\s+(?:about|regarding|on)\b|$)/i)
         || text.match(/\breach\s+out\s+to\s+(.+?)(?=\s+(?:about|regarding|on)\b|$)/i);
       if (personMatch && personMatch[1].trim()) {
         const q = quote(personMatch[1].trim());
+        const rest = text.slice(personMatch.index + personMatch[0].length);
+        const topicMatch = rest.match(/^\s+(?:about|regarding|on|for)\s+(.+)$/i);
+        const topic = topicMatch?.[1].replace(/^the\s+/i, '').trim();
+        if (topic) return '{from:' + q + ' to:' + q + '} ' + quote(topic);
         return 'from:' + q + ' OR to:' + q;
       }
 
@@ -219,10 +252,11 @@
 
     // AI-backed classification — returns { isComm, searchQuery }.
     // Fast verb pre-filter avoids the AI call for clearly non-comm tasks.
-    // Falls back to regex silently if AI is unavailable or returns bad output.
+    // Falls back to the conservative query when AI is unavailable or invalid;
+    // _gmailFindThread records the outcome without retaining email content.
     async function _classifyTask(taskId, taskText) {
       const hasVerb = /\b(reply|email|answer|call|contact|follow[\s-]?up|message|write to|respond|ping|reach out|get back to|answer to|send)\b/i.test(taskText);
-      if (!hasVerb) return { isComm: false, searchQuery: '' };
+      if (!hasVerb) return { isComm: false, searchQuery: '', source: 'pre-filter' };
 
       try {
         const raw = localStorage.getItem('gmail_classify_' + taskId);
@@ -230,16 +264,21 @@
           const hit = JSON.parse(raw);
           // Invalidate old-format cache entries (plain name, no from:/to: operators)
           // so existing wrong matches get re-queried with the correct Gmail operators.
-          const hasOp = !hit.searchQuery || /\b(from:|to:|subject:|label:|in:|after:|before:|newer:|older:|is:|has:|filename:)/.test(hit.searchQuery);
+          const hasOp = !hit.searchQuery || GMAIL_OPERATOR_RE.test(hit.searchQuery);
           // Before v2.90.52 the classifier never reached the AI (stale global guard) and
           // cached its regex fallback; only AI-sourced entries are trusted.
-          if (typeof hit.isComm === 'boolean' && hasOp && hit.source === 'ai') return hit;
-          // Old format detected — clear both classify and enrichment caches
+          if (typeof hit.isComm === 'boolean' && hasOp && hit.source === 'ai') {
+            // Old AI false negatives must not suppress an explicit email task
+            // forever; reclassify under the clarified prompt below.
+            if (hit.isComm || !/^\s*(?:email|reply|respond|write\s+to)\b/i.test(taskText)) return hit;
+          }
+          // Old format or explicit-email false negative — retry classification.
           try { localStorage.removeItem('gmail_classify_' + taskId); } catch(e) {}
           try { localStorage.removeItem('gmail_enrichment_' + taskId); } catch(e) {}
         }
       } catch(e) {}
 
+      let failure = 'ai-unavailable';
       try {
         const connections = Today.use('connections');
         const provider = connections._aiGetProvider();
@@ -250,50 +289,64 @@
           body: JSON.stringify({
             provider,
             apiKey,
-            systemPrompt: 'Return ONLY valid JSON: {"isComm":true,"searchQuery":"gmail_query"}. isComm=true when the task involves contacting, replying, or following up by email. Build the query from what the task actually names. Person-targeted: use from:/to: plus subject terms when useful. Topic-targeted: use subject:, quoted keywords, in:sent, and date operators such as after: when useful; never invent a person. Include at least one Gmail operator. If no useful email search is possible, set isComm=false and searchQuery to "".',
+            systemPrompt: 'Return ONLY valid JSON: {"isComm":true,"searchQuery":"gmail_query"}. isComm=true when the task explicitly says email, or involves contacting, replying, or following up by email. Build the query from what the task actually names. In "email to NAME for TOPIC", NAME is the correspondent and TOPIC is the subject matter; never include "for TOPIC" in the contact name. Person-targeted: use from:/to: plus topic terms when useful. Topic-targeted: use subject:, quoted keywords, in:sent, and date operators such as after: when useful; never invent a person. Include at least one Gmail operator. If no useful email search is possible, set isComm=false and searchQuery to "".',
             messages:     [{ role: 'user', content: taskText }],
           }),
         });
         if (res.ok) {
           const data = await res.json();
           if (typeof data.isComm === 'boolean' && typeof data.searchQuery === 'string') {
+            const fallback = _buildQueryFallback(taskText);
+            // An explicit email task should not silently vanish because the AI
+            // declined it or supplied a blank query.
+            if ((!data.isComm || !data.searchQuery.trim()) && /^\s*(?:email|reply|respond|write\s+to)\b/i.test(taskText) && fallback) {
+              return { isComm: true, searchQuery: fallback, source: 'fallback', failure: 'ai-declined-email' };
+            }
+            if (data.isComm && !GMAIL_OPERATOR_RE.test(data.searchQuery)) {
+              return { isComm: true, searchQuery: fallback, source: 'fallback', failure: 'ai-invalid-query' };
+            }
             const hit = { isComm: data.isComm, searchQuery: data.searchQuery, source: 'ai' };
             try { localStorage.setItem('gmail_classify_' + taskId, JSON.stringify(hit)); } catch(e) {}
             return hit;
           }
+          failure = 'ai-invalid-response';
+        } else {
+          failure = 'ai-http-' + res.status;
         }
-      } catch(e) {}
+      } catch(e) { failure = 'ai-network-or-parse'; }
 
       // Not cached: a failed classification should be retried, not kept.
-      return { isComm: true, searchQuery: _buildQueryFallback(taskText) };
+      return { isComm: true, searchQuery: _buildQueryFallback(taskText), source: 'fallback', failure };
     }
 
     async function _gmailSearch(searchQuery) {
-      if (!searchQuery || searchQuery.length < 2) return null;
+      if (!searchQuery || searchQuery.length < 2) return { result: null, status: 'no-query' };
 
-      const listData = await _gmailFetch(
+      const list = await _gmailFetch(
         GMAIL_API_BASE + '/threads?q=' + encodeURIComponent(searchQuery) + '&maxResults=1'
       );
-      if (!listData || !listData.threads || !listData.threads.length) return null;
+      if (!list.data) return { result: null, status: list.status };
+      if (!list.data.threads || !list.data.threads.length) return { result: null, status: 'no-thread' };
 
-      const threadId   = listData.threads[0].id;
-      const threadData = await _gmailFetch(
+      const threadId = list.data.threads[0].id;
+      const thread = await _gmailFetch(
         GMAIL_API_BASE + '/threads/' + threadId
           + '?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date'
       );
-      if (!threadData || !threadData.messages || !threadData.messages.length) return null;
+      if (!thread.data) return { result: null, status: thread.status };
+      if (!thread.data.messages || !thread.data.messages.length) return { result: null, status: 'no-messages' };
 
-      const lastMsg = threadData.messages[threadData.messages.length - 1];
+      const lastMsg = thread.data.messages[thread.data.messages.length - 1];
       const headers = (lastMsg.payload && lastMsg.payload.headers) || [];
       const hdr = (name) => (headers.find(h => h.name.toLowerCase() === name.toLowerCase()) || {}).value || '';
 
-      return {
+      return { status: 'found', result: {
         threadId,
         subject: hdr('Subject'),
         from:    hdr('From'),
         date:    hdr('Date'),
         snippet: lastMsg.snippet || '',
-      };
+      } };
     }
 
     // ── Enrichment ─────────────────────────────────────────────────────────────
@@ -304,20 +357,49 @@
       } catch(e) { return null; }
     }
 
+    async function _gmailFindThread(taskId, taskText) {
+      const classification = await _classifyTask(taskId, taskText);
+      if (!classification.isComm) {
+        if (classification.source !== 'pre-filter') _gmailNote(taskId, 'not-communication', classification.source, []);
+        return null;
+      }
+
+      const attempts = [];
+      let searchQuery = classification.searchQuery;
+      let searched = await _gmailSearch(searchQuery);
+      attempts.push({ path: classification.source === 'fallback' ? 'fallback' : 'ai', status: searched.status });
+
+      // A syntactically valid AI query can still be too narrow. Only retry a
+      // genuine no-match, never an auth/network/API failure; the fallback keeps
+      // the named person and topic rather than broadening to an unrelated thread.
+      if (!searched.result && (searched.status === 'no-thread' || searched.status === 'no-query') && classification.source === 'ai') {
+        const fallback = _buildQueryFallback(taskText);
+        if (fallback && fallback !== searchQuery) {
+          searchQuery = fallback;
+          searched = await _gmailSearch(searchQuery);
+          attempts.push({ path: 'fallback', status: searched.status });
+        }
+      }
+
+      _gmailNote(taskId, searched.result ? 'found' : searched.status, classification.source, attempts, classification.failure);
+      return searched.result ? { result: searched.result, searchQuery } : null;
+    }
+
     async function _gmailEnrichTask(taskId, taskText) {
-      if (!_gmailIsConnected()) return;
+      if (!_gmailIsConnected()) {
+        if (/\b(?:email|reply|respond|follow[\s-]?up|write\s+to|message)\b/i.test(taskText))
+          _gmailNote(taskId, 'gmail-disconnected', null, []);
+        return;
+      }
 
       const cached = _getEnrichment(taskId);
       if (cached && (Date.now() - cached.fetchedAt) < 86400000) return;
 
-      const { isComm, searchQuery } = await _classifyTask(taskId, taskText);
-      if (!isComm) return;
-
-      const result = await _gmailSearch(searchQuery);
-      if (!result) return;
+      const found = await _gmailFindThread(taskId, taskText);
+      if (!found) return;
 
       localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify({
-        ...result, taskText, searchQuery, fetchedAt: Date.now(),
+        ...found.result, taskText, searchQuery: found.searchQuery, fetchedAt: Date.now(),
       }));
       _gmailUpdateIndicator(taskId, true);
     }
@@ -403,17 +485,14 @@
       block.innerHTML = '';
       block.dataset.focusTaskId = taskId;
       const requestTaskId = taskId;
-      _classifyTask(taskId, taskText).then(function(classification) {
-        if (!classification.isComm) return;
-        return _gmailSearch(classification.searchQuery).then(function(result) {
-          if (!result) return;
-          const data = Object.assign({}, result, { taskText, searchQuery: classification.searchQuery, fetchedAt: Date.now() });
-          try { localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify(data)); } catch(e) {}
-          _gmailUpdateIndicator(taskId, true);
-          const b = document.getElementById('focusGmailBlock');
-          // Guard: abort if user switched to a different task while we were fetching
-          if (b && b.dataset.focusTaskId === requestTaskId) _doRenderBlock(b, taskText, data);
-        });
+      _gmailFindThread(taskId, taskText).then(function(found) {
+        if (!found) return;
+        const data = Object.assign({}, found.result, { taskText, searchQuery: found.searchQuery, fetchedAt: Date.now() });
+        try { localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify(data)); } catch(e) {}
+        _gmailUpdateIndicator(taskId, true);
+        const b = document.getElementById('focusGmailBlock');
+        // Guard: abort if user switched to a different task while we were fetching
+        if (b && b.dataset.focusTaskId === requestTaskId) _doRenderBlock(b, taskText, data);
       });
     }
 
@@ -510,5 +589,6 @@
     window._gmailRestoreAllIndicators   = _gmailRestoreAllIndicators;
     window._gmailUpdateIndicator        = _gmailUpdateIndicator;
     window._gmailBuildQueryFallback     = _buildQueryFallback;
+    Today.define('gmail', { observationAudit: _gmailObservationAudit });
   };
 })();

@@ -664,7 +664,56 @@ try {
       await page.close();
     }
 
-    console.log('\nFocus tests passed (post-extraction, 17 checks).');
+    // 18. Ask highlight and context: a routine task already worked on today stays
+    //     quiet; a task that was let go, revived and pulled back from Soon is hinted.
+    //     The context sent to the model names those facts truthfully and the prompt
+    //     is principles, not a lookup table.
+    {
+      const D = 86400000, now = Date.now();
+      const seedFor = task => ({
+        today_manual: JSON.stringify([task]),
+        today_ai_key_claude: 'test-key',
+      });
+      const signalFor = async task => {
+        const { page, errors } = await openPage({ extraSeed: seedFor(task) });
+        await page.click('.task-text');
+        await page.waitForFunction(() => document.querySelector('.focus-timer.open') !== null, { timeout: 3000 });
+        const lit = await page.evaluate(() => document.querySelector('.focus-ai-timer-btn')?.classList.contains('high-signal'));
+        return { page, errors, lit };
+      };
+
+      const routine = await signalFor({ id: 'manual_' + (now - 9 * D), text: 'Draft the quarterly letter', focusSessions: 2, lastActive: now - 3600000 });
+      await routine.page.close();
+
+      const stuck = await signalFor({ id: 'manual_' + (now - 9 * D), text: 'Book the blood test', focusSessions: 0, revived: 1, returnedFrom: 'soon', zoneChangedAt: new Date(now - D).toISOString() });
+      const sent = await stuck.page.evaluate(async () => {
+        let body = null;
+        const orig = window.fetch;
+        window.fetch = async (url, opts) => {
+          if (String(url).includes('ai-assist')) { body = JSON.parse(opts.body); return { ok: true, json: async () => ({ message: 'Which clinic, and which slot this week?' }) }; }
+          return orig(url, opts);
+        };
+        document.querySelector('.focus-ai-timer-btn').click();
+        for (let i = 0; i < 50 && !body; i++) await new Promise(r => setTimeout(r, 20));
+        return body;
+      });
+      const msg = sent?.messages?.[0]?.content || '';
+      const sys = sent?.systemPrompt || '';
+      await expectAll('ask highlight and context', {
+        routineQuiet:       routine.lit === false,
+        stuckHinted:        stuck.lit === true,
+        revivedNamed:       msg.includes('once let go, then brought back'),
+        soonNamed:          msg.includes('put off to Soon'),
+        ageFromCreation:    msg.includes('on the list 9 days'),
+        freshTaskNamed:     msg.includes('never focused on before'),
+        noLookupTable:      !sys.includes('Use the context to choose') && sys.includes('A question that would fit any task is a failure'),
+        noErrors:           !routine.errors.length && !stuck.errors.length,
+      });
+      ok('focus ask: highlight only for stuck/returning tasks; truthful history context; principle-based prompt');
+      await stuck.page.close();
+    }
+
+    console.log('\nFocus tests passed (post-extraction, 18 checks).');
   }
 } finally {
   if (browser) await browser.close();
