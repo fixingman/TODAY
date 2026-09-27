@@ -3172,6 +3172,15 @@
       padding-bottom: var(--space-3);
     }
 
+    /* A solid mobile header keeps its content off the backdrop-filter compositor
+       layer. The 92%-opaque glass looks nearly identical against the page, but
+       iOS can soften the logo and icon borders while rasterizing that layer. */
+    .sticky-header {
+      background: var(--bg);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+
     /* Subheader: progress bar is the visual cut-off — no extra gap below */
     .subheader { margin-bottom: 0; }
     .subheader-track { margin-bottom: 0; }
@@ -4606,16 +4615,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '336h';
+const DEV_HOURS     = '337h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.92.3': 'The mobile header now uses a solid background instead of a frosted layer behind the logo and buttons.',
   '2.92.2': 'The three buttons beside the TODAY logo no longer show a raised shadow in the mobile app.',
   '2.92.1': 'AI-written text is no longer cut off at 200 characters, so dream readings, email drafts, and weekly reflections arrive whole. Work described as a bad dream is no longer read as a dream.',
-  '2.92.0': 'Tell the mic a dream when you wake up and TODAY gives you a short, gentle reading of it instead of tasks. Copy it if you want to keep it; nothing is saved.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

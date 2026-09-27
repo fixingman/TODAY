@@ -72,7 +72,7 @@
 |---|---|---|
 | `--color-done-line` | `rgba(107,107,120,0.55)` | Strikethrough on done tasks |
 | `--color-muted-dim` | `rgba(107,107,120,0.12)` | Muted bg tint (external error badge) |
-| `--color-bg-glass` | `rgba(14,14,16,0.92)` | Sticky header frosted bg |
+| `--color-bg-glass` | `rgba(14,14,16,0.92)` | Desktop sticky header and desktop add-bar frosted bg; mobile header uses solid `--bg` |
 | `--color-overlay` | `rgba(0,0,0,0.6)` | Modal backdrop |
 | `--color-breathe` | `rgba(22,26,20,0.88)` | Focus breathe overlay (rest) |
 | `--color-breathe-active` | `rgba(28,34,24,0.92)` | Focus breathe overlay (active) |

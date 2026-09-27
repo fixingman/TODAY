@@ -55,6 +55,9 @@ URL and retains its JSON for 30 days. Run
   clock drift, viewport drift, larger visual differences, or uncaught page errors fail the test.
 - The triage scene waits until its sheet entrance and content reveal finish, then captures the
   full review. `triage-test.mjs` also checks token-based header-to-card alignment at 1200px and 390px.
+- `platform-test.mjs` checks the mobile header's solid background/no-backdrop CSS contract alongside
+  the three icon controls' custom appearance. Chromium cannot validate the iPhone PWA's compositor,
+  so the real-device halo check remains in `Bugs.md`.
 - `npm run visual:update --prefix scripts` deliberately replaces the baselines after a reviewed
   design change; it is never run by CI.
 

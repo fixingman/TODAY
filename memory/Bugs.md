@@ -77,9 +77,11 @@
 
 **Symptom:** On Can's iPhone screenshot, the three controls beside the TODAY logo show a soft raised edge/shadow absent from the intended flat design.
 
-**Working cause / fix prepared (v2.92.2):** The custom `.btn-icon` background and border had no authored shadow, but the controls retained native `appearance: auto`. They now explicitly disable native appearance and box shadow. The header gradient is below the controls and was left unchanged. Chromium's standalone CSS contract test fails before the change and passes after it; Chromium cannot reproduce the iPhone's native paint.
+**First hypothesis failed (v2.92.2):** The custom `.btn-icon` background and border had no authored shadow, but the controls retained native `appearance: auto`. Explicitly disabling native appearance and box shadow passed the CSS contract test, yet Can still saw the halo on the physical iPhone PWA at v2.92.2. Native button chrome was not the whole cause.
 
-**Verification:** On an updated iPhone PWA, compare the three buttons at first open and after scrolling. Their flat border should remain, without the raised halo. If it persists, capture the same crop and revisit the header's WebKit compositing instead of changing unrelated layers.
+**Second hypothesis prepared (v2.92.3):** The sticky header's translucent backdrop filter puts the logo and three buttons in a shared compositor layer. Mobile width now uses a solid `--bg` header with no backdrop filter, leaving desktop glass and header geometry unchanged. The mobile CSS contract test fails before this change and passes after; real-device verification is still required.
+
+**Verification:** On an updated iPhone PWA, compare the three buttons at first open and after scrolling. Their flat border should remain, without the raised halo. If it persists, avoid a third blind CSS tweak and inspect the live WebKit layers/computed styles on that device.
 
 ---
 

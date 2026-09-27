@@ -209,7 +209,8 @@ Appears below focused task, replaces task row bottom area.
 
 - Logo: `--font-display`, `--accent`
 - Progress bar: accent fill (flow rate)
-- Icons: habits, connections, About. Their button fill, border, size and focus treatment are app-owned; `appearance: none` and `box-shadow: none` prevent native mobile PWA chrome from adding a raised halo.
+- Icons: habits, connections, About. Their button fill, border, size and focus treatment are app-owned; `appearance: none` and `box-shadow: none` suppress native control styling but did not by themselves resolve the iPhone halo report.
+- At ≤600px the sticky header is solid `--bg` without backdrop blur; desktop retains the frosted layer. This avoids compositing the mobile logo and controls through the shared backdrop layer while preserving the same spacing, safe-area handling and bottom fade.
 
 **Critical:** Must be BEFORE `.app` div in DOM.
 

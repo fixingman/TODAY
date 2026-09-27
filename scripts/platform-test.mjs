@@ -249,7 +249,8 @@ try {
 
   // Installed/standalone mode suppresses browser-specific promotion.
   {
-    const { page, errors } = await openPage({ userAgent: IOS_SAFARI, platform: 'iPhone', maxTouchPoints: 5, coarse: true, standalone: true });
+    const { page, errors } = await openPage({ userAgent: IOS_SAFARI, platform: 'iPhone', maxTouchPoints: 5, coarse: true, standalone: true,
+      viewport: { width: 375, height: 812 } });
     const suppressed = await page.evaluate(() =>
       getComputedStyle(document.getElementById('installBtn')).display === 'none'
       && getComputedStyle(document.getElementById('pwaInstallSection')).display === 'none');
@@ -263,6 +264,16 @@ try {
       }));
     if (headerButtons.some(button => button.appearance !== 'none' || button.shadow !== 'none')) {
       await fail('standalone header buttons retain native appearance or shadow', headerButtons);
+    }
+    const headerLayer = await page.evaluate(() => {
+      const header = getComputedStyle(document.getElementById('sticky-header'));
+      return { background: header.backgroundColor, pageBackground: getComputedStyle(document.body).backgroundColor,
+        backdrop: header.backdropFilter, webkitBackdrop: header.webkitBackdropFilter };
+    });
+    if (headerLayer.background !== headerLayer.pageBackground
+        || headerLayer.backdrop !== 'none'
+        || (headerLayer.webkitBackdrop && headerLayer.webkitBackdrop !== 'none')) {
+      await fail('mobile header still uses translucent backdrop compositing', headerLayer);
     }
     if (errors.length) await fail('uncaught errors in standalone mode', errors);
     ok('standalone mode suppresses install promotion and native header-button chrome');
