@@ -1374,17 +1374,6 @@
   @media (hover: hover) {
     .zone-list .task:hover { opacity: var(--opacity-hover); }
   }
-  /* PAST check icon — matches task-check dimensions */
-  #pastList .task-check.past-check {
-    border: none;
-    background: none;
-    cursor: default;
-  }
-  #pastList .past-icon {
-    font-size: var(--text-sm2);
-    color: var(--muted);
-    opacity: var(--opacity-soft);
-  }
   #pastList .task.done .task-text {
     text-decoration: line-through;
   }
@@ -4639,9 +4628,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.92.8': 'Past tasks no longer show a tick or circle beside them, and line up with Soon.',
   '2.92.7': 'The project page now tells TODAY’s story in a short loop: a day that ends, what didn’t happen let go, and the empty list as the reward.',
   '2.92.6': 'TODAY has a short film now: a 30-second look at a day that ends, on the project page.',
-  '2.92.5': 'Email tasks search the named person and topic more reliably. Focus questions draw on this task’s history, and touch reordering no longer leaves a stuck hover cue.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

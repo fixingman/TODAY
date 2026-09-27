@@ -193,7 +193,6 @@
 
       list.innerHTML = visible.map(t => {
         const statusClass = t.status ? t.status.replace('_', '-') : '';
-        const statusBadge = t.status === 'done' ? '✓' : t.status === 'let_go' ? '○' : '◌';
         const tagMatch = t.text.match(/^([a-z0-9]{1,12}):\s+(.+)$/i);
         const textHTML = tagMatch
           ? `<span class="task-tag">${esc(tagMatch[1].toLowerCase())}</span>${esc(tagMatch[2])}`
@@ -203,9 +202,6 @@
           : `<button class="zone-badge pull-btn" data-today-click="zones.revive-reason" data-task-id="${esc(t.id)}" aria-label="Move ${esc(t.text)} back to soon">&#x21a9;&#xFE0E; soon</button>`;
         return `
           <div class="task ${statusClass}" role="listitem" data-id="${t.id}">
-            <div class="task-check past-check" aria-hidden="true">
-              <span class="past-icon">${statusBadge}</span>
-            </div>
             <div class="task-body">
               <div class="task-text">${textHTML}</div>
             </div>
