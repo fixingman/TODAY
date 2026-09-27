@@ -36,3 +36,12 @@ cp "../../fonts/DM Mono/dm-mono-v16-latin-regular.woff2" assets/fonts/dm-mono-40
 cp "../../fonts/DM Mono/dm-mono-v16-latin-500.woff2"     assets/fonts/dm-mono-500.woff2
 cp ../audio/*.wav assets/audio/
 echo "  ✓ fonts, audio"
+
+# Stills for storyboard.html (the sketch sheet) — key moments, cropped to the column.
+mkdir -p .sketch
+for s in add-tasks:9 complete:5.5 focus:6 idle:9 triage:5.2 empty-evening:8.5; do
+  n=${s%%:*}; t=${s#*:}
+  ffmpeg -y -loglevel error -ss "$t" -i "$CAP/$n.mp4" -frames:v 1 -vf "crop=720:900:360:0,scale=576:-1" -q:v 3 ".sketch/$n.jpg"
+done
+ffmpeg -y -loglevel error -ss 9 -i "$CAP/poem.mp4" -frames:v 1 -vf "crop=720:900:20:0,scale=576:-1" -q:v 3 .sketch/poem.jpg
+echo "  ✓ .sketch/ stills"

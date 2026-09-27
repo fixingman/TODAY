@@ -13,7 +13,12 @@ Never deployed: every Netlify build runs `rm -rf video`.
   the app's own `playCompleteSound` / `playStartSound` / `playChime` from `assets/sound.js`.
   No third-party music.
 - `today-promo/` — the 32s promo. `BRIEF.md` (why), `STORYBOARD.md` (what, frame by frame),
-  `frame.md` (design tokens), `compositions/frames/` + `index.html` (the video).
+  `frame.md` (design tokens), `compositions/frames/` + `index.html` (the video),
+  `storyboard.html` (the sketch sheet; `prepare.sh` rebuilds its `.sketch/` stills).
+- `today-onboarding/` — the 79s walkthrough, same layout. Its bed is `audio/bed-80.wav`.
+
+The footage is the real app, so a UI change dates a scene: re-capture it (`--scene <name>`),
+re-run the project's `prepare.sh`, and re-render.
 
 Captures, audio, `assets/` and renders are gitignored; everything that makes them is committed.
 
@@ -22,15 +27,17 @@ Captures, audio, `assets/` and renders are gitignored; everything that makes the
 ```sh
 cd video && npm install
 npm run capture && npm run capture:mobile   # real-app footage (needs Google Chrome)
-npm run audio                               # bed + SFX
-sh today-promo/prepare.sh                   # trim/crop clips into today-promo/assets/
+npm run audio                               # beds (32s, 80s) + SFX
+sh today-promo/prepare.sh                   # trim/crop clips into today-promo/assets/ (same for today-onboarding)
 cd today-promo
 npx hyperframes preview --background        # Studio at http://localhost:3002
 npm run check                               # lint, layout, contrast
 npx hyperframes render --quality high --output renders/today-promo-16x9.mp4
 ```
 
-The published copy lives at `docs/media/today-promo.mp4` (README links it). The README GIF is
+The published copies live in `docs/media/` (README links them). The onboarding video is published as a
+web encode (`-c:v libx264 -preset slow -crf 26 -tune stillimage -c:a aac -b:a 128k -movflags +faststart`, ~3.4 MB).
+The promo's README GIF is
 the story in four beats — hook, check-offs, let go, reward + wordmark — joined by 0.5s fades:
 
 ```sh

@@ -36,6 +36,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend; user picks one provider. Full spec ↓ |
 | — | **WEEK companion** | Gated | Gate: 12c must feel like a companion, not a feature. Detail ↓ |
 | 2 | **Poem corpus — iterate** | In progress | Corpus 128; expand geography and voice. Detail ↓ |
+| — | **Videos (HyperFrames)** | Promo + onboarding shipped (v2.92.6–9) | Open: the 9:16 phone cut of the promo (re-run `capture.mjs --mobile` first — the phone clips predate the slow-motion capture and lag). Re-capture any scene whose UI changes: the footage is the real app, so a UI change dates it (v2.92.8's Past marks did). How-to: `video/README.md`. |
 
 ---
 
