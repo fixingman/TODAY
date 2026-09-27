@@ -15,7 +15,13 @@ ffmpeg) speaks five scripted clips — English dream, Turkish dream, dream plus 
 plain planning, figurative "bad dream" talk — through the real `meeting-extract` and
 `ai-assist` handlers and checks detection, task separation, language, and reading tone. Run it
 after any change to the dream or meeting prompts:
-`GEMINI_API_KEY=… ANTHROPIC_API_KEY=… node scripts/dream-live-test.mjs`. The runner verifies the test
+`GEMINI_API_KEY=… ANTHROPIC_API_KEY=… node scripts/dream-live-test.mjs`. Reading
+*quality* is measured separately by `scripts/dream-reading-eval.mjs` (not a `*-test`, so outside
+the gate): 12 retellings in similar-theme pairs, each reading scored by a Claude judge through the
+same `ai-assist` handler — swap accuracy (can the judge tell the reading's dream from its twin;
+~50% means interchangeable readings), specificity 1–5, usefulness 1–5, and quoted generic phrases.
+Position is alternated so judge bias cancels. `--prompt=file` scores a candidate against the
+current prompt; `--runs=N` and `--out=file` for comparisons. Compare prompts only on equal runs. The runner verifies the test
 inventory and the explicitly registered non-test check before execution. A check that passes
 only on its diagnostic retry is reported as flaky and fails the gate; each attempt is capped at
 120 seconds. Tooling requires Node >=22.12 and Puppeteer 25. The last dual-runtime assurance
