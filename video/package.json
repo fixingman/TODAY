@@ -1,0 +1,14 @@
+{
+  "name": "today-video",
+  "private": true,
+  "type": "module",
+  "description": "Dev-only video tooling for TODAY — never deployed, not part of the app",
+  "scripts": {
+    "capture": "node capture.mjs",
+    "capture:mobile": "node capture.mjs --mobile",
+    "audio": "node render-audio.mjs"
+  },
+  "dependencies": {
+    "puppeteer-core": "^25.10.0"
+  }
+}

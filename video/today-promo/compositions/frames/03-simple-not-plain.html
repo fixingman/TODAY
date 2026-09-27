@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body>
+<template>
+  <style>
+    @font-face { font-family: "Syne"; font-weight: 700; src: url("assets/fonts/syne-700.woff2") format("woff2"); }
+    #f03 { position: absolute; inset: 0; background: #0e0e10; container-type: size; overflow: hidden; }
+    #f03 .window { position: absolute; top: 6cqw; left: 7cqw; height: calc(100cqh - 12cqw); aspect-ratio: 4 / 5; border: 1px solid #2a2a30; overflow: hidden; background: #0e0e10; }
+    #f03 .window video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    #f03 .caption { position: absolute; left: 50cqw; right: 7cqw; top: 0; bottom: 0; }
+    /* One line at a time, swapped in place on each hard cut. */
+    #f03 #f03-c2, #f03 #f03-c3 { opacity: 0; }
+    #f03 .display { position: absolute; left: 0; right: 0; top: 50%; margin-top: -2.2cqw; font-family: "Syne"; font-weight: 700; font-size: 4.2cqw; line-height: 1.04; letter-spacing: -0.01em; color: #e8e8ec; }
+  </style>
+
+  <div data-hf-id="hf-czzb" id="f03" data-composition-id="f03" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-6r44" class="window">
+      <video data-hf-id="hf-n6do" id="f03-focus" class="clip" src="assets/focus.mp4" data-start="0" data-duration="2.2" data-track-index="0" muted playsinline></video>
+      <video data-hf-id="hf-fecb" id="f03-poem" class="clip" src="assets/poem.mp4" data-start="1.8" data-duration="2.1" data-track-index="1" muted playsinline></video>
+      <video data-hf-id="hf-449b" id="f03-idle" class="clip" src="assets/idle.mp4" data-start="3.5" data-duration="2.5" data-track-index="2" muted playsinline></video>
+    </div>
+    <div data-hf-id="hf-gsc6" class="caption" data-layout-allow-overlap>
+      <div data-hf-id="hf-pazp" class="display" id="f03-c1">Nothing to set up.</div>
+      <div data-hf-id="hf-fid9" class="display" id="f03-c2">A poem in the morning.</div>
+      <div data-hf-id="hf-e627" class="display" id="f03-c3">Company while you're away.</div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#f03-c1", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, 0.1);
+      // Shots and lines dissolve over 0.4s; each shot overlaps the next by that much.
+      const swap = (outLine, inLine, inShot, at) => {
+        tl.fromTo(inShot, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "sine.inOut" }, at);
+        tl.to(outLine, { opacity: 0, duration: 0.3, ease: "sine.in" }, at);
+        tl.fromTo(inLine, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "sine.out" }, at + 0.15);
+      };
+      swap("#f03-c1", "#f03-c2", "#f03-poem", 1.8);
+      swap("#f03-c2", "#f03-c3", "#f03-idle", 3.5);
+      window.__timelines["f03"] = tl;
+    })();
+  </script>
+</template>
+</body>
+</html>

@@ -24,3 +24,6 @@ performance-nightly.json
 # Local eval outputs (dream-reading-eval --out)
 /baseline*.json
 /*-eval*.json
+
+# HyperFrames agent skills — restored from skills-lock.json (npx skills experimental_install)
+.claude/skills/

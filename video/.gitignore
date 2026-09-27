@@ -1,0 +1,13 @@
+node_modules/
+captures/
+*/renders/
+*/snapshots/
+*/.media/
+# Rendered audio — reproducible from render-audio.mjs (synthesised from assets/sound.js)
+audio/
+# HyperFrames Studio/preview caches
+*/.thumbnails/
+*/.waveform-cache/
+*/.hyperframes/preview/
+*/.hyperframes/history-id
+*/.hyperframes/hf-ids-stamped.json

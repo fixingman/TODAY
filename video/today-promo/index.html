@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #0e0e10; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: #0e0e10; }
+      .scene { position: absolute; inset: 0; }
+    </style>
+  </head>
+  <body>
+    <!--
+      TODAY promo — 32s, 1920×1080. Six frames (STORYBOARD.md), each a sub-composition
+      that owns its real-app footage and type. Seams are 1s soft dissolves: the
+      outgoing host runs 1s past its cut, the incoming host fades up over it.
+      Audio: a sine bed + the app's own SFX, rendered by ../render-audio.mjs.
+    -->
+    <div data-hf-id="hf-6tfx" id="root" data-composition-id="main" data-start="0" data-duration="32" data-width="1920" data-height="1080">
+
+      <div data-hf-id="hf-nfc8" id="s01" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="f01" data-composition-src="compositions/frames/01-keeping-score.html" data-start="0" data-duration="5" data-track-index="0" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-ph2u" id="s02" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="f02" data-composition-src="compositions/frames/02-list-that-ends.html" data-start="4" data-duration="8" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-bx1s" id="s03" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="f03" data-composition-src="compositions/frames/03-simple-not-plain.html" data-start="11" data-duration="6" data-track-index="0" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-3lq0" id="s04" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="f04" data-composition-src="compositions/frames/04-yours.html" data-start="16" data-duration="4" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-0uwh" id="s05" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="f05" data-composition-src="compositions/frames/05-let-it-go.html" data-start="19" data-duration="8" data-track-index="0" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-v3yj" id="s06" class="scene clip" data-layout-allow-overlap="" data-layout-allow-occlusion="" data-composition-id="f06" data-composition-src="compositions/frames/06-reward.html" data-start="26" data-duration="6" data-track-index="1" data-width="1920" data-height="1080"></div>
+
+      <!-- Bed: fades in on its own; thins under "Nothing bad happens." (24.5–26), fades out at the end. -->
+      <audio data-hf-id="hf-4ajf" id="bed" src="assets/audio/bed.wav" data-start="0" data-duration="32" data-track-index="10" data-volume="0.85" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:1},{&quot;t&quot;:24.2,&quot;v&quot;:1},{&quot;t&quot;:24.9,&quot;v&quot;:0.35},{&quot;t&quot;:26.1,&quot;v&quot;:0.35},{&quot;t&quot;:26.8,&quot;v&quot;:1},{&quot;t&quot;:30.5,&quot;v&quot;:1},{&quot;t&quot;:32,&quot;v&quot;:0}]}]}"></audio>
+
+      <!-- The app's own sounds, on the moments they belong to. -->
+      <audio data-hf-id="hf-7w1r" id="sfx-check-1" src="assets/audio/sfx-complete.wav" data-start="8.02" data-duration="0.4" data-track-index="20" data-volume="0.9"></audio>
+      <audio data-hf-id="hf-61wp" id="sfx-check-2" src="assets/audio/sfx-complete.wav" data-start="9.95" data-duration="0.4" data-track-index="21" data-volume="0.9"></audio>
+      <audio data-hf-id="hf-jmtz" id="sfx-focus" src="assets/audio/sfx-start.wav" data-start="11.45" data-duration="0.3" data-track-index="22" data-volume="0.9"></audio>
+      <audio data-hf-id="hf-9j14" id="sfx-check-3" src="assets/audio/sfx-complete.wav" data-start="26.37" data-duration="0.4" data-track-index="23" data-volume="0.9"></audio>
+      <audio data-hf-id="hf-2cg4" id="sfx-check-4" src="assets/audio/sfx-complete.wav" data-start="28.33" data-duration="0.4" data-track-index="24" data-volume="0.9"></audio>
+      <audio data-hf-id="hf-jkkb" id="sfx-chime" src="assets/audio/sfx-chime.wav" data-start="29.7" data-duration="1.3" data-track-index="25" data-volume="0.8"></audio>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      // Soft dissolve: the incoming frame fades up out of a light blur over 1s while
+      // the outgoing one softens underneath. Same seam everywhere, including 04 → 05.
+      const T = 1.0;
+      const dissolve = (from, to, at) => {
+        tl.fromTo(to, { opacity: 0, filter: "blur(10px)", scale: 1.015 },
+          { opacity: 1, filter: "blur(0px)", scale: 1, duration: T, ease: "sine.inOut" }, at);
+        // Outgoing words clear in the first 0.6s, so two captions never read at once.
+        tl.fromTo(from, { opacity: 1, filter: "blur(0px)" }, { opacity: 0, filter: "blur(6px)", duration: 0.6, ease: "sine.in", immediateRender: false }, at);
+      };
+      dissolve("#s01", "#s02", 4);
+      dissolve("#s02", "#s03", 11);
+      dissolve("#s03", "#s04", 16);
+      dissolve("#s04", "#s05", 19);
+      dissolve("#s05", "#s06", 26);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

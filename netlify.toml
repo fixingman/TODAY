@@ -1,5 +1,7 @@
 [build]
   publish = "."
+  # video/ is dev-only tooling (HyperFrames projects, capture script) — never serve it.
+  command = "rm -rf video"
   functions = "netlify/functions"
   ignore = "git diff --quiet HEAD^ HEAD -- index.html sw.js netlify.toml netlify/"
 
@@ -41,8 +43,8 @@
 
 # Production — master only
 [context.production]
-  command = ""
+  command = "rm -rf video"
 
 # dev branch — builds and deploys to https://dev--today-here.netlify.app/
 [context.dev]
-  command = ""
+  command = "rm -rf video"

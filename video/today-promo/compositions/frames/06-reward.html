@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body>
+<template>
+  <style>
+    @font-face { font-family: "Syne"; font-weight: 700; src: url("assets/fonts/syne-700.woff2") format("woff2"); }
+    @font-face { font-family: "Syne"; font-weight: 800; src: url("assets/fonts/syne-800.woff2") format("woff2"); }
+    @font-face { font-family: "DM Mono"; font-weight: 400; src: url("assets/fonts/dm-mono-400.woff2") format("woff2"); }
+    #f06 { position: absolute; inset: 0; background: #0e0e10; container-type: size; overflow: hidden; }
+    #f06 .window { position: absolute; top: 6cqw; left: 7cqw; height: calc(100cqh - 12cqw); aspect-ratio: 4 / 5; border: 1px solid #2a2a30; overflow: hidden; background: #0e0e10; }
+    #f06 .window video, #f06 .window img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    #f06 .caption { position: absolute; left: 50cqw; right: 7cqw; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; }
+    #f06 .kicker { font-family: "DM Mono"; font-size: 0.95cqw; letter-spacing: 0.3em; text-transform: uppercase; color: #80808d; margin-bottom: 2cqw; }
+    #f06 .line { font-family: "Syne"; font-weight: 700; font-size: 2.9cqw; line-height: 1.1; letter-spacing: -0.01em; color: #e8e8ec; margin-bottom: 3cqw; }
+    #f06 .mark { font-family: "Syne"; font-weight: 800; font-size: 6.4cqw; line-height: 1; letter-spacing: -0.01em; color: #e8e8ec; display: flex; }
+    #f06 .mark span { display: block; }
+    #f06 .url { font-family: "DM Mono"; font-size: 1.3cqw; letter-spacing: 0.04em; color: #80808d; margin-top: 1.4cqw; }
+    #f06 .accent { color: #c8f060; }
+  </style>
+
+  <div data-hf-id="hf-b1wf" id="f06" data-composition-id="f06" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-tmhr" class="window" id="f06-window">
+      <video data-hf-id="hf-xl7e" id="f06-reward" class="clip" src="assets/reward.mp4" data-start="0" data-duration="5.1" data-track-index="0" muted playsinline></video>
+      <img data-hf-id="hf-y2h1" id="f06-hold" class="clip" src="assets/reward-hold.jpg" alt="" data-start="5.1" data-duration="0.9" data-track-index="1">
+    </div>
+    <div data-hf-id="hf-gsc6" class="caption" data-layout-allow-overlap>
+      <div data-hf-id="hf-ds01" class="kicker" id="f06-k">Evening</div>
+      <div data-hf-id="hf-iip8" class="line" id="f06-line">The empty list is the <span data-hf-id="hf-2fi2" class="accent">reward.</span></div>
+      <div data-hf-id="hf-9gvv" class="mark"><span data-hf-id="hf-znht" id="f06-to">TO</span><span data-hf-id="hf-ij0w" id="f06-day" class="accent">DAY</span></div>
+      <div data-hf-id="hf-umkv" class="url" id="f06-url">today-here.netlify.app</div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const ease = "expo.out";
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#f06-k", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 0.3);
+      tl.fromTo("#f06-line", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.7, ease }, 2.8); // as the poem arrives
+      tl.to("#f06-window", { opacity: 0.3, duration: 0.8, ease: "sine.inOut" }, 3.6);
+      tl.fromTo("#f06-to", { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.7, ease }, 3.7);
+      tl.fromTo("#f06-day", { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.7, ease }, 3.85);
+      tl.fromTo("#f06-url", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "sine.out" }, 4.3);
+      window.__timelines["f06"] = tl;
+    })();
+  </script>
+</template>
+</body>
+</html>

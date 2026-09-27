@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TODAY promo — storyboard v1</title>
+<style>
+  @font-face { font-family: "Syne"; font-weight: 700; src: url("../../fonts/syne/syne-v24-latin_latin-ext-700.woff2") format("woff2"); }
+  @font-face { font-family: "Syne"; font-weight: 800; src: url("../../fonts/syne/syne-v24-latin_latin-ext-800.woff2") format("woff2"); }
+  @font-face { font-family: "DM Mono"; font-weight: 400; src: url("../../fonts/DM Mono/dm-mono-v16-latin-regular.woff2") format("woff2"); }
+  @font-face { font-family: "DM Mono"; font-weight: 500; src: url("../../fonts/DM Mono/dm-mono-v16-latin-500.woff2") format("woff2"); }
+
+  :root {
+    --bg: #0e0e10; --surface: #17171a; --surface2: #1f1f24;
+    --text: #e8e8ec; --muted: #80808d; --accent: #c8f060; --line: #2a2a30;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #08080a; color: var(--text); font-family: "DM Mono", ui-monospace, monospace; padding: 48px 56px 80px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 24px; border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 28px; }
+  header h1 { flex: none; font-family: "Syne"; font-weight: 800; font-size: 34px; letter-spacing: -0.01em; }
+  header h1 b { color: var(--accent); font-weight: 800; }
+  header .dek { color: var(--muted); font-size: 13px; flex: 1; min-width: 280px; line-height: 1.5; }
+  header .tag { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); padding: 6px 10px; }
+
+  .act { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin: 26px 0 12px; display: flex; gap: 12px; align-items: center; }
+  .act::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px 24px; }
+  .cell { display: flex; flex-direction: column; gap: 10px; }
+  .frame { aspect-ratio: 16 / 9; container-type: inline-size; background: var(--bg); border: 1px solid var(--line); position: relative; overflow: hidden; }
+  .label { display: flex; justify-content: space-between; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .label span:last-child { color: var(--muted); }
+  .note { font-size: 12px; line-height: 1.55; color: var(--muted); }
+  .note b { color: var(--text); font-weight: 500; }
+  .chip { align-self: flex-start; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; border: 1px solid var(--line); padding: 3px 8px; color: var(--muted); }
+  .chip.accent { border-color: var(--accent); color: var(--accent); }
+
+  /* ── frame vocabulary (cqw so the sheet matches the 1920×1080 build) ── */
+  .display { font-family: "Syne"; font-weight: 700; color: var(--text); line-height: 1.04; letter-spacing: -0.01em; }
+  .mono    { font-family: "DM Mono"; color: var(--muted); letter-spacing: 0.02em; }
+  .accent  { color: var(--accent); }
+  .dim     { opacity: 0.28; }
+  .hair    { position: absolute; height: 1px; background: var(--line); }
+  /* the spine: the real app, cropped to its column, floating as a portrait window */
+  .window  { position: absolute; top: 6cqw; bottom: 6cqw; left: 7cqw; aspect-ratio: 4 / 5; border: 1px solid var(--line); background: var(--surface) center top / cover no-repeat; }
+  .window.tight { background-size: 150%; background-position: 20% 88%; }
+  .caption { position: absolute; left: 50cqw; right: 7cqw; top: 50%; transform: translateY(-50%); }
+  .caption .display { font-size: 4.2cqw; }
+  .caption .stack div { margin-bottom: 0.6cqw; }
+  .kicker  { font-family: "DM Mono"; font-size: 0.95cqw; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); margin-bottom: 2cqw; }
+  .strip   { position: absolute; top: 6cqw; bottom: 6cqw; width: 26cqw; border: 1px solid var(--line); background: var(--surface) center top / cover no-repeat; }
+  .ring    { position: absolute; border-radius: 50%; border: 1px solid var(--line); opacity: 0.5; }
+  .cursor  { position: absolute; width: 1.4cqw; height: 1.4cqw; border: 1px solid var(--accent); border-radius: 50%; }
+
+  .seams { display: grid; grid-template-columns: repeat(6, 1fr); height: 100%; }
+  .seams div { border-right: 1px solid var(--line); padding: 2.4cqw 1.4cqw; display: flex; flex-direction: column; justify-content: space-between; }
+  .seams div:last-child { border-right: 0; }
+  .seams .n { font-family: "Syne"; font-weight: 800; font-size: 3.2cqw; }
+  .seams .s { font-size: 1.15cqw; color: var(--muted); line-height: 1.4; }
+  .tokens { padding: 3cqw; display: grid; grid-template-columns: 1fr 1fr; gap: 2cqw 3cqw; font-size: 1.3cqw; }
+  .sw { display: flex; align-items: center; gap: 1cqw; color: var(--muted); }
+  .sw i { width: 2.4cqw; height: 2.4cqw; border: 1px solid var(--line); display: inline-block; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TO<b>DAY</b> promo — storyboard v1</h1>
+  <p class="dek">This video tells someone who feels behind in their task app that TODAY is a task app that doesn't keep score against you.</p>
+  <span class="tag">1920×1080 · ~31s · 6 beats · onscreen, no VO · sine bed + app SFX</span>
+</header>
+
+<div class="act">Act I — the pain, and the claim</div>
+<div class="grid">
+
+  <!-- 01 -->
+  <div class="cell">
+    <div class="frame" id="frame-01">
+      <div class="ring" style="width:46cqw;height:46cqw;right:-12cqw;top:-10cqw"></div>
+      <div style="position:absolute;left:7cqw;top:50%;transform:translateY(-50%)">
+        <div class="display" style="font-size:5.6cqw">Most task apps keep score.</div>
+        <div class="display" style="font-size:5.6cqw;margin-top:1.4cqw">This one <span class="accent">ends.</span></div>
+      </div>
+      <div class="hair" style="left:7cqw;right:7cqw;bottom:6cqw"></div>
+    </div>
+    <div class="label"><span>01 · Keeping score</span><span>hook · 0.0–4.0</span></div>
+    <p class="note"><b>Line one types in at a calm pace from 0.1s</b> (DM Mono caret, then set in Syne). At 2.2s line two arrives under it and "ends." lands in lime. Hold, then cut. No other colour in the frame.</p>
+    <span class="chip">seam out · crossfade</span>
+  </div>
+
+  <!-- 02 -->
+  <div class="cell">
+    <div class="frame" id="frame-02">
+      <div class="window" style="background-image:url(.sketch/add-tasks.jpg)"></div>
+      <div class="caption">
+        <div class="kicker">Monday morning</div>
+        <div class="stack">
+          <div class="display">One day.</div>
+          <div class="display">One list.</div>
+          <div class="display accent">It ends.</div>
+        </div>
+      </div>
+    </div>
+    <div class="label"><span>02 · A list that ends</span><span>product · 4.0–11.0</span></div>
+    <p class="note"><b>The real app window rises into place (0.1s, ease-out 0.6s)</b>, with three tasks typed live. At 7.5s a hard cut inside the window to checking off, with ember drift and <i>complete</i> SFX ×2. The captions stack one per cue.</p>
+    <span class="chip">seam out · crossfade</span>
+  </div>
+
+  <!-- 03 -->
+  <div class="cell">
+    <div class="frame" id="frame-03">
+      <div class="strip" style="left:7cqw;background-image:url(.sketch/focus.jpg)"></div>
+      <div class="strip dim" style="left:37cqw;background-image:url(.sketch/poem.jpg)"></div>
+      <div class="strip dim" style="left:67cqw;background-image:url(.sketch/idle.jpg)"></div>
+      <div style="position:absolute;left:7cqw;right:7cqw;bottom:2.2cqw;display:flex;justify-content:space-between" class="mono">
+        <span style="font-size:1.25cqw;color:var(--text)">Nothing to set up.</span>
+        <span style="font-size:1.25cqw" class="dim">A poem in the morning.</span>
+        <span style="font-size:1.25cqw" class="dim">Company while you're away.</span>
+      </div>
+    </div>
+    <div class="label"><span>03 · Simple, not plain</span><span>benefits · 11.0–16.0</span></div>
+    <p class="note"><b>One hero shot at a time, full window, for about 1.6s each, joined by hard cuts:</b> focus (with <i>start</i> SFX on the timer) → poem → creature. The sheet shows all three side by side for review only; the build plays them one at a time, and the caption swaps in place. This beat stays the shortest.</p>
+    <span class="chip">seam out · crossfade</span>
+  </div>
+</div>
+
+<div class="act">Act II — trust, then the proof moment</div>
+<div class="grid">
+
+  <!-- 04 -->
+  <div class="cell">
+    <div class="frame" id="frame-04">
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2cqw">
+        <div class="mono" style="font-size:2.2cqw;color:var(--text)">Your device. Your Dropbox. No account.</div>
+        <div class="hair" style="position:static;width:18cqw;background:var(--text)"></div>
+      </div>
+    </div>
+    <div class="label"><span>04 · Yours</span><span>trust · 16.0–19.0</span></div>
+    <p class="note"><b>The held frame, where nothing moves.</b> The line fades up at 0.1s over 0.5s, then the one ink rule draws under it. Said once, plainly, with no icons, locks or shields.</p>
+    <span class="chip accent">seam out · zoom-through (section turn)</span>
+  </div>
+
+  <!-- 05 -->
+  <div class="cell">
+    <div class="frame" id="frame-05">
+      <div class="window tight" style="background-image:url(.sketch/triage.jpg)"></div>
+      <div class="cursor" style="left:33.6cqw;top:62cqw"></div>
+      <div class="caption">
+        <div class="kicker">9:00 pm</div>
+        <div class="stack">
+          <div class="display dim" style="font-size:3cqw">Some things didn't happen.</div>
+          <div class="display">Let it go.</div>
+          <div class="display accent" style="font-size:3cqw">Nothing bad happens.</div>
+        </div>
+      </div>
+    </div>
+    <div class="label"><span>05 · Let it go</span><span>proof · 19.0–26.0</span></div>
+    <p class="note"><b>Slow 1.0→1.25 push-in toward "sort out the garage · 34 days"</b> while "Some things didn't happen." sits there. The Let go tap lands at about 22s and "Let it go." appears on the tap. Then comes the quietest moment in the film: the bed thins out and "Nothing bad happens." holds for 1.5s.</p>
+    <span class="chip">seam out · crossfade</span>
+  </div>
+
+  <!-- 06 -->
+  <div class="cell">
+    <div class="frame" id="frame-06">
+      <div class="window" style="background-image:url(.sketch/empty-evening.jpg)"></div>
+      <div class="caption">
+        <div class="display" style="font-size:2.8cqw;margin-bottom:3cqw">The empty list<br>is the <span class="accent">reward.</span></div>
+        <div class="display" style="font-size:6.4cqw;font-weight:800">TO<span class="accent">DAY</span></div>
+        <div class="mono" style="font-size:1.3cqw;margin-top:1.2cqw">today-here.netlify.app</div>
+      </div>
+    </div>
+    <div class="label"><span>06 · The reward</span><span>outro · 26.0–31.0</span></div>
+    <p class="note"><b>The last check at 0.2s clears the list and the poem appears</b> (complete SFX). At 28s the window dims to 30% and the wordmark comes together TO → DAY with the <i>chime</i>. The URL settles in and holds to the end. It closes on stillness, not a spinning end card.</p>
+    <span class="chip">end · hold</span>
+  </div>
+</div>
+
+<div class="act">Reference</div>
+<div class="grid">
+  <div class="cell">
+    <div class="frame">
+      <div class="seams">
+        <div><span class="n">01</span><span class="s">cut in<br>type only</span></div>
+        <div><span class="n">02</span><span class="s">crossfade<br>window rises</span></div>
+        <div><span class="n">03</span><span class="s">crossfade<br>hard cuts inside</span></div>
+        <div><span class="n">04</span><span class="s">crossfade<br>held frame</span></div>
+        <div><span class="n accent">05</span><span class="s">zoom-through<br>section turn</span></div>
+        <div><span class="n">06</span><span class="s">crossfade<br>hold to end</span></div>
+      </div>
+    </div>
+    <div class="label"><span>Seam map</span><span>6 seams</span></div>
+    <p class="note"><b>Spine:</b> the real app, cropped to its column, is always the same window in the same spot (left, portrait), and the copy always sits on the right. The one zoom-through marks the turn from telling to proving.</p>
+  </div>
+  <div class="cell">
+    <div class="frame">
+      <div class="tokens">
+        <div>
+          <div class="sw"><i style="background:#0e0e10"></i>#0e0e10 ground</div>
+          <div class="sw" style="margin-top:1cqw"><i style="background:#17171a"></i>#17171a surface</div>
+          <div class="sw" style="margin-top:1cqw"><i style="background:#e8e8ec"></i>#e8e8ec ink</div>
+          <div class="sw" style="margin-top:1cqw"><i style="background:#80808d"></i>#80808d muted</div>
+          <div class="sw" style="margin-top:1cqw"><i style="background:#c8f060"></i>#c8f060 accent, rationed</div>
+          <div class="sw" style="margin-top:1cqw"><i style="background:#2a2a30"></i>#2a2a30 hairline</div>
+        </div>
+        <div style="color:var(--muted);line-height:1.6">
+          <div class="display" style="font-size:2.4cqw;color:var(--text)">Syne 700/800</div>
+          <div>display, sentence case</div>
+          <div style="margin-top:1cqw;color:var(--text)">DM Mono 400/500</div>
+          <div>captions, kickers, URL</div>
+          <div style="margin-top:1cqw">ease cubic-bezier(.16,1,.3,1)</div>
+        </div>
+      </div>
+    </div>
+    <div class="label"><span>Tokens</span><span>from DESIGN.md</span></div>
+    <p class="note"><b>Bans:</b> no rebuilt or fake TODAY UI; no glow, shadows or gradients; no exclamation marks; no icons for privacy; no slideshow (a fresh card every beat) and no screensaver (motion that says nothing). <b>Truth:</b> every app shot is the real app running on seeded data.</p>
+  </div>
+</div>
+
+</body>
+</html>
