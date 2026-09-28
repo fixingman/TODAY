@@ -458,6 +458,36 @@ try {
     await page.close();
   }
 
+  // 12e vote sync: the device that changed a verdict last wins — a newer vote, and a
+  // newer *clear* — while an older remote copy never overwrites a newer local vote.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const iso = new Date().toISOString().slice(0, 10);
+      const base = { manual_tasks: [], done_ids: [], deleted_ids: [], unchecked_ids: [], checked_ids: [], soon_tasks: [], past_tasks: [], habits: [] };
+      const line = (surface, extra) => ({ surface, date: iso, text: surface + ' line', kind: 'letgo-reason', ...extra });
+      appMemory.spokenLines = [
+        line('morning nudge'),                                                            // not voted here
+        line('Sunday reflection', { reaction: 'landed', reactedAt: iso + 'T08:00:00.000Z' }), // voted here, later cleared there
+        line('Monday intention',  { reaction: 'landed', reactedAt: iso + 'T09:00:00.000Z' }), // voted here after the other device
+      ];
+      mergeRemoteData({ ...base, memory: { spokenLines: [
+        line('morning nudge',     { reaction: 'missed', reactedAt: iso + 'T07:30:00.000Z' }),
+        line('Sunday reflection', { reactedAt: iso + 'T08:30:00.000Z' }),
+        line('Monday intention',  { reaction: 'missed', reactedAt: iso + 'T08:45:00.000Z' }),
+      ] } });
+      const get = s => appMemory.spokenLines.find(l => l.surface === s);
+      return {
+        remoteVoteAdopted: get('morning nudge').reaction === 'missed',
+        newerRemoteClearAdopted: !get('Sunday reflection').reaction,
+        olderRemoteVoteIgnored: get('Monday intention').reaction === 'landed',
+      };
+    });
+    await expectAll('vote sync', { ...result, noErrors: errors.length === 0 });
+    ok('mergeRemoteData: the latest vote change wins across devices, including a cleared vote');
+    await page.close();
+  }
+
   // 11b-ext. AI inference merge: _lastAbstractDate max-wins; cross-slot dedup by full text.
   {
     const { page, errors } = await openPage();

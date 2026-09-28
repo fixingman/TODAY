@@ -505,19 +505,24 @@ try {
       appMemory.spokenLines = [];
       _memoryRecordSpokenLine('Sunday reflection', 'a line', 'letgo-reason');
       const today = _localISO();
+      let uploads = 0;
+      window.dropboxAutoSave = () => { uploads++; };
       const line = () => appMemory.spokenLines.find(l => l.surface === 'Sunday reflection');
       const first = _memoryReactToLine('Sunday reflection', today, 'missed') === 'missed';
-      const stored = line().reaction === 'missed' && line().reactedAt === today;
+      const stored = line().reaction === 'missed' && line().reactedAt.startsWith(today) && line().reactedAt.length > 10;
+      const uploadedOnVote = uploads === 1;
       const switched = _memoryReactToLine('Sunday reflection', today, 'landed') === 'landed';
       const cleared = _memoryReactToLine('Sunday reflection', today, 'landed') === null && !('reaction' in line());
+      const clearStamped = typeof line().reactedAt === 'string' && line().reactedAt.length > 10;
+      const uploadedOnEachChange = uploads === 3;
       const unknownLine = _memoryReactToLine('morning nudge', today, 'landed') === null;
       const badValue = _memoryReactToLine('Sunday reflection', today, 'meh') === null;
       _memoryReactToLine('Sunday reflection', today, 'missed');
       const persisted = JSON.parse(localStorage.getItem('today_memory')).spokenLines[0].reaction === 'missed';
-      return { first, stored, switched, cleared, unknownLine, badValue, persisted };
+      return { first, stored, uploadedOnVote, switched, cleared, clearStamped, uploadedOnEachChange, unknownLine, badValue, persisted };
     });
     await expectAll('spokenLines reaction', { ...result, noErrors: errors.length === 0 });
-    ok('_memoryReactToLine: stores with day, switches, clears on repeat, ignores unknown lines and values, persists');
+    ok('_memoryReactToLine: timestamps and uploads every change, switches, clears on repeat, ignores unknown lines and values');
     await page.close();
   }
 

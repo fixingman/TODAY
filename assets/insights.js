@@ -376,10 +376,16 @@ function _memoryReactToLine(surface, date, reaction) {
   if (!entry) return null;
   const prev = entry.reaction || null;
   const next = (reaction === 'landed' || reaction === 'missed') ? reaction : null;
-  if (!next || entry.reaction === next) { delete entry.reaction; delete entry.reactedAt; }
-  else { entry.reaction = next; entry.reactedAt = _localISO(); }
+  // Full timestamp on set AND clear: the merge keeps whichever device changed the
+  // verdict last, so a cleared vote must carry a time too, and same-day changes
+  // must be orderable.
+  if (!next || entry.reaction === next) delete entry.reaction;
+  else entry.reaction = next;
+  entry.reactedAt = new Date().toISOString();
   _memoryTallyReaction(entry.kind, prev, entry.reaction || null);
   _saveMemory();
+  // _saveMemory is local only; a verdict must reach the other devices.
+  if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
   return entry.reaction || null;
 }
 

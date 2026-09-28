@@ -907,13 +907,12 @@
           if (!l || !l.date || !l.surface) continue;
           const key = l.date + '|' + l.surface;
           if (!seenSpoken.has(key)) { appMemory.spokenLines.push(l); seenSpoken.add(key); continue; }
-          // 12e: same line on both devices — keep whichever carries the newer reaction,
-          // so a verdict tapped on the phone is not undone by the laptop's copy.
-          if (l.reaction) {
-            const i = appMemory.spokenLines.findIndex(x => x.date + '|' + x.surface === key);
-            const mine = appMemory.spokenLines[i];
-            if (i >= 0 && (!mine.reaction || String(l.reactedAt || '') > String(mine.reactedAt || ''))) appMemory.spokenLines[i] = l;
-          }
+          // 12e: same line on both devices — keep whichever changed its verdict last,
+          // including a cleared one (reactedAt is stamped on clear too). Legacy
+          // date-only stamps sort before any same-day timestamp.
+          const i = appMemory.spokenLines.findIndex(x => x.date + '|' + x.surface === key);
+          const mine = appMemory.spokenLines[i];
+          if (i >= 0 && String(l.reactedAt || '') > String(mine.reactedAt || '')) appMemory.spokenLines[i] = l;
         }
         appMemory.spokenLines.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
         appMemory.spokenLines = appMemory.spokenLines.slice(-120);
