@@ -1,6 +1,6 @@
 // TODAY — nudge module regression test
 //
-// Tests: checkDayNudge (cached AI, noon hidden, 1s fallback, fallback-upgrade,
+// Tests: checkDayNudge (cached AI, noon hidden, 5s AI wait + fallback, fallback-upgrade,
 //        stale-done keep-until-replaced, dismiss, already-dismissed, offline/no-key),
 //        checkVersionNudge, checkSundayNudge, checkHabitNudge, static wiring.
 //
@@ -180,39 +180,79 @@ try {
       await page.close();
     }
 
-    // 3. 1s fallback: slow AI (2s) → rule-based text shows after ~1s timer fires.
+    // 3. Slow AI (2s): nothing shows while waiting, then the AI line is the first and only
+    //    text — the plain count never appears (it used to win a 1s race every new day).
     {
       const { page, errors } = await openPage();
       const result = await page.evaluate(async () => {
         localStorage.removeItem('day_nudge_dismissed_' + _localISO());
         localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
+        const nudge = document.getElementById('dayNudge');
+        const seen = [];
+        new MutationObserver(() => seen.push(nudge.textContent)).observe(nudge, { childList: true, subtree: true, characterData: true });
         window.fetch = () => new Promise(r =>
           setTimeout(() => r({ ok: true, json: async () => ({ content: 'slow AI response' }) }), 2000)
         );
         checkDayNudge();
         await new Promise(r => setTimeout(r, 1200));
-        const nudge = document.getElementById('dayNudge');
+        const hiddenWhileWaiting = !nudge.classList.contains('show') && !nudge.textContent.includes('still here from yesterday');
+        await new Promise(r => setTimeout(r, 1100));
         return {
-          nudgeVisible:    !!(nudge && nudge.classList.contains('visible')),
-          hasFallbackText: !!(nudge && nudge.textContent.includes('still here from yesterday')),
+          hiddenWhileWaiting,
+          aiShown: nudge.classList.contains('visible') && nudge.textContent.includes('slow AI response'),
+          fallbackNeverRendered: !seen.some(t => t.includes('still here from yesterday')),
         };
       });
-      await expectAll('1s fallback', { ...result, noErrors: errors.length === 0 });
-      ok('checkDayNudge: 1s fallback fires with rule text when AI is slow');
+      await expectAll('slow AI waits instead of showing the fallback', { ...result, noErrors: errors.length === 0 });
+      ok('checkDayNudge: a 2s AI line is shown first; the fallback never renders');
       await page.close();
     }
 
-    // 4. Fallback upgrade: fallback shows at 1s, second call with cached AI replaces it.
+    // 3b. AI past the wait cap → fallback at the cap; AI failure → fallback right away.
+    {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(async () => {
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
+        const nudge = document.getElementById('dayNudge');
+        window.fetch = () => new Promise(r =>
+          setTimeout(() => r({ ok: true, json: async () => ({ content: 'too late' }) }), 8000)
+        );
+        checkDayNudge();
+        await new Promise(r => setTimeout(r, 4500));
+        const stillWaitingAt4500 = !nudge.classList.contains('show');
+        await new Promise(r => setTimeout(r, 1000));
+        return {
+          stillWaitingAt4500,
+          fallbackAtCap: nudge.classList.contains('show') && nudge.textContent.includes('still here from yesterday'),
+        };
+      });
+      const failed = await (await openPage()).page.evaluate(async () => {
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
+        window.fetch = async () => ({ ok: false, status: 500, json: async () => ({}) });
+        checkDayNudge();
+        await new Promise(r => setTimeout(r, 300));
+        const nudge = document.getElementById('dayNudge');
+        return { failureFallsBackImmediately: nudge.classList.contains('show') && nudge.textContent.includes('still here from yesterday') };
+      });
+      await expectAll('wait cap and failure', { ...result, ...failed, noErrors: errors.length === 0 });
+      ok('checkDayNudge: fallback at the 5s cap when AI is slower; immediately when AI fails');
+      await page.close();
+    }
+
+    // 4. Fallback upgrade: AI slower than the cap → fallback shows; a later call with the
+    //    cached AI line replaces it (the v2.42.3 backstop).
     {
       const { page, errors } = await openPage();
       const result = await page.evaluate(async () => {
         localStorage.removeItem('day_nudge_dismissed_' + _localISO());
         localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
         window.fetch = () => new Promise(r =>
-          setTimeout(() => r({ ok: true, json: async () => ({ content: 'AI upgraded line.' }) }), 1500)
+          setTimeout(() => r({ ok: true, json: async () => ({ content: 'AI upgraded line.' }) }), 5600)
         );
-        checkDayNudge(); // race: fallback at 1s, AI cache written at ~1.5s
-        await new Promise(r => setTimeout(r, 2200)); // wait for fetch to settle
+        checkDayNudge(); // fallback at 5s, AI cache written at ~5.6s
+        await new Promise(r => setTimeout(r, 6000));
         checkDayNudge(); // _nudgeIsFallback=true + cache available → shows AI
         await new Promise(r => setTimeout(r, 100));
         const nudge = document.getElementById('dayNudge');
@@ -223,6 +263,24 @@ try {
       });
       await expectAll('fallback upgrade', { ...result, noErrors: errors.length === 0 });
       ok('checkDayNudge: fallback upgrades to AI text on second call when cache available');
+      await page.close();
+    }
+
+    // 4b. Day rollover on a live page: yesterday's line leaves at once instead of
+    //     staying up for the whole wait while today's line is written.
+    {
+      const { page, errors } = await openPage({ extraSeed: { ['day_nudge_ai_' + TODAY]: "Yesterday's line." } });
+      const result = await page.evaluate(async () => {
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        checkDayNudge();
+        await new Promise(r => setTimeout(r, 100));
+        const nudge = document.getElementById('dayNudge');
+        const shownBefore = nudge.classList.contains('show');
+        window._nudgeOnNewDay();
+        return { shownBefore, hiddenOnNewDay: !nudge.classList.contains('show') && !nudge.classList.contains('visible') };
+      });
+      await expectAll('rollover hides yesterday', { ...result, noErrors: errors.length === 0 });
+      ok('_nudgeOnNewDay: yesterday\'s line is hidden while today\'s is written');
       await page.close();
     }
 

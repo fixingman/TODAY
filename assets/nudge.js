@@ -26,7 +26,7 @@ window._startNudge = (function() {
     // generating and caching correctly every day (About's Today block, which
     // reads the same cache with no race, proved this) but the task-list nudge
     // almost never showed it — a cold Netlify+LLM round trip routinely takes
-    // longer than the 1s race window, the fallback wins by default, and
+    // longer than the (then) 1s race window, the fallback wins by default, and
     // _nudgeRendered then blocks the rest of that page load from ever checking
     // again, even after the real line finishes generating moments later and
     // sits unused in the same cache About reads fine. _nudgeIsFallback lets
@@ -48,6 +48,13 @@ window._startNudge = (function() {
       return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
     }
 
+    // A Netlify + model round trip (sometimes two: the observation pool, then the task
+    // path) routinely takes 2–4s. With nothing shown while waiting, a longer window costs
+    // only a later arrival — whereas losing the race showed the plain count on every
+    // first open of the day and held the real line back until the next open (BUG-034
+    // forbids swapping it in mid-read). Failures still settle immediately below.
+    const _NUDGE_AI_WAIT_MS = 5000;
+
     function _raceAINudge({ cacheKey, cachePrefix, fetchPromise, fallbackMsg, onShow }) {
       let settled = false;
       const settle = (text, isAI) => {
@@ -56,7 +63,7 @@ window._startNudge = (function() {
         clearTimeout(timer);
         onShow(text, isAI);
       };
-      const timer = setTimeout(() => settle(fallbackMsg, false), 1000);
+      const timer = setTimeout(() => settle(fallbackMsg, false), _NUDGE_AI_WAIT_MS);
       fetchPromise.then(text => {
         if (!text) { settle(fallbackMsg, false); return; }
         _pruneLS(cachePrefix, cacheKey);
@@ -503,6 +510,10 @@ window._startNudge = (function() {
       _nudgeRendered  = false;
       _nudgeRacing    = false;
       _nudgeIsFallback = false;
+      // Yesterday's line must not stay up while today's is being written.
+      const nudgeEl = $.dayNudge || document.getElementById('dayNudge');
+      if (nudgeEl) nudgeEl.classList.remove('visible', 'show');
+      document.getElementById('dayNudgeReact')?.classList.remove('open');
     };
   };
 }());
