@@ -353,30 +353,26 @@
         }).join('');
       }
 
-      // ── Pattern-based week reflection (below grid) ─────────────────────────────
       // ── Sunday AI reflection (above stats) ─────────────────────────────────────
       const _sundayBlock = document.getElementById('sundayBlock');
-      const _isMon = new Date().getDay() === 1;
       if (_sundayBlock) {
-        if ((_isSun || _isMon) && _history.length > 0) {
-          const _weekLabel = _isSun ? 'This week' : 'New week';
-          const _cacheKey  = _aiCacheKey(_isSun ? 'week_reflection' : 'monday_intention');
+        if (_isSun && _history.length > 0) {
+          const _weekLabel = 'This week';
+          const _cacheKey  = _aiCacheKey('week_reflection');
 
-          // Structured week data for the Sunday evidence gate. Monday uses its
-          // own forward-looking task context and ignores this object.
           const _week  = _days.filter(d => d.tasks !== null);
           const _reflectionStats = { days: _week, history: _history };
           // 12c: Sunday draws from the observation pool — outcome kinds only, since
           // v2.85.0 — through eligibility and the novelty gate.
           // Same { kind, evidence, insight } shape _fetchWeekReflection already reads.
-          const _weekInsight = _isSun ? _pickSundayInsight(_reflectionStats) : null;
-          if (_isSun) _debugSundayAudit(_today);
+          const _weekInsight = _pickSundayInsight(_reflectionStats);
+          _debugSundayAudit(_today);
 
           _nudgeBlockShow(_sundayBlock, _nudgeStagger++ * 60);
           const _weekPolicyKey = 'week_policy_' + _today;
           let _cached = localStorage.getItem(_cacheKey);
-          const _weekPolicyCurrent = !_isSun || localStorage.getItem(_weekPolicyKey) === WEEK_REFLECTION_POLICY;
-          if (_isSun && !_weekPolicyCurrent) {
+          const _weekPolicyCurrent = localStorage.getItem(_weekPolicyKey) === WEEK_REFLECTION_POLICY;
+          if (!_weekPolicyCurrent) {
             // The old Sunday contract mixed lifetime memory and unrelated task
             // titles. Never preserve one of those lines under the earned-insight
             // policy, even if it was generated earlier today.
@@ -385,26 +381,20 @@
             localStorage.setItem(_weekPolicyKey, WEEK_REFLECTION_POLICY);
             _cached = null;
           }
-          const _weekSurface = _isSun ? 'Sunday reflection' : 'Monday intention';
+          const _weekSurface = 'Sunday reflection';
           if (_cached) {
-            if (_isSun) _setSundayAuditGeneration('cache-hit', {
+            _setSundayAuditGeneration('cache-hit', {
               kind: _weekInsight ? _weekInsight.kind : null,
             });
             _sundayBlock.innerHTML =
               '<div class="week-label">' + _weekLabel + '</div>' +
               _summaryHTML(_cached, _weekSurface);
-          } else if (_isSun && _weekPolicyCurrent && !_weekInsight) {
+          } else if (!_weekInsight) {
             _setSundayAuditGeneration('blocked-no-insight');
-            // Policy current but no evidence yet — hide without permanent block
-            // so evidence accumulating during the day can still trigger a fetch.
+            // Sunday's evidence can still accumulate during the day, so an early
+            // miss must not be a permanent negative cache or a model request.
             _sundayBlock.style.display = 'none';
-          } else if (_isSun && !_weekInsight) {
-            _setSundayAuditGeneration('blocked-no-insight');
-            // Don't cache the negative — Sunday's data is live (today's completions
-            // still accumulating), so a morning miss would block the afternoon reveal.
-            // The AI is only called when insight exists, so no extra network cost.
-            _sundayBlock.style.display = 'none';
-          } else if (_isSun && (!Today.use('connections')._aiGetKey() || !navigator.onLine)) {
+          } else if (!Today.use('connections')._aiGetKey() || !navigator.onLine) {
             _setSundayAuditGeneration(Today.use('connections')._aiGetKey()
               ? 'blocked-offline' : 'blocked-no-ai-key', { kind: _weekInsight.kind });
             _sundayBlock.style.display = 'none';
@@ -412,16 +402,11 @@
             _sundayBlock.innerHTML =
               '<div class="week-label">' + _weekLabel + '</div>' +
               '<div class="week-summary loading">reflecting…</div>';
-            if (_isSun) {
-              localStorage.setItem(_weekPolicyKey, WEEK_REFLECTION_POLICY);
-              _pruneLS('week_policy_', _weekPolicyKey);
-            }
-            const _fetcher = _isSun
-              ? _fetchWeekReflection({ ..._reflectionStats, insight: _weekInsight })
-              : _fetchMondayIntention();
-            _fetcher.then(text => {
+            localStorage.setItem(_weekPolicyKey, WEEK_REFLECTION_POLICY);
+            _pruneLS('week_policy_', _weekPolicyKey);
+            _fetchWeekReflection({ ..._reflectionStats, insight: _weekInsight }).then(text => {
               if (text) {
-                _aiSurfaceSet(_isSun ? 'week_reflection' : 'monday_intention', text);
+                _aiSurfaceSet('week_reflection', text);
                 const el = _sundayBlock.querySelector('.week-summary');
                 if (el) {
                   el.textContent = text; el.classList.remove('loading'); _nudgeTextResolve(el);
@@ -815,56 +800,6 @@
         return null;
       }
     }
-
-    async function _fetchMondayIntention() {
-      try {
-        const key = Today.use('connections')._aiGetKey();
-        if (!key || !navigator.onLine) return null;
-
-        const _pastIds = new Set(pastTasks.map(t => t.id));
-        const manualLines = manualTasks
-          .filter(t => !doneIds.has(t.id) && !_pastIds.has(t.id))
-          .slice(0, 5).map(t => '"' + t.text + '"');
-        const soonLines = (typeof soonTasks !== 'undefined' ? soonTasks : [])
-          .slice(0, 4).map(t => '"' + t.text + '"');
-        const trelloLines = (trelloTasks || []).slice(0, 4).map(t => '"' + t.text + '"');
-
-        const parts = [];
-        if (manualLines.length) parts.push('Today\'s list: ' + manualLines.join(', ') + '.');
-        if (soonLines.length)   parts.push('Parked for later: ' + soonLines.join(', ') + '.');
-        if (trelloLines.length) parts.push('Trello cards: ' + trelloLines.join(', ') + '.');
-        const ctx = parts.length ? parts.join(' ') : 'Fresh week, nothing waiting yet.';
-
-        const memCtx = typeof _memoryForAI === 'function' ? _memoryForAI('weekly') : '';
-        // BUG-085: when the task list is empty, AI was naming historical tasks from
-        // suggestionHistory as if they were pending. Explicitly distinguish the two cases.
-        const listIsEmpty = !manualLines.length && !soonLines.length && !trelloLines.length;
-        const taskInstruction = listIsEmpty
-          ? ' One sentence for Monday — a focus intention based on how you work. Do not name any tasks; the list is empty and clear.'
-          : ' One sentence for Monday — what most deserves attention this week. Only name tasks from the list above, not from history.';
-        const userContent = (memCtx ? 'About you:\n' + memCtx + '\n\n' : '') +
-          ctx + taskInstruction;
-        const res = await fetch('/.netlify/functions/ai-assist', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            provider: Today.use('connections')._aiGetProvider(),
-            apiKey: key,
-            messages: [{ role: 'user', content: userContent }],
-            systemPrompt: 'One sentence only. No quotes. Under 20 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Plain, warm, grounded. Do not name tasks unless they appear in the current list.',
-          }),
-        });
-        if (!res.ok) return null;
-        const _mondayText = _parseAIText(await res.json());
-        if (_mondayText && typeof _memoryRecordSpokenLine === 'function') {
-          _memoryRecordSpokenLine('Monday intention', _mondayText);
-        }
-        return _mondayText;
-      } catch (e) {
-        return null;
-      }
-    }
-
 
     // Tapping anywhere outside the poem collapses a revealed-but-not-yet-shared
     // state, so a later fresh tap starts over at "reveal" rather than

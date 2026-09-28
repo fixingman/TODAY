@@ -35,6 +35,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola MVP first; calendar = input only. Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend; user picks one provider. Full spec ↓ |
 | — | **WEEK companion** | Gated | Gate: 12c must feel like a companion, not a feature. Detail ↓ |
+| — | **New week — distinct Monday recognition** | Gated | The old Monday task-list intention was removed after the 2026-09-28 overlap report. Re-enter only with code-selected, week-scale commitment evidence that has a different job from Today's nudge; criteria ↓. |
 | 2 | **Poem corpus — iterate** | In progress | Corpus 128; expand geography and voice. Detail ↓ |
 | — | **Videos (HyperFrames)** | Promo + onboarding shipped (v2.92.6–9) | Open: the 9:16 phone cut of the promo (re-run `capture.mjs --mobile` first — the phone clips predate the slow-motion capture and lag). Re-capture any scene whose UI changes: the footage is the real app, so a UI change dates it (v2.92.8's Past marks did). How-to: `video/README.md`. |
 
@@ -309,6 +310,8 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 
 ## Watching
 
+**New week re-entry gate (2026-09-28):** Can saw Monday's “New week” and “Today” both name “Water the plants,” its 5-day age, and the noon productivity pattern. Monday added a 237-day streak and a same-day instruction, but no week-scale reading. The two model calls shared today's task list and peak-hour memory, and Monday had no evidence/novelty gate. This fails the north star's relationship-with-commitments test and the Wallpaper Test; a different prompt or synonym filter would not change the subject. The old line and Monday badge are paused; the week grid remains. Do **not** turn New week into a second planner or preview of WEEK. A return requires (1) a code-selected relationship or lifecycle change across days, not a task age, streak, count, or peak hour; (2) a choice the person could see differently this week without telling them which item to do today; (3) novelty against Sunday and Today, including cross-surface spoken history; (4) honest abstention when no candidate qualifies; and (5) a real-use verdict after 12c Phase 4. Keep the existing Monday cache/sync field only for mixed-version compatibility until that design is decided.
+
 **AI/data outcome loop** *(v2.72.0)* — `suggestionOutcomes` holds the last 12 resolved offers. Extend only if `underperforming` appears and the action mix actually changed.
 
 **Morning nudge** *(superseded by 12c, v2.80.x)* — Instrument is now `spokenLines` (which `kind` produced each line) and `taskOutcomes` (what the pool had to work with). No pool line after two weeks means thresholds too strict or data too thin — check which before touching any prompt.
@@ -331,7 +334,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 |---------|-----|--------|
 | Morning nudge after midnight (v2.90.54) | 2026-10-09 | Open — W1: the daily line remains the morning’s useful imprint; W2: once per day, contextual or deliberately silent. Verify a fresh line can appear across devices after yesterday’s dismissal, without reappearing after a deliberate dismissal today. |
 | Triage bar morph (v2.90.42) | 2026-10-07 | Open — does the pill expanding into the sheet feel like one continuous thing, or does it just look like an animation? Does the collapse on minimise read as returning to the bar? |
-| Monday intention (memory-enriched) | 2026-10-01 | Re-observing — data source fixed (Soon + Trello added); extended after further updates. |
+| Monday intention (memory-enriched) | 2026-09-28 | **Removed** — New week repeated Today's task, age, and peak-hour observation while adding a streak statistic. The week grid stays; a distinct weekly recognition is gated above. |
 | About contextual CTAs | 2026-10-08 | Re-observing — extended 20 days from 2026-09-18. Do bordered CTAs clarify actions without pulling attention? |
 | Connections privacy reassurance | 2026-10-01 | Deferred — Can has all connections active so the surface never triggers; can’t evaluate until a fresh setup. Re-check 2026-10-01. |
 | Focus companion question | 2026-10-15 | Re-observing — v2.90.21 highlights the ask button when context signals align; extended to observe the updated CTA. |

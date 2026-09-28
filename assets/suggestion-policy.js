@@ -18,6 +18,38 @@
       .toLowerCase();
   }
 
+  // A post-add split replaces the original task. Accept only actions the person
+  // actually wrote, not plausible preparatory steps invented by the model.
+  const splitVerbs = new Set([
+    'add', 'apply', 'arrange', 'ask', 'book', 'build', 'buy', 'call', 'cancel',
+    'check', 'clean', 'collect', 'compare', 'confirm', 'contact', 'create',
+    'draft', 'edit', 'email', 'file', 'fill', 'finish', 'fix', 'gather', 'get',
+    'invite', 'make', 'message', 'order', 'organize', 'pack', 'pay', 'pick',
+    'plan', 'prepare', 'print', 'read', 'register', 'renew', 'reply', 'research',
+    'reserve', 'return', 'review', 'schedule', 'send', 'set', 'shop', 'sort',
+    'submit', 'text', 'update', 'upload', 'visit', 'wash', 'write',
+  ]);
+
+  function splitWords(text) {
+    return normalizeTaskText(text).normalize('NFKC')
+      .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  }
+
+  function groundedBreakdown(taskText, subtasks) {
+    if (!Array.isArray(subtasks) || subtasks.length < 2 || subtasks.length > 3) return false;
+    const clauses = normalizeTaskText(taskText)
+      .split(/\s*(?:[,;]|\band\b|\bthen\b|&)\s*/i)
+      .map(splitWords).filter(Boolean);
+    if (clauses.length !== subtasks.length) return false;
+    if (!clauses.every(clause => {
+      const words = clause.split(' ');
+      return words.length >= 2 && splitVerbs.has(words[0]);
+    })) return false;
+    return subtasks.every((subtask, i) =>
+      typeof subtask === 'string' && splitWords(subtask) === clauses[i]
+    );
+  }
+
   function reason(data, taskText) {
     if (reasons.includes(data?.reason)) return data.reason;
     if (data?.type === 'clarify') return 'vague_task';
@@ -83,6 +115,7 @@
   if (global.Today) global.Today.define('suggestion-policy', {
     reasons,
     normalizeTaskText,
+    groundedBreakdown,
     reason,
     stats,
     stableBucket,

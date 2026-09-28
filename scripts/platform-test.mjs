@@ -286,6 +286,18 @@ try {
     const result = await page.evaluate(async () => {
       const input = document.getElementById('newTask');
       const bar = document.getElementById('addTaskBar');
+      const longList = document.createElement('div');
+      longList.style.height = '1800px';
+      document.querySelector('.app').append(longList);
+      window.scrollTo(0, 450);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      const beforeFocusY = window.scrollY;
+      let scrollIntoViewCalls = 0;
+      const originalScrollIntoView = input.scrollIntoView.bind(input);
+      input.scrollIntoView = (...args) => {
+        scrollIntoViewCalls++;
+        return originalScrollIntoView(...args);
+      };
       input.blur();
       input.focus();
       await new Promise(resolve => setTimeout(resolve, 150));
@@ -294,6 +306,16 @@ try {
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const resizedTransform = bar.style.transform;
       input.blur();
+      await new Promise(resolve => setTimeout(resolve, 400));
+      const afterBlurY = window.scrollY;
+
+      input.focus();
+      window.scrollTo(0, beforeFocusY + 120);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      const chosenY = window.scrollY;
+      input.blur();
+      await new Promise(resolve => setTimeout(resolve, 150));
+      const afterChosenBlurY = window.scrollY;
 
       let wakes = 0;
       window._onWake = () => { wakes++; };
@@ -303,11 +325,16 @@ try {
         opened: !!firstTransform && firstTransform !== 'none',
         resized: !!resizedTransform && resizedTransform !== firstTransform,
         reset: !bar.classList.contains('keyboard-open') && !bar.style.transform && !bar.style.position,
+        noForcedScroll: scrollIntoViewCalls === 0,
+        listPositionPreserved: Math.abs(afterBlurY - beforeFocusY) <= 2,
+        intentionalScrollKept: Math.abs(afterChosenBlurY - chosenY) <= 2,
         wakes,
         swPath: window.__platformTest.swRegistrations.join(','),
       };
     });
-    if (!result.opened || !result.resized || !result.reset || result.wakes !== 1 || result.swPath !== '/sw.js') {
+    if (!result.opened || !result.resized || !result.reset || !result.noForcedScroll
+      || !result.listPositionPreserved || !result.intentionalScrollKept
+      || result.wakes !== 1 || result.swPath !== '/sw.js') {
       await fail('keyboard, bfcache, or service-worker regression', result);
     }
     if (errors.length) await fail('uncaught errors in platform lifecycle', errors);

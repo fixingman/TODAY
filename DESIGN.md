@@ -89,7 +89,7 @@ If any gate fails, the surface abstains — no generic fallback. Code selects th
 
 **Wallpaper Test:** every recurring surface must deliver value every appearance or be iterated/removed. Day 14 is the test, not day 1. → `memory/design/Philosophy.md`
 
-**AI surface placement:** cluster at day boundaries (morning nudge, evening triage, Sunday reflection, Monday intention). Mid-day surfaces require an equivalently bounded task or session moment. New surfaces must have an observable downstream outcome before shipping.
+**AI surface placement:** cluster at day boundaries (morning nudge, evening triage, Sunday reflection). The former Monday intention is paused until it has a distinct week-scale evidence contract; a new label on today's task list is not one. Mid-day surfaces require an equivalently bounded task or session moment. New surfaces must have an observable downstream outcome before shipping.
 
 **Prompt rules:** state the principle, never worked examples · the person is the subject, never a container · an insight catches a blind corner; a count restates the visible.
 

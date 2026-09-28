@@ -152,7 +152,7 @@ not a missing-asset failure.
 | `noticed_lines_<date>` | Day-cache for Noticed block lines — keeps them visible on re-open (v2.35.0); pruned by `_pruneLS` | Local |
 | `week_reflection_<date>` | Sunday reflection (AI-generated, cached per day) | Dropbox-synced (BUG-057, v2.36.1) |
 | `week_policy_<date>` | Sunday evidence-contract marker + negative cache (`earned-v1`) | Dropbox-synced as `week_reflection_policy`; rejects old-policy copy |
-| `monday_intention_<date>` | Monday intention (AI-generated, cached per day) | Dropbox-synced (BUG-057, v2.36.1) |
+| `monday_intention_<date>` | Legacy cache; Monday line paused from v2.92.13 and no longer read or generated | Dropbox-synced temporarily for mixed-version compatibility |
 | `today_manual_order_at` | ISO stamp of last manual reorder — recency-aware merge, prevents drag jump-back (v2.38.7) | Dropbox-synced (`manual_order_at`, schema 5.4) |
 | `week_theme_ai_<weekKey>` | Noticed's week-theme AI text, cached once/week (v2.39.0) | Dropbox-synced (`week_theme_ai`) |
 | `week_theme_tried_<weekKey>` | Negative-cache flag — a week with no genuine pattern doesn't retry the AI call on every open (v2.39.0) | Local |
@@ -262,13 +262,13 @@ Previously flagged "unchanged since v2.32.0" without being re-checked against ev
 |---|---|---|---|
 | **Dropbox API** | Full backup JSON — tasks, habits, zones, stats, appMemory (incl. noticed + noticedDates + recentCompletedTasks + meetingAttribution counters), checked_ids, AI day-cache, week_reflection, monday_intention, week_theme_ai, deleted_ids, manual_order_at (schema 5.4) | On sync tick only if state changed; on manual backup | User's own account. PKCE. Content never seen by us. |
 | **Trello API** | OAuth token + board/list IDs; receives card data | On tick if `dateLastActivity` changed | `read` scope only. |
-| **Netlify AI proxy** | Prompt (task names, ages, patterns from appMemory) + provider key | On ✦ call, daily nudge, week reflection, monday intention, meeting chunk | One nudge/day max, cached. Key never sent to provider from client directly. |
+| **Netlify AI proxy** | Prompt (task names, ages, patterns from appMemory) + provider key | On ✦ call, daily nudge, week reflection, meeting chunk | One nudge/day max, cached. The retired Monday intention no longer calls it. Key never sent to provider from client directly. |
 | **Netlify meeting-extract** | Base64 audio chunk (~6min) + userName + rolling context + captured mine items | Per audio chunk during meeting mode | Gemini only. Transcript produced inside Gemini, never returned. Tasks only. |
 | **Netlify transcribe** | One ephemeral audio clip + the user's Gemini key | On Shift+Space release when verified on-device recognition is unavailable; on mobile Voice Note stop | No browser-cloud recognition fallback. Audio and transcript are not persisted; the returned text becomes a task or fills the add bar. |
 | **Netlify RUM** (server-injected) | Page-load timing only — no user content | Page load, if not ad-blocked | Only non-user-initiated egress. Ad blockers prevent it. |
 | **OS share sheet / clipboard** (poem share, v2.40.0) | The day's poem text + author + app URL | Only when the user explicitly taps to share/copy the poem | Not a fixed server destination — user picks the recipient (Messages, Mail, Notes, etc.) via the OS, or it's copied to the local clipboard. No task/personal data involved, only the public poem text. Listed here for completeness, not because it's a new risk. |
 
-**Stays local, never egresses (beyond Dropbox):** triage history, AI conversation thread, poem splash date, Sunday/Monday nudge seen flags, noticed_lines day-cache.
+**Stays local, never egresses (beyond Dropbox):** triage history, AI conversation thread, poem splash date, Sunday nudge seen flags (including legacy Monday values), noticed_lines day-cache.
 
 **New since v2.32.0:** `week_reflection` and `monday_intention` added to Dropbox payload (BUG-057, v2.36.1). `recentCompletedTasks` included in memory merge (BUG-058, v2.36.3); `appMemory.noticed` was too, but that part was reverted v2.39.3 — it's device-local again (still travels in the whole-appMemory backup blob, just no longer applied on read). `appMemory.noticedDates` (v2.39.4) — a narrower, date-only sibling field — IS merged, so a Noticed signal that fired on one device can still show on another the same day. `capturedMine` items sent to meeting-extract to prevent duplicate task capture.
 

@@ -629,20 +629,23 @@ try {
         checkVersionNudge();
         const versionBadge = !!document.getElementById('infoBtn')?.classList.contains('btn-icon-version');
 
-        // ── Sunday/Monday badge ──
+        // ── Sunday badge; Monday no longer promises a separate weekly line ──
         document.getElementById('infoBtn')?.classList.remove('btn-icon-week');
         localStorage.removeItem('sunday_nudge_seen_' + today);
         Date.prototype.getDay = () => 0; // Sunday
         checkSundayNudge();
         const weekBadge = !!document.getElementById('infoBtn')?.classList.contains('btn-icon-week');
         const sundayAudit = !!localStorage.getItem('sunday_observation_audit_' + today);
+        Date.prototype.getDay = () => 1; // Monday
+        checkSundayNudge();
+        const noMondayBadge = !document.getElementById('infoBtn')?.classList.contains('btn-icon-week');
 
         // ── Habit badge ──
         Date.prototype.getHours = () => 22; // Evening
         checkHabitNudge();
         const habitBadge = !!document.getElementById('habitsBtn')?.classList.contains('btn-icon-habits');
 
-        return { versionBadge, weekBadge, sundayAudit, habitBadge };
+        return { versionBadge, weekBadge, sundayAudit, noMondayBadge, habitBadge };
       });
       await expectAll('badge nudges', { ...result, noErrors: errors.length === 0 });
       ok('checkVersionNudge / checkSundayNudge / checkHabitNudge: badges fire and Sunday captures its local audit');

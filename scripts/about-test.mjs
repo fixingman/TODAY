@@ -3,8 +3,8 @@
 // Flow: toggleInfo opens panel, _poemOfTheDay, renderDailyPoem via toggleInfo,
 // _onPoemTap reveal + outside-click collapse, _copyToClipboard callback,
 // _shareDailyPoem clipboard path, renderInfoStats week grid, Noticed block,
-// Sunday earned-insight gate/prompt/cache, Monday intention block (day=1),
-// _fetchWeekThemeAI and _fetchMondayIntention key + cache contract, module wiring.
+// Sunday earned-insight gate/prompt/cache, Monday intention silence (day=1),
+// _fetchWeekThemeAI contract and retired Monday cache behavior, module wiring.
 //
 // Run from repo root:
 //   node scripts/about-test.mjs --pre-extraction
@@ -76,7 +76,7 @@ async function openPage() {
     ({ today, yesterday }) => {
       localStorage.clear();
       localStorage.setItem('splash_shown_at', String(Date.now()));
-      // Daily history — needed for week grid and Sunday/Monday block trigger
+      // Daily history — needed for week grid and Sunday reflection trigger
       localStorage.setItem('today_daily_history', JSON.stringify([
         { date: yesterday, tasksDone: 3, focusMins: 25, habitsKept: 1, habitsTotal: 2 },
       ]));
@@ -283,25 +283,28 @@ try {
     await page.close();
   }
 
-  // 10. Monday intention block: visible when getDay() returns 1 and history exists.
+  // 10. A legacy Monday cache cannot bring back the retired weekly line.
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
       // Pre-cache so block shows without waiting for async AI call
       const today = _localISO();
-      localStorage.setItem('monday_intention_' + today, 'Focus on the important thing.');
+      localStorage.setItem('monday_intention_' + today, 'Finish Water the plants around noon.');
+      localStorage.setItem('day_nudge_ai_' + today, 'Water the plants is waiting today.');
       const orig = Date.prototype.getDay;
       Date.prototype.getDay = () => 1; // Monday
       Today.use('about').renderInfoStats();
       Date.prototype.getDay = orig;
       const el = document.getElementById('sundayBlock');
+      const todayEl = document.getElementById('todayNudgeBlock');
       return {
-        visible:   !!(el && el.style.display !== 'none'),
-        hasLabel:  !!(el && el.querySelector('.week-label')),
+        weekLineHidden:   el?.style.display === 'none',
+        todayLineVisible: !!(todayEl && todayEl.style.display !== 'none'),
+        todayStillSpoken: todayEl?.textContent?.includes('Water the plants is waiting today.'),
       };
     });
-    await expectAll('Monday intention block', { ...result, noErrors: errors.length === 0 });
-    ok('Monday intention: block visible when getDay()=1 and history exists');
+    await expectAll('Monday intention silence', { ...result, noErrors: errors.length === 0 });
+    ok('Monday: old New week cache hidden; Today line remains');
     await page.close();
   }
 
@@ -545,7 +548,7 @@ try {
         return { ok: true, json: async () => ({ content: 'You wrap up most things by noon.' }) };
       };
 
-      // Use Wednesday so Sunday/Monday blocks don't co-fire
+      // Use Wednesday so the Sunday block does not co-fire
       const origGetDay = Date.prototype.getDay;
       Date.prototype.getDay = () => 3;
       Today.use('about').renderInfoStats();
@@ -575,50 +578,35 @@ try {
     await page.close();
   }
 
-  // 16. _fetchMondayIntention reaches the AI endpoint and passes the key from
-  //      Today.use('connections')._aiGetKey(), not the removed window._aiGetKey global.
-  //      Before the v2.90.20 fix, same bare guard silenced Monday intention.
+  // 16. New week no longer generates a second task-list nudge on Monday.
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(async () => {
       const today = _localISO();
       localStorage.removeItem('monday_intention_' + today);
+      localStorage.setItem('week_theme_tried_' + _aiWeekKey(), '1');
 
       const realFetch = window.fetch;
-      let body = null;
+      const requests = [];
       window.fetch = async (_u, o) => {
-        body = JSON.parse(o.body);
-        return { ok: true, json: async () => ({ content: 'Start with the one thing you keep pushing off.' }) };
+        requests.push(JSON.parse(o.body));
+        return { ok: true, json: async () => ({ content: 'Finish Water the plants around noon.' }) };
       };
 
       const origGetDay = Date.prototype.getDay;
       Date.prototype.getDay = () => 1; // Monday
       Today.use('about').renderInfoStats();
       Date.prototype.getDay = origGetDay;
-      const deadline = Date.now() + 1000;
-      while (body === null && Date.now() < deadline) {
-        await new Promise(r => setTimeout(r, 20));
-      }
-
+      await new Promise(r => setTimeout(r, 50));
       window.fetch = realFetch;
-      // Poll for the cache write — the .then() callback runs after fetch resolves
-      const cacheKey = 'monday_intention_' + today;
-      const cacheDeadline = Date.now() + 500;
-      while (!localStorage.getItem(cacheKey) && Date.now() < cacheDeadline) {
-        await new Promise(r => setTimeout(r, 20));
-      }
-      const prompt = body?.messages?.[0]?.content || '';
-      const summaryEl = document.getElementById('sundayBlock')?.querySelector('.week-summary');
       return {
-        fetchCalled:         body !== null,
-        keyPassedFromModule: body?.apiKey === 'stub',
-        mondayPrompt:        prompt.includes('Monday') && prompt.includes('week'),
-        resultCached:        localStorage.getItem(cacheKey) === 'Start with the one thing you keep pushing off.',
-        domUpdated:          summaryEl?.textContent === 'Start with the one thing you keep pushing off.',
+        noAIRequest: requests.length === 0,
+        noMondayCache: !localStorage.getItem('monday_intention_' + today),
+        noMondayLine: document.getElementById('sundayBlock')?.style.display === 'none',
       };
     });
-    await expectAll('_fetchMondayIntention reaches AI', { ...result, noErrors: errors.length === 0 });
-    ok('_fetchMondayIntention: key from Today.use(connections) reaches AI endpoint on Monday');
+    await expectAll('Monday does not generate weekly line', { ...result, noErrors: errors.length === 0 });
+    ok('Monday: no second task-list AI line generated');
     await page.close();
   }
 

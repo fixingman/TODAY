@@ -11,6 +11,13 @@ const policy = context.api;
 assert.equal(policy.reason({ type: 'clarify' }, 'Do this'), 'vague_task');
 assert.equal(policy.reason({}, 'Email Sam and book a room'), 'multiple_actions');
 assert.equal(policy.normalizeTaskText('work:  Call  the dentist '), 'call the dentist');
+assert.equal(policy.groundedBreakdown('Bake protein bars', ['Mix ingredients', 'Bake protein bars']), false);
+assert.equal(policy.groundedBreakdown('Bake protein bars for the picnic on Sunday', ['Buy ingredients', 'Bake bars']), false);
+assert.equal(policy.groundedBreakdown('Buy milk and eggs', ['Buy milk', 'Eggs']), false);
+assert.equal(policy.groundedBreakdown('Write the draft and add examples', ['Write the draft', 'Add examples']), true);
+assert.equal(policy.groundedBreakdown('Write the draft and add examples', ['Write the draft', 'Add invented examples']), false);
+assert.equal(policy.groundedBreakdown('Book flights, reserve hotel, and email Gaia', ['Book flights', 'Reserve hotel', 'Email Gaia']), true);
+assert.equal(policy.groundedBreakdown('docs: Write the outline and fill in the details', ['Write the outline', 'Fill in the details']), true);
 
 const failures = Array.from({ length: 4 }, (_, i) => ({
   id: String(i), reason: 'vague_task', ignoredAt: `2026-09-0${i + 1}`,
@@ -21,5 +28,6 @@ assert.ok(exploration.some(Boolean) && exploration.some(value => !value));
 assert.match(policy.performanceContext(failures), /use rarely/);
 
 console.log('  ✓ suggestion reasons are deterministic');
+console.log('  ✓ splits require 2–3 explicit, verb-led actions copied from the task');
 console.log('  ✓ repeated failures reduce offers while retaining exploration');
 console.log('✓ SUGGESTION POLICY UNIT TEST PASSED');

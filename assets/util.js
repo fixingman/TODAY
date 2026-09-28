@@ -121,6 +121,8 @@ const _AI_SURFACES = [
     fallback:      'hidden',
   },
   {
+    // Legacy sync slot only. New week is paused; About ignores this cache and
+    // generates no new line. Keep the field while older devices may still write it.
     key:           'monday_intention',
     prefix:        'monday_intention_',
     expiry:        'daily',

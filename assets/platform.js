@@ -118,11 +118,10 @@ if ('serviceWorker' in navigator && canRegisterSW) {
   input.addEventListener('focus', () => {
     bar.classList.add('keyboard-open');
     // Small delay for keyboard to start opening
-    setTimeout(() => {
-      positionBar();
-      // Scroll input into view
-      input.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }, 100);
+    // The bar is fixed above the visual viewport. Scrolling the input into view
+    // moves the task list behind it and leaves the reader in a different place
+    // when the keyboard closes.
+    setTimeout(positionBar, 100);
   });
 
   input.addEventListener('blur', () => {

@@ -343,14 +343,14 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 12.2 | Click ↩ soon | Task moves to SOON with same ID; `zoneChangedAt` refreshed; `revived` counter increments |
 | 12.3 | Done task in PAST — hover | No ↩ soon button (done stays — PAST is acknowledgment) |
 
-### 13. About — Sunday/Monday Layer (5 tests)
+### 13. About — Sunday Layer and Monday Silence (5 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
 | 13.1 | Open About on Sunday with a qualifying pattern (AI key set) | Code selects one candidate; prompt contains its evidence/meaning only; grounded AI line cached in `week_reflection_<date>` with current `week_policy_<date>` |
-| 13.2 | Open About on Monday (AI key set) | `#sundayBlock` shows "New week" label + AI intention prompt; cached in `monday_intention_<date>` |
+| 13.2 | Open About on Monday, including with an old `monday_intention_<date>` cache | `#sundayBlock` stays hidden; the week grid and Today's cached nudge remain available, and no Monday AI call fires |
 | 13.3 | Open About on Sunday — no AI key / offline | Sunday block hidden; no generic counter-summary fallback and no false negative-cache stamp |
-| 13.4 | Open About Tuesday–Saturday | No Sunday/Monday block shown |
+| 13.4 | Open About Tuesday–Saturday | No Sunday reflection block shown |
 | 13.5 | Flat week, identity/causal response, or old unmarked cache | Flat week abstains; overclaim rejected; old copy removed and cannot restore from Dropbox without current policy |
 
 ---
@@ -504,6 +504,7 @@ Mobile Safari 26.3 on an iPhone 17e simulator (2026-09-04): 10 targeted checks p
 - [ ] macOS Chrome keyboard-only: repeat the same flow and confirm focus indication/restoration.
 - [ ] VoiceOver in Safari and Chrome: names, headings/lists, pressed/expanded/busy/progress state, live announcements, dialog containment, and poem sharing.
 - [ ] iPhone installed PWA with VoiceOver: task/habit actions, disclosures, triage, meeting/Voice Note, zoom, orientation, and narrow reflow.
+- [ ] iPhone installed PWA add field: from halfway down a long task list, open the keyboard, type, dismiss it, and confirm the list returns to the same place; repeat after deliberately scrolling while typing (that new position should be kept).
 - [ ] 200% browser zoom and 320 CSS-pixel reflow: no clipped actions, lost content, or horizontal document scrolling.
 - [ ] Real focus and meeting PiP: keyboard controls, names/state, timer/progress output, focus reveal, and reduced-motion behavior.
 

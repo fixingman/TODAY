@@ -268,7 +268,7 @@ Does not enumerate signal priorities. Soon tasks are included but only surfaced 
 
 ## Observation Pool (12c, v2.80.0)
 
-One ranked candidate pool for proactive personal lines: code selects the observation through the gates, the model only phrases it. It lives in DOM-free `assets/week-reflection-policy.js` and feeds the morning nudge and Sunday reflection; Noticed, focus, and Monday retain their separate jobs.
+One ranked candidate pool for proactive personal lines: code selects the observation through the gates, the model only phrases it. It lives in DOM-free `assets/week-reflection-policy.js` and feeds the morning nudge and Sunday reflection; Noticed and focus retain their separate jobs. The former Monday intention is paused.
 
 | Function | Role |
 |---|---|
@@ -298,7 +298,7 @@ v2.90.35 labels a candidate when material cross-surface evidence reopened it, an
 
 The winning object contains `{kind, score, evidence, insight}`. `_fetchWeekReflection()` sends only its `kind` and code-owned `insight` to the AI; the numerical evidence remains inside the deterministic policy and diagnostic. It no longer sends `_memoryForAI('weekly')`, lifetime days active, `recentCompletedTasks`, or evidence counts. The model phrases the selected reading rather than deciding what is true or meaningful from raw personal history.
 
-**Reactions (12e, v2.86.0):** tapping the sentence (Sunday, Monday and Today blocks in About; the morning strip, where the states open in the sibling `#dayNudgeReact` instead of dismissing) reveals two states, *landed* / *not really*, written to the line's `spokenLines` entry by `_memoryReactToLine`. This is the usefulness gate with the person as judge: it changes which kinds get chosen, never how a line is phrased, and it is never sent to the model. A control renders only when a spokenLines entry exists for that surface today; rule-based fallback lines get none.
+**Reactions (12e, v2.86.0):** tapping the sentence (Sunday and Today blocks in About; the morning strip, where the states open in the sibling `#dayNudgeReact` instead of dismissing) reveals two states, *landed* / *not really*, written to the line's `spokenLines` entry by `_memoryReactToLine`. Monday supported the same reaction before its v2.92.13 pause. This is the usefulness gate with the person as judge: it changes which kinds get chosen, never how a line is phrased, and it is never sent to the model. A control renders only when a spokenLines entry exists for that surface today; rule-based fallback lines get none.
 
 **Voice (earned-v4, v2.90.36):** one or two short sentences, under 24 words total, in clear everyday language. Express the supported insight, not totals, ratios, percentages, sample sizes, or time windows. Preserve app actions (`let go`, not `closed out`). Warmth, rhythm, dry wit, and a light clarifying metaphor remain available when they improve comprehension; they may not replace the literal relationship. `_weekReflectionTextIsGrounded(text, candidate)` rejects generic epistemic failures and numerals, then checks kind-specific semantic anchors so a fluent line that drops the selected relationship is also withheld.
 
@@ -310,15 +310,11 @@ The winning object contains `{kind, score, evidence, insight}`. `_fetchWeekRefle
 
 ---
 
-## Monday Intention (v2.30.0)
+## Monday Intention (v2.30.0–v2.92.13; paused)
 
-On Mondays, the same `#sundayBlock` slot shows an AI-generated intention prompt instead of the Sunday reflection. Different label ("New week") and different prompt framing — forward-looking rather than retrospective.
+The former “New week” line used the same `#sundayBlock` slot as Sunday. It sent today's task list, Soon, Trello and `_memoryForAI('weekly')` to a model with a forward-looking instruction but no code-selected week-scale observation. In real use it repeated the Today nudge's task, age and peak-hour signal, then added a lifetime streak. Prompt framing did not give it a different job.
 
-**Cache:** stored as `monday_intention_<date>` in localStorage, regenerated once per day.
-
-**Fallback:** none — block is hidden if no AI key or offline.
-
-**Task sources (v2.65.1):** manual tasks (undone, up to 5, done/past filtered), Soon tasks (up to 4), Trello cards (up to 4) — all included as labeled sections in the user message.
+From v2.92.13 Monday leaves the block hidden and generates no intention; the week grid and Today's cached line still render. The Sunday badge is Sunday-only. Existing `monday_intention_<date>` caches and Dropbox sync field remain for mixed-version compatibility, but About ignores them. The return gate is in `Backlog.md`: distinct code-owned commitment evidence across days, novelty against Sunday and Today, a week-scale choice, and silence when unearned. Do not extend the observation pool to Monday before its Phase 4 verdict.
 
 ---
 
@@ -392,6 +388,8 @@ This learns on the existing row shown after a newly added task; it adds no panel
 
 Each shown offer appends one `appMemory.suggestionOutcomes` record with a stable ID, task/pattern, explicit reason (`multiple_actions`, `long_complex_task`, `vague_task`, or `other_complexity`), the visible reason text, and an ISO `offeredAt`. The model is asked for the enum; deterministic text/type rules classify older or malformed responses.
 
+**Split accuracy (v2.92.12):** the post-add model sees only the newly added task, not neighboring tasks or lifetime preference statistics. It may suggest a split only for 2–3 independently finishable actions explicitly written in that task; a single activity's implied preparation or workflow is not evidence. The client independently accepts only 2–3 verb-led action clauses copied from the task in order. An ungrounded model split is discarded without showing or recording an offer; the original task is untouched. Split offers use `multiple_actions`; historical `long_complex_task` records remain for compatibility.
+
 **Viewport delivery (v2.72.1):** generation and delivery are separate. The provider may finish while a newly added task is outside the viewport, but the result stays in closure-only pending state: no DOM row, animation, `offered` count, persisted outcome, or exposure timer exists yet. The task row is observed with a 64px bottom reserve so the action has room to appear; on entry, the row mounts and the normal outcome lifecycle begins. A mutation observer re-anchors the pending result when task rendering or sync replaces the DOM node. Pending delivery is discarded if a newer analysis supersedes it, the task text changes, or the task is completed, removed, or moved. Provider responses carry an analysis sequence guard, preventing an older slow response from surfacing after a newer task. Browsers without `IntersectionObserver` use the same geometry check on scroll, resize, and foreground return.
 
 **Visible-row ownership (v2.77.3):** once shown, the full-width helper remains a sibling of its task but is owned by stable task ID rather than DOM position. `_aiReanchorSuggestion()` runs after pointer/touch/Option+Arrow persistence and after `renderManual()` rebuilds, moving the existing helper element immediately after its owner without creating a second offer or restarting its outcome lifecycle.
@@ -404,6 +402,6 @@ Each shown offer appends one `appMemory.suggestionOutcomes` record with a stable
 - **Helped:** at least one generated step was later completed. This is the positive preference signal; application alone is weaker intent evidence.
 - **Later reversed:** after a ten-minute undo grace, the original task was recreated or every generated step was deleted/let go before any generated step completed. Duplicate originals already present at apply time are excluded. Moving a step to Soon is not reversal.
 
-**Reason policy:** no category judgment before four resolved offers. At four or more, a reason whose `(dismissed + ignored + reversed) / (applied + dismissed + ignored)` is at least 70% is reduced to deterministic one-in-four exploration. It is not permanently disabled, so changed behavior can produce recovery evidence. Categories with at least one completed generated step are described to the task-analysis model as preferred when multiple reasons genuinely fit. This replaces the old all-or-nothing global suppression ratio.
+**Reason policy:** no category judgment before four resolved offers. At four or more, a reason whose `(dismissed + ignored + reversed) / (applied + dismissed + ignored)` is at least 70% is reduced to deterministic one-in-four exploration. It is not permanently disabled, so changed behavior can produce recovery evidence. Outcome history controls delivery, not the model's judgment of what actions were written. This replaces the old all-or-nothing global suppression ratio.
 
-Records cap at 100. Dropbox merges them by stable offer ID, unions result IDs and monotonic event timestamps, and treats completion evidence as stronger than a conflicting reversal from another device. The aggregate reason evidence is sent only with the post-add analysis request to the user's configured provider; there is no analytics or TODAY server telemetry.
+Records cap at 100. Dropbox merges them by stable offer ID, unions result IDs and monotonic event timestamps, and treats completion evidence as stronger than a conflicting reversal from another device. No aggregate reason evidence is sent with post-add analysis; there is no analytics or TODAY server telemetry.

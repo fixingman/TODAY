@@ -118,7 +118,7 @@ try {
             subtasks: ['Write the draft', 'Add examples'],
           }),
         });
-        const analyzedText = 'Write complete documentation with examples and unit tests';
+        const analyzedText = 'Write the draft and add examples';
         manualTasks.find(task => task.id === 'task_1').text = analyzedText;
         Today.use('connections').renderManual(); // ensure the analyzed task text and rendered row agree
         Today.use('assistant')._aiAnalyzeTask('task_1', analyzedText);
@@ -191,20 +191,20 @@ try {
               type: 'break_down',
               reason: 'multiple_actions',
               message: 'Has multiple steps',
-              subtasks: ['Draft it', 'Review it'],
+              subtasks: ['Draft the summary', 'Review it'],
             }),
           };
         };
 
-        const firstText = 'First complex task with drafting and review';
-        const secondText = 'Second complex task with drafting and review';
+        const firstText = 'Draft the outline and review it';
+        const secondText = 'Draft the summary and review it';
         manualTasks.find(task => task.id === 'task_1').text = firstText;
         manualTasks.find(task => task.id === 'task_2').text = secondText;
         Today.use('connections').renderManual();
         Today.use('assistant')._aiAnalyzeTask('task_1', firstText);
         Today.use('assistant')._aiAnalyzeTask('task_2', secondText);
         await new Promise(r => setTimeout(r, 2400));
-        const newestWon = prompts.length === 1 && prompts[0].includes('Second complex task');
+        const newestWon = prompts.length === 1 && prompts[0].includes('Draft the summary and review it');
         const firstObserver = observers[0];
         const firstTarget = firstObserver?.target;
 
@@ -227,6 +227,42 @@ try {
       await page.close();
     }
 
+    // A real single-action task must not become a speculative recipe workflow,
+    // even if the provider returns a confident-looking split.
+    {
+      const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
+      const result = await page.evaluate(async () => {
+        let request = null;
+        window.fetch = async (_url, options = {}) => {
+          const body = JSON.parse(options.body || '{}');
+          if (body.messages?.[0]?.content?.includes('Bake protein bars')) request = body;
+          return { ok: true, json: async () => ({
+            suggest: true,
+            type: 'break_down',
+            reason: 'long_complex_task',
+            message: 'Split the recipe into steps',
+            subtasks: ['Gather ingredients', 'Bake protein bars'],
+          }) };
+        };
+        manualTasks.find(task => task.id === 'task_1').text = 'Bake protein bars';
+        Today.use('connections').renderManual();
+        Today.use('assistant')._aiAnalyzeTask('task_1', 'Bake protein bars');
+        await new Promise(r => setTimeout(r, 2400));
+        return {
+          noOffer: !document.querySelector('.task-suggestion'),
+          noOutcome: appMemory.suggestionOutcomes.length === 0,
+          originalKept: manualTasks.some(task => task.id === 'task_1' && task.text === 'Bake protein bars'),
+          taskOnly: request?.messages?.[0]?.content?.includes('Task just added: "Bake protein bars"')
+            && !request.messages[0].content.includes('Existing tasks:'),
+          noLengthHeuristic: request?.systemPrompt?.includes('Length alone is never a reason to split'),
+          noBehaviorBias: !request?.systemPrompt?.includes('Acceptance rate'),
+        };
+      });
+      await expectAll('single-action split abstention', { ...result, noErrors: errors.length === 0 });
+      ok('single-action task: speculative split rejected; prompt uses only the task');
+      await page.close();
+    }
+
     // 3. Breakdown apply: _aiApplyBreakdown removes original task, adds subtasks.
     {
       const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test' });
@@ -238,10 +274,10 @@ try {
             type: 'break_down',
             reason: 'long_complex_task',
             message: 'Several distinct steps',
-            subtasks: ['Write the draft', 'Add examples', 'Review'],
+            subtasks: ['Write the draft', 'Add examples', 'Review references'],
           }),
         });
-        const analyzedText = 'Write complete documentation with examples and unit tests';
+        const analyzedText = 'Write the draft, add examples, and review references';
         manualTasks.find(task => task.id === 'task_1').text = analyzedText;
         Today.use('connections').renderManual(); // render task_1 and task_2 into DOM
         const prevCount = manualTasks.length; // 2
@@ -252,7 +288,7 @@ try {
         return {
           taskRemoved:    !manualTasks.find(t => t.id === 'task_1'),
           subtasksAdded:  manualTasks.filter(t =>
-            ['Write the draft', 'Add examples', 'Review'].includes(t.text)
+            ['Write the draft', 'Add examples', 'Review references'].includes(t.text)
           ).length === 3,
           countCorrect:   manualTasks.length === prevCount - 1 + 3,
           appliedRecorded: !!outcome?.appliedAt && outcome?.outcome === 'applied',
@@ -278,7 +314,7 @@ try {
             subtasks: ['Write the outline', 'Fill in the details'],
           }),
         });
-        const taggedText = 'docs: Write a complete API reference';
+        const taggedText = 'docs: Write the outline and fill in the details';
         manualTasks.find(task => task.id === 'task_1').text = taggedText;
         Today.use('connections').renderManual();
         Today.use('assistant')._aiAnalyzeTask('task_1', taggedText);
