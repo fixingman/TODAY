@@ -511,6 +511,9 @@
         catch (_) { throw new Error(rawText.replace(/<[^>]+>/g, '').trim().slice(0, 120) || `HTTP ${res.status}`); }
         if (data.error) throw new Error(data.error);
         if (typeof data.updatedContext === 'string') state.context = data.updatedContext;
+        // BUG-110: an empty result the model never meant (blocked, cut off, unreadable)
+        // used to read as "Nothing came up". Say so — the red dot carries the reason.
+        if (data.note) _logSyncError('Meeting', 'Gemini returned nothing usable — ' + String(data.note).slice(0, 80));
         if (typeof data.dream === 'string' && data.dream.trim()) {
           state.dreamParts[seq] = { text: data.dream.trim(), hint: data.night_hint || '', lang: data.lang || '' };
           _meetingKeepDream(state);

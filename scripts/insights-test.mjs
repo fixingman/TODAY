@@ -509,7 +509,10 @@ try {
       window.dropboxAutoSave = () => { uploads++; };
       const line = () => appMemory.spokenLines.find(l => l.surface === 'Sunday reflection');
       const first = _memoryReactToLine('Sunday reflection', today, 'missed') === 'missed';
-      const stored = line().reaction === 'missed' && line().reactedAt.startsWith(today) && line().reactedAt.length > 10;
+      // The line date is local; reactedAt is an absolute UTC timestamp and may
+      // have a different calendar date around midnight.
+      const stored = line().reaction === 'missed'
+        && Math.abs(Date.parse(line().reactedAt) - Date.now()) < 2000;
       const uploadedOnVote = uploads === 1;
       const switched = _memoryReactToLine('Sunday reflection', today, 'landed') === 'landed';
       const cleared = _memoryReactToLine('Sunday reflection', today, 'landed') === null && !('reaction' in line());
@@ -523,6 +526,40 @@ try {
     });
     await expectAll('spokenLines reaction', { ...result, noErrors: errors.length === 0 });
     ok('_memoryReactToLine: timestamps and uploads every change, switches, clears on repeat, ignores unknown lines and values');
+    await page.close();
+  }
+
+  // An optional reason is attached to a missed line, not counted as another
+  // verdict. It syncs through the same last-change stamp and never enters AI text.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      appMemory.spokenLines = [];
+      _memoryRecordSpokenLine('Sunday reflection', 'A private example', 'soon-pullback');
+      const today = _localISO();
+      let uploads = 0;
+      window.dropboxAutoSave = () => { uploads++; };
+      const line = () => _memoryLineFor('Sunday reflection', today);
+      _memoryReactToLine('Sunday reflection', today, 'missed');
+      const voteStamp = line().reactedAt;
+      const chosen = _memorySetReactionReason('Sunday reflection', today, 'already_knew');
+      const stored = JSON.parse(localStorage.getItem('today_memory')).spokenLines[0];
+      const reasonStored = chosen === 'already_knew' && stored.reactionReason === 'already_knew'
+        && stored.reaction === 'missed' && stored.reactedAt > voteStamp;
+      const aiKeepsReasonPrivate = !_memoryForAI('nudge').includes('already_knew');
+      const invalidIgnored = _memorySetReactionReason('Sunday reflection', today, 'other') === null
+        && line().reactionReason === 'already_knew' && uploads === 2;
+      const cleared = _memorySetReactionReason('Sunday reflection', today, 'already_knew') === null
+        && !('reactionReason' in line());
+      _memorySetReactionReason('Sunday reflection', today, 'wrong_moment');
+      _memoryReactToLine('Sunday reflection', today, 'landed');
+      const changedVoteClearsReason = line().reaction === 'landed' && !('reactionReason' in line())
+        && _memorySetReactionReason('Sunday reflection', today, 'not_true') === null;
+      return { reasonStored, aiKeepsReasonPrivate, invalidIgnored, cleared,
+        changedVoteClearsReason, uploadsEveryChange: uploads === 5 };
+    });
+    await expectAll('optional private reaction reason', { ...result, noErrors: errors.length === 0 });
+    ok('not-really reason: optional, validated, timestamped, synced, cleared on vote change, absent from AI context');
     await page.close();
   }
 

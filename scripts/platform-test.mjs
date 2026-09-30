@@ -282,7 +282,11 @@ try {
 
   // visualViewport keyboard positioning + bfcache wake dispatch + SW registration.
   {
-    const { page, errors } = await openPage({ coarse: true, viewport: { width: 375, height: 812 } });
+    const { page, errors } = await openPage({
+      coarse: true,
+      viewport: { width: 375, height: 812 },
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+    });
     const result = await page.evaluate(async () => {
       const input = document.getElementById('newTask');
       const bar = document.getElementById('addTaskBar');
@@ -299,17 +303,28 @@ try {
         return originalScrollIntoView(...args);
       };
       input.blur();
+      input.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' }));
       input.focus();
       await new Promise(resolve => setTimeout(resolve, 150));
       const firstTransform = bar.style.transform;
       window.__setVisualViewport(10, 500);
+      // Model WebKit's native focus scroll during the software-keyboard opening.
+      window.scrollTo(0, beforeFocusY + 90);
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const resizedTransform = bar.style.transform;
+      const firstCorrectionY = window.scrollY;
+      // WebKit can make a second focus adjustment after the first viewport frame.
+      window.scrollTo(0, beforeFocusY + 45);
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const whileKeyboardY = window.scrollY;
       input.blur();
       await new Promise(resolve => setTimeout(resolve, 400));
       const afterBlurY = window.scrollY;
 
+      window.__setVisualViewport(0, 812);
       input.focus();
+      window.__setVisualViewport(10, 500);
+      longList.dispatchEvent(new Event('touchstart', { bubbles: true }));
       window.scrollTo(0, beforeFocusY + 120);
       await new Promise(resolve => requestAnimationFrame(resolve));
       const chosenY = window.scrollY;
@@ -326,6 +341,8 @@ try {
         resized: !!resizedTransform && resizedTransform !== firstTransform,
         reset: !bar.classList.contains('keyboard-open') && !bar.style.transform && !bar.style.position,
         noForcedScroll: scrollIntoViewCalls === 0,
+        firstCorrection: Math.abs(firstCorrectionY - beforeFocusY) <= 2,
+        keyboardOpenPositionPreserved: Math.abs(whileKeyboardY - beforeFocusY) <= 2,
         listPositionPreserved: Math.abs(afterBlurY - beforeFocusY) <= 2,
         intentionalScrollKept: Math.abs(afterChosenBlurY - chosenY) <= 2,
         wakes,
@@ -333,6 +350,7 @@ try {
       };
     });
     if (!result.opened || !result.resized || !result.reset || !result.noForcedScroll
+      || !result.firstCorrection || !result.keyboardOpenPositionPreserved
       || !result.listPositionPreserved || !result.intentionalScrollKept
       || result.wakes !== 1 || result.swPath !== '/sw.js') {
       await fail('keyboard, bfcache, or service-worker regression', result);

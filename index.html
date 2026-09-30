@@ -2423,15 +2423,9 @@
     text-align: left;
   }
   .morning-nudge.show { display: flex; }
-  /* The strip can arrive seconds after the list (it waits for the AI line), so it
-     opens its own space instead of shoving the list down in one frame. One-shot. */
-  @media (prefers-reduced-motion: no-preference) {
-    .morning-nudge.show { animation: nudgeOpen var(--dur-slow) var(--ease-out); }
-  }
-  @keyframes nudgeOpen {
-    from { max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: 0; margin-bottom: 0; }
-    to   { max-height: 12rem; }
-  }
+  /* The strip opens its own space when it arrives (nudge.js, WAAPI). Not a CSS
+     animation: the wake repaint toggles #main-app display, which restarts CSS
+     animations from keyframe 0 — the strip collapsed and regrew on every pass. */
   .morning-nudge.show.visible { opacity: 1; pointer-events: auto; }
   .morning-nudge:hover { border-color: var(--border); }
   .morning-nudge .nudge-star {
@@ -3189,6 +3183,22 @@
   }
   .nudge-react-btn:hover, .nudge-react-btn:focus-visible { color: var(--text); }
   .nudge-react-btn.on { color: var(--accent); }
+  .nudge-reason {
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: var(--space-1) var(--space-2);
+    padding: var(--space-1) 0 var(--space-2);
+  }
+  .nudge-reason[hidden] { display: none; }
+  .nudge-reason-label { flex-basis: 100%; color: var(--muted); font-size: var(--text-xs); }
+  .nudge-reason-btn, .nudge-reason-skip {
+    min-height: 32px; padding: var(--space-1) var(--space-2);
+    background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--muted); font-family: var(--font-mono); font-size: var(--text-xs);
+    cursor: pointer;
+  }
+  .nudge-reason-btn.on { color: var(--accent); border-color: var(--accent); }
+  .nudge-reason-btn:hover, .nudge-reason-skip:hover,
+  .nudge-reason-btn:focus-visible, .nudge-reason-skip:focus-visible { color: var(--text); }
   .morning-nudge-react { display: none; padding: 0 var(--space-4); }
   .morning-nudge-react.open { display: block; }
   .morning-nudge-react .nudge-react { margin-top: 0; }
@@ -4716,9 +4726,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.93.0': 'Dreams you tell the mic are now kept — dated to the night they happened, saved in your Dropbox, and listed under Memory → Dreams.',
-  '2.92.15': 'The mobile add bar stays above the keyboard without moving your place in the task list.',
-  '2.92.14': 'Your landed / not really vote on a line now reaches your other devices, including clearing a vote.',
+  '2.93.3': 'A dream told in a sentence or two is recognised more reliably, and if the AI sends nothing back you now see why instead of “Nothing came up”.',
+  '2.93.2': 'On desktop, the task list no longer bobs up and down when you return to the app while the morning line is showing.',
+  '2.93.1': 'A “not really” vote can now include an optional reason, kept private and synced across devices.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

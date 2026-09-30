@@ -390,15 +390,46 @@ try {
         notDismissed:  !localStorage.getItem('day_nudge_dismissed_' + _localISO()),
       }));
       await page.click('#dayNudgeReact [data-react="missed"]');
+      const afterVote = await page.evaluate(() => ({
+        voteSavedImmediately: appMemory.spokenLines.find(l => l.surface === 'morning nudge')?.reaction === 'missed',
+        reasonOptional: document.querySelector('#dayNudgeReact .nudge-reason')?.hidden === false
+          && !localStorage.getItem('day_nudge_dismissed_' + _localISO()),
+      }));
+      await page.click('#dayNudgeReact [data-reason="not_useful"]');
       await new Promise(r => setTimeout(r, 450));
       const afterChoice = await page.evaluate(() => ({
         recorded:  appMemory.spokenLines.find(l => l.surface === 'morning nudge')?.reaction === 'missed',
+        reasonSaved: appMemory.spokenLines.find(l => l.surface === 'morning nudge')?.reactionReason === 'not_useful',
         dismissed: !!localStorage.getItem('day_nudge_dismissed_' + _localISO()),
         hidden:    !document.getElementById('dayNudge').classList.contains('visible')
                 && !document.getElementById('dayNudgeReact').classList.contains('open'),
       }));
-      await expectAll('nudge reaction', { ...afterFirst, ...afterChoice, noErrors: errors.length === 0 });
-      ok('checkDayNudge: a spoken line reveals two states on first tap; a state records and dismisses');
+      await expectAll('nudge reaction', { ...afterFirst, ...afterVote, ...afterChoice, noErrors: errors.length === 0 });
+      ok('checkDayNudge: not really saves immediately, offers an optional reason, then dismisses');
+      await page.close();
+    }
+
+    // The follow-up is never required: Done closes the strip and keeps the vote.
+    {
+      const { page, errors } = await openPage({ skipDismiss: true });
+      await page.evaluate(() => {
+        localStorage.setItem('day_nudge_ai_' + _localISO(), 'Another spoken line.');
+        _memoryRecordSpokenLine('morning nudge', 'Another spoken line.', 'soon-pullback');
+        checkDayNudge(false);
+      });
+      await page.waitForFunction(() => document.getElementById('dayNudge')?.classList.contains('visible'));
+      await page.click('#dayNudge');
+      await page.click('#dayNudgeReact [data-react="missed"]');
+      await page.click('#dayNudgeReact .nudge-reason-skip');
+      const result = await page.evaluate(() => {
+        const line = appMemory.spokenLines.find(l => l.surface === 'morning nudge');
+        return {
+          voteKeptWithoutReason: line?.reaction === 'missed' && !line.reactionReason,
+          dismissed: !!localStorage.getItem('day_nudge_dismissed_' + _localISO()),
+        };
+      });
+      await expectAll('optional reason skip', { ...result, noErrors: errors.length === 0 });
+      ok('checkDayNudge: Done skips the optional reason without undoing the vote');
       await page.close();
     }
 
@@ -652,6 +683,37 @@ try {
       await page.close();
     }
 
+    // 11. The wake repaint must not replay the strip's open motion. _forceRepaint
+    //     toggles #main-app display, which restarts CSS animations from keyframe 0;
+    //     the strip's padding/margin regrew on each pass and the list bobbed ~17px
+    //     at 0.5 / 1.5 / 3 / 5 / 8 / 12s after every window focus on desktop PWA.
+    {
+      const { page, errors } = await openPage({ skipDismiss: true, extraSeed: {
+        ['day_nudge_ai_' + TODAY]: 'A settled morning line for the repaint test.',
+      } });
+      const result = await page.evaluate(async () => {
+        const el = document.getElementById('dayNudge');
+        checkDayNudge(false);
+        const shown = el.classList.contains('show');
+        const openedWithMotion = el.getAnimations().length > 0;
+        await new Promise(r => setTimeout(r, 700));
+        const settled = el.offsetHeight;
+        const app = document.getElementById('main-app');
+        app.style.display = 'none'; void app.offsetHeight; app.style.display = '';
+        const afterRepaint = el.offsetHeight;
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        return {
+          shown,
+          openedWithMotion,
+          heightStableAcrossRepaint: settled > 0 && afterRepaint === settled && el.offsetHeight === settled,
+          noCssAnimation: getComputedStyle(el).animationName === 'none',
+        };
+      });
+      await expectAll('nudge survives wake repaint', { ...result, noErrors: errors.length === 0 });
+      ok('morning strip opens once; the wake repaint display toggle does not replay it');
+      await page.close();
+    }
+
     // 10. Static wiring: script tag, startup order, 4 exports, functions removed, precached.
     {
       const indexSrc  = await readFile(join(ROOT, 'index.html'), 'utf8');
@@ -676,7 +738,7 @@ try {
       ok('nudge module: 4 exports, functions removed from index.html, precached in sw.js');
     }
 
-    console.log('\nNudge tests passed (post-extraction, 10 tests).');
+    console.log('\nNudge tests passed (post-extraction, 11 tests).');
   }
 } finally {
   if (browser) await browser.close();

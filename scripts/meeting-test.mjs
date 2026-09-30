@@ -440,6 +440,27 @@ try {
     await page.close();
   }
 
+  // BUG-110: an empty result Gemini did not mean (blocked, unreadable) is reported, not
+  // passed off as "Nothing came up" in silence.
+  {
+    const { page, errors } = await openPage({ supported: ['audio/webm;codecs=opus'] });
+    const result = await page.evaluate(async () => {
+      const t = window.__meetingTest;
+      Today.use('meeting').toggleMeeting();
+      await new Promise(r => setTimeout(r, 20));
+      t.meetingResponses.push({ updatedContext: '', actionItems: [], dream: '', note: 'empty: safety' });
+      Today.use('meeting').toggleMeeting();
+      for (let i = 0; i < 60 && !document.querySelector('.meeting-review-empty'); i++) await new Promise(r => setTimeout(r, 10));
+      return {
+        reported: t.errors.some(e => e.where === 'Meeting' && /nothing usable — empty: safety/.test(e.message)),
+        emptyShown: !!document.querySelector('.meeting-review-empty'),
+      };
+    });
+    await expectAll('empty reply reported', { ...result, noErrors: errors.length === 0 });
+    ok('a blocked or unreadable Gemini reply is reported instead of a silent "Nothing came up"');
+    await page.close();
+  }
+
   // Dream + a real task in one capture: the task is still offered, nothing but the dream
   // is stored before acceptance, and Add tasks keeps the dream.
   {

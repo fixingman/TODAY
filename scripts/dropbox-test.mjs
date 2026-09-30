@@ -470,21 +470,26 @@ try {
         line('morning nudge'),                                                            // not voted here
         line('Sunday reflection', { reaction: 'landed', reactedAt: iso + 'T08:00:00.000Z' }), // voted here, later cleared there
         line('Monday intention',  { reaction: 'landed', reactedAt: iso + 'T09:00:00.000Z' }), // voted here after the other device
+        line('focus question',    { reaction: 'missed', reactionReason: 'already_knew', reactedAt: iso + 'T08:00:00.000Z' }),
       ];
       mergeRemoteData({ ...base, memory: { spokenLines: [
-        line('morning nudge',     { reaction: 'missed', reactedAt: iso + 'T07:30:00.000Z' }),
+        line('morning nudge',     { reaction: 'missed', reactionReason: 'not_true', reactedAt: iso + 'T07:30:00.000Z' }),
         line('Sunday reflection', { reactedAt: iso + 'T08:30:00.000Z' }),
-        line('Monday intention',  { reaction: 'missed', reactedAt: iso + 'T08:45:00.000Z' }),
+        line('Monday intention',  { reaction: 'missed', reactionReason: 'wrong_moment', reactedAt: iso + 'T08:45:00.000Z' }),
+        line('focus question',    { reaction: 'missed', reactedAt: iso + 'T08:30:00.000Z' }),
       ] } });
       const get = s => appMemory.spokenLines.find(l => l.surface === s);
       return {
         remoteVoteAdopted: get('morning nudge').reaction === 'missed',
+        remoteReasonAdopted: get('morning nudge').reactionReason === 'not_true',
         newerRemoteClearAdopted: !get('Sunday reflection').reaction,
         olderRemoteVoteIgnored: get('Monday intention').reaction === 'landed',
+        olderRemoteReasonIgnored: !get('Monday intention').reactionReason,
+        newerReasonClearAdopted: !get('focus question').reactionReason,
       };
     });
     await expectAll('vote sync', { ...result, noErrors: errors.length === 0 });
-    ok('mergeRemoteData: the latest vote change wins across devices, including a cleared vote');
+    ok('mergeRemoteData: the latest vote and optional reason win across devices, including clears');
     await page.close();
   }
 

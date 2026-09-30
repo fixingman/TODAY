@@ -18,6 +18,9 @@
 
 | # | Description | Status |
 |---|---|---|
+| 110 | A one-sentence dream told to the mobile mic came back as "Nothing came up" — silent empty result from meeting-extract | 🔍 Diagnosing (hardened v2.93.3) |
+| 109 | Task list bobbed up and down after refocusing the desktop PWA while the morning strip was showing — wake repaint replayed its CSS open animation | ⏳ v2.93.2 |
+| 108 | Dragging a task on mobile left a neighbouring task looking highlighted — row :hover rules unguarded on touch | ⏳ v2.92.5 |
 | 107 | Three header icon buttons have a raised halo in the iPhone PWA | 🚫 Rejected |
 | 106 | Focus task ages, weekly aging list, and wake offline banner fell back silently — guards on functions moved into modules | ⏳ v2.91.1 |
 | 105 | Gmail enrichment silently missed explicit email tasks — classifier and query fallback gaps after the original provider fix | ⏳ v2.92.5 |
@@ -42,6 +45,42 @@
 ---
 
 *BUG-001–087 → `archive/Bugs-archive.md` (summary rows + detail). Detail for every later ✅ bug is archived too. Below: open, awaiting-verification, and rejected bugs only.*
+
+---
+
+## BUG-110 — A plain one-sentence dream came back as "Nothing came up" (mobile PWA)
+
+**Symptom:** Can, 2026-09-30, iPhone PWA, both v2.92.x and v2.93.0: said "I saw a dream last night, I saw a girl, she was 180 and 70kg" into the mic; the sheet said "Nothing came up". No red dot reported.
+
+**What can produce exactly that, and only that:** `meeting-extract` answered 200 with an empty result on three paths that look identical to "no dream, no tasks": (1) Gemini returned no text (blocked or empty candidate, `finishReason` never inspected), (2) its text was not bare JSON (only leading/trailing code fences were stripped, so any prose around the object failed `JSON.parse`), (3) the model judged the clip not a dream. The prompt framed every recording as "a live meeting" and defined a dream account by narration, so a flat single sentence with measurements and no story is the weakest case for (3). Which path fired is **not confirmed** — no Gemini key is available to the agent, and the phone reports nothing on these paths.
+
+**Hardening (v2.93.3):** Gemini now runs in JSON mode (`responseMimeType: 'application/json'`) and a failed parse falls back to the first `{…}` in the reply; the prompt states that a recording can be one person talking to their phone and that a dream account can be a single plain sentence with no story, feeling, or strangeness. Blocked/empty/unreadable replies now return a `note` (e.g. `empty: safety`, `unreadable reply`) and the client reports it through the red dot, so the next miss names its cause. `meeting-extract-unit-test` pins the three paths; `meeting-test` pins the report; `dream-live-test` gains Can's sentence as `plain-en` and a `--say="…"` mode that prints Gemini's raw answer for any phrase.
+
+**To confirm the cause:** `GEMINI_API_KEY=… node scripts/dream-live-test.mjs --say="I saw a dream last night. I saw a girl, she was 180 and 70 kilos."` on the old prompt (git stash-free: check out `cf825d3d` in a worktree) vs this one; then retell it on the phone. A red dot with a reason = path 1 or 2; a dream sheet = fixed; "Nothing came up" with no dot = the model still judges it not a dream.
+
+---
+
+## BUG-109 — List bobs while the morning strip is showing (desktop PWA)
+
+**Symptom:** Can, with a screen recording, 2026-09-30: with the morning nudge on screen, the task list jumped up ~17px and eased back several times after the PWA window regained focus. Frame analysis matched the wake repaint schedule (jumps at 0.33s, 0.80s, 1.80s, 3.30s).
+
+**Root cause:** `window.focus` runs `_onWake`, whose `_forceRepaint` toggles `#main-app` `display` about nine times over 12s (BUG-004/056/071). A display toggle restarts CSS animations from keyframe 0. The strip's `nudgeOpen` (a one-shot CSS animation collapsing padding/margin/max-height, added after the BUG-028 WAAPI rule) replayed on every pass, and the list moved with it.
+
+**Fix (v2.93.2):** the CSS animation is removed; `_showNudge` runs the same open motion once via WAAPI (`--dur-slow`, `--ease-out`), which display toggles do not restart. Reduced motion skips it. `nudge-test` 11 shows the strip, toggles `#main-app` display like the repaint, and asserts the height is unchanged and no CSS animation is attached — failing on the old code.
+
+**Verification:** on desktop PWA before noon with the strip showing, switch to another app and back. The list should stay still.
+
+---
+
+## BUG-108 — Neighbouring task looks highlighted after a mobile drag
+
+**Symptom:** Can, 2026-09-27: dragging a task on mobile sometimes left another task looking highlighted; intermittent.
+
+**Root cause:** touch has no real hover, but mobile browsers apply `:hover` to the last element hit-tested under the finger and keep it there. During a drag reorder rows slide under the finger, so a neighbour could keep `:hover` — its left drag-cue line, surface background and border stayed painted. Several row `:hover` rules (task/habit rows, the drag cue, Soon/Past fades, delete and session-count reveals, the pull button) sat outside `@media (hover: hover)`. Same class as BUG-093.
+
+**Fix (v2.92.5):** every task/habit row `:hover` rule is inside `@media (hover: hover)`; touch keeps its always-visible delete and pull controls. `drag-test` walks the live stylesheet and fails on any unguarded row `:hover` rule — it listed the offenders on the old CSS.
+
+**Verification:** on a phone, long-press and drag tasks up and down several times; no other row should stay highlighted.
 
 ---
 

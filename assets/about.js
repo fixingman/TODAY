@@ -175,7 +175,8 @@
       const btn = (r, label) => '<button type="button" class="nudge-react-btn' + (line.reaction === r ? ' on' : '') + '"' +
         ' data-react="' + r + '" data-surface="' + esc(surface) + '" aria-pressed="' + (line.reaction === r) + '">' + label + '</button>';
       return '<div class="nudge-react' + (line.reaction ? ' open' : '') + '" role="group" aria-label="Did this land?">' +
-        btn('landed', 'landed') + btn('missed', 'not really') + '</div>';
+        btn('landed', 'landed') + btn('missed', 'not really') + '</div>' +
+        _memoryMissReasonHTML(surface, line);
     }
     // One delegated listener for every block in the panel. Tap the sentence to
     // reveal; tap a state to record it (again to clear). The group stays open once
@@ -184,6 +185,22 @@
       if (!panel || panel._reactWired) return;
       panel._reactWired = true;
       panel.addEventListener('click', e => {
+        const reasonBtn = e.target.closest('.nudge-reason-btn');
+        const reasonRow = e.target.closest('.nudge-reason');
+        if (reasonRow && e.target.closest('.nudge-reason-skip')) {
+          reasonRow.hidden = true;
+          return;
+        }
+        if (reasonBtn && reasonRow) {
+          const selected = _memorySetReactionReason(reasonRow.dataset.surface, _localISO(), reasonBtn.dataset.reason);
+          reasonRow.querySelectorAll('.nudge-reason-btn').forEach(b => {
+            const on = b.dataset.reason === selected;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-pressed', String(on));
+          });
+          if (typeof _haptic === 'function') _haptic();
+          return;
+        }
         const btn = e.target.closest('.nudge-react-btn');
         if (btn) {
           const now = _memoryReactToLine(btn.dataset.surface, _localISO(), btn.dataset.react);
@@ -194,6 +211,14 @@
             b.setAttribute('aria-pressed', String(on));
           });
           group.classList.toggle('open', true);
+          const reasons = group.nextElementSibling;
+          if (reasons?.classList.contains('nudge-reason')) {
+            reasons.hidden = now !== 'missed';
+            reasons.querySelectorAll('.nudge-reason-btn').forEach(b => {
+              b.classList.remove('on');
+              b.setAttribute('aria-pressed', 'false');
+            });
+          }
           if (typeof _haptic === 'function') _haptic();
           return;
         }

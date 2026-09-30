@@ -60,6 +60,7 @@ exports.handler = async function(event) {
   const systemPrompt =
     `You are listening to one segment of a live meeting on behalf of ${name}. ` +
     `Transcribe it internally (do NOT output the transcript) and extract concrete action items.\n` +
+    `The recording is not always a meeting: it can be ${name} alone, talking to their phone for a few seconds — and that includes telling a dream.\n` +
     `Rules:\n` +
     `- An action item is a specific commitment or assignment ("send X", "book Y", "follow up with Z"), not a discussion topic.\n` +
     `- A self-commitment ("I'll...", "I will...", "let me...", "I need to...") belongs to WHOEVER IS SPEAKING that line — track speaker turns across the segment (and the rolling context's speaker hints) even when names are never stated at that exact moment. If the conversation reveals that speaker's name elsewhere (someone greets them, addresses them, or they introduce themselves), tag "owner" with that real name — do not assume every unnamed "I'll..." is ${name} just because it's unnamed. Meetings have more than one voice, and more than one person says "I'll handle it" about their own task.\n` +
@@ -72,7 +73,7 @@ exports.handler = async function(event) {
     `- Do not repeat items already listed in the prior context or in the already-captured list below.\n` +
     (alreadyCaptured ? `Already captured tasks for ${name} — do not re-add these or close variations:\n${alreadyCaptured}\n` : '') +
     `- updatedContext: carry forward the prior context, appending this segment's speaker hints (who is who) and any open threads, max 150 words total. Plain text, no transcript.\n` +
-    `- A dream account narrates what the speaker experienced while asleep. Waking events described as dreamlike or nightmarish, and hopes or ambitions called dreams, are not dream accounts.\n` +
+    `- A dream account narrates what the speaker experienced while asleep, however it is phrased and in any language. It can be a single plain sentence with no story, no feeling, and nothing strange in it; length and detail do not decide it. Waking events described as dreamlike or nightmarish, and hopes or ambitions called dreams, are not dream accounts.\n` +
     `- dream: when the segment is a person recounting a dream they had, set dream to a faithful first-person retelling in the language spoken, max 150 words, keeping its images, people, places, and feelings without adding or interpreting anything. Things that happen inside the dream are not action items; only a real commitment the speaker states about waking life is. When the segment is not a dream account, dream is "".\n` +
     `- night_hint: when dream is set, which night the dream happened, from what the speaker says: "last_night" when they say last night, that they just woke up, or give no time at all; "nights_ago:N" with N from 2 to 14 for a night N nights back; "weekday:sun" to "weekday:sat" when they name the day it happened; "long_ago" for an old or childhood dream; "unknown" only when what they say about the time cannot be placed. When dream is "", night_hint is "".\n` +
     `- lang: when dream is set, the two-letter ISO 639-1 code of the language the dream is told in (the main one if several); otherwise "".\n` +
@@ -91,6 +92,7 @@ exports.handler = async function(event) {
     generationConfig: {
       maxOutputTokens: 1024, // room for a dream retelling alongside the items
       temperature: 0.3,
+      responseMimeType: 'application/json', // BUG-110: prose around the JSON used to parse-fail into a silent empty result
       thinkingConfig: { thinkingBudget: 0 }, // Disable thinking — prevents Netlify 10s timeout
     },
   };
@@ -142,17 +144,21 @@ exports.handler = async function(event) {
     }
 
     const responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // A blocked/empty/unreadable chunk is not fatal to the meeting — but it must not look
+    // like "nothing was said" either (BUG-110). `note` names why; the client reports it.
+    const emptyResult = note => _json(200, { actionItems: [], updatedContext: context, dream: '', night_hint: '', lang: '', note });
     if (!responseText) {
-      // A blocked/empty chunk is not fatal to the meeting — return an empty result
-      return _json(200, { actionItems: [], updatedContext: context, dream: '', night_hint: '', lang: '' });
+      const why = data?.promptFeedback?.blockReason || data?.candidates?.[0]?.finishReason || 'no candidate';
+      return emptyResult('empty: ' + String(why).toLowerCase());
     }
 
     let parsed;
     try {
       const clean = responseText.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
-      parsed = JSON.parse(clean);
+      try { parsed = JSON.parse(clean); }
+      catch (_) { parsed = JSON.parse((clean.match(/\{[\s\S]*\}/) || [''])[0]); }
     } catch (e) {
-      return _json(200, { actionItems: [], updatedContext: context, dream: '', night_hint: '', lang: '' });
+      return emptyResult('unreadable reply');
     }
 
     const items = Array.isArray(parsed.actionItems) ? parsed.actionItems : [];

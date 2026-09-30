@@ -28,16 +28,18 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 ## ▸ Roadmap
 
+Ordered by potential impact on TODAY's longitudinal-companion promise and daily experience, not by build readiness or effort. Gated items remain gated.
+
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 12c | **Companion — observation pool** | Phases 0–3 shipped; **Phase 4 running** | Morning (today-hook kinds) + Sunday (all outcome kinds). Detail ↓ |
-| 11 | **Task agent — enrichment at add-time** | Stages 1–3 shipped | Stage 3 (v2.90.0): `search_trello` custom tool. Contacts + calendar remain out of scope until those integrations exist. Detail ↓ |
-| 10 | **Meeting mode & calendar capture** | In progress / gated | Granola MVP first; calendar = input only. Detail ↓ |
-| 9 | **Google Drive sync** | Parked — spec ready | Second sync backend; user picks one provider. Full spec ↓ |
+| 12c | **Companion — observation pool** | Phases 0–3 shipped; **Phase 4 iterate / re-observe** | Morning (today-hook kinds) + Sunday (all outcome kinds). Real-use verdict and next gate ↓ |
+| 13 | **DreamBank** | M1 built (v2.93.0); live evals + phone check owed | Keep dreams (dated to their night) in Can's Dropbox; TODAY holds only what it learns. M1 → M2 lexicon → M3 callbacks / Sunday / task links. Detail ↓ |
 | — | **WEEK companion** | Gated | Gate: 12c must feel like a companion, not a feature. Detail ↓ |
 | — | **New week — distinct Monday recognition** | Gated | The old Monday task-list intention was removed after the 2026-09-28 overlap report. Re-enter only with code-selected, week-scale commitment evidence that has a different job from Today's nudge; criteria ↓. |
-| 13 | **DreamBank** | M1 built (v2.93.0); live evals + phone check owed | Keep dreams (dated to their night) in Can's Dropbox; TODAY holds only what it learns. M1 → M2 lexicon → M3 callbacks / Sunday / task links. Detail ↓ |
 | 2 | **Poem corpus — iterate** | In progress | Corpus 128; expand geography and voice. Detail ↓ |
+| 10 | **Meeting mode & calendar capture** | In progress / gated | Granola MVP first; calendar = input only. Detail ↓ |
+| 11 | **Task agent — enrichment at add-time** | Stages 1–3 shipped | Stage 3 (v2.90.0): `search_trello` custom tool. Contacts + calendar remain out of scope until those integrations exist. Detail ↓ |
+| 9 | **Google Drive sync** | Parked — spec ready | Second sync backend; user picks one provider. Full spec ↓ |
 | — | **Videos (HyperFrames)** | Promo + onboarding shipped (v2.92.6–9) | Open: the 9:16 phone cut of the promo (re-run `capture.mjs --mobile` first — the phone clips predate the slow-motion capture and lag). Re-capture any scene whose UI changes: the footage is the real app, so a UI change dates it (v2.92.8's Past marks did). How-to: `video/README.md`. |
 
 ---
@@ -227,9 +229,15 @@ Dropbox + GDrive simultaneously · automatic cross-provider migration · OneDriv
 
 ### 12 · Companion Arc
 
-#### 12c · Observation Pool — Phases 0–3 shipped; **Phase 4 running** (restarted 2026-09-03)
+#### 12c · Observation Pool — Phases 0–3 shipped; **Phase 4 iterate / re-observe** (verdict 2026-09-30)
 
 **One ranked candidate pool feeding two surfaces.** Code selects through four gates; the model only phrases. `assets/week-reflection-policy.js` is pure and Node-testable. Consumers: the **morning nudge** (only kinds that can point at today's list) and the **Sunday reflection** (every kind). Cooldowns and material-change reopening are cross-surface; see `architecture/AI.md` for the current gate.
+
+**Real-use verdict (Can, 2026-09-30): iterate, not kept or removed.** The sampled observation-pool lines have not landed, while the ordinary task-reading morning path has generally been useful. That is enough to withhold a “kept” verdict, not enough to discard the companion bet or rewrite it from a tiny sample. Exact lines, dates, votes, and task text belong in the private synced `appMemory.spokenLines` record, not in this public backlog. A two-state vote does not tell us whether a line was untrue, already obvious, unable to change a choice, or simply at the wrong moment; do not invent a reason from the wording.
+
+**Evidence gap for the next decision:** privately review each missed line with Can, using the exact wording already retained in Dropbox and, where supplied, the optional reason now stored with a “not really” vote. The four choices distinguish untrue, already obvious, unable to help, and wrong moment. The vote saves before that skippable choice; its reason stays in the private synced record, never in a model prompt or this public backlog. Record only the resulting product lesson here, not the line or personal evidence. A few reasons are diagnostic clues, not grounds for automatic candidate-policy changes or analytics.
+
+Keep the current evidence, reaction, cooldown, and earned-silence loop running without changing runtime behavior; leave the ordinary morning path alone. WEEK and a distinct New week line remain gated. Re-observe the October 4 and 11 Sundays through the October 15 verdict. For any pool line, distinguish **untrue**, **obvious**, and **true but unable to change a choice** before touching selection or prose. If it stays silent, check that the silence was earned by the gates. Revisit the candidate kinds and usefulness bar structurally, not with a wording-only fix.
 
 ### Phase 4 — first sample, and what it changed (2026-09-02/03)
 
@@ -316,7 +324,6 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 
 **Deferred — multi-dream captures** (eng review D1): one capture = one dream in M1; two dreams told together become one file. Build `dreams[]` + chunk stitching (`openDream`, `continues_previous`) + stacked sheet cards only when Can tells two distinct dreams in one capture and wants them apart. File ids are per dream, so no migration. Start: `meeting.js:505` concat, `meeting-extract.js:72-75`.
 
-
 ---
 
 ## Watching
@@ -356,7 +363,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 | Shift+Space quick voice capture | 2026-09-29 | Open — does holding the chord remain genuinely faster than typing, and do the brief capture states clarify progress without lingering? |
 | HOW DAYS FELT insight | 2026-10-08 | Re-observing — extended 20 days from 2026-09-18 while data populates. A useful commitment relationship or silence, never a feeling-frequency recap? |
 | Sunday earned insight | 2026-10-15 | Re-observing — was blocked lately; give more rounds before verdict. |
-| Observation pool — morning + Sunday (12c Phase 4) | 2026-10-01 | Re-observing — not sure yet; extend to 2026-10-01. Reactions are the verdict channel. |
+| Observation pool — morning + Sunday (12c Phase 4) | 2026-10-15 | **Iterate (2026-09-30)** — sampled pool lines have not landed; ordinary morning task-reading remains useful. Keep feedback and earned silence running through the next two Sundays; privately diagnose misses by truth, novelty, usefulness, and timing before changing candidate logic. Do not unlock WEEK or New week. |
 | Memory panel KNOWN record (12d Phase A) | 2026-10-09 | Re-observing — v2.91.0 adds waiting Soon tasks to KNOWN and gives AI observations a lifecycle (episodic refreshed daily, stable shown only after 3 weeks of support, "not me" rejects). Extended from 2026-10-01: stable items need ~15 days to appear. Does the panel now earn a visit? |
 
 ---

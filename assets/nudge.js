@@ -37,6 +37,7 @@ window._startNudge = (function() {
     // upgraded, once, and only from a genuinely later call, never a same-instant
     // swap while still mid-read).
     let _nudgeIsFallback = false;
+    let _reasonDismissTimer = null;
     // 12c Phase 3: set by _fetchDayNudgeAI when a pool candidate produced the line,
     // so the spoken-line record carries the kind the novelty gate cools down on.
     let _nudgeKind = null;
@@ -163,6 +164,8 @@ window._startNudge = (function() {
       const _aiCached = _aiSurfaceGet('day_nudge_ai');
 
       const _showNudge = (text, isAI) => {
+        if (_reasonDismissTimer) clearTimeout(_reasonDismissTimer);
+        _reasonDismissTimer = null;
         _nudgeRendered = true;
         _nudgeIsFallback = !isAI;
         nudgeEl.innerHTML = `<span class="nudge-star">✦</span><span class="nudge-text">${esc(text)}</span>`;
@@ -170,8 +173,22 @@ window._startNudge = (function() {
         if (!nudgeEl.classList.contains('show')) {
           nudgeEl.classList.add('show');
           requestAnimationFrame(() => nudgeEl.classList.add('visible'));
+          // The strip can arrive seconds after the list (it waits for the AI line), so it
+          // opens its own space rather than shoving the list down in one frame. WAAPI,
+          // never CSS: the wake repaint's display toggle replays CSS animations (BUG-028).
+          if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            nudgeEl.animate(
+              [
+                { maxHeight: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', marginBottom: '0px', overflow: 'hidden' },
+                { maxHeight: '12rem', overflow: 'hidden' },
+              ],
+              { duration: _motionDuration('--dur-slow'), easing: _motionEasing('--ease-out') }
+            );
+          }
         }
         const _dismiss = () => {
+          if (_reasonDismissTimer) clearTimeout(_reasonDismissTimer);
+          _reasonDismissTimer = null;
           nudgeEl.classList.remove('visible');
           setTimeout(() => nudgeEl.classList.remove('show'), 300);
           if (reactEl) reactEl.classList.remove('open');
@@ -191,14 +208,31 @@ window._startNudge = (function() {
         if (reactEl) {
           reactEl.classList.remove('open');
           reactEl.innerHTML = '';
+          reactEl.onclick = null;
           if (spokenToday) {
             const btn = (r, label) => `<button type="button" class="nudge-react-btn${spokenToday.reaction === r ? ' on' : ''}" data-react="${r}" aria-pressed="${spokenToday.reaction === r}">${label}</button>`;
-            reactEl.innerHTML = `<div class="nudge-react open" role="group" aria-label="Did this land?">${btn('landed', 'landed')}${btn('missed', 'not really')}</div>`;
+            reactEl.innerHTML = `<div class="nudge-react open" role="group" aria-label="Did this land?">${btn('landed', 'landed')}${btn('missed', 'not really')}</div>` +
+              _memoryMissReasonHTML('morning nudge', spokenToday);
             reactEl.onclick = e => {
+              const reason = e.target.closest('.nudge-reason-btn');
+              if (reason) {
+                _memorySetReactionReason('morning nudge', _localISO(), reason.dataset.reason);
+                if (typeof _haptic === 'function') _haptic();
+                _dismiss();
+                return;
+              }
+              if (e.target.closest('.nudge-reason-skip')) { _dismiss(); return; }
               const b = e.target.closest('.nudge-react-btn');
               if (!b) return;
-              if (typeof _memoryReactToLine === 'function') _memoryReactToLine('morning nudge', _localISO(), b.dataset.react);
+              const choice = _memoryReactToLine('morning nudge', _localISO(), b.dataset.react);
               if (typeof _haptic === 'function') _haptic();
+              if (choice === 'missed') {
+                // The vote is already saved. This extra reason is optional: a
+                // short, non-blocking window, or "done" to leave immediately.
+                reactEl.querySelector('.nudge-reason').hidden = false;
+                _reasonDismissTimer = setTimeout(_dismiss, 8000);
+                return;
+              }
               _dismiss();
             };
           }
@@ -507,6 +541,8 @@ window._startNudge = (function() {
     // Called by dropbox.js checkNewDay() at day boundary — resets session guards so the
     // fresh day's nudge can render in a tab that stayed open across midnight.
     window._nudgeOnNewDay = function() {
+      if (_reasonDismissTimer) clearTimeout(_reasonDismissTimer);
+      _reasonDismissTimer = null;
       _nudgeRendered  = false;
       _nudgeRacing    = false;
       _nudgeIsFallback = false;

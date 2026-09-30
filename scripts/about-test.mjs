@@ -654,6 +654,7 @@ try {
       const block = document.getElementById('sundayBlock');
       const group = block.querySelector('.nudge-react');
       const collapsedAtFirst = !!group && !group.classList.contains('open');
+      const reasonHiddenAtFirst = block.querySelector('.nudge-reason')?.hidden === true;
       block.querySelector('.week-summary').click();
       const revealed = !!group && group.classList.contains('open');
       block.querySelector('[data-react="missed"]').click();
@@ -661,16 +662,36 @@ try {
       const recorded = line().reaction === 'missed'
         && block.querySelector('[data-react="missed"]').getAttribute('aria-pressed') === 'true'
         && block.querySelector('[data-react="landed"]').getAttribute('aria-pressed') === 'false';
+      const reasonOffered = block.querySelector('.nudge-reason')?.hidden === false
+        && block.querySelectorAll('.nudge-reason-btn').length === 4;
+      block.querySelector('[data-reason="not_useful"]').click();
+      const reasonSaved = line().reactionReason === 'not_useful'
+        && block.querySelector('[data-reason="not_useful"]')?.getAttribute('aria-pressed') === 'true';
+      block.querySelector('[data-reason="not_useful"]').click();
+      const reasonRevised = !line().reactionReason
+        && block.querySelector('[data-reason="not_useful"]')?.getAttribute('aria-pressed') === 'false';
+      block.querySelector('.nudge-reason-skip').click();
+      const reasonDismissed = block.querySelector('.nudge-reason')?.hidden === true
+        && line().reaction === 'missed';
       block.querySelector('[data-react="missed"]').click();
-      const cleared = !line().reaction;
+      const cleared = !line().reaction && !line().reactionReason;
       const todayBlock = document.getElementById('todayNudgeBlock');
+      const noControlWithoutSpokenLine = !!todayBlock.querySelector('.week-summary') && !todayBlock.querySelector('.nudge-react');
+      appMemory.spokenLines.push({ surface: 'morning nudge', date: today, text: 'A spoken Today line.' });
+      Today.use('about').renderInfoStats();
+      const todayWithLine = document.getElementById('todayNudgeBlock');
+      todayWithLine.querySelector('.week-summary').click();
+      todayWithLine.querySelector('[data-react="missed"]').click();
+      todayWithLine.querySelector('[data-reason="wrong_moment"]').click();
+      const todayReasonWorks = appMemory.spokenLines.find(l => l.surface === 'morning nudge')?.reactionReason === 'wrong_moment';
       return {
-        collapsedAtFirst, revealed, recorded, cleared,
-        noControlWithoutSpokenLine: !!todayBlock.querySelector('.week-summary') && !todayBlock.querySelector('.nudge-react'),
+        collapsedAtFirst, reasonHiddenAtFirst, revealed, recorded, reasonOffered, reasonSaved,
+        reasonRevised, reasonDismissed, cleared,
+        noControlWithoutSpokenLine, todayReasonWorks,
       };
     });
     await expectAll('Sunday reaction', { ...result, noErrors: errors.length === 0 });
-    ok('Sunday reflection: tap reveals two states; a state records to the line; repeat clears; unspoken lines get none');
+    ok('About Today and Sunday: optional reasons save privately; repeat clears; unspoken lines get no control');
     await page.close();
   }
 

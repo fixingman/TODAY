@@ -371,6 +371,28 @@ function _memoryRecordSpokenLine(surface, text, kind, policy) {
 function _memoryLineFor(surface, date) {
   return (appMemory.spokenLines || []).find(l => l && l.surface === surface && l.date === date) || null;
 }
+// These optional, closed-vocabulary reasons stay on the private synced line.
+// They are never included in _memoryForAI() or sent to a model.
+const _memoryMissReasons = [
+  { value: 'not_true', label: 'not true' },
+  { value: 'already_knew', label: 'already knew' },
+  { value: 'not_useful', label: "doesn't help" },
+  { value: 'wrong_moment', label: 'wrong moment' },
+];
+function _memoryMissReasonHTML(surface, line) {
+  const buttons = _memoryMissReasons.map(({ value, label }) =>
+    '<button type="button" class="nudge-reason-btn' + (line.reactionReason === value ? ' on' : '') +
+    '" data-reason="' + value + '" aria-pressed="' + (line.reactionReason === value) + '">' + label + '</button>'
+  ).join('');
+  return '<div class="nudge-reason" data-surface="' + esc(surface) + '" role="group" aria-label="Why did this not land? Optional"' +
+    (line.reaction === 'missed' ? '' : ' hidden') + '>' +
+    '<span class="nudge-reason-label">why? · optional</span>' + buttons +
+    '<button type="button" class="nudge-reason-skip">done</button></div>';
+}
+function _memoryReactionStamp(previous) {
+  const prior = Date.parse(previous || '') || 0;
+  return new Date(Math.max(Date.now(), prior + 1)).toISOString();
+}
 function _memoryReactToLine(surface, date, reaction) {
   const entry = _memoryLineFor(surface, date);
   if (!entry) return null;
@@ -381,12 +403,27 @@ function _memoryReactToLine(surface, date, reaction) {
   // must be orderable.
   if (!next || entry.reaction === next) delete entry.reaction;
   else entry.reaction = next;
-  entry.reactedAt = new Date().toISOString();
+  // A reason describes one "not really" verdict, not this line forever.
+  delete entry.reactionReason;
+  entry.reactedAt = _memoryReactionStamp(entry.reactedAt);
   _memoryTallyReaction(entry.kind, prev, entry.reaction || null);
   _saveMemory();
   // _saveMemory is local only; a verdict must reach the other devices.
   if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
   return entry.reaction || null;
+}
+function _memorySetReactionReason(surface, date, reason) {
+  const entry = _memoryLineFor(surface, date);
+  if (!entry || entry.reaction !== 'missed' || !_memoryMissReasons.some(r => r.value === reason)) return null;
+  if (entry.reactionReason === reason) delete entry.reactionReason;
+  else entry.reactionReason = reason;
+  // Reuse the per-line last-change clock: Dropbox merges the whole line by this
+  // timestamp, so a reason added or cleared on another device wins without a
+  // separate per-device counter or duplicate vote.
+  entry.reactedAt = _memoryReactionStamp(entry.reactedAt);
+  _saveMemory();
+  if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
+  return entry.reactionReason || null;
 }
 
 // 12e — the permanent record behind the reactions (v2.87.0). spokenLines keep 30

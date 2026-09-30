@@ -35,8 +35,12 @@ const assert = (condition, message, detail) => {
   throw new Error(message);
 };
 
+// The focus Gmail block is desktop-only. CI's headless Linux Chrome otherwise
+// reports no hover-capable pointer, so focus mode never creates the block.
+const DESKTOP_INPUT = '--blink-settings=availableHoverTypes=2,primaryHoverType=2,availablePointerTypes=4,primaryPointerType=4';
+
 try {
-  browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-first-run', '--disable-extensions'] });
+  browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-first-run', '--disable-extensions', DESKTOP_INPUT] });
   const page = await browser.newPage();
   await page.evaluateOnNewDocument(() => {
     localStorage.setItem('gmail_access_token', 'access-test');
@@ -47,6 +51,8 @@ try {
   });
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof window._gmailBuildQueryFallback === 'function');
+  assert(await page.evaluate(() => matchMedia('(hover: hover)').matches),
+    'test browser exposes the desktop hover input required by focus mode');
 
   const fallback = await page.evaluate(() => ({
     topic: _gmailBuildQueryFallback('Follow up on the three proposals we sent last week'),

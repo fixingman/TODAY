@@ -85,7 +85,33 @@ if ('serviceWorker' in navigator && canRegisterSW) {
 
   // Check for visualViewport support
   const vv = window.visualViewport;
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   let rafId = null;
+  let tapAnchor = null;
+  let scrollAnchor = null;
+  let anchorTimer = null;
+
+  function clearScrollAnchor() {
+    if (anchorTimer) clearTimeout(anchorTimer);
+    anchorTimer = null;
+    scrollAnchor = null;
+  }
+
+  function preserveListDuringKeyboardOpen() {
+    if (!isIOS || !scrollAnchor || scrollAnchor.userScrolled || !vv) return;
+    // Rotation changes the layout itself; the old document Y is no longer a
+    // meaningful anchor in that case.
+    if (window.innerWidth !== scrollAnchor.viewportWidth) {
+      clearScrollAnchor();
+      return;
+    }
+    // A hardware keyboard or a simple focus must not trigger scroll correction.
+    if (scrollAnchor.viewportHeight - vv.height < 100) return;
+    if (Math.abs(window.scrollY - scrollAnchor.y) > 2) {
+      window.scrollTo(window.scrollX, scrollAnchor.y);
+    }
+  }
 
   function positionBar() {
     if (!bar.classList.contains('keyboard-open')) return;
@@ -104,30 +130,63 @@ if ('serviceWorker' in navigator && canRegisterSW) {
       bar.style.position = 'fixed';
       bar.style.top = '0';
       bar.style.bottom = 'auto';
+      // WebKit may scroll the document to reveal the focused fixed input while
+      // opening the keyboard. Once the bar is above the keyboard, that scroll
+      // is unnecessary and otherwise persists after the keyboard closes.
+      preserveListDuringKeyboardOpen();
     });
   }
 
   function resetBar() {
     if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
     bar.style.transform = '';
     bar.style.position = '';
     bar.style.top = '';
     bar.style.bottom = '';
   }
 
+  // Capture before the browser's default focus action, which can scroll before
+  // the focus event itself. Programmatic focus falls back to its current Y.
+  input.addEventListener('pointerdown', () => {
+    tapAnchor = { y: window.scrollY, viewportHeight: vv?.height, at: performance.now() };
+  }, { passive: true });
+
   input.addEventListener('focus', () => {
+    const tapped = tapAnchor && performance.now() - tapAnchor.at < 500;
+    scrollAnchor = {
+      y: tapped ? tapAnchor.y : window.scrollY,
+      viewportHeight: tapped ? tapAnchor.viewportHeight : vv?.height,
+      viewportWidth: window.innerWidth,
+      userScrolled: false,
+    };
+    tapAnchor = null;
+    // Limit correction to the keyboard-opening transition. Later page scrolls
+    // (including app-driven changes while typing) remain untouched.
+    if (anchorTimer) clearTimeout(anchorTimer);
+    anchorTimer = setTimeout(clearScrollAnchor, 1200);
     bar.classList.add('keyboard-open');
     // Small delay for keyboard to start opening
-    // The bar is fixed above the visual viewport. Scrolling the input into view
-    // moves the task list behind it and leaves the reader in a different place
-    // when the keyboard closes.
+    // Keep the bar above the visual viewport without scrolling the input into
+    // view; the short-lived anchor handles WebKit's own focus scroll instead.
     setTimeout(positionBar, 100);
   });
 
   input.addEventListener('blur', () => {
+    clearScrollAnchor();
     bar.classList.remove('keyboard-open');
     resetBar();
   });
+
+  // A deliberate gesture takes precedence over the temporary focus anchor.
+  const markUserScroll = event => {
+    if (scrollAnchor && !bar.contains(event.target)) scrollAnchor.userScrolled = true;
+  };
+  document.addEventListener('touchstart', markUserScroll, { capture: true, passive: true });
+  document.addEventListener('wheel', markUserScroll, { capture: true, passive: true });
+  window.addEventListener('scroll', () => {
+    if (scrollAnchor) positionBar();
+  }, { passive: true });
 
   // Reposition on viewport resize (keyboard animation)
   if (vv) {

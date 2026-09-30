@@ -7,6 +7,8 @@
 // (night_hint) and language (lang), and Claude extracts grounded images. No deploy needed.
 //
 // Run:       GEMINI_API_KEY=... ANTHROPIC_API_KEY=... node scripts/dream-live-test.mjs
+// One phrase, raw reply printed (diagnose a real miss, BUG-110):
+//            GEMINI_API_KEY=... node scripts/dream-live-test.mjs --say="I saw a dream last night..." [--voice=Yelda]
 // Exit 0 = pass or skip (missing key or macOS audio tools). Exit 1 = a case failed.
 // Excluded from the default gate: it spends real provider tokens.
 
@@ -24,6 +26,23 @@ const GEMINI = process.env.GEMINI_API_KEY || '';
 const CLAUDE = process.env.ANTHROPIC_API_KEY || '';
 
 const has = cmd => { try { execFileSync('which', [cmd], { stdio: 'ignore' }); return true; } catch { return false; } };
+const SAY = process.argv.find(a => a.startsWith('--say='))?.slice(6);
+const VOICE = process.argv.find(a => a.startsWith('--voice='))?.slice(8) || 'Samantha';
+if (SAY && GEMINI) {
+  if (!has('say') || !has('ffmpeg')) { console.log('⚠ needs macOS `say` and ffmpeg'); process.exit(0); }
+  process.env.GEMINI_API_KEY = GEMINI;
+  const extract = require(join(ROOT, 'netlify/functions/meeting-extract.js')).handler;
+  const dir = mkdtempSync(join(tmpdir(), 'dream-say-'));
+  try {
+    // m4a/AAC, as the iPhone PWA records it.
+    execFileSync('say', ['-v', VOICE, '-o', join(dir, 'a.aiff'), SAY]);
+    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', join(dir, 'a.aiff'), '-c:a', 'aac', '-b:a', '64k', join(dir, 'a.m4a')]);
+    const audioChunk = readFileSync(join(dir, 'a.m4a')).toString('base64');
+    const res = await extract({ httpMethod: 'POST', body: JSON.stringify({ audioChunk, mimeType: 'audio/mp4', userName: 'Can' }) });
+    console.log(`HTTP ${res.statusCode}\n` + JSON.stringify(JSON.parse(res.body), null, 2));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  process.exit(0);
+}
 if (!GEMINI || !CLAUDE) {
   console.log('⚠ skipped — set GEMINI_API_KEY and ANTHROPIC_API_KEY to run the live dream test');
   process.exit(0);
@@ -52,6 +71,9 @@ const CASES = [
     text: 'Az önce uyandım. Rüyamda eski evimizdeydim, merdivenler hiç bitmiyordu ve yukarı çıktıkça ev büyüyordu. Annem bir kapının arkasından bana sesleniyordu ama kapıyı bulamıyordum.' },
   { id: 'dream-with-task', voice: 'Samantha', expect: { dream: true, itemMatch: /mum|mom|mother/i, noDreamItems: /flight|airport|plane/i },
     text: "Okay, I dreamt I missed a flight because the airport kept moving further away, and I had to catch a plane I never reached. Anyway, remind me to call mum today about her birthday." },
+  // BUG-110: Can's real miss — one plain sentence, no story or feeling, measurements.
+  { id: 'plain-en', voice: 'Samantha', expect: { dream: true, noItems: true, lang: 'en', hint: 'last_night' },
+    text: 'I saw a dream last night. I saw a girl, she was 180 and 70 kilos.' },
   // Late capture (v2.93.0): the night is named in words; the phone resolves the date.
   { id: 'late-en', voice: 'Samantha', expect: { dream: true, noItems: true, lang: 'en', hint: 'nights_ago:2' },
     text: "The night before last I dreamt I was swimming in a library. The books were dry even under the water, and a librarian kept handing me a key." },
