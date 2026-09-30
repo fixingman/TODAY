@@ -24,6 +24,7 @@ const SUITE = [
   'task-enrich-test',
   'dropbox-test',
   'sync-merge-unit-test',
+  'dreambank-unit-test',
   'zones-test',
   'task-actions-test',
   'task-bounce-test',

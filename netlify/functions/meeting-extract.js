@@ -1,6 +1,6 @@
 // netlify/functions/meeting-extract.js
 // Meeting mode audio → action items, for TODAY (v2.22.0). A recounted dream comes
-// back as a retelling instead (v2.92.0).
+// back as a retelling instead (v2.92.0), with which night and language (v2.93.0).
 // Gemini-only: it is the sole supported provider with native audio input.
 // Receives one ~6-min audio chunk per call plus the rolling context from previous
 // chunks; returns extracted action items and an updated context. The transcript
@@ -12,6 +12,9 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+// Mirrors assets/dreambank.js NIGHT_HINT; meeting-test asserts the two stay identical.
+const NIGHT_HINT = /^(last_night|nights_ago:([1-9]|1[0-4])|weekday:(sun|mon|tue|wed|thu|fri|sat)|long_ago|unknown)$/;
 
 const _json = (statusCode, obj) => ({
   statusCode,
@@ -71,8 +74,10 @@ exports.handler = async function(event) {
     `- updatedContext: carry forward the prior context, appending this segment's speaker hints (who is who) and any open threads, max 150 words total. Plain text, no transcript.\n` +
     `- A dream account narrates what the speaker experienced while asleep. Waking events described as dreamlike or nightmarish, and hopes or ambitions called dreams, are not dream accounts.\n` +
     `- dream: when the segment is a person recounting a dream they had, set dream to a faithful first-person retelling in the language spoken, max 150 words, keeping its images, people, places, and feelings without adding or interpreting anything. Things that happen inside the dream are not action items; only a real commitment the speaker states about waking life is. When the segment is not a dream account, dream is "".\n` +
-    `Reply ONLY with JSON: {"actionItems":[{"text":"...","owner":"...","mine":true}],"updatedContext":"...","dream":""}\n` +
-    `If the segment contains no action items, reply {"actionItems":[],"updatedContext":"...","dream":""}.`;
+    `- night_hint: when dream is set, which night the dream happened, from what the speaker says: "last_night" when they say last night, that they just woke up, or give no time at all; "nights_ago:N" with N from 2 to 14 for a night N nights back; "weekday:sun" to "weekday:sat" when they name the day it happened; "long_ago" for an old or childhood dream; "unknown" only when what they say about the time cannot be placed. When dream is "", night_hint is "".\n` +
+    `- lang: when dream is set, the two-letter ISO 639-1 code of the language the dream is told in (the main one if several); otherwise "".\n` +
+    `Reply ONLY with JSON: {"actionItems":[{"text":"...","owner":"...","mine":true}],"updatedContext":"...","dream":"","night_hint":"","lang":""}\n` +
+    `If the segment contains no action items, reply {"actionItems":[],"updatedContext":"...","dream":"","night_hint":"","lang":""}.`;
 
   const geminiBody = {
     contents: [{
@@ -139,7 +144,7 @@ exports.handler = async function(event) {
     const responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     if (!responseText) {
       // A blocked/empty chunk is not fatal to the meeting — return an empty result
-      return _json(200, { actionItems: [], updatedContext: context, dream: '' });
+      return _json(200, { actionItems: [], updatedContext: context, dream: '', night_hint: '', lang: '' });
     }
 
     let parsed;
@@ -147,13 +152,14 @@ exports.handler = async function(event) {
       const clean = responseText.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
       parsed = JSON.parse(clean);
     } catch (e) {
-      return _json(200, { actionItems: [], updatedContext: context, dream: '' });
+      return _json(200, { actionItems: [], updatedContext: context, dream: '', night_hint: '', lang: '' });
     }
 
     const items = Array.isArray(parsed.actionItems) ? parsed.actionItems : [];
     // Safety net for a real inconsistency seen in practice: the model sometimes
     // returns owner === name (or "") alongside mine:false. Don't trust the two
     // fields to agree on their own — force it here rather than only in the prompt.
+    const dream = typeof parsed.dream === 'string' && !!parsed.dream.trim();
     const nameTokens = name.split(',').map(n => n.trim().toLowerCase()).filter(Boolean);
     return _json(200, {
       actionItems: items
@@ -172,6 +178,10 @@ exports.handler = async function(event) {
         }),
       updatedContext: (typeof parsed.updatedContext === 'string' ? parsed.updatedContext : context).slice(0, 4000),
       dream: (typeof parsed.dream === 'string' ? parsed.dream.trim() : '').slice(0, 1500),
+      // Validated to the enum the phone resolves (assets/dreambank.js resolveNight) —
+      // the model names the night in words; it never supplies a date.
+      night_hint: dream && NIGHT_HINT.test(String(parsed.night_hint || '')) ? String(parsed.night_hint) : '',
+      lang: dream && /^[a-z]{2}$/.test(String(parsed.lang || '')) ? String(parsed.lang) : '',
     });
   } catch (e) {
     return _json(500, { error: 'Server error: ' + (e.message || 'unknown') });

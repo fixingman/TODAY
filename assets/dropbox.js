@@ -553,6 +553,52 @@
       return out;
     }
 
+    // ── File I/O ─────────────────────────────────────────────────────────────────
+    // One upload primitive for the backup and DreamBank files (v2.93.0). Plain I/O:
+    // backup-only effects (last_successful_backup, rev baseline, session-expired UI)
+    // stay in dropboxBackup, so a dream upload never looks like a backup.
+    function _dbxPut(token, path, body) {
+      return fetch('https://content.dropboxapi.com/2/files/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization':    `Bearer ${token}`,
+          'Content-Type':     'application/octet-stream',
+          'Dropbox-API-Arg':  JSON.stringify({ path, mode: 'overwrite', autorename: false, mute: true }),
+        },
+        body,
+      });
+    }
+
+    // DreamBank I/O — resolves { ok, notFound }; never throws. A 401 marks the token
+    // expired (same signal the silent backup uses) and leaves the dream queued.
+    const DREAMS_DIR = `/Dreams${_env}`;
+    async function _dbxDreamCall(send) {
+      try {
+        await _dropboxEnsureToken();
+        const token = localStorage.getItem('dropbox_token');
+        if (!token) return { ok: false, notFound: false };
+        const res = await send(token);
+        if (res.status === 401) {
+          localStorage.setItem('dropbox_token_expired', '1');
+          Today.use('connections').renderConnections();
+          return { ok: false, notFound: false };
+        }
+        if (res.ok) return { ok: true, notFound: false };
+        const text = res.status === 409 ? await res.text().catch(() => '') : '';
+        return { ok: false, notFound: /not_found/.test(text) };
+      } catch (_) {
+        return { ok: false, notFound: false };
+      }
+    }
+    const _dbxRpc = (endpoint, args) => token => fetch('https://api.dropboxapi.com/2/files/' + endpoint, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(args),
+    });
+    const _dbxDreamUpload = (path, text) => _dbxDreamCall(token => _dbxPut(token, path, text));
+    const _dbxDreamMove = (from, to) => _dbxDreamCall(_dbxRpc('move_v2', { from_path: from, to_path: to, autorename: false }));
+    const _dbxDreamDelete = path => _dbxDreamCall(_dbxRpc('delete_v2', { path }));
+
     // ── Backup ────────────────────────────────────────────────────────────────────
     async function dropboxBackup(silent) {
       await _dropboxEnsureToken();
@@ -627,15 +673,7 @@
       };
 
       try {
-        const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
-          method: 'POST',
-          headers: {
-            'Authorization':    `Bearer ${token}`,
-            'Content-Type':     'application/octet-stream',
-            'Dropbox-API-Arg':  JSON.stringify({ path: DROPBOX_FILE, mode: 'overwrite', autorename: false, mute: true }),
-          },
-          body: JSON.stringify(data),
-        });
+        const res = await _dbxPut(token, DROPBOX_FILE, JSON.stringify(data));
 
         if (res.status === 401) {
           if (silent) {
@@ -1025,6 +1063,16 @@
         if (remoteAbstractDate && (!appMemory.memory._lastAbstractDate || remoteAbstractDate > appMemory.memory._lastAbstractDate)) {
           appMemory.memory._lastAbstractDate = remoteAbstractDate;
         }
+      }
+      // DreamBank index — per-dream summaries (images, role, people; never retellings).
+      // The clear watermark compares full timestamps against recordedAt, so a dream told
+      // after a clear survives even when the dream itself is dated earlier.
+      if ((remote.dreams && Array.isArray(remote.dreams.index)) || (appMemory.dreams && Array.isArray(appMemory.dreams.index))) {
+        appMemory.dreams = { index: Today.use('sync-merge').mergeDreamIndex(
+          appMemory.dreams && appMemory.dreams.index,
+          remote.dreams && remote.dreams.index,
+          _clearedAt,
+        ) };
       }
       _saveMemory();
     }
@@ -2021,6 +2069,9 @@
         checkNewDay();
         syncTrello();
         syncDropbox();
+        // DreamBank rides the sync tick (eng review D3): no listeners of its own, and
+        // an empty queue costs one read. try/catch: tests may boot without the module.
+        try { Today.use('dreambank').flush(); } catch (_) {}
       }
 
       function startTicker() {
@@ -2251,6 +2302,9 @@
     window._removeCheckedId = _removeCheckedId;
     window._doneTodayCount = _doneTodayCount;
     window.dropboxAutoSave = dropboxAutoSave;
+    if (window.Today) Today.define('dropbox-files', {
+      dreamsDir: DREAMS_DIR, upload: _dbxDreamUpload, move: _dbxDreamMove, remove: _dbxDreamDelete,
+    });
     window.dropboxBackup = dropboxBackup;
     window.dropboxRestore = dropboxRestore;
     window.dropboxAuth = dropboxAuth;

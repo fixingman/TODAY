@@ -388,6 +388,7 @@
         typeBlock('META', '— what today has seen and how confident it is', metaItems);
 
       Today.use('reflections')._reflectionRenderMemory(el);
+      Today.use('dreambank').renderMemory(el);
 
       const footer = document.getElementById('memoryFooter');
       if (footer) footer.innerHTML = _memoryClearPending
@@ -460,6 +461,9 @@
         appMemory.spokenLines = [];
         appMemory.taskOutcomes = [];
         appMemory.kindVerdicts = {};
+        // DreamBank summaries. The dream files themselves live in the user's Dropbox and
+        // are theirs; clearing TODAY's memory does not delete them.
+        appMemory.dreams = { index: [] };
         // Watermark. Without it the next sync unions every dated row straight back
         // from the remote copy and the clear is a lie. Max-wins across devices, so a
         // clear made here also clears the other device on its next merge. Mirrors

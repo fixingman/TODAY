@@ -63,6 +63,8 @@ async function openPage(options = {}) {
   await page.evaluateOnNewDocument(opts => {
     localStorage.clear();
     localStorage.setItem('splash_shown_at', String(Date.now()));
+    if (opts.seedQueue) localStorage.setItem('today-dream-queue', JSON.stringify(opts.seedQueue));
+    if (opts.claude) { localStorage.setItem('today_ai_provider', 'claude'); localStorage.setItem('today_ai_key_claude', 'claude-key'); }
     if (opts.gemini !== false) localStorage.setItem('today_ai_key_gemini', 'test-gemini-key');
     if (opts.names !== false) {
       localStorage.setItem('today_user_names', JSON.stringify(opts.names || ['Can']));
@@ -183,6 +185,7 @@ async function openPage(options = {}) {
         const body = JSON.parse(fetchOptions.body || '{}');
         state.meetingRequests.push(body);
         const response = state.meetingResponses.shift() || { actionItems: [], updatedContext: body.rollingContext || '' };
+        if (response.gate) await response.gate;
         if (response.throw) throw new Error(response.throw);
         const raw = response.raw !== undefined ? response.raw : JSON.stringify(response.body || response);
         return { ok: response.ok !== false, status: response.status || 200, text: async () => raw };
@@ -347,30 +350,36 @@ try {
     await page.close();
   }
 
-  // A recounted dream becomes a reading, not tasks: one interpretation request with the
-  // retelling, a loading state, the reading above the retelling, Copy, and nothing stored.
+  // DreamBank (v2.93.0): a recounted dream is kept from its first chunk — one queue
+  // entry before any Claude call — then read and extracted in parallel. The reading
+  // leads, the retelling sits below; Done keeps it. Invented images never reach memory.
   {
     const { page, errors } = await openPage({ supported: ['audio/webm;codecs=opus'] });
     await page.evaluate(() => { navigator.clipboard.writeText = async text => { window.__meetingTest.copied = text; }; });
     const result = await page.evaluate(async () => {
       const t = window.__meetingTest;
-      const until = async fn => { for (let i = 0; i < 60 && !fn(); i++) await new Promise(r => setTimeout(r, 10)); };
+      const until = async fn => { for (let i = 0; i < 80 && !fn(); i++) await new Promise(r => setTimeout(r, 10)); };
       localStorage.setItem('today_ai_provider', 'claude');
       localStorage.setItem('today_ai_key_claude', 'claude-key');
       Today.use('meeting').toggleMeeting();
       await new Promise(r => setTimeout(r, 20));
       const dream = 'I was in my grandmother\'s kitchen and the floor was water. I felt calm.';
-      t.meetingResponses.push({ updatedContext: '', actionItems: [], dream });
+      t.meetingResponses.push({ updatedContext: '', actionItems: [], dream, night_hint: 'last_night', lang: 'en' });
       let release; t.aiResponses.push({ gate: new Promise(r => { release = r; }), content: 'The water floor may point to something that feels unsettled yet safe.' });
+      t.aiResponses.push({ body: { images: ['grandmother\'s kitchen', 'floor was water', 'kitchen full of Martian soldiers'], people: ['grandmother'], role: 'stands calmly on water' } });
       Today.use('meeting').toggleMeeting();
-      await until(() => t.aiRequests.length === 1);
+      await until(() => t.aiRequests.length === 2);
+      const queue = () => JSON.parse(localStorage.getItem('today-dream-queue') || '[]');
+      const keptBeforeReading = queue().length === 1 && queue()[0].retelling === dream;
       const loading = document.getElementById('meetingReviewTitle').textContent === 'Your dream'
         && !!document.querySelector('#meetingItems .loading-dots');
       release();
       await until(() => !!document.querySelector('#meetingItems .dream-reading'));
-      const req = t.aiRequests[0];
+      const [readReq, extractReq] = t.aiRequests;
       const copyBtn = document.getElementById('meetingCopyBtn');
       const reviewText = document.getElementById('meetingItems').textContent;
+      const entry = queue()[0];
+      const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
       const shown = {
         eyebrow: document.querySelector('#meetingPanel .meeting-eyebrow').textContent === 'Dream',
         readingFirst: document.querySelector('#meetingItems .dream-reading').textContent.startsWith('The water floor'),
@@ -379,19 +388,32 @@ try {
         addHidden: document.getElementById('meetingAddBtn').style.display === 'none',
         copyShown: !copyBtn.hidden,
         doneLabel: document.querySelector('.meeting-review-discard').textContent === 'Done',
+        nightChip: document.querySelector('.dream-night-select').value === _localISO(yesterday),
+        phoneOnlyStatus: document.getElementById('dreamStatus').textContent.startsWith('Kept on this phone only'),
+        backfillOffered: !!document.querySelector('.dream-backfill'),
       };
       copyBtn.click();
       await until(() => !!t.copied);
-      const stored = [...Array(localStorage.length).keys()].map(i => localStorage.getItem(localStorage.key(i)) || '');
-      const ephemeral = !stored.some(v => v.includes('grandmother') || v.includes('water floor'));
+      // Only the queue holds the retelling; memory holds grounded images, never the dream text.
+      const holders = [...Array(localStorage.length).keys()].map(i => localStorage.key(i))
+        .filter(k => (localStorage.getItem(k) || '').includes('grandmother'));
+      const memoryText = localStorage.getItem('today_memory') || '';
       Today.use('meeting')._meetingDiscard();
       await new Promise(r => setTimeout(r, 350));
+      const row = (JSON.parse(memoryText || '{}').dreams || { index: [] }).index[0] || {};
       return {
-        loading, ...shown, ephemeral,
-        oneRequest: t.aiRequests.length === 1,
-        sentRetelling: req.messages?.[0]?.content === dream && req.provider === 'claude' && req.apiKey === 'claude-key',
-        principlesPrompt: /do not guess at their/.test(req.systemPrompt) && /language the dream was told in/.test(req.systemPrompt)
-          && /At most 80 words/.test(req.systemPrompt),
+        keptBeforeReading, loading, ...shown,
+        onlyQueueAndIndex: holders.every(k => k === 'today-dream-queue' || k === 'today_memory'),
+        noRetellingInMemory: !memoryText.includes('floor was water. I felt calm'),
+        twoRequests: t.aiRequests.length === 2,
+        readingPrompt: /do not guess at their/.test(readReq.systemPrompt) && /At most 80 words/.test(readReq.systemPrompt)
+          && !/just woken up/.test(readReq.systemPrompt) && readReq.messages?.[0]?.content === dream
+          && readReq.provider === 'claude' && readReq.apiKey === 'claude-key',
+        extractPrompt: /Reply only with JSON/.test(extractReq.systemPrompt) && extractReq.messages?.[0]?.content === dream,
+        exactNight: entry.nightCertainty === 'exact' && entry.lang === 'en',
+        grounded: JSON.stringify(row.images) === JSON.stringify(['grandmother\'s kitchen', 'floor was water']) && row.role === 'stands calmly on water',
+        indexSynced: t.autosaves >= 1,
+        keptOnDone: queue()[0].ready === true,
         copied: t.copied.includes('grandmother') && t.copied.includes('water floor'),
         copyLabel: copyBtn.textContent === 'Copied',
         noTasks: JSON.parse(localStorage.getItem('today_manual') || '[]').length === 0,
@@ -409,11 +431,206 @@ try {
         meetingEyebrowRestored: document.querySelector('#meetingPanel .meeting-eyebrow').textContent === 'Meeting',
         copyHiddenAgain: document.getElementById('meetingCopyBtn').hidden,
         discardRestored: document.querySelector('.meeting-review-discard').textContent === 'Discard',
-        noExtraAiCall: t.aiRequests.length === 1,
+        noExtraAiCall: t.aiRequests.length === 2,
+        stillOneDream: JSON.parse(localStorage.getItem('today-dream-queue') || '[]').length === 1,
       };
     });
-    await expectAll('dream reading', { ...result, ...meetingChrome, noErrors: errors.length === 0 });
-    ok('a recounted dream shows a reading instead of tasks, copies, and leaves nothing stored');
+    await expectAll('dream kept', { ...result, ...meetingChrome, noErrors: errors.length === 0 });
+    ok('a recounted dream is kept before any reading, read and extracted in parallel, grounded, and kept on Done');
+    await page.close();
+  }
+
+  // Dream + a real task in one capture: the task is still offered, nothing but the dream
+  // is stored before acceptance, and Add tasks keeps the dream.
+  {
+    const { page, errors } = await openPage({ supported: ['audio/webm;codecs=opus'] });
+    const result = await page.evaluate(async () => {
+      const t = window.__meetingTest;
+      const until = async fn => { for (let i = 0; i < 80 && !fn(); i++) await new Promise(r => setTimeout(r, 10)); };
+      Today.use('meeting').toggleMeeting();
+      await new Promise(r => setTimeout(r, 20));
+      t.meetingResponses.push({ updatedContext: '', dream: 'I missed a flight at an airport that kept moving.', night_hint: 'nights_ago:2',
+        actionItems: [{ text: 'Call mum', owner: '', mine: true }] });
+      Today.use('meeting').toggleMeeting();
+      await until(() => !!document.querySelector('#meetingItems .meeting-item'));
+      const stored = [...Array(localStorage.length).keys()].map(i => localStorage.getItem(localStorage.key(i)) || '');
+      const offered = document.querySelector('#meetingItems .meeting-item-text').textContent === 'Call mum'
+        && document.getElementById('meetingAddBtn').style.display !== 'none';
+      const onlyDreamStored = !stored.some(v => v.includes('Call mum')) && stored.some(v => v.includes('airport that kept moving'));
+      Today.use('meeting')._meetingAccept();
+      await new Promise(r => setTimeout(r, 350));
+      const q = JSON.parse(localStorage.getItem('today-dream-queue') || '[]');
+      const twoAgo = new Date(); twoAgo.setDate(twoAgo.getDate() - 2);
+      return {
+        offered, onlyDreamStored,
+        taskAdded: JSON.parse(localStorage.getItem('today_manual') || '[]').some(x => x.text === 'Call mum'),
+        dreamKept: q.length === 1 && q[0].ready === true && q[0].night === _localISO(twoAgo),
+      };
+    });
+    await expectAll('dream plus task', { ...result, noErrors: errors.length === 0 });
+    ok('a dream and a real task in one capture: task offered, only the dream stored first, both kept');
+    await page.close();
+  }
+
+  // The sheet is patched, not rebuilt: a reading that lands mid-typing keeps the thought
+  // field (same node, same value); the night chip and "Don't keep this one" work.
+  {
+    const { page, errors } = await openPage({ supported: ['audio/webm;codecs=opus'] });
+    const result = await page.evaluate(async () => {
+      const t = window.__meetingTest;
+      const until = async fn => { for (let i = 0; i < 80 && !fn(); i++) await new Promise(r => setTimeout(r, 10)); };
+      Today.use('meeting').toggleMeeting();
+      await new Promise(r => setTimeout(r, 20));
+      t.meetingResponses.push({ updatedContext: '', actionItems: [], dream: 'The stairs never ended and the house kept growing.' });
+      let release; t.aiResponses.push({ gate: new Promise(r => { release = r; }), content: 'The stairs keep going.' });
+      Today.use('meeting').toggleMeeting();
+      await until(() => !!document.getElementById('dreamThought'));
+      const field = document.getElementById('dreamThought');
+      field.value = 'my old house';
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+      release();
+      await until(() => !!document.querySelector('#meetingItems .dream-reading'));
+      const q = () => JSON.parse(localStorage.getItem('today-dream-queue') || '[]');
+      const sameField = document.getElementById('dreamThought') === field && field.value === 'my old house';
+      const thoughtSaved = q()[0].thought === 'my old house';
+      const select = document.querySelector('.dream-night-select');
+      const twoAgo = new Date(); twoAgo.setDate(twoAgo.getDate() - 2);
+      select.value = _localISO(twoAgo);
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      const nightSet = q()[0].night === _localISO(twoAgo) && q()[0].nightByUser === true;
+      document.querySelector('.dream-drop').click();
+      await until(() => q().length === 0);
+      await new Promise(r => setTimeout(r, 350));
+      return {
+        sameField, thoughtSaved, nightSet,
+        dropped: q().length === 0,
+        closed: document.getElementById('meetingOverlay').classList.contains('hidden'),
+        goneFromStorage: ![...Array(localStorage.length).keys()].some(i => (localStorage.getItem(localStorage.key(i)) || '').includes('stairs never ended')),
+      };
+    });
+    await expectAll('dream sheet patching, night, and discard', { ...result, noErrors: errors.length === 0 });
+    ok('reading lands without wiping the thought; night chip saves; "Don\'t keep this one" removes it');
+    await page.close();
+  }
+
+  // Chunk barrier: an earlier chunk that answers after the final one still lands, in
+  // order, and nothing is read until every chunk has answered.
+  {
+    const { page, errors } = await openPage({ supported: ['audio/webm;codecs=opus'], claude: true });
+    const result = await page.evaluate(async () => {
+      const t = window.__meetingTest;
+      const until = async fn => { for (let i = 0; i < 80 && !fn(); i++) await new Promise(r => setTimeout(r, 10)); };
+      Today.use('meeting').toggleMeeting();
+      await new Promise(r => setTimeout(r, 20));
+      let releaseFirst;
+      t.meetingResponses.push(
+        { gate: new Promise(r => { releaseFirst = r; }), updatedContext: '', actionItems: [], dream: 'Part one by the sea.' },
+        { updatedContext: '', actionItems: [], dream: 'Part two in the lighthouse.' },
+      );
+      t.recorders[0].stop(); // chunk 1 (live) — its reply is held
+      await new Promise(r => setTimeout(r, 30));
+      Today.use('meeting').toggleMeeting(); // chunk 2 (final) answers first
+      await new Promise(r => setTimeout(r, 80));
+      const waited = t.aiRequests.length === 0;
+      releaseFirst();
+      await until(() => t.aiRequests.length >= 1);
+      const q = JSON.parse(localStorage.getItem('today-dream-queue') || '[]');
+      return {
+        waited,
+        ordered: q.length === 1 && q[0].retelling === 'Part one by the sea.\n\nPart two in the lighthouse.',
+        readFinal: t.aiRequests[0].messages[0].content === 'Part one by the sea.\n\nPart two in the lighthouse.',
+      };
+    });
+    await expectAll('chunk barrier and order', { ...result, noErrors: errors.length === 0 });
+    ok('late earlier chunks assemble in order and the reading waits for every chunk');
+    await page.close();
+  }
+
+  // Dropbox: uploads from capture, re-uploads on edits, renames on a night correction,
+  // and says "Kept in Dropbox" live.
+  {
+    const { page, errors } = await openPage({ supported: ['audio/webm;codecs=opus'] });
+    const result = await page.evaluate(async () => {
+      const t = window.__meetingTest;
+      const until = async fn => { for (let i = 0; i < 300 && !fn(); i++) await new Promise(r => setTimeout(r, 10)); };
+      localStorage.setItem('dropbox_token', 'dbx');
+      t.uploads = []; t.moves = [];
+      // dropbox-files is a frozen component; patch its functions through their owners' contract instead.
+      const files = Today.use('dropbox-files');
+      window.__origFetch = window.fetch;
+      const inner = window.fetch;
+      window.fetch = async (url, opts = {}) => {
+        const u = String(url);
+        if (u.endsWith('/2/files/upload')) {
+          t.uploads.push({ path: JSON.parse(opts.headers['Dropbox-API-Arg']).path, text: opts.body });
+          return new Response('{}', { status: 200 });
+        }
+        if (u.endsWith('/2/files/move_v2')) {
+          const a = JSON.parse(opts.body); t.moves.push({ from: a.from_path, to: a.to_path });
+          return new Response('{}', { status: 200 });
+        }
+        return inner(url, opts);
+      };
+      const dreamsDir = files.dreamsDir;
+      Today.use('meeting').toggleMeeting();
+      await new Promise(r => setTimeout(r, 20));
+      t.meetingResponses.push({ updatedContext: '', actionItems: [], dream: 'A red door in a white field.', night_hint: 'last_night' });
+      t.aiResponses.push({ content: 'The door waits.' });
+      Today.use('meeting').toggleMeeting();
+      await until(() => (document.getElementById('dreamStatus') || {}).textContent === 'Kept in Dropbox');
+      const first = t.uploads[t.uploads.length - 1] || { path: '', text: '' };
+      const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+      const select = document.querySelector('.dream-night-select');
+      const threeAgo = new Date(); threeAgo.setDate(threeAgo.getDate() - 3);
+      select.value = _localISO(threeAgo);
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      await until(() => t.moves.length === 1 && t.uploads.some(u => u.path.includes(_localISO(threeAgo))));
+      const last = t.uploads[t.uploads.length - 1];
+      return {
+        status: true,
+        path: new RegExp('^' + dreamsDir + '/' + _localISO(yesterday) + '_dream_[a-z0-9]+\\.md$').test(first.path),
+        format: /^---\nid: "dream_/.test(first.text) && first.text.includes('## Retelling\n\nA red door in a white field.'),
+        renamed: t.moves[0].from === first.path && t.moves[0].to === last.path && last.path.includes(_localISO(threeAgo)),
+        frontmatterNight: last.text.includes('night: "' + _localISO(threeAgo) + '"'),
+      };
+    });
+    await expectAll('dream upload and rename', { ...result, noErrors: errors.length === 0 });
+    ok('dreams upload from capture, rename on a corrected night, and show "Kept in Dropbox"');
+    await page.close();
+  }
+
+  // A dream left by a previous session (app killed before Done) is kept, gets its reading,
+  // and can be opened and deleted from the Memory panel.
+  {
+    const now = new Date().toISOString();
+    const seed = [{ id: 'dream_seed1', retelling: 'A whale sang under the bridge.', hint: '', night: '2026-09-01',
+      nightCertainty: 'approx', nightByUser: false, lang: 'en', reading: '', readingState: 'pending', readingTries: 0,
+      readingNextAt: 0, images: [], people: [], role: '', extraction: 'pending', extractionTries: 0, extractionNextAt: 0,
+      thought: '', recordedAt: now, updatedAt: now, rev: 1, uploadedRev: 0, remotePath: '', uploadTries: 0,
+      uploadNextAt: 0, settled: false, ready: false, deleted: false, pruned: false, prunedAt: '' }];
+    const { page, errors } = await openPage({ supported: ['audio/webm;codecs=opus'], seedQueue: seed, claude: true });
+    const result = await page.evaluate(async () => {
+      const t = window.__meetingTest;
+      const until = async fn => { for (let i = 0; i < 300 && !fn(); i++) await new Promise(r => setTimeout(r, 10)); };
+      const q = () => JSON.parse(localStorage.getItem('today-dream-queue') || '[]');
+      await until(() => t.aiRequests.length >= 1);
+      const keptAfterReload = q()[0].ready === true && q()[0].settled === true;
+      const readRequested = t.aiRequests[0].messages[0].content === 'A whale sang under the bridge.';
+      Today.use('memory').toggle();
+      const row = document.querySelector('#dreamMemoryBlock .dream-memory-open');
+      const listed = !!row && row.textContent.includes('A whale sang');
+      row.click();
+      const opened = document.querySelector('#dreamMemoryBlock .dream-told')?.textContent === 'A whale sang under the bridge.';
+      document.querySelector('[data-today-click="dream.memory-delete"]').click();
+      document.querySelector('[data-today-click="dream.memory-delete-confirm"]').click();
+      await until(() => q().length === 0);
+      return {
+        keptAfterReload, readRequested, listed, opened,
+        deleted: q().length === 0 && !document.querySelector('#dreamMemoryBlock .dream-memory-open'),
+      };
+    });
+    await expectAll('dream from a previous session', { ...result, noErrors: errors.length === 0 });
+    ok('a dream from a killed session is kept, read, listed in Memory, and deletable');
     await page.close();
   }
 
@@ -646,6 +863,16 @@ try {
         api: meetingSrc.includes("Today.define('meeting'"),
         privateState: !indexSrc.includes('let _mtg =') && !indexSrc.includes('let _vn ='),
         precached: swSrc.includes("'/assets/meeting.js'"),
+      });
+      const dreambankSrc = await readFile(join(ROOT, 'assets/dreambank.js'), 'utf8');
+      const extractSrc = await readFile(join(ROOT, 'netlify/functions/meeting-extract.js'), 'utf8');
+      const hint = src => (src.match(/const NIGHT_HINT = (\/.*\/);/) || [])[1];
+      await expectAll('DreamBank module wiring', {
+        dreambankLoad: indexSrc.includes('<script src="assets/dreambank.js"></script>\n<script src="assets/meeting.js"></script>'),
+        dreambankInit: indexSrc.includes("Today.use('dream-core').start();\nwindow._startMeeting();"),
+        dreambankPrecached: swSrc.includes("'/assets/dreambank.js'"),
+        promptMoved: !meetingSrc.includes('_DREAM_SYSTEM') && dreambankSrc.includes('const DREAM_SYSTEM ='),
+        nightHintMirrored: !!hint(dreambankSrc) && hint(dreambankSrc) === hint(extractSrc),
       });
       ok('extracted Meeting/Voice wiring, globals, private state, and precache');
     }

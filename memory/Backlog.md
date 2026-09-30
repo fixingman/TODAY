@@ -36,6 +36,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend; user picks one provider. Full spec ↓ |
 | — | **WEEK companion** | Gated | Gate: 12c must feel like a companion, not a feature. Detail ↓ |
 | — | **New week — distinct Monday recognition** | Gated | The old Monday task-list intention was removed after the 2026-09-28 overlap report. Re-enter only with code-selected, week-scale commitment evidence that has a different job from Today's nudge; criteria ↓. |
+| 13 | **DreamBank** | M1 built (v2.93.0); live evals + phone check owed | Keep dreams (dated to their night) in Can's Dropbox; TODAY holds only what it learns. M1 → M2 lexicon → M3 callbacks / Sunday / task links. Detail ↓ |
 | 2 | **Poem corpus — iterate** | In progress | Corpus 128; expand geography and voice. Detail ↓ |
 | — | **Videos (HyperFrames)** | Promo + onboarding shipped (v2.92.6–9) | Open: the 9:16 phone cut of the promo (re-run `capture.mjs --mobile` first — the phone clips predate the slow-motion capture and lag). Re-capture any scene whose UI changes: the footage is the real app, so a UI change dates it (v2.92.8's Past marks did). How-to: `video/README.md`. |
 
@@ -306,6 +307,16 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 
 **Feeds on:** `today_daily_history` accumulating since v2.17.55. Three months of data gives the weekly view meaningful signal.
 
+
+### 13 · DreamBank
+
+**Bet (Can, 2026-09-29):** dreams are the keyhole to the felt side of commitment decisions. Test it with evidence and landed / not really taps; first verdict at 2 weeks, not 6.
+
+**Design + locked M1 decisions:** `~/.gstack/projects/fixingman-TODAY/can-dev-design-20260929-185035.md` (office-hours + eng review D1–D11). Test plan beside it. Raw dreams live as `/Dreams{env}/{night}_{id}.md` in Can's Dropbox; TODAY keeps a synced `appMemory.dreams.index` (images, role, people — no retellings).
+
+**Deferred — multi-dream captures** (eng review D1): one capture = one dream in M1; two dreams told together become one file. Build `dreams[]` + chunk stitching (`openDream`, `continues_previous`) + stacked sheet cards only when Can tells two distinct dreams in one capture and wants them apart. File ids are per dream, so no migration. Start: `meeting.js:505` concat, `meeting-extract.js:72-75`.
+
+
 ---
 
 ## Watching
@@ -319,6 +330,8 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 **Memory panel — AI hypotheses** — Can does not visit; most inferences uninteresting. Before any new hypothesis generation: read `appMemory.memory.semantic/episodic/procedural` statuses. If almost nothing confirmed, the generator is producing unrecognised guesses — diagnose that before adding sources.
 
 **Merge-anomaly observability** — Console-only `[merge-anomaly]` breadcrumb; no persisted counter. Revisit only if anomalies appear during debugging.
+
+**Shared ai-assist helper** *(deferred, eng review D5, 2026-09-29)* — 12 hand-copied `fetch('/.netlify/functions/ai-assist', …)` blocks in `assets/`, each reading the response its own way. Trap: `ai-assist.js:218` returns valid JSON top-level but wraps invalid JSON as `{content}`. After DreamBank M1 ships, promote dreambank's `_ask(system, content, {json})` into `connections.js` and migrate call sites one surface at a time under the full gate. Start: `grep -n "functions/ai-assist" assets/*.js`.
 
 **Chrome Built-in AI (Prompt API)** — Chrome 127+ ships Gemini Nano on-device; still Origin Trial (Chrome-only). Ideal for Gmail comm-task classification: on-device, free, offline. Progressive enhancement when stable: try `window.ai` first, fall back to `ai-assist`. Revisit when out of trial (~2026 or later).
 

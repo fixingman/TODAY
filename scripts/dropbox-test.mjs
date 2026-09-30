@@ -799,6 +799,76 @@ try {
     await page.close();
   }
 
+  // DreamBank I/O (v2.93.0). Regression: extracting the shared upload primitive leaves
+  // the backup byte-for-byte on its path, mode, and 401 behaviour. Dream files use the
+  // same primitive without backup side effects, and the dream index merges by id.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      const seen = [];
+      let status = 200, bodyText = '{}';
+      window.fetch = async (input, options) => {
+        seen.push({ url: String(input), arg: options.headers?.['Dropbox-API-Arg'] ? JSON.parse(options.headers['Dropbox-API-Arg']) : null,
+          json: options.headers?.['Content-Type'] === 'application/json' ? JSON.parse(options.body) : null, body: options.body });
+        if (String(input).includes('get_metadata')) return new Response(JSON.stringify({ rev: 'r' }), { status: 200 });
+        return new Response(bodyText, { status });
+      };
+      localStorage.setItem('dropbox_token', 'tok');
+      const env = location.hostname === 'today-here.netlify.app' ? '' : '-' + location.hostname.split('--')[0];
+      await dropboxBackup(true);
+      const backupArg = seen.find(x => x.url.endsWith('/2/files/upload')).arg;
+      status = 401; seen.length = 0;
+      const backup401 = await dropboxBackup(true);
+      const backupExpired = backup401 === false && localStorage.getItem('dropbox_token_expired') === '1'
+        && localStorage.getItem('dropbox_token') === 'tok';
+      localStorage.removeItem('dropbox_token_expired');
+
+      status = 200; seen.length = 0;
+      localStorage.removeItem('last_successful_backup');
+      const up = await Today.use('dropbox-files').upload(Today.use('dropbox-files').dreamsDir + '/2026-09-29_dream_a.md', '---\nid: "dream_a"\n---\n');
+      const dreamUp = seen[0] || {};
+      status = 409; bodyText = '{"error_summary":"path_lookup/not_found/"}'; seen.length = 0;
+      const gone = await Today.use('dropbox-files').remove(Today.use('dropbox-files').dreamsDir + '/x.md');
+      const move = await Today.use('dropbox-files').move('/a.md', '/b.md');
+      status = 401; bodyText = '{}';
+      const up401 = await Today.use('dropbox-files').upload(Today.use('dropbox-files').dreamsDir + '/y.md', 'y');
+
+      appMemory.dreams = { index: [
+        { id: 'a', recordedAt: '2026-09-20T07:00:00Z', updatedAt: '2026-09-20T07:01:00Z', images: ['door'] },
+        { id: 'c', recordedAt: '2026-09-21T07:00:00Z', updatedAt: '2026-09-21T07:00:00Z', images: ['old'] },
+      ] };
+      mergeRemoteData({ manual_tasks: [], done_ids: [], deleted_ids: [], unchecked_ids: [], checked_ids: [],
+        soon_tasks: [], past_tasks: [], habits: [],
+        memory: { clearedAt: '2026-09-22T00:00:00Z', dreams: { index: [
+          { id: 'a', deleted: true, recordedAt: '2026-09-23T07:00:00Z', updatedAt: '2026-09-23T07:00:00Z' },
+          { id: 'b', night: '2026-09-01', recordedAt: '2026-09-25T07:00:00Z', updatedAt: '2026-09-25T07:00:00Z', images: ['bridge'] },
+        ] } } });
+      const byId = Object.fromEntries((appMemory.dreams.index || []).map(r => [r.id, r]));
+      return {
+        backupPath: backupArg.path === '/today-backup' + env + '.json' && backupArg.mode === 'overwrite',
+        backupExpired,
+        dreamDir: Today.use('dropbox-files').dreamsDir === '/Dreams' + env,
+        dreamUpload: up.ok === true && dreamUp.arg?.path === Today.use('dropbox-files').dreamsDir + '/2026-09-29_dream_a.md'
+          && dreamUp.arg?.mode === 'overwrite' && dreamUp.body.startsWith('---\nid: "dream_a"'),
+        noBackupSideEffect: !localStorage.getItem('last_successful_backup'),
+        deleteNotFound: gone.ok === false && gone.notFound === true,
+        moveArgs: move.notFound === true && seen.some(x => x.url.endsWith('/files/move_v2') && x.json?.from_path === '/a.md' && x.json?.to_path === '/b.md'),
+        upload401: up401.ok === false && localStorage.getItem('dropbox_token_expired') === '1',
+        tombstoneWins: byId.a?.deleted === true,
+        preClearDropped: !byId.c,
+        postClearKeptDespiteOldNight: byId.b?.images?.[0] === 'bridge',
+      };
+    });
+    const dropboxSrc = await readFile(join(ROOT, 'assets/dropbox.js'), 'utf8');
+    await expectAll('DreamBank I/O and backup regression', {
+      ...result,
+      flushOnTick: /function syncAll\(\) \{[\s\S]*?Today\.use\('dreambank'\)\.flush\(\)[\s\S]*?\n      \}/.test(dropboxSrc),
+      noErrors: errors.length === 0,
+    });
+    ok('backup path/mode/401 unchanged; dream files upload, move, delete without backup side effects; index merges by id');
+    await page.close();
+  }
+
   // 15. Static wiring checks.
   {
     const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');

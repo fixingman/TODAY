@@ -12,6 +12,12 @@
 // Score:    ... node scripts/dream-reading-eval.mjs --prompt=path/to/candidate.txt
 // Head-to-head (current vs candidate, judge picks the better reading per dream):
 //            ... node scripts/dream-reading-eval.mjs --versus=scripts/dream-prompts/candidate-1.txt
+// v2.93.0 gate (blocks master): the current prompt must not lose to the v2.92.4 prompt,
+//            which is scripts/dream-prompts/candidate-1.txt word for word:
+//            ... node scripts/dream-reading-eval.mjs --versus=scripts/dream-prompts/candidate-1.txt
+//            → "Candidate preferred in N/12" must be ≤ 6.
+// Extraction (v2.93.0): every dream must keep ≥3 images after grounding; dropped images print for review:
+//            ... node scripts/dream-reading-eval.mjs --extract
 // Options:  --runs=N (readings per dream, default 1)   --out=results.json
 // Not part of the test gate: it spends real tokens (~36 calls per run at runs=1).
 
@@ -19,6 +25,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
@@ -30,9 +37,13 @@ if (!process.env.ANTHROPIC_API_KEY) {
 }
 const { handler } = require(join(ROOT, 'netlify/functions/ai-assist.js'));
 
-const meetingSrc = readFileSync(join(ROOT, 'assets/meeting.js'), 'utf8');
-// Escape-aware: the prompt contains dream\'s.
-const CURRENT = [...meetingSrc.match(/const _DREAM_SYSTEM =([\s\S]*?);\n/)[1].matchAll(/'((?:[^'\\]|\\.)*)'/g)].map(m => m[1].replace(/\\'/g, "'")).join('');
+// The prompts and grounding live in assets/dreambank.js; load its pure core as the app does.
+const _ctx = { window: {} };
+_ctx.window.window = _ctx.window;
+_ctx.window.Today = { define: (name, api) => { if (name === 'dream-core') _ctx.core = api; } };
+vm.runInNewContext(readFileSync(join(ROOT, 'assets/dreambank.js'), 'utf8'), _ctx);
+const { DREAM_SYSTEM, EXTRACT_SYSTEM, groundImages, resolveNight } = _ctx.core;
+const CURRENT = DREAM_SYSTEM;
 const promptPath = arg('prompt');
 const PROMPT = promptPath ? readFileSync(promptPath, 'utf8').trim() : CURRENT;
 const RUNS = Math.max(1, parseInt(arg('runs') || '1', 10));
@@ -95,7 +106,7 @@ const SCORE_JUDGE =
   'Reply ONLY with JSON: {"specificity":n,"usefulness":n,"generic":["..."]}.';
 
 const PAIR_JUDGE =
-  'You will see a dream and two readings of it, 1 and 2, written for someone who has just woken up. ' +
+  'You will see a dream and two readings of it, 1 and 2, written for the person who had the dream. ' +
   'Choose the reading that would help them more: the one that finds what is most alive or strange in this ' +
   'particular dream and leaves them a question worth carrying into the day, without padding, stock symbolism, ' +
   'or guesses about their life that the dream does not support. Judge substance, not length. ' +
@@ -103,6 +114,37 @@ const PAIR_JUDGE =
 
 const byId = Object.fromEntries(DREAMS.map(d => [d.id, d]));
 const words = s => s.split(/\s+/).filter(Boolean).length;
+
+if (process.argv.includes('--extract')) {
+  console.log('DreamBank extraction eval — grounded images per dream (assets/dreambank.js)\n');
+  const perLang = { en: { raw: 0, kept: 0 }, tr: { raw: 0, kept: 0 } };
+  let failures = 0;
+  for (const d of DREAMS) {
+    const lang = d.id.startsWith('tr-') ? 'tr' : 'en';
+    const body = await call(EXTRACT_SYSTEM, d.text);
+    let obj = Array.isArray(body.images) ? body : null;
+    if (!obj) { try { obj = JSON.parse(String(body.content || '').match(/\{[\s\S]*\}/)[0]); } catch { obj = null; } }
+    const raw = obj && Array.isArray(obj.images) ? obj.images.map(String) : [];
+    const kept = [...groundImages(raw, d.text, lang)];
+    const dropped = raw.filter(x => !kept.includes(x.trim()));
+    const roleWords = obj && typeof obj.role === 'string' ? words(obj.role) : 99;
+    perLang[lang].raw += raw.length; perLang[lang].kept += kept.length;
+    const problems = [];
+    if (!obj) problems.push('no JSON');
+    if (kept.length < 3) problems.push(`only ${kept.length} grounded`);
+    if (roleWords > 8) problems.push(`role has ${roleWords} words`);
+    if (problems.length) failures++;
+    console.log(`${problems.length ? '✗' : '✓'} ${d.id.padEnd(17)} kept: ${kept.join(' | ') || '(none)'}`);
+    if (dropped.length) console.log(`    dropped: ${dropped.join(' | ')}   ← invented, or a real image the grounding missed?`);
+    if (obj) console.log(`    people: ${(obj.people || []).join(', ') || '(none)'} · role: ${obj.role}`);
+    problems.forEach(p => console.log('    → ' + p));
+  }
+  for (const [lang, v] of Object.entries(perLang)) {
+    console.log(`\n${lang}: ${v.kept}/${v.raw} images kept (${v.raw ? Math.round((1 - v.kept / v.raw) * 100) : 0}% dropped)`);
+  }
+  console.log(failures ? `\n✗ ${failures} of ${DREAMS.length} dreams failed` : `\n✓ all ${DREAMS.length} dreams kept ≥3 grounded images`);
+  process.exit(failures ? 1 : 0);
+}
 
 if (versusPath) {
   const CANDIDATE = readFileSync(versusPath, 'utf8').trim();
@@ -132,7 +174,7 @@ if (versusPath) {
   process.exit(0);
 }
 const rows = [];
-console.log(`Dream reading eval — ${promptPath ? 'candidate prompt ' + promptPath : 'current prompt (assets/meeting.js)'}, runs=${RUNS}\n`);
+console.log(`Dream reading eval — ${promptPath ? 'candidate prompt ' + promptPath : 'current prompt (assets/dreambank.js)'}, runs=${RUNS}\n`);
 
 for (let run = 0; run < RUNS; run++) {
   for (const [i, d] of DREAMS.entries()) {

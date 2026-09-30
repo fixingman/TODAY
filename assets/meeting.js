@@ -11,9 +11,10 @@
     started = true;
 
     // ── Meeting mode (v2.22.0 desktop, v2.28.0 mobile) ────────────────────────────
-    // Listens to a meeting through the mic and leaves behind only tasks. Fully
-    // ephemeral: audio chunks and the rolling context live in _mtg below and are
-    // nulled on teardown — nothing recorded, nothing persisted, no voice ID.
+    // Listens to a meeting through the mic and leaves behind only tasks. Ephemeral:
+    // audio chunks and the rolling context live in _mtg below and are nulled on
+    // teardown — nothing recorded, no voice ID. The one exception is a recounted
+    // dream, which assets/dreambank.js keeps on purpose (v2.93.0).
     // Gemini-only (sole provider with native audio input). Chunks via recorder
     // stop/restart (not timeslice — later timeslice chunks aren't independently
     // decodable). Failed chunks retry once, then drop: a lost chunk beats a dead
@@ -25,7 +26,8 @@
 
     let _mtg = null;          // { stream, recorder, items, context, startedAt, timerId, chunkTimerId,
                               //   chunkStartedAt, chunkMs, finalChunkSecs, processingFinalChunk, live,
-                              //   mime, dotAnim, wakeLock, hiddenAt, suspendNote }
+                              //   mime, dotAnim, wakeLock, hiddenAt, suspendNote,
+                              //   seq, inflight, dreamParts, dreamId, dreamDropped, closed }
     let _meetingStarting = false; // blocks double-start during the getUserMedia await window
 
     function _meetingSupported() {
@@ -344,7 +346,10 @@
 
       _mtg = { stream, recorder: null, items: [], context: '', startedAt: Date.now(),
                timerId: null, chunkTimerId: null, live: true, mime, chunkMs, dotAnim: null,
-               wakeLock: null, hiddenAt: null, suspendNote: null };
+               wakeLock: null, hiddenAt: null, suspendNote: null,
+               // DreamBank (v2.93.0): chunks are numbered so late replies assemble in order,
+               // and the capture only finalizes once every chunk has answered.
+               seq: 0, inflight: new Set(), dreamParts: {}, dreamId: null, dreamDropped: false, closed: false };
       _meetingWakeLock(); // keep the screen on while listening (no-op where unsupported)
 
       document.getElementById('meetingBtn')?.classList.add('live');
@@ -396,18 +401,21 @@
       rec.ondataavailable = (e) => { if (e.data && e.data.size) parts.push(e.data); };
       rec.onstop = () => {
         const wasLive = _mtg && _mtg.live;
-        if (parts.length) {
-          const send = _meetingSendChunk(new Blob(parts, { type: _mtg?.mime || rec.mimeType || 'audio/webm' }));
-          if (!wasLive) {
-            send.then(() => {
-              const ovl = document.getElementById('meetingOverlay');
-              if (_mtg && !_mtg.live && ovl && !ovl.classList.contains('hidden')) _meetingFinalize(_mtg);
-            });
-          }
-        } else if (!wasLive && _mtg) {
-          // No audio in final chunk (stopped right as a new chunk started) — clear banner immediately.
-          // _mtg guard: a quick Discard can null it before this onstop fires.
-          _meetingFinalize(_mtg);
+        const state = _mtg;
+        if (parts.length && state) {
+          const send = _meetingSendChunk(new Blob(parts, { type: state.mime || rec.mimeType || 'audio/webm' }));
+          state.inflight.add(send);
+          send.finally(() => state.inflight.delete(send));
+        }
+        if (!wasLive && state) {
+          // Wait for every chunk still in flight, not just this last one: an earlier slow
+          // reply would otherwise land after the review — or the dream — was finalized.
+          // An empty final chunk (stopped right as a new chunk started) settles at once.
+          Promise.allSettled([...state.inflight]).then(() => {
+            if (state.dreamId && !state.dreamDropped) Today.use('dreambank').settle(state.dreamId);
+            const ovl = document.getElementById('meetingOverlay');
+            if (_mtg === state && !state.live && ovl && !ovl.classList.contains('hidden')) _meetingFinalize(state);
+          });
         }
         // Identity guard (same pattern as the chunk timer below): a suspended recorder's
         // late onstop must not restart when _meetingHealthCheck already started a fresh
@@ -464,12 +472,13 @@
       _meetingStop();
     }
 
-    async function _meetingSendChunk(blob, retryCount = 0, priorState = null) {
+    async function _meetingSendChunk(blob, retryCount = 0, priorState = null, priorSeq = null) {
       // Capture state at call time — meeting may end while this chunk is in flight.
       // Retries reuse the original capture so a chunk from a discarded meeting can
       // never write into a new one started in the meantime.
       const state = priorState || _mtg;
       if (!state) return;
+      const seq = priorSeq === null ? state.seq++ : priorSeq;
       // Belt-and-braces for the iOS AAC path: 4.3MB × 1.37 (base64) ≈ 5.9MB, the edge
       // of Netlify's body limit. A larger blob would 502 twice and waste the retry.
       if (blob.size > 4300000) {
@@ -503,15 +512,17 @@
         if (data.error) throw new Error(data.error);
         if (typeof data.updatedContext === 'string') state.context = data.updatedContext;
         if (typeof data.dream === 'string' && data.dream.trim()) {
-          state.dream = (state.dream ? state.dream + '\n\n' : '') + data.dream.trim();
+          state.dreamParts[seq] = { text: data.dream.trim(), hint: data.night_hint || '', lang: data.lang || '' };
+          _meetingKeepDream(state);
         }
         (data.actionItems || []).forEach(item => {
           // Dedupe on normalized text — the prompt asks Gemini not to repeat, this backstops it
           const norm = item.text.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
           if (!state.items.some(x => x.norm === norm)) {
-            state.items.push({ text: item.text, owner: item.owner, mine: item.mine, norm });
+            state.items.push({ text: item.text, owner: item.owner, mine: item.mine, norm, seq });
           }
         });
+        state.items.sort((a, b) => a.seq - b.seq); // stable: chunk order, then arrival within a chunk
         // Re-render for the final chunk is handled by the onstop promise chain above.
       } catch (e) {
         const msg = e.message || 'network';
@@ -523,7 +534,7 @@
         }
         if (retryCount === 0) {
           // Non-quota first failure: retry once immediately
-          return _meetingSendChunk(blob, 1, state);
+          return _meetingSendChunk(blob, 1, state, seq);
         }
         _logSyncError('Meeting', 'Chunk dropped — ' + msg.slice(0, 120));
       }
@@ -582,60 +593,76 @@
       }
     }
 
-    // Capture is fully digested. A recounted dream gets one interpretation request;
-    // the retelling and the reading live only in _mtg and die in _meetingTeardown().
-    function _meetingFinalize(state) {
-      state.processingFinalChunk = false;
-      if (state.dream && !state.dreamRequested) _meetingInterpretDream(state);
-      _meetingRenderReview(state);
+    // A dream is kept from the first chunk that carries it (assets/dreambank.js), before
+    // any reading is requested — closing, locking, or killing the app cannot lose it.
+    // Parts assemble in chunk order; the first chunk that names a night or language wins.
+    function _meetingKeepDream(state) {
+      if (state.dreamDropped) return;
+      const parts = Object.keys(state.dreamParts).map(Number).sort((a, b) => a - b).map(k => state.dreamParts[k]);
+      state.dream = parts.map(p => p.text).join('\n\n');
+      const bank = Today.use('dreambank');
+      state.dreamId = bank.capture({
+        id: state.dreamId,
+        retelling: state.dream,
+        hint: (parts.find(p => p.hint) || {}).hint || '',
+        lang: (parts.find(p => p.lang) || {}).lang || '',
+      });
+      // A dream that answered after the sheet already closed is still a dream that was told.
+      if (state.closed) bank.keep(state.dreamId);
     }
 
-    // Measured with scripts/dream-reading-eval.mjs: preferred 12/12 over the first prompt
-    // in a head-to-head judge, at half the length (128 → 65 words).
-    const _DREAM_SYSTEM =
-      'Someone has just woken up and told you a dream. Give them a short reading of it. Start from the ' +
-      'detail that stands out most, where a feeling does not fit what happened or where someone or ' +
-      'something is not what it should be, and follow one or two threads instead of touching every ' +
-      'image. Connect them to waking life only as far as the dream itself points; do not guess at their ' +
-      'work, relationships, or circumstances. Keep readings tentative through your wording, not through ' +
-      'reassurances or disclaimers. End with one question in the dream\'s own terms that they could ' +
-      'carry into today. Speak to them directly, plainly and warmly, like a calm friend. Answer in the ' +
-      'language the dream was told in. At most 80 words, no headings or lists, no exclamation marks.';
-      'Three to five sentences, no headings or lists, no exclamation marks.';
-
-    async function _meetingInterpretDream(state) {
-      state.dreamRequested = true;
-      const connections = Today.use('connections');
-      let text = '';
-      try {
-        const res = await fetch('/.netlify/functions/ai-assist', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            provider: connections._aiGetProvider(),
-            apiKey: connections._aiGetKey(),
-            systemPrompt: _DREAM_SYSTEM,
-            messages: [{ role: 'user', content: state.dream }],
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          text = String(data.content || data.message || '').trim();
-        }
-      } catch (e) { /* shown below as an honest note */ }
-      if (_mtg !== state) return; // discarded while waiting
-      state.dreamReading = text || null;
-      state.dreamFailed = !text;
+    // Capture is fully digested; the dream (if any) was settled by the chunk barrier.
+    function _meetingFinalize(state) {
+      state.processingFinalChunk = false;
       _meetingRenderReview(state);
     }
 
     function _meetingCopyDream() {
-      if (!_mtg || !_mtg.dream) return;
-      const out = _mtg.dream + (_mtg.dreamReading ? '\n\n' + _mtg.dreamReading : '');
+      const e = _mtg && _mtg.dreamId && Today.use('dreambank').get(_mtg.dreamId);
+      if (!e) return;
+      const out = e.retelling + (e.reading ? '\n\n' + e.reading : '');
       navigator.clipboard?.writeText(out).then(() => {
         const btn = document.getElementById('meetingCopyBtn');
         if (btn) btn.textContent = 'Copied';
       }).catch(() => {});
+    }
+
+    function _dreamReadingHTML(e) {
+      if (e && e.readingState === 'done' && e.reading) return `<p class="dream-reading">${esc(e.reading)}</p>`;
+      if (e && e.readingState === 'failed') return '<p class="dream-reading dream-reading-note">Could not read it right now. Your dream is below, and kept.</p>';
+      return `<div class="meeting-processing-center">
+                <span class="loading-dots"><span></span><span></span><span></span></span>
+                <span class="meeting-processing-label">reading</span>
+              </div>`;
+    }
+
+    function _breatheDots(root) {
+      root.querySelectorAll('.loading-dots span').forEach((s, i) => _breathe(s, _KF_BLINK, 1200, [0, 180, 400][i]));
+    }
+
+    // Reading, status, and save state arrive while the sheet is open. Patch only their
+    // nodes: rebuilding the list would wipe a half-typed thought, the night choice, and
+    // the iOS keyboard.
+    function _meetingPatchDream(id) {
+      const list = document.getElementById('meetingItems');
+      if (!_mtg || _mtg.dreamId !== id || !list || list.dataset.dreamView !== id) return;
+      const e = Today.use('dreambank').get(id);
+      const slot = document.getElementById('dreamReadingSlot');
+      const html = _dreamReadingHTML(e);
+      if (slot && slot.innerHTML !== html) { slot.innerHTML = html; _breatheDots(slot); }
+      const status = document.getElementById('dreamStatus');
+      const text = Today.use('dreambank').statusText(id);
+      if (status && status.textContent !== text) status.textContent = text;
+    }
+
+    function _meetingDropDream() {
+      if (!_mtg || !_mtg.dreamId) return;
+      Today.use('dreambank').discard(_mtg.dreamId);
+      _mtg.dreamDropped = true;
+      _mtg.dreamId = null;
+      _mtg.dream = null;
+      if (_mtg.items.length) _meetingRenderReview(_mtg);
+      else _meetingTeardown();
     }
 
     function _meetingRenderReview(state) {
@@ -658,23 +685,22 @@
       const eyebrow = document.querySelector('#meetingPanel .meeting-eyebrow');
       const copy    = document.getElementById('meetingCopyBtn');
       const discard = document.querySelector('.meeting-review-discard');
-      const dream   = !!state.dream && !processing;
+      const kept    = !!state.dreamId && !state.dreamDropped;
+      const dream   = kept && !processing;
       if (eyebrow) eyebrow.textContent = dream ? 'Dream' : 'Meeting';
       if (copy) copy.hidden = !dream;
-      if (discard) discard.textContent = dream ? 'Done' : 'Discard';
+      // Once a dream is detected, closing keeps it — so the button says so, even mid-digest.
+      if (discard) discard.textContent = kept ? 'Done' : 'Discard';
+      list.dataset.dreamView = '';
 
       if (dream) {
+        const bank = Today.use('dreambank');
+        const e = bank.get(state.dreamId);
         if (title) title.textContent = 'Your dream';
         if (sub) sub.style.display = 'none';
-        const reading = state.dreamReading
-          ? `<p class="dream-reading">${esc(state.dreamReading)}</p>`
-          : state.dreamFailed
-            ? '<p class="dream-reading dream-reading-note">Could not read it right now. Your dream is below.</p>'
-            : `<div class="meeting-processing-center">
-                <span class="loading-dots"><span></span><span></span><span></span></span>
-                <span class="meeting-processing-label">reading</span>
-              </div>`;
-        const told = `<p class="dream-told">${esc(state.dream)}</p>`;
+        const told = `<p class="dream-told">${esc(e ? e.retelling : state.dream)}</p>`;
+        const backfill = bank.backfillSeen() ? ''
+          : '<p class="dream-backfill">Remember older dreams? Tell them any time, and say roughly when.</p>';
         const hasItems = state.items.length > 0;
         const itemsHTML = hasItems ? '<div class="meeting-review-rule"></div>' + state.items.map((item, i) => `
         <button type="button" class="meeting-item${item.mine ? ' selected' : ''}" data-idx="${i}" aria-pressed="${item.mine}" data-today-click="meeting.toggle-item">
@@ -682,10 +708,18 @@
           <span class="meeting-item-text">${esc(item.text)}</span>
           ${item.owner ? '<span class="meeting-owner">' + esc(item.owner) + '</span>' : ''}
         </button>`).join('') : '';
-        list.innerHTML = note + reading + told + itemsHTML;
+        list.innerHTML = note +
+          `<div id="dreamReadingSlot">${_dreamReadingHTML(e)}</div>` + told +
+          `<div class="dream-meta"><label class="dream-night">Night of ${bank.nightSelectHTML(state.dreamId, e && e.night, 'sheet')}</label>` +
+          `<span class="dream-status" id="dreamStatus" role="status">${esc(bank.statusText(state.dreamId))}</span></div>` +
+          `<textarea class="dream-thought" id="dreamThought" rows="2" aria-label="Your thought" placeholder="Your thought, if one comes" data-today-input="meeting.dream-thought">${esc(e ? e.thought : '')}</textarea>` +
+          backfill +
+          `<button type="button" class="dream-drop" data-today-click="meeting.drop-dream">Don’t keep this one</button>` +
+          itemsHTML;
+        list.dataset.dreamView = state.dreamId;
         if (add) { add.style.display = hasItems ? '' : 'none'; add.disabled = false; }
         if (actions) actions.classList.toggle('no-add', !hasItems);
-        list.querySelectorAll('.loading-dots span').forEach((s, i) => _breathe(s, _KF_BLINK, 1200, [0, 180, 400][i]));
+        _breatheDots(list);
         if (hasItems) _meetingUpdateCount();
         return;
       }
@@ -777,6 +811,12 @@
 
     // Ephemerality guarantee: audio, items, and rolling context all die here.
     function _meetingTeardown() {
+      // Every way out of the sheet (Done, Add tasks, Discard while digesting) keeps a
+      // detected dream; only "Don't keep this one" removes it.
+      if (_mtg) {
+        _mtg.closed = true;
+        if (_mtg.dreamId && !_mtg.dreamDropped) Today.use('dreambank').keep(_mtg.dreamId);
+      }
       _meetingPipClose(); // defensive — normally already closed by _meetingStop()
       _mtg?.dotAnim?.cancel(); // stop the breathing animation before releasing the reference
       _mtg?.wakeLock?.release().catch(() => {}); // defensive — normally released in _meetingStop
@@ -957,6 +997,14 @@
       Today.ui.register('click', 'meeting.toggle-voice', toggleVoiceNote);
       Today.ui.register('click', 'meeting.stop-voice', _voiceNoteStop);
       Today.ui.register('click', 'meeting.copy-dream', _meetingCopyDream);
+      Today.ui.register('click', 'meeting.drop-dream', _meetingDropDream);
+      Today.ui.register('change', 'meeting.dream-night', (_event, el) => {
+        if (_mtg && _mtg.dreamId) Today.use('dreambank').setNight(_mtg.dreamId, el.value);
+      });
+      Today.ui.register('input', 'meeting.dream-thought', (_event, el) => {
+        if (_mtg && _mtg.dreamId) Today.use('dreambank').setThought(_mtg.dreamId, el.value);
+      });
+      Today.use('dreambank').onChange(_meetingPatchDream);
       Today.ui.register('keydown', 'meeting.name-key', _meetingNamePromptKey);
       Today.ui.register('click', 'meeting.name-submit', _meetingNamePromptSubmit);
       Today.ui.register('click', 'meeting.accept', _meetingAccept);

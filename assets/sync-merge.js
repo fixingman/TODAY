@@ -86,6 +86,22 @@
       .slice(0, limit);
   }
 
-  const api = { mergeDailyHistory, mergeSuggestionOutcomes };
+  // DreamBank index (v2.93.0): union by id, the later updatedAt wins — a deletion is a
+  // tombstone row, so it wins over the older live copy instead of being unioned back.
+  // "Clear all memory" drops every row recorded before the watermark, on both sides.
+  function mergeDreamIndex(localArr, remoteArr, clearedAt = '', limit = 500) {
+    const byId = new Map();
+    const keep = row => row && row.id && !(clearedAt && row.recordedAt && String(row.recordedAt) < clearedAt);
+    for (const row of [...(Array.isArray(localArr) ? localArr : []), ...(Array.isArray(remoteArr) ? remoteArr : [])]) {
+      if (!keep(row)) continue;
+      const cur = byId.get(row.id);
+      if (!cur || String(row.updatedAt || '') > String(cur.updatedAt || '')) byId.set(row.id, row);
+    }
+    return [...byId.values()]
+      .sort((a, b) => String(a.recordedAt || '').localeCompare(String(b.recordedAt || '')))
+      .slice(-limit);
+  }
+
+  const api = { mergeDailyHistory, mergeSuggestionOutcomes, mergeDreamIndex };
   if (global.Today) global.Today.define('sync-merge', api);
 })(window);
