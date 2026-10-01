@@ -620,23 +620,18 @@
       _meetingRenderReview(state);
     }
 
-    function _meetingCopyDream() {
-      const e = _mtg && _mtg.dreamId && Today.use('dreambank').get(_mtg.dreamId);
-      if (!e) return;
-      const out = e.retelling + (e.reading ? '\n\n' + e.reading : '');
-      navigator.clipboard?.writeText(out).then(() => {
-        const btn = document.getElementById('meetingCopyBtn');
-        if (btn) btn.textContent = 'Copied';
-      }).catch(() => {});
-    }
-
     function _dreamReadingHTML(e) {
       if (e && e.readingState === 'done' && e.reading) return `<p class="dream-reading">${esc(e.reading)}</p>`;
-      if (e && e.readingState === 'failed') return '<p class="dream-reading dream-reading-note">Could not read it right now. Your dream is below, and kept.</p>';
+      if (e && e.readingState === 'failed') return '<p class="dream-reading dream-reading-note">Can’t read it right now. Your dream is kept.</p>';
       return `<div class="meeting-processing-center">
                 <span class="loading-dots"><span></span><span></span><span></span></span>
                 <span class="meeting-processing-label">reading</span>
               </div>`;
+    }
+
+    function _dreamThoughtField(value) {
+      // The app's text-field component (16px, control border, focus highlight).
+      return `<textarea class="config-input" id="dreamThought" rows="2" aria-label="Your thought" placeholder="a thought, if one comes" data-today-input="meeting.dream-thought">${esc(value || '')}</textarea>`;
     }
 
     function _breatheDots(root) {
@@ -653,9 +648,19 @@
       const slot = document.getElementById('dreamReadingSlot');
       const html = _dreamReadingHTML(e);
       if (slot && slot.innerHTML !== html) { slot.innerHTML = html; _breatheDots(slot); }
-      const status = document.getElementById('dreamStatus');
+      const title = document.getElementById('meetingReviewTitle');
+      const night = _dreamTitle(e);
+      if (title && title.textContent !== night) title.textContent = night;
+      const sub = document.getElementById('meetingReviewSub');
       const text = Today.use('dreambank').statusText(id);
-      if (status && status.textContent !== text) status.textContent = text;
+      if (sub && sub.textContent !== text) sub.textContent = text;
+    }
+
+    // The header's three slots say three different things: eyebrow "Dream", the night as
+    // the title, where it is kept as the subtitle — no second "Your dream".
+    function _dreamTitle(e) {
+      const label = Today.use('dream-core').nightLabel(e && e.night);
+      return label.charAt(0).toUpperCase() + label.slice(1);
     }
 
     function _meetingDropDream() {
@@ -672,6 +677,8 @@
       const list  = document.getElementById('meetingItems');
       const title = document.getElementById('meetingReviewTitle');
       const sub   = document.getElementById('meetingReviewSub');
+      if (sub && !sub.dataset.meetingText) sub.dataset.meetingText = sub.textContent;
+      if (sub) sub.textContent = sub.dataset.meetingText;
       const add   = document.getElementById('meetingAddBtn');
       if (!list) return;
 
@@ -686,24 +693,28 @@
 
       const actions = document.querySelector('.meeting-review-actions');
       const eyebrow = document.querySelector('#meetingPanel .meeting-eyebrow');
-      const copy    = document.getElementById('meetingCopyBtn');
+      const drop    = document.getElementById('meetingDropBtn');
       const discard = document.querySelector('.meeting-review-discard');
       const kept    = !!state.dreamId && !state.dreamDropped;
       const dream   = kept && !processing;
       if (eyebrow) eyebrow.textContent = dream ? 'Dream' : 'Meeting';
-      if (copy) copy.hidden = !dream;
+      if (drop) drop.hidden = !dream;
       // Once a dream is detected, closing keeps it — so the button says so, even mid-digest.
-      if (discard) discard.textContent = kept ? 'Done' : 'Discard';
+      if (discard) { discard.textContent = kept ? 'Done' : 'Discard'; discard.style.display = ''; }
       list.dataset.dreamView = '';
 
       if (dream) {
         const bank = Today.use('dreambank');
         const e = bank.get(state.dreamId);
-        if (title) title.textContent = 'Your dream';
-        if (sub) sub.style.display = 'none';
+        if (title) title.textContent = _dreamTitle(e);
+        if (sub) { sub.textContent = bank.statusText(state.dreamId); sub.style.display = ''; }
         const told = `<p class="dream-told">${esc(e ? e.retelling : state.dream)}</p>`;
-        const backfill = bank.backfillSeen() ? ''
-          : '<p class="dream-backfill">Remember older dreams? Tell them any time, and say roughly when.</p>';
+        // The reading leads. A thought and a night correction are each one tap away, as
+        // the app's text CTAs (.copy-cta), rather than an empty box and a dropdown.
+        const thought = e && e.thought ? _dreamThoughtField(e.thought) : '';
+        const ctas = `<div id="dreamCtas">` +
+          (thought ? '' : '<button type="button" class="copy-cta" data-today-click="meeting.dream-thought-open">add a thought</button> ') +
+          '<button type="button" class="copy-cta" data-today-click="meeting.dream-night-open">change night</button></div>';
         const hasItems = state.items.length > 0;
         const itemsHTML = hasItems ? '<div class="meeting-review-rule"></div>' + state.items.map((item, i) => `
         <button type="button" class="meeting-item${item.mine ? ' selected' : ''}" data-idx="${i}" aria-pressed="${item.mine}" data-today-click="meeting.toggle-item">
@@ -713,15 +724,15 @@
         </button>`).join('') : '';
         list.innerHTML = note +
           `<div id="dreamReadingSlot">${_dreamReadingHTML(e)}</div>` + told +
-          `<div class="dream-meta"><label class="dream-night">Night of ${bank.nightSelectHTML(state.dreamId, e && e.night, 'sheet')}</label>` +
-          `<span class="dream-status" id="dreamStatus" role="status">${esc(bank.statusText(state.dreamId))}</span></div>` +
-          `<textarea class="dream-thought" id="dreamThought" rows="2" aria-label="Your thought" placeholder="Your thought, if one comes" data-today-input="meeting.dream-thought">${esc(e ? e.thought : '')}</textarea>` +
-          backfill +
-          `<button type="button" class="dream-drop" data-today-click="meeting.drop-dream">Don’t keep this one</button>` +
+          `<div id="dreamThoughtSlot">${thought}</div><div id="dreamNightSlot"></div>` + ctas +
           itemsHTML;
         list.dataset.dreamView = state.dreamId;
-        if (add) { add.style.display = hasItems ? '' : 'none'; add.disabled = false; }
-        if (actions) actions.classList.toggle('no-add', !hasItems);
+        // Keeping is the default and the primary action, so it carries the sheet's primary
+        // button (.meeting-review-add) — "Keep" alone, or "Add N tasks" when a real
+        // commitment was also said (accepting keeps the dream too). Don't keep is secondary.
+        if (add) { add.style.display = ''; add.disabled = false; if (!hasItems) add.textContent = 'Keep'; }
+        if (discard && !hasItems) discard.style.display = 'none';
+        if (actions) actions.classList.remove('no-add');
         _breatheDots(list);
         if (hasItems) _meetingUpdateCount();
         return;
@@ -999,10 +1010,24 @@
       Today.ui.register('click', 'meeting.stop', _meetingStop);
       Today.ui.register('click', 'meeting.toggle-voice', toggleVoiceNote);
       Today.ui.register('click', 'meeting.stop-voice', _voiceNoteStop);
-      Today.ui.register('click', 'meeting.copy-dream', _meetingCopyDream);
       Today.ui.register('click', 'meeting.drop-dream', _meetingDropDream);
       Today.ui.register('change', 'meeting.dream-night', (_event, el) => {
         if (_mtg && _mtg.dreamId) Today.use('dreambank').setNight(_mtg.dreamId, el.value);
+      });
+      Today.ui.register('click', 'meeting.dream-thought-open', (_event, button) => {
+        const slot = document.getElementById('dreamThoughtSlot');
+        if (!slot) return;
+        slot.innerHTML = _dreamThoughtField('');
+        button.remove();
+        document.getElementById('dreamThought')?.focus();
+      });
+      Today.ui.register('click', 'meeting.dream-night-open', (_event, button) => {
+        const slot = document.getElementById('dreamNightSlot');
+        const e = _mtg && _mtg.dreamId && Today.use('dreambank').get(_mtg.dreamId);
+        if (!slot || !e) return;
+        slot.innerHTML = Today.use('dreambank').nightSelectHTML(e.id, e.night, 'sheet');
+        button.remove();
+        slot.querySelector('select')?.focus();
       });
       Today.ui.register('input', 'meeting.dream-thought', (_event, el) => {
         if (_mtg && _mtg.dreamId) Today.use('dreambank').setThought(_mtg.dreamId, el.value);

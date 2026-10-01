@@ -2894,70 +2894,10 @@
     white-space: pre-wrap;
     user-select: text;
   }
-  /* DreamBank (v2.93.0): which night, save status, an optional thought, and the one
-     way to not keep it. Quiet by design — the reading stays the focus. */
-  .dream-meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--space-2);
-    margin-bottom: var(--space-3);
-  }
-  .dream-night {
-    font-size: var(--text-xs);
-    color: var(--muted);
-    display: inline-flex;
-    align-items: baseline;
-    gap: var(--space-1);
-  }
-  .dream-night-select {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--text);
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 2px var(--space-2);
-  }
-  .dream-status {
-    font-size: var(--text-xs);
-    color: var(--muted);
-  }
-  .dream-thought {
-    display: block;
-    width: 100%;
-    box-sizing: border-box;
-    font-family: var(--font-mono);
-    font-size: var(--text-lg); /* 16px: iOS zooms into smaller inputs */
-    color: var(--text);
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: var(--space-2);
-    resize: vertical;
-    margin-bottom: var(--space-2);
-  }
-  .dream-thought::placeholder { color: var(--muted); }
-  .dream-backfill {
-    font-size: var(--text-xs);
-    color: var(--muted);
-    line-height: 1.6;
-    margin: 0 0 var(--space-2);
-  }
-  .dream-drop {
-    background: none;
-    border: 0;
-    padding: var(--space-1) 0;
-    min-height: 24px;
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--muted);
-    text-decoration: underline;
-    cursor: pointer;
-    transition: color var(--dur-fast);
-  }
-  .dream-drop:hover, .dream-drop:focus-visible { color: var(--text); }
+  /* DreamBank (v2.93.4): the sheet uses existing components only — the header's
+     eyebrow/title/sub, .dream-reading/.dream-told, .config-input, and .copy-cta. The
+     surface owns spacing between them. */
+  #dreamThoughtSlot:not(:empty), #dreamNightSlot:not(:empty) { margin-bottom: var(--space-2); }
   .meeting-review-empty {
     text-align: center;
     color: var(--muted);
@@ -3003,7 +2943,7 @@
   }
   .meeting-review-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); flex-shrink: 0; }
   .meeting-review-actions.no-add .meeting-review-discard,
-  .meeting-review-actions.no-add .meeting-review-copy { flex: 1; }
+  .meeting-review-actions.no-add .meeting-review-drop { flex: 1; }
   .meeting-review-add {
     flex: 1;
     background: var(--accent-dim);
@@ -3019,7 +2959,7 @@
   .meeting-review-add:hover:not([disabled]) { background: var(--accent-hover); }
   .meeting-review-add[disabled] { opacity: var(--opacity-dim); cursor: default; }
   .meeting-review-discard,
-  .meeting-review-copy {
+  .meeting-review-drop {
     background: none;
     border: 1px solid var(--border);
     color: var(--muted);
@@ -3031,8 +2971,8 @@
     transition: color var(--dur-fast), border-color var(--dur-fast);
   }
   .meeting-review-discard:hover,
-  .meeting-review-copy:hover { color: var(--text); border-color: var(--muted); }
-  .meeting-review-copy[hidden] { display: none; }
+  .meeting-review-drop:hover { color: var(--text); border-color: var(--muted); }
+  .meeting-review-drop[hidden] { display: none; }
 
   /* Trello config panel */
   /* ── Component: Config Panel ───────────────────────────────────────── */
@@ -4242,20 +4182,6 @@
     color: var(--muted); cursor: pointer; transition: color var(--dur-fast);
   }
   .memory-item-btn:hover, .memory-item-btn:focus-visible { color: var(--accent); }
-  /* DreamBank rows (v2.93.0) — tap to open; the file lives in Dropbox */
-  .dream-memory-open {
-    flex: 1; display: flex; align-items: baseline; gap: var(--space-2);
-    background: none; border: 0; padding: 0; min-height: 24px; text-align: left;
-    font-family: var(--font-mono); color: var(--text); cursor: pointer;
-  }
-  .dream-memory-night, .dream-memory-where {
-    font-size: var(--text-xs); color: var(--muted); flex-shrink: 0;
-  }
-  .dream-memory-detail { padding: var(--space-2) 0 var(--space-3); }
-  .dream-memory-actions {
-    display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2);
-  }
-  .dream-memory-actions .memory-item-btn { padding-left: 0; }
   .memory-conn-link {
     font-size: var(--text-xs);
     font-family: var(--font-mono);
@@ -4270,12 +4196,16 @@
   }
   .memory-conn-link:hover { opacity: 1; }
   .memory-confirm-msg { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text); opacity: var(--opacity-strong); }
+  /* Confirm step (clear all, delete a dream): the destructive choice is --danger at rest. */
+  .memory-clear-btn.memory-clear-confirm { color: var(--danger); }
+  .memory-confirm-actions { display: flex; gap: var(--space-3); }
+  .memory-block-action { margin-top: var(--space-2); padding-bottom: var(--space-2); }
   .memory-item-new {
     display: inline-block;
     width: 5px; height: 5px;
-    border-radius: 50%;
+    border-radius: var(--radius-full);
     background: var(--accent);
-    opacity: 0.6;
+    opacity: var(--opacity-soft);
     margin-right: var(--space-2);
     flex-shrink: 0;
     vertical-align: middle;
@@ -4634,7 +4564,7 @@
     <div id="meetingItems"></div>
     <div class="meeting-review-actions">
       <button class="meeting-review-add" id="meetingAddBtn" data-today-click="meeting.accept">Add tasks</button>
-      <button class="meeting-review-copy" id="meetingCopyBtn" type="button" data-today-click="meeting.copy-dream" hidden>Copy</button>
+      <button class="meeting-review-drop" id="meetingDropBtn" type="button" data-today-click="meeting.drop-dream" hidden>Don’t keep</button>
       <button class="meeting-review-discard" data-today-click="meeting.discard">Discard</button>
     </div>
   </div>
@@ -4726,9 +4656,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.93.4': 'The dream sheet is calmer: the night is the title, Keep is the main button, and adding a thought or changing the night is one tap away.',
   '2.93.3': 'A dream told in a sentence or two is recognised more reliably, and if the AI sends nothing back you now see why instead of “Nothing came up”.',
   '2.93.2': 'On desktop, the task list no longer bobs up and down when you return to the app while the morning line is showing.',
-  '2.93.1': 'A “not really” vote can now include an optional reason, kept private and synced across devices.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

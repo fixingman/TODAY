@@ -375,9 +375,19 @@ Header: `.meeting-eyebrow` ("Meeting", 9px muted caps) + `.meeting-review-title`
 
 ---
 
-### Dream reading (v2.92.0)
+### Dream sheet (v2.92.0; kept since v2.93.0, components-only v2.93.4)
 
-Recounting a dream into the mic produces a reading instead of tasks. `meeting-extract` returns `dream` (a faithful retelling) when the segment is a dream account; items said inside the dream are not tasks. After the final chunk, `_meetingFinalize()` sends the retelling once to `ai-assist` (configured provider/key) with a principles-only prompt (v2.92.4, measured by `scripts/dream-reading-eval.mjs`): start from the detail that stands out, follow one or two threads, connect to waking life only as far as the dream points, tentative through wording rather than disclaimers, end with one question in the dream's own terms; the dream's language; at most 80 words; no exclamation marks. The review sheet switches to eyebrow **Dream**, title **Your dream**: the reading leads (`.dream-reading`, `--text-task`), the retelling sits below in muted type with a left rule (`.dream-told`), loading shows `reading` dots, and a failed call shows an honest note with the retelling still visible. Actions become **Copy** (retelling + reading to the clipboard) and **Done**; Add tasks appears only if a real waking-life commitment was also stated. Ephemeral like meetings — nothing stored. Detection is by content, not time of day, so it works from the same mobile mic with no new control.
+Recounting a dream into the mic produces a reading instead of tasks, and the dream is kept (`assets/dreambank.js`; Backlog § 13). Built **only from existing components**:
+
+- **Header** — the meeting sheet's three slots, each saying something different: `.meeting-eyebrow` **Dream** · `.meeting-review-title` = the night, sentence-cased (*Last night*, *The night before last*, *Sunday night*, *Sep 24*, *A while ago*) · `.meeting-review-sub` = where it is kept (*Kept in your Dropbox* · *Kept on this phone* · *Kept on this phone until you're online* · *Saving to your Dropbox*). The title and sub patch in place as the night or save state changes. Never a second "Your dream".
+- **Body** — the reading leads (`.dream-reading`, `--text-task`), the retelling below in muted type with a left rule (`.dream-told`); `reading` dots while waiting; a failed call says *Can't read it right now. Your dream is kept.*
+- **On demand** — two `.copy-cta` text CTAs, **add a thought** and **change night**. Each swaps itself for its control: a `textarea.config-input` (16px, focus highlight) or a `select.config-input` of nights (last 7 + *not sure when*). No control is visible until asked for: the night is inferred from what was said, so correcting it is rare.
+- **Actions** — keeping is the default, so it carries the sheet's primary button: `.meeting-review-add` **Keep** beside the secondary `.meeting-review-drop` **Don't keep**. When a waking-life commitment was also stated, the primary reads **Add N tasks** (accepting keeps the dream too) and **Done** returns as a secondary. Every way out (Keep, Add tasks, Done, Discard while digesting) keeps the dream; only Don't keep removes it.
+- Late replies patch their own nodes (reading slot, title, sub); the list is never rebuilt under a half-typed thought.
+
+### Memory → Dreams (v2.93.0, components-only v2.93.4)
+
+A `.memory-type-block` (**DREAMS** — the files live in your Dropbox). Each dream is a `.memory-item`: `.memory-item-text` *night — opening words…* with a `.memory-item-btn` **read** / **close**. Opened: `.dream-reading`, `.dream-told`, then one `.memory-item` — *kept in your Dropbox* / *kept on this phone* with `.memory-item-btn` **change night** (reveals a `select.config-input`) and **delete**. Delete confirms with the footer's pattern: `.memory-confirm-msg` + `.memory-clear-btn` **yes, delete** + `.btn-ghost.memory-conn-link` **cancel**; it removes the Dropbox file too. While fewer than three dreams are kept, a `.memory-pending` line invites older ones: *older dreams count too — tell them any time, and say roughly when*.
 
 ## Quick Voice Capture (v2.90.18)
 

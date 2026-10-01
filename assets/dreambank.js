@@ -164,7 +164,6 @@
     started = true;
 
     const QUEUE_KEY = 'today-dream-queue';
-    const BACKFILL_KEY = 'today_dream_backfill_seen';
     const CONTENT = ['retelling', 'reading', 'thought', 'night', 'nightCertainty', 'lang', 'images', 'people', 'role'];
     const PRUNED_TTL_MS = 7 * 86400000;
     // Backoff per entry (eng review D7): the sync tick can call flush() every few seconds;
@@ -179,6 +178,7 @@
     let _kickTimer = null;
     let _openId = null;          // Memory panel: which dream row is expanded
     let _confirmDeleteId = null; // Memory panel: which row is asking "delete?"
+    let _nightOpenId = null;     // Memory panel: which row is showing the night dropdown
 
     function _load() {
       const q = safeJSON(QUEUE_KEY, []);
@@ -262,7 +262,6 @@
       if (!e || e.deleted) return;
       e.ready = true;
       _save();
-      localStorage.setItem(BACKFILL_KEY, '1');
       _kick(0);
     }
 
@@ -309,15 +308,14 @@
 
     function get(id) { const e = _find(id); return e && !e.deleted ? e : null; }
     function onChange(fn) { _listeners.add(fn); return () => _listeners.delete(fn); }
-    function backfillSeen() { return !!localStorage.getItem(BACKFILL_KEY); }
 
     function statusText(id) {
       const e = _find(id);
       if (!e || e.deleted) return '';
-      if (e.uploadedRev && e.uploadedRev === e.rev) return 'Kept in Dropbox';
-      if (!localStorage.getItem('dropbox_token')) return 'Kept on this phone only — connect Dropbox to keep it for good';
-      if (!navigator.onLine || e.uploadTries > 0) return 'Kept on this phone, uploads when online';
-      return 'Kept on this phone, saving to Dropbox…';
+      if (e.uploadedRev && e.uploadedRev === e.rev) return 'Kept in your Dropbox';
+      if (!localStorage.getItem('dropbox_token')) return 'Kept on this phone';
+      if (!navigator.onLine || e.uploadTries > 0) return 'Kept on this phone until you’re online';
+      return 'Saving to your Dropbox';
     }
 
     // ── AI jobs ────────────────────────────────────────────────────────────────
@@ -553,43 +551,47 @@
         opts.push([iso, nightLabel(iso, now)]);
       }
       if (night && !opts.some(([v]) => v === night)) opts.push([night, nightLabel(night, now)]);
-      opts.push(['', 'a while ago / not sure']);
+      opts.push(['', 'not sure when']);
       return opts.map(([v, label]) =>
         `<option value="${esc(v)}"${(night || '') === v ? ' selected' : ''}>${esc(label)}</option>`).join('');
     }
 
-    // Action names stay literal (component-contract-test reads them from source):
-    // the sheet's select belongs to meeting.js, the Memory panel's to this module.
+    // The app's dropdown component (select.config-input). Action names stay literal
+    // (component-contract-test reads them from source): the sheet's select belongs to
+    // meeting.js, the Memory panel's to this module.
     function nightSelectHTML(id, night, where) {
       const action = where === 'memory'
         ? 'data-today-change="dream.memory-night"'
         : 'data-today-change="meeting.dream-night"';
-      return `<select class="dream-night-select" aria-label="Which night" data-dream-id="${esc(id)}" ${action}>${_nightOptions(night)}</select>`;
+      return `<select class="config-input dream-night-select" aria-label="Which night" data-dream-id="${esc(id)}" ${action}>${_nightOptions(night)}</select>`;
     }
 
+    // A row is the panel's own item: text (night — opening words) with a per-item action,
+    // like KNOWN's "dismiss". Opened, it shows the reading and the retelling, then one
+    // item row: where it is kept, "change night", "delete" — the same actions the panel
+    // uses everywhere. The night dropdown appears only after "change night".
     function _memoryRow({ e, r }) {
       const id = (e || r).id;
       const night = nightLabel((e || r).night);
-      const where = e && e.uploadedRev && e.uploadedRev === e.rev ? 'in Dropbox'
-        : e && !e.pruned ? 'on this phone' : 'in Dropbox';
+      const where = e && !e.pruned && !(e.uploadedRev && e.uploadedRev === e.rev) ? 'kept on this phone' : 'kept in your Dropbox';
       const first = e && e.retelling ? e.retelling.split(/\s+/).slice(0, 9).join(' ') + '…'
         : ((e || r).images || []).slice(0, 3).join(' · ') || 'kept';
-      let html = `<div class="memory-item dream-memory-row">` +
-        `<button type="button" class="dream-memory-open" data-today-click="dream.memory-open" data-dream-id="${esc(id)}" aria-expanded="${_openId === id}">` +
-        `<span class="dream-memory-night">${esc(night)}</span> <span class="memory-item-text">${esc(first)}</span></button>` +
-        `<span class="dream-memory-where">${esc(where)}</span></div>`;
-      if (_openId !== id) return html;
-      const body = e && e.retelling
+      const open = _openId === id;
+      let html = `<div class="memory-item"><span class="memory-item-text">${esc(night)} — ${esc(first)}</span>` +
+        `<button type="button" class="memory-item-btn" data-today-click="dream.memory-open" data-dream-id="${esc(id)}" aria-expanded="${open}">${open ? 'less' : 'read'}</button></div>`;
+      if (!open) return html;
+      html += e && e.retelling
         ? (e.reading ? `<p class="dream-reading">${esc(e.reading)}</p>` : '') + `<p class="dream-told">${esc(e.retelling)}</p>`
-        : `<div class="memory-pending">The full dream is in your Dropbox, in ${esc(_files() ? _files().dreamsDir : '/Dreams')}.</div>`;
-      const actions = _confirmDeleteId === id
-        ? `<span class="memory-confirm-msg">delete this dream and its file?</span>` +
-          `<button type="button" class="memory-item-btn dream-delete-confirm" data-today-click="dream.memory-delete-confirm" data-dream-id="${esc(id)}">yes, delete</button>` +
-          `<button type="button" class="memory-item-btn" data-today-click="dream.memory-delete-cancel">cancel</button>`
-        : (e && e.retelling ? `<button type="button" class="memory-item-btn" data-today-click="dream.memory-copy" data-dream-id="${esc(id)}">copy</button>` : '') +
-          `<button type="button" class="memory-item-btn" data-today-click="dream.memory-delete" data-dream-id="${esc(id)}">delete</button>`;
-      const nightCtl = e ? `<label class="dream-night">Night of ${nightSelectHTML(id, e.night, 'memory')}</label>` : '';
-      return html + `<div class="dream-memory-detail">${body}<div class="dream-memory-actions">${nightCtl}${actions}</div></div>`;
+        : `<div class="memory-pending">the full dream is in your Dropbox, in ${esc(_files() ? _files().dreamsDir : '/Dreams')}</div>`;
+      if (_confirmDeleteId === id) {
+        return html + `<div class="memory-item"><span class="memory-confirm-msg">delete this dream and its file?</span>` +
+          `<button type="button" class="memory-clear-btn memory-clear-confirm" data-today-click="dream.memory-delete-confirm" data-dream-id="${esc(id)}">yes, delete</button>` +
+          `<span class="memory-confirm-actions"><button type="button" class="btn-ghost memory-conn-link" data-today-click="dream.memory-delete-cancel">cancel</button></span></div>`;
+      }
+      return html + `<div class="memory-item"><span class="memory-item-text">${esc(where)}</span>` +
+        (e ? `<button type="button" class="memory-item-btn" data-today-click="dream.memory-night-open" data-dream-id="${esc(id)}">change night</button>` : '') +
+        `<button type="button" class="memory-item-btn" data-today-click="dream.memory-delete" data-dream-id="${esc(id)}">delete</button></div>` +
+        (e && _nightOpenId === id ? nightSelectHTML(id, e.night, 'memory') : '');
     }
 
     function renderMemory(container) {
@@ -598,9 +600,12 @@
       const rows = _rows();
       const html = `<div class="memory-type-block dream-memory-block" id="dreamMemoryBlock">` +
         `<div class="memory-type-header"><span class="memory-type-name">DREAMS</span>` +
-        `<span class="memory-type-desc">— kept as files in your Dropbox; today keeps only what it learned</span></div>` +
+        `<span class="memory-type-desc">— the files live in your Dropbox</span></div>` +
         (rows.length ? rows.map(_memoryRow).join('')
           : `<div class="memory-pending">a dream you tell the mic lands here</div>`) +
+        // Backfill (design M1): older dreams count too. Said here, where the collection is,
+        // rather than in the sheet at 7am — and only while the collection is small.
+        (rows.length < 3 ? `<div class="memory-pending">older dreams count too — tell them any time, and say roughly when</div>` : '') +
         `</div>`;
       if (old) old.outerHTML = html;
       else container.insertAdjacentHTML('beforeend', html);
@@ -610,25 +615,19 @@
       if (el) renderMemory(el.parentElement);
     }
 
-    function _copy(id) {
-      const e = get(id);
-      if (!e) return;
-      navigator.clipboard?.writeText(e.retelling + (e.reading ? '\n\n' + e.reading : '')).catch(() => {});
-    }
-
     if (window.Today) {
       Today.define('dreambank', {
         capture, settle, keep, setNight, setThought, discard, get, onChange, flush,
-        statusText, backfillSeen, renderMemory, nightSelectHTML, copy: _copy,
+        statusText, renderMemory, nightSelectHTML,
         _list: () => _queue.slice(),
       });
       Today.ui.register('click', 'dream.memory-open', (_e, el) => {
         const id = el.dataset.dreamId;
         _openId = _openId === id ? null : id;
         _confirmDeleteId = null;
+        _nightOpenId = null;
         _rerenderMemory();
       });
-      Today.ui.register('click', 'dream.memory-copy', (_e, el) => _copy(el.dataset.dreamId));
       Today.ui.register('click', 'dream.memory-delete', (_e, el) => { _confirmDeleteId = el.dataset.dreamId; _rerenderMemory(); });
       Today.ui.register('click', 'dream.memory-delete-cancel', () => { _confirmDeleteId = null; _rerenderMemory(); });
       Today.ui.register('click', 'dream.memory-delete-confirm', (_e, el) => {
@@ -636,7 +635,12 @@
         _confirmDeleteId = null; _openId = null;
         _rerenderMemory();
       });
-      Today.ui.register('change', 'dream.memory-night', (_e, el) => { setNight(el.dataset.dreamId, el.value); _rerenderMemory(); });
+      Today.ui.register('change', 'dream.memory-night', (_e, el) => { setNight(el.dataset.dreamId, el.value); _nightOpenId = null; _rerenderMemory(); });
+      Today.ui.register('click', 'dream.memory-night-open', (_e, el) => {
+        _nightOpenId = el.dataset.dreamId;
+        _rerenderMemory();
+        document.querySelector('#dreamMemoryBlock .dream-night-select')?.focus();
+      });
     }
 
     _kick(0);

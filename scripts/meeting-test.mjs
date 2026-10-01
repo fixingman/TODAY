@@ -355,7 +355,6 @@ try {
   // leads, the retelling sits below; Done keeps it. Invented images never reach memory.
   {
     const { page, errors } = await openPage({ supported: ['audio/webm;codecs=opus'] });
-    await page.evaluate(() => { navigator.clipboard.writeText = async text => { window.__meetingTest.copied = text; }; });
     const result = await page.evaluate(async () => {
       const t = window.__meetingTest;
       const until = async fn => { for (let i = 0; i < 80 && !fn(); i++) await new Promise(r => setTimeout(r, 10)); };
@@ -371,34 +370,37 @@ try {
       await until(() => t.aiRequests.length === 2);
       const queue = () => JSON.parse(localStorage.getItem('today-dream-queue') || '[]');
       const keptBeforeReading = queue().length === 1 && queue()[0].retelling === dream;
-      const loading = document.getElementById('meetingReviewTitle').textContent === 'Your dream'
+      const loading = document.getElementById('meetingReviewTitle').textContent === 'Last night'
         && !!document.querySelector('#meetingItems .loading-dots');
       release();
       await until(() => !!document.querySelector('#meetingItems .dream-reading'));
       const [readReq, extractReq] = t.aiRequests;
-      const copyBtn = document.getElementById('meetingCopyBtn');
+      const dropBtn = document.getElementById('meetingDropBtn');
       const reviewText = document.getElementById('meetingItems').textContent;
       const entry = queue()[0];
       const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
       const shown = {
-        eyebrow: document.querySelector('#meetingPanel .meeting-eyebrow').textContent === 'Dream',
         readingFirst: document.querySelector('#meetingItems .dream-reading').textContent.startsWith('The water floor'),
         toldShown: reviewText.includes('grandmother'),
         noTaskRows: !document.querySelector('#meetingItems .meeting-item'),
-        addHidden: document.getElementById('meetingAddBtn').style.display === 'none',
-        copyShown: !copyBtn.hidden,
-        doneLabel: document.querySelector('.meeting-review-discard').textContent === 'Done',
-        nightChip: document.querySelector('.dream-night-select').value === _localISO(yesterday),
-        phoneOnlyStatus: document.getElementById('dreamStatus').textContent.startsWith('Kept on this phone only'),
-        backfillOffered: !!document.querySelector('.dream-backfill'),
+        keepPrimary: document.getElementById('meetingAddBtn').style.display !== 'none'
+          && document.getElementById('meetingAddBtn').textContent === 'Keep'
+          && document.querySelector('.meeting-review-discard').style.display === 'none',
+        dontKeepShown: !dropBtn.hidden && dropBtn.textContent === 'Don’t keep',
+
+        header: document.querySelector('#meetingPanel .meeting-eyebrow').textContent === 'Dream'
+          && document.getElementById('meetingReviewTitle').textContent === 'Last night'
+          && document.getElementById('meetingReviewSub').textContent === 'Kept on this phone'
+          && document.getElementById('meetingReviewSub').style.display !== 'none',
+        noDropdownUntilAsked: !document.querySelector('#meetingItems select'),
+        ctas: [...document.querySelectorAll('#dreamCtas .copy-cta')].map(b => b.textContent).join('|') === 'add a thought|change night',
+        noBackfillInSheet: !document.querySelector('#meetingItems .memory-pending'),
       };
-      copyBtn.click();
-      await until(() => !!t.copied);
       // Only the queue holds the retelling; memory holds grounded images, never the dream text.
       const holders = [...Array(localStorage.length).keys()].map(i => localStorage.key(i))
         .filter(k => (localStorage.getItem(k) || '').includes('grandmother'));
       const memoryText = localStorage.getItem('today_memory') || '';
-      Today.use('meeting')._meetingDiscard();
+      document.getElementById('meetingAddBtn').click(); // Keep
       await new Promise(r => setTimeout(r, 350));
       const row = (JSON.parse(memoryText || '{}').dreams || { index: [] }).index[0] || {};
       return {
@@ -414,8 +416,6 @@ try {
         grounded: JSON.stringify(row.images) === JSON.stringify(['grandmother\'s kitchen', 'floor was water']) && row.role === 'stands calmly on water',
         indexSynced: t.autosaves >= 1,
         keptOnDone: queue()[0].ready === true,
-        copied: t.copied.includes('grandmother') && t.copied.includes('water floor'),
-        copyLabel: copyBtn.textContent === 'Copied',
         noTasks: JSON.parse(localStorage.getItem('today_manual') || '[]').length === 0,
         clearedOnClose: document.getElementById('meetingItems').innerHTML === '',
       };
@@ -429,8 +429,10 @@ try {
       for (let i = 0; i < 60 && !document.querySelector('#meetingItems .meeting-item'); i++) await new Promise(r => setTimeout(r, 10));
       return {
         meetingEyebrowRestored: document.querySelector('#meetingPanel .meeting-eyebrow').textContent === 'Meeting',
-        copyHiddenAgain: document.getElementById('meetingCopyBtn').hidden,
-        discardRestored: document.querySelector('.meeting-review-discard').textContent === 'Discard',
+        dontKeepHiddenAgain: document.getElementById('meetingDropBtn').hidden,
+        discardRestored: document.querySelector('.meeting-review-discard').textContent === 'Discard'
+          && document.querySelector('.meeting-review-discard').style.display !== 'none',
+        subRestored: document.getElementById('meetingReviewSub').textContent.startsWith('Yours are pre-selected'),
         noExtraAiCall: t.aiRequests.length === 2,
         stillOneDream: JSON.parse(localStorage.getItem('today-dream-queue') || '[]').length === 1,
       };
@@ -505,8 +507,12 @@ try {
       t.meetingResponses.push({ updatedContext: '', actionItems: [], dream: 'The stairs never ended and the house kept growing.' });
       let release; t.aiResponses.push({ gate: new Promise(r => { release = r; }), content: 'The stairs keep going.' });
       Today.use('meeting').toggleMeeting();
-      await until(() => !!document.getElementById('dreamThought'));
+      await until(() => !!document.querySelector('[data-today-click="meeting.dream-thought-open"]'));
+      document.querySelector('[data-today-click="meeting.dream-thought-open"]').click();
       const field = document.getElementById('dreamThought');
+      const textField = field.classList.contains('config-input');
+      const focused = document.activeElement === field;
+      const ctaGone = !document.querySelector('[data-today-click="meeting.dream-thought-open"]');
       field.value = 'my old house';
       field.dispatchEvent(new Event('input', { bubbles: true }));
       release();
@@ -514,23 +520,26 @@ try {
       const q = () => JSON.parse(localStorage.getItem('today-dream-queue') || '[]');
       const sameField = document.getElementById('dreamThought') === field && field.value === 'my old house';
       const thoughtSaved = q()[0].thought === 'my old house';
-      const select = document.querySelector('.dream-night-select');
+      document.querySelector('[data-today-click="meeting.dream-night-open"]').click();
+      const select = document.querySelector('#dreamNightSlot select.config-input');
       const twoAgo = new Date(); twoAgo.setDate(twoAgo.getDate() - 2);
       select.value = _localISO(twoAgo);
       select.dispatchEvent(new Event('change', { bubbles: true }));
-      const nightSet = q()[0].night === _localISO(twoAgo) && q()[0].nightByUser === true;
-      document.querySelector('.dream-drop').click();
+      await until(() => document.getElementById('meetingReviewTitle').textContent === 'The night before last');
+      const nightSet = q()[0].night === _localISO(twoAgo) && q()[0].nightByUser === true
+        && document.getElementById('meetingReviewTitle').textContent === 'The night before last';
+      document.getElementById('meetingDropBtn').click();
       await until(() => q().length === 0);
       await new Promise(r => setTimeout(r, 350));
       return {
-        sameField, thoughtSaved, nightSet,
+        focused, textField, ctaGone, sameField, thoughtSaved, nightSet,
         dropped: q().length === 0,
         closed: document.getElementById('meetingOverlay').classList.contains('hidden'),
         goneFromStorage: ![...Array(localStorage.length).keys()].some(i => (localStorage.getItem(localStorage.key(i)) || '').includes('stairs never ended')),
       };
     });
     await expectAll('dream sheet patching, night, and discard', { ...result, noErrors: errors.length === 0 });
-    ok('reading lands without wiping the thought; night chip saves; "Don\'t keep this one" removes it');
+    ok('thought and night open on tap; a late reading keeps the thought; the title follows the night; "Don\'t keep" removes it');
     await page.close();
   }
 
@@ -598,10 +607,11 @@ try {
       t.meetingResponses.push({ updatedContext: '', actionItems: [], dream: 'A red door in a white field.', night_hint: 'last_night' });
       t.aiResponses.push({ content: 'The door waits.' });
       Today.use('meeting').toggleMeeting();
-      await until(() => (document.getElementById('dreamStatus') || {}).textContent === 'Kept in Dropbox');
+      await until(() => document.getElementById('meetingReviewSub').textContent === 'Kept in your Dropbox');
       const first = t.uploads[t.uploads.length - 1] || { path: '', text: '' };
       const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-      const select = document.querySelector('.dream-night-select');
+      document.querySelector('[data-today-click="meeting.dream-night-open"]').click();
+      const select = document.querySelector('#dreamNightSlot select');
       const threeAgo = new Date(); threeAgo.setDate(threeAgo.getDate() - 3);
       select.value = _localISO(threeAgo);
       select.dispatchEvent(new Event('change', { bubbles: true }));
@@ -638,16 +648,26 @@ try {
       const keptAfterReload = q()[0].ready === true && q()[0].settled === true;
       const readRequested = t.aiRequests[0].messages[0].content === 'A whale sang under the bridge.';
       Today.use('memory').toggle();
-      const row = document.querySelector('#dreamMemoryBlock .dream-memory-open');
-      const listed = !!row && row.textContent.includes('A whale sang');
-      row.click();
-      const opened = document.querySelector('#dreamMemoryBlock .dream-told')?.textContent === 'A whale sang under the bridge.';
+      const block = () => document.getElementById('dreamMemoryBlock');
+      const row = block().querySelector('.memory-item');
+      const listed = !!row && row.querySelector('.memory-item-text').textContent.startsWith('Sep 1 — A whale sang')
+        && row.querySelector('.memory-item-btn').textContent === 'read';
+      row.querySelector('[data-today-click="dream.memory-open"]').click();
+      const opened = block().querySelector('.dream-told')?.textContent === 'A whale sang under the bridge.';
+      const items = [...block().querySelectorAll('.memory-item')];
+      const foot = items[items.length - 1];
+      const quietFoot = foot.querySelector('.memory-item-text').textContent === 'kept on this phone'
+        && [...foot.querySelectorAll('.memory-item-btn')].map(b => b.textContent).join('|') === 'change night|delete'
+        && !block().querySelector('select');
+      foot.querySelector('[data-today-click="dream.memory-night-open"]').click();
+      const nightOnDemand = !!block().querySelector('select.config-input');
+      const backfillHint = /older dreams count too/.test(block().textContent);
       document.querySelector('[data-today-click="dream.memory-delete"]').click();
       document.querySelector('[data-today-click="dream.memory-delete-confirm"]').click();
       await until(() => q().length === 0);
       return {
-        keptAfterReload, readRequested, listed, opened,
-        deleted: q().length === 0 && !document.querySelector('#dreamMemoryBlock .dream-memory-open'),
+        keptAfterReload, readRequested, listed, opened, quietFoot, nightOnDemand, backfillHint,
+        deleted: q().length === 0 && !document.querySelector('#dreamMemoryBlock [data-today-click="dream.memory-open"]'),
       };
     });
     await expectAll('dream from a previous session', { ...result, noErrors: errors.length === 0 });

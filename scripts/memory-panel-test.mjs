@@ -412,7 +412,7 @@ try {
       return {
         completionRateRemoved: !text.includes('completes 50% of tasks added')
           && !text.includes('5 done of 10 added'),
-        peakEvidenceKept: text.includes('most completions between 9am–10am'),
+        peakEvidenceKept: text.includes('most tasks done between 9am–10am'),
         identityClaimRemoved: !text.includes('a morning person'),
         semanticFramingUpdated: text.includes('patterns observed over time'),
       };

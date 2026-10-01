@@ -325,8 +325,8 @@
         `</div>`;
 
       if (!policy || policy.choice === 'not_for_me') {
-        inner += `<div class="memory-item"><span class="memory-item-text">Reflections are not remembered.</span></div>` +
-          `<div style="margin-top:var(--space-2);padding-bottom:var(--space-2)">` +
+        inner += `<div class="memory-item"><span class="memory-item-text">TODAY doesn’t keep reflections.</span></div>` +
+          `<div class="memory-block-action">` +
           `<button class="triage-undo-btn" data-today-click="reflections.remember-again">Remember reflections</button>` +
           `</div>`;
       } else {

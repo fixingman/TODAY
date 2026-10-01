@@ -48,7 +48,7 @@
       const el = document.getElementById('memoryContent');
       if (!el) return;
       const m = appMemory;
-      if (!m) { el.innerHTML = '<div class="memory-empty">no data yet</div>'; return; }
+      if (!m) { el.innerHTML = '<div class="memory-empty">nothing noticed yet</div>'; return; }
 
       function typeBlock(name, desc, items, pendingNote) {
         const rows = items.length
@@ -124,10 +124,10 @@
         const _peakRun = _runs.find(r => r.includes(parseInt(peakHour))) || [parseInt(peakHour)];
         if (_peakRun.length >= 2) {
           const _s = _peakRun[0], _e = _peakRun[_peakRun.length - 1];
-          semanticItems.push({ text: `most completions between ${_fmtH(_s)}–${_fmtH(_e)}` });
+          semanticItems.push({ text: `most tasks done between ${_fmtH(_s)}–${_fmtH(_e)}` });
         } else {
           const h = parseInt(peakHour);
-          semanticItems.push({ text: `most completions around ${_fmtH(h)}` });
+          semanticItems.push({ text: `most tasks done around ${_fmtH(h)}` });
         }
       }
       const samples = m.patterns?.taskLifespanSamples || [];
@@ -157,7 +157,7 @@
           const [bestDow, bestAvg] = dowAvgs.sort(([, a], [, b]) => b - a)[0];
           const secondAvg = dowAvgs[1][1];
           if (bestAvg >= 2 && bestAvg > secondAvg * 1.2) {
-            semanticItems.push({ text: `most productive on ${_dowNames[bestDow]}s` });
+            semanticItems.push({ text: `most done on ${_dowNames[bestDow]}s` });
           }
         }
       }
@@ -170,7 +170,7 @@
       const recent = (m.recentCompletedTasks || []);
       const thisWeek = recent.filter(e => e.date >= weekAgoISO);
       if (thisWeek.length > 0) {
-        episodicItems.push({ text: `completed ${thisWeek.length} task${thisWeek.length === 1 ? '' : 's'} in the last 7 days` });
+        episodicItems.push({ text: `${thisWeek.length} task${thisWeek.length === 1 ? '' : 's'} done in the last 7 days` });
       }
 
       // Best day this week
@@ -207,9 +207,9 @@
         const _lh = e => typeof e === 'object' ? e.h : e;
         const _latePct = recentLate.filter(e => _lh(e) >= 14).length / recentLate.length;
         if (_latePct >= 0.40) {
-          proceduralItems.push({ text: `tends to add tasks reactively — most additions happen after the day starts` });
+          proceduralItems.push({ text: `adds most tasks after the day has started` });
         } else {
-          proceduralItems.push({ text: `mostly plans ahead — tasks are usually set before the day begins` });
+          proceduralItems.push({ text: `sets most tasks before the day begins` });
         }
       }
       const keywords = m.patterns?.taskKeywords || {};
@@ -261,9 +261,9 @@
             _oblRateHist.reduce((s, e) => s + e.tasksDone, 0) /
             _oblRateHist.reduce((s, e) => s + _oblEffDenom(e), 0) * 100
           );
-          proceduralItems.push({ text: `obligation tasks: ${_oblRate}% complete vs ${_oblOverall}% overall` });
+          proceduralItems.push({ text: `obligation tasks: ${_oblRate}% done vs ${_oblOverall}% overall` });
         } else if (_oblResolved.length >= 10) {
-          proceduralItems.push({ text: `obligation-framed tasks: ${_oblRate}% complete (${_oblDone} of ${_oblResolved.length})` });
+          proceduralItems.push({ text: `obligation tasks: ${_oblRate}% done (${_oblDone} of ${_oblResolved.length})` });
         }
       }
       // Let-go return rate
@@ -289,26 +289,26 @@
         const _activeDays = Math.min(m.totalDaysActive || 0, _calDays);
         const _dayStr = _activeDays > 0 && _calDays > 0
           ? `active on ${_activeDays} of ${_calDays} day${_calDays === 1 ? '' : 's'}`
-          : `${_calDays} day${_calDays === 1 ? '' : 's'} of data`;
+          : `${_calDays} day${_calDays === 1 ? '' : 's'} so far`;
         let _sinceStr = m.firstSeen;
         try {
           const _d = new Date(m.firstSeen + 'T12:00:00');
           _sinceStr = _d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         } catch (_) {}
-        metaItems.push({ text: `tracking since ${_sinceStr} — ${_dayStr}` });
+        metaItems.push({ text: `noticing since ${_sinceStr} — ${_dayStr}` });
       }
       if (m.totalTasksCompleted > 0) {
-        metaItems.push({ text: `${m.totalTasksCompleted} tasks completed total` });
+        metaItems.push({ text: `${m.totalTasksCompleted} tasks done in all` });
       }
       if ((m.patterns?.focusMinutesTotal || 0) > 0) {
         const hrs = (m.patterns.focusMinutesTotal / 60).toFixed(1);
-        metaItems.push({ text: `${hrs} hours of deep focus logged across all sessions` });
+        metaItems.push({ text: `${hrs} hours of focus so far` });
       }
       const coverageNotes = [];
-      if ((m.patterns?.focusMinutesTotal || 0) === 0) coverageNotes.push('no focus session data yet');
-      if (!peakHour) coverageNotes.push('not enough completion data for timing patterns');
+      if ((m.patterns?.focusMinutesTotal || 0) === 0) coverageNotes.push('no focus sessions yet');
+      if (!peakHour) coverageNotes.push('too few tasks done to see your timing');
       if (coverageNotes.length) {
-        metaItems.push({ text: `gaps: ${coverageNotes.join(' · ')}` });
+        metaItems.push({ text: `still learning: ${coverageNotes.join(' · ')}` });
       }
 
       // ── 12d Phase A: the record itself, before any conclusion drawn from it ──
@@ -380,9 +380,9 @@
         typeBlock('RETIRED', '— kinds of observation you said did not land; today stops offering them', retiredItems,
           'nothing retired — a kind lands here after two "not really"') +
         typeBlock('SEMANTIC', '— patterns observed over time', semanticItems,
-          'needs more data to form stable conclusions') +
+          'patterns show up after more days') +
         typeBlock('EPISODIC', '— what has been happening lately', episodicItems,
-          'no recent activity to report') +
+          'nothing new this week') +
         typeBlock('PROCEDURAL', '— how you tend to work', proceduralItems,
           'patterns will appear after more activity') +
         typeBlock('META', '— what today has seen and how confident it is', metaItems);
@@ -394,8 +394,8 @@
       if (footer) footer.innerHTML = _memoryClearPending
         ? `<div class="memory-footer">` +
           `<span class="memory-confirm-msg">erase everything?</span>` +
-          `<span style="display:flex;gap:var(--space-3)">` +
-          `<button class="memory-clear-btn" style="opacity:1;color:var(--danger)" data-today-click="memory.clear-confirm">yes, clear</button>` +
+          `<span class="memory-confirm-actions">` +
+          `<button class="memory-clear-btn memory-clear-confirm" data-today-click="memory.clear-confirm">yes, clear</button>` +
           `<button class="btn-ghost memory-conn-link" data-today-click="memory.clear-cancel">cancel</button>` +
           `</span></div>`
         : `<div class="memory-footer">` +
@@ -416,8 +416,8 @@
       if (footer) footer.innerHTML =
         `<div class="memory-footer">` +
         `<span class="memory-confirm-msg">erase everything?</span>` +
-        `<span style="display:flex;gap:var(--space-3)">` +
-        `<button class="memory-clear-btn" style="opacity:1;color:var(--danger)" data-today-click="memory.clear-confirm">yes, clear</button>` +
+        `<span class="memory-confirm-actions">` +
+        `<button class="memory-clear-btn memory-clear-confirm" data-today-click="memory.clear-confirm">yes, clear</button>` +
         `<button class="btn-ghost memory-conn-link" data-today-click="memory.clear-cancel">cancel</button>` +
         `</span></div>`;
     }
