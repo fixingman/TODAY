@@ -6,20 +6,25 @@
 
 ## Pre-Release Checklist (REQUIRED)
 
-Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 38 local
-test suites (39 checks total), including six-scene visual regression coverage. The live
-`scripts/ai-test.mjs`, the live `scripts/dream-live-test.mjs`, and five-run
+Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 40 local
+test suites (41 checks total), including six-scene visual regression coverage, the DreamBank
+queue/night/grounding unit test (`dreambank-unit-test`) and the `meeting-extract` handler unit
+test. The live `scripts/ai-test.mjs`, the live `scripts/dream-live-test.mjs`, and five-run
 `scripts/performance-test.mjs` are explicit exclusions: the first two require API keys and real
 provider calls; the last runs as its own push/nightly gate. `dream-live-test` (macOS: `say` +
-ffmpeg) speaks five scripted clips — English dream, Turkish dream, dream plus a real commitment,
-plain planning, figurative "bad dream" talk — through the real `meeting-extract` and
-`ai-assist` handlers and checks detection, task separation, language, and reading tone. Run it
-after any change to the dream or meeting prompts:
+ffmpeg) speaks scripted clips — English and Turkish dreams, a dream plus a real commitment, a
+plain one-sentence dream (BUG-110), late captures ("the night before last", "dün gece", "years
+ago"), plain planning, figurative "bad dream" talk — through the real `meeting-extract` and
+`ai-assist` handlers and checks detection, task separation, language, `night_hint`/`lang`,
+grounded images, and reading tone. `--say="…"` prints Gemini's raw answer for any one phrase.
+Run it after any change to the dream or meeting prompts:
 `GEMINI_API_KEY=… ANTHROPIC_API_KEY=… node scripts/dream-live-test.mjs`. Reading
 *quality* is measured separately by `scripts/dream-reading-eval.mjs` (not a `*-test`, so outside
 the gate): 12 retellings in similar-theme pairs, each reading scored by a Claude judge through the
 same `ai-assist` handler — swap accuracy (can the judge tell the reading's dream from its twin;
 ~50% means interchangeable readings), specificity 1–5, usefulness 1–5, and quoted generic phrases.
+`--versus=<prompt>` runs a head-to-head against another prompt; `--extract` checks the DreamBank
+extraction prompt (≥3 grounded images per dream, dropped images printed, drop rate per language).
 Position is alternated so judge bias cancels. `--prompt=file` scores a candidate against the
 current prompt; `--runs=N` and `--out=file` for comparisons. Compare prompts only on equal runs. The runner verifies the test
 inventory and the explicitly registered non-test check before execution. A check that passes

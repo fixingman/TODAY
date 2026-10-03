@@ -175,6 +175,8 @@
   // clear watermark (BUG-096, v2.82.1) — makes "clear all memory" survive sync
   clearedAt: '',                     // ISO timestamp of the last full clear; max-wins across devices
   clearedHypothesisIds: [],          // ids of AI hypotheses cleared locally — they carry no date, so the merge tombstones them by id (cap 300)
+  // DreamBank (v2.93.0) — a summary per kept dream; the dream itself is a file in the user's Dropbox
+  dreams: { index: [] },             // [{ id, night: 'YYYY-MM-DD'|null, certainty: 'exact'|'approx'|'unknown', recordedAt, updatedAt, lang, images: [], people: [], role }] or a tombstone { id, deleted: true, recordedAt, updatedAt }. Never the retelling. Images pass grounding (every substantive word stem-matches the retelling). Cap 500. Wiped by "clear all memory" (the files stay)
 }
 ```
 
@@ -208,6 +210,14 @@
 | `today_reflections` | JSON array `[{date, feeling, updatedAt}]` | per-date LWW union on sync; pruned to 30 calendar days; `feeling` ∈ `{drained, tense, present, off, calm, alive}` |
 | `today_reflections_cleared_at` | ISO string | deletion watermark; max-wins on sync; entries ≤ watermark are discarded |
 | `today_reflection_intro_seen_at` | ISO string | **local-only** — 7-day cooldown before re-offering the intro; intentionally never backed up to Dropbox |
+
+### DreamBank keys (v2.93.0)
+
+| Key | Type | Notes |
+|-----|------|-------|
+| `today-dream-queue` | JSON array | **local-only, never in the backup.** One entry per dream from the first chunk that carries it: retelling, reading, thought, night/certainty, lang, images/people/role, job states (`readingState`, `extraction`, tries, next-attempt times), upload state (`rev`, `uploadedRev`, `remotePath`, backoff), `ready`, `deleted` (tombstone). Once Dropbox acknowledges the final revision and both AI jobs have settled, the body is pruned to `{id, night}` and removed after 7 days. Design: `assets/dreambank.js` header |
+
+The dream file itself is `/Dreams{env}/{night|undated}_{id}.md` in the user's Dropbox (format: README § DreamBank files); the synced summary is `appMemory.dreams.index` above.
 
 ```javascript
 {

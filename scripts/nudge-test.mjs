@@ -433,6 +433,42 @@ try {
       await page.close();
     }
 
+    // About and the task-list strip can be mounted at once. A vote in About
+    // must update the already-rendered strip, which checkDayNudge deliberately
+    // does not re-render after showing an AI line.
+    {
+      const { page, errors } = await openPage({ skipDismiss: true });
+      const result = await page.evaluate(() => {
+        const date = _localISO();
+        const text = 'A shared morning line.';
+        localStorage.setItem('day_nudge_ai_' + date, text);
+        _memoryRecordSpokenLine('morning nudge', text, 'soon-pullback');
+        checkDayNudge(false);
+        const strip = document.getElementById('dayNudgeReact');
+        const before = strip.querySelector('[data-react="landed"]')?.getAttribute('aria-pressed') === 'false';
+        Today.use('about').renderInfoStats();
+        const about = document.getElementById('todayNudgeBlock');
+        about.querySelector('[data-react="landed"]').click();
+        const landedInStrip = strip.querySelector('[data-react="landed"]')?.getAttribute('aria-pressed') === 'true';
+        about.querySelector('[data-react="missed"]').click();
+        about.querySelector('[data-reason="already_knew"]').click();
+        const missedInStrip = strip.querySelector('[data-react="missed"]')?.getAttribute('aria-pressed') === 'true';
+        const reasonInStrip = strip.querySelector('[data-reason="already_knew"]')?.getAttribute('aria-pressed') === 'true';
+        // Model a later Dropbox merge: it replaces the in-memory record without
+        // a local reaction event. Opening the strip must still read that record.
+        const line = _memoryLineFor('morning nudge', date);
+        line.reaction = 'landed';
+        delete line.reactionReason;
+        document.getElementById('dayNudge').click();
+        const latestOnOpen = strip.querySelector('[data-react="landed"]')?.getAttribute('aria-pressed') === 'true'
+          && strip.querySelector('.nudge-reason')?.hidden === true;
+        return { before, landedInStrip, missedInStrip, reasonInStrip, latestOnOpen };
+      });
+      await expectAll('About vote updates task-list nudge', { ...result, noErrors: errors.length === 0 });
+      ok('About: changing a daily vote updates the already-rendered task-list controls');
+      await page.close();
+    }
+
     // 7. Already dismissed → nudge stays hidden on subsequent checkDayNudge() calls.
     {
       const { page, errors } = await openPage({

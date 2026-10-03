@@ -393,6 +393,14 @@ function _memoryReactionStamp(previous) {
   const prior = Date.parse(previous || '') || 0;
   return new Date(Math.max(Date.now(), prior + 1)).toISOString();
 }
+function _memoryNotifyReactionChanged(entry) {
+  // The morning strip deliberately keeps its already-spoken sentence in place.
+  // Let mounted controls refresh without re-running nudge generation or replacing text.
+  if (typeof document === 'undefined' || typeof CustomEvent !== 'function') return;
+  document.dispatchEvent(new CustomEvent('today:spoken-reaction-change', {
+    detail: { surface: entry.surface, date: entry.date },
+  }));
+}
 function _memoryReactToLine(surface, date, reaction) {
   const entry = _memoryLineFor(surface, date);
   if (!entry) return null;
@@ -408,6 +416,7 @@ function _memoryReactToLine(surface, date, reaction) {
   entry.reactedAt = _memoryReactionStamp(entry.reactedAt);
   _memoryTallyReaction(entry.kind, prev, entry.reaction || null);
   _saveMemory();
+  _memoryNotifyReactionChanged(entry);
   // _saveMemory is local only; a verdict must reach the other devices.
   if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
   return entry.reaction || null;
@@ -422,6 +431,7 @@ function _memorySetReactionReason(surface, date, reason) {
   // separate per-device counter or duplicate vote.
   entry.reactedAt = _memoryReactionStamp(entry.reactedAt);
   _saveMemory();
+  _memoryNotifyReactionChanged(entry);
   if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
   return entry.reactionReason || null;
 }

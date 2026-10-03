@@ -414,7 +414,7 @@ try {
           && !text.includes('5 done of 10 added'),
         peakEvidenceKept: text.includes('most tasks done between 9am–10am'),
         identityClaimRemoved: !text.includes('a morning person'),
-        semanticFramingUpdated: text.includes('patterns observed over time'),
+        semanticFramingUpdated: text.includes('PATTERNS') && text.includes('what holds over time') && !text.includes('SEMANTIC'),
       };
     });
     await expectAll('Memory output-stat cleanup', { ...result, noErrors: errors.length === 0 });
@@ -455,7 +455,7 @@ try {
       appMemory.revokedKnownItems = { 'sn:manual_s3': new Date().toISOString() };
       Today.use('memory').render();
       const text = document.getElementById('memoryContent')?.textContent || '';
-      const knownFirst = text.indexOf('KNOWN') >= 0 && text.indexOf('KNOWN') < text.indexOf('SEMANTIC');
+      const knownFirst = text.indexOf('KNOWN') >= 0 && text.indexOf('KNOWN') < text.indexOf('PATTERNS');
 
       // empty state
       appMemory.returningTasks = {}; appMemory.obligationHistory = []; appMemory.taskOutcomes = [];

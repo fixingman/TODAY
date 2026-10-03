@@ -42,6 +42,32 @@ window._startNudge = (function() {
     // so the spoken-line record carries the kind the novelty gate cools down on.
     let _nudgeKind = null;
 
+    // About can change today's reaction while the task-list strip is already
+    // mounted. Only its controls refresh: re-running checkDayNudge would either
+    // hit the one-render guard or risk replacing a sentence mid-read.
+    function _syncMorningReactionControls() {
+      const reactEl = document.getElementById('dayNudgeReact');
+      const line = _memoryLineFor('morning nudge', _localISO());
+      if (!reactEl?.querySelector('.nudge-react') || !line) return;
+      reactEl.querySelectorAll('.nudge-react-btn').forEach(btn => {
+        const on = btn.dataset.react === line.reaction;
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', String(on));
+      });
+      const reasonRow = reactEl.querySelector('.nudge-reason');
+      if (reasonRow) {
+        reasonRow.hidden = line.reaction !== 'missed';
+        reasonRow.querySelectorAll('.nudge-reason-btn').forEach(btn => {
+          const on = btn.dataset.reason === line.reactionReason;
+          btn.classList.toggle('on', on);
+          btn.setAttribute('aria-pressed', String(on));
+        });
+      }
+    }
+    document.addEventListener('today:spoken-reaction-change', e => {
+      if (e.detail?.surface === 'morning nudge' && e.detail.date === _localISO()) _syncMorningReactionControls();
+    });
+
     // strip wrapping quotes. For plain-text responses only — _fetchTriageHints
     // expects JSON content and does its own parsing.
     function _parseAIText(data) {
@@ -239,6 +265,9 @@ window._startNudge = (function() {
         }
         nudgeEl.onclick = () => {
           if (spokenToday && reactEl && !reactEl.classList.contains('open')) {
+            // A Dropbox merge may have changed the vote since this strip was
+            // rendered; read the live record before showing its controls.
+            _syncMorningReactionControls();
             reactEl.classList.add('open');
             return;
           }

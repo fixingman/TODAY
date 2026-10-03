@@ -374,18 +374,21 @@
           action: { label: 'bring back', kind },
         }));
 
+      // Headings are plain words (tonality: human, not technical). The slots underneath
+      // keep their typed names: semantic → PATTERNS, episodic → LATELY, procedural →
+      // HOW YOU WORK, meta → WHAT TODAY HAS SEEN.
       el.innerHTML =
         typeBlock('KNOWN', '— what today has on record, not what it concludes', knownItems,
           'nothing on record yet — this fills as tasks come and go') +
         typeBlock('RETIRED', '— kinds of observation you said did not land; today stops offering them', retiredItems,
           'nothing retired — a kind lands here after two "not really"') +
-        typeBlock('SEMANTIC', '— patterns observed over time', semanticItems,
+        typeBlock('PATTERNS', '— what holds over time', semanticItems,
           'patterns show up after more days') +
-        typeBlock('EPISODIC', '— what has been happening lately', episodicItems,
+        typeBlock('LATELY', '— the last week or so', episodicItems,
           'nothing new this week') +
-        typeBlock('PROCEDURAL', '— how you tend to work', proceduralItems,
-          'patterns will appear after more activity') +
-        typeBlock('META', '— what today has seen and how confident it is', metaItems);
+        typeBlock('HOW YOU WORK', '— habits in how you plan and finish', proceduralItems,
+          'this fills in after a few more days') +
+        typeBlock('WHAT TODAY HAS SEEN', '— how much it has to go on', metaItems);
 
       Today.use('reflections')._reflectionRenderMemory(el);
       Today.use('dreambank').renderMemory(el);
