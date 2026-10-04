@@ -42,7 +42,7 @@ const _ctx = { window: {} };
 _ctx.window.window = _ctx.window;
 _ctx.window.Today = { define: (name, api) => { if (name === 'dream-core') _ctx.core = api; } };
 vm.runInNewContext(readFileSync(join(ROOT, 'assets/dreambank.js'), 'utf8'), _ctx);
-const { DREAM_SYSTEM, EXTRACT_SYSTEM, groundImages, resolveNight } = _ctx.core;
+const { DREAM_SYSTEM, EXTRACT_SYSTEM, groundImages } = _ctx.core;
 const CURRENT = DREAM_SYSTEM;
 const promptPath = arg('prompt');
 const PROMPT = promptPath ? readFileSync(promptPath, 'utf8').trim() : CURRENT;

@@ -13,9 +13,9 @@ test. The live `scripts/ai-test.mjs`, the live `scripts/dream-live-test.mjs`, an
 `scripts/performance-test.mjs` are explicit exclusions: the first two require API keys and real
 provider calls; the last runs as its own push/nightly gate. `dream-live-test` (macOS: `say` +
 ffmpeg) speaks scripted clips — English and Turkish dreams, a dream plus a real commitment, a
-plain one-sentence dream (BUG-110), late captures ("the night before last", "dün gece", "years
-ago"), plain planning, figurative "bad dream" talk — through the real `meeting-extract` and
-`ai-assist` handlers and checks detection, task separation, language, `night_hint`/`lang`,
+plain one-sentence dream (BUG-110), dreams told late ("the night before last", "dün gece", "years
+ago" — still recognised as dreams), plain planning, figurative "bad dream" talk — through the real `meeting-extract` and
+`ai-assist` handlers and checks detection, task separation, language (`lang`),
 grounded images, and reading tone. `--say="…"` prints Gemini's raw answer for any one phrase.
 Run it after any change to the dream or meeting prompts:
 `GEMINI_API_KEY=… ANTHROPIC_API_KEY=… node scripts/dream-live-test.mjs`. Reading

@@ -158,13 +158,12 @@ Concurrent edits are handled with union merge: tasks and habits added on two dev
 
 ### DreamBank files
 
-A dream told to the mic is written to `/Dreams/` in your Dropbox (dev deploys use `/Dreams-<host>/`), one Markdown file per dream, named `YYYY-MM-DD_<id>.md` after the **night it happened** — the sleep that began on the evening of that date (`undated_<id>.md` when you said it was long ago). Correcting the night renames the file. The format is plain enough for Obsidian or any editor:
+A dream told to the mic is written to `/Dreams/` in your Dropbox (dev deploys use `/Dreams-<host>/`), one Markdown file per dream, named `YYYY-MM-DD_<id>.md` after the **day you told it** (files from before v2.93.8 may carry the night it happened, or `undated_`). The format is plain enough for Obsidian or any editor:
 
 ```
 ---
 id: "dream_mg3k2x9a1b"
-night: "2026-09-28"            # or null
-night_certainty: "exact"       # exact | approx | unknown
+night: "2026-09-29"            # the day it was told
 recorded_at: "2026-09-29T05:12:00.000Z"
 lang: "tr"
 images: ["büyükannemin mutfağı", "su olan zemin"]
@@ -177,12 +176,11 @@ role: "suyun üstünde yürüyor"
 
 ## Reading
 <the short reading>
-
-## My thought
-<your optional line>
 ```
 
-TODAY itself keeps only a small synced summary per dream (night, images, role, people — never the retelling), which you can see and delete under Memory → Dreams. "Clear all memory" clears that summary; it never deletes your dream files.
+Files written before v2.93.8 may also end with a `## My thought` section.
+
+TODAY itself keeps only a small synced summary per dream (date, images, role, people — never the retelling), which you can see and delete under Memory → Dreams. "Clear all memory" clears that summary; it never deletes your dream files.
 
 ---
 

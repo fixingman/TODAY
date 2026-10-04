@@ -158,8 +158,8 @@
         '</style>' +
         '<div class="mp">' +
           '<div class="mp-dot" id="mpDot" aria-hidden="true"></div>' +
-          '<span class="mp-time" id="mpTime" role="timer" aria-label="Meeting elapsed time">00:00</span>' +
-          '<button class="mp-btn" id="mpBtn" aria-pressed="false" aria-label="Start meeting recording">record</button>' +
+          '<span class="mp-time" id="mpTime" role="timer" aria-label="Elapsed time">00:00</span>' +
+          '<button class="mp-btn" id="mpBtn" aria-pressed="false" aria-label="Start recording">record</button>' +
         '</div>' +
         '<div class="mp-note" id="mpNote"></div>';
 
@@ -197,7 +197,7 @@
       time.classList.toggle('live', live);
       btn.textContent = live ? 'stop' : 'record';
       btn.setAttribute('aria-pressed', String(live));
-      btn.setAttribute('aria-label', live ? 'Stop meeting recording' : 'Start meeting recording');
+      btn.setAttribute('aria-label', live ? 'Stop recording' : 'Start recording');
       if (live) {
         const el = Math.floor((Date.now() - _mtg.startedAt) / 1000);
         time.textContent = String(Math.floor(el / 60)).padStart(2, '0') + ':' +
@@ -356,7 +356,7 @@
       const meetingBtn = document.getElementById('meetingBtn');
       if (meetingBtn) {
         meetingBtn.setAttribute('aria-pressed', 'true');
-        meetingBtn.setAttribute('aria-label', 'Stop meeting recording');
+        meetingBtn.setAttribute('aria-label', 'Stop recording');
       }
       const pill = document.getElementById('meetingPill');
       const time = document.getElementById('meetingPillTime');
@@ -515,7 +515,7 @@
         // used to read as "Nothing came up". Say so — the red dot carries the reason.
         if (data.note) _logSyncError('Meeting', 'Gemini returned nothing usable — ' + String(data.note).slice(0, 80));
         if (typeof data.dream === 'string' && data.dream.trim()) {
-          state.dreamParts[seq] = { text: data.dream.trim(), hint: data.night_hint || '', lang: data.lang || '' };
+          state.dreamParts[seq] = { text: data.dream.trim(), lang: data.lang || '' };
           _meetingKeepDream(state);
         }
         (data.actionItems || []).forEach(item => {
@@ -562,7 +562,7 @@
       const meetingBtn = document.getElementById('meetingBtn');
       if (meetingBtn) {
         meetingBtn.setAttribute('aria-pressed', 'false');
-        meetingBtn.setAttribute('aria-label', 'Start meeting recording');
+        meetingBtn.setAttribute('aria-label', 'Start recording');
       }
       const _pill = document.getElementById('meetingPill');
       if (_pill) {
@@ -598,7 +598,7 @@
 
     // A dream is kept from the first chunk that carries it (assets/dreambank.js), before
     // any reading is requested — closing, locking, or killing the app cannot lose it.
-    // Parts assemble in chunk order; the first chunk that names a night or language wins.
+    // Parts assemble in chunk order; the first chunk that names a language wins.
     function _meetingKeepDream(state) {
       if (state.dreamDropped) return;
       const parts = Object.keys(state.dreamParts).map(Number).sort((a, b) => a - b).map(k => state.dreamParts[k]);
@@ -607,7 +607,6 @@
       state.dreamId = bank.capture({
         id: state.dreamId,
         retelling: state.dream,
-        hint: (parts.find(p => p.hint) || {}).hint || '',
         lang: (parts.find(p => p.lang) || {}).lang || '',
       });
       // A dream that answered after the sheet already closed is still a dream that was told.
@@ -629,18 +628,12 @@
               </div>`;
     }
 
-    function _dreamThoughtField(value) {
-      // The app's text-field component (16px, control border, focus highlight).
-      return `<textarea class="config-input" id="dreamThought" rows="2" aria-label="Your thought" placeholder="a thought, if one comes" data-today-input="meeting.dream-thought">${esc(value || '')}</textarea>`;
-    }
-
     function _breatheDots(root) {
       root.querySelectorAll('.loading-dots span').forEach((s, i) => _breathe(s, _KF_BLINK, 1200, [0, 180, 400][i]));
     }
 
     // Reading, status, and save state arrive while the sheet is open. Patch only their
-    // nodes: rebuilding the list would wipe a half-typed thought, the night choice, and
-    // the iOS keyboard.
+    // nodes rather than rebuilding the list under the reader.
     function _meetingPatchDream(id) {
       const list = document.getElementById('meetingItems');
       if (!_mtg || _mtg.dreamId !== id || !list || list.dataset.dreamView !== id) return;
@@ -649,18 +642,20 @@
       const html = _dreamReadingHTML(e);
       if (slot && slot.innerHTML !== html) { slot.innerHTML = html; _breatheDots(slot); }
       const title = document.getElementById('meetingReviewTitle');
-      const night = _dreamTitle(e);
-      if (title && title.textContent !== night) title.textContent = night;
+      const heading = _dreamTitle(e);
+      if (title && title.textContent !== heading) title.textContent = heading;
       const sub = document.getElementById('meetingReviewSub');
       const text = Today.use('dreambank').statusText(id);
       if (sub && sub.textContent !== text) sub.textContent = text;
     }
 
-    // The header's three slots say three different things: eyebrow "Dream", the night as
-    // the title, where it is kept as the subtitle — no second "Your dream".
+    // The header's three slots say three different things: eyebrow "Dream", the day it was
+    // told as the title, where it is kept as the subtitle — no second "Your dream".
     function _dreamTitle(e) {
-      const label = Today.use('dream-core').nightLabel(e && e.night);
-      return label.charAt(0).toUpperCase() + label.slice(1);
+      const day = e && e.night;
+      if (!day) return 'Dream';
+      const [y, m, d] = day.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     }
 
     function _meetingDropDream() {
@@ -697,7 +692,9 @@
       const discard = document.querySelector('.meeting-review-discard');
       const kept    = !!state.dreamId && !state.dreamDropped;
       const dream   = kept && !processing;
-      if (eyebrow) eyebrow.textContent = dream ? 'Dream' : 'Meeting';
+      // The mic hears a meeting, a dream, or a note to self. The eyebrow names what was
+      // found once it is known — never assumes a meeting.
+      if (eyebrow) eyebrow.textContent = dream ? 'Dream' : (!processing && state.items.length ? 'Tasks' : 'Voice');
       if (drop) drop.hidden = !dream;
       // Once a dream is detected, closing keeps it — so the button says so, even mid-digest.
       if (discard) { discard.textContent = kept ? 'Done' : 'Discard'; discard.style.display = ''; }
@@ -709,12 +706,6 @@
         if (title) title.textContent = _dreamTitle(e);
         if (sub) { sub.textContent = bank.statusText(state.dreamId); sub.style.display = ''; }
         const told = `<p class="dream-told">${esc(e ? e.retelling : state.dream)}</p>`;
-        // The reading leads. A thought and a night correction are each one tap away, as
-        // the app's text CTAs (.copy-cta), rather than an empty box and a dropdown.
-        const thought = e && e.thought ? _dreamThoughtField(e.thought) : '';
-        const ctas = `<div id="dreamCtas">` +
-          (thought ? '' : '<button type="button" class="copy-cta" data-today-click="meeting.dream-thought-open">add a thought</button> ') +
-          '<button type="button" class="copy-cta" data-today-click="meeting.dream-night-open">change night</button></div>';
         const hasItems = state.items.length > 0;
         const itemsHTML = hasItems ? '<div class="meeting-review-rule"></div>' + state.items.map((item, i) => `
         <button type="button" class="meeting-item${item.mine ? ' selected' : ''}" data-idx="${i}" aria-pressed="${item.mine}" data-today-click="meeting.toggle-item">
@@ -724,7 +715,6 @@
         </button>`).join('') : '';
         list.innerHTML = note +
           `<div id="dreamReadingSlot">${_dreamReadingHTML(e)}</div>` + told +
-          `<div id="dreamThoughtSlot">${thought}</div><div id="dreamNightSlot"></div>` + ctas +
           itemsHTML;
         list.dataset.dreamView = state.dreamId;
         // Keeping is the default and the primary action, so it carries the sheet's primary
@@ -740,7 +730,7 @@
 
       if (!state.items.length) {
         // State 1 — digesting with no prior items, or empty result
-        if (title) title.textContent = processing ? 'Digesting…' : 'From your call';
+        if (title) title.textContent = processing ? 'Digesting…' : 'From what you said';
         if (sub) sub.style.display = 'none';
         if (add) add.style.display = 'none';
         if (actions) actions.classList.add('no-add');
@@ -757,7 +747,7 @@
       }
 
       // Items exist — states 2 and 3
-      if (title) title.textContent = 'From your call';
+      if (title) title.textContent = 'From what you said';
       if (sub) sub.style.display = '';
       if (add) { add.style.display = ''; add.disabled = false; }
       if (actions) actions.classList.remove('no-add');
@@ -1011,27 +1001,6 @@
       Today.ui.register('click', 'meeting.toggle-voice', toggleVoiceNote);
       Today.ui.register('click', 'meeting.stop-voice', _voiceNoteStop);
       Today.ui.register('click', 'meeting.drop-dream', _meetingDropDream);
-      Today.ui.register('change', 'meeting.dream-night', (_event, el) => {
-        if (_mtg && _mtg.dreamId) Today.use('dreambank').setNight(_mtg.dreamId, el.value);
-      });
-      Today.ui.register('click', 'meeting.dream-thought-open', (_event, button) => {
-        const slot = document.getElementById('dreamThoughtSlot');
-        if (!slot) return;
-        slot.innerHTML = _dreamThoughtField('');
-        button.remove();
-        document.getElementById('dreamThought')?.focus();
-      });
-      Today.ui.register('click', 'meeting.dream-night-open', (_event, button) => {
-        const slot = document.getElementById('dreamNightSlot');
-        const e = _mtg && _mtg.dreamId && Today.use('dreambank').get(_mtg.dreamId);
-        if (!slot || !e) return;
-        slot.innerHTML = Today.use('dreambank').nightSelectHTML(e.id, e.night, 'sheet');
-        button.remove();
-        slot.querySelector('select')?.focus();
-      });
-      Today.ui.register('input', 'meeting.dream-thought', (_event, el) => {
-        if (_mtg && _mtg.dreamId) Today.use('dreambank').setThought(_mtg.dreamId, el.value);
-      });
       Today.use('dreambank').onChange(_meetingPatchDream);
       Today.ui.register('keydown', 'meeting.name-key', _meetingNamePromptKey);
       Today.ui.register('click', 'meeting.name-submit', _meetingNamePromptSubmit);

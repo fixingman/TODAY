@@ -65,27 +65,16 @@ const settleAll = async () => { for (let i = 0; i < 8; i++) await tick(); };
 // ── Pure core ─────────────────────────────────────────────────────────────────
 {
   const { defined } = boot();
-  const { resolveNight: r, nightLabel, groundImages: g, fileName, toMarkdown } = defined['dream-core'];
+  const { dayLabel, groundImages: g, fileName, toMarkdown } = defined['dream-core'];
   const wed7 = new Date(2026, 8, 30, 7, 0);   // Wed 30 Sep 2026, 07:00
-  const wed0030 = new Date(2026, 8, 30, 0, 30);
-  assert.deepEqual({ ...r('last_night', wed7) }, { night: '2026-09-29', certainty: 'exact' });
-  assert.deepEqual({ ...r('last_night', wed0030) }, { night: '2026-09-29', certainty: 'exact' });
-  assert.equal(r('nights_ago:2', wed7).night, '2026-09-28');
-  assert.equal(r('weekday:sun', wed7).night, '2026-09-27');
-  assert.equal(r('weekday:wed', wed7).night, '2026-09-23', 'same weekday means last week, never today');
-  assert.deepEqual({ ...r('', wed7) }, { night: '2026-09-29', certainty: 'approx' });
-  assert.deepEqual({ ...r('long_ago', wed7) }, { night: null, certainty: 'approx' });
-  assert.deepEqual({ ...r('unknown', wed7) }, { night: null, certainty: 'unknown' });
-  assert.deepEqual({ ...r('nights_ago:15', wed7) }, { night: null, certainty: 'unknown' });
-  assert.deepEqual({ ...r('2026-09-01', wed7) }, { night: null, certainty: 'unknown' }, 'a model-supplied date is not a hint');
-  ok('resolveNight: last night at 07:00 and 00:30, N nights, weekdays, no hint, long ago, garbage');
-
-  assert.equal(nightLabel('2026-09-29', wed7), 'last night');
-  assert.equal(nightLabel('2026-09-28', wed7), 'the night before last');
-  assert.equal(nightLabel('2026-09-26', wed7), 'Saturday night');
-  assert.equal(nightLabel('2026-09-01', wed7), 'Sep 1');
-  assert.equal(nightLabel(null, wed7), 'a while ago');
-  ok('nightLabel reads relative nights');
+  assert.equal(dayLabel('2026-09-30', wed7), 'today');
+  assert.equal(dayLabel('2026-09-29', wed7), 'yesterday');
+  assert.equal(dayLabel('2026-09-26', wed7), 'Saturday');
+  assert.equal(dayLabel('2026-09-01', wed7), 'Sep 1');
+  assert.equal(dayLabel(null, wed7), 'undated');
+  assert.ok(!('resolveNight' in defined['dream-core']) && !('NIGHT_HINT' in defined['dream-core']),
+    'no night is guessed: a dream is dated by the day it was told');
+  ok('dayLabel reads the day a dream was told; no night resolution');
 
   const told = "I was in my grandmother's kitchen and the floor was water. I felt calm.";
   assert.deepEqual([...g(["grandmother's kitchen", 'floor was water', 'kitchen full of Martian soldiers'], told, 'en')],
@@ -97,32 +86,35 @@ const settleAll = async () => { for (let i = 0; i < 8; i++) await tick(); };
   assert.equal(g(['a', 'b', 'c', 'd', 'e', 'f'].map(x => 'water'), 'water water', 'en').length, 5, 'capped at five');
   ok('grounding: every substantive word must match; Turkish softening and İ/I; invented modifiers dropped');
 
-  const e = { id: 'dream_x', night: '2026-09-29', nightCertainty: 'exact', recordedAt: '2026-09-30T05:00:00.000Z',
-    lang: 'tr', images: ['a "quoted" door'], people: [], role: 'waits', retelling: 'Told.', reading: '', thought: 'mine' };
+  const e = { id: 'dream_x', night: '2026-09-29', recordedAt: '2026-09-30T05:00:00.000Z',
+    lang: 'tr', images: ['a "quoted" door'], people: [], role: 'waits', retelling: 'Told.', reading: '' };
   assert.equal(fileName(e), '2026-09-29_dream_x.md');
   assert.equal(fileName({ ...e, night: null }), 'undated_dream_x.md');
   const md = toMarkdown(e);
-  assert.match(md, /^---\nid: "dream_x"\nnight: "2026-09-29"\nnight_certainty: "exact"\n/);
+  assert.match(md, /^---\nid: "dream_x"\nnight: "2026-09-29"\nrecorded_at: /);
   assert.match(md, /images: \["a \\"quoted\\" door"\]/);
-  assert.match(md, /## Retelling\n\nTold\.\n\n## Reading\n\n\n\n## My thought\n\nmine\n$/);
+  assert.match(md, /## Retelling\n\nTold\.\n\n## Reading\n\n\n$/, 'no thought section on new dreams');
+  assert.match(toMarkdown({ ...e, thought: 'mine' }), /## Reading\n\n\n\n## My thought\n\nmine\n$/, 'a pre-v2.93.8 thought stays in its file');
   assert.match(toMarkdown({ ...e, night: null }), /\nnight: null\n/);
-  ok('file name and Markdown format (empty sections kept, quotes escaped, undated)');
+  ok('file name and Markdown format (empty sections kept, quotes escaped, undated, legacy thought kept)');
 }
 
 // ── Queue ─────────────────────────────────────────────────────────────────────
 {
   const { defined, calls, io, queue } = boot();
   const bank = defined.dreambank;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const id = bank.capture({ retelling: 'Part one.', hint: 'nights_ago:3' });
   assert.equal(queue().length, 1, 'kept before any AI call');
   assert.equal(calls.ai.length, 0);
-  bank.setNight(id, '2026-09-20');
-  bank.capture({ id, retelling: 'Part one.\n\nPart two.', hint: 'last_night', lang: 'en' });
+  bank.capture({ id, retelling: 'Part one.\n\nPart two.', lang: 'en' });
   let e = queue()[0];
   assert.equal(e.retelling, 'Part one.\n\nPart two.');
-  assert.equal(e.night, '2026-09-20', 'a later hint never overrides the night the user chose');
+  assert.equal(e.night, today, 'dated by the day it was told; a stray hint is ignored');
+  assert.ok(!('nightCertainty' in e) && !('hint' in e) && !('thought' in e));
   assert.equal(e.lang, 'en');
-  ok('capture: entry exists before any AI call; later chunks extend it; user night wins');
+  ok('capture: entry exists before any AI call; later chunks extend it; dated by the day told');
 
   // Lost upload reply → backoff; remotePath already recorded; overwrite retry is idempotent.
   io.upload.push({ ok: false, notFound: false });
@@ -131,7 +123,7 @@ const settleAll = async () => { for (let i = 0; i < 8; i++) await tick(); };
   assert.equal(calls.upload.length, 1);
   assert.equal(e.uploadTries, 1);
   assert.ok(e.uploadNextAt > Date.now());
-  assert.equal(e.remotePath, '/Dreams-test/2026-09-20_' + id + '.md');
+  assert.equal(e.remotePath, '/Dreams-test/' + today + '_' + id + '.md');
   await bank.flush();
   assert.equal(calls.upload.length, 1, 'backoff holds the next tick');
   bank._list()[0].uploadNextAt = 0;
@@ -140,12 +132,13 @@ const settleAll = async () => { for (let i = 0; i < 8; i++) await tick(); };
   assert.equal(queue()[0].uploadedRev, queue()[0].rev);
   ok('upload: path recorded before the write, backoff on failure, retry overwrites the same path');
 
-  // Night correction renames before re-uploading.
-  bank.setNight(id, '2026-09-21');
+  // A file left at an older name (a dream re-dated before v2.93.8) is moved, not copied.
+  bank._list()[0].remotePath = '/Dreams-test/2026-09-20_' + id + '.md';
+  bank.capture({ id, retelling: 'Part one.\n\nPart two, edited.' });
   await bank.flush();
-  assert.deepEqual(calls.move[0], { from: '/Dreams-test/2026-09-20_' + id + '.md', to: '/Dreams-test/2026-09-21_' + id + '.md' });
-  assert.equal(calls.upload.at(-1).path, '/Dreams-test/2026-09-21_' + id + '.md');
-  ok('a corrected night renames the file, then re-uploads');
+  assert.deepEqual(calls.move[0], { from: '/Dreams-test/2026-09-20_' + id + '.md', to: '/Dreams-test/' + today + '_' + id + '.md' });
+  assert.equal(calls.upload.at(-1).path, '/Dreams-test/' + today + '_' + id + '.md');
+  ok('a file at an older name is moved, then re-uploaded');
 
   // Discard after upload → remote delete (retried until it succeeds), then gone.
   io.del.push({ ok: false, notFound: false });

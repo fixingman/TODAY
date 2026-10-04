@@ -2796,6 +2796,9 @@
   }
   #meetingOverlay.hidden { display: none; }
   #meetingOverlay.visible { opacity: 1; }
+  /* Touch: a drag on the backdrop or the sheet's chrome must not scroll the task list
+     behind it. Only #meetingItems pans, and it keeps its overscroll to itself. */
+  #meetingOverlay { touch-action: none; }
   #meetingPanel {
     background: var(--surface2);
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
@@ -2811,7 +2814,7 @@
   /* Head + actions stay put; only #meetingItems scrolls (min-height:0 is what
      lets a flex child actually shrink below its content size and scroll). */
   .meeting-panel-head { margin-bottom: var(--space-2); flex-shrink: 0; }
-  #meetingItems { overflow-y: auto; min-height: 0; }
+  #meetingItems { overflow-y: auto; min-height: 0; touch-action: pan-y; overscroll-behavior: contain; }
   .meeting-eyebrow {
     font-size: var(--text-xs);
     color: var(--muted);
@@ -2894,10 +2897,8 @@
     white-space: pre-wrap;
     user-select: text;
   }
-  /* DreamBank (v2.93.4): the sheet uses existing components only — the header's
-     eyebrow/title/sub, .dream-reading/.dream-told, .config-input, and .copy-cta. The
-     surface owns spacing between them. */
-  #dreamThoughtSlot:not(:empty), #dreamNightSlot:not(:empty) { margin-bottom: var(--space-2); }
+  /* DreamBank: the sheet uses existing components only — the header's eyebrow/title/sub
+     and .dream-reading/.dream-told. */
   .meeting-review-empty {
     text-align: center;
     color: var(--muted);
@@ -4512,7 +4513,7 @@
     </svg>
   </button>
   <!-- Meeting mode mic (revealed by _meetingInit when supported) — v2.22.0/v2.28.0 -->
-  <button class="add-mic-btn" id="meetingBtn" type="button" data-today-click="meeting.toggle" aria-label="Start meeting recording" aria-pressed="false">
+  <button class="add-mic-btn" id="meetingBtn" type="button" data-today-click="meeting.toggle" aria-label="Start recording" aria-pressed="false">
     <svg width="15" height="20" viewBox="0 0 15 20" fill="none" aria-hidden="true" focusable="false">
       <rect x="4.75" y="1" width="5.5" height="10.5" rx="2.75" stroke="currentColor" stroke-width="1.5"/>
       <path d="M1.5 8.5v1a6 6 0 0 0 12 0v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -4536,7 +4537,7 @@
 </div>
 
 <!-- Meeting mode: non-blocking listening pill (v2.22.0) -->
-<div id="meetingPill" role="status" aria-label="Meeting recording" hidden aria-hidden="true">
+<div id="meetingPill" role="status" aria-label="Recording" hidden aria-hidden="true">
   <div class="meeting-pill-dot" aria-hidden="true"></div>
   <span class="meeting-pill-time" id="meetingPillTime" role="timer">00:00</span>
   <button class="meeting-pill-stop" type="button" data-today-click="meeting.stop">Stop</button>
@@ -4544,7 +4545,7 @@
 
 <!-- Meeting mode: first-use name prompt — shown when no name is set and mic is tapped -->
 <div id="meetingNamePrompt" role="dialog" aria-modal="false" aria-labelledby="meetingNamePromptTitle" hidden aria-hidden="true">
-  <span id="meetingNamePromptTitle" class="visually-hidden">Set your name for meeting tasks</span>
+  <span id="meetingNamePromptTitle" class="visually-hidden">Your name, so TODAY can spot your tasks</span>
   <label class="visually-hidden" for="meetingNamePromptInput">Your first name</label>
   <input id="meetingNamePromptInput" type="text" maxlength="60"
     autocomplete="off" autocorrect="off" spellcheck="false"
@@ -4557,8 +4558,8 @@
 <div id="meetingOverlay" class="hidden" hidden aria-hidden="true">
   <div id="meetingPanel" role="dialog" aria-modal="true" aria-labelledby="meetingReviewTitle" aria-describedby="meetingReviewSub">
     <div class="meeting-panel-head">
-      <div class="meeting-eyebrow">Meeting</div>
-      <h2 class="meeting-review-title" id="meetingReviewTitle">From your call</h2>
+      <div class="meeting-eyebrow">Voice</div>
+      <h2 class="meeting-review-title" id="meetingReviewTitle">From what you said</h2>
       <div class="meeting-review-sub" id="meetingReviewSub">Yours are pre-selected · tap others to grab them</div>
     </div>
     <div id="meetingItems"></div>
@@ -4656,9 +4657,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
-  '2.93.6': 'A vote on Today’s nudge in About now appears on the task list too, without replacing the line you’re reading.',
-  '2.93.5': 'Memory’s sections have plain names now: Patterns, Lately, How you work, What TODAY has seen.',
-  '2.93.4': 'The dream sheet is calmer: the night is the title, Keep is the main button, and adding a thought or changing the night is one tap away.',
+  '2.93.9': 'Today’s nudge now takes a short pause after repeated “not really” votes, and skips bare task-age recaps.',
+  '2.93.8': 'A dream is now simply dated to the day you tell it, and the dream sheet is calmer: no thought or night buttons, and the list behind it no longer scrolls on your phone. Memory → Dreams is one line with a manage option.',
+  '2.93.7': 'The mic no longer calls everything a meeting — it says what it heard: Tasks, a Dream, or nothing yet.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

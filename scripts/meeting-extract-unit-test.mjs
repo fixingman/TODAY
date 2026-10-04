@@ -22,18 +22,19 @@ const run = async () => {
   return JSON.parse(res.body);
 };
 
-const dream = { actionItems: [], updatedContext: 'one speaker', dream: 'Last night I saw a girl; she was 180 cm and 70 kg.', night_hint: 'last_night', lang: 'en' };
+const dream = { actionItems: [], updatedContext: 'one speaker', dream: 'Last night I saw a girl; she was 180 cm and 70 kg.', lang: 'en' };
 
 reply(text(JSON.stringify(dream)));
 let out = await run();
 assert.equal(out.dream, dream.dream);
-assert.equal(out.night_hint, 'last_night');
+assert.ok(!('night_hint' in out), 'no night is asked for or returned');
 assert.equal(out.lang, 'en');
 assert.equal(out.note, undefined);
 assert.equal(sent.generationConfig.responseMimeType, 'application/json');
 const prompt = sent.systemInstruction.parts[0].text;
 assert.match(prompt, /talking to their phone/);
 assert.match(prompt, /single plain sentence/);
+assert.doesNotMatch(prompt, /night_hint/);
 ok('a plain one-sentence dream passes through; JSON mode and the short-dream principle are sent');
 
 reply(text('Here is the JSON you asked for:\n' + JSON.stringify(dream) + '\nHope that helps.'));
@@ -50,12 +51,12 @@ reply(text('{"actionItems": [ unfinished'));
 assert.equal((await run()).note, 'unreadable reply');
 ok('blocked, empty, and unreadable replies return empty with a note naming why');
 
-reply(text(JSON.stringify({ ...dream, night_hint: '2026-09-29', lang: 'English' })));
+reply(text(JSON.stringify({ ...dream, night_hint: 'last_night', lang: 'English' })));
 out = await run();
-assert.deepEqual([out.night_hint, out.lang], ['', '']);
-reply(text(JSON.stringify({ actionItems: [], updatedContext: '', dream: '', night_hint: 'last_night', lang: 'en' })));
+assert.deepEqual([out.night_hint, out.lang], [undefined, '']);
+reply(text(JSON.stringify({ actionItems: [], updatedContext: '', dream: '', lang: 'en' })));
 out = await run();
-assert.deepEqual([out.night_hint, out.lang], ['', '']);
-ok('night_hint and lang are validated, and dropped when there is no dream');
+assert.equal(out.lang, '');
+ok('lang is validated and dropped without a dream; a stray night_hint is not passed on');
 
 console.log('\nmeeting-extract unit tests passed.');

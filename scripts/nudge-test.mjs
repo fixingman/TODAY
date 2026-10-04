@@ -241,6 +241,96 @@ try {
       await page.close();
     }
 
+    // 3c. Task-reading feedback is not a pool-kind verdict. Three recent misses
+    //     earn a short pause for that path, without muting a qualified pool line.
+    //     A bare count/age recap also abstains; a count with a real choice survives.
+    //     These are synthetic lines: personal voted prose stays out of the repo.
+    {
+      const cooled = await openPage();
+      const cooledResult = await cooled.page.evaluate(async () => {
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
+        appMemory.spokenLines = [1, 2, 3].map(days => {
+          const date = new Date(); date.setDate(date.getDate() - days);
+          return { surface: 'morning nudge', date: _localISO(date), text: 'Earlier line', reaction: 'missed' };
+        });
+        let calls = 0;
+        window.fetch = async () => { calls++; return { ok: true, json: async () => ({ content: 'Another line.' }) }; };
+        checkDayNudge();
+        await new Promise(r => setTimeout(r, 5300));
+        return {
+          noTaskPathCall: calls === 0,
+          noCountFallback: !document.getElementById('dayNudge').classList.contains('show'),
+          noCache: !localStorage.getItem('day_nudge_ai_' + _localISO()),
+        };
+      });
+      await expectAll('task-reading cooldown', { ...cooledResult, noErrors: cooled.errors.length === 0 });
+      await cooled.page.close();
+
+      const landed = await openPage();
+      const landedResult = await landed.page.evaluate(async () => {
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
+        const ago = days => { const date = new Date(); date.setDate(date.getDate() - days); return _localISO(date); };
+        appMemory.spokenLines = [
+          { surface: 'morning nudge', date: ago(3), text: 'Older line', reaction: 'missed' },
+          { surface: 'morning nudge', date: ago(2), text: 'Older line', reaction: 'missed' },
+          { surface: 'morning nudge', date: ago(1), text: 'Useful line', reaction: 'landed' },
+        ];
+        window.fetch = async () => ({ ok: true, json: async () => ({ content: 'The appointment has a morning window; check it before other tasks.' }) });
+        checkDayNudge();
+        await new Promise(r => setTimeout(r, 250));
+        return { landedReopens: document.getElementById('dayNudge').textContent.includes('morning window') };
+      });
+      await expectAll('landed resets task-reading cooldown', { ...landedResult, noErrors: landed.errors.length === 0 });
+      await landed.page.close();
+
+      const expired = await openPage();
+      const expiredResult = await expired.page.evaluate(async () => {
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
+        appMemory.spokenLines = [3, 4, 5].map(days => {
+          const date = new Date(); date.setDate(date.getDate() - days);
+          return { surface: 'morning nudge', date: _localISO(date), text: 'Earlier line', reaction: 'missed' };
+        });
+        window.fetch = async () => ({ ok: true, json: async () => ({ content: 'The appointment has a morning window; check it before other tasks.' }) });
+        checkDayNudge();
+        await new Promise(r => setTimeout(r, 250));
+        return { retriesAfterPause: document.getElementById('dayNudge').textContent.includes('morning window') };
+      });
+      await expectAll('task-reading cooldown expires', { ...expiredResult, noErrors: expired.errors.length === 0 });
+      await expired.page.close();
+
+      const bare = await openPage();
+      const bareResult = await bare.page.evaluate(async () => {
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
+        window.fetch = async () => ({ ok: true, json: async () => ({ content: 'You have 5 tasks today, including "Plan the trip" which has been waiting for 4 days.' }) });
+        checkDayNudge();
+        await new Promise(r => setTimeout(r, 250));
+        return {
+          bareLineQuiet: !document.getElementById('dayNudge').classList.contains('show'),
+          bareLineNotCached: !localStorage.getItem('day_nudge_ai_' + _localISO()),
+          bareLineNotSpoken: !(appMemory.spokenLines || []).some(l => l.surface === 'morning nudge' && l.date === _localISO()),
+        };
+      });
+      await expectAll('bare inventory abstains', { ...bareResult, noErrors: bare.errors.length === 0 });
+      await bare.page.close();
+
+      const contrasted = await openPage();
+      const contrastedResult = await contrasted.page.evaluate(async () => {
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
+        window.fetch = async () => ({ ok: true, json: async () => ({ content: 'The appointment has waited 4 days, but this morning is its last booking window.' }) });
+        checkDayNudge();
+        await new Promise(r => setTimeout(r, 250));
+        return { ageWithUsefulTurnKept: document.getElementById('dayNudge').textContent.includes('booking window') };
+      });
+      await expectAll('age with a meaningful turn survives', { ...contrastedResult, noErrors: contrasted.errors.length === 0 });
+      await contrasted.page.close();
+      ok('task-reading: repeated misses pause briefly; bare age/count recaps abstain without replacing them with a count');
+    }
+
     // 4. Fallback upgrade: AI slower than the cap → fallback shows; a later call with the
     //    cached AI line replaces it (the v2.42.3 backstop).
     {
@@ -505,7 +595,10 @@ try {
         manualTasks.length = 0;
         manualTasks.push({ id: 'manual_' + (now - 9 * D), text: 'should book the dentist', focusSessions: 0 });
         doneIds.clear();
-        appMemory.spokenLines = [];
+        appMemory.spokenLines = [1, 2, 3].map(days => {
+          const date = new Date(); date.setDate(date.getDate() - days);
+          return { surface: 'morning nudge', date: _localISO(date), text: 'An earlier task-reading line', reaction: 'missed' };
+        });
         appMemory.taskOutcomes = [
           { id: 'a', date: iso(now - 4 * D), outcome: 'done', obligation: false, focusSessions: 2 },
           { id: 'b', date: iso(now - 6 * D), outcome: 'done', obligation: false, focusSessions: 2 },
@@ -530,7 +623,7 @@ try {
         window.fetch = real;
 
         const body = calls[0] ? calls[0].messages[0].content : '';
-        const spoken = appMemory.spokenLines[0] || {};
+        const spoken = appMemory.spokenLines.find(l => l.date === _localISO() && l.kind) || {};
         return {
           onlyOneCall: calls.length === 1,
           carriesEvidenceAndInsight: body.includes('Evidence:') && body.includes('Supported insight:'),
@@ -538,6 +631,7 @@ try {
           noMemoryDumpLeak: !body.includes('About you'),
           payloadStaysSmall: body.length < 800,
           kindRecorded: spoken.kind === 'focus-vs-obligation',
+          poolUnaffectedByTaskPathMisses: calls.length === 1,
         };
       });
       await expectAll('pool track payload', { ...result, noErrors: errors.length === 0 });

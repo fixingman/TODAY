@@ -18,6 +18,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 111 | With the dream sheet open on mobile, swiping scrolled the task list behind it | ⏳ v2.93.8 |
 | 110 | A one-sentence dream told to the mobile mic came back as "Nothing came up" — silent empty result from meeting-extract | 🔍 Diagnosing (hardened v2.93.3) |
 | 109 | Task list bobbed up and down after refocusing the desktop PWA while the morning strip was showing — wake repaint replayed its CSS open animation | ⏳ v2.93.2 |
 | 108 | Dragging a task on mobile left a neighbouring task looking highlighted — row :hover rules unguarded on touch | ⏳ v2.92.5 |
@@ -45,6 +46,20 @@
 ---
 
 *BUG-001–087 → `archive/Bugs-archive.md` (summary rows + detail). Detail for every later ✅ bug is archived too. Below: open, awaiting-verification, and rejected bugs only.*
+
+---
+
+## BUG-111 — Task list scrolls behind the open dream sheet (mobile)
+
+**Symptom:** Can, 2026-10-04: with the dream result sheet open on mobile, swiping scrolled the task list behind it.
+
+**Root cause:** `#meetingOverlay` makes the background `inert` for keyboard and assistive tech, but inert does not stop touch scrolling. A pan on the backdrop or the sheet's head/actions scrolled the document, and a pan inside `#meetingItems` past its end chained to the page.
+
+**Fix (v2.93.8):** `#meetingOverlay { touch-action: none }` and `#meetingItems { touch-action: pan-y; overscroll-behavior: contain }` — only the sheet's list pans and keeps its overscroll. `meeting-test` asserts both computed styles (fails without them). Headless Chrome cannot simulate an iOS swipe.
+
+**Not yet changed:** `#triageOverlay` is built the same way and likely has the same gap.
+
+**Verification:** on the phone, open a dream result and swipe on the backdrop, the header, and past the end of the text; the task list must not move.
 
 ---
 

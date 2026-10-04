@@ -1,5 +1,5 @@
-// TODAY — DreamBank (v2.93.0). A dream told to the mic is kept: dated to the night it
-// happened, written to the user's own Dropbox as a plain Markdown file, and summarised
+// TODAY — DreamBank (v2.93.0). A dream told to the mic is kept: dated to the day it was
+// told, written to the user's own Dropbox as a plain Markdown file, and summarised
 // into appMemory.dreams.index (images, role, people — never the retelling).
 // Design + locked decisions: memory/Backlog.md § 13 · DreamBank.
 //
@@ -21,11 +21,6 @@
 
   // ── Pure core ────────────────────────────────────────────────────────────────
 
-  // Gemini describes *when* in words it can hear; the phone turns that into a date
-  // (eng review D4). A model never invents a calendar date.
-  const NIGHT_HINT = /^(last_night|nights_ago:([1-9]|1[0-4])|weekday:(sun|mon|tue|wed|thu|fri|sat)|long_ago|unknown)$/;
-  const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-
   // Same algorithm as util.js _localISO — duplicated so the unit test can load this file alone.
   function _iso(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -33,32 +28,17 @@
   function _shift(d, days) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days); }
   function _fromISO(iso) { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); }
 
-  // "Night of D" is the sleep that began on the evening of D, so "last night" is the day
-  // before the recording's local date — at 07:00 and at 00:30 alike. A named weekday is
-  // its most recent occurrence strictly before that date. No hint at all means the
-  // speaker gave no time, which is almost always last night, but approximately.
-  function resolveNight(hint, recordedAt) {
-    const at = new Date(recordedAt == null ? Date.now() : recordedAt);
-    const h = String(hint || '').trim();
-    if (!h) return { night: _iso(_shift(at, -1)), certainty: 'approx' };
-    if (!NIGHT_HINT.test(h) || h === 'unknown') return { night: null, certainty: 'unknown' };
-    if (h === 'long_ago') return { night: null, certainty: 'approx' };
-    if (h === 'last_night') return { night: _iso(_shift(at, -1)), certainty: 'exact' };
-    if (h.startsWith('nights_ago:')) return { night: _iso(_shift(at, -Number(h.slice(11)))), certainty: 'exact' };
-    const want = WEEKDAYS.indexOf(h.slice(8));
-    let back = (at.getDay() - want + 7) % 7;
-    if (back === 0) back = 7;
-    return { night: _iso(_shift(at, -back)), certainty: 'exact' };
-  }
-
-  function nightLabel(night, now) {
-    if (!night) return 'a while ago';
+  // A dream is dated by the day it was told (v2.93.8). Which night it happened is not
+  // asked and not guessed: the field keeps its name `night` so existing files, synced
+  // index rows, and file names stay valid.
+  function dayLabel(day, now) {
+    if (!day) return 'undated';
     const today = new Date(now == null ? Date.now() : now);
-    const d = _fromISO(night);
-    const days = Math.round((_shift(today, 0) - d) / 86400000);
-    if (days === 1) return 'last night';
-    if (days === 2) return 'the night before last';
-    if (days > 2 && days < 7) return d.toLocaleDateString('en-US', { weekday: 'long' }) + ' night';
+    const days = Math.round((_shift(today, 0) - _fromISO(day)) / 86400000);
+    if (days === 0) return 'today';
+    if (days === 1) return 'yesterday';
+    const d = _fromISO(day);
+    if (days > 1 && days < 7) return d.toLocaleDateString('en-US', { weekday: 'long' });
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
@@ -112,7 +92,6 @@
       '---',
       `id: ${q(entry.id)}`,
       `night: ${entry.night ? q(entry.night) : 'null'}`,
-      `night_certainty: ${q(entry.nightCertainty || 'unknown')}`,
       `recorded_at: ${q(entry.recordedAt)}`,
       `lang: ${q(entry.lang || '')}`,
       `images: ${list(entry.images)}`,
@@ -128,10 +107,8 @@
       '',
       String(entry.reading || '').trim(),
       '',
-      '## My thought',
-      '',
-      String(entry.thought || '').trim(),
-      '',
+      // Dreams kept before v2.93.8 could carry a written thought; it stays in their file.
+      ...(String(entry.thought || '').trim() ? ['## My thought', '', String(entry.thought).trim(), ''] : []),
     ].join('\n');
   }
 
@@ -164,7 +141,7 @@
     started = true;
 
     const QUEUE_KEY = 'today-dream-queue';
-    const CONTENT = ['retelling', 'reading', 'thought', 'night', 'nightCertainty', 'lang', 'images', 'people', 'role'];
+    const CONTENT = ['retelling', 'reading', 'night', 'lang', 'images', 'people', 'role'];
     const PRUNED_TTL_MS = 7 * 86400000;
     // Backoff per entry (eng review D7): the sync tick can call flush() every few seconds;
     // a Dropbox or AI outage must not turn into a retry every tick.
@@ -178,7 +155,7 @@
     let _kickTimer = null;
     let _openId = null;          // Memory panel: which dream row is expanded
     let _confirmDeleteId = null; // Memory panel: which row is asking "delete?"
-    let _nightOpenId = null;     // Memory panel: which row is showing the night dropdown
+    let _listOpen = false;       // Memory panel: per-dream list shown under the one-line summary
 
     function _load() {
       const q = safeJSON(QUEUE_KEY, []);
@@ -213,8 +190,7 @@
     }
 
     // First dream chunk creates the entry; later chunks replace the assembled retelling.
-    // A night the user already chose is never overridden by a later hint.
-    function capture({ id, retelling, hint, lang } = {}) {
+    function capture({ id, retelling, lang } = {}) {
       const text = String(retelling || '').trim();
       if (!text) return id || null;
       const existing = id ? _find(id) : null;
@@ -222,22 +198,17 @@
         if (existing.deleted) return existing.id;
         const fields = { retelling: text };
         if (lang && !existing.lang) fields.lang = lang;
-        if (hint && !existing.hint && !existing.nightByUser) {
-          const r = resolveNight(hint, existing.recordedAt);
-          Object.assign(fields, { hint, night: r.night, nightCertainty: r.certainty });
-        }
         _update(existing.id, fields);
         return existing.id;
       }
-      const recordedAt = new Date().toISOString();
-      const r = resolveNight(hint, recordedAt);
+      const now = new Date();
+      const recordedAt = now.toISOString();
       const e = {
-        id: _newId(), retelling: text, hint: hint || '', night: r.night, nightCertainty: r.certainty,
-        nightByUser: false, lang: lang || '', reading: '', readingState: 'pending', readingTries: 0,
-        readingNextAt: 0, images: [], people: [], role: '', extraction: 'pending', extractionTries: 0,
-        extractionNextAt: 0, thought: '', recordedAt, updatedAt: recordedAt, rev: 1, uploadedRev: 0,
-        remotePath: '', uploadTries: 0, uploadNextAt: 0, settled: false, ready: false, deleted: false,
-        pruned: false, prunedAt: '',
+        id: _newId(), retelling: text, night: _iso(now), lang: lang || '', reading: '',
+        readingState: 'pending', readingTries: 0, readingNextAt: 0, images: [], people: [], role: '',
+        extraction: 'pending', extractionTries: 0, extractionNextAt: 0, recordedAt,
+        updatedAt: recordedAt, rev: 1, uploadedRev: 0, remotePath: '', uploadTries: 0,
+        uploadNextAt: 0, settled: false, ready: false, deleted: false, pruned: false, prunedAt: '',
       };
       _queue.push(e);
       _save();
@@ -263,18 +234,6 @@
       e.ready = true;
       _save();
       _kick(0);
-    }
-
-    function setNight(id, night) {
-      const e = _find(id);
-      if (!e || e.deleted) return;
-      const n = /^\d{4}-\d{2}-\d{2}$/.test(night || '') ? night : null;
-      _update(id, { night: n, nightCertainty: n ? 'exact' : 'approx', nightByUser: true });
-      _indexPut(_find(id));
-    }
-
-    function setThought(id, text) {
-      _update(id, { thought: String(text || '').slice(0, 1000) });
     }
 
     // "Don't keep this one": a tombstone, not a splice. It fences any reading, extraction,
@@ -419,7 +378,7 @@
       if (!e || e.deleted || e.extraction !== 'done') return;
       const rows = _indexRows();
       const row = {
-        id: e.id, night: e.night, certainty: e.nightCertainty, recordedAt: e.recordedAt,
+        id: e.id, night: e.night, recordedAt: e.recordedAt,
         updatedAt: new Date().toISOString(), lang: e.lang || '', images: e.images || [],
         people: e.people || [], role: e.role || '',
       };
@@ -456,7 +415,7 @@
     async function _upload(e) {
       const files = _files();
       const path = `${files.dreamsDir}/${fileName(e)}`;
-      // A corrected night renames the file rather than leaving a second copy (D14).
+      // A file whose name changed is moved rather than copied (D14) — kept for dreams re-dated before v2.93.8.
       if (e.remotePath && e.remotePath !== path) {
         const moved = await files.move(e.remotePath, path);
         if (!moved.ok && !moved.notFound) return _backoff(e);
@@ -543,41 +502,17 @@
         .sort((a, b) => String((b.e || b.r).recordedAt).localeCompare(String((a.e || a.r).recordedAt)));
     }
 
-    function _nightOptions(night) {
-      const now = new Date();
-      const opts = [];
-      for (let back = 1; back <= 7; back++) {
-        const iso = _iso(_shift(now, -back));
-        opts.push([iso, nightLabel(iso, now)]);
-      }
-      if (night && !opts.some(([v]) => v === night)) opts.push([night, nightLabel(night, now)]);
-      opts.push(['', 'not sure when']);
-      return opts.map(([v, label]) =>
-        `<option value="${esc(v)}"${(night || '') === v ? ' selected' : ''}>${esc(label)}</option>`).join('');
-    }
-
-    // The app's dropdown component (select.config-input). Action names stay literal
-    // (component-contract-test reads them from source): the sheet's select belongs to
-    // meeting.js, the Memory panel's to this module.
-    function nightSelectHTML(id, night, where) {
-      const action = where === 'memory'
-        ? 'data-today-change="dream.memory-night"'
-        : 'data-today-change="meeting.dream-night"';
-      return `<select class="config-input dream-night-select" aria-label="Which night" data-dream-id="${esc(id)}" ${action}>${_nightOptions(night)}</select>`;
-    }
-
-    // A row is the panel's own item: text (night — opening words) with a per-item action,
+    // A row is the panel's own item: text (day — opening words) with a per-item action,
     // like KNOWN's "dismiss". Opened, it shows the reading and the retelling, then one
-    // item row: where it is kept, "change night", "delete" — the same actions the panel
-    // uses everywhere. The night dropdown appears only after "change night".
+    // item row: where it is kept, and "delete".
     function _memoryRow({ e, r }) {
       const id = (e || r).id;
-      const night = nightLabel((e || r).night);
+      const day = dayLabel((e || r).night);
       const where = e && !e.pruned && !(e.uploadedRev && e.uploadedRev === e.rev) ? 'kept on this phone' : 'kept in your Dropbox';
       const first = e && e.retelling ? e.retelling.split(/\s+/).slice(0, 9).join(' ') + '…'
         : ((e || r).images || []).slice(0, 3).join(' · ') || 'kept';
       const open = _openId === id;
-      let html = `<div class="memory-item"><span class="memory-item-text">${esc(night)} — ${esc(first)}</span>` +
+      let html = `<div class="memory-item"><span class="memory-item-text">${esc(day)} — ${esc(first)}</span>` +
         `<button type="button" class="memory-item-btn" data-today-click="dream.memory-open" data-dream-id="${esc(id)}" aria-expanded="${open}">${open ? 'less' : 'read'}</button></div>`;
       if (!open) return html;
       html += e && e.retelling
@@ -589,23 +524,27 @@
           `<span class="memory-confirm-actions"><button type="button" class="btn-ghost memory-conn-link" data-today-click="dream.memory-delete-cancel">cancel</button></span></div>`;
       }
       return html + `<div class="memory-item"><span class="memory-item-text">${esc(where)}</span>` +
-        (e ? `<button type="button" class="memory-item-btn" data-today-click="dream.memory-night-open" data-dream-id="${esc(id)}">change night</button>` : '') +
-        `<button type="button" class="memory-item-btn" data-today-click="dream.memory-delete" data-dream-id="${esc(id)}">delete</button></div>` +
-        (e && _nightOpenId === id ? nightSelectHTML(id, e.night, 'memory') : '');
+        `<button type="button" class="memory-item-btn" data-today-click="dream.memory-delete" data-dream-id="${esc(id)}">delete</button></div>`;
     }
 
+    // One line until stage 2 gives the collection something to say. "manage" keeps every
+    // dream inspectable and deletable here — deleting a file in Dropbox does not remove
+    // its synced summary, so the per-dream delete must stay reachable.
     function renderMemory(container) {
       if (!container) return;
       const old = document.getElementById('dreamMemoryBlock');
       const rows = _rows();
+      const dir = _files() ? _files().dreamsDir : '/Dreams';
+      const n = rows.length;
+      const summary = n
+        ? `${n} dream${n === 1 ? '' : 's'} kept in your Dropbox, ${dir}`
+        : 'a dream you tell the mic lands here';
       const html = `<div class="memory-type-block dream-memory-block" id="dreamMemoryBlock">` +
-        `<div class="memory-type-header"><span class="memory-type-name">DREAMS</span>` +
-        `<span class="memory-type-desc">— the files live in your Dropbox</span></div>` +
-        (rows.length ? rows.map(_memoryRow).join('')
-          : `<div class="memory-pending">a dream you tell the mic lands here</div>`) +
-        // Backfill (design M1): older dreams count too. Said here, where the collection is,
-        // rather than in the sheet at 7am — and only while the collection is small.
-        (rows.length < 3 ? `<div class="memory-pending">older dreams count too — tell them any time, and say roughly when</div>` : '') +
+        `<div class="memory-type-header"><span class="memory-type-name">DREAMS</span></div>` +
+        `<div class="memory-item"><span class="memory-item-text">${esc(summary)}</span>` +
+        (n ? `<button type="button" class="memory-item-btn" data-today-click="dream.memory-manage" aria-expanded="${_listOpen}">${_listOpen ? 'close' : 'manage'}</button>` : '') +
+        `</div>` +
+        (n && _listOpen ? rows.map(_memoryRow).join('') : '') +
         `</div>`;
       if (old) old.outerHTML = html;
       else container.insertAdjacentHTML('beforeend', html);
@@ -617,15 +556,19 @@
 
     if (window.Today) {
       Today.define('dreambank', {
-        capture, settle, keep, setNight, setThought, discard, get, onChange, flush,
-        statusText, renderMemory, nightSelectHTML,
+        capture, settle, keep, discard, get, onChange, flush,
+        statusText, renderMemory,
         _list: () => _queue.slice(),
+      });
+      Today.ui.register('click', 'dream.memory-manage', () => {
+        _listOpen = !_listOpen;
+        _openId = null; _confirmDeleteId = null;
+        _rerenderMemory();
       });
       Today.ui.register('click', 'dream.memory-open', (_e, el) => {
         const id = el.dataset.dreamId;
         _openId = _openId === id ? null : id;
         _confirmDeleteId = null;
-        _nightOpenId = null;
         _rerenderMemory();
       });
       Today.ui.register('click', 'dream.memory-delete', (_e, el) => { _confirmDeleteId = el.dataset.dreamId; _rerenderMemory(); });
@@ -635,17 +578,11 @@
         _confirmDeleteId = null; _openId = null;
         _rerenderMemory();
       });
-      Today.ui.register('change', 'dream.memory-night', (_e, el) => { setNight(el.dataset.dreamId, el.value); _nightOpenId = null; _rerenderMemory(); });
-      Today.ui.register('click', 'dream.memory-night-open', (_e, el) => {
-        _nightOpenId = el.dataset.dreamId;
-        _rerenderMemory();
-        document.querySelector('#dreamMemoryBlock .dream-night-select')?.focus();
-      });
     }
 
     _kick(0);
   }
 
-  const core = { resolveNight, nightLabel, groundImages, fileName, toMarkdown, DREAM_SYSTEM, EXTRACT_SYSTEM, NIGHT_HINT, start };
+  const core = { dayLabel, groundImages, fileName, toMarkdown, DREAM_SYSTEM, EXTRACT_SYSTEM, start };
   if (window.Today) window.Today.define('dream-core', core);
 })();

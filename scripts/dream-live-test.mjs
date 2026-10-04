@@ -1,10 +1,11 @@
-// TODAY — live synthetic test for dream reading (v2.92.0) and DreamBank night/language (v2.93.0).
+// TODAY — live synthetic test for dream reading (v2.92.0) and DreamBank language (v2.93.0).
 //
 // Speaks scripted clips with macOS `say`, encodes them the way the phone does
 // (32 kbps Opus WebM), and runs them through the real meeting-extract and
 // ai-assist handlers in-process: Gemini decides whether each clip is a dream,
-// then the configured model reads the dreams. v2.93.0: Gemini also names which night
-// (night_hint) and language (lang), and Claude extracts grounded images. No deploy needed.
+// then the configured model reads the dreams. v2.93.0: Gemini also names the language
+// (lang), and Claude extracts grounded images. Since v2.93.8 the phone dates a dream by the
+// day it was told, so no night is asked of the model. No deploy needed.
 //
 // Run:       GEMINI_API_KEY=... ANTHROPIC_API_KEY=... node scripts/dream-live-test.mjs
 // One phrase, raw reply printed (diagnose a real miss, BUG-110):
@@ -62,24 +63,24 @@ const _ctx = { window: {} };
 _ctx.window.window = _ctx.window;
 _ctx.window.Today = { define: (name, api) => { if (name === 'dream-core') _ctx.core = api; } };
 vm.runInNewContext(readFileSync(join(ROOT, 'assets/dreambank.js'), 'utf8'), _ctx);
-const { DREAM_SYSTEM, EXTRACT_SYSTEM, groundImages, resolveNight } = _ctx.core;
+const { DREAM_SYSTEM, EXTRACT_SYSTEM, groundImages } = _ctx.core;
 
 const CASES = [
-  { id: 'dream-en', voice: 'Samantha', expect: { dream: true, noItems: true, lang: 'en', hint: 'last_night' },
+  { id: 'dream-en', voice: 'Samantha', expect: { dream: true, noItems: true, lang: 'en' },
     text: "I just woke up. I dreamt I was in my grandmother's kitchen, but the floor was water and I could walk on it. An old school friend was baking bread and didn't recognise me. I wasn't scared, just a bit sad." },
-  { id: 'dream-tr', voice: 'Yelda', expect: { dream: true, noItems: true, lang: 'tr', hint: 'last_night' },
+  { id: 'dream-tr', voice: 'Yelda', expect: { dream: true, noItems: true, lang: 'tr' },
     text: 'Az önce uyandım. Rüyamda eski evimizdeydim, merdivenler hiç bitmiyordu ve yukarı çıktıkça ev büyüyordu. Annem bir kapının arkasından bana sesleniyordu ama kapıyı bulamıyordum.' },
   { id: 'dream-with-task', voice: 'Samantha', expect: { dream: true, itemMatch: /mum|mom|mother/i, noDreamItems: /flight|airport|plane/i },
     text: "Okay, I dreamt I missed a flight because the airport kept moving further away, and I had to catch a plane I never reached. Anyway, remind me to call mum today about her birthday." },
   // BUG-110: Can's real miss — one plain sentence, no story or feeling, measurements.
-  { id: 'plain-en', voice: 'Samantha', expect: { dream: true, noItems: true, lang: 'en', hint: 'last_night' },
+  { id: 'plain-en', voice: 'Samantha', expect: { dream: true, noItems: true, lang: 'en' },
     text: 'I saw a dream last night. I saw a girl, she was 180 and 70 kilos.' },
-  // Late capture (v2.93.0): the night is named in words; the phone resolves the date.
-  { id: 'late-en', voice: 'Samantha', expect: { dream: true, noItems: true, lang: 'en', hint: 'nights_ago:2' },
+  // Late capture: a dream told days or years later is still recognised as a dream.
+  { id: 'late-en', voice: 'Samantha', expect: { dream: true, noItems: true, lang: 'en' },
     text: "The night before last I dreamt I was swimming in a library. The books were dry even under the water, and a librarian kept handing me a key." },
-  { id: 'late-tr', voice: 'Yelda', expect: { dream: true, noItems: true, lang: 'tr', hint: 'last_night' },
+  { id: 'late-tr', voice: 'Yelda', expect: { dream: true, noItems: true, lang: 'tr' },
     text: 'Dün gece rüyamda babamın eski arabasıyla bir köprüden geçiyordum. Köprü bitmiyordu ve radyoda hep aynı şarkı çalıyordu.' },
-  { id: 'old-en', voice: 'Samantha', expect: { dream: true, noItems: true, lang: 'en', hint: 'long_ago' },
+  { id: 'old-en', voice: 'Samantha', expect: { dream: true, noItems: true, lang: 'en' },
     text: "Here's a dream I had years ago, when I was a child. A giant white horse stood in our garden and I was allowed to ride it over the roofs." },
   { id: 'planning', voice: 'Samantha', expect: { dream: false, minItems: 1 },
     text: "Quick notes for today. I need to call the bank about the card, send the invoice to Robin by noon, and book a table for Friday dinner." },
@@ -145,10 +146,8 @@ try {
     if (e.noDreamItems && items.some(t => e.noDreamItems.test(t))) problems.push('dream content became a task: ' + items.join(' | '));
     if (e.lang === 'tr' && dream && !looksTurkish(dream)) problems.push('retelling not in Turkish');
     if (dream && !endsWhole(dream)) problems.push('retelling cut off mid-sentence');
-    const hint = String(ex.body.night_hint || '');
-    if (e.hint && hint !== e.hint) problems.push(`night_hint ${JSON.stringify(hint)}, expected ${e.hint}`);
     if (e.dream && e.lang && ex.body.lang !== e.lang) problems.push(`lang ${JSON.stringify(ex.body.lang)}, expected ${e.lang}`);
-    if (!dream && (hint || ex.body.lang)) problems.push('night_hint/lang set without a dream');
+    if (!dream && ex.body.lang) problems.push('lang set without a dream');
 
     let reading = '';
     let images = [];
@@ -181,7 +180,7 @@ try {
     // Printed in full: a display trim would hide a real cut-off.
     console.log(`    dream:   ${dream || '(none)'}`);
     console.log(`    tasks:   ${items.length ? items.join(' | ') : '(none)'}`);
-    if (dream) console.log(`    night:   ${hint || '(none)'} → ${resolveNight(hint, Date.now()).night || 'undated'} · lang ${ex.body.lang || '(none)'}`);
+    if (dream) console.log(`    lang:    ${ex.body.lang || '(none)'}`);
     if (images.length) console.log(`    images:  ${images.join(' | ')}`);
     if (reading) console.log(`    reading: ${reading}  [${reading.length} chars]`);
     problems.forEach(p => console.log('    → ' + p));

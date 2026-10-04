@@ -81,6 +81,36 @@ window._startNudge = (function() {
     // first open of the day and held the real line back until the next open (BUG-034
     // forbids swapping it in mid-read). Failures still settle immediately below.
     const _NUDGE_AI_WAIT_MS = 5000;
+    const _NUDGE_QUIET = Symbol('morning nudge abstained');
+
+    // The pool has per-kind verdicts; ordinary task-reading lines have no kind.
+    // Without a separate, short-lived feedback gate, repeated "not really" votes
+    // on that majority path change nothing. Three recent misses earn two quiet
+    // mornings, then one chance to speak again. A landed line breaks the run.
+    function _taskPathCooling(todayISO) {
+      const daysAgo = date => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return Infinity;
+        return Math.round((Date.parse(todayISO + 'T00:00:00Z') - Date.parse(date + 'T00:00:00Z')) / 86400000);
+      };
+      const recent = (appMemory.spokenLines || [])
+        .filter(l => l && l.surface === 'morning nudge' && !l.kind && daysAgo(l.date) > 0 && daysAgo(l.date) <= 7)
+        .sort((a, b) => b.date.localeCompare(a.date));
+      const voted = recent.filter(l => l.reaction === 'landed' || l.reaction === 'missed');
+      return recent.length > 0 && daysAgo(recent[0].date) < 3
+        && voted.length >= 3 && voted.slice(0, 3).every(l => l.reaction === 'missed');
+    }
+
+    // A few age-led lines in the private voted corpus landed because they made a
+    // real contrast or choice. Only reject the narrow bare-recap shape: a waiting
+    // duration with no turn beyond the list itself. This is a floor, not a claim
+    // that code can determine whether an observation is useful to the person.
+    function _taskNudgeOnlyInventories(text) {
+      const line = String(text || '');
+      const duration = /\b\d+\s+days?\b/i.test(line);
+      const waiting = /\b(?:waiting|waited|open|on the list|carried over)\b/i.test(line);
+      const turn = /\b(?:but|because|rather|instead|before|while|if|window|worth|decide|deciding|choice|choose|deadline|due|doesn.t|isn.t)\b/i.test(line);
+      return duration && waiting && !turn;
+    }
 
     function _raceAINudge({ cacheKey, cachePrefix, fetchPromise, fallbackMsg, onShow }) {
       let settled = false;
@@ -88,15 +118,20 @@ window._startNudge = (function() {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        onShow(text, isAI);
+        if (text !== _NUDGE_QUIET) onShow(text, isAI);
       };
-      const timer = setTimeout(() => settle(fallbackMsg, false), _NUDGE_AI_WAIT_MS);
+      // On a feedback-cooldown day, a slow pool line can still arrive; do not
+      // replace earned silence with the count-based fallback at the wait cap.
+      const timer = setTimeout(() => {
+        if (fallbackMsg != null) settle(fallbackMsg, false);
+      }, _NUDGE_AI_WAIT_MS);
       fetchPromise.then(text => {
-        if (!text) { settle(fallbackMsg, false); return; }
+        if (text === _NUDGE_QUIET) { settle(_NUDGE_QUIET, false); return; }
+        if (!text) { settle(fallbackMsg ?? _NUDGE_QUIET, false); return; }
         _pruneLS(cachePrefix, cacheKey);
         localStorage.setItem(cacheKey, text);
         settle(text, true);
-      }).catch(() => settle(fallbackMsg, false));
+      }).catch(() => settle(fallbackMsg ?? _NUDGE_QUIET, false));
     }
 
     // Unified morning nudge (v2.19.0) — one surface between SOON and Trello,
@@ -306,17 +341,18 @@ window._startNudge = (function() {
         _showNudge(_aiCached, true);
       } else if (allowGenerate && _memoryReady && !_nudgeRacing) {
         _nudgeRacing = true;
+        const taskPathCooling = _taskPathCooling(_localISO());
         _raceAINudge({
           cacheKey: _nudgeCacheKey,
           cachePrefix: _AI_SURFACES.find(s => s.key === 'day_nudge_ai').prefix,
           fetchPromise: _fetchDayNudgeAI(review, carriedOver, cards).then(text => {
-            if (text) {
+            if (text && text !== _NUDGE_QUIET) {
               localStorage.setItem(_doneCountKey, String(doneIds.size));
               if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('morning nudge', text, _nudgeKind);
             }
             return text;
           }),
-          fallbackMsg: msg,
+          fallbackMsg: taskPathCooling ? null : msg,
           // Single-arg — the old "N carried over · " prefix on AI text is gone;
           // the AI sees the counts in its facts and mentions what matters itself.
           onShow: _showNudge,
@@ -380,9 +416,9 @@ window._startNudge = (function() {
     //
     // This runs *before* the task-reading nudge below and wins when a candidate
     // survives the gate. That is rare by construction — four kinds, 21-day
-    // cooldowns, strict thresholds — so the great majority of mornings still take
-    // the task-reading path unchanged. Small blast radius on purpose; Phase 4
-    // judges real output before any of this reaches the other four surfaces.
+    // cooldowns, strict thresholds — so most eligible mornings take the
+    // task-reading path. Its own recent misses can now pause that path without
+    // muting a qualified pool observation.
     async function _fetchPoolNudge(key) {
       if (typeof _buildObservationCandidates !== 'function'
        || typeof _observationNoveltyGate !== 'function'
@@ -448,8 +484,9 @@ window._startNudge = (function() {
         _nudgeKind = null;
         const pooled = await _fetchPoolNudge(key).catch(() => null);
         if (pooled) return pooled;
-        // Abstention here is per-surface: the nudge does not go silent, it falls
-        // through to the job it already had. The morning is the signature beat.
+        // Pool abstention normally falls through to the task-reading path. Only
+        // repeated misses on that separate path earn a short quiet interval.
+        if (_taskPathCooling(_localISO())) return _NUDGE_QUIET;
 
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const streak = parseInt(localStorage.getItem('stat_streak') || '1');
@@ -556,6 +593,7 @@ window._startNudge = (function() {
         // line, which is the correct failure — never a claim about who you are.
         if (!text || (typeof _observationTextIsGrounded === 'function'
                       && !_observationTextIsGrounded(text, 30))) return null;
+        if (_taskNudgeOnlyInventories(text)) return _NUDGE_QUIET;
         return text;
       } catch (e) {
         return null;

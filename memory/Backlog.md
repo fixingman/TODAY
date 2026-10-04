@@ -33,7 +33,7 @@ Ordered by potential impact on TODAY's longitudinal-companion promise and daily 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 12c | **Companion — observation pool** | Phases 0–3 shipped; **Phase 4 iterate / re-observe** | Morning (today-hook kinds) + Sunday (all outcome kinds). Real-use verdict and next gate ↓ |
-| 13 | **DreamBank** | M1 built (v2.93.0); live evals + phone check owed | Keep dreams (dated to their night) in Can's Dropbox; TODAY holds only what it learns. M1 → M2 lexicon → M3 callbacks / Sunday / task links. Detail ↓ |
+| 13 | **DreamBank** | M1 built (v2.93.0); live evals + phone check owed | Keep dreams (dated by the day told, v2.93.8) in Can's Dropbox; TODAY holds only what it learns. M1 → M2 lexicon → M3 callbacks / Sunday / task links. Detail ↓ |
 | — | **WEEK companion** | Gated | Gate: 12c must feel like a companion, not a feature. Detail ↓ |
 | — | **New week — distinct Monday recognition** | Gated | The old Monday task-list intention was removed after the 2026-09-28 overlap report. Re-enter only with code-selected, week-scale commitment evidence that has a different job from Today's nudge; criteria ↓. |
 | 2 | **Poem corpus — iterate** | In progress | Corpus 128; expand geography and voice. Detail ↓ |
@@ -237,7 +237,9 @@ Dropbox + GDrive simultaneously · automatic cross-provider migration · OneDriv
 
 **Evidence gap for the next decision:** privately review each missed line with Can, using the exact wording already retained in Dropbox and, where supplied, the optional reason now stored with a “not really” vote. The four choices distinguish untrue, already obvious, unable to help, and wrong moment. The vote saves before that skippable choice; its reason stays in the private synced record, never in a model prompt or this public backlog. Record only the resulting product lesson here, not the line or personal evidence. A few reasons are diagnostic clues, not grounds for automatic candidate-policy changes or analytics.
 
-Keep the current evidence, reaction, cooldown, and earned-silence loop running without changing runtime behavior; leave the ordinary morning path alone. WEEK and a distinct New week line remain gated. Re-observe the October 4 and 11 Sundays through the October 15 verdict. For any pool line, distinguish **untrue**, **obvious**, and **true but unable to change a choice** before touching selection or prose. If it stays silent, check that the silence was earned by the gates. Revisit the candidate kinds and usefulness bar structurally, not with a wording-only fix.
+At the September 30 verdict, keep the current evidence, reaction, cooldown, and earned-silence loop running without changing the pool; leave the ordinary morning path alone pending more real-use evidence. WEEK and a distinct New week line remain gated. Re-observe the October 4 and 11 Sundays through the October 15 verdict. For any pool line, distinguish **untrue**, **obvious**, and **true but unable to change a choice** before touching selection or prose. If it stays silent, check that the silence was earned by the gates. Revisit the candidate kinds and usefulness bar structurally, not with a wording-only fix.
+
+**Task-reading follow-up (2026-10-04):** New private votes showed a different gap from the pool: ordinary morning lines have no observation kind, so their repeated *not really* votes were saved but could not affect delivery. The task-reading path now takes a short, reversible pause after three recent misses; a landed line breaks the run, and a qualified pool observation is never muted by that pause. A narrow output floor also abstains from bare waiting-age recaps without a contrast or choice, rather than swapping them for the rule-based count. This is not a verdict that all numbers are bad: some count-led lines landed. The private voted corpus informed the guard, but exact lines, dates, votes, and task text stay out of this file. Re-observe rather than tightening the wording from one short sample.
 
 ### Phase 4 — first sample, and what it changed (2026-09-02/03)
 
@@ -322,6 +324,8 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 
 **Design + locked M1 decisions:** `~/.gstack/projects/fixingman-TODAY/can-dev-design-20260929-185035.md` (office-hours + eng review D1–D11). Test plan beside it. Raw dreams live as `/Dreams{env}/{night}_{id}.md` in Can's Dropbox; TODAY keeps a synced `appMemory.dreams.index` (images, role, people — no retellings).
 
+**Night dating removed (Can, 2026-10-04):** which night a dream happened does not matter. A dream is dated by the day it was told; no `night_hint` is asked of Gemini, and the sheet's *add a thought* / *change night* and Memory's *change night* are gone. Memory → Dreams is one line (*N dreams kept…* + **manage**) until M2 gives it something to say.
+
 **Deferred — multi-dream captures** (eng review D1): one capture = one dream in M1; two dreams told together become one file. Build `dreams[]` + chunk stitching (`openDream`, `continues_previous`) + stacked sheet cards only when Can tells two distinct dreams in one capture and wants them apart. File ids are per dream, so no migration. Start: `meeting.js:505` concat, `meeting-extract.js:72-75`.
 
 ---
@@ -352,12 +356,13 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 
 | Surface | Due | Status |
 |---------|-----|--------|
+| Dream sheet + Memory → Dreams (v2.93.8) | 2026-10-18 | Open — W1: the reading and retelling are worth a glance each time a dream is told; W2: the sheet now shows no date or thought controls and Memory shows one line. Does Memory → Dreams earn its place before M2, or should it go? |
 | Morning nudge after midnight (v2.90.54) | 2026-10-09 | Open — W1: the daily line remains the morning’s useful imprint; W2: once per day, contextual or deliberately silent. Verify a fresh line can appear across devices after yesterday’s dismissal, without reappearing after a deliberate dismissal today. |
 | Triage bar morph (v2.90.42) | 2026-10-07 | Open — does the pill expanding into the sheet feel like one continuous thing, or does it just look like an animation? Does the collapse on minimise read as returning to the bar? |
 | Monday intention (memory-enriched) | 2026-09-28 | **Removed** — New week repeated Today's task, age, and peak-hour observation while adding a streak statistic. The week grid stays; a distinct weekly recognition is gated above. |
 | About contextual CTAs | 2026-10-08 | Re-observing — extended 20 days from 2026-09-18. Do bordered CTAs clarify actions without pulling attention? |
 | Connections privacy reassurance | 2026-10-01 | Deferred — Can has all connections active so the surface never triggers; can’t evaluate until a fresh setup. Re-check 2026-10-01. |
-| Focus companion question | 2026-10-15 | Re-observing — v2.90.21 highlights the ask button when context signals align; extended to observe the updated CTA. |
+| Focus companion question | 2026-10-15 | Re-observing — v2.92.5 made the highlight quieter (accent label, border on hover), counts only stuck/returning-task signals, and replaced the prompt's lookup table with principles. Does the question now name something about the task itself? |
 | Post-triage reflections | 2026-10-01 | **Iterate (2026-09-14)** — countdown progress bar added (v2.90.12); re-observe. |
 | Choice, reorder, and focus motion | 2026-10-15 | Open — do the transitions clarify where state went without becoming noticeable choreography? |
 | Shift+Space quick voice capture | 2026-09-29 | Open — does holding the chord remain genuinely faster than typing, and do the brief capture states clarify progress without lingering? |
