@@ -18,6 +18,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 112 | A saved dream could not be reread in Memory after its local body was pruned or on another device | ⏳ v2.93.10 |
 | 111 | With the dream sheet open on mobile, swiping scrolled the task list behind it | ⏳ v2.93.8 |
 | 110 | A one-sentence dream told to the mobile mic came back as "Nothing came up" — silent empty result from meeting-extract | 🔍 Diagnosing (hardened v2.93.3) |
 | 109 | Task list bobbed up and down after refocusing the desktop PWA while the morning strip was showing — wake repaint replayed its CSS open animation | ⏳ v2.93.2 |
@@ -46,6 +47,18 @@
 ---
 
 *BUG-001–087 → `archive/Bugs-archive.md` (summary rows + detail). Detail for every later ✅ bug is archived too. Below: open, awaiting-verification, and rejected bugs only.*
+
+---
+
+## BUG-112 — Memory could not reopen a saved dream on another device
+
+**Symptom:** Can's first kept dream was present in Dropbox and its summary reached desktop Memory, but **read** on a device with only the synced index showed a pointer to the Dropbox folder instead of the interpretation. The same happened on the capture device after the acknowledged local body was pruned.
+
+**Cause:** `dreambank.js` intentionally removes raw retelling/reading from localStorage after upload, while `appMemory.dreams.index` stores only abstracted fields. Memory had no Dropbox download path; its **read** action only expanded that local/index row.
+
+**Fix (v2.93.10):** **read** downloads only the selected Markdown file on demand, checks its id and sections, and displays its retelling, reading, and any legacy note as escaped, read-only text. The body is not saved or synced and is cleared when Memory closes. Offline, missing, malformed, and transient responses are visible and retryable; late downloads cannot reopen a collapsed or deleted dream. Browser and Dropbox tests cover cross-device retrieval and the privacy boundary.
+
+**Verification:** after this version reaches a second device, open Memory → Dreams → manage → read on a dream saved from the phone. The interpretation should appear; close Memory, reopen, and read it again. If offline, the panel should say so without implying the file is lost.
 
 ---
 

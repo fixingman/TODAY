@@ -663,6 +663,86 @@ try {
     await page.close();
   }
 
+  // A second device has only the synced index. Read the saved Markdown on demand;
+  // never put its body into appMemory, localStorage, or the backup.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      const id = 'dream_remote1';
+      const marker = 'A paper moon would not open.';
+      const files = Today.use('dropbox-files');
+      const file = Today.use('dream-core').toMarkdown({ id, night: '2026-09-29',
+        recordedAt: '2026-09-29T07:00:00Z', lang: 'en', images: ['paper moon'], people: [], role: 'watched',
+        retelling: '<img src=x onerror="window.__dreamReadInjected=1"> ' + marker,
+        reading: 'The paper moon stayed closed.', thought: 'A note from the older sheet.' })
+        .replace('recorded_at:', 'night_certainty: "exact"\nrecorded_at:');
+      appMemory.dreams = { index: [{ id, night: '2026-09-29', recordedAt: '2026-09-29T07:00:00Z',
+        updatedAt: '2026-09-29T07:01:00Z', images: ['paper moon'], people: [], role: 'watched' }] };
+      localStorage.setItem('dropbox_token', 'test-token');
+      const originalFetch = window.fetch;
+      let status = 200;
+      const requests = [];
+      window.fetch = async (url, opts = {}) => {
+        if (!String(url).endsWith('/2/files/download')) return originalFetch(url, opts);
+        requests.push({ method: opts.method, path: JSON.parse(opts.headers['Dropbox-API-Arg']).path });
+        return new Response(status === 200 ? file : '{"error_summary":"path_lookup/not_found/"}', { status });
+      };
+      const until = async fn => { for (let i = 0; i < 100 && !fn(); i++) await new Promise(r => setTimeout(r, 10)); };
+      const block = () => document.getElementById('dreamMemoryBlock');
+      const action = name => block().querySelector(`[data-today-click="dream.memory-${name}"]`).click();
+      Today.use('memory').toggle();
+      action('manage'); action('open');
+      await until(() => !!block().querySelector('.dream-reading'));
+      const opened = block().textContent.includes('The paper moon stayed closed.')
+        && block().textContent.includes(marker)
+        && block().textContent.includes('A note from the older sheet.')
+        && !block().querySelector('img') && !window.__dreamReadInjected;
+      const path = requests[0]?.path === files.dreamsDir + '/2026-09-29_' + id + '.md'
+        && requests[0]?.method === 'POST';
+      const stored = [...Array(localStorage.length).keys()].map(i => localStorage.getItem(localStorage.key(i)));
+      const privateOnly = !stored.some(value => String(value).includes(marker))
+        && !JSON.stringify(appMemory).includes(marker);
+
+      Today.use('memory').toggle();
+      await until(() => !block().textContent.includes(marker));
+      const clearedOnClose = !block().textContent.includes(marker);
+      status = 409;
+      Today.use('memory').toggle();
+      action('manage'); action('open');
+      await until(() => block().textContent.includes('missing from Dropbox'));
+      const missing = block().textContent.includes('missing from Dropbox')
+        && !!block().querySelector('[data-today-click="dream.memory-retry"]');
+      status = 200;
+      action('retry');
+      await until(() => !!block().querySelector('.dream-reading'));
+      const retried = block().textContent.includes('The paper moon stayed closed.') && requests.length === 3;
+
+      action('open');
+      Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+      action('open');
+      await until(() => block().textContent.includes('you’re offline'));
+      const offline = block().textContent.includes('you’re offline') && requests.length === 3;
+      Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+      action('open');
+      let release;
+      const fetchBeforeDelay = window.fetch;
+      window.fetch = async (url, opts) => {
+        if (String(url).endsWith('/2/files/download')) await new Promise(resolve => { release = resolve; });
+        return fetchBeforeDelay(url, opts);
+      };
+      action('open');
+      await until(() => !!release);
+      Today.use('memory').toggle();
+      release();
+      await new Promise(r => setTimeout(r, 20));
+      const lateIgnored = !block().textContent.includes(marker) && !block().querySelector('.dream-reading');
+      return { opened, path, privateOnly, clearedOnClose, missing, retried, offline, lateIgnored };
+    });
+    await expectAll('saved dream read on a second device', { ...result, noErrors: errors.length === 0 });
+    ok('Memory reads a saved dream from Dropbox on demand, preserves old notes, retries failures, and keeps raw text out of sync');
+    await page.close();
+  }
+
   // Chunk rollover keeps rolling context, deduplicates actions, and preserves chronology.
   {
     const { page, errors } = await openPage({ supported: ['audio/mp4'], touch: true });

@@ -176,7 +176,7 @@
   clearedAt: '',                     // ISO timestamp of the last full clear; max-wins across devices
   clearedHypothesisIds: [],          // ids of AI hypotheses cleared locally — they carry no date, so the merge tombstones them by id (cap 300)
   // DreamBank (v2.93.0) — a summary per kept dream; the dream itself is a file in the user's Dropbox
-  dreams: { index: [] },             // [{ id, night: 'YYYY-MM-DD'|null, certainty: 'exact'|'approx'|'unknown', recordedAt, updatedAt, lang, images: [], people: [], role }] or a tombstone { id, deleted: true, recordedAt, updatedAt }. Never the retelling. Images pass grounding (every substantive word stem-matches the retelling). Cap 500. Wiped by "clear all memory" (the files stay)
+  dreams: { index: [] },             // [{ id, night: 'YYYY-MM-DD'|null, recordedAt, updatedAt, lang, images: [], people: [], role }] or a tombstone { id, deleted: true, recordedAt, updatedAt }. `night` is the day told since v2.93.8; older rows may carry inferred-night metadata. Never the retelling/reading. Images pass grounding (every substantive word stem-matches the retelling). Cap 500. Wiped by "clear all memory" (the files stay)
 }
 ```
 
@@ -215,9 +215,9 @@
 
 | Key | Type | Notes |
 |-----|------|-------|
-| `today-dream-queue` | JSON array | **local-only, never in the backup.** One entry per dream from the first chunk that carries it: retelling, reading, thought, night/certainty, lang, images/people/role, job states (`readingState`, `extraction`, tries, next-attempt times), upload state (`rev`, `uploadedRev`, `remotePath`, backoff), `ready`, `deleted` (tombstone). Once Dropbox acknowledges the final revision and both AI jobs have settled, the body is pruned to `{id, night}` and removed after 7 days. Design: `assets/dreambank.js` header |
+| `today-dream-queue` | JSON array | **local-only, never in the backup.** One entry per dream from the first chunk that carries it: retelling, reading, day-told date in the legacy-named `night` field, lang, images/people/role, job states (`readingState`, `extraction`, tries, next-attempt times), upload state (`rev`, `uploadedRev`, `remotePath`, backoff), `ready`, `deleted` (tombstone). Older queued entries may also carry `thought` and inferred-night fields. Once Dropbox acknowledges the final revision and both AI jobs have settled, the body is pruned to `{id, night}` and removed after 7 days. Design: `assets/dreambank.js` header |
 
-The dream file itself is `/Dreams{env}/{night|undated}_{id}.md` in the user's Dropbox (format: README § DreamBank files); the synced summary is `appMemory.dreams.index` above.
+The dream file itself is `/Dreams{env}/{night|undated}_{id}.md` in the user's Dropbox (format: README § DreamBank files); the synced summary is `appMemory.dreams.index` above. Since v2.93.10, Memory can download one file on demand to read it: the response is held only in transient module/DOM state until Memory closes, never written into this local queue, `appMemory`, or the backup.
 
 ```javascript
 {

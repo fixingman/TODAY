@@ -65,7 +65,7 @@ const settleAll = async () => { for (let i = 0; i < 8; i++) await tick(); };
 // ── Pure core ─────────────────────────────────────────────────────────────────
 {
   const { defined } = boot();
-  const { dayLabel, groundImages: g, fileName, toMarkdown } = defined['dream-core'];
+  const { dayLabel, groundImages: g, fileName, toMarkdown, fromMarkdown } = defined['dream-core'];
   const wed7 = new Date(2026, 8, 30, 7, 0);   // Wed 30 Sep 2026, 07:00
   assert.equal(dayLabel('2026-09-30', wed7), 'today');
   assert.equal(dayLabel('2026-09-29', wed7), 'yesterday');
@@ -96,6 +96,12 @@ const settleAll = async () => { for (let i = 0; i < 8; i++) await tick(); };
   assert.match(md, /## Retelling\n\nTold\.\n\n## Reading\n\n\n$/, 'no thought section on new dreams');
   assert.match(toMarkdown({ ...e, thought: 'mine' }), /## Reading\n\n\n\n## My thought\n\nmine\n$/, 'a pre-v2.93.8 thought stays in its file');
   assert.match(toMarkdown({ ...e, night: null }), /\nnight: null\n/);
+  assert.deepEqual(JSON.parse(JSON.stringify(fromMarkdown(toMarkdown({ ...e, reading: 'A reading.', thought: 'an older note' }), e.id))),
+    { retelling: 'Told.', reading: 'A reading.', thought: 'an older note' });
+  assert.deepEqual(JSON.parse(JSON.stringify(fromMarkdown(toMarkdown(e).replace(/\n/g, '\r\n'), e.id))),
+    { retelling: 'Told.', reading: '', thought: '' }, 'CRLF and a missing reading remain readable');
+  assert.equal(fromMarkdown(toMarkdown(e), 'dream_other'), null, 'a different dream id cannot be displayed');
+  assert.equal(fromMarkdown('## Retelling\n\nTold.', e.id), null, 'an incomplete file cannot be displayed');
   ok('file name and Markdown format (empty sections kept, quotes escaped, undated, legacy thought kept)');
 }
 

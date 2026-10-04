@@ -180,7 +180,7 @@ role: "suyun üstünde yürüyor"
 
 Files written before v2.93.8 may also end with a `## My thought` section.
 
-TODAY itself keeps only a small synced summary per dream (date, images, role, people — never the retelling), which you can see and delete under Memory → Dreams. "Clear all memory" clears that summary; it never deletes your dream files.
+TODAY itself keeps only a small synced summary per dream (date, images, role, people — never the retelling). Under Memory → Dreams → manage, **read** fetches a saved dream from Dropbox when you ask for it; any older `My thought` note is read-only. That on-demand copy is not added to TODAY's backup or kept after Memory closes. You can also delete a dream there. "Clear all memory" clears the summaries; it never deletes your dream files.
 
 ---
 

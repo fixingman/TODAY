@@ -112,6 +112,32 @@
     ].join('\n');
   }
 
+  // Read the file we wrote, not arbitrary Markdown from a Dropbox path. In
+  // particular, the frontmatter id must match the selected synced index row.
+  // Legacy files may have a final, read-only `My thought` section.
+  function fromMarkdown(markdown, expectedId) {
+    const source = String(markdown || '').replace(/\r\n?/g, '\n');
+    const front = source.match(/^---\n([\s\S]*?)\n---\n/);
+    if (!front) return null;
+    const idLine = front[1].match(/^id:\s*(.+)$/m);
+    let id;
+    try { id = JSON.parse(idLine && idLine[1]); } catch (_) { return null; }
+    if (id !== expectedId) return null;
+    const body = source.slice(front[0].length).replace(/^\n+/, '');
+    const toldAt = body.indexOf('## Retelling\n');
+    const readAt = body.indexOf('\n## Reading\n', toldAt);
+    if (toldAt !== 0 || readAt < 0) return null;
+    const retelling = body.slice('## Retelling\n'.length, readAt).trim();
+    if (!retelling) return null;
+    const afterReading = body.slice(readAt + '\n## Reading\n'.length);
+    const thoughtAt = afterReading.indexOf('\n## My thought\n');
+    return {
+      retelling,
+      reading: (thoughtAt < 0 ? afterReading : afterReading.slice(0, thoughtAt)).trim(),
+      thought: thoughtAt < 0 ? '' : afterReading.slice(thoughtAt + '\n## My thought\n'.length).trim(),
+    };
+  }
+
   // Measured with scripts/dream-reading-eval.mjs: preferred 12/12 over the first prompt
   // in a head-to-head judge, at half the length (128 → 65 words). v2.93.0 drops the
   // "just woken up" framing: a dream can be told hours or days later.
@@ -156,6 +182,8 @@
     let _openId = null;          // Memory panel: which dream row is expanded
     let _confirmDeleteId = null; // Memory panel: which row is asking "delete?"
     let _listOpen = false;       // Memory panel: per-dream list shown under the one-line summary
+    let _remoteRead = null;      // One transient Dropbox body; never saved or synced
+    let _readEpoch = 0;          // Ignore a download after collapse, deletion, or switching rows
 
     function _load() {
       const q = safeJSON(QUEUE_KEY, []);
@@ -245,6 +273,7 @@
       e.deleted = true;
       e.retelling = ''; e.reading = ''; e.thought = '';
       e.uploadTries = 0; e.uploadNextAt = 0;
+      if (_remoteRead && _remoteRead.id === id) { _remoteRead = null; _readEpoch++; }
       _save();
       _indexRemove(e);
       _emit(id);
@@ -257,6 +286,7 @@
       if (_find(id)) return discard(id);
       const row = _indexRows().find(r => r.id === id);
       if (!row) return;
+      if (_remoteRead && _remoteRead.id === id) { _remoteRead = null; _readEpoch++; }
       const dir = _files() ? _files().dreamsDir : '';
       _queue.push({ id, deleted: true, night: row.night || null, remotePath: dir ? `${dir}/${fileName(row)}` : '',
         uploadTries: 0, uploadNextAt: 0, recordedAt: row.recordedAt || '' });
@@ -502,6 +532,37 @@
         .sort((a, b) => String((b.e || b.r).recordedAt).localeCompare(String((a.e || a.r).recordedAt)));
     }
 
+    function _memoryBody(content) {
+      return (content.reading
+        ? `<p class="dream-reading">${esc(content.reading)}</p>`
+        : '<div class="memory-pending">no reading was kept</div>') +
+        `<p class="dream-told">${esc(content.retelling)}</p>` +
+        (content.thought ? `<p class="dream-told">earlier note · ${esc(content.thought)}</p>` : '');
+    }
+
+    async function _readFromDropbox(id, epoch) {
+      const e = _find(id);
+      const row = _indexRows().find(r => r.id === id && !r.deleted);
+      const files = _files();
+      const record = e && !e.deleted ? e : row;
+      const safeId = /^dream_[a-z0-9]+$/.test(id);
+      const safeDay = record && (record.night == null || /^\d{4}-\d{2}-\d{2}$/.test(record.night));
+      let result = { ok: false, notFound: false };
+      if (safeId && safeDay && files && files.download && navigator.onLine && localStorage.getItem('dropbox_token')) {
+        const path = (e && e.remotePath) || `${files.dreamsDir}/${fileName(record)}`;
+        result = await files.download(path);
+      }
+      if (epoch !== _readEpoch || _openId !== id || !_rows().some(x => (x.e || x.r).id === id)) return;
+      const content = result.ok ? fromMarkdown(result.text, id) : null;
+      _remoteRead = { id, content, error: content ? ''
+        : !navigator.onLine ? 'you’re offline — try again when connected'
+        : !localStorage.getItem('dropbox_token') || localStorage.getItem('dropbox_token_expired') ? 'reconnect Dropbox to read this dream'
+        : result.notFound ? 'this dream file is missing from Dropbox'
+        : result.ok ? 'this dream file could not be read here'
+        : 'can’t read it right now — try again' };
+      _rerenderMemory();
+    }
+
     // A row is the panel's own item: text (day — opening words) with a per-item action,
     // like KNOWN's "dismiss". Opened, it shows the reading and the retelling, then one
     // item row: where it is kept, and "delete".
@@ -515,9 +576,11 @@
       let html = `<div class="memory-item"><span class="memory-item-text">${esc(day)} — ${esc(first)}</span>` +
         `<button type="button" class="memory-item-btn" data-today-click="dream.memory-open" data-dream-id="${esc(id)}" aria-expanded="${open}">${open ? 'less' : 'read'}</button></div>`;
       if (!open) return html;
-      html += e && e.retelling
-        ? (e.reading ? `<p class="dream-reading">${esc(e.reading)}</p>` : '') + `<p class="dream-told">${esc(e.retelling)}</p>`
-        : `<div class="memory-pending">the full dream is in your Dropbox, in ${esc(_files() ? _files().dreamsDir : '/Dreams')}</div>`;
+      const content = e && e.retelling ? e : _remoteRead && _remoteRead.id === id ? _remoteRead.content : null;
+      html += content ? _memoryBody(content)
+        : `<div class="memory-pending" role="status">${_remoteRead && _remoteRead.id === id && _remoteRead.error
+          ? esc(_remoteRead.error) + ' <button type="button" class="memory-item-btn" data-today-click="dream.memory-retry" data-dream-id="' + esc(id) + '">retry</button>'
+          : 'opening from Dropbox…'}</div>`;
       if (_confirmDeleteId === id) {
         return html + `<div class="memory-item"><span class="memory-confirm-msg">delete this dream and its file?</span>` +
           `<button type="button" class="memory-clear-btn memory-clear-confirm" data-today-click="dream.memory-delete-confirm" data-dream-id="${esc(id)}">yes, delete</button>` +
@@ -561,15 +624,25 @@
         _list: () => _queue.slice(),
       });
       Today.ui.register('click', 'dream.memory-manage', () => {
+        _readEpoch++; _remoteRead = null;
         _listOpen = !_listOpen;
         _openId = null; _confirmDeleteId = null;
         _rerenderMemory();
       });
       Today.ui.register('click', 'dream.memory-open', (_e, el) => {
         const id = el.dataset.dreamId;
+        _readEpoch++; _remoteRead = null;
         _openId = _openId === id ? null : id;
         _confirmDeleteId = null;
         _rerenderMemory();
+        if (_openId === id && !_find(id)?.retelling) _readFromDropbox(id, _readEpoch);
+      });
+      Today.ui.register('click', 'dream.memory-retry', (_e, el) => {
+        const id = el.dataset.dreamId;
+        if (_openId !== id) return;
+        _readEpoch++; _remoteRead = null;
+        _rerenderMemory();
+        _readFromDropbox(id, _readEpoch);
       });
       Today.ui.register('click', 'dream.memory-delete', (_e, el) => { _confirmDeleteId = el.dataset.dreamId; _rerenderMemory(); });
       Today.ui.register('click', 'dream.memory-delete-cancel', () => { _confirmDeleteId = null; _rerenderMemory(); });
@@ -578,11 +651,19 @@
         _confirmDeleteId = null; _openId = null;
         _rerenderMemory();
       });
+      const memoryPanel = typeof document === 'undefined' ? null : document.getElementById('memoryPanel');
+      if (memoryPanel && typeof MutationObserver !== 'undefined') {
+        new MutationObserver(() => {
+          if (memoryPanel.classList.contains('open')) return;
+          _readEpoch++; _remoteRead = null; _openId = null; _confirmDeleteId = null; _listOpen = false;
+          _rerenderMemory();
+        }).observe(memoryPanel, { attributes: true, attributeFilter: ['class'] });
+      }
     }
 
     _kick(0);
   }
 
-  const core = { dayLabel, groundImages, fileName, toMarkdown, DREAM_SYSTEM, EXTRACT_SYSTEM, start };
+  const core = { dayLabel, groundImages, fileName, toMarkdown, fromMarkdown, DREAM_SYSTEM, EXTRACT_SYSTEM, start };
   if (window.Today) window.Today.define('dream-core', core);
 })();

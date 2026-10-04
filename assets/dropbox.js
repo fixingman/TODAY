@@ -569,10 +569,11 @@
       });
     }
 
-    // DreamBank I/O — resolves { ok, notFound }; never throws. A 401 marks the token
-    // expired (same signal the silent backup uses) and leaves the dream queued.
+    // DreamBank I/O — resolves { ok, notFound }; downloads also return text.
+    // Never throws. A 401 marks the token expired, as the silent backup does;
+    // pending uploads remain queued and reads show the reconnect state.
     const DREAMS_DIR = `/Dreams${_env}`;
-    async function _dbxDreamCall(send) {
+    async function _dbxDreamCall(send, readText = false) {
       try {
         await _dropboxEnsureToken();
         const token = localStorage.getItem('dropbox_token');
@@ -583,7 +584,9 @@
           Today.use('connections').renderConnections();
           return { ok: false, notFound: false };
         }
-        if (res.ok) return { ok: true, notFound: false };
+        if (res.ok) return readText
+          ? { ok: true, notFound: false, text: await res.text() }
+          : { ok: true, notFound: false };
         const text = res.status === 409 ? await res.text().catch(() => '') : '';
         return { ok: false, notFound: /not_found/.test(text) };
       } catch (_) {
@@ -598,6 +601,10 @@
     const _dbxDreamUpload = (path, text) => _dbxDreamCall(token => _dbxPut(token, path, text));
     const _dbxDreamMove = (from, to) => _dbxDreamCall(_dbxRpc('move_v2', { from_path: from, to_path: to, autorename: false }));
     const _dbxDreamDelete = path => _dbxDreamCall(_dbxRpc('delete_v2', { path }));
+    const _dbxDreamDownload = path => _dbxDreamCall(token => fetch('https://content.dropboxapi.com/2/files/download', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Dropbox-API-Arg': JSON.stringify({ path }) },
+    }), true);
 
     // ── Backup ────────────────────────────────────────────────────────────────────
     async function dropboxBackup(silent) {
@@ -2303,7 +2310,8 @@
     window._doneTodayCount = _doneTodayCount;
     window.dropboxAutoSave = dropboxAutoSave;
     if (window.Today) Today.define('dropbox-files', {
-      dreamsDir: DREAMS_DIR, upload: _dbxDreamUpload, move: _dbxDreamMove, remove: _dbxDreamDelete,
+      dreamsDir: DREAMS_DIR, upload: _dbxDreamUpload, move: _dbxDreamMove,
+      remove: _dbxDreamDelete, download: _dbxDreamDownload,
     });
     window.dropboxBackup = dropboxBackup;
     window.dropboxRestore = dropboxRestore;

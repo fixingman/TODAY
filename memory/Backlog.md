@@ -326,6 +326,10 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 
 **Night dating removed (Can, 2026-10-04):** which night a dream happened does not matter. A dream is dated by the day it was told; no `night_hint` is asked of Gemini, and the sheet's *add a thought* / *change night* and Memory's *change night* are gone. Memory → Dreams is one line (*N dreams kept…* + **manage**) until M2 gives it something to say.
 
+**First live-use signal (Can, 2026-10-04):** a dream recorded on deployed v2.93.6 produced an interpretation Can found useful; reading it prompted reflection. The dream appeared in desktop Memory after phone capture, showing the index crossed devices. Can supplied the saved Dropbox Markdown file; it contains the retelling, reading, and extracted fields, confirming the capture was kept. This is one positive reading-and-retention signal, not the two-week M1 verdict or evidence that every reading will land. Keep the dream and its content out of this public record.
+
+**M1 retrieval gap closed locally (v2.93.10):** after upload, the local body is deliberately pruned, but Memory's **read** used to show only a Dropbox pointer on another device. It now fetches the selected file on demand and holds the body only while Memory is open; older saved notes remain read-only. Still owed: verify that Can's existing file reopens on the second device after deployment, plus the live quality evals and two-week usefulness verdict. Do not use that private file as a repo fixture.
+
 **Deferred — multi-dream captures** (eng review D1): one capture = one dream in M1; two dreams told together become one file. Build `dreams[]` + chunk stitching (`openDream`, `continues_previous`) + stacked sheet cards only when Can tells two distinct dreams in one capture and wants them apart. File ids are per dream, so no migration. Start: `meeting.js:505` concat, `meeting-extract.js:72-75`.
 
 ---
@@ -356,7 +360,7 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 
 | Surface | Due | Status |
 |---------|-----|--------|
-| Dream sheet + Memory → Dreams (v2.93.8) | 2026-10-18 | Open — W1: the reading and retelling are worth a glance each time a dream is told; W2: the sheet now shows no date or thought controls and Memory shows one line. Does Memory → Dreams earn its place before M2, or should it go? |
+| Dream sheet + Memory → Dreams (v2.93.8, read fix v2.93.10) | 2026-10-18 | Open — W1: the reading and retelling are worth a glance each time a dream is told; W2: the sheet now shows no date or thought controls, Memory shows one line, and a saved dream can reopen from Dropbox on demand. Does Memory → Dreams earn its place before M2, or should it go? |
 | Morning nudge after midnight (v2.90.54) | 2026-10-09 | Open — W1: the daily line remains the morning’s useful imprint; W2: once per day, contextual or deliberately silent. Verify a fresh line can appear across devices after yesterday’s dismissal, without reappearing after a deliberate dismissal today. |
 | Triage bar morph (v2.90.42) | 2026-10-07 | Open — does the pill expanding into the sheet feel like one continuous thing, or does it just look like an animation? Does the collapse on minimise read as returning to the bar? |
 | Monday intention (memory-enriched) | 2026-09-28 | **Removed** — New week repeated Today's task, age, and peak-hour observation while adding a streak statistic. The week grid stays; a distinct weekly recognition is gated above. |

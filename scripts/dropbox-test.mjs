@@ -832,11 +832,19 @@ try {
       localStorage.removeItem('last_successful_backup');
       const up = await Today.use('dropbox-files').upload(Today.use('dropbox-files').dreamsDir + '/2026-09-29_dream_a.md', '---\nid: "dream_a"\n---\n');
       const dreamUp = seen[0] || {};
+      seen.length = 0; bodyText = '---\nid: "dream_a"\n---\n\n## Retelling\n\nTold.\n\n## Reading\n\nA reading.\n';
+      const down = await Today.use('dropbox-files').download(Today.use('dropbox-files').dreamsDir + '/2026-09-29_dream_a.md');
+      const dreamDown = seen[0] || {};
       status = 409; bodyText = '{"error_summary":"path_lookup/not_found/"}'; seen.length = 0;
+      const missing = await Today.use('dropbox-files').download(Today.use('dropbox-files').dreamsDir + '/missing.md');
+      seen.length = 0;
       const gone = await Today.use('dropbox-files').remove(Today.use('dropbox-files').dreamsDir + '/x.md');
       const move = await Today.use('dropbox-files').move('/a.md', '/b.md');
       status = 401; bodyText = '{}';
       const up401 = await Today.use('dropbox-files').upload(Today.use('dropbox-files').dreamsDir + '/y.md', 'y');
+      const uploadExpired = up401.ok === false && localStorage.getItem('dropbox_token_expired') === '1';
+      localStorage.removeItem('dropbox_token_expired');
+      const down401 = await Today.use('dropbox-files').download(Today.use('dropbox-files').dreamsDir + '/y.md');
 
       appMemory.dreams = { index: [
         { id: 'a', recordedAt: '2026-09-20T07:00:00Z', updatedAt: '2026-09-20T07:01:00Z', images: ['door'] },
@@ -855,10 +863,15 @@ try {
         dreamDir: Today.use('dropbox-files').dreamsDir === '/Dreams' + env,
         dreamUpload: up.ok === true && dreamUp.arg?.path === Today.use('dropbox-files').dreamsDir + '/2026-09-29_dream_a.md'
           && dreamUp.arg?.mode === 'overwrite' && dreamUp.body.startsWith('---\nid: "dream_a"'),
+        dreamDownload: down.ok === true && down.text.includes('## Reading\n\nA reading.')
+          && dreamDown.url.endsWith('/2/files/download')
+          && dreamDown.arg?.path === Today.use('dropbox-files').dreamsDir + '/2026-09-29_dream_a.md',
+        downloadMissing: missing.ok === false && missing.notFound === true,
         noBackupSideEffect: !localStorage.getItem('last_successful_backup'),
         deleteNotFound: gone.ok === false && gone.notFound === true,
         moveArgs: move.notFound === true && seen.some(x => x.url.endsWith('/files/move_v2') && x.json?.from_path === '/a.md' && x.json?.to_path === '/b.md'),
-        upload401: up401.ok === false && localStorage.getItem('dropbox_token_expired') === '1',
+        upload401: uploadExpired,
+        download401: down401.ok === false && localStorage.getItem('dropbox_token_expired') === '1',
         tombstoneWins: byId.a?.deleted === true,
         preClearDropped: !byId.c,
         postClearKeptDespiteOldNight: byId.b?.images?.[0] === 'bridge',
@@ -870,7 +883,7 @@ try {
       flushOnTick: /function syncAll\(\) \{[\s\S]*?Today\.use\('dreambank'\)\.flush\(\)[\s\S]*?\n      \}/.test(dropboxSrc),
       noErrors: errors.length === 0,
     });
-    ok('backup path/mode/401 unchanged; dream files upload, move, delete without backup side effects; index merges by id');
+    ok('backup path/mode/401 unchanged; dream files upload, download, move, delete without backup side effects; index merges by id');
     await page.close();
   }
 
