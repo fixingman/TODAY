@@ -172,13 +172,24 @@ try {
       Today.use('reflections').reflectionRemember();
       const policy = JSON.parse(localStorage.getItem('today_reflection_policy') || 'null');
       const el = document.getElementById('triageReflection');
+      const words = [...(el ? el.querySelectorAll('.reflection-feeling-btn') : [])].map(b => b.dataset.feeling);
+      const column = start => words.filter((_, i) => i % 2 === start).join(',');
+      // A past evening marked with the retired 'off' must survive a reload and a sync merge.
+      localStorage.setItem('today_reflections', JSON.stringify([{ date: _localISO(), feeling: 'off', updatedAt: new Date().toISOString() }]));
+      Today.use('reflections')._reflectionMergeRemote({ reflections: [] });
+      const kept = JSON.parse(localStorage.getItem('today_reflections') || '[]');
       return {
         policyRemember: policy?.choice === 'remember',
-        hasButtons: !!(el && el.querySelectorAll('.reflection-feeling-btn').length === 6),
+        tenWords: words.length === 10,
+        lighterColumn: column(0) === 'joyful,alive,content,calm,present',
+        heavierColumn: column(1) === 'scattered,tense,frustrated,drained,sad',
+        offNotOffered: !words.includes('off'),
+        twoColumnGrid: getComputedStyle(el.querySelector('.reflection-feelings')).gridTemplateColumns.split(' ').length === 2,
+        pastOffKept: kept.length === 1 && kept[0].feeling === 'off',
       };
     });
     await expectAll('reflectionRemember saves policy + shows question', result);
-    ok('reflectionRemember: policy=remember, six feeling buttons shown');
+    ok('reflectionRemember: ten feelings in two columns (lighter · heavier, lightest on top); past "off" kept');
     await page.close();
   }
 

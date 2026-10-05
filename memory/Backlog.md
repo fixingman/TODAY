@@ -33,7 +33,7 @@ Ordered by potential impact on TODAY's longitudinal-companion promise and daily 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 12c | **Companion — observation pool** | Phases 0–3 shipped; **Phase 4 iterate / re-observe** | Morning (today-hook kinds) + Sunday (all outcome kinds). Real-use verdict and next gate ↓ |
-| 13 | **DreamBank** | M1 built (v2.93.0); live evals + phone check owed | Keep dreams (dated by the day told, v2.93.8) in Can's Dropbox; TODAY holds only what it learns. M1 → M2 lexicon → M3 callbacks / Sunday / task links. Detail ↓ |
+| 13 | **DreamBank** | M1 live; phone-verified 2026-10-05 (v2.93.13). Scripted evals not run — Can's listening test stands in | Keep dreams (dated by the day told, v2.93.8) in Can's Dropbox; TODAY holds only what it learns. M1 → M2 lexicon → M3 callbacks / Sunday / task links. Detail ↓ |
 | — | **WEEK companion** | Gated | Gate: 12c must feel like a companion, not a feature. Detail ↓ |
 | — | **New week — distinct Monday recognition** | Gated | The old Monday task-list intention was removed after the 2026-09-28 overlap report. Re-enter only with code-selected, week-scale commitment evidence that has a different job from Today's nudge; criteria ↓. |
 | 2 | **Poem corpus — iterate** | In progress | Corpus 128; expand geography and voice. Detail ↓ |
@@ -361,16 +361,16 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 | Surface | Due | Status |
 |---------|-----|--------|
 | Dream sheet + Memory → Dreams (v2.93.8, read fix v2.93.10) | 2026-10-18 | Open — W1: the reading and retelling are worth a glance each time a dream is told; W2: the sheet now shows no date or thought controls, Memory shows one line, and a saved dream can reopen from Dropbox on demand. Does Memory → Dreams earn its place before M2, or should it go? |
-| Morning nudge after midnight (v2.90.54) | 2026-10-09 | Open — W1: the daily line remains the morning’s useful imprint; W2: once per day, contextual or deliberately silent. Verify a fresh line can appear across devices after yesterday’s dismissal, without reappearing after a deliberate dismissal today. |
-| Triage bar morph (v2.90.42) | 2026-10-07 | Open — does the pill expanding into the sheet feel like one continuous thing, or does it just look like an animation? Does the collapse on minimise read as returning to the bar? |
+| Morning nudge after midnight (v2.90.54) | 2026-10-09 | **Kept (2026-10-05)** — the next day's line appeared across devices after a dismissal the day before; BUG-103 verified. |
+| Triage bar morph (v2.90.42) | 2026-10-07 | **Kept (2026-10-05)** — reads as one continuous object opening and shrinking back into the bar. |
 | Monday intention (memory-enriched) | 2026-09-28 | **Removed** — New week repeated Today's task, age, and peak-hour observation while adding a streak statistic. The week grid stays; a distinct weekly recognition is gated above. |
-| About contextual CTAs | 2026-10-08 | Re-observing — extended 20 days from 2026-09-18. Do bordered CTAs clarify actions without pulling attention? |
-| Connections privacy reassurance | 2026-10-01 | Deferred — all connections are active, so the surface has not triggered. Still awaiting a fresh setup to evaluate; do not infer a verdict from absence of exposure. |
+| About contextual CTAs | 2026-10-08 | **Kept (2026-10-05)** — the bordered text CTAs make actions clear without pulling the eye. |
+| Connections privacy reassurance | next new connection | **Extended (2026-10-05)** — still untriggered: every connection is set up. Judge it the next time Can connects a service; do not infer a verdict from absence of exposure. |
 | Focus companion question | 2026-10-15 | Re-observing — v2.92.5 made the highlight quieter (accent label, border on hover), counts only stuck/returning-task signals, and replaced the prompt's lookup table with principles. Does the question now name something about the task itself? |
-| Post-triage reflections | 2026-10-01 | **Iterate (2026-09-14)** — countdown progress bar added (v2.90.12). Due-date review needs Can's real-use verdict; no new evidence recorded yet. |
+| Post-triage reflections | 2026-10-01 | **Kept (2026-10-05)** — Can answers the question; the countdown bar (v2.90.12) does not get in the way. |
 | Choice, reorder, and focus motion | 2026-10-15 | Open — do the transitions clarify where state went without becoming noticeable choreography? |
-| Shift+Space quick voice capture | 2026-09-29 | Open — due-date review needs Can's real-use verdict: is holding the chord genuinely faster than typing, and do the brief capture states clarify progress without lingering? |
-| HOW DAYS FELT insight | 2026-10-08 | Re-observing — extended 20 days from 2026-09-18 while data populates. A useful commitment relationship or silence, never a feeling-frequency recap? |
+| Shift+Space quick voice capture | 2026-10-19 | **Extended (2026-10-05)** — unused since it shipped (v2.90.18); Can chose to keep it for another window. If still unused by 2026-10-19, a hidden gesture nobody reaches for is a removal candidate. |
+| HOW DAYS FELT insight | 2026-10-19 | **Iterated (2026-10-05, v2.93.14)** — Can often couldn't find the feeling he meant. Ten words in two columns (lighter · heavier, lightest on top), adding content, joyful, sad, frustrated, scattered and retiring *off* from the picker; mocked and chosen by Can. Re-observe: does the right word now exist most evenings, and does the larger list slow HOW DAYS FELT reaching anything to say? |
 | Sunday earned insight | 2026-10-15 | Re-observing — was blocked lately; give more rounds before verdict. |
 | Observation pool — morning + Sunday (12c Phase 4) | 2026-10-15 | **Iterate (2026-09-30)** — sampled pool lines have not landed; ordinary morning task-reading remains useful. Keep feedback and earned silence running through the next two Sundays; privately diagnose misses by truth, novelty, usefulness, and timing before changing candidate logic. Do not unlock WEEK or New week. |
 | Memory panel KNOWN record (12d Phase A) | 2026-10-09 | Re-observing — v2.91.0 adds waiting Soon tasks to KNOWN and gives AI observations a lifecycle (episodic refreshed daily, stable shown only after 3 weeks of support, "not me" rejects). Extended from 2026-10-01: stable items need ~15 days to appear. Does the panel now earn a visit? |

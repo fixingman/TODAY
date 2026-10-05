@@ -157,10 +157,17 @@ Rendered inside `#triageReflection` (between summary and Undo button). Three sta
 │  Beyond what got done, how did          │
 │  today feel?                            │
 │                                         │
-│  [ drained ] [ tense ] [ present ]      │
-│  [ off ]     [ calm ]  [ alive ]        │
+│  [  joyful  ]   [ scattered  ]          │
+│  [  alive   ]   [   tense    ]          │
+│  [ content  ]   [ frustrated ]          │
+│  [   calm   ]   [  drained   ]          │
+│  [ present  ]   [    sad     ]          │
 └─────────────────────────────────────────┘
 ```
+
+Two columns (v2.93.14): lighter feelings on the left, heavier on the right, each column
+ordered lightest on top to heaviest at the bottom, so the grid runs from *joyful* to *sad*.
+DOM order is row by row. *off* is no longer offered; evenings already marked *off* stay valid.
 
 After selection: the chosen whole word acknowledges the tap, travels into its
 confirmation, and the other choices recede. The state is already saved while this

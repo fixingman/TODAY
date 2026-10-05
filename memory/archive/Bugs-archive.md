@@ -122,6 +122,36 @@ Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. Al
 
 ---
 
+## BUG-114 — A waking "bad dream" comparison was kept as a dream
+
+**Symptom:** Can, desktop PWA, 2026-10-05, v2.93.12: "Work yesterday felt like a bad dream, I was drowning in emails" opened the dream sheet, kept *I was drowning in emails* as a dream, and wrote a reading. v2.92.1 had fixed exactly this case.
+
+**Root cause:** the v2.93.3 BUG-110 hardening told Gemini that a dream account "can be a single plain sentence with no story, no feeling, and nothing strange", and that length and detail do not decide it. The exclusion for waking comparisons followed as a trailing clause; the allowance won.
+
+**Fix (v2.93.13):** the dream definition now starts from the deciding condition — the speaker places it in their sleep ("dreamt", "saw it while asleep", in any language) — and only then allows a single plain sentence; without that, comparing a waking day or feeling to a dream or nightmare is waking life, and an ambition called a dream is a plan. `meeting-extract-unit-test` asserts both clauses. The same test pass also showed a Turkish reading prefixing its question with a label ("Bugün sorulacak soru:") and one English reading asking two questions; the reading prompt now asks for exactly one question as the last sentence with no label or lead-in (unmeasured by `dream-reading-eval`).
+
+**Verification:** say the "felt like a bad dream" line again → Tasks or "Nothing came up", not Dream. Retell "I saw a dream last night…" → still Dream (BUG-110 must hold).
+
+**Verified ✅ (Can, phone, 2026-10-05, v2.93.13):** the "bad dream" line is not a dream; the plain one-sentence dream still is; "I dreamt I missed a flight… remind me to call mum today" gives the dream plus one task, "Call mum", with nothing from inside the dream.
+
+---
+
+## BUG-110 — A plain one-sentence dream came back as "Nothing came up" (mobile PWA)
+
+**Symptom:** Can, 2026-09-30, iPhone PWA, both v2.92.x and v2.93.0: said "I saw a dream last night, I saw a girl, she was 180 and 70kg" into the mic; the sheet said "Nothing came up". No red dot reported.
+
+**What can produce exactly that, and only that:** `meeting-extract` answered 200 with an empty result on three paths that look identical to "no dream, no tasks": (1) Gemini returned no text (blocked or empty candidate, `finishReason` never inspected), (2) its text was not bare JSON (only leading/trailing code fences were stripped, so any prose around the object failed `JSON.parse`), (3) the model judged the clip not a dream. The prompt framed every recording as "a live meeting" and defined a dream account by narration, so a flat single sentence with measurements and no story is the weakest case for (3). Which path fired is **not confirmed** — no Gemini key is available to the agent, and the phone reports nothing on these paths.
+
+**Hardening (v2.93.3):** Gemini now runs in JSON mode (`responseMimeType: 'application/json'`) and a failed parse falls back to the first `{…}` in the reply; the prompt states that a recording can be one person talking to their phone and that a dream account can be a single plain sentence with no story, feeling, or strangeness. Blocked/empty/unreadable replies now return a `note` (e.g. `empty: safety`, `unreadable reply`) and the client reports it through the red dot, so the next miss names its cause. `meeting-extract-unit-test` pins the three paths; `meeting-test` pins the report; `dream-live-test` gains Can's sentence as `plain-en` and a `--say="…"` mode that prints Gemini's raw answer for any phrase.
+
+**Desktop result (2026-10-05, v2.93.12):** detected as a dream with a reading and "Kept in your Dropbox".
+
+**Verified ✅ (Can, phone, 2026-10-05, v2.93.13):** "I saw a dream last night. I saw a girl, she was 180 and 70 kilos." opens the dream sheet with a reading. The exact failing path on the old build was never isolated (no live key available to the agent); JSON mode, the prompt change, and the empty-reply notes together resolved it, and the notes remain to name any future miss.
+
+**To confirm the cause:** `GEMINI_API_KEY=… node scripts/dream-live-test.mjs --say="I saw a dream last night. I saw a girl, she was 180 and 70 kilos."` on the old prompt (git stash-free: check out `cf825d3d` in a worktree) vs this one; then retell it on the phone. A red dot with a reason = path 1 or 2; a dream sheet = fixed; "Nothing came up" with no dot = the model still judges it not a dream.
+
+---
+
 ## BUG-104 — Web enrichment (↗) always came back empty
 
 **Status:** ✅ v2.90.53 — verified by Can, 2026-09-27.
@@ -131,6 +161,18 @@ Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. Al
 **Root cause:** `5ee16211` (2026-09-14) switched `task-enrich` to Claude Haiku 4.5 but kept `web_search_20260209`, which needs Opus 4.6+/Sonnet 4.6+/Sonnet 5. Every request was rejected; the function logged it, broke out of its loop and returned `200 {card:null}`, which the client caches permanently as `no_result`. `task-enrich-test` asserted both the incompatible pair and the `200 null` degradation.
 
 **Fix (v2.90.53):** `web_search_20250305` for Haiku; provider errors return 502 (429 passed through) so they stay retryable; client cache entries carry `v: 2` and unversioned `no_result` entries are retried once.
+
+---
+
+## BUG-103 — Yesterday’s dismissal hides today’s nudge
+
+**Status:** ✅ v2.90.54 — verified by Can, 2026-10-05: the next morning's line appeared on the other device after a dismissal the day before.
+
+**Symptom:** A new daily nudge failed to appear on the task list after midnight, even with open tasks and a line visible in About.
+
+**Root cause:** `_DISMISS_SYNC` sent only `'1'` for a per-day dismissal, with no source day. `mergeRemoteData()` wrote any incoming `'1'` to `day_nudge_dismissed_<today>`, so yesterday’s last Dropbox snapshot could suppress today’s strip. The same flaw applied to its legacy aliases and the Sunday badge seen flag. The live report’s exact local flag was not available, but the old merge reproduced the mechanism in a failing browser test.
+
+**Fix (v2.90.54):** Backups carry one source-local `per_day_dismiss_date`; only a matching current-day date allows registry flags to merge. Undated old snapshots are ignored; deliberate same-day dismissal still propagates. The browser test covers stale, undated, and current-day input plus the outgoing date. An already-written local flag is not automatically removed, since it could reflect an intentional tap. Verify on two updated devices across a day boundary.
 
 ---
 

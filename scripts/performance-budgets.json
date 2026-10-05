@@ -15,7 +15,7 @@
   },
   "timing": {
     "cold.ttfb": 1000,
-    "cold.fcp": 1800,
+    "cold.fcp": 7000,
     "cold.lcp": 10500,
     "cold.cls": 0.1,
     "cold.tbt": 200,

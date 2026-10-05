@@ -7,7 +7,18 @@
     if (started) return;
     started = true;
 
-    const VALID_FEELINGS  = ['drained', 'tense', 'present', 'off', 'calm', 'alive'];
+    // Offered as a two-column grid (v2.93.14): lighter feelings on the left, heavier on
+    // the right, each column lightest on top. DOM order is row by row.
+    const OFFERED_FEELINGS = [
+      'joyful',  'scattered',
+      'alive',   'tense',
+      'content', 'frustrated',
+      'calm',    'drained',
+      'present', 'sad',
+    ];
+    // 'off' is no longer offered, but evenings already marked with it stay valid — in
+    // storage, in sync, and in HOW DAYS FELT.
+    const VALID_FEELINGS  = [...OFFERED_FEELINGS, 'off'];
     const POLICY_KEY      = 'today_reflection_policy';
     const DATA_KEY        = 'today_reflections';
     const CLEARED_KEY     = 'today_reflections_cleared_at';
@@ -164,7 +175,7 @@
     function _buildQuestionHTML() {
       return `<div class="reflection-question">Beyond what got done, how did today feel?</div>` +
         `<div class="reflection-feelings" role="group" aria-label="How today felt">` +
-        VALID_FEELINGS.map(f =>
+        OFFERED_FEELINGS.map(f =>
           `<button class="reflection-feeling-btn" aria-pressed="false" data-today-click="reflections.select" data-feeling="${f}">${f}</button>`
         ).join('') +
         `</div>`;
@@ -281,7 +292,7 @@
     }
 
     function reflectionSelect(feeling) {
-      if (!VALID_FEELINGS.includes(feeling)) return;
+      if (!OFFERED_FEELINGS.includes(feeling)) return;
 
       const today = _localISO();
       let list    = _loadReflections();

@@ -41,7 +41,12 @@ URL and retains its JSON for 30 days. Run
 - `npm run performance --prefix scripts` runs five cold/warm mobile-like load pairs and five
   desktop interaction passes, then checks worst-run timing and deterministic payload budgets.
 - `npm run performance:write --prefix scripts` refreshes `performance-baseline.json` and the
-  generated block in `Performance-audit.md`; use it when the app version or payload changes.
+  generated block in `Performance-audit.md`; use it for a deliberate evidence refresh or budget
+  calibration, not mechanically for every app-version bump.
+- The push/PR gate uses `--no-audit-check`: it still measures all five runs and enforces every
+  payload and timing budget, but a dated audit snapshot does not fail each intervening release.
+  Refresh the tracked audit deliberately when reviewing performance, not as a prerequisite for
+  every app-version bump.
 - Nightly checks out `dev`, requires the deployed version to match, and warms Chrome on a blank
   page before cold navigation. It still clears cache and origin storage for every measured run;
   long-task timings are retained in the JSON when a worst-run outlier needs diagnosis.

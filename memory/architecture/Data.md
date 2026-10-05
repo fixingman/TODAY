@@ -207,7 +207,7 @@
 | Key | Type | Notes |
 |-----|------|-------|
 | `today_reflection_policy` | JSON `{choice, updatedAt}` | `choice` is `"remember"` or `"not_for_me"`; LWW on sync |
-| `today_reflections` | JSON array `[{date, feeling, updatedAt}]` | per-date LWW union on sync; pruned to 30 calendar days; `feeling` ∈ `{drained, tense, present, off, calm, alive}` |
+| `today_reflections` | JSON array `[{date, feeling, updatedAt}]` | per-date LWW union on sync; pruned to 30 calendar days; `feeling` ∈ `{joyful, alive, content, calm, present, scattered, tense, frustrated, drained, sad}` plus legacy `off` (no longer offered) |
 | `today_reflections_cleared_at` | ISO string | deletion watermark; max-wins on sync; entries ≤ watermark are discarded |
 | `today_reflection_intro_seen_at` | ISO string | **local-only** — 7-day cooldown before re-offering the intro; intentionally never backed up to Dropbox |
 

@@ -31,7 +31,7 @@ jobs:
       - name: Run automated gate
         run: npm test --prefix scripts
       - name: Run performance budgets
-        run: npm run performance --prefix scripts
+        run: npm run performance --prefix scripts -- --no-audit-check
       - name: Validate memory inventory
         run: bash memory/validate-files.sh
       - name: Check patch whitespace
