@@ -6,7 +6,7 @@
     "runtimeShellBrotli": 358400,
     "indexBrotli": 71680,
     "fontBytes": 102400,
-    "eagerScripts": 37
+    "eagerScripts": 38
   },
   "targets": {
     "cold.fcp": 1800,

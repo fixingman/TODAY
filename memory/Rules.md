@@ -3,9 +3,9 @@
 
 ---
 
-## Current Focus (reviewed 2026-09-22)
-- **Working on:** Verify the observation pool and recent interaction motion in real use. Follow the dated Wallpaper verdicts in `Backlog.md`; current implementation and release details live in `Changelog.md`.
-- **Recent:** v2.90.34–41 made Sunday silence diagnosable, gave observations code-owned interpretations, hardened triage sync, and added the suggestion, voice-confirmation, and Gmail-label transitions. See `Changelog.md` for the exact behavior.
+## Current Focus (reviewed 2026-10-05)
+- **Working on:** Re-observe 12c morning/Sunday lines for the 2026-10-15 verdict and DreamBank M1 in real use; the dated Wallpaper verdicts and gates are in `Backlog.md`. Do not unlock WEEK, New week, or DreamBank M2 from one positive reading.
+- **Recent:** v2.93.8–10 simplified dream dating and Memory → Dreams, made saved readings reopen across devices, and adjusted morning task-reading lines after repeated misses. v2.93.11 refreshes the performance evidence gate; deployed verification is owed. See `Changelog.md` for exact behavior and verification owed.
 - **Module extraction: COMPLETE.** Runtime ownership and the startup composition boundary are documented in `design/Components.md`; new behavior belongs in the owning module and its component contract.
 - **Machine routing guard:** before any agent changes Headroom, a model provider/base URL, proxy/wrapper, port/mode, runtime override, or Headroom version, read `/Users/can/.headroom/ROUTING-GUARD.md` and obtain Can's explicit approval for that exact change. Keep Codex on explicit `127.0.0.1`, not `localhost`. Do not run `headroom learn --verbosity --apply`: v0.35.0 learns from Claude history only but hot-enables a proxy-global output shaper that can also affect Codex.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**

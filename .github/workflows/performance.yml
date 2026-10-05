@@ -18,6 +18,8 @@ jobs:
       PERF_CPU_THROTTLE_RATE: 1
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: dev
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -28,7 +30,7 @@ jobs:
       - name: Verify Chrome
         run: test -x "$CHROME_PATH"
       - name: Measure deployed dev build
-        run: npm run performance --prefix scripts -- --target "$PERF_TARGET_URL" --output performance-nightly.json --no-audit-check
+        run: npm run performance --prefix scripts -- --target "$PERF_TARGET_URL" --output performance-nightly.json --no-audit-check --require-version-match
       - name: Retain benchmark JSON
         if: always()
         uses: actions/upload-artifact@v6

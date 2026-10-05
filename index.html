@@ -4650,16 +4650,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '341h';
+const DEV_HOURS     = '342h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.93.11': 'The startup performance check now compares the right app version and separates browser startup from page loading.',
   '2.93.10': 'Dreams you kept in Dropbox can now be read again from Memory, including notes saved with older dreams.',
   '2.93.9': 'Today’s nudge now takes a short pause after repeated “not really” votes, and skips bare task-age recaps.',
-  '2.93.8': 'A dream is now simply dated to the day you tell it, and the dream sheet is calmer: no thought or night buttons, and the list behind it no longer scrolls on your phone. Memory → Dreams is one line with a manage option.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

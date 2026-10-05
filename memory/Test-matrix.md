@@ -42,6 +42,9 @@ URL and retains its JSON for 30 days. Run
   desktop interaction passes, then checks worst-run timing and deterministic payload budgets.
 - `npm run performance:write --prefix scripts` refreshes `performance-baseline.json` and the
   generated block in `Performance-audit.md`; use it when the app version or payload changes.
+- Nightly checks out `dev`, requires the deployed version to match, and warms Chrome on a blank
+  page before cold navigation. It still clears cache and origin storage for every measured run;
+  long-task timings are retained in the JSON when a worst-run outlier needs diagnosis.
 - Cold/warm evidence includes TTFB, FCP, LCP, CLS, total blocking time, long tasks, load timing,
   TODAY's four lifecycle marks, transferred/encoded/decoded bytes, and service-worker control.
   Interaction evidence measures task addition and entry into focus.

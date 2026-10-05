@@ -365,11 +365,11 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 | Triage bar morph (v2.90.42) | 2026-10-07 | Open — does the pill expanding into the sheet feel like one continuous thing, or does it just look like an animation? Does the collapse on minimise read as returning to the bar? |
 | Monday intention (memory-enriched) | 2026-09-28 | **Removed** — New week repeated Today's task, age, and peak-hour observation while adding a streak statistic. The week grid stays; a distinct weekly recognition is gated above. |
 | About contextual CTAs | 2026-10-08 | Re-observing — extended 20 days from 2026-09-18. Do bordered CTAs clarify actions without pulling attention? |
-| Connections privacy reassurance | 2026-10-01 | Deferred — Can has all connections active so the surface never triggers; can’t evaluate until a fresh setup. Re-check 2026-10-01. |
+| Connections privacy reassurance | 2026-10-01 | Deferred — all connections are active, so the surface has not triggered. Still awaiting a fresh setup to evaluate; do not infer a verdict from absence of exposure. |
 | Focus companion question | 2026-10-15 | Re-observing — v2.92.5 made the highlight quieter (accent label, border on hover), counts only stuck/returning-task signals, and replaced the prompt's lookup table with principles. Does the question now name something about the task itself? |
-| Post-triage reflections | 2026-10-01 | **Iterate (2026-09-14)** — countdown progress bar added (v2.90.12); re-observe. |
+| Post-triage reflections | 2026-10-01 | **Iterate (2026-09-14)** — countdown progress bar added (v2.90.12). Due-date review needs Can's real-use verdict; no new evidence recorded yet. |
 | Choice, reorder, and focus motion | 2026-10-15 | Open — do the transitions clarify where state went without becoming noticeable choreography? |
-| Shift+Space quick voice capture | 2026-09-29 | Open — does holding the chord remain genuinely faster than typing, and do the brief capture states clarify progress without lingering? |
+| Shift+Space quick voice capture | 2026-09-29 | Open — due-date review needs Can's real-use verdict: is holding the chord genuinely faster than typing, and do the brief capture states clarify progress without lingering? |
 | HOW DAYS FELT insight | 2026-10-08 | Re-observing — extended 20 days from 2026-09-18 while data populates. A useful commitment relationship or silence, never a feeling-frequency recap? |
 | Sunday earned insight | 2026-10-15 | Re-observing — was blocked lately; give more rounds before verdict. |
 | Observation pool — morning + Sunday (12c Phase 4) | 2026-10-15 | **Iterate (2026-09-30)** — sampled pool lines have not landed; ordinary morning task-reading remains useful. Keep feedback and earned silence running through the next two Sundays; privately diagnose misses by truth, novelty, usefulness, and timing before changing candidate logic. Do not unlock WEEK or New week. |
