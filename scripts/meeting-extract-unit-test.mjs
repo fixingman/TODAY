@@ -34,8 +34,11 @@ assert.equal(sent.generationConfig.responseMimeType, 'application/json');
 const prompt = sent.systemInstruction.parts[0].text;
 assert.match(prompt, /talking to their phone/);
 assert.match(prompt, /single plain sentence/);
+// BUG-114: the short-dream allowance must not swallow waking comparisons ("felt like a bad dream").
+assert.match(prompt, /places what they describe in their sleep/);
+assert.match(prompt, /comparing a waking day, place, or feeling to a dream or nightmare describes waking life/);
 assert.doesNotMatch(prompt, /night_hint/);
-ok('a plain one-sentence dream passes through; JSON mode and the short-dream principle are sent');
+ok('a plain one-sentence dream passes through; JSON mode, the short-dream principle, and the waking-comparison exclusion are sent');
 
 reply(text('Here is the JSON you asked for:\n' + JSON.stringify(dream) + '\nHope that helps.'));
 out = await run();

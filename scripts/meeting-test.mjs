@@ -409,7 +409,7 @@ try {
         onlyQueueAndIndex: holders.every(k => k === 'today-dream-queue' || k === 'today_memory'),
         noRetellingInMemory: !memoryText.includes('floor was water. I felt calm'),
         twoRequests: t.aiRequests.length === 2,
-        readingPrompt: /do not guess at their/.test(readReq.systemPrompt) && /At most 80 words/.test(readReq.systemPrompt)
+        readingPrompt: /do not guess at their/.test(readReq.systemPrompt) && /At most 80 words/.test(readReq.systemPrompt) && /exactly one question, as your last sentence and with no label/.test(readReq.systemPrompt)
           && !/just woken up/.test(readReq.systemPrompt) && readReq.messages?.[0]?.content === dream
           && readReq.provider === 'claude' && readReq.apiKey === 'claude-key',
         extractPrompt: /Reply only with JSON/.test(extractReq.systemPrompt) && extractReq.messages?.[0]?.content === dream,
