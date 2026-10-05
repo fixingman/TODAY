@@ -228,7 +228,6 @@ Scale is numeric, 4px base:
 **Hardcoded (not tokenised):**
 | Value | Element | Reason |
 |---|---|---|
-| `0` | `body::before` noise texture | Below all content |
 | `5` | `#statusBarScrim` (v2.33.1) | Above content (1), below section headers (9) and glass header (10) — covers the iOS safe-area strip |
 | `9` | `.section-header` sticky | One below the glass header it slides under |
 | `50` | Idle companion | Between header and modal |

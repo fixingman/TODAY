@@ -18,6 +18,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 113 | Header, section labels, and Soon/Past headers looked darker than the page (most on mobile) — a full-page noise overlay lifted the page under opaque --bg bands | ⏳ v2.93.12 |
 | 112 | A saved dream could not be reread in Memory after its local body was pruned or on another device | ⏳ v2.93.10 |
 | 111 | With the dream sheet open on mobile, swiping scrolled the task list behind it | ⏳ v2.93.8 |
 | 110 | A one-sentence dream told to the mobile mic came back as "Nothing came up" — silent empty result from meeting-extract | 🔍 Diagnosing (hardened v2.93.3) |
@@ -47,6 +48,18 @@
 ---
 
 *BUG-001–087 → `archive/Bugs-archive.md` (summary rows + detail). Detail for every later ✅ bug is archived too. Below: open, awaiting-verification, and rejected bugs only.*
+
+---
+
+## BUG-113 — Header and section labels darker than the page
+
+**Symptom:** Can, 2026-10-05: the "tabs" (top header, sticky section labels, Soon/Past headers) had a darker background than the app, clearly on mobile and slightly on desktop.
+
+**Root cause:** `body::before` laid a fixed fractal-noise texture over the whole page at z-index 0 (~1 level of lift: 15.8 vs 14.67 mean RGB). Every element painted with an opaque `var(--bg)` sat above it and showed the true `#0e0e10` — a darker strip. Mobile showed it most because the header is solid there since v2.92.3. The bands did use the tokens; the page did not render the token colour.
+
+**Fix (v2.93.12):** the noise overlay is removed; the page renders exactly `--color-bg`, matching the inline `<html>`/`<body>` base and `theme-color`. The focus-mode SVG `#noise` filter is unrelated and stays. `visual-test` mobile-320 compares the header band to the page beside the rows (fails at 14.67 vs 15.93 on the old CSS).
+
+**Verification:** on the phone and desktop, the header and section labels should be indistinguishable from the page behind the tasks.
 
 ---
 

@@ -388,6 +388,32 @@ const SCENES = {
       today_manual: BASE_TASKS.slice(0, 4),
       today_done:   ['vt_2'],
     },
+    // Opaque --bg bands (the solid mobile header, sticky section labels) must match the
+    // page itself. A full-page texture under them once lifted the page a level, so every
+    // band read as a darker strip on the phone.
+    interact: async (page) => {
+      const box = await page.evaluate(() => {
+        const header = document.querySelector('.sticky-header').getBoundingClientRect();
+        const lastRow = [...document.querySelectorAll('#manualList .task')].pop().getBoundingClientRect();
+        return { headerY: header.top + 4, pageY: lastRow.bottom + 24 };
+      });
+      const png = PNG.sync.read(await page.screenshot({ type: 'png' }));
+      const mean = (x, y, w, h) => {
+        let sum = 0, n = 0;
+        for (let j = Math.round(y); j < Math.round(y + h); j++) {
+          for (let i = x; i < x + w; i++) {
+            const k = (j * png.width + i) * 4;
+            sum += png.data[k] + png.data[k + 1] + png.data[k + 2]; n += 3;
+          }
+        }
+        return sum / n;
+      };
+      const band = mean(2, box.headerY, 8, 4);
+      const pageBg = mean(2, box.pageY, 8, 4);
+      if (Math.abs(band - pageBg) > 0.25) {
+        throw new Error(`header band (${band.toFixed(2)}) and page background (${pageBg.toFixed(2)}) differ — opaque bands read as stripes`);
+      }
+    },
   }),
 };
 
