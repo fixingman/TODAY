@@ -13,6 +13,69 @@
     const GMAIL_SCOPE     = 'https://www.googleapis.com/auth/gmail.readonly';
     const GMAIL_DIAGNOSTICS_KEY = 'gmail_diagnostics_v1';
     const GMAIL_OPERATOR_RE = /\b(?:from:|to:|subject:|label:|in:|after:|before:|newer:|older:|is:|has:|filename:)/;
+    // Calendar-generated notifications are not correspondence. Use the actual
+    // sender, not a subject word or an .ics attachment (both can be useful mail).
+    const CALENDAR_NOTIFICATION_SENDER = 'calendar-notification@google.com';
+    const GMAIL_MATCH_POLICY = 'minisearch-v1';
+    let _miniSearchPromise;
+    function _gmailSender(from) {
+      const value = String(from || '').trim();
+      return (value.match(/<([^<>]+)>\s*$/)?.[1] || value).trim().toLowerCase();
+    }
+    function _isCalendarNotification(from) {
+      return _gmailSender(from) === CALENDAR_NOTIFICATION_SENDER;
+    }
+
+    // Only a transient candidate index: no mailbox ingestion or stored vectors.
+    // Vendored, lazy and precached; never contact a CDN from the task app.
+    async function _gmailRankCandidates(taskText, candidates) {
+      const tokenize = text => String(text || '').normalize('NFKD').replace(/\p{M}/gu, '')
+        .toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+      const processTerm = term => term.length > 4 && /[^s]s$/.test(term) ? term.slice(0, -1) : term;
+      const booking = _isBookingTask(taskText);
+      const ignored = new Set(('a an the my our your i we it this that to of at with in on for about regarding '
+        + 'next new another last today tomorrow yesterday week month year morning afternoon evening').split(' '));
+      let content = String(taskText || '').replace(new RegExp('^\\s*' + (booking ? BOOKING_RE.source : CONTACT_RE.source), 'i'), '');
+      if (booking) content = content.replace(new RegExp(BOOKING_RE.source, 'gi'), ' ');
+      // Strip the leading action, not topic words: "email Gaia for reservation"
+      // must require reservation evidence, not merely a message from Gaia.
+      const terms = [...new Set(tokenize(content).filter(t => !ignored.has(t) && !/^\d+$/.test(t)).map(processTerm))];
+      if (!terms.length) return { result: null, status: 'weak-match' };
+      const provider = booking && String(taskText).match(/\b(?:at|with)\s+(.+)$/i);
+      const providerTerms = provider ? tokenize(provider[1]).filter(t => !ignored.has(t) && !/^\d+$/.test(t)).map(processTerm) : [];
+      const eligible = candidates.filter(c => {
+        if (_isCalendarNotification(c.from)) return false;
+        if (!booking) return true;
+        if (!/\b(?:confirmation|confirmed|booked|reserved|booking|appointment|reservation)\b/i.test(c.subject + ' ' + c.snippet)) return false;
+        // An explicitly named provider must be supported by the correspondent,
+        // not a passing mention in somebody else's message.
+        const senderTerms = tokenize(c.from).map(processTerm);
+        return providerTerms.every(t => senderTerms.includes(t));
+      }).slice(0, 50);
+      if (!eligible.length) return { result: null, status: 'weak-match' };
+      let MiniSearch;
+      try {
+        if (!_miniSearchPromise) _miniSearchPromise = import('./vendor/minisearch-7.2.0.js').catch(error => {
+          _miniSearchPromise = null;
+          throw error;
+        });
+        MiniSearch = (await _miniSearchPromise).default;
+      } catch(e) { return { result: null, status: 'ranking-unavailable' }; }
+      const index = new MiniSearch({ fields: ['subject', 'from', 'snippet'], tokenize, processTerm });
+      index.addAll(eligible.map((c, id) => ({ id, subject: c.subject || '', from: c.from || '', snippet: c.snippet || '' })));
+      const hits = index.search(terms.join(' '), { combineWith: 'AND', prefix: false, fuzzy: false,
+        boost: { subject: 3, from: 2, snippet: 1 } });
+      if (!hits.length) return { result: null, status: 'weak-match' };
+      hits.sort((a, b) => b.score - a.score || (Date.parse(eligible[b.id].date) || 0) - (Date.parse(eligible[a.id].date) || 0));
+      const first = eligible[hits[0].id];
+      // A retrieval score is not a probability or a learned business preference.
+      // For unnamed bookings, do not guess between distinct correspondents.
+      if (booking && !providerTerms.length && hits.some(h => _gmailSender(eligible[h.id].from) !== _gmailSender(first.from)))
+        return { result: null, status: 'ambiguous-match' };
+      const rival = hits.find(h => eligible[h.id].threadId !== first.threadId && _gmailSender(eligible[h.id].from) !== _gmailSender(first.from));
+      if (rival && hits[0].score < rival.score * 1.25) return { result: null, status: 'ambiguous-match' };
+      return { result: { ...first, matchPolicy: GMAIL_MATCH_POLICY }, status: 'found' };
+    }
 
     // Local, bounded and deliberately content-free: a deleted task can still be
     // diagnosed without retaining its text, Gmail query, message or credentials.
@@ -352,43 +415,60 @@
       return { isComm: true, searchQuery: _buildQueryFallback(taskText), source: 'fallback', failure };
     }
 
-    async function _gmailSearch(searchQuery) {
+    async function _gmailSearch(searchQuery, taskText) {
       if (!searchQuery || searchQuery.length < 2) return { result: null, status: 'no-query' };
 
       const list = await _gmailFetch(
-        GMAIL_API_BASE + '/threads?q=' + encodeURIComponent(searchQuery) + '&maxResults=1'
+        // Group the original query so the exclusion applies to every OR branch.
+        GMAIL_API_BASE + '/threads?q=' + encodeURIComponent('(' + searchQuery + ') -from:' + CALENDAR_NOTIFICATION_SENDER) + '&maxResults=5'
       );
       if (!list.data) return { result: null, status: list.status };
       if (!list.data.threads || !list.data.threads.length) return { result: null, status: 'no-thread' };
 
-      const threadId = list.data.threads[0].id;
-      const thread = await _gmailFetch(
-        GMAIL_API_BASE + '/threads/' + threadId
+      let excluded = false;
+      const candidates = [];
+      for (const candidate of list.data.threads.slice(0, 5)) {
+        const threadId = candidate.id;
+        const thread = await _gmailFetch(
+          GMAIL_API_BASE + '/threads/' + threadId
           + '?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date&metadataHeaders=Message-ID'
-      );
-      if (!thread.data) return { result: null, status: thread.status };
-      if (!thread.data.messages || !thread.data.messages.length) return { result: null, status: 'no-messages' };
-
-      const lastMsg = thread.data.messages[thread.data.messages.length - 1];
-      const headers = (lastMsg.payload && lastMsg.payload.headers) || [];
-      const hdr = (name) => (headers.find(h => h.name.toLowerCase() === name.toLowerCase()) || {}).value || '';
-
-      return { status: 'found', result: {
-        threadId,
-        subject: hdr('Subject'),
-        from:    hdr('From'),
-        date:    hdr('Date'),
-        // RFC 822 Message-ID of the last message — opens it in Apple Mail via message://.
-        messageId: hdr('Message-ID').trim().replace(/^<|>$/g, ''),
-        snippet: lastMsg.snippet || '',
-      } };
+        );
+        if (!thread.data) return { result: null, status: thread.status };
+        const messages = (thread.data.messages || []).slice(-10);
+        // threads.get returns the whole conversation, including notifications
+        // that did not match the filtered query. Never display one accidentally.
+        for (let i = messages.length - 1; i >= 0; i--) {
+          const message = messages[i];
+          const headers = (message.payload && message.payload.headers) || [];
+          const hdr = (name) => (headers.find(h => h.name.toLowerCase() === name.toLowerCase()) || {}).value || '';
+          if (_isCalendarNotification(hdr('From'))) { excluded = true; continue; }
+          candidates.push({
+            threadId,
+            subject: hdr('Subject'),
+            from:    hdr('From'),
+            date:    hdr('Date'),
+            // Opens the selected non-calendar message, not the thread's reminder.
+            messageId: hdr('Message-ID').trim().replace(/^<|>$/g, ''),
+            snippet: message.snippet || '',
+          });
+        }
+      }
+      if (!candidates.length) return { result: null, status: excluded ? 'excluded-calendar' : 'no-messages' };
+      return _gmailRankCandidates(taskText, candidates);
     }
 
     // ── Enrichment ─────────────────────────────────────────────────────────────
-    function _getEnrichment(taskId) {
+    function _getEnrichment(taskId, taskText) {
       try {
         const raw = localStorage.getItem('gmail_enrichment_' + taskId);
-        return raw ? JSON.parse(raw) : null;
+        const cached = raw ? JSON.parse(raw) : null;
+        if (cached && (_isCalendarNotification(cached.from)
+            || cached.matchPolicy !== GMAIL_MATCH_POLICY
+            || (taskText && cached.taskText !== taskText))) {
+          localStorage.removeItem('gmail_enrichment_' + taskId);
+          return null;
+        }
+        return cached;
       } catch(e) { return null; }
     }
 
@@ -401,7 +481,7 @@
 
       const attempts = [];
       let searchQuery = classification.searchQuery;
-      let searched = await _gmailSearch(searchQuery);
+      let searched = await _gmailSearch(searchQuery, taskText);
       attempts.push({ path: classification.source === 'fallback' ? 'fallback' : 'ai', status: searched.status });
 
       // A syntactically valid AI query can still be too narrow. Only retry a
@@ -411,7 +491,7 @@
         const fallback = _buildQueryFallback(taskText);
         if (fallback && fallback !== searchQuery) {
           searchQuery = fallback;
-          searched = await _gmailSearch(searchQuery);
+          searched = await _gmailSearch(searchQuery, taskText);
           attempts.push({ path: 'fallback', status: searched.status });
         }
       }
@@ -427,11 +507,11 @@
         return;
       }
 
-      const cached = _getEnrichment(taskId);
+      const cached = _getEnrichment(taskId, taskText);
       if (cached && (Date.now() - cached.fetchedAt) < 86400000) return;
 
       const found = await _gmailFindThread(taskId, taskText);
-      if (!found) return;
+      if (!found || !_gmailIsConnected()) return;
 
       localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify({
         ...found.result, taskText, searchQuery: found.searchQuery, fetchedAt: Date.now(),
@@ -447,13 +527,14 @@
       if (!_getEnrichment(taskId) || !_gmailIsConnected()) return;
 
       const span = document.createElement('span');
-      span.className = fresh ? 'gmail-indicator agent-indicator-arrive' : 'gmail-indicator';
+      span.className = 'gmail-indicator';
       span.textContent = '↩';
       span.setAttribute('aria-label', 'Email context available — start a focus session');
       const textEl = taskEl.querySelector('.task-text');
       const tail   = textEl && textEl.querySelector('.task-tail');
       if (tail) textEl.insertBefore(span, tail);
       else if (textEl) textEl.appendChild(span);
+      if (fresh) _playEnrichmentArrival(span);
     }
 
     function _gmailRestoreAllIndicators() {
@@ -492,7 +573,7 @@
         .slice(0, 200);
       const searchQ  = encodeURIComponent(enrichment.searchQuery || _buildQueryFallback(taskText || enrichment.taskText || ''));
       const gmailUrl = 'https://mail.google.com/mail/u/0/#search/' + searchQ;
-      // Desktop Mac: open the thread's last message in Apple Mail (message://<Message-ID>),
+      // Desktop Mac: open the selected message in Apple Mail (message://<Message-ID>),
       // never the browser (Can, 2026-10-06). Everywhere else, and for lookups cached before
       // the Message-ID was fetched, the Gmail web link stays.
       const appleMail = _isDesktopMac() && enrichment.messageId;
@@ -532,8 +613,10 @@
     function _gmailRenderFocusBlock(taskId, taskText) {
       const block = document.getElementById('focusGmailBlock');
       if (!block || !_gmailIsConnected()) return;
+      // Stamp cached visits too, so an older lookup cannot overwrite this task.
+      block.dataset.focusTaskId = taskId;
 
-      const enrichment = _getEnrichment(taskId);
+      const enrichment = _getEnrichment(taskId, taskText);
       if (enrichment) { _doRenderBlock(block, taskText, enrichment); return; }
 
       // No cache yet — classify then fetch on demand.
@@ -542,10 +625,9 @@
       if (!taskText) return;
       block.hidden = true;
       block.innerHTML = '';
-      block.dataset.focusTaskId = taskId;
       const requestTaskId = taskId;
       _gmailFindThread(taskId, taskText).then(function(found) {
-        if (!found) return;
+        if (!found || !_gmailIsConnected()) return;
         const data = Object.assign({}, found.result, { taskText, searchQuery: found.searchQuery, fetchedAt: Date.now() });
         try { localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify(data)); } catch(e) {}
         _gmailUpdateIndicator(taskId, true);
@@ -655,6 +737,6 @@
     window._gmailRestoreAllIndicators   = _gmailRestoreAllIndicators;
     window._gmailUpdateIndicator        = _gmailUpdateIndicator;
     window._gmailBuildQueryFallback     = _buildQueryFallback;
-    Today.define('gmail', { observationAudit: _gmailObservationAudit });
+    Today.define('gmail', { observationAudit: _gmailObservationAudit, rankCandidates: _gmailRankCandidates });
   };
 })();

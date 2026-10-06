@@ -25,6 +25,19 @@
 
 ---
 
+## Gmail context relevance (2026-10-06)
+
+Can's “Book haircut” matched a calendar-generated reminder. GitHub research found two distinct approaches:
+
+- **Source filtering:** [Q00's Gmail filters](https://gist.github.com/Q00/24b6891dcef7925a0992f287f8f535a8) and [erikdstock's calendar filter](https://gist.github.com/erikdstock/5d6770b2accec3124e8d15f394861c06) identify `calendar-notification@google.com`. Some examples also match invitations/subjects; TODAY deliberately does not copy that broader rule because service correspondence can contain a calendar attachment or reminder wording. No external script is installed and no inbox filters are created.
+- **Semantic retrieval:** [semantic-mail](https://github.com/yahorbarkouski/semantic-mail) downloads mail and builds a local embedding/vector index; [mail-semantic-search](https://github.com/JonLaliberte/mail-semantic-search) adds metadata filtering and cross-encoder reranking to a local email archive. Useful retrieval patterns, but their mailbox ingestion, model runtime and database are not a drop-in fit for TODAY's bounded task lookup. No adoption proposed from this incident.
+
+**Applied:** v2.93.20 excludes the known Google Calendar sender across Gmail enrichment queries, selected messages and old caches, with bounded next-candidate inspection. [Gmail's search guide](https://developers.google.com/workspace/gmail/api/guides/filtering) distinguishes API message search from Gmail UI thread-wide search; fetching a full thread still needs a selected-message guard. This is not a general relevance ranking solution. Keep the October 20 booking-context verdict open; do not infer a preferred salon from one search hit or introduce mailbox indexing/personal memory without intervention evidence. Other calendar providers need observed source evidence.
+
+**Selected with Can (v2.93.21):** [MiniSearch](https://github.com/lucaong/minisearch) is a local lexical ranker with field boosting; use a transient five-thread candidate set, not a mailbox index. Vendored 7.2.0 is lazy-imported and precached. Keep deterministic service/provider, notification and ambiguity gates around the scorer. A small fake-email comparison selects confirmations over wrong-service/promotional first hits and abstains on ambiguous senders/unsupported synonyms; this is regression evidence, not live-account accuracy. [Fuse](https://github.com/krisk/Fuse) was an overlapping lexical alternative. [Transformers.js](https://github.com/huggingface/transformers.js) and [Ternlight](https://github.com/soycaporal/ternlight) allow local semantic ranking without a whole mailbox index, correcting the narrower whole-mailbox-app research above, but model download/mobile cost is not justified yet. Revisit only if observed lexical misses warrant it.
+
+---
+
 ## Todoist Feasibility (historical; rejected)
 
 ### API Overview

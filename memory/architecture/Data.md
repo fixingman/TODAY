@@ -53,6 +53,8 @@
 | `dropbox_refresh_token` | string | Dropbox refresh token (PKCE) |
 | `dropbox_token_expiry` | string | Epoch ms |
 | `today_connections_privacy_seen` | string | Local-only `'1'` after the first Connections-panel open; gates the one-time privacy reassurance and is deliberately excluded from Dropbox backup/sync |
+| `gmail_enrichment_<taskId>` | JSON | Device-local selected email metadata: `{threadId, subject, from, date, messageId, snippet, taskText, searchQuery, fetchedAt, matchPolicy}`. v2.93.21 requires `matchPolicy: 'minisearch-v1'`, removes old unvalidated/calendar cards on read and rechecks changed task text. Candidate indexes are transient; no mailbox import or synced email corpus. |
+| `gmail_diagnostics_v1` | JSON array | At most 20 device-local `{taskId, status, source, reason, attempts, at}` records. Includes `weak-match`, `ambiguous-match`, `ranking-unavailable` and `excluded-calendar`, never queries, task wording, email content, scores or credentials. Cleared with Gmail Forget; not synced. |
 
 ### AI
 

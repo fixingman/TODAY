@@ -485,17 +485,6 @@
     .task:hover .agent-indicator { opacity: var(--opacity-soft); }
   }
 
-  @keyframes agentIndicatorArrive {
-    0%   { opacity: 0; color: var(--muted); }
-    15%  { opacity: 1; color: var(--accent); }
-    65%  { opacity: 1; color: var(--accent); }
-    100% { opacity: 0; color: var(--muted); }
-  }
-  .agent-indicator.agent-indicator-arrive,
-  .gmail-indicator.agent-indicator-arrive {
-    animation: agentIndicatorArrive 1.4s var(--ease-out) 1;
-  }
-
   .focus-gmail-block {
     border-top: 1px solid var(--accent-focus-divider);
     padding: var(--space-3) var(--space-4) var(--space-3);
@@ -4643,16 +4632,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '343h';
+const DEV_HOURS     = '344h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.93.21': 'Email context now checks several matches for relevance, leaving uncertain suggestions quiet.',
+  '2.93.20': 'Context arrows flash once, without blinking again when you return. Google Calendar notifications stay out of email suggestions.',
   '2.93.19': 'Booking tasks can now bring a previous confirmation into focus, without offering a reply draft.',
-  '2.93.18': 'Email threads in focus now open in Apple Mail on your Mac, and the ✧ button breathes when a sign-in needs you.',
-  '2.93.17': 'If Google stops accepting your Gmail sign-in, Connections now says so and offers Reconnect instead of retrying quietly.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

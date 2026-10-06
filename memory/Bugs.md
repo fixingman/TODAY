@@ -18,6 +18,8 @@
 
 | # | Description | Status |
 |---|---|---|
+| 117 | “Book haircut” showed a calendar-generated reminder as email context — automated notifications were eligible search results and caches | ⏳ v2.93.20 |
+| 116 | Email and web context arrows blink repeatedly after returning to the desktop PWA — completed arrival animation replayed by wake repaints | ⏳ v2.93.20 |
 | 115 | Gmail kept retrying a refused sign-in (`gmail-token` 400 in the console) while Connections still said "Connected" | ✅ v2.93.17 |
 | 114 | "Work yesterday felt like a bad dream" was kept as a dream — the BUG-110 short-dream wording outweighed the waking-comparison rule | ✅ v2.93.13 |
 | 113 | Header, section labels, and Soon/Past headers looked darker than the page (most on mobile) — a full-page noise overlay lifted the page under opaque --bg bands | ✅ v2.93.12 |
@@ -50,6 +52,34 @@
 ---
 
 *BUG-001–087 → `archive/Bugs-archive.md` (summary rows + detail). Detail for every later ✅ bug is archived too. Below: open, awaiting-verification, and rejected bugs only.*
+
+---
+
+## BUG-117 — Calendar reminder surfaced as focus email context
+
+**Symptom:** Can, 2026-10-06: “Book haircut” surfaced a calendar reminder rather than useful correspondence. Can requested that calendar-generated reminders be ignored generally, not just for bookings.
+
+**Cause:** `_gmailSearch` accepted the first thread and displayed its last message, without excluding calendar senders. Cached results were also accepted without this check. The reported sender has not been inspected directly; the bounded fix covers Google Calendar's known `calendar-notification@google.com` source, not every calendar provider.
+
+**Fix (v2.93.20, local):** all Gmail enrichment queries, including AI queries, cached classifications and fallbacks, group the original query and exclude that sender. Message selection and cache reads enforce the same exact-address rule. Up to five threads are inspected if needed; mixed conversations skip the automated messages, and Apple Mail opens the selected message. Cached notifications are removed when read, hiding their arrows and preventing them from bypassing a new search. No subject-word or attachment blacklist, mailbox writes, extra AI call or change to calendar-as-input. Broader booking relevance is not claimed solved.
+
+**Tests:** `gmail-test` covers calendar first / salon next, a mixed thread ending with a notification, calendar-only silence, a five-thread bound, exact/case-insensitive sender matching, harmless display names/lookalikes, old cached reminders, ordinary salon reminders, grouped OR queries, and content-free diagnostics.
+
+**Verify:** after deployment, retry the haircut task in the desktop PWA; calendar notifications should not appear. A genuine confirmation may appear, or the block should stay quiet. If the reminder returns, inspect only its sender first: a different calendar source needs grounded coverage, not a broad “reminder” keyword ban.
+
+---
+
+## BUG-116 — Enrichment arrows blink again on desktop PWA wake
+
+**Symptom:** Can, 2026-10-06: the task enrichment arrow blinked seemingly at random in the desktop PWA.
+
+**Root cause:** both ↩ email and ↗ web indicators retained `.agent-indicator-arrive` after their 1.4s CSS animation ended. `_onWake()` repaints `#main-app` by toggling its display immediately and at 0.5, 1.5, 3, 5, 8, and 12 seconds. Each toggle restarts that CSS animation, so existing context looks newly delivered. A browser probe reproduced both arrows becoming fully visible without hover or a new lookup; this dates to the August 30 arrival cue, before v2.93.19.
+
+**Fix (v2.93.20):** both modules call the shared `_playEnrichmentArrival()` utility once when fresh context is inserted. WAAPI survives a repaint during the cue and is released when finished; the CSS keyframes and persistent arrival class are removed. The same muted/accent palette, 1.4s cue (`--dur-mid` × 7), and per-segment `--ease-out` are retained. Cached restoration is quiet, hover still reveals the arrow, and reduced motion skips the cue.
+
+**Tests:** `task-enrich-test` uses both real indicator owners inside `#main-app`, repaints during and after arrival, invokes the real wake handler, and checks hover, cache restoration, and reduced motion. The new regression failed on the old CSS animation.
+
+**Verification:** in the desktop PWA, let a newly found context arrow finish flashing, switch to another app, then return and watch for 12 seconds. Existing arrows should stay quiet; hovering still reveals them. A genuinely new result should flash once.
 
 ---
 

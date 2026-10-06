@@ -57,6 +57,10 @@ their current millisecond or cubic-bezier values in WAAPI options.
 
 ## Animation Types
 
+### Enrichment Arrow Arrival (v2.93.20)
+
+Both ↩ email and ↗ web context use `_playEnrichmentArrival()` in `util.js`: one muted → accent → muted flash when a new result arrives. Duration is seven `--dur-mid` beats (1.4s), with `--ease-out` applied to each segment to retain the original timing. The WAAPI animation releases itself when finished and survives display-toggle repaints in progress. Cached restoration creates no animation; reduced motion skips it. Desktop hover remains the quiet way to reveal available context. The old persistent CSS arrival class replayed on every PWA wake pass (BUG-116).
+
 ### Tag Shimmer (task-tag-shimmer)
 One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newly added to the list.
 

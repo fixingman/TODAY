@@ -75,13 +75,14 @@
     if (!cached || cached.state !== 'success' || !cached.card) return;
 
     const span = document.createElement('span');
-    span.className = fresh ? 'agent-indicator agent-indicator-arrive' : 'agent-indicator';
+    span.className = 'agent-indicator';
     span.textContent = '↗';
     span.setAttribute('aria-label', 'Web context available — start a focus session');
     const textEl = taskEl.querySelector('.task-text');
     const tail   = textEl && textEl.querySelector('.task-tail');
     if (tail) textEl.insertBefore(span, tail);
     else if (textEl) textEl.appendChild(span);
+    if (fresh) _playEnrichmentArrival(span);
   }
 
   function _agentRestoreAllIndicators() {

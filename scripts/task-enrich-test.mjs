@@ -91,10 +91,13 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 
 let browser;
 try {
-  browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-first-run', '--disable-extensions'] });
+  const desktopInput = '--blink-settings=availableHoverTypes=2,primaryHoverType=2,availablePointerTypes=4,primaryPointerType=4';
+  browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-first-run', '--disable-extensions', desktopInput] });
   const page = await browser.newPage();
+  await page.evaluateOnNewDocument(() => localStorage.setItem('splash_shown_at', String(Date.now())));
   await page.goto(`http://127.0.0.1:${server.address().port}`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof window._agentEnrichTask === 'function');
+  await page.waitForFunction(() => getComputedStyle(document.getElementById('addTaskBar')).opacity === '1');
 
   const client = await page.evaluate(async () => {
     const calls = [];
@@ -119,6 +122,71 @@ try {
   assert(client.calls.length === 1 && client.calls[0].apiKey === 'browser-key'
       && client.cached.state === 'success' && client.label === 'Web context available — start a focus session',
     'client sends its key, caches a successful card, and renders a named indicator', client);
+
+  // BUG-116: use both real indicator owners inside the app's repaint boundary.
+  // A display toggle while the arrival is playing must not restart it; after
+  // completion the same toggle must not announce already-cached context again.
+  const arrival = await page.evaluate(async () => {
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    const app = document.getElementById('main-app');
+    app.style.opacity = '1';
+    const row = document.querySelector('[data-taskid="agent_success"]');
+    document.getElementById('manualList').appendChild(row);
+    localStorage.setItem('gmail_access_token', 'mock-access');
+    localStorage.setItem('gmail_refresh_token', 'mock-refresh');
+    localStorage.setItem('gmail_enrichment_agent_success', JSON.stringify({ subject: 'Synthetic context', matchPolicy: 'minisearch-v1' }));
+    _agentUpdateIndicator('agent_success', true);
+    _gmailUpdateIndicator('agent_success', true);
+    await frame(); await frame();
+    const indicators = [...row.querySelectorAll('.agent-indicator,.gmail-indicator')];
+    const animations = indicators.map(el => el.getAnimations()[0]);
+    if (animations.some(a => !a)) return { started: false };
+    const repaint = () => { app.style.display = 'none'; void app.offsetHeight; app.style.display = ''; };
+    animations.forEach(a => { a.currentTime = a.effect.getTiming().duration * 0.4; });
+    const bright = indicators.every(el => Number(getComputedStyle(el).opacity) > 0.9);
+    repaint(); await frame(); await frame();
+    const survived = indicators.every((el, i) => el.getAnimations()[0] === animations[i]
+      && animations[i].currentTime >= animations[i].effect.getTiming().duration * 0.4);
+    if (!survived) return { started: true, bright, survived, samples: [] };
+    await Promise.race([
+      Promise.all(animations.map(a => a.finished.catch(() => {}))),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('arrival did not finish')), 3000)),
+    ]);
+    await frame();
+    window._onWake();
+    const samples = [];
+    for (let pass = 0; pass < 3; pass++) {
+      repaint(); await new Promise(resolve => setTimeout(resolve, 120));
+      samples.push(...indicators.map(el => ({ opacity: Number(getComputedStyle(el).opacity), running: el.getAnimations().length })));
+    }
+    return { started: true, bright, survived, samples };
+  });
+  assert(arrival.started && arrival.bright && arrival.survived
+      && arrival.samples.every(s => s.opacity === 0 && s.running === 0),
+    'both enrichment arrows announce new context once and survive active and completed wake repaints', arrival);
+
+  await page.hover('[data-taskid="agent_success"]');
+  await new Promise(resolve => setTimeout(resolve, 200));
+  const hover = await page.evaluate(() => [...document.querySelectorAll('[data-taskid="agent_success"] .agent-indicator,[data-taskid="agent_success"] .gmail-indicator')]
+    .map(el => ({ opacity: getComputedStyle(el).opacity })));
+  assert(hover.length === 2 && hover.every(h => Number(h.opacity) > 0),
+    'settled enrichment arrows remain visible on desktop hover', hover);
+  await page.mouse.move(0, 0);
+  const restored = await page.evaluate(() => {
+    _agentRestoreAllIndicators(); _gmailRestoreAllIndicators();
+    return [...document.querySelectorAll('[data-taskid="agent_success"] .agent-indicator,[data-taskid="agent_success"] .gmail-indicator')]
+      .every(el => el.getAnimations().length === 0);
+  });
+  assert(restored, 'cache restoration does not announce existing enrichment again');
+  await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
+  const reduced = await page.evaluate(() => {
+    _agentUpdateIndicator('agent_success', true);
+    _gmailUpdateIndicator('agent_success', true);
+    return [...document.querySelectorAll('[data-taskid="agent_success"] .agent-indicator,[data-taskid="agent_success"] .gmail-indicator')]
+      .every(el => el.getAnimations().length === 0);
+  });
+  assert(reduced, 'reduced motion skips enrichment arrival flashes');
+  await page.emulateMediaFeatures([]);
 
   const noResult = await page.evaluate(async () => {
     let calls = 0;

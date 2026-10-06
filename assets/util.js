@@ -245,6 +245,25 @@ const COLOR_BG     = _cssToken('--color-bg');
 const COLOR_MUTED  = _cssToken('--color-art-muted');
 const COLOR_BORDER = _cssToken('--color-border');
 
+// A newly found enrichment gets one arrival cue. WAAPI survives the PWA's
+// display-toggle repaints; no CSS class remains to replay on the next wake.
+function _playEnrichmentArrival(el) {
+  if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const muted = _cssToken('--color-muted');
+  const accent = _cssToken('--color-accent');
+  const easing = _motionEasing('--ease-out');
+  const animation = el.animate([
+    { opacity: 0, color: muted, easing },
+    { opacity: 1, color: accent, offset: 0.15, easing },
+    { opacity: 1, color: accent, offset: 0.65, easing },
+    { opacity: 0, color: muted },
+  ], {
+    // Seven mid-duration beats preserve the established 1.4s arrival cue.
+    duration: _motionDuration('--dur-mid') * 7,
+  });
+  animation.finished.then(() => animation.cancel(), () => {});
+}
+
 // Looping animations must be WAAPI, never CSS: _forceRepaint's display toggles
 // restart CSS animations from keyframe 0 (visible flash), a WAAPI timeline is
 // unaffected (BUG-028 lesson; same pattern as _pulseComplete in the focus module).

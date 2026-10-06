@@ -139,6 +139,13 @@ try {
   assert.equal(offlineShell.title.endsWith('TODAY'), true);
   assert.equal(offlineShell.app, true);
   assert.equal(offlineShell.addInput, true);
+  await page.waitForFunction(() => window.Today?.use('gmail')?.rankCandidates);
+  const offlineRanking = await page.evaluate(() => Today.use('gmail').rankCandidates('Book haircut', [{
+    threadId: 'offline-confirmation', subject: 'Haircut booking confirmed', from: 'Salon <hi@salon.se>',
+    snippet: 'Your haircut appointment is confirmed',
+  }]));
+  assert.equal(offlineRanking.result?.threadId, 'offline-confirmation');
+  console.log('  ✓ the lazy local email ranker loads from the service-worker cache offline');
 
   await page.setOfflineMode(false);
   failUnknownNetwork = true;
