@@ -241,65 +241,47 @@ try {
       await page.close();
     }
 
-    // 3c. Task-reading feedback is not a pool-kind verdict. Three recent misses
-    //     earn a short pause for that path, without muting a qualified pool line.
-    //     A bare count/age recap also abstains; a count with a real choice survives.
+    // 3c. Task-reading feedback is not a pool-kind verdict, and a miss does not
+    //     silence the morning: recent "not really" lines steer the next one instead.
+    //     The model sees only its own earlier wording, never the private reason.
+    //     A bare count/age recap falls back to the rule-based line; a real choice survives.
     //     These are synthetic lines: personal voted prose stays out of the repo.
     {
-      const cooled = await openPage();
-      const cooledResult = await cooled.page.evaluate(async () => {
+      const steered = await openPage();
+      const steeredResult = await steered.page.evaluate(async () => {
         localStorage.removeItem('day_nudge_dismissed_' + _localISO());
         localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
-        appMemory.spokenLines = [1, 2, 3].map(days => {
-          const date = new Date(); date.setDate(date.getDate() - days);
-          return { surface: 'morning nudge', date: _localISO(date), text: 'Earlier line', reaction: 'missed' };
-        });
-        let calls = 0;
-        window.fetch = async () => { calls++; return { ok: true, json: async () => ({ content: 'Another line.' }) }; };
+        const ago = days => { const d = new Date(); d.setDate(d.getDate() - days); return _localISO(d); };
+        appMemory.spokenLines = [
+          { surface: 'morning nudge', date: ago(1), text: 'Synthetic miss one about waiting.', reaction: 'missed', reactionReason: 'already_knew' },
+          { surface: 'morning nudge', date: ago(2), text: 'Synthetic miss two about the list.', reaction: 'missed' },
+          { surface: 'morning nudge', date: ago(3), text: 'Synthetic miss three about Soon.', reaction: 'missed' },
+          { surface: 'morning nudge', date: ago(4), text: 'Synthetic miss four, too old to send.', reaction: 'missed' },
+          { surface: 'morning nudge', date: ago(5), text: 'Synthetic landed line.', reaction: 'landed' },
+          { surface: 'morning nudge', date: ago(1), kind: 'letgo-reason', text: 'Synthetic pool miss.', reaction: 'missed' },
+        ];
+        const bodies = [];
+        window.fetch = async (url, opts) => { bodies.push(opts && opts.body ? JSON.parse(opts.body) : {});
+          return { ok: true, json: async () => ({ content: 'The appointment has a morning window; check it before other tasks.' }) }; };
         checkDayNudge();
-        await new Promise(r => setTimeout(r, 5300));
+        await new Promise(r => setTimeout(r, 300));
+        // Only the task-reading request; the pool request carries its own line history.
+        const taskReq = bodies.map(b => (b.messages || []).map(m => m.content).join('\n'))
+          .find(t => t.includes('Morning check-in')) || '';
+        const missBlock = (taskReq.split('marked "not really":\n')[1] || '').split('\n\n')[0];
+        const sent = taskReq;
         return {
-          noTaskPathCall: calls === 0,
-          noCountFallback: !document.getElementById('dayNudge').classList.contains('show'),
-          noCache: !localStorage.getItem('day_nudge_ai_' + _localISO()),
+          stillSpeaks: document.getElementById('dayNudge').textContent.includes('morning window'),
+          missesSent: ['one', 'two', 'three'].every(n => missBlock.includes('Synthetic miss ' + n)),
+          onlyThreeRecent: !missBlock.includes('too old to send'),
+          landedNotSentAsMiss: !missBlock.includes('Synthetic landed line'),
+          poolMissNotMixedIn: !missBlock.includes('Synthetic pool miss'),
+          reasonNeverSent: !/already_knew|already knew/.test(sent),
+          principleSent: sent.includes('do not repeat their angle'),
         };
       });
-      await expectAll('task-reading cooldown', { ...cooledResult, noErrors: cooled.errors.length === 0 });
-      await cooled.page.close();
-
-      const landed = await openPage();
-      const landedResult = await landed.page.evaluate(async () => {
-        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
-        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
-        const ago = days => { const date = new Date(); date.setDate(date.getDate() - days); return _localISO(date); };
-        appMemory.spokenLines = [
-          { surface: 'morning nudge', date: ago(3), text: 'Older line', reaction: 'missed' },
-          { surface: 'morning nudge', date: ago(2), text: 'Older line', reaction: 'missed' },
-          { surface: 'morning nudge', date: ago(1), text: 'Useful line', reaction: 'landed' },
-        ];
-        window.fetch = async () => ({ ok: true, json: async () => ({ content: 'The appointment has a morning window; check it before other tasks.' }) });
-        checkDayNudge();
-        await new Promise(r => setTimeout(r, 250));
-        return { landedReopens: document.getElementById('dayNudge').textContent.includes('morning window') };
-      });
-      await expectAll('landed resets task-reading cooldown', { ...landedResult, noErrors: landed.errors.length === 0 });
-      await landed.page.close();
-
-      const expired = await openPage();
-      const expiredResult = await expired.page.evaluate(async () => {
-        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
-        localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
-        appMemory.spokenLines = [3, 4, 5].map(days => {
-          const date = new Date(); date.setDate(date.getDate() - days);
-          return { surface: 'morning nudge', date: _localISO(date), text: 'Earlier line', reaction: 'missed' };
-        });
-        window.fetch = async () => ({ ok: true, json: async () => ({ content: 'The appointment has a morning window; check it before other tasks.' }) });
-        checkDayNudge();
-        await new Promise(r => setTimeout(r, 250));
-        return { retriesAfterPause: document.getElementById('dayNudge').textContent.includes('morning window') };
-      });
-      await expectAll('task-reading cooldown expires', { ...expiredResult, noErrors: expired.errors.length === 0 });
-      await expired.page.close();
+      await expectAll('misses steer the next morning line', { ...steeredResult, noErrors: steered.errors.length === 0 });
+      await steered.page.close();
 
       const bare = await openPage();
       const bareResult = await bare.page.evaluate(async () => {
@@ -308,13 +290,14 @@ try {
         window.fetch = async () => ({ ok: true, json: async () => ({ content: 'You have 5 tasks today, including "Plan the trip" which has been waiting for 4 days.' }) });
         checkDayNudge();
         await new Promise(r => setTimeout(r, 250));
+        const nudge = document.getElementById('dayNudge');
         return {
-          bareLineQuiet: !document.getElementById('dayNudge').classList.contains('show'),
+          bareLineFallsBack: nudge.classList.contains('show') && nudge.textContent.includes('still here from yesterday'),
           bareLineNotCached: !localStorage.getItem('day_nudge_ai_' + _localISO()),
           bareLineNotSpoken: !(appMemory.spokenLines || []).some(l => l.surface === 'morning nudge' && l.date === _localISO()),
         };
       });
-      await expectAll('bare inventory abstains', { ...bareResult, noErrors: bare.errors.length === 0 });
+      await expectAll('bare inventory falls back to the count line', { ...bareResult, noErrors: bare.errors.length === 0 });
       await bare.page.close();
 
       const contrasted = await openPage();
@@ -328,7 +311,7 @@ try {
       });
       await expectAll('age with a meaningful turn survives', { ...contrastedResult, noErrors: contrasted.errors.length === 0 });
       await contrasted.page.close();
-      ok('task-reading: repeated misses pause briefly; bare age/count recaps abstain without replacing them with a count');
+      ok('task-reading: "not really" lines steer the next line (wording only, never the reason); bare recaps fall back to the count line');
     }
 
     // 4. Fallback upgrade: AI slower than the cap → fallback shows; a later call with the

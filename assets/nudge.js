@@ -83,21 +83,21 @@ window._startNudge = (function() {
     const _NUDGE_AI_WAIT_MS = 5000;
     const _NUDGE_QUIET = Symbol('morning nudge abstained');
 
-    // The pool has per-kind verdicts; ordinary task-reading lines have no kind.
-    // Without a separate, short-lived feedback gate, repeated "not really" votes
-    // on that majority path change nothing. Three recent misses earn two quiet
-    // mornings, then one chance to speak again. A landed line breaks the run.
-    function _taskPathCooling(todayISO) {
+    // The pool has per-kind verdicts; ordinary task-reading lines have no kind. A miss
+    // on that path steers the next line instead of silencing the morning: tomorrow's
+    // list is different, and a quiet morning yields no vote to learn from. The model
+    // sees only its own earlier wording — never the optional reason, which stays private.
+    function _taskPathMisses(todayISO) {
       const daysAgo = date => {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return Infinity;
         return Math.round((Date.parse(todayISO + 'T00:00:00Z') - Date.parse(date + 'T00:00:00Z')) / 86400000);
       };
-      const recent = (appMemory.spokenLines || [])
-        .filter(l => l && l.surface === 'morning nudge' && !l.kind && daysAgo(l.date) > 0 && daysAgo(l.date) <= 7)
-        .sort((a, b) => b.date.localeCompare(a.date));
-      const voted = recent.filter(l => l.reaction === 'landed' || l.reaction === 'missed');
-      return recent.length > 0 && daysAgo(recent[0].date) < 3
-        && voted.length >= 3 && voted.slice(0, 3).every(l => l.reaction === 'missed');
+      return (appMemory.spokenLines || [])
+        .filter(l => l && l.surface === 'morning nudge' && !l.kind && l.reaction === 'missed'
+          && l.text && daysAgo(l.date) > 0 && daysAgo(l.date) <= 14)
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 3)
+        .map(l => String(l.text).slice(0, 200));
     }
 
     // A few age-led lines in the private voted corpus landed because they made a
@@ -120,8 +120,7 @@ window._startNudge = (function() {
         clearTimeout(timer);
         if (text !== _NUDGE_QUIET) onShow(text, isAI);
       };
-      // On a feedback-cooldown day, a slow pool line can still arrive; do not
-      // replace earned silence with the count-based fallback at the wait cap.
+      // A null fallback (no rule-based line for today) waits for the AI instead.
       const timer = setTimeout(() => {
         if (fallbackMsg != null) settle(fallbackMsg, false);
       }, _NUDGE_AI_WAIT_MS);
@@ -341,7 +340,6 @@ window._startNudge = (function() {
         _showNudge(_aiCached, true);
       } else if (allowGenerate && _memoryReady && !_nudgeRacing) {
         _nudgeRacing = true;
-        const taskPathCooling = _taskPathCooling(_localISO());
         _raceAINudge({
           cacheKey: _nudgeCacheKey,
           cachePrefix: _AI_SURFACES.find(s => s.key === 'day_nudge_ai').prefix,
@@ -352,7 +350,7 @@ window._startNudge = (function() {
             }
             return text;
           }),
-          fallbackMsg: taskPathCooling ? null : msg,
+          fallbackMsg: msg,
           // Single-arg — the old "N carried over · " prefix on AI text is gone;
           // the AI sees the counts in its facts and mentions what matters itself.
           onShow: _showNudge,
@@ -484,9 +482,6 @@ window._startNudge = (function() {
         _nudgeKind = null;
         const pooled = await _fetchPoolNudge(key).catch(() => null);
         if (pooled) return pooled;
-        // Pool abstention normally falls through to the task-reading path. Only
-        // repeated misses on that separate path earn a short quiet interval.
-        if (_taskPathCooling(_localISO())) return _NUDGE_QUIET;
 
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const streak = parseInt(localStorage.getItem('stat_streak') || '1');
@@ -561,6 +556,9 @@ window._startNudge = (function() {
         if (cardLines.length) facts += 'Trello cards:\n' + cardLines.join('\n') + '\n';
         if (!taskLines.length && !cardLines.length) facts += 'The list is empty.';
         if (soonLines.length) facts += 'Soon (deferred tasks, not today\'s list):\n' + soonLines.join('\n') + '\n';
+        const misses = _taskPathMisses(todayStr);
+        if (misses.length) facts += 'Recent morning lines the person marked "not really":\n' +
+          misses.map(t => '- ' + t).join('\n') + '\n';
 
         const instruction =
           'The person is starting their morning. You have their full picture — today\'s tasks and Trello cards, ' +
@@ -573,7 +571,8 @@ window._startNudge = (function() {
           'It sharpens the insight; it is not the insight. Never report it back as a count. ' +
           'When you name a task, use a short fragment of its exact words so the person can spot it at a glance. ' +
           'The list order is the user\'s own arrangement, not importance. ' +
-          'When nothing stands out, a simple quiet morning note is the right answer.';
+          'When nothing stands out, a simple quiet morning note is the right answer. ' +
+          'Lines marked "not really" missed for this person: do not repeat their angle, their shape, or what they chose to point at.';
 
         const res = await fetch('/.netlify/functions/ai-assist', {
           method: 'POST',
@@ -593,7 +592,9 @@ window._startNudge = (function() {
         // line, which is the correct failure — never a claim about who you are.
         if (!text || (typeof _observationTextIsGrounded === 'function'
                       && !_observationTextIsGrounded(text, 30))) return null;
-        if (_taskNudgeOnlyInventories(text)) return _NUDGE_QUIET;
+        // A bare recap is not worth saying, but neither is an empty morning: fall back
+        // to the plain rule-based line rather than leaving the strip blank.
+        if (_taskNudgeOnlyInventories(text)) return null;
         return text;
       } catch (e) {
         return null;
