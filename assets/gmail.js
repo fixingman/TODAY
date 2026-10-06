@@ -219,11 +219,29 @@
       catch(e) { return { data: null, status: 'invalid-json' }; }
     }
 
+    // Booking a service (haircut, table, appointment) is the same realm as writing to
+    // someone: the useful thread is the last booking confirmation. It is looked up on
+    // this device like any thread; no email content leaves it.
+    const BOOKING_RE = /\b(?:re-?book|book|booking|reserve|reservation|appointment|schedule)\b/i;
+    const CONTACT_RE = /\b(reply|email|answer|call|contact|follow[\s-]?up|message|write to|respond|ping|reach out|get back to|answer to|send)\b/i;
+    function _isBookingTask(taskText) {
+      const text = String(taskText || '');
+      return BOOKING_RE.test(text) && !CONTACT_RE.test(text);
+    }
+
     // Conservative query for AI failure, false negatives and no-match retries.
     function _buildQueryFallback(taskText) {
       const text = String(taskText || '').replace(/\s+/g, ' ').trim();
       if (!text) return '';
       const quote = value => value.includes(' ') ? ('"' + value.replace(/"/g, '') + '"') : value;
+
+      // A booking task: the service words, among booking/confirmation emails.
+      if (_isBookingTask(text)) {
+        const service = text.replace(new RegExp(BOOKING_RE.source, 'gi'), '')
+          .replace(/\b(?:a|an|the|my|for|next|new|another)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+        const kinds = '{subject:booking subject:confirmation subject:appointment subject:reservation subject:booked}';
+        return service ? (kinds + ' ' + quote(service)) : '';
+      }
 
       // "Follow up on/about …" names a subject, not a correspondent. Keep the
       // useful noun phrase and, when the task refers to something we sent, search
@@ -270,7 +288,7 @@
     // Falls back to the conservative query when AI is unavailable or invalid;
     // _gmailFindThread records the outcome without retaining email content.
     async function _classifyTask(taskId, taskText) {
-      const hasVerb = /\b(reply|email|answer|call|contact|follow[\s-]?up|message|write to|respond|ping|reach out|get back to|answer to|send)\b/i.test(taskText);
+      const hasVerb = CONTACT_RE.test(taskText) || BOOKING_RE.test(taskText);
       if (!hasVerb) return { isComm: false, searchQuery: '', source: 'pre-filter' };
 
       try {
@@ -304,7 +322,7 @@
           body: JSON.stringify({
             provider,
             apiKey,
-            systemPrompt: 'Return ONLY valid JSON: {"isComm":true,"searchQuery":"gmail_query"}. isComm=true when the task explicitly says email, or involves contacting, replying, or following up by email. Build the query from what the task actually names. In "email to NAME for TOPIC", NAME is the correspondent and TOPIC is the subject matter; never include "for TOPIC" in the contact name. Person-targeted: use from:/to: plus topic terms when useful. Topic-targeted: use subject:, quoted keywords, in:sent, and date operators such as after: when useful; never invent a person. Include at least one Gmail operator. If no useful email search is possible, set isComm=false and searchQuery to "".',
+            systemPrompt: 'Return ONLY valid JSON: {"isComm":true,"searchQuery":"gmail_query"}. isComm=true when the task explicitly says email, or involves contacting, replying, or following up by email. Build the query from what the task actually names. In "email to NAME for TOPIC", NAME is the correspondent and TOPIC is the subject matter; never include "for TOPIC" in the contact name. Person-targeted: use from:/to: plus topic terms when useful. Topic-targeted: use subject:, quoted keywords, in:sent, and date operators such as after: when useful; never invent a person. A task to book, reserve, or schedule a service counts too: the useful thread is the previous booking or confirmation for that service, so search booking and confirmation emails for the service words; never invent a business name. Include at least one Gmail operator. If no useful email search is possible, set isComm=false and searchQuery to "".',
             messages:     [{ role: 'user', content: taskText }],
           }),
         });
@@ -346,7 +364,7 @@
       const threadId = list.data.threads[0].id;
       const thread = await _gmailFetch(
         GMAIL_API_BASE + '/threads/' + threadId
-          + '?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date'
+          + '?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date&metadataHeaders=Message-ID'
       );
       if (!thread.data) return { result: null, status: thread.status };
       if (!thread.data.messages || !thread.data.messages.length) return { result: null, status: 'no-messages' };
@@ -360,6 +378,8 @@
         subject: hdr('Subject'),
         from:    hdr('From'),
         date:    hdr('Date'),
+        // RFC 822 Message-ID of the last message — opens it in Apple Mail via message://.
+        messageId: hdr('Message-ID').trim().replace(/^<|>$/g, ''),
         snippet: lastMsg.snippet || '',
       } };
     }
@@ -443,7 +463,18 @@
     }
 
     // ── Focus block ─────────────────────────────────────────────────────────────
+    // A Mac with a pointer, not an iPad presenting as MacIntel.
+    function _isDesktopMac() {
+      return /Mac/.test(navigator.platform) && !(navigator.maxTouchPoints > 1);
+    }
+    // message://%3C<id>%3E — the angle brackets percent-encoded, the id itself encoded so a
+    // stray '#', '?' or space cannot break the URL.
+    function _appleMailHref(messageId) {
+      return 'message://%3C' + encodeURIComponent(messageId) + '%3E';
+    }
+
     function _doRenderBlock(block, taskText, enrichment) {
+      const booking  = _isBookingTask(taskText || enrichment.taskText || '');
       const fromRaw  = enrichment.from || '';
       const fromName = fromRaw.replace(/<[^>]+>/g, '').replace(/"/g, '').trim();
       const _emailM  = fromRaw.match(/<([^>]+@[^>]+)>/);
@@ -461,6 +492,13 @@
         .slice(0, 200);
       const searchQ  = encodeURIComponent(enrichment.searchQuery || _buildQueryFallback(taskText || enrichment.taskText || ''));
       const gmailUrl = 'https://mail.google.com/mail/u/0/#search/' + searchQ;
+      // Desktop Mac: open the thread's last message in Apple Mail (message://<Message-ID>),
+      // never the browser (Can, 2026-10-06). Everywhere else, and for lookups cached before
+      // the Message-ID was fetched, the Gmail web link stays.
+      const appleMail = _isDesktopMac() && enrichment.messageId;
+      const openLink = appleMail
+        ? '<a class="focus-gmail-open focus-gmail-applemail" href="' + esc(_appleMailHref(enrichment.messageId)) + '" data-today-click="gmail.open-mail">Open in Mail ↗</a>'
+        : '<a class="focus-gmail-open" href="' + esc(gmailUrl) + '" target="_blank" rel="noopener">Open in Gmail ↗</a>';
 
       block.innerHTML =
         '<div class="focus-gmail-thread">' +
@@ -470,8 +508,8 @@
           '</div>' +
           '<div class="focus-gmail-snippet">&ldquo;' + esc(snippet) + (snippet.length >= 200 ? '…' : '') + '&rdquo;</div>' +
           '<div class="focus-gmail-actions">' +
-            '<button class="focus-gmail-draft-btn"><span class="focus-gmail-draft-label">Draft reply</span></button>' +
-            '<a class="focus-gmail-open" href="' + esc(gmailUrl) + '" target="_blank" rel="noopener">Open ↗</a>' +
+            (booking ? '' : '<button class="focus-gmail-draft-btn"><span class="focus-gmail-draft-label">Draft reply</span></button>') +
+            openLink +
           '</div>' +
           '<div class="focus-gmail-draft" hidden></div>' +
         '</div>';
@@ -479,6 +517,12 @@
       block.hidden = false;
       if (window._focusExpandTimer) _focusExpandTimer();
       const _aiBtn = document.querySelector('.focus-ai-timer-btn');
+      // A booking confirmation is context to rebook from, not a message to answer: Ask
+      // stays Ask (undo a label left by an earlier reply thread).
+      if (booking) {
+        if (_aiBtn && /draft reply/.test(_aiBtn.textContent)) _aiBtn.textContent = '\u2726\ufe0e ask';
+        return;
+      }
       if (_aiBtn) _aiBtn.textContent = '✦︎ draft reply';
       block.querySelector('.focus-gmail-draft-btn').addEventListener('click', function() {
         _fetchDraft(taskText || enrichment.taskText || '', snippet, block);
@@ -594,6 +638,13 @@
         btn.disabled    = false;
       }
     }
+
+    // Same-context navigation (like "Open in Mail" for drafts, BUG-089): the OS hands the
+    // message:// scheme to Mail without opening a browser window first.
+    if (window.Today) Today.ui.register('click', 'gmail.open-mail', (ev, link) => {
+      ev.preventDefault();
+      window.location.href = link.href;
+    });
 
     // ── Exports ────────────────────────────────────────────────────────────────
     window.gmailAuth                    = _gmailDoAuth;

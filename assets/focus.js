@@ -209,8 +209,9 @@ window._startFocus = (function() {
     // Enrichment shortcuts — don't require local AI key (ai-assist uses server key fallback)
     const _gmailBlock = document.getElementById('focusGmailBlock');
     if (_gmailBlock && !_gmailBlock.hidden) {
-      _gmailBlock.querySelector('.focus-gmail-draft-btn')?.click();
-      return;
+      const _draftBtn = _gmailBlock.querySelector('.focus-gmail-draft-btn');
+      // A booking thread has no draft: Ask asks about the task instead.
+      if (_draftBtn) { _draftBtn.click(); return; }
     }
     const _agentBlock = document.getElementById('focusAgentBlock');
     if (_agentBlock && !_agentBlock.hidden) {

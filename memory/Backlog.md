@@ -360,6 +360,8 @@ Sorted by reacting to sample output lines rather than score constants, which is 
 
 | Surface | Due | Status |
 |---------|-----|--------|
+| Connections sign-in attention (v2.93.18) | 2026-10-20 | Open — W1: a breathing ✧ points to a sign-in that needs repair, with a Reconnect action behind it. W2: only while Gmail or Dropbox is expired, and opening Connections quiets it for the day. Does it help locate the repair without becoming a nag if reconnection waits? |
+| Booking email context in focus (v2.93.19) | 2026-10-20 | Open — W1: an earlier confirmation may help rebook the named service; it offers no reply draft. W2: only for a booking task with a matched Gmail thread. Check whether the match is relevant in real use or an unrelated confirmation adds noise. |
 | Dream sheet + Memory → Dreams (v2.93.8, read fix v2.93.10) | 2026-10-18 | Open — W1: the reading and retelling are worth a glance each time a dream is told; W2: the sheet now shows no date or thought controls, Memory shows one line, and a saved dream can reopen from Dropbox on demand. Does Memory → Dreams earn its place before M2, or should it go? |
 | Morning nudge after midnight (v2.90.54) | 2026-10-09 | **Kept (2026-10-05)** — the next day's line appeared across devices after a dismissal the day before; BUG-103 verified. |
 | Triage bar morph (v2.90.42) | 2026-10-07 | **Kept (2026-10-05)** — reads as one continuous object opening and shrinking back into the bar. |

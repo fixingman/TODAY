@@ -115,6 +115,7 @@
       window.scrollTo(0, scrollY); // Restore scroll position
       if (isOpening) {
         _beginConnectionsPrivacyVisit();
+        localStorage.setItem('connections_nudge_seen_' + _localISO(), '1');
         renderConnections();
         setTimeout(_aiRenderConfig, 0);
         Today.use('meeting').renderMeetingNames();
@@ -150,7 +151,20 @@
       }
     }
 
+    // Button nudge (Components.md § Button Nudges): the ✧ Connections button breathes
+    // while a connection needs the user — an expired Gmail or Dropbox sign-in — until the
+    // panel is opened that day; it returns the next day if the sign-in is still expired.
+    function _syncConnectionsNudge() {
+      const btn = document.getElementById('trelloBtn');
+      if (!btn) return;
+      const expired = localStorage.getItem('gmail_token_expired') === '1'
+        || localStorage.getItem('dropbox_token_expired') === '1';
+      const seen = !!localStorage.getItem('connections_nudge_seen_' + _localISO());
+      btn.classList.toggle('btn-icon-attention', expired && !seen);
+    }
+
     function renderConnections() {
+      _syncConnectionsNudge(); // runs even while the panel is closed — expiry is noticed in the background
       // Skip if panel isn't open — background sync calls this frequently
       // but rebuilding HTML when panel is hidden is wasted work
       const configPanel = $.configPanel || document.getElementById('configPanel');
@@ -752,6 +766,7 @@
     }
 
     if (window.Today) {
+      _syncConnectionsNudge(); // an expiry flagged in an earlier session still shows on start
       Today.define('connections', {
         toggleConfig,
         _renderConnectionsPrivacy,

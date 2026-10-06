@@ -1175,7 +1175,7 @@
     border-color: var(--accent);
     background: var(--accent-dim);
   }
-  .btn-icon-week, .btn-icon-habits, .btn-icon-version { animation: icon-colour-pulse 2.4s ease-in-out infinite; }
+  .btn-icon-week, .btn-icon-habits, .btn-icon-version, .btn-icon-attention { animation: icon-colour-pulse 2.4s ease-in-out infinite; }
   @keyframes icon-colour-pulse {
     0%, 100% { color: var(--muted); }
     50%       { color: var(--accent); }
@@ -4643,16 +4643,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '342h';
+const DEV_HOURS     = '343h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.93.19': 'Booking tasks can now bring a previous confirmation into focus, without offering a reply draft.',
+  '2.93.18': 'Email threads in focus now open in Apple Mail on your Mac, and the ✧ button breathes when a sign-in needs you.',
   '2.93.17': 'If Google stops accepting your Gmail sign-in, Connections now says so and offers Reconnect instead of retrying quietly.',
-  '2.93.16': 'Saying “not really” to a morning line no longer quiets the next mornings — the next line just tries a different angle.',
-  '2.93.14': 'The evening question now offers ten feelings — lighter ones on the left, heavier on the right — so the word you mean is more likely to be there.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

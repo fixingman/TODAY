@@ -199,7 +199,9 @@ Appears below focused task, replaces task row bottom area.
 ### Gmail and web enrichment
 
 - Gmail classification distinguishes explicit correspondents from topic-based follow-ups. Person tasks use `from:`/`to:`; topic tasks may use quoted keywords, `subject:`, `in:sent`, and date operators. The classifier and fallback must never invent a person from topic prose.
+- **Booking tasks (v2.93.19):** *book, reserve, appointment, schedule* pass the Gmail pre-filter alongside the contact verbs (Can: same realm). The useful thread is the last booking or confirmation for that service — classifier prompt and fallback (`{subject:booking subject:confirmation …} <service words>`) search confirmations, never inventing a business. Looked up on device like any thread; no email content leaves it. The block shows the thread and its open link but **no Draft reply**, and the focus Ask button stays Ask (`focus.js` only short-circuits to the draft when a draft button exists).
 - The Gmail draft action reserves its initial label width and crossfades the inner text through Draft reply, drafting…, Copy, and Copied ✓ (v2.90.41). Async feedback must not shift the neighboring controls.
+- **Opening the thread (v2.93.18):** on a desktop Mac the link reads **Open in Mail ↗** and opens the thread's last message in Apple Mail via `message://%3C<Message-ID>%3E` — same-context navigation (delegated `gmail.open-mail`), no browser. Everywhere else, and for lookups cached before the Message-ID was fetched, it reads **Open in Gmail ↗** (Gmail web search). The draft's separate **Open in Mail ↗** stays a `mailto:` (BUG-089).
 - Web enrichment caches both success and no-result responses; transient/network failures remain retryable. Only HTTPS actions are rendered.
 - Both indicators are screen-reader named and stay attached before the task tail across renders. Dedicated coverage lives in `gmail-test.mjs` and `task-enrich-test.mjs`.
 
@@ -354,6 +356,7 @@ Header buttons breathe (shared `icon-colour-pulse` keyframe: `color` muted→acc
 | `#infoBtn` ℹ︎ | `.btn-icon-sunday` | Sundays, `today_daily_history` non-empty | `sunday_nudge_seen_<date>` |
 | `#infoBtn` ℹ︎ | `.btn-icon-version` | New app version (stored `today_seen_version` ≠ `APP_VERSION`); first run: silently adopts, no pulse | `today_seen_version` (per-version, not per-day) — on clear, CURRENT badge in changelog breathes ~3× via IntersectionObserver then stops (WAAPI, finite) |
 | `#habitsBtn` ◎ | `.btn-icon-habits` | 10pm–3am, ≥1 active habit incomplete | `habit_nudge_opened_<habitISO>` (also clears instantly when last habit checked) |
+| `#trelloBtn` ✧ | `.btn-icon-attention` | A connection needs the user: `gmail_token_expired` or `dropbox_token_expired` (v2.93.18) | `connections_nudge_seen_<date>` — opening Connections stops it for the day; it returns the next day while the sign-in is still expired; Reconnect or Forget clears it |
 
 Habits panel additionally shows a muted countdown line (`.habit-countdown`, rendered by `renderHabits()`): `Xh Ym left today` 10pm–midnight, then `before 3am` midnight–3am — deliberately no ticking minutes after midnight (surfaces the boundary without clock anxiety). Hidden when all done or outside the window.
 

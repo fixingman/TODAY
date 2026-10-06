@@ -292,6 +292,54 @@ try {
   assert(indicator?.label === 'Email context available — start a focus session' && indicator.beforeTail,
     'email indicator is named and remains attached before the task tail', indicator);
 
+  // Apple Mail: on a desktop Mac the focus block's open link goes to message://<Message-ID>
+  // (no browser); without a Message-ID (old cache) or off a Mac it stays the Gmail web link.
+  const mailOpen = await page.evaluate(async () => {
+    const realPlatform = Object.getOwnPropertyDescriptor(Navigator.prototype, 'platform');
+    const setPlatform = v => Object.defineProperty(navigator, 'platform', { configurable: true, get: () => v });
+    const seenUrls = [];
+    window.fetch = async (url) => {
+      seenUrls.push(String(url));
+      if (String(url).includes('/threads?')) return { ok: true, status: 200, json: async () => ({ threads: [{ id: 't1' }] }) };
+      if (String(url).includes('/threads/t1')) return { ok: true, status: 200, json: async () => ({ messages: [{ snippet: 'See you at 3',
+        payload: { headers: [{ name: 'Subject', value: 'Haircut' }, { name: 'From', value: 'Salon <hi@salon.se>' },
+          { name: 'Date', value: 'Mon, 5 Oct 2026 10:00:00 +0200' }, { name: 'Message-ID', value: '<CAB+x9#1@mail.gmail.com>' }] } }] }) };
+      if (String(url).includes('ai-assist')) return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'from:salon' }) };
+      return { ok: true, status: 200, json: async () => ({}) };
+    };
+    await _gmailEnrichTask('gmail_mail_1', 'Reply to the salon about the haircut');
+    const cached = JSON.parse(localStorage.getItem('gmail_enrichment_gmail_mail_1') || '{}');
+    const askedForId = seenUrls.some(u => u.includes('metadataHeaders=Message-ID'));
+    const block = document.getElementById('focusGmailBlock');
+    const linkFor = () => { _gmailRenderFocusBlock('gmail_mail_1', 'Reply to the salon about the haircut'); return block.querySelector('.focus-gmail-open'); };
+    setPlatform('MacIntel');
+    const mac = linkFor();
+    const macOut = { text: mac?.textContent, href: mac?.getAttribute('href'), target: mac?.getAttribute('target') };
+    // The delegated handler (document level) cancels the default and navigates in place.
+    // Point the href at a same-page hash so the in-place navigation is harmless here.
+    mac.setAttribute('href', '#apple-mail-test');
+    const clickEv = new MouseEvent('click', { bubbles: true, cancelable: true });
+    mac.dispatchEvent(clickEv);
+    const navigated = clickEv.defaultPrevented && location.hash === '#apple-mail-test';
+    history.replaceState(null, '', location.pathname + location.search);
+    setPlatform('Win32');
+    const win = linkFor();
+    setPlatform('MacIntel');
+    localStorage.setItem('gmail_enrichment_gmail_mail_1', JSON.stringify({ ...cached, messageId: undefined }));
+    const old = linkFor();
+    if (realPlatform) Object.defineProperty(navigator, 'platform', realPlatform); else delete navigator.platform;
+    localStorage.removeItem('gmail_enrichment_gmail_mail_1');
+    block.hidden = true; block.innerHTML = '';
+    return { askedForId, cachedId: cached.messageId, macOut, defaultPrevented: navigated,
+      winText: win?.textContent, winHref: win?.getAttribute('href'), oldText: old?.textContent };
+  });
+  assert(mailOpen.askedForId && mailOpen.cachedId === 'CAB+x9#1@mail.gmail.com'
+      && mailOpen.macOut.text === 'Open in Mail ↗' && mailOpen.macOut.href === 'message://%3CCAB%2Bx9%231%40mail.gmail.com%3E'
+      && !mailOpen.macOut.target && mailOpen.defaultPrevented === true
+      && mailOpen.winText === 'Open in Gmail ↗' && /^https:\/\/mail\.google\.com\//.test(mailOpen.winHref)
+      && mailOpen.oldText === 'Open in Gmail ↗',
+    'desktop Mac opens the thread in Apple Mail via message://; other platforms and old caches keep Gmail', mailOpen);
+
   // BUG-115: Google answers a refresh with 400 invalid_grant once the saved sign-in is gone.
   // The app stops asking, reports once, and Connections offers Reconnect instead of "Connected".
   const expired = await page.evaluate(async () => {
@@ -310,10 +358,13 @@ try {
     };
     await _gmailEnrichTask('gmail_expired_1', 'Reply to Sam');
     await _gmailEnrichTask('gmail_expired_2', 'Reply to Robin');
+    const pulseBeforeOpen = document.getElementById('trelloBtn').classList.contains('btn-icon-attention');
     const panel = document.getElementById('configPanel');
     if (!panel.classList.contains('open')) Today.use('connections').toggleConfig(); // renders Connections
+    const pulseStoppedOnOpen = !document.getElementById('trelloBtn').classList.contains('btn-icon-attention');
     const row = [...document.querySelectorAll('.connection-row')].find(r => r.querySelector('.connection-row-title')?.textContent === 'Gmail');
     const out = {
+      pulseBeforeOpen, pulseStoppedOnOpen,
       flagged: localStorage.getItem('gmail_token_expired') === '1',
       oneTokenCall: tokenCalls === 1,
       reportedOnce: errors.filter(e => e.where === 'Gmail').length === 1,
@@ -323,12 +374,61 @@ try {
     window._logSyncError = origLog;
     Today.use('connections').toggleConfig();
     localStorage.removeItem('gmail_token_expired');
+    Object.keys(localStorage).filter(k => k.startsWith('connections_nudge_seen_')).forEach(k => localStorage.removeItem(k));
     localStorage.setItem('gmail_token_expiry', String(Date.now() + 3600e3));
     return out;
   });
   assert(expired.flagged && expired.oneTokenCall && expired.reportedOnce
-      && expired.status === 'Sign-in expired' && expired.reconnect,
-    'an expired Gmail sign-in stops retrying, reports once, and offers Reconnect', expired);
+      && expired.status === 'Sign-in expired' && expired.reconnect
+      && expired.pulseBeforeOpen && expired.pulseStoppedOnOpen,
+    'an expired Gmail sign-in stops retrying, reports once, pulses ✧ until Connections is opened, and offers Reconnect', expired);
+
+  // Booking a service is looked up like writing to someone: the useful thread is the
+  // last booking confirmation, found on this device. It shows without "Draft reply",
+  // and the focus Ask button keeps asking about the task instead of drafting.
+  const booking = await page.evaluate(async () => {
+    const out = {
+      fallbackHaircut: _gmailBuildQueryFallback('Book haircut'),
+      fallbackTable: _gmailBuildQueryFallback('Reserve a table at Gaia'),
+      fallbackDentist: _gmailBuildQueryFallback('Schedule dentist appointment'),
+      contactStillPerson: _gmailBuildQueryFallback('Email Gaia about the booking'),
+    };
+    const calls = [];
+    window.fetch = async (url, opts = {}) => {
+      const u = String(url); calls.push({ url: u, body: opts.body || '' });
+      if (u.includes('ai-assist')) return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: '{subject:booking subject:confirmation} haircut' }) };
+      if (u.includes('/threads?q=')) return { ok: true, status: 200, json: async () => ({ threads: [{ id: 'cut-thread' }] }) };
+      return { ok: true, status: 200, json: async () => ({ messages: [{ snippet: 'Your haircut is booked for Tue 10:00',
+        payload: { headers: [{ name: 'Subject', value: 'Booking confirmed — haircut' }, { name: 'From', value: 'Salon <hi@salon.se>' },
+          { name: 'Date', value: 'Tue, 1 Sep 2026 09:00:00 +0200' }] } }] }) };
+    };
+    await _gmailEnrichTask('gmail_booking_1', 'Book haircut');
+    const ai = calls.find(c => c.url.includes('ai-assist'));
+    out.reachedClassifier = !!ai;
+    out.promptCoversBooking = !!ai && /book, reserve, or schedule a service/.test(JSON.parse(ai.body).systemPrompt);
+    out.searched = calls.some(c => c.url.includes('/threads?q='));
+    out.cached = !!localStorage.getItem('gmail_enrichment_gmail_booking_1');
+    const block = document.getElementById('focusGmailBlock');
+    _gmailRenderFocusBlock('gmail_booking_1', 'Book haircut');
+    out.threadShown = !block.hidden && block.textContent.includes('haircut is booked');
+    out.noDraftButton = !block.querySelector('.focus-gmail-draft-btn');
+    out.openLinkShown = !!block.querySelector('.focus-gmail-open');
+    out.askNotRelabelled = !/draft reply/i.test(document.querySelector('.focus-ai-timer-btn')?.textContent || '');
+    localStorage.removeItem('gmail_enrichment_gmail_booking_1');
+    block.hidden = true; block.innerHTML = '';
+    calls.length = 0;
+    await _gmailEnrichTask('gmail_plain_1', 'Water the plants');
+    out.unrelatedStillSkipped = !calls.some(c => c.url.includes('ai-assist'));
+    return out;
+  });
+  assert(booking.fallbackHaircut === '{subject:booking subject:confirmation subject:appointment subject:reservation subject:booked} haircut'
+      && booking.fallbackTable === '{subject:booking subject:confirmation subject:appointment subject:reservation subject:booked} "table at Gaia"'
+      && booking.fallbackDentist === '{subject:booking subject:confirmation subject:appointment subject:reservation subject:booked} dentist'
+      && booking.contactStillPerson === '{from:Gaia to:Gaia} booking'
+      && booking.reachedClassifier && booking.promptCoversBooking && booking.searched && booking.cached
+      && booking.threadShown && booking.noDraftButton && booking.openLinkShown && booking.askNotRelabelled
+      && booking.unrelatedStillSkipped,
+    'booking tasks look up the last confirmation on-device and show it without Draft reply; unrelated tasks still skip Gmail', booking);
 
   const diagnostics = await page.evaluate(async () => {
     window.fetch = async () => ({ ok: true, status: 200, json: async () => ({ isComm: false, searchQuery: '' }) });

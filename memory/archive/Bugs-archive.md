@@ -122,6 +122,22 @@ Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. Al
 
 ---
 
+## BUG-115 — Expired Gmail sign-in retried silently
+
+**Symptom:** Can, desktop PWA console, 2026-10-06: `/.netlify/functions/gmail-token: Failed to load resource: 400`. No red dot; Connections still showed Gmail as connected.
+
+**Root cause:** the only POST without a code is the refresh, so the 400 is Google's token endpoint refusing the saved refresh token — `invalid_grant` (revoked access, a password change, or the OAuth app still in *Testing* publishing status, where Google expires refresh tokens after 7 days). `gmail-token.js` passed the status through; `_gmailRefreshTokens()` returned `false` and every later Gmail lookup asked again, so the 400 repeated while the panel kept saying "Connected". The exact code on Can's install is inferred, not seen.
+
+**Fix (v2.93.17):** `gmail-token` returns Google's `error` code and `error_description` separately. On `invalid_grant` / `unauthorized_client`, the client sets `gmail_token_expired`, reports once through the red dot ("Gmail sign-in expired — reconnect in Connections"), and `_gmailFetch` stops calling Google until reconnect. Connections shows **Gmail · Sign-in expired** with **Reconnect** and **Forget**; reconnect or Forget clears the flag. `gmail-test` pins it: two communication tasks → one token call, one report, Reconnect shown.
+
+**If it keeps expiring weekly:** the Google Cloud OAuth consent screen is in *Testing*; moving it to *In production* stops the 7-day expiry (a Google Console setting, not app code).
+
+**Verification:** after deploy, reload the desktop app. If the sign-in is already gone: one red-dot note, and Connections → Gmail shows Reconnect; reconnecting stops the console 400.
+
+**Verified ✅ (Can, 2026-10-06).**
+
+---
+
 ## BUG-114 — A waking "bad dream" comparison was kept as a dream
 
 **Symptom:** Can, desktop PWA, 2026-10-05, v2.93.12: "Work yesterday felt like a bad dream, I was drowning in emails" opened the dream sheet, kept *I was drowning in emails* as a dream, and wrote a reading. v2.92.1 had fixed exactly this case.
@@ -133,6 +149,44 @@ Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. Al
 **Verification:** say the "felt like a bad dream" line again → Tasks or "Nothing came up", not Dream. Retell "I saw a dream last night…" → still Dream (BUG-110 must hold).
 
 **Verified ✅ (Can, phone, 2026-10-05, v2.93.13):** the "bad dream" line is not a dream; the plain one-sentence dream still is; "I dreamt I missed a flight… remind me to call mum today" gives the dream plus one task, "Call mum", with nothing from inside the dream.
+
+---
+
+## BUG-113 — Header and section labels darker than the page
+
+**Symptom:** Can, 2026-10-05: the "tabs" (top header, sticky section labels, Soon/Past headers) had a darker background than the app, clearly on mobile and slightly on desktop.
+
+**Root cause:** `body::before` laid a fixed fractal-noise texture over the whole page at z-index 0 (~1 level of lift: 15.8 vs 14.67 mean RGB). Every element painted with an opaque `var(--bg)` sat above it and showed the true `#0e0e10` — a darker strip. Mobile showed it most because the header is solid there since v2.92.3. The bands did use the tokens; the page did not render the token colour.
+
+**Fix (v2.93.12):** the noise overlay is removed; the page renders exactly `--color-bg`, matching the inline `<html>`/`<body>` base and `theme-color`. The focus-mode SVG `#noise` filter is unrelated and stays. `visual-test` mobile-320 compares the header band to the page beside the rows (fails at 14.67 vs 15.93 on the old CSS).
+
+**Verification:** on the phone and desktop, the header and section labels should be indistinguishable from the page behind the tasks.
+
+---
+
+## BUG-112 — Memory could not reopen a saved dream on another device
+
+**Symptom:** Can's first kept dream was present in Dropbox and its summary reached desktop Memory, but **read** on a device with only the synced index showed a pointer to the Dropbox folder instead of the interpretation. The same happened on the capture device after the acknowledged local body was pruned.
+
+**Cause:** `dreambank.js` intentionally removes raw retelling/reading from localStorage after upload, while `appMemory.dreams.index` stores only abstracted fields. Memory had no Dropbox download path; its **read** action only expanded that local/index row.
+
+**Fix (v2.93.10):** **read** downloads only the selected Markdown file on demand, checks its id and sections, and displays its retelling, reading, and any legacy note as escaped, read-only text. The body is not saved or synced and is cleared when Memory closes. Offline, missing, malformed, and transient responses are visible and retryable; late downloads cannot reopen a collapsed or deleted dream. Browser and Dropbox tests cover cross-device retrieval and the privacy boundary.
+
+**Verification:** after this version reaches a second device, open Memory → Dreams → manage → read on a dream saved from the phone. The interpretation should appear; close Memory, reopen, and read it again. If offline, the panel should say so without implying the file is lost.
+
+---
+
+## BUG-111 — Task list scrolls behind the open dream sheet (mobile)
+
+**Symptom:** Can, 2026-10-04: with the dream result sheet open on mobile, swiping scrolled the task list behind it.
+
+**Root cause:** `#meetingOverlay` makes the background `inert` for keyboard and assistive tech, but inert does not stop touch scrolling. A pan on the backdrop or the sheet's head/actions scrolled the document, and a pan inside `#meetingItems` past its end chained to the page.
+
+**Fix (v2.93.8):** `#meetingOverlay { touch-action: none }` and `#meetingItems { touch-action: pan-y; overscroll-behavior: contain }` — only the sheet's list pans and keeps its overscroll. `meeting-test` asserts both computed styles (fails without them). Headless Chrome cannot simulate an iOS swipe.
+
+**Not yet changed:** `#triageOverlay` is built the same way and likely has the same gap.
+
+**Verification:** on the phone, open a dream result and swipe on the backdrop, the header, and past the end of the text; the task list must not move.
 
 ---
 
@@ -149,6 +203,30 @@ Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. Al
 **Verified ✅ (Can, phone, 2026-10-05, v2.93.13):** "I saw a dream last night. I saw a girl, she was 180 and 70 kilos." opens the dream sheet with a reading. The exact failing path on the old build was never isolated (no live key available to the agent); JSON mode, the prompt change, and the empty-reply notes together resolved it, and the notes remain to name any future miss.
 
 **To confirm the cause:** `GEMINI_API_KEY=… node scripts/dream-live-test.mjs --say="I saw a dream last night. I saw a girl, she was 180 and 70 kilos."` on the old prompt (git stash-free: check out `cf825d3d` in a worktree) vs this one; then retell it on the phone. A red dot with a reason = path 1 or 2; a dream sheet = fixed; "Nothing came up" with no dot = the model still judges it not a dream.
+
+---
+
+## BUG-109 — List bobs while the morning strip is showing (desktop PWA)
+
+**Symptom:** Can, with a screen recording, 2026-09-30: with the morning nudge on screen, the task list jumped up ~17px and eased back several times after the PWA window regained focus. Frame analysis matched the wake repaint schedule (jumps at 0.33s, 0.80s, 1.80s, 3.30s).
+
+**Root cause:** `window.focus` runs `_onWake`, whose `_forceRepaint` toggles `#main-app` `display` about nine times over 12s (BUG-004/056/071). A display toggle restarts CSS animations from keyframe 0. The strip's `nudgeOpen` (a one-shot CSS animation collapsing padding/margin/max-height, added after the BUG-028 WAAPI rule) replayed on every pass, and the list moved with it.
+
+**Fix (v2.93.2):** the CSS animation is removed; `_showNudge` runs the same open motion once via WAAPI (`--dur-slow`, `--ease-out`), which display toggles do not restart. Reduced motion skips it. `nudge-test` 11 shows the strip, toggles `#main-app` display like the repaint, and asserts the height is unchanged and no CSS animation is attached — failing on the old code.
+
+**Verification:** on desktop PWA before noon with the strip showing, switch to another app and back. The list should stay still.
+
+---
+
+## BUG-108 — Neighbouring task looks highlighted after a mobile drag
+
+**Symptom:** Can, 2026-09-27: dragging a task on mobile sometimes left another task looking highlighted; intermittent.
+
+**Root cause:** touch has no real hover, but mobile browsers apply `:hover` to the last element hit-tested under the finger and keep it there. During a drag reorder rows slide under the finger, so a neighbour could keep `:hover` — its left drag-cue line, surface background and border stayed painted. Several row `:hover` rules (task/habit rows, the drag cue, Soon/Past fades, delete and session-count reveals, the pull button) sat outside `@media (hover: hover)`. Same class as BUG-093.
+
+**Fix (v2.92.5):** every task/habit row `:hover` rule is inside `@media (hover: hover)`; touch keeps its always-visible delete and pull controls. `drag-test` walks the live stylesheet and fails on any unguarded row `:hover` rule — it listed the offenders on the old CSS.
+
+**Verification:** on a phone, long-press and drag tasks up and down several times; no other row should stay highlighted.
 
 ---
 
@@ -203,6 +281,22 @@ Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. Al
 **Root cause:** `_setFocusInert()` isolated non-focused rows, panels, and the morning nudge but omitted `#triageBar`; the CSS recede treatment alone did not change its accessibility state.
 
 **Fix (v2.90.46):** The bar joins the existing reversible `inert`/`aria-hidden` focus state. Its visual treatment does not change. A clock-independent browser regression forces the bar visible, proves the previous omission fails, then verifies focus-mode axe and that Review returns to keyboard navigation after Escape.
+
+---
+
+## BUG-099 — Completed triage asks again on another device
+
+**Symptom:** Triage was completed on one device, then appeared again on another device during the same evening. First reported 2026-09-21; an all-`Keep` pass was the likely path.
+
+**Root cause:** completion stored `triage_dismissed` locally, but `triageApplyAll()` made its immediate one-shot Dropbox upload conditional on a task moving or being marked done. All-`Keep` therefore waited for `triageClose()` after the completion-summary timer; suspending or closing the first device in that interval left no remote dismissal. The direct `dropboxBackup(true)` calls also bypassed the normal pending/retry queue. Separately, merge only adopted a remote dismissal: if a stale device overwrote the single Dropbox snapshot with a blank field, a device that still held today's completion did not mark the merge changed and therefore did not restore the remote copy.
+
+**First fix (v2.90.37):** completion, close, and undo queue the retrying autosave path immediately. Same-day dismissal merge works in both directions: a remote completion applies locally, while a local completion against a blank remote reports a merge change and heals Dropbox. Browser tests cover all-`Keep` immediate scheduling and both merge directions.
+
+**Recurrence (2026-09-23):** phone completed triage, but the computer's prompt stayed visible beyond 10 seconds. On a desktop's first open since the previous day, cold-start sync merged today's dismissal, then `applyNewDayCleanup()` unconditionally removed it. Deferred sync bookkeeping could upload that blank field back to Dropbox. A failing browser reproduction confirmed both the lost local dismissal and the blank upload. This ordering and reset predate module extraction; the v2.90.37 merge's changed flag could make the blank upload sooner, but was not the underlying bug.
+
+**Follow-up fix (v2.90.44):** new-day cleanup retains a dismissal dated today and clears only older/invalid dates. The browser regression runs the real first-open pull → cleanup → backup sequence with mocked Dropbox and checks the local flag, hidden prompt, and upload payload. A separate test confirms yesterday's dismissal still clears. Targeted suites passed; the full gate recorded an unrelated focus-mode accessibility flake.
+
+**Verified ✅ (Can, 2026-10-06).**
 
 ---
 
@@ -324,6 +418,30 @@ The combination is what makes it a real defect rather than a wording nit: the mi
 **Root cause:** The function required `process.env.ANTHROPIC_API_KEY`, while the user's Claude key lives client-side in Connections. It rejected the request before parsing the body, so the key could never reach the function.
 
 **Fix:** Parse the body first and resolve the key as the server environment value or the sanitized client key. The client includes `_aiGetKey('claude')`; absence of both keys is a clear 400 rather than an internal 500. Verified by Can after v2.77.7. The provider/function contract now has dedicated non-live coverage in `task-enrich-test.mjs`.
+
+---
+
+## BUG-089 — "Open in Mail" opens the browser before the native Mail app
+
+**Status:** ✅ v2.81.5 — verified by Can, 2026-10-06
+
+**Symptom:** Tapping "Open in Mail ↗" opens Chrome first, which then hands off to the mail client. Can, 2026-09-02: *"first opened chrome then opened the mail client app, with an email draft"*, with `mailto:notifications%40kry.se?subject=…` visible in Chrome's address bar.
+
+**Root cause:** the v2.77.6 attempt added `target="_blank"` on the reasoning that it would let the PWA shell delegate to the OS Mail handler. It does the opposite: `_blank` requests a new *browsing context*, so a browser is opened by definition; the browser then sees a scheme it cannot render and forwards it to Mail. That is the two-step hop.
+
+**Fix (v2.81.5):** `target` removed; the click handler calls `window.location.href` instead. A same-context navigation to a non-HTTP scheme is intercepted by the OS protocol handler before any page load, so no browsing context is required. The `href` stays on the anchor so long-press and right-click → copy address still work.
+
+Two adjacent defects fixed in the same place:
+- **Address encoding.** The whole address was run through `encodeURIComponent`, producing `notifications%40kry.se`. Most clients decode it; it is not the correct form and not all do. `@` is now left intact in the mailto path.
+- **Silent truncation.** Handlers commonly cut `mailto` around 2 KB, mid-sentence and without error. The body is now capped at ~1900 characters. The full draft stays visible in the block with its Copy button, so nothing is lost.
+
+**Found while testing the cap:** trimming by string index can split a surrogate pair, and `encodeURIComponent` throws `URIError` on a lone surrogate — so a draft containing an emoji would have crashed the flow rather than shortened it. Now trims by grapheme via `Intl.Segmenter`, the same idiom `task-bounce.js` uses for BUG-087.
+
+**Tests (post-v2.82.2):** the builder is extracted to `_mailtoDraftHref()` in `util.js` — pure, so `scripts/mailto-test.mjs` (17 cases) runs in Node with no browser: literal `@` in the address, the exact production-report form, the 1900 cap with a body that still decodes and is a prefix of the original, accents + emoji and a ZWJ family sequence trimmed on grapheme boundaries with no lone surrogate, null/empty inputs, and the 20-grapheme floor from both sides. One robustness addition beyond the refactor: a lone surrogate already present in the draft is dropped by a plain scan rather than thrown on — not a lookbehind regex, which is a parse-time error on older Safari and would take all of `util.js` down. Making `util.js` loadable in Node needed one change: its single top-level DOM write, `window.showStatus`, is now guarded.
+
+**Pre-verification caveat:** if an iOS standalone PWA routes all outbound navigation through the default browser regardless of scheme, the hop may persist and would be a platform constraint rather than an app defect. `target="_blank"` guaranteed it, so removing it can only improve matters — but only a real device settles whether it is now direct.
+
+**Verified ✅ (Can, 2026-10-06).**
 
 ---
 
