@@ -21,6 +21,7 @@
 | 113 | Header, section labels, and Soon/Past headers looked darker than the page (most on mobile) — a full-page noise overlay lifted the page under opaque --bg bands | ⏳ v2.93.12 |
 | 112 | A saved dream could not be reread in Memory after its local body was pruned or on another device | ⏳ v2.93.10 |
 | 111 | With the dream sheet open on mobile, swiping scrolled the task list behind it | ⏳ v2.93.8 |
+| 115 | Gmail kept retrying a refused sign-in (`gmail-token` 400 in the console) while Connections still said "Connected" | ⏳ v2.93.17 |
 | 114 | "Work yesterday felt like a bad dream" was kept as a dream — the BUG-110 short-dream wording outweighed the waking-comparison rule | ✅ v2.93.13 |
 | 110 | A one-sentence dream told to the mobile mic came back as "Nothing came up" — silent empty result from meeting-extract | ✅ v2.93.13 |
 | 109 | Task list bobbed up and down after refocusing the desktop PWA while the morning strip was showing — wake repaint replayed its CSS open animation | ⏳ v2.93.2 |
@@ -49,6 +50,20 @@
 ---
 
 *BUG-001–087 → `archive/Bugs-archive.md` (summary rows + detail). Detail for every later ✅ bug is archived too. Below: open, awaiting-verification, and rejected bugs only.*
+
+---
+
+## BUG-115 — Expired Gmail sign-in retried silently
+
+**Symptom:** Can, desktop PWA console, 2026-10-06: `/.netlify/functions/gmail-token: Failed to load resource: 400`. No red dot; Connections still showed Gmail as connected.
+
+**Root cause:** the only POST without a code is the refresh, so the 400 is Google's token endpoint refusing the saved refresh token — `invalid_grant` (revoked access, a password change, or the OAuth app still in *Testing* publishing status, where Google expires refresh tokens after 7 days). `gmail-token.js` passed the status through; `_gmailRefreshTokens()` returned `false` and every later Gmail lookup asked again, so the 400 repeated while the panel kept saying "Connected". The exact code on Can's install is inferred, not seen.
+
+**Fix (v2.93.17):** `gmail-token` returns Google's `error` code and `error_description` separately. On `invalid_grant` / `unauthorized_client`, the client sets `gmail_token_expired`, reports once through the red dot ("Gmail sign-in expired — reconnect in Connections"), and `_gmailFetch` stops calling Google until reconnect. Connections shows **Gmail · Sign-in expired** with **Reconnect** and **Forget**; reconnect or Forget clears the flag. `gmail-test` pins it: two communication tasks → one token call, one report, Reconnect shown.
+
+**If it keeps expiring weekly:** the Google Cloud OAuth consent screen is in *Testing*; moving it to *In production* stops the 7-day expiry (a Google Console setting, not app code).
+
+**Verification:** after deploy, reload the desktop app. If the sign-in is already gone: one red-dot note, and Connections → Gmail shows Reconnect; reconnecting stops the console 400.
 
 ---
 

@@ -319,6 +319,20 @@
 
 
     function _gmailRowHTML(connected) {
+      // BUG-115: Google refused the saved sign-in. Say it plainly and offer the way back.
+      if (connected && localStorage.getItem('gmail_token_expired') === '1') {
+        return `
+          <div class="connection-row">
+            <div class="connection-row-info">
+              <span class="connection-row-title">Gmail</span>
+              <span class="connection-row-status">Sign-in expired</span>
+            </div>
+            <div class="connection-row-actions">
+              <button class="btn-sm primary" data-today-click="connections.gmail-auth">Reconnect</button>
+              <button class="btn-sm btn-forget" data-today-click="connections.gmail-disconnect">Forget</button>
+            </div>
+          </div>`;
+      }
       if (connected) {
         const lastSearchRaw = localStorage.getItem('gmail_last_search');
         const lastSearch = lastSearchRaw

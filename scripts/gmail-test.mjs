@@ -292,6 +292,44 @@ try {
   assert(indicator?.label === 'Email context available — start a focus session' && indicator.beforeTail,
     'email indicator is named and remains attached before the task tail', indicator);
 
+  // BUG-115: Google answers a refresh with 400 invalid_grant once the saved sign-in is gone.
+  // The app stops asking, reports once, and Connections offers Reconnect instead of "Connected".
+  const expired = await page.evaluate(async () => {
+    localStorage.setItem('gmail_token_expiry', '1');
+    const errors = [];
+    const origLog = window._logSyncError;
+    window._logSyncError = (where, message) => errors.push({ where, message });
+    let tokenCalls = 0;
+    window.fetch = async (url) => {
+      if (String(url).includes('gmail-token')) {
+        tokenCalls++;
+        return { ok: false, status: 400, json: async () => ({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }) };
+      }
+      if (String(url).includes('ai-assist')) return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'from:sam' }) };
+      return { ok: true, status: 200, json: async () => ({}) };
+    };
+    await _gmailEnrichTask('gmail_expired_1', 'Reply to Sam');
+    await _gmailEnrichTask('gmail_expired_2', 'Reply to Robin');
+    const panel = document.getElementById('configPanel');
+    if (!panel.classList.contains('open')) Today.use('connections').toggleConfig(); // renders Connections
+    const row = [...document.querySelectorAll('.connection-row')].find(r => r.querySelector('.connection-row-title')?.textContent === 'Gmail');
+    const out = {
+      flagged: localStorage.getItem('gmail_token_expired') === '1',
+      oneTokenCall: tokenCalls === 1,
+      reportedOnce: errors.filter(e => e.where === 'Gmail').length === 1,
+      status: row?.querySelector('.connection-row-status')?.textContent,
+      reconnect: !!row?.querySelector('[data-today-click="connections.gmail-auth"]'),
+    };
+    window._logSyncError = origLog;
+    Today.use('connections').toggleConfig();
+    localStorage.removeItem('gmail_token_expired');
+    localStorage.setItem('gmail_token_expiry', String(Date.now() + 3600e3));
+    return out;
+  });
+  assert(expired.flagged && expired.oneTokenCall && expired.reportedOnce
+      && expired.status === 'Sign-in expired' && expired.reconnect,
+    'an expired Gmail sign-in stops retrying, reports once, and offers Reconnect', expired);
+
   const diagnostics = await page.evaluate(async () => {
     window.fetch = async () => ({ ok: true, status: 200, json: async () => ({ isComm: false, searchQuery: '' }) });
     for (let i = 0; i < 22; i++) await _gmailEnrichTask('gmail_diagnostic_' + i, 'Call aunt');

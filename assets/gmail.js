@@ -146,6 +146,7 @@
         localStorage.setItem('gmail_access_token', data.access_token);
         if (data.refresh_token) localStorage.setItem('gmail_refresh_token', data.refresh_token);
         localStorage.setItem('gmail_token_expiry', String(Date.now() + (data.expires_in - 60) * 1000));
+        localStorage.removeItem('gmail_token_expired');
         Today.use('connections').renderConnections();
         showStatus('Gmail connected', 'success');
         _gmailRestoreAllIndicators();
@@ -163,17 +164,30 @@
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify({ refresh_token: rt }),
         });
-        const data = await res.json();
-        if (!res.ok || data.error) return false;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.error) {
+          // BUG-115: Google no longer accepts the saved sign-in. Retrying every task only
+          // repeats the 400, so stop, say so once, and offer Reconnect in Connections.
+          if (data.error === 'invalid_grant' || data.error === 'unauthorized_client') _gmailMarkExpired();
+          return false;
+        }
         localStorage.setItem('gmail_access_token', data.access_token);
         localStorage.setItem('gmail_token_expiry', String(Date.now() + (data.expires_in - 60) * 1000));
         return true;
       } catch(e) { return false; }
     }
 
+    function _gmailIsExpired() { return localStorage.getItem('gmail_token_expired') === '1'; }
+    function _gmailMarkExpired() {
+      if (_gmailIsExpired()) return;
+      localStorage.setItem('gmail_token_expired', '1');
+      if (typeof _logSyncError === 'function') _logSyncError('Gmail', 'Gmail sign-in expired — reconnect in Connections');
+      Today.use('connections').renderConnections();
+    }
+
     function gmailDisconnect() {
       _cachedClientId = null;
-      ['gmail_access_token','gmail_refresh_token','gmail_token_expiry','gmail_client_id']
+      ['gmail_access_token','gmail_refresh_token','gmail_token_expiry','gmail_client_id','gmail_token_expired']
         .forEach(k => localStorage.removeItem(k));
       Object.keys(localStorage)
         .filter(k => k.startsWith('gmail_enrichment_') || k.startsWith('gmail_classify_'))
@@ -187,6 +201,7 @@
     // ── Gmail API ──────────────────────────────────────────────────────────────
     async function _gmailFetch(url, retry) {
       if (retry === undefined) retry = true;
+      if (_gmailIsExpired()) return { data: null, status: 'auth-expired' };
       if (_isExpired()) {
         const ok = await _gmailRefreshTokens();
         if (!ok) return { data: null, status: 'auth-refresh-failed' };

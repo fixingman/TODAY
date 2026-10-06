@@ -54,7 +54,10 @@ exports.handler = async (event) => {
       console.error('Gmail token error:', data);
       return {
         statusCode: response.status,
-        body: JSON.stringify({ error: data.error_description || data.error || 'Token exchange failed' }),
+        // Keep Google's error code separate from its description: `invalid_grant` on a
+        // refresh means the saved sign-in is gone (revoked, password change, or a Testing-mode
+        // OAuth app's 7-day expiry) and the client must ask the user to reconnect (BUG-115).
+        body: JSON.stringify({ error: data.error || 'token_exchange_failed', error_description: data.error_description || '' }),
       };
     }
 
