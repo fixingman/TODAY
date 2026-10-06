@@ -40,7 +40,7 @@ Ordered by potential impact on TODAY's longitudinal-companion promise and daily 
 | 10 | **Meeting mode & calendar capture** | In progress / gated | Granola MVP first; calendar = input only. Detail ↓ |
 | 11 | **Task agent — enrichment at add-time** | Stages 1–3 shipped | Stage 3 (v2.90.0): `search_trello` custom tool. Contacts + calendar remain out of scope until those integrations exist. Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend; user picks one provider. Full spec ↓ |
-| — | **Videos (HyperFrames)** | Promo + onboarding shipped (v2.92.6–9) | Open: the 9:16 phone cut of the promo (re-run `capture.mjs --mobile` first — the phone clips predate the slow-motion capture and lag). Re-capture any scene whose UI changes: the footage is the real app, so a UI change dates it (v2.92.8's Past marks did). How-to: `video/README.md`. |
+| — | **Videos (HyperFrames)** | Promo + onboarding shipped (v2.92.6–10) | No phone (9:16) cut — Can, 2026-10-06. Footage is the real app, so a UI change dates a scene: v2.93.12 (brighter header/section labels) and v2.93.5–6 (About panel; onboarding scene 10) postdate the captures. Re-capture only if a difference shows. How-to: `video/README.md`. |
 
 ---
 
