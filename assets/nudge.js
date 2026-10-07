@@ -5,37 +5,18 @@ window._startNudge = (function() {
   return function() {
     if (started) return; started = true;
 
-    // Session-level guards (not per-race) — checkDayNudge() has multiple call sites
-    // (init, wake, Dropbox restore, the post-sync load handler). _raceAINudge()'s own
-    // "settled" flag only prevents a swap WITHIN one call's race; it can't stop a
-    // LATER, separate call from finding a freshly-written cache and re-rendering with
-    // different text once the first race's fetch resolves after its own timeout
-    // already displayed the fallback — the actual mechanism behind the reported
-    // "shows a note, then swaps a second later" bug. _nudgeRendered blocks any further
-    // render once one has happened this page load; _nudgeRacing stops a second call
-    // site from starting its own parallel race while one is already in flight.
+    // Init, wake and sync all re-check. Render and in-flight guards are separate:
+    // a settled race prevents mid-read swaps; a pending fetch prevents parallel calls.
     let _nudgeRendered = false;
     let _nudgeRacing   = false;
+    let _nudgeEpoch = 0;
     // Cold-start callers such as Trello can finish before Dropbox has merged
     // appMemory.spokenLines. They may render a synced cache, but must not generate
     // a new line until the initial merge has settled; otherwise two devices can
     // independently speak the same kind inside its cooldown.
     let _memoryReady   = false;
-    // Tracks whether the CURRENTLY shown nudge is the generic rule-based fallback
-    // (true) or the real AI line (false). Diagnosed 2026-07-29: the AI nudge was
-    // generating and caching correctly every day (About's Today block, which
-    // reads the same cache with no race, proved this) but the task-list nudge
-    // almost never showed it — a cold Netlify+LLM round trip routinely takes
-    // longer than the (then) 1s race window, the fallback wins by default, and
-    // _nudgeRendered then blocks the rest of that page load from ever checking
-    // again, even after the real line finishes generating moments later and
-    // sits unused in the same cache About reads fine. _nudgeIsFallback lets
-    // exactly one upgrade through — fallback shown → AI text later becomes
-    // available → next natural re-check (wake, a later sync tick) shows it —
-    // without reopening the door BUG-034 closed (an AI answer is never allowed
-    // to replace another AI answer, or fire twice; only a plain fallback may be
-    // upgraded, once, and only from a genuinely later call, never a same-instant
-    // swap while still mid-read).
+    // Only a fallback can upgrade on a later natural check. An AI line never
+    // replaces another AI line, and completion never swaps text mid-read (BUG-034).
     let _nudgeIsFallback = false;
     let _reasonDismissTimer = null;
     // 12c Phase 3: set by _fetchDayNudgeAI when a pool candidate produced the line,
@@ -82,6 +63,73 @@ window._startNudge = (function() {
     // forbids swapping it in mid-read). Failures still settle immediately below.
     const _NUDGE_AI_WAIT_MS = 5000;
     const _NUDGE_QUIET = Symbol('morning nudge abstained');
+    const _GENERATION_KEY = 'today_nudge_generation_v1';
+    const _MAX_ATTEMPTS = 3;
+    const _RETRY_DELAYS = [30000, 120000];
+    const _REQUEST_TIMEOUT_MS = 12000;
+    let _generation = safeJSON(_GENERATION_KEY, null);
+
+    function _generationForToday() {
+      const date = _localISO();
+      if (!_generation || _generation.schema !== 1 || _generation.date !== date
+          || !Number.isInteger(_generation.attempts) || _generation.attempts < 0
+          || _generation.attempts > _MAX_ATTEMPTS || !Array.isArray(_generation.events)) {
+        _generation = { schema: 1, date, attempts: 0, status: 'idle', retryAt: 0, events: [] };
+      }
+      return _generation;
+    }
+    function _generationEvent(state, path, status, httpStatus) {
+      // Persist only this device's current-day delivery state. Never retain the
+      // response, facts, task wording, errors, credentials or reaction reasons.
+      if (state !== _generationForToday()) return;
+      const event = { at: new Date().toISOString(), path, status };
+      if (Number.isInteger(httpStatus)) event.httpStatus = httpStatus;
+      state.events = [...(state.events || []), event].slice(-20);
+      state.updatedAt = event.at;
+      try { localStorage.setItem(_GENERATION_KEY, JSON.stringify(state)); } catch(e) {}
+    }
+    function _generationAudit() {
+      const state = _generationForToday();
+      return { schema: 1, version: APP_VERSION, date: state.date, attempts: state.attempts,
+        status: state.status, retryAt: state.retryAt, updatedAt: state.updatedAt || null,
+        events: (state.events || []).map(e => ({ ...e })) };
+    }
+    function _responseVerdict(text) {
+      if (!text) return 'empty-response';
+      if (text.trim().split(/\s+/).length > 30) return 'rejected-length';
+      if (typeof _observationTextIsGrounded === 'function' && !_observationTextIsGrounded(text, 30))
+        return 'rejected-grounding';
+      return 'accepted';
+    }
+    async function _requestNudgeAI(body, path, state) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), _REQUEST_TIMEOUT_MS);
+      let result;
+      try {
+        const res = await fetch('/.netlify/functions/ai-assist', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body), signal: controller.signal,
+        });
+        if (!res.ok) {
+          result = { status: 'http-error', httpStatus: res.status,
+            retryable: res.status === 408 || res.status === 429 || res.status >= 500 };
+        } else {
+          let text;
+          try { text = _parseAIText(await res.json()); }
+          catch(e) { result = controller.signal.aborted
+            ? { status: 'request-timeout', retryable: true }
+            : { status: 'unreadable-response', retryable: false }; }
+          if (!result) {
+            const status = _responseVerdict(text);
+            result = { text: status === 'accepted' ? text : null, status, retryable: false };
+          }
+        }
+      } catch(e) {
+        result = { status: controller.signal.aborted ? 'request-timeout' : 'network-error', retryable: true };
+      } finally { clearTimeout(timer); }
+      _generationEvent(state, path, result.status === 'accepted' ? 'response-valid' : result.status, result.httpStatus);
+      return result;
+    }
 
     // The pool has per-kind verdicts; ordinary task-reading lines have no kind. A miss
     // on that path steers the next line instead of silencing the morning: tomorrow's
@@ -112,19 +160,20 @@ window._startNudge = (function() {
       return duration && waiting && !turn;
     }
 
-    function _raceAINudge({ cacheKey, cachePrefix, fetchPromise, fallbackMsg, onShow }) {
+    function _raceAINudge({ cacheKey, cachePrefix, fetchPromise, fallbackMsg, onShow, isCurrent }) {
       let settled = false;
       const settle = (text, isAI) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        if (text !== _NUDGE_QUIET) onShow(text, isAI);
+        if (isCurrent() && text !== _NUDGE_QUIET) onShow(text, isAI);
       };
       // A null fallback (no rule-based line for today) waits for the AI instead.
       const timer = setTimeout(() => {
         if (fallbackMsg != null) settle(fallbackMsg, false);
       }, _NUDGE_AI_WAIT_MS);
       fetchPromise.then(text => {
+        if (!isCurrent()) { settle(_NUDGE_QUIET, false); return; }
         if (text === _NUDGE_QUIET) { settle(_NUDGE_QUIET, false); return; }
         if (!text) { settle(fallbackMsg ?? _NUDGE_QUIET, false); return; }
         _pruneLS(cachePrefix, cacheKey);
@@ -339,21 +388,57 @@ window._startNudge = (function() {
       if (_cacheValid) {
         _showNudge(_aiCached, true);
       } else if (allowGenerate && _memoryReady && !_nudgeRacing) {
+        const state = _generationForToday();
+        // Rejected prose and permanent errors are not network failures. Do not
+        // repeatedly ask the model until it produces something that passes.
+        if (state.terminal || state.attempts >= _MAX_ATTEMPTS || Date.now() < state.retryAt) {
+          if (!_nudgeRendered) _showNudge(msg, false);
+          return;
+        }
+        const key = Today.use('connections')._aiGetKey();
+        if (!key || !navigator.onLine) {
+          state.status = key ? 'offline' : 'not-configured';
+          if (state.events?.at(-1)?.status !== state.status) _generationEvent(state, 'preflight', state.status);
+          if (!_nudgeRendered) _showNudge(msg, false);
+          return;
+        }
         _nudgeRacing = true;
+        state.attempts++;
+        state.status = 'started';
+        _generationEvent(state, 'attempt', 'started');
+        const epoch = _nudgeEpoch;
+        const isCurrent = () => epoch === _nudgeEpoch && state.date === _localISO();
         _raceAINudge({
           cacheKey: _nudgeCacheKey,
           cachePrefix: _AI_SURFACES.find(s => s.key === 'day_nudge_ai').prefix,
-          fetchPromise: _fetchDayNudgeAI(review, carriedOver, cards).then(text => {
+          fetchPromise: _fetchDayNudgeAI(review, carriedOver, cards, state).then(result => {
+            if (!isCurrent()) return _NUDGE_QUIET;
+            state.status = result.status;
+            state.terminal = !result.retryable && result.status !== 'accepted';
+            state.retryAt = result.retryable ? Date.now() + (_RETRY_DELAYS[state.attempts - 1] || 120000) : 0;
+            _generationEvent(state, 'attempt', result.status);
+            const text = result.text;
+            _nudgeKind = result.kind || null;
             if (text && text !== _NUDGE_QUIET) {
               localStorage.setItem(_doneCountKey, String(doneIds.size));
               if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('morning nudge', text, _nudgeKind);
             }
             return text;
+          }).finally(() => {
+            // A yesterday request must not unlock a new day's in-flight one.
+            if (isCurrent()) _nudgeRacing = false;
           }),
           fallbackMsg: msg,
           // Single-arg — the old "N carried over · " prefix on AI text is gone;
           // the AI sees the counts in its facts and mentions what matters itself.
-          onShow: _showNudge,
+          isCurrent,
+          onShow: (text, isAI) => {
+            if (new Date().getHours() >= 12 || localStorage.getItem(_dismissKey)) return;
+            // A recovered answer is saved for About and the next natural check,
+            // never swapped into an already-visible fallback mid-read.
+            if (_nudgeRendered) return;
+            _showNudge(text, isAI);
+          },
         });
       }
       // else: no cache yet and generation isn't allowed at this call site (init(),
@@ -415,9 +500,8 @@ window._startNudge = (function() {
     // This runs *before* the task-reading nudge below and wins when a candidate
     // survives the gate. That is rare by construction — four kinds, 21-day
     // cooldowns, strict thresholds — so most eligible mornings take the
-    // task-reading path. Its own recent misses can now pause that path without
-    // muting a qualified pool observation.
-    async function _fetchPoolNudge(key) {
+    // task-reading path. Recent misses guide its wording, not its availability.
+    async function _fetchPoolNudge(key, state) {
       if (typeof _buildObservationCandidates !== 'function'
        || typeof _observationNoveltyGate !== 'function'
        || typeof appMemory === 'undefined') return null;
@@ -450,10 +534,7 @@ window._startNudge = (function() {
       })[0];
       if (!winner) return null;
 
-      const res = await fetch('/.netlify/functions/ai-assist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const result = await _requestNudgeAI({
           provider: Today.use('connections')._aiGetProvider(),
           apiKey: key,
           messages: [{ role: 'user', content:
@@ -462,26 +543,17 @@ window._startNudge = (function() {
             'Write the morning line. Preserve the supported insight and leave its implication unresolved — the ' +
             'person supplies what it means, not you. Add no fact beyond the evidence above.' }],
           systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). No exclamation marks, no emoji. Never wrap your reply in quotation marks. Warm, plain, grounded — a friend noticing, not a coach.',
-        }),
-      });
-      if (!res.ok) return null;
-      const text = _parseAIText(await res.json());
-      // Same guard Sunday uses, at the nudge's own word cap. Rejects identity and
-      // causal claims even when the model ignores the instruction.
-      if (!text || (typeof _observationTextIsGrounded === 'function'
-                    && !_observationTextIsGrounded(text, 30))) return null;
-      _nudgeKind = winner.kind;
-      return text;
+      }, 'pool', state);
+      return { ...result, kind: result.status === 'accepted' ? winner.kind : null };
     }
 
-    async function _fetchDayNudgeAI(review, carriedOver, cards) {
+    async function _fetchDayNudgeAI(review, carriedOver, cards, state) {
       try {
         const key = Today.use('connections')._aiGetKey();
-        if (!key || !navigator.onLine) return null;
+        if (!key || !navigator.onLine) return { status: key ? 'offline' : 'not-configured', retryable: true };
 
-        _nudgeKind = null;
-        const pooled = await _fetchPoolNudge(key).catch(() => null);
-        if (pooled) return pooled;
+        const pooled = await _fetchPoolNudge(key, state);
+        if (pooled?.status === 'accepted' || pooled?.retryable || pooled?.status === 'http-error') return pooled;
 
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const streak = parseInt(localStorage.getItem('stat_streak') || '1');
@@ -574,30 +646,23 @@ window._startNudge = (function() {
           'When nothing stands out, a simple quiet morning note is the right answer. ' +
           'Lines marked "not really" missed for this person: do not repeat their angle, their shape, or what they chose to point at.';
 
-        const res = await fetch('/.netlify/functions/ai-assist', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const result = await _requestNudgeAI({
             provider: Today.use('connections')._aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: facts + '\n\n' + instruction }],
             systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Task text is written in the user\'s own shorthand — read the full meaning from context, not just the literal words. Never wrap your reply in quotation marks; quoting a task\'s own words inline is good. No exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
-          }),
-        });
-        if (!res.ok) return null;
-        const text = _parseAIText(await res.json());
-        // Same guard the pool path applies. Adding it there first left the split
-        // incoherent: an identity or causal claim was blocked on the rare path and
-        // waved through on the majority one. Rejecting falls back to the rule-based
-        // line, which is the correct failure — never a claim about who you are.
-        if (!text || (typeof _observationTextIsGrounded === 'function'
-                      && !_observationTextIsGrounded(text, 30))) return null;
+        }, 'task', state);
+        if (result.status !== 'accepted') return result;
         // A bare recap is not worth saying, but neither is an empty morning: fall back
         // to the plain rule-based line rather than leaving the strip blank.
-        if (_taskNudgeOnlyInventories(text)) return null;
-        return text;
+        if (_taskNudgeOnlyInventories(result.text)) {
+          _generationEvent(state, 'task', 'rejected-recap');
+          return { status: 'rejected-recap', retryable: false };
+        }
+        return result;
       } catch (e) {
-        return null;
+        _generationEvent(state, 'generation', 'internal-error');
+        return { status: 'internal-error', retryable: false };
       }
     }
 
@@ -606,6 +671,10 @@ window._startNudge = (function() {
     window.checkVersionNudge = checkVersionNudge;
     window.checkSundayNudge = checkSundayNudge;
     window.checkHabitNudge = checkHabitNudge;
+    Today.define('nudge', { generationAudit: _generationAudit });
+    // Online is a natural re-check, not a new timer-driven attention surface.
+    // Backoff, attempt budget, morning, memory-ready and dismissal gates apply.
+    window.addEventListener('online', () => checkDayNudge());
     // Called by dropbox.js checkNewDay() at day boundary — resets session guards so the
     // fresh day's nudge can render in a tab that stayed open across midnight.
     window._nudgeOnNewDay = function() {
@@ -613,6 +682,7 @@ window._startNudge = (function() {
       _reasonDismissTimer = null;
       _nudgeRendered  = false;
       _nudgeRacing    = false;
+      _nudgeEpoch++;
       _nudgeIsFallback = false;
       // Yesterday's line must not stay up while today's is being written.
       const nudgeEl = $.dayNudge || document.getElementById('dayNudge');

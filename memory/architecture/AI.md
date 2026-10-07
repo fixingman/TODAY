@@ -234,7 +234,7 @@ Displays for 3s then auto-closes. Saves `today_day_review` to localStorage for m
 
 Morning nudge strip (before noon) shows yesterday's review if available. Falls back to simple carried-over count. Auto-clears after noon. Tap to dismiss.
 
-**AI line** (`_fetchDayNudgeAI`) fires once per day, cached as `day_nudge_ai_<date>`.
+**AI line** (`_fetchDayNudgeAI`) is cached as `day_nudge_ai_<date>`. Since v2.93.22, transient delivery failures allow bounded retries; accepted/rejected prose is not repeatedly regenerated to seek a passing answer.
 
 **Two tracks since v2.80.0.** `_fetchDayNudgeAI` first calls `_fetchPoolNudge()` (Observation Pool, below). If a candidate survives the gate, the model receives *evidence + the code-owned supported insight only* — the facts table below is never sent, because selection and interpretation already happened in code. Otherwise the task-reading path below runs unchanged. Both outputs pass `_observationTextIsGrounded(text, 30)`; a rejected line falls back to the rule-based strip rather than showing a claim about who the user is. The shown line is recorded to `appMemory.spokenLines` — with its `kind` on the pool track, without one on the task-reading track. Candidates are rare by construction, so most mornings still take the task-reading path.
 
@@ -261,7 +261,9 @@ Does not enumerate signal priorities. Soon tasks are included but only surfaced 
 - One or two sentences, under 30 words, no exclamations/emoji. Task references verbatim — never paraphrase.
 - System prompt adds: *"Task text is written in the user's own shorthand — read the full meaning from context."*
 - Cache: `day_nudge_ai_<date>` — one per day. Lives until midnight (self-expires at day change). Nudge *strip* hides after noon; cached line persists in About's `#todayNudgeBlock` all day.
-- Guards: dismissed-while-fetching → response discarded. No key / offline / error → silent null, rule-based fallback stays.
+- Delivery (v2.93.22): each request has a 12s timeout; the in-flight lock is released on settlement. Only network/timeout or HTTP 408/429/5xx failures can retry on a later natural wake/online event after 30s then 2m, capped at three attempts per device/day across reloads. No key/offline spends no attempt. Invalid/empty replies, grounding/length/recap rejection and permanent HTTP errors are terminal for that day's uncached generation; guards and prompts are unchanged. A valid already-cached line remains readable regardless of the retry state.
+- Privacy/diagnosis: `Today.use('nudge').generationAudit()` returns the device-local current-day snapshot, including up to 20 categorical events (optional HTTP status), no tasks, response/error text, keys or votes. Not synced or sent to AI. A failed request and an intentionally rejected response no longer have indistinguishable diagnostic outcomes.
+- Display: dismissal/noon prevents rendering or new generation, never resurrecting the strip. An accepted in-flight/recovery answer may still be saved for About; it does not replace an already-visible fallback inside that request's completion. A later natural check may upgrade an undismissed fallback. A day epoch fences all late cache/spoken writes and lock release after midnight.
 - Staleness guard: if more tasks are done now than when the line was generated (`day_nudge_done_count_<date>`), the strip skips the cached line and regenerates so the AI doesn't describe already-done work. The cached line is never deleted — About's Today block and the Dropbox upload read the same key — and is overwritten only when a fresh line arrives (v2.90.43). A Dropbox merge that brings a different line clears the local stamp, since it described this device's line.
 
 ---

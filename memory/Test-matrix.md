@@ -199,9 +199,12 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 2.7a | Morning nudge (with review) | Shows "Yesterday: X done, Ym focused" |
 | 2.7b | Morning nudge after noon | Hidden, review cleared; dated AI line remains available in About until midnight |
 | 2.7f | **SYNC: new day after yesterday’s nudge dismissal** | Prior-day or undated remote flag cannot become today’s dismissal; same-day dated flag still applies |
-| 2.7c | Morning nudge AI upgrade (v2.17.73) | Rule-based line renders instantly, AI sentence fades in when ready; cached — same sentence on re-open that morning |
+| 2.7c | Morning nudge AI delivery (v2.93.22) | Waits up to 5s for AI; fallback on delay/failure. Late/recovered AI saves for About, never swaps mid-read; a later natural check may upgrade an undismissed fallback |
 | 2.7d | Morning nudge AI — no key / offline | Rule-based line stays, no error, no loading state |
 | 2.7e | Morning nudge dismissed while AI fetching | Stays dismissed — AI response does not resurrect it |
+| 2.7g | Morning nudge transient recovery | `nudge-test` covers network/timeout/408/429/5xx, no parallel requests, 30s/2m backoff and three attempts per device/day across reopening; dismissal/noon still block retries |
+| 2.7h | Morning nudge diagnostics / rejected prose | Read-only `Today.use('nudge').generationAudit()` distinguishes unreadable/empty/length/grounding/recap rejection from request failures; no private wording/keys/errors/reasons, no automatic retries for rejected prose |
+| 2.7i | Morning nudge request spans midnight | Old replies cannot cache/speak for either day or unlock the new request; new-day attempt budget starts fresh and accepted new-day line reaches About |
 | 2.8 | **SYNC: A→SOON, B has in TODAY** | B gets SOON (newer timestamp) |
 | 2.9 | **SYNC: A pulls back, B has in SOON** | A's pull wins (newer) |
 | 2.10 | **SYNC: Both move to zones** | Most recent zoneChangedAt wins |
