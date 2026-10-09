@@ -24,9 +24,10 @@ const stub = (reply) => {
     return { ok: true, status: 200, text: async () => JSON.stringify(reply) };
   };
 };
-const run = async (provider, systemPrompt = 'Be brief.') => {
+const run = async (provider, surface, extra = {}) => {
   const res = await handler({ httpMethod: 'POST', body: JSON.stringify({
-    provider, apiKey: 'test-key', systemPrompt, messages: [{ role: 'user', content: 'hi' }],
+    provider, apiKey: 'test-key', systemPrompt: 'Be brief.', surface,
+    messages: [{ role: 'user', content: 'hi' }], ...extra,
   }) });
   return { status: res.statusCode, body: JSON.parse(res.body) };
 };
@@ -38,8 +39,38 @@ try {
   assert.equal(r.status, 200);
   assert.equal(r.body.content, LONG, 'Claude plain text must arrive whole in content');
   assert.equal(r.body.message.length, 200, 'message keeps its 200-char shape for the suggestion chip');
-  assert.deepEqual(lastRequest.body.thinking, { type: 'disabled' }, 'Claude requests must not think adaptively');
-  ok('Claude plain-text reply arrives whole; thinking is disabled');
+  assert.deepEqual(lastRequest.body.thinking, { type: 'disabled' }, 'unmarked callers retain their current thinking policy');
+  assert.equal(lastRequest.body.max_tokens, 512);
+  ok('Claude plain-text reply arrives whole; unmarked callers stay unchanged');
+
+  stub({ content: [{ type: 'thinking', thinking: 'PRIVATE_THINKING' },
+    { type: 'redacted_thinking', data: 'PRIVATE_REDACTED' },
+    { type: 'text', text: 'An appointment needs a morning window.' }], stop_reason: 'end_turn' });
+  r = await run('claude', 'daily-nudge', { max_tokens: 999999, thinking: { type: 'disabled' }, model: 'override' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(lastRequest.body.thinking, { type: 'adaptive' });
+  assert.equal(lastRequest.body.max_tokens, 2048, 'daily policy reserves room for reasoning and text, with a fixed ceiling');
+  assert.equal(lastRequest.body.model, 'claude-sonnet-5', 'surface does not change the model');
+  assert.equal(r.body.content, 'An appointment needs a morning window.');
+  assert.ok(!JSON.stringify(r.body).includes('PRIVATE_'), 'thinking must never reach the client');
+  assert.ok(!('surface' in lastRequest.body), 'routing marker is not sent to Claude');
+  ok('daily nudges use adaptive thinking; only the final text reaches the client');
+
+  for (const surface of ['focus', 'sunday', 'DAILY-NUDGE', null, { type: 'daily-nudge' }]) {
+    await run('claude', surface);
+    assert.deepEqual(lastRequest.body.thinking, { type: 'disabled' });
+    assert.equal(lastRequest.body.max_tokens, 512);
+  }
+  ok('only the exact daily-nudge marker changes thinking and budget');
+
+  for (const content of [[{ type: 'thinking', thinking: 'PRIVATE_THINKING' }],
+    [{ type: 'text', text: 'An unfinished sentence' }]]) {
+    stub({ content, stop_reason: 'max_tokens' });
+    r = await run('claude', 'daily-nudge');
+    assert.equal(r.status, 502, 'a capped daily reply must use the existing bounded failure recovery, not cache partial prose');
+    assert.deepEqual(r.body, { error: 'Daily nudge response incomplete' });
+  }
+  ok('thinking-only and partial replies at the token ceiling are not accepted');
 
   stub({ content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: 'First part. ' }, { type: 'text', text: 'Second part.' }] });
   r = await run('claude');
@@ -55,6 +86,10 @@ try {
   stub({ candidates: [{ content: { parts: [{ text: LONG }] } }] });
   r = await run('gemini');
   assert.equal(r.body.content, LONG, 'Gemini plain text must arrive whole too');
+  r = await run('gemini', 'daily-nudge');
+  assert.equal(r.body.content, LONG);
+  assert.equal(lastRequest.body.generationConfig.maxOutputTokens, 512);
+  assert.deepEqual(lastRequest.body.generationConfig.thinkingConfig, { thinkingBudget: 0 });
   ok('Gemini plain-text reply arrives whole');
 } finally {
   globalThis.fetch = realFetch;

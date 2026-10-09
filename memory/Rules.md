@@ -3,13 +3,14 @@
 
 ---
 
-## Current Focus (reviewed 2026-10-07)
+## Current Focus (reviewed 2026-10-09)
 - **Working on:** Re-observe 12c morning/Sunday lines for the 2026-10-15 verdict and DreamBank M1 in real use; the dated Wallpaper verdicts and gates are in `Backlog.md`. Do not unlock WEEK, New week, or DreamBank M2 from one positive reading.
 - **Recent:** v2.93.16 removed the quiet-after-misses pause; votes guide the next ordinary morning line. v2.93.20–21 repaired enrichment arrival/filtering and added bounded on-device email ranking. v2.93.22 repairs transient nudge recovery and separates delivery failures from prose rejections in private, device-local diagnostics; real-device verification is owed. See `Changelog.md` for exact behavior.
 - **Module extraction: COMPLETE.** Runtime ownership and the startup composition boundary are documented in `design/Components.md`; new behavior belongs in the owning module and its component contract.
+- **v2.93.23:** daily-only adaptive Claude thinking plus bounded background recovery into About even after a fallback dismissal. Real AI dismissals remain final; no timer-driven strip replacement, new prompt or sync schema. Local two-device coverage is not live quality/delivery verification; BUG-118 stays unverified.
 - **Machine routing guard:** before any agent changes Headroom, a model provider/base URL, proxy/wrapper, port/mode, runtime override, or Headroom version, read `/Users/can/.headroom/ROUTING-GUARD.md` and obtain Can's explicit approval for that exact change. Keep Codex on explicit `127.0.0.1`, not `localhost`. Do not run `headroom learn --verbosity --apply`: v0.35.0 learns from Claude history only but hot-enables a proxy-global output shaper that can also affect Codex.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
-  - **v2.93.22 ⏳ (BUG-118)** — check desktop/mobile morning delivery after deployment; use `Today.use('nudge').generationAudit()` to distinguish failed requests from rejected prose without retaining private wording or forcing a real dismissal open.
+  - **v2.93.23 ⏳ (BUG-118)** — check desktop/mobile morning delivery after deployment; use `Today.use('nudge').generationAudit()` to distinguish failed requests from rejected prose without retaining private wording or forcing a real dismissal open.
   - **v2.64.23 ⏳** — verify appMemory convergence across two devices after a few 7s sync cycles: `today_memory.semantic.length` and newly confirmed inferences should match without manual Restore Backup.
   - **v2.64.22 ⏳** — verify overnight sync hardening: streak does not re-inflate from yesterday, newest check/uncheck wins, and Trello configuration reaches the second device.
   - **v2.62.1 ⏳** — verify: `appMemory.patterns.triageUndos` increments on triage undo; `soonPulls` increments on pull-from-soon; `reviveReasons` populated on revive; letting the undo toast expire records letgoReasons.

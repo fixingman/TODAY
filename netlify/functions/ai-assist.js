@@ -33,7 +33,7 @@ exports.handler = async function(event) {
     };
   }
 
-  const { provider = 'gemini', messages, systemPrompt, apiKey: rawClientKey } = body;
+  const { provider = 'gemini', messages, systemPrompt, apiKey: rawClientKey, surface } = body;
   if (!messages || !Array.isArray(messages)) {
     return { 
       statusCode: 400, 
@@ -138,6 +138,7 @@ exports.handler = async function(event) {
 
     // ── Claude Sonnet ─────────────────────────────────────────────────────────
     else if (provider === 'claude') {
+      const dailyNudge = surface === 'daily-nudge';
       const apiKey = process.env.ANTHROPIC_API_KEY || clientKey;
       if (!apiKey) {
         return { 
@@ -156,10 +157,10 @@ exports.handler = async function(event) {
         },
         body: JSON.stringify({
           model: 'claude-sonnet-5',
-          max_tokens: 512,
-          // Short writing tasks, same as the Gemini branch's thinkingBudget 0. Sonnet 5
-          // thinks adaptively by default, which puts a thinking block ahead of the text.
-          thinking: { type: 'disabled' },
+          // Reasoning and the answer share this ceiling. Only daily nudges opt in;
+          // callers cannot supply arbitrary model, effort or token-budget overrides.
+          max_tokens: dailyNudge ? 2048 : 512,
+          thinking: { type: dailyNudge ? 'adaptive' : 'disabled' },
           system: systemPrompt || '',
           messages: messages.map(m => ({ role: m.role, content: m.content })),
         }),
@@ -195,6 +196,14 @@ exports.handler = async function(event) {
         };
       }
       
+      // Never cache an incomplete daily line if thinking used up the token ceiling.
+      if (dailyNudge && data.stop_reason === 'max_tokens') {
+        return {
+          statusCode: 502,
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'Daily nudge response incomplete' }),
+        };
+      }
       responseText = (data?.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
     }
 

@@ -2,7 +2,7 @@
 //
 // Tests: checkDayNudge (cached AI, noon hidden, 5s AI wait + fallback, fallback-upgrade,
 //        stale-done keep-until-replaced, dismiss, already-dismissed, offline/no-key),
-//        bounded transient recovery, categorical diagnostics, About, midnight,
+//        scheduled bounded recovery, two-device dismissal/votes, diagnostics, About, midnight,
 //        checkVersionNudge, checkSundayNudge, checkHabitNudge, static wiring.
 //
 // Run from repo root:
@@ -61,10 +61,10 @@ browser = await puppeteer.launch({
 });
 
 // Default seed: 1 undone task (so checkDayNudge has content), hour=9 (morning),
-// and dismiss flag seeded so init()'s checkDayNudge(false) exits early, keeping
-// _nudgeRendered=false. skipDismiss=true lets init() render the nudge (test 6).
-async function openPage({ extraSeed, hourOverride = 9, skipDismiss = false } = {}) {
-  const page = await browser.newPage();
+// and dismiss flag seeded so init()'s checkDayNudge(false) cannot render,
+// keeping _nudgeRendered=false. skipDismiss=true lets init() render the nudge.
+async function openPage({ extraSeed, hourOverride = 9, skipDismiss = false, context = browser } = {}) {
+  const page = await context.newPage();
   await page.setViewport({ width: 1200, height: 900 });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -95,6 +95,7 @@ async function openPage({ extraSeed, hourOverride = 9, skipDismiss = false } = {
     { timeout: 15000 }
   );
   await page.evaluate(() => {
+    window.__nudgeTestBackup  = window.dropboxBackup;
     window.dropboxAutoSave    = () => {};
     window.dropboxBackup      = () => {};
     window._haptic            = () => {};
@@ -338,9 +339,11 @@ try {
         appMemory.taskOutcomes = [];
         let calls = 0;
         let recover = false;
+        let dailyRequests = true;
         const good = 'The appointment has a morning window; check it before other tasks.';
         window.fetch = async (url, opts) => {
           calls++;
+          dailyRequests = dailyRequests && JSON.parse(opts.body).surface === 'daily-nudge';
           if (recover) return { ok: true, json: async () => ({ content: good }) };
           if (failure === 'network') throw new TypeError('Private error detail: SECRET_ERROR');
           if (failure === 'timeout') return new Promise((resolve, reject) =>
@@ -380,6 +383,7 @@ try {
           distinguished: first.status === expected,
           httpStatusRecorded: !/^\d+$/.test(failure) || first.events.some(e => e.httpStatus === Number(failure)),
           onlyOneInitialRequest: first.attempts === 1,
+          dailyThinkingRequested: dailyRequests,
           noImmediateRetry,
           emptyAboutExplained: aboutEmpty,
           recoveryPolicy: retryable ? calls === 2 && final.status === 'accepted' && aboutRecovered
@@ -440,7 +444,8 @@ try {
       ok('generation: 30s/2m backoff and three-attempt device-day cap survive reopening');
     }
 
-    // Recovery must not bypass either a dismissal or the morning cutoff.
+    // Dismissing the fallback hides the strip, not the missing About line.
+    // Noon still blocks any new request.
     for (const gate of ['dismissed', 'afternoon']) {
       const { page, errors } = await openPage();
       const result = await page.evaluate(async gate => {
@@ -448,19 +453,221 @@ try {
         localStorage.setItem('today_ai_provider', 'claude');
         localStorage.setItem('today_ai_key_claude', 'test-key');
         let calls = 0;
-        window.fetch = async () => { calls++; throw new TypeError('Failed to fetch'); };
+        const good = 'Write the tests could make the next change easier to trust.';
+        window.fetch = async () => {
+          if (++calls === 1) throw new TypeError('Failed to fetch');
+          return { ok: true, json: async () => ({ content: good }) };
+        };
         checkDayNudge();
         await new Promise(r => setTimeout(r, 50));
-        Date.now = () => Today.use('nudge').generationAudit().retryAt + 1;
+        const readyAt = Today.use('nudge').generationAudit().retryAt + 1;
+        Date.now = () => readyAt;
         if (gate === 'dismissed') document.getElementById('dayNudge').click();
         else Date.prototype.getHours = () => 13;
         window.dispatchEvent(new Event('online'));
         checkDayNudge();
         await new Promise(r => setTimeout(r, 50));
-        return { noRetry: calls === 1, staysHidden: !document.getElementById('dayNudge').classList.contains('visible') };
+        Today.use('about').renderInfoStats();
+        return {
+          policy: gate === 'afternoon' ? calls === 1 : calls === 2
+            && localStorage.getItem('day_nudge_ai_' + _localISO()) === good
+            && document.getElementById('todayNudgeBlock').textContent.includes(good),
+          staysHidden: !document.getElementById('dayNudge').classList.contains('visible'),
+        };
       }, gate);
       await expectAll('recovery respects ' + gate, { ...result, noErrors: errors.length === 0 });
       await page.close();
+    }
+
+    // A genuine AI dismissal must never request replacement text, even with a
+    // stale completion stamp or a missing cache (the spoken record survives).
+    for (const cachePresent of [true, false]) {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(async cachePresent => {
+        const date = _localISO(), good = 'Write the tests before the next change needs them.';
+        localStorage.setItem('today_ai_provider', 'claude');
+        localStorage.setItem('today_ai_key_claude', 'test-key');
+        if (cachePresent) localStorage.setItem('day_nudge_ai_' + date, good);
+        appMemory.spokenLines = [{ surface: 'morning nudge', date, text: good, reaction: 'landed' }];
+        doneIds.add('task_1');
+        localStorage.setItem('day_nudge_done_count_' + date, '0');
+        let calls = 0;
+        window.fetch = async () => { calls++; throw new Error('Must not regenerate'); };
+        checkDayNudge();
+        window.dispatchEvent(new Event('online'));
+        await new Promise(r => setTimeout(r, 50));
+        return { noRequest: calls === 0,
+          hidden: !document.getElementById('dayNudge').classList.contains('visible'),
+          votePreserved: _memoryLineFor('morning nudge', date).reaction === 'landed' };
+      }, cachePresent);
+      await expectAll('accepted dismissal cache=' + cachePresent, { ...result, noErrors: errors.length === 0 });
+      await page.close();
+    }
+
+    // Drive only the scheduled backoff callbacks, without a wake/check/online
+    // event. Keep About open to prove local recovery refreshes it automatically.
+    for (const cutoff of ['recover', 'undismissed', 'noon', 'offline', 'new-day']) {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(async cutoff => {
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        localStorage.setItem('today_ai_provider', 'claude');
+        localStorage.setItem('today_ai_key_claude', 'test-key');
+        appMemory.taskOutcomes = [];
+        const realTimeout = window.setTimeout, realClear = window.clearTimeout;
+        const timers = new Map(); let timerId = -1, now = Date.now(), calls = 0, saves = 0;
+        Date.now = () => now;
+        window.setTimeout = (fn, delay, ...args) => {
+          if (delay === 30000 || delay === 120000) { const id = timerId--; timers.set(id, fn); return id; }
+          return realTimeout(fn, delay, ...args);
+        };
+        window.clearTimeout = id => { if (!timers.delete(id)) realClear(id); };
+        window.dropboxAutoSave = () => saves++;
+        const good = 'Write the tests could leave a little less uncertainty for later.';
+        window.fetch = async () => {
+          if (++calls <= 2) throw new TypeError('Failed to fetch');
+          return { ok: true, json: async () => ({ content: good }) };
+        };
+        const wait = () => new Promise(r => realTimeout(r, 60));
+        const fire = () => {
+          now = Today.use('nudge').generationAudit().retryAt + 1;
+          const entries = [...timers.values()]; timers.clear(); entries.forEach(fn => fn());
+        };
+        checkDayNudge(); await wait();
+        const scheduled = timers.size === 1;
+        const fallback = document.getElementById('dayNudge').textContent;
+        const recovering = cutoff === 'recover' || cutoff === 'undismissed';
+        if (cutoff !== 'undismissed') document.getElementById('dayNudge').click();
+        document.getElementById('infoPanel').classList.add('open');
+        Today.use('about').renderInfoStats();
+        if (cutoff === 'noon') Date.prototype.getHours = () => 12;
+        if (cutoff === 'offline') Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
+        if (cutoff === 'new-day') _nudgeOnNewDay();
+        fire(); await wait();
+        const secondScheduled = timers.size === 1;
+        if (recovering) { fire(); await wait(); }
+        return { scheduled,
+          bounded: recovering ? calls === 3 && secondScheduled && timers.size === 0 : calls === 1 && timers.size === 0,
+          stripRespected: cutoff === 'undismissed'
+            ? document.getElementById('dayNudge').classList.contains('visible') && document.getElementById('dayNudge').textContent === fallback
+            : !document.getElementById('dayNudge').classList.contains('visible'),
+          aboutLive: !recovering || document.getElementById('todayNudgeBlock').textContent.includes(good),
+          normalAutosave: saves === (cutoff === 'recover' ? 2 : 1),
+        };
+      }, cutoff);
+      await expectAll('scheduled recovery ' + cutoff, { ...result, noErrors: errors.length === 0 });
+      await page.close();
+    }
+    ok('dismissed fallback recovers into open About on bounded timers; real AI dismissals, noon, offline and rollover remain respected');
+
+    // Two isolated device stores, using the real backup serializer and merge.
+    // Device B adopts A's fallback dismissal, then a recovered line arrives
+    // during B's own request. Its late reply must not reset the synced vote.
+    {
+      const contexts = await Promise.all([browser.createBrowserContext(), browser.createBrowserContext()]);
+      const [a, b] = await Promise.all(contexts.map(context => openPage({ context })));
+      const good = 'Write the tests could leave less uncertainty around the next change.';
+      for (const { page } of [a, b]) await page.evaluate(() => {
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        localStorage.setItem('today_ai_provider', 'claude');
+        localStorage.setItem('today_ai_key_claude', 'test-key');
+        localStorage.setItem('dropbox_token', 'test-token');
+        localStorage.setItem('dropbox_token_expiry', String(Date.now() + 3600000));
+        appMemory.taskOutcomes = []; appMemory.spokenLines = [];
+        window._saveMemory = () => localStorage.setItem('today_memory', JSON.stringify(appMemory));
+        window.__saveSignals = 0;
+        window.dropboxAutoSave = () => window.__saveSignals++;
+        window.__uploads = [];
+        window.__dropboxResponse = (url, options) => {
+          if (url.includes('/files/upload')) window.__uploads.push(JSON.parse(options.body));
+          return { ok: true, status: 200, json: async () => ({ rev: 'test-rev' }) };
+        };
+      });
+      const failed = await a.page.evaluate(async good => {
+        const timeout = window.setTimeout;
+        window.__retries = [];
+        window.setTimeout = (fn, delay, ...args) => {
+          if (delay === 30000 || delay === 120000) {
+            window.__retries.push(fn); return -window.__retries.length;
+          }
+          return timeout(fn, delay, ...args);
+        };
+        window.__calls = 0;
+        window.fetch = async (url, options) => {
+          if (!url.includes('/ai-assist')) return window.__dropboxResponse(url, options);
+          if (++window.__calls === 1) throw new TypeError('Failed to fetch');
+          return { ok: true, json: async () => ({ content: good }) };
+        };
+        checkDayNudge(); await new Promise(r => timeout(r, 60));
+        const countShown = document.getElementById('dayNudge').textContent.includes('still here from yesterday');
+        document.getElementById('dayNudge').click();
+        await window.__nudgeTestBackup(true);
+        return { countShown, signalled: window.__saveSignals === 1, payload: window.__uploads.at(-1) };
+      }, good);
+      await expectAll('device A failed fallback dismissal', {
+        countShown: failed.countShown, autosave: failed.signalled,
+        datedDismissal: failed.payload.per_day_dismiss_date === TODAY && failed.payload.day_nudge_dismissed === '1',
+        noPrematureLine: !failed.payload.day_nudge_ai,
+      });
+      const bStarted = await b.page.evaluate(async payload => {
+        window.__calls = 0;
+        window.fetch = (url, options) => {
+          if (!url.includes('/ai-assist')) return Promise.resolve(window.__dropboxResponse(url, options));
+          window.__calls++; return new Promise(resolve => { window.__resolveAI = resolve; });
+        };
+        mergeRemoteData(payload);
+        document.getElementById('infoPanel').classList.add('open');
+        Today.use('about').renderInfoStats();
+        checkDayNudge(); await new Promise(r => setTimeout(r, 40));
+        return { retryAllowed: window.__calls === 1,
+          hidden: !document.getElementById('dayNudge').classList.contains('visible'),
+          dismissalAdopted: localStorage.getItem('day_nudge_dismissed_' + _localISO()) === '1' };
+      }, failed.payload);
+      await expectAll('device B adopted fallback dismissal', bStarted);
+      const recovered = await a.page.evaluate(async () => {
+        document.getElementById('infoPanel').classList.add('open');
+        Today.use('about').renderInfoStats();
+        const readyAt = Today.use('nudge').generationAudit().retryAt + 1;
+        Date.now = () => readyAt;
+        window.__retries.shift()();
+        await new Promise(r => setTimeout(r, 60));
+        await window.__nudgeTestBackup(true);
+        return { signalled: window.__saveSignals === 2, payload: window.__uploads.at(-1),
+          aboutLive: document.getElementById('todayNudgeBlock').textContent.includes(localStorage.getItem('day_nudge_ai_' + _localISO())),
+          hidden: !document.getElementById('dayNudge').classList.contains('visible') };
+      });
+      await expectAll('device A scheduled recovery payload', {
+        autosave: recovered.signalled, aboutLive: recovered.aboutLive, hidden: recovered.hidden,
+        text: recovered.payload.day_nudge_ai === good,
+        dated: recovered.payload.day_nudge_ai_date === TODAY,
+        spoken: recovered.payload.memory.spokenLines.filter(l => l.surface === 'morning nudge' && l.date === TODAY).length === 1,
+      });
+      const voted = await b.page.evaluate(async ({ payload, good }) => {
+        mergeRemoteData(payload);
+        const aboutLive = document.getElementById('todayNudgeBlock').textContent.includes(good);
+        _memoryReactToLine('morning nudge', _localISO(), 'landed');
+        window.__resolveAI({ ok: true, json: async () => ({ content: 'A competing local reply must not replace the voted line.' }) });
+        await new Promise(r => setTimeout(r, 60));
+        await window.__nudgeTestBackup(true);
+        return { aboutLive, hidden: !document.getElementById('dayNudge').classList.contains('visible'),
+          canonical: localStorage.getItem('day_nudge_ai_' + _localISO()) === good,
+          adopted: Today.use('nudge').generationAudit().status === 'cache-adopted',
+          vote: _memoryLineFor('morning nudge', _localISO()).reaction === 'landed',
+          payload: window.__uploads.at(-1) };
+      }, { payload: recovered.payload, good });
+      await expectAll('device B late reply preserves synced line and vote', {
+        aboutLive: voted.aboutLive, hidden: voted.hidden, canonical: voted.canonical, adopted: voted.adopted, vote: voted.vote,
+      });
+      const converged = await a.page.evaluate(async payload => {
+        mergeRemoteData(payload); mergeRemoteData(payload);
+        checkDayNudge(); await new Promise(r => setTimeout(r, 40));
+        const lines = appMemory.spokenLines.filter(l => l.surface === 'morning nudge' && l.date === _localISO());
+        return { oneVote: lines.length === 1 && lines[0].reaction === 'landed',
+          noRegeneration: window.__calls === 2,
+          hidden: !document.getElementById('dayNudge').classList.contains('visible') };
+      }, voted.payload);
+      await expectAll('two-device vote convergence', { ...converged, noErrors: !a.errors.length && !b.errors.length });
+      await Promise.all(contexts.map(context => context.close()));
+      ok('two devices: failed fallback → synced dismissal → timed recovery → live About → vote convergence; late local text cannot overwrite it');
     }
 
     // Offline preflight spends no request budget; online recovers normally.
@@ -822,6 +1029,7 @@ try {
         const spoken = appMemory.spokenLines.find(l => l.date === _localISO() && l.kind) || {};
         return {
           onlyOneCall: calls.length === 1,
+          dailyThinkingRequested: calls[0]?.surface === 'daily-nudge',
           carriesEvidenceAndInsight: body.includes('Evidence:') && body.includes('Supported insight:'),
           noTaskListLeak: !body.includes('in the order the user arranged'),
           noMemoryDumpLeak: !body.includes('About you'),

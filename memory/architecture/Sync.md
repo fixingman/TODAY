@@ -38,6 +38,8 @@
 6. On disconnect ('offline' event): stop ticker
 ```
 
+**Daily nudge recovery (v2.93.23):** strip dismissal and accepted recovery both queue the existing debounced/retrying `dropboxAutoSave()` path. They use the existing dated dismissal, AI-cache and spoken-line fields; no schema or global sync rewrite. A synced fallback dismissal can still allow missing-text recovery into About, without reopening the strip. Once an accepted cache/spoken record exists, a real AI dismissal is final. If sync supplies an accepted line while a local generation is pending, the late local reply cannot replace that line or its vote. Two isolated browser stores exercise the real backup serializer/merge and repeated vote convergence in `nudge-test`.
+
 ### Cold-Start Sync Timing (v2.38.5)
 
 The Trello `dateLastActivity` check + Dropbox pull/merge block used to be gated on `window.addEventListener('load', ...)`. That's a much coarser gate than the splash animation itself needs: `window.load` waits for *every* subresource on the page — both self-hosted fonts, both icon PNGs, the OG-image meta tag's image, all 11 `apple-touch-startup-image` launch-screen PNGs — while the splash animation only waits on the two fonts (`document.fonts.load()` raced against a 2000ms ceiling). Sync sat idle in that gap even after everything the splash actually needed was already ready.

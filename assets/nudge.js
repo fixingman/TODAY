@@ -19,13 +19,11 @@ window._startNudge = (function() {
     // replaces another AI line, and completion never swaps text mid-read (BUG-034).
     let _nudgeIsFallback = false;
     let _reasonDismissTimer = null;
-    // 12c Phase 3: set by _fetchDayNudgeAI when a pool candidate produced the line,
-    // so the spoken-line record carries the kind the novelty gate cools down on.
+    let _retryTimer = null;
+    // Pool kind carried by the spoken record for novelty gating.
     let _nudgeKind = null;
 
-    // About can change today's reaction while the task-list strip is already
-    // mounted. Only its controls refresh: re-running checkDayNudge would either
-    // hit the one-render guard or risk replacing a sentence mid-read.
+    // About votes refresh controls, never the sentence being read.
     function _syncMorningReactionControls() {
       const reactEl = document.getElementById('dayNudgeReact');
       const line = _memoryLineFor('morning nudge', _localISO());
@@ -49,18 +47,13 @@ window._startNudge = (function() {
       if (e.detail?.surface === 'morning nudge' && e.detail.date === _localISO()) _syncMorningReactionControls();
     });
 
-    // strip wrapping quotes. For plain-text responses only — _fetchTriageHints
-    // expects JSON content and does its own parsing.
+    // Strip wrapping quotes from plain text, not JSON responses.
     function _parseAIText(data) {
       if (data.error) return null;
       return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
     }
 
-    // A Netlify + model round trip (sometimes two: the observation pool, then the task
-    // path) routinely takes 2–4s. With nothing shown while waiting, a longer window costs
-    // only a later arrival — whereas losing the race showed the plain count on every
-    // first open of the day and held the real line back until the next open (BUG-034
-    // forbids swapping it in mid-read). Failures still settle immediately below.
+    // Allow a 2–4s model round trip before the count fallback. Never swap mid-read.
     const _NUDGE_AI_WAIT_MS = 5000;
     const _NUDGE_QUIET = Symbol('morning nudge abstained');
     const _GENERATION_KEY = 'today_nudge_generation_v1';
@@ -94,6 +87,20 @@ window._startNudge = (function() {
         status: state.status, retryAt: state.retryAt, updatedAt: state.updatedAt || null,
         events: (state.events || []).map(e => ({ ...e })) };
     }
+    function _clearNudgeRetry() {
+      if (_retryTimer !== null) clearTimeout(_retryTimer);
+      _retryTimer = null;
+    }
+    function _scheduleNudgeRetry(state) {
+      _clearNudgeRetry();
+      if (state.terminal || state.attempts >= _MAX_ATTEMPTS || !state.retryAt
+          || new Date().getHours() >= 12) return;
+      const epoch = _nudgeEpoch;
+      _retryTimer = setTimeout(() => {
+        _retryTimer = null;
+        if (epoch === _nudgeEpoch && state.date === _localISO()) checkDayNudge(true, true);
+      }, Math.max(0, state.retryAt - Date.now()));
+    }
     function _responseVerdict(text) {
       if (!text) return 'empty-response';
       if (text.trim().split(/\s+/).length > 30) return 'rejected-length';
@@ -108,7 +115,7 @@ window._startNudge = (function() {
       try {
         const res = await fetch('/.netlify/functions/ai-assist', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body), signal: controller.signal,
+          body: JSON.stringify({ ...body, surface: 'daily-nudge' }), signal: controller.signal,
         });
         if (!res.ok) {
           result = { status: 'http-error', httpStatus: res.status,
@@ -131,10 +138,8 @@ window._startNudge = (function() {
       return result;
     }
 
-    // The pool has per-kind verdicts; ordinary task-reading lines have no kind. A miss
-    // on that path steers the next line instead of silencing the morning: tomorrow's
-    // list is different, and a quiet morning yields no vote to learn from. The model
-    // sees only its own earlier wording — never the optional reason, which stays private.
+    // Task-path misses steer tomorrow, not silence it. Only earlier model wording
+    // enters the prompt; optional reasons stay private.
     function _taskPathMisses(todayISO) {
       const daysAgo = date => {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return Infinity;
@@ -148,10 +153,7 @@ window._startNudge = (function() {
         .map(l => String(l.text).slice(0, 200));
     }
 
-    // A few age-led lines in the private voted corpus landed because they made a
-    // real contrast or choice. Only reject the narrow bare-recap shape: a waiting
-    // duration with no turn beyond the list itself. This is a floor, not a claim
-    // that code can determine whether an observation is useful to the person.
+    // Reject bare age recaps, not useful contrasts/choices. The person judges usefulness.
     function _taskNudgeOnlyInventories(text) {
       const line = String(text || '');
       const duration = /\b\d+\s+days?\b/i.test(line);
@@ -178,20 +180,21 @@ window._startNudge = (function() {
         if (!text) { settle(fallbackMsg ?? _NUDGE_QUIET, false); return; }
         _pruneLS(cachePrefix, cacheKey);
         localStorage.setItem(cacheKey, text);
+        if ($.infoPanel?.classList.contains('open')) Today.use('about').renderInfoStats();
+        dropboxAutoSave();
         settle(text, true);
       }).catch(() => settle(fallbackMsg ?? _NUDGE_QUIET, false));
     }
 
-    // Unified morning nudge (v2.19.0) — one surface between SOON and Trello,
-    // replacing the separate manual + Trello nudges. Two nudges competed for the
-    // same morning attention; one line that leads with what matters most doesn't.
-    function checkDayNudge(allowGenerate = true) {
+    // One morning surface between SOON and Trello.
+    function checkDayNudge(allowGenerate = true, background = false) {
       const nudgeEl = $.dayNudge || document.getElementById('dayNudge');
       if (!nudgeEl) return;
 
       // Only show in morning hours (before noon)
       const hour = new Date().getHours();
       if (hour >= 12) {
+        _clearNudgeRetry();
         nudgeEl.classList.remove('visible', 'show');
         localStorage.removeItem('morning_nudge_count');
         localStorage.removeItem('today_day_review');
@@ -206,13 +209,22 @@ window._startNudge = (function() {
         return;
       }
 
-      // Dismissed this morning — stay hidden until tomorrow (per-day flag).
-      // Without this guard, the self-heal below recalculates carriedOver from
-      // manualTasks and resurrects a nudge the user just dismissed on every wake. (BUG-040)
+      // Dismissal is a display decision. Without an accepted line, background
+      // recovery may still fill About, on this device or after a synced dismissal.
       const _dismissKey = 'day_nudge_dismissed_' + _localISO();
-      if (localStorage.getItem(_dismissKey)) {
+      const dismissed = !!localStorage.getItem(_dismissKey);
+      const _nudgeCacheKey = _aiCacheKey('day_nudge_ai');
+      const _aiCached = _aiSurfaceGet('day_nudge_ai');
+      const canShow = !dismissed && !background;
+      if (dismissed) {
         nudgeEl.classList.remove('visible', 'show');
-        return;
+        document.getElementById('dayNudgeReact')?.classList.remove('open');
+        // A genuine AI dismissal never regenerates, even if its cache was pruned
+        // or more tasks were completed. A spoken record is accepted-line evidence.
+        if (_aiCached || _memoryLineFor('morning nudge', _localISO())) {
+          _clearNudgeRetry();
+          return;
+        }
       }
 
       // Use stored count, but self-heal if missing — day-transition sets it once, but a
@@ -238,6 +250,7 @@ window._startNudge = (function() {
       const isReviewFresh = review && review.date && review.date === _localISO(_yd);
 
       if (carriedOver === 0 && cards.length === 0 && !isReviewFresh) {
+        _clearNudgeRetry();
         nudgeEl.classList.remove('visible', 'show');
         return;
       }
@@ -262,17 +275,12 @@ window._startNudge = (function() {
         if (review.habits > 0) yp.push(`${review.habits} habit${review.habits > 1 ? 's' : ''}`);
         if (yp.length) msg = `Yesterday: ${yp.join(', ')}`;
       }
-      if (!msg) { nudgeEl.classList.remove('visible', 'show'); return; }
+      if (!msg) { _clearNudgeRetry(); nudgeEl.classList.remove('visible', 'show'); return; }
 
-      // ── AI-or-rule race (v2.17.129) ──
-      // If AI text is cached for today, show it directly — no rule-based flash, no swap.
-      // If not cached, race the AI fetch against a 1s timeout. AI wins → show Tier 2 from
-      // the start. Timeout wins → show rule-based and never swap mid-display (BUG-034).
-      // No content is ever replaced while the user is reading.
-      const _nudgeCacheKey = _aiCacheKey('day_nudge_ai');
-      const _aiCached = _aiSurfaceGet('day_nudge_ai');
-
+      // Cached AI shows directly. Otherwise wait up to 5s, then keep the fallback
+      // stable until a later natural check (BUG-034).
       const _showNudge = (text, isAI) => {
+        if (!canShow) return;
         if (_reasonDismissTimer) clearTimeout(_reasonDismissTimer);
         _reasonDismissTimer = null;
         _nudgeRendered = true;
@@ -281,7 +289,9 @@ window._startNudge = (function() {
         _breathe(nudgeEl.querySelector('.nudge-star'), _KF_BREATHE_SMALL, 2400);
         if (!nudgeEl.classList.contains('show')) {
           nudgeEl.classList.add('show');
-          requestAnimationFrame(() => nudgeEl.classList.add('visible'));
+          requestAnimationFrame(() => {
+            if (!localStorage.getItem(_dismissKey) && nudgeEl.classList.contains('show')) nudgeEl.classList.add('visible');
+          });
           // The strip can arrive seconds after the list (it waits for the AI line), so it
           // opens its own space rather than shoving the list down in one frame. WAAPI,
           // never CSS: the wake repaint's display toggle replays CSS animations (BUG-028).
@@ -306,11 +316,10 @@ window._startNudge = (function() {
           localStorage.setItem(_dismissKey, '1');
           localStorage.removeItem('morning_nudge_count');
           localStorage.removeItem('today_day_review');
+          dropboxAutoSave();
         };
-        // 12e (v2.86.0): when today's line is a spoken one, the first tap reveals the
-        // two states in the sibling strip instead of dismissing; a state records and
-        // dismisses; tapping the sentence again dismisses without a verdict. The strip
-        // is a <button>, so the states live in a sibling — never nested buttons.
+        // Spoken lines reveal sibling reaction buttons, never nested buttons.
+        // A second sentence tap dismisses without voting.
         const reactEl = document.getElementById('dayNudgeReact');
         const spokenToday = isAI && typeof _memoryLineFor === 'function'
           ? _memoryLineFor('morning nudge', _localISO()) : null;
@@ -358,26 +367,11 @@ window._startNudge = (function() {
         };
       };
 
-      // Once the real AI line has shown, no further call site may render again —
-      // otherwise a later call finding a freshly-cached (different) value re-renders
-      // over content the user already saw. If what's showing is only the plain
-      // fallback, though, let a later call site check again — see _nudgeIsFallback.
-      if (_nudgeRendered && !_nudgeIsFallback) return;
+      // Never replace a visible AI line. A fallback can upgrade on a natural check.
+      if (_nudgeRendered && !_nudgeIsFallback) { _clearNudgeRetry(); return; }
 
-      // Staleness guard: day_nudge_ai_<date> is cached once and never revalidated
-      // for the rest of the day — if the AI's sentence mentions a task and the user
-      // finishes it before actually looking at the banner (generated at 8am, first
-      // seen at 9am, task done at 8:05am), the cached text describes already-done
-      // work. Text-matching the AI's sentence against done-task text is unreliable
-      // (the AI only quotes a short fragment, not the full task string), so instead
-      // stamp doneIds.size at generation time and compare against the current count:
-      // if more tasks are done now than when the text was written, something the AI
-      // saw as pending may since be finished — regenerate rather than show a
-      // sentence that might be about finished work.
-      // The stale line is skipped here but never deleted: About's Today block and the
-      // Dropbox upload read the same key, so deleting it before a replacement lands let
-      // a failed retry blank the line for the rest of the day on every device.
-      // _raceAINudge overwrites it only when a fresh line arrives.
+      // Extra completions can stale an unseen line. Keep it for About/sync until
+      // replacement succeeds; deleting first let a failed request blank every device.
       const _doneCountKey = 'day_nudge_done_count_' + _localISO();
       let _cacheValid = !!_aiCached;
       if (_aiCached) {
@@ -386,23 +380,27 @@ window._startNudge = (function() {
       }
 
       if (_cacheValid) {
+        _clearNudgeRetry();
         _showNudge(_aiCached, true);
       } else if (allowGenerate && _memoryReady && !_nudgeRacing) {
         const state = _generationForToday();
         // Rejected prose and permanent errors are not network failures. Do not
         // repeatedly ask the model until it produces something that passes.
         if (state.terminal || state.attempts >= _MAX_ATTEMPTS || Date.now() < state.retryAt) {
+          _scheduleNudgeRetry(state);
           if (!_nudgeRendered) _showNudge(msg, false);
           return;
         }
         const key = Today.use('connections')._aiGetKey();
         if (!key || !navigator.onLine) {
+          _clearNudgeRetry();
           state.status = key ? 'offline' : 'not-configured';
           if (state.events?.at(-1)?.status !== state.status) _generationEvent(state, 'preflight', state.status);
           if (!_nudgeRendered) _showNudge(msg, false);
           return;
         }
         _nudgeRacing = true;
+        _clearNudgeRetry();
         state.attempts++;
         state.status = 'started';
         _generationEvent(state, 'attempt', 'started');
@@ -413,6 +411,16 @@ window._startNudge = (function() {
           cachePrefix: _AI_SURFACES.find(s => s.key === 'day_nudge_ai').prefix,
           fetchPromise: _fetchDayNudgeAI(review, carriedOver, cards, state).then(result => {
             if (!isCurrent()) return _NUDGE_QUIET;
+            // A sync may have supplied the accepted line while this request ran.
+            // Preserve that canonical text and its votes rather than replacing it.
+            const adopted = _aiSurfaceGet('day_nudge_ai');
+            if (adopted && adopted !== _aiCached) {
+              state.status = 'cache-adopted';
+              state.retryAt = 0;
+              state.terminal = false;
+              _generationEvent(state, 'attempt', state.status);
+              return _NUDGE_QUIET;
+            }
             state.status = result.status;
             state.terminal = !result.retryable && result.status !== 'accepted';
             state.retryAt = result.retryable ? Date.now() + (_RETRY_DELAYS[state.attempts - 1] || 120000) : 0;
@@ -426,14 +434,17 @@ window._startNudge = (function() {
             return text;
           }).finally(() => {
             // A yesterday request must not unlock a new day's in-flight one.
-            if (isCurrent()) _nudgeRacing = false;
+            if (isCurrent()) {
+              _nudgeRacing = false;
+              _scheduleNudgeRetry(state);
+            }
           }),
           fallbackMsg: msg,
           // Single-arg — the old "N carried over · " prefix on AI text is gone;
           // the AI sees the counts in its facts and mentions what matters itself.
           isCurrent,
           onShow: (text, isAI) => {
-            if (new Date().getHours() >= 12 || localStorage.getItem(_dismissKey)) return;
+            if (!canShow || new Date().getHours() >= 12 || localStorage.getItem(_dismissKey)) return;
             // A recovered answer is saved for About and the next natural check,
             // never swapped into an already-visible fallback mid-read.
             if (_nudgeRendered) return;
@@ -672,12 +683,12 @@ window._startNudge = (function() {
     window.checkSundayNudge = checkSundayNudge;
     window.checkHabitNudge = checkHabitNudge;
     Today.define('nudge', { generationAudit: _generationAudit });
-    // Online is a natural re-check, not a new timer-driven attention surface.
-    // Backoff, attempt budget, morning, memory-ready and dismissal gates apply.
+    // Reconnect/wake checks complement the bounded background retry timer.
     window.addEventListener('online', () => checkDayNudge());
     // Called by dropbox.js checkNewDay() at day boundary — resets session guards so the
     // fresh day's nudge can render in a tab that stayed open across midnight.
     window._nudgeOnNewDay = function() {
+      _clearNudgeRetry();
       if (_reasonDismissTimer) clearTimeout(_reasonDismissTimer);
       _reasonDismissTimer = null;
       _nudgeRendered  = false;
