@@ -6,8 +6,8 @@
 
 ## Pre-Release Checklist (REQUIRED)
 
-Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 40 local
-test suites (41 checks total), including six-scene visual regression coverage, the DreamBank
+Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 42 local
+test suites (43 checks total), including the content-free error-monitor unit test, Calendar foundation contract test, six-scene visual regression coverage, the DreamBank
 queue/day/grounding/file-format unit test (`dreambank-unit-test`) and the `meeting-extract` handler unit
 test. `dropbox-test` and `meeting-test` also cover on-demand retrieval of a pruned dream on a second device: the selected file must reopen without entering synced/local storage, preserve older saved notes, and show retryable offline/missing-file states. The live `scripts/ai-test.mjs`, the live `scripts/dream-live-test.mjs`, and five-run
 `scripts/performance-test.mjs` are explicit exclusions: the first two require API keys and real

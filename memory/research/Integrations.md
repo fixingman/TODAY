@@ -20,6 +20,8 @@
 | Integration | Decision | Reasoning |
 |-------------|----------|-----------|
 | Google Drive | Parked; spec in `Backlog.md` §9 | Alternative sync provider, chosen explicitly at setup |
+| Google Calendar | 10b foundation local (v2.94.0); live verification owed | Separate read-only primary-calendar timing, no agenda/AI input; meeting-start UI is a later gate |
+| Granola | Not started; `Backlog.md` §10a | Independent manual meeting import; not a prerequisite for Calendar consent |
 | Todoist | Rejected 2026-08-21 | No demonstrated need for a second task-integration lane |
 | Microsoft To Do, TickTick, iCloud, Jira | No active plan | Feasibility notes below are historical, not a build order |
 

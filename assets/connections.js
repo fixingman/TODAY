@@ -9,6 +9,54 @@
     // Two state vars live here: not wholesale-replaced by the Dropbox sync/merge layer.
     const _CONNECTIONS_PRIVACY_SEEN_KEY = 'today_connections_privacy_seen';
     let _connectionsPrivacyVisible = false;
+    let _calendarModule = null;
+    let _calendarLoaded = false;
+
+    function _loadCalendar() {
+      if (!_calendarModule) _calendarModule = import('./calendar.js').then(() => {
+        const api = Today.use('calendar');
+        _calendarLoaded = true;
+        return api;
+      }).catch(error => { _calendarModule = null; throw error; });
+      return _calendarModule;
+    }
+    function _calendarAuth() {
+      // Keep popup creation in the click gesture, before the lazy import/network await.
+      const popup = window.open('about:blank', 'calendar_auth', 'width=600,height=700');
+      if (!popup) { showStatus('Allow popups to connect Google Calendar.', 'error'); return; }
+      _loadCalendar().then(calendar => calendar.auth(popup)).catch(() => {
+        popup.close(); showStatus('Can\'t open Calendar. Try again.', 'error');
+      });
+    }
+    function _calendarForget() {
+      _loadCalendar().then(calendar => calendar.forget()).catch(() => {
+        showStatus('Can\'t forget Calendar right now. Try again.', 'error');
+      });
+    }
+    function _calendarRowHTML() {
+      const connected = !!localStorage.getItem('calendar_refresh_token');
+      const state = _calendarLoaded ? Today.use('calendar').connectionState()
+        : localStorage.getItem('calendar_token_expired') === '1' && connected ? 'expired'
+        : connected ? 'connected' : 'disconnected';
+      const status = state === 'expired' ? 'Sign-in expired'
+        : state === 'unavailable' ? 'Can\'t read Calendar right now'
+        : connected ? 'Primary calendar · read-only' : 'Read-only meeting context';
+      return `<div class="connection-row${connected && state === 'connected' ? ' connected' : ''}">
+        <div class="connection-row-info">
+          <span class="connection-row-title${connected && state === 'connected' ? ' connected' : ''}">Google Calendar</span>
+          <span class="connection-row-status">${esc(status)}</span>
+        </div>
+        <div class="connection-row-actions">
+          ${!connected || state === 'expired' ? `<button class="btn-sm primary" data-today-click="connections.calendar-auth">${connected ? 'Reconnect' : 'Connect'}</button>` : ''}
+          ${state === 'unavailable' ? '<button class="btn-sm" data-today-click="connections.calendar-retry">Retry</button>' : ''}
+          ${connected ? '<button class="btn-sm btn-forget" data-today-click="connections.calendar-forget">Forget</button>' : ''}
+        </div>
+      </div>`;
+    }
+    // Opt-in only; never add an eager script or delay startup for Calendar.
+    window.addEventListener('load', () => {
+      if (localStorage.getItem('calendar_refresh_token')) _loadCalendar().then(calendar => calendar.init()).catch(() => {});
+    }, { once: true });
     // All other state (manualTasks, doneIds, soonTasks, pastTasks, trelloTasks, $)
     // is wholesale-replaced by mergeRemoteData — must stay as inline globals.
 
@@ -73,6 +121,7 @@
         localStorage.getItem('dropbox_refresh_token') ||
         localStorage.getItem('dropbox_token_expired') === '1' ||
         localStorage.getItem('gmail_access_token') ||
+        localStorage.getItem('calendar_refresh_token') ||
         _aiGetKey('gemini') ||
         _aiGetKey('claude')
       );
@@ -138,7 +187,7 @@
       // Disable/enable all CTAs in the connections panel and AI section
       const panel = document.getElementById('configPanel');
       if (panel) {
-        panel.querySelectorAll('button:not(#offlineBanner *)').forEach(btn => {
+        panel.querySelectorAll('button:not(#offlineBanner *):not([data-today-click="connections.calendar-forget"])').forEach(btn => {
           btn.disabled = offline;
           btn.style.opacity = offline ? 'var(--opacity-dim)' : '';
           btn.style.cursor  = offline ? 'not-allowed' : '';
@@ -158,7 +207,8 @@
       const btn = document.getElementById('trelloBtn');
       if (!btn) return;
       const expired = localStorage.getItem('gmail_token_expired') === '1'
-        || localStorage.getItem('dropbox_token_expired') === '1';
+        || localStorage.getItem('dropbox_token_expired') === '1'
+        || localStorage.getItem('calendar_token_expired') === '1';
       const seen = !!localStorage.getItem('connections_nudge_seen_' + _localISO());
       btn.classList.toggle('btn-icon-attention', expired && !seen);
     }
@@ -215,7 +265,8 @@
               <button class="btn-primary" data-today-click="connections.dropbox-auth">Connect</button>
             </div>
           </div>
-          ${_gmailRowHTML(gmailConnected)}`;
+          ${_gmailRowHTML(gmailConnected)}
+          ${_calendarRowHTML()}`;
         _applyOfflinePanel();
         return;
       }
@@ -320,6 +371,7 @@
       }
 
       html += _gmailRowHTML(gmailConnected);
+      html += _calendarRowHTML();
       container.innerHTML = html;
 
       // If Trello needs board loading, do it now
@@ -805,6 +857,11 @@
       Today.ui.register('click', 'connections.dropbox-disconnect', dropboxDisconnect);
       Today.ui.register('click', 'connections.gmail-auth', gmailAuth);
       Today.ui.register('click', 'connections.gmail-disconnect', gmailDisconnect);
+      Today.ui.register('click', 'connections.calendar-auth', _calendarAuth);
+      Today.ui.register('click', 'connections.calendar-forget', _calendarForget);
+      Today.ui.register('click', 'connections.calendar-retry', () => {
+        _loadCalendar().then(calendar => calendar.refresh(true)).catch(() => {});
+      });
       Today.ui.register('click', 'connections.ai-default', (_event, button) => setDefaultProvider(button.dataset.provider));
       Today.ui.register('click', 'connections.ai-clear', (_event, button) => clearAIKey(button.dataset.provider));
       Today.ui.register('input', 'connections.ai-input', (_event, input) => _aiUpdateConnectBtn(input.dataset.provider));

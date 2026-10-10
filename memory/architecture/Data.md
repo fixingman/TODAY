@@ -55,6 +55,12 @@
 | `today_connections_privacy_seen` | string | Local-only `'1'` after the first Connections-panel open; gates the one-time privacy reassurance and is deliberately excluded from Dropbox backup/sync |
 | `gmail_enrichment_<taskId>` | JSON | Device-local selected email metadata: `{threadId, subject, from, date, messageId, snippet, taskText, searchQuery, fetchedAt, matchPolicy}`. v2.93.21 requires `matchPolicy: 'minisearch-v1'`, removes old unvalidated/calendar cards on read and rechecks changed task text. Candidate indexes are transient; no mailbox import or synced email corpus. |
 | `gmail_diagnostics_v1` | JSON array | At most 20 device-local `{taskId, status, source, reason, attempts, at}` records. Includes `weak-match`, `ambiguous-match`, `ranking-unavailable` and `excluded-calendar`, never queries, task wording, email content, scores or credentials. Cleared with Gmail Forget; not synced. |
+| `calendar_access_token` | string | Device-local Calendar token; separate consent from Gmail, never synced |
+| `calendar_refresh_token` | string | Device-local Calendar refresh token; never synced |
+| `calendar_token_expiry` | string | Access-token expiry in epoch ms; device-local |
+| `calendar_token_expired` | string | `'1'` when Google refuses sign-in; visible Reconnect, no refresh loop. Cleared by successful consent or Calendar Forget |
+
+Calendar event timing/join context is closure-only in `calendar.js`; never a storage key, appMemory record or backup field. Hide/offline/Forget clears it; day/staleness guards withhold it. No event titles/descriptions/participant names are requested in the 10b foundation.
 
 ### AI
 

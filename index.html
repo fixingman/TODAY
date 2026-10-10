@@ -4607,9 +4607,7 @@
 <script src="assets/about.js"></script>
 <script src="assets/task-bounce.js"></script>
 <script>
-// OAuth popup relay — if this page loaded inside a popup after an OAuth redirect,
-// send the code/error back to the opener via postMessage and close immediately,
-// before any app init runs.
+// Relay OAuth callback to the same-origin opener, then close before app init.
 (function() {
   if (!window.opener) return;
   const p = new URLSearchParams(window.location.search);
@@ -4622,10 +4620,7 @@
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 window.scrollTo(0, 0);
 
-// ─── Error Monitoring (dev aid) ── moved to assets/error-monitor.js (Roadmap #3,
-// seventh module extraction) — _errorLog, _logSyncError, window.onerror/
-// unhandledrejection, _toggleErrorPanel. Static CSS for #errorIndicator/
-// #errorPanel stays here.
+// Runtime ownership: memory/design/Components.md; errors live in error-monitor.js.
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
@@ -4635,16 +4630,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '347h';
+const DEV_HOURS     = '348h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.94.0': 'Google Calendar can connect separately and read today’s primary-calendar timing privately. Meeting prompts are not enabled yet.',
   '2.93.27': 'Gmail no longer appears attached to the Trello and Dropbox cards in Connections — there is now proper spacing between the grid and the row below it.',
   '2.93.26': 'A browser add-on’s error no longer lights the red dot — it only shows for problems inside TODAY.',
-  '2.93.25': 'The daily poem tab now shows the TODAY ✦ icon instead of the Netlify default.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4702,37 +4697,17 @@ let pastTasks = safeJSON('today_past', []);
 let triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
 
 
-// ── NUDGE (morning AI banner, version/Sunday/habit badge nudges) — moved to assets/nudge.js
-
-// ─── Memory System → assets/insights.js (Roadmap #3, sixth extraction) ─────
-// appMemory + _memoryOn* writers + _memoryForAI + proactive observations.
-
-// ── _pruneTrelloMaps — moved to assets/day-lifecycle.js
-
-// ── NEW-DAY CLEANUP (streak, history, zone-aging, tombstones) — moved to assets/day-lifecycle.js
-
 // ─── Init ─────────────────────────────────────────────────────────────────────
 function init() {
   _cacheElements();  // cache frequently queried DOM elements FIRST
 
-  // Keep section-header sticky offset in sync with the visible bottom of the sticky-header.
-  // Computed from scrollY, never measured from the element: iOS moves sticky elements on
-  // the compositor thread, so getBoundingClientRect() oscillates a few px behind the real
-  // position during scroll — feeding that into the var made section headers jitter (BUG-050).
-  // Geometry: the header (top:0, first child of body, body = 100vh) stays pinned while
-  // scrollY ≤ bodyHeight − headerHeight, then its bottom recedes as bodyHeight − scrollY.
+  // BUG-050: use scroll math, not lagging iOS compositor rects, for sticky offset.
   const _stickyHdr = document.getElementById('sticky-header');
   if (_stickyHdr) {
     let _secTopLast;
     const _updateSecTop = () => {
       const h = _stickyHdr.offsetHeight;
-      // Continuous tracking via scroll math (BUG-050 sixth pass) — avoids the
-      // jitter of getBoundingClientRect() (iOS compositor lag) while eliminating
-      // the two-constant snap. Geometry: sticky-header's visible bottom =
-      // bodyHeight − scrollY, clamped to [0, h]. During departure (scrollY
-      // between bodyH−h and bodyH) this tracks the logo edge exactly; outside
-      // that window it saturates to h (pinned) or 0 (gone). Safe-area strip
-      // above is covered by #statusBarScrim.
+      // Visible header bottom = body height − scrollY, clamped to [0, h].
       const next = Math.min(h, Math.max(0, document.body.offsetHeight - window.scrollY));
       if (next !== _secTopLast) {
         _secTopLast = next;
@@ -4756,17 +4731,11 @@ function init() {
     mainApp.querySelectorAll('.focused').forEach(el => el.classList.remove('focused'));
   }
   
-  // Date header uses the real calendar day (midnight boundary, matches _getAppDay /
-  // tasks). NOTE: habits roll at 3am (_habitTodayISO), so between midnight and 3am the
-  // header shows the new day while the habit strip still belongs to the day that's ending.
+  // Header follows midnight; habits retain their separate 3am boundary.
   function _dateTagText() {
     return new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }).toUpperCase();
   }
-  // Written once here and again by checkNewDay() at the midnight boundary (BUG-097): the
-  // app stays open across midnight without a reload, so the header has to follow the day
-  // on its own. The change is a slow crossfade — Motion.md: calm, not urgent — with the
-  // durations and easing read from :root so JS and CSS keep one clock. One-shot, so WAAPI
-  // is fine; reduced motion swaps the text with no animation.
+  // BUG-097: checkNewDay also refreshes this. Token-based fade; reduced motion swaps.
   window._dateTagRefresh = function(animate) {
     const el = document.getElementById('dateTag');
     if (!el) return;
@@ -4877,17 +4846,11 @@ function init() {
 
 }
 
-// ─── Sound + haptics ── moved to assets/sound.js (self-contained, browser APIs only).
-
-// ── Accent glow flash + ember drift ── moved to assets/celebration.js.
-
 let habitsList        = safeJSON('today_habits', []);
 let habitCompletions  = safeJSON('today_habit_completions', {});
 let habitEvents       = safeJSON('today_habit_events', {});   // LWW map: "habitId::YYYY-MM-DD" → {type,at}
 let habitEditMode     = false;
 
-
-// ── TASK ACTIONS (add, check, delete, undo, stats) — moved to assets/task-actions.js
 
 // ── Bar submit logic ─────────────────────────────────────────────────────────
 // One task input. Enter always adds (fast, zero friction).
@@ -4904,18 +4867,9 @@ function _updateBarPlaceholder() {
 }
 
 
-// ── Desktop shortcuts (Shift+;, Shift+D) — moved to assets/accessibility.js
-
 window._startDrag();
 
 
-// ── showStatus — moved to assets/util.js (window.showStatus)
-
-// ─── Celebration — ember drift + accent glow ── moved to assets/celebration.js.
-
-// ─── Idle Companion ── moved to assets/idle.js (self-contained IIFE).
-
-// ─── Dropbox — moved to assets/dropbox.js. ─────────────────────────────────────
 // _appReady starts false; set to true by assets/splash.js after load settles.
 let _appReady = false;
 

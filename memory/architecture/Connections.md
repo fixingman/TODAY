@@ -139,6 +139,26 @@ See `architecture/Sync.md` for the full sync loop. The panel shows last activity
 
 ---
 
+## Google Calendar — 10b foundation (v2.94.0, local)
+
+Separate Connect / Reconnect / Retry / Forget row, using the existing connection tokens and spacing. This does not enable an agenda, meeting reminder or automatic recording. Granola is independent.
+
+- `assets/calendar.js` is dynamically imported on Connect or after load when Calendar credentials exist; no additional eager startup script. The popup is opened inside the original click gesture before import or network awaits.
+- Consent requests only `https://www.googleapis.com/auth/calendar.events.readonly`, with PKCE and random in-memory state. The callback checks origin, popup source and state. New consent must return its own refresh token; it never inherits another account's saved token. Verifier/state stay in memory; callback codes are relayed by the existing popup and are not stored or logged. Tokens travel in request bodies/headers, never event-read URLs. A separate `calendar-token` function uses a complete Calendar client pair if configured, otherwise the complete Gmail client pair; no Gmail token/scope changes. Missing scope is rejected.
+- Tokens stay device-local under `calendar_access_token`, `calendar_refresh_token`, `calendar_token_expiry`, `calendar_token_expired`. Forget removes only these, clears transient context, stops polling and fences late token/read replies. No new Dropbox fields.
+- Reads call Google's primary-calendar events endpoint directly with bearer headers, local-midnight bounds, `singleEvents=true`, minimal fields, 100 results/page and a five-page ceiling. An incomplete/failed snapshot is withheld. Token refresh and event reads are single-flight; 401 refreshes once, invalid_grant/unauthorized_client marks expired. Other failures show Retry, not a sign-in retry loop.
+- Only regular timed, non-declined/non-cancelled/non-transparent events become transient `{start, end, joinUrl}` context. Video URLs must be HTTPS without embedded credentials. Titles, descriptions, event IDs and participant names are neither requested nor stored. Timed events are not yet classified as meetings.
+- Five-minute foreground refresh with a minute lifecycle check; hide/offline clears events, wake/online refetches, stale/day-old context is inaccessible. Calendar data is never sent to AI or added to appMemory/localStorage/backup. No event list is rendered.
+- The deployed `connect-src` policy allows only Google's `/calendar/v3/` path for the new Calendar reads. The phone-width browser contract serves the actual Netlify CSP and intercepts real requests (including CORS preflight), rather than replacing `fetch`; local header-free checks alone cannot verify this boundary.
+
+**Cloud setup verified (2026-10-10):** Can enabled Calendar API and saved only `calendar.events.readonly` in the existing Google project. Its Today OAuth client matches the deployed Gmail client; both dev/production HTTPS origins and root callback URLs are registered. No credentials, existing Gmail grants, audience or publishing settings changed. Can still grants actual Calendar consent separately on each device. Google's Testing-mode refresh token expiry applies where the app is in Testing. Check Connect, day read, Reconnect, Forget, and unchanged Gmail access before the meeting-start UI slice; Cloud configuration is not live-account verification.
+
+**Tests:** `calendar-test` uses synthetic Calendar/token responses to cover consent/PKCE, least-field GET, recurrence/pagination bounds, filtering/URL safety, DST/day freshness, hide/offline, single-flight, expiry and late Forget races. Real-account correctness and OAuth/PWA behavior remain manual verification.
+
+**Local verification (2026-10-10):** 43-check gate passed without failures/flakes; the expanded Calendar contract + phone-width browser check and Connections/smoke/SW checks were rerun after final fixes. Five-run performance passed unchanged budgets and 38 eager scripts. Duplicated inline shell comments were condensed (behavior unchanged) to keep the eager payload within its existing byte cap. No Google setup, consent, commit or deployment was performed.
+
+---
+
 ## AI provider configuration
 
 The Connections panel at `#configPanel` configures AI alongside Trello, Gmail, and Dropbox. AI

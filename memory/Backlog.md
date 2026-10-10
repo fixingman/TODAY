@@ -37,7 +37,8 @@ Ordered by potential impact on TODAY's longitudinal-companion promise and daily 
 | — | **WEEK companion** | Gated | Gate: 12c must feel like a companion, not a feature. Detail ↓ |
 | — | **New week — distinct Monday recognition** | Gated | The old Monday task-list intention was removed after the 2026-09-28 overlap report. Re-enter only with code-selected, week-scale commitment evidence that has a different job from Today's nudge; criteria ↓. |
 | 2 | **Poem corpus — iterate** | In progress | Corpus 128; expand geography and voice. Detail ↓ |
-| 10 | **Meeting mode & calendar capture** | In progress / gated | Granola MVP first; calendar = input only. Detail ↓ |
+| 10a | **Granola — meeting import** | Not started — priority path | Manual import of meeting notes/action items → reviewed task chips. Build before native calendar-led capture. Detail ↓ |
+| 10b | **Google Calendar — meeting context** | In progress — connection foundation; Cloud configured | Separate read-only primary-calendar connection; Calendar API/scope configured, real connection verification owed. Join/record pill remains the next gated slice; no agenda or event list. Detail ↓ |
 | 11 | **Task agent — enrichment at add-time** | Stages 1–3 shipped | Stage 3 (v2.90.0): `search_trello` custom tool. Contacts + calendar remain out of scope until those integrations exist. Detail ↓ |
 | 9 | **Google Drive sync** | Parked — spec ready | Second sync backend; user picks one provider. Full spec ↓ |
 | — | **Videos (HyperFrames)** | Promo + onboarding shipped (v2.92.6–10) | No phone (9:16) cut — Can, 2026-10-06. Footage is the real app, so a UI change dates a scene: v2.93.12 (brighter header/section labels) and v2.93.5–6 (About panel; onboarding scene 10) postdate the captures. Re-capture only if a difference shows. How-to: `video/README.md`. |
@@ -189,17 +190,33 @@ Dropbox + GDrive simultaneously · automatic cross-provider migration · OneDriv
 
 ---
 
-### 10 · Meeting Mode & Calendar Capture
+### 10a · Granola — Meeting Import
+
+**Priority path (not started):** Granola auto-detects meetings at OS level; outputs structured notes + action items. MVP: Granola MCP key in Connections → Netlify function calls `list_meetings` + `get_meetings` → AI extraction → task chips. Manual trigger: user finishes a meeting, opens TODAY, taps import.
+
+**Sequencing:** build this before investing in native calendar-led capture (10b). Granola import is a separate integration, not dependent on TODAY's Google Calendar connection.
+
+**Gate:** extraction quality — are the chips what you'd have written down yourself?
+
+---
+
+### 10b · Google Calendar — Meeting Context
+
+**Status (2026-10-10):** started at Can's request, independently of Granola import (10a). v2.94.0 connection foundation implemented locally; not yet deployed or live-account verified. Existing native recording is not itself a Google Calendar integration.
+
+**First slice:** separate Calendar consent in Connections (`calendar.events.readonly`), device-local tokens and a lazy, bounded read of today's primary calendar. Only timed, non-cancelled, non-declined, non-transparent regular events survive; context holds start/end and a safe video join URL in memory, not event titles/descriptions or participant names. No calendar data enters AI, appMemory, localStorage or Dropbox. Hidden/offline/stale/day-old context is withheld; Forget fences late responses. Reconnect, Retry and Forget use existing connection rows. No automatic recording or proactive pill yet.
+
+**Next gate:** deploy the foundation to dev and verify connection, refresh, Forget and read-only behavior on desktop and phone. Then design the meeting-start join/record offer, resolve no-link/overlap/PiP behavior, and run its Wallpaper gates before shipping that recurring surface. A timed event is not automatically proof of a meeting.
+
+**Deployment preparation (2026-10-10):** Can enabled Calendar API and saved only `calendar.events.readonly` in the existing Google project; both were verified in Cloud, whose Today client matches the deployed Gmail client. No client secret, Gmail grant, audience or publishing setting was changed. The Netlify CSP now permits the specific Calendar API path; the browser contract passes with that real policy and real request/CORS handling. The full local gate passes: 43 checks, no failures/flakes. Actual Calendar consent and desktop/phone connection behavior remain unverified.
 
 **Scope boundary (permanent):** phone-call recording is impossible from iOS — the OS never exposes call audio. Mobile meeting mode = in-room/speakerphone capture. Don't revisit.
 
 **Governing principle:** the calendar is INPUT, never OUTPUT. TODAY reads it to decide *when* to offer something and never renders it back — no agenda, no event list, no "next up".
 
-**Granola integration (priority path, not started):** Granola auto-detects meetings at OS level; outputs structured notes + action items. MVP: Granola MCP key in Connections → Netlify function calls `list_meetings` + `get_meetings` → AI extraction → task chips. Manual trigger: user finishes a meeting, opens TODAY, taps import. Build this before investing in native capture.
-
 **Native capture MVP shape:** read-only Google Calendar → existing v2.44.0 pill appears at meeting start with the join link + a record button. Nothing else displayed.
 
-**Auth:** thin Netlify proxy needed (Google ICS has no CORS header). OAuth over ICS because attendees aren't in ICS reliably. Unverified personal app = refresh tokens expire every 7 days in testing mode.
+**Auth:** PKCE consent with its own Calendar tokens; `calendar-token` holds the secret server-side. It can use a complete `CALENDAR_CLIENT_ID` / `CALENDAR_CLIENT_SECRET` pair, otherwise the existing Gmail client pair, without changing Gmail scopes or tokens. No ICS proxy. A Google OAuth app in Testing mode still has the 7-day refresh-token limit; expired sign-in is visible rather than silently retried. Setup and live consent remain Can's actions.
 
 **Open questions before building native:** (1) can a link be opened from a PiP document? (2) clean no-link state (Zoom/Teams/no conferencing); (3) headphone upgrade path (mix mic + tab audio via Web Audio) — after MVP.
 
