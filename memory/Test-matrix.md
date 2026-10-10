@@ -6,8 +6,8 @@
 
 ## Pre-Release Checklist (REQUIRED)
 
-Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all 42 local
-test suites (43 checks total), including the content-free error-monitor unit test, Calendar foundation contract test, six-scene visual regression coverage, the DreamBank
+Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all registered local
+test suites, including the content-free error-monitor unit test, Calendar foundation contract test, experimental Calendar nudge policy unit test, six-scene visual regression coverage, the DreamBank
 queue/day/grounding/file-format unit test (`dreambank-unit-test`) and the `meeting-extract` handler unit
 test. `dropbox-test` and `meeting-test` also cover on-demand retrieval of a pruned dream on a second device: the selected file must reopen without entering synced/local storage, preserve older saved notes, and show retryable offline/missing-file states. The live `scripts/ai-test.mjs`, the live `scripts/dream-live-test.mjs`, and five-run
 `scripts/performance-test.mjs` are explicit exclusions: the first two require API keys and real
@@ -207,6 +207,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 2.7i | Morning nudge request spans midnight | Old replies cannot cache/speak for either day or unlock the new request; new-day attempt budget starts fresh and accepted new-day line reaches About |
 | 2.7j | Daily Claude reasoning (v2.93.23) | `ai-assist-unit-test` pins adaptive thinking + 2048-token ceiling only for the exact daily marker, text-only extraction and capped-reply 502; other Claude callers and Gemini unchanged. `nudge-test` checks the marker on pool/task/retry requests and existing slow-delivery/timeout behaviour. Live provider latency/quality remains a manual check. |
 | 2.7k | Two-device daily recovery (v2.93.23) | Isolated browser stores use the real Dropbox serializer and merge: failed request → count fallback → synced dismissal → timed recovery → live About on both devices. A competing late local reply cannot replace the synced line/vote; repeated merge leaves one voted record. Dismissal/recovery queue existing autosave; no new sync fields |
+| 2.7l | Experimental Calendar nudge boundary (v2.94.3; not live) | `calendar-nudge-policy-unit-test`: 18 groups covering explicit natural declarations/source provenance, ambiguous/conditional/estimated/reported wording withheld, optional repeat-evidence silence, both bounded non-directive stances; merged recorded timing, never availability; deadline/DST/freshness/privacy and changed-task revalidation; strict AI decision rejects unsafe prose and extra fields. Independent 100-schedule oracle. Not loaded by the app; general parsing, voice variety and real-use usefulness remain gated. |
 | 2.8 | **SYNC: A→SOON, B has in TODAY** | B gets SOON (newer timestamp) |
 | 2.9 | **SYNC: A pulls back, B has in SOON** | A's pull wins (newer) |
 | 2.10 | **SYNC: Both move to zones** | Most recent zoneChangedAt wins |
@@ -376,7 +377,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 ## Test Summary
 
 The numbered scenarios below are the manual acceptance catalogue, not a hand-maintained test
-count. The executable inventory is authoritative: `test-all.mjs` currently runs 39 checks and
+count. The executable inventory is authoritative: `test-all.mjs` runs the registered checks and
 fails if a new `*-test.mjs` suite is omitted. This avoids the old summary drifting whenever a
 later section or automated suite was added.
 

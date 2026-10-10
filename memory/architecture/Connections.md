@@ -139,9 +139,11 @@ See `architecture/Sync.md` for the full sync loop. The panel shows last activity
 
 ---
 
-## Google Calendar — 10b foundation (v2.94.0, local)
+## Google Calendar — 10b foundation (v2.94.0)
 
 Separate Connect / Reconnect / Retry / Forget row, using the existing connection tokens and spacing. This does not enable an agenda, meeting reminder or automatic recording. Granola is independent.
+
+**Connected status (v2.94.1):** `Google Calendar` / `Connected`. The primary-calendar API detail and read-only permission are not repeated in the healthy status; consent and permissions remain read-only. Disconnected setup still explains `Read-only meeting context`; expired and unavailable states retain their actionable messages. Browser coverage pins the healthy row at mobile and desktop widths.
 
 - `assets/calendar.js` is dynamically imported on Connect or after load when Calendar credentials exist; no additional eager startup script. The popup is opened inside the original click gesture before import or network awaits.
 - Consent requests only `https://www.googleapis.com/auth/calendar.events.readonly`, with PKCE and random in-memory state. The callback checks origin, popup source and state. New consent must return its own refresh token; it never inherits another account's saved token. Verifier/state stay in memory; callback codes are relayed by the existing popup and are not stored or logged. Tokens travel in request bodies/headers, never event-read URLs. A separate `calendar-token` function uses a complete Calendar client pair if configured, otherwise the complete Gmail client pair; no Gmail token/scope changes. Missing scope is rejected.
@@ -155,7 +157,7 @@ Separate Connect / Reconnect / Retry / Forget row, using the existing connection
 
 **Tests:** `calendar-test` uses synthetic Calendar/token responses to cover consent/PKCE, least-field GET, recurrence/pagination bounds, filtering/URL safety, DST/day freshness, hide/offline, single-flight, expiry and late Forget races. Real-account correctness and OAuth/PWA behavior remain manual verification.
 
-**Local verification (2026-10-10):** 43-check gate passed without failures/flakes; the expanded Calendar contract + phone-width browser check and Connections/smoke/SW checks were rerun after final fixes. Five-run performance passed unchanged budgets and 38 eager scripts. Duplicated inline shell comments were condensed (behavior unchanged) to keep the eager payload within its existing byte cap. No Google setup, consent, commit or deployment was performed.
+**Foundation verification (2026-10-10):** 43-check gate passed without failures/flakes; Calendar, Connections/smoke/SW and five-run performance passed unchanged budgets and 38 eager scripts. Dev CI passed; v2.94.0 deployed to dev and production with public configuration, CSP and cache contracts checked. Real consent and account behavior remain separate verification.
 
 ---
 

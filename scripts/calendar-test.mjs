@@ -272,7 +272,19 @@ try {
     hasLeak: document.body.innerText.includes('PRIVATE_TEST_EVENT') || JSON.stringify(localStorage).includes('PRIVATE_TEST_'),
     overflow: document.documentElement.scrollWidth > innerWidth,
   }));
-  assert.match(connected.text, /Google Calendar/); assert.match(connected.text, /Primary calendar · read-only/);
+  assert.match(connected.text, /Google Calendar/);
+  for (const width of [390, 1440]) {
+    await page.setViewport({ width, height: 844 });
+    const row = await page.$eval('[data-today-click="connections.calendar-forget"]', button => {
+      const row = button.closest('.connection-row');
+      return { title: row.querySelector('.connection-row-title').textContent,
+        status: row.querySelector('.connection-row-status').textContent,
+        overflow: document.documentElement.scrollWidth > innerWidth };
+    });
+    assert.equal(row.title, 'Google Calendar');
+    assert.equal(row.status, 'Connected');
+    assert.equal(row.overflow, false);
+  }
   assert.equal(connected.hasLeak, false); assert.equal(connected.overflow, false);
   await page.click('[data-today-click="connections.calendar-forget"]');
   await page.waitForFunction(() => !localStorage.getItem('calendar_refresh_token'));
@@ -280,6 +292,6 @@ try {
   assert.equal(await page.evaluate(() => Today.use('calendar').context().length), 0);
   assert.equal(await page.$eval('[data-today-click="connections.calendar-auth"]', el => el.textContent), 'Connect');
   assert.deepEqual(errors, []);
-  ok('phone-width app reads Calendar through deployed CSP, keeps events private, and Forget leaves Gmail connected');
+  ok('mobile/desktop Calendar status is plain; CSP reads stay private and Forget leaves Gmail connected');
 } finally { if (browser) await browser.close(); await new Promise(resolve => server.close(resolve)); }
 console.log('✓ CALENDAR FOUNDATION TEST PASSED');

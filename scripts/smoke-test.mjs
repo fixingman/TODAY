@@ -127,6 +127,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'Henry David Thoreau',
     'Friedrich Nietzsche (trans. Alexander Tille)',
     'Thiruvalluvar (trans. V. V. S. Aiyar)',
+    'John Muir',
   ];
   const sixLineVoices = [
     'Traditional Asante (recorded by R. S. Rattray)',
@@ -144,6 +145,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'Henry David Thoreau',
     'Friedrich Nietzsche (trans. Alexander Tille)',
     'Thiruvalluvar (trans. V. V. S. Aiyar)',
+    'John Muir',
   ];
   const hasAllApprovedVoices = approvedVoices.every(author =>
     poems.some(poem => poem.author === author));
@@ -204,7 +206,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     poem.text.includes('skies of couple-colour as a brinded cow') ||
     poem.text.includes('wins victory for bride') ||
     poem.text.includes('The loveless soul, the very joys of life may know') ||
-    poem.text.includes('One day we silent sulked'));
+    poem.text.includes('One day we silent sulked') ||
+    // Round 46 final cuts (2026-10-10)
+    poem.text.includes('their summer work done') ||
+    poem.text.includes('I gathered all my sorrows and buried them') ||
+    poem.text.includes('with the sound of rice') ||
+    poem.text.includes("In th' autumn sky, Mount Fuji stands") ||
+    poem.text.includes('After a still winter night I awoke'));
   const hasSeason = (sourcePart, season) => poems.some(poem =>
     poem.source.includes(sourcePart) && poem.season === season);
   const seasonTagDrift =
@@ -216,13 +224,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     counts[key] = (counts[key] || 0) + 1;
     return counts;
   }, {});
-  const seasonCountDrift = seasonCounts.winter !== 14 || seasonCounts.spring !== 18 ||
-    seasonCounts.summer !== 12 || seasonCounts.autumn !== 12 || seasonCounts['year-round'] !== 72;
-  if (poems.length !== 128 || malformed.length || !hasAllApprovedVoices || !hasForeverNows || !hasBecauseRose || !hasNietzscheStory || !hasThoreauLifePoem || !hasNietzscheLove || !hasNietzscheStar || !hasAiyarSneeze || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
+  const seasonCountDrift = seasonCounts.winter !== 16 || seasonCounts.spring !== 18 ||
+    seasonCounts.summer !== 14 || seasonCounts.autumn !== 12 || seasonCounts['year-round'] !== 74;
+  if (poems.length !== 134 || malformed.length || !hasAllApprovedVoices || !hasForeverNows || !hasBecauseRose || !hasNietzscheStory || !hasThoreauLifePoem || !hasNietzscheLove || !hasNietzscheStar || !hasAiyarSneeze || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
     console.error('✗ FAIL — reviewed poem corpus count, schema, line limit, or season tags drifted.');
     process.exit(1);
   }
-  console.log('  ✓ 128-poem reviewed corpus shape, approved selections, and audited seasons');
+  console.log('  ✓ 134-poem reviewed corpus shape, approved selections, and audited seasons');
 
   try {
     globalThis.fetch = async request => {

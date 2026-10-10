@@ -40,7 +40,7 @@
         : connected ? 'connected' : 'disconnected';
       const status = state === 'expired' ? 'Sign-in expired'
         : state === 'unavailable' ? 'Can\'t read Calendar right now'
-        : connected ? 'Primary calendar · read-only' : 'Read-only meeting context';
+        : connected ? 'Connected' : 'Read-only meeting context';
       return `<div class="connection-row${connected && state === 'connected' ? ' connected' : ''}">
         <div class="connection-row-info">
           <span class="connection-row-title${connected && state === 'connected' ? ' connected' : ''}">Google Calendar</span>

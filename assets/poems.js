@@ -868,4 +868,42 @@ const POEMS = [
     season: null,
     source: "Thus Spake Zarathustra, Prologue 1, trans. Alexander Tille (1896), p. 1 — Nietzsche d. 1900, Tille d. 1912, both PD worldwide; complete opening question reflowed to two displayed lines, verified verbatim against the validated 1896 scan",
   },
+
+  // ── Round 46 (Oct 2026) — seasonal fill: margin, freedom, snow, slow progress ──
+  {
+    text: 'There were times when I could not afford to sacrifice\nthe bloom of the present moment to any work,\nwhether of the head or hands.\nI love a broad margin to my life.',
+    author: 'Henry David Thoreau',
+    season: 'summer',
+    source: "Walden (1854), 'Sounds' — the first summer at the pond; Thoreau d. 1862, PD worldwide; contiguous passage reflowed to four displayed lines, verified verbatim against Project Gutenberg #205",
+  },
+  {
+    text: 'Life seems neither long nor short, and we take no more heed\nto save time or make haste than do the trees and stars.\nThis is true freedom, a good practical sort of immortality.',
+    author: 'John Muir',
+    season: 'summer',
+    source: 'My First Summer in the Sierra (1911), entry for June 13 — Muir d. 1914, PD worldwide; contiguous passage reflowed to three displayed lines, verified verbatim against Project Gutenberg #32540',
+  },
+  {
+    text: "Well then, we'll off to see the snow,\nFar as we can without a tumble.",
+    author: 'Bashō',
+    season: 'winter',
+    source: 'Chamberlain 1902, no. 77 (Iza saraba / Yuki-mi ni korobu / Tokoro made) — Chamberlain d. 1935, PD worldwide; verified verbatim against the archive.org scan text',
+  },
+  {
+    text: 'If winter should say, “Spring is in my heart,”\nwho would believe winter?',
+    author: 'Kahlil Gibran',
+    season: 'winter',
+    source: 'Sand and Foam (1926) — Gibran d. 1931, PD worldwide; complete aphorism reflowed to two displayed lines, verified verbatim against the Wikisource transcription of the 1928 scan',
+  },
+  {
+    text: 'The moon moves slowly,\nbut it crosses the town.',
+    author: 'Traditional Asante (recorded by R. S. Rattray)',
+    season: null,
+    source: "Ashanti Proverbs (Oxford, 1916), no. 816, 'Osram de herehere na etwa oman mu' — Rattray d. 1938, PD worldwide; complete proverb reflowed to two displayed lines, verified verbatim against the archive.org scan text",
+  },
+  {
+    text: 'We often borrow from our tomorrows\nto pay our debts to our yesterdays.',
+    author: 'Kahlil Gibran',
+    season: null,
+    source: 'Sand and Foam (1926) — Gibran d. 1931, PD worldwide; complete aphorism reflowed to two displayed lines, verified verbatim against the Wikisource transcription of the 1928 scan',
+  },
 ];
