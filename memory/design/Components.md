@@ -302,7 +302,7 @@ Appended after the four main `typeBlock` sections by `_reflectionRenderMemory(el
 | Condition | Content |
 |-----------|---------|
 | Policy = `not_for_me` or absent | "Reflections are not remembered." + "Remember reflections" button |
-| Policy = `remember`, 0 reflections | "Remembering the last 30 days." |
+| Policy = `remember`, 0 reflections | "Keeps 30 days, never more." — a rolling window: each evening is dropped 30 days after it was saved; the permission itself is asked once and never expires |
 | Policy = `remember`, reflections but no qualifying relationship | Count sentence only |
 | Policy = `remember`, AI configured + qualifying relationship | Count, then auto-reflect on panel open |
 | `_reflectPending` | "reflecting…" sentence |

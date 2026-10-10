@@ -346,7 +346,7 @@
         inner += `<div class="memory-item"><span class="memory-item-text">${
           list.length > 0
             ? `${list.length} evening${s} — last ${MAX_DAYS} days.`
-            : `Remembering the last ${MAX_DAYS} days.`
+            : `Keeps ${MAX_DAYS} days, never more.`
         }</span></div>`;
 
         const candidate = _buildReflectionCandidate(list);

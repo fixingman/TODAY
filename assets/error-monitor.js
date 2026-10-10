@@ -71,6 +71,15 @@ window.onerror = function(msg, url, line, col, err) {
     console.warn('[network-onerror]', msgStr);
     return false;
   }
+  // BUG-119: "Script error." with no source (:0:0) is the browser withholding a cross-origin
+  // script's error. TODAY loads no cross-origin scripts, so it comes from something injected
+  // into the page (an extension, a content blocker, an in-app browser, the browser's own
+  // translate/autofill). Same-origin errors always carry their file and line. Nothing here
+  // is actionable, so it stays in the console and off the red dot.
+  if ((msgStr === 'Script error.' || msgStr === 'Script error') && !url && !line) {
+    console.warn('[external-onerror] cross-origin script error, details withheld by the browser');
+    return false;
+  }
   // Check if error originates from outside the app (browser extensions, injected scripts)
   const isExternal = url && !url.includes(window.location.hostname) && !url.includes('index.html');
   const prefix = isExternal ? '[external] ' : '';
