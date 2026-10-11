@@ -1,5 +1,4 @@
-// TODAY — opt-in post-triage reflections.
-// Inert until index.html calls window._startReflections() before init().
+// TODAY — opt-in reflections; start before init.
 (function() {
   'use strict';
   let started = false;
@@ -7,8 +6,7 @@
     if (started) return;
     started = true;
 
-    // Offered as a two-column grid (v2.93.14): lighter feelings on the left, heavier on
-    // the right, each column lightest on top. DOM order is row by row.
+    // Lighter feelings left, heavier right; DOM order follows rows.
     const OFFERED_FEELINGS = [
       'joyful',  'scattered',
       'alive',   'tense',
@@ -16,8 +14,7 @@
       'calm',    'drained',
       'present', 'sad',
     ];
-    // 'off' is no longer offered, but evenings already marked with it stay valid — in
-    // storage, in sync, and in HOW DAYS FELT.
+    // Legacy off remains valid in storage and sync.
     const VALID_FEELINGS  = [...OFFERED_FEELINGS, 'off'];
     const POLICY_KEY      = 'today_reflection_policy';
     const DATA_KEY        = 'today_reflections';
@@ -26,9 +23,7 @@
     const MAX_DAYS        = 30;
     const OFFER_COOLDOWN_DAYS = 7;
 
-    // Relationship thresholds — defined once here, covered by tests, never tuned
-    // against live user data. A feeling frequency by itself is not an insight: both
-    // sides must be commitment-shaped evenings before HOW DAYS FELT may speak.
+    // Require observed commitment comparisons; never tune thresholds to live data.
     const INSIGHT_MIN_GROUP       = 4;
     const INSIGHT_MIN_FEELING     = 3;
     const INSIGHT_MIN_DIFF_RATIO  = 0.30;
@@ -36,7 +31,10 @@
     // Transient session-only state (never persisted)
     let _reflectResult  = null;
     let _reflectPending = false;
-    let _reflectTriggered = false; // auto-trigger fires once per session
+    let _reflectTriggered = false; // at most one attempt per evidence snapshot
+    let _reflectAttempted = false;
+    let _reflectEvidence = null;
+    let _reflectEpoch = 0;
 
     function _parseAIText(data) {
       if (data.error) return null;
@@ -46,9 +44,10 @@
     function _usableReflectionText(text, candidate) {
       const clean = text?.trim();
       if (!clean || clean.toLowerCase() === 'none') return null;
-      if (clean.split(/\s+/).length > 24) return null;
+      if (clean.split(/\s+/).length > 40) return null;
       if (!/[.!?…]$/.test(clean)) return null;
-      if (!/\b(reflected|reflections)\b/i.test(clean)) return null;
+      if (!/^On evenings you reflected,/i.test(clean)) return null;
+      if ((clean.match(/[.!?…](?:\s|$)/g) || []).length !== 1) return null;
       if (!candidate || !new RegExp('\\b' + candidate.feeling + '\\b', 'i').test(clean)) return null;
       const comparisonAt = clean.search(/\bmore often\b|\bmore common\b|\bshowed up more\b|\bstood out more\b/i);
       if (comparisonAt < 0) return null;
@@ -65,8 +64,7 @@
       return clean;
     }
 
-    // ── Storage helpers ──────────────────────────────────────────────────────
-
+    // Storage helpers
     function _loadPolicy() {
       const raw = safeJSON(POLICY_KEY, null);
       if (!raw || typeof raw !== 'object') return null;
@@ -115,8 +113,7 @@
       return _loadReflections().find(r => r.date === _localISO()) || null;
     }
 
-    // ── Intro cooldown ───────────────────────────────────────────────────────
-
+    // Intro cooldown
     function _introOfferPermitted() {
       const raw = localStorage.getItem(INTRO_KEY);
       if (!raw) return true;
@@ -131,8 +128,7 @@
       localStorage.setItem(INTRO_KEY, new Date().toISOString());
     }
 
-    // ── Main triage hook ─────────────────────────────────────────────────────
-
+    // Main triage hook
     function _reflectionShowAfterTriage() {
       const policy = _loadPolicy();
 
@@ -160,8 +156,7 @@
       }
     }
 
-    // ── HTML builders ────────────────────────────────────────────────────────
-
+    // HTML builders
     function _buildIntroHTML() {
       return `<div class="reflection-intro">` +
         `<p class="reflection-intro-copy"><strong>Remember how days felt?</strong><br>` +
@@ -191,10 +186,10 @@
         `</div>${hint}`;
     }
 
-    // ── Consent actions ──────────────────────────────────────────────────────
-
+    // Consent actions
     function reflectionRemember() {
       _savePolicy('remember');
+      _refreshOpenMemory();
       if (typeof _setLastLocalChange === 'function') _setLastLocalChange();
       if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
 
@@ -206,6 +201,7 @@
 
     function reflectionDecline() {
       _savePolicy('not_for_me');
+      _refreshOpenMemory();
       if (typeof _setLastLocalChange === 'function') _setLastLocalChange();
       if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
 
@@ -215,8 +211,7 @@
       if (typeof window._triageResetAutoClose === 'function') window._triageResetAutoClose(3000);
     }
 
-    // ── Feeling selection ────────────────────────────────────────────────────
-
+    // Feeling selection
     function _showReflectionConfirmation(el, feeling) {
       if (el) el.innerHTML = _buildConfirmedHTML(feeling);
     }
@@ -301,13 +296,13 @@
       if (idx >= 0) { list[idx] = entry; } else { list.push(entry); }
       list = _pruneReflections(list);
       _saveReflections(list);
+      _refreshOpenMemory();
 
       if (typeof _setLastLocalChange === 'function') _setLastLocalChange();
       if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
       if (typeof _haptic === 'function') _haptic('light');
 
-      // The selected whole word becomes the confirmation; storage and feedback are
-      // immediate, while the visual transition remains non-blocking.
+      // Save immediately; animate the whole selected word without blocking.
       const el = document.getElementById('triageReflection');
       const button = el?.querySelector(`.reflection-feeling-btn[data-feeling="${feeling}"]`);
       _animateReflectionChoice(el, button, feeling);
@@ -318,61 +313,44 @@
       if (typeof window._triageResetAutoClose === 'function') window._triageResetAutoClose(3000);
     }
 
-    // ── Memory block ─────────────────────────────────────────────────────────
-
+    // Memory block
     function _reflectionRenderMemory(container) {
       if (!container) return;
 
-      const policy   = _loadPolicy();
-      const list     = _loadReflections();
+      const evidence = _reconcileEvidence();
+      const { policy, candidate } = evidence;
+      const remembers = policy?.choice === 'remember';
+      const canReflect = candidate && Today.use('connections')._aiIsConfigured() && navigator.onLine;
+      if (remembers) {
+        if (!candidate) return;
+        if (!_reflectResult && !_reflectPending && !_reflectTriggered && canReflect) {
+          _reflectTriggered = true;
+          const key = evidence.key;
+          setTimeout(() => reflectionReflect(key), 0);
+        }
+        // Qualified comparisons may load briefly; unavailable/rejected lines stay silent.
+        if (!_reflectResult && !_reflectPending && !(_reflectTriggered && canReflect && !_reflectAttempted)) return;
+      }
 
       const block = document.createElement('div');
       block.className = 'memory-type-block reflection-memory-block';
       block.id = 'reflectionMemoryBlock';
-
-      let inner = `<div class="memory-type-header">` +
-        `<span class="memory-type-name">HOW DAYS FELT</span>` +
-        `<span class="memory-type-desc">— a separate sensitive record of evening reflections</span>` +
-        `</div>`;
-
-      if (!policy || policy.choice === 'not_for_me') {
+      let inner = `<div class="memory-type-header"><span class="memory-type-name">HOW DAYS FELT</span></div>`;
+      if (!remembers) {
         inner += `<div class="memory-item"><span class="memory-item-text">TODAY doesn’t keep reflections.</span></div>` +
           `<div class="memory-block-action">` +
-          `<button class="triage-undo-btn" data-today-click="reflections.remember-again">Remember reflections</button>` +
-          `</div>`;
+          `<button class="triage-undo-btn" data-today-click="reflections.remember-again">Remember reflections</button></div>`;
       } else {
-        // policy.choice === 'remember'
-        const s = list.length === 1 ? '' : 's';
-        inner += `<div class="memory-item"><span class="memory-item-text">${
-          list.length > 0
-            ? `${list.length} evening${s} — last ${MAX_DAYS} days.`
-            : `Keeps ${MAX_DAYS} days, never more.`
+        inner += `<div class="memory-item"><span class="memory-item-text${_reflectResult ? '' : ' memory-abstracting'}">${
+          _reflectResult ? esc(_reflectResult) : 'reflecting…'
         }</span></div>`;
-
-        const candidate = _buildReflectionCandidate(list);
-        const aiReady = Today.use('connections')._aiIsConfigured();
-        if (candidate && aiReady) {
-          if (_reflectPending) {
-            inner += `<div class="memory-item"><span class="memory-item-text memory-abstracting">reflecting…</span></div>`;
-          } else if (_reflectResult) {
-            inner += `<div class="memory-item"><span class="memory-item-text">${esc(_reflectResult)}</span></div>`;
-          } else if (!_reflectTriggered) {
-            // Auto-trigger once per session — show placeholder immediately, fire async
-            inner += `<div class="memory-item"><span class="memory-item-text memory-abstracting">reflecting…</span></div>`;
-            _reflectTriggered = true;
-            setTimeout(() => reflectionReflect(candidate), 0);
-          }
-        }
       }
 
       block.innerHTML = inner;
       container.appendChild(block);
     }
 
-    // ── On-device relationship selection ────────────────────────────────────
-    // The sensitive records are joined only here, by date, and never persisted.
-    // A frequency table is not a candidate. Both sides must describe a different
-    // relationship with commitments; the AI receives only the winning aggregate.
+    // Join sensitive dates on-device; send only the winning aggregate.
 
     function _buildFeelingComparison(kind, baseScore, groupA, groupB, contextA, contextB) {
       if (groupA.length < INSIGHT_MIN_GROUP || groupB.length < INSIGHT_MIN_GROUP) return null;
@@ -414,9 +392,7 @@
       const candidates = [];
       const group = predicate => list.filter(r => predicate(outcomesByDate.get(r.date) || []));
 
-      // Cleanly separate evenings with only one kind of completed commitment.
-      // Mixed evenings belong to neither side: assigning them to both would blur
-      // the contrast and make a stronger-looking result out of ambiguous evidence.
+      // Exclude mixed chosen/obligation evenings from both groups.
       const obligationDone = group(rows =>
         rows.some(e => e.outcome === 'done' && e.obligation === true) &&
         !rows.some(e => e.outcome === 'done' && e.obligation === false));
@@ -429,21 +405,17 @@
         'after finishing something you chose');
       if (obligationCandidate) candidates.push(obligationCandidate);
 
-      // Letting go is itself a decision about a commitment. Contrast it with
-      // evenings that contain a completion and no release, not with inactive days.
+      // Compare release with completion-only evenings, excluding inactivity.
       const letgo = group(rows => rows.some(e => e.outcome === 'letgo'));
       const finishedWithoutLetgo = group(rows =>
         rows.some(e => e.outcome === 'done') && !rows.some(e => e.outcome === 'letgo'));
       const releaseCandidate = _buildFeelingComparison(
         'feeling-vs-release', 100, letgo, finishedWithoutLetgo,
-        'after letting something go',
-        'after finishing without letting anything go');
+        'when you let a task go',
+        'when you finished tasks without letting one go');
       if (releaseCandidate) candidates.push(releaseCandidate);
 
-      // Focus sessions are a distinct commitment signal — applying deliberate
-      // attention to a task. Backfilled rows carry focusSessions: 0 (unknown),
-      // so only evenings with at least one real (non-backfilled) outcome row
-      // contribute to this partition; evenings with only backfilled rows are excluded.
+      // Backfilled focus is unknown; require real outcome rows.
       const focusEvenings = group(rows => {
         const real = rows.filter(e => !e.backfilled);
         return real.length > 0 && real.some(e => e.focusSessions > 0);
@@ -454,30 +426,63 @@
       });
       const focusCandidate = _buildFeelingComparison(
         'feeling-vs-focus', 105, focusEvenings, noFocusEvenings,
-        'after a focused day',
-        'after a day without focus');
+        'after handling a task with recorded focus',
+        'after handling tasks without recorded focus');
       if (focusCandidate) candidates.push(focusCandidate);
 
-      // Reviving a task is re-committing to something previously released.
-      // Contrast with evenings that had completions but no revivals.
+      // Compare bringing back with completion-only evenings.
       const reviveEvenings = group(rows => rows.some(e => e.outcome === 'revive'));
       const finishedNoRevive = group(rows =>
         rows.some(e => e.outcome === 'done') && !rows.some(e => e.outcome === 'revive'));
       const reviveCandidate = _buildFeelingComparison(
         'feeling-vs-revive', 90, reviveEvenings, finishedNoRevive,
-        'after reviving something',
-        'after finishing without reviving anything');
+        'when you brought a task back from Past',
+        'when you finished tasks without bringing one back');
       if (reviveCandidate) candidates.push(reviveCandidate);
 
       return candidates.sort((a, b) => b.score - a.score)[0] || null;
+    }
+
+    // Private source identity includes all eligible evidence, even with the same winner.
+    function _reflectionEvidence() {
+      const policy = _loadPolicy();
+      const cleared = localStorage.getItem(CLEARED_KEY) || '';
+      const list = _pruneReflections(_loadReflections()).filter(r =>
+        r.date <= _localISO() && (!cleared || r.updatedAt > cleared));
+      const dates = new Set(list.map(r => r.date));
+      const outcomes = (typeof appMemory === 'undefined' ? [] : appMemory.taskOutcomes || [])
+        .filter(r => r && dates.has(r.date))
+        .map(r => [r.date, r.outcome, r.obligation, r.focusSessions, !!r.backfilled]);
+      const canonical = rows => rows.map(r => JSON.stringify(r)).sort();
+      const key = JSON.stringify([_localISO(), policy?.choice, policy?.updatedAt, cleared,
+        canonical(list.map(r => [r.date, r.feeling, r.updatedAt])), canonical(outcomes)]);
+      return { key, policy, list, candidate: policy?.choice === 'remember' ? _buildReflectionCandidate(list) : null };
+    }
+
+    function _reconcileEvidence() {
+      const evidence = _reflectionEvidence();
+      if (_reflectEvidence !== evidence.key) {
+        _reflectEvidence = evidence.key;
+        _reflectEpoch++;
+        _reflectResult = null;
+        _reflectPending = false;
+        _reflectTriggered = false;
+        _reflectAttempted = false;
+      }
+      return evidence;
+    }
+
+    function _refreshOpenMemory() {
+      const previous = _reflectEvidence;
+      const evidence = _reconcileEvidence();
+      if (previous !== evidence.key && document.getElementById('memoryPanel')?.classList.contains('open')) _refreshMemoryBlock();
     }
 
     function _reflectionClearFromAllMemory() {
       localStorage.setItem(CLEARED_KEY, new Date().toISOString());
       localStorage.removeItem(DATA_KEY);
       _savePolicy('not_for_me');
-      _reflectResult  = null;
-      _reflectPending = false;
+      _refreshOpenMemory();
 
       if (typeof _setLastLocalChange === 'function') _setLastLocalChange();
       // Immediate silent backup so deletion propagates promptly when connected
@@ -492,36 +497,42 @@
         _reflectionRenderMemory(tmp);
         const newBlock = tmp.firstChild;
         if (newBlock) existing.replaceWith(newBlock);
-      } else if (typeof renderMemoryPanel === 'function') {
-        renderMemoryPanel();
+        else existing.remove();
+      } else if (document.getElementById('memoryPanel')?.classList.contains('open')) {
+        const container = document.getElementById('memoryContent');
+        if (!container) return;
+        const tmp = document.createElement('div');
+        _reflectionRenderMemory(tmp);
+        if (tmp.firstChild) container.insertBefore(tmp.firstChild, document.getElementById('dreamMemoryBlock'));
       }
     }
 
-    // ── Remember again (reverse opt-out) ────────────────────────────────────
-
+    // Remember again (reverse opt-out)
     function reflectionRememberAgain() {
       _savePolicy('remember');
+      _refreshOpenMemory();
       if (typeof _setLastLocalChange === 'function') _setLastLocalChange();
       if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
-      _refreshMemoryBlock();
     }
 
-    // ── AI reflection ────────────────────────────────────────────────────────
+    // AI reflection
+    async function reflectionReflect(expectedKey) {
+      const evidence = _reconcileEvidence();
+      const { list, candidate } = evidence;
+      if (expectedKey && expectedKey !== evidence.key) return;
+      if (!candidate || _reflectPending || _reflectAttempted) return;
+      if (!Today.use('connections')._aiIsConfigured() || !navigator.onLine) return;
 
-    async function reflectionReflect(selectedCandidate) {
-      const list = _loadReflections();
-      const candidate = selectedCandidate || _buildReflectionCandidate(list);
-      if (!candidate) return;
-      if (!Today.use('connections')._aiIsConfigured()) return;
-      if (!navigator.onLine) return;
-
+      const epoch = _reflectEpoch;
+      const isCurrent = () => epoch === _reflectEpoch && evidence.key === _reflectionEvidence().key;
+      _reflectTriggered = true;
+      _reflectAttempted = true;
       _reflectPending = true;
-      _reflectResult  = null;
+      _reflectResult = null;
       _refreshMemoryBlock();
 
       try {
-        // One code-selected aggregate relationship only — no task text, full
-        // feeling distribution, raw dates, identifiers, or unselected candidates.
+        // Only the selected aggregate leaves the device; no raw records or alternate candidates.
         const payload = {
           reflected_evenings_count: list.length,
           relationship: {
@@ -537,8 +548,8 @@
         const systemPrompt =
           'Code has selected one evidence-backed relationship between evening reflections and how the user handled commitments that day. ' +
           'Phrase only that relationship; do not search for another pattern. ' +
-          'Write exactly one complete sentence under 24 words. ' +
-          'Begin "On evenings you reflected," and say the named feeling appeared more often. ' +
+          'Write exactly one complete sentence of at most 40 words. ' +
+          'Begin "On evenings you reflected," and say you marked the named feeling more often. ' +
           'Copy more_context and less_context verbatim, in that order, joined by "than". ' +
           'Do not narrate the numbers or mention any other feeling. ' +
           'Forbidden: causal language, diagnosis, scores, streaks, advice, predictions, clinical interpretation. ' +
@@ -565,17 +576,21 @@
 
         const data = await res.json();
         const text = _parseAIText(data)?.trim();
-        _reflectResult = _usableReflectionText(text, candidate);
+        if (isCurrent()) _reflectResult = _usableReflectionText(text, candidate);
       } catch (_e) {
         // silent
       } finally {
-        _reflectPending = false;
-        _refreshMemoryBlock();
+        // An old response must not overwrite a new result or clear its pending state.
+        if (isCurrent()) {
+          _reflectPending = false;
+          _refreshMemoryBlock();
+        } else {
+          _refreshOpenMemory();
+        }
       }
     }
 
-    // ── Dropbox sync ─────────────────────────────────────────────────────────
-
+    // Dropbox sync
     function _reflectionBackupFields() {
       return {
         reflection_policy:      safeJSON(POLICY_KEY, null),
@@ -647,15 +662,21 @@
         changed = true;
       }
 
-      if (changed && document.getElementById('memoryPanel')?.classList.contains('open')) {
-        _refreshMemoryBlock();
-      }
+      // Outcome-only sync updates can change the relationship too.
+      _refreshOpenMemory();
 
       return changed;
     }
 
-    // ── Public API ───────────────────────────────────────────────────────────
+    document.addEventListener('today:reflection-evidence-change', _refreshOpenMemory);
+    window.addEventListener('storage', event => {
+      if ([POLICY_KEY, DATA_KEY, CLEARED_KEY, 'today_memory'].includes(event.key)) _refreshOpenMemory();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) _refreshOpenMemory();
+    });
 
+    // Public API
     if (window.Today) {
       Today.define('reflections', {
         _reflectionShowAfterTriage,

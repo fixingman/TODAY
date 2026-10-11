@@ -452,9 +452,11 @@ The merge delegate `_reflectionMergeRemote(data)` is called from both `mergeRemo
 3. **Responses union** — build a `Map<date, entry>`. Local entries loaded first; remote entries overwrite any where `remote.updatedAt > local.updatedAt`. Entries whose `updatedAt ≤ merged_cleared_at` are then discarded.
 4. **Prune to 30 calendar days** — based on wall-clock date, not elapsed ms, to survive DST transitions cleanly.
 
+**Derived feeling results (v2.95.1):** no schema change. After every reflection merge, reconcile the session-only evidence identity, including task outcomes already merged by the enclosing sync/restore path. Outcome-only changes invalidate the displayed sentence too. Consent/watermark changes fence pending replies; unchanged evidence causes no regeneration or DOM replacement. The result, request epoch and source identity never enter a backup.
+
 **Later-connection behavior:** if Dropbox is connected for the first time after reflections exist locally, the next backup includes the full `reflections` array and policy. On any other device that already has a backup, `mergeRemoteData` unions in the new entries on the next sync.
 
-**Deletion propagation:** `reflectionForgetConfirm()` calls `_reflectionClearFromAllMemory()` which stamps `reflections_cleared_at`, removes the local data, sets policy to `not_for_me`, then triggers an immediate silent `dropboxBackup(true)`. The next sync on any other device will receive the new watermark and discard all entries before it.
+**Deletion propagation:** Memory’s global clear calls `_reflectionClearFromAllMemory()` which stamps `reflections_cleared_at`, removes the local data, sets policy to `not_for_me`, then triggers an immediate silent `dropboxBackup(true)`. The next sync on any other device will receive the new watermark and discard all entries before it.
 
 ---
 

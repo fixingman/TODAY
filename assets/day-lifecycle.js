@@ -205,6 +205,7 @@ window._startDayLifecycle = (function() {
       }
 
       localStorage.setItem('stat_last_visit', today);
+      document.dispatchEvent(new Event('today:reflection-evidence-change'));
       _pruneTrelloMaps();
 
       // Push clean state after a short delay — gives syncDropbox time to pull remote first.

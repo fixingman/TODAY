@@ -294,24 +294,22 @@ Single `.morning-nudge` strip (`#dayNudge`) positioned **between the SOON and Tr
 
 ---
 
-## Memory Panel — "HOW DAYS FELT" Block (v2.65.7)
+## Memory Panel — "HOW DAYS FELT" (revised v2.95.1)
 
-Appended after the four main `typeBlock` sections by `_reflectionRenderMemory(el)`. Lives in a separate `div.reflection-memory-block` so it cannot be included in a memory-clear flow that doesn't also call `_reflectionClearFromAllMemory`.
-
-**States rendered in the block:**
+Appended after the main Memory blocks by `reflections._reflectionRenderMemory(el)`, in its separate `.reflection-memory-block`. No evening count or technical subtitle. The **RETIRED** block is removed; feedback records, ordinary-nudge misses and category retirement retain their existing behavior and distinct meanings.
 
 | Condition | Content |
 |-----------|---------|
-| Policy = `not_for_me` or absent | "Reflections are not remembered." + "Remember reflections" button |
-| Policy = `remember`, 0 reflections | "Keeps 30 days, never more." — a rolling window: each evening is dropped 30 days after it was saved; the permission itself is asked once and never expires |
-| Policy = `remember`, reflections but no qualifying relationship | Count sentence only |
-| Policy = `remember`, AI configured + qualifying relationship | Count, then auto-reflect on panel open |
-| `_reflectPending` | "reflecting…" sentence |
-| `_reflectResult` set | One complete AI-generated sentence under 24 requested words |
+| Policy absent or `not_for_me` | “TODAY doesn’t keep reflections.” + “Remember reflections” |
+| Opted in, no qualified relationship, AI unavailable or reply rejected | Section hidden |
+| Qualified relationship, request queued or pending | Brief “reflecting…” state |
+| Current, grounded result | One complete sentence, at most 40 words |
 
-The reflection result is session-only and is never persisted or synced. On-device code temporarily joins reflection dates to date-only `taskOutcomes` and proposes only commitment-shaped comparisons: feelings after finishing something framed as “have to” versus something chosen, or after letting something go versus finishing without a release. Each side needs at least four reflected evenings; the named feeling needs at least three appearances on the stronger side and a ≥30 percentage-point gap. Mixed obligation/chosen evenings are excluded from that comparison. A dominant feeling or focus-duration split is not an insight and no longer produces a line.
+Selection stays on-device: join reflected dates to task outcomes and compare obligation-framed/chosen completions, letting go/finishing without release, handling a task with recorded focus/handling tasks without recorded focus, or bringing a task back from Past/finishing without bringing one back. Each side needs four reflected evenings, three matching feelings on the stronger side and a ≥30 percentage-point difference. Mixed obligation/chosen evenings and unknown backfilled focus remain excluded from those comparisons.
 
-The AI receives only the winning aggregate relationship—not raw dates, task text, identifiers, the full feeling distribution, or alternate candidates—and phrases it rather than choosing what matters. Its sentence must stay within 24 words and name the single selected feeling, both supplied commitment contexts, and the selected population (“On evenings you reflected…”). Overlong, incomplete, causal, multi-feeling, or context-swapping replies are withheld, leaving the inspectable count. Reflection deletion remains part of Memory's global clear flow. “Remember reflections” appears only when the policy is `not_for_me` or absent.
+The AI phrases only the winning aggregate. It receives no dates, task text, identifiers, full feeling distribution or alternate candidates. Wording starts “On evenings you reflected,” names the feeling and both supplied action contexts in the correct comparison, and avoids causes or advice. Overlong, incomplete, multi-feeling or swapped replies hide the section. The extra word allowance makes bringing a task back from Past recognizable; it adds no invented takeaway.
+
+Results and requests are session-only and bound to a canonical evidence snapshot: local date/window, consent, deletion watermark, eligible reflections and relevant outcome fields. Changed evidence invalidates the result; late responses cannot replace a newer result or clear its loading state. Open Memory reacts to local outcomes/reflections, sync (including outcome-only updates), rollover and foreground return. Unchanged evidence keeps its valid wording without regeneration. Global clear still clears the source and fences derived replies; consent, 30-day retention and backup schema are unchanged.
 
 ---
 
@@ -408,7 +406,7 @@ Recounting a dream into the mic produces a reading instead of tasks, and the dre
 
 A `.memory-type-block` (**DREAMS**) showing one `.memory-item`: *N dreams kept in your Dropbox, /Dreams* with a `.memory-item-btn` **manage** / **less** (empty: *a dream you tell the mic lands here*). The list stays reachable because deleting a file in Dropbox does not remove its synced summary — per-dream delete is the in-app way out. Under **manage**, each dream is a `.memory-item`: *day — opening words…* with **read** / **less**. Opened: `.dream-reading`, `.dream-told`, then one `.memory-item` — *kept in your Dropbox* / *kept on this phone* with **delete**. Since v2.93.10, **read** fetches a pruned or second-device file from Dropbox on demand, displays any legacy note read-only, and keeps the raw body only while Memory is open. Missing/offline/invalid files show a short retryable status, not an empty reading. Delete confirms with the footer's pattern: `.memory-confirm-msg` + `.memory-clear-btn.memory-clear-confirm` **yes, delete** + `.btn-ghost.memory-conn-link` **cancel**; it removes the Dropbox file too.
 
-**What comes back (M2, v2.95.0):** under the summary, one `.memory-item` — *comes back: stairs · garden · water* (up to five, most frequent first; no counts or dates on the line — Memory is being simplified). Under **manage**, each gets its own row, *stairs — in 3 dreams*, with a `.memory-item-btn` **dismiss**, above the per-dream list. Silent until a thing appears in two or more dreams. Computed on the device from each dream's recorded images and people (shared content-word stem, the grounding stem), never an AI call. Dismiss stores `appMemory.dreams.dismissed[key]` (synced max-wins); the thing counts again only from dreams told after it.
+**What comes back (M2, revised v2.95.1):** under the summary, one `.memory-item` — *comes back: company (2)*, up to five items, ordered by frequency then recency. Count distinct dream IDs, once per thing per dream. No duplicate recurrence rows. Under **manage**, each item gains **hide** beside that same label/count; shared help explains that earlier occurrences stay hidden until two new dreams repeat it. The visible count has a spoken “in N dreams” equivalent, hide buttons name the item and reference the help, and re-rendering retains keyboard focus (or returns it to manage when a hidden item disappears). Labels wrap at 320px. Reading and deleting individual dreams stay available in manage. Recurrence is computed on-device from recorded images/people, with no AI call or new collection. Hide keeps the existing synced per-key timestamp; only post-hide dreams count toward reappearance.
 
 ## Quick Voice Capture (v2.90.18)
 

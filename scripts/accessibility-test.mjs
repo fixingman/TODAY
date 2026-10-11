@@ -123,6 +123,16 @@ try {
     fail('Memory footer target sizing or spacing regressed: ' + JSON.stringify(memoryTargets));
   }
   ok('Memory footer keeps its visible padding and 24px minimum targets');
+  await page.evaluate(() => {
+    appMemory.dreams = { index: ['a', 'b'].map(id => ({
+      id: 'a11y_dream_' + id, night: _localISO(), recordedAt: new Date().toISOString(),
+      images: ['company'], people: [],
+    })), dismissed: {} };
+    Today.use('memory').render();
+    document.querySelector('[data-today-click="dream.memory-manage"]').click();
+  });
+  await audit(page, 'managed dream recurrences pass axe', '#memoryPanel');
+
   await page.click('#todayLogo');
 
   await page.focus('#manualList .task');

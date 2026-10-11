@@ -441,7 +441,7 @@ function _memorySetReactionReason(surface, date, reason) {
 // back after a quiet month. kindVerdicts never age out: per kind, how many lines
 // landed, how many missed, and the day it was retired. Two misses retire a kind;
 // it returns when the misses drop below two (a revised reaction) or through
-// "bring back" in the Memory panel. Cleared with the rest.
+// the existing restore API. No retirement ledger is shown in Memory. Cleared with the rest.
 function _memoryKindVerdict(kind) {
   if (!appMemory.kindVerdicts || typeof appMemory.kindVerdicts !== 'object') appMemory.kindVerdicts = {};
   return appMemory.kindVerdicts[kind] || (appMemory.kindVerdicts[kind] = { landed: 0, missed: 0, retired: null, updated: '' });
@@ -585,6 +585,7 @@ function _memoryRecordOutcome(outcome, taskText, taskId, reason) {
     log.push(entry);
   }
   appMemory.taskOutcomes = log.slice(-300);
+  document.dispatchEvent(new Event('today:reflection-evidence-change'));
   // Saves here rather than relying on callers: _memoryOnTaskLetgo has an early return that
   // skips its own _saveMemory() when a task text yields no keywords.
   _saveMemory();

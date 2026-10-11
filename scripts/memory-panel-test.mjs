@@ -486,29 +486,25 @@ try {
     await page.close();
   }
 
-  // 12e RETIRED block: a retired kind is listed with its day and a "bring back"
-  // action; clicking it un-retires through the registered UI action and re-renders.
+  // Retirement remains a feedback policy, with no visible ledger or empty block.
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
       appMemory.kindVerdicts = {
-        'letgo-reason':   { landed: 0, missed: 2, retired: '2026-09-07', updated: 'x' },
-        'soon-pullback':  { landed: 3, missed: 0, retired: null,         updated: 'x' },
+        'letgo-reason': { landed: 0, missed: 2, retired: '2026-09-07', updated: 'x' },
       };
       Today.use('memory').render();
       const content = () => document.getElementById('memoryContent');
-      const text = content().textContent;
-      const listed = text.includes('RETIRED') && text.includes('letgo reason — retired Sep 7, after 2 "not really"');
-      const landedNotListed = !text.includes('soon pullback');
-      const btn = content().querySelector('.memory-item-btn[data-kind="letgo-reason"]');
-      const hasAction = !!btn && btn.textContent === 'bring back' && btn.dataset.todayClick === 'memory.kind-restore';
-      btn.click();
-      const restored = appMemory.kindVerdicts['letgo-reason'].retired === null && appMemory.kindVerdicts['letgo-reason'].missed === 0;
-      const rerendered = content().textContent.includes('nothing retired');
-      return { listed, landedNotListed, hasAction, restored, rerendered };
+      const absentWithRecord = !content().textContent.includes('RETIRED') &&
+        !content().querySelector('[data-today-click="memory.kind-restore"]');
+      const preserved = appMemory.kindVerdicts['letgo-reason'].missed === 2 &&
+        appMemory.kindVerdicts['letgo-reason'].retired === '2026-09-07';
+      appMemory.kindVerdicts = {};
+      Today.use('memory').render();
+      return { absentWithRecord, preserved, absentWhenEmpty: !/RETIRED|nothing retired/.test(content().textContent) };
     });
-    await expectAll('12e RETIRED block', { ...result, noErrors: errors.length === 0 });
-    ok('renderMemoryPanel: RETIRED lists retired kinds only; "bring back" un-retires through the UI action and re-renders');
+    await expectAll('retirement hidden, feedback preserved', { ...result, noErrors: errors.length === 0 });
+    ok('Memory omits RETIRED with or without records, preserving the retirement policy');
     await page.close();
   }
 

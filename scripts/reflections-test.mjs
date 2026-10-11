@@ -378,12 +378,11 @@ try {
       const container = document.createElement('div');
       Today.use('reflections')._reflectionRenderMemory(container);
       return {
-        hasBlock: container.querySelector('.reflection-memory-block') !== null,
-        hasId: !!container.querySelector('#reflectionMemoryBlock'),
+        hiddenWithoutEvidence: !container.querySelector('.reflection-memory-block'),
       };
     });
-    await expectAll('_reflectionRenderMemory appends block', result);
-    ok('_reflectionRenderMemory: block appended with correct class and id');
+    await expectAll('_reflectionRenderMemory hides unqualified opted-in block', result);
+    ok('_reflectionRenderMemory: opted-in record hidden without qualifying evidence');
     await page.close();
   }
 
@@ -529,10 +528,10 @@ try {
       const container = document.createElement('div');
       Today.use('reflections')._reflectionRenderMemory(container);
       const text = container.textContent;
-      return { countOnly: text.includes('13 evenings') && !text.includes('On evenings you reflected') };
+      return { hidden: !text && !container.querySelector('#reflectionMemoryBlock') };
     });
-    await expectAll('small reflection record → count only', result);
-    ok('small reflection record → count only');
+    await expectAll('unqualified reflection record → hidden', result);
+    ok('unqualified reflection record → hidden');
     await page.close();
   }
 
@@ -557,13 +556,13 @@ try {
       Today.use('reflections')._reflectionRenderMemory(container);
       await new Promise(resolve => setTimeout(resolve, 20));
       return {
-        countShown: container.textContent.includes('14 evenings'),
+        hidden: !container.querySelector('#reflectionMemoryBlock'),
         noFrequencyInference: !container.textContent.includes('On evenings you reflected'),
         noAIRequest: fetches === 0,
       };
     });
     await expectAll('dominant feeling without commitment contrast → silence', result);
-    ok('dominant feeling alone → count remains, no frequency-table inference');
+    ok('dominant feeling alone → hidden, no frequency-table inference');
     await page.close();
   }
 
@@ -621,7 +620,7 @@ try {
           !request.messages[0].content.includes('outcome_') &&
           !request.messages[0].content.includes(list[0].date) &&
           !request.messages[0].content.includes('feeling_counts'),
-        insightPrompt: request?.systemPrompt?.includes('exactly one complete sentence under 24 words') &&
+        insightPrompt: request?.systemPrompt?.includes('exactly one complete sentence of at most 40 words') &&
           request.systemPrompt.includes('Phrase only that relationship') &&
           request.systemPrompt.includes('Copy more_context and less_context verbatim') &&
           request.systemPrompt.includes('Reply only as valid JSON'),
@@ -666,7 +665,7 @@ try {
         return {
           ok: true,
           json: async () => ({
-            message: 'On evenings you reflected, calm appeared more often after letting something go than after finishing without letting anything go.',
+            message: 'On evenings you reflected, calm appeared more often when you let a task go than when you finished tasks without letting one go.',
           }),
         };
       };
@@ -678,7 +677,7 @@ try {
       const text = document.getElementById('reflectionMemoryBlock')?.textContent || '';
       return {
         releaseSelected: request?.messages?.[0]?.content?.includes('"kind":"feeling-vs-release"'),
-        resultShown: text.includes('calm appeared more often after letting something go'),
+        resultShown: text.includes('calm appeared more often when you let a task go'),
       };
     });
     await expectAll('letting go vs finishing → relationship shown', { ...result, noErrors: !errors.length });
@@ -718,7 +717,7 @@ try {
         return {
           ok: true,
           json: async () => ({
-            message: 'On evenings you reflected, alive appeared more often after a focused day than after a day without focus.',
+            message: 'On evenings you reflected, alive appeared more often after handling a task with recorded focus than after handling tasks without recorded focus.',
           }),
         };
       };
@@ -729,7 +728,7 @@ try {
       const text = document.getElementById('reflectionMemoryBlock')?.textContent || '';
       return {
         focusSelected: request?.messages?.[0]?.content?.includes('"kind":"feeling-vs-focus"'),
-        resultShown: text.includes('alive appeared more often after a focused day'),
+        resultShown: text.includes('alive appeared more often after handling a task with recorded focus'),
       };
     });
     await expectAll('focus sessions vs no-focus → relationship shown', { ...result, noErrors: !errors.length });
@@ -807,7 +806,7 @@ try {
         return {
           ok: true,
           json: async () => ({
-            message: 'On evenings you reflected, present appeared more often after reviving something than after finishing without reviving anything.',
+            message: 'On evenings you reflected, present appeared more often when you brought a task back from Past than when you finished tasks without bringing one back.',
           }),
         };
       };
@@ -818,7 +817,7 @@ try {
       const text = document.getElementById('reflectionMemoryBlock')?.textContent || '';
       return {
         reviveSelected: request?.messages?.[0]?.content?.includes('"kind":"feeling-vs-revive"'),
-        resultShown: text.includes('present appeared more often after reviving something'),
+        resultShown: text.includes('present appeared more often when you brought a task back from Past'),
       };
     });
     await expectAll('reviving vs finishing-only → relationship shown', { ...result, noErrors: !errors.length });
@@ -864,11 +863,125 @@ try {
       return {
         partialHidden: !text.includes('followed by calm and'),
         pendingCleared: !text.includes('reflecting…'),
-        countKept: text.includes('16 evenings'),
+        blockHidden: !document.getElementById('reflectionMemoryBlock'),
       };
     });
     await expectAll('truncated reflection → withheld', { ...result, noErrors: !errors.length });
-    ok('truncated reflection → incomplete sentence withheld, count retained');
+    ok('truncated reflection → incomplete sentence withheld, block hidden');
+    await page.close();
+  }
+
+  // Freshness is a source-data contract, including overlapping requests and deletion.
+  {
+    const { page, errors } = await openPage({
+      today_reflection_policy: JSON.stringify({ choice: 'remember', updatedAt: new Date().toISOString() }),
+      today_ai_provider: 'claude', today_ai_key_claude: 'test-key',
+    });
+    const result = await page.evaluate(async () => {
+      const api = Today.use('reflections');
+      const sleep = () => new Promise(resolve => setTimeout(resolve, 30));
+      const requests = [];
+      let held = false;
+      const line = relationship => `On evenings you reflected, ${relationship.feeling} appeared more often ${relationship.more_context} than ${relationship.less_context}.`;
+      window.fetch = async (_url, options) => {
+        const body = JSON.parse(options.body);
+        const relationship = JSON.parse(body.messages[0].content).relationship;
+        let release;
+        const response = held ? new Promise(resolve => { release = resolve; }) : Promise.resolve();
+        requests.push({ body, relationship, release });
+        await response;
+        return { ok: true, json: async () => ({ message: line(relationship) }) };
+      };
+      const now = new Date();
+      const iso = date => date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+      const fixture = (firstAge = 0) => Array.from({ length: 8 }, (_, i) => {
+        const d = new Date(now); d.setDate(d.getDate() - (i < 4 ? firstAge + i : i));
+        return { date: iso(d), feeling: i < 4 ? 'calm' : ['alive', 'present', 'tense', 'drained'][i - 4], updatedAt: now.toISOString() };
+      });
+      let list = fixture();
+      const outcomes = kind => list.map((r, i) => ({ id: 'fresh_' + i, date: r.date, outcome: i < 4 ? kind : 'done', obligation: null, focusSessions: 0 }));
+      localStorage.setItem('today_reflections', JSON.stringify(list));
+      appMemory.taskOutcomes = outcomes('revive');
+      Today.use('memory').toggle();
+      await sleep();
+      const text = () => document.getElementById('reflectionMemoryBlock')?.textContent || '';
+      const initial = text().includes('brought a task back from Past') &&
+        !/evenings —|sensitive record/.test(text());
+      const calls = requests.length;
+      Today.use('memory').render(); api._reflectionMergeRemote({});
+      // Unrelated outcomes and storage ordering do not invalidate supporting evidence.
+      appMemory.taskOutcomes.reverse();
+      appMemory.taskOutcomes.push({ id: 'unrelated', date: '2000-01-01', outcome: 'done' });
+      api._reflectionMergeRemote({}); await sleep();
+      const stable = requests.length === calls && text().includes('brought a task back from Past');
+
+      // This reproduced the original defect: the same records now support release.
+      appMemory.taskOutcomes = outcomes('letgo');
+      api._reflectionMergeRemote({});
+      const oldRemovedImmediately = !text().includes('brought a task back from Past');
+      await sleep();
+      const changedOutcomes = text().includes('you let a task go') && requests.length === calls + 1;
+
+      // A real sync merge changes the reflected feeling, rather than just the UI.
+      const remote = list.slice(0, 4).map(r => ({ ...r, feeling: 'content', updatedAt: new Date(now.getTime() + 1000).toISOString() }));
+      api._reflectionMergeRemote({ reflections: remote });
+      await sleep();
+      const changedReflections = text().includes('content appeared more often') && !text().includes('calm appeared');
+      localStorage.setItem('today_reflections', JSON.stringify(list.slice(4)));
+      api._reflectionMergeRemote({});
+      const withdrawn = !document.getElementById('reflectionMemoryBlock');
+
+      // In-flight A must neither replace B nor clear B's loading state.
+      held = true;
+      localStorage.setItem('today_reflections', JSON.stringify(list));
+      appMemory.taskOutcomes = outcomes('revive'); api._reflectionMergeRemote({}); await sleep();
+      const requestA = requests.at(-1);
+      appMemory.taskOutcomes = outcomes('letgo'); api._reflectionMergeRemote({}); await sleep();
+      const requestB = requests.at(-1);
+      requestA.release(); await sleep();
+      const pendingB = text().includes('reflecting…') && !text().includes('brought a task back');
+      requestB.release(); await sleep();
+      const currentB = text().includes('you let a task go');
+
+      // Delete while generating, opt back in, then deliver the old response.
+      appMemory.taskOutcomes = outcomes('revive'); api._reflectionMergeRemote({}); await sleep();
+      const deletedRequest = requests.at(-1);
+      api._reflectionClearFromAllMemory(); api.reflectionRememberAgain();
+      deletedRequest.release(); await sleep();
+      const deletedLateResponse = !document.getElementById('reflectionMemoryBlock') &&
+        localStorage.getItem('today_reflections') === null;
+
+      // Remote consent withdrawal also fences a pending response without deletion.
+      localStorage.removeItem('today_reflections_cleared_at');
+      localStorage.setItem('today_reflections', JSON.stringify(list));
+      api._reflectionMergeRemote({}); await sleep();
+      const consentRequest = requests.at(-1);
+      api._reflectionMergeRemote({ reflection_policy: { choice: 'not_for_me', updatedAt: new Date(now.getTime() + 5000).toISOString() } });
+      consentRequest.release(); await sleep();
+      const consentWithdrawn = text().includes('TODAY doesn’t keep reflections.') && !text().includes('appeared more often');
+
+      // Window rollover removes the fourth supporting evening without a storage write.
+      held = false;
+      localStorage.setItem('today_reflection_policy', JSON.stringify({ choice: 'remember', updatedAt: now.toISOString() }));
+      list = fixture(26);
+      localStorage.setItem('today_reflections', JSON.stringify(list));
+      appMemory.taskOutcomes = outcomes('revive'); api._reflectionMergeRemote({}); await sleep();
+      const beforeRollover = text().includes('brought a task back from Past');
+      const RealDate = window.Date;
+      window.Date = class extends RealDate {
+        constructor(...args) { super(...(args.length ? args : [now.getTime() + 86400000])); }
+        static now() { return now.getTime() + 86400000; }
+      };
+      document.dispatchEvent(new Event('today:reflection-evidence-change'));
+      const rollover = !document.getElementById('reflectionMemoryBlock');
+      window.Date = RealDate;
+      return { initial, stable, oldRemovedImmediately, changedOutcomes, changedReflections, withdrawn,
+        pendingB, currentB, deletedLateResponse, consentWithdrawn, beforeRollover, rollover,
+        clearWording: line(requestA.relationship).split(/\s+/).length > 24 && line(requestA.relationship).split(/\s+/).length <= 40,
+        privateSources: requests.every(r => !r.body.messages[0].content.includes('fresh_') && !r.body.messages[0].content.includes(list[0].date)) };
+    });
+    await expectAll('evidence freshness and response fences', { ...result, noErrors: !errors.length });
+    ok('feeling evidence: stable results, changed outcomes/reflections, withdrawal, rollover, consent, and overlapping/deleted response fences');
     await page.close();
   }
 
@@ -899,7 +1012,7 @@ try {
     ok('static wiring: script order, DOM element, start call, precache, CACHE_VERSION, component API');
   }
 
-  console.log('\nReflections tests passed (29 tests).');
+  console.log('\nReflections tests passed (30 tests).');
 } finally {
   if (browser) await browser.close();
   server.close();

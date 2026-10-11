@@ -119,6 +119,8 @@ const settleAll = async () => { for (let i = 0; i < 8; i++) await tick(); };
   assert.deepEqual(items[0].days, ['2026-10-01', '2026-10-04', '2026-10-09']);
   assert.ok(!items.some(i => ['house', 'old', 'red', 'door', 'water', 'floor'].includes(i.label)), 'once-only and stop words stay out');
   assert.equal(rec(rows.slice(0, 1), {}).length, 0, 'one dream has nothing that comes back');
+  assert.equal(rec([rows[0], rows[0]], {}).length, 0, 'duplicate rows are still one distinct dream');
+  assert.deepEqual(JSON.parse(JSON.stringify(rec([...rows, rows[0]], {}))), items, 'duplicate dream IDs never inflate recurrence counts');
   const dismissed = JSON.parse(JSON.stringify(rec(rows, { stai: '2026-10-05T00:00:00Z' })));
   assert.ok(!dismissed.some(i => i.key === 'stai'), 'a dismissed image needs two new dreams to return');
   const back = JSON.parse(JSON.stringify(rec([...rows, { id: 'g', night: '2026-10-12', recordedAt: '2026-10-12T07:00:00Z', images: ['stairs'] }], { stai: '2026-10-05T00:00:00Z' })));

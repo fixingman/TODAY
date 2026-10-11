@@ -449,10 +449,18 @@ later section or automated suite was added.
 
 | # | Scenario | Expected |
 |---|----------|----------|
-| 14.16 | Open Memory panel, policy = `remember`, 3 entries | Count sentence shown; no inferred message |
-| 14.17 | Dominant feeling but no qualifying commitment comparison | Count only; no AI request |
+| 14.16 | Open Memory panel, policy = `remember`, 3 entries | HOW DAYS FELT hidden; no count, subtitle or inferred message |
+| 14.17 | Dominant feeling but no qualifying commitment comparison | HOW DAYS FELT hidden; no AI request |
 | 14.18 | AI configured + qualifying commitment relationship | Panel sends only the selected aggregate; one complete relationship sentence replaces `reflecting…` |
-| 14.19 | AI returns over 24 words, no terminal punctuation, multiple feelings, causal language, or swaps the supplied contexts | Output withheld; count remains; no clipped or ungrounded prose shown |
+| 14.19 | AI returns over 40 words, no terminal punctuation, multiple feelings, causal language, or swaps the supplied contexts | Output withheld; opted-in block hides; no clipped or ungrounded prose shown |
+| 14.19a | Change supporting outcomes or sync a different feeling while Memory is open | Old sentence disappears immediately; regenerate from current aggregate only |
+| 14.19b | Withdraw supporting records, consent or roll past a supporting date | Old result invalidated; no relationship = hidden opted-in block |
+| 14.19c | Deliver older request after newer request, deletion or re-consent | Old reply neither restores deleted insight nor overwrites/clears newer loading/result |
+| 14.19d | Reopen with unchanged evidence; reorder storage or add unrelated outcomes | Valid wording stays; no manufactured variation or repeated request |
+| 14.19e | Open Dreams, then manage by keyboard at 320px | One recurrence line with distinct-dream counts, named hide controls and shared explanation only in manage; labels wrap, focus retained; read/delete remain reachable |
+| 14.19f | Hide a recurrence, repeat it in one then two new dreams | Earlier occurrences excluded; one new dream stays hidden, two reappear with count 2 |
+| 14.19g | Vote “not really” on ordinary nudge and typed category observations | Ordinary feedback persists separately; two category misses still retire it; no RETIRED section |
+
 | 14.20 | Policy = `not_for_me` in panel | "Remember reflections" button shown |
 | 14.21 | Tap "Remember reflections" | Policy = `remember`, Memory block re-renders |
 

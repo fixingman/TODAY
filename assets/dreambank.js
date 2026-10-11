@@ -1,36 +1,17 @@
-// TODAY — DreamBank (v2.93.0). A dream told to the mic is kept: dated to the day it was
-// told, written to the user's own Dropbox as a plain Markdown file, and summarised
-// into appMemory.dreams.index (images, role, people — never the retelling).
-// Design + locked decisions: memory/Backlog.md § 13 · DreamBank.
-//
-// Pure helpers load with the file (Today 'dream-core', unit-tested alone). The stateful
-// queue is inert until index.html calls Today.use('dream-core').start() before
-// _startMeeting(). Dropbox I/O comes from Today 'dropbox-files' (assets/dropbox.js).
-//
-// Queue entry lifecycle (localStorage 'today-dream-queue'):
-//
-//   capture ──► kept on phone ──upload ok──► in Dropbox ──ready + reading/extraction
-//      │          ▲    │ patch (rev++)          │ patch → re-upload     settled + upload ok──► pruned {id, night}
-//      │          └────┘                        │                                              └─ 7 days ─► removed
-//      └──── "Don't keep" ──► tombstone (fences late jobs) ──remote delete ok / never uploaded──► removed
-//
-// The entry exists from the first chunk that carries a dream — before any Claude call —
-// so closing, locking, or killing the app cannot lose a dream that was told.
+// TODAY — DreamBank. Persist capture before AI; summaries sync without retellings.
+// dream-core helpers load immediately; start() activates the local queue before Meeting.
 (function() {
   'use strict';
 
-  // ── Pure core ────────────────────────────────────────────────────────────────
-
-  // Same algorithm as util.js _localISO — duplicated so the unit test can load this file alone.
+  // Pure core
+  // Local calendar dates; standalone core tests cannot import util.js.
   function _iso(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
   function _shift(d, days) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days); }
   function _fromISO(iso) { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); }
 
-  // A dream is dated by the day it was told (v2.93.8). Which night it happened is not
-  // asked and not guessed: the field keeps its name `night` so existing files, synced
-  // index rows, and file names stay valid.
+  // night is the day told; keep the field for existing files/indexes.
   function dayLabel(day, now) {
     if (!day) return 'undated';
     const today = new Date(now == null ? Date.now() : now);
@@ -42,10 +23,7 @@
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
-  // Grounding (eng review D16): an extracted image survives only if every substantive
-  // word in it appears in the retelling. Words compare on a locale-lowercased 4-letter
-  // stem with Turkish final-consonant softening folded (kitap/kitabı, ağaç/ağacı), so an
-  // inflected form still grounds while an invented modifier does not.
+  // Ground every content word with softened four-letter stems, including Turkish inflection.
   const STOPWORDS = new Set([
     'about', 'also', 'around', 'away', 'back', 'been', 'each', 'even', 'from', 'full', 'have',
     'into', 'just', 'like', 'more', 'most', 'much', 'only', 'onto', 'over', 'some', 'still',
@@ -79,13 +57,7 @@
       .slice(0, 5);
   }
 
-  // ── M2: images that come back (v2.95.0) ──────────────────────────────────────
-  // Computed on the device from what each dream already records (images + people in
-  // appMemory.dreams.index) — no extra AI call, nothing new sent anywhere. Two image
-  // phrases are the same thing when they share a content word, compared on the same
-  // softened 4-letter stem as grounding ("stairs" / "the endless staircase", "kitap" /
-  // "kitabı"). Only a thing in two or more dreams is shown; a dismissed one counts
-  // again only from dreams told after the dismissal.
+  // On-device recurrence: shared content stems in two distinct dreams; hiding excludes earlier dreams.
   const LEXICON_STOP = new Set([
     'the', 'and', 'but', 'for', 'nor', 'not', 'was', 'her', 'his', 'its', 'our', 'you', 'she',
     'him', 'all', 'one', 'two', 'any', 'who', 'has', 'had', 'are', 'out', 'off', 'too', 'own',
@@ -112,6 +84,7 @@
           if (off[key] && String(row.recordedAt || '') <= String(off[key])) continue;
           seen.add(key);
           const item = byKey.get(key) || { key, ids: [], days: [], forms: new Map(), last: '' };
+          if (item.ids.includes(row.id)) continue; // distinct dreams, including duplicated sync rows
           item.ids.push(row.id);
           if (row.night) item.days.push(row.night);
           item.forms.set(word, (item.forms.get(word) || 0) + 1);
@@ -137,8 +110,7 @@
     return `${entry.night || 'undated'}_${entry.id}.md`;
   }
 
-  // The file is the spin-off contract: plain Markdown with JSON-compatible YAML
-  // frontmatter, documented in README § DreamBank files.
+  // Plain Markdown with JSON-compatible frontmatter; README owns the file contract.
   function toMarkdown(entry) {
     const q = v => JSON.stringify(v == null ? '' : v);
     const list = a => '[' + (Array.isArray(a) ? a : []).map(q).join(', ') + ']';
@@ -161,14 +133,12 @@
       '',
       String(entry.reading || '').trim(),
       '',
-      // Dreams kept before v2.93.8 could carry a written thought; it stays in their file.
+      // Preserve legacy thoughts in their files.
       ...(String(entry.thought || '').trim() ? ['## My thought', '', String(entry.thought).trim(), ''] : []),
     ].join('\n');
   }
 
-  // Read the file we wrote, not arbitrary Markdown from a Dropbox path. In
-  // particular, the frontmatter id must match the selected synced index row.
-  // Legacy files may have a final, read-only `My thought` section.
+  // Parse our format only; selected index/file IDs must match. Legacy thoughts stay read-only.
   function fromMarkdown(markdown, expectedId) {
     const source = String(markdown || '').replace(/\r\n?/g, '\n');
     const front = source.match(/^---\n([\s\S]*?)\n---\n/);
@@ -192,9 +162,7 @@
     };
   }
 
-  // Measured with scripts/dream-reading-eval.mjs: preferred 12/12 over the first prompt
-  // in a head-to-head judge, at half the length (128 → 65 words). v2.93.0 drops the
-  // "just woken up" framing: a dream can be told hours or days later.
+  // Prompt quality evidence: scripts/dream-reading-eval.mjs.
   const DREAM_SYSTEM =
     'Someone has told you a dream they had. Give them a short reading of it. Start from the ' +
     'detail that stands out most, where a feeling does not fit what happened or where someone or ' +
@@ -213,8 +181,7 @@
     'situations from the dream, each a short phrase. people: the people who appear, as the retelling ' +
     'names or describes them. role: at most eight words on what the dreamer does or fails to do.';
 
-  // ── Stateful queue ───────────────────────────────────────────────────────────
-
+  // Stateful queue
   let started = false;
   function start() {
     if (started) return;
@@ -223,8 +190,7 @@
     const QUEUE_KEY = 'today-dream-queue';
     const CONTENT = ['retelling', 'reading', 'night', 'lang', 'images', 'people', 'role'];
     const PRUNED_TTL_MS = 7 * 86400000;
-    // Backoff per entry (eng review D7): the sync tick can call flush() every few seconds;
-    // a Dropbox or AI outage must not turn into a retry every tick.
+    // Per-entry backoff prevents every sync tick retrying an outage.
     const UPLOAD_BACKOFF = [30e3, 120e3, 600e3, 3600e3];
     const JOB_BACKOFF = [60e3, 3600e3];
     const JOB_MAX_TRIES = 3;
@@ -248,8 +214,7 @@
     function _find(id) { return _queue.find(e => e.id === id) || null; }
     function _emit(id) { _listeners.forEach(fn => { try { fn(id); } catch (_) {} }); }
 
-    // Content changes bump rev so the next flush re-uploads the whole file; bookkeeping
-    // (tries, remote path) never does.
+    // Content changes bump rev; bookkeeping does not.
     function _update(id, fields) {
       const e = _find(id);
       if (!e || e.deleted) return null;
@@ -271,7 +236,7 @@
       return 'dream_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     }
 
-    // First dream chunk creates the entry; later chunks replace the assembled retelling.
+    // Persist first chunk; later chunks replace the assembled retelling.
     function capture({ id, retelling, lang } = {}) {
       const text = String(retelling || '').trim();
       if (!text) return id || null;
@@ -299,8 +264,7 @@
       return e.id;
     }
 
-    // Capture is complete: every chunk has answered, so the retelling is final and the
-    // reading and extraction can start — together, not one after the other.
+    // All chunks answered: reading and extraction may start together.
     function settle(id) {
       const e = _find(id);
       if (!e || e.deleted || e.settled) return;
@@ -309,7 +273,7 @@
       _runJobs(e, true);
     }
 
-    // The sheet closed with the dream kept (Done, Add tasks, or Discard while digesting).
+    // Every sheet exit keeps the dream except explicit Don’t keep.
     function keep(id) {
       const e = _find(id);
       if (!e || e.deleted) return;
@@ -318,9 +282,7 @@
       _kick(0);
     }
 
-    // "Don't keep this one": a tombstone, not a splice. It fences any reading, extraction,
-    // or upload still in flight, and keeps retrying the remote delete when an earlier
-    // upload's fate is unknown (a lost response can leave a file behind).
+    // Tombstones fence late jobs; retry deletion when a lost upload reply leaves its fate unknown.
     function discard(id) {
       const e = _find(id);
       if (!e) return;
@@ -334,8 +296,7 @@
       _kick(0);
     }
 
-    // Memory panel delete for a dream whose body was already pruned: rebuild a tombstone
-    // from the index so the remote file is removed too.
+    // Rebuild a tombstone from the index to delete a pruned remote file.
     function discardIndexed(id) {
       if (_find(id)) return discard(id);
       const row = _indexRows().find(r => r.id === id);
@@ -361,11 +322,8 @@
       return 'Saving to your Dropbox';
     }
 
-    // ── AI jobs ────────────────────────────────────────────────────────────────
-
-    // One door to ai-assist for both calls. Its reply shape differs by content: valid
-    // JSON comes back top-level, anything else wrapped as { content } — so JSON mode
-    // accepts either, and a reply without the expected fields counts as a failure.
+    // AI jobs
+    // Accept top-level JSON or wrapped content; missing expected fields fail.
     async function _ask(systemPrompt, content, { json = false } = {}) {
       const connections = Today.use('connections');
       const res = await fetch('/.netlify/functions/ai-assist', {
@@ -445,8 +403,7 @@
       }
     }
 
-    // ── Synced index (appMemory.dreams.index) ──────────────────────────────────
-
+    // Synced index (appMemory.dreams.index)
     function _indexRows() {
       if (typeof appMemory === 'undefined' || !appMemory) return [];
       if (!appMemory.dreams || !Array.isArray(appMemory.dreams.index)) appMemory.dreams = { index: [], dismissed: {} };
@@ -466,7 +423,7 @@
     }
     function _indexSave() {
       if (typeof _saveMemory === 'function') _saveMemory();
-      // _saveMemory is local only; the index has to reach the other devices.
+      // Save locally and autosave for other devices.
       if (typeof _setLastLocalChange === 'function') _setLastLocalChange();
       if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
     }
@@ -482,7 +439,7 @@
       if (i >= 0) rows[i] = row; else rows.push(row);
       _indexSave();
     }
-    // A tombstone row, so the union merge on the other device cannot resurrect it.
+    // Tombstone prevents remote resurrection.
     function _indexRemove(e) {
       const rows = _indexRows();
       const i = rows.findIndex(r => r.id === e.id);
@@ -491,9 +448,8 @@
       _indexSave();
     }
 
-    // ── Upload, rename, delete ─────────────────────────────────────────────────
-
-    // Dropbox file I/O (assets/dropbox.js). Absent only in harnesses that boot without it.
+    // Upload, rename, delete
+    // Dropbox I/O can be absent in standalone harnesses.
     function _files() {
       try { return Today.use('dropbox-files'); } catch (_) { return null; }
     }
@@ -511,7 +467,7 @@
     async function _upload(e) {
       const files = _files();
       const path = `${files.dreamsDir}/${fileName(e)}`;
-      // A file whose name changed is moved rather than copied (D14) — kept for dreams re-dated before v2.93.8.
+      // Move renamed files; do not duplicate legacy re-dated dreams.
       if (e.remotePath && e.remotePath !== path) {
         const moved = await files.move(e.remotePath, path);
         if (!moved.ok && !moved.notFound) return _backoff(e);
@@ -540,8 +496,7 @@
       _save();
     }
 
-    // Prune only when nothing can still change the file: the sheet has closed, both AI
-    // jobs have settled, and the latest revision is acknowledged by Dropbox.
+    // Prune only after sheet close, AI settlement and latest upload acknowledgement.
     function _maybePrune(e) {
       if (!e || e.deleted || e.pruned || !e.ready) return;
       if (e.readingState === 'pending' || e.extraction === 'pending') return;
@@ -552,9 +507,7 @@
       _emit(e.id);
     }
 
-    // Called on every sync tick (dropbox.js syncAll), on Done, and after edits. With an
-    // empty queue it is one localStorage read. Single-flight: a slow upload cannot
-    // overlap the next tick.
+    // Single-flight flush on sync/settle/edit; empty queue stays cheap.
     async function flush() {
       if (_flushing || !_queue.length) return;
       _flushing = true;
@@ -581,15 +534,13 @@
       }
     }
 
-    // A previous session ended: any dream it left behind was told, so it is kept and
-    // its capture is complete (the sheet that could have discarded it is gone).
+    // A killed session’s dream is kept and capture is complete.
     for (const e of _queue) {
       if (!e.deleted && !e.pruned) { e.settled = true; e.ready = true; }
     }
     _save();
 
-    // ── Memory panel block ─────────────────────────────────────────────────────
-
+    // Memory panel block
     function _rows() {
       const live = _queue.filter(e => !e.deleted);
       const ids = new Set(live.map(e => e.id));
@@ -629,9 +580,7 @@
       _rerenderMemory();
     }
 
-    // A row is the panel's own item: text (day — opening words) with a per-item action,
-    // like KNOWN's "dismiss". Opened, it shows the reading and the retelling, then one
-    // item row: where it is kept, and "delete".
+    // Opened dream: reading, retelling, storage location and delete.
     function _memoryRow({ e, r }) {
       const id = (e || r).id;
       const day = dayLabel((e || r).night);
@@ -656,19 +605,20 @@
         `<button type="button" class="memory-item-btn" data-today-click="dream.memory-delete" data-dream-id="${esc(id)}">delete</button></div>`;
     }
 
-    // One line until stage 2 gives the collection something to say. "manage" keeps every
-    // dream inspectable and deletable here — deleting a file in Dropbox does not remove
-    // its synced summary, so the per-dream delete must stay reachable.
-    function _imageLine(item) {
-      // The thing and how often — no dates (Can, 2026-10-11: Memory is being simplified;
-      // the days are in each dream under manage if wanted).
-      return `<div class="memory-item"><span class="memory-item-text">${esc(item.label)} — in ${item.count} dreams</span>` +
-        `<button type="button" class="memory-item-btn" data-today-click="dream.image-dismiss" data-image-key="${esc(item.key)}" aria-label="Dismiss ${esc(item.label)}">dismiss</button></div>`;
+    function _recurrence(item) {
+      return `<span class="dream-recurrence"><span class="dream-recurrence-label">` +
+        `<span aria-hidden="true">${esc(item.label)} (${item.count})</span>` +
+        `<span class="visually-hidden">${esc(item.label)}, in ${item.count} dreams</span></span>` +
+        (_listOpen ? `<button type="button" class="memory-item-btn" data-today-click="dream.image-dismiss" data-image-key="${esc(item.key)}" aria-label="Hide ${esc(item.label)} recurrence" aria-describedby="dreamRecurrenceHelp">hide</button>` : '') +
+        `</span>`;
     }
 
     function renderMemory(container) {
       if (!container) return;
       const old = document.getElementById('dreamMemoryBlock');
+      const active = old?.contains(document.activeElement) ? document.activeElement : null;
+      const action = active?.dataset.todayClick;
+      const identity = active?.dataset.dreamId || active?.dataset.imageKey;
       const rows = _rows();
       const dir = _files() ? _files().dreamsDir : '/Dreams';
       const n = rows.length;
@@ -681,14 +631,20 @@
         `<div class="memory-item"><span class="memory-item-text">${esc(summary)}</span>` +
         (n ? `<button type="button" class="memory-item-btn" data-today-click="dream.memory-manage" aria-expanded="${_listOpen}">${_listOpen ? 'less' : 'manage'}</button>` : '') +
         `</div>` +
-        // M2: what comes back across dreams — one line, silent until something does; the
-        // per-item counts and dismiss live under manage (Can, 2026-10-11: simplify Memory).
-        (images.length ? `<div class="memory-item"><span class="memory-item-text">comes back: ${images.map(i => esc(i.label)).join(' · ')}</span></div>` : '') +
-        (images.length && _listOpen ? images.map(_imageLine).join('') : '') +
+        // Manage adds actions beside the same recurrence, never duplicate rows.
+        (images.length ? `<div class="memory-item"><span class="memory-item-text">comes back: ${images.map(_recurrence).join(' · ')}</span></div>` : '') +
+        (_listOpen ? `<div class="memory-pending" id="dreamRecurrenceHelp">Hiding a recurrence keeps its earlier occurrences hidden. It returns after two new dreams repeat it.</div>` : '') +
         (n && _listOpen ? rows.map(_memoryRow).join('') : '') +
         `</div>`;
       if (old) old.outerHTML = html;
       else container.insertAdjacentHTML('beforeend', html);
+      if (action) {
+        const block = document.getElementById('dreamMemoryBlock');
+        const replacement = [...block.querySelectorAll('button')].find(button =>
+          button.dataset.todayClick === action &&
+          (button.dataset.dreamId || button.dataset.imageKey) === identity);
+        (replacement || block.querySelector('[data-today-click="dream.memory-manage"]'))?.focus();
+      }
     }
     function _rerenderMemory() {
       const el = document.getElementById('dreamMemoryBlock');

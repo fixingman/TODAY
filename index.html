@@ -4160,7 +4160,9 @@
     transition: opacity var(--dur-fast), color var(--dur-fast);
   }
   .memory-clear-btn:hover { opacity: 1; color: var(--danger); }
-  /* 12e — per-item action in the Memory panel ("bring back" on a retired kind, v2.87.0) */
+  /* Compact, wrapping recurrence items use the existing Memory action pattern. */
+  .dream-recurrence { display: inline-flex; align-items: baseline; max-width: 100%; }
+  .dream-recurrence-label { min-width: 0; overflow-wrap: anywhere; }
   .memory-item-btn {
     background: none; border: 0; padding: 2px 0 2px var(--space-3); min-height: 24px; flex-shrink: 0;
     font-family: var(--font-mono); font-size: var(--text-micro);
@@ -4630,16 +4632,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '349.5h';
+const DEV_HOURS     = '350.5h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.95.1': 'Memory is quieter: feeling insights follow their evidence, and recurring dream images show their counts once.',
   '2.95.0': 'Memory → Dreams now shows what comes back across your dreams — the places, people and things that appear more than once.',
   '2.94.5': 'Two new daily poems — a calm autumn morning from John Muir and an Asante proverb about beginning at the bottom.',
-  '2.94.4': 'Six new daily poems — Thoreau, John Muir, Bashō, Kahlil Gibran, and an Asante proverb.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

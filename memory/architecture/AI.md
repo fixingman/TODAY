@@ -76,6 +76,14 @@ tests cover both policy boundaries.
 > "fix the bike" has been here 5 days. Still relevant, or ready to let it go?
 > (7+ days: suggests break_down instead)
 
+### Memory feeling relationship (v2.95.1)
+
+`assets/reflections.js` chooses one aggregate from opted-in, retained reflected evenings joined to same-date outcomes on-device. The writer gets only the chosen feeling, both action contexts and group counts. It must start “On evenings you reflected,” say the user marked that feeling more often, copy the selected comparison in order, and write one complete sentence of at most 40 words. Bringing a task back from Past replaces opaque “reviving” wording; task-focused comparisons name recorded focus rather than claiming a whole focused day. The output guard rejects incomplete, overlong, causal, multi-feeling or swapped comparisons; rejected replies leave the opted-in section hidden, without stats.
+
+The transient canonical evidence key includes local day/window, consent choice/version, deletion watermark, valid retained reflection values/versions and relevant same-date outcome fields (outcome, obligation, focus sessions, backfill status). It excludes unrelated outcomes and storage order. Each evidence snapshot gets at most one attempt in the current session state. Changes invalidate both the result and queued/pending requests; an epoch plus current-source check fences replies after newer requests, deletion or consent withdrawal. Local outcome/reflection changes, sync including outcome-only merges, new-day cleanup and foreground return reconcile the source. An unchanged valid relationship keeps its wording. Neither source identity nor source rows are persisted, synced or included in AI input. Existing provider/auth route and backup schema remain unchanged.
+
+---
+
 ### Sunday Reflection
 > "Sunday evening. This week: 12 tasks done, 2 hours focused, streak at 7. How did it feel?"
 

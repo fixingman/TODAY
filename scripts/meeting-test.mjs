@@ -550,30 +550,74 @@ try {
       _saveMemory();
       Today.use('memory').toggle();
       const block = () => document.getElementById('dreamMemoryBlock');
-      const lines = () => [...block().querySelectorAll('.memory-item')].map(el => el.querySelector('.memory-item-text').textContent);
+      const lines = () => [...block().querySelectorAll('.memory-item')].map(el => {
+        const text = el.querySelector('.memory-item-text').cloneNode(true);
+        text.querySelectorAll('.visually-hidden, button').forEach(node => node.remove());
+        return text.textContent;
+      });
       const before = lines();
       const firstIsSummary = /^3 dreams kept in your Dropbox/.test(before[0]);
-      const oneLine = before[1] === 'comes back: stairs · grandmother' && before.length === 2;
+      const oneLine = before[1] === 'comes back: stairs (3) · grandmother (2)' && before.length === 2;
       const noDismissCollapsed = !block().querySelector('[data-today-click="dream.image-dismiss"]');
       const noOnce = !/garden|lake/.test(before.join(' '));
       block().querySelector('[data-today-click="dream.memory-manage"]').click();
       const managed = lines();
-      const stairs = managed.includes('stairs — in 3 dreams');
-      const grandmother = managed.includes('grandmother — in 2 dreams');
+      const stairs = managed.filter(line => line.includes('stairs (3)')).length === 1;
+      const grandmother = managed.filter(line => line.includes('grandmother (2)')).length === 1;
+      const explained = block().querySelector('#dreamRecurrenceHelp').textContent.includes('two new dreams');
+      const hideLabel = block().querySelector('[data-image-key="stai"]').getAttribute('aria-label') === 'Hide stairs recurrence';
       const saves = t.autosaves;
       block().querySelector('[data-today-click="dream.image-dismiss"][data-image-key="stai"]').click();
       const after = lines();
       const stored = JSON.parse(localStorage.getItem('today_memory')).dreams.dismissed;
       const manageLabel = block().querySelector('[data-today-click="dream.memory-manage"]').textContent;
       return {
-        firstIsSummary, oneLine, noDismissCollapsed, stairs, grandmother, noOnce,
-        dismissed: after.includes('comes back: grandmother') && !after.some(l => l.startsWith('stairs —')) && after.includes('grandmother — in 2 dreams'),
+        firstIsSummary, oneLine, noDismissCollapsed, stairs, grandmother, noOnce, explained, hideLabel,
+        dismissed: after.some(line => line.includes('comes back: grandmother (2)')) && !after[1].includes('stairs'),
         stored: typeof stored.stai === 'string', synced: t.autosaves > saves,
         lessNotClose: manageLabel === 'less',
       };
     }, index);
     await expectAll('dream images that come back', { ...result, noErrors: errors.length === 0 });
-    ok('Memory → Dreams: one "comes back" line; counts and dismiss under manage; dismiss syncs');
+    ok('Memory → Dreams: one recurrence line with counts; explained hide under manage; hide syncs');
+    // Actual keyboard events, retained focus, expanded labels and narrow wrapping.
+    await page.setViewport({ width: 320, height: 760 });
+    await page.evaluate(() => {
+      appMemory.dreams.index.push(...['wrap_a', 'wrap_b'].map(id => ({
+        id, night: '2026-10-11', recordedAt: '2026-10-11T10:00:00Z',
+        images: ['company', 'extraordinarilylongrecurrencewordthatmustwrapatphonewidth'], people: [],
+      })));
+      Today.use('memory').render();
+      document.querySelector('[data-today-click="dream.memory-manage"]').focus();
+    });
+    await page.keyboard.press('Enter');
+    const collapsed = await page.evaluate(() => !document.querySelector('[data-today-click="dream.image-dismiss"]') &&
+      document.activeElement.dataset.todayClick === 'dream.memory-manage');
+    await page.keyboard.press('Enter');
+    const narrow = await page.evaluate(() => {
+      const block = document.getElementById('dreamMemoryBlock');
+      const rect = block.getBoundingClientRect();
+      const controls = [...block.querySelectorAll('[data-today-click="dream.image-dismiss"]')];
+      return {
+        focusedManage: document.activeElement.dataset.todayClick === 'dream.memory-manage',
+        labels: controls.every(button => button.getAttribute('aria-label').startsWith('Hide ') &&
+          button.getAttribute('aria-describedby') === 'dreamRecurrenceHelp'),
+        spokenCounts: [...block.querySelectorAll('.dream-recurrence .visually-hidden')].every(el => /in \d+ dreams/.test(el.textContent)),
+        wraps: [...block.querySelectorAll('.dream-recurrence')].every(el => {
+          const item = el.getBoundingClientRect(); return item.left >= rect.left && item.right <= rect.right + 1;
+        }),
+        noOverflow: document.documentElement.scrollWidth <= 320,
+      };
+    });
+    await expectAll('Dreams keyboard, labels and 320px wrapping', { collapsed, ...narrow });
+    await page.evaluate(() => document.querySelector('[aria-label="Hide company recurrence"]').focus());
+    await page.keyboard.press('Enter');
+    await expectAll('hide restores keyboard focus', await page.evaluate(() => ({
+      removed: !document.querySelector('[aria-label="Hide company recurrence"]'),
+      focusRestored: document.activeElement.dataset.todayClick === 'dream.memory-manage',
+    })));
+    ok('Dreams keyboard manage/hide retains focus; spoken counts and help; long recurrence wraps at 320px');
+
     await page.close();
   }
 
