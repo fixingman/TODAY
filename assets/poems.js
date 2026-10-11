@@ -906,4 +906,18 @@ const POEMS = [
     season: null,
     source: 'Sand and Foam (1926) — Gibran d. 1931, PD worldwide; complete aphorism reflowed to two displayed lines, verified verbatim against the Wikisource transcription of the 1928 scan',
   },
+
+  // ── Round 47 (Oct 2026) — autumn calm, starting small ───────────────────
+  {
+    text: 'No clouds. Weather cool, calm, bright\nas if no great thing was yet ready to be done.',
+    author: 'John Muir',
+    season: 'autumn',
+    source: 'My First Summer in the Sierra (1911), entry for September 5 — Muir d. 1914, PD worldwide; complete contiguous entry opening reflowed to two displayed lines, verified verbatim against Project Gutenberg #32540',
+  },
+  {
+    text: 'When one would climb a tree,\none begins from the bottom and not from the top.',
+    author: 'Traditional Asante (recorded by R. S. Rattray)',
+    season: null,
+    source: "Ashanti Proverbs (Oxford, 1916), no. 775, 'Wobeforo dua a, wofi n'ase na womfi soro' — Rattray d. 1938, PD worldwide; complete proverb reflowed to two displayed lines, verified verbatim against the archive.org scan text",
+  },
 ];

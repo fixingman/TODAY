@@ -212,7 +212,16 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     poem.text.includes('I gathered all my sorrows and buried them') ||
     poem.text.includes('with the sound of rice') ||
     poem.text.includes("In th' autumn sky, Mount Fuji stands") ||
-    poem.text.includes('After a still winter night I awoke'));
+    poem.text.includes('After a still winter night I awoke') ||
+    // Round 47 final cuts (2026-10-11)
+    poem.text.includes('apparently with no work to do beyond looking beautiful') ||
+    poem.text.includes('In silver on the jewel-weeds') ||
+    poem.text.includes("The gentians don't mind the first frost") ||
+    poem.text.includes('neither does one falling leaf make an autumn') ||
+    poem.text.includes('Bid me and I shall gather my fruits') ||
+    poem.text.includes("The old man's autumn, who with joy") ||
+    poem.text.includes('oh fields that rest after harvest') ||
+    poem.text.includes('No tree ever bore fruit'));
   const hasSeason = (sourcePart, season) => poems.some(poem =>
     poem.source.includes(sourcePart) && poem.season === season);
   const seasonTagDrift =
@@ -225,12 +234,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     return counts;
   }, {});
   const seasonCountDrift = seasonCounts.winter !== 16 || seasonCounts.spring !== 18 ||
-    seasonCounts.summer !== 14 || seasonCounts.autumn !== 12 || seasonCounts['year-round'] !== 74;
-  if (poems.length !== 134 || malformed.length || !hasAllApprovedVoices || !hasForeverNows || !hasBecauseRose || !hasNietzscheStory || !hasThoreauLifePoem || !hasNietzscheLove || !hasNietzscheStar || !hasAiyarSneeze || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
+    seasonCounts.summer !== 14 || seasonCounts.autumn !== 13 || seasonCounts['year-round'] !== 75;
+  if (poems.length !== 136 || malformed.length || !hasAllApprovedVoices || !hasForeverNows || !hasBecauseRose || !hasNietzscheStory || !hasThoreauLifePoem || !hasNietzscheLove || !hasNietzscheStar || !hasAiyarSneeze || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
     console.error('✗ FAIL — reviewed poem corpus count, schema, line limit, or season tags drifted.');
     process.exit(1);
   }
-  console.log('  ✓ 134-poem reviewed corpus shape, approved selections, and audited seasons');
+  console.log('  ✓ 136-poem reviewed corpus shape, approved selections, and audited seasons');
 
   try {
     globalThis.fetch = async request => {

@@ -36,7 +36,7 @@ Ordered by potential impact on TODAY's longitudinal-companion promise and daily 
 | 13 | **DreamBank** | M1 live; phone-verified October 5 | Two-week usefulness verdict before M2. Can's listening test stands in for scripted evals, which were not run. |
 | — | **WEEK companion** | Gated | 12c must genuinely feel like a companion, not a feature. |
 | — | **New week — distinct Monday recognition** | Gated | Week-scale evidence, a different job from Today, earned silence; real-use verdict after 12c. |
-| 2 | **Poem corpus** | In progress — 134 poems | Expand geography and voice; check curation ledger before proposing candidates. |
+| 2 | **Poem corpus** | In progress — 136 poems | Expand geography and voice; check curation ledger before proposing candidates. |
 | 10a | **Granola — meeting import** | Not started — priority path | Reviewed action chips; build before native calendar-led capture. |
 | 10b | **Google Calendar — meeting context** | v2.94.0 live on dev + production; Cloud configured | Real consent, refresh, Forget and read-only verification on desktop/phone before designing Join / Record. |
 | 11 | **Task agent — enrichment** | Stages 1–3 shipped; relevance under observation | Judge useful context, wrong cards and useful cards withheld; Contacts / AI calendar tools deferred. |
@@ -122,7 +122,7 @@ Do not turn this into another planner or a preview of WEEK. Keep existing Monday
 
 **Next search:** geography and voice, especially Africa, Latin America, Middle East and Southeast Asia; ordinary lived detail and the choosing / keeping / loosening / returning of commitments. Diversity is a tie-breaker, not a quota. The shuffle fix is shipped, not the expansion lever.
 
-**Corpus at last curation count (2026-10-10):** 134 = winter 16 + spring 18 + summer 14 + autumn 12 + year-round 74. Target 16 per season: autumn +4, summer +2; winter has reached it and spring is above it.
+**Corpus at last curation count (2026-10-11):** 136 = winter 16 + spring 18 + summer 14 + autumn 13 + year-round 75. Target 16 per season: autumn +3, summer +2; winter has reached it and spring is above it.
 
 **Read before proposing:** `archive/Backlog-archive.md` → Poem curation ledger. It preserves approved exceptions, translation decisions, permanent cuts, rejected candidates and open leads. Source/archive discovery conventions above still apply.
 
