@@ -633,3 +633,139 @@ After every bug fix or function rework:
 3. **Check for orphaned CSS classes** — if a fix removed a DOM element or changed a class name, check whether the old CSS selector is still referenced in HTML or JS. If not, delete it.
 4. **Check for stale comments** — if a comment describes behaviour that was just changed, update or remove it. Stale comments are worse than no comments.
 5. **Check doc freshness** — use the trigger table in §12 to determine whether the change warrants a memory file update. A fix that hits a new browser gotcha goes in Research.md. A removed feature goes in Design.md §7. A new product rule goes in Architecture.md. Do this before closing the work item, not at the end of a session.
+
+---
+
+## Retired ✦ AI sheet (from architecture/AI.md, moved 2026-10-11)
+
+The standalone sheet lost its trigger in v2.49.0 and its code was deleted in v2.83.1. This is its design record, kept for history only — none of it is a current interface.
+
+### Context Object
+
+> Historical standalone-sheet contract, removed in v2.83.1. The context, intro-priority,
+> special-moment, proactive-observation, energy, action-chip, and personality sections through
+> “Personality” below describe the retired sheet and are retained only until the audit/history
+> documentation is split. They are not current interfaces.
+
+```javascript
+{
+  timeOfDay: 'morning'|'afternoon'|'evening',
+  date, dayOfWeek, isWeekend,
+  isFirstOpenToday,        // via ai_last_open_date
+  streak,
+  tasks: {
+    pending, pendingWithAge,
+    aging,                 // tasks with ageDays >= 3
+    done, trello, overdueCount
+  },
+  habits,
+  progress,
+  weeklyStats,             // from today_daily_history — last 7 days (tasksDone, focusMins)
+  proactiveObservation,    // from _getProactiveObservations()
+}
+```
+
+---
+
+### Intro Message Priority
+
+1. Morning + first open → **Morning Briefing**
+2. Sunday evening → **Weekly Reflection**
+3. Aging tasks (3+ days) → **Stale Awareness** (always, not random)
+4. Behavioral insight (patterns exist) → **Insight** (deterministic rotation by day+hour)
+5. Overdue tasks → Overdue nudge
+6. All done + tasks completed → **Celebrate**
+7. Empty (no tasks, no done) → **Invitation**
+8. Default → **Contextual** (varies by time, progress, energy)
+
+---
+
+### Special Moments
+
+#### Morning Briefing
+> "Good morning. First look: 3 tasks waiting, 2 habits due, 1 been here a while. Day 5 of your streak."
+
+#### Stale Task Awareness (always when aging tasks exist)
+> "fix the bike" has been here 5 days. Still relevant, or ready to let it go?
+> (7+ days: suggests break_down instead)
+
+---
+
+#### Sunday Reflection
+> "Sunday evening. This week: 12 tasks done, 2 hours focused, streak at 7. How did it feel?"
+
+#### All-Done Celebration
+Variable warm messages:
+- "5 things done. The list is clear."
+- "8 things handled. That's a solid day."
+- "All clear. Day 7 of your streak."
+
+#### Empty State Invitation
+> "Day 5. What's on your mind?"
+
+---
+
+### Proactive Observations
+
+| Type | Priority | Example |
+|---|---|---|
+| `streak_record` | High | "Day 12 — your longest streak yet." |
+| `streak_milestone` | High | "Day 14. That's worth noticing." |
+| `peak_hour` | Medium | "It's 2pm — your most productive hour." |
+| `focus_milestone` | Medium | "50 hours focused. That's real." |
+| `yesterday_win` | Medium | "You cleared 8 things yesterday." |
+
+24h cooldown per observation type.
+
+---
+
+### Energy Rhythm
+
+Based on peak hour from memory:
+
+| State | Context |
+|---|---|
+| Peak time (±1h) | "Good moment for demanding tasks." |
+| Pre-peak (1-3h before) | "Still warming up. Light tasks." |
+| Post-peak (1-2h after) | "Winding down. Quick wins." |
+
+---
+
+### Actions
+
+Active chips (v2.17.25 — observation-first redesign):
+
+| Action | Parameters | Effect | When |
+|---|---|---|---|
+| `start_focus` | `{id}` or `{ids:[...]}` | Begin pomodoro | When one task clearly fits the moment |
+| `check_habit` | `{id}` or `{ids:[...]}` | Mark habit done | When habits are pending |
+| `add_task` | `{text}` | Add new task | Empty state only |
+| `move_soon` | `{id}` or `{ids:[...]}` | Park task to SOON | **Explicit user request only** (v2.17.74) — never proactive. Manual tasks only; handler ignores non-`manual_` ids |
+| `reflect` | `{}` | Ask AI for reflection | Rarely — only with specific pattern insight |
+| `dismiss` | `{}` | Close AI panel | Always last |
+
+Multi-task actions use an `ids` array (v2.17.6) — handler iterates and applies the action to each ID. Chip label shows the count and first task name.
+
+Available in handlers but not offered by AI (kept for edge cases):
+
+| Action | Notes |
+|---|---|
+| `delete_task` | Deterministic aging chips only (7+ days old) |
+| `check_task` | Handler exists, not in AI chip set |
+| `break_down` | Handler exists, removed from AI — was never used |
+| `delete_done` | Handler exists, not in AI chip set |
+| `open_panel` | Handler exists, error state only |
+
+**Chip limits:** 1–2 max per response (was 2–4). Always ends with dismiss.
+
+---
+
+### Personality
+
+- Calm, present friend — not a manager
+- Brief, warm, never urgent
+- No exclamation marks
+- Acknowledges effort without gamification
+- Weaves observations naturally, doesn't lead with them
+
+---

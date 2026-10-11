@@ -126,7 +126,7 @@ dropboxAuth()
 Shows: `Saved Xm ago` (most recent of last backup write or sync read) | Save + Restore + Forget buttons.
 
 **Save** → `dropboxBackup()`: serialises full app state to JSON, uploads to `/today-backup.json`.
-**Restore** → `dropboxRestore()`: downloads backup, calls `mergeRemoteData()`.
+**Restore** → `dropboxRestore()`: downloads the backup and **overwrites** local tasks, done ids and check/delete maps (manual restore is a full replace; only the background sync path, `fromSync`, union-merges via `mergeRemoteData()`). Local-only work not yet backed up is lost — see `Sync.md`.
 **Forget** → `dropboxDisconnect()`: removes all `dropbox_*` keys from localStorage. Does NOT delete the remote backup file.
 
 ### Expired State
@@ -170,7 +170,7 @@ v2.83.1; configuring a provider does not reveal a general chat surface.
 
 ### Provider Selection
 
-Two providers: **Gemini** (Gemini 2.5 Flash, free) and **Claude** (Claude Sonnet 4.6, paid). User selects via toggle buttons (`setAIProvider('gemini'|'claude')`).
+Two providers: **Gemini** (Gemini 2.5 Flash, free) and **Claude** (paid; model in `architecture/AI.md` → Providers). User selects via toggle buttons (`setAIProvider('gemini'|'claude')`).
 
 **UI state per provider:**
 
@@ -187,19 +187,19 @@ User selects provider → pastes API key into input
     validates key not empty
     shows "Testing…" in button
     makes test call to /.netlify/functions/ai-assist
-    on success: stores key in localStorage('ai_api_key')
-               stores provider in localStorage('ai_provider')
+    on success: stores key in localStorage('today_ai_key_' + provider)
+               stores provider in localStorage('today_ai_provider')
                updates button label + panel state
     on fail: shows error message, clears input
 ```
 
 **Key storage:**
-- `ai_api_key` — the raw API key (never sent to any third party — routes only through Netlify function)
-- `ai_provider` — `'gemini'` or `'claude'`
+- `today_ai_key_gemini` / `today_ai_key_claude` — one raw API key per provider. Sent only through the Netlify proxy, which forwards it to the selected provider's API (Google or Anthropic) and nowhere else. A legacy single `today_ai_key` is migrated to the current provider's slot on load.
+- `today_ai_provider` — `'gemini'` or `'claude'`
 
 ### Connected State
 
-Shows provider badge (Gemini/Claude) with key partially masked. Forget button removes both localStorage keys.
+Shows provider badge (Gemini/Claude) with key partially masked. Forget (`clearAIKey(provider)`) removes only that provider's key; if it was the selected provider, selection switches to the other provider when it has a key, otherwise `today_ai_provider` is removed.
 
 Provider state also controls the focus-companion affordance and background/inline AI calls. It
 does not reveal a standalone assistant panel.
@@ -249,22 +249,6 @@ Nothing blocks task entry. The app is fully functional without any connection.
 
 ---
 
-## localStorage Keys Summary
+## localStorage Keys
 
-| Key | Set by | Cleared by |
-|---|---|---|
-| `trello_token` | OAuth return | `clearTrello()` |
-| `trello_config` | `saveAndLoad()` | `clearTrello()` |
-| `today_trello_cache` | `loadTrello()` | `clearTrello()`, new day |
-| `today_trello_focus` | focus sessions | `clearTrello()`, new day |
-| `dropbox_token` | OAuth token exchange | `dropboxDisconnect()` |
-| `dropbox_refresh_token` | OAuth token exchange | `dropboxDisconnect()` |
-| `dropbox_token_expired` | `_dropboxEnsureToken()` on fail | `dropboxAuth()` on success |
-| `last_successful_backup` | `dropboxBackup()` | — |
-| `last_sync_read` | `dropboxRestore()` | — |
-| `today_ai_key_gemini` | `saveAIKey('gemini')` | Gemini Forget button |
-| `today_ai_key_claude` | `saveAIKey('claude')` | Claude Forget button |
-| `today_ai_provider` | `saveAIKey()` / `setDefaultProvider()` | AI forget button when no provider remains |
-| `user_names` | `saveMeetingName()` / inline name prompt | clearing the name input |
-| `user_names_at` | `saveMeetingName()` / inline name prompt | clearing the name input |
-| `today_connections_privacy_seen` | first Connections-panel open | never automatically; local-only and not synced |
+Every connection key — what sets it, what clears it, and whether it syncs — is listed once in **`architecture/Data.md` → localStorage Keys → Integrations / AI / Meeting**. Tokens and AI keys are device-local and never enter the Dropbox backup; `trello_config` (with its `apiToken` stripped) and the meeting names do (see `Sync.md`).

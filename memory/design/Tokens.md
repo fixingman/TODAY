@@ -220,7 +220,7 @@ Scale is numeric, 4px base:
 | Token | Value | Element |
 |---|---|---|
 | `--z-base` | `1` | Normal content (`.app`) |
-| `--z-header` | `10` | Sticky header |
+| `--z-header` | `11` | Sticky header |
 | `--z-modal` | `100` | Panels, overlays, triage bar |
 | `--z-splash` | `500` | Loading splash overlay |
 | `--z-overlay` | `999` | Top-level overlays |
@@ -228,8 +228,8 @@ Scale is numeric, 4px base:
 **Hardcoded (not tokenised):**
 | Value | Element | Reason |
 |---|---|---|
-| `5` | `#statusBarScrim` (v2.33.1) | Above content (1), below section headers (9) and glass header (10) — covers the iOS safe-area strip |
-| `9` | `.section-header` sticky | One below the glass header it slides under |
+| `5` | `#statusBarScrim` (v2.33.1) | Above content (1), below section headers (9) and glass header (11) — covers the iOS safe-area strip |
+| `9` | `.section-header` sticky | Below the glass header (11) it slides under |
 | `50` | Idle companion | Between header and modal |
 | `600` | Splash canvas (star burst) | Above splash overlay (500); burst fires on top of the splash |
 | `9998` | Error panel | Above all app content |

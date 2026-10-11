@@ -1,19 +1,17 @@
 # Sync & Backup
 
-> Dropbox sync, merge logic, and backup schema.
+> Dropbox sync, merge rules, and the backup schema — the authoritative copy. Each rule keeps a one-line *why* and its bug number; the full history of how a rule came about lives in `Bugs.md` / `archive/Bugs-archive.md` and the changelogs, not here.
 
 ---
 
 ## Design Principles
 
-1. **Local-first** — app works offline, syncs when possible
-2. **Union merge** — additions from both sides preserved
-3. **Explicit deletes** — tracked with timestamps
-4. **Last-write-wins** — for simple values (stats)
-5. **No conflicts** — merge is deterministic
-6. **`init()` runs before sync lands — anything reading synced state there needs a post-merge re-check, at *every* place that state can change, not just cold start.** `init()` executes synchronously on load; the Dropbox restore + `mergeRemoteData()` that actually populates fresh cross-device state happens later, async. Any `init()`-time function that reads a variable `mergeRemoteData()` reassigns (`doneIds`, `habitsList`/`habitCompletions`, `today_daily_history`, etc.) sees stale or empty data on a genuinely fresh device — and won't self-correct later unless something explicitly re-runs it, because the normal 7s ticker often gates its own re-fetch on a *different* signal (e.g. Trello's `dateLastActivity`, which may never change even though local completion state did). Confirmed five times so far: triage bar (fixed pre-BUG-060), morning nudge (v2.37.6), Trello done-state (BUG-060, v2.37.7 then extended v2.40.1), Sunday/habit badges (BUG-061, v2.37.8).
-
-   **Correction (2026-07-28, BUG-060):** this principle previously said the fix pattern is "always the same — two spots, cold-start plus Dropbox-restore." That undersold it and the initial BUG-060 fix (v2.37.7) shipped covering only cold-start, which is why the bug kept recurring through ordinary daily use for months. There are actually **four** places `mergeRemoteData()` (or an equivalent local-state overwrite) can run: the periodic `syncDropbox()` tick (`fromSync` branch), manual "Restore from Dropbox" (a *different* code path — wholesale overwrite, doesn't call `mergeRemoteData()` at all), the `online` reconnect handler, and the cold-start load. **The right question isn't "did I cover the two usual spots" — it's "does this specific downstream read ever self-correct through some OTHER path, and if not, does it need the re-check at every site that changes the state it depends on."** In BUG-060's case, the periodic tick turned out to be the actual everyday trigger (Trello's own re-fetch is gated on a signal — `dateLastActivity` — that this specific bug can never change), while the `online` handler turned out to already self-correct via its own unrelated subsequent `loadTrello()` call and didn't need the fix at all. Don't assume symmetry between similar-looking bugs — trace each one's actual call graph before deciding scope, and verify with confidence, not pattern-matching to a checklist. Full trace in `Bugs.md`'s BUG-060 entry.
+1. **Local-first** — the app works offline and syncs when it can.
+2. **Union merge** — additions from both devices survive.
+3. **Explicit deletes** — tracked with timestamps, never inferred from absence.
+4. **A synced key's merge rule is its meaning** — MIN (earliest wins), MAX (newest wins), union (any device's presence wins), LWW (last writer wins). A new kind of value that needs a different rule needs its own key (BUG-026 `habit_events`, BUG-064 Trello aging, BUG-058 Noticed — the same lesson three times).
+5. **Deterministic** — no conflict prompts; the merge always produces one answer.
+6. **`init()` runs before sync lands.** `init()` is synchronous; the Dropbox pull and `mergeRemoteData()` arrive later. Anything `init()` reads that the merge can reassign (`doneIds`, habits, `today_daily_history`…) is stale on a fresh device and needs a re-check **at every place that state can change**, not just cold start. There are four such places: the 7s `syncDropbox()` tick (`fromSync`), manual Restore (`dropboxRestore(!fromSync)`, a wholesale overwrite that does not call `mergeRemoteData()`), the `online` reconnect handler, and cold start. Trace each consumer's call graph — some self-correct through another path, some never do. Example: Trello's own re-fetch is gated on `dateLastActivity`, which a local completion never changes, so the 7s tick was the everyday trigger for BUG-060, while the `online` handler already self-corrected through its own `loadTrello()` (BUG-060, BUG-061; full trace in the BUG-060 entry).
 
 ---
 
@@ -21,106 +19,62 @@
 
 ### Files
 
-| Environment | File |
-|-------------|------|
-| Production | `/today-backup.json` |
-| Dev | `/today-backup-dev--today-here.json` |
+All paths are relative to TODAY's Dropbox app access; `{env}` is empty on production (`today-here.netlify.app`) and `-<subdomain>` elsewhere (e.g. `-dev` on `dev--today-here.netlify.app`).
+
+| What | Path |
+|------|------|
+| Backup snapshot (one JSON, overwritten) | `/today-backup{env}.json` |
+| DreamBank dream files (one Markdown per dream, not part of the backup) | `/Dreams{env}/{day|undated}_{id}.md` — see `Data.md` → DreamBank keys |
 
 ### Sync Flow
 
 ```
-1. On load: fetch remote, merge with local (behind splash) — kicks off right
-   after init(), not gated on window.load (v2.38.5, see below)
-2. On mutation: debounced save (800ms), retry with exponential backoff on failure
-3. On tab return / PWA focus: immediate sync (wake errors silenced for 3s)
-4. Every 7s: background sync check (rev comparison, skipped if _pendingBackup)
-5. On reconnect ('online' event): full pull + merge + push
-6. On disconnect ('offline' event): stop ticker
+1. On load: pull + merge right after init() (behind the splash, not gated on window.load)
+2. On mutation: debounced save (dropboxAutoSave, 800ms default), retry with backoff
+3. On tab return / PWA focus: immediate sync; wake-time errors silenced for 3s
+4. Every 7s (INTERVAL_MS): metadata rev check; full pull only if the rev changed;
+   skipped while _pendingBackup; dreambank.flush() rides the same tick
+5. On 'online': pull + merge, then push local offline changes
+6. On 'offline': stop the ticker
 ```
 
-**Daily nudge recovery (v2.93.23):** strip dismissal and accepted recovery both queue the existing debounced/retrying `dropboxAutoSave()` path. They use the existing dated dismissal, AI-cache and spoken-line fields; no schema or global sync rewrite. A synced fallback dismissal can still allow missing-text recovery into About, without reopening the strip. Once an accepted cache/spoken record exists, a real AI dismissal is final. If sync supplies an accepted line while a local generation is pending, the late local reply cannot replace that line or its vote. Two isolated browser stores exercise the real backup serializer/merge and repeated vote convergence in `nudge-test`.
+**Cold-start ordering.** The pull starts as a plain statement after `init();` inside a `setTimeout(0)` yield — not gated on `window.load`, which waits for every subresource (startup images, icons) though the splash needs only the two fonts. Safe because `init()` is fully synchronous (no pull continuation can run before it, including `checkDayNudge(false)`'s pre-sync call, returns) and the internal sequence travels as one unit: pull+merge → nudge/triage re-checks → `_onAppLoadDone()` → rev seed (`deferredSyncBookkeeping`) → `startTicker()`. Seeding the rev before the first tick prevents a redundant full restore. Splash dismissal (`_appLoadDone`) depends only on sync *finishing*.
 
-### Cold-Start Sync Timing (v2.38.5)
+**Save timing.** Every synced mutation must schedule a save — `_saveMemory()` and similar local writes do not upload on their own, so a change that skips `dropboxAutoSave()` waits for an unrelated mutation (votes did, BUG fixed v2.92.14). The default debounce suits most state: line votes, daily-nudge dismissal/recovery and dream-index changes use it. `dropboxAutoSave(0)` is reserved for triage completion, close and undo, where another device may check within seconds. Zone moves call `dropboxBackup(true)` directly (see Zone-Aware Sync).
 
-The Trello `dateLastActivity` check + Dropbox pull/merge block used to be gated on `window.addEventListener('load', ...)`. That's a much coarser gate than the splash animation itself needs: `window.load` waits for *every* subresource on the page — both self-hosted fonts, both icon PNGs, the OG-image meta tag's image, all 11 `apple-touch-startup-image` launch-screen PNGs — while the splash animation only waits on the two fonts (`document.fonts.load()` raced against a 2000ms ceiling). Sync sat idle in that gap even after everything the splash actually needed was already ready.
+**Daily nudge recovery (v2.93.23).** Strip dismissal and accepted recovery reuse the dated dismissal, AI-cache and spoken-line fields — no schema change. A synced *fallback* dismissal still allows missing-text recovery into About without reopening the strip; once an accepted line exists, a real AI dismissal is final. If sync supplies an accepted line while a local generation is pending, the late local reply cannot replace that line or its vote. Covered by two isolated browser stores in `nudge-test`.
 
-Fixed by removing the `window.load` wrapper — the sync block now runs as a plain statement right after `init();` is called, still wrapped in the same `setTimeout(0)` yield the code already used to avoid blocking first paint. Two things make this safe rather than a re-introduction of a load-order race (both traced before shipping, not assumed):
+### Wake Sequence — `window._onWake()`
 
-- **`init()` is fully synchronous.** No matter how early the async sync block is triggered, its `await`ed continuations can't run until `init()` — including `checkDayNudge(false)`'s pre-sync call — has already returned. Removing the `window.load` gate doesn't change this; JS's own execution model already guarantees it.
-- **`startTicker()`'s rev-seed-before-first-tick ordering is untouched.** `startTicker()` is called from *inside the same async function* that was moved (after the rev-seed step in `deferredSyncBookkeeping`), so that internal sequence — pull+merge → nudge/triage re-checks → `_onAppLoadDone()` → rev-seed → `startTicker()` — travels with the block as one unit. Only *when the whole block begins* changed, not the order of anything inside it.
+Called from the sync module's `visibilitychange` handler, `window.focus` (PWA fallback — standalone windows may skip `visibilitychange`), and persisted `pageshow` (bfcache). Skipped until `_appReady`; debounced 200ms because `visibilitychange` and `focus` fire together on desktop restore. SW update check, timer wall-clock correction and PiP show/hide keep their own handlers (they need private state).
 
-Splash dismissal (`_appLoadDone`) already only depended on sync *finishing*, never on when it started — so this change can only shorten cold-start time-to-ready, never lengthen it or introduce a new race.
+**Sequence:**
+1. `_forceRepaint()` + `_wakeFocusCheck()` immediately, on the next rAF, the rAF after, and at 500 / 1500 / 3000 / 5000 / 8000 / 12000ms — PWA standalone defers painting after sleep, and Mac GPU compositor wake can take >5s (BUG-004/056/071). Each pass toggles `#main-app` display while preserving scroll; skipped while hidden or just after focus exit.
+2. Looping animations are WAAPI, so they survive the display toggles; the only suppression left is the one-shot `.config-panel.open` slide-up (BUG-023), restored on the next user open. One-shot CSS animations that restart on toggle are a known hazard (BUG-109) — prefer WAAPI.
+3. Single-play classes cleared once: `.task-slide-in`, `.removing`, `.just-checked`, `.milestone-pulse`, `.dot-ripple`, `#manualEmpty.fading-in`.
+4. Stale `.focusing` cleared by `_clearStaleFocusing()` now, at 350ms and at 1000ms — skipped while `window._focusUIActive` (set in focus `openUI()`, cleared in `closeUI()`), because a sync-triggered `renderManual()` can destroy `.focused` moments before `_focusReanchor()` re-attaches it.
+5. `checkDayNudge()`; once-a-day memory abstraction if not yet run.
+6. Triage silent window: `setBarSilent(true)`, then after 3s re-read `triage_dismissed` and `checkTriageBar()` (BUG-001).
+7. Retry `_pendingBackup` through `_scheduleBackup(1000)` (BUG-002).
+8. `_applyOfflinePanel()` — connectivity may have changed while asleep.
 
-### Wake Sequence — `window._onWake()` (v2.17.0, updated v2.17.50)
+The sync module's `visibilitychange` runs before `_onWake()`: `clearTimeout(wakeTimer)`, `checkNewDay()`, `lastDropboxRev = null` (Dropbox CDN can lag, so the rev may look unchanged — BUG-002) + `_refreshSyncCache()`, `_wakeSyncSilent = true` → `syncDropbox()` + `syncTrello()`, one `renderTrello()` to reconcile age buckets, then `startTicker()` via `wakeTimer` after 2s. The `window.focus` fallback does the same reset/silent sync before calling `_onWake()`.
 
-All wake-related UI logic is consolidated into `window._onWake()`, defined in global scope. Called from three entry points:
+### Error Handling
 
-| Entry point | When |
-|---|---|
-| Sync module `visibilitychange` | Tab becomes visible, after sync is set up |
-| `window.focus` | PWA window gains focus (fallback — PWA may skip `visibilitychange`) |
-| `pageshow` (persisted) | bfcache restore |
+`_logSyncError()` routes problems to the red dot, with two filters: during the 3s wake window errors are suppressed entirely (the network may not be up yet), and network failures ("Failed to fetch", "NetworkError", "Load failed", "CORS") go to the console only. `unhandledrejection` applies the same network filter. The red dot is for real problems: expired tokens (401), API rejections (405/429), server errors, code bugs.
 
-Three handlers remain in their own closures — not merged, they need private variables: SW update check, timer wall-clock correction, PiP show/hide.
+### Merge Ownership
 
-**`_onWake()` sequence:**
-1. `_forceRepaint()` × 7 passes (immediately, rAF, rAF+rAF, 500ms, 1500ms, 3000ms, 5000ms) — BUG-004/BUG-056. The extra 3s/5s passes target GPU compositor stalls after long Mac sleep where the GPU is slower to wake than the earlier passes' ceiling. Each is a one-time cost; no-ops when GPU is already ready.
-2. Each repaint pass suppresses persistent CSS animations so they don't restart on `display:none/block` cycle:
-   - `.config-panel.open` → `fadeIn` (BUG-023), cleared on next user-open
-   - `.complete` → `timerCompletePulse` (BUG-025)
-   - `.done-star`, `#errorIndicator.open`, `.loading-dots span`
-   - After the final 1500ms pass, all except `.config-panel.open` are restored via rAF
-3. Single-play animation classes cleared once on wake (not per-pass): `.task-slide-in`, `.removing`, `.just-checked`, `.milestone-pulse`, `.dot-ripple`, `#manualEmpty.fading-in`
-4. Clear stale `.focusing` immediately, at 350ms, and at 1000ms — guarded by `window._focusUIActive` to prevent premature removal when re-anchor is in progress (race condition: Dropbox sync may call `renderManual` which destroys `.focused` before `_focusReanchor` re-attaches it)
-5. `checkMorningNudge()` — returning users after overnight need this
-6. `_triageBarSilent = true` (3s window)
-7. After 3s: clear silent, re-read `triage_dismissed`, `checkTriageBar()`
-8. Retry `_pendingBackup` if any
-9. `_applyOfflinePanel()` — re-apply offline/online state in case connectivity changed while sleeping
-
-**`window._focusUIActive` flag:**
-- Set to `true` in `openUI()`, `false` in `closeUI()`
-- Read by `_clearStaleFocusing()` to skip removal when focus mode is legitimately active
-- Prevents a race where the 350ms check fires between `renderManual()` destroying `.focused` and `_focusReanchor()` re-attaching it
-
-**Sync module `visibilitychange` calls `_onWake` after sync is triggered:**
-1. `clearTimeout(wakeTimer)`
-2. `checkNewDay()`
-3. `lastDropboxRev = null` + `_refreshSyncCache()`
-4. `_wakeSyncSilent = true` → `syncDropbox()` + `syncTrello()`
-5. `renderTrello()` once to reconcile day-scale age buckets
-6. `window._onWake()`
-7. `wakeTimer` → `startTicker()` after 2s
-
-### Error Handling (v2.13.4 + v2.14.1)
-
-`_logSyncError()` routes errors to the red dot indicator, with two filters:
-- **Wake silent** (first 3s after tab return): suppressed entirely — network may not be ready
-- **Network errors** ("Failed to fetch", "NetworkError", "Load failed", "CORS"): logged to console only, no red dot — expected during WiFi drops
-
-`window.unhandledrejection` applies the same network filter — previously "Promise: Failed to fetch" bypassed `_logSyncError` entirely and went straight to the red dot.
-
-Red dot only shows for real problems: expired tokens (401), API rejections (405/429), server errors, code bugs.
-
-### Merge Algorithm
-
-`assets/dropbox.js` remains the network, persistence, and merge-orchestration owner. Its
-deterministic daily-history and suggestion-outcome primitives live in DOM-free
-`assets/sync-merge.js`, which is loaded before Dropbox and exercised directly by
-`scripts/sync-merge-unit-test.mjs`. This is a code boundary only: backup schema, Dropbox payloads,
-timestamps, and conflict rules are unchanged.
+`assets/dropbox.js` owns network, persistence and merge orchestration. Deterministic, DOM-free primitives live in `assets/sync-merge.js` (daily history, suggestion outcomes, dream index, dismissed dream images), loaded before Dropbox and tested by `scripts/sync-merge-unit-test.mjs`.
 
 ```javascript
-// Arrays: union by ID, prefer newer timestamps
+// Arrays: union by ID, prefer the newer timestamp; deleted IDs excluded
 merged = [...local, ...remote].reduce((acc, item) => {
   const existing = acc.find(i => i.id === item.id);
   if (!existing) return [...acc, item];
-  // Keep the one with newer timestamp
   return acc.map(i => i.id === item.id && item.at > i.at ? item : i);
-}, []);
-
-// Deleted items: exclude from merge
-merged = merged.filter(item => !deletedIds.includes(item.id));
+}, []).filter(item => !deletedIds.includes(item.id));
 ```
 
 ---
@@ -133,345 +87,187 @@ merged = merged.filter(item => !deletedIds.includes(item.id));
   saved_at: 'ISO string',
   // Tasks
   manual_tasks: [{id, text, lastActive?, zone?, zoneChangedAt?}, ...],
-  manual_order_at: 'ISO',  // v5.4 — manual reorder timestamp; newer wins on merge (drag jump-back fix). Mirrors trello_order_at. Absent in older backups → '' → remote order wins (prior behavior)
-  // v5.5 — post-triage reflections (opt-in). today_reflection_intro_seen_at intentionally excluded (local-only cooldown).
-  reflection_policy:      { choice: 'remember'|'not_for_me', updatedAt: 'ISO' },
-  reflections:            [{ date: 'YYYY-MM-DD', feeling: 'joyful'|'alive'|'content'|'calm'|'present'|'scattered'|'tense'|'frustrated'|'drained'|'sad'|'off' (legacy), updatedAt: 'ISO' }],
-  reflections_cleared_at: 'ISO',
-  done_ids: ['id1', 'id2', ...],
+  manual_order_at: 'ISO',  // 5.4 — newer reorder stamp keeps local order; '' (old backup) → remote order wins
+  done_ids: ['id1', ...],
   deleted_ids: [{id, at}, ...],
   checked_ids: [{id, at}, ...],
   unchecked_ids: [{id, at}, ...],
-  // Zones (v5.0)
+  // Zones (5.0)
   soon_tasks: [{id, text, zone: 'soon', zoneChangedAt}, ...],
-  past_tasks: [{id, text, zone: 'past', status, zoneChangedAt}, ...],
+  past_tasks: [{id, text, zone: 'past', status, zoneChangedAt}, ...],  // status: done | let_go | aged
   // Trello
-  trello_config: {apiKey, apiToken, boardId, todayList},
-  trello_order: ['trello_id1', 'trello_id2', ...],  // v5.2
-  trello_order_at: 'ISO',  // BUG-042 — reorder timestamp; newer wins on merge (additive, no schema bump)
-  today_trello_focus: {trelloCardId: 1, ...},  // v2.18.17 — focus sessions today, union-merged cross-device
-  today_trello_focus_date: '',  // YYYY-MM-DD local — date guard (daily-reset; prevents yesterday's focus restoring)
-  today_trello_firstseen: {'trello_<id>': firstSeenMs, ...},  // v2.18.22 BUG-049 — when a card entered YOUR list; age basis. Union-merge MIN wins, NO date guard, persists across days (NOT daily-reset)
-  today_trello_lastactive: {'trello_<id>': ms, ...},  // v2.43.6 BUG-064 — last focus activity per card; the Trello analogue of manual `lastActive`. Union-merge MAX wins (opposite of firstseen), NO date guard, persists across days. Additive, no schema bump
+  trello_config: {apiKey, boardId, todayList},  // apiToken is stripped before upload; the token stays device-local
+  trello_order: ['trello_id1', ...],   // 5.2
+  trello_order_at: 'ISO',              // newer wins (BUG-042)
+  today_trello_focus: {trelloCardId: 1, ...},   // focus sessions today, union, daily reset
+  today_trello_focus_date: 'YYYY-MM-DD',        // date guard
+  today_trello_firstseen: {'trello_<id>': ms},  // MIN wins, persists across days (BUG-049)
+  today_trello_lastactive: {'trello_<id>': ms}, // MAX wins, persists across days (BUG-064)
   // Habits
   habits: [{id, name, created_at, focusSessions?, archived?}, ...],
   habit_completions: {habitId: ['YYYY-MM-DD', ...]},
-  habit_events: {'habitId::YYYY-MM-DD': {type: 'check'|'uncheck', at: ISO}},  // LWW map — BUG-026
+  habit_events: {'habitId::YYYY-MM-DD': {type: 'check'|'uncheck', at: ISO}},  // LWW (BUG-026); purged after 30 days
   deleted_habit_ids: ['id1', ...],
   // Stats
   stat_focus_mins_today: '0',
-  stat_focus_mins_date: '',      // YYYY-MM-DD local — date guard prevents yesterday's total restoring after midnight
+  stat_focus_mins_date: 'YYYY-MM-DD',  // date guard — yesterday's total never restores (BUG-024)
   stat_streak: '1',
-  stat_streak_date: '',          // YYYY-MM-DD local — prevents double-increment across devices (BUG-020)
-  // NOTE: stat_tasks_done_today / _date RETIRED v2.18.21. Done-today count is no longer a
-  // stored stat — it derives from checked_ids (via _doneTodayCount()). The old monotonic
-  // counter + Math.max merge inflated it on re-checks and cross-device sync. See below.
-  // Memory
-  memory: {totalTasksCompleted, patterns: {...}, aiName, moments: [...],
-    noticed: {...},       // Noticed show-once bookkeeping — travels in the blob but NOT merged (device-local, v2.39.3)
-    noticedDates: {...}}, // Noticed cross-device same-day dates — IS merged, earliest-date-wins (v2.39.4). See below.
-  // Triage (v5.1)
+  stat_streak_date: 'YYYY-MM-DD',      // prevents double-increment across devices (BUG-020)
+  // Memory — appMemory; Noticed bookkeeping travels inside but only noticedDates is merged
+  memory: {...},
+  // Triage (5.1)
   triage_history: [{id, decision, at}, ...],
-  triage_dismissed: 'YYYY-MM-DD',  // synced to prevent repeat prompts
-  per_day_dismiss_date: 'YYYY-MM-DD',  // source-local date for day_nudge_dismissed, legacy aliases, sunday_nudge_seen
-  // Daily history — per-day snapshots the week grid reads for past days (v5.3, BUG-036)
-  daily_history: [{date: 'YYYY-MM-DD', tasksDone: 0, tasksAdded: 0, focusMins: 0, habitsKept: 0, habitsTotal: 0, tasksAddedFixed?: true}]
+  triage_dismissed: 'YYYY-MM-DD',
+  per_day_dismiss_date: 'YYYY-MM-DD',  // source-local date for the per-day dismissal flags
+  // Daily history (5.3, BUG-036)
+  daily_history: [{date, tasksDone, tasksAdded, focusMins, habitsKept, habitsTotal, tasksAddedFixed?}],
+  // Reflections (5.5) — the intro cooldown stays local-only
+  reflection_policy: {choice: 'remember'|'not_for_me', updatedAt},
+  reflections: [{date, feeling, updatedAt}],
+  reflections_cleared_at: 'ISO',
+  // Also carried (additive, no schema bump): today_trello_focus_total (MAX), day_review
+  // (fill-if-empty), user_names / user_names_at (meeting attribution, LWW) plus the legacy
+  // user_name compat field, the per-day dismissal flags, synced AI surface texts,
+  // week_reflection_policy.
 }
 ```
 
-**Zone status values:** `done`, `let_go`, `aged`
-
-### Noticed: two sync-adjacent fields with opposite merge rules (v2.39.3 + v2.39.4)
-
-`appMemory.noticed` and `appMemory.noticedDates` both ride inside the same `memory` blob, but only one is actually merged on read — a deliberate split, not an oversight:
-
-- **`appMemory.noticed`** — "have I shown THIS device this Noticed line yet." **Not merged** (`mergeRemoteData` skips it entirely, reverting BUG-058's v2.36.3 sync). It still travels in the outgoing/incoming blob since it's one object with everything else in `appMemory`, but the incoming value is simply never read into local state.
-- **`appMemory.noticedDates`** — "when did this signal-occurrence first fire, on any device," keyed per-occurrence (e.g. `'peak:14'`, `'habit:<id>:30'` — the key encodes the *value* being gated on, so a later occurrence of the same signal type gets a fresh key rather than being blocked by a stale one). **Is merged**, earliest-date-wins per key (`mergeRemoteData` in `index.html`).
-
-Why the split is safe: `noticedDates` only ever carries a date string per key, never the shown text or which device saw it — so merging it can't reintroduce BUG-058's actual failure mode (two devices showing *different content* for the same pattern). It only answers "is today still within the window where any device may show this," which `_noticedEligible()`/`_noticedStamp()` (`assets/insights.js`) check against before a signal is allowed to fire locally. Net effect: a signal shows on every device that opens About on the same calendar day it first fired anywhere, then goes quiet — not "once ever, on one device" (v2.39.3 alone) and not "once ever, shared across all devices" (the BUG-058 bug this whole area was built to avoid repeating).
-
-### Trello aging: two maps with opposite merge rules (v2.43.6, BUG-064)
-
-A Trello card's age basis is `lastactive || firstseen || now` — mirroring the manual path's `task.lastActive || created`. The two maps look interchangeable and are not:
-
-- **`today_trello_firstseen`** — "when did this card first enter MY list, on any device." **MIN-merges** (earliest sighting wins). That *is* its meaning: a card is as old as the first time any device saw it.
-- **`today_trello_lastactive`** — "when was this card last worked on, on any device." **MAX-merges** (newest activity wins), matching how manual tasks already reconcile `lastActive` in `mergeRemoteData()`.
-
-**Why not one key.** The obvious fix for BUG-064 was to push `firstseen` forward on focus. It fails silently in exactly the way that is hardest to catch: correct locally, then reverted on the next sync by any device still holding the older timestamp — because MIN-merge is doing precisely what it was designed to do. The bug would present as "the un-aging works, then randomly undoes itself," which reads like a race and is not one.
-
-**Generalised:** a synced map's merge rule encodes its semantics. Before writing a new kind of value into an existing synced key, check what its merge rule *means* — MIN (earliest wins), MAX (newest wins), union (any device's presence wins), LWW (last writer wins). If the new value wants a different rule, it needs its own key. Compare `habit_events` (LWW, BUG-026) and the `noticed`/`noticedDates` split below — same lesson, three separate times.
-
-### Triage Dismissed Sync (v2.12.60 + v2.14.0)
-
-**Critical:** On tab return, do NOT check triage immediately — sync needs time to pull the dismissed state from Dropbox first. `mergeRemoteData` handles applying `triage_dismissed` from remote and hiding the bar/overlay.
-
-```javascript
-// On visibility change / window focus:
-// 1. Sync fires immediately (pulls remote data)
-// 2. mergeRemoteData sets triageDismissedToday if remote has today's dismissal
-// 3. _triageBarSilent set true — suppresses ticker from showing bar during grace window
-// 4. Triage check deferred 3s to let sync complete, then clears silent flag
-_triageBarSilent = true;
-setTimeout(() => {
-  _triageBarSilent = false;
-  triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
-  checkTriageBar();
-}, 3000);
-```
-
-**Same pattern — day-cleanup backup (v2.17.135):** `applyNewDayCleanup()` ends with a `dropboxBackup(true)` to push the cleaned state. On morning wake via `visibilitychange`, this backup raced `syncDropbox()`'s metadata fetch — if the upload landed first, `syncDropbox` downloaded mobile's own stale write and the ticker saw no further rev change, leaving the task list behind. Fix: 3s `setTimeout` on the cleanup backup (matches the triage grace window). `zoneChangedAt` timestamps protect the done→PAST move independently.
-
-**Why `_triageBarSilent` matters:** The 7s ticker fires `checkTriageBar()` independently. Without the flag, the ticker would show the bar during the 3s grace window (before sync settles), causing a brief flash on the second device. `_triageBarSilent` makes `checkTriageBar()` hide the bar unconditionally during that window.
-
-**v2.12.40:** Read fresh from localStorage on return (was using stale variable).  
-**v2.12.60:** Deferred triage check 3s so sync can pull dismissal state first.  
-**v2.14.0:** Added `_triageBarSilent` flag to suppress ticker during the grace window.
-
-**v2.90.37 — completion is the sync event, not the later close.** `triageApplyAll()` queues `dropboxAutoSave(0)` unconditionally after persisting the result, including an all-`Keep` pass. Triage close and undo use the same retry-aware entry point; they no longer make untracked one-shot uploads. `dropboxAutoSave()` keeps 800ms as its default for ordinary mutations and accepts an optional delay only for state that must cross devices immediately.
-
-**First-open cleanup follow-up (v2.90.44).** Cold start pulls and merges Dropbox before `applyNewDayCleanup()`. A device last opened yesterday can therefore hold today's dismissal from another device when cleanup runs. Cleanup now removes `triage_dismissed` only when its stored day is not today; the in-memory flag follows that date check. Otherwise the subsequent push-back could upload an erased dismissal. A browser test covers pull → cleanup → backup and genuine day rollover.
-
-The same-day merge is self-healing. Remote `triage_dismissed === today` applies locally and counts as a merge change. Local `triage_dismissed === today` against a blank/older remote also counts as changed, so `dropboxRestore(true)` schedules the merged snapshot back to Dropbox. This is required because Dropbox stores one overwritten snapshot: a stale device can briefly erase a field even though another device still has the authoritative same-day completion.
-
-### Deletion Persistence (v2.12.35+)
-
-**Critical:** `deleted_ids` must persist across days. Never clear it on new-day cleanup.
-
-- Deleted tasks stay deleted forever
-- Sync cannot resurrect deleted tasks (merge checks `deleted_ids`)
-- Entries auto-purge after 30 days (via `_cleanupDeletedIds()`)
-- Applies to tasks from TODAY, SOON, or anywhere
-
-**Bug fixed:** Prior to v2.12.35, `deleted_ids` was cleared on new-day cleanup. This allowed sync to resurrect tasks deleted the previous day.
-
----
-
-## Zone-Aware Sync (v2.12.13+)
-
-When merging `manualTasks` with remote data, tasks that exist in zones (SOON/PAST) are handled specially to prevent duplication:
-
-### Scenario: Task moved to SOON on Device A
-1. Device A: moves task to SOON → removed from manualTasks, added to soonTasks
-2. Device A: backs up to Dropbox
-3. Device B: restores → task is in remote's `soon_tasks` but NOT in `manual_tasks`
-4. Device B's local `manualTasks` still has the task
-
-**Resolution:** Compare `zoneChangedAt` timestamps:
-- If remote zone timestamp is newer → task stays OUT of manualTasks (was moved to zone)
-- If local task timestamp is newer → task was pulled BACK to TODAY, keep in manualTasks
-
-### Scenario: Task pulled back from SOON on Device B
-1. Device B: pulls task from SOON back to TODAY → `zoneChangedAt` updated
-2. Device B: backs up to Dropbox
-3. Device A: restores → local soonTasks has the task, remote manualTasks has it too
-
-**Resolution:** Compare timestamps:
-- If local zone timestamp is newer → task stays in zone (local zone move is more recent)
-- If remote task timestamp is newer → task was pulled back, move to manualTasks
-
-### Deleted Tasks in Zones (v2.12.14)
-Deleted tasks are excluded from zone merge to prevent ghost tasks:
-- When merging SOON: skip tasks in `mergedDeletedMap`
-- When merging PAST: skip tasks in `mergedDeletedMap`
-- AI `delete_task` action now calls `_addDeletedId()` for proper sync
-
-### Revive from PAST → SOON (v2.27.0, Roadmap #8)
-`reviveFromPast(id)` moves an `aged`/`let_go` task (never `done`) back to SOON with its
-original ID — clears `status`, sets fresh `zoneChangedAt`, increments a `revived` counter
-(future nudge/insight signal), immediate `dropboxBackup(true)`.
-
-**Merge guard change:** the SOON merge's phantom-task guard ("skip remote soon entries that
-exist in local PAST") became timestamp-aware — `_stillPast(t)`: a remote SOON entry passes
-only if its `zoneChangedAt` is **strictly newer** than the local PAST entry's. A revive on
-device A carries a fresh timestamp, so it survives the merge on device B (whose local PAST
-still holds the task); a stale remote `soon_tasks` entry with an older/missing timestamp is
-still blocked (original phantom-task protection). The existing PAST-merge cleanup then
-removes B's local PAST copy ("now in SOON with newer timestamp" loop).
-
-### Zone Operations Trigger Backup (v2.12.44)
-
-**Critical:** All zone operations trigger `dropboxBackup(true)` **immediately** (no debounce):
-
-| Operation | Function | Sync |
-|-----------|----------|------|
-| Pull from SOON | `pullFromSoon()` | Immediate |
-| Move to SOON | `moveToSoon()` | Immediate |
-| Move to PAST | `moveToPast()` | Immediate |
-| Revive from PAST | `reviveFromPast()` | Immediate |
-| Triage decisions | `triageApplyAll()` | Immediate |
-| Triage close | `triageClose()` | Immediate |
-
-**v2.12.42:** Added backup calls to zone operations.  
-**v2.12.44:** Changed from `dropboxAutoSave()` (800ms debounce) to `dropboxBackup(true)` (immediate).  
-**v2.18.0:** Triage gained a **Done** decision (task completed but never checked off). `triageApplyAll()` now fires its immediate backup on zone moves **or** any `done` decision (`movedIds.length > 0 || doneCount > 0`). Triage "Done" marks the task via the normal check path — `doneIds.add` + `_addCheckedId` — so it rides the existing "Done IDs: union with check/uncheck timestamps" merge (below) and survives a stale remote like any other check. **Also fixed here:** the Trello `letgo` branch previously called `_persistDone()`, which was **never defined** — a `ReferenceError` that aborted `triageApplyAll()` mid-run before its `today_manual`/zone persistence and the backup, so a triage that let go of a Trello card silently failed to sync. Replaced with a single `today_done` persist after both decision loops.
-
----
-
-## Task Order Sync (v2.12.55)
-
-**Bug fixed:** Prior to v2.12.55, `mergeRemoteData()` only detected task additions/removals, NOT reordering. If you reordered tasks on phone, desktop wouldn't update.
-
-### Detection Logic
-
-```javascript
-// OLD: Only checked add/remove
-if (prevTaskIds.size !== nextTaskIds.size || 
-    [...nextTaskIds].some(id => !prevTaskIds.has(id))) _changed = true;
-
-// NEW: Also checks order (v2.12.55)
-if (!_changed && manualTasks.length === mergedTasks.length) {
-  for (let i = 0; i < manualTasks.length; i++) {
-    if (manualTasks[i].id !== mergedTasks[i].id) {
-      _changed = true;
-      break;
-    }
-  }
-}
-```
-
-When `_changed` is true, `renderManual()` is called to update the UI.
-
-**v2.64.27 touch Trello parity:** the mobile long-press path previously reordered `trelloTasks` and refreshed `today_trello_cache`, but omitted `today_trello_order`, `today_trello_order_at`, `last_local_change`, and Dropbox autosave. It now writes the same persistence and recency signals as desktop before the extracted drag controller cleans up the gesture.
-
-### Recency-Aware Manual Order — drag jump-back (v2.38.7)
-
-**Symptom:** drag a manual task to reorder, and ~1 second later it snaps back to its old position — most visible on a warm refresh (reopened within 30 min, so the splash is skipped and the app is interactive instantly).
-
-**Root cause:** `mergeRemoteData()` ordered manual tasks **remote-order-wins** with no recency guard. `_pendingBackup` prevents the 7s ticker from clobbering a fresh drag, but the **initial load pull** and the **reconnect pull** don't check that flag. On a warm refresh the initial Dropbox pull is still in flight while the user drags; it resolves carrying the pre-drag order and `mergeRemoteData` applies it over the drag. Trello order had a recency guard since BUG-042; manual order never did. (v2.38.5's earlier sync kickoff shifted when the initial pull lands, which is why this surfaced then — but the missing guard was the actual flaw, present long before.)
-
-**Fix:** mirror BUG-042 for manual order. `today_manual_order_at` (ISO) is stamped on every manual reorder (drop handler + touch `_saveOrder`) and synced as `manual_order_at` (schema 5.4). In `mergeRemoteData`, order basis is chosen by recency: remote wins by default, but a strictly-newer local reorder stamp keeps the local sequence for shared tasks (remote-only additions still append at the end; local-only additions still append after that; all the zone/delete filters are unchanged). When remote wins, the device adopts the remote stamp so the next merge compares correctly. Ties → remote wins. Absent stamp (old backup) → `''` → remote wins = exact prior behavior, so no migration needed.
-
----
-
-## Timestamps
-
-All sync timestamps are **full ISO strings** (`new Date().toISOString()`) — UTC, for cross-timezone ordering. Date-only strings (habits, AI memory) use `_localISO()` — local YYYY-MM-DD. Never mix the two.
-
-### Tracked Events
-
-| Event | Storage Key |
-|-------|-------------|
-| Task deleted | `today_deleted_ids` |
-| Task checked | `today_checked_ids` |
-| Task unchecked | `today_unchecked_ids` |
-| Habit deleted | `today_deleted_habit_ids` |
-| Local mutation | `last_local_change` |
-| Successful backup (write) | `last_successful_backup` |
-| Successful sync (read) | `last_sync_read` |
-
-**Sync status display:** Shows most recent of `last_successful_backup` or `last_sync_read` (v2.12.55).
+Additive keys do not bump the version; `Rules.md` #12 records which keys arrived in which schema. The done-today count is **not** stored — it derives from `checked_ids` (see Stats).
 
 ---
 
 ## Conflict Resolution
 
-| Data Type | Resolution |
-|-----------|------------|
-| Task list | Union by ID, remote order wins; per-field: remote wins except `lastActive` (max wins — BUG-059) |
-| Task order | Detected via ID sequence comparison (v2.12.55) |
+| Data | Rule |
+|------|------|
+| Task list | Union by ID; remote order wins unless a strictly newer `manual_order_at` keeps the local order (shared tasks; remote-only additions append, then local-only). When remote order wins, the device adopts the remote stamp so the next merge doesn't re-win off a stale local one (mirrors Trello, BUG-042). Per field remote wins, except `lastActive` (max wins — BUG-059). Ties → remote |
+| Task order change | Detected by comparing the ID sequence, not just set membership, so a reorder alone re-renders |
 | Habit list | Union by ID, remote order wins |
-| Trello order | Newer `trello_order_at` wins (bootstrap if local order empty) — BUG-042 |
-| Trello focus map | Union by card ID (max value), date-guarded — v2.18.17 |
-| Trello first-seen | Union by card ID, **MIN timestamp wins** (earliest sighting), no date guard, persists across days — v2.18.22 (BUG-049) |
-| Trello config | Fill-if-empty: `mergeRemoteData` applies `remote.trello_config` when local is absent (v2.64.22) — Connections entered on one device now propagates without a full manual restore |
-| Done IDs | True LWW per id: `Math.max(checkedAt, uncheckedAt)` across both maps determines winning op (v2.64.22 — previously blind union could leave a stale check entry outliving a newer uncheck) |
-| Done-today count | NOT stored/merged — derived from checked_ids via `_doneTodayCount()` (v2.18.21) |
-| Deleted IDs | Union (excluded from tasks) |
-| SOON tasks | Union by ID, newer zoneChangedAt wins |
-| Reflection policy | LWW by `updatedAt`; ties → remote wins |
-| Reflections | Per-date LWW union (newest `updatedAt` wins); entries ≤ `reflections_cleared_at` watermark discarded; pruned to 30-day calendar window |
-| Reflections cleared-at | Max-wins (most-recent deletion propagates) |
-| `daily_history` entries | Per-field `Math.max` — `_mergeDailyHistory` in `dropbox.js` merges by date; each numeric field uses `Math.max` so neither device's data is silently discarded (v2.71.11 — was winner-takes-all by score). `tasksAddedFixed: true` propagates if either side carries it. Every local, remote-only, and duplicate-date `tasksAdded` value is normalized through `_sanitizeDailyTasksAdded()` first; values outside 0–30 become `0` so a cumulative migration artifact cannot be restored or propagated (v2.71.44). |
-| PAST tasks | Union by ID, newer zoneChangedAt wins, age-based purge only (done >7d, let_go/aged >30d) — no count cap (v2.17.47) |
-| Stats | Max wins; streak uses `Math.max` only when `remoteStreakDate >= localStreakDate` — prevents ticker-reversed device from re-inflating yesterday's count after midnight reset (v2.64.22) |
-| Triage dismissed | If remote = today, apply locally |
-| Nudge dismissal (unified day nudge) | `_DISMISS_SYNC` payload carries `per_day_dismiss_date` (source-local YYYY-MM-DD) alongside day-nudge, legacy alias, and Sunday seen flags. A remote `'1'` is adopted only when that date equals the receiving device’s current local day; old/undated snapshots are ignored (BUG-103, v2.90.54). Local same-day flags are never cleared by stale remote data. The legacy `trello_nudge_dismissed`/`morning_nudge_dismissed` fields remain mapped to the unified `dayNudge` key for pre-2.19.0 devices; all registry fields share the same date guard. |
-| Memory | `_mergeAppMemory(remote.memory)` called from both `mergeRemoteData()` (every 7s tick, v2.64.23) and `dropboxRestore(!fromSync)` (manual restore). Merges: patterns (union of counted objects by key, max wins), AI inferences (`semantic`/`episodic`/`procedural` — union by id), moments (union by id), task keywords (union). `recentConversations` union-merged in `mergeRemoteData()` (v2.64.22). `suggestionOutcomes` union by stable offer ID, with monotonic timestamp/result-ID preservation and a 100-record cap (v2.72.0). `appMemory.noticed` NOT merged (device-local, v2.39.3). `appMemory.noticedDates` IS merged, earliest-date-wins (v2.39.4) |
+| Trello order | Newer `trello_order_at` wins; bootstrap if local is empty (BUG-042) |
+| Trello focus map | Union by card (max), date-guarded |
+| Trello first-seen | Union by card, **MIN** wins, no date guard (BUG-049) |
+| Trello last-active | Union by card, **MAX** wins, no date guard (BUG-064) |
+| Trello focus total | `today_trello_focus_total` — lifetime sessions per card; union by card, MAX wins, no date guard (the daily map handles activity) |
+| Day review | `day_review` fill-if-empty — local is the current-session record |
+| Trello config | Fill-if-empty: `remote.trello_config` applies when local is absent, so Connections entered on one device reaches the other |
+| Done IDs | True LWW per id: `Math.max(checkedAt, uncheckedAt)` across both maps decides the winning op (`mergedDoneIds`). The checked/unchecked maps themselves are persisted as a plain union, so a stale check can outlive an uncheck there — readers must apply the same most-recent-wins rule |
+| Deleted IDs | Union, excluded from every task list and zone; see Deletion Persistence |
+| SOON / PAST | Union by ID, newer `zoneChangedAt` wins (see Zone-Aware Sync). PAST purges by age only — done >7 days, let_go/aged >30 days, no count cap |
+| Reflections | Policy LWW by `updatedAt` (ties → remote); entries per-date LWW; entries ≤ `reflections_cleared_at` dropped; 30-calendar-day window; watermark max-wins |
+| `daily_history` | `_mergeDailyHistory` (primitive in `sync-merge.js`): by date, per-field `Math.max`; `tasksAddedFixed` propagates; every local, remote-only and duplicate-date `tasksAdded` goes through `_sanitizeDailyTasksAdded()` first (outside 0–30 → 0) so a cumulative migration artifact cannot be restored or spread |
+| Stats | See Stats below |
+| Triage dismissed | If remote = today, apply locally (see Triage) |
+| Per-day dismissal flags (`_DISMISS_SYNC`: `day_nudge_dismissed`, legacy aliases, `sunday_nudge_seen`) | Adopted only when `per_day_dismiss_date` equals the receiving device's local day; stale or undated snapshots ignored; local same-day flags never cleared by stale data (BUG-103). Legacy `trello_nudge_dismissed` / `morning_nudge_dismissed` map to the unified day-nudge key |
+| Memory | `_mergeAppMemory()` — see Memory Merge |
 
-### Stat Merge — Date Guards
+### Deletion Persistence
 
-Stats use `Math.max` but the remaining counter has a date guard to prevent yesterday's value restoring after midnight:
+**`deleted_ids` must persist across days — never clear it in new-day cleanup** (clearing it let sync resurrect yesterday's deletions). Each entry is `{id, at}`. `_cleanupDeletedIds()` drops entries older than **180 days** and entries whose ID is back in a zone, and as a backstop keeps only the newest 2000; the TTL is long so a device that was offline for months still syncs before the tombstone expires (a 30-day TTL let stale devices resurrect deleted tasks — BUG-054). AI `delete_task` goes through `_addDeletedId()` like any delete. PAST-purge tombstones follow the same rule so a purged task cannot return via sync within the window (BUG-054).
 
-**`stat_focus_mins_today` / `stat_focus_mins_date`**
-- `stat_focus_mins_date` is saved to localStorage whenever minutes are earned or reset
-- Backup payload uses the stored date (never `_getAppDay()` — that was the BUG-024 root cause)
-- Fallback in backup payload is `''` (empty) not today's date — `''` fails the date guard and treats remote value as 0
-- Merge: `remoteFocusMinsToday = remoteFocusDate === _getAppDay() ? remoteFocusMins : 0`
+### Stats
 
-**Done-today count — DERIVED, not a stat (v2.18.21, retired the counter)**
-- `stat_tasks_done_today` / `_date` existed v2.18.14–2.18.20 (BUG-045 date guard) but the underlying counter was fundamentally broken: it only ever incremented (never decremented on uncheck) and merged cross-device via `Math.max`, so check/uncheck/re-check cycles and two synced devices inflated it without bound (Can: "the final completed task number blew up").
-- Replaced by `_doneTodayCount(dayISO?)`: counts `checked_ids` entries whose `at` is on the given local day (default today) AND whose check is the *winning* op — i.e. no `unchecked_ids` entry for that id with a later timestamp. This mirrors the `mergedDoneIds` most-recent-wins logic, because `mergeRemoteData` persists the checked/unchecked maps as a plain union (a stale check can outlive an uncheck on the sync path).
-- Self-correcting (uncheck removes the local entry / loses the timestamp race) and coherent across devices with no `Math.max`. No backup field, no merge branch, no restore branch, no daily reset — the daily boundary falls out of the date filter + the existing `checked_ids` clear in `applyNewDayCleanup()`.
-- Readers: evening triage summary, `applyNewDayCleanup` daily_history snapshot (passes `yesterdayISO`), `_getWeeklyStats`. **Gotcha found in review:** the `unchecked` map value IS the timestamp string (`.map(u => [u.id, u.at])`), so compare `c.at > uAt`, not `c.at > u.at` (the latter reads `.at` on a string → `undefined` → every uncheck wrongly zeroes the task).
+- **Focus minutes** — `stat_focus_mins_date` is written whenever minutes are earned or reset; the backup uses that stored date (never `_getAppDay()` — BUG-024) with `''` as fallback, which fails the guard. Merge: `remoteFocusDate === _getAppDay() ? remoteFocusMins : 0`, then max.
+- **Streak** — `stat_streak_date` is set to `_localISO()` on increment. Merge: `remoteStreakDate >= localStreakDate ? Math.max(local, remote) : local`, so a device that already rolled to today is not re-inflated by a stale remote. `applyNewDayCleanup()` skips only the *increment* when `streakDate === today`; it must not return early, because focus reset and the rest of cleanup still run (BUG-024).
+- **Done-today count — derived, not stored.** `_doneTodayCount(dayISO?)` counts `checked_ids` on that local day whose check is the winning op (no later `unchecked_ids` entry) — the same rule as `mergedDoneIds`. The retired `stat_tasks_done_today` counter only ever increased and merged by max, so re-checks and two devices inflated it without bound (BUG-045's date guard could not fix that). No backup field, merge or restore branch, or daily reset: the day boundary comes from the date filter plus the `checked_ids` clear in `applyNewDayCleanup()`. Readers: the evening triage summary, the `applyNewDayCleanup()` daily-history snapshot (passes `yesterdayISO`), `_getWeeklyStats`. Gotcha: the unchecked map is built as `.map(u => [u.id, u.at])`, so its value *is* the timestamp string — compare `c.at > uAt`, not `c.at > u.at`.
 
-**`stat_streak` / `stat_streak_date`**
-- `stat_streak_date` is set to `_localISO()` whenever streak is incremented in `applyNewDayCleanup()`
-- **Merge (v2.64.22):** `mergedStreak = remoteStreakDate >= localStreakDate ? Math.max(localStreak, remoteStreak) : localStreak`. If the remote streak's date is in the past relative to local (device opened late after midnight and recorded today's streak first), the remote value is ignored — prevents a ticker-reversed device from re-inflating yesterday's count after midnight reset. Previous behavior was unconditional `Math.max`, which caused stale-high syndrome when the syncing device hadn't yet applied `applyNewDayCleanup`.
-- **Critical:** `applyNewDayCleanup()` only skips the streak INCREMENT when `streakDate === todayISO` — it must NOT return early, as the focus-minutes reset and other daily cleanup still need to run (BUG-024 true root cause, fixed v2.17.48)
+### Noticed: one blob, two rules
 
-### `_mergeAppMemory(remoteMemory)` — extracted helper (v2.64.23)
+`appMemory.noticed` ("has THIS device shown this line") travels in the backup but is **never read back** — device-local (reverting BUG-058's earlier sync). `appMemory.noticedDates` ("when did this occurrence first fire anywhere", keyed per value, e.g. `'peak:14'`, `'habit:<id>:30'`, so a later occurrence gets a fresh key) **is merged**, earliest date wins; `_noticedEligible()` / `_noticedStamp()` in `assets/insights.js` check it before a signal fires locally. It carries only dates, never text, so it cannot recreate BUG-058 (devices showing different content for one pattern): a signal shows on every device that opens About on the day it first fired anywhere, then goes quiet.
 
-Prior to v2.64.23, the full appMemory merge lived only in `dropboxRestore(!fromSync)` (the manual restore path). The periodic `mergeRemoteData()` path (7s tick) did NOT merge appMemory — it only carried `recentConversations`.
+### Trello aging: two maps
 
-**v2.64.23:** `_mergeAppMemory(remote)` extracted as a shared helper. Now called from:
-- `mergeRemoteData(data)` → `_mergeAppMemory(data.memory)` — every 7s sync tick
-- `dropboxRestore(!fromSync)` — manual restore (unchanged)
+Age basis is `lastactive || firstseen || now`, mirroring manual `lastActive || created`. `firstseen` is MIN because a card is as old as its first sighting; `lastactive` is MAX because activity should un-age it. Pushing `firstseen` forward on focus looks right locally and is silently reverted by the next MIN merge — that is why activity has its own key (BUG-064).
 
-**What it merges:**
-- `patterns`: union of counted object fields by key, `Math.max` on numeric values (triageUndos, soonPulls, letgoReasons, reviveReasons, lateAdditions, taskLifespanSamples added in v2.64.21)
-- `semantic` / `episodic` / `procedural` inferences: union by `id` (v2.64.21)
-- `moments`: union by `id`
-- `taskKeywords`: union by task id
-- Lifetime counters: `Math.max`
-- Inline suggestion outcomes: union by stable `id`; event timestamps and generated-task IDs union so stale devices cannot erase later applied/helped/reversed evidence; newest metadata wins; completion evidence wins a cross-device outcome conflict; newest 100 offers retained (v2.72.0)
-- `obligationHistory` (12a): union by `date|text[0:40]`, `done` OR'd (either device seeing it completed settles it), 90-day window, sorted by date. Added v2.79.0 — v2.78.0 had omitted it, leaving the log silently per-device for a week
-- `spokenLines` (12a): union by `date|surface` (the one-per-surface-per-day invariant), sorted, newest 120 kept (v2.79.0; cap 30→120 v2.80.0 so a kind leaves cooldown by time, not eviction). On a key collision the entry carrying the newer `reactedAt` wins (12e, v2.86.0), so a verdict tapped on one device is not undone by the other's copy
-- `kindVerdicts` (12e, v2.87.0): per kind, the entry with the newer `updated` wins; entries updated before the clear watermark are dropped on both sides
-- `dreams.index` (DreamBank, v2.93.0): union by `id`, the later `updatedAt` wins — a delete is a tombstone row, so it beats the older live copy instead of being unioned back; rows recorded before the clear watermark are dropped (compared on full `recordedAt`, not the dream's day, so a backfilled old dream told after a clear survives). Logic in `sync-merge.js` `mergeDreamIndex`. `dreams.dismissed` (M2, v2.95.0) merges per key with the later timestamp winning; entries before the clear watermark drop (`mergeDreamDismissed`). The recurring-image list itself is never stored — every device derives it from the merged index The dream files are not part of the backup: each is its own Dropbox file, uploaded by `dreambank.flush()` from the sync tick. Since v2.93.10, Memory reads a selected file from Dropbox on demand but does not add the response to any synced or local persistent state
-- `taskOutcomes` (12c): union by `id|outcome|date`, 90-day window, sorted, newest 300 kept (v2.80.0). Accumulated dated events cannot self-heal from current state — a missing merge here would split the log per device and make every windowed contrast wrong
+---
 
-**NOT merged:** `noticed` (device-local gate, v2.39.3). `noticedDates` merged via its own loop (earliest-date-wins).
+## Triage
+
+**Do not check triage immediately on tab return** — sync needs to pull another device's dismissal first. `mergeRemoteData()` applies `triage_dismissed` and hides the bar/overlay; `_onWake()` holds a 3s silent window, then re-reads the stored dismissal (never a stale variable) and re-checks. `_triageBarSilent` stops the 7s ticker from flashing the bar during that window (BUG-001).
+
+- **Completion is the sync event.** `triageApplyAll()` queues `dropboxAutoSave(0)` after persisting, including an all-Keep pass; close and undo use the same retry-aware path. Triage **Done** marks via the normal check path (`doneIds` + `_addCheckedId`), so it merges like any check.
+- **New-day cleanup backup** is delayed 3s on wake; uploading immediately raced `syncDropbox()`'s metadata fetch and could leave a device on its own stale write. `zoneChangedAt` protects the done→PAST move independently.
+- **First open of the day** pulls and merges before `applyNewDayCleanup()`, so cleanup removes `triage_dismissed` only when its stored day is not today — otherwise the push-back would erase another device's same-day dismissal.
+- **Self-healing same-day merge.** Remote `triage_dismissed === today` applies locally (`mergeRemoteData()` sets `triageDismissedToday`); a local one for today against a blank or older remote also counts as a change, so `dropboxRestore(true)` schedules the merged snapshot back. Needed because Dropbox holds one overwritten snapshot that a stale device can briefly blank.
+
+### Triage bar state flags
+
+All three default `false` and live in module scope.
+
+| Flag | Set by | Cleared by | Purpose |
+|---|---|---|---|
+| `_triageActive` | `triageExpand()` | `triageClose()`, `triageMinimize()` | Bar hidden while the overlay is open (BUG-007) |
+| `_triageBarSilent` | wake (`visibilitychange` / `focus`) | 3s timer | No bar before sync settles (BUG-001) |
+| `_triageBarShown` | first show in `checkTriageBar()` | `applyNewDayCleanup()`, all tasks gone, midnight | Once shown, deletes/zone moves don't hide it mid-evening |
+
+`checkTriageBar()` priority: `_triageActive` → hide and refresh the overlay list; `_triageBarSilent` → hide (no list refresh); otherwise `inTriageWindow && totalUndone > 0 && !triageDismissedToday`; `_triageBarShown` keeps it up when nothing changed.
+
+---
+
+## Zone-Aware Sync
+
+A task in SOON/PAST must not reappear in TODAY, and a task pulled back must not be swallowed by a zone. `zoneChangedAt` decides:
+
+- **Moved to SOON on A, B still has it in TODAY:** remote zone stamp newer → it leaves B's `manualTasks`; local task stamp newer → it was pulled back, stays.
+- **Pulled back on B, A still has it in SOON:** local zone stamp newer → stays in the zone; remote task stamp newer → moves to `manualTasks`.
+- **Deleted tasks** are skipped in both SOON and PAST merges via `mergedDeletedMap` (no ghost tasks).
+- **Revive from PAST → SOON** (`reviveFromPast(id)`, aged/let_go only, never done): keeps the ID, clears `status`, fresh `zoneChangedAt`, increments `revived`, immediate backup. The SOON merge admits a remote entry that also sits in local PAST only if its `zoneChangedAt` is **strictly newer** (`_stillPast`); the PAST cleanup then drops the local copy. A stale remote SOON entry stays blocked.
+
+**Zone operations back up immediately** with `dropboxBackup(true)`, not the debounced save: `pullFromSoon()`, `moveToSoon()`, `moveToPast()`, `reviveFromPast()`. (Triage uses `dropboxAutoSave(0)` — see Triage.)
+
+---
+
+## Timestamps & Tracked Events
+
+Sync ordering uses full ISO strings (`toISOString()`, UTC). Date-only values (habits, memory, stat guards) use `_localISO()`. Never mix them.
+
+| Event | Key |
+|-------|-----|
+| Task deleted / checked / unchecked | `today_deleted_ids` / `today_checked_ids` / `today_unchecked_ids` |
+| Habit deleted | `today_deleted_habit_ids` |
+| Local mutation | `last_local_change` |
+| Successful backup (write) / sync (read) | `last_successful_backup` / `last_sync_read` — the Connections status shows the newer of the two |
+
+Every reorder (desktop drop, touch long-press via `_saveOrder`, Trello and manual alike) writes its order key, its stamp (`today_manual_order_at` → payload `manual_order_at`; `today_trello_order_at` → `trello_order_at`), `last_local_change`, and schedules the autosave — otherwise an in-flight initial or reconnect pull, which does not check `_pendingBackup`, snaps the drag back.
+
+---
+
+## Memory Merge — `_mergeAppMemory(remote)`
+
+Called from `mergeRemoteData(data)` → `_mergeAppMemory(data.memory)` on every tick and from manual Restore (`dropboxRestore(!fromSync)`), so the two paths cannot drift.
+
+**Clear watermark first:** `appMemory.clearedAt` is max-wins; every dated union below drops rows from before it on both sides, so "clear all memory" on one device clears the other (BUG-096). `_mergeAppMemory`'s filter compares **by day** — every row's date is sliced to YYYY-MM-DD, even full timestamps such as `kindVerdicts.updated` — so same-day pre-clear rows survive (a documented edge). Only the DreamBank merges (`dreams.index`, `dreams.dismissed`) compare full timestamps.
+
+| Field | Rule |
+|-------|------|
+| `patterns` | Counted objects union by key, numeric max (triageUndos, soonPulls, letgoReasons, reviveReasons, …). Exceptions: `lateAdditions` union by `date:h` (legacy plain numbers normalized), sorted by date, newest 50; `taskLifespanSamples` concatenated local then remote, last 20 kept (no dedupe) |
+| `semantic` / `episodic` / `procedural` | Union by `id`; cleared hypothesis ids are tombstoned |
+| `moments` | Union deduped by `type + date`, last 20 kept |
+| `patterns.taskKeywords` | Per word, per-day MAX in `days{}`; legacy entries without `days` become a `_legacy` floor |
+| Lifetime counters | Max |
+| `recentConversations` | Union by date + message prefix, newest 5 |
+| `recentCompletedTasks` | Union by text + date, 30-day window |
+| `aiName` | Remote wins when present |
+| `suggestionOutcomes` | Union by offer `id`; event stamps and result ids union so a stale device cannot erase later evidence; newest metadata wins; completion evidence wins a conflict; newest 100 kept |
+| `obligationHistory` | Union by `date|text[0:40]`, `done` OR'd, 90 days |
+| `spokenLines` | Union by `date|surface` (one per surface per day), newest 120 — large enough that a kind leaves cooldown by time, not eviction; on collision the newer `reactedAt` wins, including a cleared vote |
+| `kindVerdicts` | Per kind, newer `updated` wins |
+| `taskOutcomes` | Union by `id|outcome|date`, 90 days, newest 300 — accumulated events cannot self-heal, so a missing merge would split the log per device |
+| `dreams.index` | Union by `id`, later `updatedAt` wins; a delete is a tombstone row; clear watermark compared on full `recordedAt`, not the dream's day, so an old dream told after a clear survives (`sync-merge.mergeDreamIndex`) |
+| `dreams.dismissed` | Per image key, later timestamp wins; pre-clear entries drop (`mergeDreamDismissed`). The recurring-image list is never stored — each device derives it from the merged index |
+| `noticed` / `noticedDates` | See Noticed above |
+
+Dream files are not in the backup; `dreambank.flush()` uploads each from the sync tick, and Memory reads one on demand without persisting it.
+
+---
+
+## Reflection Merge
+
+`_reflectionMergeRemote(data)` runs from both `mergeRemoteData()` and Restore: (1) clear watermark `MAX(local, remote)` — a newer remote overwrites local and marks changed; (2) policy LWW by `updatedAt`, remote on ties; (3) responses: a `Map<date, entry>` seeded with local, remote overwrites where `remote.updatedAt > local.updatedAt`, then drop entries with `updatedAt ≤` the merged watermark; (4) prune to 30 calendar days by wall-clock date (survives DST). After every merge the session-only feeling evidence is reconciled (v2.95.1): outcome-only changes invalidate the displayed sentence; consent/watermark changes fence pending replies; unchanged evidence causes no regeneration; nothing derived enters a backup.
+
+First Dropbox connection after local reflections exist uploads the full array and policy; other devices union them on their next sync. Memory's global clear calls `_reflectionClearFromAllMemory()`: stamp the watermark, remove local data, set policy to `not_for_me`, immediate silent backup.
 
 ---
 
 ## Offline Behavior
 
-1. App fully functional offline
-2. Mutations queued in localStorage
-3. Sync resumes on connectivity
-4. SW caches app shell for offline access
-
----
-
-## Reflection Merge (v2.65.7)
-
-The merge delegate `_reflectionMergeRemote(data)` is called from both `mergeRemoteData()` (background sync) and `dropboxRestore()` (manual restore) so the two paths cannot drift. The four-step algorithm:
-
-1. **Clear watermark** — `MAX(local, remote)`. If remote is newer, overwrite local and set `changed = true`.
-2. **Policy LWW** — compare `updatedAt` ISO strings. Remote wins on ties. Write local if different.
-3. **Responses union** — build a `Map<date, entry>`. Local entries loaded first; remote entries overwrite any where `remote.updatedAt > local.updatedAt`. Entries whose `updatedAt ≤ merged_cleared_at` are then discarded.
-4. **Prune to 30 calendar days** — based on wall-clock date, not elapsed ms, to survive DST transitions cleanly.
-
-**Derived feeling results (v2.95.1):** no schema change. After every reflection merge, reconcile the session-only evidence identity, including task outcomes already merged by the enclosing sync/restore path. Outcome-only changes invalidate the displayed sentence too. Consent/watermark changes fence pending replies; unchanged evidence causes no regeneration or DOM replacement. The result, request epoch and source identity never enter a backup.
-
-**Later-connection behavior:** if Dropbox is connected for the first time after reflections exist locally, the next backup includes the full `reflections` array and policy. On any other device that already has a backup, `mergeRemoteData` unions in the new entries on the next sync.
-
-**Deletion propagation:** Memory’s global clear calls `_reflectionClearFromAllMemory()` which stamps `reflections_cleared_at`, removes the local data, sets policy to `not_for_me`, then triggers an immediate silent `dropboxBackup(true)`. The next sync on any other device will receive the new watermark and discard all entries before it.
-
----
-
-## Triage Bar State Flags
-
-Three boolean flags control triage bar visibility. All default `false`, all in module scope.
-
-| Flag | Set by | Cleared by | Purpose |
-|---|---|---|---|
-| `_triageActive` | `triageExpand()` | `triageClose()`, `triageMinimize()` | Locks bar hidden while overlay is open (BUG-007) |
-| `_triageBarSilent` | `visibilitychange` + `focus` on wake | 3s `setTimeout` | Prevents ticker showing bar before sync settles (BUG-001, cross-device flash) |
-| `_triageBarShown` | `checkTriageBar()` on first show | `applyNewDayCleanup()`, all tasks gone, midnight | Once shown, mutations (delete, zone moves) don't hide bar mid-evening |
-
-**Priority in `checkTriageBar()`:**
-1. `_triageActive` → hide unconditionally, refresh overlay list
-2. `_triageBarSilent` → hide unconditionally (no list refresh)
-3. Normal rules: `inTriageWindow && totalUndone > 0 && !triageDismissedToday`
-4. `_triageBarShown` prevents hiding when conditions unchanged mid-evening
+The app is fully functional offline; mutations persist to localStorage and `last_local_change`; on reconnect the `online` handler pulls, merges, and pushes; the service worker serves the app shell.

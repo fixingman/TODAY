@@ -3,15 +3,14 @@
 
 ---
 
-## Current Focus (reviewed 2026-10-10)
-- **Working on:** Re-observe 12c morning/Sunday lines for the 2026-10-15 verdict and DreamBank M1 in real use; the dated Wallpaper verdicts and gates are in `Backlog.md`. Do not unlock WEEK, New week, or DreamBank M2 from one positive reading.
-- **Recent:** v2.93.16 removed the quiet-after-misses pause; votes guide the next ordinary morning line. v2.93.20–21 repaired enrichment arrival/filtering and added bounded on-device email ranking. v2.93.22 repairs transient nudge recovery and separates delivery failures from prose rejections in private, device-local diagnostics; real-device verification is owed. See `Changelog.md` for exact behavior.
+## Current Focus (reviewed 2026-10-11)
+- **Working on:** dated Wallpaper verdicts in `Backlog.md` → Watching — 12c morning/Sunday lines (2026-10-15), Dream sheet + DreamBank M2 "comes back" line (2026-10-18; gates M3), daily nudge quality and delivery (2026-10-23). Do not unlock WEEK, New week, or DreamBank M3 from one positive reading.
+- **Recent:** see `Changelog.md` (last ~20 versions) for exact behavior.
 - **Module extraction: COMPLETE.** Runtime ownership and the startup composition boundary are documented in `design/Components.md`; new behavior belongs in the owning module and its component contract.
-- **v2.93.23:** daily-only adaptive Claude thinking plus bounded background recovery into About even after a fallback dismissal. Real AI dismissals remain final; no timer-driven strip replacement, new prompt or sync schema. Local two-device coverage is not live quality/delivery verification; BUG-118 stays unverified.
 - **10b foundation live (v2.94.0, dev + production):** separate read-only Google Calendar connection and transient primary-calendar timing; Cloud API/scope configuration verified. No calendar writes, agenda, AI input or automatic recording. Real consent, refresh and Forget checks on desktop/phone are owed before designing the proposed meeting-start offer; Granola remains separate/not started.
 - **Machine routing guard:** before any agent changes Headroom, a model provider/base URL, proxy/wrapper, port/mode, runtime override, or Headroom version, read `/Users/can/.headroom/ROUTING-GUARD.md` and obtain Can's explicit approval for that exact change. Keep Codex on explicit `127.0.0.1`, not `localhost`. Do not run `headroom learn --verbosity --apply`: v0.35.0 learns from Claude history only but hot-enables a proxy-global output shaper that can also affect Codex.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
-  - **v2.93.23 ⏳ (BUG-118)** — check desktop/mobile morning delivery after deployment; use `Today.use('nudge').generationAudit()` to distinguish failed requests from rejected prose without retaining private wording or forcing a real dismissal open.
+  - **v2.93.22–23 ⏳ (BUG-118)** — check desktop/mobile morning delivery after deployment; use `Today.use('nudge').generationAudit()` to distinguish failed requests from rejected prose without retaining private wording or forcing a real dismissal open. Daily-only adaptive thinking and bounded recovery into About (even after a fallback dismissal) shipped; real AI dismissals remain final. Local two-device coverage is not live quality/delivery verification.
   - **v2.64.23 ⏳** — verify appMemory convergence across two devices after a few 7s sync cycles: `today_memory.semantic.length` and newly confirmed inferences should match without manual Restore Backup.
   - **v2.64.22 ⏳** — verify overnight sync hardening: streak does not re-inflate from yesterday, newest check/uncheck wins, and Trello configuration reaches the second device.
   - **v2.62.1 ⏳** — verify: `appMemory.patterns.triageUndos` increments on triage undo; `soonPulls` increments on pull-from-soon; `reviveReasons` populated on revive; letting the undo toast expire records letgoReasons.
@@ -98,7 +97,7 @@ Status symbols used throughout:
 ## Interaction Rules
 
 6. **Enter key = always add task** (no mode switching, no routing)
-7. **AI configuration does not create a general chat surface.** Reachable AI behavior stays contextual: post-add task suggestions, focus questions, nudges, reflections/Noticed, enrichment, and meeting extraction.
+7. **AI configuration does not create a general chat surface.** Reachable AI behavior stays contextual: post-add task suggestions, focus questions, nudges, reflections/Noticed, enrichment, meeting extraction, and dream readings. Surface inventory: `architecture/AI.md` → Overview.
 8. **Post-add suggestions belong to their task ID, not their DOM position.** Pending delivery waits for viewport entry; list renders and reorders must re-anchor a visible helper without creating a second offer or exposure lifecycle.
 9. Uncheck = neutral (no celebration, no sound)
 10. Check = celebration (sound, particles, haptic)
@@ -113,7 +112,7 @@ Status symbols used throughout:
 13. Task IDs: `manual_` + timestamp, habit IDs: `habit_` + timestamp
 14. All timestamps: ISO strings (UTC for sync ordering). **Date-only strings: use `_localISO()`** (local YYYY-MM-DD) — never `toISOString().slice(0,10)` which returns UTC and diverges near midnight (BUG-010).
 15. **State variables must be declared before functions that use them** — `let` has temporal dead zone
-16. **Day boundaries — tasks/triage/streak/focus at midnight, habits at 3am.** `_getAppDay()` (midnight, human-readable) and `_localISO()` (YYYY-MM-DD) govern tasks, triage, streak, focus. **Habits roll at 3am** via `_habitTodayISO()` → `_localISO(_habitNow())`; `_habitNow()` subtracts three local wall-clock hours with `setHours` (a late-night check counts toward the day that's ending, and DST cannot move the boundary). `_getHabitDates()` uses the same `_habitNow()` so the strip refreshes in lockstep (do NOT split these — that was the v2.12.74 lag bug). All local time — the grace shifts a Date then derives the local date, never UTC (BUG-010). Full ISO timestamps (`zoneChangedAt`, `ts`) stay UTC for cross-timezone sync.
+16. **Day boundaries — tasks/triage/streak/focus at midnight, habits at 3am.** Tasks use `_getAppDay()` / `_localISO()`; habits use `_habitTodayISO()` → `_localISO(_habitNow())`, and `_getHabitDates()` must use the same `_habitNow()` (splitting them was the v2.12.74 lag bug). All local time, never UTC (BUG-010); full ISO timestamps stay UTC for sync. Function table and DST detail: `architecture/Data.md` → Day Boundaries.
 17. **Triage window: 8pm–midnight** — triage bar only shows in this window (aligned with day boundary)
 18. **Flow rate = `100 × (1 - 0.8^done)`** — diminishing returns formula. First task = 20%, 5 tasks ≈ 67%. Live calc, not stored. (Based on Endowed Progress Effect + Goal Gradient Hypothesis)
 
@@ -152,7 +151,7 @@ matches, so drift fails the pre-commit gate instead of shipping a stale cache.
 
 ## When Adding a New AI Surface
 
-Before wiring any new memory signal into `_memoryForAI`, run the memory-signal pickup probe to confirm the AI actually uses it as useful context. The probe from 2026-08-09 lives in the session history; the pattern is:
+Before wiring any new memory signal into `_memoryForAI`, run the memory-signal pickup probe to confirm the AI actually uses it as useful context:
 
 1. Call the handler directly via `createRequire` (same approach as `scripts/ai-test.mjs`)
 2. Build two payloads: **baseline** (no new signal) and **enriched** (signal in plain English, e.g. `"You often pull tasks back from Soon — tends to overestimate future availability."`)
@@ -160,7 +159,7 @@ Before wiring any new memory signal into `_memoryForAI`, run the memory-signal p
 4. Read the two responses side by side — the enriched response should be *observably more specific* about the behavior
 5. Only wire in signals that pass this check; hold the others until a better surface exists
 
-**Key lesson from the 2026-08-09 probe:** `soonPulls` passed immediately. `triageUndos` and `reviveReasons` didn't land in nudge context — they need surfaces closer to the behavior (triage screen, week reflection). Signals that dilute when combined should be surfaced selectively.
+**Key lesson (2026-08-09 probe):** `soonPulls` passed immediately; `triageUndos` and `reviveReasons` didn't land in nudge context — they need surfaces closer to the behavior (triage screen, week reflection). Signals that dilute when combined should be surfaced selectively. Prompts state principles, never worked examples (`architecture/AI.md`).
 
 ## Git Rules
 
@@ -183,22 +182,15 @@ These areas are error-prone — always read the relevant file and double-check l
 | Sync merge logic | Union merge + deleted_ids is subtle | `architecture/Sync.md` |
 | Writing a new kind of value into an existing synced map | Its merge rule encodes its meaning (MIN/MAX/union/LWW). A mismatched write works locally then silently reverts on sync — needs its own key instead (BUG-064; also `habit_events`, `noticedDates`) | Sync.md |
 | Data schema changes | Breaking changes affect backups | `architecture/Data.md` |
-| Delete operations | `deleted_ids` must persist across days | Rule 11, Data.md |
+| Delete operations | `deleted_ids` must persist across days (180-day expiry, BUG-054) | Sync.md → Deletion Persistence |
 | Any `init()`-time check reading synced state | Runs before `mergeRemoteData()` lands — stale/empty on a fresh device, four confirmed instances (triage, nudge, Trello BUG-060, Sunday/habit BUG-061) | Sync.md Design Principle 6 |
 | Day boundary logic | Tasks vs habits use different cutoffs | Rule 16 |
-| Zone operations | Must trigger `dropboxBackup(true)` | Sync.md |
+| Zone operations | Must trigger a backup — zone moves `dropboxBackup(true)`, triage `dropboxAutoSave(0)` | Sync.md |
 | Trello patch path | Must mirror `taskHTML()` features (tags, badges, sessions) | Rule 27 |
 
 ## Z-Index Stack
 
-| Layer | Z-Index | Element |
-|-------|---------|---------|
-| Base | 1 | Normal content |
-| Header | 10 | Sticky header |
-| Modal | 100 | Panels, overlays |
-| Splash | 500 | Loading splash |
-| Overlay | 999 | Top-level overlays |
-| Idle companion | 50 | Creatures |
+Tokens `--z-base` 1 · `--z-header` 11 · `--z-modal` 100 · `--z-splash` 500 · `--z-overlay` 999; hardcoded exceptions (status-bar scrim 5, section headers 9, idle companion 50, splash canvas 600, error panel/dot 9998/9999) — full table with reasons: `design/Tokens.md` → Z-Index Stack. Never invent a new layer without adding it there.
 
 ## Version Bumping (vA.BB.CC)
 

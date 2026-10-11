@@ -6,77 +6,21 @@
 
 ## Overview
 
-The reachable companion appears through post-add inline task suggestions, the focus companion,
-the morning nudge, About reflections/Noticed, and meeting extraction. The former ✦ sheet had no
-trigger after v2.49.0; its controller, state, CSS, backdrop, and markup were removed in v2.83.1.
-`assets/assistant.js` now owns only the live post-add suggestion lifecycle.
+Reachable AI surfaces: the post-add inline task suggestion, the focus companion question, the daily (morning) nudge, About's Sunday reflection and Memory's feeling relationship, meeting/voice extraction, DreamBank readings and extraction, and Gmail/web task enrichment. Code selects what is true; the model phrases it (see Observation Pool). Prompts state principles, never worked examples.
 
-Deterministic suggestion reason classification, exploration, underperformance, and performance
-context live in DOM-free `assets/suggestion-policy.js`; `assistant.js` and `insights.js` own UI,
-outcome recording, and provider orchestration. Solar-term and milestone selection similarly
-live in `assets/noticed-model.js`, while `insights.js` owns storage and rendering. Direct unit
-tests cover both policy boundaries.
+Deterministic policy lives in DOM-free modules with direct unit tests: `assets/suggestion-policy.js` (suggestion reasons, exploration, underperformance), `assets/noticed-model.js` (solar-term and milestone selection), `assets/week-reflection-policy.js` (observation pool and guards). `assistant.js`, `insights.js`, `nudge.js`, `about.js`, `focus.js` and `dreambank.js` own UI, storage, outcome recording and provider calls.
 
-**Providers:**
-- Gemini 2.5 Flash (default, free)
-- Claude Sonnet (private option)
+**Providers:** Claude (Sonnet, `claude-sonnet-5`) or Gemini 2.5 Flash, chosen in Connections. This build defaults to Claude (`AI_BUILD_PROVIDER = 'claude'` in `connections.js`); public forks default to Gemini (`AI_DEFAULT_PROVIDER`). Audio (meeting mode, voice notes, dream detection) always uses Gemini — the only provider with native audio input.
 
-**Proxy:** `/.netlify/functions/ai-assist`
+**Proxy:** `/.netlify/functions/ai-assist` for text; `meeting-extract` and `transcribe` for audio. Valid JSON replies come back top-level, anything else wrapped as `{content}` — callers that expect JSON must accept both.
+
+**Removed surfaces:** the ✦ AI sheet (input-bar trigger removed v2.49.0, controller/markup deleted v2.83.1), its chat thread, and the ✦ empty-tap Daily Brief (v2.41.0). The TODAY logo opens Memory; no replacement chat exists. Design record: `archive/Architecture.md` → Retired ✦ AI sheet.
 
 **Daily-nudge reasoning (v2.93.23):** both morning tracks send the exact `surface: 'daily-nudge'` marker. The proxy enables Claude Sonnet 5 adaptive thinking only for this marker, with a fixed 2048-token ceiling for thinking plus the answer (other Claude callers keep thinking disabled and 512 tokens; Gemini is unchanged). Client-supplied model/thinking/token overrides are not forwarded. The final line still has its existing 30-word and grounding guards. Only text blocks are returned; thinking/redacted blocks never reach the client or memory. A `max_tokens` stop returns content-free HTTP 502 rather than accepting a partial line, using bounded transient recovery. The 5s display race and 12s request timeout remain; live reasoning latency and usefulness must be re-observed, not inferred from mocked tests. The September 27 disable was a workaround accompanying the now-correct text-block parser, not a measured daily-nudge quality decision. No prompt, selection, provider/model or machine routing change. Delivery/dismissal recovery is a separate fix below. Reference: [Anthropic thinking support and token-limit troubleshooting](https://platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting).
 
 ---
 
-## Context Object
-
-> Historical standalone-sheet contract, removed in v2.83.1. The context, intro-priority,
-> special-moment, proactive-observation, energy, action-chip, and personality sections through
-> “Personality” below describe the retired sheet and are retained only until the audit/history
-> documentation is split. They are not current interfaces.
-
-```javascript
-{
-  timeOfDay: 'morning'|'afternoon'|'evening',
-  date, dayOfWeek, isWeekend,
-  isFirstOpenToday,        // via ai_last_open_date
-  streak,
-  tasks: {
-    pending, pendingWithAge,
-    aging,                 // tasks with ageDays >= 3
-    done, trello, overdueCount
-  },
-  habits,
-  progress,
-  weeklyStats,             // from today_daily_history — last 7 days (tasksDone, focusMins)
-  proactiveObservation,    // from _getProactiveObservations()
-}
-```
-
----
-
-## Intro Message Priority
-
-1. Morning + first open → **Morning Briefing**
-2. Sunday evening → **Weekly Reflection**
-3. Aging tasks (3+ days) → **Stale Awareness** (always, not random)
-4. Behavioral insight (patterns exist) → **Insight** (deterministic rotation by day+hour)
-5. Overdue tasks → Overdue nudge
-6. All done + tasks completed → **Celebrate**
-7. Empty (no tasks, no done) → **Invitation**
-8. Default → **Contextual** (varies by time, progress, energy)
-
----
-
-## Special Moments
-
-### Morning Briefing
-> "Good morning. First look: 3 tasks waiting, 2 habits due, 1 been here a while. Day 5 of your streak."
-
-### Stale Task Awareness (always when aging tasks exist)
-> "fix the bike" has been here 5 days. Still relevant, or ready to let it go?
-> (7+ days: suggests break_down instead)
-
-### Memory feeling relationship (v2.95.1)
+## Memory → HOW DAYS FELT relationship (v2.95.1)
 
 `assets/reflections.js` chooses one aggregate from opted-in, retained reflected evenings joined to same-date outcomes on-device. The writer gets only the chosen feeling, both action contexts and group counts. It must start “On evenings you reflected,” say the user marked that feeling more often, copy the selected comparison in order, and write one complete sentence of at most 40 words. Bringing a task back from Past replaces opaque “reviving” wording; task-focused comparisons name recorded focus rather than claiming a whole focused day. The output guard rejects incomplete, overlong, causal, multi-feeling or swapped comparisons; rejected replies leave the opted-in section hidden, without stats.
 
@@ -84,150 +28,45 @@ The transient canonical evidence key includes local day/window, consent choice/v
 
 ---
 
-### Sunday Reflection
-> "Sunday evening. This week: 12 tasks done, 2 hours focused, streak at 7. How did it feel?"
-
-### All-Done Celebration
-Variable warm messages:
-- "5 things done. The list is clear."
-- "8 things handled. That's a solid day."
-- "All clear. Day 7 of your streak."
-
-### Empty State Invitation
-> "Day 5. What's on your mind?"
-
----
-
-## Proactive Observations
-
-| Type | Priority | Example |
-|---|---|---|
-| `streak_record` | High | "Day 12 — your longest streak yet." |
-| `streak_milestone` | High | "Day 14. That's worth noticing." |
-| `peak_hour` | Medium | "It's 2pm — your most productive hour." |
-| `focus_milestone` | Medium | "50 hours focused. That's real." |
-| `yesterday_win` | Medium | "You cleared 8 things yesterday." |
-
-24h cooldown per observation type.
-
----
-
-## Energy Rhythm
-
-Based on peak hour from memory:
-
-| State | Context |
-|---|---|
-| Peak time (±1h) | "Good moment for demanding tasks." |
-| Pre-peak (1-3h before) | "Still warming up. Light tasks." |
-| Post-peak (1-2h after) | "Winding down. Quick wins." |
-
----
-
-## Actions
-
-Active chips (v2.17.25 — observation-first redesign):
-
-| Action | Parameters | Effect | When |
-|---|---|---|---|
-| `start_focus` | `{id}` or `{ids:[...]}` | Begin pomodoro | When one task clearly fits the moment |
-| `check_habit` | `{id}` or `{ids:[...]}` | Mark habit done | When habits are pending |
-| `add_task` | `{text}` | Add new task | Empty state only |
-| `move_soon` | `{id}` or `{ids:[...]}` | Park task to SOON | **Explicit user request only** (v2.17.74) — never proactive. Manual tasks only; handler ignores non-`manual_` ids |
-| `reflect` | `{}` | Ask AI for reflection | Rarely — only with specific pattern insight |
-| `dismiss` | `{}` | Close AI panel | Always last |
-
-Multi-task actions use an `ids` array (v2.17.6) — handler iterates and applies the action to each ID. Chip label shows the count and first task name.
-
-Available in handlers but not offered by AI (kept for edge cases):
-
-| Action | Notes |
-|---|---|
-| `delete_task` | Deterministic aging chips only (7+ days old) |
-| `check_task` | Handler exists, not in AI chip set |
-| `break_down` | Handler exists, removed from AI — was never used |
-| `delete_done` | Handler exists, not in AI chip set |
-| `open_panel` | Handler exists, error state only |
-
-**Chip limits:** 1–2 max per response (was 2–4). Always ends with dismiss.
-
----
-
-## Personality
-
-- Calm, present friend — not a manager
-- Brief, warm, never urgent
-- No exclamation marks
-- Acknowledges effort without gamification
-- Weaves observations naturally, doesn't lead with them
-
----
-
 ## Focus Companion (`_focusAskAI`)
 
-A separate AI surface that lives inside the focus timer bar. Triggered by the ✦ ask button (dynamically created inside the focus IIFE). Returns a single question under 18 words that the user reads before starting a 25-minute session.
+A question inside the focus timer bar, from the ✦ ask button. One question under 20 words that should change how the next 25 minutes go. If the task already has Gmail or web context in focus, the button acts on that instead (Draft reply / open the link). It builds its own `_ctx` list; it does not use `_memoryForAI()`.
 
-**Does NOT use** `_memoryForAI()` or the retired sheet context object — it builds its own `_ctx` array.
+### Signals (user message, `_ctx`)
 
-### Signals sent (as `_ctx` array in user message)
+| Signal | When |
+|---|---|
+| N earlier focus sessions on this task (`focusSessions`, or `_getTrelloFocusTotal()` for cards) — "one of them earlier today", or "last session N days ago" when ≥2 days | sessions > 0; otherwise "never focused on before" |
+| On the list N days | age ≥ 3 days |
+| Once let go, then brought back | `revived` |
+| Put off to Soon, then pulled back | `returnedFrom === 'soon'` |
+| Contains words they usually put off | task words (len > 3) with frequency ≥ 2 in `appMemory.preferences.dragKeywords` |
+| Most common let-go reason | one reason ≥ 35% of ≥ 8 let-gos (`appMemory.patterns.letgoReasons`) |
+| Local time + period | always — exact local time, morning / afternoon / evening / late night |
+| Peak productive hour | `peakHour` ± 1h |
+| Other focus sessions today | `stat_focus_mins_today ÷ 25` ≥ 1 |
 
-| Signal | Source | When |
-|---|---|---|
-| Total pomodoros on task | `manualTask.focusSessions` or `_getTrelloFocusTotal()[id]` | sessions > 0 |
-| Worked on task today | `manualTask.lastActive` date vs. today's local date | when sessions > 0 and worked today |
-| Last session N days ago | `manualTask.lastActive` timestamp | sessions > 0, not worked today, gap ≥ 2 days |
-| Task age | `_getCreatedFromId(id)` or `lastActive` | ageDays >= 3 |
-| Revived | `manualTask.revived` | true |
-| Deferred | `manualTask.zoneChangedAt` | truthy |
-| Drag-word match | `appMemory.preferences.dragKeywords` intersect task words | any word length > 3 with freq ≥ 2 in drag list |
-| Dominant letgo reason | `appMemory.patterns.letgoReasons` | one reason ≥ 35% of total, total ≥ 8 |
-| Local time | `new Date()` + locale clock formatting | always — exact local hour/minute plus morning/afternoon/evening/late night |
-| Peak hour match | `appMemory.preferences.peakHour ± 1h` | when peak hour is set |
-| Today's sessions (other tasks) | `stat_focus_mins_today ÷ 25` | count ≥ 1 |
+Up to 4 **confirmed** memory inferences (semantic / episodic / procedural, `status === 'confirmed'`) are appended to the system prompt as "What we know about the user: …". The button gains a quiet `high-signal` state when stuck/returning signals align.
 
-### Behavioral inferences (appended to system prompt)
+### Prompt (principles, no taxonomy)
 
-Up to 4 confirmed inferences from `appMemory.memory` (semantic + episodic + procedural, `status === 'confirmed'`) are appended as `\n\nWhat we know about this person: ...` — added v2.53.0.
-
-### System prompt character (v2.65.0)
-
-“Focus catalyst” — not a friendly check-in, not a coach. Produces one question that creates a moment of clarity. Uses an explicit taxonomy of question types mapped to context signals:
-- **Scope-setter** (first session): what does done look like for these 25 minutes?
-- **Obstacle-surfacer** (2–3 sessions): what's actually in the way?
-- **Scope-challenger** (4+ sessions): is there a smaller version that would close it?
-- **Pick-up** (gap ≥ 2 days since last session): what do you need to pick up?
-- **Pivot** (worked today already): what shifted since the last session?
-- **Revival check** (revived): what's different this time?
-- **Deferred check** (deferred): is this the right moment, or is energy the real issue?
-- **Avoidance probe** (drag-word match): names the avoidance pattern directly
-- **Energy fit** (letgo = no_energy): check if energy fits this task right now
-- **Peak lever** (peak hour): what's the hardest part to tackle while sharp?
-- **Wind-down** (3+ sessions today or late evening): is this the right task for now?
-
-Word cap increased to 22 (was 18). Bad-question list added to system prompt: vague check-ins, affirmations, obvious yes/no questions. If the question mentions time, must use the supplied exact local time.
-
-### Removed standalone AI sheet
-
-The input-bar trigger was removed in v2.49.0. In v2.83.1, the remaining `toggleAI()`,
-`openAI()`, `_aiSendFromInput()`, rendering/action helpers, state, styles, backdrop, and panel
-markup were deleted. The TODAY logo continues to open Memory; no replacement chat surface was
-introduced.
+The question belongs to this task and is built from its own words; one that would fit any task is a failure. History aims the question and is never read back (no counts, day numbers or labels). A returning or long-worked task usually hides one unmade decision or unclear first step; a new task needs its finish line for these 25 minutes; the rest of the list matters only if something should come first. About the work, not mood: no check-ins, encouragement or obvious yes/no. Time references use the supplied exact local time. The earlier v2.65 question-type taxonomy was replaced by these principles (v2.92.5). UI/state: `architecture/Focus.md` → Companion Question.
 
 ---
 
 ## Day-End Review (v2.14.4)
 
-Triage summary shows contextual acknowledgment after all decisions are made. Headline uses Syne display font at 28px with full stop. Single adaptive sub-line below — no triage breakdown (user just made those decisions).
+Not an AI call — a rule-based acknowledgment in `triage.js` once all decisions are made. Syne headline at 28px (rendered with a trailing full stop: `headline + '.'`), one adaptive sub-line, no triage breakdown (the person just made those decisions).
 
 | Condition | Headline |
 |---|---|
-| 8+ done | "Big day." |
-| 5+ done | "Solid day." |
-| 3+ done + 50m+ focus | "Deep work today." |
-| 3+ done | "Good day." |
-| 1-2 done | "You showed up." |
-| Only habits | "Habits held." |
-| Default | "All sorted." |
+| 8+ done | "Big day" |
+| 5+ done | "Solid day" |
+| 3+ done + 50m+ focus | "Deep work today" |
+| 3+ done | "Good day" |
+| 1-2 done | "You showed up" |
+| Only habits | "Habits held" |
+| Default | "All sorted" |
 
 **Sub-line** (adaptive, max 2 parts, `--text-sm2` muted):
 - Shows `done count` if any tasks completed
@@ -260,11 +99,7 @@ Morning nudge strip (before noon) shows yesterday's review if available. Falls b
 
 ### Instruction philosophy (v2.43.3)
 
-Purpose-first, not rule-first. The instruction tells the AI *what the user needs* and trusts the AI to reason about what matters:
-
-> "Find the one thing worth saying that they'd miss just by reading the list themselves. Understand what each task means in real life — what depends on it, what happens if they wait, who else might be involved, whether the window is closing."
-
-Does not enumerate signal priorities. Soon tasks are included but only surfaced if context warrants it (time-sensitive meaning, long deferral with focus effort, returned from past).
+Purpose-first, not rule-first. The instruction tells the AI what the person needs and trusts it to reason about what matters: find the one thing worth saying that they'd miss by reading the list themselves, understanding what each task means in real life (what depends on it, what waiting costs, who else is involved, whether a window is closing). No worked examples or signal-priority ordering; neither daily track reads Calendar. This is a writer instruction, not a programmatic guarantee — the output guards below are the enforcement. Soon tasks stay in the facts and surface only when their context warrants.
 
 ### Voice / cache / guards
 
@@ -288,11 +123,9 @@ Does not enumerate signal priorities. Soon tasks are included but only surfaced 
 - `resolveDecision()` revalidates current task/snapshot evidence before accepting a strict one-field JSON choice: `check`, `notice` or `abstain`. Prose and extra fields fail closed. Code, not the model, renders a continuity acknowledgment or an unresolved commitment-fit reading with unchanged duration/deadline. This is bounded expression, not an unrestricted creative writer or a semantic proof via keyword guards. The ordinary creative task-reading path remains untouched.
 - `buildEvidence()` optionally accepts at most 3 validated `recentReadings` supplied by an experimental caller. A matching task id / declared duration / deadline withholds the relationship, and history arriving during the decision invalidates delivery. Accepted results return a frozen `reading` descriptor for that pure comparison. No history is automatically retrieved, recorded or synced; no descriptors enter AI. A real window/cooldown and integration with existing private spoken history remain design work, not shipped behavior.
 
-Tests: `calendar-nudge-policy-unit-test` has 18 groups covering natural declarations/provenance, ambiguity/adversarial wording, earlier unsafe outputs, stale/hidden/offline/Forget/completed/changed-task delivery, optional novelty input, both bounded stances, malformed input, boundaries, DST, purity/privacy and an independent 100-schedule interval oracle. Six isolated configured-AI calls exercised the revision on fictional natural wording: 2 ordinary baselines and 4 accepted protected decisions, all selecting continuity acknowledgment. Supplied repeat evidence and unsupported/open/empty input withheld without an extra AI request; watched live keys were unchanged. Bounded facts and delivery succeeded, but voice variety and personal usefulness remain unproven. October 13 remains a proposed real-use comparison day; Calendar stays out of live nudges.
+Tests: `calendar-nudge-policy-unit-test` — 18 groups (natural declarations and provenance, ambiguity/adversarial wording, earlier unsafe outputs, stale/hidden/offline/Forget/completed/changed-task delivery, optional novelty input, both bounded stances, malformed input, DST, purity/privacy) plus an independent 100-schedule interval oracle.
 
-Pre-revision quality check (2026-10-10): 10 successful fictional-input calls compared 6 ordinary baselines with 4 protected decisions. The recorded timing relationship added information, but all protected replies used the same template; a 12-phrase diagnostic also missed all 6 natural variants while accepting 2 special declarations and withholding 4 unsupported cases. Quiet-only wording in that earlier set did not actually establish uninterrupted time and remains correctly withheld in the revision. The bounded prototype is still not production-ready; current coverage/expression work and the next gate live in `Backlog.md` → 10b. Watched live task/nudge/memory/Calendar keys were unchanged; no actual Calendar read or private memory input was used.
-
-Isolated voice comparison (2026-10-11): 12 successful configured-AI calls (0.9–3.0s), 3 fictional explicit clashes × 2 repetitions × 2 modes: whole-line prose versus a locked factual anchor with a free short reflection. The bounded renderer supplied a deterministic control without further AI calls. Whole-line outputs retained declared duration/deadline and recorded-timing qualification in this sample, without scheduling or pressure; both modes nevertheless collapsed into clash recaps and uncertainty disclaimers, not a fresh commitment-fit perspective. Reflections included an exact repeat, an unsupported categorical claim about commitments outside Calendar, and one 30-word combined line that missed the below-30 constraint. The test anchor's awkward verb-label grammar was harness-owned. None abstained. Free outputs were manually reviewed only: they were not accepted by `resolveDecision()`, and this is not semantic proof or approval to relax the protected contract. Watched live keys stayed unchanged; no actual Calendar/private memory reads, task/vote/cache writes, provider changes or runtime wiring occurred. The unchanged 18-group protection suite/100-schedule oracle passed. Further voice work must separate a useful perspective from mandatory recap/disclaimer verbosity while preserving uncertainty and fact ownership; see `Backlog.md` → 10b.
+**Status:** not production-ready. Every isolated real-call comparison so far (2026-10-10 / 10-11) found the bounded facts safe but no demonstrated voice variety or personal usefulness; Calendar stays out of live nudges. The experiment log and the next gate live in `Backlog.md` → 10b.
 
 ---
 
@@ -342,23 +175,15 @@ The winning object contains `{kind, score, evidence, insight}`. `_fetchWeekRefle
 
 ---
 
-## Monday Intention (v2.30.0–v2.92.13; paused)
+## Monday Intention (paused since v2.92.13)
 
-The former “New week” line used the same `#sundayBlock` slot as Sunday. It sent today's task list, Soon, Trello and `_memoryForAI('weekly')` to a model with a forward-looking instruction but no code-selected week-scale observation. In real use it repeated the Today nudge's task, age and peak-hour signal, then added a lifetime streak. Prompt framing did not give it a different job.
-
-From v2.92.13 Monday leaves the block hidden and generates no intention; the week grid and Today's cached line still render. The Sunday badge is Sunday-only. Existing `monday_intention_<date>` caches and Dropbox sync field remain for mixed-version compatibility, but About ignores them. The return gate is in `Backlog.md`: distinct code-owned commitment evidence across days, novelty against Sunday and Today, a week-scale choice, and silence when unearned. Do not extend the observation pool to Monday before its Phase 4 verdict.
-
----
-
-## Daily Brief — ✦ Empty-Tap
-
-**Removed in v2.41.0.** `_showDailyBrief()` and its CSS (`.brief-container` etc.) were cut entirely. At the time, empty ✦ fell through to `openAI()`; the input-bar ✦ itself was removed in v2.49.0. The brief's content (day nudge + poem) remains available through predictable About/poem surfaces.
+The former "New week" line used `#sundayBlock` with today's tasks, Soon, Trello and `_memoryForAI('weekly')` but no code-selected week-scale observation, so it repeated the Today nudge (same task, age, peak hour) plus a streak. Monday now leaves the block hidden and generates nothing; the week grid and Today's cached line still render. `monday_intention_<date>` caches and the sync field stay only for mixed-version compatibility. Return gate: `Backlog.md` → New week. Do not extend the observation pool to Monday before 12c Phase 4's verdict.
 
 ---
 
 ## `_memoryForAI()` — Behavioral Context (v2.43.4)
 
-Defined in `assets/insights.js`. Called from `_fetchDayNudgeAI()` (morning nudge) and from the main AI assistant context builder. Returns a plain-text paragraph of behavioral signals.
+Defined in `assets/insights.js`. Called by the daily nudge's task-reading track (`_memoryForAI('nudge')` in `nudge.js`). Returns a plain-text paragraph of behavioral signals. The focus companion, Sunday reflection and observation pool deliberately do not use it.
 
 | Signal | Source | Notes |
 |---|---|---|
@@ -369,7 +194,7 @@ Defined in `assets/insights.js`. Called from `_fetchDayNudgeAI()` (morning nudge
 | Recent moments | `appMemory.moments` | Last 3: streak milestones, big clears |
 | Days active | `appMemory.totalDaysActive` | Shown when >7 |
 | Past suggestion history | `appMemory.suggestionHistory` | Last 30d, up to 5 tasks — what was suggested + what user did |
-| Recent conversations | `appMemory.recentConversations` | Last 3 sessions |
+| Recent conversations | `appMemory.recentConversations` | Last 3 of the up to 5 stored (legacy sheet context; no new entries) |
 | Recent completions (verbatim) | `appMemory.recentCompletedTasks` | Last 5 task texts — lets AI calibrate to user's writing style |
 | Late-addition pattern | `appMemory.patterns.lateAdditions` | Shown when ≥40% of tasks added after 2pm |
 | Task lifespan | `appMemory.patterns.taskLifespanSamples` | Rolling 20-sample average — "you typically close tasks in N days" |
@@ -380,17 +205,6 @@ Defined in `assets/insights.js`. Called from `_fetchDayNudgeAI()` (morning nudge
 | Voice memory (12a) | `appMemory.spokenLines` | Last 8 lines TODAY said, with surface and date — "do not repeat these, do not reuse their sentence shape" (v2.79.0). The pool track uses this deterministically instead, via the novelty gate |
 
 **Task lifespan tracking:** `_memoryOnTaskComplete(taskText, taskId)` computes lifespan from `_getCreatedFromId(taskId)` on each completion and appends to `taskLifespanSamples` (capped at 20 entries).
-
-## Focus Companion Question
-
-See the canonical Focus Companion section above for its current context and prompt behavior, and `architecture/Focus.md` → Companion Question for UI/state details.
-
----
-
-## Sending Messages from the Main Input Bar (removed)
-
-The input-bar ✦ entry path became unreachable in v2.49.0. Its `_aiSendFromInput()`, thread,
-panel-call, and result-rendering code was removed with the standalone sheet in v2.83.1.
 
 ---
 
@@ -404,7 +218,7 @@ the current app does not append new entries to them.
 - Format: `{ taskId: 'YYYY-MM-DD' }` — date last suggested
 - 7-day cooldown — task skipped for 7 days after suggestion
 - Pruned nightly in `applyNewDayCleanup`: removes IDs not in `manualTasks` OR `trelloTasks`
-- Bug fixed v2.15.2: was only checking `manualTasks` — Trello IDs were pruned every night, resetting cooldown
+- Pruning checks both manual and Trello IDs (checking only manual reset Trello cooldowns nightly)
 - Synced via Dropbox
 
 **History (`appMemory.suggestionHistory`):**
@@ -413,6 +227,18 @@ the current app does not append new entries to them.
 - Max 50 entries, newest first
 - Synced via Dropbox
 - **Sent to AI via `_memoryForAI()` (v2.15.4)** — last 30 days, up to 5 tasks, grouped by taskText with action labels. AI uses this to write contextually aware messages.
+
+## DreamBank (v2.93.0)
+
+Three model calls, all in `assets/dreambank.js` except detection; full design in `Backlog.md` § 13.
+
+- **Detection** — inside the Gemini `meeting-extract` call: a dream account is one the speaker places in their sleep; once that is said, one plain sentence is enough; comparing a waking day to a dream, or an ambition called a dream, is not one (BUG-110, BUG-114). Returns a faithful first-person retelling and `lang`; `responseMimeType: 'application/json'`; a blocked/empty/unreadable reply returns a `note` that reaches the red dot instead of a silent "Nothing came up".
+- **Reading** — `DREAM_SYSTEM`: start from the detail that doesn't fit, follow one or two threads, connect to waking life only as far as the dream points, tentative by wording, end with exactly one unlabelled question as the last sentence, in the dream's language, ≤ 80 words. Measured by `scripts/dream-reading-eval.mjs` (head-to-head vs `scripts/dream-prompts/candidate-1.txt`).
+- **Extraction** — `EXTRACT_SYSTEM` JSON `{images, people, role}`; an image survives only if every substantive word stem-matches the retelling (Turkish softening folded), so invented details never reach `appMemory.dreams.index`. The recurring-image list (M2) is computed on the device from that index — no model call.
+
+Only the retelling goes to the model; readings and retellings live in the user's Dropbox files, never in the synced backup.
+
+---
 
 ## Post-add Inline Outcome Loop (v2.72.0)
 

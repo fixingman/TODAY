@@ -34,24 +34,30 @@
 
 | Key | Type | Description |
 |---|---|---|
-| `today_user_names` | JSON array | First names used for meeting attribution (multi-name, captured inline at first mic tap since v2.31.0). LWW-merged via `user_names_at`. (Key is `today_user_names` — the backup payload field is `user_names`; do not confuse them.) |
+| `today_user_names` | JSON array | First names used for meeting attribution (multi-name, captured inline at first mic tap since v2.31.0). LWW-merged via `user_names_at`. (Key is `today_user_names` — the backup payload field is `user_names`; do not confuse them.) Set by `saveMeetingName()` / the inline first-tap prompt; removed when the name list is emptied. |
 | `user_names_at` | string | ISO timestamp of the last `user_names` write — newer wins on merge. |
 
 ### Integrations
 
 | Key | Type | Description |
 |---|---|---|
-| `today_trello_cache` | JSON | Cached Trello cards (local, resets on fetch) |
+| `today_trello_cache` | JSON | Cached Trello cards (local) — written by `loadTrello()`; cleared by `clearTrello()` and on a new day |
 | `today_trello_order` | JSON array | Trello card order IDs (synced via Dropbox) |
 | `today_trello_order_at` | string | ISO stamp of the last reorder — newer wins on merge so order doesn't get clobbered cross-device (BUG-042, v2.18.4) |
 | `today_trello_lastactive` | JSON object | `{trello_<id>: ms}` — last focus activity per card. Trello's analogue of a manual task's `lastActive`; age basis is `lastactive \|\| firstseen \|\| now`. **MAX-merges** (newest activity wins), unlike `firstseen`'s MIN-merge — persists across days, pruned when a card leaves the list (BUG-064, v2.43.6) |
 | `today_trello_firstseen` | JSON object | `{trello_<id>: ms}` — when the card first entered YOUR list; age basis fallback. **MIN-merges** (earliest sighting wins). Persists across days, never cleared at midnight (BUG-049) |
-| `today_trello_focus` | JSON object | `{cardId: sessionCount}` — daily-reset; a card with >0 reads as active (no age dimming, BUG-043) |
-| `trello_config` | JSON | API key, token, board ID, list ID |
-| `trello_token` | string | Trello OAuth token |
-| `dropbox_token` | string | Dropbox access token |
-| `dropbox_refresh_token` | string | Dropbox refresh token (PKCE) |
+| `today_trello_focus` | JSON object | `{cardId: sessionCount}` — daily-reset; a card with >0 reads as active (no age dimming, BUG-043). Cleared by `clearTrello()` and on a new day |
+| `trello_config` | JSON | API key, token, board ID, list ID — set by `saveAndLoad()`, cleared by `clearTrello()`; fill-if-empty on sync |
+| `trello_token` | string | Trello OAuth token — set on OAuth return, cleared by `clearTrello()` |
+| `dropbox_token` | string | Dropbox access token — set by the OAuth token exchange, cleared by `dropboxDisconnect()` |
+| `dropbox_refresh_token` | string | Dropbox refresh token (PKCE) — same lifecycle as `dropbox_token` |
 | `dropbox_token_expiry` | string | Epoch ms |
+| `dropbox_token_expired` | string | `'1'` after a refresh or upload 401; Connections shows Reconnect and ✧ breathes. Cleared on a successful sign-in, refresh, or Forget |
+| `last_successful_backup` | string | ISO — last successful backup write (`dropboxBackup()`); the Connections status shows the newer of this and `last_sync_read` |
+| `last_sync_read` | string | ISO — last successful pull (`dropboxRestore()`) |
+| `last_local_change` | string | ISO — every local mutation; lets a background pull reject an older remote and drives the offline push-back |
+| `gmail_access_token` / `gmail_refresh_token` / `gmail_token_expiry` | string | Device-local Gmail OAuth tokens; never synced. Cleared by Forget |
+| `gmail_token_expired` | string | `'1'` when Google refuses the refresh (`invalid_grant`); Gmail stops calling Google, Connections shows Reconnect, ✧ breathes (BUG-115). Cleared by reconnect or Forget |
 | `today_connections_privacy_seen` | string | Local-only `'1'` after the first Connections-panel open; gates the one-time privacy reassurance and is deliberately excluded from Dropbox backup/sync |
 | `gmail_enrichment_<taskId>` | JSON | Device-local selected email metadata: `{threadId, subject, from, date, messageId, snippet, taskText, searchQuery, fetchedAt, matchPolicy}`. v2.93.21 requires `matchPolicy: 'minisearch-v1'`, removes old unvalidated/calendar cards on read and rechecks changed task text. Candidate indexes are transient; no mailbox import or synced email corpus. |
 | `gmail_diagnostics_v1` | JSON array | At most 20 device-local `{taskId, status, source, reason, attempts, at}` records. Includes `weak-match`, `ambiguous-match`, `ranking-unavailable` and `excluded-calendar`, never queries, task wording, email content, scores or credentials. Cleared with Gmail Forget; not synced. |
@@ -66,9 +72,9 @@ Calendar event timing/join context is closure-only in `calendar.js`; never a sto
 
 | Key | Type | Description |
 |---|---|---|
-| `today_ai_key_gemini` | string | Gemini API key, stored locally and excluded from Dropbox backup |
-| `today_ai_key_claude` | string | Claude API key, stored locally and excluded from Dropbox backup |
-| `today_ai_provider` | string | `'gemini'` or `'claude'` |
+| `today_ai_key_gemini` | string | Gemini API key, stored locally and excluded from Dropbox backup — set by `saveAIKey('gemini')`, cleared by the Gemini Forget button |
+| `today_ai_key_claude` | string | Claude API key, stored locally and excluded from Dropbox backup — set by `saveAIKey('claude')`, cleared by the Claude Forget button |
+| `today_ai_provider` | string | `'gemini'` or `'claude'` — set by `saveAIKey()` / `setDefaultProvider()`; cleared when no provider remains. Each key is cleared by its own Forget |
 | `ai_last_open_date` | string | YYYY-MM-DD — for morning briefing |
 | `ai_last_observation` | string | Last proactive observation type |
 | `ai_last_observation_time` | string | Timestamp of last observation |
@@ -95,7 +101,6 @@ Calendar event timing/join context is closure-only in `calendar.js`; never a sto
 | `stat_streak` | string | Current daily streak |
 | `stat_streak_date` | string | YYYY-MM-DD local — date streak was last incremented; guards against double-count on multi-device sync (BUG-020) |
 | `stat_last_visit` | string | Last date app opened |
-| `stat_tasks_done_today` | string | Tasks completed today (for memory/AI) |
 | `stat_focus_mins_today` | string | Focus minutes today |
 | `today_focus_session` | JSON object | `{taskId, rem, savedAt, paused}` — in-flight focus session; written every tick; cleared on complete/close; read by `_tryRestoreFocusSession()` on reload (v2.43.0) |
 | `stat_focus_mins_yesterday_snapshot` | string | Transient: pre-midnight focus minutes saved by `completeFor()` when it detects a day boundary; consumed and removed by `applyNewDayCleanup()` (BUG-063) |
@@ -117,7 +122,7 @@ Calendar event timing/join context is closure-only in `calendar.js`; never a sto
 | `sunday_observation_audit_YYYY-MM-DD` | JSON object | Local-only developer diagnostic for the Sunday observation pool: aggregate evidence counts, each threshold result, candidate kinds and gate reasons, plus cache/AI-generation state. Contains no task ids, task text, candidate prose, or spoken-line text; never synced. Captured on Sunday startup, again after sync, and when About renders; `_debugSundayAudit(date)` also permits a historical date while the 30/45-day evidence remains available (v2.90.34). v2.90.35 labels candidates reopened by material cross-surface change and adds aggregate observed/backfilled revive linkage so an unlinked historical seed can be distinguished from a live extraction failure |
 | `monday_intention_<date>` | string | Legacy Monday intention cache (v2.30.0–v2.92.12); no longer rendered or generated from v2.92.13. Retained temporarily for mixed-version sync compatibility. |
 | `poem_splash_date` | string | YYYY-MM-DD — date the splash poem coda was last shown. Written at fade-in. Once-per-day gate — a second splash the same day skips the poem. Local only, not synced (v2.26.0) |
-| `sunday_nudge_seen_<date>` | string | Per-date flag set when About is opened from Sunday's badge; clears the pulse on `#infoBtn`. Historical Monday values are harmless. |
+| `sunday_nudge_seen_<date>` | string | Per-date flag set when About is opened from Sunday's badge; clears the pulse on `#infoBtn`. Historical Monday values are harmless. Synced as a per-day dismissal flag (date-guarded by `per_day_dismiss_date`). |
 
 **Note:** Flow rate is calculated live using research-based diminishing returns formula: `100 × (1 - 0.8^done)`. First task = 20% (quick win), 5 tasks ≈ 67% (good day). Based on Endowed Progress Effect (Nunes & Dreze 2006) and Goal Gradient Hypothesis (Kivetz et al. 2006). Not stored.
 
@@ -167,7 +172,7 @@ Calendar event timing/join context is closure-only in `calendar.js`; never a sto
     appliedAt?, dismissedAt?, ignoredAt?, helpedAt?, reversedAt?,
     resultTaskIds?, matchingTaskIdsAtApply?, reversalReason?
   }],
-  recentConversations: [],           // [{ date, message }] (last 3)
+  recentConversations: [],           // [{ date, message }] (last 5)
   recentCompletedTasks: [],          // [{ text, date }] — rolling 30-day (last 50)
   meetingAttribution: { mineShown, mineKept, othersShown, othersSelected },
   // 12a — relational memory (v2.77.26 → v2.79.0)
@@ -197,20 +202,6 @@ Calendar event timing/join context is closure-only in `calendar.js`; never a sto
 
 ---
 
-## ID Conventions
-
-| Type | Format | Example |
-|---|---|---|
-| Manual task | `manual_` + timestamp | `manual_1741234567890` |
-| Habit | `habit_` + timestamp | `habit_1741234567890` |
-| Trello task | Trello card ID | `5f3d...` |
-
----
-
-## Backup Schema
-
-**Version: 5.5** (authoritative schema in `architecture/Sync.md`)
-
 ### Post-Triage Reflection keys (v2.65.7)
 
 | Key | Type | Notes |
@@ -228,34 +219,21 @@ Calendar event timing/join context is closure-only in `calendar.js`; never a sto
 
 The dream file itself is `/Dreams{env}/{night|undated}_{id}.md` in the user's Dropbox (format: README § DreamBank files); the synced summary is `appMemory.dreams.index` above. Since v2.93.10, Memory can download one file on demand to read it: the response is held only in transient module/DOM state until Memory closes, never written into this local queue, `appMemory`, or the backup.
 
-```javascript
-{
-  version: '5.5',
-  manual: [...],
-  habits: [...],
-  habitCompletions: {...},
-  habit_events: {...},         // v2.17.53 — LWW map for uncheck protection (BUG-026)
-  done: [...],
-  deleted: [...],              // {id, at} — 180d TTL, ≤2000 entries (BUG-054, v2.23.6)
-  checked: [...],              // {id, at} — timestamped; drives _doneTodayCount (v2.18.21)
-  unchecked: [...],
-  deletedHabits: [...],
-  trelloFocus: {...},
-  today_trello_firstseen: {...},   // MIN-merge — earliest sighting wins (BUG-049)
-  today_trello_lastactive: {...},  // MAX-merge — newest activity wins (BUG-064, v2.43.6)
-  trello_order: [...],         // v5.2 — Trello card order
-  memory: {...},               // v4.0; includes recentCompletedTasks rolling 30-day (v2.29.0)
-  soon_tasks: [...],           // v5.0 — SOON zone
-  past_tasks: [...],           // v5.0 — PAST zone
-  triage_history: [...],       // v5.1 — AI triage learning
-  daily_history: [...],        // v5.3 — per-day snapshots for week grid (BUG-036)
-  user_names: [...],           // v2.31.0 — meeting attribution names, LWW via user_names_at
-  user_names_at: 'ISO string', // v2.31.0 — timestamp for user_names LWW merge
-  stat_focus_mins_date: '',    // v2.17.44 — date guard for focus minutes sync
-  stat_streak_date: '',        // BUG-020 — prevents double-count on multi-device
-  exportedAt: 'ISO string'
-}
-```
+---
+
+## ID Conventions
+
+| Type | Format | Example |
+|---|---|---|
+| Manual task | `manual_` + timestamp | `manual_1741234567890` |
+| Habit | `habit_` + timestamp | `habit_1741234567890` |
+| Trello task | Trello card ID | `5f3d...` |
+
+---
+
+## Backup Schema
+
+The backup payload and every merge rule live in **`architecture/Sync.md`** (authoritative, schema 5.5). This file lists localStorage keys; a key reaches other devices only if `Sync.md` lists it in the payload.
 
 ---
 
@@ -296,9 +274,4 @@ Tasks, zones, streak, and focus roll at midnight. **Habits roll at 3am** (v2.17.
 
 ## Deletion Persistence
 
-**Critical:** `deleted_ids` persists across days. Never clear it on new-day cleanup.
-
-- Delete a task → it's gone forever
-- Sync cannot resurrect deleted tasks (merge checks `deleted_ids`)
-- Entries auto-purge after 30 days to prevent bloat
-- Applies to tasks from TODAY, SOON, or anywhere
+`deleted_ids` is never cleared in new-day cleanup; entries expire after **180 days** (BUG-054). Full rule: `architecture/Sync.md` → Deletion Persistence.
