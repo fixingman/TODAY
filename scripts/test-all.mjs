@@ -29,6 +29,7 @@ const SUITE = [
   'dreambank-unit-test',
   'meeting-extract-unit-test',
   'error-monitor-unit-test',
+  'console-probe-test',
   'zones-test',
   'task-actions-test',
   'task-bounce-test',

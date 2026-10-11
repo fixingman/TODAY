@@ -6,6 +6,20 @@
 
 ## Pre-Release Checklist (REQUIRED)
 
+### Live console diagnostics
+
+Agent-run probes in a live TODAY window must use the dev-only preparation tool:
+
+```sh
+node scripts/prepare-console-probe.mjs .context/probe-input.js .context/probe-prepared.js source-check
+```
+
+Input is one expression (usually an async IIFE); the command validates syntax without executing it and writes a new private output file. Paste only that output. The wrapper awaits completion and catches diagnostic failures as labelled `completed`/`stopped` console statuses, without patching the app or printing unknown error content. Every nested request must be awaited; detached promises remain the probe author's responsibility. Capture live functions as explicit arguments before defining copies. Version/source guards remain mandatory for prepared comparisons; if they stop the probe, rebuild against the new source before proceeding. Do not reuse old unwrapped snippets from Console history. Existing consent/privacy boundaries still apply.
+
+`node scripts/console-probe-test.mjs` uses an isolated browser with the real error monitor: both reported guard failures, a deferred failure and unknown rejection settle without a red dot; a successful probe runs once; genuine unhandled errors with the same message strings still light the dot. It is included in `test-all.mjs`. This is development tooling only, with no runtime integration. Publishing follows the repository patch/cache-version discipline.
+
+### Release checks
+
 Automated baseline: `node scripts/test-all.mjs` runs the design lint followed by all registered local
 test suites, including the content-free error-monitor unit test, Calendar foundation contract test, experimental Calendar nudge policy unit test, six-scene visual regression coverage, the DreamBank
 queue/day/grounding/file-format unit test (`dreambank-unit-test`) and the `meeting-extract` handler unit
