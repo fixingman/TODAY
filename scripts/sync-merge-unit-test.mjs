@@ -10,7 +10,7 @@ context.window.Today = {
 vm.runInNewContext(readFileSync(new URL('../assets/sync-merge.js', import.meta.url), 'utf8'), context);
 
 assert.equal(context.apiName, 'sync-merge');
-const { mergeDailyHistory, mergeSuggestionOutcomes, mergeDreamIndex } = context.api;
+const { mergeDailyHistory, mergeSuggestionOutcomes, mergeDreamIndex, mergeDreamDismissed } = context.api;
 
 const days = mergeDailyHistory(
   [{ date: '2026-09-01', tasksDone: 2, tasksAdded: 99, focusMins: 10 }],
@@ -52,4 +52,9 @@ assert.equal(dreams[0].deleted, true, 'newer tombstone beats the older live copy
 assert.equal(dreams[1].night, '2026-08-01', 'clear compares recordedAt, not the dream night');
 console.log('  ✓ dream index merges by id, latest wins, tombstones and clear watermark honoured');
 
+assert.deepEqual(JSON.parse(JSON.stringify(mergeDreamDismissed(
+  { stai: '2026-10-05T00:00:00Z', old1: '2026-09-01T00:00:00Z' },
+  { stai: '2026-10-07T00:00:00Z', gran: '2026-10-06T00:00:00Z', bad: 3 },
+  '2026-09-10T00:00:00Z'))), { stai: '2026-10-07T00:00:00Z', gran: '2026-10-06T00:00:00Z' });
+console.log('  ✓ dismissed dream images merge per key, later wins, cleared and malformed entries dropped');
 console.log('✓ SYNC MERGE UNIT TEST PASSED');

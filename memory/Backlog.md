@@ -33,7 +33,7 @@ Ordered by potential impact on TODAY's longitudinal-companion promise and daily 
 | # | Item | Status | Next gate / action |
 |---|------|--------|--------------------|
 | 12c | **Companion — observation pool** | Phases 0–3 shipped; **Phase 4 iterate / re-observe** | Privately diagnose misses; October 15 verdict. Distinguish pool quality from ordinary morning quality and delivery. |
-| 13 | **DreamBank** | M1 live; phone-verified October 5 | Two-week usefulness verdict before M2. Can's listening test stands in for scripted evals, which were not run. |
+| 13 | **DreamBank** | M1 kept (2026-10-11); M2 built (v2.95.0) | Memory → Dreams now shows what comes back across dreams. M2 verdict and the Memory Wallpaper check due Oct 18; M3 (callbacks, Sunday, task links) after M2's gate. |
 | — | **WEEK companion** | Gated | 12c must genuinely feel like a companion, not a feature. |
 | — | **New week — distinct Monday recognition** | Gated | Week-scale evidence, a different job from Today, earned silence; real-use verdict after 12c. |
 | 2 | **Poem corpus** | In progress — 136 poems | Expand geography and voice; check curation ledger before proposing candidates. |
@@ -92,7 +92,11 @@ Three recognition depths remain distinct: **Noticed** speaks on a state change; 
 
 **Evidence:** the first live reading prompted useful reflection; its saved Dropbox file and cross-device index were confirmed. On-demand retrieval into Memory (v2.93.10) holds the body only while Memory is open; BUG-112 was verified by Can on October 5. This closes the retrieval gate, not the quality verdict. No private dream file becomes a repo fixture.
 
-**Next:** real-use usefulness verdict and whether the minimal Memory → Dreams entry earns its place (Wallpaper due October 18). Scripted evals were not run; Can's listening test stands in. M1 → M2 lexicon → M3 callbacks / Sunday / task links only after the preceding gate.
+**Usefulness verdict — kept (Can, 2026-10-11, after two weeks of real use):** "they work good" — the reading's analysis is good and its closing question lands, and the imagery the dream file records (`images`) is itself useful to Can. The bet's commitment link is not yet tested: M1 never connects a dream to tasks, so that half waits for M3.
+
+**M2 built (v2.95.0, 2026-10-11):** Memory → Dreams shows one line — *comes back: stairs · garden · water* — for up to five things that appear in two or more dreams; counts and **dismiss** sit under **manage** (Can, 2026-10-11: Memory is being simplified, so no dates and one line instead of one per item). Deliberate change from the eng-review design (an extraction-time AI match and a stored lexicon): it is computed on the device from the images and people already in each index row, matching a shared content-word stem — no extra AI call or new data sent, works at once on the six existing dreams and on every device, and is deterministic to test. Synonyms (sea / ocean) are not matched; add an AI match only if real use shows missed recurrences. Only dismissals are stored (`appMemory.dreams.dismissed`). The manage toggle's "close" became "less" (vocabulary).
+
+**Next:** M2 real-use verdict — do the recurring things feel like recognition, or a word count? — together with the Memory → Dreams Wallpaper check (due October 18). Scripted evals were not run; Can's listening test stands in. M1 → M2 lexicon (gate passed on usefulness; Can valuing the recorded imagery is direct evidence for a recurring-image lexicon) → M3 callbacks / Sunday / task links only after M2's own gate.
 
 **Deferred — multi-dream capture (D1):** one capture = one dream in M1. Separate into `dreams[]`, chunk stitching and stacked cards only when Can tells distinct dreams together and wants them apart. Per-dream ids avoid migration; start with the owning meeting/extraction modules, not a general capture rewrite.
 

@@ -466,7 +466,7 @@
         appMemory.kindVerdicts = {};
         // DreamBank summaries. The dream files themselves live in the user's Dropbox and
         // are theirs; clearing TODAY's memory does not delete them.
-        appMemory.dreams = { index: [] };
+        appMemory.dreams = { index: [], dismissed: {} };
         // Watermark. Without it the next sync unions every dated row straight back
         // from the remote copy and the clear is a lie. Max-wins across devices, so a
         // clear made here also clears the other device on its next merge. Mirrors

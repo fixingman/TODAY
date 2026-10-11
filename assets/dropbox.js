@@ -1075,11 +1075,11 @@
       // The clear watermark compares full timestamps against recordedAt, so a dream told
       // after a clear survives even when the dream itself is dated earlier.
       if ((remote.dreams && Array.isArray(remote.dreams.index)) || (appMemory.dreams && Array.isArray(appMemory.dreams.index))) {
-        appMemory.dreams = { index: Today.use('sync-merge').mergeDreamIndex(
-          appMemory.dreams && appMemory.dreams.index,
-          remote.dreams && remote.dreams.index,
-          _clearedAt,
-        ) };
+        const _sm = Today.use('sync-merge');
+        appMemory.dreams = {
+          index: _sm.mergeDreamIndex(appMemory.dreams && appMemory.dreams.index, remote.dreams && remote.dreams.index, _clearedAt),
+          dismissed: _sm.mergeDreamDismissed(appMemory.dreams && appMemory.dreams.dismissed, remote.dreams && remote.dreams.dismissed, _clearedAt),
+        };
       }
       _saveMemory();
     }

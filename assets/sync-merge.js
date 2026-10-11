@@ -102,6 +102,20 @@
       .slice(-limit);
   }
 
-  const api = { mergeDailyHistory, mergeSuggestionOutcomes, mergeDreamIndex };
+  // M2 dismissed images: { [key]: ISO }, later dismissal wins per key; entries from before
+  // a "clear all memory" are dropped with everything else.
+  function mergeDreamDismissed(local, remote, clearedAt = '') {
+    const out = {};
+    for (const src of [local, remote]) {
+      if (!src || typeof src !== 'object') continue;
+      for (const [key, at] of Object.entries(src)) {
+        if (typeof at !== 'string' || (clearedAt && at < clearedAt)) continue;
+        if (!out[key] || at > out[key]) out[key] = at;
+      }
+    }
+    return out;
+  }
+
+  const api = { mergeDailyHistory, mergeSuggestionOutcomes, mergeDreamIndex, mergeDreamDismissed };
   if (global.Today) global.Today.define('sync-merge', api);
 })(window);

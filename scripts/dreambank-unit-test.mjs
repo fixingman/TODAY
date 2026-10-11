@@ -103,6 +103,28 @@ const settleAll = async () => { for (let i = 0; i < 8; i++) await tick(); };
   assert.equal(fromMarkdown(toMarkdown(e), 'dream_other'), null, 'a different dream id cannot be displayed');
   assert.equal(fromMarkdown('## Retelling\n\nTold.', e.id), null, 'an incomplete file cannot be displayed');
   ok('file name and Markdown format (empty sections kept, quotes escaped, undated, legacy thought kept)');
+
+  // M2 — images that come back across dreams, computed on the device.
+  const { recurringImages: rec } = defined['dream-core'];
+  const rows = [
+    { id: 'a', night: '2026-10-01', recordedAt: '2026-10-01T07:00:00Z', images: ['endless stairs', 'the old house'], people: ['my grandmother'] },
+    { id: 'b', night: '2026-10-04', recordedAt: '2026-10-04T07:00:00Z', images: ['a staircase to the attic', 'water on the floor'], people: ['grandmother'] },
+    { id: 'c', night: '2026-10-09', recordedAt: '2026-10-09T07:00:00Z', images: ['the stairs again', 'a red door'], people: [] },
+    { id: 'd', deleted: true, recordedAt: '2026-10-09T08:00:00Z' },
+    { id: 'e', night: '2026-10-10', recordedAt: '2026-10-10T07:00:00Z', lang: 'tr', images: ['eski kitap'], people: [] },
+    { id: 'f', night: '2026-10-11', recordedAt: '2026-10-11T07:00:00Z', lang: 'tr', images: ['kitabı okuyorum'], people: [] },
+  ];
+  const items = JSON.parse(JSON.stringify(rec(rows, {})));
+  assert.deepEqual(items.map(i => [i.label, i.count]), [['stairs', 3], ['kitap', 2], ['grandmother', 2]]);
+  assert.deepEqual(items[0].days, ['2026-10-01', '2026-10-04', '2026-10-09']);
+  assert.ok(!items.some(i => ['house', 'old', 'red', 'door', 'water', 'floor'].includes(i.label)), 'once-only and stop words stay out');
+  assert.equal(rec(rows.slice(0, 1), {}).length, 0, 'one dream has nothing that comes back');
+  const dismissed = JSON.parse(JSON.stringify(rec(rows, { stai: '2026-10-05T00:00:00Z' })));
+  assert.ok(!dismissed.some(i => i.key === 'stai'), 'a dismissed image needs two new dreams to return');
+  const back = JSON.parse(JSON.stringify(rec([...rows, { id: 'g', night: '2026-10-12', recordedAt: '2026-10-12T07:00:00Z', images: ['stairs'] }], { stai: '2026-10-05T00:00:00Z' })));
+  assert.deepEqual(back.find(i => i.key === 'stai')?.count, 2, 'it returns once two dreams after the dismissal share it');
+  assert.equal(rec([...Array(9)].map((_, n) => ({ id: 'x' + n, recordedAt: 'r' + n, images: ['w' + n + 'zz cat', 'w' + n + 'yy dog', 'a ' + ['moon','sea','fox','owl','bus','key','hat'][n % 7]] })), {}).length <= 5, true, 'at most five');
+  ok('recurring images: shared stems across phrasings and Turkish forms, threshold of two dreams, dismissal, cap');
 }
 
 // ── Queue ─────────────────────────────────────────────────────────────────────

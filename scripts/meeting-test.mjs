@@ -535,6 +535,48 @@ try {
     await page.close();
   }
 
+  // DreamBank M2: Memory → Dreams lists what comes back across dreams, under the
+  // summary line; dismiss hides it and the dismissal syncs.
+  {
+    const index = [
+      { id: 'dream_a1', night: '2026-10-01', recordedAt: '2026-10-01T07:00:00Z', updatedAt: '2026-10-01T07:01:00Z', images: ['endless stairs', 'a garden'], people: ['grandmother'], role: '' },
+      { id: 'dream_b2', night: '2026-10-04', recordedAt: '2026-10-04T07:00:00Z', updatedAt: '2026-10-04T07:01:00Z', images: ['a staircase'], people: ['grandmother'], role: '' },
+      { id: 'dream_c3', night: '2026-10-09', recordedAt: '2026-10-09T07:00:00Z', updatedAt: '2026-10-09T07:01:00Z', images: ['stairs again', 'a lake'], people: [], role: '' },
+    ];
+    const { page, errors } = await openPage({ supported: ['audio/webm;codecs=opus'] });
+    const result = await page.evaluate(async (index) => {
+      const t = window.__meetingTest;
+      appMemory.dreams = { index, dismissed: {} };
+      _saveMemory();
+      Today.use('memory').toggle();
+      const block = () => document.getElementById('dreamMemoryBlock');
+      const lines = () => [...block().querySelectorAll('.memory-item')].map(el => el.querySelector('.memory-item-text').textContent);
+      const before = lines();
+      const firstIsSummary = /^3 dreams kept in your Dropbox/.test(before[0]);
+      const oneLine = before[1] === 'comes back: stairs · grandmother' && before.length === 2;
+      const noDismissCollapsed = !block().querySelector('[data-today-click="dream.image-dismiss"]');
+      const noOnce = !/garden|lake/.test(before.join(' '));
+      block().querySelector('[data-today-click="dream.memory-manage"]').click();
+      const managed = lines();
+      const stairs = managed.includes('stairs — in 3 dreams');
+      const grandmother = managed.includes('grandmother — in 2 dreams');
+      const saves = t.autosaves;
+      block().querySelector('[data-today-click="dream.image-dismiss"][data-image-key="stai"]').click();
+      const after = lines();
+      const stored = JSON.parse(localStorage.getItem('today_memory')).dreams.dismissed;
+      const manageLabel = block().querySelector('[data-today-click="dream.memory-manage"]').textContent;
+      return {
+        firstIsSummary, oneLine, noDismissCollapsed, stairs, grandmother, noOnce,
+        dismissed: after.includes('comes back: grandmother') && !after.some(l => l.startsWith('stairs —')) && after.includes('grandmother — in 2 dreams'),
+        stored: typeof stored.stai === 'string', synced: t.autosaves > saves,
+        lessNotClose: manageLabel === 'less',
+      };
+    }, index);
+    await expectAll('dream images that come back', { ...result, noErrors: errors.length === 0 });
+    ok('Memory → Dreams: one "comes back" line; counts and dismiss under manage; dismiss syncs');
+    await page.close();
+  }
+
   // Chunk barrier: an earlier chunk that answers after the final one still lands, in
   // order, and nothing is read until every chunk has answered.
   {

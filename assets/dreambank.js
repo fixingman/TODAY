@@ -79,6 +79,60 @@
       .slice(0, 5);
   }
 
+  // ── M2: images that come back (v2.95.0) ──────────────────────────────────────
+  // Computed on the device from what each dream already records (images + people in
+  // appMemory.dreams.index) — no extra AI call, nothing new sent anywhere. Two image
+  // phrases are the same thing when they share a content word, compared on the same
+  // softened 4-letter stem as grounding ("stairs" / "the endless staircase", "kitap" /
+  // "kitabı"). Only a thing in two or more dreams is shown; a dismissed one counts
+  // again only from dreams told after the dismissal.
+  const LEXICON_STOP = new Set([
+    'the', 'and', 'but', 'for', 'nor', 'not', 'was', 'her', 'his', 'its', 'our', 'you', 'she',
+    'him', 'all', 'one', 'two', 'any', 'who', 'has', 'had', 'are', 'out', 'off', 'too', 'own',
+    'big', 'old', 'new', 'red', 'way', 'day', 'end', 'top', 'man', 'men', 'lot',
+    'room', 'place', 'thing', 'things', 'people', 'person', 'someone', 'something', 'time',
+    'night', 'side', 'part', 'front', 'inside', 'outside', 'small', 'little', 'large', 'other',
+    'same', 'dream', 'dreams', 'many', 'very', 'long', 'kept', 'keeps', 'trying', 'being',
+    'bir', 'iki', 'çok', 'hep', 'her', 'yer', 'şey', 'eski', 'yeni', 'büyük', 'küçük', 'rüya', 'rüyamda',
+  ]);
+  function _lexiconWords(text, lang) {
+    return _words(text, lang).filter(w => [...w].length >= 3 && !STOPWORDS.has(w) && !LEXICON_STOP.has(w));
+  }
+
+  function recurringImages(rows, dismissed, limit = 5) {
+    const off = dismissed && typeof dismissed === 'object' ? dismissed : {};
+    const byKey = new Map();
+    for (const row of Array.isArray(rows) ? rows : []) {
+      if (!row || row.deleted || !row.id) continue;
+      const seen = new Set();
+      for (const phrase of [...(row.images || []), ...(row.people || [])]) {
+        for (const word of _lexiconWords(phrase, row.lang)) {
+          const key = _stem(word);
+          if (seen.has(key)) continue;
+          if (off[key] && String(row.recordedAt || '') <= String(off[key])) continue;
+          seen.add(key);
+          const item = byKey.get(key) || { key, ids: [], days: [], forms: new Map(), last: '' };
+          item.ids.push(row.id);
+          if (row.night) item.days.push(row.night);
+          item.forms.set(word, (item.forms.get(word) || 0) + 1);
+          if (String(row.recordedAt || '') > item.last) item.last = String(row.recordedAt || '');
+          byKey.set(key, item);
+        }
+      }
+    }
+    return [...byKey.values()]
+      .filter(item => item.ids.length >= 2)
+      .sort((a, b) => b.ids.length - a.ids.length || b.last.localeCompare(a.last))
+      .slice(0, limit)
+      .map(item => ({
+        key: item.key,
+        // The word as it was most often said; ties go to the shorter form.
+        label: [...item.forms.entries()].sort((a, b) => b[1] - a[1] || [...a[0]].length - [...b[0]].length)[0][0],
+        count: item.ids.length,
+        days: [...new Set(item.days)].sort(),
+      }));
+  }
+
   function fileName(entry) {
     return `${entry.night || 'undated'}_${entry.id}.md`;
   }
@@ -395,8 +449,20 @@
 
     function _indexRows() {
       if (typeof appMemory === 'undefined' || !appMemory) return [];
-      if (!appMemory.dreams || !Array.isArray(appMemory.dreams.index)) appMemory.dreams = { index: [] };
+      if (!appMemory.dreams || !Array.isArray(appMemory.dreams.index)) appMemory.dreams = { index: [], dismissed: {} };
       return appMemory.dreams.index;
+    }
+    // { [image key]: ISO } — synced max-wins (sync-merge mergeDreamDismissed).
+    function _dismissedImages() {
+      _indexRows();
+      if (!appMemory || !appMemory.dreams) return {};
+      if (!appMemory.dreams.dismissed || typeof appMemory.dreams.dismissed !== 'object') appMemory.dreams.dismissed = {};
+      return appMemory.dreams.dismissed;
+    }
+    function dismissImage(key) {
+      if (!/^[\p{L}\p{M}]{2,4}$/u.test(String(key || ''))) return;
+      _dismissedImages()[key] = new Date().toISOString();
+      _indexSave();
     }
     function _indexSave() {
       if (typeof _saveMemory === 'function') _saveMemory();
@@ -593,20 +659,32 @@
     // One line until stage 2 gives the collection something to say. "manage" keeps every
     // dream inspectable and deletable here — deleting a file in Dropbox does not remove
     // its synced summary, so the per-dream delete must stay reachable.
+    function _imageLine(item) {
+      // The thing and how often — no dates (Can, 2026-10-11: Memory is being simplified;
+      // the days are in each dream under manage if wanted).
+      return `<div class="memory-item"><span class="memory-item-text">${esc(item.label)} — in ${item.count} dreams</span>` +
+        `<button type="button" class="memory-item-btn" data-today-click="dream.image-dismiss" data-image-key="${esc(item.key)}" aria-label="Dismiss ${esc(item.label)}">dismiss</button></div>`;
+    }
+
     function renderMemory(container) {
       if (!container) return;
       const old = document.getElementById('dreamMemoryBlock');
       const rows = _rows();
       const dir = _files() ? _files().dreamsDir : '/Dreams';
       const n = rows.length;
+      const images = recurringImages(_indexRows(), _dismissedImages());
       const summary = n
         ? `${n} dream${n === 1 ? '' : 's'} kept in your Dropbox, ${dir}`
         : 'a dream you tell the mic lands here';
       const html = `<div class="memory-type-block dream-memory-block" id="dreamMemoryBlock">` +
         `<div class="memory-type-header"><span class="memory-type-name">DREAMS</span></div>` +
         `<div class="memory-item"><span class="memory-item-text">${esc(summary)}</span>` +
-        (n ? `<button type="button" class="memory-item-btn" data-today-click="dream.memory-manage" aria-expanded="${_listOpen}">${_listOpen ? 'close' : 'manage'}</button>` : '') +
+        (n ? `<button type="button" class="memory-item-btn" data-today-click="dream.memory-manage" aria-expanded="${_listOpen}">${_listOpen ? 'less' : 'manage'}</button>` : '') +
         `</div>` +
+        // M2: what comes back across dreams — one line, silent until something does; the
+        // per-item counts and dismiss live under manage (Can, 2026-10-11: simplify Memory).
+        (images.length ? `<div class="memory-item"><span class="memory-item-text">comes back: ${images.map(i => esc(i.label)).join(' · ')}</span></div>` : '') +
+        (images.length && _listOpen ? images.map(_imageLine).join('') : '') +
         (n && _listOpen ? rows.map(_memoryRow).join('') : '') +
         `</div>`;
       if (old) old.outerHTML = html;
@@ -620,7 +698,7 @@
     if (window.Today) {
       Today.define('dreambank', {
         capture, settle, keep, discard, get, onChange, flush,
-        statusText, renderMemory,
+        statusText, renderMemory, dismissImage,
         _list: () => _queue.slice(),
       });
       Today.ui.register('click', 'dream.memory-manage', () => {
@@ -644,6 +722,7 @@
         _rerenderMemory();
         _readFromDropbox(id, _readEpoch);
       });
+      Today.ui.register('click', 'dream.image-dismiss', (_e, el) => { dismissImage(el.dataset.imageKey); _rerenderMemory(); });
       Today.ui.register('click', 'dream.memory-delete', (_e, el) => { _confirmDeleteId = el.dataset.dreamId; _rerenderMemory(); });
       Today.ui.register('click', 'dream.memory-delete-cancel', () => { _confirmDeleteId = null; _rerenderMemory(); });
       Today.ui.register('click', 'dream.memory-delete-confirm', (_e, el) => {
@@ -664,6 +743,6 @@
     _kick(0);
   }
 
-  const core = { dayLabel, groundImages, fileName, toMarkdown, fromMarkdown, DREAM_SYSTEM, EXTRACT_SYSTEM, start };
+  const core = { dayLabel, groundImages, recurringImages, fileName, toMarkdown, fromMarkdown, DREAM_SYSTEM, EXTRACT_SYSTEM, start };
   if (window.Today) window.Today.define('dream-core', core);
 })();
