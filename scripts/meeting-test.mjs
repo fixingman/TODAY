@@ -80,6 +80,15 @@ async function openPage(options = {}) {
       aiResponses: [], aiRequests: [],
       errors: [], pipRequests: 0, pipWindows: [], nextBlobSize: 16,
     };
+    state.until = async predicate => {
+      const deadline = performance.now() + 5000;
+      while (!predicate()) {
+        if (performance.now() > deadline) throw new Error('Media fixture did not settle: '
+          + state.recorders.map(rec => rec.state).join(',') + ' requests='
+          + state.meetingRequests.length + '/' + state.voiceRequests.length);
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+    };
 
     class FakeTrack {
       constructor() { this.readyState = 'live'; this.muted = false; this.stops = 0; }
@@ -188,7 +197,11 @@ async function openPage(options = {}) {
         if (response.gate) await response.gate;
         if (response.throw) throw new Error(response.throw);
         const raw = response.raw !== undefined ? response.raw : JSON.stringify(response.body || response);
-        return { ok: response.ok !== false, status: response.status || 200, text: async () => raw };
+        return { ok: response.ok !== false, status: response.status || 200, text: async () => {
+          if (response.delayMs) await new Promise(resolve => setTimeout(resolve, response.delayMs));
+          state.meetingRepliesRead = (state.meetingRepliesRead || 0) + 1;
+          return raw;
+        } };
       }
       if (String(url).includes('/.netlify/functions/ai-assist')) {
         const body = JSON.parse(fetchOptions.body || '{}');
@@ -816,25 +829,27 @@ try {
     const { page, errors } = await openPage({ supported: ['audio/mp4'], touch: true });
     const result = await page.evaluate(async () => {
       window.__meetingTest.meetingResponses.push(
-        { updatedContext: 'after one', actionItems: [{ text: 'First action', owner: 'Can', mine: true }] },
-        { updatedContext: 'after two', actionItems: [
+        { delayMs: 150, updatedContext: 'after one', actionItems: [{ text: 'First action', owner: 'Can', mine: true }] },
+        { delayMs: 150, updatedContext: 'after two', actionItems: [
           { text: 'First action!', owner: 'Can', mine: true },
           { text: 'Second action', owner: 'Can', mine: true },
         ] },
-        { updatedContext: 'final', actionItems: [] },
+        { delayMs: 150, updatedContext: 'final', actionItems: [] },
       );
+      const until = window.__meetingTest.until;
       Today.use('meeting').toggleMeeting();
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await until(() => window.__meetingTest.recorders[0]?.state === 'recording');
       const first = window.__meetingTest.recorders[0];
       const iosPolicy = first.options.audioBitsPerSecond === 32000 && first.options.mimeType === 'audio/mp4';
       first.stop();
-      await new Promise(resolve => setTimeout(resolve, 30));
+      await until(() => window.__meetingTest.recorders[1]?.state === 'recording' && window.__meetingTest.meetingRepliesRead === 1);
       const second = window.__meetingTest.recorders[1];
       second.stop();
-      await new Promise(resolve => setTimeout(resolve, 30));
+      await until(() => window.__meetingTest.recorders[2]?.state === 'recording' && window.__meetingTest.meetingRepliesRead === 2);
       const third = window.__meetingTest.recorders[2];
       Today.use('meeting').toggleMeeting();
-      await new Promise(resolve => setTimeout(resolve, 40));
+      await until(() => window.__meetingTest.meetingRepliesRead === 3
+        && document.querySelectorAll('#meetingItems .meeting-item').length === 2);
       const texts = [...document.querySelectorAll('#meetingItems .meeting-item .meeting-item-text')]
         .map(el => el.textContent.trim());
       return {
@@ -866,9 +881,9 @@ try {
       window.__meetingTest.meetingResponses.push(...cfg.responses);
       window.__meetingTest.nextBlobSize = cfg.blobSize;
       Today.use('meeting').toggleMeeting();
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await window.__meetingTest.until(() => window.__meetingTest.recorders[0]?.state === 'recording');
       Today.use('meeting').toggleMeeting();
-      await new Promise(resolve => setTimeout(resolve, 60));
+      await window.__meetingTest.until(() => !!document.querySelector('.meeting-review-empty'));
       return {
         requests: window.__meetingTest.meetingRequests.length,
         logged: window.__meetingTest.errors.length > 0,
@@ -909,24 +924,24 @@ try {
     const { page, errors } = await openPage();
     const result = await page.evaluate(async () => {
       Today.use('meeting').toggleMeeting();
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await window.__meetingTest.until(() => window.__meetingTest.recorders[0]?.state === 'recording');
       const first = window.__meetingTest.recorders[0];
       window.__meetingTest.setVisibility('hidden');
       window.__meetingTest.setVisibility('visible');
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await window.__meetingTest.until(() => window.__meetingTest.wakeRequests >= 2);
       const survived = first.state === 'recording' && window.__meetingTest.recorders.length === 1;
 
       first.pause();
       window.__meetingTest.setVisibility('hidden');
       window.__meetingTest.setVisibility('visible');
-      await new Promise(resolve => setTimeout(resolve, 30));
+      await window.__meetingTest.until(() => window.__meetingTest.recorders[1]?.state === 'recording');
       const restarted = window.__meetingTest.recorders.length === 2
         && window.__meetingTest.recorders[1].state === 'recording';
 
       window.__meetingTest.streams[0].track.readyState = 'ended';
       window.__meetingTest.setVisibility('hidden');
       window.__meetingTest.setVisibility('visible');
-      await new Promise(resolve => setTimeout(resolve, 40));
+      await window.__meetingTest.until(() => !document.getElementById('meetingBtn').classList.contains('live'));
       return {
         survived, restarted,
         noFalseLive: !document.getElementById('meetingBtn').classList.contains('live'),
@@ -945,15 +960,15 @@ try {
     const { page, errors } = await openPage({ pip: true });
     const result = await page.evaluate(async () => {
       Today.use('meeting').toggleMeeting();
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await window.__meetingTest.until(() => window.__meetingTest.recorders[0]?.state === 'recording');
       window.__meetingTest.setVisibility('hidden');
-      await new Promise(resolve => setTimeout(resolve, 30));
+      await window.__meetingTest.until(() => !!window.__meetingTest.pipWindows[0]?.document.getElementById('mpBtn'));
       const pip = window.__meetingTest.pipWindows[0];
       const button = pip?.document.getElementById('mpBtn');
       const live = pip?.document.getElementById('mpDot')?.classList.contains('live')
         && button?.textContent === 'stop';
       button?.click();
-      await new Promise(resolve => setTimeout(resolve, 30));
+      await window.__meetingTest.until(() => pip?.closed === true);
       return {
         openedOnce: window.__meetingTest.pipRequests === 1,
         live,
@@ -977,13 +992,14 @@ try {
       input.value = 'draft task';
       window.__meetingTest.voiceResponses.push(cfg.response);
       Today.use('meeting').toggleVoiceNote();
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await window.__meetingTest.until(() => window.__meetingTest.recorders[0]?.state === 'recording');
       const rec = window.__meetingTest.recorders[0];
       const started = rec?.state === 'recording'
         && document.getElementById('voicePill').classList.contains('show')
         && document.getElementById('voiceNoteBtn').classList.contains('live');
       Today.use('meeting').toggleVoiceNote();
-      await new Promise(resolve => setTimeout(resolve, 40));
+      await window.__meetingTest.until(() => window.__meetingTest.voiceRequests.length === 1
+        && input.value === cfg.expected && !input.disabled);
       return {
         started,
         requestMime: window.__meetingTest.voiceRequests[0]?.mimeType === 'audio/webm',
@@ -1000,13 +1016,13 @@ try {
     const { page, errors } = await openPage({ supported: [], touch: true });
     const result = await page.evaluate(async () => {
       const realNow = Date.now;
-      const base = realNow();
       Today.use('meeting').toggleVoiceNote();
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await window.__meetingTest.until(() => window.__meetingTest.recorders[0]?.state === 'recording');
+      const base = realNow();
       Date.now = () => base + 91000;
-      await new Promise(resolve => setTimeout(resolve, 1100));
+      await window.__meetingTest.until(() => window.__meetingTest.recorders[0].state === 'inactive');
       Date.now = realNow;
-      await new Promise(resolve => setTimeout(resolve, 30));
+      await window.__meetingTest.until(() => window.__meetingTest.voiceRequests.length === 1);
       return {
         stopped: window.__meetingTest.recorders[0].state === 'inactive',
         sent: window.__meetingTest.voiceRequests.length === 1,

@@ -317,6 +317,8 @@ const DESKTOP_INPUT = '--blink-settings=availableHoverTypes=2,primaryHoverType=2
 const browser = await puppeteer.launch({
   executablePath: CHROME,
   headless: 'new',
+  // Avoid the flaky discovery of Chrome's WebSocket endpoint from process output.
+  pipe: true,
   args: ['--no-first-run', '--disable-extensions', DESKTOP_INPUT],
 });
 

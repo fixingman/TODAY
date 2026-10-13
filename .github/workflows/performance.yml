@@ -28,14 +28,19 @@ jobs:
       - name: Install test dependencies
         run: npm ci --prefix scripts
       - name: Verify Chrome
-        run: test -x "$CHROME_PATH"
+        run: |
+          test -x "$CHROME_PATH"
+          "$CHROME_PATH" --version
       - name: Measure deployed dev build
-        run: npm run performance --prefix scripts -- --target "$PERF_TARGET_URL" --output performance-nightly.json --no-audit-check --require-version-match
+        run: npm run performance --prefix scripts -- --target "$PERF_TARGET_URL" --output performance-nightly.json --no-audit-check --require-version-match --trace-on-failure .context/performance-diagnostics
       - name: Retain benchmark JSON
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: performance-nightly-${{ github.run_id }}
-          path: performance-nightly.json
+          path: |
+            performance-nightly.json
+            .context/performance-diagnostics/
           if-no-files-found: warn
+          include-hidden-files: true
           retention-days: 30

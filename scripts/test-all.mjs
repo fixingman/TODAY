@@ -1,7 +1,7 @@
 // Run design lint and every local *-test.mjs suite except explicitly credentialed live tests.
 // Usage: node scripts/test-all.mjs
 import { spawnSync } from 'child_process';
-import { existsSync, readdirSync } from 'fs';
+import { existsSync, readdirSync, mkdirSync, writeFileSync, rmSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -30,6 +30,7 @@ const SUITE = [
   'meeting-extract-unit-test',
   'error-monitor-unit-test',
   'console-probe-test',
+  'ci-tooling-test',
   'zones-test',
   'task-actions-test',
   'task-bounce-test',
@@ -69,6 +70,9 @@ const NON_TEST_SUITE = new Set([
 ]);
 
 const SUITE_TIMEOUT_MS = 120000;
+const LOG_DIR = join(DIR, '..', '.context', 'ci-test-results');
+rmSync(LOG_DIR, { recursive: true, force: true });
+mkdirSync(LOG_DIR, { recursive: true });
 
 function verifySuiteInventory() {
   const discovered = readdirSync(DIR)
@@ -103,40 +107,39 @@ let failed = 0;
 const flakes = [];
 const failures = [];
 
-function runSuite(name) {
-  return spawnSync(process.execPath, [join(DIR, `${name}.mjs`)], {
+function runSuite(name, attempt) {
+  const result = spawnSync(process.execPath, [join(DIR, `${name}.mjs`)], {
     stdio: ['ignore', 'pipe', 'pipe'],
     encoding: 'utf8',
     timeout: SUITE_TIMEOUT_MS,
     killSignal: 'SIGTERM',
   });
+  writeFileSync(join(LOG_DIR, `${name}-${attempt}.log`),
+    `exit=${result.status} signal=${result.signal || 'none'}\n${result.error?.stack || ''}\n${result.stdout || ''}${result.stderr || ''}`);
+  return result;
 }
 
 function failureDetail(result) {
   if (result.error?.code === 'ETIMEDOUT') return `Timed out after ${SUITE_TIMEOUT_MS / 1000}s`;
-  return (result.stderr || result.stdout || '')
-    .trim()
-    .split('\n')
-    .slice(-6)
-    .join('\n');
+  return [result.error?.stack, result.stdout, result.stderr].filter(Boolean).join('\n').trim();
 }
 
 for (const name of SUITE) {
-  const first = runSuite(name);
+  const first = runSuite(name, 'first');
   if (first.status === 0) {
     console.log(`  ✓ ${name}`);
     passed++;
     continue;
   }
 
-  const retry = runSuite(name);
+  const retry = runSuite(name, 'retry');
   if (retry.status === 0) {
     console.log(`  ⚠ ${name} (passed on retry; flaky)`);
     flakes.push({ name, detail: failureDetail(first) });
     flaky++;
   } else {
     console.log(`  ✗ ${name}`);
-    failures.push({ name, detail: failureDetail(retry) });
+    failures.push({ name, detail: `First attempt:\n${failureDetail(first)}\n\nDiagnostic retry:\n${failureDetail(retry)}` });
     failed++;
   }
 }

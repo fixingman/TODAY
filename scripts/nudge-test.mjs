@@ -95,6 +95,17 @@ async function openPage({ extraSeed, hourOverride = 9, skipDismiss = false, cont
     { timeout: 15000 }
   );
   await page.evaluate(() => {
+    // State waits survive a busy/background renderer; fake Date.now must not move their deadline.
+    const timeout = window.setTimeout.bind(window);
+    window.__nudgeTestWait = async (predicate, label) => {
+      const deadline = performance.now() + 5000;
+      while (!predicate()) {
+        if (performance.now() > deadline) throw new Error('Nudge fixture did not reach: ' + label
+          + ' audit=' + JSON.stringify(Today.use('nudge').generationAudit())
+          + ' calls=' + window.__calls + ' timers=' + window.__retries?.size);
+        await new Promise(resolve => timeout(resolve, 20));
+      }
+    };
     window.__nudgeTestBackup  = window.dropboxBackup;
     window.dropboxAutoSave    = () => {};
     window.dropboxBackup      = () => {};
@@ -129,7 +140,7 @@ try {
       const result = await page.evaluate(async () => {
         localStorage.removeItem('day_nudge_dismissed_' + _localISO());
         checkDayNudge();
-        await new Promise(r => setTimeout(r, 100)); // wait for requestAnimationFrame
+        await window.__nudgeTestWait(() => document.getElementById('dayNudge').classList.contains('visible'), 'cached line painted');
         const nudge = document.getElementById('dayNudge');
         return {
           nudgeVisible: !!(nudge && nudge.classList.contains('visible')),
@@ -669,45 +680,58 @@ try {
       const contexts = await Promise.all([browser.createBrowserContext(), browser.createBrowserContext()]);
       const [a, b] = await Promise.all(contexts.map(context => openPage({ context })));
       const good = 'Write the tests could leave less uncertainty around the next change.';
-      for (const { page } of [a, b]) await page.evaluate(() => {
-        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
-        localStorage.setItem('today_ai_provider', 'claude');
-        localStorage.setItem('today_ai_key_claude', 'test-key');
-        localStorage.setItem('dropbox_token', 'test-token');
-        localStorage.setItem('dropbox_token_expiry', String(Date.now() + 3600000));
-        appMemory.taskOutcomes = []; appMemory.spokenLines = [];
-        window._saveMemory = () => localStorage.setItem('today_memory', JSON.stringify(appMemory));
-        window.__saveSignals = 0;
-        window.dropboxAutoSave = () => window.__saveSignals++;
-        window.__uploads = [];
-        window.__dropboxResponse = (url, options) => {
-          if (url.includes('/files/upload')) window.__uploads.push(JSON.parse(options.body));
-          return { ok: true, status: 200, json: async () => ({ rev: 'test-rev' }) };
-        };
-      });
+      for (const { page } of [a, b]) {
+        // Let initial sync settle before adding fake connected-account credentials.
+        await page.waitForFunction(() => Today.use('nudge').generationAudit().status === 'not-configured', { timeout: 5000 });
+        await page.evaluate(() => {
+          localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+          localStorage.setItem('today_ai_provider', 'claude');
+          localStorage.setItem('today_ai_key_claude', 'test-key');
+          localStorage.setItem('dropbox_token', 'test-token');
+          localStorage.setItem('dropbox_token_expiry', String(Date.now() + 3600000));
+          appMemory.taskOutcomes = []; appMemory.spokenLines = [];
+          window._saveMemory = () => localStorage.setItem('today_memory', JSON.stringify(appMemory));
+          window.__saveSignals = 0;
+          window.dropboxAutoSave = () => window.__saveSignals++;
+          window.__uploads = [];
+          window.__dropboxResponse = (url, options) => {
+            if (url.includes('/files/upload')) window.__uploads.push(JSON.parse(options.body));
+            return { ok: true, status: 200, json: async () => ({ rev: 'test-rev' }) };
+          };
+        });
+      }
       const failed = await a.page.evaluate(async good => {
-        const timeout = window.setTimeout;
-        window.__retries = [];
+        const timeout = window.setTimeout, clear = window.clearTimeout;
+        const now = Date.now(); Date.now = () => now;
+        window.__retries = new Map(); let nextTimer = -1;
         window.setTimeout = (fn, delay, ...args) => {
           if (delay === 30000 || delay === 120000) {
-            window.__retries.push(fn); return -window.__retries.length;
+            const id = nextTimer--; window.__retries.set(id, fn); return id;
           }
           return timeout(fn, delay, ...args);
         };
+        window.clearTimeout = id => { if (!window.__retries.delete(id)) clear(id); };
         window.__calls = 0;
         window.fetch = async (url, options) => {
           if (!url.includes('/ai-assist')) return window.__dropboxResponse(url, options);
+          // Deliberately exceed the old 60ms sleep, modelling an async rejection.
+          await new Promise(r => timeout(r, 150));
           if (++window.__calls === 1) throw new TypeError('Failed to fetch');
           return { ok: true, json: async () => ({ content: good }) };
         };
-        checkDayNudge(); await new Promise(r => timeout(r, 60));
+        checkDayNudge();
+        await window.__nudgeTestWait(() => window.__retries.size === 1
+          && Today.use('nudge').generationAudit().status === 'network-error', 'scheduled network recovery');
+        checkDayNudge(); // Rescheduling cancels the old fake timer, just like the browser.
         const countShown = document.getElementById('dayNudge').textContent.includes('still here from yesterday');
         document.getElementById('dayNudge').click();
         await window.__nudgeTestBackup(true);
-        return { countShown, signalled: window.__saveSignals === 1, payload: window.__uploads.at(-1) };
+        return { countShown, signalled: window.__saveSignals === 1, payload: window.__uploads.at(-1),
+          oneActiveTimer: window.__retries.size === 1 };
       }, good);
       await expectAll('device A failed fallback dismissal', {
         countShown: failed.countShown, autosave: failed.signalled,
+        oneActiveTimer: failed.oneActiveTimer,
         datedDismissal: failed.payload.per_day_dismiss_date === TODAY && failed.payload.day_nudge_dismissed === '1',
         noPrematureLine: !failed.payload.day_nudge_ai,
       });
@@ -720,7 +744,8 @@ try {
         mergeRemoteData(payload);
         document.getElementById('infoPanel').classList.add('open');
         Today.use('about').renderInfoStats();
-        checkDayNudge(); await new Promise(r => setTimeout(r, 40));
+        checkDayNudge();
+        await window.__nudgeTestWait(() => window.__calls === 1, 'device B pending request');
         return { retryAllowed: window.__calls === 1,
           hidden: !document.getElementById('dayNudge').classList.contains('visible'),
           dismissalAdopted: localStorage.getItem('day_nudge_dismissed_' + _localISO()) === '1' };
@@ -731,8 +756,9 @@ try {
         Today.use('about').renderInfoStats();
         const readyAt = Today.use('nudge').generationAudit().retryAt + 1;
         Date.now = () => readyAt;
-        window.__retries.shift()();
-        await new Promise(r => setTimeout(r, 60));
+        const [id, retry] = window.__retries.entries().next().value;
+        window.__retries.delete(id); retry();
+        await window.__nudgeTestWait(() => Today.use('nudge').generationAudit().status === 'accepted', 'device A accepted recovery');
         await window.__nudgeTestBackup(true);
         return { signalled: window.__saveSignals === 2, payload: window.__uploads.at(-1),
           aboutLive: document.getElementById('todayNudgeBlock').textContent.includes(localStorage.getItem('day_nudge_ai_' + _localISO())),
@@ -749,7 +775,7 @@ try {
         const aboutLive = document.getElementById('todayNudgeBlock').textContent.includes(good);
         _memoryReactToLine('morning nudge', _localISO(), 'landed');
         window.__resolveAI({ ok: true, json: async () => ({ content: 'A competing local reply must not replace the voted line.' }) });
-        await new Promise(r => setTimeout(r, 60));
+        await window.__nudgeTestWait(() => Today.use('nudge').generationAudit().status === 'cache-adopted', 'device B settled late reply');
         await window.__nudgeTestBackup(true);
         return { aboutLive, hidden: !document.getElementById('dayNudge').classList.contains('visible'),
           canonical: localStorage.getItem('day_nudge_ai_' + _localISO()) === good,

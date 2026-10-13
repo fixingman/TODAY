@@ -43,7 +43,7 @@ Position is alternated so judge bias cancels. `--prompt=file` scores a candidate
 current prompt; `--runs=N` and `--out=file` for comparisons. Compare prompts only on equal runs. The runner verifies the test
 inventory and the explicitly registered non-test check before execution. A check that passes
 only on its diagnostic retry is reported as flaky and fails the gate; each attempt is capped at
-120 seconds. Tooling requires Node >=22.12 and Puppeteer 25. The last dual-runtime assurance
+120 seconds. Every attempt retains its full stdout/stderr and exit/signal in `.context/ci-test-results/`; failure summaries include the complete error and both failed attempts, rather than only the tail of a stack. Push/PR CI uploads these logs, the benchmark JSON and any diagnostic traces for 30 days, including when earlier steps fail. `ci-tooling-test` exercises clean, flaky and failed runs against synthetic suites and payload limits without Chrome. Two-device nudge fixtures await initial sync and response state, and fake retry timers honor cancellation; meeting/voice rollover, retry, recording, PiP and cleanup use observable state instead of short sleeps. Both use 150ms simulated latency. The smoke browser uses a DevTools pipe so startup does not depend on discovering a WebSocket URL in process output; startup/app failures still fail. Tooling requires Node >=22.12 and Puppeteer 25. The last dual-runtime assurance
 pass was clean on Node 22.23.2 and 24.14.0; current measured performance evidence is in
 `Performance-audit.md`. GitHub Actions runs the same gate plus `npm run performance --prefix scripts`
 on pushes and pull requests to `dev`/`master`. A scheduled workflow measures the deployed dev
@@ -61,12 +61,14 @@ URL and retains its JSON for 30 days. Run
   payload and timing budget, but a dated audit snapshot does not fail each intervening release.
   Refresh the tracked audit deliberately when reviewing performance, not as a prerequisite for
   every app-version bump.
+- `--payload-only` checks deterministic byte/font/script ceilings without launching Chrome; CI runs it before browser suites, and the full performance gate still repeats those checks.
+- `--trace-on-failure DIR` keeps the original verdict and, only after a budget failure, launches a fresh Chrome process for a separate cold/warm-load/focus replay. It saves DevTools traces without screenshots and separate replay metrics. Tracing never changes the original five-run evidence or its worst-run budgets; replay need not reproduce an intermittent stall.
 - Nightly checks out `dev`, requires the deployed version to match, and warms Chrome on a blank
   page before cold navigation. It still clears cache and origin storage for every measured run;
   long-task timings are retained in the JSON when a worst-run outlier needs diagnosis.
 - Cold/warm evidence includes TTFB, FCP, LCP, CLS, total blocking time, long tasks, load timing,
   TODAY's four lifecycle marks, transferred/encoded/decoded bytes, and service-worker control.
-  Interaction evidence measures task addition and entry into focus.
+  Interaction evidence measures task addition and entry into focus. Benchmark JSON also records Chrome/Node versions, platform and architecture so runner updates can be compared.
 - The 1.8s FCP, 2.5s LCP, and 0.1 CLS targets remain visible separately from calibrated
   regression ceilings. The splash-dismiss ceiling covers the corpus's longest intentional
   poem reading hold and line-by-line exit; compare interactive timing separately. A current

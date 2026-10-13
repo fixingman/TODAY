@@ -27,12 +27,28 @@ jobs:
       - name: Install test dependencies
         run: npm ci --prefix scripts
       - name: Verify Chrome
-        run: test -x "$CHROME_PATH"
+        run: |
+          test -x "$CHROME_PATH"
+          "$CHROME_PATH" --version
+      - name: Check payload before browser suites
+        run: npm run performance --prefix scripts -- --payload-only
       - name: Run automated gate
         run: npm test --prefix scripts
       - name: Run performance budgets
-        run: npm run performance --prefix scripts -- --no-audit-check
+        run: npm run performance --prefix scripts -- --no-audit-check --output performance-ci.json --trace-on-failure .context/performance-diagnostics
       - name: Validate memory inventory
         run: bash memory/validate-files.sh
       - name: Check patch whitespace
         run: git diff-tree --check --root -r HEAD
+      - name: Retain CI evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-evidence-${{ github.run_id }}
+          path: |
+            .context/ci-test-results/
+            performance-ci.json
+            .context/performance-diagnostics/
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 30

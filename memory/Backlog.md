@@ -192,6 +192,7 @@ Build before investing in native calendar-led capture; this integration is indep
 
 | Item | Revisit trigger / boundary |
 |------|----------------------------|
+| CI reliability (v2.95.6 shipped) | Review the next GitHub first-process performance failure using retained cold/warm/focus traces; cause is still unresolved. Keep worst-run budgets and flaky-test failures. Delayed two-device nudge fixtures reproduce and remove a fixed-sleep race; early payload preflight and complete attempt logs improve diagnosis. |
 | Memory panel — AI hypotheses | Can rarely visits and finds most guesses uninteresting. Inspect semantic/episodic/procedural confirmation statuses before adding generation or sources; separate this from the plain KNOWN record verdict. |
 | AI/data outcome loop | `suggestionOutcomes` is bounded to 100 resolved offers. Extend only if underperformance appears and the action mix actually changed; no automatic analytics. |
 | Merge-anomaly observability | Console-only breadcrumb, no persisted counter. Revisit only when anomalies appear during debugging. |

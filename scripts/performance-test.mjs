@@ -10,7 +10,7 @@
 
 import { createServer } from 'node:http';
 import { brotliCompressSync, constants as zlibConstants } from 'node:zlib';
-import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { readFile, readdir, stat, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, extname, isAbsolute, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,6 +32,8 @@ const valueAfter = flag => {
   return index === -1 ? null : args[index + 1];
 };
 const WRITE = args.includes('--write');
+const PAYLOAD_ONLY = args.includes('--payload-only');
+const TRACE_ON_FAILURE = valueAfter('--trace-on-failure');
 const SKIP_AUDIT_CHECK = args.includes('--no-audit-check');
 const REQUIRE_VERSION_MATCH = args.includes('--require-version-match');
 const TARGET = valueAfter('--target') || process.env.PERF_TARGET_URL || null;
@@ -194,16 +196,19 @@ async function waitForReady(page, includeSplash) {
   await new Promise(resolve => setTimeout(resolve, 250));
 }
 
-async function coldAndWarm(browser, url) {
+async function coldAndWarm(browser, url, tracePath) {
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
   await installObservers(page);
   const session = await emulateMobile(page);
   await session.send('Network.clearBrowserCache');
   await session.send('Storage.clearDataForOrigin', { origin: new URL(url).origin, storageTypes: 'all' });
+  if (tracePath) await page.tracing.start({ path: tracePath, screenshots: false,
+    categories: ['devtools.timeline', 'v8.execute', 'disabled-by-default-devtools.timeline.stack'] });
   await page.goto(url, { waitUntil: 'load', timeout: 30000 });
   await waitForReady(page, true);
   const cold = await readPageMetrics(page);
+  if (tracePath) await page.tracing.stop();
   await page.evaluate(async () => {
     if ('serviceWorker' in navigator) {
       await Promise.race([
@@ -212,14 +217,17 @@ async function coldAndWarm(browser, url) {
       ]);
     }
   });
+  if (tracePath) await page.tracing.start({ path: tracePath.replace('cold-trace.json', 'warm-trace.json'),
+    screenshots: false, categories: ['devtools.timeline', 'v8.execute', 'disabled-by-default-devtools.timeline.stack'] });
   await page.reload({ waitUntil: 'load', timeout: 30000 });
   await waitForReady(page, true);
   const warm = await readPageMetrics(page);
+  if (tracePath) await page.tracing.stop();
   await context.close();
   return { cold, warm };
 }
 
-async function interactionRun(browser, url, run) {
+async function interactionRun(browser, url, run, tracePath) {
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
   await page.setViewport({ width: 1280, height: 900 });
@@ -230,6 +238,8 @@ async function interactionRun(browser, url, run) {
       { id: `manual_perf_${seedRun}`, text: 'Performance focus task', addedAt: new Date().toISOString() },
     ]));
   }, run);
+  if (tracePath) await page.tracing.start({ path: tracePath, screenshots: false,
+    categories: ['devtools.timeline', 'v8.execute', 'disabled-by-default-devtools.timeline.stack'] });
   await page.goto(url, { waitUntil: 'load', timeout: 30000 });
   await waitForReady(page, true);
 
@@ -264,6 +274,7 @@ async function interactionRun(browser, url, run) {
   });
   await page.click('#manualList .task .task-text');
   const enterFocus = await page.evaluate(() => window.__todayFocusLatency);
+  if (tracePath) await page.tracing.stop();
   await context.close();
   return { addTask, enterFocus };
 }
@@ -293,7 +304,7 @@ function budgetFailures(payload, timings) {
     const pass = key === 'eagerScripts' ? actual <= max : actual <= max;
     if (!pass) failures.push(`payload.${key}: ${actual} > ${max}`);
   }
-  for (const [path, max] of Object.entries(budgetConfig.timing)) {
+  for (const [path, max] of Object.entries(timings ? budgetConfig.timing : {})) {
     const actual = lookup(timings, `${path}.worst`);
     if (actual > max) failures.push(`${path} worst: ${round(actual)} > ${max}`);
   }
@@ -373,10 +384,27 @@ async function updateOrCheckAudit(result) {
   if (current !== audit) throw new Error('Performance audit is stale. Run: npm run performance:write --prefix scripts');
 }
 
+async function launchBenchmarkBrowser(puppeteer) {
+  const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
+    args: ['--no-first-run', '--disable-extensions', '--no-sandbox', DESKTOP_INPUT] });
+  // Match setup for measured runs and replays; blank cannot cache TODAY or its worker.
+  const warmupPage = await browser.newPage();
+  await warmupPage.goto('about:blank');
+  await warmupPage.close();
+  return browser;
+}
+
 let server;
 let browser;
 try {
   const payload = await payloadEvidence();
+  if (PAYLOAD_ONLY) {
+    const failures = budgetFailures(payload, null);
+    console.log(`  payload: ${kb(payload.runtimeShellRaw)} decoded / ${kb(payload.runtimeShellBrotli)} Brotli, ${payload.eagerScripts} scripts`);
+    if (failures.length) console.error('Payload budget failures:\n  ' + failures.join('\n  '));
+    else console.log('  ✓ payload budgets passed');
+    process.exit(failures.length ? 1 : 0);
+  }
   let url = TARGET;
   if (!url) {
     server = await startServer();
@@ -392,16 +420,7 @@ try {
     }
   }
   const puppeteer = (await import('puppeteer-core')).default;
-  browser = await puppeteer.launch({
-    executablePath: CHROME,
-    headless: 'new',
-    args: ['--no-first-run', '--disable-extensions', '--no-sandbox', DESKTOP_INPUT],
-  });
-  // Start Chrome's renderer before the measured cold page loads. The page below is
-  // about:blank, so it cannot cache any TODAY resource or register its worker.
-  const warmupPage = await browser.newPage();
-  await warmupPage.goto('about:blank');
-  await warmupPage.close();
+  browser = await launchBenchmarkBrowser(puppeteer);
   const runs = [];
   for (let run = 1; run <= ITERATIONS; run++) {
     process.stdout.write(`  performance run ${run}/${ITERATIONS} ... `);
@@ -415,6 +434,8 @@ try {
     schema: 1,
     capturedAt: new Date().toISOString(),
     target: TARGET || 'local-static-server',
+    environment: { browserVersion: await browser.version(), nodeVersion: process.version,
+      platform: process.platform, architecture: process.arch },
     profile: { cpuSlowdown: CPU_THROTTLE_RATE, downloadMbps: 1.6, uploadKbps: 750, latencyMs: 150 },
     payload,
     timings,
@@ -445,6 +466,22 @@ try {
   if (failures.length) {
     console.error('\nPerformance budget failures:\n  ' + failures.join('\n  '));
     process.exitCode = 1;
+    if (TRACE_ON_FAILURE) {
+      // Replay separately: tracing never affects the five measured runs or their verdict.
+      const traceDir = isAbsolute(TRACE_ON_FAILURE) ? TRACE_ON_FAILURE : join(ROOT, TRACE_ON_FAILURE);
+      await mkdir(traceDir, { recursive: true });
+      console.log('  Capturing a separate diagnostic replay; original failure remains.');
+      try {
+        // The previous runs prime Chrome process caches. Reproduce first-process work too.
+        await browser.close();
+        browser = await launchBenchmarkBrowser(puppeteer);
+        const load = await coldAndWarm(browser, url, join(traceDir, 'cold-trace.json'));
+        const interactions = await interactionRun(browser, url, 'diagnostic', join(traceDir, 'interaction-trace.json'));
+        await writeFile(join(traceDir, 'replay.json'), JSON.stringify({ load, interactions }, null, 2) + '\n');
+      } catch (error) {
+        console.error('  Diagnostic replay failed: ' + error.message);
+      }
+    }
   } else {
     console.log('  ✓ performance budgets passed');
   }
