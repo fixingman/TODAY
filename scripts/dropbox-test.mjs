@@ -493,6 +493,32 @@ try {
     await page.close();
   }
 
+  // Dated completion hours: per day, per hour MAX; pre-clear days drop; peak re-derived.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const iso = n => { const d = new Date(); d.setDate(d.getDate() - n); return _localISO(d); };
+      const base = { manual_tasks: [], done_ids: [], deleted_ids: [], unchecked_ids: [], checked_ids: [], soon_tasks: [], past_tasks: [], habits: [] };
+      appMemory.clearedAt = '';
+      appMemory.patterns.completionsByHour = { '9': 100 };
+      appMemory.patterns.completionHourDays = { [iso(2)]: { '15': 4 }, [iso(40)]: { '9': 1 } };
+      mergeRemoteData({ ...base, memory: { clearedAt: iso(10) + 'T00:00:00.000Z', patterns: {
+        completionsByHour: {}, completionHourDays: { [iso(2)]: { '15': 9 }, [iso(1)]: { '15': 12 }, [iso(30)]: { '9': 50 } },
+      } } });
+      const d = appMemory.patterns.completionHourDays;
+      return {
+        maxPerDayHour: d[iso(2)]['15'] === 9,
+        remoteDayAdded: d[iso(1)]['15'] === 12,
+        preClearRemoteDropped: !(iso(30) in d),
+        preClearLocalDropped: !(iso(40) in d),
+        peakFromWindow: appMemory.preferences.peakHour === 15,
+      };
+    });
+    await expectAll('completion hour sync', { ...result, noErrors: errors.length === 0 });
+    ok('mergeRemoteData: dated completion hours merge per day/hour MAX, honour the clear watermark, re-derive the peak');
+    await page.close();
+  }
+
   // 11b-ext. AI inference merge: _lastAbstractDate max-wins; cross-slot dedup by full text.
   {
     const { page, errors } = await openPage();

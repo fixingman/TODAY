@@ -145,7 +145,8 @@ Calendar event timing/join context is closure-only in `calendar.js`; never a sto
   totalDaysActive: number,
   firstSeen: 'YYYY-MM-DD',
   patterns: {
-    completionsByHour: {},           // { "9": 12, ... } — tasks completed per hour
+    completionsByHour: {},           // { "9": 12, ... } — tasks completed per hour, lifetime (fallback for the peak hour)
+    completionHourDays: {},          // v2.95.7 — { "YYYY-MM-DD": { "9": 2 } }, last 90 days (pruned on derive). peakHour reads this window once it holds ≥ 20 completions
     taskKeywords: {},                // { word: { completed: N } }
     focusMinutesTotal: number,       // lifetime focus minutes
     bestStreak: number,

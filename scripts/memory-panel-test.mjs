@@ -588,6 +588,37 @@ try {
     await page.close();
   }
 
+  // At most three confirmed inferences, newest support first, and the focus companion
+  // reads exactly that selection.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const today = _localISO();
+      const back = n => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() - n); return _localISO(d); };
+      const monday = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return _localISO(d); };
+      const item = (id, type, text, seen) => ({ id, type, text, status: 'confirmed', lastSeen: back(seen), seenWeeks: [monday(back(21)), monday(back(14)), monday(back(seen))] });
+      appMemory.memory = {
+        semantic: [item('A', 'semantic', 'chosen work closes fast while errands for others linger', 9), item('B', 'semantic', 'admin waits until a deadline is named in the task', 1)],
+        episodic: [],
+        procedural: [item('C', 'procedural', 'reopens released work after a quiet weekend', 2), item('D', 'procedural', 'starts long sessions on tasks carried several days', 4),
+          { ...item('E', 'procedural', 'pending inference never shown anywhere', 0), status: 'pending' }],
+      };
+      const shown = Today.use('memory').shownInferences();
+      Today.use('memory').toggle();
+      const text = document.getElementById('memoryContent').textContent;
+      return {
+        capAtThree: shown.length === 3,
+        newestFirst: shown[0].startsWith('admin waits') && shown[1].startsWith('reopens released') && shown[2].startsWith('starts long sessions'),
+        oldestOmitted: !shown.some(t => t.startsWith('chosen work')) && !text.includes('chosen work closes fast'),
+        pendingOmitted: !shown.some(t => t.startsWith('pending')),
+        panelMatches: shown.every(t => text.includes(t)),
+      };
+    });
+    await expectAll('capped inferences', { ...result, noErrors: errors.length === 0 });
+    ok('confirmed inferences: at most three, newest support first, one selection for PATTERNS and focus');
+    await page.close();
+  }
+
   // Static ownership checks.
   {
     const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');

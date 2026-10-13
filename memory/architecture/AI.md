@@ -46,7 +46,7 @@ A question inside the focus timer bar, from the ✦ ask button. One question und
 | Peak productive hour | `peakHour` ± 1h |
 | Other focus sessions today | `stat_focus_mins_today ÷ 25` ≥ 1 |
 
-Up to 4 **confirmed** memory inferences (semantic / episodic / procedural, `status === 'confirmed'`) are appended to the system prompt as "What we know about the user: …". The button gains a quiet `high-signal` state when stuck/returning signals align.
+The confirmed inferences Memory → PATTERNS shows (`Today.use('memory').shownInferences()` — at most 3, newest support first, restatements of computed lines dropped; v2.95.7) are appended to the system prompt as "What we know about the user: …". The button gains a quiet `high-signal` state when stuck/returning signals align.
 
 ### Prompt (principles, no taxonomy)
 
@@ -188,7 +188,7 @@ Defined in `assets/insights.js`. Called by the daily nudge's task-reading track 
 
 | Signal | Source | Notes |
 |---|---|---|
-| Peak productivity hour | `appMemory.preferences.peakHour` | Derived from `completionsByHour` |
+| Peak productivity hour | `appMemory.preferences.peakHour` | `_memoryDerivePeakHour()`: last 90 days of `completionHourDays` once they hold ≥ 20 completions, lifetime `completionsByHour` until then (v2.95.7) |
 | Best streak | `appMemory.patterns.bestStreak` | Historical high |
 | Current streak | `localStorage.stat_streak` | More morning-relevant than best |
 | Total focus time | `appMemory.patterns.focusMinutesTotal` | Shown when >60 min |

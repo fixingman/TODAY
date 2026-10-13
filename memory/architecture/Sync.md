@@ -243,6 +243,7 @@ Called from `mergeRemoteData(data)` → `_mergeAppMemory(data.memory)` on every 
 | `semantic` / `episodic` / `procedural` | Union by `id`; cleared hypothesis ids are tombstoned |
 | `moments` | Union deduped by `type + date`, last 20 kept |
 | `patterns.taskKeywords` | Per word, per-day MAX in `days{}`; legacy entries without `days` become a `_legacy` floor |
+| `patterns.completionHourDays` | Per day, per hour MAX; pre-clear days drop on both sides; `peakHour` re-derived by `_memoryDerivePeakHour()` after the merge (v2.95.7) |
 | Lifetime counters | Max |
 | `recentConversations` | Union by date + message prefix, newest 5 |
 | `recentCompletedTasks` | Union by text + date, 30-day window |

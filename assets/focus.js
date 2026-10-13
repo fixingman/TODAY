@@ -281,10 +281,8 @@ window._startFocus = (function() {
     if (_sToday === 1) _ctx.push('1 other focus session today (different tasks)');
     else if (_sToday >= 2) _ctx.push(_sToday + ' focus sessions done today across tasks');
 
-    // Confirmed behavioral inferences (appended to system prompt, not user message)
-    const _inferences = ['semantic', 'episodic', 'procedural']
-      .flatMap(t => (appMemory?.memory?.[t] || []).filter(i => i.status === 'confirmed').map(i => i.text))
-      .slice(0, 4);
+    // Confirmed inferences — exactly those Memory → PATTERNS shows (system prompt, not user message)
+    const _inferences = Today.use('memory').shownInferences();
     const _inferCtx = _inferences.length ? '\n\nWhat we know about the user: ' + _inferences.join('. ') + '.' : '';
 
     // ── System prompt ─────────────────────────────────────────────────────────

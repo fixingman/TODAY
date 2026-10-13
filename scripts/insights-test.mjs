@@ -182,6 +182,7 @@ try {
         // original text (with tag) stored in recentCompletedTasks
         recentTaskRecorded: m.recentCompletedTasks.some(e => e.text === 'work: write the report'),
         peakHourSet:        m.preferences.peakHour === hour,
+        datedHourTracked:   (m.patterns.completionHourDays[_localISO()] || {})[hour] >= 1,
         savedToStorage:     !!localStorage.getItem('today_memory'),
       };
     });
@@ -634,6 +635,24 @@ try {
     });
     await expectAll('_memoryOnDaySummary', { ...r, noErrors: !errors.length });
     ok('_memoryOnDaySummary: totalDaysActive++, big_clear added when ≥5, skipped when <5');
+    await page.close();
+  }
+
+  // 4b. Peak hour follows the last 90 days once they hold 20 completions; lifetime until then.
+  {
+    const { page, errors } = await openPage();
+    const r = await page.evaluate(() => {
+      const iso = n => { const d = new Date(); d.setDate(d.getDate() - n); return _localISO(d); };
+      appMemory.patterns.completionsByHour = { '9': 200, '15': 30 };
+      appMemory.patterns.completionHourDays = { [iso(5)]: { '15': 10 }, [iso(120)]: { '9': 50 } };
+      const fewRecent = window._memoryDerivePeakHour();
+      const oldPruned = !(iso(120) in appMemory.patterns.completionHourDays);
+      appMemory.patterns.completionHourDays[iso(3)] = { '15': 12, '9': 2 };
+      const windowed = window._memoryDerivePeakHour();
+      return { lifetimeUntilEnough: fewRecent === 9, oldPruned, windowedOnceEnough: windowed === 15 && appMemory.preferences.peakHour === 15 };
+    });
+    await expectAll('windowed peak hour', { ...r, noErrors: !errors.length });
+    ok('peak hour: lifetime counts until 20 recent completions, then the last 90 days; older days pruned');
     await page.close();
   }
 

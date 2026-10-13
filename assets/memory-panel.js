@@ -110,7 +110,7 @@
       const peakHour = m.preferences?.peakHour;
       if (peakHour !== null && peakHour !== undefined) {
         const _fmtH = h => h === 0 ? 'midnight' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h-12}pm`;
-        const _hourCounts = m.patterns?.completionsByHour || {};
+        const _hourCounts = typeof _memoryHourCounts === 'function' ? _memoryHourCounts() : (m.patterns?.completionsByHour || {});
         const _peakCount = _hourCounts[String(peakHour)] || 1;
         const _thresh = _peakCount * 0.5;
         const _activeHours = Object.entries(_hourCounts)
@@ -197,17 +197,10 @@
 
       // Outcome contrasts follow the timing facts inside PATTERNS.
       semanticItems.push(..._memoryOutcomePatterns(m));
-      // Confirmed AI inferences of both stable types, minus restatements of a computed line.
+      // Confirmed AI inferences — the same capped selection the focus companion reads.
       _computedPatterns = semanticItems.map(i => i.text);
-      const _computedTokens = semanticItems.map(i => _memoryTokens(i.text));
-      const _aiTokens = [];
-      for (const t of HYPO_STABLE) {
-        (m.memory?.[t] || []).filter(i => _hypoLive(i) && i.status === 'confirmed').forEach(i => {
-          const tk = _memoryTokens(i.text || '');
-          if ([..._computedTokens, ..._aiTokens].some(o => _memoryNearDuplicate(tk, o))) return;
-          _aiTokens.push(tk);
-          semanticItems.push({ text: i.text, isNew: i.isNew, rejectKey: `${t}:${i.id}` });
-        });
+      for (const i of _memoryShownInferences()) {
+        semanticItems.push({ text: i.text, isNew: i.isNew, rejectKey: `${i.type}:${i.id}` });
       }
 
       // META: what today knows it knows
@@ -346,7 +339,7 @@
       if (appMemory) {
         appMemory.preferences = { peakHour: null, dragKeywords: [] };
         appMemory.patterns = {
-          completionsByHour: {}, taskKeywords: {}, focusMinutesTotal: appMemory.patterns?.focusMinutesTotal || 0,
+          completionsByHour: {}, completionHourDays: {}, taskKeywords: {}, focusMinutesTotal: appMemory.patterns?.focusMinutesTotal || 0,
           bestStreak: 0, taskLifespanSamples: [], lateAdditions: [], tasksAddedToday: 0,
           dayStartCount: null, dayStartDate: null, dayShapeState: null,
           inlineSuggestions: { offered: 0, applied: 0, dismissed: 0, autoDismissed: 0 },
@@ -454,6 +447,28 @@
         }
       }
       return items;
+    }
+
+    // Confirmed stable inferences shown in PATTERNS and given to the focus companion:
+    // live, newest support first, restatements of a computed line or of each other
+    // dropped, at most three. One selection, so nothing unseen steers the AI.
+    const INFERENCES_SHOWN = 3;
+    function _memoryShownInferences() {
+      const m = appMemory;
+      if (!m || !m.memory) return [];
+      const taken = [...new Set([..._computedPatterns, ..._memoryOutcomePatterns(m).map(i => i.text)])].map(_memoryTokens);
+      const out = [];
+      const pool = HYPO_STABLE.flatMap(t => (m.memory[t] || []).map(i => ({ ...i, type: i.type || t })))
+        .filter(i => i.id && _hypoLive(i) && i.status === 'confirmed')
+        .sort((a, b) => String(b.lastSeen).localeCompare(String(a.lastSeen)));
+      for (const i of pool) {
+        if (out.length >= INFERENCES_SHOWN) break;
+        const tk = _memoryTokens(i.text || '');
+        if (taken.some(o => _memoryNearDuplicate(tk, o))) continue;
+        taken.push(tk);
+        out.push(i);
+      }
+      return out;
     }
 
     // Match rewordings by five-letter content stems; synonyms remain prompt-owned.
@@ -717,6 +732,7 @@
         abstract: _memoryAbstract,
         breatheVersionBadge: _versionBadgeBreathe,
         restoreKind: _memoryKindRestore,
+        shownInferences: () => _memoryShownInferences().map(i => i.text),
       });
       Today.ui.register('click', 'memory.kind-restore', (e, el) => _memoryKindRestore(el && el.dataset.kind));
       Today.ui.register('click', 'memory.patterns-more', () => {

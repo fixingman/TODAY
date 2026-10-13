@@ -802,12 +802,18 @@
       for (const [h, count] of Object.entries(remote.patterns?.completionsByHour || {})) {
         appMemory.patterns.completionsByHour[h] = Math.max(appMemory.patterns.completionsByHour[h] || 0, count);
       }
-      { let _pk = null, _pkC = 0;
-        for (const [h, c] of Object.entries(appMemory.patterns.completionsByHour)) {
-          if (c > _pkC) { _pkC = c; _pk = parseInt(h); }
-        }
-        appMemory.preferences.peakHour = _pk;
+      // Dated hour counts: per day, per hour MAX (same shape as taskKeywords days).
+      if (!appMemory.patterns.completionHourDays || typeof appMemory.patterns.completionHourDays !== 'object') appMemory.patterns.completionHourDays = {};
+      // Pre-clear days drop on both sides, like the other dated unions.
+      for (const day of Object.keys(appMemory.patterns.completionHourDays)) {
+        if (!_afterClear({ date: day })) delete appMemory.patterns.completionHourDays[day];
       }
+      for (const [day, hours] of Object.entries(remote.patterns?.completionHourDays || {})) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !hours || typeof hours !== 'object' || !_afterClear({ date: day })) continue;
+        const local = appMemory.patterns.completionHourDays[day] || (appMemory.patterns.completionHourDays[day] = {});
+        for (const [h, c] of Object.entries(hours)) local[h] = Math.max(local[h] || 0, parseInt(c) || 0);
+      }
+      if (typeof _memoryDerivePeakHour === 'function') _memoryDerivePeakHour();
       // Merge taskKeywords: per-day MAX so cross-device completions on different days
       // both survive. Legacy entries (no .days) are migrated to days['_legacy'] as a floor.
       for (const [word, kd] of Object.entries(remote.patterns?.taskKeywords || {})) {

@@ -43,7 +43,8 @@ let appMemory = (() => {
       aiName: _pickAIName(),
       // Patterns observed over time
       patterns: {
-        completionsByHour: {},    // { "9": 12, "14": 8, ... } — tasks completed per hour
+        completionsByHour: {},    // { "9": 12, "14": 8, ... } — tasks completed per hour, lifetime
+        completionHourDays: {},   // { "YYYY-MM-DD": { "9": 2 } } — dated, last 90 days; peak hour reads this window
         taskKeywords: {},         // { "email": { added: 5, avgDaysToComplete: 2.3 }, ... }
         focusMinutesTotal: 0,     // lifetime focus minutes
         bestStreak: 0,            // highest streak achieved
@@ -118,6 +119,7 @@ if (!appMemory.patterns.reviveReasons) appMemory.patterns.reviveReasons = {};
 if (appMemory.patterns.dayStartCount === undefined) appMemory.patterns.dayStartCount = null;
 if (appMemory.patterns.dayShapeState === undefined) appMemory.patterns.dayShapeState = null;
 if (appMemory.patterns.dayStartDate  === undefined) appMemory.patterns.dayStartDate  = null;
+if (!appMemory.patterns.completionHourDays || typeof appMemory.patterns.completionHourDays !== 'object') appMemory.patterns.completionHourDays = {};
 if (!appMemory.patterns.inlineSuggestions) appMemory.patterns.inlineSuggestions = { offered: 0, applied: 0, dismissed: 0, autoDismissed: 0 };
 if (appMemory.patterns.inlineSuggestions.autoDismissed === undefined) appMemory.patterns.inlineSuggestions.autoDismissed = 0;
 if (!appMemory.meetingAttribution) appMemory.meetingAttribution = {
@@ -560,6 +562,36 @@ function _memoryStampOutcomeKeys() {
   return changed;
 }
 
+// Completions per hour for the peak-hour reading: the last 90 days once they hold 20
+// completions, so the line follows a changed rhythm; lifetime counts until then.
+// Prunes older days. Called on completion and after a sync merge.
+const PEAK_WINDOW_DAYS = 90;
+const PEAK_MIN_RECENT = 20;
+function _memoryHourCounts() {
+  const p = appMemory.patterns;
+  const days = p.completionHourDays || {};
+  const floor = new Date(); floor.setDate(floor.getDate() - PEAK_WINDOW_DAYS);
+  const floorISO = _localISO(floor);
+  const recent = {};
+  let total = 0;
+  for (const day of Object.keys(days)) {
+    if (day < floorISO) { delete days[day]; continue; }
+    for (const [h, n] of Object.entries(days[day] || {})) {
+      recent[h] = (recent[h] || 0) + (parseInt(n) || 0);
+      total += parseInt(n) || 0;
+    }
+  }
+  return total >= PEAK_MIN_RECENT ? recent : (p.completionsByHour || {});
+}
+function _memoryDerivePeakHour() {
+  let peak = null, best = 0;
+  for (const [h, c] of Object.entries(_memoryHourCounts())) {
+    if (c > best) { best = c; peak = parseInt(h); }
+  }
+  appMemory.preferences.peakHour = peak;
+  return peak;
+}
+
 function _memoryRecordOutcome(outcome, taskText, taskId, reason) {
   if (!outcome) return;
   const date   = _localISO();
@@ -780,12 +812,11 @@ function _memoryOnTaskComplete(taskText, taskId) {
   // Track completions by hour
   appMemory.patterns.completionsByHour[hour] = (appMemory.patterns.completionsByHour[hour] || 0) + 1;
   
-  // Find peak hour
-  let maxCount = 0, peakHour = null;
-  for (const [h, count] of Object.entries(appMemory.patterns.completionsByHour)) {
-    if (count > maxCount) { maxCount = count; peakHour = parseInt(h); }
-  }
-  appMemory.preferences.peakHour = peakHour;
+  const _hd = appMemory.patterns.completionHourDays || (appMemory.patterns.completionHourDays = {});
+  const _hdDay = _localISO();
+  if (!_hd[_hdDay]) _hd[_hdDay] = {};
+  _hd[_hdDay][hour] = (_hd[_hdDay][hour] || 0) + 1;
+  _memoryDerivePeakHour();
   
   // Track keywords (simple word extraction)
   const _kStopWords = new Set(['about','after','also','back','been','before','call','check','done','from','have','into','just','make','more','need','send','some','take','than','that','them','then','they','this','were','what','when','will','with','your']);
