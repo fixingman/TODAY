@@ -122,6 +122,8 @@ Slides up from bottom (same as AI panel). Full-screen backdrop.
 
 After all decisions, replaces task list for 3s before auto-close:
 
+**Countdown pause (v2.95.3):** mouse hover over the completion content pauses; on touch, hold any non-button area of the completion panel and release to resume from the remaining time. The progress bar pauses too. Buttons remain native actions. Release outside and pointer cancellation resume; multiple holds and a reflection timer reset stay paused until the final hold ends. Closing/Undo/new triage clears pause state; no extra control, preference or saved value.
+
 ```
 ┌─────────────────────────────────────────┐
 │                                         │

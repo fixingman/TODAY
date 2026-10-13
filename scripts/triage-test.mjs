@@ -60,7 +60,7 @@ const TASK_C = { id: 'tc3', text: 'let this go', createdAt: '2026-08-10T10:00:00
 
 async function openPage(opts = {}) {
   const page = await browser.newPage();
-  await page.setViewport({ width: 1200, height: 900 });
+  await page.setViewport(opts.mobile ? { width: 390, height: 844, isMobile: true, hasTouch: true } : { width: 1200, height: 900 });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.evaluateOnNewDocument((tasks, hour) => {
@@ -337,6 +337,94 @@ try {
     });
     await expectAll('keep all', { ...result, noErrors: errors.length === 0 });
     ok('triageKeepAll marks all kept, stores dismissal, and immediately queues retrying sync');
+    await page.close();
+  }
+
+  // Mobile presses pause only non-button completion content, preserving remaining time.
+  {
+    const { page, errors } = await openPage({ tasks: [TASK_A], mobile: true });
+    const client = await page.createCDPSession();
+    const beginCompletion = async ms => {
+      await page.evaluate(ms => {
+        Today.use('triage').triageExpand();
+        Today.use('triage').triageKeepAll();
+        _triageResetAutoClose(ms);
+      }, ms);
+      await wait(250); // let the sheet morph finish before native hit testing
+    };
+    const point = async selector => page.$eval(selector, el => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    const press = async selector => {
+      const at = await point(selector);
+      await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
+    };
+    const release = type => client.send('Input.dispatchTouchEvent', { type, touchPoints: [] });
+    const state = () => page.evaluate(() => ({
+      open: !document.getElementById('triageOverlay').hidden,
+      play: document.getElementById('triageCountdown').style.animationPlayState,
+      scale: getComputedStyle(document.getElementById('triageCountdown')).transform,
+    }));
+
+    await beginCompletion(1000);
+    await press('.triage-complete-msg');
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const paused = await state();
+    await wait(1100);
+    const held = await state();
+    await expectAll('mobile hold stops real timer and progress', {
+      paused: paused.play === 'paused', staysOpen: held.open,
+      progressFrozen: paused.scale === held.scale,
+    });
+    await release('touchEnd');
+    await expectAll('release resumes countdown', { running: (await state()).play === 'running' });
+    await page.waitForFunction(() => document.getElementById('triageOverlay').hidden, { timeout: 1500 });
+    ok('mobile hold freezes countdown past its deadline; release resumes the remaining time');
+
+    await beginCompletion(1000);
+    await press('.triage-complete-msg');
+    await page.evaluate(() => _triageResetAutoClose(900));
+    await wait(1000);
+    await expectAll('reset while held stays paused', { open: (await state()).open, paused: (await state()).play === 'paused' });
+    await release('touchCancel');
+    await page.waitForFunction(() => document.getElementById('triageOverlay').hidden, { timeout: 1500 });
+    ok('timer reset stays paused while held; cancellation resumes without getting stuck');
+
+    await beginCompletion(1000);
+    await press('#triageUndoBtn');
+    await expectAll('button does not pause', { running: (await state()).play === 'running' });
+    await release('touchEnd');
+    await page.waitForFunction(() => document.getElementById('triageOverlay').hidden);
+    await expectAll('native Undo tap retains its action', {
+      restored: await page.evaluate(() => !triageDismissedToday && manualTasks.some(t => t.id === 'ta1')),
+      noErrors: errors.length === 0,
+    });
+    ok('touching Undo does not pause or intercept its native button action');
+    await page.close();
+  }
+
+  // Desktop hover retains the same pause/resume behavior and reset accounting.
+  {
+    const { page, errors } = await openPage({ tasks: [TASK_A] });
+    await page.evaluate(() => {
+      Today.use('triage').triageExpand(); Today.use('triage').triageKeepAll();
+      _triageResetAutoClose(1000);
+    });
+    await wait(250);
+    const r = await page.$eval('.triage-complete-msg', el => {
+      const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await page.mouse.move(r.x, r.y);
+    await wait(1100);
+    await expectAll('desktop hover pause', await page.evaluate(() => ({
+      open: !document.getElementById('triageOverlay').hidden,
+      paused: document.getElementById('triageCountdown').style.animationPlayState === 'paused',
+    })));
+    await page.mouse.move(1, 1);
+    await page.waitForFunction(() => document.getElementById('triageOverlay').hidden, { timeout: 1500 });
+    await expectAll('hover has no errors', { noErrors: errors.length === 0 });
+    ok('desktop hover still pauses; leaving resumes and closes');
     await page.close();
   }
 

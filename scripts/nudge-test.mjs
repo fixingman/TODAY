@@ -367,7 +367,8 @@ try {
         recover = true;
         checkDayNudge();
         await wait(40);
-        const noImmediateRetry = calls === 1;
+        const initialCalls = failure === 'length' ? 2 : 1;
+        const noImmediateRetry = calls === initialCalls;
         now += 30001;
         window.dispatchEvent(new Event('online'));
         await wait(90);
@@ -387,7 +388,7 @@ try {
           noImmediateRetry,
           emptyAboutExplained: aboutEmpty,
           recoveryPolicy: retryable ? calls === 2 && final.status === 'accepted' && aboutRecovered
-            && localStorage.getItem('day_nudge_ai_' + _localISO()) === good : calls === 1 && final.status === expected && final.attempts === 1,
+            && localStorage.getItem('day_nudge_ai_' + _localISO()) === good : calls === initialCalls && final.status === expected && final.attempts === 1,
           noMidReadReplacement: beforeNaturalCheck === initialFallback,
           laterUpgrade: !retryable || document.getElementById('dayNudge').textContent.includes(good),
           diagnosticsDetached: audit().events.length > 0,
@@ -398,6 +399,108 @@ try {
       await page.close();
     }
     ok('generation audit distinguishes failures/rejections; only transient failures recover without a mid-read swap');
+
+    // Overlong prose gets one shortening pass, within the same generation attempt.
+    for (const outcome of ['accepted', 'still-long', 'unsafe', 'unsafe-original', 'dismissed', 'noon']) {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(async outcome => {
+        localStorage.setItem('today_ai_provider', 'claude');
+        localStorage.setItem('today_ai_key_claude', 'SECRET_TEST_KEY');
+        if (outcome !== 'dismissed') localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        appMemory.taskOutcomes = [];
+        const long = 'You have kept the same task on your list alongside work you have already chosen to move to Soon, leaving two different ways of holding onto a commitment visible this morning.';
+        const good = 'You have kept one commitment close while giving another more distance in Soon.';
+        const calls = [];
+        let release;
+        window.fetch = async (url, opts) => {
+          const body = JSON.parse(opts.body); calls.push(body);
+          if (calls.length === 1) return { ok: true, json: async () => {
+            if (outcome === 'noon') Date.prototype.getHours = () => 12;
+            return { content: outcome === 'unsafe-original' ? long + " You're the kind of person who avoids obligations." : long };
+          } };
+          return new Promise(resolve => { release = () => resolve({ ok: true, json: async () => ({ content:
+            outcome === 'still-long' ? long : outcome === 'unsafe' ? "You're the kind of person who avoids obligations." : good }) }); });
+        };
+        checkDayNudge._setMemoryReady(); checkDayNudge();
+        await new Promise(r => setTimeout(r, 60));
+        const noEarlyCache = !localStorage.getItem('day_nudge_ai_' + _localISO());
+        // Force the existing display race to show a fallback while shortening is pending.
+        await new Promise(r => setTimeout(r, outcome === 'accepted' ? 5100 : 0));
+        const before = document.getElementById('dayNudge').textContent;
+        if (release) release();
+        await new Promise(r => setTimeout(r, 60));
+        const audit = Today.use('nudge').generationAudit();
+        Today.use('about').renderInfoStats();
+        const accepted = ['accepted', 'dismissed'].includes(outcome);
+        const expectedStatus = accepted ? 'accepted' : ['still-long','noon'].includes(outcome) ? 'rejected-length' : 'rejected-grounding';
+        const afterRepair = document.getElementById('dayNudge').textContent;
+        checkDayNudge(); await new Promise(r => setTimeout(r, 30));
+        const repair = calls[1];
+        return {
+          bounded: calls.length === (['unsafe-original','noon'].includes(outcome) ? 1 : 2) && audit.attempts === 1,
+          status: audit.status === expectedStatus,
+          sameRoute: calls.every(c => c.surface === 'daily-nudge' && c.provider === 'claude'
+            && !('thinking' in c) && !('model' in c)),
+          sameMeaningContract: !repair || (repair.systemPrompt === calls[0].systemPrompt
+            && JSON.stringify(repair.messages.slice(0,-2)) === JSON.stringify(calls[0].messages)
+            && repair.messages.at(-2).role === 'assistant' && repair.messages.at(-2).content === long
+            && repair.messages.at(-1).content.includes('same reading')),
+          onlyAcceptedSaved: noEarlyCache && (accepted
+            ? localStorage.getItem('day_nudge_ai_' + _localISO()) === good
+              && document.getElementById('todayNudgeBlock').textContent.includes(good)
+            : !localStorage.getItem('day_nudge_ai_' + _localISO())),
+          noMidReadSwap: outcome !== 'accepted' || before === afterRepair,
+          dismissalFinal: outcome !== 'dismissed' || !document.getElementById('dayNudge').classList.contains('show'),
+          privateAudit: ![long, good, 'SECRET_TEST_KEY'].some(text => JSON.stringify(audit).includes(text)),
+        };
+      }, outcome);
+      await expectAll('one length repair ' + outcome, { ...result, noErrors: errors.length === 0 });
+      await page.close();
+    }
+    ok('one grounded shortening pass preserves the strict cap, route, cache/About, dismissal and terminal guards');
+
+    // A pre-fix length rejection can recover naturally once; new-policy failures cannot reset.
+    for (const modern of [false, true]) {
+      const generation = { schema:1, date:TODAY, attempts:1, status:'rejected-length', retryAt:0, terminal:true, events:[], ...(modern && { lengthRepair:true }) };
+      const { page, errors } = await openPage({ extraSeed: { today_nudge_generation_v1: JSON.stringify(generation) } });
+      const result = await page.evaluate(async modern => {
+        localStorage.setItem('today_ai_provider','claude');localStorage.setItem('today_ai_key_claude','test-key');
+        appMemory.taskOutcomes=[];let calls=0;
+        const good='You have kept one commitment close while giving another more distance in Soon.';
+        window.fetch=async()=>{calls++;return {ok:true,json:async()=>({content:good})};};
+        checkDayNudge._setMemoryReady();checkDayNudge();await new Promise(r=>setTimeout(r,60));checkDayNudge();
+        const state=JSON.parse(localStorage.getItem('today_nudge_generation_v1'));
+        return { recovery: modern ? calls===0 : calls===1 && state.attempts===2 && state.lengthRepair===true,
+          cache: modern ? !localStorage.getItem('day_nudge_ai_'+_localISO()) : localStorage.getItem('day_nudge_ai_'+_localISO())===good,
+          dismissalKept: !!localStorage.getItem('day_nudge_dismissed_'+_localISO()) };
+      },modern);
+      await expectAll('old length state modern=' + modern,{...result,noErrors:errors.length===0});await page.close();
+    }
+
+    for (const duringRepair of [false, true]) {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(async duringRepair => {
+        const RealDate = Date; let now = new RealDate(); now.setHours(9,0,0,0); let instant = now.getTime();
+        window.Date = class extends RealDate { constructor(...args) { super(...(args.length ? args : [instant])); } static now() { return instant; } };
+        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+        localStorage.setItem('today_ai_provider','claude');localStorage.setItem('today_ai_key_claude','test-key');
+        appMemory.taskOutcomes=[]; const oldDay=_localISO();const pending=[];
+        const reply = content => ({ok:true,json:async()=>({content})});
+        const long=Array(31).fill('word').join(' ');
+        window.fetch=()=>new Promise(resolve=>pending.push(resolve));
+        checkDayNudge._setMemoryReady();checkDayNudge();await new Promise(r=>setTimeout(r,30));
+        if(duringRepair){pending[0](reply(long));await new Promise(r=>setTimeout(r,30));}
+        now.setDate(now.getDate()+1);instant=now.getTime();_nudgeOnNewDay();checkDayNudge();await new Promise(r=>setTimeout(r,30));
+        pending[duringRepair?1:0](reply(duringRepair?'The old repaired line must be ignored.':long));
+        await new Promise(r=>setTimeout(r,30));
+        const fenced=pending.length===(duringRepair?3:2)&&!localStorage.getItem('day_nudge_ai_'+oldDay)
+          &&!(appMemory.spokenLines||[]).some(l=>l.text==='The old repaired line must be ignored.');
+        pending.at(-1)(reply('Today has its own grounded line.'));await new Promise(r=>setTimeout(r,30));
+        return {fenced,todaySaved:localStorage.getItem('day_nudge_ai_'+_localISO())==='Today has its own grounded line.',
+          separateBudget:Today.use('nudge').generationAudit().attempts===1};
+      },duringRepair);
+      await expectAll('length repair rollover during=' + duringRepair,{...result,noErrors:errors.length===0});await page.close();
+    }
 
     // Retry quota/backoff survive reloads; reopening is not a way to spam AI.
     {

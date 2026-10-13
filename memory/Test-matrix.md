@@ -217,6 +217,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 2.7d | Morning nudge AI — no key / offline | Rule-based line stays, no error, no loading state |
 | 2.7e | Morning nudge dismissed while AI fetching | Stays dismissed — AI response does not resurrect it |
 | 2.7g | Morning nudge transient recovery (v2.93.23) | `nudge-test` covers network/timeout/408/429/5xx, no parallel requests, scheduled 30s/2m background retries and three attempts per device/day across reopening; noon/offline/rollover stop timers. Fallback dismissal permits About recovery, never strip resurrection; accepted-AI dismissal prevents regeneration even with a stale/missing cache |
+| 2.7m | Nudge length recovery (v2.95.4) | `nudge-test` covers one same-reading correction, failed/unsafe correction, original unsafe prose, legacy terminal recovery, unchanged provider/thinking route, strict 30-word limit, cache/About, fallback dismissal, no mid-read swap and epoch rollover before/during repair. No live private response is a fixture. |
 | 2.7h | Morning nudge diagnostics / rejected prose | Read-only `Today.use('nudge').generationAudit()` distinguishes unreadable/empty/length/grounding/recap rejection from request failures; no private wording/keys/errors/reasons, no automatic retries for rejected prose |
 | 2.7i | Morning nudge request spans midnight | Old replies cannot cache/speak for either day or unlock the new request; new-day attempt budget starts fresh and accepted new-day line reaches About |
 | 2.7j | Daily Claude reasoning (v2.93.23) | `ai-assist-unit-test` pins adaptive thinking + 2048-token ceiling only for the exact daily marker, text-only extraction and capped-reply 502; other Claude callers and Gemini unchanged. `nudge-test` checks the marker on pool/task/retry requests and existing slow-delivery/timeout behaviour. Live provider latency/quality remains a manual check. |
@@ -444,6 +445,7 @@ later section or automated suite was added.
 | # | Scenario | Expected |
 |---|----------|----------|
 | 14.8 | Intro visible (10s), user hovers `#triageComplete` | Timer pauses |
+| 14.8a | Mobile completion: hold non-button panel area past original deadline, then release/cancel | Timer and progress stay paused while held; release outside/cancel resumes remaining time. Native Undo/reflection buttons act normally. `triage-test` covers native touch, cancellation, reset while held and desktop hover; physical iPhone/PWA pass remains owed. |
 | 14.9 | User taps "Remember" | Timer resets to 8s |
 | 14.10 | User selects feeling | Timer resets to 3s |
 | 14.11 | User taps "Not for me" | Timer resets to 3s |

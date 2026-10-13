@@ -12,6 +12,7 @@
     let _triageAutoCloseTimer = null;
     let _triageAutoCloseStart = 0;
     let _triageAutoCloseRemaining = 3000;
+    const _triageAutoClosePauses = new Set();
     let _triageActive = false;
     let _triageBarSilent = false;
     let _triageBarShown = false;
@@ -19,9 +20,7 @@
     let _triageCollapseTimer = null;
     let _triageBarRect = null;
 
-    // Point the morph keyframes at the bar's real box, so the sheet starts and ends
-    // exactly as the bar. transform-origin is center bottom; offset* ignores the
-    // running transform. Falls back to the CSS defaults when the bar was never laid out.
+    // Morph to the bar geometry; offset* ignores the active transform.
     function _setMorphGeometry(panel) {
       const b = _triageBarRect;
       if (!panel || !b || !b.width || !panel.offsetWidth) return;
@@ -89,6 +88,7 @@
     }
 
     function triageExpand() {
+      _stopAutoClose();
       triageDecisions = {};
       _triageActive = true;
 
@@ -109,9 +109,7 @@
       const overlay = $.triageOverlay || document.getElementById('triageOverlay');
       const panel   = document.getElementById('triagePanel');
 
-      // Arm morph classes before overlay appears so the animation fires from frame 0.
-      // triage-morph-opening stays on while the sheet is open: removing it swaps the
-      // panel back to its base slideUp animation, which replays from off-screen.
+      // Keep opening class: removing it replays slideUp.
       clearTimeout(_triageRevealTimer);
       clearTimeout(_triageCollapseTimer);
       if (overlay) overlay.classList.remove('triage-morph-closing');
@@ -429,9 +427,7 @@
       if (soonCount > 0) _saveSoon();
       if (letgoCount > 0 || _postTriageDone.length > 0) _savePast();
 
-      // Completing triage is itself synced state, even when every task was kept.
-      // Enter the normal pending/retry queue immediately; a one-shot direct upload
-      // can be lost if the app is suspended on the completion screen.
+      // Queue completion for retrying sync, including Keep all.
       if (typeof dropboxAutoSave === 'function') dropboxAutoSave(0);
 
       const triageParts = [];
@@ -521,50 +517,76 @@
       bar.style.animationPlayState = 'running';
     }
 
-    function _startAutoClose(durationMs) {
-      if (_triageAutoCloseTimer) clearTimeout(_triageAutoCloseTimer);
-      _triageAutoCloseRemaining = durationMs;
+    function _pauseAutoClose(reason) {
+      if (!_triageSnapshot) return;
+      _triageAutoClosePauses.add(reason);
+      if (_triageAutoCloseTimer) {
+        clearTimeout(_triageAutoCloseTimer);
+        _triageAutoCloseTimer = null;
+        _triageAutoCloseRemaining = Math.max(0, _triageAutoCloseRemaining - (Date.now() - _triageAutoCloseStart));
+      }
+      const bar = document.getElementById('triageCountdown');
+      if (bar) bar.style.animationPlayState = 'paused';
+    }
+
+    function _resumeAutoClose(reason) {
+      if (!_triageAutoClosePauses.delete(reason) || _triageAutoClosePauses.size
+          || !_triageSnapshot || _triageAutoCloseTimer) return;
       _triageAutoCloseStart = Date.now();
+      const bar = document.getElementById('triageCountdown');
+      if (bar) bar.style.animationPlayState = 'running';
       _triageAutoCloseTimer = setTimeout(() => {
         _triageSnapshot = null;
         triageClose();
-      }, durationMs);
+      }, Math.max(_triageAutoCloseRemaining, 600));
+    }
 
+    function _stopAutoClose() {
+      clearTimeout(_triageAutoCloseTimer);
+      _triageAutoCloseTimer = null;
+      _triageAutoClosePauses.clear();
+    }
+
+    function _startAutoClose(durationMs) {
+      clearTimeout(_triageAutoCloseTimer);
+      _triageAutoCloseTimer = null;
+      _triageAutoCloseRemaining = durationMs;
+      _triageAutoCloseStart = Date.now();
       _startCountdown(durationMs);
+      if (_triageAutoClosePauses.size) {
+        document.getElementById('triageCountdown').style.animationPlayState = 'paused';
+      } else {
+        _triageAutoCloseTimer = setTimeout(() => {
+          _triageSnapshot = null;
+          triageClose();
+        }, durationMs);
+      }
 
-      const _triageCompleteEl = document.getElementById('triageComplete');
-      if (_triageCompleteEl && !_triageCompleteEl._hoverWired) {
-        _triageCompleteEl._hoverWired = true;
-        _triageCompleteEl.addEventListener('mouseenter', () => {
-          if (!_triageAutoCloseTimer) return;
-          clearTimeout(_triageAutoCloseTimer);
-          _triageAutoCloseTimer = null;
-          _triageAutoCloseRemaining -= (Date.now() - _triageAutoCloseStart);
-          const bar = document.getElementById('triageCountdown');
-          if (bar) bar.style.animationPlayState = 'paused';
+      const complete = document.getElementById('triageComplete');
+      const panel = document.getElementById('triagePanel');
+      if (complete && panel && !complete._pauseWired) {
+        complete._pauseWired = true;
+        complete.addEventListener('pointerenter', event => {
+          if (event.pointerType === 'mouse') _pauseAutoClose('hover');
         });
-        _triageCompleteEl.addEventListener('mouseleave', () => {
-          if (!_triageSnapshot) return;
-          _triageAutoCloseStart = Date.now();
-          const bar = document.getElementById('triageCountdown');
-          if (bar) bar.style.animationPlayState = 'running';
-          _triageAutoCloseTimer = setTimeout(() => {
-            _triageSnapshot = null;
-            triageClose();
-          }, Math.max(_triageAutoCloseRemaining, 600));
+        complete.addEventListener('pointerleave', event => {
+          if (event.pointerType === 'mouse') _resumeAutoClose('hover');
         });
+        panel.addEventListener('pointerdown', event => {
+          const action = event.target.closest('button, a, input, select, textarea, [role="button"], [contenteditable], [data-today-click]');
+          if (event.pointerType === 'mouse' || !_triageSnapshot || complete.classList.contains('hidden')
+              || (action && panel.contains(action))) return;
+          _pauseAutoClose('touch-' + event.pointerId);
+          panel.setPointerCapture(event.pointerId);
+        }, { passive: true });
+        for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+          panel.addEventListener(type, event => _resumeAutoClose('touch-' + event.pointerId));
+        }
       }
     }
 
     function _triageResetAutoClose(ms) {
-      if (_triageAutoCloseTimer) { clearTimeout(_triageAutoCloseTimer); _triageAutoCloseTimer = null; }
-      _triageAutoCloseRemaining = ms;
-      _triageAutoCloseStart = Date.now();
-      _triageAutoCloseTimer = setTimeout(() => {
-        _triageSnapshot = null;
-        triageClose();
-      }, ms);
-      _startCountdown(ms);
+      _startAutoClose(ms);
     }
 
     window._triageResetAutoClose = _triageResetAutoClose;
@@ -591,7 +613,7 @@
       const overlay = document.getElementById('triageOverlay');
       const panel   = document.getElementById('triagePanel');
 
-      // Hide content instantly then play collapse animation
+      // Hide content before collapse.
       if (panel) {
         const els = panel.querySelectorAll('#triageTitle, .triage-header-btn, #triageList, #triageComplete');
         els.forEach(el => { el.style.transition = 'none'; });
@@ -600,17 +622,13 @@
         panel.classList.remove('triage-morph-opening');
         panel.classList.add('triage-morph-active', 'triage-morph-closing');
       }
-      // Mark hidden immediately so tests/a11y see the right state. The dialog helper
-      // must not set the `hidden` attribute yet: `[hidden]` is display:none !important
-      // and would cut the collapse before its first frame. The overlay is hidden for
-      // real once the sheet has shrunk into the bar's shape.
+      // Delay display:none until collapse ends; isolate the dialog immediately.
       overlay.classList.add('hidden', 'triage-morph-closing', 'triage-bg-fade');
       if (window._a11yCloseDialog) _a11yCloseDialog(overlay, { hide: false, restoreFocus: false });
       const focusWasInSheet = overlay.contains(document.activeElement);
 
       _triageCollapseTimer = setTimeout(() => {
-        // Mirror of the opening: the sheet ends as the bar, and the bar takes over in
-        // the same frame instead of fading in after an empty beat.
+        // Hand off from sheet to bar in the same frame.
         const bar = document.getElementById('triageBar');
         if (bar) {
           bar.style.transition = 'none';
@@ -629,6 +647,7 @@
     }
 
     function triageClose() {
+      _stopAutoClose();
       _triageActive = false;
       triageDismissedToday = true;
       localStorage.setItem('triage_dismissed', _getAppDay());
@@ -651,8 +670,7 @@
 
     function triageUndo() {
       if (!_triageSnapshot) return;
-      clearTimeout(_triageAutoCloseTimer);
-      _triageAutoCloseTimer = null;
+      _stopAutoClose();
       manualTasks  = _triageSnapshot.manualTasks;
       doneIds      = _triageSnapshot.doneIds;
       soonTasks    = _triageSnapshot.soonTasks;

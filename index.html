@@ -4632,16 +4632,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '351h';
+const DEV_HOURS     = '352.5h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.95.4': 'An overlong morning line gets one chance to become shorter, so a word-limit miss needn’t leave Today empty.',
+  '2.95.3': 'Hold the triage panel on mobile to pause its countdown; lift your finger to resume.',
   '2.95.2': 'Development checks no longer create misleading errors in the app.',
-  '2.95.1': 'Memory is quieter: feeling insights follow their evidence, and recurring dream images show their counts once.',
-  '2.95.0': 'Memory → Dreams now shows what comes back across your dreams — the places, people and things that appear more than once.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

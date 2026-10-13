@@ -10,10 +10,7 @@ window._startNudge = (function() {
     let _nudgeRendered = false;
     let _nudgeRacing   = false;
     let _nudgeEpoch = 0;
-    // Cold-start callers such as Trello can finish before Dropbox has merged
-    // appMemory.spokenLines. They may render a synced cache, but must not generate
-    // a new line until the initial merge has settled; otherwise two devices can
-    // independently speak the same kind inside its cooldown.
+    // Wait for initial memory merge before generating across devices.
     let _memoryReady   = false;
     // Only a fallback can upgrade on a later natural check. An AI line never
     // replaces another AI line, and completion never swaps text mid-read (BUG-034).
@@ -103,15 +100,16 @@ window._startNudge = (function() {
     }
     function _responseVerdict(text) {
       if (!text) return 'empty-response';
-      if (text.trim().split(/\s+/).length > 30) return 'rejected-length';
-      if (typeof _observationTextIsGrounded === 'function' && !_observationTextIsGrounded(text, 30))
+      if (typeof _observationTextIsGrounded === 'function' && !_observationTextIsGrounded(text, Infinity))
         return 'rejected-grounding';
+      if (text.trim().split(/\s+/).length > 30) return 'rejected-length';
       return 'accepted';
     }
-    async function _requestNudgeAI(body, path, state) {
+    async function _requestNudgeAI(body, path, state, canShorten = true) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), _REQUEST_TIMEOUT_MS);
-      let result;
+      let result, text;
+      const epoch = _nudgeEpoch;
       try {
         const res = await fetch('/.netlify/functions/ai-assist', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -121,7 +119,6 @@ window._startNudge = (function() {
           result = { status: 'http-error', httpStatus: res.status,
             retryable: res.status === 408 || res.status === 429 || res.status >= 500 };
         } else {
-          let text;
           try { text = _parseAIText(await res.json()); }
           catch(e) { result = controller.signal.aborted
             ? { status: 'request-timeout', retryable: true }
@@ -135,6 +132,13 @@ window._startNudge = (function() {
         result = { status: controller.signal.aborted ? 'request-timeout' : 'network-error', retryable: true };
       } finally { clearTimeout(timer); }
       _generationEvent(state, path, result.status === 'accepted' ? 'response-valid' : result.status, result.httpStatus);
+      if (canShorten && result.status === 'rejected-length' && new Date().getHours() < 12
+          && epoch === _nudgeEpoch && state === _generationForToday()) {
+        return _requestNudgeAI({ ...body, messages: [...body.messages,
+          { role: 'assistant', content: text },
+          { role: 'user', content: 'Shorten that same reading to at most 30 words. Preserve its meaning, uncertainty and task references. Add no fact, interpretation or advice. Return only the complete shortened line.' },
+        ] }, path + '-length-repair', state, false);
+      }
       return result;
     }
 
@@ -198,10 +202,7 @@ window._startNudge = (function() {
         nudgeEl.classList.remove('visible', 'show');
         localStorage.removeItem('morning_nudge_count');
         localStorage.removeItem('today_day_review');
-        // day_nudge_ai_<date> deliberately NOT cleared here (v2.33.0): the line lives
-        // in About until midnight and feeds the ✦ brief all day. The dated key
-        // self-expires at day change; _pruneLS on next write clears stragglers.
-        // Legacy pre-2.19.0 keys — one-time sweep, no-op afterwards
+        // Keep the dated About line until midnight; prune only legacy keys here.
         _pruneLS('morning_nudge_ai_', '');
         _pruneLS('trello_nudge_ai_', '');
         _pruneLS('morning_nudge_dismissed_', '');
@@ -255,9 +256,7 @@ window._startNudge = (function() {
         return;
       }
 
-      // Rule-based tier 1 — surface only what's important: pressing things first
-      // (carried-over tasks, overdue cards), at most two clauses. Yesterday's
-      // reflection only appears when nothing is pressing.
+      // Fallback: at most two clauses; yesterday only when nothing is pressing.
       const parts = [];
       if (carriedOver > 0) {
         parts.push(`${carriedOver} task${carriedOver === 1 ? '' : 's'} still here from yesterday`);
@@ -292,9 +291,7 @@ window._startNudge = (function() {
           requestAnimationFrame(() => {
             if (!localStorage.getItem(_dismissKey) && nudgeEl.classList.contains('show')) nudgeEl.classList.add('visible');
           });
-          // The strip can arrive seconds after the list (it waits for the AI line), so it
-          // opens its own space rather than shoving the list down in one frame. WAAPI,
-          // never CSS: the wake repaint's display toggle replays CSS animations (BUG-028).
+          // Open space with WAAPI: wake repaints would replay CSS (BUG-028).
           if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
             nudgeEl.animate(
               [
@@ -384,6 +381,7 @@ window._startNudge = (function() {
         _showNudge(_aiCached, true);
       } else if (allowGenerate && _memoryReady && !_nudgeRacing) {
         const state = _generationForToday();
+        if (state.status === 'rejected-length' && state.lengthRepair !== true) state.terminal = false;
         // Rejected prose and permanent errors are not network failures. Do not
         // repeatedly ask the model until it produces something that passes.
         if (state.terminal || state.attempts >= _MAX_ATTEMPTS || Date.now() < state.retryAt) {
@@ -402,6 +400,7 @@ window._startNudge = (function() {
         _nudgeRacing = true;
         _clearNudgeRetry();
         state.attempts++;
+        state.lengthRepair = true;
         state.status = 'started';
         _generationEvent(state, 'attempt', 'started');
         const epoch = _nudgeEpoch;
@@ -452,11 +451,7 @@ window._startNudge = (function() {
           },
         });
       }
-      // else: no cache yet and generation isn't allowed at this call site (init(),
-      // which runs before the Dropbox sync pull lands) — do nothing and let the
-      // post-sync re-check (window 'load' handler, after mergeRemoteData) be the
-      // one that generates, so the AI sees the freshest cross-device task list
-      // instead of whatever this device had before syncing.
+      // Pre-sync init may render a cache; post-sync checks own generation.
     }
 
     function checkVersionNudge() {
@@ -471,9 +466,7 @@ window._startNudge = (function() {
         document.getElementById('infoBtn')?.classList.remove('btn-icon-week');
         return;
       }
-      // Sunday's diagnostic is local-only and runs before badge/history guards so
-      // an absent badge cannot hide why the deeper reflection stayed quiet. This
-      // function runs again after Dropbox sync, replacing the pre-sync snapshot.
+      // Audit before badge guards; sync refreshes this local-only snapshot.
       try { Today.use('about')._debugSundayAudit(_localISO()); }
       catch (e) { console.warn('[Sunday observation audit]', e && e.message); }
       if (localStorage.getItem('sunday_nudge_seen_' + _localISO())) return;
@@ -497,21 +490,8 @@ window._startNudge = (function() {
       btn.classList.add('btn-icon-habits');
     }
 
-    // Day nudge AI rewrite — one sentence with the single most important thing,
-    // seeing both manual tasks and Trello cards (v2.19.0 merged the two fetchers).
-    // Mirrors _fetchWeekReflection: silent null on any failure (rule-based stays).
-    // 12c Phase 3 — the pool track.
-    //
-    // Code selects the observation and the model only phrases it, per the AI/data
-    // contract in design/Personalization.md. Deliberately sends evidence + the
-    // code-owned supported insight
-    // and nothing else: no task list, no appMemory dump, nothing for the model to
-    // choose between. Selection already happened.
-    //
-    // This runs *before* the task-reading nudge below and wins when a candidate
-    // survives the gate. That is rare by construction — four kinds, 21-day
-    // cooldowns, strict thresholds — so most eligible mornings take the
-    // task-reading path. Recent misses guide its wording, not its availability.
+    // Pool first: code selects; AI gets only evidence and the supported insight.
+    // Otherwise use task reading. Contract: design/Personalization.md.
     async function _fetchPoolNudge(key, state) {
       if (typeof _buildObservationCandidates !== 'function'
        || typeof _observationNoveltyGate !== 'function'
@@ -524,11 +504,7 @@ window._startNudge = (function() {
         todayISO,
         taskTexts: (typeof _memoryTaskTexts === 'function') ? _memoryTaskTexts() : {},
       });
-      // Eligibility before novelty. The morning frames a day, so only kinds that
-      // can point at something on the list right now are offered here; the
-      // aggregate kinds go to Sunday. Verdict from the first real pool line
-      // (2026-09-02): a 30-day statistic on the daily beat read as a month insight
-      // and the register went cold with it. This is the fix — not the wording.
+      // Morning eligibility needs a current task hook; aggregates belong on Sunday.
       const hasObligationOnList = (typeof manualTasks !== 'undefined' && typeof doneIds !== 'undefined'
                                    && typeof _aiCheckObligationLanguage === 'function')
         ? manualTasks.some(t => t && !doneIds.has(t.id) && _aiCheckObligationLanguage(t.text))
@@ -582,10 +558,7 @@ window._startNudge = (function() {
           if (yp.length) yLine = yp.join(', ');
         }
 
-        // Pending tasks with rich signals — drag order, sessions, revived flag, age.
-        // Numbered so the AI knows position is intentional (user-set drag order).
-        // Also exclude pastTasks IDs: if a done task re-enters manualTasks via stale sync
-        // after midnight cleanup clears doneIds, pastIds catches it defensively.
+        // Keep drag order/signals; exclude Past IDs even after doneIds rollover.
         const _pastIds = new Set(pastTasks.map(t => t.id));
         const taskLines = manualTasks
           .filter(t => !doneIds.has(t.id) && !_pastIds.has(t.id))
