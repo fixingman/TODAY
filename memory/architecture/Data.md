@@ -190,7 +190,7 @@ Calendar event timing/join context is closure-only in `calendar.js`; never a sto
   clearedAt: '',                     // ISO timestamp of the last full clear; max-wins across devices
   clearedHypothesisIds: [],          // ids of AI hypotheses cleared locally — they carry no date, so the merge tombstones them by id (cap 300)
   // DreamBank (v2.93.0) — a summary per kept dream; the dream itself is a file in the user's Dropbox
-  dreams: { index: [], dismissed: {} }, // dismissed (M2, v2.95.0): { [image stem key]: ISO } — a recurring image the person dismissed in Memory → Dreams; it counts again only from dreams recorded after that time. index: [{ id, night: 'YYYY-MM-DD'|null, recordedAt, updatedAt, lang, images: [], people: [], role }] or a tombstone { id, deleted: true, recordedAt, updatedAt }. `night` is the day told since v2.93.8; older rows may carry inferred-night metadata. Never the retelling/reading. Images pass grounding (every substantive word stem-matches the retelling). Cap 500. Wiped by "clear all memory" (the files stay)
+  dreams: { index: [], dismissed: {} }, // dismissed (M2, v2.95.0–v2.95.4): { [image stem key]: ISO } — written by the retired hide control; since v2.95.5 nothing writes or reads it, but it stays in the schema and merge so older devices sync cleanly. index: [{ id, night: 'YYYY-MM-DD'|null, recordedAt, updatedAt, lang, images: [], people: [], role }] or a tombstone { id, deleted: true, recordedAt, updatedAt }. `night` is the day told since v2.93.8; older rows may carry inferred-night metadata. Never the retelling/reading. Images pass grounding (every substantive word stem-matches the retelling). Cap 500. Wiped by "clear all memory" (the files stay)
 }
 ```
 

@@ -253,7 +253,7 @@ Called from `mergeRemoteData(data)` → `_mergeAppMemory(data.memory)` on every 
 | `kindVerdicts` | Per kind, newer `updated` wins |
 | `taskOutcomes` | Union by `id|outcome|date`, 90 days, newest 300 — accumulated events cannot self-heal, so a missing merge would split the log per device |
 | `dreams.index` | Union by `id`, later `updatedAt` wins; a delete is a tombstone row; clear watermark compared on full `recordedAt`, not the dream's day, so an old dream told after a clear survives (`sync-merge.mergeDreamIndex`) |
-| `dreams.dismissed` | Per image key, later timestamp wins; pre-clear entries drop (`mergeDreamDismissed`). The recurring-image list is never stored — each device derives it from the merged index |
+| `dreams.dismissed` | Per image key, later timestamp wins; pre-clear entries drop (`mergeDreamDismissed`). Passive since v2.95.5 (hide retired) — kept so older devices merge cleanly. The recurring-image list is never stored — each device derives it from the merged index |
 | `noticed` / `noticedDates` | See Noticed above |
 
 Dream files are not in the backup; `dreambank.flush()` uploads each from the sync tick, and Memory reads one on demand without persisting it.

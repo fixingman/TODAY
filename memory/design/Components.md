@@ -296,6 +296,21 @@ Single `.morning-nudge` strip (`#dayNudge`) positioned **between the SOON and Tr
 
 ---
 
+## Memory Panel — PATTERNS (merged v2.95.5)
+
+One **PATTERNS** block — *what holds over time* — replaces PATTERNS + HOW YOU WORK (the two read as the same thing at different resolutions). `renderMemoryPanel()` order: timing/pace facts (peak hours, task lifespan, best weekday, longest streak), then outcome contrasts from `_memoryOutcomePatterns()` (let-go reason → obligation comparison → returns), then confirmed AI inferences of both stable types (`semantic`, `procedural`; storage types unchanged, `rejectKey` keeps the original type so **not me** still removes, tombstones and teaches the prompt). First **6** rows; `show all (N)` / `less` (`memory.patterns-more`, focus stays on the button, resets on each open). Empty state: "patterns appear as more evidence builds".
+
+Outcome contrasts compare like with like:
+- **Let-go reason** — share among let-gos where a reason was picked (≥ 8, top ≥ 35%); ties name every top reason ("not relevant and no energy (40% each)").
+- **Obligation vs other tasks** — `taskOutcomes` (90 days), each task once by its latest done/let-go, framing from that row; unknown framing (`obligation: null`, backfill) excluded. ≥ 8 resolved per side, shown when the gap is ≥ 15 points. (The old line divided resolved obligations by a daily-workload rate that re-counted carried tasks every day.)
+- **Returns** — let-gos 30–90 days old, one per task `key`, linked to a later bring-back of the same key within 30 days; ≥ 10 in the cohort, rate ≥ 15% → "1 in N let-go tasks comes back within a month". (The old line divided returns by let-gos + returns, with no linkage.)
+
+Removed: "often works on" (restates the list), "adds most tasks after the day has started / sets most tasks before the day begins" (always one of the two; 40% called "most"), "tends to defer" (word counts with no baseline or window). Their stores stay — focus and `_memoryForAI` still read them.
+
+AI restatements: confirmed items that near-duplicate a computed line (or each other) are not rendered, and `_memoryAbstract` receives the computed lines as `computed_on_record` and drops new items that restate one. Lexical stem matching is the fallback, not a guarantee.
+
+---
+
 ## Memory Panel — "HOW DAYS FELT" (revised v2.95.1)
 
 Appended after the main Memory blocks by `reflections._reflectionRenderMemory(el)`, in its separate `.reflection-memory-block`. No evening count or technical subtitle. The **RETIRED** block is removed; feedback records, ordinary-nudge misses and category retirement retain their existing behavior and distinct meanings.
@@ -408,7 +423,7 @@ Recounting a dream into the mic produces a reading instead of tasks, and the dre
 
 A `.memory-type-block` (**DREAMS**) showing one `.memory-item`: *N dreams kept in your Dropbox, /Dreams* with a `.memory-item-btn` **manage** / **less** (empty: *a dream you tell the mic lands here*). The list stays reachable because deleting a file in Dropbox does not remove its synced summary — per-dream delete is the in-app way out. Under **manage**, each dream is a `.memory-item`: *day — opening words…* with **read** / **less**. Opened: `.dream-reading`, `.dream-told`, then one `.memory-item` — *kept in your Dropbox* / *kept on this phone* with **delete**. Since v2.93.10, **read** fetches a pruned or second-device file from Dropbox on demand, displays any legacy note read-only, and keeps the raw body only while Memory is open. Missing/offline/invalid files show a short retryable status, not an empty reading. Delete confirms with the footer's pattern: `.memory-confirm-msg` + `.memory-clear-btn.memory-clear-confirm` **yes, delete** + `.btn-ghost.memory-conn-link` **cancel**; it removes the Dropbox file too.
 
-**What comes back (M2, revised v2.95.1):** under the summary, one `.memory-item` — *comes back: company (2)*, up to five items, ordered by frequency then recency. Count distinct dream IDs, once per thing per dream. No duplicate recurrence rows. Under **manage**, each item gains **hide** beside that same label/count; shared help explains that earlier occurrences stay hidden until two new dreams repeat it. The visible count has a spoken “in N dreams” equivalent, hide buttons name the item and reference the help, and re-rendering retains keyboard focus (or returns it to manage when a hidden item disappears). Labels wrap at 320px. Reading and deleting individual dreams stay available in manage. Recurrence is computed on-device from recorded images/people, with no AI call or new collection. Hide keeps the existing synced per-key timestamp; only post-hide dreams count toward reappearance.
+**What comes back (M2, revised v2.95.1):** under the summary, one `.memory-item` — *comes back: company (2)*, up to five items, ordered by frequency then recency. Count distinct dream IDs, once per thing per dream. No duplicate recurrence rows and no per-item controls: **manage** lists the dreams (read/delete), it does not touch the recurrence line (hide and its explanation were removed in v2.95.5 — deleting a dream already removes what it contributed). The visible count has a spoken “in N dreams” equivalent, and re-rendering retains keyboard focus. Labels wrap at 320px. Recurrence is computed on-device from recorded images/people, with no AI call or new collection.
 
 ## Quick Voice Capture (v2.90.18)
 

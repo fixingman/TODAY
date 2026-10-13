@@ -508,6 +508,86 @@ try {
     await page.close();
   }
 
+  // PATTERNS absorbs HOW YOU WORK: like-for-like outcome contrasts, both confirmed AI
+  // types, restatements of computed lines suppressed, six rows then "show all".
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      const today = _localISO();
+      const back = n => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() - n); return _localISO(d); };
+      const monday = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return _localISO(d); };
+      const live = { seenWeeks: [monday(back(14)), monday(back(7)), monday(today)], lastSeen: today, status: 'confirmed' };
+      appMemory.patterns.letgoReasons = { not_relevant: 4, no_energy: 4, replaced: 2 };
+      appMemory.patterns.taskKeywords = { invoice: { days: { [today]: 5 } }, design: { days: { [today]: 4 } } };
+      appMemory.preferences.dragKeywords = Array(6).fill(['dentist', 'taxes']).flat();
+      appMemory.patterns.lateAdditions = Array(10).fill({ h: 15, date: today });
+      const rows = [];
+      // 10 obligation tasks (9 done), 10 other tasks (5 done). An obligation let go then
+      // done counts once, as done; a framing-unknown row counts on neither side.
+      for (let i = 0; i < 10; i++) rows.push({ id: 'o' + i, key: 'ko' + i, date: back(5), outcome: i < 9 ? 'done' : 'letgo', obligation: true });
+      rows.push({ id: 'o0', key: 'ko0', date: back(8), outcome: 'letgo', obligation: true });
+      for (let i = 0; i < 10; i++) rows.push({ id: 'c' + i, key: 'kc' + i, date: back(5), outcome: i < 5 ? 'done' : 'letgo', obligation: false });
+      rows.push({ id: 'bf_x', date: back(5), outcome: 'done', obligation: null });
+      // 12 let-gos 40 days ago; 3 brought back within 30 days, 1 after 30 days, 1 unlinked revive.
+      for (let i = 0; i < 12; i++) rows.push({ id: 'l' + i, key: 'kl' + i, date: back(40), outcome: 'letgo', obligation: null });
+      for (let i = 0; i < 3; i++) rows.push({ id: 'l' + i, key: 'kl' + i, date: back(30), outcome: 'revive', obligation: null });
+      rows.push({ id: 'l5', key: 'kl5', date: back(2), outcome: 'revive', obligation: null });
+      rows.push({ id: 'zz', key: 'kzz', date: back(30), outcome: 'revive', obligation: null });
+      appMemory.taskOutcomes = rows;
+      appMemory.memory = {
+        semantic: [{ id: 'S1', text: 'chosen work closes fast while errands for others linger', type: 'semantic', ...live }],
+        episodic: [],
+        procedural: [
+          { id: 'P1', text: 'brings back released work only after a long pause', type: 'procedural', ...live },
+          { id: 'P2', text: 'obligation tasks done more often than other tasks', type: 'procedural', ...live },
+        ],
+      };
+      Today.use('memory').toggle();
+      const content = () => document.getElementById('memoryContent');
+      const block = () => [...content().querySelectorAll('.memory-type-block')].find(b => b.textContent.includes('PATTERNS'));
+      const lines = () => [...block().querySelectorAll('.memory-item-text')].map(el => el.textContent);
+      const text = content().textContent;
+      const collapsed = lines();
+      const more = block().querySelector('[data-today-click="memory.patterns-more"]');
+      const moreLabel = more?.textContent;
+      more?.click();
+      const all = lines();
+      const procBtn = block().querySelector('[data-hypothesis="procedural:P1"]');
+      const out = {
+        noHowYouWork: !text.includes('HOW YOU WORK') && !text.includes('habits in how you plan'),
+        droppedLines: !/often works on|tends to defer|adds most tasks|sets most tasks/.test(text),
+        reasonTie: all.includes('most common let-go reason: not relevant and no energy (40% each)'),
+        obligationLikeForLike: all.includes('obligation tasks: 90% done vs 50% of other tasks'),
+        returnLinked: all.includes('1 in 4 let-go tasks comes back within a month'),
+        timingFirst: all[0].startsWith('most tasks done'),
+        orderReasonOblReturn: all.findIndex(t => t.startsWith('most common let-go')) < all.findIndex(t => t.startsWith('obligation tasks')) &&
+          all.findIndex(t => t.startsWith('obligation tasks')) < all.findIndex(t => t.startsWith('1 in')),
+        bothAiTypes: all.includes('chosen work closes fast while errands for others linger') && all.includes('brings back released work only after a long pause'),
+        restatementSuppressed: !all.includes('obligation tasks done more often than other tasks'),
+        capped: collapsed.length === 6 && all.length > 6 && moreLabel === `show all (${all.length})`,
+        lessAfterOpen: block().querySelector('[data-today-click="memory.patterns-more"]')?.textContent === 'less',
+        focusKept: document.activeElement?.dataset.todayClick === 'memory.patterns-more',
+        procRejectButton: !!procBtn,
+      };
+      procBtn?.click();
+      out.procRejectRemoves = !appMemory.memory.procedural.some(i => i.id === 'P1') && appMemory.clearedHypothesisIds.includes('P1');
+      // The abstraction sees the computed lines and drops a restatement of one.
+      delete appMemory.memory._lastAbstractDate;
+      appMemory.memory.procedural = [];
+      window.__memoryTest.abstractResponses.push({ still: [], new: [
+        { type: 'procedural', text: 'obligation tasks done far more often than other tasks' },
+      ] });
+      await Today.use('memory').abstract();
+      const msg = JSON.parse(window.__memoryTest.lastBody || '{}').messages?.[0]?.content || '';
+      out.promptCarriesComputed = msg.includes('computed_on_record') && msg.includes('obligation tasks: 90% done vs 50% of other tasks');
+      out.restatementNotStored = !appMemory.memory.procedural.some(i => /obligation tasks done/.test(i.text));
+      return out;
+    });
+    await expectAll('merged PATTERNS', { ...result, noErrors: errors.length === 0 });
+    ok('PATTERNS absorbs HOW YOU WORK: like-for-like contrasts, linked returns, both AI types, restatements suppressed, six rows then show all');
+    await page.close();
+  }
+
   // Static ownership checks.
   {
     const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');

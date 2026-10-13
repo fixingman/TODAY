@@ -57,7 +57,7 @@
       .slice(0, 5);
   }
 
-  // On-device recurrence: shared content stems in two distinct dreams; hiding excludes earlier dreams.
+  // On-device recurrence: shared content stems in two distinct dreams.
   const LEXICON_STOP = new Set([
     'the', 'and', 'but', 'for', 'nor', 'not', 'was', 'her', 'his', 'its', 'our', 'you', 'she',
     'him', 'all', 'one', 'two', 'any', 'who', 'has', 'had', 'are', 'out', 'off', 'too', 'own',
@@ -71,8 +71,7 @@
     return _words(text, lang).filter(w => [...w].length >= 3 && !STOPWORDS.has(w) && !LEXICON_STOP.has(w));
   }
 
-  function recurringImages(rows, dismissed, limit = 5) {
-    const off = dismissed && typeof dismissed === 'object' ? dismissed : {};
+  function recurringImages(rows, limit = 5) {
     const byKey = new Map();
     for (const row of Array.isArray(rows) ? rows : []) {
       if (!row || row.deleted || !row.id) continue;
@@ -81,7 +80,6 @@
         for (const word of _lexiconWords(phrase, row.lang)) {
           const key = _stem(word);
           if (seen.has(key)) continue;
-          if (off[key] && String(row.recordedAt || '') <= String(off[key])) continue;
           seen.add(key);
           const item = byKey.get(key) || { key, ids: [], days: [], forms: new Map(), last: '' };
           if (item.ids.includes(row.id)) continue; // distinct dreams, including duplicated sync rows
@@ -409,18 +407,6 @@
       if (!appMemory.dreams || !Array.isArray(appMemory.dreams.index)) appMemory.dreams = { index: [], dismissed: {} };
       return appMemory.dreams.index;
     }
-    // { [image key]: ISO } — synced max-wins (sync-merge mergeDreamDismissed).
-    function _dismissedImages() {
-      _indexRows();
-      if (!appMemory || !appMemory.dreams) return {};
-      if (!appMemory.dreams.dismissed || typeof appMemory.dreams.dismissed !== 'object') appMemory.dreams.dismissed = {};
-      return appMemory.dreams.dismissed;
-    }
-    function dismissImage(key) {
-      if (!/^[\p{L}\p{M}]{2,4}$/u.test(String(key || ''))) return;
-      _dismissedImages()[key] = new Date().toISOString();
-      _indexSave();
-    }
     function _indexSave() {
       if (typeof _saveMemory === 'function') _saveMemory();
       // Save locally and autosave for other devices.
@@ -608,9 +594,7 @@
     function _recurrence(item) {
       return `<span class="dream-recurrence"><span class="dream-recurrence-label">` +
         `<span aria-hidden="true">${esc(item.label)} (${item.count})</span>` +
-        `<span class="visually-hidden">${esc(item.label)}, in ${item.count} dreams</span></span>` +
-        (_listOpen ? `<button type="button" class="memory-item-btn" data-today-click="dream.image-dismiss" data-image-key="${esc(item.key)}" aria-label="Hide ${esc(item.label)} recurrence" aria-describedby="dreamRecurrenceHelp">hide</button>` : '') +
-        `</span>`;
+        `<span class="visually-hidden">${esc(item.label)}, in ${item.count} dreams</span></span></span>`;
     }
 
     function renderMemory(container) {
@@ -618,11 +602,11 @@
       const old = document.getElementById('dreamMemoryBlock');
       const active = old?.contains(document.activeElement) ? document.activeElement : null;
       const action = active?.dataset.todayClick;
-      const identity = active?.dataset.dreamId || active?.dataset.imageKey;
+      const identity = active?.dataset.dreamId;
       const rows = _rows();
       const dir = _files() ? _files().dreamsDir : '/Dreams';
       const n = rows.length;
-      const images = recurringImages(_indexRows(), _dismissedImages());
+      const images = recurringImages(_indexRows());
       const summary = n
         ? `${n} dream${n === 1 ? '' : 's'} kept in your Dropbox, ${dir}`
         : 'a dream you tell the mic lands here';
@@ -631,9 +615,7 @@
         `<div class="memory-item"><span class="memory-item-text">${esc(summary)}</span>` +
         (n ? `<button type="button" class="memory-item-btn" data-today-click="dream.memory-manage" aria-expanded="${_listOpen}">${_listOpen ? 'less' : 'manage'}</button>` : '') +
         `</div>` +
-        // Manage adds actions beside the same recurrence, never duplicate rows.
         (images.length ? `<div class="memory-item"><span class="memory-item-text">comes back: ${images.map(_recurrence).join(' · ')}</span></div>` : '') +
-        (_listOpen ? `<div class="memory-pending" id="dreamRecurrenceHelp">Hiding a recurrence keeps its earlier occurrences hidden. It returns after two new dreams repeat it.</div>` : '') +
         (n && _listOpen ? rows.map(_memoryRow).join('') : '') +
         `</div>`;
       if (old) old.outerHTML = html;
@@ -642,7 +624,7 @@
         const block = document.getElementById('dreamMemoryBlock');
         const replacement = [...block.querySelectorAll('button')].find(button =>
           button.dataset.todayClick === action &&
-          (button.dataset.dreamId || button.dataset.imageKey) === identity);
+          button.dataset.dreamId === identity);
         (replacement || block.querySelector('[data-today-click="dream.memory-manage"]'))?.focus();
       }
     }
@@ -654,7 +636,7 @@
     if (window.Today) {
       Today.define('dreambank', {
         capture, settle, keep, discard, get, onChange, flush,
-        statusText, renderMemory, dismissImage,
+        statusText, renderMemory,
         _list: () => _queue.slice(),
       });
       Today.ui.register('click', 'dream.memory-manage', () => {
@@ -678,7 +660,6 @@
         _rerenderMemory();
         _readFromDropbox(id, _readEpoch);
       });
-      Today.ui.register('click', 'dream.image-dismiss', (_e, el) => { dismissImage(el.dataset.imageKey); _rerenderMemory(); });
       Today.ui.register('click', 'dream.memory-delete', (_e, el) => { _confirmDeleteId = el.dataset.dreamId; _rerenderMemory(); });
       Today.ui.register('click', 'dream.memory-delete-cancel', () => { _confirmDeleteId = null; _rerenderMemory(); });
       Today.ui.register('click', 'dream.memory-delete-confirm', (_e, el) => {

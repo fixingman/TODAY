@@ -168,6 +168,8 @@ Don't store behavior — store conclusions. Completion timestamps, focus session
 | **Procedural** | Behavioral habits — "breaks projects into ≤30-min chunks," "avoids admin after 3pm" | Medium — weeks |
 | **Meta** | System's own confidence and data coverage — "I only have 5 days of evening data" | Continuous |
 
+Storage keeps these types; display does not mirror them. Memory shows semantic and procedural together under **PATTERNS**, episodic under **LATELY**, meta under **WHAT TODAY HAS SEEN** (v2.95.5 — see `design/Components.md` → Memory Panel — PATTERNS).
+
 Conflating types produces systems too cautious about small things or overconfident about important ones. Meta memory is underrated — saying "I don't have enough data on X yet" is a feature, not a failure.
 
 ### Three temporal scales, different inertia
@@ -178,7 +180,7 @@ Conflating types produces systems too cautious about small things or overconfide
 If a week looks wildly different from the medium window, surface that as a signal rather than immediately updating the long-window model. Don't let a burned-out week erase 6 months of healthy patterns (catastrophic forgetting).
 
 ### Trust architecture: AI proposes, user confirms
-Fully automatic inference erodes trust when it's wrong — users have no mental model for why and no path to contest. The pattern that works: **AI generates candidate inferences from behavioral data → surfaces them visibly as hypotheses → user ratifies or rejects.** This converts implicit signal to explicit, authoritative memory without bypassing the user's agency. Connects directly to the *Noticed* block pattern: delta-gated, once on change, user can always inspect.
+Fully automatic inference erodes trust when it's wrong — users have no mental model for why and no path to contest. The pattern that works: **AI generates candidate inferences from behavioral data → surfaces them visibly as hypotheses → user ratifies or rejects.** This converts implicit signal to explicit, authoritative memory without bypassing the user's agency. **As built (v2.91.0+):** stable inferences confirm *automatically* once supported in three distinct calendar weeks (`HYPO_CONFIRM_WEEKS`), fade after 28 days without support, and the person's lever is **not me** (remove + tombstone + prompt exclusion) — rejection, not ratification. Explicit ratification remains an open option. Connects directly to the *Noticed* block pattern: delta-gated, once on change, user can always inspect.
 
 ### Personalization backfire effect
 When users feel surveilled rather than served, personalization *reduces* engagement — measurably, in controlled research. The shift from "helpful" to "creepy" is not predictable from outside; opt-in with visible payoff is safer than opt-out with invisible benefit. Show the user what the system knows and what it did with that knowledge.
