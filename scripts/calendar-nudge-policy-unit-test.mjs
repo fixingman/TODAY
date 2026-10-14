@@ -199,15 +199,39 @@ try {
     }
     assert.equal(policy.resolveDecision(evidence, { choice: 'check' }, { ...base, now: at('08:01') }).status, 'accepted');
   });
-  check('source/task and snapshot fields are neither mutated nor persisted; live nudge remains disconnected', () => {
+  check('source/task and snapshot stay pure; runtime policy is lazy and shares the tooling implementation', () => {
     const before = structuredClone(base);
     policy.buildDecisionPrompt(build()); policy.resolveDecision(evidence, { choice: 'check' }, base);
     assert.deepEqual(base, before);
-    const source = readFileSync(new URL('./lib/calendar-nudge-policy.cjs', import.meta.url), 'utf8');
-    assert.ok(!/localStorage|fetch\(|Today\.|appMemory|Date\.now/.test(source));
-    for (const file of ['../assets/nudge.js', '../assets/calendar.js', '../index.html', '../sw.js']) {
-      assert.ok(!readFileSync(new URL(file, import.meta.url), 'utf8').includes('calendar-nudge-policy'));
+    const source = readFileSync(new URL('../assets/calendar-nudge-policy.js', import.meta.url), 'utf8');
+    assert.ok(!/localStorage|fetch\(|appMemory|Date\.now/.test(source));
+    assert.match(readFileSync(new URL('./lib/calendar-nudge-policy.cjs', import.meta.url), 'utf8'), /require\('..\/..\/assets\/calendar-nudge-policy.js'\)/);
+    assert.match(readFileSync(new URL('../assets/calendar-nudge.js', import.meta.url), 'utf8'), /import\('\.\/calendar-nudge-policy.js'\)/);
+    assert.match(readFileSync(new URL('../assets/nudge.js', import.meta.url), 'utf8'), /import\('\.\/calendar-nudge.js'\)/);
+    assert.doesNotMatch(readFileSync(new URL('../index.html', import.meta.url), 'utf8'), /<script[^>]+calendar-nudge-policy/);
+    assert.match(readFileSync(new URL('../sw.js', import.meta.url), 'utf8'), /'\/assets\/calendar-nudge-policy.js'/);
+  });
+  check('ordinary writer gets only derived same-task evidence and no worked examples or event details', () => {
+    const text = policy.writerContext(evidence);
+    assert.ok(text.includes(evidence.label));
+    assert.ok(text.includes('Attendance, actual availability and other commitments are unknown'));
+    assert.equal(policy.writerContext(null), null);
+    for (const secret of ['PRIVATE TITLE', 'PRIVATE BODY', 'private@example', 'https://meet', '08:20', '15:30', 'fixture-proposal', 'provenance', 'capturedAt']) {
+      assert.ok(!text.includes(secret), secret);
     }
+    assert.ok(!/for example|e\.g\.|example line/i.test(policy.writerInstruction));
+  });
+  check('writer rejects known Calendar overreach without imposing a code-owned sentence', () => {
+    assert.equal(policy.writerTextIsBounded(evidence, 'Review the client proposal asks for continuity against the Calendar’s shorter gaps; how those commitments fit remains yours.'), true);
+    assert.equal(policy.writerTextIsBounded(evidence, 'The choice you made when bringing this back is still yours.'), true);
+    for (const text of [
+      'Your Calendar leaves you free for Review the client proposal.',
+      'Review the client proposal could move later; your Calendar is packed.',
+      'Review the client proposal needs 30 minutes against those Calendar gaps.',
+      'Review the client proposal has shorter Calendar gaps before 15:30.',
+      'Review the client proposal sits against 3 meetings in your Calendar.',
+      'Your Calendar’s gaps are shorter; the task may need another look.',
+    ]) assert.equal(policy.writerTextIsBounded(evidence, text), false, text);
   });
   check('interval policy agrees with an independent minute-grid oracle on 100 synthetic schedules', () => {
     let seed = 731;

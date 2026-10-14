@@ -844,6 +844,8 @@
         _aiGetKey,
         _aiIsConfigured,
         _aiRenderConfig,
+        // Loads the existing opt-in reader; never changes credentials or consent.
+        calendarForNudge: _loadCalendar,
       });
       Today.ui.register('click', 'connections.toggle', toggleConfig);
       Today.ui.register('click', 'connections.trello-auth', trelloAuth);

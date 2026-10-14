@@ -4,7 +4,7 @@
 // This is the ONE version value still hand-synced — a SW can't import APP_VERSION from
 // index.html (separate context, no build step). scripts/smoke-test.mjs asserts it matches
 // `today-v${APP_VERSION}` and fails the pre-commit gate on drift.
-const CACHE_VERSION  = 'today-v2.95.7';
+const CACHE_VERSION  = 'today-v2.96.0';
 const CACHE_APP_SHELL = [
   '/',
   '/poem.html',
@@ -22,6 +22,8 @@ const CACHE_APP_SHELL = [
   '/assets/dropbox.js',
   '/assets/gmail.js',
   '/assets/calendar.js',
+  '/assets/calendar-nudge.js',
+  '/assets/calendar-nudge-policy.js',
   '/assets/vendor/minisearch-7.2.0.js',
   '/assets/task-enrich.js',
   '/assets/reflections.js',

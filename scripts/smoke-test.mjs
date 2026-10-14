@@ -128,6 +128,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'Friedrich Nietzsche (trans. Alexander Tille)',
     'Thiruvalluvar (trans. V. V. S. Aiyar)',
     'John Muir',
+    'Edward Thomas',
+    'Ōshikōchi no Mitsune',
+    'Anonymous (Japanese, trans. Lafcadio Hearn)',
   ];
   const sixLineVoices = [
     'Traditional Asante (recorded by R. S. Rattray)',
@@ -146,6 +149,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'Friedrich Nietzsche (trans. Alexander Tille)',
     'Thiruvalluvar (trans. V. V. S. Aiyar)',
     'John Muir',
+    'Edward Thomas',
+    'Ōshikōchi no Mitsune',
+    'Anonymous (Japanese, trans. Lafcadio Hearn)',
   ];
   const hasAllApprovedVoices = approvedVoices.every(author =>
     poems.some(poem => poem.author === author));
@@ -221,7 +227,18 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     poem.text.includes('Bid me and I shall gather my fruits') ||
     poem.text.includes("The old man's autumn, who with joy") ||
     poem.text.includes('oh fields that rest after harvest') ||
-    poem.text.includes('No tree ever bore fruit'));
+    poem.text.includes('No tree ever bore fruit') ||
+    // Round 48 final cuts (2026-10-14)
+    poem.text.includes('there is a strange tremor in the soul') ||
+    poem.text.includes('The speculating rooks at their nests cawed') ||
+    poem.text.includes('on the first day of sledge-driving') ||
+    poem.text.includes('has the winter-plum') ||
+    // Round 49 final cuts (2026-10-14)
+    poem.text.includes('I set every tree in my June time') ||
+    poem.text.includes('I bring no prayers on coloured silk') ||
+    poem.text.includes('The villagers are beating cloth') ||
+    poem.text.includes('that noiseless noise which lives in the summer air') ||
+    poem.text.includes('the prospect looks no different from yesterday'));
   const hasSeason = (sourcePart, season) => poems.some(poem =>
     poem.source.includes(sourcePart) && poem.season === season);
   const seasonTagDrift =
@@ -234,12 +251,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     return counts;
   }, {});
   const seasonCountDrift = seasonCounts.winter !== 16 || seasonCounts.spring !== 18 ||
-    seasonCounts.summer !== 14 || seasonCounts.autumn !== 13 || seasonCounts['year-round'] !== 75;
-  if (poems.length !== 136 || malformed.length || !hasAllApprovedVoices || !hasForeverNows || !hasBecauseRose || !hasNietzscheStory || !hasThoreauLifePoem || !hasNietzscheLove || !hasNietzscheStar || !hasAiyarSneeze || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
+    seasonCounts.summer !== 14 || seasonCounts.autumn !== 17 || seasonCounts['year-round'] !== 75;
+  if (poems.length !== 140 || malformed.length || !hasAllApprovedVoices || !hasForeverNows || !hasBecauseRose || !hasNietzscheStory || !hasThoreauLifePoem || !hasNietzscheLove || !hasNietzscheStar || !hasAiyarSneeze || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
     console.error('✗ FAIL — reviewed poem corpus count, schema, line limit, or season tags drifted.');
     process.exit(1);
   }
-  console.log('  ✓ 136-poem reviewed corpus shape, approved selections, and audited seasons');
+  console.log('  ✓ 140-poem reviewed corpus shape, approved selections, and audited seasons');
 
   try {
     globalThis.fetch = async request => {

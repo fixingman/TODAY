@@ -920,4 +920,30 @@ const POEMS = [
     season: null,
     source: "Ashanti Proverbs (Oxford, 1916), no. 775, 'Wobeforo dua a, wofi n'ase na womfi soro' — Rattray d. 1938, PD worldwide; complete proverb reflowed to two displayed lines, verified verbatim against the archive.org scan text",
   },
+
+  // ── Rounds 48–49 (Oct 2026) — autumn: late sun, frost, a last butterfly, herons ─
+  {
+    text: "The south wall warms me: November has begun,\nYet never shone the sun as fair as now\nWhile the sweet last-left damsons from the bough\nWith spangles of the morning's storm drop down\nBecause the starling shakes it, whistling what\nOnce swallows sang.",
+    author: 'Edward Thomas',
+    season: 'autumn',
+    source: "'There's Nothing Like the Sun', Poems (1917) — Thomas d. 1917, PD worldwide; contiguous excerpt (lines 6–11, ending at the sentence close), verified verbatim against the Wikisource transcription of the 1917 scan and Project Gutenberg #22423",
+  },
+  {
+    text: "It was a white chrysanthemum\nI came to take away;\nBut, which are coloured, which are white,\nI’m half afraid to say,\nSo thick the frost to-day!",
+    author: 'Ōshikōchi no Mitsune',
+    season: 'autumn',
+    source: 'Hyakunin Isshu 29, A Hundred Verses from Old Japan, trans. William N. Porter (1909) — verified against the Wikisource transcription of the scan (Porter d. 1917, Mitsune d. c. 925)',
+  },
+  {
+    text: 'Poor autumn butterfly!—when left without a comrade,\nit follows after man!',
+    author: 'Anonymous (Japanese, trans. Lafcadio Hearn)',
+    season: 'autumn',
+    source: "Japanese Lyrics (1915), 'Insect Poems' — Hearn d. 1904, PD worldwide; complete verse reflowed to two displayed lines, verified verbatim against the archive.org scan text (japaneselyrics00hearuoft); also printed with bracketed glosses in Kwaidan (1904)",
+  },
+  {
+    text: 'A dried leaf crumbles at a touch,\nBut I have seen many Autumns\nWith herons blowing like smoke\nAcross the sky.',
+    author: 'Amy Lowell',
+    season: 'autumn',
+    source: "'Hoar-Frost', Pictures of the Floating World (1919), Chinoiseries — Lowell d. 1925, PD worldwide; closing four of nine lines (a complete sentence), verified verbatim against the archive.org scan text (picsofthefloating00lowerich)",
+  },
 ];

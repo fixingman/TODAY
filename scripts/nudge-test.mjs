@@ -327,6 +327,185 @@ try {
       ok('task-reading: "not really" lines steer the next line (wording only, never the reason); bare recaps fall back to the count line');
     }
 
+    // 3d. Capture the ordinary facts and request boundary with fictional inputs.
+    // These data/isolation checks do not assert model quality. No explicitly
+    // constrained task is present, so even a connected Calendar remains absent.
+    for (const calendarState of ['empty', 'stale', 'populated']) {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(async calendarState => {
+        const date = _localISO(), now = Date.now(), D = 86400000;
+        localStorage.removeItem('day_nudge_dismissed_' + date);
+        localStorage.setItem('today_ai_key_claude', 'test-key');
+        localStorage.setItem('today_ai_provider', 'claude');
+        localStorage.setItem('calendar_refresh_token', 'fictional-calendar');
+        manualTasks = [
+          { id: 'manual_' + (now - 10 * D), text: 'Prepare snacks for Tuesday', focusSessions: 1 },
+          { id: 'manual_' + (now - 11 * D), text: 'Compare rail passes', focusSessions: 0, revived: true },
+          { id: 'manual_' + now, text: 'Submit permit before 17:00 today', focusSessions: 0 },
+        ];
+        trelloTasks = [{ id: 'card_proof', text: 'Review proof', due: date + 'T17:00:00Z' }];
+        soonTasks = [{ id: 'manual_' + (now - 2 * D), text: 'Research replacement desk', zoneChangedAt: new Date(now - D).toISOString() }];
+        doneIds.clear(); pastTasks = [];
+        appMemory.taskOutcomes = [];
+        appMemory.spokenLines = [];
+        appMemory.preferences.peakHour = 12;
+        appMemory.memory.procedural = [{ status: 'confirmed', text: 'Synthetic confirmed practical-task pattern.' }];
+        appMemory.recentCompletedTasks = ['Fold blankets', 'Check library hours', 'Mend tote bag'].map(text => ({ text, date }));
+        let calendarReads = 0;
+        Today.define('calendar', { context() {
+          calendarReads++;
+          return calendarState === 'populated' ? [{ title: 'PRIVATE_CALENDAR_FIXTURE', start: now, end: now + D }] : [];
+        }, connectionState() { calendarReads++; return calendarState === 'stale' ? 'unavailable' : 'connected'; } });
+        const calls = [];
+        window.fetch = async (url, opts) => {
+          calls.push({ url: String(url), body: JSON.parse(opts.body) });
+          return { ok: true, json: async () => ({ content: 'You brought this back from Soon; that choice is still yours.' }) };
+        };
+        checkDayNudge();
+        await window.__nudgeTestWait(() => calls.length === 1, 'ordinary request captured');
+        const req = calls[0]?.body || {}, body = req.messages?.[0]?.content || '';
+        const instruction = body.split('\n\nThe person is starting their morning.')[1] || '';
+        const facts = body.split('\n\nThe person is starting their morning.')[0];
+        return {
+          oneOrdinaryCall: calls.length === 1 && body.startsWith('Morning check-in.'),
+          explicitDeadlineKeptWithItsTask: facts.includes('3. "Submit permit before 17:00 today"'),
+          plannedDayKeptWithoutInventedDeadline: facts.includes('1. "Prepare snacks for Tuesday" (10d old, 1 focus session)'),
+          unrelatedUntimedTaskKept: facts.includes('2. "Compare rail passes" (11d old, revived from past)'),
+          cardDeadlineKeptWithItsCard: facts.includes('"Review proof" — due today'),
+          personalContextPreserved: facts.includes('Synthetic confirmed practical-task pattern.')
+            && facts.includes('around 12pm') && facts.includes('Fold blankets') && facts.includes('Research replacement desk'),
+          companionFramePreserved: req.systemPrompt?.includes('a friend noticing, not a coach'),
+          usefulnessRetained: instruction.includes('one thing worth saying') && instruction.includes('simple quiet morning note'),
+          dailyThinkingRoutePreserved: req.surface === 'daily-nudge' && req.provider === 'claude'
+            && !('thinking' in req) && !('model' in req),
+          noCalendarIntegration: calendarReads === 0 && !body.includes('PRIVATE_CALENDAR_FIXTURE')
+            && calls.every(c => c.url === '/.netlify/functions/ai-assist'),
+          noWorkedExamples: !/for example|e\.g\.|example line/i.test(instruction),
+        };
+      }, calendarState);
+      await expectAll('ordinary facts/request isolation with ' + calendarState + ' Calendar', { ...result, noErrors: errors.length === 0 });
+      await page.close();
+    }
+    ok('ordinary request: task/card facts, rich context and daily AI route; unsupported tasks receive no Calendar input (3 states)');
+
+    // 3e. The actual lazy policy feeds the actual daily writer. All data/provider
+    // responses are fictional. Compare omitted-input payloads byte-for-byte,
+    // then invalidate the task/Calendar while an enriched response is in flight.
+    let ordinaryCalendarFixture;
+    for (const scenario of ['empty', 'unrelated', 'stale', 'partial', 'disconnected', 'slow-read',
+      'qualified', 'ignored', 'removed-during-read', 'edited', 'completed', 'forgotten', 'account-changed',
+      'hidden', 'midnight', 'unsafe-text', 'malformed-text']) {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(async scenario => {
+        // Restore real local-hour semantics for the evidence parser while fixing
+        // the whole clock, not merely Date.getHours as the older fixtures do.
+        const NativeDate = Date, date = _localISO();
+        NativeDate.prototype.getHours = function() {
+          return Number(this.toLocaleTimeString('en-GB', { hour: '2-digit', hour12: false }));
+        };
+        let clock = +new NativeDate(date + 'T09:00:00');
+        window.Date = class extends NativeDate {
+          constructor(...args) { super(...(args.length ? args : [clock])); }
+          static now() { return clock; }
+        };
+        const start = new Date(clock); start.setHours(0, 0, 0, 0);
+        const end = new Date(start); end.setDate(end.getDate() + 1);
+        const deadline = new Date(clock); deadline.setHours(15, 0, 0, 0);
+        const task = { id: 'manual_' + (clock - 86400000), text: 'Review draft needs 45 uninterrupted minutes; send before 15:00.' };
+        manualTasks = [task, { id: 'manual_' + clock, text: 'Choose a library book' }];
+        soonTasks = []; pastTasks = []; trelloTasks = []; doneIds.clear();
+        appMemory.taskOutcomes = []; appMemory.spokenLines = [];
+        localStorage.removeItem('day_nudge_dismissed_' + date);
+        localStorage.removeItem('day_nudge_ai_' + date);
+        localStorage.setItem('today_ai_key_claude', 'test-key');
+        localStorage.setItem('today_ai_provider', 'claude');
+        if (scenario !== 'disconnected') localStorage.setItem('calendar_refresh_token', 'fictional-calendar');
+        let snapshot = { status: 'complete', calendar: 'primary', connected: true, hidden: false, offline: false,
+          epoch: 7, capturedAt: clock, windowStart: +start, windowEnd: +end,
+          events: [{ start: clock, end: +deadline, title: 'PRIVATE_EVENT_FIXTURE',
+            joinUrl: 'https://private-event.invalid', description: 'PRIVATE_DESCRIPTION_FIXTURE' }] };
+        if (scenario === 'empty') snapshot.events = [];
+        if (scenario === 'unrelated') snapshot.events = [{ start: +deadline + 60000, end: +deadline + 3600000 }];
+        if (scenario === 'stale') snapshot.capturedAt -= 300001;
+        if (scenario === 'partial') snapshot.status = 'partial';
+        let reads = 0;
+        Today.define('calendar', {
+          refresh() {
+            reads++;
+            if (scenario === 'removed-during-read') manualTasks = manualTasks.filter(t => t.id !== task.id);
+            return scenario === 'slow-read' ? new Promise(() => {}) : Promise.resolve(true);
+          },
+          timingSnapshot() { return document.hidden || !navigator.onLine ? null : snapshot; },
+        });
+        const enriched = 'Review draft asks for continuity against the Calendar’s shorter gaps; how those commitments fit remains yours.';
+        const ordinary = 'Choosing a library book leaves the choice of what comes next with you.';
+        const calls = [];
+        let finish;
+        window.fetch = async (url, options) => {
+          calls.push({ url: String(url), body: JSON.parse(options.body) });
+          if (calls.length === 1 && ['edited', 'completed', 'forgotten', 'account-changed', 'hidden', 'midnight'].includes(scenario))
+            return new Promise(resolve => { finish = resolve; });
+          const content = calls.length > 1 || scenario === 'ignored' ? ordinary
+            : scenario === 'unsafe-text' ? 'Review draft can move later; your Calendar is packed.'
+            : scenario === 'malformed-text' ? '' : enriched;
+          return { ok: true, json: async () => ({ content }) };
+        };
+        document.getElementById('infoPanel').classList.add('open');
+        checkDayNudge();
+        await window.__nudgeTestWait(() => calls.length >= 1, 'Calendar fixture first request');
+        if (finish) {
+          if (scenario === 'edited') task.text = 'Review updated draft';
+          if (scenario === 'completed') doneIds.add(task.id);
+          if (scenario === 'forgotten') { snapshot = null; localStorage.removeItem('calendar_refresh_token'); }
+          if (scenario === 'account-changed') snapshot.epoch++;
+          if (scenario === 'hidden') Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+          if (scenario === 'midnight') { clock = +end; _nudgeOnNewDay(); }
+          finish({ ok: true, json: async () => ({ content: enriched }) });
+        }
+        if (scenario === 'midnight') {
+          // Finish the known promise chain without requesting a new-day nudge.
+          await new Promise(resolve => setTimeout(resolve, 30));
+        } else await window.__nudgeTestWait(() => Today.use('nudge').generationAudit().status === 'accepted', 'Calendar fixture settled');
+        const line = localStorage.getItem('day_nudge_ai_' + date);
+        if (scenario === 'qualified') _memoryReactToLine('morning nudge', date, 'landed');
+        const record = appMemory.spokenLines.find(l => l.surface === 'morning nudge' && l.date === date);
+        return { calls, reads, line,
+          aboutMatches: scenario === 'midnight' || document.getElementById('todayNudgeBlock').textContent.includes(line),
+          noExtraVoteKind: !record?.kind,
+          voteKept: scenario !== 'qualified' || record?.reaction === 'landed',
+          noPrivateInput: !JSON.stringify(calls).includes('PRIVATE_EVENT_FIXTURE')
+            && !JSON.stringify(calls).includes('PRIVATE_DESCRIPTION_FIXTURE') && !JSON.stringify(calls).includes('private-event.invalid')
+            && !JSON.stringify(calls).includes('"events"') && !JSON.stringify(calls).includes('"capturedAt"'),
+          noRawCalendarPersistence: !JSON.stringify(Object.entries(localStorage)).includes('PRIVATE_EVENT_FIXTURE')
+            && !JSON.stringify(appMemory).includes('PRIVATE_EVENT_FIXTURE'),
+        };
+      }, scenario);
+      const omitted = ['empty', 'unrelated', 'stale', 'partial', 'disconnected', 'slow-read', 'removed-during-read'].includes(scenario);
+      const fallback = ['edited', 'completed', 'forgotten', 'account-changed', 'hidden', 'unsafe-text', 'malformed-text'].includes(scenario);
+      const first = result.calls[0].body.messages[0].content;
+      if (scenario === 'empty') ordinaryCalendarFixture = result.calls[0].body;
+      await expectAll('Calendar daily integration: ' + scenario, {
+        noErrors: errors.length === 0,
+        expectedCalls: result.calls.length === (fallback ? 2 : 1),
+        supportConditional: first.includes('Optional same-task Calendar evidence') === !omitted,
+        ordinaryPayloadUnchanged: !omitted || scenario === 'removed-during-read'
+          || JSON.stringify(result.calls[0].body) === JSON.stringify(ordinaryCalendarFixture),
+        untouchedRoute: result.calls.every(c => c.url === '/.netlify/functions/ai-assist'
+          && c.body.surface === 'daily-nudge' && c.body.provider === 'claude' && !('thinking' in c.body) && !('model' in c.body)),
+        disconnectedNoRead: scenario !== 'disconnected' || result.reads === 0,
+        fallbackHasNoCalendar: !fallback || !result.calls[1].body.messages[0].content.includes('Optional same-task Calendar evidence'),
+        changedTaskFactsFresh: scenario !== 'edited' || result.calls[1].body.messages[0].content.includes('Review updated draft'),
+        completedTaskOmitted: scenario !== 'completed' || !result.calls[1].body.messages[0].content.includes('Review draft'),
+        removedBeforeRequestOmitted: scenario !== 'removed-during-read' || !first.includes('Review draft'),
+        staleNeverSaved: !fallback || result.line === 'Choosing a library book leaves the choice of what comes next with you.',
+        midnightNeverSaved: scenario !== 'midnight' || !result.line,
+        aboutMatches: result.aboutMatches, noExtraVoteKind: result.noExtraVoteKind, voteKept: result.voteKept,
+        noPrivateInput: result.noPrivateInput, noRawCalendarPersistence: result.noRawCalendarPersistence,
+      });
+      await page.close();
+    }
+    ok('Calendar supports the daily writer only on a qualified task; 17 omission/delivery/privacy cases preserve ordinary recovery, About and votes');
+
     // Recovery is a lifecycle, not just an immediate offline fallback. No real
     // credentials or personal lines: the clock advances only in the test page.
     for (const failure of ['network', 'timeout', '503', '429', '408', '401', 'unreadable', 'empty', 'length', 'grounding', 'recap']) {

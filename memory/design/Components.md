@@ -21,6 +21,7 @@
 - Compatibility globals still connect the startup composition root and older cross-module paths. They are transitional: new component APIs belong on `Today`, and the compatibility count must not grow.
 - Deterministic seams live outside their DOM/network controllers: `sync-merge.js`, `suggestion-policy.js`, `noticed-model.js`, and `focus-session.js`. Their owning controllers keep rendering, persistence, provider calls, and browser lifecycle work.
 - Calendar foundation (v2.94.0): `connections.js` owns the existing-style Connect/Reconnect/Retry/Forget row and imports `calendar.js` lazily. `Today.use('calendar')` owns separate consent/tokens, bounded reads and transient timing context; no new compatibility global, eager script, agenda or recording trigger. Live Google/PWA verification is owed before the meeting-start UI slice.
+- Calendar daily support (v2.96.0 release): nudge owns the bounded optional-read/response lifecycle; lazy `calendar-nudge.js` owns reader/evidence orchestration and `calendar-nudge-policy.js` owns pure constraint/evidence/projection checks shared with offline tooling. `calendar.timingSnapshot()` exposes timing/provenance only on-device. No new UI/global/eager script; the existing writer, About and reaction controls own the accepted line. Pool/Sunday/focus are not Calendar consumers.
 
 ---
 

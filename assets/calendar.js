@@ -1,5 +1,6 @@
 // 10b foundation. Lazy, device-local credentials and transient primary-calendar
-// timing only. No agenda, calendar writes, AI context or recording trigger.
+// timing only. Daily nudges may use a minimal derived same-task relationship;
+// no agenda, event details in AI, calendar writes or recording trigger.
 (function initCalendar() {
   'use strict';
   const SCOPE = 'https://www.googleapis.com/auth/calendar.events.readonly';
@@ -143,6 +144,16 @@
         day !== dayWindow().start || !lastRead || Date.now() - lastRead > 300000) return [];
     return events.filter(e => e.end > Date.now()).map(e => ({ ...e }));
   }
+  function timingSnapshot() {
+    // Provenance stays on-device. Never expose event details or join links to
+    // the nudge policy. A caller cannot mistake [] from a failed read for free time.
+    if (document.hidden || !navigator.onLine || connectionState() !== 'connected' ||
+        day !== dayWindow().start || !lastRead || Date.now() < lastRead || Date.now() - lastRead > 300000) return null;
+    const window = dayWindow();
+    return { status: 'complete', calendar: 'primary', connected: true, hidden: false, offline: false,
+      capturedAt: lastRead, windowStart: Date.parse(window.start), windowEnd: Date.parse(window.end),
+      epoch, events: events.map(({ start, end }) => ({ start, end })) };
+  }
   function stopAuth() {
     if (!pendingAuth) return;
     pendingAuth.abort.abort(); clearTimeout(pendingAuth.timer);
@@ -208,5 +219,5 @@
   window.addEventListener('online', () => { if (read('refresh_token')) refresh(); });
   window.addEventListener('offline', clearEvents);
   window.addEventListener('focus', () => { if (read('refresh_token')) refresh(); });
-  Today.define('calendar', { auth, forget, init, refresh, context, connectionState, dayWindow, normalize });
+  Today.define('calendar', { auth, forget, init, refresh, context, timingSnapshot, connectionState, dayWindow, normalize });
 })();

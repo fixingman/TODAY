@@ -147,6 +147,18 @@ try {
   assert.equal(offlineRanking.result?.threadId, 'offline-confirmation');
   console.log('  ✓ the lazy local email ranker loads from the service-worker cache offline');
 
+  const offlineCalendarPolicy = await page.evaluate(async () => {
+    await import('/assets/calendar-nudge.js');
+    await import('/assets/calendar-nudge-policy.js');
+    if (typeof Today.use('calendar-nudge').support !== 'function') return null;
+    const policy = Today.use('calendar-nudge-policy');
+    const now = +new Date('2026-10-14T09:00:00');
+    return policy.constraint({ id: 'offline-fixture',
+      text: 'Review draft needs 45 uninterrupted minutes; send before 15:00.' }, now)?.durationMinutes;
+  });
+  assert.equal(offlineCalendarPolicy, 45);
+  console.log('  ✓ the lazy Calendar evidence policy loads from the service-worker cache offline');
+
   await page.setOfflineMode(false);
   failUnknownNetwork = true;
   await page.goto(BASE + '/never-cached-route', { waitUntil: 'domcontentloaded', timeout: 15000 });

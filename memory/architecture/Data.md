@@ -68,6 +68,8 @@
 
 Calendar event timing/join context is closure-only in `calendar.js`; never a storage key, appMemory record or backup field. Hide/offline/Forget clears it; day/staleness guards withhold it. No event titles/descriptions/participant names are requested in the 10b foundation.
 
+v2.96.0 may add a minimal derived same-task Calendar relationship to the ordinary daily writer; raw events/timings, snapshot/account provenance and join links remain transient/on-device. No storage key, backup/schema field or consent change. Only the accepted final nudge uses the existing private daily cache/spoken-line/vote sync flow, as before; Forget does not delete an already-spoken line. See `AI.md` for eligibility and delivery fencing.
+
 ### AI
 
 | Key | Type | Description |
