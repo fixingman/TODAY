@@ -202,6 +202,8 @@ Dropbox + GDrive simultaneously · automatic cross-provider migration · OneDriv
 | Triage bar morph (v2.90.42) | 2026-10-07 | **Kept (2026-10-05)** — reads as one continuous object opening and shrinking back into the bar. |
 | About contextual CTAs | 2026-10-08 | **Kept (2026-10-05)** — the bordered text CTAs make actions clear without pulling the eye. |
 | Morning nudge after midnight (v2.90.54) | 2026-10-09 | **Kept (2026-10-05)** — the next day's line appeared across devices after a dismissal the day before; BUG-103 verified. |
+| Evening feeling picker (v2.93.14) | 2026-10-19 | **Kept (2026-10-16)** — the ten words in two columns mostly work; the right word usually exists. Can occasionally reached for *tired*, but it is a physical state, not an emotion, so the list stays unchanged. |
+| Shift+Space quick voice capture (v2.90.18) | 2026-10-19 | **Kept, no further review (2026-10-16)** — still unused, but Can rarely records on desktop at all (voice capture happens on the phone, mostly dreams), so non-use is not evidence against it. A hidden gesture costs nothing visible and is never in the way; keep it without a review date. |
 
 ---
 
