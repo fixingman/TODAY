@@ -36,7 +36,7 @@ Ordered by potential impact on TODAY's longitudinal-companion promise and daily 
 | 13 | **DreamBank** | M1 kept (2026-10-11); M2 built (v2.95.0) | Memory → Dreams now shows what comes back across dreams. Combined dream-sheet/read and M2 recurrence verdict due Oct 18; M3 (callbacks, Sunday, task links) after M2's gate. |
 | — | **WEEK companion** | Gated | 12c must genuinely feel like a companion, not a feature. |
 | — | **New week — distinct Monday recognition** | Gated | Week-scale evidence, a different job from Today, earned silence; real-use verdict after 12c. |
-| 2 | **Poem corpus** | In progress — 140 poems | Expand geography and voice; check curation ledger before proposing candidates. |
+| 2 | **Poem corpus** | In progress — 159 poems | Expand geography and voice; check curation ledger before proposing candidates. |
 | 10a | **Granola — meeting import** | Not started — priority path | Reviewed action chips; build before native calendar-led capture. |
 | 10b | **Google Calendar — meeting context** | Foundation live; v2.96.0 daily timing support release approved (Oct 14) | Verify deployed version, then observe eligible daily use without forcing an exposure. Real consent/refresh/Forget checks on desktop/phone still owed before Join / Record. |
 | 11 | **Task agent — enrichment** | Stages 1–3 shipped; relevance under observation | Judge useful context, wrong cards and useful cards withheld; Contacts / AI calendar tools deferred. |
@@ -128,7 +128,7 @@ Do not turn this into another planner or a preview of WEEK. Keep existing Monday
 
 **Next search:** geography and voice, especially Africa, Latin America, Middle East and Southeast Asia; ordinary lived detail and the choosing / keeping / loosening / returning of commitments. Diversity is a tie-breaker, not a quota. The shuffle fix is shipped, not the expansion lever.
 
-**Corpus at last curation count (2026-10-14):** 140 = winter 16 + spring 18 + summer 14 + autumn 17 + year-round 75. Target 16 per season: summer +2; winter and autumn have reached it and spring is above it.
+**Corpus at last curation count (2026-10-14):** 159 = winter 18 + spring 18 + summer 15 + autumn 18 + year-round 90. Target 16 per season: summer +1; winter and autumn have reached it and spring is above it.
 
 **Read before proposing:** `archive/Backlog-archive.md` → Poem curation ledger. It preserves approved exceptions, translation decisions, permanent cuts, rejected candidates and open leads. Source/archive discovery conventions above still apply.
 

@@ -34,7 +34,7 @@ Most task apps have the same bug: they remember everything, and opening them fee
 - The AI observes, it never coaches: "usually", never "should"
 
 **The frame**
-- **Daily poem** — 140 reviewed, human-written, worldwide-public-domain selections rotating by day and season; greets you on the day's first open
+- **Daily poem** — 159 reviewed, human-written, worldwide-public-domain selections rotating by day and season; greets you on the day's first open
 - Pull in cards from a Trello board (read-only) so work tasks aren't re-typed
 - **Gmail enrichment** — person-based and topic-based follow-ups find the matching thread; focus mode surfaces the snippet and offers a draft reply
 - Idle companions — small creatures that wander the screen when you step away

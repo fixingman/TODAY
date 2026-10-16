@@ -131,6 +131,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'Edward Thomas',
     'Ōshikōchi no Mitsune',
     'Anonymous (Japanese, trans. Lafcadio Hearn)',
+    'John Burroughs',
+    'Chinese proverb (trans. William Scarborough)',
+    'Ralph Waldo Emerson',
   ];
   const sixLineVoices = [
     'Traditional Asante (recorded by R. S. Rattray)',
@@ -152,6 +155,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     'Edward Thomas',
     'Ōshikōchi no Mitsune',
     'Anonymous (Japanese, trans. Lafcadio Hearn)',
+    'John Burroughs',
+    'Chinese proverb (trans. William Scarborough)',
+    'Ralph Waldo Emerson',
   ];
   const hasAllApprovedVoices = approvedVoices.every(author =>
     poems.some(poem => poem.author === author));
@@ -238,7 +244,89 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     poem.text.includes('I bring no prayers on coloured silk') ||
     poem.text.includes('The villagers are beating cloth') ||
     poem.text.includes('that noiseless noise which lives in the summer air') ||
-    poem.text.includes('the prospect looks no different from yesterday'));
+    poem.text.includes('the prospect looks no different from yesterday') ||
+    // Round 50 final cuts (2026-10-14, Miyamori 1932 haiku)
+    poem.text.includes('The snow upon my hat') ||
+    poem.text.includes('That day, too, is a joy') ||
+    poem.text.includes("there's nothing,\\nWhich means") ||
+    poem.text.includes('I looked out over the first snow') ||
+    poem.text.includes('There is no leaf to be scattered') ||
+    poem.text.includes("There's no flower after chrysanthemums") ||
+    poem.text.includes('Who is shouting in the snow') ||
+    // Round 51 final cuts (2026-10-14)
+    poem.text.includes('my thoughts do not ripen well till after there has been a frost') ||
+    poem.text.includes('yellow afternoons of October, who ever could clutch it') ||
+    poem.text.includes('the pine and the cypress are the last to lose their leaves') ||
+    poem.text.includes('I am glad to the brink of fear') ||
+    poem.text.includes('the cold warms me') ||
+    poem.text.includes('sweep away the snow from before his own door') ||
+    poem.text.includes("winter's dreams related at the breakfast table") ||
+    poem.text.includes('not ceasing day or night') ||
+    poem.text.includes('Time is but the stream I go a-fishing in') ||
+    poem.text.includes('Heaven is under our feet as well as over our heads') ||
+    poem.text.includes('constant readjustment to our surroundings') ||
+    poem.text.includes('yesterday parts from to-morrow') ||
+    poem.text.includes('shining in spotless perfection') ||
+    // Round 52 final cuts (2026-10-14)
+    poem.text.includes('The day, immeasurably long, sleeps over the broad hills') ||
+    poem.text.includes('When Autumn comes the hills are covered with beauty') ||
+    poem.text.includes('we see the sun wading in snow') ||
+    poem.text.includes('canopied with the mellow hum of insects') ||
+    poem.text.includes('The tempered light of the woods is like a perpetual morning') ||
+    poem.text.includes('Cannot we let the morning be?') ||
+    poem.text.includes('the young man’s year is a heap of beginnings') ||
+    poem.text.includes('The farmer times himself to Nature') ||
+    poem.text.includes('When one breaks camp in the morning') ||
+    poem.text.includes('a new window in the Eastern wall of your house') ||
+    poem.text.includes('In calmness heaven and earth seem greater') ||
+    poem.text.includes('To one full of expectation a moment seems a year') ||
+    // Round 53 final cuts (2026-10-14)
+    poem.text.includes('under snow, bread') ||
+    poem.text.includes('A snow year,\na rich year') ||
+    poem.text.includes('Nature is a mutable cloud') ||
+    poem.text.includes('a progress,\nand not a station') ||
+    poem.text.includes('more kindness\nthan is ever spoken') ||
+    poem.text.includes('our safety is in our speed') ||
+    poem.text.includes('make the night night') ||
+    poem.text.includes('No one shows a child the sky') ||
+    poem.text.includes('knock the dew off the grass') ||
+    poem.text.includes('Haste is a good thing') ||
+    poem.text.includes('Men in the game are blind') ||
+    poem.text.includes('A lofty lamp-post lights what is distant') ||
+    poem.text.includes('Few desires') ||
+    poem.text.includes('better to knit than to blossom') ||
+    poem.text.includes('Let your trouble tarry') ||
+    poem.text.includes('Our worst misfortunes are those') ||
+    poem.text.includes('Waiting is the hoofs of time') ||
+    poem.text.includes('a wall between two gardens') ||
+    poem.text.includes('imprisoned in expression') ||
+    // Round 54 final cuts (2026-10-15)
+    poem.text.includes('the root is one') ||
+    poem.text.includes('Where are the songs of Spring') ||
+    poem.text.includes('tumultuous privacy of storm') ||
+    poem.text.includes('Descends the snow') ||
+    poem.text.includes('To see the cherry hung with snow') ||
+    poem.text.includes('balloon of the mind') ||
+    poem.text.includes('Where the mountain hare has lain') ||
+    poem.text.includes('my shining palace built upon the sand') ||
+    poem.text.includes('A sense of obligation') ||
+    poem.text.includes('pursuing the horizon') ||
+    poem.text.includes('Flower in the crannied wall') ||
+    poem.text.includes('thy free flight into the wordless') ||
+    // Round 55 final cuts (2026-10-15)
+    poem.text.includes('Their phonograph, the mocking-bird') ||
+    poem.text.includes('Then blossom-bald') ||
+    poem.text.includes('Perched upon the muzzle of a cannon') ||
+    poem.text.includes('Forbidden fruit a flavor has') ||
+    poem.text.includes('Not knowing when the dawn will come') ||
+    poem.text.includes('He drew a circle that shut me out') ||
+    poem.text.includes('So good luck came, and on my roof did light') ||
+    poem.text.includes('Even the iris bends') ||
+    poem.text.includes('In the upper air the fireflies move more slowly') ||
+    poem.text.includes('Forever swallowing the wind') ||
+    poem.text.includes('Forgets Utility') ||
+    poem.text.includes('A crust of bread and a corner to sleep in') ||
+    poem.text.includes('One dream the bird and blossom dreamed'));
   const hasSeason = (sourcePart, season) => poems.some(poem =>
     poem.source.includes(sourcePart) && poem.season === season);
   const seasonTagDrift =
@@ -250,13 +338,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     counts[key] = (counts[key] || 0) + 1;
     return counts;
   }, {});
-  const seasonCountDrift = seasonCounts.winter !== 16 || seasonCounts.spring !== 18 ||
-    seasonCounts.summer !== 14 || seasonCounts.autumn !== 17 || seasonCounts['year-round'] !== 75;
-  if (poems.length !== 140 || malformed.length || !hasAllApprovedVoices || !hasForeverNows || !hasBecauseRose || !hasNietzscheStory || !hasThoreauLifePoem || !hasNietzscheLove || !hasNietzscheStar || !hasAiyarSneeze || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
+  const seasonCountDrift = seasonCounts.winter !== 18 || seasonCounts.spring !== 18 ||
+    seasonCounts.summer !== 15 || seasonCounts.autumn !== 18 || seasonCounts['year-round'] !== 90;
+  if (poems.length !== 159 || malformed.length || !hasAllApprovedVoices || !hasForeverNows || !hasBecauseRose || !hasNietzscheStory || !hasThoreauLifePoem || !hasNietzscheLove || !hasNietzscheStar || !hasAiyarSneeze || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
     console.error('✗ FAIL — reviewed poem corpus count, schema, line limit, or season tags drifted.');
     process.exit(1);
   }
-  console.log('  ✓ 140-poem reviewed corpus shape, approved selections, and audited seasons');
+  console.log('  ✓ 159-poem reviewed corpus shape, approved selections, and audited seasons');
 
   try {
     globalThis.fetch = async request => {

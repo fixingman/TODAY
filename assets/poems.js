@@ -946,4 +946,126 @@ const POEMS = [
     season: 'autumn',
     source: "'Hoar-Frost', Pictures of the Floating World (1919), Chinoiseries — Lowell d. 1925, PD worldwide; closing four of nine lines (a complete sentence), verified verbatim against the archive.org scan text (picsofthefloating00lowerich)",
   },
+
+  // ── Round 51 (Oct 2026) — brief prose and proverbs: November, the year's lag, every day ──
+  {
+    text: 'Our northern November day itself is like spring water.\nIt is melted frost, dissolved snow.\nThere is a chill in it and an exhilaration also.',
+    author: 'John Burroughs',
+    season: 'autumn',
+    source: "Winter Sunshine (1875; Writings vol. II), 'Autumn Tides' — Burroughs d. 1921, PD worldwide; three contiguous sentences, one per displayed line, verified verbatim against Project Gutenberg #4279",
+  },
+  {
+    text: 'The season is always a little behind the sun in our climate,\njust as the tide is always a little behind the moon.',
+    author: 'John Burroughs',
+    season: null,
+    source: "Winter Sunshine (1875; Writings vol. II), 'Autumn Tides' — Burroughs d. 1921, PD worldwide; the chapter's opening sentence reflowed to two displayed lines, verified verbatim against Project Gutenberg #4279",
+  },
+  {
+    text: 'One good word can warm three winter months;\none bad one can stir up anger.',
+    author: 'Chinese proverb (trans. William Scarborough)',
+    season: 'winter',
+    source: "A Collection of Chinese Proverbs (Shanghai, 1875), no. 1096, '好話一句三冬煖' — Scarborough d. 1894, PD worldwide; verified verbatim against two archive.org scans (collectionofchin00scar, acollectionchin00scargoog)",
+  },
+  {
+    text: 'Write it on your heart\nthat every day is the best day in the year.',
+    author: 'Ralph Waldo Emerson',
+    season: null,
+    source: "'Works and Days', Society and Solitude (1870) — Emerson d. 1882, PD worldwide; complete sentence reflowed to two displayed lines, verified verbatim against Project Gutenberg #69258",
+  },
+  {
+    text: 'To the attentive eye, each moment of the year has its own beauty,\nand in the same field, it beholds, every hour,\na picture which was never seen before,\nand which shall never be seen again.',
+    author: 'Ralph Waldo Emerson',
+    season: null,
+    source: "Nature (1836), ch. III 'Beauty' — Emerson d. 1882, PD worldwide; complete sentence reflowed to four displayed lines, verified verbatim against Project Gutenberg #29433",
+  },
+  {
+    text: "No one knows the story\nof to-morrow's dawn.",
+    author: 'Traditional Asante (recorded by R. S. Rattray)',
+    season: null,
+    source: "Ashanti Proverbs (Oxford, 1916), no. 746, 'Obi nnim adekyee mu asem' — Rattray d. 1938, PD worldwide; complete proverb reflowed to two displayed lines, verified verbatim against the archive.org scan text",
+  },
+  {
+    text: 'Every seed\nis a longing.',
+    author: 'Kahlil Gibran',
+    season: null,
+    source: 'Sand and Foam (1926) — Gibran d. 1931, PD worldwide; complete aphorism reflowed to two displayed lines, verified verbatim against the Wikisource transcription of the 1928 scan',
+  },
+
+  // ── Round 52 (Oct 2026) — days and years, roots, slow work, the old moon ──
+  {
+    text: 'The years teach much\nwhich the days never know.',
+    author: 'Ralph Waldo Emerson',
+    season: null,
+    source: '\'Experience\', Essays: Second Series (1844) — Emerson d. 1882, PD worldwide; complete sentence reflowed to two displayed lines, verified verbatim against Project Gutenberg #2945',
+  },
+  {
+    text: 'He only is rich\nwho owns the day.',
+    author: 'Ralph Waldo Emerson',
+    season: null,
+    source: '\'Works and Days\', Society and Solitude (1870) — Emerson d. 1882, PD worldwide; complete sentence reflowed to two displayed lines, verified verbatim against Project Gutenberg #69258',
+  },
+  {
+    text: 'In most enterprises the temptation is always to begin too far along;\nwe want to start where somebody else leaves off.\nGo back to the stump, and see what an impetus you get.',
+    author: 'John Burroughs',
+    season: null,
+    source: 'Pepacton (1881; Writings vol. V) — Burroughs d. 1921, PD worldwide; contiguous passage, one clause per displayed line, verified verbatim against Project Gutenberg #7441',
+  },
+  {
+    text: 'Turtles can tell more about the roads\nthan hares.',
+    author: 'Kahlil Gibran',
+    season: null,
+    source: 'Sand and Foam (1926) — Gibran d. 1931, PD worldwide; complete aphorism reflowed to two displayed lines, verified verbatim against the Wikisource transcription of the 1928 scan',
+  },
+  {
+    text: 'A root is a flower\nthat disdains fame.',
+    author: 'Kahlil Gibran',
+    season: null,
+    source: 'Sand and Foam (1926) — Gibran d. 1931, PD worldwide; complete aphorism reflowed to two displayed lines, verified verbatim against the Wikisource transcription of the 1928 scan',
+  },
+  {
+    text: 'Remembrance\nis a form of meeting.',
+    author: 'Kahlil Gibran',
+    season: null,
+    source: 'Sand and Foam (1926) — Gibran d. 1931, PD worldwide; complete aphorism reflowed to two displayed lines, verified verbatim against the Wikisource transcription of the 1928 scan',
+  },
+  {
+    text: 'Slow work\nproduces fine goods.',
+    author: 'Chinese proverb (trans. William Scarborough)',
+    season: null,
+    source: 'A Collection of Chinese Proverbs (Shanghai, 1875), no. 91, \'慢功出細貨\' — Scarborough d. 1894, PD worldwide; verified verbatim against two archive.org scans (collectionofchin00scar, acollectionchin00scargoog)',
+  },
+  {
+    text: 'The ancients see not the modern moon;\nbut the modern moon shone on the ancients.',
+    author: 'Chinese proverb (trans. William Scarborough)',
+    season: null,
+    source: 'A Collection of Chinese Proverbs (Shanghai, 1875), no. 918, \'古人不見今時月\' — Scarborough d. 1894, PD worldwide; verified verbatim against two archive.org scans (collectionofchin00scar, acollectionchin00scargoog)',
+  },
+
+  // ── Round 53 (Oct 2026) ──
+  {
+    text: 'Our strength grows\nout of our weakness.',
+    author: 'Ralph Waldo Emerson',
+    season: null,
+    source: "'Compensation', Essays: First Series (1841) — Emerson d. 1882, PD worldwide; complete sentence reflowed to two displayed lines, verified verbatim against Project Gutenberg #2944",
+  },
+
+  // ── Round 54 (Oct 2026) — back to verse: the west wind, honey, a word ──
+  {
+    text: 'The trumpet of a prophecy! O, wind,\nIf Winter comes, can Spring be far behind?',
+    author: 'Percy Bysshe Shelley',
+    season: 'winter',
+    source: "'Ode to the West Wind', closing two lines, Prometheus Unbound … with Other Poems (1820) — Shelley d. 1822, PD worldwide; verified verbatim against the Wikisource transcription of the 1820 scan",
+  },
+  {
+    text: 'The pedigree of honey\nDoes not concern the bee;\nA clover, any time, to him\nIs aristocracy.',
+    author: 'Emily Dickinson',
+    season: 'summer',
+    source: 'Poems (Todd/Higginson editions, 1890–96), complete — Dickinson d. 1886, PD worldwide; verified verbatim against Project Gutenberg #12242',
+  },
+  {
+    text: 'A word is dead\nWhen it is said,\nSome say.\nI say it just\nBegins to live\nThat day.',
+    author: 'Emily Dickinson',
+    season: null,
+    source: "'A Word', Poems: Third Series (1896), no. VI, complete — Dickinson d. 1886, PD worldwide; verified verbatim against the Wikisource transcription of the 1896 scan",
+  },
 ];
