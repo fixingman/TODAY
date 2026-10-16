@@ -291,11 +291,12 @@
             ? `<button type="button" class="memory-item-btn" data-today-click="memory.patterns-more" aria-expanded="${_patternsOpen}">${_patternsOpen ? 'less' : `show all (${semanticItems.length})`}</button>`
             : '') +
         typeBlock('LATELY', '— the last week or so', episodicItems,
-          'nothing new this week') +
-        typeBlock('WHAT TODAY HAS SEEN', '— how much it has to go on', metaItems);
+          'nothing new this week');
 
       Today.use('reflections')._reflectionRenderMemory(el);
       Today.use('dreambank').renderMemory(el);
+      // Coverage closes the panel: how much TODAY has to go on, after what it shows.
+      el.insertAdjacentHTML('beforeend', typeBlock('WHAT TODAY HAS SEEN', '— how much it has to go on', metaItems));
 
       const footer = document.getElementById('memoryFooter');
       if (footer) footer.innerHTML = _memoryClearPending

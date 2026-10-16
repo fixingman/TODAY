@@ -4074,14 +4074,6 @@
   #meetingNameInput::placeholder { color: var(--muted); opacity: 0.7; }
 
   /* ── Memory panel ─ */
-  .memory-intro {
-    color: var(--muted);
-    font-size: var(--text-sm);
-    font-family: var(--font-mono);
-    letter-spacing: 0.04em;
-    margin-bottom: var(--space-5);
-    opacity: var(--opacity-label);
-  }
   .memory-type-block {
     padding-bottom: var(--space-4);
     margin-bottom: var(--space-4);
@@ -4098,19 +4090,18 @@
     gap: var(--space-2);
     margin-bottom: var(--space-2);
   }
+  /* Section names match the shared panel label (.config-label); content carries the weight. */
   .memory-type-name {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
-    letter-spacing: 0.08em;
-    color: var(--text);
-    opacity: 1;
+    letter-spacing: 0.12em;
+    color: var(--muted);
     text-transform: uppercase;
   }
   .memory-type-desc {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     color: var(--muted);
-    opacity: 1;
   }
   .memory-item {
     display: flex;
@@ -4122,25 +4113,16 @@
     flex: 1;
     font-size: var(--text-sm2);
     color: var(--text);
-    opacity: 1;
     line-height: 1.5;
   }
-  .memory-empty {
-    font-size: var(--text-sm2);
-    font-family: var(--font-mono);
-    color: var(--muted);
-    opacity: 1;
-    padding: var(--space-2) 0;
-    letter-spacing: 0.04em;
-  }
+  /* Only upright DM Mono ships, so quiet states are muted, never synthetic italic. */
+  .memory-empty,
   .memory-pending {
     font-size: var(--text-sm2);
     font-family: var(--font-mono);
     color: var(--muted);
-    opacity: 1;
     padding: var(--space-2) 0;
     letter-spacing: 0.04em;
-    font-style: italic;
   }
   .memory-footer {
     display: flex;
@@ -4151,15 +4133,14 @@
     border-top: 1px solid var(--border);
   }
   .memory-clear-btn {
-    background: none; border: none; padding: var(--space-2) var(--space-1); min-height: 24px; cursor: pointer;
-    font-size: var(--text-sm2);
+    background: none; border: none; padding: var(--space-2) 0; min-height: 24px; cursor: pointer;
+    font-size: var(--text-xs);
     font-family: var(--font-mono);
     letter-spacing: 0.04em;
     color: var(--muted);
-    opacity: 1;
-    transition: opacity var(--dur-fast), color var(--dur-fast);
+    transition: color var(--dur-fast);
   }
-  .memory-clear-btn:hover { opacity: 1; color: var(--danger); }
+  .memory-clear-btn:hover, .memory-clear-btn:focus-visible { color: var(--danger); }
   /* Compact, wrapping recurrence items use the existing Memory action pattern. */
   .dream-recurrence { display: inline-flex; align-items: baseline; max-width: 100%; }
   .dream-recurrence-label { min-width: 0; overflow-wrap: anywhere; }
@@ -4175,14 +4156,14 @@
     font-family: var(--font-mono);
     letter-spacing: 0.04em;
     color: var(--muted);
-    opacity: 1;
     cursor: pointer;
     background: none;
     border: none;
     min-height: 24px;
-    padding: var(--space-2) var(--space-1);
+    padding: var(--space-2) 0;
+    transition: color var(--dur-fast);
   }
-  .memory-conn-link:hover { opacity: 1; }
+  .memory-conn-link:hover, .memory-conn-link:focus-visible { color: var(--text); }
   .memory-confirm-msg { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text); opacity: var(--opacity-strong); }
   /* Confirm step (clear all, delete a dream): the destructive choice is --danger at rest. */
   .memory-clear-btn.memory-clear-confirm { color: var(--danger); }
@@ -4639,9 +4620,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.96.4': 'Memory looks calmer and more consistent with the rest of TODAY.',
   '2.96.3': 'Maintenance: refreshed development checks and design documentation.',
   '2.96.2': 'Maintenance: documentation now matches the current app.',
-  '2.96.1': 'Nineteen new daily poems and passages — Shelley, Dickinson, Emerson, Burroughs, Gibran, and proverbs from China and Asante.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

@@ -716,7 +716,7 @@ try {
       Today.use('memory').toggle();
       const block = () => document.getElementById('dreamMemoryBlock');
       const line = block().querySelector('.memory-item');
-      const collapsed = /^1 dream kept in your Dropbox, \/Dreams/.test(line.querySelector('.memory-item-text').textContent)
+      const collapsed = /^1 dream kept in your Dropbox$/.test(line.querySelector('.memory-item-text').textContent)
         && line.querySelector('.memory-item-btn').textContent === 'manage'
         && !block().querySelector('[data-today-click="dream.memory-open"]');
       line.querySelector('[data-today-click="dream.memory-manage"]').click();

@@ -337,9 +337,8 @@
       block.id = 'reflectionMemoryBlock';
       let inner = `<div class="memory-type-header"><span class="memory-type-name">HOW DAYS FELT</span></div>`;
       if (!remembers) {
-        inner += `<div class="memory-item"><span class="memory-item-text">TODAY doesn’t keep reflections.</span></div>` +
-          `<div class="memory-block-action">` +
-          `<button class="triage-undo-btn" data-today-click="reflections.remember-again">Remember reflections</button></div>`;
+        inner += `<div class="memory-item"><span class="memory-item-text">TODAY doesn’t keep reflections.</span>` +
+          `<button type="button" class="memory-item-btn" data-today-click="reflections.remember-again">remember</button></div>`;
       } else {
         inner += `<div class="memory-item"><span class="memory-item-text${_reflectResult ? '' : ' memory-abstracting'}">${
           _reflectResult ? esc(_reflectResult) : 'reflecting…'

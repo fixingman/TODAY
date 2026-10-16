@@ -604,11 +604,10 @@
       const action = active?.dataset.todayClick;
       const identity = active?.dataset.dreamId;
       const rows = _rows();
-      const dir = _files() ? _files().dreamsDir : '/Dreams';
       const n = rows.length;
       const images = recurringImages(_indexRows());
       const summary = n
-        ? `${n} dream${n === 1 ? '' : 's'} kept in your Dropbox, ${dir}`
+        ? `${n} dream${n === 1 ? '' : 's'} kept in your Dropbox`
         : 'a dream you tell the mic lands here';
       const html = `<div class="memory-type-block dream-memory-block" id="dreamMemoryBlock">` +
         `<div class="memory-type-header"><span class="memory-type-name">DREAMS</span></div>` +
