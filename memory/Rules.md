@@ -3,8 +3,8 @@
 
 ---
 
-## Current Focus (reviewed 2026-10-14)
-- **Working on:** dated Wallpaper verdicts in `Backlog.md` → Watching — 12c morning/Sunday lines (2026-10-15), Dream sheet + DreamBank M2 "comes back" line (2026-10-18; gates M3), daily nudge quality and delivery (2026-10-23), Memory → PATTERNS merge (2026-10-27). The KNOWN record verdict (due 2026-10-09) is overdue. Do not unlock WEEK, New week, or DreamBank M3 from one positive reading.
+## Current Focus (reviewed 2026-10-16)
+- **Working on:** dated Wallpaper verdicts in `Backlog.md` → Watching — Dream sheet + DreamBank M2 "comes back" line (2026-10-18; gates M3), Shift+Space voice capture and the feeling picker (2026-10-19), daily nudge quality and delivery (2026-10-23), Memory → PATTERNS merge and nudge length recovery (2026-10-27), Calendar-supported writer (2026-10-28). Overdue, verdicts still open: KNOWN record (2026-10-09); 12c morning/Sunday lines, focus question and choice/reorder motion (2026-10-15). Do not unlock WEEK, New week, or DreamBank M3 from one positive reading.
 - **Recent:** see `Changelog.md` (last ~20 versions) for exact behavior.
 - **Module extraction: COMPLETE.** Runtime ownership and the startup composition boundary are documented in `design/Components.md`; new behavior belongs in the owning module and its component contract.
 - **10b foundation live (v2.94.0, dev + production):** separate read-only Google Calendar connection and transient primary-calendar timing; Cloud API/scope configuration verified. **v2.96.0 release approved (2026-10-14):** optional derived same-task timing support for the ordinary daily writer, only on explicit duration/deadline evidence; no raw event details/times in AI, title import, new scopes, calendar writes, agenda or automatic recording. Ordinary input stays unchanged without support; pool/Sunday/focus unchanged. Real consent, refresh and Forget checks on desktop/phone remain owed before the meeting-start offer; Granola remains separate/not started.
