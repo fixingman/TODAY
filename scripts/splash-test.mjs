@@ -2,16 +2,16 @@
 //
 // Verifies the staged splash exit animation introduced in v2.56.0:
 //   • No-coda path (no poem today): splash dismisses in < 10s, no JS errors
-//   • Forced-coda path (poem shows): splash dismisses in < 20s, no JS errors
+//   • Forced-coda path: uses the existing cold.splashDismissed performance budget.
 //   • 30-minute cooldown path: splash skips and the app reveals immediately
 //   • Repeated desktop/mobile exits: TO and DAY fade as stable word layers
 //   • Extracted-module wiring, word wrappers, and SW precache entry
 //
 // The key invariant: _doSplashDismiss now stages the exit (TO → DAY → coda lines →
-// overlay), adding ~1s exit time. Total wall time must never exceed the 20s ceiling.
-// Safety timers in the app cap pre-dismiss time at 17s, keeping the total under 20s.
+// overlay). Longer approved poems have a reading hold and per-line exit;
+// the shared performance budget already accounts for the longest coda.
 //
-// Run from repo root:  node scripts/splash-test.mjs   (~35s)
+// Run from repo root:  node scripts/splash-test.mjs
 
 import { createServer } from 'node:http';
 import { readFile }     from 'node:fs/promises';
@@ -19,6 +19,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT   = join(dirname(fileURLToPath(import.meta.url)), '..');
+const CODA_CEILING_MS = JSON.parse(await readFile(join(ROOT, 'scripts/performance-budgets.json'), 'utf8')).timing['cold.splashDismissed'];
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 let puppeteer;
@@ -56,7 +57,7 @@ browser = await puppeteer.launch({
 
 // Wait for splash to be fully removed from the DOM
 const waitForSplashGone = (page) =>
-  page.waitForFunction(() => !document.getElementById('splash'), { timeout: 22000 });
+  page.waitForFunction(() => !document.getElementById('splash'), { timeout: CODA_CEILING_MS + 5000 });
 
 try {
   // ── Pass 1: no-coda path ─────────────────────────────────────────────────
@@ -122,12 +123,12 @@ try {
     await waitForSplashGone(page);
     const elapsed = Date.now() - t0;
 
-    if (elapsed >= 20000)
-      await fail(`coda splash took ${elapsed}ms — exceeded 20s ceiling`);
+    if (elapsed >= CODA_CEILING_MS)
+      await fail(`coda splash took ${elapsed}ms — exceeded ${CODA_CEILING_MS}ms shared ceiling`);
     if (errors.length)
       await fail('uncaught JS errors on coda path', errors);
 
-    ok(`coda-active splash dismissed in ${elapsed}ms (< 20s)`);
+    ok(`coda-active splash dismissed in ${elapsed}ms (< ${CODA_CEILING_MS}ms)`);
     await page.close();
   }
 

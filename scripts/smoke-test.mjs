@@ -7,7 +7,7 @@ import { readFileSync as _rfs095 } from 'node:fs';
 // Run from repo root:  node scripts/smoke-test.mjs
 // First-time setup:    cd scripts && npm install
 //
-// ~10s. Not a test suite — the human layer is memory/Test-matrix.md.
+// Broader release coverage and real-device checks: memory/Test-matrix.md.
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -433,7 +433,7 @@ try {
 
   // Any uncaught exception in app code is an automatic fail.
   // "Fail on any pageerror" is naive in a React/Next app (recoverable hydration warnings,
-  // 3rd-party net noise) — but it's correct HERE: single-file app, no hydration, no
+  // 3rd-party net noise) — but it's correct HERE: classic-script modules, no hydration, no
   // external scripts, and we listen to `pageerror` (uncaught exceptions) not `console`,
   // so favicon/404/missing-Netlify-function noise can't trip it. The real white-screen
   // net is the `waitForFunction` add-bar wait below — a fatal init error leaves the page

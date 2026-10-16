@@ -5,7 +5,7 @@
 // white — the residual flash the v2.18.2/v2.18.7 inline-background fixes can't reach
 // (those only colour the WebView's first paint, which happens one frame later).
 //
-// This writes one solid-#0e0e10 PNG per current iPhone resolution into assets/splash/.
+// This writes one solid-#0e0e10 PNG per committed iPhone resolution into assets/splash/.
 // iOS is strict: each startup image must match the device's exact physical-pixel
 // dimensions or it's ignored. A flat colour compresses to a few hundred bytes regardless
 // of size, so the whole set is only a few KB.
@@ -15,11 +15,10 @@
 //
 //   node scripts/gen-splash.mjs
 
-import { deflateSync } from 'node:zlib';
+import { deflateSync, crc32 } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import crc32 from 'buffer-crc32';
 
 // Single source of truth for the launch colour — mirror of --bg (#0e0e10).
 // Same Rule 19 exception already documented inline on <html>/<body>: CSS vars don't
@@ -46,7 +45,9 @@ function chunk(type, data) {
   const lenBuf = Buffer.alloc(4);
   lenBuf.writeUInt32BE(data.length, 0);
   const body = Buffer.concat([typeBuf, data]);
-  return Buffer.concat([lenBuf, body, crc32(body)]);
+  const checksum = Buffer.alloc(4);
+  checksum.writeUInt32BE(crc32(body), 0);
+  return Buffer.concat([lenBuf, body, checksum]);
 }
 
 function solidPng(width, height, { r, g, b }) {

@@ -1,10 +1,11 @@
 // Exercise the real CI runner and payload CLI with isolated synthetic repositories.
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { PNG } from 'pngjs';
 const DIR = dirname(fileURLToPath(import.meta.url));
 const fixture = mkdtempSync(join(tmpdir(), 'today-ci-'));
 const scripts = join(fixture, 'scripts');
@@ -56,4 +57,38 @@ try {
     else assert.match(result.stdout, /payload budgets passed/);
   }
   console.log('  ✓ payload preflight enforces byte/script limits without Chrome or dependencies');
+  // Authoring tools run in a fixture with no installed packages of their own.
+  writeFileSync(join(scripts, 'gen-splash.mjs'), readFileSync(join(DIR, 'gen-splash.mjs')));
+  const generated = run('gen-splash.mjs');
+  assert.equal(generated.status, 0, generated.stdout + generated.stderr);
+  const shippedDir = join(DIR, '../assets/splash'), generatedDir = join(fixture, 'assets/splash');
+  const names = readdirSync(shippedDir).filter(name => name.endsWith('.png')).sort();
+  assert.deepEqual(readdirSync(generatedDir).sort(), names);
+  for (const name of names) {
+    const expected = PNG.sync.read(readFileSync(join(shippedDir, name)));
+    const actual = PNG.sync.read(readFileSync(join(generatedDir, name)));
+    assert.equal(actual.width, expected.width); assert.equal(actual.height, expected.height);
+    assert.deepEqual(actual.data, expected.data, name + ' preserves every pixel');
+  }
+  console.log('  ✓ splash authoring runs without undeclared packages; shipped dimensions/pixels preserved');
+
+  writeFileSync(join(scripts, 'ai-test.mjs'), readFileSync(join(DIR, 'ai-test.mjs')));
+  mkdirSync(join(fixture, 'netlify/functions'), { recursive: true });
+  for (const longReply of [false, true]) {
+    writeFileSync(join(fixture, 'netlify/functions/ai-assist.js'), `
+      let calls = 0;
+      exports.handler = async () => {
+        const replies = [
+          { content: 'pong' },
+          { content: ${JSON.stringify(longReply ? Array(41).fill('word').join(' ') : 'A short fictional line.')}, message: 'Short truncated preview.' },
+          { content: 'What needs your attention?' }, { hints: [] }, { content: 'A short reflection.' }
+        ];
+        return { statusCode: 200, body: JSON.stringify(replies[calls++]) };
+      };
+    `);
+    const result = run('ai-test.mjs', ['--key=fictional-offline-key']);
+    assert.equal(result.status, longReply ? 1 : 0, result.stdout + result.stderr);
+    if (longReply) assert.match(result.stderr, /nudge: 41 words/);
+  }
+  console.log('  ✓ synthetic provider smoke validates full content, not a truncated message preview');
 } finally { rmSync(fixture, { recursive: true, force: true }); }

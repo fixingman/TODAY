@@ -1,14 +1,11 @@
-// TODAY — AI tier integration test
-// Calls ai-assist.js directly (no Netlify CLI) with realistic payloads for each
-// AI surface: ping, morning nudge, focus companion, triage hints, week reflection.
-// Asserts format, word-count limits, and structure — the boundary most likely to
-// silently break when prompts or the function change.
-//
-// Run:       node scripts/ai-test.mjs
-// With key:  ANTHROPIC_API_KEY=sk-ant-... node scripts/ai-test.mjs
-// ~20–30s (5 real API round-trips).
-//
-// Exit 0 = pass or skip (no key). Exit 1 = assertion failure or API error.
+// TODAY — live provider smoke probe, using five fixed synthetic conversations.
+// This calls the handler with a real configured Claude key. The copied prompts
+// are historical examples, not production prompt/request or usefulness coverage.
+// In particular, these generic calls do not exercise daily adaptive thinking,
+// the observation pool, Calendar support or current client delivery guards.
+// Current offline contracts live in ai-assist-unit-test and nudge-test.
+// Run: ANTHROPIC_API_KEY=... node scripts/ai-test.mjs
+// Exit 0 = pass or skip (no key); exit 1 = assertion/API failure.
 
 import { createRequire } from 'node:module';
 import { dirname, join }  from 'node:path';
@@ -47,7 +44,7 @@ function words(s) { return s.trim().split(/\s+/).filter(Boolean).length; }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-console.log('AI tier integration test (claude)\n');
+console.log('Live synthetic provider smoke probe (claude; not production prompts)\n');
 
 // ── 1. Ping/pong — validates the key and function are working ────────────────
 {
@@ -57,9 +54,9 @@ console.log('AI tier integration test (claude)\n');
   });
   if (status !== 200)                      fail(`ping: HTTP ${status} — ${body.error}`);
   if (body.error)                          fail(`ping: API error — ${body.error}`);
-  const text = (body.message || body.content || '').toLowerCase();
+  const text = (body.content || body.message || '').toLowerCase();
   if (!text.includes('pong'))              fail(`ping: expected "pong", got "${text}"`);
-  if (ms > 9000)                           fail(`ping: ${ms}ms — over 9s Netlify timeout risk`);
+  if (ms > 9000)                           fail(`ping: ${ms}ms — over this smoke probe’s 9s ping target`);
   ok(`ping/pong (${ms}ms)`);
 }
 
@@ -85,7 +82,7 @@ console.log('AI tier integration test (claude)\n');
   });
   if (status !== 200)       fail(`nudge: HTTP ${status}`);
   if (body.error)           fail(`nudge: API error — ${body.error}`);
-  const text = (body.message || body.content || '').trim();
+  const text = (body.content || body.message || '').trim();
   if (!text)                fail('nudge: empty response');
   const wc = words(text);
   if (wc > 40)              fail(`nudge: ${wc} words (limit ~30): "${text}"`);
@@ -109,7 +106,7 @@ console.log('AI tier integration test (claude)\n');
   });
   if (status !== 200)       fail(`focus: HTTP ${status}`);
   if (body.error)           fail(`focus: API error — ${body.error}`);
-  const text = (body.message || body.content || '').trim();
+  const text = (body.content || body.message || '').trim();
   if (!text)                fail('focus: empty response');
   if (!text.includes('?'))  fail(`focus: not a question: "${text}"`);
   const wc = words(text);
@@ -153,8 +150,8 @@ console.log('AI tier integration test (claude)\n');
   // we scan every string field for a hints array — handles preamble/postamble too.
   let hints = body.hints;
   if (!hints) {
-    const raw = typeof body.message === 'string' ? body.message
-              : typeof body.content === 'string' ? body.content : '';
+    const raw = typeof body.content === 'string' ? body.content
+              : typeof body.message === 'string' ? body.message : '';
     // Try direct parse of the message text
     try { hints = JSON.parse(raw).hints; } catch { /* fall through */ }
     // Try to extract a JSON block embedded anywhere in the text
@@ -193,7 +190,7 @@ console.log('AI tier integration test (claude)\n');
   });
   if (status !== 200)     fail(`reflection: HTTP ${status}`);
   if (body.error)         fail(`reflection: API error — ${body.error}`);
-  const text = (body.message || body.content || '').trim();
+  const text = (body.content || body.message || '').trim();
   if (!text)              fail('reflection: empty response');
   const wc = words(text);
   if (wc > 25)            fail(`reflection: ${wc} words (limit 20, with 5-word slack): "${text}"`);

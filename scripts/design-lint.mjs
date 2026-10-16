@@ -7,8 +7,8 @@
 // parity check for Rule 27.
 //
 // This is NOT the "does it match the product philosophy" review — that needs
-// judgment, not regex. Use the /design-review skill for that. This script only
-// catches objective, mechanical violations of documented rules.
+// judgment, not regex. Start at Design.md and the design-review command for that.
+// This script catches objective, mechanical violations of documented rules.
 //
 // Run from repo root:  node scripts/design-lint.mjs
 // ~1s. No dependencies.

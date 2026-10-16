@@ -109,7 +109,7 @@ This is the **cartesian** preset remixed onto the captured brand. The YAML front
 - **Fonts** — already set to **Syne** (display) / **DM Mono** (body); ignore any preset font name lingering in prose.
 - **Colors** — use the frontmatter hex; preset color NAMES in prose (e.g. "cobalt", "cream") mean the remapped brand values.
 
-- **TODAY overrides (hand-applied, from the repo's DESIGN.md — these win over any preset prose):**
+- **TODAY overrides (hand-applied, from the repo's Design.md — these win over any preset prose):**
   dark ground `#0e0e10`, not stone paper; the lime `#c8f060` is the one accent and is rationed
   (a word, a rule, a check) — the preset's "no accent color" line is void. Display is **Syne 700/800**
   lowercase-or-sentence case like the TODAY wordmark (not a thin didone); every reading/label line is

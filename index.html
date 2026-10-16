@@ -4632,16 +4632,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─ Version ─
-const DEV_HOURS     = '357.5h';
+const DEV_HOURS     = '358h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.96.3': 'Maintenance: refreshed development checks and design documentation.',
   '2.96.2': 'Maintenance: documentation now matches the current app.',
   '2.96.1': 'Nineteen new daily poems and passages — Shelley, Dickinson, Emerson, Burroughs, Gibran, and proverbs from China and Asante.',
-  '2.96.0': 'Daily nudges can draw on Calendar timing when it relates to a task’s stated need for uninterrupted time. Four autumn poems join the collection.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

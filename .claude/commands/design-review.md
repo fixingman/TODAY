@@ -12,7 +12,7 @@ Argument: `$ARGUMENTS`
 
 - No argument → review the current uncommitted diff (`git diff` + `git status` for untracked files). If the diff is empty, review the most recent commit instead.
 - A version number (e.g. `v2.18.24`) → review that version's changes (`git show`, cross-reference `memory/Changelog.md`).
-- A file path or feature name → review that surface specifically, reading its current implementation in `index.html` in full, not just a diff.
+- A file path or feature name → review that surface specifically, reading its current owning `assets/` module and relevant `index.html` shell in full, not just a diff.
 - `full` → a broader pass across a whole panel/flow the user names next.
 
 Read the actual code for anything you're evaluating — don't review a diff in isolation without seeing the surrounding component it's patching into.
@@ -20,6 +20,7 @@ Read the actual code for anything you're evaluating — don't review a diff in i
 ## Ground yourself first
 
 Read before judging anything:
+- `Design.md` — current north star, component ownership and design entry point
 - `memory/design/Philosophy.md` — voice, tonality, the Wallpaper Test, vocabulary table
 - `memory/design/Tokens.md` — colors, spacing, radius, motion timing/easing tokens
 - `memory/design/Components.md` — existing component patterns (so you can tell "new pattern" from "reinvented wheel")

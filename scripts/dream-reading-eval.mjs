@@ -12,8 +12,9 @@
 // Score:    ... node scripts/dream-reading-eval.mjs --prompt=path/to/candidate.txt
 // Head-to-head (current vs candidate, judge picks the better reading per dream):
 //            ... node scripts/dream-reading-eval.mjs --versus=scripts/dream-prompts/candidate-1.txt
-// v2.93.0 gate (blocks master): the current prompt must not lose to the v2.92.4 prompt,
-//            which is scripts/dream-prompts/candidate-1.txt word for word:
+// Historical v2.93.0 release comparison (not an automatic current gate):
+//            that release required its prompt not to lose to the v2.92.4 prompt,
+//            preserved in scripts/dream-prompts/candidate-1.txt:
 //            ... node scripts/dream-reading-eval.mjs --versus=scripts/dream-prompts/candidate-1.txt
 //            → "Candidate preferred in N/12" must be ≤ 6.
 // Extraction (v2.93.0): every dream must keep ≥3 images after grounding; dropped images print for review:
