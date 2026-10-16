@@ -9,7 +9,7 @@
 //           Epigram", Transactions of the Asiatic Society of Japan, 1902 (PD).
 const POEMS = [
 
-  // ── Haiku (trans. Basil Hall Chamberlain, 1902) ──────────────────────────
+  // ── Haiku (trans. Basil Hall Chamberlain, 1902) ─
   {
     text: "Nothing in the cicada's voice\nGives token of a speedy death.",
     author: 'Bashō',
@@ -40,7 +40,7 @@ const POEMS = [
     season: 'winter',
     source: 'Kokinshū tanka, trans. Chamberlain 1902 — the "blossoms" are snowflakes',
   },
-  // ── English originals ─────────────────────────────────────────────────────
+  // ── English originals ─
   {
     text: "He who binds to himself a joy\nDoes the winged life destroy;\nBut he who kisses the joy as it flies\nLives in eternity's sun rise.",
     author: 'William Blake',
@@ -126,7 +126,7 @@ const POEMS = [
     source: "'My Heart Leaps Up', 1802",
   },
 
-  // ── Early moderns (all died pre-1956 → PD worldwide) ─────────────────────
+  // ── Early moderns (all died pre-1956 → PD worldwide) ─
   {
     text: "Life has loveliness to sell,\nAll beautiful and splendid things,\nBlue waves whitened on a cliff,\nSoaring fire that sways and sings,\nAnd children's faces looking up\nHolding wonder like a cup.",
     author: 'Sara Teasdale',
@@ -159,7 +159,7 @@ const POEMS = [
   },
 
   // ── Sufi, bhakti & Stoic voices (all PD worldwide; translations verified
-  //    verbatim against Gutenberg/Wikisource source texts) ───────────────────
+  //    verbatim against Gutenberg/Wikisource source texts) ─
   {
     text: 'Cup-bearer, seize to-day, nor wait\nUntil to-morrow!—or from Fate\nSome passport to felicity,\nSome written surety bring to me!',
     author: 'Hafiz',
@@ -210,7 +210,7 @@ const POEMS = [
   },
 
   // ── From the pages of Carnegie's How to Stop Worrying (the poems he
-  //    quotes are PD even though his 1948 book is not; verified verbatim) ────
+  //    quotes are PD even though his 1948 book is not; verified verbatim) ─
   {
     text: 'Happy the man, and happy he alone,\nHe who can call today his own;\nHe who, secure within, can say,\nTomorrow, do thy worst, for I have lived today.',
     author: 'Horace',
@@ -279,7 +279,7 @@ const POEMS = [
   },
 
   // ── Chinese, Greek & Hebrew (all PD worldwide; verified verbatim against
-  //    Gutenberg sources) ────────────────────────────────────────────────────
+  //    Gutenberg sources) ─
   {
     text: "We cannot keep the gold of yesterday;\nTo-day's dun clouds we cannot roll away.",
     author: 'Li Po',
@@ -305,7 +305,7 @@ const POEMS = [
     source: 'King James Version, 1611',
   },
 
-  // ── Later moderns now PD worldwide (verified verbatim, Gutenberg) ─────────
+  // ── Later moderns now PD worldwide (verified verbatim, Gutenberg) ─
   {
     text: 'One must have a mind of winter\nTo regard the frost and the boughs\nOf the pine-trees crusted with snow;\nAnd have been cold a long time\nTo behold the junipers shagged with ice.',
     author: 'Wallace Stevens',
@@ -368,7 +368,7 @@ const POEMS = [
   //    Cherry-pick decision 2026-07-19: these five kept permanently (Frost ×3,
   //    Yang-ti, Po Chü-i 'After Lunch'); six purged (WCW, Sandburg, H.D.,
   //    Lu Yün, 'Winter Night', 'Ease'). Category closed — no new US-PD-only
-  //    additions; worldwide PD is the bar for all future poems. ──────────────
+  //    additions; worldwide PD is the bar for all future poems. ─
   {
     text: "I'm going out to clean the pasture spring;\nI'll only stop to rake the leaves away\n(And wait to watch the water clear, I may):\nI sha'n't be gone long.—You come too.",
     author: 'Robert Frost',
@@ -400,7 +400,7 @@ const POEMS = [
     source: "Poems: Second Series (1891), poem I (d. 1886 — PD worldwide; verified Wikisource)",
   },
 
-  // ── Early Irish (trans. Kuno Meyer, 1911) ────────────────────────────────
+  // ── Early Irish (trans. Kuno Meyer, 1911) ─
   {
     text: 'Ah, blackbird, thou art satisfied\nWhere thy nest is in the bush:\nHermit that clinkest no bell,\nSweet, soft, peaceful is thy note.',
     author: 'Anonymous Irish (9th c.)',
@@ -420,7 +420,7 @@ const POEMS = [
     source: "'Summer Is Gone', Selections from Ancient Irish Poetry, trans. Kuno Meyer (1911), Gutenberg #32030 (Meyer d. 1919 — PD worldwide)",
   },
 
-  // ── Sappho (trans. Bliss Carman, 1902) ──────────────────────────────────
+  // ── Sappho (trans. Bliss Carman, 1902) ─
   {
     text: 'In the apple boughs the coolness\nMurmurs, and the grey leaves flicker\nWhere sleep wanders.\n\nIn this garden all the hot noon\nI await thy fluttering footfall\nThrough the twilight.',
     author: 'Sappho (trans. Bliss Carman)',
@@ -428,7 +428,7 @@ const POEMS = [
     source: "Sappho: One Hundred Lyrics, XVI, Bliss Carman (1902), Gutenberg #12389 (Carman d. 1929 — PD worldwide)",
   },
 
-  // ── Chinese (trans. Arthur Waley, 1918) ─────────────────────────────────
+  // ── Chinese (trans. Arthur Waley, 1918) ─
   {
     text: 'The evening river is level and motionless--\nThe spring colours just open to their full.\nSuddenly a wave carries the moon away\nAnd the tidal water comes with its freight of stars.',
     author: 'Yang-ti (605–617, trans. Arthur Waley)',
@@ -442,7 +442,7 @@ const POEMS = [
     source: "'After Lunch', A Hundred and Seventy Chinese Poems, trans. Waley (1918), Gutenberg #42290 (Waley d. 1966 — US PD only)",
   },
 
-  // ── Round 12 (Jul 2026) ────────────────────────────────────────────────────
+  // ── Round 12 (Jul 2026) ─
   {
     text: "A rough sea, and the Milky Way\nStretching across to Sado's isle.",
     author: 'Bashō',
@@ -450,7 +450,7 @@ const POEMS = [
     source: 'Chamberlain 1902, no. 84 (archive.org basho-and-the-japanses-poetical-epigram scan)',
   },
 
-  // ── Round 13 (Jul 2026) ────────────────────────────────────────────────────
+  // ── Round 13 (Jul 2026) ─
   {
     text: 'A summer room where, lying down,\nI see the clouds as they go past.',
     author: 'Yaha',
@@ -463,7 +463,7 @@ const POEMS = [
     season: 'summer',
     source: "'Beneath the Pine', Select Epigrams from the Greek Anthology (1890), Nature V, Gutenberg #2378 (Mackail d. 1945)",
   },
-  // ── Round 14 (Jul 2026) — Stoics, trans. Farquharson ──────────────────────
+  // ── Round 14 (Jul 2026) — Stoics, trans. Farquharson ─
   {
     text: 'Men look for retreats for themselves,\nthe country, the sea-shore, the hills;\nand you yourself, too, are peculiarly accustomed to feel the same want.\nYet all this is very unlike a philosopher,\nwhen you may at any hour you please retreat into yourself.\nFor nowhere does a man retreat into more quiet or more privacy\nthan into his own mind.',
     author: 'Marcus Aurelius (trans. A. S. L. Farquharson)',
@@ -483,7 +483,7 @@ const POEMS = [
     source: "'Morning', A Feast of Lanterns (1916), verified vs archive.org in.ernet.dli.2015.282424 scan (Cranmer-Byng d. 1945)",
   },
 
-  // ── Round 16 (Jul 2026) ────────────────────────────────────────────────────
+  // ── Round 16 (Jul 2026) ─
   {
     text: 'Thanks for today,\nplease for tomorrow.',
     author: 'Mother Askani',
@@ -491,7 +491,7 @@ const POEMS = [
     source: 'original',
   },
 
-  // ── Round 18 (Jul 2026) — Seneca via Gummere ───────────────────────────────
+  // ── Round 18 (Jul 2026) — Seneca via Gummere ─
   {
     text: 'There are more things, Lucilius, likely to frighten us\nthan there are to crush us;\nwe suffer more often in imagination than in reality.',
     author: 'Seneca (trans. Richard Mott Gummere)',
@@ -499,7 +499,7 @@ const POEMS = [
     source: "Moral Letters to Lucilius, Letter XIII §4, trans. Richard Mott Gummere (1917), Loeb Classical Library vol. 1 (Gummere d. 1922) — verified vs en.wikisource.org/wiki/Moral_letters_to_Lucilius/Letter_13",
   },
 
-  // ── Round 17 (Jul 2026) — Seneca via Aubrey Stewart ───────────────────────
+  // ── Round 17 (Jul 2026) — Seneca via Aubrey Stewart ─
   {
     text: 'We do not receive a short life,\nbut we make it a short one,\nand we are not poor in days,\nbut wasteful of them.',
     author: 'Seneca (trans. Aubrey Stewart)',
@@ -513,7 +513,7 @@ const POEMS = [
     source: "'On the Shortness of Life', trans. Aubrey Stewart (1889), Bohn's Classical Library (Stewart d. 1918) — verified vs archive.org/details/seneca-dialogues-aubrey-stewart; 'says he,' (Seneca citing Virgil, narrative aside) omitted editorially",
   },
 
-  // ── Round 20 (Jul 2026) — Chamberlain 1902 ───────────────────────────────
+  // ── Round 20 (Jul 2026) — Chamberlain 1902 ─
   {
     text: 'Aye! New Year\'s day, with a clear sky,\nAnd conversation among the sparrows!',
     author: 'Ransetsu',
@@ -527,7 +527,7 @@ const POEMS = [
     source: 'Chamberlain 1902, no. 64 — poet\'s death song (archive.org/details/basho-and-the-japanses-poetical-epigram; Seibu d. 1678, Chamberlain d. 1935)',
   },
 
-  // ── Round 21 (Jul 2026) — Chamberlain 1902 + Dickinson ───────────────────
+  // ── Round 21 (Jul 2026) — Chamberlain 1902 + Dickinson ─
   {
     text: 'The end of autumn, and some rooks\nAre perched upon a withered branch.',
     author: 'Bashō',
@@ -547,7 +547,7 @@ const POEMS = [
     source: "'Autumn', Poems (1890), Wikisource (d. 1886 — PD worldwide)",
   },
 
-  // ── Round 19 (Jul 2026) ────────────────────────────────────────────────────
+  // ── Round 19 (Jul 2026) ─
   {
     text: 'To make a prairie it takes a clover and one bee,\nOne clover, and a bee,\nAnd revery.\nThe revery alone will do,\nIf bees are few.',
     author: 'Emily Dickinson',
@@ -567,7 +567,7 @@ const POEMS = [
     source: "Encheiridion §8, trans. George Long (d. 1879), Gutenberg #10661 — verified verbatim",
   },
 
-  // ── Round 22 (Jul 2026) — Publilius Syrus ────────────────────────────────
+  // ── Round 22 (Jul 2026) — Publilius Syrus ─
   {
     text: 'It is an unhappy lot which finds no enemies.\nIt is an unhappy lot which an enemy does not envy.',
     author: 'Publilius Syrus (trans. Darius Lyman)',
@@ -603,7 +603,7 @@ const POEMS = [
     source: "Hyakunin Isshu 73, A Hundred Verses from Old Japan, trans. William N. Porter (1909) — verified Wikisource (Porter d. 1917, Ōe no Masafusa d. 1111)",
   },
 
-  // ── Round 23 (Jul 2026) — Sara Teasdale, Stars To-night ──────────────────
+  // ── Round 23 (Jul 2026) — Sara Teasdale, Stars To-night ─
   {
     text: 'Stars over snow,\nAnd in the west a planet\nSwinging below a star—\nLook for a lovely thing and you will find it,\nIt is not far—\nIt never will be far.',
     author: 'Sara Teasdale',
@@ -623,7 +623,7 @@ const POEMS = [
     source: "'Summer Evening', Stars To-night (1930) (d. 1933 — PD worldwide) — verified verbatim vs archive.org/details/starstonightvers0000sara",
   },
 
-  // ── Round 24 (Aug 2026) — Latin American, Blackwell anthology ───────────
+  // ── Round 24 (Aug 2026) — Latin American, Blackwell anthology ─
   {
     text: 'All things climb a starry stair,\nBy a law that no man knows.\nWhat was yesterday a thorn\nShall tomorrow be a rose.\n\nWhat was once a chrysalid\nSoon shall soar, free fluttering;\nWhat was yesterday a wish\nWill tomorrow be a wing!',
     author: 'Luis G. Urbina',
@@ -637,7 +637,7 @@ const POEMS = [
     source: "'A Little Messenger Dove' / 'Palomita Mensajera' (trans. Alice Stone Blackwell), Some Spanish-American Poets (1929), p. 434–435 — Blanco Fombona d. 1944, Blackwell d. 1950, both PD worldwide — verified verbatim vs archive.org/details/somespanishamerica00blac",
   },
 
-  // ── Round 33 (Aug 2026) — Syria, Persia, Armenia ───────────────────────
+  // ── Round 33 (Aug 2026) — Syria, Persia, Armenia ─
   {
     text: 'The thunder hath a grandeur, but the rains,\nWithout the thunder, quench the thirst of Earth.',
     author: 'Abu al-Ala al-Ma\'arri (trans. Ameen Rihani)',
@@ -657,14 +657,14 @@ const POEMS = [
     source: "'The Sure Hope' (first two of three stanzas), Armenian Poems, Rendered into English Verse, trans. Alice Stone Blackwell (1917), p. 250 — Patkanian d. 1892, Blackwell d. 1950, both PD worldwide — verified verbatim vs Internet Archive/Wikimedia scan",
   },
 
-  // ── Round 34 (Aug 2026) — Jamaica ──────────────────────────────────────
+  // ── Round 34 (Aug 2026) — Jamaica ─
   {
     text: 'But oh! for the woods, the flowers\nOf natural, sweet perfume,\nThe heartening, summer showers\nAnd the smiling shrubs in bloom,\nDust-free, dew-tinted at morn,\nThe fresh and life-giving air,\nThe billowing waves of corn\nAnd the birds’ notes rich and clear:—\nFor a man-machine toil-tired\nMay crave beauty too—though he’s hired.',
     author: 'Claude McKay',
     season: 'summer',
     source: "'Joy in the Woods' (closing stanza), Workers' Dreadnought, 10 April 1920 (signed 'Hugh Hope') — McKay d. 1948, PD worldwide — verified verbatim vs the Workers' Dreadnought scan and Academy of American Poets",
   },
-  // ── Round 32 (Aug 2026) — !kun oral tradition ──────────────────────────
+  // ── Round 32 (Aug 2026) — !kun oral tradition ─
   {
     text: 'Tell me of something.\nHail, hail!\nWhen the sun rises,\nThou must speak to me,\nThat I may eat something.\nThou must speak to me about a little thing,\nThat I may eat.\nHail, hail,\nYoung Moon!',
     author: 'Traditional !kun (recited by !nanni)',
@@ -686,7 +686,7 @@ const POEMS = [
     source: 'Sappho: One Hundred Lyrics, LXXIV, Bliss Carman (1904), Gutenberg #12389 (Carman d. 1929 — PD worldwide — verified verbatim)',
   },
 
-  // ── Round 29 (Aug 2026) — Japanese (trans. B.H. Chamberlain 1902) ──────────
+  // ── Round 29 (Aug 2026) — Japanese (trans. B.H. Chamberlain 1902) ─
   {
     text: '\'Tis a toad\'s croak. Come! hop away\nFrom underneath the fancier\'s house.',
     author: 'Bashō',
@@ -706,7 +706,7 @@ const POEMS = [
     source: "Chamberlain 1902 essay example, Danrin school (archive.org/details/basho-and-the-japanses-poetical-epigram; anonymous 17th-c. Japanese, Chamberlain d. 1935, PD worldwide — verified verbatim)",
   },
 
-  // ── Round 28 (Aug 2026) — Tamil (Tirukkural, Pope 1886 / Aiyar 1916) ────────
+  // ── Round 28 (Aug 2026) — Tamil (Tirukkural, Pope 1886 / Aiyar 1916) ─
   {
     text: 'The loveless to themselves belong alone;\nThe loving men are others\' to the very bone.',
     author: 'Thiruvalluvar (trans. G. U. Pope)',
@@ -726,7 +726,7 @@ const POEMS = [
     source: "'The Finesses of Bouderie', kural 1312, The Kural or the Maxims of Tiruvalluvar, trans. V. V. S. Aiyar (1916) — Thiruvalluvar ~300 CE, Aiyar d. 1925, both PD worldwide; complete prose rendering reflowed to three displayed lines, punctuation spacing normalized; verified against the 1916 scan",
   },
 
-  // ── Round 26 (Aug 2026) — Korea Review 1906 ─────────────────────────────
+  // ── Round 26 (Aug 2026) — Korea Review 1906 ─
   {
     text: 'The rivulets of spring o\'erflow with sudden showers,\nIn the distant summer cloud a magic mountain towers,\nAbove the autumn night the frosty moon shines clear,\nLone on a wintry hill a pine-tree standeth drear.',
     author: 'John Mikson',
@@ -759,7 +759,7 @@ const POEMS = [
     source: "'The Fox', The Madman: His Parables and Poems (1918), Project Gutenberg #5616 — Gibran d. 1931, PD worldwide — verified verbatim",
   },
 
-  // ── Round 36 (Sep 2026) — England, US, Russia, Australia ────────────────
+  // ── Round 36 (Sep 2026) — England, US, Russia, Australia ─
   {
     text: 'I will not waste myself to embers for them,\nNot all for them shall the fires of my life be hot.',
     author: 'D. H. Lawrence',
@@ -785,7 +785,7 @@ const POEMS = [
     source: "'Love's Coming', Heart of Spring (1919) — Neilson d. 1942, PD worldwide — verified verbatim vs the 1919 and 1923 editions",
   },
 
-  // ── Round 37 (Sep 2026) — seasonal fill ─────────────────────────────────
+  // ── Round 37 (Sep 2026) — seasonal fill ─
   {
     text: 'This lovely morn the dewdrops flash\nLike diamonds on the grass—\nA blaze of sparkling jewels! But\nThe autumn wind, alas!\nScatters them as I pass.',
     author: 'Fun\'ya no Asayasu',
@@ -799,7 +799,7 @@ const POEMS = [
     source: "'Falling Snow', Lacquer Prints, Pictures of the Floating World (1919) — verified vs archive.org picturesoffloating00lowerich scan (Lowell d. 1925, PD worldwide). Seven lines: Can's exception to the six-line ceiling, 2026-09-02 — the poem needs all of them",
   },
 
-  // ── Round 38 (Sep 2026) — Rain Water moment ────────────────────────────
+  // ── Round 38 (Sep 2026) — Rain Water moment ─
   {
     text: 'On the dusty earth-drum\nBeats the falling rain;\nNow a whispered murmur,\nNow a louder strain.',
     author: 'Joseph S. Cotter, Jr.',
@@ -807,7 +807,7 @@ const POEMS = [
     source: "'Rain Music', The Book of American Negro Poetry, ed. James Weldon Johnson (1922), Project Gutenberg #11986 — Cotter d. 1919, PD worldwide — verified verbatim; editorially paired with Rain Water (雨水)",
   },
 
-  // ── Round 39 (Sep 2026) — India, Bengal ─────────────────────────────────
+  // ── Round 39 (Sep 2026) — India, Bengal ─
   {
     text: 'The earth is his delightful couch,\nthe arms of the creepers are his pillow,\nthe heaven is his canopy, the winds his fan,\nthe moon is his twinkling lamp.\nThe sage, rejoicing because he has been freed from desire,\nlives in peace and happiness, as though he were the lord of the universe.',
     author: 'Bhartrihari (trans. B. Hale Wortham)',
@@ -821,7 +821,7 @@ const POEMS = [
     source: 'Stray Birds 55 (1916), Wikisource / Project Gutenberg #6524 — Tagore d. 1941, PD worldwide — complete aphorism reflowed to two displayed lines; verified verbatim',
   },
 
-  // ── Round 40 (Sep 2026) — the present moment ────────────────────────────
+  // ── Round 40 (Sep 2026) — the present moment ─
   {
     text: 'Forever is composed of Nows —\n’Tis not a different time,\nExcept for infiniteness\nAnd latitude of home.',
     author: 'Emily Dickinson',
@@ -829,7 +829,7 @@ const POEMS = [
     source: "'Forever is composed of Nows' (25), The Further Poems of Emily Dickinson (1929) — Dickinson d. 1886, PD worldwide; four-line opening verified against the Academy of American Poets public-domain text",
   },
 
-  // ── Round 41 (Sep 2026) — the present through transience ───────────────────
+  // ── Round 41 (Sep 2026) — the present through transience ─
   {
     text: 'Ah, yes, because the rose\nFades like the sunset skies;\nBecause rude winter blows\nAll bare, and music dies—\nTherefore, now is to me\nEternity!',
     author: 'Richard Watson Gilder',
@@ -837,7 +837,7 @@ const POEMS = [
     source: "'Because the Rose Must Fade', The Poems of Richard Watson Gilder (1908), p. 232 — Gilder d. 1909, PD worldwide; complete closing stanza verified verbatim against the 1908 edition scan",
   },
 
-  // ── Round 42 (Sep 2026) — existential self-observation ──────────────────
+  // ── Round 42 (Sep 2026) — existential self-observation ─
   {
     text: 'Meanwhile do I talk to myself as one who hath time.\nNo one telleth me anything new,\nso I tell myself mine own story.',
     author: 'Friedrich Nietzsche (trans. Thomas Common)',
@@ -845,7 +845,7 @@ const POEMS = [
     source: "'Old and New Tables' 1, Thus Spake Zarathustra, Part III, trans. Thomas Common (1917) — Nietzsche d. 1900, Common d. 1919, both PD worldwide; contiguous prose passage reflowed to three displayed lines, wording verified verbatim against the validated Wikisource scan",
   },
 
-  // ── Round 43 (Sep 2026) — life as the unwritten poem ───────────────────
+  // ── Round 43 (Sep 2026) — life as the unwritten poem ─
   {
     text: 'My life has been the poem I would have writ,\nBut I could not both live and utter it.',
     author: 'Henry David Thoreau',
@@ -853,7 +853,7 @@ const POEMS = [
     source: "A Week on the Concord and Merrimack Rivers (1849) — Thoreau d. 1862, PD worldwide; complete two-line passage, verified verbatim against the 1895 Poems of Nature edition and the Academy of American Poets public-domain text",
   },
 
-  // ── Round 44 (Sep 2026) — love as the source of life's value ───────────
+  // ── Round 44 (Sep 2026) — love as the source of life's value ─
   {
     text: 'It is true: we love life,\nnot because we are accustomed to life,\nbut because we are accustomed to love.',
     author: 'Friedrich Nietzsche (trans. Alexander Tille)',
@@ -861,7 +861,7 @@ const POEMS = [
     source: "'Of Reading and Writing', Thus Spake Zarathustra, Part I, trans. Alexander Tille (1896), p. 49 — Nietzsche d. 1900, Tille d. 1912, both PD worldwide; complete contiguous sentence reflowed to three displayed lines, verified verbatim against the 1896 scan",
   },
 
-  // ── Round 45 (Sep 2026) — happiness through giving light ───────────────
+  // ── Round 45 (Sep 2026) — happiness through giving light ─
   {
     text: 'Thou great star! What would be thy happiness,\nwere it not for those for whom thou shinest.',
     author: 'Friedrich Nietzsche (trans. Alexander Tille)',
@@ -907,7 +907,7 @@ const POEMS = [
     source: 'Sand and Foam (1926) — Gibran d. 1931, PD worldwide; complete aphorism reflowed to two displayed lines, verified verbatim against the Wikisource transcription of the 1928 scan',
   },
 
-  // ── Round 47 (Oct 2026) — autumn calm, starting small ───────────────────
+  // ── Round 47 (Oct 2026) — autumn calm, starting small ─
   {
     text: 'No clouds. Weather cool, calm, bright\nas if no great thing was yet ready to be done.',
     author: 'John Muir',

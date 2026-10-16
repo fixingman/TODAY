@@ -28,7 +28,7 @@ Most task apps have the same bug: they remember everything, and opening them fee
 
 **The companion (optional AI — Gemini free tier or Claude)**
 - **Inline task help** — after a task is added, a quiet helper can suggest a useful next action; outcomes feed back into which kinds of help are offered
-- **About digest** — the day's line, a weekly reflection on Sundays, an intention on Mondays, and a "Noticed" block that surfaces what TODAY has learned (peak hour, streak proximity, recurring themes) — only when something changes, never as filler
+- **About digest** — the day's line, a weekly reflection on Sundays, and a "Noticed" block that surfaces what TODAY has learned (peak hour, streak proximity, recurring themes) — only when something changes, never as filler
 - **Meeting mode** — record an in-room meeting (desktop or iPhone), get action items extracted in the meeting's own language, with your items pre-selected
 - **Dreams** — tell the mic a dream, whenever it comes back to you: you get a short reading, and the dream is kept as a dated file in your own Dropbox (see [DreamBank files](#dreambank-files))
 - The AI observes, it never coaches: "usually", never "should"

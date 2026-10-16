@@ -73,7 +73,7 @@
     src: url('/fonts/syne/syne-v24-latin_latin-ext-800.woff2') format('woff2');
   }
 
-  /* ══════════════════════════════════════════════════════════════════
+  /* ─
      FOCUS MODE (Pomodoro) — desktop only (@media hover:hover)
      Animation contract — sequenced to avoid the blurry-opaque-box artifact:
        Enter:  focused bg+border snap in (no transition). Others recede outward
@@ -85,7 +85,7 @@
                box at any point in the sequence.
        Timer: slides open downward via max-height var(--dur-fast) — two distinct beats.
      See Design.md § Motion > Focus mode animation rules.
-  ══════════════════════════════════════════════════════════════════ */
+  ─ */
 
   /* Quiet bordered CTA shared by focus-copy and About's contextual actions. */
   .copy-cta {
@@ -455,7 +455,7 @@
 
   } /* end @media (hover: hover) */
 
-  /* ── Gmail enrichment ─────────────────────────────────────────────────── */
+  /* ── Gmail enrichment ─ */
   .gmail-indicator {
     display: inline;
     font-size: var(--text-sm);
@@ -470,7 +470,7 @@
     .task:hover .gmail-indicator { opacity: var(--opacity-soft); }
   }
 
-  /* ── Agent enrichment indicator ────────────────────────────────────────── */
+  /* ── Agent enrichment indicator ─ */
   .agent-indicator {
     display: inline;
     font-size: var(--text-sm);
@@ -546,7 +546,7 @@
     user-select: text;
   }
 
-  /* ── Agent focus block ─────────────────────────────────────────────────── */
+  /* ── Agent focus block ─ */
   .focus-agent-block {
     border-top: 1px solid var(--accent-focus-divider);
     padding: var(--space-3) var(--space-4) var(--space-3);
@@ -608,7 +608,7 @@
 <link rel="apple-touch-startup-image" media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/assets/splash/splash-1206x2622.png">
 <link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/assets/splash/splash-1320x2868.png">
 <style>
-  /* ── Reset ────────────────────────────────────────────────────────── */
+  /* ── Reset ─ */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   /* ============================================================
@@ -631,7 +631,7 @@
   :root {
     color-scheme: dark;  /* UA dark hint via CSS too, not only the meta — paints a dark default canvas (BUG-041) */
 
-    /* ── Color: Base palette ──────────────────────────────────── */
+    /* ── Color: Base palette ─ */
     --color-bg:          #0e0e10;   /* page background             */
     --color-surface:     #17171a;   /* card / hover surface        */
     --color-surface2:    #1f1f24;   /* elevated surface (panels)   */
@@ -639,12 +639,12 @@
     --color-control-border: #636370;/* main-surface boundaries      */
     --color-control-border-elevated: #6b6b78;/* elevated boundaries */
 
-    /* ── Color: Text ─────────────────────────────────────────── */
+    /* ── Color: Text ─ */
     --color-text:        #e8e8ec;   /* primary text                */
     --color-muted:       #80808d;   /* main-surface secondary text */
     --color-muted-elevated: #858594;/* elevated AA secondary text  */
 
-    /* ── Color: Accent (lime green) ──────────────────────────── */
+    /* ── Color: Accent (lime green) ─ */
     --color-accent:      #c8f060;   /* primary accent              */
     --color-accent-dim:  rgba(200,240,96,0.12); /* ghost accent bg */
     --color-accent-hover: rgba(200,240,96,0.18); /* accent bg on hover */
@@ -661,7 +661,7 @@
     --color-accent-timer-paused: rgba(200,240,96,0.03);  /* timer fill when paused    */
     --color-accent-stat:         rgba(200,240,96,0.60);  /* accomplishment stats readout */
 
-    /* ── Isolated-document palette ──────────────────────────────
+    /* ── Isolated-document palette ─
        Focus/meeting PiP read these computed values before building their
        separate documents. They cannot inherit the opener's custom properties. */
     --color-art-muted:            #6b6b78;
@@ -673,7 +673,7 @@
     --color-pip-btn-hover-bg:     rgba(200,240,96,0.25);
     --color-pip-btn-hover-border: rgba(200,240,96,0.50);
 
-    /* ── Color: Semantic ─────────────────────────────────────── */
+    /* ── Color: Semantic ─ */
     --color-danger:      #ff5f5f;   /* error / delete              */
     --color-danger-dim:  rgba(255,95,95,0.10);  /* danger bg tint  */
     --color-danger-border: rgba(255,95,95,0.20);/* danger border   */
@@ -682,7 +682,7 @@
     --color-highlight-dim:    rgba(87,157,255,0.10); /* highlight bg tint       */
     --color-highlight-border: rgba(87,157,255,0.20); /* highlight border        */
 
-    /* ── Color: Utility ──────────────────────────────────────── */
+    /* ── Color: Utility ─ */
     --color-text-dim:    rgba(232,232,236,0.50); /* dimmed text — secondary interactive labels */
     --color-done-line:   rgba(107,107,120,0.55); /* strikethrough  */
     --color-muted-dim:   rgba(107,107,120,0.12); /* muted bg tint  */
@@ -724,7 +724,7 @@
     --accent-stat:         var(--color-accent-stat);
     --text-dim:            var(--color-text-dim);
 
-    /* ── Spacing scale (4px base) ────────────────────────────── */
+    /* ── Spacing scale (4px base) ─ */
     --space-1:  4px;
     --space-2:  8px;
     --space-3:  12px;
@@ -736,14 +736,14 @@
     --add-task-bar-height: 72px; /* clearance for the fixed bottom add-task bar */
     --panel-max-width: 420px;   /* bottom sheets and overlay panels */
 
-    /* ── Radius scale ────────────────────────────────────────── */
+    /* ── Radius scale ─ */
     --radius-sm:   4px;   /* badge, tag                          */
     --radius-md:   6px;   /* input, small card                   */
     --radius-lg:   8px;   /* task row, button                    */
     --radius-xl:   12px;  /* panel, config section               */
     --radius-full: 99px;  /* pill                                */
 
-    /* ── Typography ──────────────────────────────────────────── */
+    /* ── Typography ─ */
     --font-mono:  'DM Mono', monospace;
     --font-display: 'Syne', sans-serif;
 
@@ -756,7 +756,7 @@
     --text-sm2:   12px;   /* small labels, config hints          */
     --text-task:  13.5px; /* task row text — between base and md  */
 
-    /* ── Motion ──────────────────────────────────────────────── */
+    /* ── Motion ─ */
     --dur-fast:   0.15s;
     --dur-base:   0.18s;
     --dur-mid:    0.20s;  /* focus mode exit, mid-weight transitions */
@@ -766,17 +766,17 @@
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* subtle overshoot for slide-up panels */
     --focus-wave-delay: 0ms; /* per-row focus-entry state, derived from visual distance */
 
-    /* ── Z-index scale ───────────────────────────────────────── */
+    /* ── Z-index scale ─ */
     --z-base:    1;
     --z-header:  11;
     --z-modal:   100;
     --z-splash:  500;
     --z-overlay: 999;
 
-    /* ── Layout ──────────────────────────────────────────────── */
+    /* ── Layout ─ */
     --sec-sticky-top: 0px; /* set by ResizeObserver in init() to sticky-header height */
 
-    /* ── Opacity scale ───────────────────────────────────────── */
+    /* ── Opacity scale ─ */
     --opacity-dim:          0.25;  /* done state, secondary badges     */
     --opacity-mid:          0.50;  /* focused session count            */
     --opacity-soft:         0.60;  /* session count on hover           */
@@ -837,7 +837,7 @@
     outline-offset: 3px;
   }
   
-  /* ── Error indicator (dev aid) ──────────────────────────────────────── */
+  /* ── Error indicator (dev aid) ─ */
   #errorIndicator {
     position: fixed;
     /* viewport-fit=cover draws under the iOS status bar — offset by the safe area
@@ -940,7 +940,7 @@
     line-height: 1.4;
   }
   
-  /* ── Component: Splash ────────────────────────────────────────────── */
+  /* ── Component: Splash ─ */
   /* ── Splash screen ── */
   #splash {
     position: fixed; inset: 0; z-index: var(--z-splash);
@@ -1020,7 +1020,7 @@
 
 
 
-  /* ── Layout ────────────────────────────────────────────────────────── */
+  /* ── Layout ─ */
   html, body {
     height: 100%;
     overscroll-behavior: none; /* prevent pull-to-refresh / rubber-band scroll on iOS */
@@ -1050,7 +1050,7 @@
        the root: html { overflow-x: hidden }. */
   }
 
-  /* ── Component: Header ─────────────────────────────────────────────── */
+  /* ── Component: Header ─ */
   /* Sticky header — mobile only. Desktop scrolls normally. */
   /* Sticky header — active on all viewports */
   .sticky-header {
@@ -1308,7 +1308,7 @@
     letter-spacing: 0.04em; /* quiet-voice tracking — matches nudge + streak-label etc. */
   }
 
-  /* ── Zone sections (SOON / PAST) ────────────────────────────────────── */
+  /* ── Zone sections (SOON / PAST) ─ */
   .zone-section {
     margin: var(--space-2) 0;
   }
@@ -1415,7 +1415,7 @@
     }
   }
 
-  /* ── Evening triage ──────────────────────────────────────────────────── */
+  /* ── Evening triage ─ */
   #triageOverlay {
     position: fixed;
     inset: 0;
@@ -1453,7 +1453,7 @@
     from { transform: translateY(100%); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
   }
-  /* ── Triage bar → sheet morph ──────────────────────────── */
+  /* ── Triage bar → sheet morph ─ */
   /* transform-origin at center-bottom so the shell grows from
      where the bar pill sits (72px above the add-task bar). */
   #triagePanel.triage-morph-opening,
@@ -1737,7 +1737,7 @@
     flex: 0 0 auto;
   }
 
-  /* ── Post-triage reflections ─────────────────────────────────────── */
+  /* ── Post-triage reflections ─ */
   #triageReflection {
     width: 100%;
     margin-top: 0;
@@ -1852,7 +1852,7 @@
   }
 
   /* Task item */
-  /* ── Component: Task ───────────────────────────────────────────────── */
+  /* ── Component: Task ─ */
   .task-list {
     display: flex;
     flex-direction: column;
@@ -2191,7 +2191,7 @@
     .task-delete:hover { color: var(--danger); }
   }
   .clear-input-btn:hover, .clear-input-btn:active { color: var(--danger); }
-  /* ── Component: Dev Hours Tracker ──────────────────────────────────────── */
+  /* ── Component: Dev Hours Tracker ─ */
   .dev-hours {
     display: inline-flex;
     align-items: center;
@@ -2432,7 +2432,7 @@
 
 
   /* Add task input */
-  /* ── Component: Add Task Input ─────────────────────────────────────── */
+  /* ── Component: Add Task Input ─ */
   .add-task-row {
     display: flex;
     gap: var(--space-2);
@@ -2557,7 +2557,7 @@
   }
 
 
-  /* ── Component: Meeting Mode (v2.22.0 desktop, v2.28.0 mobile) ───────
+  /* ── Component: Meeting Mode (v2.22.0 desktop, v2.28.0 mobile) ─
      Mic button in the add bar starts a listening session; a non-blocking
      pill above the add bar shows dot + elapsed + stop while the whole app
      stays usable. Review overlay clones the triage pattern. */
@@ -2958,7 +2958,7 @@
   .meeting-review-drop[hidden] { display: none; }
 
   /* Trello config panel */
-  /* ── Component: Config Panel ───────────────────────────────────────── */
+  /* ── Component: Config Panel ─ */
   .config-panel {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -3318,7 +3318,7 @@
     flex-wrap: wrap;
   }
 
-  /* ── Component: Buttons ────────────────────────────────────────────── */
+  /* ── Component: Buttons ─ */
   .btn-primary {
     background: var(--highlight-ui);
     border: none;
@@ -3350,7 +3350,7 @@
   .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
 
   /* Status msg */
-  /* ── Component: Status Messages ────────────────────────────────────── */
+  /* ── Component: Status Messages ─ */
   .status-msg {
     font-size: var(--text-sm);
     padding: var(--space-2) var(--space-3);
@@ -3447,7 +3447,7 @@
     background: var(--accent-dim);
   }
 
-  /* ── Component: Panel Utilities ─────────────────────────────────────── */
+  /* ── Component: Panel Utilities ─ */
   .panel-section {
     border-top: 1px solid var(--border);
     padding-top: var(--space-5);
@@ -3461,7 +3461,7 @@
     flex-wrap: wrap;
   }
   
-  /* ── Offline banner — connections panel ──────────────────────────── */
+  /* ── Offline banner — connections panel ─ */
   /* Accent (lime) = the app's state-emphasis colour — offline is an active
      state notice, not a disabled label, so it shouldn't read as muted gray. */
   .offline-banner {
@@ -3484,7 +3484,7 @@
     line-height: 1.6;
   }
 
-  /* ── Connections Grid (Trello + Dropbox side by side) ─────────────── */
+  /* ── Connections Grid (Trello + Dropbox side by side) ─ */
   .connections-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -3742,7 +3742,7 @@
     transition: opacity var(--dur-fast);
   }
 
-  /* ── Focus mode: session count inline after task text ────────────── */
+  /* ── Focus mode: session count inline after task text ─ */
   .session-count {
     display: inline;
     font-size: var(--text-sm);
@@ -3776,7 +3776,7 @@
     color: var(--muted);
   }
 
-  /* ── Component: Loading Dots ────────────────────────────────────────── */
+  /* ── Component: Loading Dots ─ */
   .loading-dots {
     display: inline-flex;
     gap: 3px;
@@ -3792,14 +3792,14 @@
   }
 
   /* Scrollbar */
-  /* ── Utilities: Scrollbar ───────────────────────────────────────────── */
+  /* ── Utilities: Scrollbar ─ */
   /* Hide scrollbar visually — scroll still works */
   ::-webkit-scrollbar { width: 0; background: transparent; }
   * { scrollbar-width: none; }        /* Firefox */
   * { -ms-overflow-style: none; }     /* IE / Edge legacy */
 
   /* Celebration canvas */
-  /* ── Component: Celebration Canvas ─────────────────────────────────── */
+  /* ── Component: Celebration Canvas ─ */
   #celebCanvas {
     position: fixed;
     top: 0;
@@ -3810,7 +3810,7 @@
     height: 100dvh;
   }
 
-  /* ── Component: Habits Panel ───────────────────────────────────────── */
+  /* ── Component: Habits Panel ─ */
   .habit-list { display: flex; flex-direction: column; gap: 2px; touch-action: pan-y; overscroll-behavior: contain; }
 
   .habit {
@@ -3990,7 +3990,7 @@
   /* Connected check — mobile-only indicator */
   .conn-check { display: none; }
 
-  /* ── AI Assistant ─────────────────────────────────────────────────────── */
+  /* ── AI Assistant ─ */
   /* Key input inside a connection-row-actions — compact inline entry */
   .connection-row-actions .ai-key-input {
     width: 140px;
@@ -4073,7 +4073,7 @@
   }
   #meetingNameInput::placeholder { color: var(--muted); opacity: 0.7; }
 
-  /* ── Memory panel ────────────────────────────────────────────────────── */
+  /* ── Memory panel ─ */
   .memory-intro {
     color: var(--muted);
     font-size: var(--text-sm);
@@ -4201,7 +4201,7 @@
   }
 
 
-  /* ── Accessibility: Reduced Motion ─────────────────────────────────── */
+  /* ── Accessibility: Reduced Motion ─ */
   /* Respect user preference for reduced motion — skip decorative animations */
   @media (prefers-reduced-motion: reduce) {
     /* Breathing/pulse animations are WAAPI — their helpers (_breathe,
@@ -4624,24 +4624,24 @@ window.scrollTo(0, 0);
 
 // Runtime ownership: memory/design/Components.md; errors live in error-monitor.js.
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+// ─ Constants ─
 const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // Color constants (COLOR_ACCENT/BG/MUTED/BORDER) now live in assets/util.js.
 
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
-// ─── Version ─────────────────────────────────────────────────────────────────
-const DEV_HOURS     = '357h';
+// ─ Version ─
+const DEV_HOURS     = '357.5h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.96.2': 'Maintenance: documentation now matches the current app.',
   '2.96.1': 'Nineteen new daily poems and passages — Shelley, Dickinson, Emerson, Burroughs, Gibran, and proverbs from China and Asante.',
   '2.96.0': 'Daily nudges can draw on Calendar timing when it relates to a task’s stated need for uninterrupted time. Four autumn poems join the collection.',
-  '2.95.7': 'Memory’s Patterns list stays short and follows your recent rhythm.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4651,12 +4651,12 @@ const CHANGELOG = {
 // test asserts it matches (scripts/smoke-test.mjs). Per "derive, don't duplicate".
 const APP_VERSION = Object.keys(CHANGELOG)[0];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─ Helpers ─
 // Pure leaf utils (safeJSON, _getAppDay, _localISO, _habitNow/_habitTodayISO,
 // _formatFocusTime, esc), the COLOR_* constants, and the _breathe/_KF_BLINK
 // animation primitives now live in assets/util.js, loaded before this script.
 
-// ─── Cached DOM Elements ──────────────────────────────────────────────────────
+// ─ Cached DOM Elements ─
 // Frequently queried elements cached at load — saves DOM lookups per session
 const $ = {};
 function _cacheElements() {
@@ -4688,7 +4688,7 @@ function _cacheElements() {
   $.dayNudge      = document.getElementById('dayNudge');
 }
 
-// ─── State ───────────────────────────────────────────────────────────────────
+// ─ State ─
 let trelloTasks = [];
 let trelloConnected = false; // cached — avoids localStorage reads in render hot path
 let manualTasks = safeJSON('today_manual', []);
@@ -4699,7 +4699,7 @@ let pastTasks = safeJSON('today_past', []);
 let triageDismissedToday = localStorage.getItem('triage_dismissed') === _getAppDay();
 
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
+// ─ Init ─
 function init() {
   _cacheElements();  // cache frequently queried DOM elements FIRST
 
@@ -4854,7 +4854,7 @@ let habitEvents       = safeJSON('today_habit_events', {});   // LWW map: "habit
 let habitEditMode     = false;
 
 
-// ── Bar submit logic ─────────────────────────────────────────────────────────
+// ── Bar submit logic ─
 // One task input. Enter always adds (fast, zero friction).
 function handleBarKey(e) {
   if (e.key === 'Enter') addManual();
@@ -4875,7 +4875,7 @@ window._startDrag();
 // _appReady starts false; set to true by assets/splash.js after load settles.
 let _appReady = false;
 
-// ─── Start ────────────────────────────────────────────────────────────────────
+// ─ Start ─
 // Run init immediately — renders from localStorage while splash plays in parallel
 window._startDropbox();
 window._startGmail();

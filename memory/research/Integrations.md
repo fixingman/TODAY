@@ -10,8 +10,8 @@
 |-------------|--------|-------|
 | Trello | ✅ Done | Baseline complexity (1×) |
 | Dropbox | ✅ Done | PKCE OAuth, JSON backup |
-| AI (Gemini) | ✅ Done | Free tier, 250 RPD |
-| AI (Claude) | ✅ Done | Pay-per-token, private |
+| AI (Gemini) | ✅ Done | Configured provider; current runtime contract in `architecture/AI.md` |
+| AI (Claude) | ✅ Done | Optional configured provider; per-surface behavior in `architecture/AI.md` |
 
 ---
 
@@ -20,7 +20,7 @@
 | Integration | Decision | Reasoning |
 |-------------|----------|-----------|
 | Google Drive | Parked; spec in `Backlog.md` §9 | Alternative sync provider, chosen explicitly at setup |
-| Google Calendar | 10b foundation local (v2.94.0); live verification owed | Separate read-only primary-calendar timing, no agenda/AI input; meeting-start UI is a later gate |
+| Google Calendar | Foundation shipped (v2.94.0); daily timing support v2.96.0 | Separate read-only connection; only a qualified derived relationship reaches the ordinary daily writer, never raw event fields. No agenda. Real consent/refresh/Forget/phone checks remain owed before meeting-start UI |
 | Granola | Not started; `Backlog.md` §10a | Independent manual meeting import; not a prerequisite for Calendar consent |
 | Todoist | Rejected 2026-08-21 | No demonstrated need for a second task-integration lane |
 | Microsoft To Do, TickTick, iCloud, Jira | No active plan | Feasibility notes below are historical, not a build order |
@@ -95,17 +95,7 @@ Alternative to Dropbox for users without Dropbox account.
 
 ## AI Providers
 
-### Gemini 2.5 Flash (default)
-- Free tier: 250 requests/day
-- No credit card required
-- Good for personal use
-
-### Claude Sonnet (private)
-- Pay-per-token (~$0.000015/call — ~5x Haiku, negligible at personal scale)
-- Noticeably warmer, more contextual responses
-- Better at reflective outputs (reflect, break_down, observations)
-- Model: `claude-sonnet-4-6`
-- For maintainer's deploy
+Current provider/model/thinking behavior belongs in [AI architecture](../architecture/AI.md) and the owning Netlify handlers. The old quota, per-call price and comparative voice estimates here were historical assumptions; they are not current selection guidance. Check official provider documentation before a future cost/support decision.
 
 ### Proxy Architecture
 ```

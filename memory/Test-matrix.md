@@ -475,8 +475,8 @@ later section or automated suite was added.
 | 14.19b | Withdraw supporting records, consent or roll past a supporting date | Old result invalidated; no relationship = hidden opted-in block |
 | 14.19c | Deliver older request after newer request, deletion or re-consent | Old reply neither restores deleted insight nor overwrites/clears newer loading/result |
 | 14.19d | Reopen with unchanged evidence; reorder storage or add unrelated outcomes | Valid wording stays; no manufactured variation or repeated request |
-| 14.19e | Open Dreams, then manage by keyboard at 320px | One recurrence line with distinct-dream counts, named hide controls and shared explanation only in manage; labels wrap, focus retained; read/delete remain reachable |
-| 14.19f | Hide a recurrence, repeat it in one then two new dreams | Earlier occurrences excluded; one new dream stays hidden, two reappear with count 2 |
+| 14.19e | Open Dreams, then manage by keyboard at 320px | One recurrence line with distinct-dream counts and spoken count labels; long labels wrap, manage retains focus, read/delete remain reachable; no hide controls or reappearance explanation |
+| 14.19f | Load legacy dismissed recurrences and duplicate index rows | Legacy dismissals do not hide recurrence; count each distinct dream ID once (v2.95.5); compatibility map remains available for sync |
 | 14.19g | Vote “not really” on ordinary nudge and typed category observations | Ordinary feedback persists separately; two category misses still retire it; no RETIRED section |
 
 | 14.20 | Policy = `not_for_me` in panel | "Remember reflections" button shown |

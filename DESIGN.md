@@ -26,7 +26,7 @@ The morning is the signature beat. Everything else supports or follows it.
 
 **The one line no one else can say:** the empty state is the reward, not the failure.
 
-**The walls (non-negotiable):** no labels/categories · no stream extraction (Slack/Gmail) · calendar as input only, never output · single-file no-build · manual task order is intent-encoded by drag, never auto-sorted.
+**The walls (non-negotiable):** no labels/categories · no stream extraction (Slack/Gmail) · calendar as input only, never output · component modules, no build step · manual task order is intent-encoded by drag, never auto-sorted.
 
 → Full voice, vocabulary, Wallpaper Test case law: `memory/design/Philosophy.md`
 → Positioning language, pitch beats, copy rules: `memory/design/Positioning.md`
@@ -49,7 +49,7 @@ All tokens live in `:root` in `index.html`. Aliases (short names) are the ones u
 | Layout | `--add-task-bar-height 72px` · `--panel-max-width 420px` | — |
 | Motion | `--dur-fast 0.15s` · `--dur-base 0.18s` · `--dur-slow 0.30s` | — |
 | Easing | `--ease-out cubic-bezier(0.16,1,0.3,1)` · `--ease-spring cubic-bezier(0.34,1.56,0.64,1)` | — |
-| Z-index | `--z-header 10` · `--z-modal 100` · `--z-splash 500` | — |
+| Z-index | `--z-header 11` · `--z-modal 100` · `--z-splash 500` | — |
 
 **Rules:** no hardcoded hex/rgba outside `:root` · no `transition: all` · no undefined CSS vars. Enforced by `scripts/design-lint.mjs`.
 
@@ -62,7 +62,7 @@ All tokens live in `:root` in `index.html`. Aliases (short names) are the ones u
 ### Runtime ownership
 - `assets/runtime.js` loads first. Components publish frozen APIs via `Today.define(name, api)`; consumers resolve via `Today.use(name)`.
 - All UI actions declared in markup as `data-today-click` / `data-today-change` / etc. No inline event attributes.
-- Compatibility globals are transitional. Ceiling: 117. New APIs belong on `Today`.
+- Compatibility globals are transitional; `scripts/component-contract-test.mjs` owns the enforced inventory. New APIs belong on `Today`.
 - Deterministic logic lives outside DOM: `sync-merge.js`, `suggestion-policy.js`, `noticed-model.js`, `focus-session.js`.
 
 → Full contracts, task row spec, accessibility contract: `memory/design/Components.md`

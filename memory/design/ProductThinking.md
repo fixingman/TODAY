@@ -51,8 +51,8 @@ Know the walls before proposing a path. When you hit a wall, don't ignore it and
 **The walls in TODAY:**
 - No labels, projects, or categories — categorization creates overhead that turns a task catcher into a system to manage
 - No stream extraction (Slack/Gmail) — wrong trust model, server infra required, chasing mechanic; Dia's lane, not ours
-- Calendar as agenda panel — planner drift, never; calendar as passive day-shape nudge input — open (Backlog §1)
-- Single-file, no build step (Rule 24) — extraction ceiling, module queue exists for a reason
+- Calendar as agenda panel — planner drift, never; optional same-task derived timing supports only the ordinary daily writer (v2.96.0; Backlog §10b). Broader Calendar input remains gated
+- Component modules, no build step (Rule 24) — `index.html` owns the shell/startup; behavior belongs in its owning `assets/` module
 - Manual task order must not be re-sorted (Rule 11) — it's intent-encoded by drag
 - No preference knobs — personalization is observed behavior + opt-in connections, never settings (see `design/Personalization.md`)
 
