@@ -71,6 +71,12 @@ Before proposing any new mechanism, ask what machinery already exists:
 
 Running this reflex catches redundancy and keeps the codebase coherent. It also often finds a better answer faster.
 
+### Design collaboration (Can, 2026-10-16)
+
+Use Claude alongside Codex for substantive product/visual design proposals and reviews. Supply the actual existing component, tokens, design principles and relevant product decisions; do not ask for a generic redesign from a prose-only brief. Keep implementation and verification distinct from design approval. This preference does not authorize changing model-provider/routing configuration or replacing existing UI. The rejected habit-moment study showed that using token values while changing density, hierarchy, history and edit affordances can still degrade the design. Preserve the working component as the baseline; a broader concern about Memory is not blanket redesign approval.
+
+**Review rule from the Claude-assisted habit pass:** extend the component, not just the tokens. Begin with its actual markup/classes/styles and compare before/after at the same viewport. List every visible difference—columns, marks, colour roles, row density, hit areas and edit affordances. Tie each to a named need or preserve the existing treatment. Technical checks are necessary, not a product/visual verdict. Critique is input, not authority: do not adopt claims that app detection is necessary for a real-world cue to help, or turn an optional name-only possibility into compulsory syntax or homework for Can.
+
 ---
 
 ### Smallest test first

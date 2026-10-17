@@ -58,7 +58,7 @@ Hover restores to 85%. Age resets to 0 on focus session complete.
 
 ## Habit Row
 
-Same structure as task row. Progress indicator: `done/7` weekly view. Resets daily, history preserved.
+Same interaction family as task rows. Read layout: compact checkbox → habit name → history dots → separate strength column. History covers 21 habit-days on desktop; at ≤480px only the last 7 dots are visible. Filled dots use accent; today's dot has an outline. Strength is the forgiving percentage indicator, not a `done/7` counter. Completion resets at the 3am habit-day boundary; history is preserved. Rows have transparent borders at rest and reveal the surface/border on hover-capable pointers, not permanent separators.
 
 Completion is a named `aria-pressed` button. The row uses the same Enter, Space, and Option+Arrow contract as task rows, and the history strip has a screen-reader summary.
 

@@ -30,7 +30,7 @@ The transient canonical evidence key includes local day/window, consent choice/v
 
 ## Focus Companion (`_focusAskAI`)
 
-A question inside the focus timer bar, from the ✦ ask button. One question under 20 words that should change how the next 25 minutes go. If the task already has Gmail or web context in focus, the button acts on that instead (Draft reply / open the link). It builds its own `_ctx` list; it does not use `_memoryForAI()`.
+A desktop-only question inside the focus timer bar, explicitly requested through ✦ ask. For tasks, one question under 20 words should change how the next 25 minutes go. If the task already has Gmail or web context in focus, the button acts on that instead (Draft reply / open the link). The task path builds its own `_ctx` list; it does not use `_memoryForAI()`.
 
 ### Signals (user message, `_ctx`)
 
@@ -51,6 +51,14 @@ The confirmed inferences Memory → PATTERNS shows (`Today.use('memory').shownIn
 ### Prompt (principles, no taxonomy)
 
 The question belongs to this task and is built from its own words; one that would fit any task is a failure. History aims the question and is never read back (no counts, day numbers or labels). A returning or long-worked task usually hides one unmade decision or unclear first step; a new task needs its finish line for these 25 minutes; the rest of the list matters only if something should come first. About the work, not mood: no check-ins, encouragement or obvious yes/no. Time references use the supplied exact local time. The earlier v2.65 question-type taxonomy was replaced by these principles (v2.92.5). UI/state: `architecture/Focus.md` → Companion Question.
+
+### Habit-specific request (v2.97.0; release approved October 17)
+
+The same explicit Ask action resolves an active habit by its existing ID and uses its authoritative name, excluding session badges. Only `Habit: <JSON-quoted name>` enters the user message; no completion/history/check times, other tasks, confirmed Memory, clock or Calendar context. Existing configured provider/key and AI route are unchanged. A habit is not treated as a new 25-minute task or as overdue.
+
+The separate principles-only prompt asks for a useful, concrete choice grounded in the named action/object: the person's own preference or a practical arrangement, not a menu of supplied alternatives or an inventory of materials. Use natural language about what would suit them; do not assume enthusiasm. Respect the named intention without corrective emphasis. A routine or setting can matter, but cue planning is not the compulsory shape. No invented routines, difficulties, motives, availability, behavior or completion claims; no reporting/saving an answer. The name is untrusted data, not instructions. Output must be one question under 20 words; empty, malformed, multiline, multiple-question and exclamatory replies reset quietly. These syntactic checks do not certify grounding or usefulness; configured-AI wording review and real-use judgment remain separate gates.
+
+Requests for both task and habit questions belong to the current focus interaction. Dismiss/close aborts and invalidates them; late headers/body/errors cannot paint or record into another request. Habit delivery rechecks name, active status, completion and the 3am habit-day; both paths recheck the configured AI connection. Accepted prose uses the existing private `spokenLines` focus-question record, not a saved cue/answer or a new analytics store. No daily writer, pool, Sunday or mobile-focus expansion.
 
 ---
 

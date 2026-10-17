@@ -319,6 +319,8 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 7.8 | Completion — bar state | Bar fills and immediately starts pulsing "again?" (no static pause, BUG-028) |
 | 7.9 | Window return with completed bar | Bar pulses on return with no flash (BUG-028b) |
 | 7.10 | Focus companion with AI configured | Start focus and use “✦ ask”; one bounded question appears inline without opening another surface |
+| 7.10a | Habit focus companion (v2.97.0 local implementation) | `focus-test`: explicit Ask sends only the selected active habit name; no automatic request, history/Memory/other-task context or forced cue/25-minute framing. Correct accessible question/Ask labels; timer untouched; accepted prose uses existing private spoken history. Task prompt hash stays unchanged |
+| 7.10b | Pending habit question changes/fails | `focus-test`: dismiss/exit/switch, rename/archive/delete/check, 3am day change, AI Forget, DOM replacement and delayed response body withhold display/history; old rejection cannot clear a newer answer. Timeout/malformed/empty/non-question/overlong/network/HTTP replies reset; retry, content-first/legacy message and touch/no-key boundaries. Synthetic safety coverage is not live AI quality |
 | 7.11 | _onWake rapid double-fire | Alt-tab away and back quickly multiple times — no repaint glitches |
 | 7.12 | Start focus among rows at different distances | Nearby rows recede before farther rows; the full delay wave spans exactly `--dur-fast` and the selected row stays stable |
 | 7.13 | Start focus with reduced motion | Focus state applies without per-row wave delays |

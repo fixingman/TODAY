@@ -13,6 +13,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -707,13 +708,197 @@ try {
         ageFromCreation:    msg.includes('on the list 9 days'),
         freshTaskNamed:     msg.includes('never focused on before'),
         noLookupTable:      !sys.includes('Use the context to choose') && sys.includes('A question that would fit any task is a failure'),
+        taskPromptUnchanged:createHash('sha256').update(sys).digest('hex')==='5f7f9fe5898f4799e30829c51f52b182814cafcd28eb059df5dca1e9a6650169',
         noErrors:           !routine.errors.length && !stuck.errors.length,
       });
       ok('focus ask: highlight only for stuck/returning tasks; truthful history context; principle-based prompt');
       await stuck.page.close();
     }
 
-    console.log('\nFocus tests passed (post-extraction, 18 checks).');
+    // Habit requests use the real UI on an isolated origin, with deliberately held replies.
+    const habitFixture = async ({ configured = true, hoverHover = true } = {}) => {
+      const fixture = await openPage({ hoverHover, extraSeed: {
+        today_habits: JSON.stringify([{id:'habit_read',name:'Read',focusSessions:7},{id:'habit_walk',name:'Walk'}]),
+        ...(configured ? {today_ai_key_claude:'test-key',today_ai_key_gemini:'test-key'} : {}),
+      }});
+      await fixture.page.evaluate(() => {
+        window.__asks = []; window.__spoken = [];
+        window._memoryRecordSpokenLine = (...args) => window.__spoken.push(args);
+        const original = window.fetch;
+        window.fetch = (url, options) => {
+          if (!String(url).includes('ai-assist')) return original(url, options);
+          return new Promise((resolve,reject) => {
+            const request = {body:JSON.parse(options.body),signal:options.signal,reject};
+            request.reply = (data,mode) => resolve({ok:mode!=='http',status:mode==='http'?503:200,json:() => {
+              if(mode==='json')return Promise.reject(new SyntaxError('Synthetic malformed JSON'));
+              if(mode==='body')return new Promise(resolve => {request.finishBody=resolve});
+              return Promise.resolve(data);
+            }});
+            window.__asks.push(request);
+          });
+        };
+      });
+      await fixture.page.click('#habitsBtn');
+      await fixture.page.waitForSelector('.habit[data-habit-id="habit_read"]',{visible:true});
+      return fixture;
+    };
+    const startHabit = async (page,id='habit_read') => {
+      await page.click(`.habit[data-habit-id="${id}"] .habit-name`);
+      await page.waitForFunction(id => document.querySelector('.habit.focused')?.dataset.habitId===id&&document.querySelector('.focus-timer.open'),{timeout:3000},id);
+    };
+    const ask = async page => {
+      const count = await page.evaluate(()=>window.__asks.length);
+      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
+      await page.waitForFunction(count=>window.__asks.length===count+1,{timeout:3000},count);
+      return count;
+    };
+    const reply = (page,index,data,mode) => page.evaluate(async ({index,data,mode})=>{
+      if(mode==='network')window.__asks[index].reject(new Error('Synthetic offline'));
+      else window.__asks[index].reply(data,mode);
+      await new Promise(requestAnimationFrame);
+    },{index,data,mode});
+    const question = 'Which book would you like to spend time with?';
+
+    {
+      const {page,errors}=await habitFixture();
+      await startHabit(page);
+      const before=await page.evaluate(()=>({count:window.__asks.length,session:JSON.parse(localStorage.getItem('today_focus_session'))}));
+      await page.waitForFunction(()=>document.querySelector('.focus-timer.open'));
+      const index=await ask(page);
+      const body=await page.evaluate(index=>window.__asks[index].body,index);
+      await expectAll('habit request privacy and trigger',{
+        noAutomaticCall:before.count===0,
+        oneHabitOnly:JSON.stringify(body.messages)===JSON.stringify([{role:'user',content:'Habit: "Read"'}]),
+        noTaskOrMemoryContext:!JSON.stringify(body).includes('Write the tests')&&!body.systemPrompt.includes('What we know about the user'),
+        notAlwaysScheduling:body.systemPrompt.includes('do not turn every habit into a scheduling or cue-planning question'),
+        openChoiceNotMenu:body.systemPrompt.includes('Invite their own preference or a practical arrangement; do not supply a menu'),
+        noAssumedEnthusiasm:body.systemPrompt.includes('Do not assume enthusiasm'),
+        notTwentyFiveMinutes:body.systemPrompt.includes('Do not assume the action needs 25 minutes'),
+        existingRoute:!!body.provider&&body.apiKey==='test-key',
+        timerStillOwned:before.session?.taskId==='habit_read',
+      });
+      await reply(page,index,{content:question,message:'Wrong truncated preview'});
+      await page.waitForFunction(question=>document.querySelector('.focus-ai-timer-btn').textContent===question,{},question);
+      const accepted=await page.evaluate(()=>({spoken:window.__spoken,owner:JSON.parse(localStorage.getItem('today_focus_session')).taskId}));
+      await expectAll('habit question delivery',{
+        contentFirst:accepted.spoken[0]?.[1]===question,
+        existingPrivateHistory:accepted.spoken.length===1&&accepted.spoken[0][0]==='focus question',
+        timerUnchanged:accepted.owner==='habit_read',noErrors:!errors.length,
+        accessibleQuestion:await page.$eval('.focus-ai-timer-btn',button=>button.getAttribute('aria-label'))===question,
+      });
+      await page.$eval('.focus-ai-timer-btn',async button=>{await Promise.all(button.getAnimations().map(animation=>animation.finished.catch(()=>{})))});
+      await page.addScriptTag({path:join(ROOT,'scripts/node_modules/axe-core/axe.min.js')});
+      const violations=await page.evaluate(async()=> (await axe.run(document.querySelector('.focus-timer'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}})).violations.map(v=>v.id));
+      await expectAll('accepted habit question accessibility',{noViolations:violations.length===0});
+      await page.click('.focus-ai-timer-btn');
+      await page.waitForFunction(()=>!document.querySelector('.focus-timer').classList.contains('ai-active'));
+      await expectAll('habit question dismissal label',{askLabelRestored:await page.$eval('.focus-ai-timer-btn',button=>button.getAttribute('aria-label'))==='Ask for a focus question'});
+      ok('habit Ask: explicit, name-only, no forced cue/25-minute framing; existing timer and spoken-line storage');
+      await page.close();
+    }
+
+    // Closing/dismissing invalidates even a transport that ignores AbortSignal.
+    for(const change of ['dismiss','escape','switch','rename','archive','remove','complete','day','connection','rerender','body']){
+      const {page,errors}=await habitFixture();
+      await startHabit(page);const index=await ask(page);
+      if(change==='dismiss')await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
+      else if(change==='escape'||change==='switch'){
+        await page.keyboard.press('Escape');
+        await page.waitForFunction(()=>!document.querySelector('.habit.focused'));
+        if(change==='switch'){await startHabit(page,'habit_walk');await ask(page);}
+      }else if(change==='body'){
+        await reply(page,index,{},'body');
+        await page.waitForFunction(index=>!!window.__asks[index].finishBody,{},index);
+        await page.keyboard.press('Escape');
+        await page.evaluate(async ({index,question})=>{window.__asks[index].finishBody({content:question});await new Promise(requestAnimationFrame)},{index,question});
+      }else await page.evaluate(change=>{
+        const h=habitsList.find(h=>h.id==='habit_read');
+        if(change==='rename')h.name='Read a poem';
+        if(change==='archive')h.archived=true;
+        if(change==='remove')habitsList=habitsList.filter(h=>h.id!=='habit_read');
+        if(change==='complete')habitCompletions.habit_read=[_habitTodayISO()];
+        if(change==='day')window._habitTodayISO=()=> '2099-01-01';
+        if(change==='connection'){localStorage.removeItem('today_ai_key_claude');localStorage.removeItem('today_ai_key_gemini');}
+        if(change==='rerender')Today.use('habits').renderHabits();
+      },change);
+      if(change!=='body')await reply(page,index,{content:question});
+      const result=await page.evaluate(index=>({spoken:window.__spoken.length,text:document.querySelector('.focus-ai-timer-btn')?.textContent||'',aborted:window.__asks[index].signal.aborted,active:!!document.querySelector('.focus-timer')?.classList.contains('ai-active')}),index);
+      await expectAll(`habit stale reply: ${change}`,{
+        notRecorded:result.spoken===0,
+        notDisplayed:!result.text.includes(question),
+        staleAborted:result.aborted,
+        currentUnaffected:change==='switch'?result.active&&result.text==='thinking…':!result.active,
+        noErrors:!errors.length,
+      });
+      ok(`habit stale reply withheld: ${change}`);
+      await page.close();
+    }
+    ok('habit Ask: late headers/body fenced after dismissal, exit/switch, edit/archive/delete/check, day change or DOM replacement');
+
+    for(const first of ['task','habit']){
+      const {page,errors}=await habitFixture();
+      const startTask=async()=>{await page.evaluate(()=>document.querySelector('.task-text').click());await page.waitForFunction(()=>document.querySelector('.task.focused')?.dataset.taskid==='manual_t1');};
+      if(first==='task')await startTask();else await startHabit(page);
+      const stale=await ask(page);await page.keyboard.press('Escape');
+      await page.waitForFunction(()=>!document.querySelector('.task.focused,.habit.focused'));
+      if(first==='task')await startHabit(page);else await startTask();
+      const latest=await ask(page);
+      await reply(page,stale,{content:'What stale question should never appear?'});
+      await expectAll('task/habit request separation',{latestStillLoading:await page.$eval('.focus-ai-timer-btn',button=>button.textContent)==='thinking…'});
+      await reply(page,latest,{content:question});
+      await expectAll('task/habit response separation',{
+        currentShown:await page.$eval('.focus-ai-timer-btn',button=>button.textContent)===question,
+        onlyCurrentRecorded:await page.evaluate(()=>window.__spoken.length===1),noErrors:!errors.length,
+      });
+      await page.close();
+    }
+    ok('task and habit pending questions cannot cross into one another');
+
+    {
+      const {page,errors}=await habitFixture();await startHabit(page);
+      const cases=[
+        [{content:''}], [{content:'A statement, not a question.'}], [{content:'Which book? Why that one?'}],
+        [{content:'Which book!'}], [{content:'Which book?\nPick one.'}],
+        [{content:Array(20).fill('word').join(' ')+'?'}], [{content:42}], [{error:'synthetic'}],
+        [{content:question},'http'], [{},'json'], [{},'network'],
+      ];
+      for(const [data,mode]of cases){const index=await ask(page);await reply(page,index,data,mode);await page.waitForFunction(()=>!document.querySelector('.focus-timer').classList.contains('ai-active'));}
+      const accepted=await ask(page);await reply(page,accepted,{message:question});
+      await page.waitForFunction(question=>document.querySelector('.focus-ai-timer-btn').textContent===question,{},question);
+      await expectAll('habit malformed replies and recovery',{onlyValidRecorded:await page.evaluate(()=>window.__spoken.length===1),noErrors:!errors.length});
+      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
+      const old=await ask(page);
+      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
+      const current=await ask(page);await reply(page,current,{content:question});
+      await reply(page,old,{},'network');
+      await expectAll('old rejection cannot reset new answer',{
+        stillVisible:await page.$eval('.focus-ai-timer-btn',button=>button.textContent)===question,
+        recordedOnce:await page.evaluate(()=>window.__spoken.length===2),
+      });
+      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
+      await page.evaluate(()=>{const original=window.setTimeout;window.setTimeout=(callback,ms,...args)=>{if(ms===25000)window.__expireAsk=callback;return original(callback,ms,...args)};});
+      const timedOut=await ask(page);
+      await page.evaluate(()=>window.__expireAsk());
+      await reply(page,timedOut,{content:question});
+      await expectAll('habit deadline and late reply',{
+        aborted:await page.evaluate(index=>window.__asks[index].signal.aborted,timedOut),
+        reset:await page.$eval('.focus-timer',timer=>!timer.classList.contains('ai-active')),
+        notRecorded:await page.evaluate(()=>window.__spoken.length===2),
+      });
+      ok('habit Ask: invalid/empty/malformed/network/HTTP replies reset quietly; retry and legacy message response work');
+      await page.close();
+    }
+
+    for(const options of [{configured:false},{hoverHover:false}]){
+      const {page,errors}=await habitFixture(options);
+      await page.click('.habit[data-habit-id="habit_read"] .habit-name');
+      if(options.hoverHover!==false){await page.waitForFunction(()=>document.querySelector('.focus-timer.open'));await page.evaluate(()=>{const button=document.querySelector('.focus-ai-timer-btn');if(button.checkVisibility())button.click()});}
+      await expectAll('habit no AI/mobile boundary',{noCall:await page.evaluate(()=>window.__asks.length===0),noErrors:!errors.length});
+      await page.close();
+    }
+    ok('habit Ask: no configured AI or touch device makes no request');
+
+    console.log('\nFocus tests passed (post-extraction, 24 check groups).');
   }
 } finally {
   if (browser) await browser.close();

@@ -76,6 +76,44 @@ These are leverage points, not permission to add more surfaces:
 
 ---
 
+## Habit Moments — Concept Under Review (2026-10-16; second isolated prototype)
+
+Backlog: `Backlog.md` → 14. **Latest review supersedes the field-based journey below:** Can does not want a separate Moment section and finds the prototype visually worse than existing Habits. The field/second-line UI and rebuilt-panel sketch are withdrawn from the active recommendation, not ready for polishing or implementation. The underlying habit/context idea remains unresolved. Can also raises a broader panel-design concern including Memory; this is not a request to redesign Memory here. Use Claude alongside Codex for substantive design critique, with actual components/guidelines supplied. The earlier journey below is retained as review context, not an active build plan. Examples are hypothetical, not private-day observations, AI outputs or production prompt examples.
+
+**Later explicit request:** Can asked to build a revised prototype after Claude's review. `output/habit-context/` is the second isolated study, not a revival of `output/habit-moments/`. Existing panel composition stays the baseline. Opening a habit in desktop focus does not force a question; selecting the companion explores a possible routine cue, with no answer field or stored intention. Focus remains desktop-only; touch retains tracking and the morning comparison. Separate fixed morning examples test a preparation relationship versus an ordinary reading. There is no live AI, selection, task/vote/cache/Dropbox write or routine detection. This can test the usefulness of a question, not claim that TODAY now knows when a habit belongs. No Moment section, compulsory names, new capture step or production wiring is approved.
+
+**Subsequent approval — desktop slice only (Can, October 16):** the accepted prototype led to approval to implement an explicitly requested habit-focus question. v2.97.0 is built locally: only the selected habit name reaches its separate prompt; no history/Memory/clock/Calendar expansion, new saved cue/answer, automatic question or required routine-planning template. Accepted wording uses the existing private spoken-question history. See `architecture/AI.md` and `architecture/Focus.md` for request fencing and syntactic validation. Configured-AI wording judgment and commit/deployment remain open. Can also likes the morning relationship and agrees it needs careful nudge work; that is a separate follow-up, not a daily writer/pool change in this slice.
+
+**Job:** help a chosen habit fit into an existing part of life, then occasionally recognise something that could make that fit easier. Two separately judged promises: less repeated remembering/deciding, and useful recognition within the existing daily nudge. A passive field alone fulfils only the first. Not a notification channel, scheduling system or demand to improve completion rates.
+
+**What TODAY has already taught us:** Can reads the daily nudge; habit counts have not explained anything useful; literal callbacks can feel empty while a supported relationship between commitments can help. Current `_memoryForAI` habit context is names, weekly counts and yesterday's status, not intended circumstances. Latest per-habit/day check/uncheck timestamps serve sync; they do not establish action time or cue occurrence. More history cannot reconstruct a chosen intention reliably. Keep existing input unchanged until a new contract is reviewed.
+
+### 1. Withdrawn UI candidate — optional Moment detail
+
+The earlier proposal added optional **Moment** in edit and a quiet second line. This has not earned its place and is no longer the recommended interaction. Do not replace it with a renamed field, forced habit-name syntax or automatic renaming. Can's original examples describe a desired real-life association, not a requirement for metadata or new UI. Keep existing habit capture/edit and its AI exposure unchanged.
+
+### 2. Live the day normally
+
+The real-world routine supplies the cue. No post-completion habit offer, timer-end suggestion, unrelated focus interruption or automatic check-off. An open app, Calendar interval, logged task or sync catch-up is not proof of an external event or available attention. Preserve current check/uncheck, manual order, focus/history, forgiving strength, archive/undo, evening attention, 3am grace and normal sync. No cue-specific failure/late state or extra penalty on no-call days; current daily tracking remains unchanged.
+
+### 3. Let an intention make an existing daily reading more useful
+
+Ask whether today's commitments support or obstruct the person's chosen arrangement, not which habit is unchecked. **Hypothetical:** the person chooses charging the phone outside the bedroom and adds a task to put a spare charger in the hallway. A supported preparation relationship could give that task significance beyond moving an object. It is a selection hypothesis, not an established dependency, validated output or reason to import raw history. A saved walk cue plus a calendar entry alone earns no availability or attendance claim.
+
+Require a bounded evidence/selection/privacy contract before AI wiring; no keyword-only dependency guess or raw-memory dump. Any qualified relationship competes with the ordinary daily reading, reuses its feedback and withholds when obvious, unsupported or repetitive. Do not silence the ordinary path or expand pool/Sunday/focus/Calendar title access. Retired habit/productivity correlations remain retired.
+
+### 4. Revision principle, not approval for a field
+
+Any future change must preserve habit identity/history. An unchecked date does not reveal a failed cue, an unlogged action or a different choice. No automatic routine diagnosis, miss-reason questionnaire, recurring review prompt or weekly performance grade. A future interaction must earn its own place; a moment field is not selected.
+
+**Superseded scenario pass (2026-10-15):** the agent withdrew the linked-call completion reminder after Can was not sold on the interaction/noticing. Literal recall did not establish enough value; the old “strongest timely candidate” designation is not an active recommendation. Do not add task linking or extra history just to revive that offer.
+
+**Design review finding:** the withdrawn sketch used token values but changed component composition: permanent row dividers instead of quiet hover-only row borders; a larger layout column instead of compact checkboxes with enlarged hit areas; compressed history marks instead of 21 desktop / 7 mobile circular dots; strength below history instead of its own aligned column; stacked labelled fields instead of compact inline edit/archive. Preserve the current component's visual relationships, not just its palette. `output/habit-moments/` is a rejected isolated study, not a replacement component or proof of AI usefulness.
+
+**Release/next gate (October 17):** Can approved pushing the desktop slice to dev and master. Confirm v2.97.0 deployment, then judge real usefulness; W3 target October 31. Exact fictional results are in `output/habit-context/quality-check-2026-10-17.md`; the final Read refinement is unsampled, not proven better by the earlier calls. The optional question and meaningful morning recognition remain separate hypotheses. No forced appearance, new interruption or repeated cue template. The morning candidate still needs bounded evidence/privacy/selection review before live nudge wiring. Claude's earlier critique/authorship is not a final sign-off; that request hit its usage limit. The trial judges usefulness, not automaticity; no exposure means no verdict.
+
+---
+
 ## Capabilities vs. preferences — the Connections membership test
 
 The "settings drawer" worry dissolves once the two populations are split:

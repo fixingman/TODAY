@@ -1,0 +1,418 @@
+<div id="today-habit-moments" aria-label="TODAY habit moment design study">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500&display=swap');
+    #today-habit-moments {
+      --color-bg: #0e0e10;
+      --color-surface: #17171a;
+      --color-surface2: #1f1f24;
+      --color-border: #2a2a30;
+      --color-control-border: #636370;
+      --color-text: #e8e8ec;
+      --color-muted: #80808d;
+      --color-muted-elevated: #858594;
+      --color-accent: #c8f060;
+      --color-accent-dim: rgba(200,240,96,0.12);
+      --color-danger: #ff5f5f;
+      --font-mono: 'DM Mono', monospace;
+      --font-display: 'Syne', sans-serif;
+      --text-sm: 11px;
+      --text-sm2: 12px;
+      --text-base: 13px;
+      --text-task: 13.5px;
+      --text-md: 14px;
+      --text-lg: 16px;
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+      --space-8: 32px;
+      --panel-max-width: 420px;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --radius-xl: 12px;
+      --dur-fast: .15s;
+      --dur-base: .18s;
+      --dur-mid: .20s;
+      --dur-slow: .30s;
+      --ease-out: cubic-bezier(.16,1,.3,1);
+      --ease-spring: cubic-bezier(.34,1.56,.64,1);
+      --opacity-dim: .25;
+      --study-desktop-width: 736px;
+      --study-phone-width: 390px;
+      --study-target: 44px;
+      --study-history-width: 82px;
+      --study-dot: 2px;
+      --study-logo-size: 32px;
+      --study-line-height: 1.6;
+      --study-focus-size: 28px;
+      color-scheme: dark;
+      color: var(--color-text);
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-size: var(--text-md);
+      line-height: var(--study-line-height);
+      width: 100%;
+    }
+    #today-habit-moments * { box-sizing: border-box; }
+    #today-habit-moments [hidden] { display: none !important; }
+    #today-habit-moments .study-bar {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: var(--space-2) var(--space-4); margin-bottom: var(--space-4);
+    }
+    #today-habit-moments .study-label { font-size: var(--text-sm); color: var(--color-muted); }
+    #today-habit-moments .study-bar label { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm2); }
+    #today-habit-moments select {
+      color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-control-border);
+      border-radius: var(--radius-md); padding: var(--space-2); max-width: 100%;
+      font: inherit; min-height: var(--study-target);
+    }
+    #today-habit-moments .study-device {
+      max-width: var(--study-desktop-width); margin: 0 auto; background: var(--color-bg);
+      border-radius: var(--radius-xl); padding: var(--space-6);
+    }
+    #today-habit-moments[data-size="phone"] .study-device { max-width: var(--study-phone-width); padding: var(--space-4); }
+    #today-habit-moments .study-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-5); }
+    #today-habit-moments .study-wordmark { font-family: var(--font-display); font-size: var(--study-logo-size); letter-spacing: -.05em; line-height: 1; }
+    #today-habit-moments .study-wordmark span { color: var(--color-accent); }
+    #today-habit-moments .study-icons { display: flex; align-items: center; gap: var(--space-2); }
+    #today-habit-moments button { appearance: none; font: inherit; cursor: pointer; }
+    #today-habit-moments .study-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: var(--study-target); min-height: var(--study-target); border-radius: var(--radius-lg);
+      border: 1px solid var(--color-border); color: var(--color-muted); background: var(--color-bg);
+      font-size: var(--text-lg);
+    }
+    #today-habit-moments button.study-icon[aria-expanded="true"] { color: var(--color-accent); background: var(--color-accent-dim); }
+    #today-habit-moments .study-static-icon { border-color: transparent; }
+    #today-habit-moments .study-date, #today-habit-moments .study-section-label { font-size: var(--text-sm); color: var(--color-muted); }
+    #today-habit-moments .study-date { margin: 0 0 var(--space-5); }
+    #today-habit-moments .study-panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-4); margin-bottom: var(--space-6); }
+    #today-habit-moments .study-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+    #today-habit-moments .study-panel-title { font-size: var(--text-base); margin: 0; font-weight: 400; }
+    #today-habit-moments .study-panel-actions { display: flex; gap: var(--space-2); }
+    #today-habit-moments .study-text-button {
+      min-width: var(--study-target); min-height: var(--study-target); border: 0; background: transparent; color: var(--color-muted-elevated);
+      padding: var(--space-2); font-size: var(--text-sm2);
+    }
+    #today-habit-moments .study-text-button[data-active="true"] { color: var(--color-accent); }
+    #today-habit-moments .study-habits, #today-habit-moments .study-tasks { list-style: none; padding: 0; margin: var(--space-2) 0 0; }
+    #today-habit-moments .study-habit {
+      display: grid; grid-template-columns: var(--study-target) minmax(0,1fr) auto;
+      align-items: center; column-gap: var(--space-2); padding: var(--space-2) 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+    #today-habit-moments .study-habit:last-child { border-bottom: 0; }
+    #today-habit-moments .study-check {
+      width: var(--study-target); height: var(--study-target); border: 0; padding: var(--space-3);
+      display: grid; place-items: center; background: transparent; color: var(--color-bg);
+    }
+    #today-habit-moments .study-check-mark {
+      width: var(--space-5); height: var(--space-5); border: 1px solid var(--color-control-border);
+      border-radius: var(--radius-md); display: grid; place-items: center; font-size: var(--text-sm2);
+      transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+    }
+    #today-habit-moments .study-check[aria-pressed="true"] .study-check-mark { background: var(--color-accent); border-color: var(--color-accent); }
+    #today-habit-moments .study-habit-body { min-width: 0; }
+    #today-habit-moments .study-habit-name, #today-habit-moments .study-task-name {
+      display: block; width: 100%; text-align: left; padding: 0; border: 0; color: var(--color-text);
+      background: transparent; font-size: var(--text-task); overflow-wrap: anywhere; min-height: var(--study-target);
+    }
+    #today-habit-moments .study-habit-name { padding: var(--space-2) 0; }
+    #today-habit-moments .study-moment { display: block; font-size: var(--text-sm2); color: var(--color-muted-elevated); overflow-wrap: anywhere; margin-top: calc(-1 * var(--space-1)); padding-bottom: var(--space-1); }
+    #today-habit-moments .study-history { width: var(--study-history-width); display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--study-dot); }
+    #today-habit-moments .study-history-dots { display: flex; gap: var(--study-dot); width: 100%; }
+    #today-habit-moments .study-dot { width: var(--study-dot); height: var(--space-1); flex: 1; background: var(--color-border); border-radius: var(--radius-sm); }
+    #today-habit-moments .study-dot[data-filled="true"] { background: var(--color-muted); }
+    #today-habit-moments .study-dot:last-child[data-filled="true"] { background: var(--color-accent); }
+    #today-habit-moments .study-strength { color: var(--color-muted-elevated); font-size: var(--text-sm); }
+    #today-habit-moments .study-complete .study-habit-name { color: var(--color-muted-elevated); text-decoration: line-through; }
+    #today-habit-moments .study-edit-row { grid-template-columns: var(--study-target) minmax(0,1fr); }
+    #today-habit-moments .study-edit-row .study-habit-body { grid-column: 2; }
+    #today-habit-moments .study-edit-label { display: block; font-size: var(--text-sm); color: var(--color-muted-elevated); margin: var(--space-2) 0 var(--space-1); }
+    #today-habit-moments input, #today-habit-moments textarea {
+      display: block; width: 100%; min-width: 0; min-height: var(--study-target); border: 1px solid var(--color-control-border);
+      border-radius: var(--radius-md); color: var(--color-text); background: var(--color-bg); padding: var(--space-2);
+      font-family: var(--font-mono); font-size: var(--text-lg);
+    }
+    #today-habit-moments textarea { line-height: var(--study-line-height); resize: vertical; }
+    #today-habit-moments input::placeholder, #today-habit-moments textarea::placeholder { color: var(--color-muted); }
+    #today-habit-moments .study-new { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+    #today-habit-moments .study-new input { flex: 1; }
+    #today-habit-moments .study-task { display: grid; grid-template-columns: var(--study-target) minmax(0,1fr); align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+    #today-habit-moments .study-task[data-done="true"] .study-task-name { color: var(--color-muted); text-decoration: line-through; }
+    #today-habit-moments .study-nudge { margin: 0 0 var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); }
+    #today-habit-moments .study-nudge p { color: var(--color-text); font-size: var(--text-base); margin: var(--space-2) 0; }
+    #today-habit-moments .study-reactions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    #today-habit-moments .study-reactions button[aria-pressed="true"] { color: var(--color-accent); }
+    #today-habit-moments .study-add { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-6); border-top: 1px solid var(--color-border); padding-top: var(--space-4); }
+    #today-habit-moments .study-add input { flex: 1; }
+    #today-habit-moments .study-focus { padding: var(--space-6) 0; }
+    #today-habit-moments .study-focus-name { font-size: var(--text-task); margin: var(--space-4) 0; overflow-wrap: anywhere; }
+    #today-habit-moments .study-focus-time { color: var(--color-accent); font-size: var(--study-focus-size); margin-bottom: var(--space-6); }
+    #today-habit-moments .study-status { font-size: var(--text-sm2); color: var(--color-muted); margin: var(--space-3) 0 0; min-height: var(--space-5); }
+    #today-habit-moments .study-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; clip-path: inset(50%); overflow: hidden; white-space: nowrap; }
+    @media (max-width: 480px) {
+      #today-habit-moments .study-device { padding: var(--space-4); }
+      #today-habit-moments .study-panel { padding: var(--space-3); }
+      #today-habit-moments .study-history { width: calc(var(--space-8) * 2); }
+      #today-habit-moments .study-icons { gap: var(--space-1); }
+      #today-habit-moments .study-bar label { flex-wrap: wrap; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #today-habit-moments *, #today-habit-moments *::before, #today-habit-moments *::after { transition: none !important; animation: none !important; }
+    }
+  </style>
+  <div class="study-bar">
+    <span class="study-label">DESIGN STUDY · FICTIONAL DATA</span>
+    <label>Scene
+      <select data-scene aria-label="Design study scene">
+        <option value="habits">Habits · edit a moment</option>
+        <option value="preparation">Morning · preparation</option>
+        <option value="unrelated">No call · no habit line</option>
+        <option value="focus">Focus · no interruption</option>
+      </select>
+    </label>
+  </div>
+  <section class="study-device" aria-label="TODAY design preview">
+    <header class="study-header">
+      <div class="study-wordmark" aria-label="TODAY">TO<span>DAY</span></div>
+      <div class="study-icons">
+        <button type="button" class="study-icon" data-action="panel" aria-label="Habits" aria-expanded="true">◎</button>
+        <span class="study-icon study-static-icon" role="img" aria-label="Connections, outside this study">✧</span>
+        <span class="study-icon study-static-icon" role="img" aria-label="About, outside this study">ⓘ</span>
+      </div>
+    </header>
+    <p class="study-date">FRIDAY, OCTOBER 16</p>
+    <div data-content></div>
+  </section>
+  <p class="study-status" data-status role="status" aria-live="polite"></p>
+  <script>
+    (() => {
+      const root = document.getElementById('today-habit-moments');
+      const content = root.querySelector('[data-content]');
+      const sceneControl = root.querySelector('[data-scene]');
+      const panelControl = root.querySelector('[data-action="panel"]');
+      const status = root.querySelector('[data-status]');
+      const options = { presentation: 'Separate moment', size: 'Responsive' };
+      const fixtures = [
+        { id: 'walk', name: 'Walk', moment: '', done: false, strength: '68%' },
+        { id: 'vegetables', name: 'Vegetables', moment: 'With lunch', done: false, strength: '57%' },
+        { id: 'phone', name: 'Charge phone outside the bedroom', moment: 'When I get ready for bed', done: false, strength: '40%' },
+        { id: 'teeth', name: 'Brush teeth x2', moment: '', done: false, strength: '83%' }
+      ];
+      const ordinaryTasks = [
+        { id: 'samples', name: 'Print two paper samples' },
+        { id: 'paper', name: 'Choose paper for invitations' },
+        { id: 'reply', name: 'Reply to Ada' }
+      ];
+      const state = {
+        scene: 'habits', panel: true, editing: false, adding: false, focused: null,
+        habits: fixtures.map(habit => ({ ...habit })), drafts: {}, doneTasks: {}, taskAdditions: [], votes: {}
+      };
+      let lastSubmitted = null;
+      const escape = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+      const currentTasks = () => [
+        ...(state.scene === 'preparation' ? [{ id: 'charger', name: 'Put spare charger in hallway' }] : []),
+        ...ordinaryTasks, ...state.taskAdditions
+      ];
+      const check = (id, name, done, kind) => `<button type="button" class="study-check" data-action="${kind}" data-id="${escape(id)}" aria-pressed="${done}" aria-label="${done ? 'Mark incomplete' : 'Mark complete'}: ${escape(name)}"><span class="study-check-mark" aria-hidden="true">${done ? '✓' : ''}</span></button>`;
+      const history = habit => `<div class="study-history" aria-hidden="true"><div class="study-history-dots">${Array.from({ length: 21 }, (_, index) => `<span class="study-dot" data-filled="${index === 20 ? habit.done : (index + habit.id.length) % 3 !== 0}"></span>`).join('')}</div><span class="study-strength">${habit.strength}</span></div>`;
+      function saveStudyState() {
+        if (!window.openai?.setWidgetState) return;
+        const snapshot = {
+          modelContent: { study: 'habit-moments', scene: state.scene, presentation: options.presentation, size: options.size },
+          privateContent: { ...state, drafts: {}, editing: false }
+        };
+        lastSubmitted = JSON.stringify(snapshot);
+        window.openai.setWidgetState(snapshot).catch(() => {});
+      }
+      function restore(saved) {
+        if (!saved || saved.modelContent?.study !== 'habit-moments') return;
+        const view = saved.modelContent;
+        if (['habits', 'preparation', 'unrelated', 'focus'].includes(view.scene)) state.scene = view.scene;
+        if (['Separate moment', 'In the name', 'No moment'].includes(view.presentation)) options.presentation = view.presentation;
+        if (['Responsive', 'Phone'].includes(view.size)) options.size = view.size;
+        const previous = saved.privateContent;
+        if (previous && Array.isArray(previous.habits)) {
+          state.habits = previous.habits.slice(0, 12).filter(habit => typeof habit.id === 'string' && typeof habit.name === 'string').map(habit => ({
+            id: habit.id.slice(0, 80), name: habit.name.slice(0, 100), moment: String(habit.moment || '').slice(0, 160), done: !!habit.done,
+            strength: fixtures.find(item => item.id === habit.id)?.strength || '—'
+          }));
+          state.panel = previous.panel !== false;
+          state.doneTasks = previous.doneTasks && typeof previous.doneTasks === 'object' ? previous.doneTasks : {};
+          state.taskAdditions = Array.isArray(previous.taskAdditions) ? previous.taskAdditions.slice(0, 12).filter(task => typeof task.id === 'string' && typeof task.name === 'string').map(task => ({ id: task.id.slice(0, 80), name: task.name.slice(0, 100) })) : [];
+          state.votes = previous.votes && typeof previous.votes === 'object' ? previous.votes : {};
+          state.focused = typeof previous.focused === 'string' ? previous.focused.slice(0, 100) : null;
+        }
+      }
+      function row(habit) {
+        if (state.editing) {
+          const draft = state.drafts[habit.id];
+          const momentField = draft.showMoment
+            ? `<label class="study-edit-label" for="study-moment-${escape(habit.id)}">Moment · optional</label><textarea id="study-moment-${escape(habit.id)}" data-field="moment" data-id="${escape(habit.id)}" maxlength="160" autocomplete="off" rows="2" placeholder="When does it fit?">${escape(draft.moment)}</textarea>`
+            : `<button type="button" class="study-text-button" data-action="add-moment" data-id="${escape(habit.id)}">Add a moment</button>`;
+          return `<li class="study-habit study-edit-row"><div class="study-habit-body"><label class="study-edit-label" for="study-name-${escape(habit.id)}">Habit</label><input id="study-name-${escape(habit.id)}" data-field="name" data-id="${escape(habit.id)}" maxlength="100" autocomplete="off" required value="${escape(draft.name)}">${momentField}</div></li>`;
+        }
+        const name = options.presentation === 'In the name' && habit.moment ? `${habit.name} — ${habit.moment}` : habit.name;
+        const moment = options.presentation === 'Separate moment' && habit.moment ? `<span class="study-moment">${escape(habit.moment)}</span>` : '';
+        return `<li class="study-habit ${habit.done ? 'study-complete' : ''}" data-habit="${escape(habit.id)}">${check(habit.id, habit.name, habit.done, 'habit-check')}<div class="study-habit-body"><button type="button" class="study-habit-name" data-action="habit-focus" data-id="${escape(habit.id)}">${escape(name)}</button>${moment}</div>${history(habit)}</li>`;
+      }
+      function nudge() {
+        if (!['preparation', 'unrelated'].includes(state.scene)) return '';
+        // Pre-authored comparison, not a selector or AI result. Only switching
+        // scenes changes this reading; checking/editing must not swap it mid-read.
+        const prepared = state.scene === 'preparation';
+        const key = prepared ? 'preparation' : 'ordinary';
+        const copy = prepared
+          ? 'Moving the spare charger into the hallway gives your phone somewhere to stay outside the bedroom.'
+          : 'Printing the two samples gives the paper choice something concrete to rest on.';
+        return `<section class="study-nudge" aria-label="Illustrative Today nudge" data-nudge-kind="${key}"><span class="study-section-label">TODAY</span><p>${copy}</p><div class="study-reactions" aria-label="Example feedback">${['landed', 'not really'].map(vote => `<button type="button" class="study-text-button" data-action="vote" data-key="${key}" data-vote="${vote}" aria-pressed="${state.votes[key] === vote}">${vote}</button>`).join('')}</div></section>`;
+      }
+      function render() {
+        root.dataset.size = options.size.toLowerCase();
+        root.dataset.presentation = options.presentation;
+        sceneControl.value = state.scene;
+        const focused = state.focused || (state.scene === 'focus' ? 'Print two paper samples' : null);
+        panelControl.hidden = !!focused;
+        panelControl.setAttribute('aria-expanded', String(state.panel));
+        if (focused) {
+          content.innerHTML = `<section class="study-focus" aria-label="Focus preview"><span class="study-section-label">FOCUS</span><div class="study-focus-name">${escape(focused)}</div><div class="study-focus-time" aria-label="Timer preview, 25 minutes">25:00</div><button type="button" class="study-text-button" data-action="leave-focus">Back to list</button></section>`;
+          return;
+        }
+        const panel = state.panel ? `<section class="study-panel" aria-label="Habits"><div class="study-panel-head"><h2 class="study-panel-title">Habits</h2><div class="study-panel-actions"><button type="button" class="study-text-button" data-action="new" aria-expanded="${state.adding}">New</button><button type="button" class="study-text-button" data-action="edit" data-active="${state.editing}">${state.editing ? 'Done' : 'Edit'}</button></div></div><ul class="study-habits">${state.habits.map(row).join('')}</ul>${state.adding ? '<div class="study-new" data-form="habit" role="group" aria-label="New habit"><label class="study-sr" for="study-new-habit">Name the habit</label><input id="study-new-habit" maxlength="100" autocomplete="off" required placeholder="Name the habit…"><button type="button" data-action="add-habit" class="study-text-button">Add</button></div>' : ''}</section>` : '';
+        const tasks = `<section aria-label="Today tasks"><span class="study-section-label">TODAY</span><ul class="study-tasks">${currentTasks().map(task => `<li class="study-task" data-task="${escape(task.id)}" data-done="${!!state.doneTasks[task.id]}">${check(task.id, task.name, !!state.doneTasks[task.id], 'task-check')}<button type="button" class="study-task-name" data-action="task-focus" data-id="${escape(task.id)}">${escape(task.name)}</button></li>`).join('')}</ul></section>`;
+        content.innerHTML = `${nudge()}${panel}${tasks}<div class="study-add" data-form="task" role="group" aria-label="New task"><label class="study-sr" for="study-new-task">Add a task</label><input id="study-new-task" maxlength="100" autocomplete="off" required placeholder="Add a task…"><button type="button" data-action="add-task" class="study-text-button">Add</button></div>`;
+        root.querySelectorAll('textarea').forEach(field => { field.style.height = 'auto'; field.style.height = `${field.scrollHeight}px`; });
+      }
+      function finishEdit() {
+        if (!state.editing) return true;
+        for (const input of root.querySelectorAll('[data-field="name"]')) {
+          input.setCustomValidity(input.value.trim() ? '' : 'Name the habit.');
+          if (!input.reportValidity()) return false;
+        }
+        state.habits.forEach(habit => {
+          const draft = state.drafts[habit.id];
+          habit.name = draft.name.trim();
+          habit.moment = draft.moment.trim();
+        });
+        state.editing = false;
+        state.drafts = {};
+        return true;
+      }
+      root.addEventListener('input', event => {
+        event.target.setCustomValidity?.('');
+        const { field, id } = event.target.dataset;
+        if (field && state.drafts[id]) {
+          state.drafts[id][field] = event.target.value;
+          if (field === 'name') event.target.setCustomValidity('');
+        }
+        if (event.target.matches('textarea')) { event.target.style.height = 'auto'; event.target.style.height = `${event.target.scrollHeight}px`; }
+      });
+      function addItem(kind) {
+        const input = root.querySelector(kind === 'habit' ? '#study-new-habit' : '#study-new-task');
+        const name = input.value.trim();
+        if (!name) { input.setCustomValidity(kind === 'habit' ? 'Name the habit.' : 'Name the task.'); input.reportValidity(); return; }
+        if (kind === 'habit') {
+          if (state.habits.length >= 12) { status.textContent = 'This study holds up to 12 example habits.'; return; }
+          state.habits.push({ id: `added-${state.habits.length}`, name, moment: '', done: false, strength: '—' });
+          state.adding = false;
+        } else {
+          if (state.taskAdditions.length >= 12) { status.textContent = 'This study holds up to 12 added example tasks.'; return; }
+          state.taskAdditions.push({ id: `task-${state.taskAdditions.length}`, name });
+        }
+        render(); root.querySelector(kind === 'habit' ? '[data-action="new"]' : '#study-new-task')?.focus({ preventScroll: true }); saveStudyState();
+      }
+      sceneControl.addEventListener('change', () => {
+        if (!finishEdit()) { sceneControl.value = state.scene; return; }
+        state.scene = sceneControl.value;
+        state.panel = state.scene === 'habits';
+        state.focused = null;
+        state.adding = false;
+        status.textContent = state.scene === 'preparation' ? 'Illustrative copy · no AI call or live feedback.' : state.scene === 'unrelated' ? 'Ordinary reading; no habit contribution or missed-call message.' : state.scene === 'focus' ? 'Timer preview; no habit offer or reaction controls.' : '';
+        render(); saveStudyState();
+      });
+      root.addEventListener('click', event => {
+        const button = event.target.closest('button[data-action]');
+        if (!button || !root.contains(button)) return;
+        const { action, id } = button.dataset;
+        let restoreFocus = null;
+        if (action === 'add-habit' || action === 'add-task') {
+          addItem(action === 'add-habit' ? 'habit' : 'task'); return;
+        } else if (action === 'panel') {
+          if (!finishEdit()) return;
+          state.panel = !state.panel; state.adding = false; restoreFocus = '[data-action="panel"]';
+        } else if (action === 'edit') {
+          if (state.editing) { if (!finishEdit()) return; }
+          else { state.editing = true; state.adding = false; state.drafts = Object.fromEntries(state.habits.map(habit => [habit.id, { name: habit.name, moment: habit.moment, showMoment: !!habit.moment }])); }
+          restoreFocus = '[data-action="edit"]';
+        } else if (action === 'add-moment') {
+          if (!state.drafts[id]) return;
+          state.drafts[id].showMoment = true;
+          restoreFocus = `#study-moment-${id}`;
+        } else if (action === 'new') {
+          if (!finishEdit()) return;
+          state.adding = !state.adding; restoreFocus = state.adding ? '#study-new-habit' : '[data-action="new"]';
+        } else if (action === 'habit-check') {
+          const habit = state.habits.find(item => item.id === id);
+          if (!habit) return;
+          habit.done = !habit.done;
+          status.textContent = `${habit.name} ${habit.done ? 'completed' : 'marked incomplete'} · study only.`;
+          // Do not rebuild rows on a check: retain the focused control and row position.
+          const rowElement = button.closest('[data-habit]');
+          rowElement.classList.toggle('study-complete', habit.done);
+          button.setAttribute('aria-pressed', String(habit.done));
+          button.setAttribute('aria-label', `${habit.done ? 'Mark incomplete' : 'Mark complete'}: ${habit.name}`);
+          button.querySelector('.study-check-mark').textContent = habit.done ? '✓' : '';
+          rowElement.querySelector('.study-dot:last-child').dataset.filled = String(habit.done);
+          saveStudyState(); return;
+        } else if (action === 'task-check') {
+          state.doneTasks[id] = !state.doneTasks[id];
+          status.textContent = 'Task updated · no post-completion habit offer.';
+          restoreFocus = `[data-action="task-check"][data-id="${id}"]`;
+        } else if (action === 'habit-focus') {
+          state.focused = state.habits.find(habit => habit.id === id)?.name || null;
+          restoreFocus = '[data-action="leave-focus"]';
+        } else if (action === 'task-focus') {
+          state.focused = currentTasks().find(task => task.id === id)?.name || null;
+          restoreFocus = '[data-action="leave-focus"]';
+        } else if (action === 'leave-focus') {
+          state.focused = null;
+          if (state.scene === 'focus') state.scene = 'habits';
+          state.panel = true; restoreFocus = '[data-action="panel"]';
+        } else if (action === 'vote') {
+          state.votes[button.dataset.key] = button.dataset.vote;
+          status.textContent = 'Example reaction only · your TODAY votes are unchanged.';
+          restoreFocus = `[data-action="vote"][data-vote="${button.dataset.vote}"]`;
+        }
+        render();
+        if (restoreFocus) root.querySelector(restoreFocus)?.focus({ preventScroll: true });
+        saveStudyState();
+      });
+      root.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && !event.isComposing && ['study-new-habit', 'study-new-task'].includes(event.target.id)) {
+          event.preventDefault(); addItem(event.target.id === 'study-new-habit' ? 'habit' : 'task'); return;
+        }
+        if (event.key === 'Escape' && state.editing) {
+          event.preventDefault();
+          if (!finishEdit()) return;
+          render(); root.querySelector('[data-action="edit"]')?.focus({ preventScroll: true }); saveStudyState();
+        }
+      });
+      restore(window.openai?.widgetState);
+      render();
+      window.addEventListener('openai:set_globals', event => {
+        const saved = event.detail?.globals?.widgetState;
+        if (!saved || JSON.stringify(saved) === lastSubmitted) return;
+        restore(saved); state.editing = false; state.drafts = {}; render();
+      });
+      if (globalThis.Tweak) {
+        const tweak = new Tweak({ container: root, onChange: () => { render(); saveStudyState(); } });
+        tweak.addSelect(options, 'presentation', { label: 'Reading layout comparison', options: ['Separate moment', 'In the name', 'No moment'] });
+        tweak.addSelect(options, 'size', { label: 'Preview width', options: ['Responsive', 'Phone'] });
+      }
+    })();
+  </script>
+</div>

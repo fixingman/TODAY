@@ -28,7 +28,7 @@ not change stored keys or focus timing behavior.
 
 ## Starting Focus
 
-1. Click play icon on any task/habit
+1. On desktop, click a task/habit row or use its Enter key action (touch does not start this mode)
 2. Timer appears, countdown begins
 3. Non-focused tasks recede (7% opacity)
 4. Header shows timer
@@ -156,17 +156,19 @@ can't resurrect after a deliberate end.
 
 ---
 
-## Companion Question (v2.45.0–v2.64.9)
+## Companion Question (task path; habit support implemented in v2.97.0)
 
 A `✦ ask` button lives inside the focus timer bar. Tapping it asks the AI for a single question to sit with before the clock takes over.
 
 **Trigger:** click `.focus-ai-timer-btn` → sets `ai-active` on `.focus-timer` → `_focusAskAI()` replaces the button label with `thinking…`, then with the returned question. Tapping the question again dismisses it and restores `✦ ask`.
 
-**Prompt shape:** task text plus contextual signals: total sessions on the task, age, revived/deferred state, exact device-local time with broad period, peak-hour match, sessions completed today, and up to four confirmed memory inferences. The model returns one question under 22 words. If it refers to time, it must name the supplied clock value rather than say something vague such as “this late.” Time-of-day signals are intentionally excluded from the routing taxonomy to prevent repetitive “it's late” questions.
+**Task prompt:** task text plus total sessions/recency, age, revived/deferred state, exact local time, peak-hour match, sessions today, up to five pending tasks and the at-most-three confirmed inferences currently shown in Memory. The model is asked for one question under 20 words, grounded in the task rather than a generic question type. Time references must use the supplied exact clock value. The v2.97.0 habit change preserves this prompt and payload; the regression pins its unchanged empty-inference prompt.
 
-**Signal density highlight (v2.90.21):** `_computeSignalDensity(taskObj, taskText)` runs at session open and counts task-specific signals only (session count ≥2, session count ≥4, age ≥5 days, worked today, last worked ≥2 days ago, revived, deferred from Soon, drag-word match, dominant letgo pattern). When ≥3 signals converge, the `✦ ask` button turns accent before the user clicks — `.high-signal` CSS class, cleared immediately on click, reset, or close.
+**Habit prompt:** an explicitly requested, separate name-only question about a useful choice for that habit. No automatic question on entry, new field, saved cue/answer, extra context or forced routine-planning question. The 25-minute timer remains as-is; the question does not imply the habit needs all 25 minutes. A single under-20-word question is accepted syntactically, otherwise Ask resets quietly. Accepted wording retains the existing private spoken-line record. No mobile focus entry or daily-nudge change; full privacy/quality limits: `architecture/AI.md` → Habit-specific request.
 
-**State:** question state is per-session, not persisted. `closeUI` resets it (`ai-active` cleared and button label restored). Silent fail if AI is not configured.
+**Signal density highlight:** `_computeSignalDensity(taskObj, taskText)` counts task-specific session thresholds (≥2, ≥4), age ≥5 days, last worked ≥2 days ago, revived, Soon return and drag-word match. Worked-today and person-wide let-go/time signals do not increase it. At ≥3 signals the existing `.high-signal` label treatment hints at Ask. Habits do not acquire a new attention signal from their counts or history.
+
+**State:** displayed question state is per-interaction, not restored on reload (accepted prose still uses existing private spoken history). `closeUI` or another tap resets it, aborts pending work and restores the Ask label. Owner/source/connection checks fence late replies, including delayed response bodies and errors after a newer Ask. Habit edits/archive/removal/completion, detached rows and habit-day changes withhold pending delivery. The 25s deadline includes body parsing. Timer/session state is not changed by a request or failure. The question becomes the button's accessible name and polite announcement; dismissal restores the original label. Silent no-op if AI is not configured.
 
 **Motion:** `thinking…` pulses through WAAPI and is skipped for `prefers-reduced-motion`. The animation is cancelled on success, dismissal, failure, and focus close.
 
