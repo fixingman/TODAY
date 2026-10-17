@@ -29,6 +29,11 @@
       src: url('/fonts/DM%20Mono/dm-mono-v16-latin-300.woff2') format('woff2');
       font-weight: 300; font-display: swap;
     }
+    @font-face {
+      font-family: 'Syne';
+      src: url('/fonts/syne/syne-v24-latin_latin-ext-800.woff2') format('woff2');
+      font-weight: 800; font-display: swap;
+    }
 
     html { height: 100%; background: #0e0e10; }
     .visually-hidden {
@@ -42,7 +47,7 @@
       align-items: center;
       min-height: 100dvh;
       background: #0e0e10;
-      color: #e0e0e0;
+      color: #e8e8ec;
       font-family: 'DM Mono', 'Courier New', monospace;
       -webkit-font-smoothing: antialiased;
       padding-top: env(safe-area-inset-top, 0);
@@ -67,14 +72,16 @@
       font-size: 18px;
       font-weight: 300;
       line-height: 1.9;
-      color: #d4d4d4;
+      color: #e8e8ec;
       letter-spacing: 0.01em;
       margin-bottom: 24px;
       text-wrap: pretty;
     }
+    /* <cite> defaults to italic, but only upright DM Mono ships — keep it upright. */
     .poem-author {
       font-size: 12px;
-      color: #9a9aa6;
+      font-style: normal;
+      color: #80808d;
       letter-spacing: 0.07em;
     }
     .poem-author::before { content: '— '; }
@@ -111,18 +118,12 @@
     .cta-link._shimmer {
       animation: ctaShimmer 700ms ease-out 1 normal forwards;
     }
-    .embed-hint {
-      font-size: 11px;
-      color: #9a9aa6;
-      letter-spacing: 0.03em;
-      cursor: default;
-    }
 
     /* share-as-image button */
     .share-img-btn {
       font-family: 'DM Mono', 'Courier New', monospace;
       font-size: 11px;
-      color: #9a9aa6;
+      color: #80808d;
       background: none;
       border: none;
       cursor: pointer;
@@ -138,11 +139,10 @@
     /* embed mode */
     body.embed-mode .poem-wrap      { padding: 28px 20px 20px; }
     body.embed-mode .page-footer    { padding: 0 20px 18px; }
-    body.embed-mode .embed-hint     { display: none; }
     body.embed-mode .share-img-btn  { display: none; }
 
     /* error */
-    .error-msg { color: #9a9aa6; font-size: 14px; line-height: 1.6; }
+    .error-msg { color: #80808d; font-size: 14px; line-height: 1.6; }
   </style>
 </head>
 <body>
@@ -194,88 +194,148 @@
       document.getElementById('shareImgBtn').style.display = '';
     }
 
-    function _wrapText(ctx, text, maxW) {
-      const out = [];
-      for (const raw of text.split('\n')) {
-        const words = raw.split(' ');
-        let cur = '';
+    // Share image (1080×1350). Up to three rendered lines: a centred poster; longer
+    // poems: one left axis. A small lime star leads the poem, the TODAY wordmark signs
+    // off at the foot. Type fits the longest line; wrapped lines are balanced and never
+    // strand one word (the _poemHTML widow rule). Colours are the app tokens.
+    const IMG = { W: 1080, H: 1350, M: 120, bg: '#0e0e10', text: '#e8e8ec', muted: '#80808d', accent: '#c8f060' };
+    const MONO = '"DM Mono","Courier New",monospace';
+
+    // Fewest segments that fit, balanced so the longest is as short as possible.
+    function _wrapBalanced(ctx, line, maxW) {
+      const words = line.split(' ');
+      if (ctx.measureText(line).width <= maxW || words.length < 2) return [line];
+      const fill = lim => {
+        const segs = []; let c = '';
         for (const w of words) {
-          const test = cur ? cur + ' ' + w : w;
-          if (ctx.measureText(test).width > maxW && cur) { out.push(cur); cur = w; }
-          else cur = test;
+          const t = c ? c + ' ' + w : w;
+          if (ctx.measureText(t).width > lim && c) { segs.push(c); c = w; } else c = t;
         }
-        out.push(cur);
+        segs.push(c);
+        return segs;
+      };
+      let best = fill(maxW);
+      const n = best.length;
+      for (let lim = Math.max(...best.map(g => ctx.measureText(g).width)) - 8; lim > maxW / 3; lim -= 8) {
+        const segs = fill(lim);
+        if (segs.length > n) break;
+        best = segs;
       }
-      return out;
+      const last = best[best.length - 1];
+      if (best.length > 1 && !last.includes(' ')) {
+        const prev = best[best.length - 2].split(' ');
+        if (prev.length > 1) {
+          best[best.length - 1] = prev.pop() + ' ' + last;
+          best[best.length - 2] = prev.join(' ');
+        }
+      }
+      return best;
+    }
+
+    function _layoutPoem(ctx, text, maxW) {
+      const authored = text.split('\n');
+      for (let size = 52; size >= 32; size--) {
+        ctx.font = '400 ' + size + 'px ' + MONO;
+        if (authored.every(l => ctx.measureText(l).width <= maxW)) {
+          return { size, rows: authored.map(l => ({ text: l, cont: false, gap: l.trim() === '' })) };
+        }
+      }
+      const size = 32;
+      ctx.font = '400 ' + size + 'px ' + MONO;
+      const indent = ctx.measureText('  ').width;
+      const rows = [];
+      for (const l of authored) {
+        if (l.trim() === '') { rows.push({ text: '', cont: false, gap: true }); continue; }
+        _wrapBalanced(ctx, l, maxW - indent).forEach((seg, i) => rows.push({ text: seg, cont: i > 0, indent }));
+      }
+      return { size, rows };
+    }
+
+    // Splash star path (40×40 viewBox).
+    function _drawStar(ctx, cx, cy, px) {
+      const sc = px / 40;
+      ctx.save();
+      ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-20, -20);
+      ctx.beginPath();
+      ctx.moveTo(20, 2); ctx.lineTo(22.4, 17.6); ctx.lineTo(38, 20); ctx.lineTo(22.4, 22.4);
+      ctx.lineTo(20, 38); ctx.lineTo(17.6, 22.4); ctx.lineTo(2, 20); ctx.lineTo(17.6, 17.6);
+      ctx.closePath();
+      ctx.fillStyle = IMG.accent;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Syne 800 wordmark, TO in text and DAY in accent, tracked like the app header.
+    function _drawWordmark(ctx, x, baseline, size, centre) {
+      const track = -size * 0.04;
+      ctx.font = '800 ' + size + 'px Syne, sans-serif';
+      ctx.textAlign = 'left';
+      const letters = [...'TODAY'];
+      const width = letters.reduce((w, ch) => w + ctx.measureText(ch).width + track, 0) - track;
+      let cx = centre ? x - width / 2 : x;
+      letters.forEach((ch, i) => {
+        ctx.fillStyle = i < 2 ? IMG.text : IMG.accent;
+        ctx.fillText(ch, cx, baseline);
+        cx += ctx.measureText(ch).width + track;
+      });
     }
 
     let _sharingInProgress = false;
     async function _shareAsImage() {
       if (!poem || _sharingInProgress) return;
       _sharingInProgress = true;
-      await document.fonts.ready;
+      // fonts.ready only covers faces the page already used; load the image's faces explicitly.
+      await Promise.all([
+        document.fonts.load('400 32px "DM Mono"'),
+        document.fonts.load('800 40px Syne'),
+      ]).catch(() => {});
 
-      const W = 1080, H = 1350;
+      const { W, H, M } = IMG;
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
-
-      // background
-      ctx.fillStyle = '#0e0e10';
+      ctx.fillStyle = IMG.bg;
       ctx.fillRect(0, 0, W, H);
 
-      // TODAY wordmark — small, centered at top
-      const LOGO_SIZE = 20, STAR_PX = 14, LOGO_GAP = 9;
-      ctx.textAlign = 'left';
-      ctx.font = '400 ' + LOGO_SIZE + 'px "DM Mono","Courier New",monospace';
-      const toW  = ctx.measureText('TO').width;
-      const dayW = ctx.measureText('DAY').width;
-      const logoW = STAR_PX + LOGO_GAP + toW + dayW;
-      const logoX = (W - logoW) / 2;
-      const logoBaseline = 88;
-      // 4-pointed star (same path as #splash-star SVG, 40×40 viewBox → STAR_PX)
-      const sc = STAR_PX / 40;
-      ctx.save();
-      ctx.translate(logoX + STAR_PX / 2, logoBaseline - LOGO_SIZE * 0.35);
-      ctx.scale(sc, sc);
-      ctx.translate(-20, -20);
-      ctx.beginPath();
-      ctx.moveTo(20, 2); ctx.lineTo(22.4, 17.6); ctx.lineTo(38, 20);
-      ctx.lineTo(22.4, 22.4); ctx.lineTo(20, 38); ctx.lineTo(17.6, 22.4);
-      ctx.lineTo(2, 20); ctx.lineTo(17.6, 17.6); ctx.closePath();
-      ctx.fillStyle = '#c8f060';
-      ctx.fill();
-      ctx.restore();
-      ctx.fillStyle = '#555';
-      ctx.fillText('TO', logoX + STAR_PX + LOGO_GAP, logoBaseline);
-      ctx.fillStyle = '#c8f060';
-      ctx.fillText('DAY', logoX + STAR_PX + LOGO_GAP + toW, logoBaseline);
+      const { size, rows } = _layoutPoem(ctx, poem.text, W - M * 2);
+      const centred = rows.length <= 3;
+      const lead = Math.round(size * (centred ? 1.6 : 1.55)), contLead = Math.round(size * 1.35);
+      const step = (r, i) => (i === 0 ? 0 : r.gap ? lead * 1.8 : r.cont ? contLead : lead);
+      const AUTHOR_GAP = 64;
+      const height = size * 0.72 + rows.reduce((h, r, i) => h + step(r, i), 0) + AUTHOR_GAP;
+      // Optically centred, kept inside the 1080×1080 centre crop.
+      const top = Math.min(Math.max(Math.round((H - height) / 2) - 35, 200), 1190 - height);
+      const x = centred ? W / 2 : M;
+      ctx.textAlign = centred ? 'center' : 'left';
 
-      // poem text — centered block
-      const PAD = 112, POEM_SIZE = 32, LINE_H = Math.round(POEM_SIZE * 1.9);
-      const maxW = W - PAD * 2;
-      ctx.font = '300 ' + POEM_SIZE + 'px "DM Mono","Courier New",monospace';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#d4d4d4';
+      _drawStar(ctx, centred ? W / 2 : M + 11, top - 46, 22);
 
-      const poemLines = _wrapText(ctx, poem.text, maxW);
-      const totalH = poemLines.length * LINE_H;
-      let py = Math.round((H - totalH) / 2) - 20;
-      for (const line of poemLines) { ctx.fillText(line, PAD, py); py += LINE_H; }
+      let y = top + Math.round(size * 0.72);
+      ctx.font = '400 ' + size + 'px ' + MONO;
+      ctx.fillStyle = IMG.text;
+      rows.forEach((r, i) => {
+        y += step(r, i);
+        if (r.text) ctx.fillText(r.text, x + (!centred && r.cont ? r.indent : 0), y);
+      });
+      ctx.font = '400 26px ' + MONO;
+      ctx.fillStyle = IMG.muted;
+      ctx.fillText('— ' + poem.author, x, y + AUTHOR_GAP);
 
-      // author
-      ctx.fillStyle = '#3a3a3a';
-      ctx.font = '400 22px "DM Mono","Courier New",monospace';
-      ctx.fillText('— ' + poem.author, PAD, py + 32);
-
-      // date + URL (very dim, bottom)
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#1e1e1e';
-      ctx.font = '400 16px "DM Mono","Courier New",monospace';
-      ctx.fillText(fmtDate(dateParam), W / 2, H - 76);
-      ctx.fillStyle = '#191919';
-      ctx.font = '400 14px "DM Mono","Courier New",monospace';
-      ctx.fillText('today-here.netlify.app', W / 2, H - 52);
+      // Signature follows the layout: centred under a centred poem, split under a left one.
+      if (centred) {
+        _drawWordmark(ctx, W / 2, H - 118, 36, true);
+        ctx.font = '400 20px ' + MONO;
+        ctx.fillStyle = IMG.muted;
+        ctx.textAlign = 'center';
+        ctx.fillText(fmtDate(dateParam) + '  ·  today-here.netlify.app', W / 2, H - 72);
+      } else {
+        _drawWordmark(ctx, M, H - 108, 40, false);
+        ctx.font = '400 22px ' + MONO;
+        ctx.fillStyle = IMG.muted;
+        ctx.textAlign = 'right';
+        ctx.fillText(fmtDate(dateParam), W - M, H - 140);
+        ctx.fillText('today-here.netlify.app', W - M, H - 108);
+      }
 
       canvas.toBlob(async blob => {
         const file = new File([blob], 'poem.png', { type: 'image/png' });
