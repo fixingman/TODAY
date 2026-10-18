@@ -36,6 +36,8 @@
       $.memoryPanel?.classList.remove('open');
       Today.use('connections').syncActiveButtons();
       window.scrollTo(0, scrollY); // Restore scroll position
+      // Closing About returns to the list: let an undismissed fallback strip take the line About showed.
+      if (!isOpening && typeof checkDayNudge === 'function') checkDayNudge(false);
       if (isOpening) {
         renderInfoStats();
         renderDailyPoem();
@@ -478,7 +480,8 @@
       // pattern the Roadmap #1 verdict confirmed. Hidden when no line exists.
       const _nudgeBlock = document.getElementById('todayNudgeBlock');
       if (_nudgeBlock) {
-        const _dayLine = _aiSurfaceGet('day_nudge_ai');
+        // Same rule as the strip, so the two homes never disagree.
+        const _dayLine = Today.use('nudge').currentLine();
         if (_dayLine) {
           _nudgeBlock.innerHTML =
             '<div class="week-label">Today</div>' +

@@ -39,6 +39,7 @@ const SUITE = [
   'suggestion-policy-unit-test',
   'suggestion-outcomes-test',
   'nudge-test',
+  'nudge-delivery-test',
   'habits-test',
   'triage-test',
   'meeting-test',

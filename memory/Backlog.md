@@ -63,6 +63,7 @@ Ordered by potential impact on TODAY's longitudinal-companion promise and daily 
 - **Quality (v2.93.23):** both daily tracks use adaptive thinking with a bounded 2048-token ceiling. Other surfaces, prompts and selection are unchanged. Earlier perceptive lines followed by increasingly obvious recaps are a real-use signal; thinking being disabled is not a proven cause.
 - **Delivery (v2.93.22–23, BUG-118):** content-free device-local audits distinguish failed requests from prose rejection. Bounded retries before noon can recover missing AI text into About after a fallback dismissal; real AI dismissals remain final. No timer replaces the visible strip mid-read. Local two-device coverage is not live verification of every historical failure.
 - **Latest signal (Can, 2026-10-10):** a new ordinary nudge worked and felt perceptive, but leading with how long a task had waited emphasized delay. Task age may inform selection without becoming the headline; a useful opportunity can be the subject instead. This is one positive ordinary-path signal, not a pool verdict or a mandate for another quick prompt change. Re-observe quality and latency independently.
+- **Delivery follow-up (Can, 2026-10-18):** task-list default while About held the full line. Cause and fix: BUG-120 (strip and About used different staleness rules; now one rule, v2.97.2). Real-startup tests cover startup, delayed response/body/shortening, About close handoff, wake, reload and strip/About agreement after completions and sync.
 
 #### Settled lessons and candidate policy
 

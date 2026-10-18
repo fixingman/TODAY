@@ -10,6 +10,7 @@ window._startNudge = (function() {
     let _nudgeEpoch = 0;
     let _memoryReady   = false;
     let _nudgeIsFallback = false;
+    let _nudgeShownText = null;
     let _reasonDismissTimer = null;
     let _retryTimer = null;
     let _nudgeKind = null;
@@ -178,6 +179,39 @@ window._startNudge = (function() {
       }).catch(() => settle(fallbackMsg ?? _NUDGE_QUIET, false));
     }
 
+    // One rule for today's saved line, asked by both the strip and About: it retires
+    // once it names a task completed today (here or synced in), so neither surface
+    // can show a line the other has dropped. Finishing an unrelated task keeps it.
+    const _NUDGE_MENTION_STOP = new Set(['about','after','also','back','been','before','call','check','done',
+      'email','find','from','have','into','just','look','make','more','need','next','order','pick','read',
+      'send','some','start','take','task','tasks','than','that','them','then','they','this','today','update',
+      'week','were','what','when','will','with','write','your']);
+    function _doneTaskTextsToday() {
+      const today = _localISO();
+      const texts = [];
+      const pools = [typeof manualTasks !== 'undefined' ? manualTasks : [],
+        typeof trelloTasks !== 'undefined' ? trelloTasks : []];
+      for (const pool of pools) for (const t of pool) if (t && t.text && doneIds.has(t.id)) texts.push(t.text);
+      for (const e of (appMemory?.recentCompletedTasks || [])) if (e && e.text && e.date === today) texts.push(e.text);
+      return texts;
+    }
+    function _dayLineNamesDoneTask(line) {
+      const hay = String(line || '').toLowerCase();
+      return _doneTaskTextsToday().some(text => {
+        const words = (typeof _stripTag === 'function' ? _stripTag(text) : text).toLowerCase().match(/[a-zÀ-ɏ']+/g) || [];
+        let keys = words.filter(w => w.length >= 4 && !_NUDGE_MENTION_STOP.has(w));
+        if (!keys.length) keys = words.filter(w => w.length >= 3 && !_NUDGE_MENTION_STOP.has(w));
+        return keys.some(w => {
+          const stem = w.length > 4 && w.endsWith('s') ? w.slice(0, -1) : w;
+          return new RegExp('(^|[^a-zÀ-ɏ])' + stem.replace(/'/g, "'?") + "(s|es|'s)?($|[^a-zÀ-ɏ])").test(hay);
+        });
+      });
+    }
+    function _currentDayLine() {
+      const line = _aiSurfaceGet('day_nudge_ai');
+      return line && !_dayLineNamesDoneTask(line) ? line : null;
+    }
+
     function checkDayNudge(allowGenerate = true, background = false) {
       const nudgeEl = $.dayNudge || document.getElementById('dayNudge');
       if (!nudgeEl) return;
@@ -199,6 +233,7 @@ window._startNudge = (function() {
       const dismissed = !!localStorage.getItem(_dismissKey);
       const _nudgeCacheKey = _aiCacheKey('day_nudge_ai');
       const _aiCached = _aiSurfaceGet('day_nudge_ai');
+      const _aiCurrent = _currentDayLine();
       const canShow = !dismissed && !background;
       if (dismissed) {
         nudgeEl.classList.remove('visible', 'show');
@@ -258,6 +293,7 @@ window._startNudge = (function() {
         _reasonDismissTimer = null;
         _nudgeRendered = true;
         _nudgeIsFallback = !isAI;
+        _nudgeShownText = text;
         nudgeEl.innerHTML = `<span class="nudge-star">✦</span><span class="nudge-text">${esc(text)}</span>`;
         _breathe(nudgeEl.querySelector('.nudge-star'), _KF_BREATHE_SMALL, 2400);
         if (!nudgeEl.classList.contains('show')) {
@@ -330,18 +366,20 @@ window._startNudge = (function() {
         };
       };
 
-      if (_nudgeRendered && !_nudgeIsFallback) { _clearNudgeRetry(); return; }
-
-      const _doneCountKey = 'day_nudge_done_count_' + _localISO();
-      let _cacheValid = !!_aiCached;
-      if (_aiCached) {
-        const _generatedDoneCount = parseInt(localStorage.getItem(_doneCountKey) || '-1', 10);
-        if (_generatedDoneCount >= 0 && doneIds.size > _generatedDoneCount) _cacheValid = false;
+      // An AI line on screen stays unless the shared rule has retired or replaced it.
+      if (_nudgeRendered && !_nudgeIsFallback && _nudgeShownText === _aiCurrent) { _clearNudgeRetry(); return; }
+      const _retired = _nudgeRendered && !_nudgeIsFallback && !_aiCurrent;
+      if (_retired) {
+        // Leave at once; the replacement (or the fallback) slides back in when it settles.
+        _nudgeRendered = false;
+        _nudgeShownText = null;
+        nudgeEl.classList.remove('visible', 'show');
+        document.getElementById('dayNudgeReact')?.classList.remove('open');
       }
 
-      if (_cacheValid) {
+      if (_aiCurrent) {
         _clearNudgeRetry();
-        _showNudge(_aiCached, true);
+        _showNudge(_aiCurrent, true);
       } else if (allowGenerate && _memoryReady && !_nudgeRacing) {
         const state = _generationForToday();
         if (state.status === 'rejected-length' && state.lengthRepair !== true) state.terminal = false;
@@ -386,7 +424,6 @@ window._startNudge = (function() {
             const text = result.text;
             _nudgeKind = result.kind || null;
             if (text && text !== _NUDGE_QUIET) {
-              localStorage.setItem(_doneCountKey, String(doneIds.size));
               if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('morning nudge', text, _nudgeKind);
             }
             return text;
@@ -405,6 +442,8 @@ window._startNudge = (function() {
           },
         });
       }
+      // A retired line never lingers when no replacement is being written.
+      if (_retired && !_nudgeRendered && !_nudgeRacing) _showNudge(msg, false);
     }
 
     function checkVersionNudge() {
@@ -644,8 +683,13 @@ window._startNudge = (function() {
     window.checkVersionNudge = checkVersionNudge;
     window.checkSundayNudge = checkSundayNudge;
     window.checkHabitNudge = checkHabitNudge;
-    Today.define('nudge', { generationAudit: _generationAudit });
+    Today.define('nudge', { generationAudit: _generationAudit, currentLine: _currentDayLine, retireStaleStrip: () => _retireStaleStrip() });
     window.addEventListener('online', () => checkDayNudge());
+    // Completing a task the visible line names (here or synced in) retires it on the spot, as About does.
+    function _retireStaleStrip() {
+      if (_nudgeRendered && !_nudgeIsFallback && _nudgeShownText && _dayLineNamesDoneTask(_nudgeShownText)) checkDayNudge();
+    }
+    document.addEventListener('today:reflection-evidence-change', _retireStaleStrip);
     window._nudgeOnNewDay = function() {
       _clearNudgeRetry();
       if (_reasonDismissTimer) clearTimeout(_reasonDismissTimer);
@@ -654,6 +698,7 @@ window._startNudge = (function() {
       _nudgeRacing    = false;
       _nudgeEpoch++;
       _nudgeIsFallback = false;
+      _nudgeShownText = null;
       const nudgeEl = $.dayNudge || document.getElementById('dayNudge');
       if (nudgeEl) nudgeEl.classList.remove('visible', 'show');
       document.getElementById('dayNudgeReact')?.classList.remove('open');
