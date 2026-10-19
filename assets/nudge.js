@@ -11,6 +11,10 @@ window._startNudge = (function() {
     let _memoryReady   = false;
     let _nudgeIsFallback = false;
     let _nudgeShownText = null;
+    let _nudgeTouched = false;      // any press on the strip since it appeared
+    let _nudgeFallbackAt = 0;       // performance.now() when the default appeared
+    // A late answer may replace an untouched default once, shortly after it appeared (Oct 19).
+    const _NUDGE_SWAP_WINDOW_MS = 20000;
     let _reasonDismissTimer = null;
     let _retryTimer = null;
     let _nudgeKind = null;
@@ -61,10 +65,11 @@ window._startNudge = (function() {
       return _generation;
     }
     // Diagnostics are categorical only; never persist facts, prose, keys or votes.
-    function _generationEvent(state, path, status, httpStatus) {
+    function _generationEvent(state, path, status, httpStatus, ms) {
       if (state !== _generationForToday()) return;
       const event = { at: new Date().toISOString(), path, status };
       if (Number.isInteger(httpStatus)) event.httpStatus = httpStatus;
+      if (Number.isFinite(ms)) event.ms = Math.round(ms);
       state.events = [...(state.events || []), event].slice(-20);
       state.updatedAt = event.at;
       try { localStorage.setItem(_GENERATION_KEY, JSON.stringify(state)); } catch(e) {}
@@ -156,7 +161,7 @@ window._startNudge = (function() {
     }
 
     // Settle once. A late answer saves for About, never swaps text mid-read.
-    function _raceAINudge({ cacheKey, cachePrefix, fetchPromise, fallbackMsg, onShow, isCurrent }) {
+    function _raceAINudge({ cacheKey, cachePrefix, fetchPromise, fallbackMsg, onShow, onLate, isCurrent }) {
       let settled = false;
       const settle = (text, isAI) => {
         if (settled) return;
@@ -175,6 +180,7 @@ window._startNudge = (function() {
         localStorage.setItem(cacheKey, text);
         if ($.infoPanel?.classList.contains('open')) Today.use('about').renderInfoStats();
         dropboxAutoSave();
+        if (settled) { if (isCurrent() && onLate) onLate(text); return; }
         settle(text, true);
       }).catch(() => settle(fallbackMsg ?? _NUDGE_QUIET, false));
     }
@@ -291,9 +297,16 @@ window._startNudge = (function() {
         if (!canShow) return;
         if (_reasonDismissTimer) clearTimeout(_reasonDismissTimer);
         _reasonDismissTimer = null;
+        const _wasFallback = _nudgeRendered && _nudgeIsFallback;
         _nudgeRendered = true;
         _nudgeIsFallback = !isAI;
         _nudgeShownText = text;
+        if (!isAI) { _nudgeFallbackAt = performance.now(); _nudgeTouched = false; }
+        {
+          const st = _generationForToday();
+          const own = (st.events || []).some(e => e.status === 'response-valid');
+          _generationEvent(st, 'display', !isAI ? 'default' : _wasFallback ? (own ? 'upgraded' : 'upgraded-synced') : (own ? 'line' : 'line-synced'), undefined, performance.now());
+        }
         nudgeEl.innerHTML = `<span class="nudge-star">✦</span><span class="nudge-text">${esc(text)}</span>`;
         _breathe(nudgeEl.querySelector('.nudge-star'), _KF_BREATHE_SMALL, 2400);
         if (!nudgeEl.classList.contains('show')) {
@@ -356,6 +369,7 @@ window._startNudge = (function() {
             };
           }
         }
+        nudgeEl.onpointerdown = () => { _nudgeTouched = true; };
         nudgeEl.onclick = () => {
           if (spokenToday && reactEl && !reactEl.classList.contains('open')) {
             _syncMorningReactionControls();
@@ -439,6 +453,22 @@ window._startNudge = (function() {
             if (!canShow || new Date().getHours() >= 12 || localStorage.getItem(_dismissKey)) return;
             if (_nudgeRendered) return;
             _showNudge(text, isAI);
+          },
+          // Option B: an answer that lands soon after the default replaces it once,
+          // crossfaded, if the strip is untouched; otherwise About/wake/About-close carry it.
+          onLate: text => {
+            const st = _generationForToday();
+            const since = performance.now() - _nudgeFallbackAt;
+            const ok = canShow && new Date().getHours() < 12 && !localStorage.getItem(_dismissKey)
+              && _nudgeRendered && _nudgeIsFallback && !_nudgeTouched && since <= _NUDGE_SWAP_WINDOW_MS
+              && text === _currentDayLine();
+            if (!ok) { _generationEvent(st, 'display', _nudgeTouched ? 'late-kept-touched' : 'late-kept', undefined, performance.now()); return; }
+            const textEl = nudgeEl.querySelector('.nudge-text');
+            const dur = _motionDuration('--dur-slow');
+            const swap = () => { _showNudge(text, true); _generationEvent(st, 'display', 'swapped', undefined, performance.now());
+              nudgeEl.querySelector('.nudge-text')?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: dur, easing: _motionEasing('--ease-out') }); };
+            if (textEl && dur > 0) textEl.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, easing: _motionEasing('--ease-out') }).finished.then(swap, swap);
+            else swap();
           },
         });
       }
@@ -683,13 +713,46 @@ window._startNudge = (function() {
     window.checkVersionNudge = checkVersionNudge;
     window.checkSundayNudge = checkSundayNudge;
     window.checkHabitNudge = checkHabitNudge;
-    Today.define('nudge', { generationAudit: _generationAudit, currentLine: _currentDayLine, retireStaleStrip: () => _retireStaleStrip() });
+    Today.define('nudge', { generationAudit: _generationAudit, currentLine: _currentDayLine, retireStaleStrip: () => _retireStaleStrip(), auditLine: () => _nudgeAuditLine() });
     window.addEventListener('online', () => checkDayNudge());
     // Completing a task the visible line names (here or synced in) retires it on the spot, as About does.
     function _retireStaleStrip() {
       if (_nudgeRendered && !_nudgeIsFallback && _nudgeShownText && _dayLineNamesDoneTask(_nudgeShownText)) checkDayNudge();
     }
     document.addEventListener('today:reflection-evidence-change', _retireStaleStrip);
+
+    // Delivery readout: tap About's "Today" label → one content-free line from this
+    // device's audit (times, paths, elapsed seconds). Never synced; no prose, keys or votes.
+    function _nudgeAuditLine() {
+      const a = _generationAudit();
+      const hm = iso => { const d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+      const sec = e => Number.isFinite(e.ms) ? ' ' + (e.ms / 1000).toFixed(1) + 's' : '';
+      const label = e => {
+        if (e.path === 'display') return ({ default: 'default', line: 'line', 'line-synced': 'line from other device',
+          upgraded: 'upgraded', 'upgraded-synced': 'upgraded from other device', swapped: 'swapped',
+          'late-kept': 'late, kept default', 'late-kept-touched': 'late, strip touched' })[e.status] || e.status;
+        if (e.status === 'started') return 'asked';
+        if (e.status === 'response-valid') return 'answered';
+        if (e.status === 'accepted') return null;
+        return (e.path.includes('length-repair') ? 'shortened: ' : '') + e.status.replace(/-/g, ' ') + (e.httpStatus ? ' ' + e.httpStatus : '');
+      };
+      const parts = (a.events || []).map(e => { const l = label(e); return l ? hm(e.at) + ' ' + l + sec(e) : null; }).filter(Boolean);
+      return parts.length ? parts.slice(-6).join(' · ') : 'no morning activity on this device today';
+    }
+    // A plain tap (not long-press: iOS PWAs cancel long presses into text selection).
+    document.addEventListener('click', e => {
+      const label = e.target.closest?.('#todayNudgeBlock .week-label');
+      if (!label) return;
+      const block = document.getElementById('todayNudgeBlock');
+      let line = block?.querySelector('.nudge-audit');
+      if (line) { line.remove(); return; }
+      line = document.createElement('div');
+      line.className = 'nudge-audit';
+      line.setAttribute('role', 'status');
+      line.style.cssText = 'font-size:var(--text-xs);color:var(--muted);letter-spacing:0.04em;line-height:1.5;margin:2px 0 6px;';
+      line.textContent = _nudgeAuditLine();
+      label.after(line);
+    });
     window._nudgeOnNewDay = function() {
       _clearNudgeRetry();
       if (_reasonDismissTimer) clearTimeout(_reasonDismissTimer);

@@ -34,12 +34,8 @@
     // focus) and syncs via MIN-merge (earliest sighting wins). Fallback "now" = treat unseen as fresh.
     const _getTrelloFirstSeen = () => safeJSON('today_trello_firstseen', {});
     const _setTrelloFirstSeen = (map) => localStorage.setItem('today_trello_firstseen', JSON.stringify(map));
-    // Trello last-active: {trello_<id>: ms}. The Trello analogue of a manual task's
-    // `lastActive` field — focus activity pushes it forward so the card genuinely un-ages
-    // (BUG-064). Kept SEPARATE from first-seen on purpose: first-seen MIN-merges (earliest
-    // sighting wins, that's its meaning), so writing activity into it would be reverted by
-    // any device still holding the older timestamp. This map MAX-merges instead, matching
-    // how manual tasks already reconcile `lastActive` in mergeRemoteData().
+    // Trello last-active {trello_<id>: ms}: focus activity un-ages a card (BUG-064). MAX-merged,
+    // kept apart from MIN-merged first-seen so activity isn't reverted.
     const _getTrelloLastActive = () => safeJSON('today_trello_lastactive', {});
     const _setTrelloLastActive = (map) => localStorage.setItem('today_trello_lastactive', JSON.stringify(map));
     const _markTrelloActive = (id) => {
@@ -127,16 +123,9 @@
       localStorage.setItem('today_checked_ids', JSON.stringify(_getCheckedIds().filter(c => c.id !== id)));
     };
 
-    // Done-today count — DERIVED from today_checked_ids rather than a monotonic counter.
-    // The old stat_tasks_done_today only ever incremented (never decremented on uncheck) and
-    // merged cross-device via Math.max, so check/uncheck/re-check cycles and two synced devices
-    // inflated it without bound ("blew up"). checked_ids holds one {id, at} per task and merges
-    // by timestamp union, so deriving the count is self-correcting and coherent across devices.
-    // Counts tasks whose check timestamp is on the given local day (default today) AND whose
-    // check is the *winning* op — not superseded by a later uncheck. The uncheck guard matters
-    // on the sync path: mergeRemoteData persists the checked/unchecked maps as a plain union
-    // (it tracks "done" separately via most-recent-wins), so a stale check entry can outlive an
-    // uncheck; this mirrors that most-recent-wins logic. Retired the counter v2.18.21.
+    // Done-today count, derived from today_checked_ids (one winning check per task,
+    // timestamp-merged), so cross-device check/uncheck can't inflate it. Retired the old counter
+    // v2.18.21.
     const _doneTodayCount = (dayISO) => {
       const day = dayISO || _localISO();
       const unchecked = new Map(_getUncheckedIds().map(u => [u.id, u.at]));
@@ -298,12 +287,8 @@
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ refresh_token: refreshToken }),
           });
-          // Netlify's own platform (not our function — it always returns JSON, checked)
-          // can return a plain-text error page on a timeout/crash. res.json() then
-          // throws a cryptic "Unexpected token" SyntaxError instead of a clear message.
-          // Read as text first so a non-JSON body falls through to the retry path below
-          // (the transient-failure case the retry already exists for) with a readable
-          // error, instead of crashing on the parse itself.
+          // Netlify's platform can return a plain-text error page; read text first so a non-JSON
+          // body takes the retry path with a readable error.
           const raw = await res.text();
           let data;
           try { data = JSON.parse(raw); }
@@ -382,19 +367,8 @@
       const _now = Date.now();
       if (_now - _lastWakeTime < 200) return;
       _lastWakeTime = _now;
-      // Force repaint — PWA standalone defers painting after sleep/wake. (BUG-004)
-      // After a long sleep the GPU compositor layers may not be ready synchronously.
-      // Run repaint immediately, on next rAF (GPU more likely ready), and after 500ms.
-      // Clicking also restores it (user-interactive paints are prioritised) — these
-      // deferred passes replicate that urgency without requiring user interaction.
-      // All looping animations are WAAPI (_breathe / _pulseComplete) — their timelines
-      // survive the display toggles below, so no suppress/restore machinery is needed.
-      // (BUG-028 history: CSS animations restart from keyframe 0 on every toggle;
-      // four sub-fixes of suppress/restore tuning could only move the flash, never
-      // remove it. WAAPI removed it. The machinery was deleted in v2.17.103.)
-      // The one survivor: .config-panel.open's slide-up is a ONE-SHOT CSS animation
-      // that would replay on each pass (panels visibly flash, BUG-023) — suppress it;
-      // it's restored when the user next opens a panel.
+      // Force repaint after PWA sleep/wake: now, next rAF, +500ms (BUG-004). Loops are WAAPI so
+      // toggles are safe (BUG-028); only .config-panel's one-shot slide-up is suppressed (BUG-023).
       function _forceRepaint() {
         if (window._focusJustExited) return; // focus just exited — scroll is settling, don't cement it
         if (document.visibilityState === 'hidden') return; // re-slept before this pass fired
@@ -456,12 +430,8 @@
         if (_emptyFading) _emptyFading.classList.remove('fading-in');
       }
 
-      // Clear stale .focusing — three checks:
-      // 1. Immediate: covers clean sleep/wake where .focused was never set
-      // 2. Deferred 350ms: covers async Dropbox sync gap — Today.use('connections').renderManual() destroys
-      //    .focused element, _focusReanchor re-attaches moments later. During that
-      //    gap .focusing is on but nothing is .focused → everything at 7% → blank. (BUG-004)
-      // 3. Deferred 1000ms: catches late renders after Dropbox/Trello sync completes
+      // Clear stale .focusing now, at 350ms (re-render gap before _focusReanchor, BUG-004) and at
+      // 1000ms (late sync renders).
       function _clearStaleFocusing() {
         // If focus mode is still active, _focusReanchor may not have re-attached .focused yet
         // (sync can trigger renderManual between our checks). Don't remove .focusing prematurely.
@@ -517,18 +487,9 @@
     });
 
     // ── Per-day dismissable surfaces (sync registry) ──────────────────────────────
-    // One row drives BOTH the backup payload field and the mergeRemoteData block —
-    // BUG-051 and BUG-053 each happened because one of those two touchpoints was
-    // forgotten for one nudge. A new dismissable surface (e.g. a future digest card)
-    // is one row here; payload and merge follow automatically.
-    // Model: localStorage key `<prefix>YYYY-MM-DD` (local day, _localISO), value '1';
-    // payload carries '1' if dismissed today else '', alongside the source device's
-    // local day. Without that date, yesterday's backup could dismiss today's nudge
-    // when first pulled after midnight. No full-restore handling needed — the next
-    // 7s merge tick applies a same-day dismissal (BUG-051 decision).
-    // Triage dismissal is intentionally NOT here: different model (single key holding
-    // the app-day string, plus the triageDismissedToday global and two elements) —
-    // migrating it would be a backup-schema change with no user payoff.
+    // Per-day dismissable surfaces: one row drives both the backup field and the merge
+    // (BUG-051/053). Payload carries '1' plus the source local day so yesterday's dismissal can't
+    // hide today's line. Triage dismissal is a separate model. Sync.md → Dismiss sync.
     const _DISMISS_SYNC = [
       { field: 'day_nudge_dismissed', prefix: 'day_nudge_dismissed_', el: 'dayNudge' }, // v2.19.0 unified nudge
       // Legacy fields (pre-2.19.0 devices): their dismiss hides the unified nudge here,
@@ -757,13 +718,8 @@
       if (!remote || typeof remote !== 'object') return;
       if (typeof appMemory === 'undefined' || !appMemory) return;
 
-      // Clear watermark (BUG-096, v2.82.1). A "clear all memory" on either device
-      // must survive sync. Max-wins; every dated-row union below drops rows from
-      // before it, on both sides, so the clear propagates rather than being undone.
-      // Rows carry a date-only field, so this compares by day: rows from the same
-      // day as the clear are accepted, which means a few same-day rows can survive.
-      // Documented edge, preferred over dropping fresh rows written after the clear.
-      // Hypothesis items carry no date at all and use id tombstones instead.
+      // Clear watermark (BUG-096): max-wins; dated unions drop pre-clear rows on both sides,
+      // compared by day (same-day rows may survive); hypotheses use id tombstones.
       const _lc = typeof appMemory.clearedAt === 'string' ? appMemory.clearedAt : '';
       const _rc = typeof remote.clearedAt === 'string' ? remote.clearedAt : '';
       const _clearedAt  = _lc > _rc ? _lc : _rc;
@@ -1164,12 +1120,8 @@
         taskDataMap.set(t.id, merged);
       });
 
-      // Order basis: remote wins by default (union merge convention), BUT a more-recent
-      // LOCAL reorder keeps its sequence — otherwise a pull that's already in flight when
-      // the user drags carries the pre-drag order and reverts the drag ~1s later (drag
-      // jump-back). The 7s ticker guards this via _pendingBackup, but the initial load
-      // pull and reconnect pull don't — so the guard must live in the merge itself, keyed
-      // on a reorder timestamp. Mirrors Trello order (BUG-042). Ties → remote wins (strict >).
+      // Order basis: remote wins, but a more recent local reorder keeps its sequence so an
+      // in-flight pull can't revert a drag (mirrors Trello order, BUG-042; ties → remote).
       const _localOrderAt  = localStorage.getItem('today_manual_order_at') || '';
       const _remoteOrderAt = data.manual_order_at || '';
       const _localWinsOrder = _localOrderAt && _localOrderAt > _remoteOrderAt;
@@ -1300,13 +1252,8 @@
       if (habitsPanel && habitsPanel.classList.contains('open')) Today.use('habits').renderHabits();
 
       // ── Trello order: newer reorder wins ─────────────────────────────────────
-      // Was unconditional "remote wins" — but trello_order rides in EVERY backup, so
-      // any unrelated write from the other device re-asserted its (possibly stale)
-      // order, scrambling the custom order across devices (worst at the day boundary,
-      // when both devices re-fetch + re-sync at once). Now gated on a reorder
-      // timestamp: adopt remote only if it reordered more recently, or to bootstrap a
-      // device that has no local order yet. Empty-string defaults: an untimestamped
-      // remote (old client) never clobbers a timestamped local. (BUG-042)
+      // Trello order: adopt remote only if it reordered more recently, or to bootstrap an empty
+      // device; untimestamped remote never wins (BUG-042).
       const remoteTrelloOrder   = Array.isArray(data.trello_order) ? data.trello_order : [];
       const remoteTrelloOrderAt = data.trello_order_at || '';
       const localTrelloOrderAt  = localStorage.getItem('today_trello_order_at') || '';
@@ -1337,12 +1284,8 @@
       // Build map of merged manual tasks for zone exclusion checks
       const mergedTasksMap = new Map(mergedTasks.map(t => [t.id, t]));
 
-      // Merge SOON: union by ID, most recent zoneChangedAt wins, exclude deleted and pulled-back
-      // Also exclude tasks already in PAST — completed/aged tasks in PAST won't be in deleted_ids
-      // but must not reappear in SOON when remote backup still has them in soon_tasks. (phantom task bug)
-      // Timestamp-aware since v2.27.0: a PAST→SOON revive on another device carries a fresh
-      // zoneChangedAt — provably newer than our PAST entry, so it must pass this guard.
-      // No/older remote timestamp keeps the original phantom-task protection.
+      // Merge SOON: union by id, newest zoneChangedAt wins; skip deleted, pulled-back and PAST
+      // tasks unless a newer revive timestamp proves the move (phantom-task guard, v2.27.0).
       const localPastAt = new Map(pastTasks.map(t => [t.id, t.zoneChangedAt || '']));
       const _stillPast = (t) => {
         const pastAt = localPastAt.get(t.id);
@@ -2057,12 +2000,8 @@
         renderTrello();
         loadTrello(true);
         updateStats();
-        // Refresh the nudge banner too — a tab left open across midnight (common desktop
-        // usage) would otherwise keep showing yesterday's cached AI text (wrong counts,
-        // tasks that were completed before midnight described as still pending) until a
-        // full reload. The banner's own cache key is date-scoped and would naturally
-        // regenerate — but _nudgeRendered (v2.38.4, blocks re-render once shown per page
-        // load) doesn't know a genuine day boundary just passed, so it must be reset here.
+        // Refresh the nudge across midnight: a tab left open would keep yesterday's line because
+        // _nudgeRendered blocks re-render, so reset it here.
         if (typeof window._nudgeOnNewDay === 'function') window._nudgeOnNewDay();
         if (typeof checkDayNudge === 'function') checkDayNudge();
       }

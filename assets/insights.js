@@ -1,24 +1,7 @@
-// TODAY — Memory / insights system (Roadmap #3, sixth module extraction)
-//
-// The AI's persistent memory — patterns, wins, preferences learned over time —
-// plus the behavioral-observation layer built on it (_memoryForAI context
-// summary, _getProactiveObservations, _pickObservationToMention).
-//
-// Classic <script>, loaded after util.js and before the main inline script —
-// the established extraction pattern, with ONE difference from the five prior
-// modules: this one RUNS AT EVAL (the appMemory init IIFE + schema migration
-// below). Its eval-time dependencies are only safeJSON and _localISO, both in
-// util.js, which loads first — keep that order. Unlike trello.js, the state
-// (appMemory) moves WITH the module: this file owns it; the main script only
-// mutates properties (sync merge, lateAdditions, recentConversations) and
-// never reassigns the binding. Classic scripts share the global lexical
-// environment, so `let appMemory` here is visible to the main script exactly
-// as before.
-//
-// Deliberately NOT here: applyNewDayCleanup (calls _memoryOnStreakUpdate /
-// _memoryOnDaySummary but belongs to the day-boundary cluster), the appMemory
-// merge block in mergeRemoteData (sync cluster, Non-Delegation), and the
-// suggestion-cooldown pruning in the cleanup path.
+// TODAY — Memory / insights (Roadmap #3 extraction). Owns appMemory and the observation layer
+// (_memoryForAI, _getProactiveObservations). Runs at eval (init IIFE + schema migration) after
+// util.js (safeJSON, _localISO). Not here: applyNewDayCleanup, the mergeRemoteData memory merge,
+// cooldown pruning.
 
 const AI_NAMES = ['lu', 'kit', 'em', 'jo', 'pip', 'sol', 'rue', 'finn'];
 const SUGGESTION_OUTCOME_LIMIT = 100;
@@ -147,24 +130,10 @@ if (!appMemory.taskOutcomes)                appMemory.taskOutcomes = [];
 // Retroactive fix: drop any history entries that no longer pass the current (tightened) detection
 appMemory.obligationHistory = appMemory.obligationHistory.filter(e => _aiCheckObligationLanguage(e.text));
 
-// 12c: one-time backfill of taskOutcomes from dated history that predates Phase 0.
-//
-// taskOutcomes started empty, and the candidate builders use 30-day windows with
-// 4+ samples per side — so without this the pool stays silent for roughly a month
-// while several weeks of usable dated history sit unused in appMemory.
-//
-// What is knowable differs by source, and pretending otherwise would manufacture
-// the app's most confident observation out of missing data:
-//   • focusSessions is unknown for every backfilled row. Writing 0 would make
-//     focus-vs-obligation trivially true ("all focus went to chosen work") because
-//     every value is zero. Rows carry `backfilled: true` and focus-derived
-//     candidates exclude them.
-//   • obligation is unknown for let-go and revive rows, which are stored as dated
-//     counts with no text to test. Those carry `obligation: null` — not false —
-//     and candidates that partition by obligation match on `=== true` / `=== false`
-//     so unknowns are excluded rather than silently counted as chosen.
-// obligationHistory is deliberately NOT a source: its `date` is the add date, not
-// the outcome date, so importing it would place events at the wrong times.
+// 12c: one-time backfill of taskOutcomes from dated history (completions, dated let-go/revive
+// reason counts) so the 30-day pool isn't silent for a month. Backfilled rows carry backfilled:true
+// (focus unknown → excluded from focus candidates) and obligation:null for let-go/revive (unknown,
+// never counted as chosen). obligationHistory is not a source: its date is the add date.
 function _memoryBackfillOutcomes() {
   if (appMemory.taskOutcomesBackfilled) return;
   appMemory.taskOutcomesBackfilled = true;
@@ -335,13 +304,8 @@ function _incrementObligationTally(taskText) {
   _saveMemory();
 }
 
-// 12b: Record a line TODAY said on its own initiative — morning nudge, focus question,
-// Sunday reflection, week theme, Monday intention, Noticed. Every generative surface
-// used to speak in isolation: none knew what the others had said, or what it had said
-// yesterday, so the same observation could surface four times in one morning and the
-// voice could never accumulate. _memoryForAI() feeds these back to every surface.
-// Deliberately NOT the assistant chat — that's user-initiated dialogue, not the app's
-// unprompted voice, and its replies are long and situational.
+// 12b: record a line TODAY said on its own initiative (nudge, focus question, Sunday, week theme,
+// Monday, Noticed) so surfaces know what was already said. Not chat replies.
 function _memoryRecordSpokenLine(surface, text, kind, policy) {
   if (!surface || !text) return;
   const clean = String(text).trim();
@@ -468,18 +432,9 @@ function _memoryRestoreKind(kind) {
   return true;
 }
 
-// 12c Phase 0 — dated record of how each task ended.
-//
-// Why events and not conclusions: `design/Personalization.md` says store conclusions, not
-// behavior. That is right for stable traits (peakHour) and wrong here. Every observation the
-// pool is allowed to make is a *windowed contrast* — focus that went to chosen work vs.
-// obligations over 30 days, completion rate on each, how often deferrals come back. A
-// conclusion computed at write time has already discarded the window. So: bounded dated
-// events in, and the candidate builder is the transformation step.
-//
-// Deliberately does NOT store task text. Nothing downstream needs it — the contrasts are
-// computed from the obligation flag, the focus count, and the outcome — so there is no reason
-// to hold another 90-day copy of what the user wrote.
+// 12c Phase 0 — dated record of how each task ended. Events, not conclusions: every pool
+// observation is a windowed contrast that a write-time conclusion would discard. No task text
+// stored.
 function _memoryFocusSessionsFor(taskId, taskText) {
   const pools = [
     typeof manualTasks !== 'undefined' ? manualTasks : [],
@@ -1448,28 +1403,10 @@ function _pickObservationToMention(observations) {
 }
 
 // ─── Noticed — surfacing learned patterns (v2.35.0, Personalization.md G3) ────
-// Lines for the About "Noticed" block. Delta-gated, never fact-stated: each
-// line appears ONCE when something changes (milestone crossed, peak moved,
-// theme emerged), then never again — appearing at all carries the information
-// (Wallpaper escape 1); content derives from fresh data (escape 2); nothing
-// new → empty array → the block doesn't render (escape 3).
-//
-// Two separate gates, on purpose:
-// - appMemory.noticed (`n`) — "have I shown THIS device this yet." Device-
-//   local, NOT synced (reverted BUG-058's sync, v2.39.3): syncing this meant
-//   "shown once" became "shown once across all devices combined," so
-//   whichever device opened About first silently consumed the notification
-//   for every other device too.
-// - appMemory.noticedDates — "when did this first fire, on ANY device."
-//   Synced (v2.39.4), earliest-date-wins per key. Gives every device its own
-//   honest chance to show a signal, but only within the SAME calendar day it
-//   first fired anywhere — a device opened days later stays quiet instead of
-//   resurfacing something stale. See _noticedEligible below.
-//
-// The underlying DATA each signal reads (habit completions, focus minutes,
-// peak hour, week-theme text) is fully synced regardless, so any two devices
-// that DO show a signal always show identical content. Season moments are the
-// intentional exception: their wording follows the viewer's local hemisphere.
+// About's Noticed lines: delta-gated, each shown once when something changes; empty → no block. Two
+// gates: appMemory.noticed (device-local "shown here", BUG-058 sync reverted v2.39.3) and synced
+// noticedDates (earliest first-fire day; other devices may show it only that same day, v2.39.4).
+// Season moments follow the viewer's hemisphere.
 function _noticedEligible(key, todayISO) {
   if (!appMemory.noticedDates) appMemory.noticedDates = {};
   const d = appMemory.noticedDates[key];

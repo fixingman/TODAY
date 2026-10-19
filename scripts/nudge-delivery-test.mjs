@@ -131,7 +131,7 @@ try {
     headless:'new', args:['--no-first-run', '--disable-extensions'] });
   for (const mobile of [false, true]) {
     const device = mobile ? 'mobile' : 'desktop';
-    for (const scenario of ['fast', 'late', 'body-late', 'repair', 'dismissed', 'noon']) {
+    for (const scenario of ['fast', 'late', 'body-late', 'repair', 'late-touched', 'dismissed', 'noon']) {
       const { context, page, errors } = await fixture(mobile);
       try {
         assert.equal((await state(page)).shown, false, 'startup waits for AI instead of immediately painting counts');
@@ -153,6 +153,8 @@ try {
           assert.match(fallback.text, /still here from yesterday/);
           assert.equal(fallback.feedback, false, 'fallback must not acquire AI vote controls');
           if (scenario === 'dismissed') await page.click('#dayNudge');
+          // A press on the strip (without dismissing) means the person may be reading it.
+          if (scenario === 'late-touched') await page.$eval('#dayNudge', el => el.dispatchEvent(new PointerEvent('pointerdown', { bubbles:true })));
           await page.click('#infoBtn');
           if (scenario === 'noon') await page.evaluate(() => window.__advance(3 * 60 * 60 * 1000));
           if (scenario === 'body-late') {
@@ -160,11 +162,28 @@ try {
             await page.waitForFunction(line => localStorage.getItem('day_nudge_ai_' + _localISO()) === line, {}, LINE);
           } else await resolve(page);
           await page.waitForFunction(line => document.getElementById('todayNudgeBlock').textContent.includes(line), {}, LINE);
+          const swaps = ['late', 'body-late', 'repair'].includes(scenario);
+          if (swaps) await page.waitForFunction(line => document.querySelector('#dayNudge .nudge-text')?.textContent === line, {}, LINE);
           const late = await state(page);
-          assert.equal(late.text, fallback.text, 'late completion must not swap the visible reading');
+          if (swaps) {
+            // Option B (Oct 19): an untouched default is replaced once by the late answer.
+            assert.equal(late.text, LINE, 'a late answer replaces the untouched default once');
+            assert.equal(late.feedback, true, 'the swapped line carries AI vote controls');
+            agree(late, 'after the gentle swap');
+          } else assert.equal(late.text, fallback.text, 'a touched, dismissed or after-noon default is never swapped');
           assert.equal(late.aboutShown, true);
           assert.deepEqual(late.spoken, [LINE]);
-          const canUpgrade = ['late', 'body-late', 'repair'].includes(scenario);
+          // Delivery readout: a tap on About's "Today" label shows this device's content-free audit.
+          await page.click('#todayNudgeBlock .week-label');
+          const readout = await page.$eval('#todayNudgeBlock .nudge-audit', el => el.textContent);
+          assert.match(readout, /asked/, 'readout names the request');
+          assert.match(readout, /default \d+\.\ds/, 'readout times the default');
+          if (swaps) assert.match(readout, /swapped/, 'readout records the swap');
+          if (scenario === 'late-touched') assert.match(readout, /strip touched/, 'readout records why it kept the default');
+          assert.ok(!readout.includes('library book'), 'readout never contains the line');
+          await page.click('#todayNudgeBlock .week-label');
+          assert.equal(await page.$('#todayNudgeBlock .nudge-audit'), null, 'a second tap hides the readout');
+          const canUpgrade = ['late', 'body-late', 'repair', 'late-touched'].includes(scenario);
           if (canUpgrade) {
             await page.click('#infoBtn');
             const returned = await state(page);
@@ -265,7 +284,7 @@ try {
       } finally { await context.close(); }
     }
   }
-  console.log('\nNudge delivery integration passed (20 lifecycle cases; mocked AI, no live data).');
+  console.log('\nNudge delivery integration passed (22 lifecycle cases; mocked AI, no live data).');
 } finally {
   if (browser) await browser.close();
   await new Promise(resolve => server.close(resolve));
