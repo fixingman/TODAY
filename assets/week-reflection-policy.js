@@ -351,9 +351,12 @@
       spoken.filter(l => l && l.kind === candidate.kind && l.reaction === 'missed').length);
     if (misses >= 2) return 'marked as not landing twice';
 
-    const cooldown = (Object.prototype.hasOwnProperty.call(_KIND_COOLDOWN_DAYS, candidate.kind)
+    const baseCooldown = Object.prototype.hasOwnProperty.call(_KIND_COOLDOWN_DAYS, candidate.kind)
       ? _KIND_COOLDOWN_DAYS[candidate.kind]
-      : _DEFAULT_COOLDOWN_DAYS) * (misses ? 2 : 1);
+      : _DEFAULT_COOLDOWN_DAYS;
+    // A miss adds one extra week rather than doubling. Pool kinds fire at most weekly,
+    // so doubling (21→42 days) silenced Sunday for 6+ weeks from a single forgotten vote.
+    const cooldown = baseCooldown + (misses ? 7 : 0);
 
     const active = spoken
       .filter(line => line && line.date && line.kind === candidate.kind)

@@ -1,6 +1,6 @@
 # Design Tokens
 
-> All CSS variables defined in `:root`. Values are authoritative — sourced from index.html.
+> `index.html` → `:root` is authoritative. This reference documents the canonical values and aliases; it does not define a second palette.
 
 ---
 
@@ -31,8 +31,9 @@
 | `--color-accent-dim` | `rgba(200,240,96,0.12)` | Ghost accent bg |
 | `--color-accent-hover` | `rgba(200,240,96,0.18)` | Accent bg on hover |
 | `--color-accent-glow` | `rgba(200,240,96,0.28)` | Accent glow border |
+| `--color-accent-stat` | `rgba(200,240,96,0.60)` | Accomplishment statistics readout |
 
-**Aliases:** `--accent`, `--accent-dim`, `--accent-hover`, `--accent-glow`
+**Aliases:** `--accent`, `--accent-dim`, `--accent-hover`, `--accent-glow`, `--accent-stat`
 
 **Special aliases:** `--highlight-ui` → `--color-accent` (used for UI highlight elements distinct from Trello `--highlight`)
 
@@ -70,6 +71,7 @@
 
 | Token | Value | Usage |
 |---|---|---|
+| `--color-text-dim` | `rgba(232,232,236,0.50)` | Dimmed secondary interactive text |
 | `--color-done-line` | `rgba(107,107,120,0.55)` | Strikethrough on done tasks |
 | `--color-muted-dim` | `rgba(107,107,120,0.12)` | Muted bg tint (external error badge) |
 | `--color-bg-glass` | `rgba(14,14,16,0.92)` | Desktop sticky header and desktop add-bar frosted bg; mobile header uses solid `--bg` |
@@ -77,13 +79,23 @@
 | `--color-breathe` | `rgba(22,26,20,0.88)` | Focus breathe overlay (rest) |
 | `--color-breathe-active` | `rgba(28,34,24,0.92)` | Focus breathe overlay (active) |
 
-**Aliases:** `--done-line`, `--bg-glass`
+**Aliases:** `--text-dim`, `--done-line`, `--bg-glass`
 
 ### PiP Window Tokens
 
 PiP runs in a separate `document` and cannot inherit the main page's CSS custom properties.
 `_pipTokens()` reads the canonical computed values from the opener, then each focus/meeting PiP
-document injects local aliases from that object. There is no second literal palette to update.
+document injects local aliases from that object. There is no second literal palette to update. The canonical isolated-document values remain in the main `:root`:
+
+| Token | Value | Usage |
+|---|---|---|
+| `--color-pip-muted` | `rgba(255,255,255,0.50)` | PiP secondary text |
+| `--color-pip-fill-bar` | `rgba(200,240,96,0.20)` | PiP progress fill |
+| `--color-pip-overlay` | `rgba(14,14,16,0.85)` | PiP rest overlay |
+| `--color-pip-btn-bg` | `rgba(200,240,96,0.15)` | PiP button background |
+| `--color-pip-btn-border` | `rgba(200,240,96,0.30)` | PiP button boundary |
+| `--color-pip-btn-hover-bg` | `rgba(200,240,96,0.25)` | PiP button hover background |
+| `--color-pip-btn-hover-border` | `rgba(200,240,96,0.50)` | PiP button hover boundary |
 
 | Local PiP alias | Canonical opener token |
 |---|---|
@@ -113,9 +125,9 @@ impossible.
 | Token | Value | Usage |
 |---|---|---|
 | `--font-mono` | `'DM Mono', monospace` | Body text, task rows, timer |
-| `--font-display` | `'Syne', sans-serif` | Logo, large headings, triage summary |
+| `--font-display` | `'Syne', sans-serif` | Logo, uppercase headings and numbers, triage summary |
 
-Self-hosted under `/fonts/`, pre-cached by service worker.
+Self-hosted under `/fonts/`, pre-cached by service worker. Natural-language sentences use DM Mono; Syne is for uppercase text and numbers (Rule 23). Only upright faces ship, so avoid synthetic italic.
 
 ### Sizes
 
@@ -157,6 +169,9 @@ Scale is numeric, 4px base:
 |---|---|---|
 | `--add-task-bar-height` | `72px` | Clearance for the fixed bottom add-task bar (scroll padding, triage bar bottom, undo toast bottom) |
 | `--panel-max-width` | `420px` | Max width for bottom-sheet panels and overlay panels (triage, meeting, undo toast) |
+| `--sec-sticky-top` | `0px` | Initial sticky offset; startup’s ResizeObserver updates it from the header height |
+
+`--sec-sticky-top` is runtime layout state, not a user preference or a fixed spacing choice.
 
 ---
 
@@ -193,6 +208,7 @@ Scale is numeric, 4px base:
 | `--ease-out` | `cubic-bezier(0.16, 1, 0.3, 1)` | Deceleration, no overshoot |
 | `--ease-std` | `ease` | Generic |
 | `--ease-spring` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Subtle overshoot for panels |
+| `--focus-wave-delay` | `0ms` | Per-row focus-entry state, derived from visual distance; not a general duration preset |
 
 ---
 

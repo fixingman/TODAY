@@ -17,7 +17,7 @@
 
 - `assets/runtime.js` loads before every component and exposes one frozen `window.Today` namespace. Components publish frozen APIs with `Today.define(name, api)`; consumers resolve them with `Today.use(name)`.
 - UI markup declares actions with `data-today-click`, `data-today-change`, `data-today-input`, `data-today-keydown`, `data-today-pointerdown`, or `data-today-focusout`. A single document listener per event type dispatches to the registered component owner. Static and generated markup must not use inline event attributes.
-- `scripts/component-contract-test.mjs` checks script/precache order, action declaration/registration parity, zero inline handler attributes, unique global ownership, and the transitional compatibility-assignment ceiling of 117.
+- `scripts/component-contract-test.mjs` checks script/precache order, action declaration/registration parity, zero inline handler attributes, unique global ownership, and the transitional compatibility-assignment ceiling defined by that test.
 - Compatibility globals still connect the startup composition root and older cross-module paths. They are transitional: new component APIs belong on `Today`, and the compatibility count must not grow.
 - Deterministic seams live outside their DOM/network controllers: `sync-merge.js`, `suggestion-policy.js`, `noticed-model.js`, and `focus-session.js`. Their owning controllers keep rendering, persistence, provider calls, and browser lifecycle work.
 - Calendar foundation (v2.94.0): `connections.js` owns the existing-style Connect/Reconnect/Retry/Forget row and imports `calendar.js` lazily. `Today.use('calendar')` owns separate consent/tokens, bounded reads and transient timing context; no new compatibility global, eager script, agenda or recording trigger. Live Google/PWA verification is owed before the meeting-start UI slice.
@@ -299,7 +299,11 @@ Single `.morning-nudge` strip (`#dayNudge`) positioned **between the SOON and Tr
 
 ## Memory Panel — shared styling (Oct 2026 pass)
 
-Block names (`.memory-type-name`) use the shared panel section-label treatment — `--text-xs`, 0.12em tracking, uppercase, `--muted` — so content, not headings, carries the weight. Every action is a `.memory-item-btn` text button on its row (HOW DAYS FELT's **remember** included; no borrowed pill). Quiet states (`.memory-empty`, `.memory-pending`) are muted upright DM Mono — only the upright face ships, so no synthetic italic. Footer: **clear all memory** and **Connections →** share `--text-xs`, sit flush with the content edge, and both have hover/`:focus-visible` colour (danger / text). Order: KNOWN, PATTERNS, LATELY, HOW DAYS FELT, DREAMS, then WHAT TODAY HAS SEEN (coverage closes the panel).
+Block names (`.memory-type-name`) use the shared panel section-label treatment — `--text-xs`, 0.12em tracking, uppercase, `--muted` — so content, not headings, carries the weight. Every action is a `.memory-item-btn` text button on its row (HOW DAYS FELT's **remember** included; no borrowed pill). Quiet states (`.memory-empty`, `.memory-pending`) are muted upright DM Mono — only the upright face ships, so no synthetic italic. Footer: **clear all memory** and **Connections →** share `--text-xs`, sit flush with the content edge, and both have hover/`:focus-visible` colour (danger / text). Order: KNOWN, PATTERNS, LATELY, HOW DAYS FELT, WHAT TODAY HAS SEEN, then DREAMS. Coverage holds the 30-day outcome tally alongside tenure, lifetime completions and focus totals; Dreams closes the content list.
+
+## Memory Panel — KNOWN (revised v2.97.4)
+
+Returning tasks with recorded focus lead, followed by other returning tasks (age breaks ties within each group); at most five returning rows. A missing focus record says “no focus sessions recorded”, never “not started”. Open obligation-language records remain plain facts. Soon items kept at least seven days remain inspectable under **show waiting (N)** / **less**, collapsed on each visit; age reads “kept here N days”. Expanding preserves keyboard focus, and dismissing a record keeps its task in Soon. Existing five-row cap and revocation keys remain. No readiness or actionability is inferred from task age, wording or absence of focus.
 
 ## Memory Panel — PATTERNS (merged v2.95.5)
 

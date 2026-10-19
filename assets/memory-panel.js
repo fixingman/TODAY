@@ -11,6 +11,7 @@
     // PATTERNS shows its first rows; "show all" keeps every row and its controls.
     const PATTERNS_SHOWN = 6;
     let _patternsOpen = false;
+    let _knownWaitingOpen = false;
     // Computed PATTERNS lines from the last render; the abstraction must not restate them.
     let _computedPatterns = [];
 
@@ -45,6 +46,7 @@
         }
         if (_anyNew) _saveMemory();
         _patternsOpen = false;
+        _knownWaitingOpen = false;
         renderMemoryPanel();
       }
     }
@@ -55,25 +57,27 @@
       const m = appMemory;
       if (!m) { el.innerHTML = '<div class="memory-empty">nothing noticed yet</div>'; return; }
 
-      function typeBlock(name, desc, items, pendingNote, more = '') {
-        const rows = items.length
-          ? items.map(item => `<div class="memory-item">` +
+      function itemRow(item) {
+        return `<div class="memory-item">` +
                 (item.isNew ? `<span class="memory-item-new"></span>` : '') +
                 `<span class="memory-item-text">${esc(item.text)}</span>` +
                 // Literal action names must match component registrations.
                 (item.action ? `<button type="button" class="memory-item-btn" data-today-click="memory.kind-restore" data-kind="${esc(item.action.kind)}">${esc(item.action.label)}</button>` : '') +
                 (item.revokeKey ? `<button type="button" class="memory-item-btn" data-today-click="memory.item-revoke" data-revoke-key="${esc(item.revokeKey)}">dismiss</button>` : '') +
                 (item.rejectKey ? `<button type="button" class="memory-item-btn" data-today-click="memory.hypothesis-reject" data-hypothesis="${esc(item.rejectKey)}" aria-label="Not true about me: ${esc(item.text)}">not me</button>` : '') +
-                `</div>`
-            ).join('')
-          : pendingNote
+                `</div>`;
+      }
+      function typeBlock(name, desc, items, pendingNote, more = '', extraItems = []) {
+        const rows = items.length
+          ? items.map(itemRow).join('')
+          : more ? '' : pendingNote
             ? `<div class="memory-pending">${pendingNote}</div>`
             : `<div class="memory-empty">nothing here yet</div>`;
         return `<div class="memory-type-block">` +
           `<div class="memory-type-header">` +
           `<span class="memory-type-name">${name}</span>` +
           `<span class="memory-type-desc">${desc}</span>` +
-          `</div>${rows}${more ? `<div class="memory-item">${more}</div>` : ''}</div>`;
+          `</div>${rows}${more ? `<div class="memory-item">${more}</div>` : ''}${extraItems.map(itemRow).join('')}</div>`;
       }
 
       const _dowNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -243,12 +247,13 @@
       const _revoked = m.revokedKnownItems || {};
       const _returning = Object.entries(m.returningTasks || {})
         .filter(([id, t]) => t && t.text && !_revoked['rt:' + id])
-        .sort(([, a], [, b]) => (b.dayCount || 0) - (a.dayCount || 0))
+        .sort(([, a], [, b]) => Number((parseInt(b.focusSessions) || 0) > 0) - Number((parseInt(a.focusSessions) || 0) > 0)
+          || (b.dayCount || 0) - (a.dayCount || 0))
         .slice(0, 5);
       for (const [_rtId, t] of _returning) {
         const n = parseInt(t.focusSessions) || 0;
         knownItems.push({ text: `returning · "${_strip(t.text)}" — on the list ${t.dayCount} days, ` +
-          (n > 0 ? `${n} focus session${n > 1 ? 's' : ''}` : 'not started'),
+          (n > 0 ? `${n} focus session${n > 1 ? 's' : ''}` : 'no focus sessions recorded'),
           revokeKey: 'rt:' + _rtId });
       }
 
@@ -259,10 +264,9 @@
         .filter(e => e.days >= 7)
         .sort((a, b) => b.days - a.days)
         .slice(0, 5);
-      for (const { t, days } of _soonWaiting) {
-        knownItems.push({ text: `in Soon · "${_strip(t.text)}" — waiting ${days} days`,
-          revokeKey: 'sn:' + t.id });
-      }
+      const waitingItems = _soonWaiting.map(({ t, days }) => ({
+        text: `in Soon · "${_strip(t.text)}" — kept here ${days} days`, revokeKey: 'sn:' + t.id,
+      }));
 
       const _pendingObl = (m.obligationHistory || [])
         .filter(e => e && e.text && !e.done && !e.letgo)
@@ -277,13 +281,16 @@
       const _win = (m.taskOutcomes || []).filter(e => e && e.date && new Date(e.date) >= _floor);
       if (_win.length) {
         const c = k => _win.filter(e => e.outcome === k).length;
-        knownItems.push({ text: `30 days · ${c('done')} done · ${c('letgo')} let go · ${c('soon_pull')} to Soon · ${c('revive')} brought back` });
+        metaItems.push({ text: `30 days · ${c('done')} done · ${c('letgo')} let go · ${c('soon_pull')} to Soon · ${c('revive')} brought back` });
       }
 
       // Human headings map to the existing typed slots.
       el.innerHTML =
         typeBlock('KNOWN', '— what today has on record, not what it concludes', knownItems,
-          'nothing on record yet — this fills as tasks come and go') +
+          'nothing on record yet — this fills as tasks come and go',
+          waitingItems.length
+            ? `<button type="button" class="memory-item-btn" data-today-click="memory.known-waiting" aria-expanded="${_knownWaitingOpen}">${_knownWaitingOpen ? 'less' : `show waiting (${waitingItems.length})`}</button>`
+            : '', _knownWaitingOpen ? waitingItems : []) +
         typeBlock('PATTERNS', '— what holds over time',
           _patternsOpen ? semanticItems : semanticItems.slice(0, PATTERNS_SHOWN),
           'patterns appear as more evidence builds',
@@ -294,9 +301,8 @@
           'nothing new this week');
 
       Today.use('reflections')._reflectionRenderMemory(el);
-      Today.use('dreambank').renderMemory(el);
-      // Coverage closes the panel: how much TODAY has to go on, after what it shows.
       el.insertAdjacentHTML('beforeend', typeBlock('WHAT TODAY HAS SEEN', '— how much it has to go on', metaItems));
+      Today.use('dreambank').renderMemory(el);
 
       const footer = document.getElementById('memoryFooter');
       if (footer) footer.innerHTML = _memoryClearPending
@@ -736,6 +742,11 @@
         shownInferences: () => _memoryShownInferences().map(i => i.text),
       });
       Today.ui.register('click', 'memory.kind-restore', (e, el) => _memoryKindRestore(el && el.dataset.kind));
+      Today.ui.register('click', 'memory.known-waiting', () => {
+        _knownWaitingOpen = !_knownWaitingOpen;
+        renderMemoryPanel();
+        document.querySelector('#memoryContent [data-today-click="memory.known-waiting"]')?.focus();
+      });
       Today.ui.register('click', 'memory.patterns-more', () => {
         _patternsOpen = !_patternsOpen;
         renderMemoryPanel();

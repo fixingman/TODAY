@@ -423,7 +423,8 @@ try {
   }
 
   // 12d Phase A: the KNOWN block shows the companion record as plain
-  // facts — open items only, only the window. No reconstruction caveat (removed v2.90.13).
+  // facts. Waiting Soon items stay inspectable without crowding returning tasks;
+  // outcome totals describe coverage, and Dreams closes the panel.
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
@@ -453,9 +454,35 @@ try {
         { id: 'manual_s3', text: 'dismissed soon item',   zone: 'soon', zoneChangedAt: ago(20) },
       ];
       appMemory.revokedKnownItems = { 'sn:manual_s3': new Date().toISOString() };
-      Today.use('memory').render();
-      const text = document.getElementById('memoryContent')?.textContent || '';
+      Today.use('memory').toggle();
+      const content = document.getElementById('memoryContent');
+      const text = content?.textContent || '';
       const knownFirst = text.indexOf('KNOWN') >= 0 && text.indexOf('KNOWN') < text.indexOf('PATTERNS');
+      const blocks = [...content.querySelectorAll(':scope > .memory-type-block')];
+      const block = name => blocks.find(el => el.querySelector('.memory-type-name')?.textContent === name);
+      const known = block('KNOWN').textContent;
+      const coverage = block('WHAT TODAY HAS SEEN').textContent;
+      const counts = '30 days · 2 done · 1 let go · 1 to Soon · 1 brought back';
+      const tasksBefore = JSON.stringify(soonTasks);
+      const waitingButton = () => content.querySelector('[data-today-click="memory.known-waiting"]');
+      const waitingCollapsed = waitingButton()?.getAttribute('aria-expanded') === 'false'
+        && waitingButton()?.textContent === 'show waiting (1)' && !text.includes('book blood test');
+      waitingButton().click();
+      const expandedText = content.textContent;
+      const waitingExpanded = waitingButton()?.getAttribute('aria-expanded') === 'true'
+        && expandedText.includes('in Soon · "book blood test" — kept here 12 days');
+      const focusPreserved = document.activeElement === waitingButton();
+      content.querySelector('[data-revoke-key="sn:manual_s1"]').click();
+      const dismissedFromRecordOnly = !content.textContent.includes('book blood test')
+        && !!appMemory.revokedKnownItems['sn:manual_s1'] && JSON.stringify(soonTasks) === tasksBefore;
+      delete appMemory.revokedKnownItems['sn:manual_s1'];
+      Today.use('memory').render();
+      Today.use('memory').toggle();
+      Today.use('memory').toggle();
+      const waitingResetsOnReopen = waitingButton()?.getAttribute('aria-expanded') === 'false'
+        && !content.textContent.includes('book blood test');
+      Today.use('dreambank').renderMemory(content);
+      const dreamsLast = content.lastElementChild?.id === 'dreamMemoryBlock';
 
       // empty state
       appMemory.returningTasks = {}; appMemory.obligationHistory = []; appMemory.taskOutcomes = [];
@@ -466,23 +493,25 @@ try {
       return {
         knownBlockFirst: knownFirst,
         saidBlockAbsent: !text.includes('SAID'),
-        returningNamedWithDays: text.includes('"call insurance" — on the list 9 days, not started'),
+        returningNamedWithDays: text.includes('"call insurance" — on the list 9 days, no focus sessions recorded'),
+        focusBackedReturningFirst: known.indexOf('finish the deck') < known.indexOf('call insurance'),
+        missingFocusDoesNotMeanUnstarted: !known.includes('not started'),
         tagStrippedFromReturning: !text.includes('work: call insurance'),
         returningWithSessions: text.includes('"finish the deck" — on the list 6 days, 2 focus sessions'),
-        soonWaitingListed: text.includes('in Soon · "book blood test" — waiting 12 days'),
+        waitingCollapsed, waitingExpanded, focusPreserved, dismissedFromRecordOnly, waitingResetsOnReopen, dreamsLast,
         freshSoonNotListed: !text.includes('fresh soon item'),
         revokedSoonNotListed: !text.includes('dismissed soon item'),
         openObligationListed: text.includes('"should call the bank"') && text.includes('still open'),
         doneObligationNotListed: !text.includes('file the receipts'),
         letgoObligationNotListed: !text.includes('renew permit'),
-        countsLine: text.includes('30 days · 2 done · 1 let go · 1 to Soon · 1 brought back'),
+        countsInCoverageOnly: coverage.includes(counts) && !known.includes('30 days ·'),
         outOfWindowExcluded: text.includes('2 done'),
         noReconstructionCaveat: !text.includes('reconstructed from older history'),
         emptyKnownNote: empty.includes('nothing on record yet'),
       };
     });
     await expectAll('12d KNOWN block', { ...result, noErrors: errors.length === 0 });
-    ok('renderMemoryPanel: KNOWN shows the record as plain facts — open items, Soon waits ≥7 days, 30-day window, no reconstruction caveat');
+    ok('Memory: returning tasks lead, waiting stays inspectable, counts describe coverage, Dreams is last');
     await page.close();
   }
 

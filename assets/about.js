@@ -11,9 +11,7 @@
   window._startAbout = function() {
     if (started) return;
     started = true;
-    // No state lives in this closure — manualTasks, trelloTasks, doneIds,
-    // habitsList, habitCompletions, APP_VERSION, $ and appMemory are all
-    // pre-existing inline globals read (never written) by this module.
+    // Reads the existing app globals; startup stays in index.html.
 
     function _parseAIText(data) {
       if (data.error) return null;
@@ -56,12 +54,7 @@
     }
 
     // ─── Daily poem ──────────────────────────────────────────────────────────────
-    // One human-written public-domain poem per day (corpus in assets/poems.js).
-    // Deterministic by local date → same poem on every device, cycles without
-    // repeats. Season pool follows the kigo idea: poems tagged for the current
-    // season plus year-round ones. Hemisphere inferred from the device timezone
-    // (no geolocation) — travelling flips the season with the device clock.
-    // _SOUTHERN_TZ, _poemForDate(), _poemHTML(), _escPoem() → assets/poem-utils.js
+    // Daily public-domain poems: deterministic local date, timezone-derived season; poem-utils.js owns selection/rendering.
     function _poemOfTheDay() { return _poemForDate(); }
 
     function renderDailyPoem() {
@@ -72,14 +65,7 @@
         + `<div class="poem-author">${esc(poem.author)}</div>`;
     }
 
-    // Poem tap — device-specific, mirrors what hover already gives desktop for
-    // free. Desktop: hovering already reveals the highlight + label before any
-    // click happens, so a single click can go straight to sharing. Touch has no
-    // hover to do that reveal ahead of time, so tap itself has to carry both
-    // jobs in two steps: first tap reveals (same visual state hover gives
-    // desktop), second tap (while still revealed) actually shares — otherwise
-    // an ordinary read-tap on mobile would fire the share sheet immediately,
-    // with no equivalent of "just glancing at it" the way hovering allows.
+    // Desktop clicks share after hover reveals the label. Touch uses two taps: reveal, then share.
     function _onPoemTap(event) {
       if (event?.detail === 0 || window.matchMedia('(hover: hover)').matches) { _shareDailyPoem(); return; }
       const block = document.getElementById('poemBlock');
@@ -90,9 +76,7 @@
       _shareDailyPoem();
     }
 
-    // Poem share (Backlog: Poem share) — one tap, no server, no share-count
-    // tracking. Native share sheet where available; clipboard copy otherwise,
-    // reusing the same fallback chain as the task-copy button.
+    // Share locally via the native sheet or the task-copy clipboard fallback; no tracking.
     function _shareDailyPoem() {
       const poem = _poemOfTheDay();
       if (!poem) return;
@@ -100,14 +84,7 @@
       const poemUrl = 'https://today-here.netlify.app/poem.html?date=' + dateStr;
       const text = poem.text + '\n— ' + poem.author;
       const btn = document.getElementById('poemShareBtn');
-      // Immediate click acknowledgment, independent of which branch runs below —
-      // navigator.share() itself gives no usable completion signal (its promise
-      // only resolves once the OS sheet is fully dismissed, sometimes much later,
-      // and gives no "shared successfully" moment to hook a "copied"-style label
-      // change to), so without this the click produced zero visible feedback on
-      // any device where navigator.share exists (i.e. most real devices — this
-      // was invisible in earlier testing here specifically because forcing
-      // navigator.share undefined to test the clipboard fallback also hid this gap).
+      // Acknowledge the click immediately: navigator.share settles only when its sheet closes, without a usable success signal.
       if (btn) {
         btn.classList.add('clicked');
         setTimeout(() => btn.classList.remove('clicked'), 400);
@@ -166,10 +143,7 @@
         }, { once: true });
       }
     }
-    // 12e — two-state reaction on a spoken line (v2.86.0). Hidden until the sentence
-    // is tapped, so the surface stays a sentence for anyone who never touches it.
-    // Renders nothing when there is no spokenLines entry for (surface, today): a
-    // rule-based fallback line was never "said" and has nothing to react to.
+    // Tap a spoken line to reveal reactions. Fallbacks lack a spoken record and have no reaction controls.
     function _reactionHTML(surface) {
       if (typeof _memoryLineFor !== 'function') return '';
       const line = _memoryLineFor(surface, _localISO());
@@ -180,9 +154,7 @@
         btn('landed', 'landed') + btn('missed', 'not really') + '</div>' +
         _memoryMissReasonHTML(surface, line);
     }
-    // One delegated listener for every block in the panel. Tap the sentence to
-    // reveal; tap a state to record it (again to clear). The group stays open once
-    // a state is held so the mark is visible on the next open.
+    // Delegate sentence/reaction taps; a held reaction keeps its group open on the next visit.
     function _wireReactions(panel) {
       if (!panel || panel._reactWired) return;
       panel._reactWired = true;
@@ -250,10 +222,7 @@
       const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
       const streak = parseInt(localStorage.getItem('stat_streak') || '1');
       
-      // Flow rate: research-based diminishing returns formula
-      // Based on: Endowed Progress Effect (Nunes & Dreze 2006), Goal Gradient Hypothesis (Kivetz et al. 2006)
-      // First task = ~20% (quick win), decelerates after (fast start, slow finish)
-      // Formula: 100 × (1 - 0.8^done) — 5 tasks ≈ 67% "good day"
+      // Diminishing flow rate: 100 × (1 - 0.8^done); see Rules.md for research and examples.
       const totalDone = _doneTodayCount();
       const flowRate = Math.round(100 * (1 - Math.pow(0.8, totalDone)));
 
@@ -332,10 +301,7 @@
       if (_weekGrid) {
         // Bar scale (①): height encodes tasks relative to the week's busiest day
         const _gMax = Math.max(1, ..._days.map(d => d.tasks || 0));
-        // Your day (②): the week's best day by a composite of tasks, focus, and habits.
-        // Each dimension is normalized to the week's max so the three scales are comparable,
-        // then weighted. The bars already show task volume; the dot reflects a fuller "good day"
-        // (a balanced day can out-score a pure task-grind day). Weights are tunable.
+        // The best-day dot combines normalized tasks, focus and habits; bars already encode task volume.
         const _gTot = _days.reduce((s, d) => s + (d.tasks || 0), 0);
         const _maxT = Math.max(1, ..._days.map(d => d.tasks || 0));
         const _maxF = Math.max(1, ..._days.map(d => d.focus || 0));
@@ -389,9 +355,7 @@
 
           const _week  = _days.filter(d => d.tasks !== null);
           const _reflectionStats = { days: _week, history: _history };
-          // 12c: Sunday draws from the observation pool — outcome kinds only, since
-          // v2.85.0 — through eligibility and the novelty gate.
-          // Same { kind, evidence, insight } shape _fetchWeekReflection already reads.
+          // Sunday uses eligible outcome-pool candidates through the novelty gate ({ kind, evidence, insight }).
           const _weekInsight = _pickSundayInsight(_reflectionStats);
           _debugSundayAudit(_today);
 
@@ -400,9 +364,7 @@
           let _cached = localStorage.getItem(_cacheKey);
           const _weekPolicyCurrent = localStorage.getItem(_weekPolicyKey) === WEEK_REFLECTION_POLICY;
           if (!_weekPolicyCurrent) {
-            // The old Sunday contract mixed lifetime memory and unrelated task
-            // titles. Never preserve one of those lines under the earned-insight
-            // policy, even if it was generated earlier today.
+            // Discard cached pre-policy Sunday lines; they used a different evidence contract.
             localStorage.removeItem(_cacheKey);
             _pruneLS('week_policy_', _weekPolicyKey);
             localStorage.setItem(_weekPolicyKey, WEEK_REFLECTION_POLICY);
@@ -418,8 +380,7 @@
               _summaryHTML(_cached, _weekSurface);
           } else if (!_weekInsight) {
             _setSundayAuditGeneration('blocked-no-insight');
-            // Sunday's evidence can still accumulate during the day, so an early
-            // miss must not be a permanent negative cache or a model request.
+            // An early absence is not a permanent negative cache; evidence may accumulate today.
             _sundayBlock.style.display = 'none';
           } else if (!Today.use('connections')._aiGetKey() || !navigator.onLine) {
             _setSundayAuditGeneration(Today.use('connections')._aiGetKey()
@@ -450,11 +411,7 @@
         }
       }
 
-      // ── Week theme for Noticed (v2.39.0) — once/week AI generation, same
-      // fetch-cache-live-update shape as the Sunday reflection block above. A
-      // negative-cache flag ("tried") stops every subsequent About-open from
-      // re-firing the AI call for a week that genuinely has no pattern — that's
-      // the common case by design, not something to keep retrying.
+      // Noticed’s weekly theme uses a tried flag only for genuine absence, avoiding repeated requests.
       {
         const _themeKey = _aiCacheKey('week_theme_ai');
         const _weekKey  = _aiWeekKey();
@@ -474,10 +431,7 @@
         }
       }
 
-      // ── Today's nudge line (above stats) — quiet second home (v2.33.0) ─────────
-      // The morning strip is dismiss-once-and-gone; the line itself stays cached
-      // until midnight (dated key). Re-surfaced here for the reflect-during-the-day
-      // pattern the Roadmap #1 verdict confirmed. Hidden when no line exists.
+      // Today’s saved line has a second home here after strip dismissal; both use the same retirement rule.
       const _nudgeBlock = document.getElementById('todayNudgeBlock');
       if (_nudgeBlock) {
         // Same rule as the strip, so the two homes never disagree.
@@ -492,11 +446,7 @@
         }
       }
 
-      // ── Noticed (below the Today line) — what TODAY has learned, delta-gated ────
-      // _noticedLines() marks each line shown-once in appMemory.noticed; a dated
-      // day-cache keeps the lines visible for the rest of the day (a milestone that
-      // vanishes on the second panel open would feel like a glitch), self-expiring
-      // at midnight with _pruneLS clearing stragglers on the next write.
+      // Noticed is delta-gated; its dated cache keeps shown lines available until midnight.
       const _noticedEl = document.getElementById('noticedBlock');
       if (_noticedEl && typeof _noticedLines === 'function') {
         const _nKey = 'noticed_lines_' + _today;
@@ -540,10 +490,7 @@
       }
     }
 
-    // The pool consumer for Sunday. Sunday frames a week, so every kind is
-    // eligible here; the morning nudge is the restricted one. The week-only
-    // builder stays as the fallback so a missing pool function can never
-    // silence the surface.
+    // Sunday permits every pool kind; the week-only builder is the fallback if the pool is unavailable.
     const SUNDAY_AUDIT_PREFIX = 'sunday_observation_audit_';
 
     function _debugSundayAudit(dateISO) {
@@ -601,9 +548,7 @@
        || typeof appMemory === 'undefined') {
         return null;
       }
-      // A throw here must not take the whole Sunday block down with it. Silence is
-      // the floor: the block hides, and the north star says hold space rather than
-      // fill it with a statistic.
+      // An audit failure must leave Sunday free to abstain.
       try {
         const todayISO = _localISO();
         if (typeof _memoryStampOutcomeKeys === 'function') _memoryStampOutcomeKeys();
@@ -613,9 +558,7 @@
           taskTexts: (typeof _memoryTaskTexts === 'function') ? _memoryTaskTexts() : {},
         });
         const eligible = _observationEligibleFor(ranked, 'sunday');
-        // A same-day line produced under an older wording/evidence contract must not
-        // block its replacement. Current-policy lines carry the policy marker; legacy
-        // lines do not. Older days remain part of normal cooldown history.
+        // Only current-policy same-day lines block replacement; earlier days still count for cooldown.
         const spokenLines = (appMemory.spokenLines || []).filter(line =>
           !(line && line.surface === 'Sunday reflection' && line.date === todayISO
             && line.policy !== WEEK_REFLECTION_POLICY));
@@ -690,13 +633,7 @@
       }
     }
 
-    // Week theme for Noticed (v2.39.0) — replaces the old deterministic keyword-
-    // frequency signal. That version just counted repeated words ("'cleanup' keeps
-    // coming up") — a stat, not an observation. This asks the model to read the
-    // actual completed-task texts and name a genuine pattern if one exists, grounded
-    // in what was really done, never a fabricated specific. If nothing genuine
-    // stands out, it returns null and the caller shows nothing — silence is correct
-    // for a week with no real shape, not a forced insight.
+    // Noticed’s weekly theme reads behavioral evidence and abstains without a supported pattern.
     async function _fetchWeekThemeAI() {
       try {
         const key = Today.use('connections')._aiGetKey();
@@ -829,9 +766,7 @@
       }
     }
 
-    // Tapping anywhere outside the poem collapses a revealed-but-not-yet-shared
-    // state, so a later fresh tap starts over at "reveal" rather than
-    // accidentally landing on "share" from a stale earlier reveal.
+    // An outside tap resets the touch reveal so the next poem tap cannot share accidentally.
     document.addEventListener('click', function(e) {
       const block = document.getElementById('poemBlock');
       if (block && block.classList.contains('revealed') && !block.contains(e.target)) {

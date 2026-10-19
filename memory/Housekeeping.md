@@ -160,6 +160,7 @@ No hard limits — but when files get large they slow down Tier 1 reads. Use jud
 ## Code Hygiene
 
 ### Before Committing
+- [ ] **Run the full gate and the payload budget** (any push): `npm test --prefix scripts` **and** `node scripts/performance-test.mjs --payload-only`. CI runs both; `test-all` skips performance, so a green local gate can still fail the decoded-shell budget (v2.97.2). Over budget → condense comments (non-comment code byte-identical), don't raise the ceiling.
 - [ ] Run syntax check: `node -e "const fs=require('fs');const c=fs.readFileSync('index.html','utf8');const s=c.slice(c.indexOf('<script>')+8,c.lastIndexOf('</script>'));try{new Function(s);console.log('OK')}catch(e){console.log('ERROR:',e.message)}"`
 - [ ] **Run smoke test** (any change touching index.html/sw.js/assets): `node scripts/smoke-test.mjs` — boots the app headless, splash dismisses, add+check a task, zero uncaught errors. ~10s. First-time setup: `cd scripts && npm install`. Caught a real boot-killing TDZ crash on its first ever run (v2.17.99 dev).
 - [ ] **Run drag test** (any change touching `drag.js`, manual/Trello/habit reorder, or their persistence): `node scripts/drag-test.mjs` — covers desktop and touch reorder for all three lists, persistence/recency/autosave signals, guards, cross-list rejection, long-press cancellation, ghost/class cleanup, module wiring, and SW precaching.

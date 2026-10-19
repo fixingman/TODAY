@@ -8,9 +8,9 @@
 
 **One screen. One day. One list.**
 
-TODAY is a single-day task manager. It shows only what matters right now.
+TODAY keeps its working list in the present; bounded memory supports understanding across days.
 
-- **No history.** Done tasks are acknowledged, not archived.
+- **No productivity ledger to maintain.** Completed tasks leave Today. Past supports limited retrieval, and Memory holds bounded companion records; retention, deletion and sync follow `architecture/Data.md` and `architecture/Sync.md`.
 - **No projects.** No labels, no priorities, no due dates.
 - **No anxiety.** The UI should feel calm, dark, and focused.
 - **Offline-first.** Works without internet after first load.

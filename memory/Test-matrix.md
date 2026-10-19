@@ -568,7 +568,7 @@ Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 an
 |---|---|---|
 | 16.1 | Run `node scripts/component-contract-test.mjs` | `runtime.js` loads first, is precached, and every declared `data-today-*` action has exactly one registered owner with no unused registrations |
 | 16.2 | Scan static and generated runtime markup | No inline event-handler attributes are present |
-| 16.3 | Audit top-level compatibility assignments | No duplicate owner outside the explicit transitional allowlist; total assignments remain at or below 117 |
+| 16.3 | Audit top-level compatibility assignments | No duplicate owner outside the explicit transitional allowlist; total assignments remain within the ceiling enforced by `component-contract-test.mjs` |
 | 16.4 | Run `node scripts/sync-merge-unit-test.mjs` | Daily history and suggestion outcomes merge deterministically without DOM, storage, or Dropbox access |
 | 16.5 | Run `node scripts/suggestion-policy-unit-test.mjs` | Reason classification, performance context, exploration, and underperformance decisions are deterministic |
 | 16.6 | Run `node scripts/noticed-model-unit-test.mjs` | Solar-term hemisphere mapping, milestone thresholds, and time formatting are deterministic |
@@ -584,7 +584,7 @@ Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 an
 | # | Scenario | Expected |
 |---|---|---|
 | 17.1 | Run `node scripts/observation-pool-test.mjs` | Pure, no browser. Candidate kinds fire on seeded outcomes and stay silent below threshold; backfilled rows never produce `focus-vs-obligation`; unknown obligation is never counted as chosen; eligibility restricts the morning to today-hook kinds; novelty gate drops a kind inside its cross-surface cooldown and any age claim; explain returns a reason |
-| 17.2 | Run `node scripts/memory-panel-test.mjs` | KNOWN block renders open items and 30-day outcomes as plain facts, newest first, without the removed reconstruction caveat; SAID block absent; full-clear wipes every companion slot, tombstones hypotheses, sets the watermark |
+| 17.2 | Run `node scripts/memory-panel-test.mjs` | KNOWN puts focus-backed returning tasks first; zero focus is not called unstarted. Waiting Soon records collapse on each visit; expand/less preserves focus, and dismissing a record retains its task. The 30-day tally appears only in WHAT TODAY HAS SEEN; DREAMS remains last after re-render. SAID stays absent; full-clear wipes companion slots, tombstones hypotheses and sets the watermark |
 | 17.3 | Run `node scripts/mailto-test.mjs` | Pure, no browser. `_mailtoDraftHref`: literal `@`, exact production form, 1900 cap with a body that decodes and is a prefix of the original, grapheme-safe trimming on emoji and ZWJ sequences, lone surrogates dropped not thrown, null inputs, the 20-grapheme floor from both sides |
 | 17.4 | `dropbox-test` merge cases (11b, 11c) | `taskOutcomes` / `spokenLines` / `obligationHistory` union, dedup, prune; clear watermark drops pre-clear rows in both directions and accepts same-day rows; hypothesis tombstones honoured |
 
