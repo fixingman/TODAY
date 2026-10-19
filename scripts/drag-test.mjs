@@ -332,7 +332,18 @@ try {
       const settlingUsesTokens = finish === 'touchend' && !!settle &&
         timing.duration === _motionDuration('--dur-mid') &&
         timing.easing === _motionEasing('--ease-spring');
-      await new Promise(resolve => setTimeout(resolve, _motionDuration('--dur-mid') + 50));
+      // Poll for ghost removal — more reliable than a fixed wait because
+      // compositor-threaded animations in Chrome fire onfinish asynchronously.
+      const deadline = Date.now() + _motionDuration('--dur-mid') + 300;
+      await new Promise(resolve => {
+        const poll = () => {
+          if (!document.querySelector('.touch-drag-ghost, .dragging, .drag-over') || Date.now() > deadline)
+            resolve();
+          else
+            requestAnimationFrame(poll);
+        };
+        requestAnimationFrame(poll);
+      });
       return { activated, movePrevented: move.defaultPrevented, settlingUsesTokens };
     }, { listId, attr, sourceId, targetId, finish });
 
