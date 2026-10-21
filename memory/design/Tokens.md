@@ -144,6 +144,8 @@ Self-hosted under `/fonts/`, pre-cached by service worker. Natural-language sent
 
 **Note:** Triage summary headline uses Syne at 28px (hardcoded — no token at that scale).
 
+**Wordmark:** Syne 800, letter-spacing ≈ −0.04em, `TO` in `--color-text`, `DAY` in `--color-accent` — app header, splash, and the saved poem image (`poem.html` canvas loads Syne 800 explicitly before drawing). **Upright only:** DM Mono ships 300/400 and Syne 400/700/800, no italic files — never italicise (`<cite>`/`<em>` need `font-style: normal`), or the browser fakes a slant (Memory pending text and the poem page author line both did, fixed Oct 2026).
+
 **Poem typography (v2.35.5):** all four poem surfaces (`.splash-poem-text`, `.panel-haiku`, `.brief-poem`, `.empty-poem`) get `text-wrap: pretty` (progressive enhancement) plus the `_poemHTML()` nbsp widow guard — an authored line that wraps never strands a single word. New poem surfaces must use `_poemHTML()`, not raw `split('\n')`.
 
 ---

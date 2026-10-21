@@ -282,9 +282,9 @@ Single `.morning-nudge` strip (`#dayNudge`) positioned **between the SOON and Tr
 `#todayNudgeBlock` — the day's nudge line resurfaced above the stat tiles, the Roadmap #7 "first brick" (Dia's return-to-the-brief insight). The morning strip is dismiss-once-and-gone; this is the line's quiet second home until midnight.
 
 - **Shell:** sibling of `#sundayBlock` — same padding/radius/margins, but plain `--border` (no accent tint) and a muted "Today" label (`.week-label` overridden to `--muted`). Reference, not announcement.
-- **Rendered by:** `renderInfoStats()` from `localStorage['day_nudge_ai_<today>']`; hidden when no line exists (no AI key, generation failed, or new day). Escaped via `esc()`.
+- **Rendered by:** `renderInfoStats()` through `Today.use('nudge').currentLine()` — the same staleness rule as the strip (v2.97.2), so the two homes never disagree; hidden when no current line exists (no AI key, generation failed, line retired by a named completion, or new day). Closing About hands its line to an undismissed fallback strip; tapping the muted "Today" label shows the temporary delivery readout (v2.97.5). Escaped via `esc()`.
 - **Live sync:** `mergeRemoteData` re-renders About when the panel is open and a remote nudge line lands (same pattern as the focus-tile live update).
-- **Wallpaper Test:** W1 via freshness (line is AI-generated from fresh context daily — W2 escape 2). W3 due 2026-08-01: does Can actually glance at it during the day? Removal is fine if never revisited.
+- **Wallpaper Test:** W1 via freshness (line is AI-generated from fresh context daily — W2 escape 2). Kept — the reflect-during-the-day pattern was confirmed (Roadmap #1 verdict).
 
 ---
 

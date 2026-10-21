@@ -50,6 +50,7 @@ It isn't about quality either. A well-built feature becomes wallpaper the moment
 - Sunday AI reflection — iterated v2.71.12 after a noun-juxtaposition line failed W1. Code now selects an evidence-backed, non-obvious, useful observation; AI supplies earned personality; no signal means silence. Escapes 1 + 2 only when the evidence gate passes.
 - Morning nudge AI upgrade (v2.17.73) — insight-gated prompt: name something non-obvious if it exists, else state the morning plainly. Escape 2.
 - Comparison framing rule (`research/Psychology.md`) — when there isn't a confident *and* kind thing to say, say nothing. Escape 1.
+- Shift+Space quick voice capture — unused for four weeks, kept without further review (2026-10-16). Can records on the phone, so desktop non-use was not evidence against a desktop gesture, and a hidden affordance never *appears*, so it can't become wallpaper. Read non-use against where the behaviour actually happens before removing.
 
 ---
 
