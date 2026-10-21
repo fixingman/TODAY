@@ -60,6 +60,45 @@ const waitForSplashGone = (page) =>
   page.waitForFunction(() => !document.getElementById('splash'), { timeout: CODA_CEILING_MS + 5000 });
 
 try {
+  // A recent open yesterday must not suppress today's first poem after midnight.
+  for (const mobile of [false, true]) {
+    const context = await browser.createBrowserContext();
+    const page = await context.newPage();
+    await page.emulateTimezone('Europe/Istanbul');
+    await page.setViewport(mobile
+      ? { width: 390, height: 844, isMobile: true, hasTouch: true }
+      : { width: 1200, height: 900 });
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.evaluateOnNewDocument(() => {
+      const NativeDate = Date;
+      const now = new NativeDate(2026, 9, 22, 0, 2).getTime();
+      window.Date = class extends NativeDate {
+        constructor(...args) { super(...(args.length ? args : [now])); }
+        static now() { return now; }
+      };
+      if (!localStorage.getItem('midnight_fixture_seeded')) {
+        localStorage.clear();
+        localStorage.setItem('midnight_fixture_seeded', '1');
+        localStorage.setItem('splash_shown_at', String(new NativeDate(2026, 9, 21, 23, 55).getTime()));
+        localStorage.setItem('poem_splash_date', '2026-10-21');
+      }
+    });
+    try {
+      await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      const populated = await page.$eval('#splash-poem .splash-poem-text', el => !!el.innerHTML.trim()).catch(() => false);
+      if (!populated) await fail('recent pre-midnight open suppressed the new day\'s poem', { mobile });
+      await page.waitForFunction(() => document.getElementById('splash-poem')?.classList.contains('visible')
+        && localStorage.getItem('poem_splash_date') === '2026-10-22', { timeout: CODA_CEILING_MS });
+      await waitForSplashGone(page);
+      await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
+      await page.waitForFunction(() => !document.getElementById('splash')
+        && document.getElementById('main-app')?.style.opacity === '1', { timeout: 3000 });
+      if (errors.length) await fail('uncaught JS errors across midnight poem/restart', errors);
+      ok(`${mobile ? 'mobile' : 'desktop'}: midnight restart shows the new poem; another restart keeps the cooldown`);
+    } finally { await context.close(); }
+  }
+
   // ── Pass 1: no-coda path ─────────────────────────────────────────────────
   // Force poem_splash_date to today so the app skips the poem coda
   {

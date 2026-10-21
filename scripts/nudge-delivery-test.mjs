@@ -13,7 +13,7 @@ const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'applicatio
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
 const server = createServer(async (req, res) => {
   try {
-    const path = new URL(req.url, 'http://fixture').pathname;
+    const path = decodeURIComponent(new URL(req.url, 'http://fixture').pathname);
     res.setHeader('Content-Type', MIME[extname(path)] || 'text/html');
     res.end(await readFile(join(ROOT, path === '/' ? 'index.html' : path)));
   } catch { res.writeHead(404); res.end(); }
@@ -22,32 +22,40 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 let browser;
 
-async function fixture(mobile) {
+async function fixture(mobile, { hour = 9, seed = {}, expectRequests = 1 } = {}) {
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
   const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
+  page.on('pageerror', error => errors.push(error.stack || error.message));
   await page.setViewport(mobile
     ? { width:390, height:844, isMobile:true, hasTouch:true }
     : { width:1200, height:900 });
   await page.emulateMediaFeatures([{ name:'prefers-reduced-motion', value:'reduce' }]);
-  await page.evaluateOnNewDocument(() => {
+  await page.evaluateOnNewDocument(({ hour, seed }) => {
     const NativeDate = Date;
-    let now = new NativeDate(2026, 9, 18, 9, 0).getTime();
+    let now = Number(sessionStorage.getItem('delivery_fixture_now')) || new NativeDate(2026, 9, 18, hour, 0).getTime();
     window.Date = class extends NativeDate {
       constructor(...args) { super(...(args.length ? args : [now])); }
       static now() { return now; }
     };
-    window.__advance = ms => { now += ms; };
+    window.__advance = ms => { now += ms; sessionStorage.setItem('delivery_fixture_now', String(now)); };
+    // Observe the real post-sync startup hook; never invoke it to manufacture readiness.
+    let loadDone;
+    Object.defineProperty(window, '_onAppLoadDone', {
+      configurable: true,
+      get: () => loadDone,
+      set: fn => { loadDone = (...args) => { window.__initialSyncSettled = true; return fn(...args); }; },
+    });
     // Retain accepted cache/spoken/dismissal state across an actual reload.
     if (!localStorage.getItem('delivery_fixture_seeded')) {
       localStorage.clear();
       localStorage.setItem('delivery_fixture_seeded', '1');
       localStorage.setItem('splash_shown_at', String(now));
-      localStorage.setItem('today_manual', JSON.stringify([{ id:'fictional_book', text:'Choose a library book' }]));
+      localStorage.setItem('today_manual', JSON.stringify([{ id:'manual_' + (now - 4 * 86400000), text:'Choose a library book' }]));
       localStorage.setItem('today_done', '[]');
       localStorage.setItem('today_ai_provider', 'claude');
       localStorage.setItem('today_ai_key_claude', 'fictional-offline-key');
+      for (const [key, value] of Object.entries(seed)) localStorage.setItem(key, value);
     }
     const nativeTimeout = window.setTimeout.bind(window);
     const nativeClear = window.clearTimeout.bind(window);
@@ -82,9 +90,10 @@ async function fixture(mobile) {
     };
     window.__replyHeaders = () => window.__dailyRequests.at(-1).resolve({ ok:true,
       json:() => new Promise(resolve => { window.__replyBody = text => resolve({ content:text }); }) });
-  });
+  }, { hour, seed });
   await page.goto(base, { waitUntil:'load' });
-  await page.waitForFunction(() => _appReady && window.__dailyRequests.length === 1);
+  await page.waitForFunction(count => _appReady && window.__initialSyncSettled
+    && window.__dailyRequests.length === count, { timeout: 5000 }, expectRequests);
   return { context, page, errors };
 }
 
@@ -129,6 +138,99 @@ async function wake(page, kind) {
 try {
   browser = await puppeteer.launch({ executablePath:process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     headless:'new', args:['--no-first-run', '--disable-extensions'] });
+  const QUIET_LINE = 'A library book has waited 4 days. A page might be enough to get you reading.';
+  // This useful orientation was rejected solely for lacking a contrast keyword.
+  for (const mobile of [false, true]) {
+    const { context, page, errors } = await fixture(mobile, { hour: 0 });
+    try {
+      assert.ok(await page.evaluate(() => window.__dailyRequests[0].body.messages[0].content.includes('4d old')),
+        'the reading’s waiting duration is supported by the fictional task facts');
+      await page.evaluate(line => window.__reply(line), QUIET_LINE);
+      await page.waitForFunction(() => Today.use('nudge').generationAudit().status !== 'started', { timeout: 5000 });
+      assert.equal((await state(page)).cached, QUIET_LINE,
+        'the old word-pattern veto must not discard this ordinary reading: ' + JSON.stringify(await page.evaluate(() => Today.use('nudge').generationAudit())));
+      await page.click('#infoBtn');
+      const accepted = await state(page);
+      assert.equal(accepted.text, QUIET_LINE);
+      assert.deepEqual(accepted.spoken, [QUIET_LINE]);
+      assert.equal(accepted.calls, 1, 'ordinary prose needs one request, not another rewrite loop');
+      assert.equal(accepted.feedback, true);
+      agree(accepted, 'ordinary midnight reading');
+      assert.deepEqual(errors, []);
+      console.log(`  ✓ ${mobile ? 'mobile' : 'desktop'} midnight: a quiet reading needs no contrast keyword`);
+    } finally { await context.close(); }
+  }
+  for (const mobile of [false, true]) {
+    for (const scenario of ['resume', 'last-slot', 'quota', 'grounding', 'noon', 'dismissed-fallback',
+      'dismissed-ai', 'cached', 'unsafe-recovery', 'prior-day']) {
+      const legacy = { schema: 1, date: scenario === 'prior-day' ? '2026-10-17' : '2026-10-18',
+        attempts: scenario === 'quota' ? 3 : scenario === 'last-slot' ? 2 : 1,
+        status: scenario === 'grounding' ? 'rejected-grounding' : 'rejected-recap',
+        terminal: true, retryAt: 0, lengthRepair: true, events: [] };
+      const seed = { today_nudge_generation_v1: JSON.stringify(legacy) };
+      const cached = ['cached', 'dismissed-ai'].includes(scenario);
+      if (cached) seed['day_nudge_ai_2026-10-18'] = LINE;
+      const dismissed = scenario.startsWith('dismissed');
+      if (dismissed) seed['day_nudge_dismissed_2026-10-18'] = '1';
+      const blocked = ['quota', 'grounding', 'noon'].includes(scenario) || cached;
+      const { context, page, errors } = await fixture(mobile,
+        { hour: scenario === 'noon' ? 12 : 0, seed, expectRequests: blocked ? 0 : 1 });
+      try {
+        if (!blocked) {
+          const line = scenario === 'unsafe-recovery' ? "You're the kind of person who avoids obligations." : QUIET_LINE;
+          await page.evaluate(line => window.__reply(line), line);
+          const status = scenario === 'unsafe-recovery' ? 'rejected-grounding' : 'accepted';
+          await page.waitForFunction(status => Today.use('nudge').generationAudit().status === status, {}, status);
+          const audit = await page.evaluate(() => Today.use('nudge').generationAudit());
+          assert.equal(audit.attempts, scenario === 'prior-day' ? 1 : legacy.attempts + 1, 'recovery never resets the daily budget');
+          assert.equal(audit.events.filter(e => e.status === 'recap-filter-removed').length,
+            scenario === 'prior-day' ? 0 : 1, 'only a same-day legacy recap is reopened');
+          if (scenario === 'unsafe-recovery') {
+            assert.equal((await state(page)).cached, null, 'grounding still rejects an unsafe recovery');
+            assert.deepEqual((await state(page)).spoken, []);
+          } else {
+            await page.click('#infoBtn');
+            const accepted = await state(page);
+            assert.equal(accepted.cached, QUIET_LINE);
+            assert.deepEqual(accepted.spoken, [QUIET_LINE]);
+            assert.equal(accepted.visible, !dismissed, 'fallback dismissal permits About recovery without reopening the strip');
+            assert.ok(accepted.about.includes(QUIET_LINE));
+            agree(accepted, 'legacy recap recovery');
+          }
+        } else {
+          const audit = await page.evaluate(() => Today.use('nudge').generationAudit());
+          assert.equal(audit.attempts, legacy.attempts);
+          assert.equal((await state(page)).cached, cached ? LINE : null);
+        }
+        await page.reload({ waitUntil: 'load' });
+        await page.waitForFunction(() => _appReady && window.__initialSyncSettled);
+        assert.equal((await state(page)).calls, 0, 'reload cannot bypass quota, a hard rejection, accepted text or real dismissal');
+        await wake(page, mobile ? 'visibility' : 'focus');
+        assert.equal((await state(page)).calls, 0, 'wake never creates another recovery request');
+        assert.deepEqual(errors, []);
+        console.log(`  ✓ ${mobile ? 'mobile' : 'desktop'} legacy recap / ${scenario}`);
+      } finally { await context.close(); }
+    }
+  }
+  // Exercise the real wake/day cleanup path, including a restart after midnight.
+  for (const mobile of [false, true]) {
+    const { context, page, errors } = await fixture(mobile, { hour: 23, expectRequests: 0 });
+    try {
+      await page.evaluate(() => window.__advance(3600000));
+      await wake(page, 'visibility');
+      await page.waitForFunction(() => window.__dailyRequests.length === 1);
+      await page.evaluate(line => window.__reply(line), QUIET_LINE);
+      await page.waitForFunction(line => localStorage.getItem('day_nudge_ai_2026-10-19') === line, {}, QUIET_LINE);
+      await page.click('#infoBtn');
+      agree(await state(page), 'natural midnight rollover');
+      await page.reload({ waitUntil: 'load' });
+      await page.waitForFunction(() => _appReady && window.__initialSyncSettled);
+      assert.equal((await state(page)).text, QUIET_LINE);
+      assert.equal((await state(page)).calls, 0);
+      assert.deepEqual(errors, []);
+      console.log(`  ✓ ${mobile ? 'mobile' : 'desktop'} natural midnight rollover and restart reuse one daily line`);
+    } finally { await context.close(); }
+  }
   for (const mobile of [false, true]) {
     const device = mobile ? 'mobile' : 'desktop';
     for (const scenario of ['fast', 'late', 'body-late', 'repair', 'late-touched', 'dismissed', 'noon']) {
@@ -284,7 +386,7 @@ try {
       } finally { await context.close(); }
     }
   }
-  console.log('\nNudge delivery integration passed (22 lifecycle cases; mocked AI, no live data).');
+  console.log('\nNudge delivery integration passed (46 lifecycle cases; mocked AI, no live data).');
 } finally {
   if (browser) await browser.close();
   await new Promise(resolve => server.close(resolve));

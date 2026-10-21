@@ -215,8 +215,8 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 2.7a | Morning nudge (with review) | Shows "Yesterday: X done, Ym focused" |
 | 2.7b | Morning nudge after noon | Hidden, review cleared; dated AI line remains available in About until midnight |
 | 2.7f | **SYNC: new day after yesterday’s nudge dismissal** | Prior-day or undated remote flag cannot become today’s dismissal; same-day dated flag still applies |
-| 2.7c | Morning nudge AI delivery (v2.93.22) | Waits up to 5s for AI; fallback on delay/failure. Late/recovered AI saves for About, never swaps mid-read; a later natural check may upgrade an undismissed fallback |
-| 2.7n | Real startup and strip/About handoff | `nudge-delivery-test` (default gate): 20 desktop/touch-emulated cases run actual init/post-sync readiness without calling nudge/render/wake helpers. Controlled response/body/deadline ordering covers fast AI, late body, shortening, dismissal and noon; closing About upgrades an undismissed fallback (asserted). Agreement cases (BUG-120) — named completion, unrelated completion, a line by sync, a completion by sync — require strip and About to show the same line with About open, after closing and after returning. Mocked AI, fictional data. |
+| 2.7c | Morning nudge AI delivery (v2.93.22) | Waits up to 5s for AI; fallback on delay/failure. Late/recovered AI saves for About; an untouched fallback may crossfade once within 20s (v2.97.5), otherwise a later natural check may upgrade it; dismissal remains final |
+| 2.7n | Real startup and strip/About handoff | `nudge-delivery-test` (default gate): 46 desktop/touch-emulated cases run actual init/post-sync readiness without calling nudge/render/wake helpers. Controlled response/body/deadline ordering covers fast AI, late body, shortening, dismissal and noon; closing About upgrades an undismissed fallback (asserted). v2.97.7 adds ordinary readings without contrast keywords, legacy recap recovery with quota/noon/grounding/dismissal/cache safeguards, and natural midnight wake/restart. Agreement cases (former BUG-120, now BUG-118) — named completion, unrelated completion, a line by sync, a completion by sync — require strip and About to show the same line with About open, after closing and after returning. Mocked AI, fictional data. |
 | 2.7d | Morning nudge AI — no key / offline | Rule-based line stays, no error, no loading state |
 | 2.7e | Morning nudge dismissed while AI fetching | Stays dismissed — AI response does not resurrect it |
 | 2.7g | Morning nudge transient recovery (v2.93.23) | `nudge-test` covers network/timeout/408/429/5xx, no parallel requests, scheduled 30s/2m background retries and three attempts per device/day across reopening; noon/offline/rollover stop timers. Fallback dismissal permits About recovery, never strip resurrection; accepted-AI dismissal prevents regeneration even with a stale/missing cache |
@@ -365,7 +365,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 
 | # | Scenario | Expected |
 |---|----------|----------|
-| 11.1 | Splash — first open of the day | After typewriter, day's poem fades in below the date; holds 4–9.5s; tap skips |
+| 11.1 | Splash — first open of the day, including a restart within 30 minutes of a pre-midnight open | New local date bypasses yesterday’s cooldown; after typewriter, day’s poem fades in below the date and holds 5–8s after its fade; tap skips. The next restart on the same date keeps the cooldown. Automated desktop/touch coverage pins 23:55 → 00:02 in Istanbul. |
 | 11.2 | Splash — second open same day | Poem coda skipped; splash dismisses normally |
 | 11.3 | Empty task list | Day's poem displayed (clean-slate echo — not static text) |
 | 11.4 | All tasks done | ✦ star above day's poem (done echo) |

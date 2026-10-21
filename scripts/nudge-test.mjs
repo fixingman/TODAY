@@ -257,7 +257,7 @@ try {
     // 3c. Task-reading feedback is not a pool-kind verdict, and a miss does not
     //     silence the morning: recent "not really" lines steer the next one instead.
     //     The model sees only its own earlier wording, never the private reason.
-    //     A bare count/age recap falls back to the rule-based line; a real choice survives.
+    //     Ordinary readings do not need a contrast keyword to earn delivery.
     //     These are synthetic lines: personal voted prose stays out of the repo.
     {
       const steered = await openPage();
@@ -296,22 +296,22 @@ try {
       await expectAll('misses steer the next morning line', { ...steeredResult, noErrors: steered.errors.length === 0 });
       await steered.page.close();
 
-      const bare = await openPage();
-      const bareResult = await bare.page.evaluate(async () => {
+      const quiet = await openPage();
+      const quietResult = await quiet.page.evaluate(async () => {
         localStorage.removeItem('day_nudge_dismissed_' + _localISO());
         localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
-        window.fetch = async () => ({ ok: true, json: async () => ({ content: 'You have 5 tasks today, including "Plan the trip" which has been waiting for 4 days.' }) });
+        window.fetch = async () => ({ ok: true, json: async () => ({ content: '"Write the tests" has waited 4 days. A single failing case would give it a starting point.' }) });
         checkDayNudge();
         await new Promise(r => setTimeout(r, 250));
         const nudge = document.getElementById('dayNudge');
         return {
-          bareLineFallsBack: nudge.classList.contains('show') && nudge.textContent.includes('still here from yesterday'),
-          bareLineNotCached: !localStorage.getItem('day_nudge_ai_' + _localISO()),
-          bareLineNotSpoken: !(appMemory.spokenLines || []).some(l => l.surface === 'morning nudge' && l.date === _localISO()),
+          readingDelivered: nudge.classList.contains('show') && nudge.textContent.includes('single failing case'),
+          readingCached: localStorage.getItem('day_nudge_ai_' + _localISO())?.includes('single failing case'),
+          readingSpoken: (appMemory.spokenLines || []).some(l => l.surface === 'morning nudge' && l.date === _localISO() && l.text.includes('single failing case')),
         };
       });
-      await expectAll('bare inventory falls back to the count line', { ...bareResult, noErrors: bare.errors.length === 0 });
-      await bare.page.close();
+      await expectAll('ordinary reading survives without a contrast keyword', { ...quietResult, noErrors: quiet.errors.length === 0 });
+      await quiet.page.close();
 
       const contrasted = await openPage();
       const contrastedResult = await contrasted.page.evaluate(async () => {
@@ -324,7 +324,7 @@ try {
       });
       await expectAll('age with a meaningful turn survives', { ...contrastedResult, noErrors: contrasted.errors.length === 0 });
       await contrasted.page.close();
-      ok('task-reading: "not really" lines steer the next line (wording only, never the reason); bare recaps fall back to the count line');
+      ok('task-reading: "not really" lines steer the next line (wording only, never the reason); ordinary readings survive without a contrast keyword');
     }
 
     // 3d. Capture the ordinary facts and request boundary with fictional inputs.
@@ -508,14 +508,14 @@ try {
 
     // Recovery is a lifecycle, not just an immediate offline fallback. No real
     // credentials or personal lines: the clock advances only in the test page.
-    for (const failure of ['network', 'timeout', '503', '429', '408', '401', 'unreadable', 'empty', 'length', 'grounding', 'recap']) {
+    for (const failure of ['network', 'timeout', '503', '429', '408', '401', 'unreadable', 'empty', 'length', 'grounding']) {
       const { page, errors } = await openPage();
       const result = await page.evaluate(async failure => {
         const audit = () => Today.use('nudge').generationAudit();
         const expected = { network: 'network-error', timeout: 'request-timeout',
           '503': 'http-error', '429': 'http-error', '408': 'http-error', '401': 'http-error',
           unreadable: 'unreadable-response', empty: 'empty-response', length: 'rejected-length',
-          grounding: 'rejected-grounding', recap: 'rejected-recap' }[failure];
+          grounding: 'rejected-grounding' }[failure];
         const retryable = ['network', 'timeout', '503', '429', '408'].includes(failure);
         const wait = ms => new Promise(r => setTimeout(r, ms));
         let now = Date.now();
@@ -542,8 +542,7 @@ try {
           return { ok: true, json: async () => {
             if (failure === 'unreadable') throw new SyntaxError('SECRET_BAD_RESPONSE');
             return { content: failure === 'empty' ? '' : failure === 'length' ? Array(31).fill('word').join(' ')
-              : failure === 'grounding' ? "You're the kind of person who avoids obligations."
-              : 'You have 5 tasks waiting for 4 days.' };
+              : "You're the kind of person who avoids obligations." };
           } };
         };
         checkDayNudge._setMemoryReady();

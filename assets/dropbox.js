@@ -1194,7 +1194,7 @@
         });
         localZoneMap.forEach((lz, id) => {
           const rz = remoteZoneMap.get(id);
-          if (rz && lz.at && rz.at && lz.at !== rz.at && lz.at > _anomalySince && rz.at > _anomalySince) {
+          if (rz && lz.zone !== rz.zone && lz.at && rz.at && lz.at !== rz.at && lz.at > _anomalySince && rz.at > _anomalySince) {
             _logMergeAnomaly('zone', id, { local: lz.zone + ' @ ' + lz.at, remote: rz.zone + ' @ ' + rz.at });
           }
         });
@@ -1286,11 +1286,18 @@
 
       // Merge SOON: union by id, newest zoneChangedAt wins; skip deleted, pulled-back and PAST
       // tasks unless a newer revive timestamp proves the move (phantom-task guard, v2.27.0).
+      // Both devices' Past entries must fence older Soon copies.
       const localPastAt = new Map(pastTasks.map(t => [t.id, t.zoneChangedAt || '']));
+      const remotePastAt = new Map();
+      for (const t of remotePast) {
+        if (t.zoneChangedAt > (remotePastAt.get(t.id) || '')) remotePastAt.set(t.id, t.zoneChangedAt);
+      }
       const _stillPast = (t) => {
-        const pastAt = localPastAt.get(t.id);
-        if (pastAt === undefined) return false;                 // not in local PAST
-        return !t.zoneChangedAt || t.zoneChangedAt <= pastAt;   // revive must be provably newer
+        const localAt = localPastAt.get(t.id);
+        const remoteAt = remotePastAt.get(t.id);
+        // Local Past keeps ties; incoming Past must prove a newer move.
+        return (localAt !== undefined && (!t.zoneChangedAt || t.zoneChangedAt <= localAt))
+          || !!(remoteAt && (!t.zoneChangedAt || t.zoneChangedAt < remoteAt));
       };
       const soonMap = new Map();
       soonTasks.forEach(t => {

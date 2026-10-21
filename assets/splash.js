@@ -22,14 +22,15 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
 
 // ─── Splash screen ────────────────────────────────────────────────────────────
 (function() {
-  // Skip splash if shown within the last 30 minutes.
+  // Skip splash if shown within the last 30 minutes on the same local day.
   // Using a timestamp (not a date key) so iOS background kill + restore
   // doesn't re-show the splash (kill happens within seconds/minutes),
   // but a genuine desktop close + reopen after a meaningful gap still does.
   const splashKey = 'splash_shown_at';
   const lastShown = parseInt(localStorage.getItem(splashKey) || '0', 10);
   const SPLASH_COOLDOWN = 30 * 60 * 1000; // 30 minutes
-  if (Date.now() - lastShown < SPLASH_COOLDOWN) {
+  if (Date.now() - lastShown < SPLASH_COOLDOWN
+      && _localISO(new Date(lastShown)) === _localISO()) {
     const splash = document.getElementById('splash');
     if (splash) splash.remove();
     // init() runs Today.use('connections').renderManual() synchronously before this IIFE executes,

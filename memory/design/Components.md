@@ -540,11 +540,12 @@ lines retain their 700ms fade and 250ms stagger.
 - `_appLoadDone` — set after Dropbox pull + local render completes
 
 **Skip logic (`splash_shown_at` in localStorage):**
-- Splash was shown within the last **30 minutes** → skip (covers iOS background kill + restore, which happens within seconds)
+- Splash was shown within the last **30 minutes on the same local date** → skip (covers iOS background kill + restore, which happens within seconds)
+- The local date changed → show, even inside that cooldown, so the new day’s first poem is available (v2.97.6, BUG-121)
 - Splash was shown more than 30 minutes ago → show (genuine desktop close + reopen)
 - localStorage cleared → always show
 
-This 30-minute window replaced an earlier date-key approach (`splash_shown_date`) which was once-per-day and blocked desktop PWA close + reopen from seeing the splash. (The poem coda's `poem_splash_date` is a separate, deliberately once-per-day key — the poem is a morning moment; the splash itself still follows the 30-minute rule.)
+This 30-minute window replaced an earlier date-key approach (`splash_shown_date`) which was once-per-day and blocked desktop PWA close + reopen from seeing the splash. (The poem coda's `poem_splash_date` is a separate, deliberately once-per-day key — the poem is a morning moment; the splash itself follows the 30-minute rule within each local day.)
 
 ---
 

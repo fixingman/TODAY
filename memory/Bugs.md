@@ -8,7 +8,8 @@
 |-------|---------|
 | ✅ `vX.X.X`  | Fixed and verified by Can on a real device, or by an accepted reproduction-equivalent simulator run |
 | ⏳ `vX.X.X`  | Fix shipped — awaiting an accepted verification pass |
-| 🔍 Diagnosing | Root cause not yet confirmed — investigation in progress |
+| 🔍 In progress | Investigation or remaining fix is open; earlier fixes may already be shipped |
+| ↪ Merged | Tracked under the linked bug; the old number remains a reference |
 | ⚠️ Stale     | Fix shipped long ago, never verified, condition may no longer be reproducible |
 | 🚫 Rejected  | Not a fixable app bug (platform limitation, won't fix) |
 
@@ -18,11 +19,13 @@
 
 | # | Description | Status |
 |---|---|---|
-| 120 | Task-list nudge showed the default while About held the full daily line — strip and About used different staleness rules | ⏳ v2.97.2 |
-| 119 | Red dot on a fresh mobile session: "Script error. at :0:0" — an error from a script TODAY did not load, details withheld by the browser | ⏳ v2.93.26 |
-| 118 | Daily nudge stays on its default and About has no AI line — failed requests and fallback dismissal blocked recovery; response rejection was indistinguishable | ⏳ v2.95.4 |
+| 122 | Zone diagnostics warn when both devices agree; a newer remote Past move can leave an older Soon copy | ⏳ v2.97.8 |
+| 121 | A recent pre-midnight open suppresses the new day’s poem on restart | ⏳ v2.97.8 |
+| 120 | Daily-nudge follow-up — merged into BUG-118; investigation preserved there | ↪ BUG-118 |
+| 119 | Red dot on a fresh mobile session: "Script error. at :0:0" — an error from a script TODAY did not load, details withheld by the browser | ✅ v2.93.26 |
+| 118 | Daily nudge delivery and recovery, including the former BUG-120 strip/About mismatch; real-use verification open | ⏳ v2.97.8 |
 | 117 | “Book haircut” showed a calendar-generated reminder as email context — automated notifications were eligible search results and caches | ⏳ v2.93.20 |
-| 116 | Email and web context arrows blink repeatedly after returning to the desktop PWA — completed arrival animation replayed by wake repaints | ⏳ v2.93.20 |
+| 116 | Email and web context arrows blink repeatedly after returning to the desktop PWA — completed arrival animation replayed by wake repaints | ✅ v2.93.20 |
 | 115 | Gmail kept retrying a refused sign-in (`gmail-token` 400 in the console) while Connections still said "Connected" | ✅ v2.93.17 |
 | 114 | "Work yesterday felt like a bad dream" was kept as a dream — the BUG-110 short-dream wording outweighed the waking-comparison rule | ✅ v2.93.13 |
 | 113 | Header, section labels, and Soon/Past headers looked darker than the page (most on mobile) — a full-page noise overlay lifted the page under opaque --bg bands | ✅ v2.93.12 |
@@ -54,37 +57,51 @@
 
 ---
 
-*BUG-001–087 → `archive/Bugs-archive.md` (summary rows + detail). Detail for every later ✅ bug is archived too. Below: open, awaiting-verification, and rejected bugs only.*
+*BUG-001–087 → `archive/Bugs-archive.md` (summary rows + detail). Detail for every later ✅ bug is archived too. Below: open, awaiting-verification, rejected bugs, and merge pointers only.*
 
 ---
 
-## BUG-120 — Task-list nudge on the default while About showed the full line
+## BUG-122 — Zone agreement warned as a conflict; remote Past did not fence older Soon
 
-**Report:** Can, 2026-10-18: the task-list strip showed the default count line while About's Today block held the full AI line at the same time — on the phone first, then seen on desktop. "That is weird — at the same time the nudge was ready in About."
+**Report (Can, 2026-10-22):** Dropbox metadata returned HTTP 504; a separate zone anomaly showed both copies in Past with different timestamps. Those messages do not by themselves show a failed upload or a lost task.
 
-**Cause:** the two homes of today's line judged it by different rules. The strip (v2.39.1 guard, `day_nudge_done_count_<date>`) dropped the saved line as soon as *any* task was completed after it was written — locally or synced in — and fell back to the count line or a fresh request. About (kept by the v2.90.43 fix so the line would not vanish from storage) showed the saved line regardless. One completed task therefore split them for the rest of the morning. Reproduced with no AI call or delay: three tasks, a saved line, one completion → strip "2 tasks still here from yesterday", About the full line. The earlier five-second-deadline theory (the note under BUG-118) is a separate, real path: a late line lands in About while an undismissed fallback strip only upgraded on wake.
+**Causes:** the zone logger compared operation timestamps without requiring different destinations, so same-zone reconciliation produced a conflict warning. An adjacent regression fixture found a separate merge defect: Soon exclusion checked only local Past stamps. A newer remote move to Past could therefore retain an older local Soon copy alongside the winning Past entry. This second defect is reproduced with fictional data, not established for Can’s reported task.
 
-**Fix (v2.97.2):** one rule, `_currentDayLine()` in `nudge.js`, asked by both the strip and About (`Today.use('nudge').currentLine()`): the saved line retires only when it *names* a task completed today (distinctive task words matched in the line; done texts from the lists and the synced `recentCompletedTasks`). Unrelated completions keep it in both homes; a named completion retires it in both, at once (the strip leaves immediately and the replacement or fallback slides back in). The stored key is never deleted — Dropbox still reads it (v2.90.43 rationale). Completion (`today:reflection-evidence-change`) and every sync merge re-check a visible line. Closing About now hands its line to an undismissed fallback strip. `day_nudge_done_count_<date>` is retired.
+**Fix (v2.97.8):** zone warnings require different destinations; existing timestamp/freshness gates remain. Soon exclusion uses the newest Past timestamp from both devices. Newer revives still win, older duplicates are excluded, and same-zone stamps retain the newer entry. Metadata poll behavior is unchanged: a 504 skips that check and the next active tick retries.
 
-**Tests:** `nudge-delivery-test` (default gate, 20 real-startup cases on desktop and touch): the About-close handoff is now an assertion, and new agreement cases — named completion, unrelated completion, a line arriving by sync, a completion arriving by sync — check "strip and About show the same line" with About open, after it closes and after returning to the app. Reverting About to the old read fails the suite. `nudge-test` §5 rewritten for the shared rule (unrelated keeps, named retires everywhere, failed retry keeps the key, success replaces everywhere).
+**Tests:** `dropbox-test` adds sixteen zone cases (same-zone local/remote wins, contradictory moves in both directions, newer revives, stale operations, echoes, equal-time ties and legacy missing timestamps) and a mocked metadata 504 followed by a healthy check. The old code fails the same-zone cases and retains both zone copies in the remote-Past case. Fixtures use no live credentials or task data.
 
-**Verify:** next mornings on phone and desktop: after completing tasks, the strip and About always show the same line (or the strip shows the count line only when About has none).
-
----
-
-## BUG-119 — "Script error. at :0:0" lit the red dot on a fresh mobile session
-
-**Symptom:** Can, 2026-10-10, phone, fresh browser session, no connections: red dot with "Script error. at :0:0".
-
-**Root cause:** "Script error." with no file, line or column is what browsers report for an error thrown by a script from another origin — the details are deliberately withheld. TODAY loads no cross-origin scripts (fonts and every module are same-origin), so the error came from code injected into the page: an extension or content blocker, an in-app browser, or the browser's own translate/autofill. A headless fresh session at phone size, with both an iPhone Safari and a default user agent, loads with no page errors, no console errors, and an empty `_errorLog`. `window.onerror` logged every message and only labelled `[external]` errors that carried a foreign URL — a source-less one passed as if it were TODAY's.
-
-**Fix (v2.93.26):** `window.onerror` drops "Script error." when it has no URL and no line: a `console.warn` only, no red dot. Errors with a source — including a "Script error." that names a file — still log. New `error-monitor-unit-test` runs the real file in a VM and pins both sides.
-
-**Verification:** a fresh session on the same phone and browser shows no red dot. If a red dot appears with a file and line, that is a real error and should be reported with its text.
+**Release:** included in v2.97.8 with the nudge/poem fixes. Real-device verification remains open: same-zone sync should stay quiet, and the newer zone move should converge on both devices.
 
 ---
 
-## BUG-118 — Failed daily nudge cannot recover; rejection looks like delivery failure
+## BUG-121 — Yesterday’s splash cooldown suppresses the new day’s poem
+
+**Report:** Can, 2026-10-22 shortly after midnight: repeated restarts showed the default daily nudge and no opening poem; the proper nudge was present by about 00:42. The About observation was under **Noticed**, not **Today**, so this report does not establish BUG-120’s strip/About mismatch.
+
+**Confirmed cause (poem only):** `splash.js` checked a rolling 30-minute `splash_shown_at` cooldown before checking `poem_splash_date`. A 23:55 open therefore skipped the entire splash at 00:02, including the unseen new-day poem. Both dates are local; this is cooldown ordering, not a UTC or 3am day boundary. The nudge does not depend on this cooldown.
+
+**Fix (prepared as v2.97.6, included in v2.97.8):** apply the 30-minute cooldown only when the previous splash was on the same local date. Crossing midnight allows the normal splash and first daily poem; another restart that day still skips within the cooldown. No new timer, storage key, collection or sync change.
+
+**Tests:** desktop and touch browser fixtures at Istanbul 00:02, seeded with yesterday’s 23:55 splash and poem date. The test fails on the old code, then checks populated/visible new-day poem, its dated shown marker, and the next restart’s cooldown. Existing coda/exit timing and reduced-motion behavior remain covered by the release suites.
+
+**Verify after deployment:** open shortly before midnight, restart shortly afterwards, and see the new poem. Keep open until Can accepts real-device or reproduction-equivalent verification.
+
+---
+
+## BUG-120 — Merged into BUG-118
+
+Consolidated with BUG-118 at Can’s request, 2026-10-22. The strip/About agreement investigation and v2.97.2 fix are preserved under [BUG-118](#bug-118--daily-nudge-delivery-and-recovery). This number remains a reference; it is not a separately open or verified bug.
+
+---
+
+## BUG-118 — Daily nudge delivery and recovery
+
+**Tracking decision (Can, 2026-10-22):** BUG-118 and BUG-120 are successive investigations of the same daily-nudge problem. Track delivery, rejection recovery and strip/About agreement here; preserve their distinct diagnosed causes and shipped fixes rather than counting two open bugs. BUG-120 remains an alias for older references.
+
+**Current fix (prepared as v2.97.7, included in v2.97.8):** remove the word-pattern recap veto from ordinary/Calendar-supported output; a duration and waiting phrase without a contrast keyword cannot determine usefulness. Restore delivery through the existing grounding/30-word checks and writer, with feedback steering subsequent mornings. Old `rejected-recap` records may resume under the remaining original three-attempt budget; no new rewrite/retry loop or quota reset. Existing terminal grounding/format/permanent-error outcomes, noon, accepted lines, real dismissals, sync adoption and day epochs remain. One bounded rewrite was considered, then superseded by this regression repair.
+
+**Still open:** accepted real-device/reproduction-equivalent verification of reliable morning delivery and strip/About agreement. The removed filter does not guarantee better prose; observe usefulness separately.
 
 **Report:** Can, 2026-10-07: both desktop and mobile showed the non-AI daily fallback and no Today line in About, following the earlier quiet-after-misses changes.
 
@@ -104,7 +121,23 @@
 
 **October 18 delivery report / initial investigation (superseded by BUG-120):** Can first saw the default strip on the phone while About held the full line, and dismissed only the strip. Desktop read-only evidence later showed today’s cache/spoken record and dismissal with a device-local October 17 audit; that audit could not establish the phone’s timing. Delayed-response tests reproduced one possible split after the five-second display deadline, but that was not sufficient to diagnose this report. The source-level staleness mismatch is documented and fixed under BUG-120, with completion/sync agreement and About-return coverage. No device audit is required to implement or verify that reproduced defect; the prior request for phone access was unnecessary.
 
+**October 22 report / readout:** just after midnight, several checks/restarts left the default strip; by roughly 00:42 the proper line was present. About held a separate **Noticed** observation, not a daily **Today** line. Can’s content-free readout: 00:00 `answered`, `rejected recap`, `rejected recap`; 00:01/00:02 `default`; 00:42 `line`. `answered` maps to `response-valid` (transport/length/grounding passed), then the ordinary task path’s recap check rejected the text; its second rejection event is the attempt result, not another failed request. This rejection is deliberately terminal for uncached local generation that day, so restarts do not retry it. The later `line` is display, not proof of a new local request; the excerpt contains no later request. A synced accepted cache can still be shown, but the excerpt alone does not prove its origin. The temporary display label infers local ownership from any `response-valid` event, even one later rejected as a recap, so `line` versus `line from other device` is not reliable provenance in this case. This is a content rejection, not delayed midnight rollover. The initial diagnosis left policy unchanged; Can then authorized the regression review leading to the v2.97.7 fix described above. Missing poem: separately reproduced cooldown defect, BUG-121.
+
 **Follow-up (v2.95.4):** one same-reading shortening pass for otherwise grounded overlong replies, within the existing attempt and strict 30-word cap. Grounding is checked before repair and after it; recap/unsafe/still-long replies still withhold. No new repair after noon/day change. A legacy length-only terminal state can recover at a natural morning check under the three-attempt quota, then persists `lengthRepair:true` to prevent repeated resets. Existing dismissal, About recovery and epoch/cache-adoption fences remain. Synthetic regression proves the mechanism; live phone/desktop delivery and quality still need verification through real use.
+
+**Regression review / implementation (v2.97.7 prepared):** history traces the recap filter to v2.93.9 (October 4), then persisted terminal rejections to v2.93.22 (October 7). A fictional ordinary reading without a contrast keyword fails against the original source with `response-valid` → `rejected-recap`, and is delivered/cached/recorded without an extra request after removal. `nudge-delivery-test` now covers 46 desktop/touch lifecycles: midnight ordinary output; same-day legacy resume and the last remaining slot; exhausted quota, other terminal grounding rejection, noon, fallback/AI dismissal, existing cache, an unsafe recovery, prior-day reset; natural midnight wake and restart; existing delivery/sync/agreement cases. No live response or task is used as a fixture.
+
+### Strip/About agreement — formerly BUG-120 (v2.97.2)
+
+**Report:** Can, 2026-10-18: the task-list strip showed the default count line while About's Today block held the full AI line at the same time — on the phone first, then seen on desktop. "That is weird — at the same time the nudge was ready in About."
+
+**Cause:** the two homes of today's line judged it by different rules. The strip (v2.39.1 guard, `day_nudge_done_count_<date>`) dropped the saved line as soon as *any* task was completed after it was written — locally or synced in — and fell back to the count line or a fresh request. About (kept by the v2.90.43 fix so the line would not vanish from storage) showed the saved line regardless. One completed task therefore split them for the rest of the morning. Reproduced with no AI call or delay: three tasks, a saved line, one completion → strip "2 tasks still here from yesterday", About the full line. The earlier five-second-deadline theory (the note under BUG-118) is a separate, real path: a late line lands in About while an undismissed fallback strip only upgraded on wake.
+
+**Fix (v2.97.2):** one rule, `_currentDayLine()` in `nudge.js`, asked by both the strip and About (`Today.use('nudge').currentLine()`): the saved line retires only when it *names* a task completed today (distinctive task words matched in the line; done texts from the lists and the synced `recentCompletedTasks`). Unrelated completions keep it in both homes; a named completion retires it in both, at once (the strip leaves immediately and the replacement or fallback slides back in). The stored key is never deleted — Dropbox still reads it (v2.90.43 rationale). Completion (`today:reflection-evidence-change`) and every sync merge re-check a visible line. Closing About now hands its line to an undismissed fallback strip. `day_nudge_done_count_<date>` is retired.
+
+**Tests:** `nudge-delivery-test` (default gate, 20 real-startup cases on desktop and touch): the About-close handoff is now an assertion, and new agreement cases — named completion, unrelated completion, a line arriving by sync, a completion arriving by sync — check "strip and About show the same line" with About open, after it closes and after returning to the app. Reverting About to the old read fails the suite. `nudge-test` §5 rewritten for the shared rule (unrelated keeps, named retires everywhere, failed retry keeps the key, success replaces everywhere).
+
+**Verify:** next mornings on phone and desktop: after completing tasks, the strip and About always show the same line (or the strip shows the count line only when About has none).
 
 ---
 
@@ -119,20 +152,6 @@
 **Tests:** `gmail-test` covers calendar first / salon next, a mixed thread ending with a notification, calendar-only silence, a five-thread bound, exact/case-insensitive sender matching, harmless display names/lookalikes, old cached reminders, ordinary salon reminders, grouped OR queries, and content-free diagnostics.
 
 **Verify:** after deployment, retry the haircut task in the desktop PWA; calendar notifications should not appear. A genuine confirmation may appear, or the block should stay quiet. If the reminder returns, inspect only its sender first: a different calendar source needs grounded coverage, not a broad “reminder” keyword ban.
-
----
-
-## BUG-116 — Enrichment arrows blink again on desktop PWA wake
-
-**Symptom:** Can, 2026-10-06: the task enrichment arrow blinked seemingly at random in the desktop PWA.
-
-**Root cause:** both ↩ email and ↗ web indicators retained `.agent-indicator-arrive` after their 1.4s CSS animation ended. `_onWake()` repaints `#main-app` by toggling its display immediately and at 0.5, 1.5, 3, 5, 8, and 12 seconds. Each toggle restarts that CSS animation, so existing context looks newly delivered. A browser probe reproduced both arrows becoming fully visible without hover or a new lookup; this dates to the August 30 arrival cue, before v2.93.19.
-
-**Fix (v2.93.20):** both modules call the shared `_playEnrichmentArrival()` utility once when fresh context is inserted. WAAPI survives a repaint during the cue and is released when finished; the CSS keyframes and persistent arrival class are removed. The same muted/accent palette, 1.4s cue (`--dur-mid` × 7), and per-segment `--ease-out` are retained. Cached restoration is quiet, hover still reveals the arrow, and reduced motion skips the cue.
-
-**Tests:** `task-enrich-test` uses both real indicator owners inside `#main-app`, repaints during and after arrival, invokes the real wake handler, and checks hover, cache restoration, and reduced motion. The new regression failed on the old CSS animation.
-
-**Verification:** in the desktop PWA, let a newly found context arrow finish flashing, switch to another app, then return and watch for 12 seconds. Existing arrows should stay quiet; hovering still reveals them. A genuinely new result should flash once.
 
 ---
 

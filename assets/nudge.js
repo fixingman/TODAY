@@ -152,15 +152,7 @@ window._startNudge = (function() {
         .map(l => String(l.text).slice(0, 200));
     }
 
-    function _taskNudgeOnlyInventories(text) {
-      const line = String(text || '');
-      const duration = /\b\d+\s+days?\b/i.test(line);
-      const waiting = /\b(?:waiting|waited|open|on the list|carried over)\b/i.test(line);
-      const turn = /\b(?:but|because|rather|instead|before|while|if|window|worth|decide|deciding|choice|choose|deadline|due|doesn.t|isn.t)\b/i.test(line);
-      return duration && waiting && !turn;
-    }
-
-    // Settle once. A late answer saves for About, never swaps text mid-read.
+    // Settle once; onLate owns the bounded, untouched-default handoff.
     function _raceAINudge({ cacheKey, cachePrefix, fetchPromise, fallbackMsg, onShow, onLate, isCurrent }) {
       let settled = false;
       const settle = (text, isAI) => {
@@ -397,6 +389,13 @@ window._startNudge = (function() {
       } else if (allowGenerate && _memoryReady && !_nudgeRacing) {
         const state = _generationForToday();
         if (state.status === 'rejected-length' && state.lengthRepair !== true) state.terminal = false;
+        // The removed word-pattern veto must not keep an old rejection terminal.
+        // Resume under the original budget; accepted lines/dismissals were handled above.
+        if (state.status === 'rejected-recap' && state.attempts < _MAX_ATTEMPTS) {
+          state.terminal = false;
+          state.status = 'idle';
+          _generationEvent(state, 'policy', 'recap-filter-removed');
+        }
         if (state.terminal || state.attempts >= _MAX_ATTEMPTS || Date.now() < state.retryAt) {
           _scheduleNudgeRetry(state);
           if (!_nudgeRendered) _showNudge(msg, false);
@@ -686,8 +685,7 @@ window._startNudge = (function() {
         const result = await _requestNudgeAI(body, support ? 'task-calendar' : allowCalendar ? 'task' : 'task-calendar-fallback', state);
         if (support && !result.retryable && result.status !== 'http-error') {
           const current = _calendarSupportStillCurrent(support);
-          const bounded = result.status === 'accepted' && support.policy.writerTextIsBounded(support.evidence, result.text)
-            && !_taskNudgeOnlyInventories(result.text);
+          const bounded = result.status === 'accepted' && support.policy.writerTextIsBounded(support.evidence, result.text);
           if (!current || !bounded) {
             _generationEvent(state, 'task-calendar', current ? 'rejected-calendar-text' : 'stale-calendar-evidence');
             if (epoch !== _nudgeEpoch || state.date !== _localISO() || new Date().getHours() >= 12)
@@ -695,11 +693,6 @@ window._startNudge = (function() {
             // One fresh ordinary recovery; never a second Calendar attempt.
             return _fetchDayNudgeAI(review, carriedOver, cards, state, false);
           }
-        }
-        if (result.status !== 'accepted') return result;
-        if (_taskNudgeOnlyInventories(result.text)) {
-          _generationEvent(state, 'task', 'rejected-recap');
-          return { status: 'rejected-recap', retryable: false };
         }
         return result;
       } catch (e) {

@@ -122,6 +122,36 @@ Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. Al
 
 ---
 
+## BUG-119 — "Script error. at :0:0" lit the red dot on a fresh mobile session
+
+**Symptom:** Can, 2026-10-10, phone, fresh browser session, no connections: red dot with "Script error. at :0:0".
+
+**Root cause:** "Script error." with no file, line or column is what browsers report for an error thrown by a script from another origin — the details are deliberately withheld. TODAY loads no cross-origin scripts (fonts and every module are same-origin), so the error came from code injected into the page: an extension or content blocker, an in-app browser, or the browser's own translate/autofill. A headless fresh session at phone size, with both an iPhone Safari and a default user agent, loads with no page errors, no console errors, and an empty `_errorLog`. `window.onerror` logged every message and only labelled `[external]` errors that carried a foreign URL — a source-less one passed as if it were TODAY's.
+
+**Fix (v2.93.26):** `window.onerror` drops "Script error." when it has no URL and no line: a `console.warn` only, no red dot. Errors with a source — including a "Script error." that names a file — still log. New `error-monitor-unit-test` runs the real file in a VM and pins both sides.
+
+**Verification:** a fresh session on the same phone and browser shows no red dot. If a red dot appears with a file and line, that is a real error and should be reported with its text.
+
+**Verified by Can — 2026-10-22.**
+
+---
+
+## BUG-116 — Enrichment arrows blink again on desktop PWA wake
+
+**Symptom:** Can, 2026-10-06: the task enrichment arrow blinked seemingly at random in the desktop PWA.
+
+**Root cause:** both ↩ email and ↗ web indicators retained `.agent-indicator-arrive` after their 1.4s CSS animation ended. `_onWake()` repaints `#main-app` by toggling its display immediately and at 0.5, 1.5, 3, 5, 8, and 12 seconds. Each toggle restarts that CSS animation, so existing context looks newly delivered. A browser probe reproduced both arrows becoming fully visible without hover or a new lookup; this dates to the August 30 arrival cue, before v2.93.19.
+
+**Fix (v2.93.20):** both modules call the shared `_playEnrichmentArrival()` utility once when fresh context is inserted. WAAPI survives a repaint during the cue and is released when finished; the CSS keyframes and persistent arrival class are removed. The same muted/accent palette, 1.4s cue (`--dur-mid` × 7), and per-segment `--ease-out` are retained. Cached restoration is quiet, hover still reveals the arrow, and reduced motion skips the cue.
+
+**Tests:** `task-enrich-test` uses both real indicator owners inside `#main-app`, repaints during and after arrival, invokes the real wake handler, and checks hover, cache restoration, and reduced motion. The new regression failed on the old CSS animation.
+
+**Verification:** in the desktop PWA, let a newly found context arrow finish flashing, switch to another app, then return and watch for 12 seconds. Existing arrows should stay quiet; hovering still reveals them. A genuinely new result should flash once.
+
+**Verified by Can — 2026-10-22.**
+
+---
+
 ## BUG-115 — Expired Gmail sign-in retried silently
 
 **Symptom:** Can, desktop PWA console, 2026-10-06: `/.netlify/functions/gmail-token: Failed to load resource: 400`. No red dot; Connections still showed Gmail as connected.

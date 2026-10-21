@@ -16,7 +16,7 @@ The morning is the signature beat. Everything else supports or follows it.
 
 **One screen. One day. One list.**
 
-- No history. Done tasks are acknowledged, not archived.
+- No productivity ledger to maintain. Completed tasks leave Today; bounded Past and Memory records support retrieval and recognition.
 - No projects, no labels, no priorities, no due dates.
 - No anxiety. Calm, dark, focused.
 - Offline-first. Works without internet after first load.
@@ -35,7 +35,7 @@ The morning is the signature beat. Everything else supports or follows it.
 
 ## Token index
 
-All tokens live in `:root` in `index.html`. Aliases (short names) are the ones used in component CSS.
+The canonical tokens live in `:root` in `index.html`; this index and `memory/design/Tokens.md` are references. Aliases (short names) are used in component CSS. Derived values in isolated documents come from the opener’s tokens where possible.
 
 | Category | Key tokens | Alias |
 |---|---|---|
@@ -45,7 +45,7 @@ All tokens live in `:root` in `index.html`. Aliases (short names) are the ones u
 | Danger | `--color-danger #ff5f5f` | `--danger` |
 | Typography | `--font-mono 'DM Mono'` · `--font-display 'Syne'` | — |
 | Sizes | `--text-sm 11px` · `--text-task 13.5px` · `--text-md 14px` · `--text-lg 16px` | — |
-| Spacing | `--space-1 4px` through `--space-8 32px` (4px base scale) | — |
+| Spacing | `--space-1…6`, `--space-8`, `--space-20` (4–80px, 4px base scale) | — |
 | Layout | `--add-task-bar-height 72px` · `--panel-max-width 420px` | — |
 | Motion | `--dur-fast 0.15s` · `--dur-base 0.18s` · `--dur-slow 0.30s` | — |
 | Easing | `--ease-out cubic-bezier(0.16,1,0.3,1)` · `--ease-spring cubic-bezier(0.34,1.56,0.64,1)` | — |
@@ -80,12 +80,12 @@ All tokens live in `:root` in `index.html`. Aliases (short names) are the ones u
 
 ## AI surface rules
 
-Every proactive AI line must pass three gates before prose generation:
+Proactive observations must pass three gates before prose generation:
 1. **Evidence** — repeated behavior, a clear self-comparison, or a relationship with observations on both sides.
 2. **Novelty** — something the visible list, grid, or counters do not already show.
 3. **Usefulness** — it could change a choice. A true statement that leads nowhere fails this gate.
 
-If any gate fails, the surface abstains — no generic fallback. Code selects the observation; the model is a writer, not the epistemologist.
+If any gate fails, there is no pool observation; an observation-only surface stays silent. Code selects the pool relationship; the model phrases it. The ordinary morning task-reading track remains separate: it uses current task facts and personal context, may offer a quiet orientation, and is not silenced by pool abstention or ordinary “not really” feedback. Its grounding, delivery and dismissal guards still apply. See `memory/architecture/AI.md` → Daily Nudge.
 
 **Wallpaper Test:** every recurring surface must deliver value every appearance or be iterated/removed. Day 14 is the test, not day 1. → `memory/design/Philosophy.md`
 

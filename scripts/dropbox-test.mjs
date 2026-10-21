@@ -913,6 +913,95 @@ try {
     await page.close();
   }
 
+  // Same-zone timestamp reconciliation is not a conflicting destination.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const now = Date.now();
+      const at = minutes => new Date(now - minutes * 60000).toISOString();
+      const warnings = [];
+      const warn = console.warn;
+      console.warn = (...args) => {
+        if (String(args[0]).startsWith('[merge-anomaly] zone')) warnings.push(args);
+      };
+      const cases = [
+        ['past', 'past', at(10), at(20), 0, 'past', at(10)],
+        ['past', 'past', at(20), at(10), 0, 'past', at(10)],
+        ['soon', 'soon', at(20), at(10), 0, 'soon', at(10)],
+        ['past', 'soon', at(10), at(20), 1, 'past', at(10)],
+        ['soon', 'past', at(20), at(10), 1, 'past', at(10)],
+        ['soon', 'past', at(10), at(20), 1, 'soon', at(10)],
+        ['past', 'soon', at(20), at(10), 1, 'soon', at(10)],
+        ['past', 'soon', at(10), at(70), 0, 'past', at(10)],
+        ['past', 'past', at(10), at(10), 0, 'past', at(10)],
+        ['soon', 'past', at(10), at(10), 0, 'soon', at(10)],
+        ['past', 'soon', at(10), at(10), 0, 'past', at(10)],
+        ['soon', 'past', '', '', 0, 'soon', ''],
+        ['past', 'soon', '', '', 0, 'purged', ''],
+        ['soon', 'past', at(10), '', 0, 'soon', at(10)],
+        ['soon', 'past', '', at(10), 0, 'past', at(10)],
+        ['past', 'soon', '', at(10), 0, 'soon', at(10)],
+      ];
+      try {
+        return Object.fromEntries(cases.map(([localZone, remoteZone, localAt, remoteAt, count, winner, stamp], i) => {
+          const task = { id:'fixture_zone_task', text:'Choose a reading lamp', status:'let_go' };
+          const local = { ...task, zone:localZone, zoneChangedAt:localAt };
+          const remote = { ...task, zone:remoteZone, zoneChangedAt:remoteAt };
+          manualTasks = []; doneIds = new Set();
+          soonTasks = localZone === 'soon' ? [local] : [];
+          pastTasks = localZone === 'past' ? [local] : [];
+          for (const key of ['today_deleted_ids', 'today_checked_ids', 'today_unchecked_ids']) localStorage.setItem(key, '[]');
+          localStorage.setItem('last_sync_read', at(60));
+          warnings.length = 0;
+          mergeRemoteData({ manual_tasks:[], done_ids:[], deleted_ids:[], checked_ids:[], unchecked_ids:[],
+            soon_tasks:remoteZone === 'soon' ? [remote] : [], past_tasks:remoteZone === 'past' ? [remote] : [] });
+          const rows = winner === 'past' ? pastTasks : soonTasks;
+          const other = winner === 'past' ? soonTasks : pastTasks;
+          const resolved = winner === 'purged'
+            ? soonTasks.length === 0 && pastTasks.length === 0 && _getDeletedIds().some(e => e.id === task.id)
+            : rows.length === 1 && rows[0].id === task.id && rows[0].zoneChangedAt === stamp && other.length === 0;
+          return [`zoneCase${i + 1}`, warnings.length === count && resolved];
+        }));
+      } finally { console.warn = warn; }
+    });
+    await expectAll('zone diagnostics and reconciliation', { ...result, noErrors:errors.length === 0 });
+    ok('same-zone timestamps merge quietly; different-zone conflicts still warn and the newer move wins');
+    await page.close();
+  }
+
+  // A metadata 504 leaves local data alone and does not stop the next sync check.
+  {
+    const { page, errors } = await openPage();
+    await page.waitForFunction(() => typeof _dbxSyncNow === 'function');
+    const result = await page.evaluate(async () => {
+      const before = JSON.stringify([manualTasks, soonTasks, pastTasks]);
+      const seen = [];
+      localStorage.setItem('dropbox_token', 'fictional-offline-token');
+      localStorage.setItem('stat_last_visit', _getAppDay());
+      localStorage.setItem('last_sync_read', '2026-01-01T00:00:00.000Z');
+      _dbxSetRev('unchanged-revision');
+      window.fetch = async input => {
+        seen.push(String(input));
+        if (!String(input).endsWith('/2/files/get_metadata')) throw new Error('Unexpected fixture request');
+        return seen.length === 1 ? new Response('Gateway Timeout', { status:504 })
+          : new Response(JSON.stringify({ rev:'unchanged-revision' }), { status:200 });
+      };
+      _dbxSyncNow();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const unchangedAfter504 = JSON.stringify([manualTasks, soonTasks, pastTasks]) === before;
+      _dbxSyncNow();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      return { unchangedAfter504, nextCheckRetried:seen.length === 2,
+        metadataOnly:seen.every(url => url.endsWith('/2/files/get_metadata')),
+        unchangedAfterRecovery:JSON.stringify([manualTasks, soonTasks, pastTasks]) === before,
+        lastReadUnchanged:localStorage.getItem('last_sync_read') === '2026-01-01T00:00:00.000Z',
+        tokenKept:localStorage.getItem('dropbox_token') === 'fictional-offline-token' };
+    });
+    await expectAll('metadata 504 recovery', { ...result, noErrors:errors.length === 0 });
+    ok('metadata 504 preserves local tasks and the next sync tick checks again without reconnecting');
+    await page.close();
+  }
+
   // 15. Static wiring checks.
   {
     const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
