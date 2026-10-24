@@ -4613,16 +4613,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─ Version ─
-const DEV_HOURS     = '361.5h';
+const DEV_HOURS     = '362.0h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.97.9': 'Maintenance — more accurate responsiveness checks.',
   '2.97.8': 'Sync keeps the newer task move and no longer warns when both devices agree.',
   '2.97.7': 'Morning nudges can recover when an earlier reading was mistakenly withheld.',
-  '2.97.6': 'Opening just after midnight now shows the new day’s poem, even if you opened TODAY a few minutes earlier.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

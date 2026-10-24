@@ -31,6 +31,7 @@ const SUITE = [
   'error-monitor-unit-test',
   'console-probe-test',
   'ci-tooling-test',
+  'performance-harness-test',
   'zones-test',
   'task-actions-test',
   'task-bounce-test',

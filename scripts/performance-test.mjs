@@ -124,7 +124,8 @@ function startServer() {
 
 async function installObservers(page) {
   await page.evaluateOnNewDocument(() => {
-    window.__todayPerformance = { lcp: 0, cls: 0, longTasks: [] };
+    window.__todayPerformance = { lcp: 0, cls: 0, longTasks: [], longAnimationFrames: [],
+      supportsLongAnimationFrames: PerformanceObserver.supportedEntryTypes.includes('long-animation-frame') };
     const observe = (type, callback) => {
       try {
         new PerformanceObserver(list => callback(list.getEntries())).observe({ type, buffered: true });
@@ -139,6 +140,22 @@ async function installObservers(page) {
     });
     observe('longtask', entries => {
       for (const entry of entries) window.__todayPerformance.longTasks.push({ start: entry.startTime, duration: entry.duration });
+    });
+    if (window.__todayPerformance.supportsLongAnimationFrames) observe('long-animation-frame', entries => {
+      for (const entry of entries) {
+        if (window.__todayPerformance.longAnimationFrames.length >= 128) break;
+        window.__todayPerformance.longAnimationFrames.push({
+          start: entry.startTime, duration: entry.duration, blockingDuration: entry.blockingDuration,
+          renderStart: entry.renderStart, styleAndLayoutStart: entry.styleAndLayoutStart,
+          scripts: entry.scripts.map(script => ({
+            start: script.startTime, duration: script.duration, executionStart: script.executionStart,
+            forcedStyleAndLayoutDuration: script.forcedStyleAndLayoutDuration,
+            pauseDuration: script.pauseDuration, invoker: script.invoker, invokerType: script.invokerType,
+            sourceURL: script.sourceURL.split(/[?#]/)[0], sourceFunctionName: script.sourceFunctionName,
+            sourceCharPosition: script.sourceCharPosition,
+          })),
+        });
+      }
     });
   });
 }
@@ -174,6 +191,8 @@ async function readPageMetrics(page) {
       tbt,
       longTasks: observed.longTasks.length,
       longTaskEntries: observed.longTasks,
+      longAnimationFrames: observed.longAnimationFrames || [],
+      supportsLongAnimationFrames: observed.supportsLongAnimationFrames === true,
       domContentLoaded: navigation?.domContentLoadedEventEnd || 0,
       load: navigation?.loadEventEnd || 0,
       shellVisible: value('today:shell-visible'),
@@ -227,6 +246,37 @@ async function coldAndWarm(browser, url, tracePath) {
   return { cold, warm };
 }
 
+// Arm before automation begins, but time only the actual input through the first
+// frame after the state appears. Window capture precedes document audio warmup.
+async function armInteraction(page, kind, text = '') {
+  await page.evaluate(({ kind, text }) => {
+    const armedAt = performance.now();
+    const eventName = kind === 'add' ? 'keydown' : 'pointerdown';
+    window.__todayInteraction = new Promise(resolve => {
+      let inputAt = null;
+      const onInput = event => {
+        const matches = kind === 'add'
+          ? event.key === 'Enter' && event.target.id === 'newTask'
+          : event.target.closest?.('#manualList .task .task-text');
+        if (!matches || inputAt !== null) return;
+        inputAt = event.timeStamp;
+      };
+      const observer = new MutationObserver(() => {
+        if (inputAt === null) return;
+        const ready = kind === 'add'
+          ? [...document.querySelectorAll('#manualList .task')].some(row => row.textContent.includes(text))
+          : document.querySelector('.focus-timer.open') && document.getElementById('main-app')?.classList.contains('focusing');
+        if (!ready) return;
+        observer.disconnect();
+        window.removeEventListener(eventName, onInput, true);
+        requestAnimationFrame(() => resolve({ duration: performance.now() - inputAt, inputAt, automationWait: inputAt - armedAt }));
+      });
+      window.addEventListener(eventName, onInput, true);
+      observer.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ['class'] });
+    });
+  }, { kind, text });
+}
+
 async function interactionRun(browser, url, run, tracePath) {
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
@@ -246,37 +296,21 @@ async function interactionRun(browser, url, run, tracePath) {
   const taskText = `Performance added task ${run}`;
   await page.focus('#newTask');
   await page.type('#newTask', taskText);
-  await page.evaluate(text => {
-    window.__todayAddLatency = new Promise(resolve => {
-      const start = performance.now();
-      const observer = new MutationObserver(() => {
-        const found = [...document.querySelectorAll('#manualList .task')].some(row => row.textContent.includes(text));
-        if (!found) return;
-        observer.disconnect();
-        requestAnimationFrame(() => resolve(performance.now() - start));
-      });
-      observer.observe(document.getElementById('manualList'), { childList: true, subtree: true });
-    });
-  }, taskText);
+  await armInteraction(page, 'add', taskText);
   await page.keyboard.press('Enter');
-  const addTask = await page.evaluate(() => window.__todayAddLatency);
+  const add = await page.evaluate(() => window.__todayInteraction);
 
-  await page.evaluate(() => {
-    window.__todayFocusLatency = new Promise(resolve => {
-      const start = performance.now();
-      const observer = new MutationObserver(() => {
-        if (!document.querySelector('.focus-timer.open') || !document.getElementById('main-app')?.classList.contains('focusing')) return;
-        observer.disconnect();
-        requestAnimationFrame(() => resolve(performance.now() - start));
-      });
-      observer.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ['class'] });
-    });
-  });
+  await armInteraction(page, 'focus');
   await page.click('#manualList .task .task-text');
-  const enterFocus = await page.evaluate(() => window.__todayFocusLatency);
+  const focus = await page.evaluate(() => window.__todayInteraction);
+  // Read attribution after the measured frame has completed; this is outside the timer.
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0))));
+  const metrics = await readPageMetrics(page);
   if (tracePath) await page.tracing.stop();
   await context.close();
-  return { addTask, enterFocus };
+  return { addTask: add.duration, enterFocus: focus.duration,
+    diagnostics: { add, focus, longTaskEntries: metrics.longTaskEntries,
+      longAnimationFrames: metrics.longAnimationFrames, supportsLongAnimationFrames: metrics.supportsLongAnimationFrames } };
 }
 
 function timingSummary(runs) {
@@ -439,7 +473,15 @@ try {
     profile: { cpuSlowdown: CPU_THROTTLE_RATE, downloadMbps: 1.6, uploadKbps: 750, latencyMs: 150 },
     payload,
     timings,
-    diagnostics: { coldLongTasks: runs.map(run => run.cold.longTaskEntries) },
+    diagnostics: {
+      coldLongTasks: runs.map(run => run.cold.longTaskEntries),
+      // Original measured runs carry attribution even if the later trace replay is fast.
+      runs: runs.map((run, i) => ({ run: i + 1,
+        cold: { longAnimationFrames: run.cold.longAnimationFrames, supportsLongAnimationFrames: run.cold.supportsLongAnimationFrames },
+        warm: { longAnimationFrames: run.warm.longAnimationFrames, supportsLongAnimationFrames: run.warm.supportsLongAnimationFrames },
+        interactions: run.interactions.diagnostics,
+      })),
+    },
     budgets: budgetConfig,
   };
   const failures = budgetFailures(payload, timings);

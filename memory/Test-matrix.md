@@ -62,6 +62,8 @@ URL and retains its JSON for 30 days. Run
   Refresh the tracked audit deliberately when reviewing performance, not as a prerequisite for
   every app-version bump.
 - `--payload-only` checks deterministic byte/font/script ceilings without launching Chrome; CI runs it before browser suites, and the full performance gate still repeats those checks.
+- Original runs retain bounded long-animation-frame script/layout attribution (first 128 frames per page), explicit browser support and source URLs without query/fragment values. These accompany the measured cold/warm/input evidence; a faster later replay cannot replace them. No observer is installed in normal app sessions.
+- Add/focus response timing starts at actual keydown/pointerdown and ends on the next frame after the expected state appears. Window capture runs before document audio warmup, so its synchronous cost stays in the measurement. Automation wait is separate. `performance-harness-test` deliberately blocks startup/pointerdown and delays automation to verify attribution, unchanged ceilings and unsupported-API fallback using fictional browser fixtures.
 - `--trace-on-failure DIR` keeps the original verdict and, only after a budget failure, launches a fresh Chrome process for a separate cold/warm-load/focus replay. It saves DevTools traces without screenshots and separate replay metrics. Tracing never changes the original five-run evidence or its worst-run budgets; replay need not reproduce an intermittent stall.
 - Nightly checks out `dev`, requires the deployed version to match, and warms Chrome on a blank
   page before cold navigation. It still clears cache and origin storage for every measured run;
