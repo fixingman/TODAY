@@ -1,0 +1,121 @@
+[
+  {
+    "input": {
+      "id": "nudge-unsupported-progress",
+      "surface": "morning-nudge",
+      "draft": "One more short session will finish the field-guide draft.",
+      "evidence": {
+        "facts": [
+          { "id": "task", "text": "Edit field-guide draft — outline started; length still undecided." },
+          { "id": "focus", "text": "One recorded focus session on this task." }
+        ],
+        "unknowns": [{ "id": "remaining", "text": "Remaining effort and time to finish are unknown." }]
+      }
+    },
+    "humanExpectation": { "status": "revise", "code": "unsupported-claim", "reason": "A recorded session does not establish remaining effort." }
+  },
+  {
+    "input": {
+      "id": "nudge-quiet-valid",
+      "surface": "morning-nudge",
+      "draft": "A postcard, clean brushes, a library book — a few ordinary things to return to this morning.",
+      "evidence": {
+        "facts": [
+          { "id": "tasks", "text": "Today: Pick a postcard; rinse paint brushes; choose a library book." }
+        ],
+        "unknowns": [{ "id": "availability", "text": "Availability, deadlines, urgency and emotional state are unknown." }]
+      }
+    },
+    "humanExpectation": { "status": "clear", "code": null, "reason": "Quiet orientation is allowed. This is not a claim that the line is useful." }
+  },
+  {
+    "input": {
+      "id": "nudge-invented-dependency",
+      "surface": "morning-nudge",
+      "draft": "Ask the framer about sizes first; you need those measurements before choosing the picture hooks.",
+      "evidence": {
+        "facts": [
+          { "id": "today", "text": "Today: Choose hooks for picture wall." },
+          { "id": "soon", "text": "Soon: Ask a framer about poster sizes." }
+        ],
+        "unknowns": [{ "id": "dependency", "text": "Whether these tasks share a project or depend on each other is unknown." }]
+      }
+    },
+    "humanExpectation": { "status": "revise", "code": "unsupported-claim", "reason": "Related nouns do not establish required order or a dependency." }
+  },
+  {
+    "input": {
+      "id": "nudge-tentative-connection",
+      "surface": "morning-nudge",
+      "draft": "Could the picture hooks and the poster sizes be connected, or are they separate jobs?",
+      "evidence": {
+        "facts": [
+          { "id": "today", "text": "Today: Choose hooks for picture wall." },
+          { "id": "soon", "text": "Soon: Ask a framer about poster sizes." }
+        ],
+        "unknowns": [{ "id": "dependency", "text": "Whether these tasks share a project or depend on each other is unknown." }]
+      }
+    },
+    "humanExpectation": { "status": "clear", "code": null, "reason": "A tentative possibility does not establish the connection; usefulness remains for the person." }
+  },
+  {
+    "input": {
+      "id": "feeling-valid-comparison",
+      "surface": "how-days-felt",
+      "draft": "On evenings you reflected, you marked calm more often when you brought a task back from Past than when you finished tasks without bringing one back.",
+      "evidence": {
+        "relationship": {
+          "kind": "feeling-vs-revive", "feeling": "calm", "reflectedEvenings": 12,
+          "more": { "context": "when you brought a task back from Past", "matching": 5, "total": 6 },
+          "less": { "context": "when you finished tasks without bringing one back", "matching": 1, "total": 6 }
+        }
+      }
+    },
+    "humanExpectation": { "status": "clear", "code": null, "reason": "Both contexts, the direction and reflected-evening population are preserved." }
+  },
+  {
+    "input": {
+      "id": "feeling-causal-addition",
+      "surface": "how-days-felt",
+      "draft": "On evenings you reflected, you marked calm more often when you brought a task back from Past than when you finished tasks without bringing one back, proving that bringing tasks back makes you calmer.",
+      "evidence": {
+        "relationship": {
+          "kind": "feeling-vs-revive", "feeling": "calm", "reflectedEvenings": 12,
+          "more": { "context": "when you brought a task back from Past", "matching": 5, "total": 6 },
+          "less": { "context": "when you finished tasks without bringing one back", "matching": 1, "total": 6 }
+        }
+      }
+    },
+    "humanExpectation": { "status": "revise", "code": "causal", "reason": "The comparison cannot establish what makes the person calmer." }
+  },
+  {
+    "input": {
+      "id": "feeling-swapped-comparison",
+      "surface": "how-days-felt",
+      "draft": "On evenings you reflected, you marked calm more often when you finished tasks without bringing one back than when you brought a task back from Past.",
+      "evidence": {
+        "relationship": {
+          "kind": "feeling-vs-revive", "feeling": "calm", "reflectedEvenings": 12,
+          "more": { "context": "when you brought a task back from Past", "matching": 5, "total": 6 },
+          "less": { "context": "when you finished tasks without bringing one back", "matching": 1, "total": 6 }
+        }
+      }
+    },
+    "humanExpectation": { "status": "revise", "code": "comparison", "reason": "The sentence reverses the supplied relationship." }
+  },
+  {
+    "input": {
+      "id": "feeling-generalized-population",
+      "surface": "how-days-felt",
+      "draft": "You are calm more often when you brought a task back from Past than when you finished tasks without bringing one back.",
+      "evidence": {
+        "relationship": {
+          "kind": "feeling-vs-revive", "feeling": "calm", "reflectedEvenings": 12,
+          "more": { "context": "when you brought a task back from Past", "matching": 5, "total": 6 },
+          "less": { "context": "when you finished tasks without bringing one back", "matching": 1, "total": 6 }
+        }
+      }
+    },
+    "humanExpectation": { "status": "revise", "code": "population", "reason": "Recorded evenings do not represent all evenings or establish a stable trait." }
+  }
+]

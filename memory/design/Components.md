@@ -199,6 +199,7 @@ Appears below focused task, replaces task row bottom area.
 - Non-focused content recedes visually and becomes inert/hidden from assistive technology while focus mode is active
 - The time is a named button; session progress is exposed as a progressbar
 - Copy feedback is session-scoped: leaving focus immediately restores `copy` and clears the success treatment
+- Ask stays in its existing muted button with the accessible name “Ask for focus help”; task age/returns no longer accent it. Requested task help may be one question, supported step or acknowledgement; accepted prose is the button’s accessible name. A current task request failure shows “No reply to show. Try again.” in the same button, with no automatic retry or recording; exit/dismiss restores Ask. Geometry, text tokens, hover, dismissal and loading motion stay with the existing component.
 
 ### Gmail and web enrichment
 
@@ -309,7 +310,7 @@ Returning tasks with recorded focus lead, followed by other returning tasks (age
 
 ## Memory Panel — PATTERNS (merged v2.95.5)
 
-One **PATTERNS** block — *what holds over time* — replaces PATTERNS + HOW YOU WORK (the two read as the same thing at different resolutions). `renderMemoryPanel()` order: timing/pace facts (peak hours — last 90 days once they hold 20 completions, lifetime until then; task lifespan, best weekday, longest streak), then outcome contrasts from `_memoryOutcomePatterns()` (let-go reason → obligation comparison → returns), then at most **3** confirmed AI inferences of both stable types, newest support first (`_memoryShownInferences()` — the same selection the focus companion reads, so nothing unseen steers it; v2.95.7) (`semantic`, `procedural`; storage types unchanged, `rejectKey` keeps the original type so **not me** still removes, tombstones and teaches the prompt). First **6** rows; `show all (N)` / `less` (`memory.patterns-more`, focus stays on the button, resets on each open). Empty state: "patterns appear as more evidence builds".
+One **PATTERNS** block — *what holds over time* — replaces PATTERNS + HOW YOU WORK (the two read as the same thing at different resolutions). `renderMemoryPanel()` order: timing/pace facts (peak hours — last 90 days once they hold 20 completions, lifetime until then; task lifespan, best weekday, longest streak), then outcome contrasts from `_memoryOutcomePatterns()` (let-go reason → obligation comparison → returns), then at most **3** confirmed AI inferences of both stable types, newest support first (`_memoryShownInferences()`; task focus excludes person-wide inferences as of v2.97.10) (`semantic`, `procedural`; storage types unchanged, `rejectKey` keeps the original type so **not me** still removes, tombstones and teaches the prompt). First **6** rows; `show all (N)` / `less` (`memory.patterns-more`, focus stays on the button, resets on each open). Empty state: "patterns appear as more evidence builds".
 
 Outcome contrasts compare like with like:
 - **Let-go reason** — share among let-gos where a reason was picked (≥ 8, top ≥ 35%); ties name every top reason ("not relevant and no energy (40% each)").

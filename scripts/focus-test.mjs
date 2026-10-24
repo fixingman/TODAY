@@ -13,7 +13,6 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -665,54 +664,46 @@ try {
       await page.close();
     }
 
-    // 18. Ask highlight and context: a routine task already worked on today stays
-    //     quiet; a task that was let go, revived and pulled back from Soon is hinted.
-    //     The context sent to the model names those facts truthfully and the prompt
-    //     is principles, not a lookup table.
+    // 18. Recorded history cannot earn an attention cue or enter task help.
     {
       const D = 86400000, now = Date.now();
-      const seedFor = task => ({
-        today_manual: JSON.stringify([task]),
-        today_ai_key_claude: 'test-key',
-      });
+      const seedFor = task => ({today_manual:JSON.stringify([task]),today_ai_key_claude:'test-key'});
       const signalFor = async task => {
-        const { page, errors } = await openPage({ extraSeed: seedFor(task) });
+        const {page,errors}=await openPage({extraSeed:seedFor(task)});
         await page.click('.task-text');
-        await page.waitForFunction(() => document.querySelector('.focus-timer.open') !== null, { timeout: 3000 });
-        const lit = await page.evaluate(() => document.querySelector('.focus-ai-timer-btn')?.classList.contains('high-signal'));
-        return { page, errors, lit };
+        await page.waitForFunction(()=>document.querySelector('.focus-timer.open'),{timeout:3000});
+        const lit=await page.$eval('.focus-ai-timer-btn',button=>button.classList.contains('high-signal'));
+        return {page,errors,lit};
       };
-
-      const routine = await signalFor({ id: 'manual_' + (now - 9 * D), text: 'Draft the quarterly letter', focusSessions: 2, lastActive: now - 3600000 });
+      const routine=await signalFor({id:'manual_'+(now-9*D),text:'Draft the quarterly letter',focusSessions:4,lastActive:now-3*D});
       await routine.page.close();
-
-      const stuck = await signalFor({ id: 'manual_' + (now - 9 * D), text: 'Book the blood test', focusSessions: 0, revived: 1, returnedFrom: 'soon', zoneChangedAt: new Date(now - D).toISOString() });
-      const sent = await stuck.page.evaluate(async () => {
-        let body = null;
-        const orig = window.fetch;
-        window.fetch = async (url, opts) => {
-          if (String(url).includes('ai-assist')) { body = JSON.parse(opts.body); return { ok: true, json: async () => ({ message: 'Which clinic, and which slot this week?' }) }; }
-          return orig(url, opts);
+      const returned=await signalFor({id:'manual_'+(now-9*D),text:'Await Maya "signed" contract; follow up Oct 30',focusSessions:0,revived:1,returnedFrom:'soon'});
+      const sent=await returned.page.evaluate(async()=>{
+        manualTasks.push({id:'manual_other',text:'Unrelated private task marker'});
+        appMemory.preferences={...appMemory.preferences,peakHour:new Date().getHours(),dragKeywords:['Maya','Maya']};
+        appMemory.patterns.letgoReasons={no_energy:10};
+        appMemory.memory={semantic:[{id:'private',text:'Private confirmed inference marker',status:'confirmed'}],procedural:[],episodic:[]};
+        let body=null;const original=window.fetch;
+        window.fetch=async(url,options)=>{
+          if(!String(url).includes('ai-assist'))return original(url,options);
+          body=JSON.parse(options.body);return {ok:true,json:async()=>({content:'The agreed follow-up date is enough for this task.'})};
         };
         document.querySelector('.focus-ai-timer-btn').click();
-        for (let i = 0; i < 50 && !body; i++) await new Promise(r => setTimeout(r, 20));
+        await new Promise(requestAnimationFrame);
         return body;
       });
-      const msg = sent?.messages?.[0]?.content || '';
-      const sys = sent?.systemPrompt || '';
-      await expectAll('ask highlight and context', {
-        routineQuiet:       routine.lit === false,
-        stuckHinted:        stuck.lit === true,
-        revivedNamed:       msg.includes('once let go, then brought back'),
-        soonNamed:          msg.includes('put off to Soon'),
-        ageFromCreation:    msg.includes('on the list 9 days'),
-        freshTaskNamed:     msg.includes('never focused on before'),
-        noLookupTable:      !sys.includes('Use the context to choose') && sys.includes('A question that would fit any task is a failure'),
-        taskPromptUnchanged:createHash('sha256').update(sys).digest('hex')==='5f7f9fe5898f4799e30829c51f52b182814cafcd28eb059df5dca1e9a6650169',
-        noErrors:           !routine.errors.length && !stuck.errors.length,
+      const message=sent?.messages?.[0]?.content||'';
+      await expectAll('task Ask scope and neutral availability',{
+        routineQuiet:!routine.lit,returnedQuiet:!returned.lit,
+        taskQuoted:message==='Task: '+JSON.stringify('Await Maya "signed" contract; follow up Oct 30'),
+        noHistory:!message.includes('recorded')&&!message.includes('Soon')&&!message.includes('days')&&!message.includes('never focused'),
+        noOtherTask:!JSON.stringify(sent).includes('Unrelated private task marker'),
+        noMemory:!JSON.stringify(sent).includes('Private confirmed inference marker')&&!message.includes('no energy')&&!message.includes('local time')&&!message.includes('usually put off'),
+        noReasoningOverride:!Object.hasOwn(sent,'surface')&&!Object.hasOwn(sent,'model'),
+        noErrors:!routine.errors.length&&!returned.errors.length,
       });
-      ok('focus ask: highlight only for stuck/returning tasks; truthful history context; principle-based prompt');
-      await stuck.page.close();
+      ok('task Ask: neutral despite age/sessions/returns; JSON-quoted task only');
+      await returned.page.close();
     }
 
     // Habit requests use the real UI on an isolated origin, with deliberately held replies.
@@ -757,6 +748,88 @@ try {
       else window.__asks[index].reply(data,mode);
       await new Promise(requestAnimationFrame);
     },{index,data,mode});
+    // Task help may be a question, action or acknowledgement; habits remain questions.
+    {
+      const {page,errors}=await openPage({extraSeed:{today_ai_key_claude:'test-key'}});
+      await page.evaluate(()=>{
+        window.__asks=[];window.__spoken=[];
+        window._memoryRecordSpokenLine=(...args)=>window.__spoken.push(args);
+        const original=window.fetch;
+        window.fetch=(url,options)=>{
+          if(!String(url).includes('ai-assist'))return original(url,options);
+          return new Promise((resolve,reject)=>window.__asks.push({body:JSON.parse(options.body),signal:options.signal,reject,
+            reply:(data,mode)=>resolve({ok:mode!=='http',status:mode==='http'?503:200,json:()=>mode==='json'?Promise.reject(new SyntaxError('Malformed fixture')):Promise.resolve(data)})}));
+        };
+      });
+      await page.click('.task-text');
+      await page.waitForFunction(()=>document.querySelector('.focus-timer.open'));
+      const automaticCalls=await page.evaluate(()=>window.__asks.length);
+      const firstFailure=await ask(page);await reply(page,firstFailure,{},'http');
+      await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').textContent==='No reply to show. Try again.');
+      await expectAll('running task retry status is visible',{
+        visibleAndFits:await page.$eval('.focus-ai-timer-btn',button=>{
+          const style=getComputedStyle(button),rect=button.getBoundingClientRect();
+          const clock=document.getElementById('focusTime').getBoundingClientRect();
+          return style.display!=='none'&&style.visibility==='visible'&&Number(style.opacity)>0&&rect.right<clock.left;
+        }),
+        noAutoRetry:await page.evaluate(()=>window.__asks.length===1&&window.__spoken.length===0),
+      });
+      await page.click('#focusTime');
+      const before=await page.evaluate(()=>({requests:window.__asks.length,session:localStorage.getItem('today_focus_session')}));
+      const valid=['Which input reproduces the export crash?', 'Restore a small folder and check the photos before the full restore.', 'The named follow-up date is enough for this task.'];
+      for(const text of valid){
+        const index=await ask(page);await reply(page,index,{content:text});
+        await page.waitForFunction(text=>document.querySelector('.focus-ai-timer-btn').textContent===text,{},text);
+        await expectAll('task help accepted',{accessible:await page.$eval('.focus-ai-timer-btn',(button)=>button.textContent===button.getAttribute('aria-label'))});
+        await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
+      }
+      const invalid=[[{content:''}],[{content:'Which file? Why that one?'}],[{content:'Which file? Then restore it.'}],[{content:'Try it!'}],
+        [{content:'Check one file.\nThen restore.'}],[{content:Array(20).fill('word').join(' ')}],[{content:42}],[{error:'synthetic'}],
+        [{},'http'],[{},'json'],[{},'network']];
+      for(const [data,mode]of invalid){const index=await ask(page);await reply(page,index,data,mode);await page.waitForFunction(()=>!document.querySelector('.focus-timer').classList.contains('ai-active'));await expectAll('task request failure is retryable',{statusVisible:await page.$eval('.focus-ai-timer-btn',button=>button.textContent==='No reply to show. Try again.'&&button.getAttribute('aria-label')===button.textContent)});}
+      await page.evaluate(()=>{const original=window.setTimeout;window.__restoreTimeout=()=>{window.setTimeout=original};window.setTimeout=(callback,ms,...args)=>{if(ms===25000)window.__expireTaskAsk=callback;return original(callback,ms,...args)};});
+      const timedOut=await ask(page);
+      await page.evaluate(()=>{window.__expireTaskAsk();window.__restoreTimeout();});
+      await reply(page,timedOut,{content:valid[0]});
+      await expectAll('task timeout preserves retry status',{
+        aborted:await page.evaluate(index=>window.__asks[index].signal.aborted,timedOut),
+        lateNotRecorded:await page.evaluate(()=>window.__spoken.length===3),
+        retryVisible:await page.$eval('.focus-ai-timer-btn',button=>button.textContent==='No reply to show. Try again.'),
+      });
+      const old=await ask(page);
+      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
+      const fresh=await ask(page);await reply(page,fresh,{content:valid[0]});
+      await page.waitForFunction(text=>document.querySelector('.focus-ai-timer-btn').textContent===text,{},valid[0]);
+      await reply(page,old,{},'network');
+      await expectAll('old task failure cannot paint on new help',{freshKept:await page.$eval('.focus-ai-timer-btn',button=>button.textContent)===valid[0]});
+      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
+      const stale=await ask(page);
+      await page.evaluate(()=>{const row=document.querySelector('.task.focused');row.querySelector('.task-text').textContent='Changed task';manualTasks[0].text='Changed task';});
+      await reply(page,stale,{content:valid[0]});
+      await page.waitForFunction(()=>!document.querySelector('.focus-timer').classList.contains('ai-active'));
+      const retry=await ask(page);await reply(page,retry,{message:valid[1]});
+      await page.waitForFunction(text=>document.querySelector('.focus-ai-timer-btn').textContent===text,{},valid[1]);
+      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
+      const afterHelp=await page.evaluate(()=>JSON.parse(localStorage.getItem('today_focus_session')));
+      const pending=await ask(page);await page.keyboard.press('Escape');await reply(page,pending,{content:valid[0]});
+      await expectAll('task help lifecycle',{
+        explicitOnly:automaticCalls===0,
+        acceptedOnly:await page.evaluate(()=>window.__spoken.length===5&&window.__spoken.every(([type])=>type==='focus question')),
+        abortOnExit:await page.evaluate(index=>window.__asks[index].signal.aborted,pending),
+        resetAccessible:await page.$eval('.focus-ai-timer-btn',button=>button.getAttribute('aria-label'))==='Ask for focus help',
+        noErrors:!errors.length,
+      });
+      // The accepted help/failures did not advance or reset a paused timer.
+      const sessionBeforeExit=JSON.parse(before.session);
+      await expectAll('task help preserves session',{
+        owner:afterHelp.taskId===sessionBeforeExit.taskId,
+        paused:afterHelp.paused===true&&sessionBeforeExit.paused===true,
+        remainingUnchanged:afterHelp.rem===sessionBeforeExit.rem,
+      });
+      ok('task Ask: question/action/restraint, format rejection, rename/exit fencing and retry; no automatic request');
+      await page.close();
+    }
+
     const question = 'Which book would you like to spend time with?';
 
     {
@@ -792,7 +865,7 @@ try {
       await expectAll('accepted habit question accessibility',{noViolations:violations.length===0});
       await page.click('.focus-ai-timer-btn');
       await page.waitForFunction(()=>!document.querySelector('.focus-timer').classList.contains('ai-active'));
-      await expectAll('habit question dismissal label',{askLabelRestored:await page.$eval('.focus-ai-timer-btn',button=>button.getAttribute('aria-label'))==='Ask for a focus question'});
+      await expectAll('habit question dismissal label',{askLabelRestored:await page.$eval('.focus-ai-timer-btn',button=>button.getAttribute('aria-label'))==='Ask for focus help'});
       ok('habit Ask: explicit, name-only, no forced cue/25-minute framing; existing timer and spoken-line storage');
       await page.close();
     }
@@ -898,7 +971,7 @@ try {
     }
     ok('habit Ask: no configured AI or touch device makes no request');
 
-    console.log('\nFocus tests passed (post-extraction, 24 check groups).');
+    console.log('\nFocus tests passed (post-extraction, 25 check groups).');
   }
 } finally {
   if (browser) await browser.close();

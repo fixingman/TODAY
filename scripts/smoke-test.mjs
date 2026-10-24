@@ -58,21 +58,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     console.log('  ✓ every content input opts out of browser autofill (BUG-095)');
   }
 
-  // Focus Companion time-reference guard (BUG-073): a broad period such as
-  // "late night" is not enough for the model to produce a concrete question.
-  // Keep both halves of the contract present: exact local time in context and
-  // an instruction to use that value instead of vague wording.
-  // Since focus mode was extracted to assets/focus.js (v2.65.13), search both files.
-  const focusSrc = await readFile(join(ROOT, 'assets/focus.js'), 'utf8');
-  const combinedSrc = indexSrc + focusSrc;
-  const hasFocusLocalTime = /_localTime\s*=\s*_now\.toLocaleTimeString\(\[\],\s*\{\s*hour:\s*'numeric',\s*minute:\s*'2-digit'\s*\}\)/.test(combinedSrc)
-    && combinedSrc.includes("_ctx.push('local time ' + _localTime + ' (' + _period + ')')");
-  const hasFocusTimeInstruction = combinedSrc.includes('use the supplied exact local time — never a vague phrase like "this late."');
-  if (!hasFocusLocalTime || !hasFocusTimeInstruction) {
-    console.error('✗ FAIL — Focus Companion must send exact local time and forbid vague time references (BUG-073).');
-    process.exit(1);
-  }
-  console.log('  ✓ Focus Companion exact-time context');
+  // Focus Ask no longer receives clock/history context (v2.97.10). The former
+  // BUG-073 exact-time assertion is obsolete; focus-test checks the actual
+  // name-only request boundary and delivery lifecycle through the browser.
 
   const privacyCopy = 'Private by design: no account, no analytics. You own your data and choose every connection.';
   if (!indexSrc.includes(privacyCopy)) {

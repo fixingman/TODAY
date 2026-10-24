@@ -139,7 +139,7 @@ Run ProductThinking's "what already exists?" reflex against this table before ad
 |---|---|---|
 | `completionsByHour` → `peakHour` | `appMemory.patterns` / `.preferences` | energy-rhythm lines, proactive observations |
 | `taskKeywords` (added count, avg days to complete) | `appMemory.patterns` | historical task keyword stats — distinct from `dragKeywords` |
-| `dragKeywords` (rolling 100-word list) | `appMemory.preferences` | words extracted from tasks let go via triage (`_memoryOnTaskLetgo`, v2.52.0). Shown in memory panel when 10+ entries and a word appears 2+ times. **Used in focus companion (v2.65.0):** task words matched against this list (freq ≥ 2, len > 3) — if there's a hit, companion is told to name the avoidance pattern directly. |
+| `dragKeywords` (rolling 100-word list) | `appMemory.preferences` | words extracted from tasks let go via triage (`_memoryOnTaskLetgo`, v2.52.0). Shown in memory panel when 10+ entries and a word appears 2+ times. Excluded from task Focus Ask in v2.97.10: deferred words cannot establish avoidance or an actionable blocker. |
 | `focusMinutesTotal`, `bestStreak`, `moments` | `appMemory` | milestone observations; `focusMinutesTotal` also feeds a Noticed total-focus-hours milestone (v2.38.0) |
 | `dayStartCount` / `lateAdditions` | `appMemory.patterns` | planned-vs-emergent insight (proactive `reactive_pattern` observation only — considered for Noticed v2.38.0, dropped as a near-duplicate of that existing observation) |
 | `recentCompletedTasks` (30-day rolling, v2.29.0) | `appMemory` | `_memoryForAI()` and Monday context. Removed from Sunday in v2.71.12: unrelated titles encouraged semantic wordplay without evidence. Noticed uses behavioral aggregates, not task content, since v2.64.2. |

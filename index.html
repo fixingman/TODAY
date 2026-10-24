@@ -412,10 +412,6 @@
       pointer-events: auto;
     }
     .focus-ai-timer-btn:hover { opacity: 1; color: var(--text); border-color: var(--border); }
-    /* High-signal: this task is stuck or keeps returning — a hint, not a call to action.
-       Accent text only, just above the resting label; the border appears on hover. */
-    .focus-ai-timer-btn.high-signal { opacity: 0.8; color: var(--accent); }
-    .focus-ai-timer-btn.high-signal:hover { opacity: 1; border-color: var(--accent-glow); }
     /* Hide when paused text is showing (they share the left position) */
     #focusPaused.show ~ .focus-ai-timer-btn { opacity: 0; pointer-events: none; }
     /* Hide when session is complete — bar turns into restart prompt */
@@ -4613,16 +4609,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─ Version ─
-const DEV_HOURS     = '362.0h';
+const DEV_HOURS     = '362.5h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.97.10': 'Focus Ask stays with your task, clarifies what matters, and respects a deliberate wait.',
   '2.97.9': 'Maintenance — more accurate responsiveness checks.',
   '2.97.8': 'Sync keeps the newer task move and no longer warns when both devices agree.',
-  '2.97.7': 'Morning nudges can recover when an earlier reading was mistakenly withheld.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

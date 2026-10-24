@@ -22,6 +22,8 @@ Deterministic policy lives in DOM-free modules with direct unit tests: `assets/s
 
 ## Memory → HOW DAYS FELT relationship (v2.95.1)
 
+**Planned feedback/evaluation work (2026-10-24):** [two-loop implementation plan](../../docs/feedback-learning-plan.md). Development-only `scripts/writing-evaluator.mjs` provides a strict current-evidence writing critique with injected transport, one-call timeout/abort/staleness handling and no usefulness score. It is not wired to the app. Balanced ordinary feedback and separate sensitive feeling reactions remain proposed; existing runtime behavior below is unchanged. Offline tests verify contracts, not a model's semantic accuracy.
+
 `assets/reflections.js` chooses one aggregate from opted-in, retained reflected evenings joined to same-date outcomes on-device. The writer gets only the chosen feeling, both action contexts and group counts. It must start “On evenings you reflected,” say the user marked that feeling more often, copy the selected comparison in order, and write one complete sentence of at most 40 words. Bringing a task back from Past replaces opaque “reviving” wording; task-focused comparisons name recorded focus rather than claiming a whole focused day. The output guard rejects incomplete, overlong, causal, multi-feeling or swapped comparisons; rejected replies leave the opted-in section hidden, without stats.
 
 The transient canonical evidence key includes local day/window, consent choice/version, deletion watermark, valid retained reflection values/versions and relevant same-date outcome fields (outcome, obligation, focus sessions, backfill status). It excludes unrelated outcomes and storage order. Each evidence snapshot gets at most one attempt in the current session state. Changes invalidate both the result and queued/pending requests; an epoch plus current-source check fences replies after newer requests, deletion or consent withdrawal. Local outcome/reflection changes, sync including outcome-only merges, new-day cleanup and foreground return reconcile the source. An unchanged valid relationship keeps its wording. Neither source identity nor source rows are persisted, synced or included in AI input. Existing provider/auth route and backup schema remain unchanged.
@@ -30,27 +32,19 @@ The transient canonical evidence key includes local day/window, consent choice/v
 
 ## Focus Companion (`_focusAskAI`)
 
-A desktop-only question inside the focus timer bar, explicitly requested through ✦ ask. For tasks, one question under 20 words should change how the next 25 minutes go. If the task already has Gmail or web context in focus, the button acts on that instead (Draft reply / open the link). The task path builds its own `_ctx` list; it does not use `_memoryForAI()`.
+A desktop-only, explicitly requested line inside the existing focus timer bar. Task Ask clarifies a consequential unknown before proposing work; otherwise it may offer one supported step or acknowledge an already-sufficient action/wait. Gmail Draft reply and web-link shortcuts retain their separate paths. No general chat, answer field, new collection or background generation.
 
-### Signals (user message, `_ctx`)
+### Task input (v2.97.10)
 
-| Signal | When |
-|---|---|
-| N earlier focus sessions on this task (`focusSessions`, or `_getTrelloFocusTotal()` for cards) — "one of them earlier today", or "last session N days ago" when ≥2 days | sessions > 0; otherwise "never focused on before" |
-| On the list N days | age ≥ 3 days |
-| Once let go, then brought back | `revived` |
-| Put off to Soon, then pulled back | `returnedFrom === 'soon'` |
-| Contains words they usually put off | task words (len > 3) with frequency ≥ 2 in `appMemory.preferences.dragKeywords` |
-| Most common let-go reason | one reason ≥ 35% of ≥ 8 let-gos (`appMemory.patterns.letgoReasons`) |
-| Local time + period | always — exact local time, morning / afternoon / evening / late night |
-| Peak productive hour | `peakHour` ± 1h |
-| Other focus sessions today | `stat_focus_mins_today ÷ 25` ≥ 1 |
+Only `Task: <JSON-quoted task text>` enters the user message. Session/age/return counts, person-wide let-go reasons, drag-word matches, clock/peak-hour/daily-session context, other tasks and confirmed Memory inferences are excluded. They cannot establish the task's actual stage or reason for waiting. The request does not use `_memoryForAI()`. Ask keeps neutral muted availability; history no longer highlights it.
 
-The confirmed inferences Memory → PATTERNS shows (`Today.use('memory').shownInferences()` — at most 3, newest support first, restatements of computed lines dropped; v2.95.7) are appended to the system prompt as "What we know about the user: …". The button gains a quiet `high-signal` state when stuck/returning signals align.
+### Task response (principles, no examples or taxonomy)
 
-### Prompt (principles, no taxonomy)
+Ask only if a specific unknown materially changes the next action; do not manufacture an uncertainty. The question is the whole reply for the person to settle, not a promise of a subsequent chat turn. A concrete step is appropriate only when supported without choosing an unknown intention or stage of work. Preserve named choices and deliberate waits; no destructive operation, substituted outcome, manufactured obligation, urgency or missed-promise claim. If the action or wait is already sufficient, acknowledge only that task rather than declaring the person has nothing else to do. No generic useful-progress, priority, first-step or 25-minute finish-line question. Age, sessions and returns do not establish avoidance, an unmade decision or unrecorded work never happening.
 
-The question belongs to this task and is built from its own words; one that would fit any task is a failure. History aims the question and is never read back (no counts, day numbers or labels). A returning or long-worked task usually hides one unmade decision or unclear first step; a new task needs its finish line for these 25 minutes; the rest of the list matters only if something should come first. About the work, not mood: no check-ins, encouragement or obvious yes/no. Time references use the supplied exact local time. The earlier v2.65 question-type taxonomy was replaced by these principles (v2.92.5). UI/state: `architecture/Focus.md` → Companion Question.
+One question, action or acknowledgement under 20 words. Runtime accepts only nonempty, single-line prose below 20 whitespace-delimited words, without exclamation marks; a question must have exactly one terminal question mark. Invalid replies and transport/HTTP/timeout failures stop loading without recording or an automatic retry. For the still-current task, the same button says “No reply to show. Try again.”; one tap requests again. Stale/renamed/exited/config-changed owners reset quietly and cannot paint a failure onto another request. Habit failure behavior stays quiet. These are format checks, not semantic grounding or usefulness certification. Accepted text keeps the historical private `spokenLines` “focus question” type even when it is a step/acknowledgement; no schema change.
+
+The October 24 comparison used 72 fictional outputs on the existing local Claude CLI, not the deployed model: current 3 useful, narrower question 16 useful, action-first 14 useful + 5 appropriate acknowledgements. Action-first also chose unsupported deletion/statement constraints and never asked a question. The revised clarification-first combined prompt is a new iteration, not the measured winner. `Backlog.md` owns real-use re-observation; repeating an angle across requests remains possible because no per-task answer/prose association was added. UI/state: `architecture/Focus.md` → Companion Help.
 
 ### Habit-specific request (v2.97.0; release approved October 17)
 
@@ -58,7 +52,7 @@ The same explicit Ask action resolves an active habit by its existing ID and use
 
 The separate principles-only prompt asks for a useful, concrete choice grounded in the named action/object: the person's own preference or a practical arrangement, not a menu of supplied alternatives or an inventory of materials. Use natural language about what would suit them; do not assume enthusiasm. Respect the named intention without corrective emphasis. A routine or setting can matter, but cue planning is not the compulsory shape. No invented routines, difficulties, motives, availability, behavior or completion claims; no reporting/saving an answer. The name is untrusted data, not instructions. Output must be one question under 20 words; empty, malformed, multiline, multiple-question and exclamatory replies reset quietly. These syntactic checks do not certify grounding or usefulness; configured-AI wording review and real-use judgment remain separate gates.
 
-Requests for both task and habit questions belong to the current focus interaction. Dismiss/close aborts and invalidates them; late headers/body/errors cannot paint or record into another request. Habit delivery rechecks name, active status, completion and the 3am habit-day; both paths recheck the configured AI connection. Accepted prose uses the existing private `spokenLines` focus-question record, not a saved cue/answer or a new analytics store. No daily writer, pool, Sunday or mobile-focus expansion.
+Requests for both task help and habit questions belong to the current focus interaction. Dismiss/close aborts and invalidates them; late headers/body/errors cannot paint or record into another request. Habit delivery rechecks name, active status, completion and the 3am habit-day; both paths recheck the configured AI connection. Accepted prose uses the existing private `spokenLines` focus-question record, not a saved cue/answer or a new analytics store. No daily writer, pool, Sunday or mobile-focus expansion.
 
 ---
 

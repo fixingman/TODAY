@@ -133,9 +133,17 @@ Procrastination is emotion-driven, not a planning failure. The cycle: anticipate
 **Key behavioral signals:**
 - Substitution — active on small tasks while avoiding one big one
 - Deadline rush — confirms the task was valued but avoided
-- Zero focus sessions on an old task — the strongest pure-avoidance signal (not slow progress, just not started)
+- Zero recorded focus sessions is missing app evidence, not proof of avoidance or that work never started; intentional waiting and work outside the timer remain possible
 
 **Product implication:** the companion should surface *what is happening* without speculating about *why*. "This has been on the list 12 days and hasn't been opened" is an observation. The user draws their own conclusion. This is also why the Wallpaper Test matters: a repeated phrase stops being an observation and becomes a verdict.
+
+### Task-level help: clarification before prescription (October 24, 2026)
+
+Can found Focus Ask generic even when highlighted. [TaskGenies](https://hci.stanford.edu/publications/2013/TaskGenies/TaskGenies-ToCHI2013.pdf) supports testing externally supplied concrete action plans, but its studies do not establish LLM advice quality. [STaR-GATE](https://arxiv.org/abs/2403.19154) evaluates questions through subsequent response improvement in simulated dialogue; TODAY currently displays one line, so borrow the outcome criterion rather than claiming the same effect. [Context engineering](https://www.anthropic.com/research/effective-context-engineering-for-ai-agents) supports curating relevant input; removing unrelated person/list context here remains a local hypothesis, not an isolated causal finding.
+
+A source-label-masked Codex review of 72 fictional local-Claude outputs rated current Ask 3/24 useful, narrower questions 16/24, and action-first help 14/24 useful plus 5 appropriate acknowledgements. Action-first also assumed photo deletion and an exact bank statement period and never asked a question. This was a selected stress set, with overlapping prompt author/reviewer and a different model/transport from the app, not independent human or production evidence. Two current-arm repeat inputs changed unrelated context; they cannot measure unchanged-input repetition. No replacement sampling.
+
+The accepted iteration asks only about consequential uncertainty, otherwise permits a supported step or deliberate wait, and removes the history-density attention cue. Task input is the name alone; existing count/history records remain stored for their other surfaces. Counts/age/returns do not reveal missing decisions. No new task field, chat, per-task prose history, collection or telemetry. The combined prompt is a new iteration rather than the measured winner; real-use usefulness remains open in `Backlog.md`. The local report, exact fixtures, raw outputs and locked per-output judgments remain in `.context/focus-ask-comparison/`.
 
 ### Zeigarnik Effect — unfinished tasks occupy mental space
 

@@ -617,8 +617,7 @@ try {
     await page.close();
   }
 
-  // At most three confirmed inferences, newest support first, and the focus companion
-  // reads exactly that selection.
+  // PATTERNS shows at most three confirmed inferences, newest support first.
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
@@ -644,7 +643,7 @@ try {
       };
     });
     await expectAll('capped inferences', { ...result, noErrors: errors.length === 0 });
-    ok('confirmed inferences: at most three, newest support first, one selection for PATTERNS and focus');
+    ok('confirmed inferences: at most three, newest support first, one selection for PATTERNS');
     await page.close();
   }
 

@@ -37,6 +37,7 @@ const SUITE = [
   'task-bounce-test',
   'assistant-test',
   'ai-assist-unit-test',
+  'writing-evaluator-test',
   'suggestion-policy-unit-test',
   'suggestion-outcomes-test',
   'nudge-test',

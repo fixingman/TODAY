@@ -156,19 +156,19 @@ can't resurrect after a deliberate end.
 
 ---
 
-## Companion Question (task path; habit support implemented in v2.97.0)
+## Companion Help (task iteration v2.97.10; habit questions v2.97.0)
 
-A `✦ ask` button lives inside the focus timer bar. Tapping it asks the AI for a single question to sit with before the clock takes over.
+A `✦ ask` button lives inside the focus timer bar. Tapping it asks for one bounded line of help for the selected task; habits retain their separate question-only path.
 
-**Trigger:** click `.focus-ai-timer-btn` → sets `ai-active` on `.focus-timer` → `_focusAskAI()` replaces the button label with `thinking…`, then with the returned question. Tapping the question again dismisses it and restores `✦ ask`.
+**Trigger:** click `.focus-ai-timer-btn` → sets `ai-active` on `.focus-timer` → `_focusAskAI()` replaces the button label with `thinking…`, then with the returned help. Tapping it again dismisses it and restores `✦ ask`.
 
-**Task prompt:** task text plus total sessions/recency, age, revived/deferred state, exact local time, peak-hour match, sessions today, up to five pending tasks and the at-most-three confirmed inferences currently shown in Memory. The model is asked for one question under 20 words, grounded in the task rather than a generic question type. Time references must use the supplied exact clock value. The v2.97.0 habit change preserves this prompt and payload; the regression pins its unchanged empty-inference prompt.
+**Task prompt:** JSON-quoted task text only. No recorded focus/age/return history, other tasks, clock, person-wide patterns or Memory inferences. Clarify a consequential uncertainty first; otherwise offer one task-supported action or acknowledge a sufficient action/wait. No generic progress/finish-line question, invented blocker or forced 25-minute frame. Questions, steps and acknowledgements share a nonempty, single-line, under-20-word format guard; questions have one terminal question mark. Invalid results or failures stop loading without recording or another generation; a current task shows “No reply to show. Try again.” in the same button for an explicit retry. Stale owners reset quietly. Format is not a usefulness test; full contract in `architecture/AI.md`.
 
 **Habit prompt:** an explicitly requested, separate name-only question about a useful choice for that habit. No automatic question on entry, new field, saved cue/answer, extra context or forced routine-planning question. The 25-minute timer remains as-is; the question does not imply the habit needs all 25 minutes. A single under-20-word question is accepted syntactically, otherwise Ask resets quietly. Accepted wording retains the existing private spoken-line record. No mobile focus entry or daily-nudge change; full privacy/quality limits: `architecture/AI.md` → Habit-specific request.
 
-**Signal density highlight:** `_computeSignalDensity(taskObj, taskText)` counts task-specific session thresholds (≥2, ≥4), age ≥5 days, last worked ≥2 days ago, revived, Soon return and drag-word match. Worked-today and person-wide let-go/time signals do not increase it. At ≥3 signals the existing `.high-signal` label treatment hints at Ask. Habits do not acquire a new attention signal from their counts or history.
+**Neutral availability:** Ask keeps its existing muted treatment. The history-density highlight and its CSS are removed: an old or returning task does not establish that useful help is available. No replacement badge, background generation or new attention signal.
 
-**State:** displayed question state is per-interaction, not restored on reload (accepted prose still uses existing private spoken history). `closeUI` or another tap resets it, aborts pending work and restores the Ask label. Owner/source/connection checks fence late replies, including delayed response bodies and errors after a newer Ask. Habit edits/archive/removal/completion, detached rows and habit-day changes withhold pending delivery. The 25s deadline includes body parsing. Timer/session state is not changed by a request or failure. The question becomes the button's accessible name and polite announcement; dismissal restores the original label. Silent no-op if AI is not configured.
+**State:** displayed help state is per-interaction, not restored on reload (accepted prose still uses existing private spoken history). `closeUI` or another tap resets it, aborts pending work and restores the Ask label. Owner/source/connection checks fence late replies, including delayed response bodies and errors after a newer Ask. Habit edits/archive/removal/completion, detached rows and habit-day changes withhold pending delivery. The 25s deadline includes body parsing. Timer/session state is not changed by a request or failure. The help becomes the button's accessible name and polite announcement; dismissal restores “Ask for focus help”. Silent no-op if AI is not configured.
 
 **Motion:** `thinking…` pulses through WAAPI and is skipped for `prefers-reduced-motion`. The animation is cancelled on success, dismissal, failure, and focus close.
 
