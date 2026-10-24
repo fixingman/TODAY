@@ -213,6 +213,8 @@ v2.96.0 may add a minimal derived same-task Calendar relationship to the ordinar
 | `today_reflections` | JSON array `[{date, feeling, updatedAt}]` | per-date LWW union on sync; pruned to 30 calendar days; `feeling` ∈ `{joyful, alive, content, calm, present, scattered, tense, frustrated, drained, sad}` plus legacy `off` (no longer offered) |
 | `today_reflections_cleared_at` | ISO string | deletion watermark; max-wins on sync; entries ≤ watermark are discarded |
 | `today_reflection_intro_seen_at` | ISO string | **local-only** — 7-day cooldown before re-offering the intro; intentionally never backed up to Dropbox |
+| `today_reflection_feedback` | JSON `{version:1, consentAt, records}` | Separate sensitive derived readings/reactions, enabled by an explained first vote; never `appMemory`. At most 60 records / 250,000 serialized characters, 30 days from first display. SHA-256 ids bind claim, support, wording and consent/deletion generation. Revision includes explicit null and `reactedAt`; `votedThrough` bounds genuinely new evenings. Natural source expiry strips wording/source values, retaining only bounded user withholding; edits/withdrawal drop affected readings. |
+| `today_reflection_feedback_cleared_at` | ISO string | Feedback-only clear watermark, max-wins. Full reflection/Memory clear or withdrawal also removes feedback consent/readings; stale backup rows cannot restore cleared feedback. |
 
 ### DreamBank keys (v2.93.0)
 

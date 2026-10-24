@@ -3102,6 +3102,12 @@
   }
   .nudge-react-btn:hover, .nudge-react-btn:focus-visible { color: var(--text); }
   .nudge-react-btn.on { color: var(--accent); }
+  .reflection-reading { background: none; border: 0; padding: 0; text-align: left; font-family: inherit; cursor: pointer; }
+  .nudge-react.reflection-reaction { flex-wrap: wrap; max-height: none; }
+  .reflection-feedback-manage { margin-top: var(--space-4); }
+  .reflection-feedback-manage summary { cursor: pointer; }
+  .reflection-feedback-manage .memory-item-text { overflow-wrap: anywhere; }
+  .reflection-feedback-manage summary, .reflection-reaction button { scroll-margin-block: calc(var(--add-task-bar-height) + env(safe-area-inset-bottom, 0px) + var(--space-4)); }
   .nudge-reason {
     display: flex; flex-wrap: wrap; align-items: center;
     gap: var(--space-1) var(--space-2);
@@ -4609,16 +4615,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─ Version ─
-const DEV_HOURS     = '362.5h';
+const DEV_HOURS     = '363.0h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.98.0': 'Feeling insights can learn from your feedback, with saved votes you can review or clear.',
   '2.97.10': 'Focus Ask stays with your task, clarifies what matters, and respects a deliberate wait.',
   '2.97.9': 'Maintenance — more accurate responsiveness checks.',
-  '2.97.8': 'Sync keeps the newer task move and no longer warns when both devices agree.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

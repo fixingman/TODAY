@@ -164,6 +164,8 @@ Run ProductThinking's "what already exists?" reflex against this table before ad
 
 Evening reflections (ten offered categorical feelings after triage; older “off” records stay valid) are a **separate sensitive record** from the main `appMemory` object. They live in four dedicated localStorage keys (`today_reflection_policy`, `today_reflections`, `today_reflections_cleared_at`, `today_reflection_intro_seen_at`) with policy, records and the deletion watermark backed up in Dropbox; the intro cooldown stays local.
 
+**Feedback in v2.98.0:** `today_reflection_feedback` and its clear watermark add a separate sensitive derived store after an explained first vote; merely viewing does not enroll an existing user. A vote targets exact wording/support, never changes an evening feeling, and never enters general Memory or another model surface. Missing insights can be managed through a collapsed Memory-footer disclosure. Thirty-day/sixty-record bounds apply; source digests are not anonymization. Natural source expiry erases wording/source values while retaining only bounded user withholding, so the date alone cannot revive a missed claim. All-source clear/withdrawal erases feedback too. Initial sync must settle before feeling generation; the development critic stays out of live delivery.
+
 Design decisions:
 
 - **Opt-in with visible payoff**: a one-time consent prompt after the user's first eligible triage; nothing is collected before "Remember" is tapped.

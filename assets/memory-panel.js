@@ -1,4 +1,3 @@
-// TODAY — Memory panel and abstraction; start before init.
 (function() {
   'use strict';
   let started = false;
@@ -8,11 +7,9 @@
 
     let _memoryClearPending = false;
     let _memoryAbstractRunning = false;
-    // PATTERNS shows its first rows; "show all" keeps every row and its controls.
     const PATTERNS_SHOWN = 6;
     let _patternsOpen = false;
     let _knownWaitingOpen = false;
-    // Computed PATTERNS lines from the last render; the abstraction must not restate them.
     let _computedPatterns = [];
 
     function _parseAIText(data) {
@@ -25,6 +22,7 @@
       const panel = $.memoryPanel;
       const isOpening = !panel.classList.contains('open');
       if (isOpening) {
+        Today.use('reflections').endFeedbackVisit();
         panel.style.animation = '';
         panel.classList.add('open');
       } else {
@@ -61,7 +59,6 @@
         return `<div class="memory-item">` +
                 (item.isNew ? `<span class="memory-item-new"></span>` : '') +
                 `<span class="memory-item-text">${esc(item.text)}</span>` +
-                // Literal action names must match component registrations.
                 (item.action ? `<button type="button" class="memory-item-btn" data-today-click="memory.kind-restore" data-kind="${esc(item.action.kind)}">${esc(item.action.label)}</button>` : '') +
                 (item.revokeKey ? `<button type="button" class="memory-item-btn" data-today-click="memory.item-revoke" data-revoke-key="${esc(item.revokeKey)}">dismiss</button>` : '') +
                 (item.rejectKey ? `<button type="button" class="memory-item-btn" data-today-click="memory.hypothesis-reject" data-hypothesis="${esc(item.rejectKey)}" aria-label="Not true about me: ${esc(item.text)}">not me</button>` : '') +
@@ -83,7 +80,6 @@
       const _dowNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
       const _parseDowLocal = iso => { const [y,mo,d] = iso.split('-').map(Number); return new Date(y, mo-1, d).getDay(); };
       const allDailyHistory = safeJSON('today_daily_history', []);
-      // Migrate cumulative added totals to per-day deltas once.
       if (allDailyHistory.length > 0 && !allDailyHistory[0].tasksAddedFixed) {
         allDailyHistory.sort((a, b) => a.date.localeCompare(b.date));
         for (let _i = allDailyHistory.length - 1; _i >= 0; _i--) {
@@ -95,7 +91,6 @@
         }
         localStorage.setItem('today_daily_history', JSON.stringify(allDailyHistory));
       }
-      // Zero corrupted migrated totals restored by old max-wins merges.
       if (!localStorage.getItem('today_tasksAdded_v2')) {
         let _dirty = false;
         for (const _e of allDailyHistory) {
@@ -109,7 +104,6 @@
       const weekAgoISO = _localISO(weekAgo);
       const weekHistory = allDailyHistory.filter(e => e.date >= weekAgoISO);
 
-      // SEMANTIC: stable identity traits
       const semanticItems = [];
       const peakHour = m.preferences?.peakHour;
       if (peakHour !== null && peakHour !== undefined) {
@@ -146,7 +140,6 @@
       const best = m.patterns?.bestStreak || 0;
       const _curStreak = parseInt(localStorage.getItem('stat_streak') || '0');
       if (best >= 3 && best > _curStreak) semanticItems.push({ text: `longest streak: ${best} day${best === 1 ? '' : 's'}` });
-      // Need 14 entries and three weekdays with repeated observations.
       if (allDailyHistory.length >= 14) {
         const byDow = {};
         allDailyHistory.forEach(e => {
@@ -166,7 +159,6 @@
         }
       }
 
-      // EPISODIC: what has been happening lately
       const episodicItems = [];
       const recent = (m.recentCompletedTasks || []);
       const thisWeek = recent.filter(e => e.date >= weekAgoISO);
@@ -174,7 +166,6 @@
         episodicItems.push({ text: `${thisWeek.length} task${thisWeek.length === 1 ? '' : 's'} done in the last 7 days` });
       }
 
-      // Best day this week
       if (weekHistory.length >= 2) {
         const bestDay = weekHistory.reduce((a, b) => b.tasksDone > a.tasksDone ? b : a);
         if (bestDay.tasksDone >= 3) {
@@ -182,13 +173,11 @@
           episodicItems.push({ text: `best day this week: ${dayName} (${bestDay.tasksDone} tasks)` });
         }
       }
-      // Average tasks on active days this week
       const activeDays = weekHistory.filter(e => e.tasksDone > 0);
       if (activeDays.length >= 3) {
         const avg = activeDays.reduce((s, e) => s + e.tasksDone, 0) / activeDays.length;
         episodicItems.push({ text: `averaging ${avg.toFixed(1)} tasks on active days this week` });
       }
-      // Started-but-not-closed: returning tasks that already have focus sessions
       const _startedStillOpen = Object.values(m.returningTasks || {})
         .filter(t => t && (parseInt(t.focusSessions) || 0) > 0);
       if (_startedStillOpen.length >= 2) {
@@ -199,15 +188,12 @@
         episodicItems.push({ text: i.text, isNew: i.isNew, rejectKey: `episodic:${i.id}` });
       });
 
-      // Outcome contrasts follow the timing facts inside PATTERNS.
       semanticItems.push(..._memoryOutcomePatterns(m));
-      // Confirmed AI inferences — the same capped selection the focus companion reads.
       _computedPatterns = semanticItems.map(i => i.text);
       for (const i of _memoryShownInferences()) {
         semanticItems.push({ text: i.text, isNew: i.isNew, rejectKey: `${i.type}:${i.id}` });
       }
 
-      // META: what today knows it knows
       const metaItems = [];
       if (m.firstSeen) {
         const _calDays = Math.round((Date.now() - new Date(m.firstSeen + 'T12:00:00').getTime()) / 86400000);
@@ -236,7 +222,6 @@
         metaItems.push({ text: `still learning: ${coverageNotes.join(' · ')}` });
       }
 
-      // KNOWN presents recorded facts before interpretation.
       const _fmtDay = iso => {
         const d = new Date(String(iso).slice(0, 10) + 'T00:00:00');
         return isNaN(d.getTime()) ? String(iso) : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -284,7 +269,6 @@
         metaItems.push({ text: `30 days · ${c('done')} done · ${c('letgo')} let go · ${c('soon_pull')} to Soon · ${c('revive')} brought back` });
       }
 
-      // Human headings map to the existing typed slots.
       el.innerHTML =
         typeBlock('KNOWN', '— what today has on record, not what it concludes', knownItems,
           'nothing on record yet — this fills as tasks come and go',
@@ -316,6 +300,7 @@
           `<button class="memory-clear-btn" data-today-click="memory.clear-request">clear all memory</button>` +
           `<button type="button" class="memory-conn-link" data-today-click="memory.connections">Connections →</button>` +
           `</div>`;
+      Today.use('reflections').renderFeedbackFooter(footer);
     }
 
     function _memoryGoToConnections() {
@@ -351,7 +336,6 @@
           dayStartCount: null, dayStartDate: null, dayShapeState: null,
           inlineSuggestions: { offered: 0, applied: 0, dismissed: 0, autoDismissed: 0 },
         };
-        // Undated hypotheses need ID tombstones to prevent sync resurrection.
         const _clearedIds = ['semantic', 'episodic', 'procedural']
           .flatMap(t => (appMemory.memory?.[t] || []).map(i => i && i.id).filter(Boolean));
         appMemory.clearedHypothesisIds = (appMemory.clearedHypothesisIds || []).concat(_clearedIds).slice(-300);
@@ -372,7 +356,6 @@
         appMemory.spokenLines = [];
         appMemory.taskOutcomes = [];
         appMemory.kindVerdicts = {};
-        // Clear summaries, preserving user-owned Dropbox dream files.
         appMemory.dreams = { index: [], dismissed: {} };
         // Max-wins clear watermark prevents remote dated rows returning.
         appMemory.clearedAt = new Date().toISOString();
@@ -385,7 +368,6 @@
     }
 
 
-    // Keep long lines whole; truncate only at a word.
     const MEMORY_ITEM_MAX = 160;
     function _memoryClip(text, max) {
       if (text.length <= max) return text;
@@ -394,11 +376,9 @@
       return (space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:—-]+$/, '') + '…';
     }
 
-    // Outcome contrasts. Each compares like with like: one population, one window.
     const _LR_LABELS = { not_relevant: 'not relevant', no_energy: 'no energy', lost_interest: 'lost interest', replaced: 'replaced' };
     function _memoryOutcomePatterns(m) {
       const items = [];
-      // Share among let-gos where a reason was chosen; ties name every top reason.
       const lr = m.patterns?.letgoReasons || {};
       const counts = Object.entries(lr).map(([k, v]) => [k, _lrCount(v)]).filter(([, c]) => c > 0);
       const total = counts.reduce((s, [, c]) => s + c, 0);
@@ -410,7 +390,6 @@
           items.push({ text: `most common let-go reason: ${top.join(' and ')} (${pct}%${top.length > 1 ? ' each' : ''})` });
         }
       }
-      // Each task counted once, by its latest done/let-go in the outcome log (90 days).
       // Rows with unknown framing (obligation null) stay out of both sides.
       const log = (m.taskOutcomes || []).filter(e => e && e.date && e.outcome);
       const _idOf = e => e.key || e.id;
@@ -430,7 +409,6 @@
         const a = Math.round(obl.done / obl.n * 100), b = Math.round(other.done / other.n * 100);
         if (Math.abs(a - b) >= 15) items.push({ text: `obligation tasks: ${a}% done vs ${b}% of other tasks` });
       }
-      // Let-gos 30–90 days old, one per task, linked to a later bring-back of the same task within 30 days.
       const DAY = 86400000, now = Date.now();
       const firstLetgo = new Map();
       for (const e of log) {

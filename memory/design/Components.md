@@ -325,6 +325,8 @@ AI restatements: confirmed items that near-duplicate a computed line (or each ot
 
 ## Memory Panel — "HOW DAYS FELT" (revised v2.95.1)
 
+**Feedback (v2.98.0):** the sentence becomes a native button with unchanged paragraph typography, disclosing the existing landed/not-really pattern. Its group label names the feeling insight. Before the first saved vote, inline copy explains up-to-30-day insight/feedback storage on-device and in connected Dropbox. Viewing does not enroll an existing user. A miss saves first and gives Undo with focus; next visit withholds the unchanged claim. A native `feeling feedback` disclosure below Memory's footer keeps revision/clear reachable when the insight is absent. It is collapsed by default; no count/subtitle or new panel. Rows wrap and hidden controls leave the accessibility tree. No recurring animation is added.
+
 Appended after the main Memory blocks by `reflections._reflectionRenderMemory(el)`, in its separate `.reflection-memory-block`. No evening count or technical subtitle. The **RETIRED** block is removed; feedback records, ordinary-nudge misses and category retirement retain their existing behavior and distinct meanings.
 
 | Condition | Content |
@@ -338,7 +340,7 @@ Selection stays on-device: join reflected dates to task outcomes and compare obl
 
 The AI phrases only the winning aggregate. It receives no dates, task text, identifiers, full feeling distribution or alternate candidates. Wording starts “On evenings you reflected,” names the feeling and both supplied action contexts in the correct comparison, and avoids causes or advice. Overlong, incomplete, multi-feeling or swapped replies hide the section. The extra word allowance makes bringing a task back from Past recognizable; it adds no invented takeaway.
 
-Results and requests are session-only and bound to a canonical evidence snapshot: local date/window, consent, deletion watermark, eligible reflections and relevant outcome fields. Changed evidence invalidates the result; late responses cannot replace a newer result or clear its loading state. Open Memory reacts to local outcomes/reflections, sync (including outcome-only updates), rollover and foreground return. Unchanged evidence keeps its valid wording without regeneration. Global clear still clears the source and fences derived replies; consent, 30-day retention and backup schema are unchanged.
+Active requests are session-bound to the canonical evidence snapshot: local date/window, consent, deletion watermark, eligible reflections and relevant outcomes. Changes invalidate results; late responses cannot replace newer work. Open Memory reconciles local changes, sync, rollover and foreground return. After explained feedback consent, displayed readings can persist in their separate bounded sensitive store with private source digests, allowing valid wording reuse. Global clear removes both source and feedback and fences late replies. Raw source retention stays thirty days; additive backup fields follow v5.5 conventions.
 
 ---
 

@@ -1,5 +1,3 @@
-// TODAY — morning nudge, version/Sunday/habit badge nudges.
-// Inert until index.html calls window._startNudge() before init().
 window._startNudge = (function() {
   let started = false;
   return function() {
@@ -13,7 +11,6 @@ window._startNudge = (function() {
     let _nudgeShownText = null;
     let _nudgeTouched = false;      // any press on the strip since it appeared
     let _nudgeFallbackAt = 0;       // performance.now() when the default appeared
-    // A late answer may replace an untouched default once, shortly after it appeared (Oct 19).
     const _NUDGE_SWAP_WINDOW_MS = 20000;
     let _reasonDismissTimer = null;
     let _retryTimer = null;
@@ -138,7 +135,7 @@ window._startNudge = (function() {
       return result;
     }
 
-    // Missed model wording may steer the next line; optional reasons stay private.
+    const _BALANCED_FEEDBACK_READY = false;
     function _taskPathMisses(todayISO) {
       const daysAgo = date => {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return Infinity;
@@ -152,7 +149,6 @@ window._startNudge = (function() {
         .map(l => String(l.text).slice(0, 200));
     }
 
-    // Settle once; onLate owns the bounded, untouched-default handoff.
     function _raceAINudge({ cacheKey, cachePrefix, fetchPromise, fallbackMsg, onShow, onLate, isCurrent }) {
       let settled = false;
       const settle = (text, isAI) => {
@@ -178,8 +174,6 @@ window._startNudge = (function() {
     }
 
     // One rule for today's saved line, asked by both the strip and About: it retires
-    // once it names a task completed today (here or synced in), so neither surface
-    // can show a line the other has dropped. Finishing an unrelated task keeps it.
     const _NUDGE_MENTION_STOP = new Set(['about','after','also','back','been','before','call','check','done',
       'email','find','from','have','into','just','look','make','more','need','next','order','pick','read',
       'send','some','start','take','task','tasks','than','that','them','then','they','this','today','update',
@@ -376,7 +370,6 @@ window._startNudge = (function() {
       if (_nudgeRendered && !_nudgeIsFallback && _nudgeShownText === _aiCurrent) { _clearNudgeRetry(); return; }
       const _retired = _nudgeRendered && !_nudgeIsFallback && !_aiCurrent;
       if (_retired) {
-        // Leave at once; the replacement (or the fallback) slides back in when it settles.
         _nudgeRendered = false;
         _nudgeShownText = null;
         nudgeEl.classList.remove('visible', 'show');
@@ -389,7 +382,6 @@ window._startNudge = (function() {
       } else if (allowGenerate && _memoryReady && !_nudgeRacing) {
         const state = _generationForToday();
         if (state.status === 'rejected-length' && state.lengthRepair !== true) state.terminal = false;
-        // The removed word-pattern veto must not keep an old rejection terminal.
         // Resume under the original budget; accepted lines/dismissals were handled above.
         if (state.status === 'rejected-recap' && state.attempts < _MAX_ATTEMPTS) {
           state.terminal = false;
@@ -453,8 +445,6 @@ window._startNudge = (function() {
             if (_nudgeRendered) return;
             _showNudge(text, isAI);
           },
-          // Option B: an answer that lands soon after the default replaces it once,
-          // crossfaded, if the strip is untouched; otherwise About/wake/About-close carry it.
           onLate: text => {
             const st = _generationForToday();
             const since = performance.now() - _nudgeFallbackAt;
@@ -510,7 +500,6 @@ window._startNudge = (function() {
       btn.classList.add('btn-icon-habits');
     }
 
-    // Code selects the pool reading; task reading is the separate ordinary path.
     async function _fetchPoolNudge(key, state) {
       if (typeof _buildObservationCandidates !== 'function'
        || typeof _observationNoveltyGate !== 'function'
@@ -557,7 +546,6 @@ window._startNudge = (function() {
       return manualTasks.filter(t => !doneIds.has(t.id) && !pastIds.has(t.id)).slice(0, 6);
     }
 
-    // Opt-in and explicit constraints only; cap the entire lazy read at 800ms.
     async function _calendarSupport(tasks) {
       if (document.hidden || !navigator.onLine || !localStorage.getItem('calendar_refresh_token') ||
           localStorage.getItem('calendar_token_expired') === '1' ||
@@ -591,7 +579,6 @@ window._startNudge = (function() {
         if (support && !_calendarSupportStillCurrent(support)) support = null;
         if (epoch !== _nudgeEpoch || state.date !== _localISO() || new Date().getHours() >= 12)
           return { status: 'stale-request', retryable: false };
-        // Facts follow the bounded read so edits/completions during it are current.
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const streak = parseInt(localStorage.getItem('stat_streak') || '1');
         const todayStr = _localISO();
@@ -655,9 +642,22 @@ window._startNudge = (function() {
         if (cardLines.length) facts += 'Trello cards:\n' + cardLines.join('\n') + '\n';
         if (!taskLines.length && !cardLines.length) facts += 'The list is empty.';
         if (soonLines.length) facts += 'Soon (deferred tasks, not today\'s list):\n' + soonLines.join('\n') + '\n';
-        const misses = _taskPathMisses(todayStr);
-        if (misses.length) facts += 'Recent morning lines the person marked "not really":\n' +
-          misses.map(t => '- ' + t).join('\n') + '\n';
+        let feedbackInstruction = '';
+        let balanced = false;
+        if (_BALANCED_FEEDBACK_READY) {
+          try {
+            await import('./feedback-policy.js');
+            const policy = Today.use('feedback-policy');
+            const feedback = policy.feedbackText(policy.taskReadingFeedback(appMemory.spokenLines, todayStr));
+            facts += feedback; balanced = true;
+            if (feedback) feedbackInstruction = policy.feedbackInstruction;
+          } catch (_) { /* A missing helper must not silence the ordinary writer. */ }
+        }
+        if (!balanced) {
+          const misses = _taskPathMisses(todayStr);
+          if (misses.length) facts += 'Recent morning lines the person marked "not really":\n' +
+            misses.map(t => '- ' + t).join('\n') + '\n';
+        }
 
         const instruction =
           'The person is starting their morning. You have their full picture — today\'s tasks and Trello cards, ' +
@@ -671,7 +671,7 @@ window._startNudge = (function() {
           'When you name a task, use a short fragment of its exact words so the person can spot it at a glance. ' +
           'The list order is the user\'s own arrangement, not importance. ' +
           'When nothing stands out, a simple quiet morning note is the right answer. ' +
-          'Lines marked "not really" missed for this person: do not repeat their angle, their shape, or what they chose to point at.';
+          (feedbackInstruction || 'Lines marked "not really" missed for this person: do not repeat their angle, their shape, or what they chose to point at.');
 
         const ordinaryBody = {
             provider: Today.use('connections')._aiGetProvider(),
@@ -690,7 +690,6 @@ window._startNudge = (function() {
             _generationEvent(state, 'task-calendar', current ? 'rejected-calendar-text' : 'stale-calendar-evidence');
             if (epoch !== _nudgeEpoch || state.date !== _localISO() || new Date().getHours() >= 12)
               return { status: 'stale-request', retryable: false };
-            // One fresh ordinary recovery; never a second Calendar attempt.
             return _fetchDayNudgeAI(review, carriedOver, cards, state, false);
           }
         }
@@ -702,7 +701,10 @@ window._startNudge = (function() {
     }
 
     window.checkDayNudge = checkDayNudge;
-    checkDayNudge._setMemoryReady = function(ready = true) { _memoryReady = !!ready; };
+    checkDayNudge._setMemoryReady = function(ready = true) {
+      _memoryReady = !!ready;
+      document.dispatchEvent(new CustomEvent('today:memory-ready', { detail:{ready:_memoryReady} }));
+    };
     window.checkVersionNudge = checkVersionNudge;
     window.checkSundayNudge = checkSundayNudge;
     window.checkHabitNudge = checkHabitNudge;

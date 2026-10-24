@@ -484,6 +484,11 @@ later section or automated suite was added.
 | 14.19e | Open Dreams, then manage by keyboard at 320px | One recurrence line with distinct-dream counts and spoken count labels; long labels wrap, manage retains focus, read/delete remain reachable; no hide controls or reappearance explanation |
 | 14.19f | Load legacy dismissed recurrences and duplicate index rows | Legacy dismissals do not hide recurrence; count each distinct dream ID once (v2.95.5); compatibility map remains available for sync |
 | 14.19g | Vote “not really” on ordinary nudge and typed category observations | Ordinary feedback persists separately; two category misses still retire it; no RETIRED section |
+| 14.19h | Run `node scripts/reflection-feedback-test.mjs`; view then vote by keyboard | Viewing alone saves no derived reading; first vote explains storage, saves immediately, retains valid text, offers Undo on a miss; no general-memory/model history leakage |
+| 14.19i | Reopen a missed feeling claim or roll to tomorrow without new support | Withheld; collapsed footer review/clear stays reachable. At least one new reflected evening in each group and existing qualification are required for reappearance |
+| 14.19j | Revise/clear on another device, replay old backup, clear history during a held reply | Latest null wins, no old vote resurrection; source/consent/deletion generations fence late replies; first-sync readiness precedes generation |
+| 14.19k | Open reaction/footer at 320px and with screen reader | Wrapping, native disclosure, named reaction groups, pressed state, visible focus and reachable clear above the fixed input; axe covered, real VoiceOver still required before release |
+| 14.19l | Run `node scripts/feedback-policy-unit-test.mjs` and `node scripts/nudge-feedback-test.mjs` | Bounded same-surface recent examples, reasons excluded, sparse history neutral; prepared balanced branch and helper-load failure preserve ordinary delivery. Production switch stays false after the inconclusive same-connection pickup; activation requires new evidence |
 
 | 14.20 | Policy = `not_for_me` in panel | "Remember reflections" button shown |
 | 14.21 | Tap "Remember reflections" | Policy = `remember`, Memory block re-renders |
@@ -498,7 +503,7 @@ later section or automated suite was added.
 | 14.25 | Remote has a response for a date local doesn't | Entry merged in |
 | 14.26 | Both have a response for same date; remote newer | Remote entry wins |
 | 14.27 | Remote `reflections_cleared_at` newer | Watermark adopted; entries ≤ watermark discarded |
-| 14.28 | Backup payload | `reflection_policy`, `reflections`, `reflections_cleared_at` present; `today_reflection_intro_seen_at` absent |
+| 14.28 | Backup payload | Source fields plus separate `reflection_feedback` / `reflection_feedback_cleared_at`; intro cooldown absent. Missing old-client feedback fields do not clear local votes; full clear/withdrawal does |
 
 ### Relationship thresholds
 

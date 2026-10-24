@@ -127,6 +127,8 @@ merged = [...local, ...remote].reduce((acc, item) => {
   reflection_policy: {choice: 'remember'|'not_for_me', updatedAt},
   reflections: [{date, feeling, updatedAt}],
   reflections_cleared_at: 'ISO',
+  reflection_feedback: {version: 1, consentAt, records: []}, // separate sensitive store, never appMemory
+  reflection_feedback_cleared_at: 'ISO',
   // Also carried (additive, no schema bump): today_trello_focus_total (MAX), day_review
   // (fill-if-empty), user_names / user_names_at (meeting attribution, LWW) plus the legacy
   // user_name compat field, the per-day dismissal flags, synced AI surface texts,
@@ -265,9 +267,11 @@ Dream files are not in the backup; `dreambank.flush()` uploads each from the syn
 
 ## Reflection Merge
 
-`_reflectionMergeRemote(data)` runs from both `mergeRemoteData()` and Restore: (1) clear watermark `MAX(local, remote)` — a newer remote overwrites local and marks changed; (2) policy LWW by `updatedAt`, remote on ties; (3) responses: a `Map<date, entry>` seeded with local, remote overwrites where `remote.updatedAt > local.updatedAt`, then drop entries with `updatedAt ≤` the merged watermark; (4) prune to 30 calendar days by wall-clock date (survives DST). After every merge the session-only feeling evidence is reconciled (v2.95.1): outcome-only changes invalidate the displayed sentence; consent/watermark changes fence pending replies; unchanged evidence causes no regeneration; nothing derived enters a backup.
+`_reflectionMergeRemote(data)` runs from both `mergeRemoteData()` and Restore: (1) clear watermark MAX; (2) policy LWW by `updatedAt`, remote on ties; (3) responses union by date, newer `updatedAt` wins, entries ≤ watermark dropped; (4) thirty-calendar-day pruning. Outcome-only changes invalidate stale wording; consent/watermark changes fence pending replies. Active requests remain transient. After explained feedback consent, displayed derived readings use the separate fields below; unchanged valid wording can be reused without a request. Main-memory outcomes merge before reflection feedback is validated.
 
 First Dropbox connection after local reflections exist uploads the full array and policy; other devices union them on their next sync. Memory's global clear calls `_reflectionClearFromAllMemory()`: stamp the watermark, remove local data, set policy to `not_for_me`, immediate silent backup.
+
+**Feedback loop (v2.98.0):** the two feedback fields are additive under v5.5's existing extensibility rule. Missing old-client fields do not erase local feedback. The lazy `feedback-policy` merges reading ids with immutable support/wording identity, first-display MIN, latest `reactedAt` including null; equal-time null wins, then lexical reaction. Clear watermarks apply before merge; records must match the current source/consent generation. Feedback consent cannot predate the current reflection policy/deletion generation. Canonical text uses latest explicit reaction, otherwise earliest display, then id. Source edits/withdrawal invalidate readings; natural expiry removes wording/source values while retaining only bounded user withholding. Clear-all propagates through both stores. Post-import reconciliation fences pending writers and can reuse a valid synced sentence without a request. No feeling text/vote enters `appMemory` or another surface's prompt.
 
 ---
 
