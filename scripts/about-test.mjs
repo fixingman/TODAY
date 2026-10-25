@@ -695,6 +695,37 @@ try {
     await page.close();
   }
 
+  // 20. Sunday week-shape fallback: when all pool candidates are gated (e.g. a kind
+  //     is retired after two misses), _pickSundayInsight falls back to a week-shape
+  //     insight derived from the 7-day outcome window.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const D = 86400000, now = Date.now();
+      const iso = d => new Date(d).toISOString().slice(0, 10);
+      // 8 soon_pull outcomes in 7 days — qualifies for soon-pullback pool kind (threshold: 3).
+      // Retire soon-pullback so the pool has no survivors.
+      appMemory.taskOutcomes = [
+        ...Array.from({ length: 5 }, (_, i) => ({ id: 'sp' + i, date: iso(now - (i + 1) * D), outcome: 'soon_pull' })),
+        ...Array.from({ length: 5 }, (_, i) => ({ id: 'dn' + i, date: iso(now - (i + 1) * D), outcome: 'done', obligation: false })),
+      ];
+      appMemory.spokenLines = [];
+      if (!appMemory.kindVerdicts) appMemory.kindVerdicts = {};
+      appMemory.kindVerdicts['soon-pullback'] = { retired: iso(now) };
+
+      const insight = Today.use('about')._pickSundayInsight({ days: [], history: [] });
+      return {
+        gotFallback:   insight?.kind === 'week-shape',
+        hasInsight:    typeof insight?.insight === 'string' && insight.insight.length > 0,
+        hasEvidence:   typeof insight?.evidence === 'string' && insight.evidence.length > 0,
+        scoreNegative: insight?.score === -1,
+      };
+    });
+    await expectAll('Sunday week-shape fallback', { ...result, noErrors: errors.length === 0 });
+    ok('Sunday reflection: week-shape fallback fires when pool is all-gated and 7-day outcome data exists');
+    await page.close();
+  }
+
   // 19. Static wiring checks.
   {
     const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
@@ -717,7 +748,7 @@ try {
         sectionRemoved:          !indexSrc.includes('function toggleInfo()'),
         moduleInit:              aboutSrc.includes('window._startAbout = function()'),
         api:                     aboutSrc.includes("Today.define('about'"),
-        policyExports:           ['_buildObservationCandidates', '_weekReflectionTextIsGrounded', '_observationPoolAudit']
+        policyExports:           ['_buildObservationCandidates', '_weekReflectionTextIsGrounded', '_observationPoolAudit', '_buildWeekShapeFallback']
           .every(n => policySrc.includes(`root.${n} = policy.${n};`)),
         precached:               swSrc.includes("'/assets/about.js'"),
         policyPrecached:         swSrc.includes("'/assets/week-reflection-policy.js'"),

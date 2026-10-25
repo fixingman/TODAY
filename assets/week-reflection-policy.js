@@ -9,6 +9,7 @@
   root._weekReflectionTextIsGrounded = policy._weekReflectionTextIsGrounded;
   root._buildObservationCandidates = policy._buildObservationCandidates;
   root._buildOutcomeCandidates = policy._buildOutcomeCandidates;
+  root._buildWeekShapeFallback = policy._buildWeekShapeFallback;
   root._observationNoveltyGate = policy._observationNoveltyGate;
   root._observationGateExplain = policy._observationGateExplain;
   root._observationTextIsGrounded = policy._observationTextIsGrounded;
@@ -248,6 +249,22 @@
     }
 
     return candidates;
+  }
+
+  function _buildWeekShapeFallback(outcomes, todayISO) {
+    const w = _outcomesWithin(outcomes, 7, todayISO);
+    const d = w.filter(e => e.outcome === 'done').length;
+    const l = w.filter(e => e.outcome === 'letgo').length;
+    const p = w.filter(e => e.outcome === 'soon_pull').length;
+    const m = d + l + p;
+    if (m < 3) return null;
+    return { kind: 'week-shape', score: -1,
+      evidence: d + ' done, ' + l + ' let go, ' + p + ' from Soon (7d).',
+      insight: d / m >= 0.55 ? 'Most movement this week was things reaching done.'
+        : l / m >= 0.45 ? 'More things were let go this week than done or returned.'
+        : p / m >= 0.45 ? 'More things returned from Soon than got done or released this week.'
+        : 'The week moved across all three: done, let go, and returned.',
+    };
   }
 
   // ── 12c: novelty gate ───────────────────────────────────────────────────────
@@ -654,5 +671,5 @@
     return _weekReflectionCarriesInsight(text, candidate);
   }
 
-  return { _weekReflectionTextIsGrounded, _observationTextIsGrounded, _buildOutcomeCandidates, _buildObservationCandidates, _observationNoveltyGate, _observationGateExplain, _observationEligible, _observationEligibleFor, _observationPoolAudit };
+  return { _weekReflectionTextIsGrounded, _observationTextIsGrounded, _buildOutcomeCandidates, _buildObservationCandidates, _buildWeekShapeFallback, _observationNoveltyGate, _observationGateExplain, _observationEligible, _observationEligibleFor, _observationPoolAudit };
 });

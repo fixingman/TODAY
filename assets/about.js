@@ -562,13 +562,20 @@
         const spokenLines = (appMemory.spokenLines || []).filter(line =>
           !(line && line.surface === 'Sunday reflection' && line.date === todayISO
             && line.policy !== WEEK_REFLECTION_POLICY));
-        return _observationNoveltyGate(eligible, {
+        const poolResult = _observationNoveltyGate(eligible, {
           spokenLines,
           kindVerdicts: appMemory.kindVerdicts,
           outcomes: appMemory.taskOutcomes,
           surface: 'sunday',
           todayISO,
         })[0] || null;
+        if (poolResult) return poolResult;
+        const hasSameDaySunday = (appMemory.spokenLines || []).some(
+          l => l && l.date === todayISO && l.surface === 'Sunday reflection');
+        if (hasSameDaySunday) return null;
+        return (typeof _buildWeekShapeFallback === 'function')
+          ? _buildWeekShapeFallback(appMemory.taskOutcomes, todayISO)
+          : null;
       } catch (e) {
         console.warn('[sunday pool]', e && e.message);
         return null;

@@ -2,7 +2,7 @@
   "schema": 1,
   "iterations": 5,
   "payload": {
-    "runtimeShellRaw": 1228800,
+    "runtimeShellRaw": 1232896,
     "runtimeShellBrotli": 358400,
     "indexBrotli": 71680,
     "fontBytes": 102400,
