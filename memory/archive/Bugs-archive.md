@@ -6,16 +6,42 @@
 
 ---
 
-## Status Summary — BUG-001 to BUG-087
+## Status Summary — BUG-001 to BUG-087; verified BUG-088–119
 
-> BUG-001–055 moved from `Bugs.md` 2026-09-01; BUG-056–087 moved 2026-09-27. `Bugs.md`
-> now carries BUG-088 onward. Three rows here are not verified fixes: BUG-061 is ⚠️ Stale
+> BUG-001–055 moved from `Bugs.md` 2026-09-01; BUG-056–087 moved 2026-09-27; verified BUG-088–119 moved 2026-10-25. `Bugs.md`
+> now carries open, awaiting-verification, rejected, and merge-pointer rows only. Three rows in 001–087 are not verified fixes: BUG-061 is ⚠️ Stale
 > (needs a fresh-device Sunday/habit badge check) and BUG-062/069 are 🚫 Rejected.
 > Newest first, matching the ordering rule above. Not every row has a detail section —
 > the earliest fixes were summarised only.
 
 | # | Description | Status |
 |---|---|---|
+| 119 | Red dot on a fresh mobile session: "Script error. at :0:0" — an error from a script TODAY did not load, details withheld by the browser | ✅ v2.93.26 |
+| 116 | Email and web context arrows blink repeatedly after returning to the desktop PWA — completed arrival animation replayed by wake repaints | ✅ v2.93.20 |
+| 115 | Gmail kept retrying a refused sign-in (`gmail-token` 400 in the console) while Connections still said "Connected" | ✅ v2.93.17 |
+| 114 | "Work yesterday felt like a bad dream" was kept as a dream — the BUG-110 short-dream wording outweighed the waking-comparison rule | ✅ v2.93.13 |
+| 113 | Header, section labels, and Soon/Past headers looked darker than the page (most on mobile) — a full-page noise overlay lifted the page under opaque --bg bands | ✅ v2.93.12 |
+| 112 | A saved dream could not be reread in Memory after its local body was pruned or on another device | ✅ v2.93.10 |
+| 111 | With the dream sheet open on mobile, swiping scrolled the task list behind it | ✅ v2.93.8 |
+| 110 | A one-sentence dream told to the mobile mic came back as "Nothing came up" — silent empty result from meeting-extract | ✅ v2.93.13 |
+| 109 | Task list bobbed up and down after refocusing the desktop PWA while the morning strip was showing — wake repaint replayed its CSS open animation | ✅ v2.93.2 |
+| 108 | Dragging a task on mobile left a neighbouring task looking highlighted — row :hover rules unguarded on touch | ✅ v2.92.5 |
+| 104 | Web enrichment (↗) always empty — Haiku 4.5 sent an unsupported web search tool version; failures cached as no result | ✅ v2.90.53 |
+| 103 | Yesterday’s undated Dropbox nudge dismissal can hide the new daily nudge after midnight | ✅ v2.90.54 |
+| 102 | Triage review initially focused Keep all, making the bulk action look preselected and Enter-ready | ✅ v2.90.49 |
+| 101 | Open morning-nudge reaction choices stayed bright and focusable during focus | ✅ v2.90.47 |
+| 100 | Evening triage Review stayed keyboard-reachable and failed contrast while visually receded in focus mode | ✅ v2.90.46 |
+| 099 | Completed triage can ask again on another device — first-open cleanup erased an adopted same-day dismissal | ✅ v2.90.44 |
+| 098 | Header shoved off the top when a task near the bottom enters focus — sticky inside a fixed body | ✅ v2.82.4 |
+| 097 | Header date stays on yesterday when the app is open across midnight — written once at init | ✅ v2.82.2 |
+| 096 | "Clear all memory" left the companion slots intact; next sync undid the rest — no clear watermark | ✅ v2.82.1 |
+| 095 | Task, habit and Ask inputs saved to the browser autofill store — no `autocomplete="off"` | ✅ v2.81.5 |
+| 094 | "Undo" persists into the reflection step, reading as undoing the answer not the sorting | ✅ v2.80.6 |
+| 093 | ↩ and ↗ enrichment indicators flash on tap on mobile — hover rule unguarded | ✅ v2.80.5 |
+| 092 | Task cards don't age visually on mobile — desktop-only side effect of BUG-079 fix | ✅ v2.80.3 |
+| 090 | `task-enrich` Netlify function returns 500 on every call — enrichment never loads | ✅ v2.77.7 |
+| 089 | "Open in Mail" opens the browser before the native Mail app | ✅ v2.81.5 |
+| 088 | Inline AI helper stays behind when its task is reordered | ✅ v2.77.3 |
 | 087 | Emoji disappear or render broken in the animated task input | ✅ v2.77.2 |
 | 086 | Completion rate in Memory exceeds 100% — wrong denominator (4th root cause) | ✅ v2.75.13 |
 | 084 | Checkmark confetti is vertically offset from its checkbox on mobile | ✅ v2.71.8 |
