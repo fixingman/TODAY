@@ -202,6 +202,47 @@ try {
       await page.close();
     }
 
+    // Completed and partial focus progress must queue sync without another task edit.
+    {
+      const { page, errors } = await openPage();
+      await page.evaluate(() => {
+        window.__focusSaves = [];
+        localStorage.removeItem('last_local_change');
+        window.dropboxAutoSave = () => window.__focusSaves.push({
+          sessions:manualTasks[0].focusSessions || 0,
+          minutes:Number(localStorage.getItem('stat_focus_mins_today') || 0),
+          changed:!!localStorage.getItem('last_local_change'),
+        });
+      });
+      await page.click('.task[data-taskid="manual_t1"] .task-text');
+      const completed = await page.evaluate(() => {
+        const original = Date.now;
+        const now = original();
+        Date.now = () => now + 1501000;
+        try { document.dispatchEvent(new Event('visibilitychange')); }
+        finally { Date.now = original; }
+        return window.__focusSaves.some(s => s.sessions === 1 && s.minutes === 25 && s.changed);
+      });
+      await expectAll('completed focus queues sync', { completed, noErrors:!errors.length });
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => !document.querySelector('.focus-timer.open'));
+      await page.click('.task[data-taskid="manual_t1"] .task-text');
+      await page.evaluate(() => {
+        window.__focusSaves = [];
+        localStorage.removeItem('last_local_change');
+        const original = Date.now;
+        const now = original();
+        Date.now = () => now + 61000;
+        try { document.dispatchEvent(new Event('visibilitychange')); }
+        finally { Date.now = original; }
+      });
+      await page.keyboard.press('Escape');
+      const partial = await page.evaluate(() => window.__focusSaves.some(s => s.sessions === 1 && s.minutes === 26 && s.changed));
+      await expectAll('partial focus queues sync', { partial, noErrors:!errors.length });
+      ok('completed and partial sessions queue Dropbox sync and mark an offline change without another edit');
+      await page.close();
+    }
+
     // 3. Task click opens timer UI (.focus-timer.open).
     {
       const { page, errors } = await openPage();
@@ -827,6 +868,66 @@ try {
         remainingUnchanged:afterHelp.rem===sessionBeforeExit.rem,
       });
       ok('task Ask: question/action/restraint, format rejection, rename/exit fencing and retry; no automatic request');
+      await page.close();
+    }
+
+    // 15D: same-session repetition context
+    {
+      const {page,errors}=await openPage({extraSeed:{today_ai_key_claude:'test-key'}});
+      await page.evaluate(()=>{
+        window.__asks=[];
+        const original=window.fetch;
+        window.fetch=(url,options)=>{
+          if(!String(url).includes('ai-assist'))return original(url,options);
+          return new Promise((resolve,reject)=>window.__asks.push({body:JSON.parse(options.body),signal:options.signal,reject,
+            reply:(data,mode)=>resolve({ok:mode!=='http',status:mode==='http'?503:200,json:()=>Promise.resolve(data)})}));
+        };
+      });
+      await page.click('.task-text');
+      await page.waitForFunction(()=>document.querySelector('.focus-timer.open'));
+      const taskMsg='Task: "Write the tests"';
+
+      const i0=await ask(page);
+      const body0=await page.evaluate(i=>window.__asks[i].body,i0);
+      await expectAll('15D first Ask has no prior suffix',{noPrior:body0.messages[0].content===taskMsg});
+
+      const offer0='Which test case should you start with?';
+      await reply(page,i0,{content:offer0});
+      await page.waitForFunction(q=>document.querySelector('.focus-ai-timer-btn').textContent===q,{},offer0);
+      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
+
+      const i1=await ask(page);
+      const body1=await page.evaluate(i=>window.__asks[i].body,i1);
+      await expectAll('15D second Ask carries first offer as prior',{
+        startsWithTask:body1.messages[0].content.startsWith(taskMsg),
+        hasPriorLabel:body1.messages[0].content.includes('Already offered this session:'),
+        hasOffer0:body1.messages[0].content.includes(JSON.stringify(offer0)),
+      });
+
+      const offer1='What environment do you need set up first?';
+      await reply(page,i1,{content:offer1});
+      await page.waitForFunction(q=>document.querySelector('.focus-ai-timer-btn').textContent===q,{},offer1);
+      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
+
+      const i2=await ask(page);
+      const body2=await page.evaluate(i=>window.__asks[i].body,i2);
+      await expectAll('15D third Ask carries both priors',{
+        hasBoth:body2.messages[0].content.includes(JSON.stringify(offer0))&&body2.messages[0].content.includes(JSON.stringify(offer1)),
+      });
+
+      // Invalid reply (two question marks — fails format check) must not be stored
+      await reply(page,i2,{content:'Which file? And which branch?'});
+      await page.waitForFunction(()=>!document.querySelector('.focus-timer').classList.contains('ai-active'));
+
+      const i3=await ask(page);
+      const body3=await page.evaluate(i=>window.__asks[i].body,i3);
+      await expectAll('15D invalid reply not added to priors',{
+        stillBoth:body3.messages[0].content.includes(JSON.stringify(offer0))&&body3.messages[0].content.includes(JSON.stringify(offer1)),
+        noInvalid:!body3.messages[0].content.includes('which branch'),
+      });
+      await page.keyboard.press('Escape');await reply(page,i3,{content:offer0});
+      await expectAll('15D no errors throughout',{noErrors:!errors.length});
+      ok('15D: same-session repetition context — prior suffix absent on first Ask, present on subsequent Asks, invalid reply not stored');
       await page.close();
     }
 
