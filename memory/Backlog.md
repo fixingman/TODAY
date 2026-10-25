@@ -41,7 +41,7 @@ Ordered by expected impact on daily trust, useful guidance and accumulated under
 | 5 | — | [Task Focus Ask](#task-focus-ask) | v2.97.10 committed and pushed; real-use verdict open | Confirm deployed/installed build, then judge whether the line changes the next action. |
 | 6 | 11 | [Task enrichment](#11-task-enrichment) | Stages 1–3 implemented; relevance verdict overdue | Review wrong cards and useful cards withheld, including booking context. |
 | 7 | — | [CI reliability](#watching--parked-investigations) | v2.97.9 attribution work committed; startup cause open | Inspect original-run GitHub evidence; local timing success does not close nightly reliability. |
-| 8 | 14 | [Habit contextual companionship](#14-habit-contextual-companionship) | Desktop Ask live, confirmed by Can 2026-10-25; morning slice unbuilt | Judge October 31 real usefulness — does the line change the next action? Morning support needs its own gate. |
+| 8 | 14 | [Habit contextual companionship](#14-habit-contextual-companionship) | Desktop Ask verified: seldom used, kept for consistency (habits now act like tasks); morning slice unbuilt | Morning support gated on its own evidence; desktop slice done. |
 | 9 | 10b | [Calendar context](#10b-google-calendar-context) | Foundation + timing-only increment implemented | Finish real-account checks and observe eligible daily lines; Join / Record remains unbuilt. |
 | 10 | 10a | [Granola meeting import](#10a-granola-meeting-import) | Not started; priority meeting-capture path | Revalidate API/auth and reviewed action-chip flow before native calendar-led capture. |
 | 11 | — | [WEEK companion](#week-companion) | Gated | 12c must genuinely feel like a companion; history volume alone does not unlock it. |
@@ -136,7 +136,7 @@ Stages 1–3, Gmail/Calendar-notification filtering and bounded MiniSearch ranki
 
 ### 14: Habit contextual companionship
 
-**Implemented:** desktop habit-specific Ask in v2.97.0, name-only input after an explicit tap. It is committed, not merely a local prototype. [Rejected UI, revised prototype, wording checks and release decisions](archive/Backlog-archive.md#habit-desktop-slice-and-completed-design-studies) are historical. **Installed behavior confirmed by Can (2026-10-25).** **Next:** judge October 31 real usefulness — does the habit context line in the Ask response actually change the next action? The latest Read refinement was not live-sampled, and syntactic validity is not acceptance.
+**Implemented:** desktop habit-specific Ask in v2.97.0, name-only input after an explicit tap. It is committed, not merely a local prototype. [Rejected UI, revised prototype, wording checks and release decisions](archive/Backlog-archive.md#habit-desktop-slice-and-completed-design-studies) are historical. **Verdict (Can, 2026-10-25):** seldom used but kept — habits now act like tasks, which is consistent and worth having. Not crucial, but not a candidate for removal. The latest Read refinement was not live-sampled; this verdict is based on real use, not syntactic validity.
 
 **Separate, unbuilt follow-up:** a meaningful preparation relationship in the existing morning reading, not a saved Moment field or reminder. Establish evidence, extra value beyond a name recap, competition with the ordinary reading, repetition/checked/weak-evidence withholding, privacy and selection before wiring. Keep ordinary daily delivery unchanged when no habit relationship qualifies; desktop question usefulness does not establish morning usefulness.
 
