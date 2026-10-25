@@ -131,6 +131,7 @@ try {
     Today.use('memory').render();
     document.querySelector('[data-today-click="dream.memory-manage"]').click();
   });
+  await waitForFiniteMotion(page, '#memoryPanel');
   await audit(page, 'managed dream recurrences pass axe', '#memoryPanel');
 
   await page.click('#todayLogo');

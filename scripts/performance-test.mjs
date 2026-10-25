@@ -280,6 +280,7 @@ async function armInteraction(page, kind, text = '') {
 async function interactionRun(browser, url, run, tracePath) {
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
+  await installObservers(page);
   await page.setViewport({ width: 1280, height: 900 });
   await page.evaluateOnNewDocument(seedRun => {
     localStorage.clear();

@@ -488,7 +488,7 @@ later section or automated suite was added.
 | 14.19i | Reopen a missed feeling claim or roll to tomorrow without new support | Withheld; collapsed footer review/clear stays reachable. At least one new reflected evening in each group and existing qualification are required for reappearance |
 | 14.19j | Revise/clear on another device, replay old backup, clear history during a held reply | Latest null wins, no old vote resurrection; source/consent/deletion generations fence late replies; first-sync readiness precedes generation |
 | 14.19k | Open reaction/footer at 320px and with screen reader | Wrapping, native disclosure, named reaction groups, pressed state, visible focus and reachable clear above the fixed input; axe covered, real VoiceOver still required before release |
-| 14.19l | Run `node scripts/feedback-policy-unit-test.mjs` and `node scripts/nudge-feedback-test.mjs` | Bounded same-surface recent examples, reasons excluded, sparse history neutral; prepared balanced branch and helper-load failure preserve ordinary delivery. Production switch stays false after the inconclusive same-connection pickup; activation requires new evidence |
+| 14.19l | Run `node scripts/feedback-policy-unit-test.mjs` and `node scripts/nudge-feedback-test.mjs` | Bounded same-surface recent examples, reasons excluded, sparse history neutral; recent landed/missed context uses the unchanged writer instruction; no extra AI call. Natural startup proves next-day votes, synced revision/clear and retained accepted lines; missing/hanging helper loads and failed projections preserve ordinary delivery |
 
 | 14.20 | Policy = `not_for_me` in panel | "Remember reflections" button shown |
 | 14.21 | Tap "Remember reflections" | Policy = `remember`, Memory block re-renders |

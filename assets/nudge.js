@@ -135,7 +135,16 @@ window._startNudge = (function() {
       return result;
     }
 
-    const _BALANCED_FEEDBACK_READY = false;
+    async function _morningFeedbackPolicy() {
+      let timer;
+      try {
+        return await Promise.race([
+          import('./feedback-policy.js').then(() => Today.use('feedback-policy')),
+          new Promise(resolve => { timer = setTimeout(() => resolve(null), 300); }),
+        ]);
+      } catch (_) { return null; }
+      finally { clearTimeout(timer); }
+    }
     function _taskPathMisses(todayISO) {
       const daysAgo = date => {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return Infinity;
@@ -575,7 +584,10 @@ window._startNudge = (function() {
         if (pooled?.status === 'accepted' || pooled?.retryable || pooled?.status === 'http-error') return pooled;
 
         const epoch = _nudgeEpoch;
-        let support = allowCalendar ? await _calendarSupport(_currentMorningTasks()) : null;
+        const [calendar, feedbackPolicy] = await Promise.all([
+          allowCalendar ? _calendarSupport(_currentMorningTasks()) : null, _morningFeedbackPolicy(),
+        ]);
+        let support = calendar;
         if (support && !_calendarSupportStillCurrent(support)) support = null;
         if (epoch !== _nudgeEpoch || state.date !== _localISO() || new Date().getHours() >= 12)
           return { status: 'stale-request', retryable: false };
@@ -642,18 +654,11 @@ window._startNudge = (function() {
         if (cardLines.length) facts += 'Trello cards:\n' + cardLines.join('\n') + '\n';
         if (!taskLines.length && !cardLines.length) facts += 'The list is empty.';
         if (soonLines.length) facts += 'Soon (deferred tasks, not today\'s list):\n' + soonLines.join('\n') + '\n';
-        let feedbackInstruction = '';
-        let balanced = false;
-        if (_BALANCED_FEEDBACK_READY) {
-          try {
-            await import('./feedback-policy.js');
-            const policy = Today.use('feedback-policy');
-            const feedback = policy.feedbackText(policy.taskReadingFeedback(appMemory.spokenLines, todayStr));
-            facts += feedback; balanced = true;
-            if (feedback) feedbackInstruction = policy.feedbackInstruction;
-          } catch (_) { /* A missing helper must not silence the ordinary writer. */ }
-        }
-        if (!balanced) {
+        let feedback;
+        try { if (feedbackPolicy) feedback = feedbackPolicy.feedbackText(
+          feedbackPolicy.taskReadingFeedback(appMemory.spokenLines, todayStr)); } catch (_) {}
+        if (typeof feedback === 'string') facts += feedback;
+        else {
           const misses = _taskPathMisses(todayStr);
           if (misses.length) facts += 'Recent morning lines the person marked "not really":\n' +
             misses.map(t => '- ' + t).join('\n') + '\n';
@@ -671,7 +676,7 @@ window._startNudge = (function() {
           'When you name a task, use a short fragment of its exact words so the person can spot it at a glance. ' +
           'The list order is the user\'s own arrangement, not importance. ' +
           'When nothing stands out, a simple quiet morning note is the right answer. ' +
-          (feedbackInstruction || 'Lines marked "not really" missed for this person: do not repeat their angle, their shape, or what they chose to point at.');
+          'Lines marked "not really" missed for this person: do not repeat their angle, their shape, or what they chose to point at.';
 
         const ordinaryBody = {
             provider: Today.use('connections')._aiGetProvider(),

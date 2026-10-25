@@ -15,6 +15,10 @@
 
 ---
 
+## Continuous improvement through use
+
+[The AI improvement cycle](../../docs/ai-improvement-cycle.md) is the cross-surface implementation contract: eligible evidence → actually displayed help → optional reaction or meaningful action → bounded current guidance → next eligible help. Improve selection/relevance, wording and action outcomes without conflating them. A whole-response vote is weak style evidence; applying an action is not proof of success; silence and link clicks are not satisfaction. The common voice stays coherent while surface-specific feedback and sensitive domains remain separate. No settings, mandatory rating ritual, recurring manual console batch, self-editing prompts or general raw-history store. The Claude-reviewed #15 plan preserves personal style as a required unresolved goal while unblocking independent slices: fixed feeling phrasing and sparse whole-reading votes do not support the assumed content-free style projection. Source-readiness safety comes first; baseline copy, same-session repetition control and card hiding must not be labelled learned taste. No derived sensitive profile export is authorized. Exact runtime status and missing Focus/enrichment/feeling-style work are listed in the contract; do not call a surface adaptive merely because it saves its output.
+
 ## Data, not knobs
 
 TODAY personalizes through **observed behavior** and **opt-in connections** — never preference toggles.

@@ -18,7 +18,6 @@ import { existsSync } from 'node:fs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
-const BALANCED_FIXTURE = process.argv.includes('--balanced-feedback');
 const FEEDBACK_UNAVAILABLE = process.argv.includes('--missing-feedback-policy');
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
@@ -33,11 +32,6 @@ const server = createServer(async (req, res) => {
   if (FEEDBACK_UNAVAILABLE && path === '/assets/feedback-policy.js') { res.writeHead(404);res.end();return; }
   try {
     let body = await readFile(join(ROOT, path));
-    if (BALANCED_FIXTURE && path === '/assets/nudge.js') {
-      const source = body.toString();
-      if (!source.includes('const _BALANCED_FEEDBACK_READY = false;')) throw Error('Balanced fixture gate changed');
-      body = Buffer.from(source.replace('const _BALANCED_FEEDBACK_READY = false;','const _BALANCED_FEEDBACK_READY = true;'));
-    }
     res.writeHead(200, { 'Content-Type': MIME[extname(path)] || 'application/octet-stream' });
     res.end(body);
   } catch { res.writeHead(404); res.end(); }
@@ -126,6 +120,9 @@ async function openPage({ extraSeed, hourOverride = 9, skipDismiss = false, cont
     window._flashAccentGlow   = () => {};
     window.renderMeetingNames = () => {};
   });
+  // These injected-response races control their own request timing. Natural cold
+  // helper loading and failure are covered by nudge-feedback-test's real startup.
+  await page.evaluate(async () => { try { await import('/assets/feedback-policy.js'); } catch (_) {} });
   return { page, errors };
 }
 
@@ -269,7 +266,7 @@ try {
     //     These are synthetic lines: personal voted prose stays out of the repo.
     {
       const steered = await openPage();
-      const steeredResult = await steered.page.evaluate(async BALANCED_FIXTURE => {
+      const steeredResult = await steered.page.evaluate(async balanced => {
         localStorage.removeItem('day_nudge_dismissed_' + _localISO());
         localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
         const ago = days => { const d = new Date(); d.setDate(d.getDate() - days); return _localISO(d); };
@@ -285,7 +282,7 @@ try {
         window.fetch = async (url, opts) => { bodies.push(opts && opts.body ? JSON.parse(opts.body) : {});
           return { ok: true, json: async () => ({ content: 'The appointment has a morning window; check it before other tasks.' }) }; };
         checkDayNudge();
-        await new Promise(r => setTimeout(r, 300));
+        await window.__nudgeTestWait(() => bodies.some(b => b.messages?.some(m => m.content.includes('Morning check-in'))) && document.getElementById('dayNudge').textContent.includes('morning window'), 'feedback-context delivery');
         // Only the task-reading request; the pool request carries its own line history.
         const taskReq = bodies.map(b => (b.messages || []).map(m => m.content).join('\n'))
           .find(t => t.includes('Morning check-in')) || '';
@@ -293,16 +290,16 @@ try {
         const sent = taskReq;
         return {
           stillSpeaks: document.getElementById('dayNudge').textContent.includes('morning window'),
-          missesSent: (BALANCED_FIXTURE ? ['one','two'] : ['one', 'two', 'three']).every(n => missBlock.includes('Synthetic miss ' + n)),
-          capRespected: !BALANCED_FIXTURE || !missBlock.includes('Synthetic miss three'),
-          positiveLabel: !BALANCED_FIXTURE || sent.includes('Recent morning lines the person marked "landed":\n'),
+          missesSent: (balanced ? ['one','two'] : ['one', 'two', 'three']).every(n => missBlock.includes('Synthetic miss ' + n)),
+          capRespected: !balanced || !missBlock.includes('Synthetic miss three'),
+          positiveLabel: !balanced || sent.includes('Recent morning lines the person marked "landed":\n- Synthetic landed line.'),
           onlyThreeRecent: !missBlock.includes('too old to send'),
           landedNotSentAsMiss: !missBlock.includes('Synthetic landed line'),
           poolMissNotMixedIn: !missBlock.includes('Synthetic pool miss'),
           reasonNeverSent: !/already_knew|already knew/.test(sent),
-          principleSent: sent.includes(BALANCED_FIXTURE ? 'A missed reading does not reject its task' : 'do not repeat their angle'),
+          principleSent: sent.includes('do not repeat their angle') && !sent.includes('A missed reading does not reject its task'),
         };
-      }, BALANCED_FIXTURE && !FEEDBACK_UNAVAILABLE);
+      }, !FEEDBACK_UNAVAILABLE);
       await expectAll('misses steer the next morning line', { ...steeredResult, noErrors: steered.errors.length === 0 });
       await steered.page.close();
 

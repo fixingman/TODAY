@@ -15,6 +15,14 @@ const helper = name => {
 const installObservers = helper('installObservers');
 const readPageMetrics = helper('readPageMetrics');
 const armInteraction = helper('armInteraction');
+const interactionStart = source.indexOf('async function interactionRun(');
+const interactionEnd = source.indexOf('\nfunction timingSummary(',interactionStart);
+assert.ok(interactionStart>=0 && interactionEnd>interactionStart);
+const interactionRun=vm.runInNewContext('('+source.slice(interactionStart,interactionEnd).trim()+')',{
+  installObservers,readPageMetrics,armInteraction,
+  // The tiny fixture has no TODAY splash/readiness marks; input and observation are real.
+  waitForReady:async()=>{},
+});
 const budgets = JSON.parse(await readFile(new URL('./performance-budgets.json', import.meta.url), 'utf8'));
 const html = `<!doctype html><html><body>
   <main id="main-app"><input id="newTask"><ul id="manualList"><li class="task"><span class="task-text">Fictional focus task</span></li></ul></main>
@@ -90,6 +98,10 @@ try {
       else assert.deepEqual(after.longAnimationFrames, [], 'unsupported attribution leaves timing guards active');
     } finally { await context.close(); }
   }
+  const wired=await interactionRun(browser,'http://127.0.0.1:'+server.address().port+'/fixture.html','wired');
+  assert.equal(wired.diagnostics.supportsLongAnimationFrames,true,'the real interaction entry point installs its observers');
+  assert.ok(wired.diagnostics.longAnimationFrames.flatMap(frame=>frame.scripts)
+    .some(script=>script.sourceFunctionName==='coldAudioWarmup'),'the measured input path retains its own blocking attribution');
   console.log('  ✓ actual input starts timing; pre-input automation delay is separate; pointerdown blocking still fails the existing ceiling');
   console.log('  ✓ original startup/input callbacks are attributed; unsupported attribution preserves timing guards; source queries are excluded');
 } finally {
