@@ -82,6 +82,11 @@ Shows: `Board Name → List Name` | Refresh + Forget buttons.
 
 Manual load failures reopen Connections and map common 401/404/405/429 responses to actionable status. Background-sync failures do not interrupt the user; non-network failures are logged to the diagnostic red dot. Cached cards remain readable during a transient network failure.
 
+Temporary network, rate-limit and server failures retain the configured connection star,
+including when no cards are cached. Only 401/404 failures or explicit Forget switch to
+lightning. The star describes the saved connection, not proof of a successful recent sync
+(BUG-125, v2.98.5). Existing expiry attention and offline banner stay separate.
+
 ### Automated coverage (v2.71.17)
 
 `scripts/trello-test.mjs` uses mocked Trello responses to cover board/list selection and escaping, OAuth headers without token-bearing URLs, list/due/completion-grace filtering, synced order, checklist/tag/link/done rendering, cache and first-seen state, manual/background failures, post-Dropbox reconciliation, disconnect cleanup, popup failure, and module/precache wiring.

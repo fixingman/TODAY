@@ -340,7 +340,7 @@ async function loadTrello(fromSync) {
     if (isNetworkError) {
       // If we have cached tasks already rendered, stay silent — user can still read and interact
       if (trelloTasks.length > 0) return;
-      msg = 'Network error — check your API Key and Token are correct. Make sure the token has read access.';
+      msg = 'Trello is temporarily unreachable. Your connection is still saved.';
     } else if (msg.includes('401')) {
       msg = 'Unauthorised (401) — your token may be expired. Re-generate at trello.com/power-ups/admin.';
     } else if (msg.includes('404')) {
@@ -357,7 +357,8 @@ async function loadTrello(fromSync) {
       _logSyncError('Trello', 'Load: ' + (e.message || msg));
     }
 
-    Today.use('connections').setTrelloIcon(false);
+    // A temporary read failure does not disconnect the saved account.
+    Today.use('connections').setTrelloIcon(!/Trello (401|404)(?::|$)/.test(e.message || ''));
 
     // Only open config panel on manual load — don't interrupt user on background sync
     if (!fromSync) {

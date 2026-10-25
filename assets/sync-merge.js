@@ -2,6 +2,16 @@
 (function initSyncMerge(global) {
   'use strict';
 
+  // Progress is cumulative; record/zone precedence must never lower it.
+  function mergeTaskProgress(task, other = {}) {
+    const merged = { ...task };
+    const number = value => Number.isFinite(Number(value)) ? Math.max(0, Math.floor(Number(value))) : 0;
+    for (const field of ['focusSessions', 'lastActive']) {
+      if (task[field] != null || other[field] != null) merged[field] = Math.max(number(task[field]), number(other[field]));
+    }
+    return merged;
+  }
+
   function mergeDailyHistory(localArr, remoteArr, sanitizeTasksAdded = value => value || 0) {
     const cleanEntry = entry => ({
       ...entry,
@@ -116,6 +126,6 @@
     return out;
   }
 
-  const api = { mergeDailyHistory, mergeSuggestionOutcomes, mergeDreamIndex, mergeDreamDismissed };
+  const api = { mergeTaskProgress, mergeDailyHistory, mergeSuggestionOutcomes, mergeDreamIndex, mergeDreamDismissed };
   if (global.Today) global.Today.define('sync-merge', api);
 })(window);

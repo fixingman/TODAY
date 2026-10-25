@@ -271,7 +271,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 4.6 | **SYNC: Check/uncheck rapid toggle** | Final state correct |
 | 4.7 | **BUG-055: Second-device first-open** — tasks checked on device A today, device B opens for first time | Done tasks stay in TODAY, not moved to PAST (fix v2.30.1 — `today_checked_ids` timestamps distinguish today vs yesterday) |
 
-### 5. Stats & Memory (16 tests)
+### 5. Stats & Memory (17 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -291,8 +291,9 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 5.14 | Daily-history sync receives local, duplicate-date, and remote-only `tasksAdded` values | 0–30 preserved; values above 30 normalize to 0 before storage; other per-day fields still merge normally |
 | 5.15 | Memory completion rate has five valid days plus one restored day with `tasksAdded: 31` | Invalid day is excluded; rate and evidence totals use only the five plausible days |
 | 5.16 | Inline suggestion generation finishes while its task is off-screen, then the list re-renders and the task enters view | No row/offer/exposure before entry; pending delivery re-anchors by task ID; entry mounts and measures it; replacement/removal cancels; reason outcomes still learn and sync |
+| 5.17 | Manual task has more completed pomodoros on one device; sync an older copy, including a concurrent Today/Soon/Past move (BUG-124) | Higher count/newest activity survive independently of the winning zone; incoming higher progress updates storage and badge; stale remote is healed; converged copies stay quiet. Full/partial focus queues backup without another edit. `dropbox-test` and `focus-test` automate fictional coverage; installed two-device acceptance remains open. |
 
-### 6. Trello (8 tests)
+### 6. Trello (9 tests)
 
 Run `node scripts/trello-test.mjs` for mocked-API coverage of board/list selection,
 OAuth headers, card filtering, render/cache state, errors, reconciliation, and disconnect.
@@ -307,6 +308,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 6.6 | Trello popup blocked | Error shown |
 | 6.7 | Trello checklist badge | Card with checklist shows "N/M ✓" in meta row |
 | 6.8 | Trello focus — complete, dismiss, re-click | Fresh 25:00 starts on first click (BUG-027) |
+| 6.9 | Saved Trello connection receives network, 429 or 5xx failure without cached cards (BUG-125) | Star remains; background failure keeps Connections closed. 401/404 or Forget still show lightning. `trello-test` automates manual/background failures; installed reconnect behavior remains open. |
 
 ### 7. Focus Mode (14 tests)
 

@@ -10,7 +10,7 @@
 
 | Key | Type | Description |
 |---|---|---|
-| `today_manual` | JSON array | Manual tasks: `{id, text, url?, lastActive?, focusSessions?}` |
+| `today_manual` | JSON array | Manual tasks: `{id, text, url?, lastActive?, focusSessions?}`. Sessions are cumulative; sync MAX-merges them and newest activity across Today/Soon/Past copies (BUG-124). |
 | `today_done` | JSON array | IDs of completed tasks |
 | `today_deleted_ids` | JSON array | `{id, at}` — explicit deletes |
 | `today_checked_ids` | JSON array | `{id, at}` — explicit checks |

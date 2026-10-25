@@ -35,7 +35,7 @@ Current work, decisions and gates. **Committed** means code exists, not that ins
 | Priority | ID | Item / details | Current status | Next action / gate |
 |---|---|---|---|---|
 | 1 | 15 | [AI continuous improvement — target v3.0.0](#15-ai-continuous-improvement) | Partial foundation; nudge increment local; feeling style, Focus and enrichment adaptation unbuilt | [15A–15G sub-items](#15-sub-items): nudge provenance/release + BUG-123 safety first; then bounded same-session Ask and pool selection review. Personal style remains required but undesigned. [Reviewed plan](../docs/ai-improvement-cycle.md). |
-| 2 | — | [Release verification](#release-verification) | BUG-118/121/122 fixes implemented; accepted verification open | Verify delivery/poem/zone convergence. Keep #15A’s failed performance gate explicit; unrelated account/device checks do not block #15 design work. |
+| 2 | — | [Release verification](#release-verification) | BUG-118/121/122/124/125 verification open | Verify delivery/poem/zone convergence. Keep #15A’s failed performance gate explicit; unrelated account/device checks do not block #15 design work. |
 | 3 | — | [Memory record and patterns](#memory-record-and-patterns) | KNOWN iterated; PATTERNS re-observing | Preserve November 1 / October 27 verdicts. HOW DAYS FELT writing and feedback now belong to #15B. |
 | 4 | — | [CI reliability](#watching--parked-investigations) | Original-run startup/focus cause open | Diagnose retained failures; release checks support #15A/15G without raised budgets or passing rerolls. |
 | 5 | 14 | [Habit contextual companionship](#14-habit-contextual-companionship) | Desktop Ask kept; a new morning habit contribution remains unbuilt | Existing Ask improvement belongs to #15D. A new morning relationship remains a separate evidence/product decision. |
@@ -164,6 +164,8 @@ Stages 1–3, Gmail/Calendar-notification filtering and bounded MiniSearch ranki
 The underlying habit/context idea remains open. Preserve the actual Habits component, name/check-off flow, history/strength, ordering, archive/undo, sync, 3am grace and existing evening attention. No required cue-bearing name, new field, completion-triggered offer, task-linking setup, automatic check-off or retrospective cue-adherence claim. No unobserved call/meal/bedtime inferred from a check or Calendar. Substantive future design uses actual components with Claude as specified in `design/ProductThinking.md`; research/design limits live in `design/Personalization.md` and `research/Psychology.md`.
 
 ### Release verification
+
+**v2.98.5 — installed verification pending:** BUG-124 protects manual task pomodoro progress across sync/zone moves; BUG-125 keeps the connection star during temporary Trello read failures. Focus completion/partial-exit autosave is included in v2.98.4. After release, check that the higher count survives restart/two-device sync and that a brief network interruption no longer implies disconnection. Automated regressions do not establish installed/account acceptance.
 
 **Do not archive these as verified:** [BUG-118](Bugs.md#bug-118--daily-nudge-delivery-and-recovery), [BUG-121](Bugs.md#bug-121--yesterdays-splash-cooldown-suppresses-the-new-days-poem), and [BUG-122](Bugs.md#bug-122--zone-agreement-warned-as-a-conflict-remote-past-did-not-fence-older-soon) have implemented v2.97.8 fixes but still await accepted verification. `Bugs.md` owns exact causes/statuses and other open bug work.
 

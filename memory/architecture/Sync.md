@@ -88,7 +88,7 @@ merged = [...local, ...remote].reduce((acc, item) => {
   version: '5.5',
   saved_at: 'ISO string',
   // Tasks
-  manual_tasks: [{id, text, lastActive?, zone?, zoneChangedAt?}, ...],
+  manual_tasks: [{id, text, focusSessions?, lastActive?, zone?, zoneChangedAt?}, ...],
   manual_order_at: 'ISO',  // 5.4 — newer reorder stamp keeps local order; '' (old backup) → remote order wins
   done_ids: ['id1', ...],
   deleted_ids: [{id, at}, ...],
@@ -144,7 +144,7 @@ Additive keys do not bump the version; `Rules.md` #12 records which keys arrived
 
 | Data | Rule |
 |------|------|
-| Task list | Union by ID; remote order wins unless a strictly newer `manual_order_at` keeps the local order (shared tasks; remote-only additions append, then local-only). When remote order wins, the device adopts the remote stamp so the next merge doesn't re-win off a stale local one (mirrors Trello, BUG-042). Per field remote wins, except `lastActive` (max wins — BUG-059). Ties → remote |
+| Task list | Union by ID; remote order wins unless a strictly newer `manual_order_at` keeps the local order (shared tasks; remote-only additions append, then local-only). When remote order wins, the device adopts the remote stamp so the next merge doesn't re-win off a stale local one (mirrors Trello, BUG-042). Per field remote wins, except `focusSessions` and `lastActive`: MAX across all Today/Soon/Past copies, independent of the winning zone record (BUG-124). Progress differences refresh the badge and trigger merged autosave to heal stale remote copies. Ties → remote |
 | Task order change | Detected by comparing the ID sequence, not just set membership, so a reorder alone re-renders |
 | Habit list | Union by ID, remote order wins |
 | Trello order | Newer `trello_order_at` wins; bootstrap if local is empty (BUG-042) |

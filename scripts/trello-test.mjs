@@ -199,6 +199,39 @@ try {
     await page.close();
   }
 
+  // A temporary read failure is not a disconnected Trello account, even without cached cards.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      localStorage.setItem('trello_config', JSON.stringify({
+        apiKey:'key', apiToken:'token', boardId:'board_1', todayList:'Today',
+      }));
+      window._logSyncError = () => {};
+      const checks = [];
+      for (const status of ['network', 429, 500, 503]) {
+        for (const fromSync of [false, true]) {
+          trelloTasks = [];
+          document.getElementById('configPanel').classList.remove('open');
+          Today.use('connections').setTrelloIcon(true);
+          window.fetch = async () => {
+            if (status === 'network') throw new TypeError('Failed to fetch');
+            return { ok:false, status, statusText:'Temporarily unavailable' };
+          };
+          await loadTrello(fromSync);
+          checks.push(document.getElementById('trelloBtn').textContent.includes('✦'));
+          if (fromSync) checks.push(!document.getElementById('configPanel').classList.contains('open'));
+        }
+      }
+      window.fetch = async () => ({ ok:false, status:401, statusText:'Unauthorized' });
+      await loadTrello(true);
+      return { temporaryFailuresKeepStar:checks.every(Boolean),
+        rejectedCredentialsNeedAttention:document.getElementById('trelloBtn').textContent.includes('⚡') };
+    });
+    await expectAll('Trello temporary failure keeps connection icon', { ...result, noErrors:errors.length === 0 });
+    ok('network, rate limit and server failures keep the connection star; rejected credentials still need attention');
+    await page.close();
+  }
+
   // 4. Background API failures log diagnostics without interrupting the user.
   {
     const { page, errors } = await openPage();

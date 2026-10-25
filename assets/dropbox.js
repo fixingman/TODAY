@@ -17,7 +17,7 @@
     const _getLastLocalChange  = () => localStorage.getItem('last_local_change') || null;
     const _setLastLocalChange  = ()  => localStorage.setItem('last_local_change', new Date().toISOString());
 
-    // ── Deleted IDs: {id, at} — explicit delete tracking for union merge ──────────
+    // Deleted IDs: {id, at} — explicit delete tracking for union merge
     const _getTrelloFocus = () => safeJSON('today_trello_focus', {});
     const _setTrelloFocus = (map) => {
       localStorage.setItem('today_trello_focus', JSON.stringify(map));
@@ -101,7 +101,7 @@
       if (changed) localStorage.setItem('today_habit_events', JSON.stringify(habitEvents));
     }
 
-    // ── Unchecked IDs: {id, at} — explicit uncheck tracking ───────────────────────
+    // Unchecked IDs: {id, at} — explicit uncheck tracking
     const _getUncheckedIds = () => safeJSON('today_unchecked_ids', []);
     const _addUncheckedId  = (id) => {
       const existing = _getUncheckedIds().filter(u => u.id !== id);
@@ -112,7 +112,7 @@
       localStorage.setItem('today_unchecked_ids', JSON.stringify(_getUncheckedIds().filter(u => u.id !== id)));
     };
 
-    // ── Checked IDs: {id, at} — check timestamps so uncheck can be compared ───────
+    // Checked IDs: {id, at} — check timestamps so uncheck can be compared
     const _getCheckedIds = () => safeJSON('today_checked_ids', []);
     const _addCheckedId  = (id) => {
       const existing = _getCheckedIds().filter(c => c.id !== id);
@@ -136,7 +136,7 @@
       }).length;
     };
 
-    // ── UI helpers ────────────────────────────────────────────────────────────────
+    // UI helpers
     function getDropboxAppKey() {
       if (DROPBOX_APP_KEY) return DROPBOX_APP_KEY;
       const saved = localStorage.getItem('dropbox_app_key') || '';
@@ -148,7 +148,7 @@
       showStatus(msg, type);
     }
 
-    // ── PKCE helpers ──────────────────────────────────────────────────────────────
+    // PKCE helpers
     function _generateVerifier() {
       const arr = new Uint8Array(48);
       crypto.getRandomValues(arr);
@@ -317,7 +317,7 @@
       Today.use('connections').renderConnections();
     }
 
-    // ── Auto-save (debounced, called after every user action that changes state) ──
+    // Auto-save (debounced, called after every user action that changes state)
     let _pendingBackup  = false; // Track if there's an unsaved change
     let _backupAttempt  = 0;     // Retry counter for exponential backoff
 
@@ -354,7 +354,7 @@
     // Retry pending backup when tab becomes visible
     let _lastWakeTime = 0; // debounce guard for _onWake double-fire (visibilitychange + window.focus)
 
-    // ─── _onWake — unified wake sequence ─────────────────────────────────────────
+    // _onWake — unified wake sequence
     // Called by the Dropbox sync module's visibilitychange handler (which has the
     // right closure variables for sync). Handles repaint, focus cleanup, and triage.
     // Do NOT add a second visibilitychange listener here — let the sync module call this.
@@ -486,7 +486,7 @@
       if (window._onWake) window._onWake();
     });
 
-    // ── Per-day dismissable surfaces (sync registry) ──────────────────────────────
+    // Per-day dismissable surfaces (sync registry)
     // Per-day dismissable surfaces: one row drives both the backup field and the merge
     // (BUG-051/053). Payload carries '1' plus the source local day so yesterday's dismissal can't
     // hide today's line. Triage dismissal is a separate model. Sync.md → Dismiss sync.
@@ -514,7 +514,7 @@
       return out;
     }
 
-    // ── File I/O ─────────────────────────────────────────────────────────────────
+    // File I/O
     // One upload primitive for the backup and DreamBank files (v2.93.0). Plain I/O:
     // backup-only effects (last_successful_backup, rev baseline, session-expired UI)
     // stay in dropboxBackup, so a dream upload never looks like a backup.
@@ -567,7 +567,7 @@
       headers: { 'Authorization': `Bearer ${token}`, 'Dropbox-API-Arg': JSON.stringify({ path }) },
     }), true);
 
-    // ── Backup ────────────────────────────────────────────────────────────────────
+    // Backup
     async function dropboxBackup(silent) {
       await _dropboxEnsureToken();
       const token = localStorage.getItem('dropbox_token');
@@ -685,7 +685,7 @@
       }
     }
 
-    // ── Merge-anomaly log — silent console breadcrumb, NOT an error ──────────────
+    // Merge-anomaly log — silent console breadcrumb, NOT an error
     // Fires when union merge had to discard one device's intent (a true concurrent
     // change to the same task since the last sync read). The merge itself succeeded,
     // so this never touches the red dot — it's a debug-only trace of how often the
@@ -694,7 +694,7 @@
       console.warn('[merge-anomaly] ' + kind + ' on ' + id, detail);
     }
 
-    // ── Daily history union merge (BUG-036) — the week grid reads per-day snapshots from
+    // Daily history union merge (BUG-036) — the week grid reads per-day snapshots from
     // today_daily_history, which used to be local-only, so each device snapshotted its own
     // days at midnight and the week view diverged across devices. Union by date; on duplicate
     // dates merge per-field with Math.max so neither device's data is silently discarded.
@@ -707,10 +707,10 @@
       );
     }
 
-    // ── Core merge logic — operates on a remote data object, no timestamp guard ───
+    // Core merge logic — operates on a remote data object, no timestamp guard
     // Called by dropboxRestore(fromSync=true) AND by the offline-reconnect path.
     // Returns true if any state changed (so caller knows whether to push back to Dropbox).
-    // ── appMemory merge helper — called by both auto-sync and manual restore ─────
+    // appMemory merge helper — called by both auto-sync and manual restore
     // Merges a remote appMemory snapshot into the local appMemory in-place,
     // then persists via _saveMemory(). All strategies are idempotent and safe
     // to run on every 7-second sync tick.
@@ -1079,11 +1079,16 @@
         if ((remoteCheckedMap.get(id) ?? '') < localAt) mergedCheckedMap.set(id, localAt);
       }
 
-      // ── Zones: get remote SOON/PAST for zone-aware task merging ────────────
+      // Zones: get remote SOON/PAST for zone-aware task merging
       const remoteSoon = Array.isArray(data.soon_tasks) ? data.soon_tasks : [];
       const remotePast = Array.isArray(data.past_tasks) ? data.past_tasks : [];
+      const progressCopies = [...manualTasks, ...soonTasks, ...pastTasks, ...remoteTasks, ...remoteSoon, ...remotePast];
+      const mergeProgress = Today.use('sync-merge').mergeTaskProgress;
+      const taskProgress = new Map();
+      for (const task of progressCopies) taskProgress.set(task.id, mergeProgress(task, taskProgress.get(task.id)));
+      const keepProgress = task => mergeProgress(task, taskProgress.get(task.id));
 
-      // ── Task list: remote order wins, local-only tasks appended at end ────────
+      // Task list: remote order wins, local-only tasks appended at end
       const localIds = new Set(manualTasks.map(t => t.id));
       const remoteIds = new Set(remoteTasks.map(t => t.id));
 
@@ -1113,10 +1118,6 @@
       remoteTasks.forEach(t => {
         const local = taskDataMap.get(t.id);
         const merged = { ...local, ...t };
-        // lastActive: local focus session may not have reached Dropbox yet — keep the newer value
-        if (local && local.lastActive && (!merged.lastActive || local.lastActive > merged.lastActive)) {
-          merged.lastActive = local.lastActive;
-        }
         taskDataMap.set(t.id, merged);
       });
 
@@ -1152,9 +1153,9 @@
           ? new Date(parseInt(t.id.replace('manual_', ''))).toISOString()
           : null;
         return taskCreatedAt && taskCreatedAt > deletedAt;
-      });
+      }).map(keepProgress);
 
-      // ── Done state: most-recent-operation wins per task ID ───────────────────
+      // Done state: most-recent-operation wins per task ID
       const allEverTouched = new Set([
         ...doneIds, ...remoteDone,
         ...mergedUncheckedMap.keys(), ...mergedCheckedMap.keys(),
@@ -1178,7 +1179,7 @@
         }
       });
 
-      // ── Merge-anomaly detection — both devices changed the same task ──────────
+      // Merge-anomaly detection — both devices changed the same task
       // A real conflict = local AND remote each carry an op on the same task that is
       // (a) newer than the last sync read and (b) not just the other side's echo
       // (pushed ops come back with identical timestamps — those are excluded).
@@ -1200,7 +1201,7 @@
         });
       }
 
-      // ── Habits: union merge with remote order preserved ─────────────────────
+      // Habits: union merge with remote order preserved
       const remoteHabits      = Array.isArray(data.habits)            ? data.habits            : [];
       const remoteHabitComps  = (data.habit_completions && typeof data.habit_completions === 'object') ? data.habit_completions : {};
       const remoteDeletedHabitIds = new Set(Array.isArray(data.deleted_habit_ids) ? data.deleted_habit_ids : []);
@@ -1251,7 +1252,7 @@
       const habitsPanel = document.getElementById('habitsPanel');
       if (habitsPanel && habitsPanel.classList.contains('open')) Today.use('habits').renderHabits();
 
-      // ── Trello order: newer reorder wins ─────────────────────────────────────
+      // Trello order: newer reorder wins
       // Trello order: adopt remote only if it reordered more recently, or to bootstrap an empty
       // device; untimestamped remote never wins (BUG-042).
       const remoteTrelloOrder   = Array.isArray(data.trello_order) ? data.trello_order : [];
@@ -1275,7 +1276,7 @@
         }
       }
 
-      // ── Zones: SOON and PAST (v5.0) ───────────────────────────────────────────
+      // Zones: SOON and PAST (v5.0)
       // Union merge by task ID — most recent zoneChangedAt wins for conflicts
       // (remoteSoon and remotePast already declared above for zone-aware task filtering)
       // IMPORTANT: Exclude tasks that were deleted on either device
@@ -1321,7 +1322,7 @@
           soonMap.delete(id);
         }
       }
-      soonTasks = [...soonMap.values()];
+      soonTasks = [...soonMap.values()].map(keepProgress);
       localStorage.setItem('today_soon', JSON.stringify(soonTasks));
 
       // Merge PAST: union by ID, most recent zoneChangedAt wins, exclude deleted and pulled-back
@@ -1370,7 +1371,7 @@
       }
       // Sort by zoneChangedAt descending, then apply age-based purge
       // so items expired locally don't get resurrected from remote on every sync
-      pastTasks = [...pastMap.values()]
+      pastTasks = [...pastMap.values()].map(keepProgress)
         .sort((a, b) => (b.zoneChangedAt || '').localeCompare(a.zoneChangedAt || ''));
       // Tombstone purged items via mergedDeletedMap — NOT a direct localStorage write,
       // which the merged-log persist below would clobber (BUG-054). The map write also
@@ -1382,16 +1383,23 @@
       // save unconditionally here to cover the no-purge path
       localStorage.setItem('today_past', JSON.stringify(pastTasks));
 
+      // Refresh badges when progress arrived; heal a stale remote snapshot when local won.
+      const survivingTasks = new Map([...mergedTasks, ...soonTasks, ...pastTasks].map(t => [t.id, t]));
+      if (progressCopies.some(task => {
+        const kept = survivingTasks.get(task.id);
+        return kept && ['focusSessions', 'lastActive'].some(field => (Number(kept[field]) || 0) !== (Number(task[field]) || 0));
+      })) _changed = true;
+
       // Re-render zones if visible
       if (typeof renderSoon === 'function') renderSoon();
       if (typeof renderPast === 'function') renderPast();
 
-      // ── Persist merged operation logs ────────────────────────────────────────
+      // Persist merged operation logs
       localStorage.setItem('today_deleted_ids',   JSON.stringify([...mergedDeletedMap.entries()].map(([id,at]) => ({id,at}))));
       localStorage.setItem('today_unchecked_ids', JSON.stringify([...mergedUncheckedMap.entries()].map(([id,at]) => ({id,at}))));
       localStorage.setItem('today_checked_ids',   JSON.stringify([...mergedCheckedMap.entries()].map(([id,at]) => ({id,at}))));
 
-      // ── DOM updates ──────────────────────────────────────────────────────────
+      // DOM updates
       const mergedTaskIds = new Set(mergedTasks.map(t => t.id));
 
       manualTasks.forEach(t => {
@@ -1440,7 +1448,7 @@
       doneIds = mergedDoneIds;
       _saveDone();
 
-      // ── Stats: take max of each counter (both devices may have added focus time) ──
+      // Stats: take max of each counter (both devices may have added focus time)
       // Flow rate is calculated live from visible tasks, not stored
       const localFocusMins  = parseInt(localStorage.getItem('stat_focus_mins_today')  || '0');
       const localStreak     = parseInt(localStorage.getItem('stat_streak')            || '1');
@@ -1494,7 +1502,7 @@
         _changed = true;
       }
 
-      // ── Triage history: union merge by timestamp ──
+      // Triage history: union merge by timestamp
       if (data.triage_history && Array.isArray(data.triage_history)) {
         const localHistory = safeJSON('today_triage_history', []);
         const localTs = new Set(localHistory.map(h => h.ts));
@@ -1507,7 +1515,7 @@
         }
       }
 
-      // ── Daily history: union merge by date (week grid cross-device, BUG-036) ──
+      // Daily history: union merge by date (week grid cross-device, BUG-036)
       if (Array.isArray(data.daily_history)) {
         const localDaily  = safeJSON('today_daily_history', []);
         const mergedDaily = _mergeDailyHistory(localDaily, data.daily_history);
@@ -1517,7 +1525,7 @@
         }
       }
 
-      // ── Trello focus map: union merge so un-dimmed cards propagate across devices ──
+      // Trello focus map: union merge so un-dimmed cards propagate across devices
       // Date-guarded — avoids yesterday's focus restoring after the other device's day-cleanup
       const _remoteFocusMapDate = data.today_trello_focus_date || '';
       if (_remoteFocusMapDate === _getAppDay() && data.today_trello_focus && typeof data.today_trello_focus === 'object') {
@@ -1530,7 +1538,7 @@
         if (_focusMapChanged) { _setTrelloFocus(_mergedFocusMap); renderTrello(); _changed = true; }
       }
 
-      // ── Trello first-seen map: union merge, MIN timestamp wins (BUG-049) ──
+      // Trello first-seen map: union merge, MIN timestamp wins (BUG-049)
       // A card's true first-seen is the EARLIEST any device saw it. No date guard — first-seen
       // persists across days by design (that's how the card ages).
       if (data.today_trello_firstseen && typeof data.today_trello_firstseen === 'object') {
@@ -1543,7 +1551,7 @@
         if (_fsChg) { _setTrelloFirstSeen(_mergedFS); renderTrello(); _changed = true; }
       }
 
-      // ── Trello last-active: MAX-merge (BUG-064) ──
+      // Trello last-active: MAX-merge (BUG-064)
       // Mirror image of first-seen above: the newest activity on ANY device un-ages the card,
       // so a focus session on the phone doesn't get undone by the laptop's older value.
       if (data.today_trello_lastactive && typeof data.today_trello_lastactive === 'object') {
@@ -1556,7 +1564,7 @@
         if (_laChg) { _setTrelloLastActive(_mergedLA); renderTrello(); _changed = true; }
       }
 
-      // ── Trello focus total: MAX-merge, no date guard ──
+      // Trello focus total: MAX-merge, no date guard
       // Lifetime session counts persist across days — highest count on any device wins.
       if (data.today_trello_focus_total && typeof data.today_trello_focus_total === 'object') {
         const _localFT = _getTrelloFocusTotal();
@@ -1568,7 +1576,7 @@
         if (_ftChg) { _setTrelloFocusTotal(_mergedFT); renderTrello(); _changed = true; }
       }
 
-      // ── Triage dismissed: sync across devices ──
+      // Triage dismissed: sync across devices
       // If remote shows triage was dismissed today (or more recently), apply it locally
       const remoteDismissed = data.triage_dismissed || '';
       const localDismissed = localStorage.getItem('triage_dismissed') || '';
@@ -1589,7 +1597,7 @@
         _changed = true;
       }
 
-      // ── User names: last-write-wins via user_names_at timestamp ──
+      // User names: last-write-wins via user_names_at timestamp
       // Remote wins if its timestamp is strictly newer; fallback fill-if-empty for
       // old backups that predate the timestamp field (user_names_at = '').
       const _remoteNamesAt = data.user_names_at || '';
@@ -1606,7 +1614,7 @@
         }
       }
 
-      // ── Per-day nudge dismissals: sync across devices (BUG-051/053) ──
+      // Per-day nudge dismissals: sync across devices (BUG-051/053)
       // Driven by _DISMISS_SYNC — the same registry that puts these fields in the
       // backup payload, so payload and merge can't drift apart per surface again.
       const _todayISO = _localISO();
@@ -1622,17 +1630,17 @@
         });
       }
 
-      // ── Trello config: fill-if-empty so a new device picks up existing Trello setup ──
+      // Trello config: fill-if-empty so a new device picks up existing Trello setup
       if (!localStorage.getItem('trello_config') && data.trello_config && typeof data.trello_config === 'object' && Object.keys(data.trello_config).length) {
         localStorage.setItem('trello_config', JSON.stringify(data.trello_config));
       }
 
-      // ── Full appMemory merge: patterns, inferences, moments, keywords ───────────
+      // Full appMemory merge: patterns, inferences, moments, keywords
       _mergeAppMemory(data.memory);
       // A completion synced from another device can retire the line the strip shows.
       try { Today.use('nudge').retireStaleStrip(); } catch (_e) { /* nudge not started yet */ }
 
-      // ── Day review + AI nudge ─────────────────────────────────────────────────
+      // Day review + AI nudge
       // day_review: fill-if-empty (local is the authoritative current-session record)
       if (data.day_review && !localStorage.getItem('today_day_review')) {
         localStorage.setItem('today_day_review', JSON.stringify(data.day_review));
@@ -1720,7 +1728,7 @@
       return _changed;
     }
 
-    // ── Restore ───────────────────────────────────────────────────────────────────
+    // Restore
     async function dropboxRestore(fromSync) {
       await _dropboxEnsureToken();
       const token = localStorage.getItem('dropbox_token');
@@ -1923,7 +1931,7 @@
       }
     }
 
-    // ─── Live sync ───────────────────────────────────────────────────────────────
+    // Live sync
     // Visibility-based polling: re-syncs when tab regains focus or every 30s while
     // active. Background tabs are completely silent — no network, no battery drain.
       let   ticker         = null;
@@ -1933,7 +1941,7 @@
       window._setWakeSyncSilent = (v) => { _wakeSyncSilent = v; };
       let   lastTrelloDate = null;
 
-      // ── Trello: cheap activity check first, full fetch only if board changed ──
+      // Trello: cheap activity check first, full fetch only if board changed
       async function syncTrello() {
         if (!navigator.onLine) return; // don't attempt fetches when offline
         const cfg = _syncCfg; // use cached config — avoids localStorage read every 7s tick
@@ -1951,7 +1959,7 @@
         } catch(e) { _logSyncError('Trello', 'Sync: ' + e.message); }
       }
 
-      // ── Dropbox: cheap rev check, only restore if file changed on another device ──
+      // Dropbox: cheap rev check, only restore if file changed on another device
       async function syncDropbox() {
         if (!navigator.onLine) return;
         if (!_syncToken) return;

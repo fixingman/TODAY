@@ -19,6 +19,8 @@
 
 | # | Description | Status |
 |---|---|---|
+| 125 | Temporary Trello read failures show the disconnected lightning icon until a successful refresh | ⏳ v2.98.5 |
+| 124 | Manual task pomodoro counts revert when an older task record arrives through Dropbox sync | ⏳ v2.98.5 |
 | 123 | Feeling feedback can be pruned while source readiness is false, losing a missed claim | ⏳ v2.98.3 |
 | 122 | Zone diagnostics warn when both devices agree; a newer remote Past move can leave an older Soon copy | ⏳ v2.97.8 |
 | 121 | A recent pre-midnight open suppresses the new day’s poem on restart | ⏳ v2.97.8 |
@@ -33,6 +35,30 @@
 ---
 
 *BUG-001–087 (all) and BUG-088–119 (verified ✅) → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-125 — Temporary Trello failures show a disconnected connection icon
+
+**Report (Can, October 25):** Connections showed lightning instead of the star; manually refreshing Trello restored the star, alongside network-change/DNS errors.
+
+**Reproduced:** with saved Trello credentials and no cached cards, a rejected network fetch changes the icon to lightning. HTTP 429 and 5xx failures do the same. A successful read sets the star again. A temporary read failure does not remove the credentials.
+
+**Fix (v2.98.5; installed verification pending):** temporary network/rate-limit/server failures keep the configured connection star. Actual 401 credentials / 404 board failures still show lightning; Forget still clears the connection. The empty-cache network message explains temporary reachability rather than suggesting the user's credentials are wrong. No new indicator, animation or retry loop. W1: the existing icon describes the connection; W2: ordinary network interruptions do not demand reconnection.
+
+**Coverage / verification:** `trello-test` exercises manual/background network, 429, 500 and 503 failures without cached cards, plus 401 attention and existing 404/Forget behavior. Installed behavior remains to be verified after release.
+
+---
+
+## BUG-124 — Manual task pomodoro progress overwritten by stale sync records
+
+**Report (Can, October 25):** a manual TODAY task's completed pomodoro count decreases after sync.
+
+**Reproduced:** local `focusSessions:3` merged with the same task's remote `focusSessions:1` becomes 1 in memory/storage. The task merge spreads remote fields over local fields and protects only `lastActive`; badge changes are not detected when IDs/order stay identical. A later render exposes the lower count. Focus completion/exit also lacked the normal local-change stamp and autosave request, leaving the new progress local until another mutation caused an upload.
+
+**Fix:** completion and partial exit now stamp the local change and queue retrying autosave (included in the concurrent v2.98.4 commit). The remaining merge fix is **v2.98.5; installed verification pending**: preserve the maximum completed-session count and newest activity across every copy of the task in Today/Soon/Past, independently of the winning text/order/zone record. A progress difference refreshes the row and schedules the ordinary merged backup, healing a stale remote snapshot. Deletes, zone precedence, manual Restore's explicit overwrite and the backup schema are unchanged. Counts are cumulative per task; this is MAX reconciliation, not addition of concurrent sessions from equal starting counts. Already-lost counts cannot be reconstructed when no surviving copy has them.
+
+**Coverage / verification:** the new `dropbox-test` regression fails before the fix; checks stale/repeated snapshots, storage/badge agreement, newer remote progress and 36 zone/direction/progress combinations. `focus-test` checks completion and partial exit queue sync without another edit. After release, verify a completed manual-task pomodoro survives sync, restart and another device with an older copy; confirm the other device receives the higher badge count. Real-account/device acceptance remains open.
 
 ---
 

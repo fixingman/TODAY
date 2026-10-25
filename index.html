@@ -4615,16 +4615,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─ Version ─
-const DEV_HOURS     = '363.5h';
+const DEV_HOURS     = '364h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.98.5': 'Task focus counts stay intact when devices sync. Temporary Trello connection failures keep the connection star.',
   '2.98.4': 'Asking for focus help on the same task now avoids repeating the same angle in the same session.',
   '2.98.3': 'Your feeling feedback votes are now protected while the app is still loading your sync data on startup.',
-  '2.98.2': 'Sunday reflection now always has something to say, even when your usual observation kinds are on cooldown.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

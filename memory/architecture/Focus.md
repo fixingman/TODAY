@@ -49,19 +49,28 @@ not change stored keys or focus timing behavior.
 ## Session Tracking
 
 ```javascript
-// Per-task session count
-today_trello_focus: {taskId: sessionCount}
+// Manual tasks / habits: cumulative session count on each record
+focusSessions: number
+// Trello: cumulative display count and separate daily activity map
+today_trello_focus_total: {taskId: sessionCount}
+today_trello_focus: {taskId: dailyCount}
 
 // Daily stats
 stat_focus_mins_today: number
 stat_focus_mins_alltime: number
 ```
 
-`today_trello_focus[id]` is set to 1 (engaged) on **any** partial focus session — Escape,
-task-switch, or completion. Guard: if the count is already > 0 (set by `_logSession` on a
-completed pomodoro or `_focusOnCheck`), `closeUI` skips the increment to avoid double-count.
-Full completion still increments via `_logSession`; partial-only sessions are caught by
-`closeUI`'s `_hadTime && count === 0` guard.
+For Trello, `today_trello_focus[id]` is set to 1 (engaged) after partial focus when the
+daily map has no activity yet. Full completion increments the daily and lifetime maps;
+partial exit updates last-active without adding a completed session. Manual tasks likewise
+refresh `lastActive` on partial exit, and `_logSession` increments their `focusSessions`
+only on full completion or the existing check-off-during-focus path.
+
+Focus completion and exits with elapsed time stamp `last_local_change` and queue the
+normal retrying Dropbox autosave, including silent completion restored after suspension.
+Manual task `focusSessions` is cumulative, not a daily counter. Sync keeps the highest
+count and newest `lastActive` across Today/Soon/Past; it does not add concurrent totals
+from two devices. New progress refreshes the row and heals stale remote copies (BUG-124).
 
 ---
 

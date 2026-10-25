@@ -241,6 +241,59 @@ try {
     await page.close();
   }
 
+  // Completed task sessions survive stale snapshots, including a concurrent zone move.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const id = 'task_1';
+      const base = { done_ids:[], deleted_ids:[], unchecked_ids:[], checked_ids:[], habits:[] };
+      manualTasks = [{ id, text:'Choose a reading lamp', focusSessions:3, lastActive:3000 }];
+      _saveManual();
+      Today.use('connections').renderManual();
+      const stale = { ...base, manual_tasks:[{ id, text:'Choose a reading lamp', focusSessions:1, lastActive:1000 }], soon_tasks:[], past_tasks:[] };
+      const healsStale = mergeRemoteData(stale);
+      const retained = manualTasks[0].focusSessions === 3 && manualTasks[0].lastActive === 3000;
+      const badge = () => document.querySelector('[data-taskid="task_1"] .session-count')?.textContent;
+      const retainedBadge = badge()?.includes('3');
+      const fresh = { ...stale, manual_tasks:[{ ...stale.manual_tasks[0], focusSessions:5, lastActive:5000 }] };
+      mergeRemoteData(fresh);
+      const adopted = manualTasks[0].focusSessions === 5 && badge()?.includes('5');
+      mergeRemoteData(stale);
+      const persisted = JSON.parse(localStorage.getItem('today_manual'))[0].focusSessions === 5;
+      const repeated = manualTasks[0].focusSessions === 5 && badge()?.includes('5');
+      const convergedIsQuiet = !mergeRemoteData(fresh);
+      const zoneCases = [];
+      const now = Date.now();
+      for (const localZone of ['today', 'soon', 'past']) {
+        for (const remoteZone of ['today', 'soon', 'past']) {
+          for (const [remoteWins, remoteHigher] of [[false, false], [false, true], [true, false], [true, true]]) {
+            const local = { id, text:'Choose a reading lamp', focusSessions:remoteHigher ? 1 : 3, lastActive:remoteHigher ? 1000 : 3000,
+              zoneChangedAt:new Date(now - (remoteWins ? 2000 : 1000)).toISOString() };
+            const remote = { ...local, focusSessions:remoteHigher ? 3 : 1, lastActive:remoteHigher ? 3000 : 1000,
+              zoneChangedAt:new Date(now - (remoteWins ? 1000 : 2000)).toISOString() };
+            manualTasks = localZone === 'today' ? [local] : [];
+            soonTasks = localZone === 'soon' ? [local] : [];
+            pastTasks = localZone === 'past' ? [local] : [];
+            _saveManual();
+            localStorage.setItem('today_soon', JSON.stringify(soonTasks));
+            localStorage.setItem('today_past', JSON.stringify(pastTasks));
+            mergeRemoteData({ ...base, manual_tasks:remoteZone === 'today' ? [remote] : [],
+              soon_tasks:remoteZone === 'soon' ? [remote] : [], past_tasks:remoteZone === 'past' ? [remote] : [] });
+            const zones = { today:manualTasks, soon:soonTasks, past:pastTasks };
+            const expected = remoteWins ? remoteZone : localZone;
+            zoneCases.push(Object.values(zones).flat().filter(t => t.id === id).length === 1 &&
+              zones[expected][0]?.focusSessions === 3 && zones[expected][0]?.lastActive === 3000);
+          }
+        }
+      }
+      return { healsStale, retained, retainedBadge, adopted, persisted, repeated, convergedIsQuiet,
+        zonesPreserveProgress:zoneCases.every(Boolean) };
+    });
+    await expectAll('manual task session monotonicity and zone moves', { ...result, noErrors:errors.length === 0 });
+    ok('manual sessions: stale snapshots cannot lower counts; remote progress renders; zone moves retain progress');
+    await page.close();
+  }
+
   // 10b. Triage completion is a same-day monotonic sync fact. A remote completion
   //      hides this device; a stale blank remote is reported as changed so the
   //      caller pushes the local completion back instead of silently losing it.
