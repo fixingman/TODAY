@@ -511,7 +511,7 @@
 
     function _reconcileEvidence() {
       const evidence = _reflectionEvidence();
-      if (_feedbackPolicy && localStorage.getItem(FEEDBACK_KEY)
+      if (_feedbackPolicy && _sourceReady && localStorage.getItem(FEEDBACK_KEY)
           && JSON.stringify(_feedbackStore()) !== JSON.stringify(evidence.feedback)) _saveFeedback(evidence.feedback);
       if (_reflectEvidence !== evidence.key) {
         _reflectEvidence = evidence.key;
@@ -729,7 +729,7 @@
         reflections:            safeJSON(DATA_KEY,   []),
         reflections_cleared_at: localStorage.getItem(CLEARED_KEY) || '',
         reflection_feedback: evidence.policy?.choice !== 'remember' ? { version:1,consentAt:'',records:[] }
-          : _feedbackPolicy ? evidence.feedback : { version:1,consentAt:'',records:[] },
+          : _feedbackPolicy ? (_sourceReady ? evidence.feedback : _feedbackStore()) : { version:1,consentAt:'',records:[] },
         reflection_feedback_cleared_at: localStorage.getItem(FEEDBACK_CLEAR_KEY) || '',
       };
     }

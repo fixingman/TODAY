@@ -145,8 +145,32 @@ try{
   assert.equal(deleted.reflection_feedback.records.length,0);
   await a.evaluate(data=>Today.use('reflections')._reflectionMergeRemote(data),backup);
   assert.equal(await a.evaluate(()=>Today.use('reflections')._reflectionBackupFields().reflection_feedback.records.length),0);
+  // BUG-123 regression: missed vote must survive source-readiness false on both storage and backup export paths
+  stage='BUG-123 source-readiness guard';
+  const c=await page();
+  await c.evaluate(()=>checkDayNudge._setMemoryReady(true));
+  await open(c);await waitReading(c);
+  await vote(c,'missed');
+  await c.waitForFunction(()=>JSON.parse(localStorage.getItem('today_reflection_feedback')||'{}').records?.some(r=>r.reaction==='missed'));
+  assert.equal(await c.evaluate(()=>JSON.parse(localStorage.getItem('today_reflection_feedback')).records.filter(r=>r.reaction==='missed').length),1,'Precondition: one missed vote stored before readiness false');
+  await c.evaluate(()=>{
+    window.__savedOutcomes=appMemory.taskOutcomes.slice();
+    appMemory.taskOutcomes=[];
+    document.dispatchEvent(new CustomEvent('today:memory-ready',{detail:{ready:false}}));
+    Today.use('reflections')._reflectionBackupFields();
+  });
+  assert.equal(await c.evaluate(()=>JSON.parse(localStorage.getItem('today_reflection_feedback')||'{}').records?.filter(r=>r.reaction==='missed').length||0),1,'Missed vote must not be pruned from storage when source readiness is false');
+  const notReadyBackup=await c.evaluate(()=>{
+    const backup=Today.use('reflections')._reflectionBackupFields();
+    appMemory.taskOutcomes=window.__savedOutcomes;
+    document.dispatchEvent(new CustomEvent('today:memory-ready',{detail:{ready:true}}));
+    return backup;
+  });
+  assert.ok(notReadyBackup.reflection_feedback.records.some(r=>r.reaction==='missed'),'Backup export must not prune voted records when source is not yet ready');
+  await c.waitForFunction(()=>JSON.parse(localStorage.getItem('today_reflection_feedback')||'{}').records?.some(r=>r.reaction==='missed'));
+  assert.equal(await c.evaluate(()=>JSON.parse(localStorage.getItem('today_reflection_feedback')).records.filter(r=>r.reaction==='missed').length),1,'Missed vote persists after source readiness is restored');
   assert.deepEqual(errors,[]);
-  console.log('Reflection feedback: explicit first vote, keyboard/320px, no AI history leakage, no regeneration, Undo, hidden-claim management, two-device revision/clear and late deletion passed.');
+  console.log('Reflection feedback: explicit first vote, keyboard/320px, no AI history leakage, no regeneration, Undo, hidden-claim management, two-device revision/clear, late deletion, and source-readiness vote-preservation passed.');
 }catch(error){console.error('Reflection feedback failed at '+stage,error);throw error;}
 finally{
   const cleanup=setTimeout(()=>browser.process()?.kill('SIGKILL'),3000);

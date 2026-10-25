@@ -19,6 +19,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 123 | Feeling feedback can be pruned while source readiness is false, losing a missed claim | ⏳ v2.98.3 |
 | 122 | Zone diagnostics warn when both devices agree; a newer remote Past move can leave an older Soon copy | ⏳ v2.97.8 |
 | 121 | A recent pre-midnight open suppresses the new day’s poem on restart | ⏳ v2.97.8 |
 | 120 | Daily-nudge follow-up — merged into BUG-118; investigation preserved there | ↪ BUG-118 |
@@ -32,6 +33,22 @@
 ---
 
 *BUG-001–087 (all) and BUG-088–119 (verified ✅) → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-123 — Feeling feedback pruned against not-yet-ready source evidence
+
+**Discovery (2026-10-25):** Claude’s independent #15 plan review flagged that `_reconcileEvidence()` can persist pruned feedback before the `_sourceReady` display/generation guard. Source review also found the backup path calls reconciliation. This is a source-readiness correctness issue to resolve before expanding feeling feedback, not evidence that Can’s actual votes were lost.
+
+**Isolated reproduction:** use the actual reflection component in a fictional browser; create a qualified insight and mark it missed; mark source readiness false; temporarily remove the fixture’s outcome evidence; call the real `_reflectionBackupFields()`; restore outcomes/readiness. The stored missed-record count is **1 → 0 → 0**. The record is not recovered by returning the sources. No live account, private reflection, network model call or production-state access was used. Exact probe/log: `.context/feedback-loops/claude-plan-review/source-readiness-probe.mjs` and `.log`.
+
+**Cause:** `_reflectionEvidence()` projects source-valid records; `_reconcileEvidence()` writes that projection to storage without checking source readiness. `mergeRecords()` treats a missing/changed recent source version as withdrawal. `_refreshOpenMemory()` also removes feedback when policy is absent/not remember; startup/restore ordering needs review before relying only on a single write guard.
+
+**Fix (v2.98.3):** Two-line guard. (1) `_reconcileEvidence()` write condition gains `&& _sourceReady` — prevents `_saveFeedback()` from persisting pruned records while outcome versions are incomplete. (2) `_reflectionBackupFields()` falls back to raw `_feedbackStore()` for the Dropbox export when `!_sourceReady` — prevents pushing pruned records to the remote backup. The explicit `feedbackClear()` / `feedbackVote()` / `_refreshOpenMemory()` delete paths are unaffected (they each guard `_sourceReady` independently or go through `localStorage.removeItem`, not `_saveFeedback`). The `_reflectionMergeRemote()` incoming-sync write uses the same `versions` issue and remains a known gap; fencing it conflicts with being the event that establishes coherence and is deferred to a follow-up.
+
+**Tests:** `reflection-feedback-test.mjs` adds a BUG-123 regression case: vote missed → fire `today:memory-ready` with `ready:false` + clear outcomes → call `_reflectionBackupFields()` → assert storage still has the missed record; assert backup export also preserves it; restore readiness → assert vote still there.
+
+**Status:** fix shipped v2.98.3; awaiting real-device verification. `_reflectionMergeRemote` gap tracked below.
 
 ---
 
