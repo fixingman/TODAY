@@ -54,7 +54,7 @@ async function page(){
       window.__requests.push(body);
       if(window.__hold)await new Promise(resolve=>window.__releases.push(resolve));
       const r=payload.relationship;
-      return{ok:true,json:async()=>({content:`On evenings you reflected, you marked ${r.feeling} more often ${r.more_context} than ${r.less_context}.`})};
+      return{ok:true,json:async()=>({content:`In your evening reflections, you marked ${r.feeling} more often ${r.more_context} than ${r.less_context}.`})};
     };
   });
   stage='page ready';
@@ -94,6 +94,13 @@ try{
   const privacy=await a.evaluate(()=>({general:JSON.stringify(appMemory),requests:window.__requests}));
   assert.ok(!privacy.general.includes('On evenings you reflected'));
   for(const req of privacy.requests){const text=JSON.stringify(req);assert.ok(!text.includes('private-fixture-'));assert.ok(!/\d{4}-\d\d-\d\d/.test(req.messages[0].content));}
+  const writing=JSON.parse(privacy.requests[0].messages[0].content).relationship;
+  assert.equal(writing.more_context,'on days you brought a task back from Past');
+  assert.equal(writing.less_context,'on days you finished tasks without bringing one back');
+  assert.ok(privacy.requests[0].systemPrompt.includes('reflected-days-v2'));
+  assert.match(await a.$eval('.reflection-reading',el=>el.textContent),/^In your evening reflections,/);
+  const claim=await a.evaluate(()=>JSON.parse(localStorage.getItem('today_reflection_feedback')).records[0].claim);
+  assert.ok(claim.includes('when you brought a task back from Past')&&!claim.includes('on days'),'Writing changes do not change claim identity');
   // Native disclosure and reaction rows wrap on a narrow viewport.
   await mkdir(join(root,'.context/feedback-loops'),{recursive:true});
   await a.screenshot({path:join(root,'.context/feedback-loops/feeling-320.png'),fullPage:true});
@@ -169,6 +176,118 @@ try{
   assert.ok(notReadyBackup.reflection_feedback.records.some(r=>r.reaction==='missed'),'Backup export must not prune voted records when source is not yet ready');
   await c.waitForFunction(()=>JSON.parse(localStorage.getItem('today_reflection_feedback')||'{}').records?.some(r=>r.reaction==='missed'));
   assert.equal(await c.evaluate(()=>JSON.parse(localStorage.getItem('today_reflection_feedback')).records.filter(r=>r.reaction==='missed').length),1,'Missed vote persists after source readiness is restored');
+  stage='BUG-123 incoming merge before source readiness';
+  const pendingVote = await c.evaluate(() => Today.use('reflections')._reflectionBackupFields());
+  await c.evaluate(data=>{
+    checkDayNudge._setMemoryReady(false); appMemory.taskOutcomes=[];
+    Today.use('reflections')._reflectionMergeRemote(data);
+  },pendingVote);
+  assert.ok(await c.evaluate(()=>JSON.parse(localStorage.getItem('today_reflection_feedback')).records.some(r=>r.reaction==='missed')),'Incoming merge must not prune a vote against incomplete outcomes');
+  assert.equal(await c.$('.reflection-reading'),null,'Unready evidence cannot display a reading');
+  await c.evaluate(()=>{
+    appMemory.taskOutcomes=window.__savedOutcomes;
+    checkDayNudge._setMemoryReady(true);
+  });
+  await open(c);await open(c);
+  assert.equal(await c.$('.reflection-reading'),null,'Restored missed claim stays withheld after readiness');
+  // Actual Dropbox merge and manual Restore both merge memory before source validation.
+  const d=await page();
+  await d.evaluate(data=>{
+    checkDayNudge._setMemoryReady(false);appMemory.taskOutcomes=[];
+    window.mergeRemoteData({...data,memory:{taskOutcomes:JSON.parse(localStorage.getItem('fixture-outcomes'))}});
+    checkDayNudge._setMemoryReady(true);
+  },pendingVote);
+  await open(d);
+  assert.equal(await d.$('.reflection-reading'),null,'Real sync imports the missed claim without generating');
+  assert.ok(await d.evaluate(()=>Today.use('reflections')._reflectionBackupFields().reflection_feedback.records.some(r=>r.reaction==='missed')));
+  await d.evaluate(async data=>{
+    checkDayNudge._setMemoryReady(false); appMemory.taskOutcomes=[];
+    const originalFetch=window.fetch;
+    localStorage.setItem('dropbox_token','fictional-sync-token');
+    window.fetch=async input=>String(input).includes('/2/files/download')
+      ? {ok:true,status:200,headers:new Headers({'Dropbox-API-Result':'{"rev":"fixture"}'}),json:async()=>({...data,memory:{taskOutcomes:JSON.parse(localStorage.getItem('fixture-outcomes'))}})}
+      : originalFetch(input);
+    await dropboxRestore(false);
+    window.fetch=originalFetch;localStorage.removeItem('dropbox_token');checkDayNudge._setMemoryReady(true);
+  },pendingVote);
+  assert.ok(await d.evaluate(()=>Today.use('reflections')._reflectionBackupFields().reflection_feedback.records.some(r=>r.reaction==='missed')),'Manual Restore retains a supported vote');
+  await c.evaluate(()=>{
+    checkDayNudge._setMemoryReady(false);
+    const rows=JSON.parse(localStorage.getItem('today_reflections'));
+    rows[0].feeling='sad';localStorage.setItem('today_reflections',JSON.stringify(rows));
+    Today.use('reflections')._reflectionMergeRemote({});
+    window.__partialVoteHeld=JSON.parse(localStorage.getItem('today_reflection_feedback')).records.length===1;
+    checkDayNudge._setMemoryReady(true);
+  });
+  assert.ok(await c.evaluate(()=>window.__partialVoteHeld));
+  assert.ok(await c.evaluate(id=>!JSON.parse(localStorage.getItem('today_reflection_feedback')).records.some(r=>r.id===id),pendingVote.reflection_feedback.records[0].id),'A genuine edit invalidates the old reading and vote once sources are ready');
+  await d.evaluate(data=>{
+    checkDayNudge._setMemoryReady(false);
+    Today.use('reflections')._reflectionMergeRemote(data);
+  },deleted);
+  await d.evaluate(data=>Today.use('reflections')._reflectionMergeRemote(data),pendingVote);
+  assert.equal(await d.evaluate(()=>Today.use('reflections')._reflectionBackupFields().reflection_feedback.records.length),0,'History deletion/consent withdrawal stays authoritative while sources are unready');
+  stage='explicit wording feedback next-use loop';
+  const e=await page();await open(e);await waitReading(e);
+  await e.click('.reflection-reading');
+  await e.waitForSelector('#reflectionReaction .reflection-wording');
+  await e.focus('#reflectionReaction .reflection-wording summary');await e.keyboard.press('Enter');
+  assert.match(await e.$eval('#reflectionReaction .reflection-wording',el=>el.textContent),/future AI feeling insights/,'First-use copy names the permitted AI input before saving');
+  const wordingSelector=(value,scope='#reflectionReaction')=>`${scope} [data-wording="${value}"]`;
+  await e.$eval(wordingSelector('formal'),el=>el.scrollIntoView({block:'center'}));
+  await e.click(wordingSelector('formal'));
+  const firstWording=await e.evaluate(()=>Today.use('reflections')._reflectionBackupFields());
+  assert.equal(firstWording.reflection_feedback.records[0].wordingReaction,'formal');
+  assert.equal(firstWording.reflection_feedback.records[0].reaction,null,'Wording concern is not a miss on the relationship');
+  assert.equal(await e.evaluate(()=>window.__requests.length),1,'Wording feedback never rewrites the accepted insight');
+  assert.equal(await e.evaluate(()=>document.activeElement.dataset.wording),'undo');
+  await e.click(wordingSelector('undo'));
+  assert.equal(await e.evaluate(()=>Today.use('reflections')._reflectionBackupFields().reflection_feedback.records[0].wordingReaction),null);
+  await e.click(wordingSelector('formal'));
+  // A new eligible evening creates a request; the prior sentence itself never enters it.
+  const addEvening=async(p,age)=>p.evaluate(age=>{
+    const day=new Date();day.setDate(day.getDate()-age);const date=_localISO(day);
+    const rows=JSON.parse(localStorage.getItem('today_reflections'));rows.push({date,feeling:'present',updatedAt:new Date().toISOString()});
+    localStorage.setItem('today_reflections',JSON.stringify(rows));
+    appMemory.taskOutcomes.push({id:'WORDING_SOURCE_'+age,date,outcome:'done',focusSessions:0,backfilled:false});
+    Today.use('reflections')._reflectionMergeRemote({});
+  },age);
+  await e.evaluate(()=>{window.__hold=true;});await addEvening(e,9);
+  await e.waitForFunction(()=>window.__releases.length===1);
+  const styleRequest=await e.evaluate(()=>window.__requests.at(-1));
+  assert.match(styleRequest.systemPrompt,/explicitly found earlier feeling wording too formal/);
+  assert.ok(!JSON.stringify(styleRequest).includes(firstWording.reflection_feedback.records[0].text),'No previous sentence is exported');
+  assert.ok(!JSON.stringify(styleRequest).includes('WORDING_SOURCE_'));
+  await e.$eval('#reflectionFeedbackManage summary',el=>el.scrollIntoView({block:'center'}));
+  await e.click('#reflectionFeedbackManage summary');
+  const management='#reflectionFeedbackManage';
+  await e.$eval(wordingSelector('clear',management),el=>el.scrollIntoView({block:'center'}));
+  await e.click(wordingSelector('clear',management));
+  assert.equal(await e.evaluate(()=>document.activeElement.dataset.wording),'undo','Cleared wording-only history keeps Undo reachable and focused');
+  await e.evaluate(()=>window.__releases.splice(0).forEach(release=>release()));
+  await e.waitForFunction(()=>!document.querySelector('.memory-abstracting'));
+  assert.equal(await e.$('.reflection-reading'),null,'Clearing guidance fences the already pending guided answer');
+  assert.equal(await e.evaluate(()=>document.activeElement.dataset.wording),'undo','Late response cleanup retains wording Undo focus in the footer fallback');
+  await e.evaluate(()=>{window.__hold=false;});await addEvening(e,10);await waitReading(e);
+  assert.ok(!await e.evaluate(()=>window.__requests.at(-1).systemPrompt.includes('explicitly found earlier feeling wording')));
+  const clearedWording=await e.evaluate(()=>({...Today.use('reflections')._reflectionBackupFields(),memory:{taskOutcomes:appMemory.taskOutcomes}}));
+  const f=await page();
+  await f.evaluate(data=>window.mergeRemoteData(data),clearedWording);
+  await f.waitForFunction(()=>JSON.parse(localStorage.getItem('today_reflection_feedback')||'{}').records?.some(r=>r.wordingAt));
+  await f.evaluate(data=>Today.use('reflections')._reflectionMergeRemote(data),firstWording);
+  assert.equal(await f.evaluate(()=>Today.use('feedback-policy').wordingGuidance(Today.use('reflections')._reflectionBackupFields().reflection_feedback.records)), '','Older wording votes cannot undo a synced clear');
+  if(await e.$eval('.reflection-reading',el=>el.getAttribute('aria-expanded'))==='false')await e.click('.reflection-reading');
+  await e.click('#reflectionReaction .reflection-wording summary');
+  await e.$eval(wordingSelector('unclear'),el=>el.scrollIntoView({block:'center'}));await e.click(wordingSelector('unclear'));
+  await e.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
+  const wordingA11y=await e.evaluate(()=>axe.run({include:[['#reflectionMemoryBlock']]},{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));
+  assert.deepEqual(wordingA11y.violations.map(v=>v.id),[]);
+  assert.ok(await e.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await e.$eval('#reflectionMemoryBlock',el=>el.scrollIntoView({block:'center'}));
+  await mkdir(join(root,'.context/15b-writing-sync'),{recursive:true});
+  await (await e.$('#reflectionMemoryBlock')).screenshot({path:join(root,'.context/15b-writing-sync/wording-320.png')});
+  await addEvening(e,11);await waitReading(e);
+  assert.match(await e.evaluate(()=>window.__requests.at(-1).systemPrompt),/explicitly found earlier feeling wording hard to follow/);
   assert.deepEqual(errors,[]);
   console.log('Reflection feedback: explicit first vote, keyboard/320px, no AI history leakage, no regeneration, Undo, hidden-claim management, two-device revision/clear, late deletion, and source-readiness vote-preservation passed.');
 }catch(error){console.error('Reflection feedback failed at '+stage,error);throw error;}

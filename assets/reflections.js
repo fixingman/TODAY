@@ -32,12 +32,19 @@
     let _reflectAttempted = false;
     let _reflectEvidence = null;
     let _reflectEpoch = 0;
-    let _feedbackPolicy, _feedbackLoading, _currentReading;
+    let _feedbackPolicy, _feedbackLoading, _currentReading, _wording;
     let _feedbackOpen = false, _feedbackAck = null, _feedbackError = false;
     let _sourceReady = !localStorage.getItem('dropbox_token');
     function _loadFeedbackPolicy() {
       if (!_feedbackLoading) _feedbackLoading = import('./feedback-policy.js').then(() => {
         _feedbackPolicy = Today.use('feedback-policy');
+        import('./reflection-wording.js').then(() => {
+          _wording = Today.use('reflection-wording');
+          _wording.init({evidence:_reconcileEvidence, current:()=>_currentReading, save:_saveFeedback,
+            stamp:_feedbackStamp, refresh:()=>{_refreshOpenMemory();_refreshMemoryBlock();},
+            sync:_feedbackSaveRemote, announce:text=>window._a11yAnnounce?.(text)});
+          if (document.getElementById('memoryPanel')?.classList.contains('open')) _refreshMemoryBlock();
+        }).catch(()=>{});
         _refreshOpenMemory();
         return _feedbackPolicy;
       }).catch(() => { _feedbackLoading = null; return null; });
@@ -68,26 +75,7 @@
     }
 
     function _usableReflectionText(text, candidate) {
-      const clean = text?.trim();
-      if (!clean || clean.toLowerCase() === 'none') return null;
-      if (clean.split(/\s+/).length > 40) return null;
-      if (!/[.!?…]$/.test(clean)) return null;
-      if (!/^On evenings you reflected,/i.test(clean)) return null;
-      if ((clean.match(/[.!?…](?:\s|$)/g) || []).length !== 1) return null;
-      if (!candidate || !new RegExp('\\b' + candidate.feeling + '\\b', 'i').test(clean)) return null;
-      const comparisonAt = clean.search(/\bmore often\b|\bmore common\b|\bshowed up more\b|\bstood out more\b/i);
-      if (comparisonAt < 0) return null;
-      if (/\b(?:caused|made you|because of|means you|should|try to|diagnos)/i.test(clean)) return null;
-      const namedFeelings = VALID_FEELINGS.filter(feeling =>
-        new RegExp('\\b' + feeling + '\\b', 'i').test(clean));
-      if (namedFeelings.length !== 1) return null;
-      const normalize = value => String(value).toLowerCase().replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
-      const normalized = normalize(clean);
-      const moreAt = normalized.indexOf(normalize(candidate.more_context));
-      const lessAt = normalized.indexOf(normalize(candidate.less_context));
-      if (moreAt < comparisonAt || lessAt <= moreAt) return null;
-      if (!/\bthan\b/i.test(clean.slice(moreAt, lessAt))) return null;
-      return clean;
+      return _feedbackPolicy?.usableReflectionText(text, candidate, VALID_FEELINGS);
     }
 
     function _loadPolicy() {
@@ -380,7 +368,7 @@
             (!store.consentAt ? `<p class="memory-empty">Your vote keeps this insight for up to 30 days, on this device and in Dropbox if connected.</p>` : '') +
             `<div class="nudge-react open reflection-reaction" role="group" aria-label="Did this feeling insight land?">` +
             ['landed','missed'].map(choice => `<button type="button" class="nudge-react-btn${r.reaction === choice ? ' on' : ''}" aria-pressed="${r.reaction === choice}" data-today-click="reflections.feedback-vote" data-reaction="${choice}" data-reading-id="${r.id}">${choice === 'landed' ? 'landed' : 'not really'}</button>`).join('') + `</div>` +
-            (_feedbackError ? `<p class="memory-empty" role="status">Couldn’t save feedback. Try again.</p>` : '') + `</div>`;
+            (_feedbackError ? `<p class="memory-empty" role="status">Couldn’t save feedback. Try again.</p>` : '') + (_wording?.render(r, store.records) || '') + `</div>`;
         } else inner += `<div class="memory-item"><span class="memory-item-text memory-abstracting">${_reflectResult ? esc(_reflectResult) : 'reflecting…'}</span></div>`;
       }
 
@@ -499,7 +487,7 @@
       const raw = _feedbackStore();
       const feedbackCleared = localStorage.getItem(FEEDBACK_CLEAR_KEY) || '';
       const generation = JSON.stringify([policy?.updatedAt || '', cleared, feedbackCleared]);
-      const options = { today:_localISO(), generation, clearedAt:feedbackCleared, versions };
+      const options = { today:_localISO(), generation, clearedAt:feedbackCleared, versions, sourcesReady:_sourceReady };
       const consentAt = _feedbackPolicy?.stamp(raw.consentAt) && raw.consentAt >= (policy?.updatedAt || '')
         && (!cleared || raw.consentAt > cleared) ? raw.consentAt : '';
       const feedback = { version:1, consentAt, records: policy?.choice === 'remember' && consentAt && _feedbackPolicy
@@ -557,6 +545,7 @@
     }
 
     function _refreshMemoryBlock() {
+      const restoreWording = _wording?.preserve();
       const existing = document.getElementById('reflectionMemoryBlock');
       if (existing) {
         const tmp = document.createElement('div');
@@ -573,13 +562,14 @@
         if (tmp.firstChild) container.insertBefore(tmp.firstChild, coverage || document.getElementById('dreamMemoryBlock'));
       }
       renderFeedbackFooter();
+      restoreWording?.();
     }
 
-    function endFeedbackVisit() { _feedbackAck = null; _feedbackOpen = false; _feedbackError = false; }
+    function endFeedbackVisit() { _feedbackAck = null; _feedbackOpen = false; _feedbackError = false; _wording?.endVisit(); }
     function _clearFeedback(keepConsent = false) {
       const store = _feedbackStore();
       const previous = [localStorage.getItem(FEEDBACK_CLEAR_KEY) || '',
-        ...store.records.flatMap(r => [r.createdAt || '',r.reactedAt || ''])].sort().at(-1);
+        ...store.records.flatMap(r => [r.createdAt || '',r.reactedAt || '',r.wordingAt || ''])].sort().at(-1);
       localStorage.setItem(FEEDBACK_CLEAR_KEY, _feedbackStamp(previous));
       _saveFeedback({ version:1, consentAt:keepConsent ? store.consentAt : '', records:[] });
       endFeedbackVisit();
@@ -623,7 +613,7 @@
       const wasOpen = document.querySelector('#reflectionFeedbackManage')?.open || false;
       document.querySelector('#reflectionFeedbackManage')?.remove();
       const evidence = _reflectionEvidence();
-      const rows = evidence.feedback.records.filter(r => r.reactedAt && r.reaction !== null);
+      const rows = evidence.feedback.records.filter(r => (r.reactedAt && r.reaction !== null) || r.wordingReaction || _wording?.hasUndo(r));
       if (!_sourceReady || evidence.policy?.choice !== 'remember' || !rows.length) return;
       const block = document.getElementById('reflectionMemoryBlock') || document.getElementById('memoryFooter');
       if (!block) return;
@@ -633,7 +623,7 @@
         `<div class="memory-type-block"><p class="memory-item-text">${r.expired ? 'Earlier feeling insight — source records have expired.' : esc(r.text)}</p>` +
         `<div class="nudge-react open reflection-reaction" role="group" aria-label="Review feedback on this feeling insight">` +
         (r.expired ? '' : ['landed','missed'].map(choice => `<button type="button" class="nudge-react-btn${r.reaction === choice ? ' on' : ''}" aria-pressed="${r.reaction === choice}" data-today-click="reflections.feedback-review" data-reading-id="${r.id}" data-reaction="${choice}">${choice === 'landed' ? 'landed' : 'not really'}</button>`).join('')) +
-        `<button type="button" class="nudge-react-btn" data-today-click="reflections.feedback-review" data-reading-id="${r.id}" data-reaction="clear">clear vote</button></div></div>`).join('') +
+        `<button type="button" class="nudge-react-btn" data-today-click="reflections.feedback-review" data-reading-id="${r.id}" data-reaction="clear">clear vote</button></div>${_wording?.render(r, rows) || ''}</div>`).join('') +
         `<button type="button" class="memory-clear-btn" data-today-click="reflections.feedback-clear">clear feeling feedback</button>`;
       block.appendChild(details);
     }
@@ -654,7 +644,9 @@
       if (!Today.use('connections')._aiIsConfigured() || !navigator.onLine) return;
 
       const epoch = _reflectEpoch;
-      const isCurrent = () => epoch === _reflectEpoch && evidence.key === _reflectionEvidence().key;
+      const guidance = _feedbackPolicy.wordingGuidance(evidence.feedback.records);
+      const isCurrent = () => epoch === _reflectEpoch && evidence.key === _reflectionEvidence().key
+        && guidance === _feedbackPolicy.wordingGuidance(_reflectionEvidence().feedback.records);
       _reflectTriggered = true;
       _reflectAttempted = true;
       _reflectPending = true;
@@ -667,8 +659,8 @@
           relationship: {
             kind:         candidate.kind,
             feeling:      candidate.feeling,
-            more_context: candidate.more_context,
-            less_context: candidate.less_context,
+            more_context: _feedbackPolicy.dayContext(candidate.more_context),
+            less_context: _feedbackPolicy.dayContext(candidate.less_context),
             more_evenings: { matching: candidate.more_count, total: candidate.more_total },
             less_evenings: { matching: candidate.less_count, total: candidate.less_total },
           },
@@ -678,12 +670,13 @@
           'Code has selected one evidence-backed relationship between evening reflections and how the user handled commitments that day. ' +
           'Phrase only that relationship; do not search for another pattern. ' +
           'Write exactly one complete sentence of at most 40 words. ' +
-          'Begin "On evenings you reflected," and say you marked the named feeling more often. ' +
+          'Writing policy: reflected-days-v2. Begin "In your evening reflections," and clearly name the reported feeling and how often it appeared in the comparison. ' +
+          'The contexts describe actions during the day; the feeling is the person’s evening report, not a feeling measured immediately after an action. ' +
           'Copy more_context and less_context verbatim, in that order, joined by "than". ' +
           'Do not narrate the numbers or mention any other feeling. ' +
           'Forbidden: causal language, diagnosis, scores, streaks, advice, predictions, clinical interpretation. ' +
           'Do not make up specific dates or tasks. ' +
-          'Reply only as valid JSON in the exact shape {"message":"your sentence"}.';
+          'Reply only as valid JSON in the exact shape {"message":"your sentence"}.' + (guidance ? ' ' + guidance : '');
 
         const key      = Today.use('connections')._aiGetKey();
         const provider = Today.use('connections')._aiGetProvider();
@@ -720,6 +713,7 @@
           _refreshMemoryBlock();
         } else {
           _refreshOpenMemory();
+          if (epoch === _reflectEpoch) { _reflectPending = false; _refreshMemoryBlock(); }
         }
       }
     }
@@ -818,6 +812,7 @@
         _loadFeedbackPolicy().then(() => { if (mergeFeedback()) { _refreshOpenMemory(); _refreshMemoryBlock(); _feedbackSaveRemote(); } });
       }
       _refreshOpenMemory();
+      if (changed) _refreshMemoryBlock();
       renderFeedbackFooter();
 
       return changed;
@@ -829,7 +824,7 @@
     });
     window.addEventListener('storage', event => {
       if ([POLICY_KEY, DATA_KEY, CLEARED_KEY, FEEDBACK_KEY, FEEDBACK_CLEAR_KEY, 'today_memory'].includes(event.key)) {
-        _refreshOpenMemory(); renderFeedbackFooter();
+        _refreshOpenMemory(); if (event.key === FEEDBACK_KEY) _refreshMemoryBlock(); renderFeedbackFooter();
       }
     });
     document.addEventListener('visibilitychange', () => {

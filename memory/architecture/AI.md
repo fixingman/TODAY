@@ -32,6 +32,8 @@ The transient canonical evidence key includes local day/window, consent choice/v
 
 ---
 
+**Approved optional wording loop (October 27, local v2.100.0):** an explicit `hard to follow` or `too formal` choice on an exact reading supplies one code-owned instruction on the next naturally eligible feeling generation. Whole-insight votes supply no wording cause. Earlier prose, source metadata and general profiles remain private; no extra model call. Null/Undo, independent per-reading revisions, source expiry/deletion and global feedback clear remove future influence. Accepted wording stays stable; a pending guided answer is fenced after guidance changes. The person/feeling phrase has wording freedom inside the existing factual population/action/comparison guards. Lazy `reflection-wording.js` owns optional controls; `feedback-policy` owns pure validation, merge and projection. Normal use/real writing must establish usefulness; mocked tests do not establish a style win.
+
 ## Focus Companion (`_focusAskAI`)
 
 A desktop-only, explicitly requested line inside the existing focus timer bar. Task Ask clarifies a consequential unknown before proposing work; otherwise it may offer one supported step or acknowledge an already-sufficient action/wait. Gmail Draft reply and web-link shortcuts retain their separate paths. No general chat, answer field, new collection or background generation.

@@ -18,6 +18,10 @@ for (const { input: testCase } of fixtures) validateCase(testCase);
 assert.deepEqual(mechanicalIssues(progress), [], 'Lexical checks cannot certify an unsupported progress claim');
 assert.deepEqual(mechanicalIssues(input('feeling-causal-addition')), [], 'Model must examine causal meaning even when the comparison format passes');
 assert.deepEqual(mechanicalIssues(feeling), []);
+const clearer=structuredClone(feeling);
+clearer.draft=clearer.draft.replace('On evenings you reflected,','In your evening reflections,');
+assert.deepEqual(mechanicalIssues(clearer),[],'A clearer record-based population label preserves the same comparison');
+
 for (const [id, code] of [['feeling-swapped-comparison', 'comparison'], ['feeling-generalized-population', 'population']]) {
   let calls = 0;
   const result = await evaluateWriting(input(id), { callModel: () => { calls++; } });

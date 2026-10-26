@@ -1004,6 +1004,55 @@ try {
     await page.close();
   }
 
+  // The writing policy changes presentation, preserving all four relationships and directions.
+  {
+    const { page, errors } = await openPage({
+      today_reflection_policy:JSON.stringify({choice:'remember',updatedAt:new Date(Date.now()-86400000).toISOString()}),
+      today_ai_provider:'claude',today_ai_key_claude:'fictional-writing-key',
+    });
+    const results=await page.evaluate(async()=>{
+      const results=[],api=Today.use('reflections');
+      const waitFor=async predicate=>{const end=performance.now()+3000;while(!predicate()){if(performance.now()>end)throw new Error('Writing fixture not ready');await new Promise(r=>setTimeout(r,10));}};
+      let response,request;
+      window.fetch=async (_url,options)=>{
+        const body=JSON.parse(options.body),r=JSON.parse(body.messages[0].content).relationship;
+        if(!r)return{ok:true,json:async()=>({content:'none'})};
+        request={body,r};
+        return{ok:true,json:async()=>({message:response==='swapped'
+          ? `In your evening reflections, you marked ${r.feeling} more often ${r.less_context} than ${r.more_context}.`
+          : `In your evening reflections, you marked ${r.feeling} more often ${r.more_context} than ${r.less_context}.`})};
+      };
+      Today.use('memory').toggle();
+      for(const kind of ['obligation','release','focus','revive'])for(const reverse of [false,true]){
+        const list=Array.from({length:8},(_,i)=>{const d=new Date();d.setDate(d.getDate()-i);return{date:_localISO(d),updatedAt:new Date().toISOString(),feeling:(i<4)!==reverse?'calm':['alive','present','tense','drained'][i%4]};});
+        localStorage.setItem('today_reflections',JSON.stringify(list));
+        appMemory.taskOutcomes=list.map((r,i)=>({id:'WORDING_PRIVATE_'+i,date:r.date,
+          outcome:i<4?(kind==='release'?'letgo':kind==='revive'?'revive':'done'):'done',
+          obligation:kind==='obligation'?i<4:null,
+          backfilled:kind!=='focus',focusSessions:kind==='focus'&&i<4?1:0}));
+        request=null;response='valid';api._reflectionMergeRemote({});
+        await waitFor(()=>request&&document.querySelector('.reflection-reading'));
+        const text=document.querySelector('.reflection-reading').textContent;
+        results.push({kind,reverse,text,wordCount:text.split(/\s+/).length,
+          selected:request.r.kind==='feeling-vs-'+kind,
+          contexts:[request.r.more_context,request.r.less_context],
+          private:!/WORDING_PRIVATE_|\d{4}-\d\d-\d\d/.test(request.body.messages[0].content)});
+      }
+      response='swapped';request=null;
+      appMemory.taskOutcomes.push({...appMemory.taskOutcomes[0],id:'WORDING_PRIVATE_extra',outcome:'revive'});
+      api._reflectionMergeRemote({});await waitFor(()=>request&&!document.querySelector('.memory-abstracting'));
+      return{results,swappedHidden:!document.querySelector('.reflection-reading')};
+    });
+    for(const row of results.results)await expectAll('clearer feeling wording: '+row.kind+' / '+row.reverse,{
+      correctAxis:row.selected,recordPopulation:row.text.startsWith('In your evening reflections,'),
+      daytimeContexts:row.contexts.every(c=>c.startsWith('on days you ')),bounded:row.wordCount<=40,private:row.private,
+    });
+    await expectAll('clearer comparison direction still enforced',{swappedHidden:results.swappedHidden,noErrors:!errors.length});
+    console.log('  Writing controls: '+JSON.stringify(results.results));
+    ok('clearer feeling writing: all four comparisons in both directions; swapped answer withheld');
+    await page.close();
+  }
+
   // ── 6. Static wiring ────────────────────────────────────────────────────
 
   {
@@ -1031,7 +1080,7 @@ try {
     ok('static wiring: script order, DOM element, start call, precache, CACHE_VERSION, component API');
   }
 
-  console.log('\nReflections tests passed (30 tests).');
+  console.log('\nReflections tests passed (31 tests).');
 } finally {
   if (browser) await browser.close();
   server.close();

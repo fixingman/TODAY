@@ -4,7 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const EVALUATOR_VERSION = 'writing-v1';
+export const EVALUATOR_VERSION = 'writing-v2';
 const SURFACES = new Set(['morning-nudge', 'how-days-felt']);
 const FEELINGS = new Set(['joyful', 'scattered', 'alive', 'tense', 'content', 'frustrated', 'calm', 'drained', 'present', 'sad', 'off']);
 const KINDS = new Set(['feeling-vs-obligation', 'feeling-vs-release', 'feeling-vs-focus', 'feeling-vs-revive']);
@@ -72,7 +72,7 @@ export function mechanicalIssues(rawInput) {
   if (/[\r\n!]/.test(text)) issues.push(issue('format', text, 'Requires one line without exclamation marks.'));
   if (input.surface === 'how-days-felt') {
     const r = input.evidence.relationship;
-    if (!/^On evenings you reflected,/i.test(text)) issues.push(issue('population', text, 'Must identify the reflected-evening population.', ['relationship']));
+    if (!/^(?:On evenings you reflected|In your evening reflections),/i.test(text)) issues.push(issue('population', text, 'Must identify the reflected-evening population.', ['relationship']));
     if (!/[.!?…]$/.test(text) || (text.match(/[.!?…](?:\s|$)/g) || []).length !== 1) issues.push(issue('format', text, 'Requires one complete sentence.'));
     const normalized = normalize(text);
     const moreAt = normalized.indexOf(normalize(r.more.context));

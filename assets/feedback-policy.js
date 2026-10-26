@@ -47,6 +47,57 @@ function feedbackText(feedback) {
       + feedback[reaction].map(text => '- ' + text).join('\n') + '\n' : '').join('');
 }
 const feedbackInstruction = 'Earlier voted lines describe readings in earlier moments, not facts about today. Learn from what landed without copying it. A missed reading does not reject its task: a different reading may help when today\'s facts support it. No vote supplies a reason or a permanent preference.';
+function dayContext(context) {
+  return 'on days ' + context.replace(/^when /, '').replace(/^after finishing /, 'you finished ').replace(/^after handling /, 'you handled ')
+    .replace(/recorded focus$/, 'a recorded focus session').replace(/a "have to"$/, 'a "have to" task');
+}
+
+function usableReflectionText(text, candidate, feelings) {
+  const clean = text?.trim();
+  if (!clean || clean.toLowerCase() === 'none') return null;
+  if (clean.split(/\s+/).length > 40) return null;
+  if (!/[.!?…]$/.test(clean)) return null;
+  if (!/^(?:On evenings you reflected|In your evening reflections),/i.test(clean)) return null;
+  if ((clean.match(/[.!?…](?:\s|$)/g) || []).length !== 1) return null;
+  if (!candidate || !new RegExp('\\b' + candidate.feeling + '\\b', 'i').test(clean)) return null;
+  const comparisonAt = clean.search(/\bmore often\b|\bmore common\b|\bshowed up more\b|\bstood out more\b/i);
+  if (comparisonAt < 0) return null;
+  if (/\b(?:caused|made you|because of|means you|should|try to|diagnos)/i.test(clean)) return null;
+  const namedFeelings = feelings.filter(feeling =>
+    new RegExp('\\b' + feeling + '\\b', 'i').test(clean));
+  if (namedFeelings.length !== 1) return null;
+  const normalize = value => String(value).toLowerCase().replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+  const normalized = normalize(clean);
+  const contexts = [value => value, dayContext];
+  if (!contexts.some(format => {
+    const moreAt = normalized.indexOf(normalize(format(candidate.more_context)));
+    const lessAt = normalized.indexOf(normalize(format(candidate.less_context)));
+    return moreAt >= comparisonAt && lessAt > moreAt && /\bthan\b/i.test(clean.slice(moreAt, lessAt));
+  })) return null;
+  return clean;
+}
+
+const wordingLabels = Object.freeze({ unclear:'hard to follow', formal:'too formal' });
+function wordingEvent(r = {}) {
+  return stamp(r.wordingAt) && Date.parse(r.wordingAt) >= Date.parse(r.createdAt)
+    && [null,...Object.keys(wordingLabels)].includes(r.wordingReaction)
+    ? { wordingReaction:r.wordingReaction, wordingAt:r.wordingAt } : null;
+}
+function latestWording(rows) {
+  return rows.map(wordingEvent).filter(Boolean).sort((a,b)=>b.wordingAt.localeCompare(a.wordingAt)
+    || Number(a.wordingReaction!==null)-Number(b.wordingReaction!==null)
+    || String(a.wordingReaction).localeCompare(String(b.wordingReaction)))[0];
+}
+function wordingGuidance(records) {
+  const current=new Map();
+  for (const row of records.filter(r=>!r.expired && wordingEvent(r)))
+    current.set(row.id,{...row,...latestWording([current.get(row.id),row])});
+  const last=latestWording([...current.values()].filter(r=>r.wordingReaction));
+  return last?.wordingReaction==='unclear'
+    ? 'The person explicitly found earlier feeling wording hard to follow. Make the current two-action comparison direct and easy to follow; avoid elliptical references. Preserve its facts and uncertainty.'
+    : last?.wordingReaction==='formal'
+    ? 'The person explicitly found earlier feeling wording too formal. Use everyday, person-centered language rather than report-like phrasing. Preserve the supplied comparison; add no advice or emotional interpretation.' : '';
+}
 const claimKey = c => key([1, c.kind, c.feeling, c.more_context, c.less_context]);
 function support(c, versions) {
   const dates = [...new Set([...c.more_dates, ...c.less_dates])].sort();
@@ -78,14 +129,15 @@ function validRecord(r) {
     && dates.every(date => Number.isFinite(day(date)) && typeof s.versions[date] === 'string' && /^[a-f0-9]{64}$/.test(s.versions[date]))
     ;
 }
-function mergeRecords(local, remote, { today, generation, clearedAt = '', versions } = {}) {
+function mergeRecords(local, remote, { today, generation, clearedAt = '', versions, sourcesReady = true } = {}) {
   const map = new Map(), now = day(today);
   for (const r of [...(Array.isArray(local) ? local.slice(0,120) : []), ...(Array.isArray(remote) ? remote.slice(0,120) : [])]) {
     if (!validRecord(r) || r.generation !== generation || (clearedAt && r.createdAt <= clearedAt)
         || Date.parse(r.createdAt) >= now + 86400000 || Date.parse(r.createdAt) < now - 29*86400000) continue;
     let expired = r.expired === true;
     if (!expired) {
-      const changed = Object.entries(r.support.versions).filter(([date, version]) => !versions || versions[date] !== version);
+      const changed = Object.entries(r.support.versions).filter(([date, version]) =>
+        day(date) < now - 29*86400000 || (sourcesReady && (!versions || versions[date] !== version)));
       // Explicit withdrawal/edit removes the derived reading. Natural expiry may
       // retain only the user's bounded withholding decision, not source values.
       if (changed.some(([date]) => day(date) >= now - 29*86400000)) continue;
@@ -94,19 +146,24 @@ function mergeRecords(local, remote, { today, generation, clearedAt = '', versio
     const row = { id:r.id, generation:r.generation, claim:r.claim,
       ...(expired ? { expired:true } : { support:JSON.parse(key(r.support)), text:r.text }), seenThrough:r.seenThrough,
       createdAt:r.createdAt, reaction:r.reaction, reactedAt:r.reactedAt,
-      ...(r.votedThrough ? {votedThrough:r.votedThrough} : {}) };
+      ...(r.votedThrough ? {votedThrough:r.votedThrough} : {}),
+      ...(!expired && Date.parse(r.wordingAt) < now+86400000 && wordingEvent(r) || {}) };
     const old = map.get(row.id);
     if (!old) map.set(row.id, row);
     else {
       const winning = row.reactedAt > old.reactedAt || (row.reactedAt === old.reactedAt &&
         (row.reaction === null || (old.reaction !== null && String(row.reaction) > String(old.reaction)))) ? row : old;
       const merged = { ...winning, createdAt: row.createdAt < old.createdAt ? row.createdAt : old.createdAt };
-      if (row.expired || old.expired) { delete merged.text; delete merged.support; merged.expired = true; }
+      Object.assign(merged, latestWording([old,row]) || {});
+      if (row.expired || old.expired) {
+        delete merged.text; delete merged.support; merged.expired = true;
+        delete merged.wordingAt; delete merged.wordingReaction;
+      }
       map.set(row.id, merged);
     }
   }
-  const records = [...map.values()].sort((a,b) => Number(!!b.reactedAt) - Number(!!a.reactedAt)
-    || (b.reactedAt || b.createdAt).localeCompare(a.reactedAt || a.createdAt) || a.id.localeCompare(b.id)).slice(0,60);
+  const records = [...map.values()].sort((a,b) => Number(!!(b.reactedAt || b.wordingAt)) - Number(!!(a.reactedAt || a.wordingAt))
+    || [b.reactedAt,b.wordingAt,b.createdAt].filter(Boolean).sort().at(-1).localeCompare([a.reactedAt,a.wordingAt,a.createdAt].filter(Boolean).sort().at(-1)) || a.id.localeCompare(b.id)).slice(0,60);
   while (records.length && key(records).length > 250000) records.pop();
   return records;
 }
@@ -128,7 +185,7 @@ function canonicalReading(candidate, versions, records) {
     .sort((a,b) => b.reactedAt.localeCompare(a.reactedAt) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))[0] || null;
 }
 const api = Object.freeze({ key, fingerprint, stamp, taskReadingFeedback, feedbackText, feedbackInstruction,
-  claimKey, makeReading, mergeRecords, suppressed, canonicalReading });
+  claimKey, makeReading, mergeRecords, suppressed, canonicalReading, dayContext, usableReflectionText, wordingLabels, wordingGuidance });
 if (typeof module === 'object' && module.exports) module.exports = api;
 else root.Today.define('feedback-policy', api);
 })(typeof globalThis === 'object' ? globalThis : this);

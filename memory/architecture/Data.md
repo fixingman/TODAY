@@ -218,6 +218,10 @@ v2.96.0 may add a minimal derived same-task Calendar relationship to the ordinar
 | `today_reflection_feedback` | JSON `{version:1, consentAt, records}` | Separate sensitive derived readings/reactions, enabled by an explained first vote; never `appMemory`. At most 60 records / 250,000 serialized characters, 30 days from first display. SHA-256 ids bind claim, support, wording and consent/deletion generation. Revision includes explicit null and `reactedAt`; `votedThrough` bounds genuinely new evenings. Natural source expiry strips wording/source values, retaining only bounded user withholding; edits/withdrawal drop affected readings. |
 | `today_reflection_feedback_cleared_at` | ISO string | Feedback-only clear watermark, max-wins. Full reflection/Memory clear or withdrawal also removes feedback consent/readings; stale backup rows cannot restore cleared feedback. |
 
+Local v2.100.0 defers recent-source invalidation during incomplete observation-memory loading, including incoming feedback merges. Records keep the same schema and caps; consent/deletion, reaction revision/clear and natural expiry remain live. Ready reconciliation removes truly changed/withdrawn sources. No style signal or profile is collected by this slice.
+
+**Approved wording feedback (Can, October 27; local v2.100.0):** each existing full reading may additionally hold `wordingReaction: 'unclear'|'formal'|null` and ISO `wordingAt`. Saving the optional named wording choice is explicit first-use consent for this narrowly scoped guidance and, if needed, the existing reading store; the inline copy explains 30-day storage/Dropbox and that earlier sentences stay private. It does not reinterpret whole-insight votes. No new key, record kind, root profile, source history or expanded cap: 60 records / 250,000 serialized characters / 30 days remain the total domain ceiling, including these fields. Natural support expiry strips these fields; source edit/withdrawal, policy/history/Memory clear remove their influence. A null wording event removes its guidance; no raw historical sentence or source metadata is sent to AI.
+
 ### DreamBank keys (v2.93.0)
 
 | Key | Type | Notes |

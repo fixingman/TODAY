@@ -309,8 +309,18 @@ async function interactionRun(browser, url, run, tracePath) {
   await armInteraction(page, 'focus');
   await page.click('#manualList .task .task-text');
   const focus = await page.evaluate(() => window.__todayInteraction);
-  // Read attribution after the measured frame has completed; this is outside the timer.
-  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0))));
+  // Native attribution can arrive after the measured frame/observer callback. The
+  // original input duration is already settled; wait only for diagnostic coverage.
+  await page.evaluate(async focus => {
+    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+    const observed = window.__todayPerformance, deadline = performance.now() + 250;
+    while (observed?.supportsLongAnimationFrames && focus.duration >= 50) {
+      observed.flush?.();
+      if (observed.longAnimationFrames.some(frame => frame.start <= focus.inputAt + 1 && frame.start + frame.duration >= focus.inputAt + focus.duration - 1)
+          || performance.now() >= deadline) break;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+  }, focus);
   const metrics = await readPageMetrics(page);
   if (tracePath) await page.tracing.stop();
   await context.close();

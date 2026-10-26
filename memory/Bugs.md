@@ -140,7 +140,9 @@
 
 **Tests:** `reflection-feedback-test.mjs` adds a BUG-123 regression case: vote missed → fire `today:memory-ready` with `ready:false` + clear outcomes → call `_reflectionBackupFields()` → assert storage still has the missed record; assert backup export also preserves it; restore readiness → assert vote still there.
 
-**Status:** fix shipped v2.98.3; awaiting real-device verification. `_reflectionMergeRemote` gap tracked below.
+**Follow-up (local v2.100.0):** incoming feedback now merges with explicit source readiness. While evidence is incomplete, valid bounded records/revisions are retained without interpreting missing outcome versions as withdrawal. Consent/generation, clear watermarks and retention/caps remain live; natural expiry still strips prose/support. Readiness reconciles against the completed source snapshot, removing true edits/withdrawal. Unit and actual-browser reproductions fail before the change and pass afterward; real Dropbox merge and manual Restore preserve supported misses. Source withdrawal and deletion before readiness remain covered. No new persisted queue or backup fields.
+
+**Status:** initial fix shipped v2.98.3; incoming-merge follow-up implemented locally in v2.100.0, awaiting release and installed verification.
 
 ---
 
