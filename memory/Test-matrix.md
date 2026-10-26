@@ -275,7 +275,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 4.6 | **SYNC: Check/uncheck rapid toggle** | Final state correct |
 | 4.7 | **BUG-055: Second-device first-open** — tasks checked on device A today, device B opens for first time | Done tasks stay in TODAY, not moved to PAST (fix v2.30.1 — `today_checked_ids` timestamps distinguish today vs yesterday) |
 
-### 5. Stats & Memory (18 tests)
+### 5. Stats & Memory (19 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -297,6 +297,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 5.16 | Inline suggestion generation finishes while its task is off-screen, then the list re-renders and the task enters view | No row/offer/exposure before entry; pending delivery re-anchors by task ID; entry mounts and measures it; replacement/removal cancels; reason outcomes still learn and sync |
 | 5.17 | Manual task has more completed pomodoros on one device; sync an older copy, including a concurrent Today/Soon/Past move (BUG-124) | Higher count/newest activity survive independently of the winning zone; incoming higher progress updates storage and badge; stale remote is healed; converged copies stay quiet. Full/partial focus queues backup without another edit. `dropbox-test` and `focus-test` automate fictional coverage; installed two-device acceptance remains open. |
 | 5.18 | Post-add split has a transient request/body failure, or capture happens offline/just before hiding (BUG-129) | Actual Add/proxy/fake-upstream and reconnect/foreground tests (post-add fixture responses/counts exclude unrelated writers sharing the proxy): latest unchanged task can recover within two minutes, twelve-second deadline, one retry after five seconds. Edit/delete/check/move/key/new capture/expiry fences; permanent/invalid/abstained/suppressed output stays terminal; failures never become ignored votes. Installed delivery acceptance remains open. |
+| 5.19 | Post-add index-only split, malformed/legacy replies, or task changes after offer (15F / BUG-131) | Real Add/proxy/mobile keyboard: two/three complete English action clauses become exact source-authored tasks with tag/case/spacing/punctuation intact. Reject missing/duplicate/reordered/out-of-range indices, mixed invented text, legacy paraphrases, single-task/implied-workflow/object controls. Recheck offer/source/undone Today owner at Apply; edit/check/move cannot lose data or create a false miss. Recovery/frequency/outcomes stay unchanged. |
 
 ### 6. Trello (9 tests)
 

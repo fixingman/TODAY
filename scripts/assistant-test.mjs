@@ -67,9 +67,9 @@ browser = await puppeteer.launch({
   args: ['--no-first-run', '--disable-extensions'],
 });
 
-async function openPage(extraSeed) {
+async function openPage(extraSeed, viewport = { width:1200, height:900 }) {
   const page = await browser.newPage();
-  await page.setViewport({ width: 1200, height: 900 });
+  await page.setViewport(viewport);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.evaluateOnNewDocument(
@@ -107,8 +107,8 @@ const recoveryText = 'Ask Rowan about garden care and collect the parcel';
 const recoveryReply = { suggest:true, type:'break_down', reason:'multiple_actions',
   message:'Two separate actions', subtasks:['Ask Rowan about garden care', 'Collect the parcel'] };
 
-async function recoveryPage() {
-  const result = await openPage();
+async function recoveryPage(viewport) {
+  const result = await openPage(undefined,viewport);
   await result.page.evaluate(() => {
     localStorage.setItem('today_ai_provider', 'claude');
     localStorage.setItem('today_ai_key_claude', 'fictional-test-key');
@@ -142,13 +142,13 @@ async function recoveryPage() {
   return result;
 }
 
-async function captureRecoveryTask(page) {
-  await page.focus('#newTask'); await page.type('#newTask', recoveryText); await page.keyboard.press('Enter');
+async function captureRecoveryTask(page, text = recoveryText) {
+  await page.focus('#newTask'); await page.type('#newTask', text); await page.keyboard.press('Enter');
   await page.evaluate(text => {
     window.__recoveryTaskId = manualTasks.findLast(t => t.text === text).id;
     document.querySelector(`[data-taskid="${CSS.escape(window.__recoveryTaskId)}"]`)?.scrollIntoView({ block:'center' });
     window.__advanceAssistant(2000);
-  }, recoveryText);
+  }, text);
 }
 
 try {
@@ -351,7 +351,7 @@ try {
         return {
           taskRemoved:    !manualTasks.find(t => t.id === 'task_1'),
           subtasksAdded:  manualTasks.filter(t =>
-            ['Write the draft', 'Add examples', 'Review references'].includes(t.text)
+            ['Write the draft', 'add examples', 'review references'].includes(t.text)
           ).length === 3,
           countCorrect:   manualTasks.length === prevCount - 1 + 3,
           appliedRecorded: !!outcome?.appliedAt && outcome?.outcome === 'applied',
@@ -385,7 +385,7 @@ try {
         document.querySelector('.task-suggestion-chip:not(.dismiss)')?.click();
         const texts = manualTasks.map(t => t.text);
         return {
-          tagCopied: texts.includes('docs: Write the outline') && texts.includes('docs: Fill in the details'),
+          tagCopied: texts.includes('docs: Write the outline') && texts.includes('docs: fill in the details'),
           noDoublePrefixOnPreTagged: (() => {
             const t = 'work: Already tagged';
             const r = /^[a-z0-9]{1,12}:\s+/i;
@@ -601,6 +601,82 @@ try {
       await page.close();
     }
     ok('retry owner fences: edit/delete/check/move/key/expiry/new capture prevent old requests and stale callback side effects');
+
+    // Real Add -> proxy -> index-only reply -> explicit application of exact source text.
+    for (const fixture of [
+      {task:'Install  the shelves and paint the wall.',parts:['Install  the shelves','paint the wall.']},
+      {task:'Translate the document and send it',parts:['Translate the document','send it']},
+      {task:'docs: Scan the contract, sign it, and send it',parts:['docs: Scan the contract','docs: sign it','docs: send it']},
+    ]) {
+      const {page,errors}=await recoveryPage({width:390,height:844,isMobile:true,hasTouch:true});
+      const requests=[];
+      upstreamFixture=async (_url,options)=>{
+        requests.push(JSON.parse(options.body));
+        return{ok:true,text:async()=>JSON.stringify({content:[{type:'text',text:JSON.stringify({
+          suggest:true,type:'break_down',reason:'multiple_actions',message:'Separate actions',
+          action_indices:fixture.parts.map((_,i)=>i),
+        })}]})};
+      };
+      await captureRecoveryTask(page,fixture.task);
+      await page.waitForSelector('.task-suggestion-chip:not(.dismiss)');
+      {
+        const input=requests[0].messages[0].content;
+        await expectAll('source-index task-only input',{oneCall:requests.length===1,
+          taskOnly:input.includes(JSON.stringify(fixture.task))&&!input.includes('Second task')&&!input.includes('Existing tasks:'),
+          candidates:input.includes('Candidate action clauses'),
+          noOriginalMutation:await page.evaluate(()=>manualTasks.some(t=>t.id===window.__recoveryTaskId)),
+        });
+      }
+      await page.focus('.task-suggestion-chip:not(.dismiss)');await page.keyboard.press('Enter');
+      const result=await page.evaluate(expected=>({
+        exactSource:expected.every(text=>manualTasks.some(t=>t.text===text)),
+        oldRemoved:!manualTasks.some(t=>t.id===window.__recoveryTaskId),
+        applicationRecorded:appMemory.suggestionOutcomes[0]?.resultTaskIds.length===expected.length&&!!appMemory.suggestionOutcomes[0]?.appliedAt,
+      }),fixture.parts);
+      await expectAll('source-index split: '+fixture.task,{...result,noErrors:!errors.length});
+      await page.close();upstreamFixture=null;
+    }
+    ok('source-index replies survive the actual proxy; mobile keyboard application keeps exact source wording, case, punctuation and tag');
+
+    for(const reply of [
+      {action_indices:[1,0]},{action_indices:[0,0]},{action_indices:[0,2]},
+      {action_indices:[0,1,2]},{action_indices:['0',1]},
+      {action_indices:[0,1],subtasks:['Buy supplies','Clean brushes']},
+      {subtasks:['Fit shelves','Repaint the wall']},
+    ]) {
+      const {page,errors}=await recoveryPage();
+      await page.evaluate(reply=>{
+        window.__indexCalls=0;
+        window.__setAssistantFetch(async()=>{window.__indexCalls++;return{ok:true,json:async()=>({suggest:true,type:'break_down',reason:'multiple_actions',message:'Separate actions',...reply})};});
+      },reply);
+      await captureRecoveryTask(page,'Install shelves and paint the wall');
+      await page.waitForFunction(()=>window.__indexCalls===1&&!window.__assistantTimers().includes(12000));
+      await expectAll('invalid/mixed split protocol',await page.evaluate(()=>({
+        noOffer:!document.querySelector('.task-suggestion:not(.removing)'),noRecordedOffer:appMemory.suggestionOutcomes.length===0,
+        sourceKept:manualTasks.some(t=>t.id===window.__recoveryTaskId),
+      })));
+      await expectAll('invalid protocol errors',{noErrors:!errors.length});await page.close();
+    }
+    ok('invalid indices, mixed invented text and legacy paraphrases remain terminal without losing the source task');
+
+    // A displayed split cannot replace a task edited after analysis.
+    for(const change of ['rename','complete','move']) {
+      const {page,errors}=await recoveryPage();
+      await page.evaluate(reply=>window.__setAssistantFetch(async()=>({ok:true,json:async()=>reply})),recoveryReply);
+      await captureRecoveryTask(page);await page.waitForSelector('.task-suggestion-chip:not(.dismiss)');
+      const result=await page.evaluate(change=>{
+        const id=window.__recoveryTaskId,task=manualTasks.find(t=>t.id===id);
+        if(change==='rename')task.text='A changed fictional commitment';
+        if(change==='complete')doneIds.add(id);
+        if(change==='move'){manualTasks=manualTasks.filter(t=>t.id!==id);soonTasks.push(task);}
+        document.querySelector('.task-suggestion-chip:not(.dismiss)').click();
+        return{sourceRetained:[...manualTasks,...soonTasks].some(t=>t.id===id),
+          noAppliedOutcome:!appMemory.suggestionOutcomes.some(o=>o.appliedAt),
+          noFalseMiss:!appMemory.suggestionOutcomes.some(o=>o.dismissedAt||o.ignoredAt)};
+      },change);
+      await expectAll('split source still current at apply',{...result,noErrors:!errors.length});
+      await page.close();
+    }
 
     // 4. Static wiring: live API remains; the unreachable sheet is fully absent.
     {

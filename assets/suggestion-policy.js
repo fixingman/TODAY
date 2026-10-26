@@ -18,16 +18,15 @@
       .toLowerCase();
   }
 
-  // A post-add split replaces the original task. Accept only actions the person
-  // actually wrote, not plausible preparatory steps invented by the model.
+  // Source-only splits; no implied preparation or workflow.
   const splitVerbs = new Set([
-    'add', 'apply', 'arrange', 'ask', 'book', 'build', 'buy', 'call', 'cancel',
+    'add', 'apply', 'arrange', 'ask', 'bake', 'book', 'build', 'buy', 'call', 'cancel',
     'check', 'clean', 'collect', 'compare', 'confirm', 'contact', 'create',
-    'draft', 'edit', 'email', 'file', 'fill', 'finish', 'fix', 'gather', 'get',
-    'invite', 'make', 'message', 'order', 'organize', 'pack', 'pay', 'pick',
+    'deliver', 'design', 'draft', 'draw', 'edit', 'email', 'export', 'file', 'fill', 'finish', 'fix', 'gather', 'get',
+    'install', 'invite', 'make', 'message', 'order', 'organize', 'pack', 'paint', 'pay', 'pick',
     'plan', 'prepare', 'print', 'read', 'register', 'renew', 'reply', 'research',
-    'reserve', 'return', 'review', 'schedule', 'send', 'set', 'shop', 'sort',
-    'submit', 'text', 'update', 'upload', 'visit', 'wash', 'write',
+    'remove', 'repair', 'replace', 'reserve', 'return', 'review', 'scan', 'schedule', 'send', 'set', 'shop', 'sign', 'sort',
+    'submit', 'text', 'translate', 'update', 'upload', 'visit', 'wash', 'write',
   ]);
 
   function splitWords(text) {
@@ -35,19 +34,29 @@
       .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
   }
 
-  function groundedBreakdown(taskText, subtasks) {
-    if (!Array.isArray(subtasks) || subtasks.length < 2 || subtasks.length > 3) return false;
-    const clauses = normalizeTaskText(taskText)
-      .split(/\s*(?:[,;]|\band\b|\bthen\b|&)\s*/i)
-      .map(splitWords).filter(Boolean);
-    if (clauses.length !== subtasks.length) return false;
-    if (!clauses.every(clause => {
-      const words = clause.split(' ');
+  function splitActions(taskText) {
+    const clauses = String(taskText || '').replace(/^[a-z0-9]{1,12}:\s+/i, '').trim()
+      .split(/\s*(?:[,;]|\band\b|\bthen\b|&)\s*/i).map(text => text.trim()).filter(Boolean);
+    return clauses.length >= 2 && clauses.length <= 3 && clauses.every(clause => {
+      const words = splitWords(clause).split(' ');
       return words.length >= 2 && splitVerbs.has(words[0]);
-    })) return false;
-    return subtasks.every((subtask, i) =>
-      typeof subtask === 'string' && splitWords(subtask) === clauses[i]
-    );
+    }) ? clauses : [];
+  }
+
+  function groundedBreakdown(taskText, subtasks) {
+    const clauses = splitActions(taskText);
+    return Array.isArray(subtasks) && clauses.length >= 2 && clauses.length === subtasks.length
+      && clauses.every((clause,i) => typeof subtasks[i] === 'string' && splitWords(subtasks[i]) === splitWords(clause));
+  }
+
+  function resolveBreakdown(taskText, data) {
+    const clauses = splitActions(taskText);
+    if (Object.hasOwn(data, 'action_indices')) {
+      return clauses.length && Array.isArray(data.action_indices) && !data.subtasks?.length
+        && data.action_indices.length === clauses.length && clauses.every((_,i) => data.action_indices[i] === i)
+        ? clauses : null;
+    }
+    return groundedBreakdown(taskText, data.subtasks) ? clauses : null;
   }
 
   function reason(data, taskText) {
@@ -116,6 +125,8 @@
     reasons,
     normalizeTaskText,
     groundedBreakdown,
+    splitActions,
+    resolveBreakdown,
     reason,
     stats,
     stableBucket,
