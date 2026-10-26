@@ -942,4 +942,19 @@ const IDLE_CHECK_INTERVAL = 5000;  // check every 5 seconds
 
 The creature is a `position: fixed` div with `pointer-events: none` — it never interferes with the app.
 
+---
 
+## Poem Share history (archived from Components.md, Oct 2026)
+
+`#poemShareBtn` — eight rounds of iteration on Can's real-use feedback (v2.40.2–v2.64.10):
+
+- **v2.40.2 — color/weight:** borrowed the app's text-link convention (`.config-hint a` — `var(--highlight-ui)`, hover-underline), right for navigational links but loud next to a contemplative poem.
+- **v2.40.3–v2.40.4 — hover-reveal + `.task-copy` mirroring, reverted:** five concrete regressions: accent line sized as % of box height → visually heavy against multi-line poem; `opacity: 0` hiding reserved layout space; `muted → text` hover color nearly imperceptible at 45% opacity; corner position didn't match `.panel-haiku`; trigger moved out of normal flow shifted the native `navigator.share()` popover anchor.
+- **v2.40.5 — reverted to simple, but too simple:** always-visible, centered, in normal flow. Fixed the five regressions but Can wanted the interaction back correctly — "`.task-copy`'s influence without the bugs."
+- **v2.40.6 — settled, exact spec:** four literal requirements: (1) poem text highlights on hover; (2) share label on the right like `.task-copy`; (3) label invisible unless hovering the poem; (4) clicking anywhere on the poem opens share. Simplified reference — no bounding box / background-fill (poem isn't draggable). Permanent `padding-right: 44px` gutter on `.poem-block` prevents layout shift; whole block is click target via `role="button"` + click/Enter/Space; label is a plain `<span>`.
+- **v2.40.7 — true property parity + share-sheet anchor attempt:** diffed every property/state against `.task-copy` and matched them. Separately: theory that focusing the label before `navigator.share()` would bias the popover anchor — gave label `tabindex="-1"` and called `.focus()` first. Required real-device confirmation.
+- **v2.40.8 — click feedback + anchor theory falsified:** missing `.clicked` feedback because `navigator.share()` branch returns immediately (promise resolves only after OS sheet dismissed) — every headless test had stubbed it to undefined, hitting clipboard fallback only. Fixed with synchronous `.clicked` class before either branch. The focus/anchor theory was directly falsified by real-device testing — popover position unchanged across all structural variations; entirely OS/browser-controlled. Removed the disproven `.focus()` call and purposeless `tabindex="-1"`. Share-sheet popover position complaint left open.
+- **v2.42.0 — two-tap touch:** `_onPoemTap()` branches on `matchMedia('(hover: hover)')` — desktop single-tap shares; touch toggles `.revealed` on first tap, shares on second. Document-level listener collapses `.revealed` on outside taps. Deliberately doesn't collapse after sharing — `.clicked` feedback needs the label visible.
+- **v2.63.2 → v2.64.10 — unified About actions:** v2.63.2 flattened poem share to match unbordered `see more`; Can later chose the stronger reference — both About controls use the actual `.copy-cta` component including bordered hover/click affordance.
+- **v2.64.12 — permalink availability guard:** corpus parsing accepts real file's leading comments and validates before use; invalid/unavailable corpus falls through to static page.
+- **v2.97.1 — saved poem image redesigned:** `poem.html` → save as image → 1080×1350 PNG. ≤3 rendered lines: centred poster; 4+: left axis at 120px. 22px lime star leads; `— Name` in `--color-muted`; Syne 800 TODAY wordmark at foot. DM Mono 400 sized 52→32px to longest line. Fonts explicitly loaded before draw.
